@@ -2,6 +2,7 @@
 // Import using the relative path from this file (root).
 // Path from this file (in `js/`) to the shared client under `public/shared/js`.
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
 
 // Tally Stock Item Mapping - client-side logic
 // This module powers the UI defined in `manage-tally-mapping.html`.
@@ -1229,6 +1230,7 @@ window.tallyMapping = {
 document.addEventListener("DOMContentLoaded", () => {
   const home = document.getElementById("homeBtn");
   if (home) {
+    mountModuleHome(home);
     home.addEventListener("click", () => {
       window.location.href = "index.html";
     });

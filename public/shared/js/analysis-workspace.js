@@ -5210,10 +5210,10 @@ async function openIssuedCoaForAnalysis(aid) {
 // ── Module access check ─────────────────────────────────────────────────────────
 /**
  * Returns true if the user is permitted to view this module.
- * Matches the same two-tier pattern used by lab-analysis-queue:
+ * Matches the canonical permission pattern:
  *   1. get_user_permissions RPC (target: "module:<MODULE_ID>")
- *   2. fallback: user_permissions table direct query
- *   3. default allow when both fail (fail-open for permissions fetch errors)
+ *   2. fallback: user_permissions_canonical by canonical target
+ *   3. deny when both fail or no grant exists (fail closed)
  */
 async function checkModuleAccess(userId) {
   try {
@@ -5223,6 +5223,7 @@ async function checkModuleAccess(userId) {
     if (!error && Array.isArray(perms)) {
       const entry = perms.find((r) => r?.target === `module:${MODULE_ID}`);
       if (entry) return !!entry.can_view;
+      return false;
     }
   } catch {
     /* fallthrough */
@@ -5237,10 +5238,10 @@ async function checkModuleAccess(userId) {
       .limit(1);
     if (Array.isArray(rows) && rows.length) return !!rows[0].can_view;
   } catch {
-    /* allow access */
+    /* deny */
   }
 
-  return true; // default allow if permission fetch fails
+  return false;
 }
 
 // ── Authenticate user ───────────────────────────────────────────────────────────

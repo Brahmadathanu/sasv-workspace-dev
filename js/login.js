@@ -1,5 +1,6 @@
 // js/login.js
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { svgIcon } from "../public/shared/js/ui-icons.js";
 
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
@@ -63,14 +64,8 @@ async function showLoadingTransition() {
     { label: "Preparing workspace", delay: 1440 },
   ];
 
-  // Brand icon: a minimal grid mark that matches the ERP feel
-  const iconSvg = `<svg width="17" height="17" viewBox="0 0 17 17" fill="none"
-      xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect x="1" y="1" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.9)"/>
-    <rect x="10" y="1" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.9)"/>
-    <rect x="1" y="10" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.9)"/>
-    <rect x="10" y="10" width="6" height="6" rx="1.5" fill="rgba(255,255,255,0.55)"/>
-  </svg>`;
+  const brandMarkSrc =
+    "public/shared/assets/branding/derived/app-mark-512.png";
 
   const stepItems = steps
     .map(
@@ -87,7 +82,7 @@ async function showLoadingTransition() {
     "beforeend",
     `<div class="lsp-wrap" role="status" aria-live="polite" aria-label="Signing in">
       <div class="lsp-brand">
-        <div class="lsp-brand-icon">${iconSvg}</div>
+        <div class="lsp-brand-icon"><img src="${brandMarkSrc}" alt="" width="32" height="32" /></div>
         <div>
           <div class="lsp-brand-text">SASV Workspace</div>
           <div class="lsp-brand-sub">${versionLabel}</div>
@@ -123,11 +118,10 @@ async function showLoadingTransition() {
 
 function setEyeIcon(showing) {
   if (!togglePwdBtn) return;
-  const eyeOpen =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
-  const eyeOff =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-6 0-10-8-10-8a21.77 21.77 0 0 1 5.06-6.94"/><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c6 0 10 8 10 8a21.87 21.87 0 0 1-3.13 4.7"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-  togglePwdBtn.innerHTML = showing ? eyeOff : eyeOpen;
+  togglePwdBtn.innerHTML = svgIcon(showing ? "eye-off" : "eye", {
+    size: 20,
+    strokeWidth: 1.8,
+  });
 }
 
 async function checkSession() {
@@ -207,20 +201,11 @@ async function signIn() {
             }
           }
         } else {
-          // fallback to legacy table if RPC unavailable
-          try {
-            const { data: perms2 } = await supabase
-              .from("user_permissions")
-              .select("module_id,can_view,can_edit,can_delete")
-              .eq("user_id", user.id);
-            (perms2 || []).forEach((p) => {
-              if (p.can_view) permissions.push(`${p.module_id}:view`);
-              if (p.can_edit) permissions.push(`${p.module_id}:edit`);
-              if (p.can_delete) permissions.push(`${p.module_id}:delete`);
-            });
-          } catch (permErr) {
-            console.warn("Could not load permissions:", permErr);
-          }
+          // Canonical RPC unavailable — leave permissions empty (fail closed).
+          console.warn(
+            "Could not load permissions (RPC):",
+            permsErr || "unexpected non-array result",
+          );
         }
       } catch (permErr) {
         console.warn("Could not load permissions (RPC):", permErr);

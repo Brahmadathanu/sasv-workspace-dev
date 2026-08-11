@@ -629,14 +629,28 @@ export function openDetailModal(payload) {
     if (a.tooltip) btn.title = a.tooltip;
     if (a.enabled === false) btn.disabled = true;
 
-    // Apply appropriate button classes based on label
+    // Apply appropriate button classes based on label / optional variant
     btn.className = "mrp-btn";
     const label = (a.label || "").toLowerCase();
-    if (label.includes("save") || label.includes("submit")) {
+    const variant = String(a.variant || a.role || "").toLowerCase();
+    if (
+      variant === "primary" ||
+      label.includes("save") ||
+      label.includes("submit") ||
+      label.includes("rebuild")
+    ) {
       btn.className += " mrp-btn-primary";
-    } else if (label.includes("delete") || label.includes("remove")) {
+    } else if (
+      variant === "danger" ||
+      label.includes("delete") ||
+      label.includes("remove")
+    ) {
       btn.className += " mrp-btn-danger";
-    } else if (label.includes("cancel") || label.includes("close")) {
+    } else if (
+      variant === "ghost" ||
+      label.includes("cancel") ||
+      label.includes("close")
+    ) {
       btn.className += " mrp-btn-ghost";
     } else if (label.includes("edit")) {
       btn.className += " mrp-btn-secondary";

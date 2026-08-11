@@ -1,11 +1,12 @@
 <!doctype html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pricing Policy Manager</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
-    <style>
+    <link rel="stylesheet" href="../shared/css/sasv-costing.css" />
+<style>
       :root {
         --cp-fw-body: 400;
         --cp-fw-muted: 500;
@@ -45,12 +46,7 @@
         margin: 0;
         overflow: hidden;
         box-sizing: border-box;
-        font-family:
-          system-ui,
-          Segoe UI,
-          Roboto,
-          Arial,
-          sans-serif;
+        /* font from sasv-costing / Inter via style.css */
       }
       body {
         display: flex;
@@ -83,7 +79,7 @@
       }
       .page-header h1 {
         margin: 0;
-        color: var(--primary);
+        color: var(--sasv-text, var(--text, #0f172a));
         font-weight: var(--cp-fw-heading);
       }
       .page-sub {
@@ -120,13 +116,13 @@
         cursor: pointer;
       }
       .icon-btn.costing-refresh-dirty {
-        border-color: #d97706;
-        color: #b45309;
-        background: #fffbeb;
-        box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.18);
+        border-color: var(--sasv-warning-border);
+        color: var(--sasv-warning);
+        background: var(--sasv-warning-bg);
+        box-shadow: 0 0 0 2px var(--sasv-focus-ring);
       }
       .icon-btn:hover {
-        background: #f3f4f6;
+        background: var(--sasv-surface-soft, #f3f4f6);
       }
       .icon-btn:disabled {
         opacity: 0.55;
@@ -139,15 +135,15 @@
         width: 30px;
         height: 30px;
         padding: 0;
-        border-color: #fecaca;
-        background: #fef2f2;
-        color: #991b1b;
+        border-color: var(--sasv-danger-border);
+        background: var(--sasv-danger-bg);
+        color: var(--sasv-danger);
       }
       .icon-btn.cp-danger-icon-btn:hover,
       .icon-btn.cp-danger-icon-btn:focus-visible {
-        background: #fee2e2;
-        border-color: #fca5a5;
-        color: #7f1d1d;
+        background: color-mix(in srgb, var(--sasv-danger) 14%, #fff);
+        border-color: var(--sasv-danger-border);
+        color: var(--sasv-danger);
       }
       .icon-btn.cp-danger-icon-btn svg {
         stroke: currentColor;
@@ -238,10 +234,10 @@
         width: 100%;
       }
       .kpi {
-        background: linear-gradient(180deg, var(--panel-bg), var(--panel-bg));
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        background: var(--sasv-surface, var(--panel-bg));
+        border: 1px solid var(--sasv-border, rgba(0, 0, 0, 0.06));
         padding: 5px 8px;
-        border-radius: 7px;
+        border-radius: var(--sasv-radius-sm, 7px);
         min-width: 0;
         display: flex;
         flex-direction: row;
@@ -283,48 +279,28 @@
         border-color: rgba(15, 23, 42, 0.12);
       }
       .cp-kpi-action:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-control-border-focus);
         outline-offset: 2px;
       }
       .kpi.total {
-        border-left: 3px solid #2563eb;
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.06),
-          rgba(37, 99, 235, 0.02)
-        );
+        border-left: 3px solid var(--sasv-action-primary);
+        background: var(--sasv-action-primary-soft);
       }
       .kpi.ready {
-        border-left: 3px solid #16a34a;
-        background: linear-gradient(
-          135deg,
-          rgba(22, 163, 74, 0.07),
-          rgba(22, 163, 74, 0.02)
-        );
+        border-left: 3px solid var(--sasv-success);
+        background: var(--sasv-success-bg);
       }
       .kpi.review {
-        border-left: 3px solid #f59e0b;
-        background: linear-gradient(
-          135deg,
-          rgba(245, 158, 11, 0.07),
-          rgba(245, 158, 11, 0.02)
-        );
+        border-left: 3px solid var(--sasv-warning);
+        background: var(--sasv-warning-bg);
       }
       .kpi.blocked {
-        border-left: 3px solid #ef4444;
-        background: linear-gradient(
-          135deg,
-          rgba(239, 68, 68, 0.07),
-          rgba(239, 68, 68, 0.02)
-        );
+        border-left: 3px solid var(--sasv-danger);
+        background: var(--sasv-danger-bg);
       }
       .kpi.scheme {
-        border-left: 3px solid #4f46e5;
-        background: linear-gradient(
-          135deg,
-          rgba(79, 70, 229, 0.07),
-          rgba(79, 70, 229, 0.02)
-        );
+        border-left: 3px solid var(--sasv-info);
+        background: var(--sasv-info-bg);
       }
       @media (max-width: 800px) {
         .kpi-strip {
@@ -439,30 +415,28 @@
         .cp-pricing-meta-chrome {
           flex-wrap: wrap;
         }
-        #search {
-          min-width: 0;
-        }
       }
       #search {
-        background: #e6f7ff;
-        border-color: rgba(14, 165, 233, 0.35);
-        padding-right: 38px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        border: 1px solid var(--border, #e5e7eb);
-        font-weight: 400;
+        background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+        border: 1px solid var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+        padding: 8px 38px 8px 10px;
+        border-radius: var(--sasv-radius-sm, 6px);
+        font-weight: var(--sasv-fw-regular, 400);
         width: 100%;
         box-sizing: border-box;
+        min-height: var(--sasv-control-md, 36px);
+        color: var(--sasv-text, inherit);
       }
       #search::placeholder {
-        font-weight: 400;
-        color: var(--muted, #6b7280);
+        font-weight: var(--sasv-fw-regular, 400);
+        color: var(--sasv-text-muted, var(--muted, #6b7280));
         opacity: 0.9;
       }
       #search:focus {
         outline: none;
-        border-color: var(--erp-accent-2, #0ea5e9);
-        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
+        border-color: var(--sasv-control-border-focus, var(--sasv-action-primary));
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+        background: var(--sasv-control-bg, #fff);
       }
       .input-clear-btn {
         position: absolute;
@@ -502,18 +476,20 @@
       }
       .peq-filter-btn:hover,
       .peq-filter-btn:focus-visible {
-        background: var(--erp-hover, #f3f4f6);
-        border-color: var(--erp-accent, #2563eb);
-        color: var(--erp-accent, #2563eb);
+        background: var(--sasv-surface-soft, var(--erp-hover, #f3f4f6));
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
         outline: none;
       }
       .peq-filter-btn--active {
-        background: #eff6ff;
-        border-color: #bfdbfe;
-        color: #2563eb;
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
       }
       .peq-filter-btn--active:hover {
-        background: #dbeafe;
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
       }
       .peq-filter-badge {
         position: absolute;
@@ -523,8 +499,8 @@
         height: 14px;
         padding: 0 3px;
         border-radius: 999px;
-        background: #2563eb;
-        color: #fff;
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
         font-size: 9px;
         font-weight: var(--cp-fw-heading);
         line-height: 14px;
@@ -609,7 +585,7 @@
       .peq-filter-checklist input[type="checkbox"] {
         width: 14px;
         height: 14px;
-        accent-color: #2563eb;
+        accent-color: var(--sasv-action-primary-active);
         cursor: pointer;
         flex-shrink: 0;
       }
@@ -640,12 +616,8 @@
         display: flex;
         gap: 8px;
         padding: 8px;
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.05),
-          rgba(37, 99, 235, 0.02)
-        );
-        border: 1px solid var(--erp-border, var(--border, #e5e7eb));
+        background: var(--sasv-surface-soft, var(--panel-bg, #f8fafc));
+        border: 1px solid var(--sasv-border, var(--erp-border, var(--border, #e5e7eb)));
         border-radius: 10px;
         align-items: center;
         overflow-x: auto;
@@ -700,24 +672,24 @@
       }
       .cp-pricing-direct-workspace-tab:hover {
         color: var(--erp-text, #0f172a);
-        background: rgba(37, 99, 235, 0.06);
-        border-color: rgba(37, 99, 235, 0.14);
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
       }
       .cp-pricing-direct-workspace-tab:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-control-border-focus);
         outline-offset: 1px;
       }
       .cp-pricing-direct-workspace-tab.active,
       .cp-pricing-direct-workspace-tab[aria-selected="true"] {
-        color: #fff;
-        background: var(--erp-accent, var(--primary, #2563eb));
-        border-color: var(--erp-accent, var(--primary, #2563eb));
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+        color: var(--sasv-action-primary-active);
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
         font-weight: var(--cp-fw-heading);
       }
       [data-theme="dark"] .cp-pricing-direct-workspace-tab.active,
       [data-theme="dark"] .cp-pricing-direct-workspace-tab[aria-selected="true"] {
-        color: #fff;
+        color: var(--sasv-action-primary-active);
       }
       /* ERP purpose tip — above tab so horizontal strip scroll does not clip it */
       @media (hover: hover) and (pointer: fine) {
@@ -806,17 +778,19 @@
         transition: all 0.16s ease;
         white-space: nowrap;
         line-height: 1.2;
+        box-shadow: none;
       }
       .lens-pills .pill:hover {
-        color: var(--erp-text, #0f172a);
-        background: rgba(37, 99, 235, 0.05);
-        border-color: rgba(37, 99, 235, 0.12);
+        color: var(--sasv-text, var(--erp-text, #0f172a));
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
       }
       .lens-pills .pill.active {
-        color: #fff;
-        background: var(--erp-accent, var(--primary, #2563eb));
-        border-color: var(--erp-accent, var(--primary, #2563eb));
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+        color: var(--sasv-action-primary-active);
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
         font-weight: var(--cp-fw-heading);
       }
       @media (max-width: 520px) {
@@ -854,11 +828,11 @@
           padding: 10px 42px 10px 12px;
           min-height: 44px;
           border-radius: 8px;
-          border: 1px solid var(--erp-accent, #2563eb);
+          border: 1px solid var(--sasv-action-primary);
           background: linear-gradient(
             135deg,
-            rgba(37, 99, 235, 0.12),
-            rgba(37, 99, 235, 0.06)
+            var(--sasv-action-primary-soft-border),
+            var(--sasv-action-primary-soft)
           );
           color: #0f172a;
           font-weight: var(--cp-fw-label);
@@ -876,7 +850,7 @@
           height: 18px;
           pointer-events: none;
           display: block;
-          color: var(--erp-accent, #2563eb);
+          color: var(--sasv-action-primary);
         }
         #homeBtn .home-label {
           display: none;
@@ -951,15 +925,15 @@
         border-radius: 999px;
       }
       .generic-table-meta-actions .icon-btn.icon-btn-primary {
-        background: color-mix(in srgb, var(--primary, #2563eb) 16%, #fff);
-        border-color: color-mix(in srgb, var(--primary, #2563eb) 34%, #fff);
-        color: var(--primary, #2563eb);
+        background: color-mix(in srgb, var(--sasv-action-primary) 16%, #fff);
+        border-color: color-mix(in srgb, var(--sasv-action-primary) 34%, #fff);
+        color: var(--sasv-action-primary-active, var(--primary));
       }
       .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
       .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
-        background: color-mix(in srgb, var(--primary, #2563eb) 24%, #fff);
-        border-color: color-mix(in srgb, var(--primary, #2563eb) 48%, #fff);
-        color: var(--primary, #2563eb);
+        background: color-mix(in srgb, var(--sasv-action-primary) 24%, #fff);
+        border-color: color-mix(in srgb, var(--sasv-action-primary) 48%, #fff);
+        color: var(--sasv-action-primary-active);
       }
       .generic-table-meta-actions .icon-btn.icon-btn-primary svg {
         display: block;
@@ -1010,7 +984,7 @@
         cursor: pointer;
       }
       tr.clickable:hover {
-        background: rgba(37, 99, 235, 0.045);
+        background: var(--sasv-action-primary-soft);
       }
       .lane-col {
         width: 6px;
@@ -1022,19 +996,19 @@
         width: 5px;
         min-height: 28px;
         border-radius: 6px;
-        background: #6b7280;
+        background: var(--sasv-text-muted, #6b7280);
       }
       .lane.ready {
-        background: #16a34a;
+        background: var(--sasv-success);
       }
       .lane.review {
-        background: #f59e0b;
+        background: var(--sasv-warning);
       }
       .lane.blocked {
-        background: #ef4444;
+        background: var(--sasv-danger);
       }
       .lane.scheme {
-        background: #4f46e5;
+        background: var(--sasv-info);
       }
       .c-center {
         text-align: center;
@@ -1225,7 +1199,7 @@
         width: 16px;
         height: 16px;
         border: 2px solid #d1d5db;
-        border-top-color: var(--primary, #2563eb);
+        border-top-color: var(--sasv-action-primary);
         border-radius: 50%;
         animation: cp-spin 0.75s linear infinite;
       }
@@ -1252,39 +1226,39 @@
       }
       .chip.green,
       .status-chip.green {
-        background: #ecfdf5;
-        border-color: #86efac;
-        color: #166534;
+        background: var(--sasv-success-bg);
+        border-color: var(--sasv-success-border);
+        color: var(--sasv-success);
       }
       .chip.amber,
       .status-chip.amber {
-        background: #fffbeb;
-        border-color: #fcd34d;
-        color: #92400e;
+        background: var(--sasv-warning-bg);
+        border-color: var(--sasv-warning-border);
+        color: var(--sasv-warning);
       }
       .chip.red,
       .status-chip.red {
-        background: #fef2f2;
-        border-color: #fca5a5;
-        color: #991b1b;
+        background: var(--sasv-danger-bg);
+        border-color: var(--sasv-danger-border);
+        color: var(--sasv-danger);
       }
       .chip.blue,
       .status-chip.blue {
-        background: #eff6ff;
-        border-color: #93c5fd;
-        color: #1d4ed8;
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
       }
       .chip.indigo,
       .status-chip.indigo {
-        background: #eef2ff;
-        border-color: #a5b4fc;
-        color: #3730a3;
+        background: var(--sasv-info-bg);
+        border-color: var(--sasv-info-border);
+        color: var(--sasv-info);
       }
       .chip.gray,
       .status-chip.gray {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
-        color: #475569;
+        background: var(--sasv-surface-soft);
+        border-color: var(--sasv-border);
+        color: var(--sasv-text-secondary);
       }
       #detailsModal .modal-content .status-chip,
       .modal-content .cp-audit-card-head .status-chip {
@@ -1316,9 +1290,9 @@
       }
       [data-theme="dark"] .status-chip.blue,
       [data-theme="dark"] .chip.blue {
-        background: #172554;
-        border-color: #1d4ed8;
-        color: #93c5fd;
+        background: color-mix(in srgb, var(--sasv-action-primary) 28%, #0f172a);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-soft);
       }
       [data-theme="dark"] .status-chip.indigo,
       [data-theme="dark"] .chip.indigo {
@@ -1519,18 +1493,18 @@
       }
       .cp-mrp-workspace-tab:hover {
         color: var(--text, #0f172a);
-        background: rgba(37, 99, 235, 0.06);
-        border-color: rgba(37, 99, 235, 0.18);
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
       }
       .cp-mrp-workspace-tab:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-control-border-focus);
         outline-offset: 1px;
       }
       .cp-mrp-workspace-tab.active,
       .cp-mrp-workspace-tab[aria-selected="true"] {
-        color: var(--primary, #2563eb);
-        background: rgba(37, 99, 235, 0.1);
-        border-color: rgba(37, 99, 235, 0.45);
+        color: var(--sasv-action-primary);
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
         font-weight: var(--cp-fw-heading);
       }
       [data-theme="dark"] .cp-mrp-workspace-tabs {
@@ -1585,18 +1559,18 @@
       }
       .cp-pricing-workspace-tab:hover {
         color: var(--text, #0f172a);
-        background: rgba(37, 99, 235, 0.06);
-        border-color: rgba(37, 99, 235, 0.18);
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
       }
       .cp-pricing-workspace-tab:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-control-border-focus);
         outline-offset: 1px;
       }
       .cp-pricing-workspace-tab.active,
       .cp-pricing-workspace-tab[aria-selected="true"] {
-        color: var(--primary, #2563eb);
-        background: rgba(37, 99, 235, 0.1);
-        border-color: rgba(37, 99, 235, 0.45);
+        color: var(--sasv-action-primary);
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
         font-weight: var(--cp-fw-heading);
       }
       [data-theme="dark"] .cp-pricing-workspace-tabs {
@@ -1686,11 +1660,11 @@
       }
       .cp-nested-subview-tab:hover {
         color: var(--text, #0f172a);
-        background: rgba(37, 99, 235, 0.06);
+        background: var(--sasv-action-primary-soft);
       }
       .cp-nested-subview-tab.active {
         color: #fff;
-        background: var(--erp-accent, var(--primary, #2563eb));
+        background: var(--sasv-action-primary);
       }
       .cp-nested-subview-select-wrap {
         display: none;
@@ -1725,7 +1699,7 @@
         bottom: 13px;
         width: 18px;
         height: 18px;
-        color: var(--erp-accent, var(--primary, #2563eb));
+        color: var(--sasv-action-primary);
         pointer-events: none;
       }
       .cp-mrp-filter-panel {
@@ -1777,17 +1751,17 @@
         cursor: pointer;
       }
       .cp-filter-disclosure-toggle:hover {
-        border-color: rgba(37, 99, 235, 0.35);
-        background: rgba(37, 99, 235, 0.04);
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
       }
       .cp-filter-disclosure-toggle:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-control-border-focus);
         outline-offset: 1px;
       }
       .cp-filter-disclosure-toggle[aria-expanded="true"] {
-        border-color: rgba(37, 99, 235, 0.45);
-        background: rgba(37, 99, 235, 0.08);
-        color: var(--primary, #2563eb);
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-action-primary);
       }
       .cp-filter-disclosure-badge {
         display: inline-flex;
@@ -1797,7 +1771,7 @@
         height: 18px;
         padding: 0 5px;
         border-radius: 999px;
-        background: var(--primary, #2563eb);
+        background: var(--sasv-action-primary);
         color: #fff;
         font-size: 11px;
         font-weight: var(--cp-fw-heading);
@@ -1821,21 +1795,21 @@
         max-width: 100%;
         min-height: 28px;
         padding: 3px 8px;
-        border: 1px solid rgba(37, 99, 235, 0.28);
+        border: 1px solid var(--sasv-action-primary-soft-border);
         border-radius: 999px;
-        background: rgba(37, 99, 235, 0.08);
-        color: var(--primary, #2563eb);
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-action-primary);
         font-size: 11.5px;
         font-weight: var(--cp-fw-label);
         line-height: 1.2;
         cursor: pointer;
       }
       .cp-active-filter-chip:hover {
-        background: rgba(37, 99, 235, 0.14);
-        border-color: rgba(37, 99, 235, 0.45);
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
       }
       .cp-active-filter-chip:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-control-border-focus);
         outline-offset: 1px;
       }
       .cp-active-filter-chip-label {
@@ -1856,17 +1830,17 @@
         border: none;
         border-radius: 6px;
         background: transparent;
-        color: var(--primary, #2563eb);
+        color: var(--sasv-action-primary);
         font-size: 12px;
         font-weight: var(--cp-fw-label);
         text-decoration: underline;
         cursor: pointer;
       }
       .cp-filter-clear-all:hover {
-        color: #1d4ed8;
+        color: var(--sasv-action-primary-active);
       }
       .cp-filter-clear-all:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-control-border-focus);
         outline-offset: 1px;
       }
       .cp-filter-disclosure-body {
@@ -2138,8 +2112,8 @@
         white-space: nowrap;
       }
       .cp-printable-section-row td {
-        background: rgba(37, 99, 235, 0.055);
-        color: var(--text, #0f172a);
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-text, var(--text, #0f172a));
         font-size: 12px;
         font-weight: var(--cp-fw-section);
         text-transform: uppercase;
@@ -2203,19 +2177,17 @@
       }
       .icon-btn.icon-btn-primary,
       button.icon-btn-primary {
-        background: var(--primary, #2563eb);
-        border-color: var(--primary, #2563eb);
-        color: #fff;
+        background: var(--sasv-action-primary);
+        border-color: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
       }
       .icon-btn.icon-btn-primary:hover,
       button.icon-btn-primary:hover,
       .icon-btn.icon-btn-primary:focus-visible,
       button.icon-btn-primary:focus-visible {
-        background: #1d4ed8;
-        background: color-mix(in srgb, var(--primary, #2563eb) 86%, #000);
-        border-color: #1d4ed8;
-        border-color: color-mix(in srgb, var(--primary, #2563eb) 86%, #000);
-        color: #fff;
+        background: var(--sasv-action-primary-hover);
+        border-color: var(--sasv-action-primary-hover);
+        color: var(--sasv-text-on-primary, #fff);
       }
       .icon-btn.icon-btn-primary svg,
       button.icon-btn-primary svg {
@@ -2223,24 +2195,24 @@
       }
       #costSheetPdfBtn.icon-btn.icon-btn-primary,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary {
-        background: var(--primary, #2563eb) !important;
-        border-color: var(--primary, #2563eb) !important;
+        background: var(--sasv-action-primary, var(--primary)) !important;
+        border-color: var(--sasv-action-primary, var(--primary)) !important;
         color: #fff !important;
       }
       #costSheetPdfBtn.icon-btn.icon-btn-primary:hover,
       #costSheetPdfBtn.icon-btn.icon-btn-primary:focus-visible,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:hover,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:focus-visible {
-        background: #1d4ed8 !important;
+        background: var(--sasv-action-primary-hover) !important;
         background: color-mix(
           in srgb,
-          var(--primary, #2563eb) 86%,
+          var(--sasv-action-primary) 86%,
           #000
         ) !important;
-        border-color: #1d4ed8 !important;
+        border-color: var(--sasv-action-primary-hover) !important;
         border-color: color-mix(
           in srgb,
-          var(--primary, #2563eb) 86%,
+          var(--sasv-action-primary) 86%,
           #000
         ) !important;
         color: #fff !important;
@@ -2614,7 +2586,7 @@
         min-height: 0;
         padding: 0;
         flex-shrink: 0;
-        accent-color: #2563eb;
+        accent-color: var(--sasv-action-primary-active);
       }
       .cp-checkbox-row {
         margin-top: 4px;
@@ -2835,16 +2807,17 @@
         color: inherit;
       }
       .cp-manager-tab-card:hover {
-        border-color: rgba(37, 99, 235, 0.28);
-        background: rgba(37, 99, 235, 0.035);
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
       }
       .cp-manager-tab-card.active {
-        border-color: rgba(37, 99, 235, 0.55);
-        background: rgba(37, 99, 235, 0.08);
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+        box-shadow: none;
       }
       .cp-manager-tab-card.active .cp-card-label,
       .cp-manager-tab-card.active .cp-card-value {
-        color: var(--primary, #2563eb);
+        color: var(--sasv-action-primary-active);
       }
       .cp-nested-subview-cards {
         margin: 0;
@@ -2976,10 +2949,10 @@
         box-sizing: border-box;
       }
       .modal-window .tab.active {
-        background: var(--primary, #2563eb);
-        color: #fff;
-        border-color: var(--primary, #2563eb);
-        font-weight: var(--cp-fw-heading);
+        background: var(--sasv-selection-soft);
+        color: var(--sasv-action-primary-active);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
       }
       .modal-content {
         flex: 1 1 auto;
@@ -3142,15 +3115,206 @@
           display: none;
         }
       }
+
+      /* EVP-3I2C9E.1 — Commercial Sales Assumptions (funnel drawer + meta action) */
+      .cp-csa-period-host .cp-period-select,
+      #csaFilterDrawerBody .cp-period-select {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        height: 28px;
+        font-size: 12.5px;
+        border-radius: 6px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        color: inherit;
+        padding: 0 8px;
+        box-sizing: border-box;
+      }
+      .cp-csa-valuation-inline {
+        margin-top: 6px;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      .cp-csa-valuation-inline strong {
+        color: inherit;
+        font-weight: 650;
+      }
+      .cp-csa-filter-control {
+        display: block;
+        margin: 0;
+        width: 100%;
+      }
+      .cp-csa-status-select {
+        display: block;
+        width: 100%;
+        height: 28px;
+        font-size: 12.5px;
+        border-radius: 6px;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--panel-bg, #fff);
+        color: inherit;
+        box-sizing: border-box;
+      }
+      .cp-csa-filter-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      #csaClearFiltersBtn[hidden] {
+        display: none !important;
+      }
+      .csa-filter-drawer-body {
+        display: block;
+      }
+      .csa-filter-drawer-body[hidden] {
+        display: none !important;
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary.cp-csa-defaults-meta-btn {
+        width: auto;
+        min-width: 0;
+        height: 28px;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        background: var(--sasv-action-primary, var(--primary));
+        border-color: var(--sasv-action-primary, var(--primary));
+        color: #fff;
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary.cp-csa-defaults-meta-btn:hover,
+      .generic-table-meta-actions .icon-btn.icon-btn-primary.cp-csa-defaults-meta-btn:focus-visible {
+        background: color-mix(in srgb, var(--sasv-action-primary) 86%, #000);
+        border-color: color-mix(in srgb, var(--sasv-action-primary) 86%, #000);
+        color: #fff;
+      }
+      [data-theme="dark"] .generic-table-meta-actions .icon-btn.icon-btn-primary.cp-csa-defaults-meta-btn {
+        background: var(--primary, var(--sasv-action-primary));
+        border-color: var(--primary, var(--sasv-action-primary));
+        color: #fff;
+      }
+      .cp-csa-hub-scenario {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        background: var(--panel-bg, #fff);
+      }
+      .cp-csa-hub-scenario:last-child {
+        margin-bottom: 0;
+      }
+      .cp-csa-hub-scenario-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .cp-csa-hub-scenario-label {
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .cp-csa-default-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px 10px;
+        font-size: 12px;
+      }
+      .cp-csa-context-grid,
+      .cp-csa-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px 12px;
+        font-size: 12.5px;
+      }
+      .cp-csa-section {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .cp-csa-section-title {
+        font-size: 13px;
+        font-weight: 650;
+        margin-bottom: 6px;
+      }
+      .cp-csa-warning-note {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      #tableWrap.cp-csa-mobile-card-table tr.clickable.cp-csa-mobile-card-row:focus-visible {
+        outline: 2px solid var(--sasv-control-border-focus);
+        outline-offset: -2px;
+      }
+      @media (max-width: 900px) {
+        .cp-csa-default-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 760px) {
+        .cp-csa-context-grid,
+        .cp-csa-form-grid,
+        .cp-csa-default-grid {
+          grid-template-columns: 1fr;
+        }
+        #tableWrap.cp-csa-mobile-card-table thead {
+          display: none;
+        }
+        #tableWrap.cp-csa-mobile-card-table table,
+        #tableWrap.cp-csa-mobile-card-table tbody,
+        #tableWrap.cp-csa-mobile-card-table tr,
+        #tableWrap.cp-csa-mobile-card-table td {
+          display: block;
+          width: 100%;
+        }
+        #tableWrap.cp-csa-mobile-card-table tr.cp-csa-mobile-card-row {
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          padding: 8px 10px;
+          margin-bottom: 8px;
+          background: var(--panel-bg, #fff);
+        }
+        #tableWrap.cp-csa-mobile-card-table td {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 4px 0;
+          border: none;
+          text-align: right;
+        }
+        #tableWrap.cp-csa-mobile-card-table td::before {
+          content: attr(data-label);
+          font-weight: 600;
+          color: var(--muted, #6b7280);
+          text-align: left;
+          flex: 0 1 42%;
+        }
+        #tableWrap.cp-csa-mobile-card-table td.mrp-card-primary {
+          display: block;
+          text-align: left;
+          padding-bottom: 6px;
+          margin-bottom: 4px;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+        }
+        #tableWrap.cp-csa-mobile-card-table td.mrp-card-primary::before {
+          display: none;
+        }
+      }
     </style>
   </head>
-  <body
+  <body class="sasv-pricing-policy-manager sasv-module sasv-module--app sasv-costing"
     data-costing-module-key="pricing-policy-manager"
     data-costing-suite-id="pricing-policy"
     data-costing-default-lens="policy-manager"
     data-costing-show-kpi="false"
-  >
-    <!-- SC4: period control unused on PPM; keep id for shared shell helpers. -->
+   data-theme="system">
+    <!-- EVP-3I2C9E: relocated into CSA filter drawer (#csaPeriodSelectHost) when active. -->
     <select
       id="costingPeriodSelect"
       class="cp-period-select"
@@ -3355,58 +3519,25 @@
     <div class="header-card">
       <div class="page-header">
         <div>
-          <h1>Pricing Policy Manager</h1>
+          <h1 class="sasv-module-title">Pricing Policy Manager</h1>
           <div class="page-sub" id="subtitle">
             Selling price policy, scheme policy, and scheme viability review
           </div>
           <div class="toolbar"></div>
         </div>
         <div>
-          <button
-            id="refreshBtn"
+          <button id="refreshBtn"
             type="button"
             title="Request Costing Refresh"
             aria-label="Request Costing Refresh"
             class="icon-btn"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="23 4 23 10 17 10"></polyline>
-              <polyline points="1 20 1 14 7 14"></polyline>
-              <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
-              <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
-            </svg>
-          </button>
-          <button
-            id="exportCsv"
+          ></button>
+          <button id="exportCsv"
             type="button"
             title="Export CSV"
             aria-label="Export CSV"
             class="icon-btn"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
+          ></button>
           <div
             id="lastRefreshed"
             class="sc-snapshot"
@@ -3421,20 +3552,7 @@
               Last refreshed: --
             </div>
           </div>
-          <button id="homeBtn" type="button" title="Home" aria-label="Home">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            <span class="home-label">HOME</span>
-          </button>
+          <button id="homeBtn" type="button" title="HOME" aria-label="HOME" class="sasv-home-btn icon-btn"></button>
         </div>
       </div>
     </div>
@@ -3548,8 +3666,8 @@
           aria-haspopup="true"
         >
           <svg
-            width="15"
-            height="15"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -3774,6 +3892,7 @@
             </ul>
           </div>
           <div id="mrpFilterDrawerBody" class="mrp-filter-drawer-body" hidden></div>
+          <div id="csaFilterDrawerBody" class="csa-filter-drawer-body" hidden></div>
           <div class="peq-filter-summary" data-peq-footer="summary">No filters applied</div>
           <div class="peq-filter-actions" data-peq-footer="actions">
             <button
@@ -6806,6 +6925,253 @@
             aria-label="Close Acceptance"
           >
             Close Acceptance
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="csaManageModal"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel" style="max-width: 920px">
+        <div class="cost-sheet-sign-header">
+          <span class="cp-modal-title"
+            ><span id="csaManageModeLabel">View</span> Commercial Sales
+            Assumption</span
+          >
+          <button
+            id="csaManageCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="csaManageError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <div id="csaManageContext"></div>
+
+          <div id="csaSetSection" class="cp-csa-section" hidden>
+            <div id="csaSetFormTitle" class="cp-csa-section-title">
+              Set Assumption
+            </div>
+            <p id="csaSetFormHint" class="cp-csa-warning-note"></p>
+            <div class="cp-csa-form-grid sign-grid">
+              <label>
+                Assumption basis
+                <select id="csaAssumptionBasis"></select>
+              </label>
+              <label>
+                Assumed sales units
+                <input
+                  id="csaAssumedUnits"
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="Required, greater than zero"
+                />
+              </label>
+              <label>
+                Assumed sales value (optional)
+                <input id="csaAssumedValue" type="number" step="any" />
+              </label>
+              <label>
+                Effective from
+                <input id="csaEffectiveFrom" type="date" />
+              </label>
+              <label style="grid-column: 1 / -1">
+                Remarks
+                <textarea
+                  id="csaRemarks"
+                  rows="2"
+                  placeholder="Mandatory remarks"
+                ></textarea>
+              </label>
+              <label style="grid-column: 1 / -1">
+                Approval reference (optional)
+                <input id="csaApprovalReference" type="text" />
+              </label>
+            </div>
+            <div class="cost-sheet-sign-actions" style="margin-top: 10px">
+              <button
+                id="csaSetSaveBtn"
+                type="button"
+                class="icon-btn icon-btn-primary"
+              >
+                Save Assumption
+              </button>
+            </div>
+          </div>
+
+          <div id="csaCloseSection" class="cp-csa-section" hidden>
+            <div class="cp-csa-section-title">Close Active Assumption</div>
+            <p class="cp-csa-warning-note">
+              Closing ends the active assumption. History is retained. The SKU
+              will fall back according to server resolution (actual sales,
+              governed default, or unresolved). Completed refresh runs are
+              unchanged. This does not create a zero-quantity assumption.
+            </p>
+            <div class="cp-csa-form-grid sign-grid">
+              <label>
+                Effective to
+                <input id="csaCloseEffectiveTo" type="date" />
+              </label>
+              <label style="grid-column: 1 / -1">
+                Closure remarks
+                <textarea
+                  id="csaCloseRemarks"
+                  rows="2"
+                  placeholder="Mandatory closure remarks"
+                ></textarea>
+              </label>
+              <label style="grid-column: 1 / -1">
+                Approval reference (optional)
+                <input id="csaCloseApprovalReference" type="text" />
+              </label>
+            </div>
+            <div class="cost-sheet-sign-actions" style="margin-top: 10px">
+              <button id="csaCloseSaveBtn" type="button" class="icon-btn">
+                Close Assumption
+              </button>
+            </div>
+          </div>
+
+          <div class="cp-csa-section">
+            <div class="cp-csa-section-title">Assumption History</div>
+            <div id="csaHistoryTableHost"></div>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button id="csaManageDismissBtn" type="button" class="icon-btn">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="csaDefaultsHubModal"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel" style="max-width: 720px">
+        <div class="cost-sheet-sign-header">
+          <span id="csaDefaultsHubTitle" class="cp-modal-title"
+            >Governed Defaults</span
+          >
+          <button
+            id="csaDefaultsHubCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <p class="cp-csa-warning-note">
+            Governed fallback quantities used when a SKU has no usable positive
+            sales history and no effective SKU-specific assumption. Revisions
+            apply to future costing refreshes only.
+          </p>
+          <div id="csaDefaultsHubBody"></div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button id="csaDefaultsHubDismissBtn" type="button" class="icon-btn">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="csaDefaultPolicyModal"
+      class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
+      aria-hidden="true"
+    >
+      <div class="cost-sheet-sign-panel">
+        <div class="cost-sheet-sign-header">
+          <span id="csaDefaultPolicyTitle" class="cp-modal-title"
+            >Revise Default Policy</span
+          >
+          <button
+            id="csaDefaultPolicyCloseBtn"
+            type="button"
+            class="icon-btn"
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="cost-sheet-sign-body">
+          <div
+            id="csaDefaultPolicyError"
+            class="cp-modal-error"
+            hidden
+            role="alert"
+          ></div>
+          <p class="cp-csa-warning-note">
+            Creates a new effective revision. Existing history is retained.
+            Completed refresh runs are unchanged.
+          </p>
+          <div class="sign-grid">
+            <label>
+              Scenario
+              <input id="csaDefaultPolicyScenario" type="text" readonly />
+            </label>
+            <label>
+              Default sales units
+              <input
+                id="csaDefaultPolicyUnits"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="Required, greater than zero"
+              />
+            </label>
+            <label>
+              Effective from
+              <input id="csaDefaultPolicyEffectiveFrom" type="date" />
+            </label>
+            <label style="grid-column: 1 / -1">
+              Reason
+              <textarea
+                id="csaDefaultPolicyReason"
+                rows="2"
+                placeholder="Mandatory reason"
+              ></textarea>
+            </label>
+            <label style="grid-column: 1 / -1">
+              Approval reference (optional)
+              <input id="csaDefaultPolicyApproval" type="text" />
+            </label>
+          </div>
+        </div>
+        <div class="cost-sheet-sign-actions">
+          <button
+            id="csaDefaultPolicyCancelBtn"
+            type="button"
+            class="icon-btn"
+          >
+            Cancel
+          </button>
+          <button
+            id="csaDefaultPolicySaveBtn"
+            type="button"
+            class="icon-btn icon-btn-primary"
+          >
+            Save Revision
           </button>
         </div>
       </div>

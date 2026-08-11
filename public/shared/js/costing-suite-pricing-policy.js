@@ -20,12 +20,17 @@ import {
   renderMrpFilterDrawerPanel,
   humanizeMrpToken,
 } from "./costing-suite-mrp-proposal-shared.js";
+import {
+  COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
+  createCommercialSalesAssumptionHandlers,
+} from "./costing-suite-commercial-sales-assumptions.js";
 
 export {
   MRP_PROPOSAL_VIEWS,
   MRP_DECISION_VIEWS,
   MRP_APPLICATION_VIEWS,
   MRP_APPLIED_HISTORY_VIEWS,
+  COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
 };
 
 /**
@@ -73,7 +78,8 @@ const PRICING_POLICY_GROUP_TO_COMPAT_AREA_ID = {
 /**
  * Authoritative flat workspace metadata (PPM-C1H3.3-F1).
  * Array order is the sole display / strip order — do not re-sort by Object.keys.
- * SC4: nine operational workspaces (Scheme Comparison removed).
+ * SC4: operational workspaces (Scheme Comparison removed).
+ * EVP-3I2C9E: commercial-sales-assumptions is the sole period-scoped PPM workspace.
  */
 export const PRICING_POLICY_WORKSPACES = [
   {
@@ -179,13 +185,25 @@ export const PRICING_POLICY_WORKSPACES = [
     legacyLensId: "policy-manager",
     nestedViewType: "current-history",
   },
+  {
+    id: COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
+    label: "Commercial Sales Assumptions",
+    groupId: "selling-schemes",
+    purpose:
+      "Govern commercial-sales quantity assumptions used when SKU sales history is not usable.",
+    supportsSearch: true,
+    supportsPeq: false,
+    supportsPeriod: true,
+    legacyLensId: "policy-manager",
+    nestedViewType: null,
+  },
 ];
 
 export const PRICING_POLICY_NAV_GROUP_IDS = PRICING_POLICY_NAV_GROUPS.map(
   (g) => g.id,
 );
 
-/** All flat workspace ids in display order (nine after SC4). */
+/** All flat workspace ids in display order. */
 export const PRICING_POLICY_WORKSPACE_IDS = PRICING_POLICY_WORKSPACES.map(
   (w) => w.id,
 );
@@ -310,6 +328,7 @@ export function validatePricingPolicyNavMetadata() {
     "sku-overview",
     "scheme-master",
     "scheme-rule-register",
+    COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
   ];
   if (PRICING_POLICY_WORKSPACE_IDS.length !== expectedOrder.length) {
     errors.push(
@@ -356,9 +375,37 @@ export function validatePricingPolicyNavMetadata() {
     if (ws.supportsPeriod) errors.push(`${id} must have supportsPeriod false`);
   }
 
+  const csaWs = PRICING_POLICY_WORKSPACE_BY_ID.get(
+    COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
+  );
+  if (!csaWs) {
+    errors.push(`missing Selling workspace ${COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID}`);
+  } else {
+    if (csaWs.supportsPeq) {
+      errors.push(
+        `${COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID} must have supportsPeq false`,
+      );
+    }
+    if (!csaWs.supportsPeriod) {
+      errors.push(
+        `${COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID} must have supportsPeriod true`,
+      );
+    }
+    if (csaWs.legacyLensId !== "policy-manager") {
+      errors.push(
+        `${COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID} must use legacyLensId policy-manager`,
+      );
+    }
+  }
+
   for (const ws of PRICING_POLICY_WORKSPACES) {
-    if (ws.supportsPeriod) {
-      errors.push(`${ws.id} must have supportsPeriod false (SC4: no PPM period)`);
+    if (
+      ws.supportsPeriod &&
+      ws.id !== COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID
+    ) {
+      errors.push(
+        `${ws.id} must have supportsPeriod false (sole period workspace is ${COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID})`,
+      );
     }
     if (!ws.supportsSearch) {
       errors.push(`${ws.id} must have supportsSearch true`);
@@ -724,6 +771,15 @@ function policyManagerHeaders(tab) {
       "Remarks",
     ];
   }
+  if (tab === COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID) {
+    return [
+      "Product / Pack / SKU",
+      "Effective quantity",
+      "Source / basis",
+      "Actual 12M",
+      "Status",
+    ];
+  }
   return [
     "Product / SKU",
     "MRP IK",
@@ -767,6 +823,9 @@ function policyManagerAlignments(tab) {
       "c-left",
       "c-left",
     ];
+  }
+  if (tab === COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID) {
+    return ["c-left", "c-right", "c-left", "c-right", "c-left"];
   }
   return [
     "c-left",
@@ -817,6 +876,9 @@ export function createPricingPolicyController(deps) {
     getSelectedSkuId,
     canEditPricingPolicyActions,
     formatTodayIsoIst,
+    formatPeriodMonth,
+    getActivePeriodStart,
+    getAllRows,
     closeDetails,
     refreshOpenDrawerIfNeeded,
   } = deps;
@@ -861,6 +923,26 @@ export function createPricingPolicyController(deps) {
       getActiveDirectWorkspaceId() || pricingPolicyWorkspace || "",
     ).trim();
     const canEdit = canEditPolicyActions();
+
+    if (activeWorkspace === COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID) {
+      const cfg =
+        commercialSalesAssumptions.getDefaultsMetaButtonConfig?.() || {
+          label: canEdit ? "Manage Defaults" : "View Defaults",
+          title: canEdit ? "Manage Defaults" : "View Defaults",
+        };
+      el.innerHTML = `<button
+        type="button"
+        class="icon-btn icon-btn-primary cp-csa-defaults-meta-btn"
+        id="csaDefaultsManageBtn"
+        title="${text(cfg.title || cfg.label)}"
+        aria-label="${text(cfg.label)}"
+      >${text(cfg.label)}</button>`;
+      setVis(el, true, "inline-flex");
+      el.querySelector("#csaDefaultsManageBtn")?.addEventListener("click", () => {
+        commercialSalesAssumptions.openDefaultsHubModal?.();
+      });
+      return;
+    }
 
     let title = "";
     let onClick = null;
@@ -909,6 +991,49 @@ export function createPricingPolicyController(deps) {
     if (canEditPolicyActions()) return true;
     showToast(`You do not have permission to ${actionLabel}.`, "error", 4200);
     return false;
+  }
+
+  const commercialSalesAssumptions = createCommercialSalesAssumptionHandlers({
+    costingFrom,
+    costingRpc,
+    fetchAllRows,
+    showToast,
+    handleError,
+    setLoadingMask,
+    text,
+    formatNumber,
+    formatMoney,
+    formatDate,
+    formatDateTime,
+    statusChip,
+    cpCellPrimaryHtml,
+    normalizeStatus,
+    getActivePeriodStart:
+      typeof getActivePeriodStart === "function"
+        ? getActivePeriodStart
+        : () => (typeof activePeriodIso === "function" ? activePeriodIso() : null),
+    getPolicyManagerTab: () => getPolicyManagerTab(),
+    canEditPricingPolicyActions,
+    requireEditAccess,
+    reloadRows,
+    formatPeriodMonth,
+    findRowBySkuId: (skuId) => {
+      const rows =
+        typeof getAllRows === "function"
+          ? getAllRows()
+          : Array.isArray(deps.ALL_ROWS)
+            ? deps.ALL_ROWS
+            : [];
+      return (
+        (rows || []).find((r) => String(r?.sku_id) === String(skuId)) || null
+      );
+    },
+  });
+
+  function isCommercialSalesAssumptionsTabActive() {
+    return (
+      getPolicyManagerTab() === COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID
+    );
   }
 
   function syncPricingPolicyWriteUi() {
@@ -992,6 +1117,7 @@ export function createPricingPolicyController(deps) {
   let mrpAppliedHistory = null;
   /** Shell meta-drawer filter notify callback (set in renderMrpGovernanceTabs). */
   let mrpFilterLocalChangeHandler = null;
+  let csaFilterLocalChangeHandler = null;
 
   const mrpDecisions = createMrpDecisionHandlers({
     dom,
@@ -5206,7 +5332,7 @@ export function createPricingPolicyController(deps) {
     };
   }
 
-  /** F2/F5: direct strip active workspace id (always one of nine). */
+  /** F2/F5: direct strip active workspace id. */
   function getActiveDirectWorkspaceId() {
     return resolveActivePricingPolicyDirectWorkspaceId(pricingPolicyWorkspace);
   }
@@ -5758,6 +5884,21 @@ export function createPricingPolicyController(deps) {
         1000,
       );
       return filterSchemeRuleRegisterRows(rows);
+    }
+    if (isCommercialSalesAssumptionsTabActive()) {
+      const period =
+        typeof getActivePeriodStart === "function"
+          ? getActivePeriodStart()
+          : typeof activePeriodIso === "function"
+            ? activePeriodIso()
+            : null;
+      try {
+        await commercialSalesAssumptions.loadDefaultPolicies();
+      } catch (err) {
+        handleError("Failed to load sales allocation default policies", err);
+      }
+      const rows = await commercialSalesAssumptions.loadRows(period);
+      return Array.isArray(rows) ? rows : [];
     }
     return fetchAllRows(
       () =>
@@ -6739,6 +6880,9 @@ export function createPricingPolicyController(deps) {
         : renderSkuMrpCurrentRow(row, trAttrs);
     }
     if (lensId === "policy-manager") {
+      if (isCommercialSalesAssumptionsTabActive()) {
+        return commercialSalesAssumptions.renderTableRow(row, trAttrs);
+      }
       if (getPolicyManagerTab() === "scheme-master") {
         const paid = schemeMasterRowNumber(row, ["paid_qty"]);
         const free = schemeMasterRowNumber(row, ["free_qty"]);
@@ -6831,6 +6975,9 @@ export function createPricingPolicyController(deps) {
     if (!workbenchSummaryEl) return;
     // F2: Selling workspace strip lives in #lensPills; create actions live in meta +.
     // Scheme Rule Register uses nested Current/History like SKU MRP.
+    // CSA uses funnel drawer + meta Manage Defaults (no workbench chrome).
+
+    csaFilterLocalChangeHandler = onTabChange || null;
 
     const schemeRuleChrome =
       getPolicyManagerTab() === "scheme-rule-register"
@@ -6847,11 +6994,13 @@ export function createPricingPolicyController(deps) {
           })
         : "";
 
-    const toolbarHtml = renderWorkspaceToolbar({
-      className: "cp-workspace-toolbar--policy-manager",
-      ariaLabel: "Selling and Schemes workspace toolbar",
-      primaryActionHtml: "",
-    });
+    const toolbarHtml = isCommercialSalesAssumptionsTabActive()
+      ? ""
+      : renderWorkspaceToolbar({
+          className: "cp-workspace-toolbar--policy-manager",
+          ariaLabel: "Selling and Schemes workspace toolbar",
+          primaryActionHtml: "",
+        });
 
     const workbenchHtml = `${toolbarHtml}${
       schemeRuleChrome
@@ -6899,8 +7048,32 @@ export function createPricingPolicyController(deps) {
       });
   }
 
-  function wirePolicyManagerTableActions() {
-    // Table Action columns removed; Edit / Deactivate / Reactivate / Close live in the row drawer.
+  function getActiveCsaFilterDrawerContent() {
+    if (!isCommercialSalesAssumptionsTabActive()) return null;
+    return (
+      commercialSalesAssumptions.getFilterDrawerContent?.(
+        typeof getAllRows === "function" ? getAllRows() : [],
+      ) || null
+    );
+  }
+
+  async function notifyCsaFilterLocalChange() {
+    if (typeof csaFilterLocalChangeHandler === "function") {
+      await csaFilterLocalChangeHandler("filter");
+    }
+  }
+
+  function wireActiveCsaFilterDrawer(container) {
+    commercialSalesAssumptions.wireFilterDrawer?.(
+      container,
+      notifyCsaFilterLocalChange,
+    );
+  }
+
+  function wirePolicyManagerTableActions(tableBody, getViewRow) {
+    if (isCommercialSalesAssumptionsTabActive()) {
+      commercialSalesAssumptions.wireTableActions(tableBody, getViewRow);
+    }
   }
 
   function getPolicyManagerDrawerConfig(row, preferredTab) {
@@ -7421,65 +7594,108 @@ export function createPricingPolicyController(deps) {
   }
 
   function handleEscapeKey() {
+    if (commercialSalesAssumptions.handleEscapeKey?.()) return true;
     if (mrpAppliedHistory.handleEscapeKey?.()) return true;
     if (mrpApplication.handleEscapeKey?.()) return true;
     if (mrpDecisions.handleEscapeKey?.()) return true;
     if (mrpProposals.handleEscapeKey?.()) return true;
-    if (!dom.scheduledPolicyCancelModal?.classList.contains("hidden")) {
+    if (
+      dom.scheduledPolicyCancelModal &&
+      !dom.scheduledPolicyCancelModal.classList.contains("hidden")
+    ) {
       if (!scheduledPolicyCancellationSaving) {
         closeScheduledPolicyCancellationModal();
       }
       return true;
     }
-    if (!dom.futurePolicyConfirmModal?.classList.contains("hidden")) {
+    if (
+      dom.futurePolicyConfirmModal &&
+      !dom.futurePolicyConfirmModal.classList.contains("hidden")
+    ) {
       if (!futurePolicySubmissionRunning) closeFuturePolicyConfirmation();
       return true;
     }
-    if (!dom.derivationPolicyConfirmModal?.classList.contains("hidden")) {
+    if (
+      dom.derivationPolicyConfirmModal &&
+      !dom.derivationPolicyConfirmModal.classList.contains("hidden")
+    ) {
       finishDerivationPolicyConfirmation(false);
       return true;
     }
-    if (!dom.sellingPolicyEditModal?.classList.contains("hidden")) {
+    if (
+      dom.sellingPolicyEditModal &&
+      !dom.sellingPolicyEditModal.classList.contains("hidden")
+    ) {
       closeSellingPolicyEditModal();
       return true;
     }
-    if (!dom.schemePolicyEditModal?.classList.contains("hidden")) {
+    if (
+      dom.schemePolicyEditModal &&
+      !dom.schemePolicyEditModal.classList.contains("hidden")
+    ) {
       closeSchemePolicyEditModal();
       return true;
     }
-    if (!dom.schemeRuleEditModal?.classList.contains("hidden")) {
+    if (
+      dom.schemeRuleEditModal &&
+      !dom.schemeRuleEditModal.classList.contains("hidden")
+    ) {
       closeSchemeRuleEditModal();
       return true;
     }
-    if (!dom.schemeRuleCloseModal?.classList.contains("hidden")) {
+    if (
+      dom.schemeRuleCloseModal &&
+      !dom.schemeRuleCloseModal.classList.contains("hidden")
+    ) {
       closeSchemeRuleCloseModal();
       return true;
     }
-    if (!dom.mrpPolicyEditModal?.classList.contains("hidden")) {
+    if (
+      dom.mrpPolicyEditModal &&
+      !dom.mrpPolicyEditModal.classList.contains("hidden")
+    ) {
       closeMrpPolicyEditModal();
       return true;
     }
-    if (!dom.derivationPolicyEditModal?.classList.contains("hidden")) {
+    if (
+      dom.derivationPolicyEditModal &&
+      !dom.derivationPolicyEditModal.classList.contains("hidden")
+    ) {
       closeDerivationPolicyEditModal();
       return true;
     }
-    if (!dom.schemeMasterCreateModal?.classList.contains("hidden")) {
+    if (
+      dom.schemeMasterCreateModal &&
+      !dom.schemeMasterCreateModal.classList.contains("hidden")
+    ) {
       closeSchemeMasterCreateModal();
       return true;
     }
-    if (!dom.schemeMasterMetadataModal?.classList.contains("hidden")) {
+    if (
+      dom.schemeMasterMetadataModal &&
+      !dom.schemeMasterMetadataModal.classList.contains("hidden")
+    ) {
       closeSchemeMasterMetadataModal();
       return true;
     }
-    if (!dom.schemeMasterDeactivateModal?.classList.contains("hidden")) {
+    if (
+      dom.schemeMasterDeactivateModal &&
+      !dom.schemeMasterDeactivateModal.classList.contains("hidden")
+    ) {
       closeSchemeMasterDeactivateModal();
       return true;
     }
-    if (!dom.schemeMasterReactivateModal?.classList.contains("hidden")) {
+    if (
+      dom.schemeMasterReactivateModal &&
+      !dom.schemeMasterReactivateModal.classList.contains("hidden")
+    ) {
       closeSchemeMasterReactivateModal();
       return true;
     }
-    if (!dom.schemeMasterHistoryModal?.classList.contains("hidden")) {
+    if (
+      dom.schemeMasterHistoryModal &&
+      !dom.schemeMasterHistoryModal.classList.contains("hidden")
+    ) {
       closeSchemeMasterHistoryModal();
       return true;
     }
@@ -7492,6 +7708,7 @@ export function createPricingPolicyController(deps) {
     mrpDecisions.bindEvents?.();
     mrpApplication.bindEvents?.();
     mrpAppliedHistory.bindEvents?.();
+    commercialSalesAssumptions.bindEvents?.();
     dom.sellingPolicyEditCloseBtn?.addEventListener(
       "click",
       closeSellingPolicyEditModal,
@@ -7933,15 +8150,24 @@ export function createPricingPolicyController(deps) {
     getMrpAppliedHistoryNoMatchMessage: () =>
       mrpAppliedHistory.noMatchMessage(),
     loadPolicyManagerRows,
+    filterCommercialSalesAssumptionRows: (rows) =>
+      commercialSalesAssumptions.filterRows(rows),
+    isCommercialSalesAssumptionsTabActive,
+    openCommercialSalesAssumptionModal: (row) =>
+      commercialSalesAssumptions.openManageModal(row),
+    onCommercialSalesPeriodChanged: (periodStart) =>
+      commercialSalesAssumptions.onPeriodChanged(periodStart),
+    wirePolicyManagerTableActions,
     renderPolicyManagerTabs,
     renderMrpGovernanceTabs,
     getActiveMrpFilterDrawerContent,
     wireActiveMrpFilterDrawer,
+    getActiveCsaFilterDrawerContent,
+    wireActiveCsaFilterDrawer,
     /** N5 aliases — same canonical workspace strip renderers */
     renderPricingPolicySellingWorkspaceNavigation: renderPolicyManagerTabs,
     renderPricingPolicyMrpWorkspaceNavigation: renderMrpGovernanceTabs,
     renderMrpGovernanceEmptyStateHtml,
-    wirePolicyManagerTableActions,
     getTableHeaders,
     getTableAlignments,
     renderTableRow,

@@ -1,5 +1,6 @@
 // js/plants.js
 import { supabase } from '../public/shared/js/supabaseClient.js';
+import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 
 // — Dialog helpers —
 const dialogOverlay   = document.getElementById('dialogOverlay');
@@ -360,6 +361,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (btn.classList.contains('cancel-btn')) renderPlants();
   };
 
+  mountModuleHome(homeIcon);
   homeIcon.onclick = async () => {
     if (await askConfirm('Discard changes and return home?')) {
       window.location.href = 'index.html';

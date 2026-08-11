@@ -8,7 +8,8 @@
     "dev": "electron .",
     "build": "electron-builder",
     "start": "electron .",
-    "sync-db": "npx supabase gen types typescript --linked --schema public > public\\\\shared\\\\js\\\\types\\\\supabase.ts"
+    "branding:generate": "node tools/generate-branding-assets.js",
+    "sync-db": "node tools/sync-supabase-types.mjs"
   },
   "author": "",
   "license": "ISC",
@@ -27,10 +28,21 @@
       "output": "dist"
     },
     "files": [
-      "**/*"
+      "**/*",
+      "!docs/**",
+      "!scripts/**",
+      "!tools/**",
+      "!supabase/**",
+      "!sql/**",
+      "!.cursor/**",
+      "!.agents/**",
+      "!coverage/**",
+      "!.temp/**",
+      "!readme.md",
+      "!LAB_WORKFLOW_ACCESS_CONTROL_README.md"
     ],
     "win": {
-      "icon": "public/shared/assets/favicon.ico",
+      "icon": "public/shared/assets/branding/derived/favicon.ico",
       "target": [
         "nsis",
         "zip"

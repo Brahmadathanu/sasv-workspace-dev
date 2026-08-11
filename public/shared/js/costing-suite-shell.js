@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { showToast as sasvShowToast } from "./toast.js";
+import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 import {
   COSTING_SUITE_MODULES,
   LENS_REGISTRY,
@@ -38,13 +40,48 @@ import {
   isCostBuildLens,
 } from "./costing-suite-cost-build.js";
 import {
+  createDriverGovernanceController,
+  isDriverGovernanceLens,
+} from "./costing-suite-driver-governance.js";
+import {
   createMaterialCostController,
   isMaterialCostLens,
+  isMaterialCostTraceLens,
+  isStage05MaterialRemediationMode,
 } from "./costing-suite-material-cost.js";
 import {
   createControlCenterController,
   isControlCenterLens,
 } from "./costing-suite-control-center.js";
+import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
+import {
+  createQcActionQueueController,
+  isQcActionQueueLens,
+  QC_ACTION_TYPE_SEED,
+  qcTotalPages,
+} from "./costing-suite-qc-action-queue.js";
+import {
+  createMaterialsStoresActionQueueController,
+  isMaterialsStoresActionQueueLens,
+  MS_ACTION_TYPE_SEED,
+} from "./costing-suite-materials-stores-action-queue.js";
+import {
+  formatQcActionLabel,
+  mergeQcActionCodeOptions,
+  normalizeQcCode,
+} from "./costing-suite-qc-explain-helpers.js";
+import {
+  formatMsActionLabel,
+  mergeMsActionCodeOptions,
+  msTotalPages,
+  normalizeMsCode,
+} from "./costing-suite-materials-stores-explain-helpers.js";
+import {
+  createProductionRouteController,
+  isProductionRouteLens,
+  prmTotalPages,
+} from "./costing-suite-production-route.js";
+import { normalizePrmCode } from "./costing-suite-production-route-helpers.js";
 import { normalizeClientRoute } from "./module-registry.js";
 import {
   COSTING_ROUTE_CONFIG,
@@ -89,6 +126,7 @@ async function bootstrapCostingSuite(routeModuleKey = null) {
   ACTIVE_ROUTE_CONFIG = config;
   MODULE_ID = ACTIVE_ROUTE_CONFIG.moduleKey;
   CURRENT_LENS = ACTIVE_ROUTE_CONFIG.defaultLens;
+  mountCostingModuleChrome();
   await init();
 
   if (redirectedFromLegacy) {
@@ -114,15 +152,27 @@ async function bootstrapCostingSuite(routeModuleKey = null) {
 let PERM_CAN_VIEW = false;
 let PERM_CAN_EDIT = false;
 let PERM_CONTROL_CENTER_EDIT = false;
+/** Secondary: Production Route Manager edit (Driver Governance DL/POH actions). */
+let PERM_PRM_EDIT = false;
 /** True when permission RPC/fallback could not resolve a trustworthy result. */
 let PERMISSIONS_LOAD_ERROR = false;
 
-/** @type {"RM"|null} */
+/** @type {"RM"|"PM"} */
 let CURRENT_TRACE_COMPONENT = "RM";
+let CAN_VIEW_RM_TRACE = false;
+let CAN_EXPORT_RM_TRACE = false;
+let CAN_VIEW_PM_TRACE = false;
+let CAN_EXPORT_PM_TRACE = false;
+/** @deprecated Prefer CAN_VIEW_RM_TRACE; kept aligned for RM-compat paths. */
 let CAN_VIEW_TRACE = false;
+/** @deprecated Prefer CAN_EXPORT_RM_TRACE. */
 let CAN_EXPORT_TRACE = false;
 let TRACE_PERMISSIONS_RESOLVED = false;
 let LAUNCH_DRILL_CONTEXT = null;
+let STAGE05_REMEDIATION_LAUNCH_CONTEXT = {
+  productId: null,
+  skuId: null,
+};
 
 const $ = (id) => document.getElementById(id);
 const statusArea = $("statusArea");
@@ -542,8 +592,32 @@ let SELECTED_ROW = null;
 let LAST_REFRESH_TIME = null;
 let SKU_STATUS_DIAGNOSIS = [];
 let DIAGNOSIS_BY_SKU_ID = new Map();
+/** Bumped on every loadRowsForLens start; ignores stale main/diagnosis completions. */
+let ROWS_LOAD_GENERATION = 0;
 let CURRENT_EXPORT_USER = "--";
 let DETAILS_RETURN_FOCUS = null;
+let DETAILS_OPENER_MODALITY = "keyboard";
+let SHELL_LAST_INPUT_MODALITY = "keyboard";
+let shellInputModalityBound = false;
+
+function bindShellInputModalityTracking() {
+  if (shellInputModalityBound || typeof document === "undefined") return;
+  shellInputModalityBound = true;
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      SHELL_LAST_INPUT_MODALITY = "pointer";
+    },
+    true,
+  );
+  document.addEventListener(
+    "keydown",
+    () => {
+      SHELL_LAST_INPUT_MODALITY = "keyboard";
+    },
+    true,
+  );
+}
 let ACTIVE_FILTERS = {
   status: [],
   issue: [],
@@ -1445,6 +1519,25 @@ function buildCostingRouteQuery(params = {}) {
       String(params.stockItemId ?? params.stock_item_id),
     );
   }
+  // Production Route Manager deep-link keys (must survive navigateToCostingRoute).
+  if (params.product_group_id != null && params.product_group_id !== "") {
+    qs.set("product_group_id", String(params.product_group_id));
+  }
+  if (params.route_family_id != null && params.route_family_id !== "") {
+    qs.set("route_family_id", String(params.route_family_id));
+  }
+  if (params.family_route_id != null && params.family_route_id !== "") {
+    qs.set("family_route_id", String(params.family_route_id));
+  }
+  if (params.product_route_id != null && params.product_route_id !== "") {
+    qs.set("product_route_id", String(params.product_route_id));
+  }
+  if (params.as_of_date != null && params.as_of_date !== "") {
+    qs.set("as_of_date", String(params.as_of_date));
+  }
+  if (params.candidate_kind != null && params.candidate_kind !== "") {
+    qs.set("candidate_kind", String(params.candidate_kind));
+  }
   const query = qs.toString();
   return query ? `?${query}` : "";
 }
@@ -1462,6 +1555,10 @@ function navigateToCostingRoute(moduleKey, params = {}, options = {}) {
       ? toCanonicalPricingPolicyRouteParams(params)
       : params;
   const href = `${resolveCostingRouteHref(config.routePath, clientKey)}${buildCostingRouteQuery(routeParams)}`;
+  if (options.newTab === true) {
+    window.open(href, "_blank", "noopener,noreferrer");
+    return true;
+  }
   if (options.replace === true) {
     window.location.replace(href);
   } else {
@@ -1527,6 +1624,14 @@ function isPricingPolicyManagerRoute() {
 
 function isCostSheetReviewRoute() {
   return MODULE_ID === "cost-sheet-review";
+}
+
+function isProductionRouteManagerRoute() {
+  return MODULE_ID === "production-route-manager";
+}
+
+function canEditProductionRouteActions() {
+  return PERM_CAN_EDIT === true;
 }
 
 /** Authoritative Pricing Policy Manager module entry: view OR edit. */
@@ -1609,6 +1714,11 @@ function clearCostingRefreshDirty() {
 }
 
 function updateCostingRefreshDirtyUi() {
+  if (isProductionRouteManagerRoute()) {
+    syncRefreshButtonDisabled();
+    updateFreshnessIndicator();
+    return;
+  }
   if (refreshBtn) {
     refreshBtn.classList.toggle("costing-refresh-dirty", costingRefreshDirty);
     if (costingRefreshDirty) {
@@ -1829,10 +1939,32 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
     if (lensId === "manual-rate-manager" && normalizedFilters.managerTab) {
       materialCostCtrl.setManualRateManagerTab(normalizedFilters.managerTab);
     }
-    if (lensId === "rm-cost-trace") {
-      materialCostCtrl.applyTraceLaunchContext(normalizedFilters);
+    if (lensId === "manual-rate-manager") {
+      setStage05RemediationLaunchContext({
+        productId: normalizedFilters.productId,
+        skuId: normalizedFilters.skuId,
+      });
     }
-    if (normalizedFilters.periodStart && lensId === "rm-cost-trace") {
+    if (lensId === "rm-cost-trace" || lensId === "pm-cost-trace") {
+      CURRENT_TRACE_COMPONENT = lensId === "pm-cost-trace" ? "PM" : "RM";
+      materialCostCtrl.applyTraceLaunchContext({
+        ...normalizedFilters,
+        traceComponent: lensId === "pm-cost-trace" ? "PM" : "RM",
+        materialArea: lensId === "pm-cost-trace" ? "PM" : "RM",
+      });
+    }
+    if (
+      normalizedFilters.periodStart &&
+      (lensId === "rm-cost-trace" || lensId === "pm-cost-trace")
+    ) {
+      ACTIVE_PERIOD_START = normalizedFilters.periodStart;
+      renderCostingPeriodOptions();
+      syncPeriodControlState();
+    }
+    if (
+      normalizedFilters.periodStart &&
+      lensId === "manual-rate-manager"
+    ) {
       ACTIVE_PERIOD_START = normalizedFilters.periodStart;
       renderCostingPeriodOptions();
       syncPeriodControlState();
@@ -1862,6 +1994,8 @@ const VIEW_BY_LENS = {
   "manual-provisions": "v_costing_manual_cost_pool_provision_register",
   "costing-review-workbench":
     "v_costing_pricing_material_action_queue_snapshot",
+  "sku-control-status":
+    "v_costing_pricing_sku_control_status_snapshot",
   "manual-rate-manager": "v_costing_manual_rate_manager_action_queue",
 };
 
@@ -2050,6 +2184,16 @@ function clearActiveRefreshRunSession() {
 
 function syncRefreshButtonDisabled() {
   if (!refreshBtn) return;
+  if (isProductionRouteManagerRoute()) {
+    // PRM Refresh reloads the active lens only — never full Costing refresh.
+    refreshBtn.disabled = false;
+    refreshBtn.classList.remove("costing-refresh-dirty");
+    refreshBtn.removeAttribute("data-refresh-required");
+    refreshBtn.title = "Reload current Production Route Manager lens";
+    refreshBtn.setAttribute("aria-label", "Reload current lens");
+    refreshBtn.setAttribute("aria-disabled", "false");
+    return;
+  }
   const status = ACTIVE_REFRESH_RUN?.overallStatus;
   const refreshLocked =
     refreshPollInFlight || isRefreshRunActiveStatus(status);
@@ -2729,13 +2873,20 @@ function setStatus(message, type = "info") {
     success: "#15803d",
   };
   const color = colors[type] || "var(--muted, #6b7280)";
+  statusArea.hidden = false;
   statusArea.style.display = "block";
   statusArea.style.color = color;
+  statusArea.setAttribute("data-type", type === "error" ? "error" : type);
   statusArea.innerHTML = escapeHtml(message);
 }
 
 function clearStatus() {
-  if (statusArea) statusArea.style.display = "none";
+  if (!statusArea) return;
+  statusArea.textContent = "";
+  statusArea.innerHTML = "";
+  statusArea.hidden = true;
+  statusArea.removeAttribute("data-type");
+  statusArea.style.display = "none";
 }
 
 function renderRegisterEmptyTableMessage(message) {
@@ -2758,7 +2909,10 @@ function setLoadingMask(visible, message = "Loading...") {
   if (!costingLoadingMask) return;
   if (costingLoadingText) costingLoadingText.textContent = message;
   costingLoadingMask.classList.toggle("hidden", !visible);
+  costingLoadingMask.hidden = !visible;
+  costingLoadingMask.style.display = visible ? "" : "none";
   costingLoadingMask.setAttribute("aria-busy", visible ? "true" : "false");
+  costingLoadingMask.setAttribute("aria-hidden", visible ? "false" : "true");
 }
 
 function formatPeriodMonth(value) {
@@ -2816,9 +2970,14 @@ async function loadPermissions(sessionUserId) {
   PERM_CAN_VIEW = false;
   PERM_CAN_EDIT = false;
   PERM_CONTROL_CENTER_EDIT = false;
+  PERM_PRM_EDIT = false;
   PERMISSIONS_LOAD_ERROR = false;
   CAN_VIEW_TRACE = false;
   CAN_EXPORT_TRACE = false;
+  CAN_VIEW_RM_TRACE = false;
+  CAN_EXPORT_RM_TRACE = false;
+  CAN_VIEW_PM_TRACE = false;
+  CAN_EXPORT_PM_TRACE = false;
   TRACE_PERMISSIONS_RESOLVED = false;
   syncPricingPolicyPermissionUi();
 
@@ -2840,23 +2999,6 @@ async function loadPermissions(sessionUserId) {
     }
   } catch (err) {
     console.warn("[costing-suite] permission RPC exception", err);
-    PERMISSIONS_LOAD_ERROR = true;
-  }
-
-  try {
-    const { data } = await supabase
-      .from("user_permissions")
-      .select("module_id, can_view, can_edit")
-      .eq("user_id", sessionUserId)
-      .eq("module_id", MODULE_ID)
-      .limit(1);
-    if (Array.isArray(data) && data.length) {
-      PERM_CAN_VIEW = data[0].can_view === true;
-      PERM_CAN_EDIT = data[0].can_edit === true;
-      PERMISSIONS_LOAD_ERROR = false;
-    }
-  } catch (err) {
-    console.warn("[costing-suite] permission fallback failed", err);
     PERMISSIONS_LOAD_ERROR = true;
   }
 
@@ -2885,11 +3027,24 @@ function applyPermissionEntriesFromRpc(perms) {
   const controlCenterEntry = byTarget.get("module:costing-control-center");
   PERM_CONTROL_CENTER_EDIT = controlCenterEntry?.can_edit === true;
 
+  const prmEntry = byTarget.get("module:production-route-manager");
+  PERM_PRM_EDIT = prmEntry?.can_edit === true;
+
   const traceViewEntry = byTarget.get("role:material-cost-rm-trace");
-  CAN_VIEW_TRACE = traceViewEntry?.can_view === true;
+  CAN_VIEW_RM_TRACE = traceViewEntry?.can_view === true;
+  CAN_VIEW_TRACE = CAN_VIEW_RM_TRACE;
 
   const traceExportEntry = byTarget.get("role:material-cost-rm-trace-export");
-  CAN_EXPORT_TRACE = traceExportEntry?.can_view === true;
+  CAN_EXPORT_RM_TRACE = traceExportEntry?.can_view === true;
+  CAN_EXPORT_TRACE = CAN_EXPORT_RM_TRACE;
+
+  const pmTraceViewEntry = byTarget.get("role:material-cost-pm-trace");
+  CAN_VIEW_PM_TRACE = pmTraceViewEntry?.can_view === true;
+
+  const pmTraceExportEntry = byTarget.get(
+    "role:material-cost-pm-trace-export",
+  );
+  CAN_EXPORT_PM_TRACE = pmTraceExportEntry?.can_view === true;
 }
 
 async function resolveActivePeriodStart() {
@@ -2932,9 +3087,132 @@ function isRmCostTraceLensActive() {
   return CURRENT_LENS === "rm-cost-trace";
 }
 
+function isPmCostTraceLensActive() {
+  return CURRENT_LENS === "pm-cost-trace";
+}
+
+function isMaterialCostTraceLensActive() {
+  return isMaterialCostTraceLens(CURRENT_LENS);
+}
+
+function syncShellTraceComponentFromLens() {
+  if (CURRENT_LENS === "pm-cost-trace") CURRENT_TRACE_COMPONENT = "PM";
+  else if (CURRENT_LENS === "rm-cost-trace") CURRENT_TRACE_COMPONENT = "RM";
+}
+
+async function appendMoreTraceRows() {
+  if (!isMaterialCostTraceLensActive()) return;
+  if (materialCostCtrl.isTraceLoadingMore?.()) return;
+  const result = await materialCostCtrl.loadMoreTraceRows();
+  if (!result || result.stale || result.blocked) {
+    materialCostCtrl.refreshTraceLoadMoreFooter?.();
+    return;
+  }
+  const appended = Array.isArray(result.appended) ? result.appended : [];
+  if (!appended.length) {
+    materialCostCtrl.refreshTraceLoadMoreFooter?.();
+    materialCostCtrl.syncRmTraceChrome?.();
+    return;
+  }
+  const startIdx = ALL_ROWS.length;
+  ALL_ROWS = materialCostCtrl.getTraceRows?.() || ALL_ROWS.concat(appended);
+  VIEW = [...ALL_ROWS];
+  if (tableBody) {
+    tableBody.insertAdjacentHTML(
+      "beforeend",
+      appended.map((row, i) => renderRowForLens(row, startIdx + i)).join(""),
+    );
+  }
+  materialCostCtrl.syncRmTraceChrome?.();
+  materialCostCtrl.refreshTraceLoadMoreFooter?.();
+}
+
+function syncTraceProgressiveScrollChrome() {
+  materialCostCtrl.teardownTraceProgressiveScroll?.();
+  if (!isMaterialCostTraceLensActive()) return;
+  if (
+    materialCostCtrl.getTraceLoadState?.() === "restricted" ||
+    materialCostCtrl.getTraceLoadState?.() === "error"
+  ) {
+    return;
+  }
+  materialCostCtrl.setupTraceProgressiveScroll?.({
+    root: tableWrap,
+    onLoadMore: () => {
+      void appendMoreTraceRows();
+    },
+  });
+}
+
+function getStage05RemediationLaunchContext() {
+  return {
+    productId: STAGE05_REMEDIATION_LAUNCH_CONTEXT.productId,
+    skuId: STAGE05_REMEDIATION_LAUNCH_CONTEXT.skuId,
+  };
+}
+
+function clearStage05RemediationLaunchContext() {
+  STAGE05_REMEDIATION_LAUNCH_CONTEXT = {
+    productId: null,
+    skuId: null,
+  };
+}
+
+function setStage05RemediationLaunchContext(context = {}) {
+  const productId =
+    context.productId != null && context.productId !== ""
+      ? Number(context.productId)
+      : null;
+  const skuId =
+    context.skuId != null && context.skuId !== ""
+      ? Number(context.skuId)
+      : null;
+  STAGE05_REMEDIATION_LAUNCH_CONTEXT = {
+    productId: Number.isFinite(productId) ? productId : null,
+    skuId: Number.isFinite(skuId) ? skuId : null,
+  };
+}
+
+function shouldReloadManualRateManagerForRemediationToggle() {
+  if (CURRENT_LENS !== "manual-rate-manager") return false;
+  if (materialCostCtrl.getManualRateManagerTab() !== "action-queue") {
+    return false;
+  }
+  const nowRemediation = isStage05MaterialRemediationMode({
+    lensId: CURRENT_LENS,
+    managerTab: "action-queue",
+    issueFilters: ACTIVE_FILTERS.issue,
+  });
+  const wasRemediation =
+    materialCostCtrl.wasLastActionQueueLoadRemediation?.() === true;
+  return nowRemediation || wasRemediation;
+}
+
+async function applyManualRateManagerFilterChange() {
+  if (shouldReloadManualRateManagerForRemediationToggle()) {
+    if (
+      !isStage05MaterialRemediationMode({
+        lensId: CURRENT_LENS,
+        managerTab: "action-queue",
+        issueFilters: ACTIVE_FILTERS.issue,
+      })
+    ) {
+      clearStage05RemediationLaunchContext();
+    }
+    CURRENT_PAGE = 1;
+    try {
+      await loadRowsForLens();
+    } catch (err) {
+      handleError("Failed to reload Manual Rate Manager", err);
+    }
+    return;
+  }
+  applyFilters();
+}
+
 function isPeriodScopedLens() {
   if (isPricingPolicyManagerRoute()) {
-    // F5: PPM has no period-capable workspace.
+    // Period-scoped only for commercial-sales-assumptions (supportsPeriod).
     const workspaceId =
       pricingPolicyCtrl.getPricingPolicyWorkspace?.() ||
       PRICING_POLICY_DEFAULT_WORKSPACE;
@@ -3030,6 +3308,7 @@ function syncPricingPolicyLensChrome() {
   const isMrpWorkspace = legacyLensId === "mrp-governance";
   const supportsPeq = workspaceSupportsPeq(workspaceId);
   const supportsSearch = workspaceSupportsSearch(workspaceId);
+  const supportsPeriod = workspaceSupportsPeriod(workspaceId);
   const isSkuMrpRegister =
     isMrpWorkspace &&
     (pricingPolicyCtrl.isSkuMrpPoliciesTabActive?.() ||
@@ -3038,11 +3317,16 @@ function syncPricingPolicyLensChrome() {
       pricingPolicyCtrl.isMrpDecisionsTabActive?.() ||
       pricingPolicyCtrl.isMrpApplicationTabActive?.() ||
       pricingPolicyCtrl.isMrpAppliedHistoryTabActive?.());
-  const showMetaFilter = supportsPeq || isSkuMrpRegister;
+  const isCsa =
+    !!pricingPolicyCtrl.isCommercialSalesAssumptionsTabActive?.();
+  const showMetaFilter =
+    supportsPeq || isSkuMrpRegister || supportsPeriod || isCsa;
+  const showFunnel = supportsPeq || isSkuMrpRegister || isCsa;
   const filterWrapper = $("peqFilterWrapper");
   const filterBtn = $("peqFilterBtn");
   const filterDrawer = $("peqFilterDrawer");
   const mrpFilterBody = $("mrpFilterDrawerBody");
+  const csaFilterBody = $("csaFilterDrawerBody");
   const peqFooterSummary = document.querySelector(
     '#peqFilterDrawer [data-peq-footer="summary"]',
   );
@@ -3050,11 +3334,11 @@ function syncPricingPolicyLensChrome() {
     '#peqFilterDrawer [data-peq-footer="actions"]',
   );
 
-  // Selling PEQ or MRP workspace filters — funnel in meta row.
-  if (filterWrapper) setVisible(filterWrapper, showMetaFilter);
+  // Selling PEQ, MRP workspace filters, or CSA filters — funnel in meta row.
+  if (filterWrapper) setVisible(filterWrapper, showFunnel);
   if (filterBtn) {
-    filterBtn.disabled = !showMetaFilter;
-    if (!showMetaFilter) {
+    filterBtn.disabled = !showFunnel;
+    if (!showFunnel) {
       filterBtn.classList.remove("peq-filter-btn--active");
       const badge = filterBtn.querySelector(".peq-filter-badge");
       if (badge) badge.style.display = "none";
@@ -3066,6 +3350,13 @@ function syncPricingPolicyLensChrome() {
   if (metaChrome) setVisible(metaChrome, showMetaFilter, "inline-flex");
 
   if (isSkuMrpRegister) {
+    filterDrawer?.classList.remove("is-csa-mode");
+    if (csaFilterBody) {
+      parkCostingPeriodSelectFromCsaHost();
+      csaFilterBody.innerHTML = "";
+      csaFilterBody.hidden = true;
+      csaFilterBody.setAttribute("hidden", "");
+    }
     document
       .querySelectorAll("#peqFilterDrawer [data-peq-section]")
       .forEach((section) => setVisible(section, false));
@@ -3085,12 +3376,47 @@ function syncPricingPolicyLensChrome() {
         updateMrpFilterButtonBadge(0);
       }
     }
-  } else {
+  } else if (isCsa) {
     filterDrawer?.classList.remove("is-mrp-mode");
+    filterDrawer?.classList.add("is-csa-mode");
     if (mrpFilterBody) {
       mrpFilterBody.innerHTML = "";
       mrpFilterBody.hidden = true;
       mrpFilterBody.setAttribute("hidden", "");
+    }
+    document
+      .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+      .forEach((section) => setVisible(section, false));
+    if (peqFooterSummary) setVisible(peqFooterSummary, false);
+    if (peqFooterActions) setVisible(peqFooterActions, false);
+    if (csaFilterBody) {
+      parkCostingPeriodSelectFromCsaHost();
+      csaFilterBody.hidden = false;
+      csaFilterBody.removeAttribute("hidden");
+      const content = pricingPolicyCtrl.getActiveCsaFilterDrawerContent?.();
+      if (content?.html) {
+        csaFilterBody.innerHTML = content.html;
+        updateMrpFilterButtonBadge(content.activeCount || 0);
+        pricingPolicyCtrl.wireActiveCsaFilterDrawer?.(csaFilterBody);
+      } else {
+        csaFilterBody.innerHTML = `<div class="peq-filter-summary">No filters for this view.</div>`;
+        updateMrpFilterButtonBadge(0);
+      }
+      relocateCostingPeriodSelectToCsaHost();
+    }
+  } else {
+    filterDrawer?.classList.remove("is-mrp-mode");
+    filterDrawer?.classList.remove("is-csa-mode");
+    if (mrpFilterBody) {
+      mrpFilterBody.innerHTML = "";
+      mrpFilterBody.hidden = true;
+      mrpFilterBody.setAttribute("hidden", "");
+    }
+    if (csaFilterBody) {
+      parkCostingPeriodSelectFromCsaHost();
+      csaFilterBody.innerHTML = "";
+      csaFilterBody.hidden = true;
+      csaFilterBody.setAttribute("hidden", "");
     }
     if (peqFooterSummary) setVisible(peqFooterSummary, true);
     if (peqFooterActions) setVisible(peqFooterActions, true);
@@ -3130,6 +3456,23 @@ function syncPricingPolicyLensChrome() {
   }
 }
 
+/** Keep #costingPeriodSelect alive when CSA drawer HTML is rebuilt. */
+function parkCostingPeriodSelectFromCsaHost() {
+  if (!costingPeriodSelect) return;
+  const host = $("csaPeriodSelectHost");
+  if (host && host.contains(costingPeriodSelect)) {
+    document.body.insertBefore(costingPeriodSelect, document.body.firstChild);
+  }
+}
+
+function relocateCostingPeriodSelectToCsaHost() {
+  if (!costingPeriodSelect) return;
+  const host = $("csaPeriodSelectHost");
+  if (host && costingPeriodSelect.parentElement !== host) {
+    host.appendChild(costingPeriodSelect);
+  }
+}
+
 function updateMrpFilterButtonBadge(activeCount) {
   const btn = $("peqFilterBtn");
   if (!btn) return;
@@ -3144,11 +3487,35 @@ function updateMrpFilterButtonBadge(activeCount) {
 
 /** Original CSR Status checklist HTML (restored when leaving Scheme Comparison). */
 let _csrStatusChecklistHtml = null;
+let qcSearchDebounceTimer = null;
+let msSearchDebounceTimer = null;
+let prmSearchDebounceTimer = null;
+
+function clearQcSearchDebounce() {
+  if (qcSearchDebounceTimer != null) {
+    clearTimeout(qcSearchDebounceTimer);
+    qcSearchDebounceTimer = null;
+  }
+}
+
+function clearMsSearchDebounce() {
+  if (msSearchDebounceTimer != null) {
+    clearTimeout(msSearchDebounceTimer);
+    msSearchDebounceTimer = null;
+  }
+}
+
+function clearPrmSearchDebounce() {
+  if (prmSearchDebounceTimer != null) {
+    clearTimeout(prmSearchDebounceTimer);
+    prmSearchDebounceTimer = null;
+  }
+}
 
 /**
- * SC3: Cost Sheet Review chrome for Scheme Comparison.
+ * SC3: Cost Sheet Review chrome for Scheme Comparison / QC Action Queue.
  * Period → #costingPeriodSelect / ACTIVE_PERIOD_START (via syncPeriodControlState).
- * PEQ → Status only (scheme_viability_status); Issue/Source hidden.
+ * PEQ → Status only (scheme) or Action Type only (QC); Issue/Source hidden as needed.
  * Workbench → cleared like Cost Comparison.
  */
 function syncCostSheetReviewLensChrome() {
@@ -3157,6 +3524,8 @@ function syncCostSheetReviewLensChrome() {
   const filterWrapper = $("peqFilterWrapper");
   const filterBtn = $("peqFilterBtn");
   const isScheme = isSchemeComparisonLens(CURRENT_LENS);
+  const isQcQueue = isQcActionQueueLens(CURRENT_LENS);
+  const isMsQueue = isMaterialsStoresActionQueueLens(CURRENT_LENS);
 
   if (filterWrapper) setVisible(filterWrapper, true);
   if (filterBtn) {
@@ -3172,6 +3541,18 @@ function syncCostSheetReviewLensChrome() {
         setVisible(section, false);
         return;
       }
+      if (key === "qc-action") {
+        setVisible(section, isQcQueue);
+        return;
+      }
+      if (key === "ms-action") {
+        setVisible(section, isMsQueue);
+        return;
+      }
+      if (isQcQueue || isMsQueue) {
+        setVisible(section, false);
+        return;
+      }
       if (isScheme) {
         setVisible(
           section,
@@ -3182,7 +3563,17 @@ function syncCostSheetReviewLensChrome() {
       }
     });
 
-  if (isScheme) {
+  if (isQcQueue) {
+    rebuildQcActionTypePeqOptions();
+    ACTIVE_FILTERS.status = [];
+    ACTIVE_FILTERS.issue = [];
+    ACTIVE_FILTERS.source = [];
+  } else if (isMsQueue) {
+    rebuildMsActionTypePeqOptions();
+    ACTIVE_FILTERS.status = [];
+    ACTIVE_FILTERS.issue = [];
+    ACTIVE_FILTERS.source = [];
+  } else if (isScheme) {
     const deferredStatusRebuild = refreshSchemeComparisonStatusPeqOptions();
     ACTIVE_FILTERS.issue = [];
     ACTIVE_FILTERS.source = [];
@@ -3201,6 +3592,78 @@ function syncCostSheetReviewLensChrome() {
   if (searchBox) {
     searchBox.disabled = false;
     searchBox.readOnly = false;
+  }
+}
+
+function rebuildQcActionTypePeqOptions() {
+  const list = document.getElementById("qcActionTypeChecklist");
+  if (!list) return;
+  const selected = normalizeQcCode(qcActionQueueCtrl.getActionCode?.() || "");
+  const codes = mergeQcActionCodeOptions(
+    QC_ACTION_TYPE_SEED.map((item) => item.code),
+    qcActionQueueCtrl.getSeenActionCodes?.() || [],
+  );
+  const seedLabel = new Map(
+    QC_ACTION_TYPE_SEED.map((item) => [item.code, item.label]),
+  );
+  const items = [
+    `<li><label><input type="radio" name="qcActionType" data-qc-action-code="" value="" ${
+      !selected ? "checked" : ""
+    } /> All actions</label></li>`,
+    ...codes.map((code) => {
+      const label = seedLabel.get(code) || formatQcActionLabel(code) || code;
+      const checked = selected === code ? "checked" : "";
+      return `<li><label><input type="radio" name="qcActionType" data-qc-action-code="${escapeHtml(
+        code,
+      )}" value="${escapeHtml(code)}" ${checked} /> ${escapeHtml(
+        label,
+      )}</label></li>`;
+    }),
+  ];
+  list.innerHTML = items.join("");
+  const summary = list.parentElement?.querySelector(".peq-filter-summary");
+  if (summary) {
+    summary.textContent = selected
+      ? seedLabel.get(selected) ||
+        formatQcActionLabel(selected) ||
+        selected
+      : "All actions";
+  }
+}
+
+function rebuildMsActionTypePeqOptions() {
+  const list = document.getElementById("msActionTypeChecklist");
+  if (!list) return;
+  const selected = normalizeMsCode(materialsStoresActionQueueCtrl.getActionCode?.() || "");
+  const codes = mergeMsActionCodeOptions(
+    MS_ACTION_TYPE_SEED.map((item) => item.code),
+    materialsStoresActionQueueCtrl.getSeenActionCodes?.() || [],
+  );
+  const seedLabel = new Map(
+    MS_ACTION_TYPE_SEED.map((item) => [item.code, item.label]),
+  );
+  const items = [
+    `<li><label><input type="radio" name="msActionType" data-ms-action-code="" value="" ${
+      !selected ? "checked" : ""
+    } /> All actions</label></li>`,
+    ...codes.map((code) => {
+      const label = seedLabel.get(code) || formatMsActionLabel(code) || code;
+      const checked = selected === code ? "checked" : "";
+      return `<li><label><input type="radio" name="msActionType" data-ms-action-code="${escapeHtml(
+        code,
+      )}" value="${escapeHtml(code)}" ${checked} /> ${escapeHtml(
+        label,
+      )}</label></li>`;
+    }),
+  ];
+  list.innerHTML = items.join("");
+  const summary = list.parentElement?.querySelector(".peq-filter-summary");
+  if (summary) {
+    summary.textContent = selected
+      ? seedLabel.get(selected) ||
+        formatMsActionLabel(selected) ||
+        selected
+      : "All actions";
   }
 }
 
@@ -3272,6 +3735,42 @@ function syncPeriodControlState() {
   const scoped = isPeriodScopedLens();
 
   if (costingPeriodSelect) {
+    const onPpm = isPricingPolicyManagerRoute();
+    if (onPpm) {
+      // EVP-3I2C9E: show existing #costingPeriodSelect only for the sole
+      // period-scoped PPM workspace (commercial-sales-assumptions), inside
+      // the CSA filter drawer host when present.
+      if (scoped) {
+        costingPeriodSelect.hidden = false;
+        costingPeriodSelect.removeAttribute("hidden");
+        costingPeriodSelect.setAttribute("aria-hidden", "false");
+        costingPeriodSelect.removeAttribute("tabindex");
+        const csaHost = $("csaPeriodSelectHost");
+        if (csaHost) {
+          if (costingPeriodSelect.parentElement !== csaHost) {
+            csaHost.appendChild(costingPeriodSelect);
+          }
+        } else {
+          // Drawer not mounted yet — keep select parked on body (hidden from meta).
+          if (
+            costingPeriodSelect.parentElement &&
+            costingPeriodSelect.parentElement.id === "pricingPolicyMetaChrome"
+          ) {
+            document.body.insertBefore(
+              costingPeriodSelect,
+              document.body.firstChild,
+            );
+          }
+        }
+      } else {
+        parkCostingPeriodSelectFromCsaHost();
+        costingPeriodSelect.hidden = true;
+        costingPeriodSelect.setAttribute("hidden", "");
+        costingPeriodSelect.setAttribute("aria-hidden", "true");
+        costingPeriodSelect.setAttribute("tabindex", "-1");
+      }
+    }
+
     costingPeriodSelect.disabled = !scoped;
     costingPeriodSelect.title = scoped
       ? "Select costing period"
@@ -3289,12 +3788,15 @@ async function setActiveCostingPeriod(periodStart) {
   ACTIVE_PERIOD_START = normalized;
   costBuildCtrl.setManualProvisionPeriodFilter(normalized);
   costSheetCtrl.invalidatePrintableLinesCache();
+  controlCenterCtrl.clearSkuExactEvidenceCache?.();
   renderCostingPeriodOptions();
   syncPeriodControlState();
+  pricingPolicyCtrl.onCommercialSalesPeriodChanged?.(normalized);
 
   try {
     await loadRowsForLens();
     await refreshOpenDrawerIfNeeded();
+    await reloadCostPeriodValuationIfNeeded();
   } catch (err) {
     handleError("Failed to load costing period", err);
   }
@@ -3345,9 +3847,50 @@ function setVisible(el, visible, displayValue = "") {
   el.style.display = visible ? displayValue : "none";
 }
 
-async function loadSkuStatusDiagnosis(periodStart) {
+/**
+ * Cost Sheet Review lenses where period-wide diagnosis is supplementary to the
+ * main table and must not block first paint.
+ */
+function isCsrDeferredDiagnosisLens(lensId) {
+  return (
+    lensId === "sku-cost-sheet" ||
+    lensId === "cost-comparison" ||
+    lensId === "scheme-comparison"
+  );
+}
+
+function isRowsLoadCurrent(loadGeneration) {
+  return loadGeneration === ROWS_LOAD_GENERATION;
+}
+
+/**
+ * Re-render open SKU/scheme drawer tabs that embed diagnosis, without touching
+ * ALL_ROWS / main table queries.
+ */
+function refreshOpenDrawerDiagnosisIfNeeded() {
+  if (!detailsModal || detailsModal.classList.contains("hidden")) return;
+  if (!SELECTED_ROW) return;
+  if (
+    CURRENT_LENS !== "sku-cost-sheet" &&
+    !isSchemeComparisonLens(CURRENT_LENS)
+  ) {
+    return;
+  }
+  const activeTab = drawerTabs?.querySelector(".tab.active")?.dataset?.tab;
+  if (!activeTab) return;
+  void setDrawerTab(activeTab);
+}
+
+/**
+ * @param {string} periodStart
+ * @param {{ loadGeneration?: number|null }} [options]
+ * @returns {Promise<{ applied: boolean, stale?: boolean, failed?: boolean }>}
+ */
+async function loadSkuStatusDiagnosis(periodStart, options = {}) {
+  const loadGeneration =
+    options.loadGeneration === undefined ? null : options.loadGeneration;
   try {
-    SKU_STATUS_DIAGNOSIS = await fetchAllRows(
+    const rows = await fetchAllRows(
       () =>
         costingFrom("v_costing_pricing_sku_status_diagnosis")
           .select("*")
@@ -3356,10 +3899,18 @@ async function loadSkuStatusDiagnosis(periodStart) {
           .order("pack_size", { ascending: true }),
       1000,
     );
+    if (loadGeneration != null && !isRowsLoadCurrent(loadGeneration)) {
+      return { applied: false, stale: true };
+    }
+    SKU_STATUS_DIAGNOSIS = rows;
     DIAGNOSIS_BY_SKU_ID = new Map(
       SKU_STATUS_DIAGNOSIS.map((row) => [Number(row.sku_id), row]),
     );
+    return { applied: true };
   } catch (err) {
+    if (loadGeneration != null && !isRowsLoadCurrent(loadGeneration)) {
+      return { applied: false, stale: true };
+    }
     SKU_STATUS_DIAGNOSIS = [];
     DIAGNOSIS_BY_SKU_ID = new Map();
     console.error("Costing diagnosis could not be loaded", err);
@@ -3368,7 +3919,19 @@ async function loadSkuStatusDiagnosis(periodStart) {
       "warning",
       5200,
     );
+    return { applied: true, failed: true };
   }
+}
+
+function scheduleDeferredSkuStatusDiagnosis(periodStart, loadGeneration) {
+  void (async () => {
+    const result = await loadSkuStatusDiagnosis(periodStart, {
+      loadGeneration,
+    });
+    if (!result?.applied || result.stale) return;
+    if (!isRowsLoadCurrent(loadGeneration)) return;
+    refreshOpenDrawerDiagnosisIfNeeded();
+  })();
 }
 
 function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
@@ -3380,6 +3943,7 @@ function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
 }
 
 async function loadRowsForLens({ preservePage = false } = {}) {
+  const loadGeneration = ++ROWS_LOAD_GENERATION;
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
   try {
@@ -3392,6 +3956,7 @@ async function loadRowsForLens({ preservePage = false } = {}) {
 
     if (shouldShowKpiStrip()) {
       await controlCenterCtrl.loadGlobalSummaries(ACTIVE_PERIOD_START);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
     }
 
     if (CURRENT_LENS === "manual-provisions") {
@@ -3399,34 +3964,116 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       DIAGNOSIS_BY_SKU_ID = new Map();
 
       await costBuildCtrl.loadManualProvisionLensData(ACTIVE_PERIOD_START);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
 
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
       return;
     }
 
+    if (isQcActionQueueLens(CURRENT_LENS)) {
+      SKU_STATUS_DIAGNOSIS = [];
+      DIAGNOSIS_BY_SKU_ID = new Map();
+      ALL_ROWS = [];
+      VIEW = [];
+      qcActionQueueCtrl.onLensLoadStart?.();
+      if (!preservePage) CURRENT_PAGE = 1;
+      qcActionQueueCtrl.syncPageFromShell(CURRENT_PAGE, PAGE_SIZE);
+      const result = await qcActionQueueCtrl.load({
+        period_start: ACTIVE_PERIOD_START,
+        resetOffset: !preservePage,
+        q: String(searchBox?.value || "").trim(),
+      });
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      if (result?.ok && result.page != null && Number(result.page) > 0) {
+        CURRENT_PAGE = Number(result.page);
+      }
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      renderTable();
+      return;
+    }
+
+    if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+      SKU_STATUS_DIAGNOSIS = [];
+      DIAGNOSIS_BY_SKU_ID = new Map();
+      ALL_ROWS = [];
+      VIEW = [];
+      materialsStoresActionQueueCtrl.onLensLoadStart?.();
+      if (!preservePage) CURRENT_PAGE = 1;
+      materialsStoresActionQueueCtrl.syncPageFromShell(CURRENT_PAGE, PAGE_SIZE);
+      const result = await materialsStoresActionQueueCtrl.load({
+        period_start: ACTIVE_PERIOD_START,
+        resetOffset: !preservePage,
+        q: String(searchBox?.value || "").trim(),
+      });
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      if (result?.ok && result.page != null && Number(result.page) > 0) {
+        CURRENT_PAGE = Number(result.page);
+      }
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      renderTable();
+      return;
+    }
+
+    if (isProductionRouteLens(CURRENT_LENS)) {
+      SKU_STATUS_DIAGNOSIS = [];
+      DIAGNOSIS_BY_SKU_ID = new Map();
+      ALL_ROWS = [];
+      VIEW = [];
+      productionRouteCtrl.onLensLoadStart?.();
+      if (!preservePage) CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(CURRENT_PAGE, PAGE_SIZE);
+      const deepLink = productionRouteCtrl.applyDeepLinkFromUrl?.() || {};
+      const result = await productionRouteCtrl.load({
+        lens: CURRENT_LENS,
+        deepLink,
+        resetOffset: !preservePage,
+        search: String(searchBox?.value || "").trim(),
+      });
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      if (result?.ok && result.page != null && Number(result.page) > 0) {
+        CURRENT_PAGE = Number(result.page);
+      }
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      renderTable();
+      return;
+    }
+
     if (
       CURRENT_LENS === "dashboard" ||
       CURRENT_LENS === "costing-review-workbench" ||
+      CURRENT_LENS === "sku-control-status" ||
       CURRENT_LENS === "cost-governance" ||
       CURRENT_LENS === "staff-governance" ||
       CURRENT_LENS === "manual-rate-manager" ||
       CURRENT_LENS === "rm-cost-trace" ||
+      CURRENT_LENS === "pm-cost-trace" ||
       CURRENT_LENS === "printable-cost-sheet" ||
       CURRENT_LENS === "mrp-governance"
     ) {
       SKU_STATUS_DIAGNOSIS = [];
       DIAGNOSIS_BY_SKU_ID = new Map();
+    } else if (isCsrDeferredDiagnosisLens(CURRENT_LENS)) {
+      SKU_STATUS_DIAGNOSIS = [];
+      DIAGNOSIS_BY_SKU_ID = new Map();
+      scheduleDeferredSkuStatusDiagnosis(ACTIVE_PERIOD_START, loadGeneration);
     } else {
       await loadSkuStatusDiagnosis(ACTIVE_PERIOD_START);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
     }
 
     const viewName = VIEW_BY_LENS[CURRENT_LENS];
     if (CURRENT_LENS === "dashboard") {
-      ALL_ROWS = await controlCenterCtrl.loadDashboardRows(ACTIVE_PERIOD_START);
+      const rows = await controlCenterCtrl.loadDashboardRows(ACTIVE_PERIOD_START);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
+      void reloadCostPeriodValuationIfNeeded();
       return;
     }
 
@@ -3434,6 +4081,7 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       const { groupedRows } = await costSheetCtrl.loadPrintableLensRows(
         ACTIVE_PERIOD_START,
       );
+      if (!isRowsLoadCurrent(loadGeneration)) return;
       ALL_ROWS = groupedRows;
       applyFilters();
       LAST_REFRESH_TIME = new Date();
@@ -3444,6 +4092,7 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     // Scheme Comparison owned by schemeComparisonCtrl (CSR only after SC4).
     if (isSchemeComparisonLens(CURRENT_LENS)) {
       if (isPricingPolicyManagerRoute()) {
+        if (!isRowsLoadCurrent(loadGeneration)) return;
         ALL_ROWS = [];
         VIEW = [];
         CURRENT_PAGE = 1;
@@ -3452,7 +4101,9 @@ async function loadRowsForLens({ preservePage = false } = {}) {
         updateFreshnessIndicator();
         return;
       }
-      ALL_ROWS = await schemeComparisonCtrl.loadRows(ACTIVE_PERIOD_START);
+      const rows = await schemeComparisonCtrl.loadRows(ACTIVE_PERIOD_START);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
@@ -3461,24 +4112,37 @@ async function loadRowsForLens({ preservePage = false } = {}) {
 
     if (CURRENT_LENS === "mrp-governance") {
       if (pricingPolicyCtrl.isSkuMrpPoliciesTabActive()) {
-        ALL_ROWS = await pricingPolicyCtrl.loadSkuMrpPolicyRows();
+        const rows = await pricingPolicyCtrl.loadSkuMrpPolicyRows();
+        if (!isRowsLoadCurrent(loadGeneration)) return;
+        ALL_ROWS = rows;
         applyFilters();
       } else if (pricingPolicyCtrl.isProductDerivationPoliciesTabActive()) {
-        ALL_ROWS = await pricingPolicyCtrl.loadProductDerivationPolicyRows();
+        const rows = await pricingPolicyCtrl.loadProductDerivationPolicyRows();
+        if (!isRowsLoadCurrent(loadGeneration)) return;
+        ALL_ROWS = rows;
         applyFilters();
       } else if (pricingPolicyCtrl.isMrpProposalsTabActive()) {
-        ALL_ROWS = await pricingPolicyCtrl.loadMrpProposalRows();
+        const rows = await pricingPolicyCtrl.loadMrpProposalRows();
+        if (!isRowsLoadCurrent(loadGeneration)) return;
+        ALL_ROWS = rows;
         applyFilters();
       } else if (pricingPolicyCtrl.isMrpDecisionsTabActive()) {
-        ALL_ROWS = await pricingPolicyCtrl.loadMrpDecisionRows();
+        const rows = await pricingPolicyCtrl.loadMrpDecisionRows();
+        if (!isRowsLoadCurrent(loadGeneration)) return;
+        ALL_ROWS = rows;
         applyFilters();
       } else if (pricingPolicyCtrl.isMrpApplicationTabActive()) {
-        ALL_ROWS = await pricingPolicyCtrl.loadMrpApplicationRows();
+        const rows = await pricingPolicyCtrl.loadMrpApplicationRows();
+        if (!isRowsLoadCurrent(loadGeneration)) return;
+        ALL_ROWS = rows;
         applyFilters();
       } else if (pricingPolicyCtrl.isMrpAppliedHistoryTabActive()) {
-        ALL_ROWS = await pricingPolicyCtrl.loadMrpAppliedHistoryRows();
+        const rows = await pricingPolicyCtrl.loadMrpAppliedHistoryRows();
+        if (!isRowsLoadCurrent(loadGeneration)) return;
+        ALL_ROWS = rows;
         applyFilters();
       } else {
+        if (!isRowsLoadCurrent(loadGeneration)) return;
         ALL_ROWS = [];
         VIEW = [];
         CURRENT_PAGE = 1;
@@ -3492,19 +4156,49 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     }
 
     if (CURRENT_LENS === "costing-review-workbench") {
-      ALL_ROWS = await controlCenterCtrl.loadWorkbenchRows(
+      const rows = await controlCenterCtrl.loadWorkbenchRows(
         ACTIVE_PERIOD_START,
         materialCostCtrl,
       );
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
 
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      void reloadCostPeriodValuationIfNeeded();
+      return;
+    }
+
+    if (CURRENT_LENS === "sku-control-status") {
+      const rows = await controlCenterCtrl.loadSkuControlStatusRows(
+        ACTIVE_PERIOD_START,
+      );
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
+      applyFilters();
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      void reloadCostPeriodValuationIfNeeded();
+      return;
+    }
+
+    if (CURRENT_LENS === "cost-governance") {
+      const rows = await costBuildCtrl.loadCostGovernanceRows(ACTIVE_PERIOD_START);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
       return;
     }
 
-    if (CURRENT_LENS === "cost-governance") {
-      ALL_ROWS = await costBuildCtrl.loadCostGovernanceRows(ACTIVE_PERIOD_START);
+    if (isDriverGovernanceLens(CURRENT_LENS)) {
+      const result = await driverGovernanceCtrl.onLensLoad();
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = result?.rows || driverGovernanceCtrl.getRows?.() || [];
+      VIEW = ALL_ROWS;
+      CURRENT_PAGE = 1;
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
@@ -3512,16 +4206,24 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     }
 
     if (CURRENT_LENS === "staff-governance") {
-      ALL_ROWS = await costBuildCtrl.loadStaffGovernanceRows(ACTIVE_PERIOD_START);
+      const rows = await costBuildCtrl.loadStaffGovernanceRows(ACTIVE_PERIOD_START);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
       return;
     }
 
-    if (CURRENT_LENS === "rm-cost-trace") {
-      materialCostCtrl.syncTracePageFromShell(CURRENT_PAGE, PAGE_SIZE);
-      ALL_ROWS = await materialCostCtrl.loadRmCostTraceRows();
+    if (CURRENT_LENS === "rm-cost-trace" || CURRENT_LENS === "pm-cost-trace") {
+      syncShellTraceComponentFromLens();
+      materialCostCtrl.syncTracePageFromShell(1, PAGE_SIZE);
+      const rows =
+        CURRENT_LENS === "pm-cost-trace"
+          ? await materialCostCtrl.loadPmCostTraceRows({ reset: true })
+          : await materialCostCtrl.loadRmCostTraceRows({ reset: true });
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
       VIEW = [...ALL_ROWS];
       materialCostCtrl.syncRmTraceChrome();
       syncTraceExportButtonState();
@@ -3533,7 +4235,9 @@ async function loadRowsForLens({ preservePage = false } = {}) {
 
     if (CURRENT_LENS === "manual-rate-manager") {
       const activeTab = materialCostCtrl.getManualRateManagerTab();
-      ALL_ROWS = await materialCostCtrl.loadManualRateManagerRows(activeTab);
+      const rows = await materialCostCtrl.loadManualRateManagerRows(activeTab);
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
       materialCostCtrl.syncRmTraceChrome();
       syncTraceExportButtonState();
       applyFilters();
@@ -3543,7 +4247,9 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     }
 
     if (CURRENT_LENS === "policy-manager") {
-      ALL_ROWS = await pricingPolicyCtrl.loadPolicyManagerRows();
+      const rows = await pricingPolicyCtrl.loadPolicyManagerRows();
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      ALL_ROWS = rows;
       applyFilters();
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
@@ -3575,13 +4281,16 @@ async function loadRowsForLens({ preservePage = false } = {}) {
 
     const { data, error } = await query.limit(2000);
     if (error) throw error;
+    if (!isRowsLoadCurrent(loadGeneration)) return;
     ALL_ROWS = data || [];
     applyFilters();
     LAST_REFRESH_TIME = new Date();
     updateFreshnessIndicator();
   } finally {
     applyKpiStripVisibility();
-    setLoadingMask(false);
+    if (isRowsLoadCurrent(loadGeneration)) {
+      setLoadingMask(false);
+    }
   }
 }
 
@@ -3860,7 +4569,44 @@ async function switchLens(lensId) {
     );
     return;
   }
+  const leavingQc = isQcActionQueueLens(CURRENT_LENS);
+  const leavingMs = isMaterialsStoresActionQueueLens(CURRENT_LENS);
+  const leavingPrm = isProductionRouteLens(CURRENT_LENS);
+  const leavingDriverGovernance = isDriverGovernanceLens(CURRENT_LENS);
+  const leavingTrace = isMaterialCostTraceLensActive();
   costSheetCtrl.onLensSwitch();
+  if (leavingTrace) {
+    materialCostCtrl.teardownTraceProgressiveScroll?.();
+  }
+  if (leavingQc) {
+    clearQcSearchDebounce();
+    qcActionQueueCtrl.onLensExit?.();
+    if (
+      detailsModal &&
+      !detailsModal.classList.contains("hidden") &&
+      qcActionQueueCtrl.isShowingQcQueueRow?.(SELECTED_ROW)
+    ) {
+      closeDetails();
+    }
+  }
+  if (leavingMs) {
+    clearMsSearchDebounce();
+    materialsStoresActionQueueCtrl.onLensExit?.();
+    if (
+      detailsModal &&
+      !detailsModal.classList.contains("hidden") &&
+      materialsStoresActionQueueCtrl.isShowingMsQueueRow?.(SELECTED_ROW)
+    ) {
+      closeDetails();
+    }
+  }
+  if (leavingPrm) {
+    clearPrmSearchDebounce();
+    productionRouteCtrl.onLensExit?.();
+  }
+  if (leavingDriverGovernance) {
+    driverGovernanceCtrl.onLensExit?.();
+  }
   CURRENT_LENS = lensId;
   pricingPolicyCtrl.syncNavigationFromLegacyLens?.(CURRENT_LENS);
   SELECTED_ROW = null;
@@ -3873,6 +4619,31 @@ async function switchLens(lensId) {
   }
   if (CURRENT_LENS === "mrp-governance") {
     closeFilterDrawer();
+  }
+  // Keep PRM deep-link URL aligned with the shell lens so leftover editor
+  // params do not reopen Family summary or leave the editor host visible.
+  if (isProductionRouteLens(CURRENT_LENS)) {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("lens", CURRENT_LENS);
+      if (CURRENT_LENS !== "route-family-route-editor") {
+        url.searchParams.delete("family_route_id");
+      }
+      if (CURRENT_LENS !== "product-route-editor") {
+        url.searchParams.delete("product_route_id");
+      }
+      // Shell tab clicks are not Family-summary deep links. Keep route_family_id
+      // only for editor / historical-candidate lenses that need Family context.
+      if (
+        CURRENT_LENS !== "route-family-route-editor" &&
+        CURRENT_LENS !== "historical-candidate-review"
+      ) {
+        url.searchParams.delete("route_family_id");
+      }
+      window.history.replaceState({}, "", url.toString());
+    } catch {
+      /* ignore URL sync failures */
+    }
   }
   renderLensPills();
   syncPricingPolicyLensChrome();
@@ -4169,6 +4940,13 @@ function getSearchBlob(row) {
     row.calculation_status,
     row.pack_direction,
     row.decision,
+    row.commercial_sales_basis,
+    row.assumption_source,
+    row.commercial_sales_status,
+    row.commercial_sales_warning,
+    row.assumption_resolution_status,
+    row.default_resolution_status,
+    row.default_policy_scenario,
     row.__search_blob,
   ]
     .filter(Boolean)
@@ -4256,6 +5034,7 @@ function filterMatch(row, group, selected) {
       row.rate_source,
       row.bom_source,
       row.bom_sources,
+      row.material_area,
       row.source,
       row.pool_source_type,
       row.allocation_pool,
@@ -4290,7 +5069,20 @@ function filterMatch(row, group, selected) {
 }
 
 function applyFilters() {
-  if (isRmCostTraceLensActive()) {
+  if (
+    isQcActionQueueLens(CURRENT_LENS) ||
+    isMaterialsStoresActionQueueLens(CURRENT_LENS) ||
+    isProductionRouteLens(CURRENT_LENS) ||
+    isDriverGovernanceLens(CURRENT_LENS)
+  ) {
+    if (isDriverGovernanceLens(CURRENT_LENS)) {
+      VIEW = [...ALL_ROWS];
+      renderTable();
+    }
+    updateSearchClear();
+    return;
+  }
+  if (isRmCostTraceLensActive() || isPmCostTraceLensActive()) {
     VIEW = [...ALL_ROWS];
     CURRENT_PAGE = 1;
     renderTable();
@@ -4305,11 +5097,25 @@ function applyFilters() {
       filterMatch(row, "issue", ACTIVE_FILTERS.issue) &&
       filterMatch(row, "source", ACTIVE_FILTERS.source),
   );
+  if (
+    CURRENT_LENS === "policy-manager" &&
+    pricingPolicyCtrl.isCommercialSalesAssumptionsTabActive?.()
+  ) {
+    rows = pricingPolicyCtrl.filterCommercialSalesAssumptionRows?.(rows) || rows;
+  }
   VIEW = rows;
   applySearch();
 }
 
 function applySearch() {
+  if (
+    isQcActionQueueLens(CURRENT_LENS) ||
+    isMaterialsStoresActionQueueLens(CURRENT_LENS) ||
+    isProductionRouteLens(CURRENT_LENS)
+  ) {
+    updateSearchClear();
+    return;
+  }
   const q = String(searchBox?.value || "")
     .trim()
     .toLowerCase();
@@ -4319,6 +5125,12 @@ function applySearch() {
       filterMatch(row, "issue", ACTIVE_FILTERS.issue) &&
       filterMatch(row, "source", ACTIVE_FILTERS.source),
   );
+  if (
+    CURRENT_LENS === "policy-manager" &&
+    pricingPolicyCtrl.isCommercialSalesAssumptionsTabActive?.()
+  ) {
+    rows = pricingPolicyCtrl.filterCommercialSalesAssumptionRows?.(rows) || rows;
+  }
   if (q) rows = rows.filter((row) => getSearchBlob(row).includes(q));
   VIEW = rows;
   CURRENT_PAGE = 1;
@@ -4344,8 +5156,14 @@ function updateSearchPlaceholder() {
     placeholder = "Search expense head, group, allocation pool, or status";
   } else if (CURRENT_LENS === "staff-governance") {
     placeholder = "Search staff, employee code, designation, class, or pool";
-  } else if (CURRENT_LENS === "rm-cost-trace") {
-    placeholder = "Use RM Cost Trace filters for material search";
+  } else if (
+    CURRENT_LENS === "rm-cost-trace" ||
+    CURRENT_LENS === "pm-cost-trace"
+  ) {
+    placeholder =
+      CURRENT_LENS === "pm-cost-trace"
+        ? "Use PM Cost Trace filters for material search"
+        : "Use RM Cost Trace filters for material search";
   } else if (CURRENT_LENS === "manual-rate-manager") {
     const managerTab = materialCostCtrl.getManualRateManagerTab();
     if (managerTab === "history") {
@@ -4356,6 +5174,11 @@ function updateSearchPlaceholder() {
   } else if (CURRENT_LENS === "policy-manager") {
     if (pricingPolicyCtrl.getPolicyManagerTab() === "scheme-master") {
       placeholder = "Search scheme name, status, or type";
+    } else if (
+      pricingPolicyCtrl.isCommercialSalesAssumptionsTabActive?.()
+    ) {
+      placeholder =
+        "Search product, SKU, pack, source, status, or warning";
     } else {
       placeholder = "Search product, SKU, scheme, policy, or status";
     }
@@ -4393,6 +5216,20 @@ function updateSearchPlaceholder() {
     placeholder =
       schemeComparisonCtrl.getSearchPlaceholder?.() ||
       "Search product, SKU, scheme or status";
+  } else if (isQcActionQueueLens(CURRENT_LENS)) {
+    placeholder = "Search product, group, or action…";
+  } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    placeholder = "Search Product, Product ID, SKU ID or action";
+  } else if (isProductionRouteLens(CURRENT_LENS)) {
+    placeholder = "Search Product or Product Group.";
+  }
+
+  if (searchBox) {
+    const peqDisabled = searchBox.classList.contains("cp-search-disabled");
+    if (!peqDisabled) {
+      searchBox.disabled = false;
+      searchBox.readOnly = false;
+    }
   }
 
   searchBox.placeholder = placeholder;
@@ -4413,6 +5250,18 @@ function renderTableHeaderForLens() {
       tableHead.innerHTML = "";
       return;
     }
+  }
+
+  if (isDriverGovernanceLens(CURRENT_LENS)) {
+    const headers = driverGovernanceCtrl.getTableHeaders();
+    const alignments = driverGovernanceCtrl.getTableAlignments();
+    tableHead.innerHTML = `<tr>${headers
+      .map((h, i) => {
+        const classes = [alignments[i] || "c-left"];
+        return `<th class="${classes.join(" ")}">${text(h, "")}</th>`;
+      })
+      .join("")}</tr>`;
+    return;
   }
 
   if (isCostBuildLens(CURRENT_LENS)) {
@@ -4589,6 +5438,10 @@ function productSkuLabel(row) {
 
 function renderRowForLens(row, idx) {
   const trAttrs = `class="clickable" data-row-index="${idx}"`;
+  if (isDriverGovernanceLens(CURRENT_LENS)) {
+    const rowHtml = driverGovernanceCtrl.renderTableRow(row, trAttrs, idx);
+    if (rowHtml) return rowHtml;
+  }
   if (isCostBuildLens(CURRENT_LENS)) {
     const rowHtml = costBuildCtrl.renderTableRow(CURRENT_LENS, row, trAttrs, idx);
     if (rowHtml) return rowHtml;
@@ -4647,8 +5500,73 @@ function renderTable() {
     tableWrap.classList.remove("hidden");
     tableWrap.style.display = "";
   }
-  renderTableHeaderForLens();
-  if (tableWrap) {
+
+  if (isQcActionQueueLens(CURRENT_LENS)) {
+    clearStatus();
+    tableWrap?.classList.add("tw-visible");
+    const shellPagination = document.querySelector(
+      "#genericTableMetaRow .pagination",
+    );
+    setVisible(shellPagination, true, "inline-flex");
+    qcActionQueueCtrl.render();
+    syncCostSheetReviewLensChrome();
+    // Fall through to shared row-count / paginator chrome below.
+  } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    clearStatus();
+    tableWrap?.classList.add("tw-visible");
+    const shellPagination = document.querySelector(
+      "#genericTableMetaRow .pagination",
+    );
+    setVisible(shellPagination, true, "inline-flex");
+    materialsStoresActionQueueCtrl.render();
+    syncCostSheetReviewLensChrome();
+  } else if (isProductionRouteLens(CURRENT_LENS)) {
+    clearStatus();
+    const shellPagination = document.querySelector(
+      "#genericTableMetaRow .pagination",
+    );
+    const showPager =
+      CURRENT_LENS === "route-readiness" ||
+      CURRENT_LENS === "product-route-assignments";
+    const showPrmTableMeta =
+      CURRENT_LENS === "route-readiness" ||
+      CURRENT_LENS === "product-route-assignments" ||
+      CURRENT_LENS === "shared-workload-preview" ||
+      CURRENT_LENS === "route-families";
+    setVisible(shellPagination, showPager, "inline-flex");
+    if (genericTableMetaRow) {
+      const hasMetaActions =
+        genericTableMetaActions &&
+        !genericTableMetaActions.classList.contains("hidden") &&
+        !!genericTableMetaActions.innerHTML.trim();
+      if (!showPrmTableMeta && !showPager && !hasMetaActions) {
+        setVisible(genericTableMetaRow, false);
+      } else {
+        setVisible(genericTableMetaRow, true, "flex");
+      }
+    }
+    tableWrap?.classList.remove("hidden");
+    tableWrap?.classList.add("tw-visible");
+    productionRouteCtrl.render();
+    productionRouteCtrl.rebuildReadinessPeqOptions?.();
+    productionRouteCtrl.syncPrmFilterDrawerSections?.();
+  } else {
+    const shellPaginationRestore = document.querySelector(
+      "#genericTableMetaRow .pagination",
+    );
+    if (shellPaginationRestore) {
+      setVisible(shellPaginationRestore, true, "inline-flex");
+    }
+
+    renderTableHeaderForLens();
+  }
+
+  if (
+    !isQcActionQueueLens(CURRENT_LENS) &&
+    !isMaterialsStoresActionQueueLens(CURRENT_LENS) &&
+    !isProductionRouteLens(CURRENT_LENS) &&
+    tableWrap
+  ) {
     tableWrap.dataset.lens = CURRENT_LENS;
     tableWrap.dataset.managerTab =
       CURRENT_LENS === "manual-rate-manager"
@@ -4666,7 +5584,9 @@ function renderTable() {
                   : "";
   }
 
-  if (CURRENT_LENS === "manual-rate-manager") {
+  if (isQcActionQueueLens(CURRENT_LENS) || isMaterialsStoresActionQueueLens(CURRENT_LENS) || isProductionRouteLens(CURRENT_LENS)) {
+    // Skip standard workbench tab chrome / row slicing; paginator uses queue totals.
+  } else if (CURRENT_LENS === "manual-rate-manager") {
     materialCostCtrl.renderManualRateManagerTabs(workbenchSummary, async () => {
       CURRENT_PAGE = 1;
       try {
@@ -4729,8 +5649,16 @@ function renderTable() {
     // Drawer content + filter wiring needs the local-change handler set above.
     syncPricingPolicyLensChrome();
   } else if (CURRENT_LENS === "policy-manager") {
-    pricingPolicyCtrl.renderPolicyManagerTabs(workbenchSummary, async () => {
+    const reloadPolicyManagerWorkbench = async (reason) => {
       CURRENT_PAGE = 1;
+      if (reason === "filter") {
+        applyFilters();
+        // Refresh CSA funnel badge/selects without rebuilding workbench chrome.
+        syncPricingPolicyLensChrome();
+        syncPeriodControlState();
+        pricingPolicyCtrl.syncPricingPolicyMetaActions?.();
+        return;
+      }
       SELECTED_ROW = null;
       closeDetails();
       replacePricingPolicyUrl();
@@ -4741,7 +5669,14 @@ function renderTable() {
       } catch (err) {
         handleError("Failed to load Policy Manager tab", err);
       }
-    });
+    };
+    pricingPolicyCtrl.renderPolicyManagerTabs(
+      workbenchSummary,
+      reloadPolicyManagerWorkbench,
+    );
+    // CSA drawer + period host need the filter handler set above.
+    syncPricingPolicyLensChrome();
+    syncPeriodControlState();
     pricingPolicyCtrl.syncPricingPolicyMetaActions();
   } else if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.renderManualProvisionTabs(workbenchSummary, async () => {
@@ -4780,23 +5715,54 @@ function renderTable() {
   materialCostCtrl.syncRmTraceChrome();
   syncTraceExportButtonState();
 
-  const rmTraceActive = isRmCostTraceLensActive();
+  const rmTraceActive = isMaterialCostTraceLensActive();
+  const qcQueueActive = isQcActionQueueLens(CURRENT_LENS);
+  const msQueueActive = isMaterialsStoresActionQueueLens(CURRENT_LENS);
+  const prmReadinessActive = CURRENT_LENS === "route-readiness";
+  const prmAssignmentsActive = CURRENT_LENS === "product-route-assignments";
+  const prmWorkloadActive = CURRENT_LENS === "shared-workload-preview";
+  const prmPaginatedActive =
+    prmReadinessActive || prmAssignmentsActive || prmWorkloadActive;
+  const prmActive = isProductionRouteLens(CURRENT_LENS);
+  const actionQueueActive = qcQueueActive || msQueueActive || prmPaginatedActive;
   const rmTraceState = rmTraceActive
     ? materialCostCtrl.getTraceLoadState()
     : null;
   const totalCount = rmTraceActive
     ? Number(materialCostCtrl.getTraceTotalCount() || 0)
-    : VIEW.length;
+    : qcQueueActive
+      ? Number(qcActionQueueCtrl.getTotalCount() || 0)
+      : msQueueActive
+        ? Number(materialsStoresActionQueueCtrl.getTotalCount() || 0)
+        : prmPaginatedActive
+          ? Number(productionRouteCtrl.getTotalCount() || 0)
+          : VIEW.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  if (!rmTraceActive && CURRENT_PAGE > totalPages) CURRENT_PAGE = totalPages;
-  const start = rmTraceActive ? 0 : (CURRENT_PAGE - 1) * PAGE_SIZE;
-  const pageRows = rmTraceActive ? VIEW : VIEW.slice(start, start + PAGE_SIZE);
+  if (
+    !rmTraceActive &&
+    !actionQueueActive &&
+    !prmActive &&
+    CURRENT_PAGE > totalPages
+  ) {
+    CURRENT_PAGE = totalPages;
+  }
+  const start = rmTraceActive || actionQueueActive ? 0 : (CURRENT_PAGE - 1) * PAGE_SIZE;
+  const pageRows =
+    rmTraceActive || actionQueueActive ? VIEW : VIEW.slice(start, start + PAGE_SIZE);
 
-  if (rmTraceActive && rmTraceState === "restricted") {
+  if (prmActive) {
+    // Production Route Manager owns table/editor hosts; skip generic empty-table path.
+  } else if (actionQueueActive) {
+    clearStatus();
+    tableWrap?.classList.remove("hidden");
+    tableWrap?.classList.add("tw-visible");
+  } else if (rmTraceActive && rmTraceState === "restricted") {
     tableBody.innerHTML = "";
     tableWrap?.classList.remove("tw-visible");
     setStatus(
-      "Restricted RM contribution detail. Your Material Cost Manager access does not include confidential raw-material contribution traceability.",
+      isPmCostTraceLensActive()
+        ? "Restricted PM contribution detail. Your Material Cost Manager access does not include packing-material contribution traceability."
+        : "Restricted RM contribution detail. Your Material Cost Manager access does not include confidential raw-material contribution traceability.",
       "error",
     );
   } else if (rmTraceActive && rmTraceState === "error") {
@@ -4804,7 +5770,9 @@ function renderTable() {
     tableWrap?.classList.remove("tw-visible");
     setStatus(
       materialCostCtrl.getTraceErrorMessage() ||
-        "Unable to load RM Cost Trace.",
+        (isPmCostTraceLensActive()
+          ? "Unable to load PM Cost Trace."
+          : "Unable to load RM Cost Trace."),
       "error",
     );
   } else if (CURRENT_LENS === "mrp-governance") {
@@ -4837,12 +5805,16 @@ function renderTable() {
     const managerTab = pricingPolicyCtrl.getPolicyManagerTab?.();
     renderRegisterEmptyTableMessage(
       searchBox?.value?.trim()
-        ? "No selling / scheme rows match the current filters."
+        ? managerTab === "commercial-sales-assumptions"
+          ? "No commercial-sales rows match the current search or filters."
+          : "No selling / scheme rows match the current filters."
         : managerTab === "scheme-master"
           ? "No schemes exist yet."
           : managerTab === "scheme-rule-register"
             ? "No scheme rules are available for this view."
-            : "No policy overview rows are available yet.",
+            : managerTab === "commercial-sales-assumptions"
+              ? "No commercial-sales basis rows for this costing period."
+              : "No policy overview rows are available yet.",
     );
   } else if (isSchemeComparisonLens(CURRENT_LENS) && !VIEW.length) {
     renderRegisterEmptyTableMessage(
@@ -4868,11 +5840,16 @@ function renderTable() {
   }
 
   tableBody.querySelectorAll("tr[data-row-index]").forEach((tr) => {
-    tr.addEventListener("click", () => {
+    tr.addEventListener("click", (event) => {
+      const interactive = event?.target?.closest?.(
+        'button, a, input, select, textarea, label, [role="button"]',
+      );
+      if (interactive && tr.contains(interactive)) return;
+
       const row = VIEW[Number(tr.dataset.rowIndex)];
       if (!row) return;
 
-      if (isRmCostTraceLensActive()) {
+      if (isMaterialCostTraceLensActive()) {
         return;
       }
 
@@ -4912,6 +5889,11 @@ function renderTable() {
         return;
       }
 
+      if (isDriverGovernanceLens(CURRENT_LENS)) {
+        void driverGovernanceCtrl.handleRowClick(row);
+        return;
+      }
+
       if (isCostBuildLens(CURRENT_LENS)) {
         costBuildCtrl.handleCostBuildRowClick(CURRENT_LENS, row, tr);
         return;
@@ -4925,6 +5907,10 @@ function renderTable() {
         }
         if (managerTab === "scheme-rule-register") {
           openDetails(row, "rule-detail");
+          return;
+        }
+        if (pricingPolicyCtrl.isCommercialSalesAssumptionsTabActive?.()) {
+          pricingPolicyCtrl.openCommercialSalesAssumptionModal?.(row);
           return;
         }
       }
@@ -4996,8 +5982,34 @@ function renderTable() {
     );
   }
 
+  if (
+    CURRENT_LENS === "policy-manager" &&
+    pricingPolicyCtrl.isCommercialSalesAssumptionsTabActive?.()
+  ) {
+    pricingPolicyCtrl.wirePolicyManagerTableActions?.(tableBody, (matcher) =>
+      VIEW.find(matcher),
+    );
+  }
+
+  if (tableWrap) {
+    tableWrap.classList.toggle(
+      "cp-csa-mobile-card-table",
+      CURRENT_LENS === "policy-manager" &&
+        !!pricingPolicyCtrl.isCommercialSalesAssumptionsTabActive?.(),
+    );
+  }
+
   if (rowCount) {
-    if (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) {
+    const hidePrmNonTableCount =
+      CURRENT_LENS === "route-family-route-editor" ||
+      CURRENT_LENS === "product-route-editor" ||
+      CURRENT_LENS === "historical-candidate-review" ||
+      CURRENT_LENS === "effective-route-viewer";
+    if (
+      (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
+      hidePrmNonTableCount ||
+      rmTraceActive
+    ) {
       rowCount.style.display = "none";
       rowCount.textContent = "";
     } else {
@@ -5006,25 +6018,65 @@ function renderTable() {
     }
   }
   if (pageLabel) {
-    if (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) {
+    if (
+      (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
+      rmTraceActive
+    ) {
       pageLabel.textContent = "";
     } else {
-      const pageForLabel = rmTraceActive
-        ? materialCostCtrl.getTracePage()
-        : CURRENT_PAGE;
+      const pageForLabel = qcQueueActive
+        ? qcActionQueueCtrl.getPage()
+        : msQueueActive
+          ? materialsStoresActionQueueCtrl.getPage()
+          : prmPaginatedActive
+            ? productionRouteCtrl.getPage()
+            : CURRENT_PAGE;
       pageLabel.textContent = `Page ${pageForLabel}/${totalPages}`;
+    }
+  }
+  const shellPagination = document.querySelector(
+    "#genericTableMetaRow .pagination",
+  );
+  if (shellPagination) {
+    if (rmTraceActive) {
+      setVisible(shellPagination, false);
+    } else if (
+      !isQcActionQueueLens(CURRENT_LENS) &&
+      !isMaterialsStoresActionQueueLens(CURRENT_LENS) &&
+      !isProductionRouteLens(CURRENT_LENS)
+    ) {
+      setVisible(shellPagination, true, "inline-flex");
     }
   }
   if (prevPage) {
     prevPage.disabled =
+      rmTraceActive ||
       (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
-      (rmTraceActive ? materialCostCtrl.getTracePage() : CURRENT_PAGE) <= 1;
+      (qcQueueActive
+        ? qcActionQueueCtrl.getPage()
+        : msQueueActive
+          ? materialsStoresActionQueueCtrl.getPage()
+          : prmPaginatedActive
+            ? productionRouteCtrl.getPage()
+            : CURRENT_PAGE) <= 1;
   }
   if (nextPage) {
     nextPage.disabled =
+      rmTraceActive ||
       (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
-      (rmTraceActive ? materialCostCtrl.getTracePage() : CURRENT_PAGE) >=
-        totalPages;
+      (qcQueueActive
+        ? qcActionQueueCtrl.getPage()
+        : msQueueActive
+          ? materialsStoresActionQueueCtrl.getPage()
+          : prmPaginatedActive
+            ? productionRouteCtrl.getPage()
+            : CURRENT_PAGE) >= totalPages;
+  }
+
+  if (rmTraceActive) {
+    syncTraceProgressiveScrollChrome();
+  } else {
+    materialCostCtrl.teardownTraceProgressiveScroll?.();
   }
 }
 
@@ -5331,10 +6383,24 @@ async function setDrawerTab(tabId) {
   try {
     if (CURRENT_LENS === "dashboard") {
       drawerContent.innerHTML = controlCenterCtrl.renderDashboardDrawerTab(tabId);
-    } else if (
-      CURRENT_LENS === "costing-review-workbench" ||
-      CURRENT_LENS === "manual-rate-manager"
-    ) {
+    } else if (CURRENT_LENS === "sku-control-status") {
+      drawerContent.innerHTML = await controlCenterCtrl.renderSkuControlDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      controlCenterCtrl.wireSkuControlDrawerActions(tabId, SELECTED_ROW);
+    } else if (CURRENT_LENS === "costing-review-workbench") {
+      drawerContent.innerHTML = await controlCenterCtrl.renderWorkbenchDrawerTab(
+        tabId,
+        SELECTED_ROW,
+        materialCostCtrl,
+      );
+      controlCenterCtrl.wireWorkbenchDrawerActions(
+        tabId,
+        SELECTED_ROW,
+        materialCostCtrl,
+      );
+    } else if (CURRENT_LENS === "manual-rate-manager") {
       drawerContent.innerHTML = await materialCostCtrl.renderMaterialWorkbenchTab(
         tabId,
         SELECTED_ROW,
@@ -5344,6 +6410,24 @@ async function setDrawerTab(tabId) {
     } else if (CURRENT_LENS === "cost-comparison") {
       drawerContent.innerHTML =
         await costSheetCtrl.renderComparisonDrawerTab(tabId, SELECTED_ROW);
+    } else if (isQcActionQueueLens(CURRENT_LENS)) {
+      drawerContent.innerHTML = qcActionQueueCtrl.renderDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      qcActionQueueCtrl.wireDrawerActions(SELECTED_ROW);
+    } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+      drawerContent.innerHTML = materialsStoresActionQueueCtrl.renderDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      materialsStoresActionQueueCtrl.wireDrawerActions(SELECTED_ROW);
+    } else if (isDriverGovernanceLens(CURRENT_LENS)) {
+      drawerContent.innerHTML = driverGovernanceCtrl.renderDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+      driverGovernanceCtrl.wireDrawerActions(drawerContent);
     } else if (CURRENT_LENS === "policy-manager") {
       drawerContent.innerHTML =
         await pricingPolicyCtrl.renderPolicyManagerDrawerTab(tabId, SELECTED_ROW);
@@ -5394,7 +6478,18 @@ function openDetails(row, preferredTab) {
   if (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) {
     return;
   }
+  bindShellInputModalityTracking();
+  DETAILS_OPENER_MODALITY =
+    SHELL_LAST_INPUT_MODALITY === "pointer" ? "pointer" : "keyboard";
   DETAILS_RETURN_FOCUS = document.activeElement;
+  // Action Queue rows are keyboard-focusable; return focus to search so the
+  // row outline does not reappear after the modal closes.
+  if (
+    isQcActionQueueLens(CURRENT_LENS) ||
+    isMaterialsStoresActionQueueLens(CURRENT_LENS)
+  ) {
+    DETAILS_RETURN_FOCUS = searchBox;
+  }
   SELECTED_ROW = row;
   if (!detailsModal) return;
   const title = $("drawerTitle");
@@ -5419,6 +6514,12 @@ function openDetails(row, preferredTab) {
     subtitle.textContent = config.subtitle;
     setModalTabs(config.tabs, config.activeTab);
     setDrawerTab(config.activeTab);
+  } else if (CURRENT_LENS === "sku-control-status") {
+    const config = controlCenterCtrl.getSkuControlDrawerConfig(row, preferredTab);
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
   } else if (CURRENT_LENS === "dashboard") {
     const config = controlCenterCtrl.getDashboardDrawerConfig(preferredTab);
     title.textContent = config.title;
@@ -5427,6 +6528,29 @@ function openDetails(row, preferredTab) {
     setDrawerTab(config.activeTab);
   } else if (CURRENT_LENS === "cost-comparison") {
     const config = costSheetCtrl.getComparisonDrawerConfig(row, preferredTab);
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isQcActionQueueLens(CURRENT_LENS)) {
+    const config = qcActionQueueCtrl.getDrawerConfig(row, preferredTab);
+    title.textContent = config.title;
+    subtitle.innerHTML = "";
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    const config = materialsStoresActionQueueCtrl.getDrawerConfig(
+      row,
+      preferredTab,
+    );
+    title.textContent = config.title;
+    subtitle.innerHTML = "";
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
+  } else if (isDriverGovernanceLens(CURRENT_LENS)) {
+    const config = driverGovernanceCtrl.getDrawerConfig(row, preferredTab);
     title.textContent = config.title;
     subtitle.textContent = config.subtitle;
     setModalTabs(config.tabs, config.activeTab);
@@ -5523,15 +6647,39 @@ function closeDetails() {
   detailsModal.classList.add("hidden");
   detailsModal.setAttribute("aria-hidden", "true");
 
+  document
+    .querySelectorAll(
+      ".cp-prm-row--active, .cp-qc-aq-row.is-selected, .cp-ms-aq-row.is-selected, tr.selected, tr.is-selected",
+    )
+    .forEach((node) => {
+      node.classList.remove(
+        "cp-prm-row--active",
+        "is-selected",
+        "selected",
+      );
+    });
+
   const returnTarget =
     DETAILS_RETURN_FOCUS &&
     DETAILS_RETURN_FOCUS !== document.body &&
     document.contains(DETAILS_RETURN_FOCUS)
       ? DETAILS_RETURN_FOCUS
       : searchBox;
+  const openerModality = DETAILS_OPENER_MODALITY || "keyboard";
   DETAILS_RETURN_FOCUS = null;
+  DETAILS_OPENER_MODALITY = "keyboard";
   if (returnTarget && typeof returnTarget.focus === "function") {
-    setTimeout(() => returnTarget.focus(), 0);
+    const focusOptions = {
+      preventScroll: true,
+      focusVisible: openerModality !== "pointer",
+    };
+    setTimeout(() => {
+      try {
+        returnTarget.focus(focusOptions);
+      } catch {
+        returnTarget.focus();
+      }
+    }, 0);
   }
 }
 
@@ -5549,6 +6697,17 @@ async function refreshOpenDrawerIfNeeded() {
       ALL_ROWS,
     );
     if (updated) SELECTED_ROW = updated;
+  } else if (CURRENT_LENS === "sku-control-status") {
+    const skuKey = SELECTED_ROW.sku_id;
+    const productKey = SELECTED_ROW.product_id;
+    if (skuKey != null) {
+      const updated = ALL_ROWS.find(
+        (row) =>
+          String(row.sku_id) === String(skuKey) &&
+          String(row.product_id) === String(productKey),
+      );
+      if (updated) SELECTED_ROW = updated;
+    }
   } else if (CURRENT_LENS === "dashboard") {
     const updated = controlCenterCtrl.syncSelectedDashboardRow(SELECTED_ROW);
     if (updated) SELECTED_ROW = updated;
@@ -5600,7 +6759,7 @@ let RM_TRACE_EXPORT_IN_PROGRESS = false;
 
 function syncTraceExportButtonState() {
   if (!exportBtn) return;
-  if (!isRmCostTraceLensActive()) {
+  if (!isMaterialCostTraceLensActive()) {
     RM_TRACE_EXPORT_IN_PROGRESS = false;
     exportBtn.disabled = false;
     exportBtn.title = "Export CSV";
@@ -5611,13 +6770,17 @@ function syncTraceExportButtonState() {
     return;
   }
 
-  const allowed =
-    TRACE_PERMISSIONS_RESOLVED && CAN_VIEW_TRACE && CAN_EXPORT_TRACE;
+  syncShellTraceComponentFromLens();
+  const isPm = isPmCostTraceLensActive();
+  const canView = isPm ? CAN_VIEW_PM_TRACE : CAN_VIEW_RM_TRACE;
+  const canExport = isPm ? CAN_EXPORT_PM_TRACE : CAN_EXPORT_RM_TRACE;
+  const allowed = TRACE_PERMISSIONS_RESOLVED && canView && canExport;
   if (!allowed) {
     RM_TRACE_EXPORT_IN_PROGRESS = false;
     exportBtn.disabled = true;
-    exportBtn.title =
-      "Confidential RM Cost Trace export is restricted for your access.";
+    exportBtn.title = isPm
+      ? "PM Cost Trace export is restricted for your access."
+      : "Confidential RM Cost Trace export is restricted for your access.";
     exportBtn.setAttribute("aria-label", exportBtn.title);
     exportBtn.setAttribute("aria-disabled", "true");
     setVisible(exportBtn, false);
@@ -5635,8 +6798,10 @@ function syncTraceExportButtonState() {
   }
 
   exportBtn.disabled = false;
-  exportBtn.title = "Export RM Cost Trace CSV";
-  exportBtn.setAttribute("aria-label", "Export RM Cost Trace CSV");
+  exportBtn.title = isPm
+    ? "Export PM Cost Trace CSV"
+    : "Export RM Cost Trace CSV";
+  exportBtn.setAttribute("aria-label", exportBtn.title);
   exportBtn.removeAttribute("aria-disabled");
   exportBtn.classList.remove("is-disabled");
 }
@@ -5647,18 +6812,20 @@ function setRmTraceExportBusy(busy) {
 }
 
 async function exportActiveViewCsv() {
-  if (!isRmCostTraceLensActive()) {
+  if (!isMaterialCostTraceLensActive()) {
     exportCsvForRows(VIEW);
     return;
   }
 
-  if (
-    !TRACE_PERMISSIONS_RESOLVED ||
-    !CAN_VIEW_TRACE ||
-    !CAN_EXPORT_TRACE
-  ) {
+  syncShellTraceComponentFromLens();
+  const isPm = isPmCostTraceLensActive();
+  const canView = isPm ? CAN_VIEW_PM_TRACE : CAN_VIEW_RM_TRACE;
+  const canExport = isPm ? CAN_EXPORT_PM_TRACE : CAN_EXPORT_RM_TRACE;
+  if (!TRACE_PERMISSIONS_RESOLVED || !canView || !canExport) {
     showToast(
-      "Confidential RM Cost Trace export is restricted for your access.",
+      isPm
+        ? "PM Cost Trace export is restricted for your access."
+        : "Confidential RM Cost Trace export is restricted for your access.",
       "error",
     );
     return;
@@ -5668,13 +6835,31 @@ async function exportActiveViewCsv() {
 
   setRmTraceExportBusy(true);
   try {
-    await materialCostCtrl.exportRmCostTraceCsv();
+    await materialCostCtrl.exportActiveTraceCsv();
   } finally {
     setRmTraceExportBusy(false);
   }
 }
 
 const refreshCostingChain = requestCostingRefreshFromToolbar;
+
+/** PRM toolbar Refresh: reload active lens only (never full Costing refresh). */
+async function refreshProductionRouteManagerLens() {
+  try {
+    await loadRowsForLens();
+  } catch (err) {
+    handleError("Failed to reload Production Route Manager", err);
+  }
+}
+
+function onCostingSuiteRefreshClick(event) {
+  if (isProductionRouteManagerRoute()) {
+    event?.preventDefault?.();
+    void refreshProductionRouteManagerLens();
+    return;
+  }
+  void refreshCostingChain();
+}
 
 function exportCsvForRows(rows) {
   if (!rows.length) {
@@ -5758,18 +6943,55 @@ function toggleFreshnessDetail() {
   detail.style.display = expanded ? "block" : "none";
 }
 
+function isSasvCostingChrome() {
+  return !!document.body?.classList?.contains("sasv-costing");
+}
+
+function mountCostingModuleChrome() {
+  if (!isSasvCostingChrome()) return;
+  mountModuleActionIcons({
+    home: $("homeBtn"),
+    refresh: refreshBtn,
+    download: exportBtn,
+  });
+}
+
 function showToast(message, type = "info", duration = 3200, multiline = false) {
+  const resolvedDuration =
+    typeof duration === "number"
+      ? duration
+      : type === "error"
+        ? 9000
+        : type === "warning"
+          ? 6200
+          : 3200;
+
+  // Pilot / migrated pages: canonical shared toast (compat signature preserved)
+  if (isSasvCostingChrome()) {
+    sasvShowToast(message, {
+      type,
+      duration: resolvedDuration,
+      multiline: !!multiline,
+    });
+    return;
+  }
+
   const container = $("peqToastContainer");
   if (!container) return;
   const toast = document.createElement("div");
   toast.className = `peq-toast toast-${type}`;
-  toast.textContent = message;
-  if (multiline) toast.style.whiteSpace = "pre-line";
-  container.appendChild(toast);
-  setTimeout(() => {
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  const msg = document.createElement("span");
+  msg.className = "peq-toast-msg";
+  msg.textContent = message;
+  if (multiline) msg.style.whiteSpace = "pre-line";
+  const removeToast = () => {
     toast.classList.add("toast-fade-out");
     setTimeout(() => toast.remove(), 320);
-  }, duration);
+  };
+  toast.appendChild(msg);
+  container.appendChild(toast);
+  setTimeout(removeToast, resolvedDuration);
 }
 
 function isPeqFilterCheckboxInteractable(cb) {
@@ -5803,20 +7025,74 @@ function sanitizeActiveFiltersToVisibleOptions() {
 function updateFilterButtonState() {
   const btn = $("peqFilterBtn");
   if (!btn) return;
-  const count = getInteractablePeqFilterCheckboxes().filter(
-    (cb) => cb.checked,
-  ).length;
+  let count = 0;
+  if (isQcActionQueueLens(CURRENT_LENS)) {
+    count = normalizeQcCode(qcActionQueueCtrl.getActionCode?.() || "") ? 1 : 0;
+  } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    count = normalizeMsCode(materialsStoresActionQueueCtrl.getActionCode?.() || "")
+      ? 1
+      : 0;
+  } else if (isProductionRouteLens(CURRENT_LENS)) {
+    const assignmentActive = CURRENT_LENS === "product-route-assignments";
+    const workloadActive = CURRENT_LENS === "shared-workload-preview";
+    const costCentresActive = CURRENT_LENS === "production-cost-centres";
+    count = costCentresActive
+      ? (normalizePrmCode(
+          productionRouteCtrl.getCostCentreStatusFilter?.() || "",
+        )
+          ? 1
+          : 0) +
+        (normalizePrmCode(productionRouteCtrl.getCostCentrePoolFilter?.() || "")
+          ? 1
+          : 0)
+      : (assignmentActive
+          ? normalizePrmCode(productionRouteCtrl.getAssignmentStatus?.() || "")
+            ? 1
+            : 0
+          : workloadActive
+            ? (normalizePrmCode(
+                productionRouteCtrl.getFoundationStatus?.() || "",
+              )
+                ? 1
+                : 0) +
+              (normalizePrmCode(
+                productionRouteCtrl.getQuantityDriverStatus?.() || "",
+              )
+                ? 1
+                : 0) +
+              (normalizePrmCode(productionRouteCtrl.getDlScopeFilter?.() || "")
+                ? 1
+                : 0) +
+              (normalizePrmCode(productionRouteCtrl.getPohScopeFilter?.() || "")
+                ? 1
+                : 0)
+            : normalizePrmCode(productionRouteCtrl.getReadinessStatus?.() || "")
+              ? 1
+              : 0) +
+        (productionRouteCtrl.getProductGroupFilter?.() ? 1 : 0) +
+        (productionRouteCtrl.getRouteFamilyFilter?.() ? 1 : 0);
+  } else {
+    count = getInteractablePeqFilterCheckboxes().filter(
+      (cb) => cb.checked,
+    ).length;
+  }
   btn.classList.toggle("peq-filter-btn--active", count > 0);
   const badge = btn.querySelector(".peq-filter-badge");
   if (badge) {
     badge.textContent = count || "";
     badge.style.display = count ? "" : "none";
   }
-  const summary = document.querySelector(".peq-filter-summary");
-  if (summary)
-    summary.textContent = count
-      ? `${count} filter${count === 1 ? "" : "s"} applied`
-      : "No filters applied";
+  if (
+    !isQcActionQueueLens(CURRENT_LENS) &&
+    !isMaterialsStoresActionQueueLens(CURRENT_LENS) &&
+    !isProductionRouteLens(CURRENT_LENS)
+  ) {
+    const summary = document.querySelector(".peq-filter-summary");
+    if (summary)
+      summary.textContent = count
+        ? `${count} filter${count === 1 ? "" : "s"} applied`
+        : "No filters applied";
+  }
 }
 
 function syncFilterCheckboxes() {
@@ -5848,8 +7124,159 @@ function wireFilterDrawer() {
     toggleFilterDrawer();
   });
   $("peqFilterDrawer")?.addEventListener("change", (e) => {
-    const cb = e.target;
-    if (!(cb instanceof HTMLInputElement) || !cb.dataset.filterGroup) return;
+    const target = e.target;
+    if (
+      target instanceof HTMLSelectElement &&
+      (target.id === "prmProductGroupFilter" ||
+        target.id === "prmRouteFamilyFilter" ||
+        target.id === "prmAssignmentMoreStatuses" ||
+        target.id === "prmWorkloadMoreFoundations" ||
+        target.id === "prmWorkloadMoreQuantities" ||
+        target.id === "prmWorkloadDlScopeFilter" ||
+        target.id === "prmWorkloadPohScopeFilter")
+    ) {
+      if (!isProductionRouteLens(CURRENT_LENS)) return;
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        if (target.id === "prmProductGroupFilter") {
+          await productionRouteCtrl.setProductGroupFilter(target.value);
+        } else if (target.id === "prmRouteFamilyFilter") {
+          await productionRouteCtrl.setRouteFamilyFilter(target.value);
+        } else if (target.id === "prmWorkloadMoreFoundations") {
+          await productionRouteCtrl.setFoundationStatus?.(target.value || "");
+        } else if (target.id === "prmWorkloadMoreQuantities") {
+          await productionRouteCtrl.setQuantityDriverStatus?.(
+            target.value || "",
+          );
+        } else if (target.id === "prmWorkloadDlScopeFilter") {
+          await productionRouteCtrl.setDlScopeFilter?.(target.value || "");
+        } else if (target.id === "prmWorkloadPohScopeFilter") {
+          await productionRouteCtrl.setPohScopeFilter?.(target.value || "");
+        } else {
+          await productionRouteCtrl.setAssignmentStatus?.(target.value || "");
+        }
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildReadinessPeqOptions?.();
+        productionRouteCtrl.rebuildAssignmentPeqOptions?.();
+        productionRouteCtrl.rebuildWorkloadPeqOptions?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    const input = e.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    if (input.name === "qcActionType" || input.hasAttribute("data-qc-action-code")) {
+      if (!isQcActionQueueLens(CURRENT_LENS)) return;
+      const code = normalizeQcCode(
+        input.getAttribute("data-qc-action-code") ?? input.value,
+      );
+      CURRENT_PAGE = 1;
+      qcActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await qcActionQueueCtrl.setActionCode(code);
+        CURRENT_PAGE = qcActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildQcActionTypePeqOptions();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (input.name === "msActionType" || input.hasAttribute("data-ms-action-code")) {
+      if (!isMaterialsStoresActionQueueLens(CURRENT_LENS)) return;
+      const code = normalizeMsCode(
+        input.getAttribute("data-ms-action-code") ?? input.value,
+      );
+      CURRENT_PAGE = 1;
+      materialsStoresActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await materialsStoresActionQueueCtrl.setActionCode(code);
+        CURRENT_PAGE = materialsStoresActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildMsActionTypePeqOptions();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (
+      input.name === "prmReadinessStatus" ||
+      input.hasAttribute("data-prm-readiness")
+    ) {
+      if (!isProductionRouteLens(CURRENT_LENS)) return;
+      const code = normalizePrmCode(
+        input.getAttribute("data-prm-readiness") ?? input.value,
+      );
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await productionRouteCtrl.setReadinessStatus(code);
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildReadinessPeqOptions?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (
+      input.name === "prmAssignmentStatus" ||
+      input.hasAttribute("data-prm-assignment-status")
+    ) {
+      if (!isProductionRouteLens(CURRENT_LENS)) return;
+      const code = normalizePrmCode(
+        input.getAttribute("data-prm-assignment-status") ?? input.value,
+      );
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await productionRouteCtrl.setAssignmentStatus?.(code);
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildAssignmentPeqOptions?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (
+      input.name === "prmWorkloadFoundation" ||
+      input.hasAttribute("data-prm-workload-foundation")
+    ) {
+      if (!isProductionRouteLens(CURRENT_LENS)) return;
+      const code = normalizePrmCode(
+        input.getAttribute("data-prm-workload-foundation") ?? input.value,
+      );
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await productionRouteCtrl.setFoundationStatus?.(code);
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildWorkloadPeqOptions?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (
+      input.name === "prmWorkloadQuantity" ||
+      input.hasAttribute("data-prm-workload-quantity")
+    ) {
+      if (!isProductionRouteLens(CURRENT_LENS)) return;
+      const code = normalizePrmCode(
+        input.getAttribute("data-prm-workload-quantity") ?? input.value,
+      );
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await productionRouteCtrl.setQuantityDriverStatus?.(code);
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildWorkloadPeqOptions?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (!input.dataset.filterGroup) return;
+    const cb = input;
     const group = cb.dataset.filterGroup;
     const value = normalizeStatus(cb.value);
     if (cb.checked) {
@@ -5859,14 +7286,133 @@ function wireFilterDrawer() {
       ACTIVE_FILTERS[group] = ACTIVE_FILTERS[group].filter((v) => v !== value);
     }
     updateFilterButtonState();
-    applyFilters();
+    void applyManualRateManagerFilterChange();
   });
   $("peqFilterClear")?.addEventListener("click", () => {
+    if (isQcActionQueueLens(CURRENT_LENS)) {
+      CURRENT_PAGE = 1;
+      qcActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await qcActionQueueCtrl.setActionCode("");
+        CURRENT_PAGE = qcActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildQcActionTypePeqOptions();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+      CURRENT_PAGE = 1;
+      materialsStoresActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await materialsStoresActionQueueCtrl.setActionCode("");
+        CURRENT_PAGE = materialsStoresActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildMsActionTypePeqOptions();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (isProductionRouteLens(CURRENT_LENS)) {
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        if (CURRENT_LENS === "product-route-assignments") {
+          if (searchBox) searchBox.value = "";
+          await productionRouteCtrl.clearAssignmentFilters?.();
+        } else if (CURRENT_LENS === "shared-workload-preview") {
+          if (searchBox) searchBox.value = "";
+          await productionRouteCtrl.clearWorkloadFilters?.();
+        } else if (CURRENT_LENS === "production-cost-centres") {
+          if (searchBox) searchBox.value = "";
+          await productionRouteCtrl.clearCostCentreFilters?.();
+        } else {
+          await productionRouteCtrl.setReadinessStatus("");
+          await productionRouteCtrl.setProductGroupFilter("");
+          await productionRouteCtrl.setRouteFamilyFilter?.("");
+        }
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildReadinessPeqOptions?.();
+        productionRouteCtrl.rebuildAssignmentPeqOptions?.();
+        productionRouteCtrl.rebuildWorkloadPeqOptions?.();
+        productionRouteCtrl.rebuildCostCentrePeqOptions?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    const leavingRemediation =
+      CURRENT_LENS === "manual-rate-manager" &&
+      materialCostCtrl.getManualRateManagerTab() === "action-queue" &&
+      (isStage05MaterialRemediationMode({
+        lensId: CURRENT_LENS,
+        managerTab: "action-queue",
+        issueFilters: ACTIVE_FILTERS.issue,
+      }) ||
+        materialCostCtrl.wasLastActionQueueLoadRemediation?.() === true);
     ACTIVE_FILTERS = { status: [], issue: [], source: [] };
     syncFilterCheckboxes();
+    if (leavingRemediation) {
+      clearStage05RemediationLaunchContext();
+      CURRENT_PAGE = 1;
+      void loadRowsForLens();
+      updateFilterButtonState();
+      return;
+    }
     applyFilters();
+    updateFilterButtonState();
   });
   $("peqFilterSelectAll")?.addEventListener("click", () => {
+    if (isQcActionQueueLens(CURRENT_LENS)) {
+      // Single-select Action Type: Select all resets to All actions.
+      CURRENT_PAGE = 1;
+      qcActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await qcActionQueueCtrl.setActionCode("");
+        CURRENT_PAGE = qcActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildQcActionTypePeqOptions();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+      CURRENT_PAGE = 1;
+      materialsStoresActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await materialsStoresActionQueueCtrl.setActionCode("");
+        CURRENT_PAGE = materialsStoresActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildMsActionTypePeqOptions();
+        updateFilterButtonState();
+      })();
+      return;
+    }
+    if (isProductionRouteLens(CURRENT_LENS)) {
+      // Single-select readiness/assignment/workload + group/family: Select all resets filters.
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        if (CURRENT_LENS === "product-route-assignments") {
+          if (searchBox) searchBox.value = "";
+          await productionRouteCtrl.clearAssignmentFilters?.();
+        } else if (CURRENT_LENS === "shared-workload-preview") {
+          if (searchBox) searchBox.value = "";
+          await productionRouteCtrl.clearWorkloadFilters?.();
+        } else {
+          await productionRouteCtrl.setReadinessStatus("");
+          await productionRouteCtrl.setProductGroupFilter("");
+          await productionRouteCtrl.setRouteFamilyFilter?.("");
+        }
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildReadinessPeqOptions?.();
+        productionRouteCtrl.rebuildAssignmentPeqOptions?.();
+        productionRouteCtrl.rebuildWorkloadPeqOptions?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
     getInteractablePeqFilterCheckboxes().forEach((cb) => {
       const group = cb.dataset.filterGroup;
       const value = normalizeStatus(cb.value);
@@ -6011,6 +7557,71 @@ const costSheetCtrl = createCostSheetController({
   getActivePeriodStart: () => ACTIVE_PERIOD_START,
   getCurrentLens: () => CURRENT_LENS,
   costingRpc,
+});
+
+const qcActionQueueCtrl = createQcActionQueueController({
+  costingRpc,
+  showToast,
+  text,
+  statusChip,
+  normalizeStatus,
+  getActivePeriodStart: () => ACTIVE_PERIOD_START,
+  getCurrentLens: () => CURRENT_LENS,
+  canView: () => PERM_CAN_VIEW === true,
+  navigateToCostingRoute,
+  resolveSharedHtmlHref: (fileName) => {
+    const name = String(fileName || "").trim();
+    if (!name) return "";
+    if (isOnSharedCostingHtmlPage()) return name;
+    return normalizeClientRoute(`public/shared/${name}`, getCostingClientKey());
+  },
+  setVisible,
+  openProductQcExplainFromQueue: (row) =>
+    costSheetCtrl.openProductQcExplainFromQueue?.(row),
+  onOpenRow: (row) => {
+    openDetails(row, "overview");
+  },
+});
+
+const materialsStoresActionQueueCtrl = createMaterialsStoresActionQueueController({
+  costingRpc,
+  showToast,
+  text,
+  statusChip,
+  normalizeStatus,
+  getActivePeriodStart: () => ACTIVE_PERIOD_START,
+  getCurrentLens: () => CURRENT_LENS,
+  canView: () => PERM_CAN_VIEW === true,
+  navigateToCostingRoute,
+  openSkuMaterialsStoresExplainFromQueue: (row) =>
+    costSheetCtrl.openSkuMaterialsStoresExplainFromQueue?.(row),
+  openProductMaterialsStoresExplainFromQueue: (row) =>
+    costSheetCtrl.openProductMaterialsStoresExplainFromQueue?.(row),
+  onOpenRow: (row) => {
+    openDetails(row, "overview");
+  },
+});
+
+const productionRouteCtrl = createProductionRouteController({
+  costingRpc,
+  showToast,
+  statusChip,
+  normalizeStatus,
+  canView: () => PERM_CAN_VIEW === true,
+  canEdit: () => canEditProductionRouteActions(),
+  getCurrentLens: () => CURRENT_LENS,
+  navigateToCostingRoute,
+  syncShellLens: (lensId) => {
+    if (!isProductionRouteLens(lensId)) return;
+    CURRENT_LENS = lensId;
+    if (lensSelect) lensSelect.value = lensId;
+    renderLensPills();
+    syncCostSheetReviewLensChrome();
+  },
+  afterPrmNavigate: () => {
+    renderTable();
+  },
+  openDetails,
 });
 
 const schemeComparisonCtrl = createSchemeComparisonController({
@@ -6255,6 +7866,9 @@ const pricingPolicyCtrl = createPricingPolicyController({
   numberOrNullFromInput,
   numberOrZeroFromInput,
   formatTodayIsoIst,
+  formatPeriodMonth,
+  getActivePeriodStart: () => ACTIVE_PERIOD_START,
+  getAllRows: () => ALL_ROWS,
   reloadRows: loadRowsForLens,
   canEditPricingPolicyActions,
   genericTableMetaActions,
@@ -6424,6 +8038,26 @@ const costBuildCtrl = createCostBuildController({
   },
 });
 
+const driverGovernanceCtrl = createDriverGovernanceController({
+  costingRpc,
+  showToast,
+  text,
+  statusChip,
+  canView: () => PERM_CAN_VIEW === true,
+  canEditCbm: () => PERM_CAN_EDIT === true,
+  canEditPrm: () => PERM_PRM_EDIT === true,
+  navigateToCostingRoute,
+  openDetails,
+  closeDetails,
+  renderTable,
+  getCurrentLens: () => CURRENT_LENS,
+  setRowsAndView: ({ allRows, view, currentPage }) => {
+    ALL_ROWS = allRows;
+    VIEW = view;
+    if (currentPage != null) CURRENT_PAGE = currentPage;
+  },
+});
+
 const controlCenterCtrl = createControlCenterController({
   dom: { kpiStrip, workbenchSummary },
   costingFrom,
@@ -6431,6 +8065,7 @@ const controlCenterCtrl = createControlCenterController({
   text,
   escapeHtml,
   formatNumber,
+  formatMoney,
   formatDate,
   formatDateTime,
   statusChip,
@@ -6443,6 +8078,8 @@ const controlCenterCtrl = createControlCenterController({
   handleError,
   getActivePeriodStart: () => ACTIVE_PERIOD_START,
   getSelectedRow: () => SELECTED_ROW,
+  navigateToCostingRoute,
+  costingRpc,
   drillToLens: async (lensId, filters) => {
     const moduleKey =
       getModuleKeyForLens(lensId) || ACTIVE_ROUTE_CONFIG.moduleKey;
@@ -6455,6 +8092,29 @@ const controlCenterCtrl = createControlCenterController({
     });
   },
 });
+
+const costPeriodValuationCtrl = createCostPeriodValuationController({
+  costingRpc,
+  showToast,
+  canView: () => PERM_CAN_VIEW === true,
+  canEdit: () =>
+    PERM_CAN_EDIT === true || PERM_CONTROL_CENTER_EDIT === true,
+  getActivePeriodStart: () => ACTIVE_PERIOD_START,
+  isControlCenterRoute: () =>
+    ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center",
+});
+
+async function reloadCostPeriodValuationIfNeeded() {
+  if (ACTIVE_ROUTE_CONFIG?.moduleKey !== "costing-control-center") {
+    costPeriodValuationCtrl.onRouteExit?.();
+    return;
+  }
+  if (PERM_CAN_VIEW !== true) {
+    costPeriodValuationCtrl.onRouteExit?.();
+    return;
+  }
+  await costPeriodValuationCtrl.loadForActivePeriod();
+}
 
 const materialCostCtrl = createMaterialCostController({
   dom: {
@@ -6552,16 +8212,31 @@ const materialCostCtrl = createMaterialCostController({
   canEditMaterialCostActions,
   markCostingRefreshDirty,
   isCostingRefreshDirty,
-  getTracePermissions: () => ({
-    currentComponent: CURRENT_TRACE_COMPONENT,
-    canViewTrace: CAN_VIEW_TRACE,
-    canExportTrace: CAN_EXPORT_TRACE,
-    permissionsResolved: TRACE_PERMISSIONS_RESOLVED,
-  }),
+  getTracePermissions: () => {
+    syncShellTraceComponentFromLens();
+    const isPm = CURRENT_TRACE_COMPONENT === "PM";
+    return {
+      currentComponent: CURRENT_TRACE_COMPONENT,
+      canViewTrace: isPm ? CAN_VIEW_PM_TRACE : CAN_VIEW_RM_TRACE,
+      canExportTrace: isPm ? CAN_EXPORT_PM_TRACE : CAN_EXPORT_RM_TRACE,
+      permissionsResolved: TRACE_PERMISSIONS_RESOLVED,
+      canViewRmTrace: CAN_VIEW_RM_TRACE,
+      canExportRmTrace: CAN_EXPORT_RM_TRACE,
+      canViewPmTrace: CAN_VIEW_PM_TRACE,
+      canExportPmTrace: CAN_EXPORT_PM_TRACE,
+    };
+  },
   syncTraceExportButtonState,
   genericTableMetaActions,
   setVisible,
   escapeHtml,
+  getActiveFilters: () => ({
+    status: [...(ACTIVE_FILTERS.status || [])],
+    issue: [...(ACTIVE_FILTERS.issue || [])],
+    source: [...(ACTIVE_FILTERS.source || [])],
+  }),
+  getStage05RemediationLaunchContext,
+  clearStage05RemediationLaunchContext,
 });
 
 function renderKpiStrip() {
@@ -6635,8 +8310,23 @@ async function init() {
       ) {
         materialCostCtrl.setManualRateManagerTab(LAUNCH_DRILL_CONTEXT.managerTab);
       }
-      if (CURRENT_LENS === "rm-cost-trace") {
-        materialCostCtrl.applyTraceLaunchContext(LAUNCH_DRILL_CONTEXT);
+      if (CURRENT_LENS === "manual-rate-manager") {
+        setStage05RemediationLaunchContext({
+          productId: LAUNCH_DRILL_CONTEXT.productId,
+          skuId: LAUNCH_DRILL_CONTEXT.skuId,
+        });
+      }
+      if (
+        CURRENT_LENS === "rm-cost-trace" ||
+        CURRENT_LENS === "pm-cost-trace"
+      ) {
+        CURRENT_TRACE_COMPONENT =
+          CURRENT_LENS === "pm-cost-trace" ? "PM" : "RM";
+        materialCostCtrl.applyTraceLaunchContext({
+          ...LAUNCH_DRILL_CONTEXT,
+          traceComponent: CURRENT_TRACE_COMPONENT,
+          materialArea: CURRENT_TRACE_COMPONENT,
+        });
       }
       LAUNCH_DRILL_CONTEXT = null;
     }
@@ -6660,7 +8350,7 @@ async function init() {
   }
 }
 
-refreshBtn?.addEventListener("click", refreshCostingChain);
+refreshBtn?.addEventListener("click", onCostingSuiteRefreshClick);
 costingPeriodSelect?.addEventListener("change", () => {
   if (costingPeriodSelect.disabled) return;
   setActiveCostingPeriod(costingPeriodSelect.value);
@@ -6670,7 +8360,68 @@ exportBtn?.addEventListener("click", () => {
 });
 $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 searchBox?.addEventListener("input", () => {
-  if (isRmCostTraceLensActive()) return;
+  if (isMaterialCostTraceLensActive()) return;
+  if (isQcActionQueueLens(CURRENT_LENS)) {
+    clearQcSearchDebounce();
+    const value = String(searchBox.value || "");
+    qcSearchDebounceTimer = setTimeout(() => {
+      CURRENT_PAGE = 1;
+      qcActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await qcActionQueueCtrl.load({
+          resetOffset: true,
+          q: String(value || "").trim(),
+        });
+        CURRENT_PAGE = qcActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildQcActionTypePeqOptions();
+      })();
+    }, 300);
+    updateSearchClear();
+    return;
+  }
+  if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    clearMsSearchDebounce();
+    const value = String(searchBox.value || "");
+    msSearchDebounceTimer = setTimeout(() => {
+      CURRENT_PAGE = 1;
+      materialsStoresActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await materialsStoresActionQueueCtrl.load({
+          resetOffset: true,
+          q: String(value || "").trim(),
+        });
+        CURRENT_PAGE = materialsStoresActionQueueCtrl.getPage() || 1;
+        renderTable();
+        rebuildMsActionTypePeqOptions();
+      })();
+    }, 300);
+    updateSearchClear();
+    return;
+  }
+  if (isProductionRouteLens(CURRENT_LENS)) {
+    clearPrmSearchDebounce();
+    const value = String(searchBox.value || "");
+    prmSearchDebounceTimer = setTimeout(() => {
+      CURRENT_PAGE = 1;
+      productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+      void (async () => {
+        await productionRouteCtrl.load({
+          lens: CURRENT_LENS,
+          resetOffset: true,
+          search: String(value || "").trim(),
+        });
+        CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        renderTable();
+        productionRouteCtrl.rebuildReadinessPeqOptions?.();
+        productionRouteCtrl.rebuildAssignmentPeqOptions?.();
+        productionRouteCtrl.rebuildWorkloadPeqOptions?.();
+        updateFilterButtonState();
+      })();
+    }, 300);
+    updateSearchClear();
+    return;
+  }
   if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.applyManualProvisionFilters();
     return;
@@ -6678,8 +8429,52 @@ searchBox?.addEventListener("input", () => {
   applySearch();
 });
 searchClear?.addEventListener("click", () => {
-  if (isRmCostTraceLensActive()) return;
+  if (isMaterialCostTraceLensActive()) return;
   searchBox.value = "";
+  if (isQcActionQueueLens(CURRENT_LENS)) {
+    clearQcSearchDebounce();
+    CURRENT_PAGE = 1;
+    qcActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+    void (async () => {
+      await qcActionQueueCtrl.load({ resetOffset: true, q: "" });
+      CURRENT_PAGE = qcActionQueueCtrl.getPage() || 1;
+      renderTable();
+    })();
+    updateSearchClear();
+    searchBox.focus();
+    return;
+  }
+  if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    clearMsSearchDebounce();
+    CURRENT_PAGE = 1;
+    materialsStoresActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
+    void (async () => {
+      await materialsStoresActionQueueCtrl.load({ resetOffset: true, q: "" });
+      CURRENT_PAGE = materialsStoresActionQueueCtrl.getPage() || 1;
+      renderTable();
+    })();
+    updateSearchClear();
+    searchBox.focus();
+    return;
+  }
+  if (isProductionRouteLens(CURRENT_LENS)) {
+    clearPrmSearchDebounce();
+    CURRENT_PAGE = 1;
+    productionRouteCtrl.syncPageFromShell(1, PAGE_SIZE);
+    void (async () => {
+      await productionRouteCtrl.load({
+        lens: CURRENT_LENS,
+        resetOffset: true,
+        search: "",
+      });
+      CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+      renderTable();
+      updateFilterButtonState();
+    })();
+    updateSearchClear();
+    searchBox.focus();
+    return;
+  }
   if (CURRENT_LENS === "manual-provisions") {
     costBuildCtrl.applyManualProvisionFilters();
   } else {
@@ -6692,8 +8487,31 @@ pricingPolicyWorkspaceSelect?.addEventListener("change", () => {
   void switchPricingPolicyWorkspace(pricingPolicyWorkspaceSelect.value);
 });
 prevPage?.addEventListener("click", () => {
-  if (isRmCostTraceLensActive()) {
-    const page = materialCostCtrl.getTracePage();
+  if (isMaterialCostTraceLensActive()) {
+    return;
+  }
+  if (CURRENT_LENS === "shared-workload-preview") {
+    return;
+  }
+  if (isQcActionQueueLens(CURRENT_LENS)) {
+    const page = qcActionQueueCtrl.getPage();
+    if (page <= 1) return;
+    CURRENT_PAGE = page - 1;
+    void loadRowsForLens({ preservePage: true });
+    return;
+  }
+  if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    const page = materialsStoresActionQueueCtrl.getPage();
+    if (page <= 1) return;
+    CURRENT_PAGE = page - 1;
+    void loadRowsForLens({ preservePage: true });
+    return;
+  }
+  if (
+    CURRENT_LENS === "route-readiness" ||
+    CURRENT_LENS === "product-route-assignments"
+  ) {
+    const page = productionRouteCtrl.getPage();
     if (page <= 1) return;
     CURRENT_PAGE = page - 1;
     void loadRowsForLens({ preservePage: true });
@@ -6705,11 +8523,42 @@ prevPage?.addEventListener("click", () => {
   }
 });
 nextPage?.addEventListener("click", () => {
-  if (isRmCostTraceLensActive()) {
-    const page = materialCostCtrl.getTracePage();
-    const totalPages = Math.max(
-      1,
-      Math.ceil(Number(materialCostCtrl.getTraceTotalCount() || 0) / PAGE_SIZE),
+  if (isMaterialCostTraceLensActive()) {
+    return;
+  }
+  if (CURRENT_LENS === "shared-workload-preview") {
+    return;
+  }
+  if (isQcActionQueueLens(CURRENT_LENS)) {
+    const page = qcActionQueueCtrl.getPage();
+    const totalPages = qcTotalPages(
+      qcActionQueueCtrl.getTotalCount(),
+      PAGE_SIZE,
+    );
+    if (page >= totalPages) return;
+    CURRENT_PAGE = page + 1;
+    void loadRowsForLens({ preservePage: true });
+    return;
+  }
+  if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
+    const page = materialsStoresActionQueueCtrl.getPage();
+    const totalPages = msTotalPages(
+      materialsStoresActionQueueCtrl.getTotalCount(),
+      PAGE_SIZE,
+    );
+    if (page >= totalPages) return;
+    CURRENT_PAGE = page + 1;
+    void loadRowsForLens({ preservePage: true });
+    return;
+  }
+  if (
+    CURRENT_LENS === "route-readiness" ||
+    CURRENT_LENS === "product-route-assignments"
+  ) {
+    const page = productionRouteCtrl.getPage();
+    const totalPages = prmTotalPages(
+      productionRouteCtrl.getTotalCount(),
+      PAGE_SIZE,
     );
     if (page >= totalPages) return;
     CURRENT_PAGE = page + 1;
@@ -6721,9 +8570,17 @@ nextPage?.addEventListener("click", () => {
     renderTable();
   }
 });
-drawerClose?.addEventListener("click", closeDetails);
+drawerClose?.addEventListener("click", () => {
+  if (driverGovernanceCtrl.handleEscapeKey?.()) return;
+  if (productionRouteCtrl.closeModal?.({ restorePrevious: true })) return;
+  closeDetails();
+});
 detailsModal?.addEventListener("click", (e) => {
-  if (e.target === detailsModal) closeDetails();
+  if (e.target === detailsModal) {
+    if (driverGovernanceCtrl.handleEscapeKey?.()) return;
+    if (productionRouteCtrl.closeModal?.({ restorePrevious: true })) return;
+    closeDetails();
+  }
 });
 
 function isReadonlyOverlayOpen(element) {
@@ -6766,14 +8623,21 @@ function handleCostingEscapeKey() {
   closeFilterDrawer();
   closeFreshnessDetail();
   if (costSheetCtrl.handleEscapeKeyForEditForms?.()) return;
+  // Nested lifecycle/edit modals must win over the parent details overlay.
+  if (costPeriodValuationCtrl.handleEscapeKey?.()) return;
+  if (driverGovernanceCtrl.handleEscapeKey?.()) return;
+  // Close visible readonly overlays before suite edit-modal handlers so that
+  // missing optional modal DOM on this route cannot swallow Escape.
+  if (productionRouteCtrl.handleEscapeKey?.()) return;
+  if (closeTopmostReadonlyOverlay()) return;
   if (pricingPolicyCtrl.handleEscapeKey()) return;
   if (costBuildCtrl.handleEscapeKey()) return;
   if (materialCostCtrl.handleEscapeKey()) return;
-  closeTopmostReadonlyOverlay();
 }
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
+    e.preventDefault();
     handleCostingEscapeKey();
   }
 });

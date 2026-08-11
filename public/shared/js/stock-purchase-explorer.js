@@ -2,6 +2,8 @@
 /* eslint-env browser */
 import { supabase, handleSupabaseError } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { mountModuleHome, mountModuleIcon } from "./sasv-module-chrome.js";
+import { iconHtml } from "./ui-icons.js";
 
 // State management
 // JS SNIPPET 1: extended state with canonical classification filters
@@ -28,12 +30,14 @@ const state = {
   pageConsumption: 1,
   // NEW: rm-receiving-stock tab paging
   pageRmReceivingStock: 1,
-  pageSize: 30,
+  pageSize: 30, // batch size for infinite scroll
+  hasMore: false,
+  loadingMore: false,
+  knownTotal: 0,
 };
 
 // DOM references
 const homeBtn = document.getElementById("homeBtn");
-const lastRefreshed = document.getElementById("lastRefreshed");
 const stockValueChip = document.getElementById("stockValueChip");
 const stockValueAmount = document.getElementById("stockValueAmount");
 const stockValueModal = document.getElementById("stockValueModal");
@@ -45,18 +49,18 @@ const categoryFilter = document.getElementById("categoryFilter");
 const subcategoryFilter = document.getElementById("subcategoryFilter");
 const groupFilter = document.getElementById("groupFilter");
 const subgroupFilter = document.getElementById("subgroupFilter");
-const filtersCard = document.querySelector(".filters-card");
 
 const searchInput = document.getElementById("search");
 const dateRangeInput = document.getElementById("dateRange");
-const advToggleBtn = document.getElementById("toggleAdvancedFilters");
-const advancedDrawer = document.getElementById("advancedDrawer");
+const filtersBtn = document.getElementById("filtersBtn");
 
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabSelect = document.getElementById("tabSelect");
 const tableArea = document.getElementById("tableArea");
 const tableContextMeta = document.getElementById("tableContextMeta");
 const tableCard = document.querySelector(".table-card");
+const speCardsWrap = document.getElementById("spe-cards-wrap");
+const speCardsList = document.getElementById("spe-cards-list");
 const sidePanel = document.getElementById("sidePanel"); // preserved but hidden; modal used instead
 const modalOverlay = document.getElementById("detailModal");
 const modalContent = document.getElementById("modalContent");
@@ -71,7 +75,6 @@ let cacheSGrp = [];
 
 // Monotonically increasing counter for stale-result guard in reloadActiveTab
 let _requestSeq = 0;
-let LAST_REFRESH_TIME = null;
 let LAST_ACTIVE_ROWS = [];
 let LAST_RM_RECEIVING_ROWS = [];
 // reference to avoid 'assigned but never used' warnings in some linters
@@ -139,59 +142,125 @@ function updateTableContextMeta(text) {
   if (!tableContextMeta) return;
   tableContextMeta.textContent = text || "";
   tableContextMeta.style.display = text ? "inline-flex" : "none";
+  syncTableHeaderBarVisibility();
 }
 
-function updateFreshnessIndicator() {
-  if (!lastRefreshed) return;
-  const labelEl = lastRefreshed.querySelector(".sc-snapshot-label");
-  if (!LAST_REFRESH_TIME) {
-    lastRefreshed.className = lastRefreshed.className
-      .replace(/snapshot-\w+/g, "")
-      .trim();
-    if (labelEl) labelEl.textContent = "Not loaded";
-    lastRefreshed.setAttribute("title", "Data not yet loaded");
-    lastRefreshed.setAttribute("aria-label", "Data not yet loaded");
-    return;
-  }
+function syncTableHeaderBarVisibility() {
+  const bar = document.getElementById("tableHeaderBar");
+  if (!bar) return;
+  const actions = document.getElementById("tableHeaderActions");
+  const hasMeta = !!(
+    tableContextMeta &&
+    tableContextMeta.textContent &&
+    tableContextMeta.style.display !== "none"
+  );
+  const hasActions = !!(actions && actions.childElementCount > 0);
+  bar.classList.toggle("spe-header-empty", !(hasMeta || hasActions));
+}
 
-  const elapsedMs = Date.now() - LAST_REFRESH_TIME.getTime();
-  const elapsedMin = Math.floor(elapsedMs / 60000);
-  let label = "Just now";
-  let statusClass = "snapshot-fresh";
-  if (elapsedMin < 1) {
-    label = "Just now";
-    statusClass = "snapshot-fresh";
-  } else if (elapsedMin < 15) {
-    label = `${elapsedMin}m ago`;
-    statusClass = "snapshot-fresh";
-  } else if (elapsedMin < 60) {
-    label = `${elapsedMin}m ago`;
-    statusClass = "snapshot-warning";
+function setHasMoreFromBatch(batchLen, totalCount, loadedLen) {
+  const known = Number(totalCount) || 0;
+  state.knownTotal = known;
+  if (known > 0) {
+    state.hasMore = loadedLen < known;
   } else {
-    label = `${Math.floor(elapsedMin / 60)}h ago`;
-    statusClass = "snapshot-stale";
+    state.hasMore = batchLen >= state.pageSize;
   }
+}
 
-  const detailParts = [`Last refreshed: ${LAST_REFRESH_TIME.toLocaleString()}`];
-  if (Array.isArray(LAST_ACTIVE_ROWS)) {
-    detailParts.push(`Visible rows: ${LAST_ACTIVE_ROWS.length}`);
-  }
-  if (state.currentTab === "rm-receiving-stock") {
-    detailParts.push(`Total mapped rows: ${LAST_RM_RECEIVING_TOTAL}`);
-    if (LAST_RM_RECEIVING_AS_OF_DATE)
-      detailParts.push(`As of: ${LAST_RM_RECEIVING_AS_OF_DATE}`);
-    if (LAST_RM_RECEIVING_INSERTED_AT)
-      detailParts.push(`Inserted at: ${LAST_RM_RECEIVING_INSERTED_AT}`);
-  }
-  const detailText = detailParts.join(" · ");
+function isNarrowViewport() {
+  return window.matchMedia("(max-width: 520px)").matches;
+}
 
-  if (labelEl) labelEl.textContent = label;
-  lastRefreshed.className =
-    lastRefreshed.className.replace(/snapshot-\w+/g, "").trim() +
-    " " +
-    statusClass;
-  lastRefreshed.setAttribute("title", detailText);
-  lastRefreshed.setAttribute("aria-label", detailText);
+function getResultsPresentationMode() {
+  return isNarrowViewport() ? "cards" : "table";
+}
+
+function applyResultsPresentationMode() {
+  if (!tableCard) return;
+  const mode = getResultsPresentationMode();
+  tableCard.classList.toggle("spe-view-cards", mode === "cards");
+  tableCard.classList.toggle("spe-view-table", mode === "table");
+  if (speCardsWrap) speCardsWrap.hidden = mode !== "cards";
+}
+
+function ensureScrollSentinel() {
+  if (!tableArea) return null;
+  let el = document.getElementById("speScrollSentinel");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "speScrollSentinel";
+    el.className = "spe-scroll-sentinel";
+    el.setAttribute("aria-live", "polite");
+    tableArea.appendChild(el);
+  } else if (el.parentNode !== tableArea) {
+    tableArea.appendChild(el);
+  }
+  return el;
+}
+
+function sentinelLabel(text) {
+  if (typeof text === "string") return text;
+  if (state.loadingMore) return "Loading more…";
+  if (state.hasMore) return "";
+  if ((LAST_ACTIVE_ROWS || []).length)
+    return state.knownTotal
+      ? `${LAST_ACTIVE_ROWS.length} of ${state.knownTotal}`
+      : "End of results";
+  return "";
+}
+
+function updateScrollSentinel(text) {
+  const label = sentinelLabel(text);
+  const tableEl = ensureScrollSentinel();
+  if (tableEl) tableEl.textContent = label;
+  const cardsEl = document.getElementById("speCardsSentinel");
+  if (cardsEl) cardsEl.textContent = label;
+}
+
+function selectResultCard(card) {
+  if (!speCardsList) return;
+  speCardsList.querySelectorAll(".spe-result-card.selected").forEach((el) => {
+    el.classList.remove("selected");
+  });
+  if (card) card.classList.add("selected");
+}
+
+function selectTableRow(tr) {
+  if (!tableArea) return;
+  tableArea.querySelectorAll("tr.selected").forEach((el) => {
+    el.classList.remove("selected");
+  });
+  if (tr) tr.classList.add("selected");
+}
+
+function syncRowSelection(id) {
+  if (!id) return;
+  const tr = tableArea
+    ? tableArea.querySelector(`tr[data-id="${id}"]`)
+    : null;
+  selectTableRow(tr);
+  const card = speCardsList
+    ? speCardsList.querySelector(`.spe-result-card[data-id="${id}"]`)
+    : null;
+  selectResultCard(card);
+}
+
+function getTabPage(tab) {
+  if (tab === "overview") return state.pageOverview;
+  if (tab === "stock") return state.pageStock;
+  if (tab === "purchase") return state.pagePurchase;
+  if (tab === "consumption") return state.pageConsumption;
+  if (tab === "rm-receiving-stock") return state.pageRmReceivingStock;
+  return 1;
+}
+
+function setTabPage(tab, page) {
+  if (tab === "overview") state.pageOverview = page;
+  else if (tab === "stock") state.pageStock = page;
+  else if (tab === "purchase") state.pagePurchase = page;
+  else if (tab === "consumption") state.pageConsumption = page;
+  else if (tab === "rm-receiving-stock") state.pageRmReceivingStock = page;
 }
 
 // ── Stock Value chip & modal ──────────────────────────────────────────────────
@@ -334,6 +403,7 @@ if (dateRangeInput) {
     clickOpens: true,
     plugins: [confirmPlugin({ showTodayButton: true, showClearButton: true })],
     onChange: function (selectedDates, dateStr, instance) {
+      if (!isDateRangeRelevant(state.currentTab)) return;
       // selectedDates may contain 0,1 or 2 dates
       if (!selectedDates || !selectedDates.length) {
         state.currentFromDate = "";
@@ -345,15 +415,32 @@ if (dateRangeInput) {
         state.currentFromDate = instance.formatDate(selectedDates[0], "d-m-Y");
         state.currentToDate = instance.formatDate(selectedDates[1], "d-m-Y");
       }
+      updateFiltersBtnActive();
       resetPages();
-      // Reload the active tab so all tab tables respect the selected date range
       reloadActiveTab();
     },
   });
+  syncDateRangeAvailability();
 }
 
 // Event listeners
-if (homeBtn) homeBtn.onclick = () => Platform.goHome();
+if (homeBtn) {
+  mountModuleHome(homeBtn);
+  homeBtn.onclick = () => Platform.goHome();
+}
+
+/* Presentation: canonical close / filter icons (ui-icons) */
+{
+  if (filtersBtn) {
+    mountModuleIcon(filtersBtn, "filter");
+    filtersBtn.setAttribute("aria-label", "Filters");
+    filtersBtn.setAttribute("title", "Filters");
+  }
+  const detailClose = document.querySelector("#detailModal .modal-close");
+  if (detailClose) mountModuleIcon(detailClose, "close");
+  if (stockValueModalClose) mountModuleIcon(stockValueModalClose, "close");
+}
+
 // Stock value chip events
 if (stockValueChip) {
   stockValueChip.addEventListener("click", async () => {
@@ -400,7 +487,7 @@ function mapSourceKindToCategoryCode(kind) {
   return map[k] || null;
 }
 
-classificationSelect.addEventListener("change", async () => {
+if (classificationSelect) classificationSelect.addEventListener("change", async () => {
   state.currentSourceKind = classificationSelect.value;
   // If user selected 'all', restore category and downstream selects to defaults
   if (state.currentSourceKind === "all" && categoryFilter) {
@@ -437,36 +524,31 @@ classificationSelect.addEventListener("change", async () => {
       }
     }
   }
-  resetPages();
-  reloadActiveTab();
+  reloadIfDrawerClosed();
 });
 
 if (categoryFilter) {
   categoryFilter.addEventListener("change", () => {
-    resetPages();
     state.currentCategoryCode = categoryFilter.value || "all";
-    reloadActiveTab();
+    reloadIfDrawerClosed();
   });
 }
 if (subcategoryFilter) {
   subcategoryFilter.addEventListener("change", () => {
-    resetPages();
     state.currentSubcategoryCode = subcategoryFilter.value || "all";
-    reloadActiveTab();
+    reloadIfDrawerClosed();
   });
 }
 if (groupFilter) {
   groupFilter.addEventListener("change", () => {
-    resetPages();
     state.currentGroupCode = groupFilter.value || "all";
-    reloadActiveTab();
+    reloadIfDrawerClosed();
   });
 }
 if (subgroupFilter) {
   subgroupFilter.addEventListener("change", () => {
-    resetPages();
     state.currentSubgroupCode = subgroupFilter.value || "all";
-    reloadActiveTab();
+    reloadIfDrawerClosed();
   });
 }
 
@@ -488,6 +570,7 @@ tabButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     state.currentTab = btn.dataset.tab;
     setActiveTab(state.currentTab);
+    resetPages();
     reloadActiveTab();
   });
 });
@@ -499,64 +582,60 @@ if (tabSelect) {
     if (!v) return;
     state.currentTab = v;
     setActiveTab(state.currentTab);
+    resetPages();
     reloadActiveTab();
   });
 }
 
-// Advanced drawer toggle
-if (advToggleBtn && advancedDrawer) {
-  function setAdvancedOpen(open) {
-    if (!advancedDrawer) return;
-    const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
+function isDateRangeRelevant(tab) {
+  return tab === "purchase" || tab === "consumption";
+}
 
-    if (open) {
-      advancedDrawer.classList.add("open");
-      advancedDrawer.setAttribute("aria-hidden", "false");
-      if (advToggleBtn) {
-        advToggleBtn.setAttribute("aria-expanded", "true");
-        advToggleBtn.classList.add("open");
-      }
-      // Force a reflow on mobile to ensure proper rendering
-      if (isMobile) {
-        void advancedDrawer.offsetHeight;
-      }
-      const first = advancedDrawer.querySelector("select, input, button");
-      if (first && typeof first.focus === "function") first.focus();
-    } else {
-      advancedDrawer.classList.remove("open");
-      advancedDrawer.setAttribute("aria-hidden", "true");
-      if (advToggleBtn) {
-        advToggleBtn.setAttribute("aria-expanded", "false");
-        advToggleBtn.classList.remove("open");
-      }
-    }
-    // On wider screens (not the mobile slide-down mode) expand/collapse the
-    // whole filters card. For mobile (<=520px) the advanced drawer should
-    // always be accessible when the main drawer is open.
-    try {
-      if (
-        window &&
-        window.innerWidth &&
-        window.innerWidth > 520 &&
-        filtersCard
-      ) {
-        filtersCard.classList.toggle("expanded", open);
-      }
-    } catch {
-      /* ignore */
-    }
-    // Recalculate table card height when advanced drawer changes visibility
-    try {
-      adjustTableCardHeight();
-    } catch {
-      /* ignore if function not yet defined */
+function syncDateRangeAvailability() {
+  const relevant = isDateRangeRelevant(state.currentTab);
+  const dateItem = document.querySelector(
+    "#mobileFiltersModal .filter-field.date",
+  );
+  if (dateItem) dateItem.classList.toggle("is-disabled", !relevant);
+  if (dateRangeInput) {
+    dateRangeInput.disabled = !relevant;
+    dateRangeInput.setAttribute("aria-disabled", relevant ? "false" : "true");
+    dateRangeInput.title = relevant
+      ? "Filter Purchase History / Consumption by voucher date"
+      : "Date Range applies only on Purchase History and Consumption";
+    if (dateRangeInput._flatpickr) {
+      dateRangeInput._flatpickr.set("clickOpens", relevant);
+      dateRangeInput._flatpickr.set("allowInput", relevant);
     }
   }
+}
 
-  advToggleBtn.addEventListener("click", () => {
-    const isOpen = advancedDrawer.classList.contains("open");
-    setAdvancedOpen(!isOpen);
-  });
+function isFiltersDrawerOpen() {
+  const modal = document.getElementById("mobileFiltersModal");
+  return !!(modal && modal.classList.contains("open"));
+}
+
+function hasActiveDrawerFilters() {
+  return (
+    (state.currentSourceKind && state.currentSourceKind !== "all") ||
+    (state.currentCategoryCode && state.currentCategoryCode !== "all") ||
+    (state.currentSubcategoryCode && state.currentSubcategoryCode !== "all") ||
+    (state.currentGroupCode && state.currentGroupCode !== "all") ||
+    (state.currentSubgroupCode && state.currentSubgroupCode !== "all") ||
+    !!state.currentFromDate ||
+    !!state.currentToDate
+  );
+}
+
+function updateFiltersBtnActive() {
+  if (!filtersBtn) return;
+  filtersBtn.classList.toggle("is-active", hasActiveDrawerFilters());
+}
+
+function reloadIfDrawerClosed() {
+  updateFiltersBtnActive();
+  resetPages();
+  reloadActiveTab();
 }
 
 // Helper to visually mark the active tab and set aria attributes
@@ -575,6 +654,7 @@ function setActiveTab(name) {
       /* ignore */
     }
   }
+  syncDateRangeAvailability();
 }
 // ---------- Classification / taxonomy population (cascading selects)
 async function loadClassificationOptions(attempt = 1) {
@@ -812,37 +892,6 @@ function _maintainFocus(e) {
   if (modalClose) modalClose.focus();
 }
 
-// Mobile filters modal focus trap helpers
-let _mobileModalFocusable = [];
-function _trapTabHandlerMobile(e) {
-  if (!mobileFiltersModal || !mobileFiltersModal.classList.contains("open"))
-    return;
-  if (e.key !== "Tab") return;
-  if (!_mobileModalFocusable || !_mobileModalFocusable.length) return;
-  const first = _mobileModalFocusable[0];
-  const last = _mobileModalFocusable[_mobileModalFocusable.length - 1];
-  const active = document.activeElement;
-  if (e.shiftKey) {
-    if (active === first || active === mobileFiltersModal) {
-      e.preventDefault();
-      last.focus();
-    }
-  } else {
-    if (active === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  }
-}
-
-function _maintainFocusMobile(e) {
-  if (!mobileFiltersModal || !mobileFiltersModal.classList.contains("open"))
-    return;
-  if (mobileFiltersModal.contains(e.target)) return;
-  e.stopPropagation();
-  if (mobileFiltersClose) mobileFiltersClose.focus();
-}
-
 function setBackgroundInert(enable, exceptions = []) {
   const page = document.querySelector(".page");
   if (!page) return;
@@ -962,431 +1011,97 @@ document.addEventListener("keydown", (ev) => {
   }
 });
 
-// Mobile filters modal elements
-const mobileFiltersBtn = document.getElementById("mobileFiltersBtn");
+// Filters popover — real controls live in #mobileFiltersModal
 const mobileFiltersModal = document.getElementById("mobileFiltersModal");
-const mobileFiltersClose = document.getElementById("mobileFiltersClose");
-const mobileFiltersContent = document.getElementById("mobileFiltersContent");
-const mobileFiltersApply = document.getElementById("mobileFiltersApply");
 const mobileFiltersReset = document.getElementById("mobileFiltersReset");
-const mobileSearch = document.getElementById("mobileSearch");
 
-// Debug: Check if close button is found
-console.log("mobileFiltersClose element:", mobileFiltersClose);
-
-// Store original filter values for comparison
-let _mobileFilterValues = {
-  sourceKind: "all",
-  search: "",
-  dateRange: "",
-  categoryCode: "all",
-  subcategoryCode: "all",
-  groupCode: "all",
-  subgroupCode: "all",
-};
+function isFiltersFocusInside(node) {
+  if (!node || !(node instanceof Node)) return false;
+  if (filtersBtn && filtersBtn.contains(node)) return true;
+  if (mobileFiltersModal && mobileFiltersModal.contains(node)) return true;
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  if (el && el.closest && (el.closest(".flatpickr-calendar") || el.closest(".flatpickr-confirm"))) {
+    return true;
+  }
+  return false;
+}
 
 function openMobileFiltersModal() {
-  if (!mobileFiltersModal) {
-    console.error("mobileFiltersModal not found!");
-    return;
-  }
-
-  console.log("Opening mobile filters modal...");
-  // Build the mobile filters modal HTML
-  _mobileFilterValues = {
-    sourceKind: state.currentSourceKind || "all",
-    search: state.currentSearchText || "",
-    dateRange:
-      (state.currentFromDate &&
-        state.currentToDate &&
-        `${state.currentFromDate} to ${state.currentToDate}`) ||
-      state.currentFromDate ||
-      state.currentToDate ||
-      "",
-    categoryCode: state.currentCategoryCode || "all",
-    subcategoryCode: state.currentSubcategoryCode || "all",
-    groupCode: state.currentGroupCode || "all",
-    subgroupCode: state.currentSubgroupCode || "all",
-  };
-
-  const html = `
-    <div class="filters-section">
-      <h4>Primary Filters</h4>
-      <div class="filter-row">
-        <label for="mobileSourceKind">Source Kind</label>
-        <select id="mobileSourceKind">
-          <option value="all">(All)</option>
-          <option value="rm">rm</option>
-          <option value="plm">plm</option>
-          <option value="consumable">consumable</option>
-          <option value="fuel">fuel</option>
-        </select>
-      </div>
-
-      <div class="filter-row">
-        <label for="mobileSearchInput">Search</label>
-        <input id="mobileSearchInput" type="search" placeholder="Code or name" value="${_mobileFilterValues.search}">
-      </div>
-
-      <div class="filter-row">
-        <label for="mobileDateRange">Date Range</label>
-        <input type="text" id="mobileDateRange" placeholder="Select date range" value="${_mobileFilterValues.dateRange}">
-      </div>
-    </div>
-
-    <div class="filters-section">
-      <h4>Classification Filters</h4>
-      <div class="filter-row">
-        <label for="mobileCategoryFilter">Category</label>
-        <select id="mobileCategoryFilter">
-          <option value="all">(All categories)</option>
-        </select>
-      </div>
-      <div class="filter-row">
-        <label for="mobileSubcategoryFilter">Sub-category</label>
-        <select id="mobileSubcategoryFilter">
-          <option value="all">(All sub-categories)</option>
-        </select>
-      </div>
-      <div class="filter-row">
-        <label for="mobileGroupFilter">Group</label>
-        <select id="mobileGroupFilter">
-          <option value="all">(All groups)</option>
-        </select>
-      </div>
-      <div class="filter-row">
-        <label for="mobileSubgroupFilter">Sub-group</label>
-        <select id="mobileSubgroupFilter">
-          <option value="all">(All sub-groups)</option>
-        </select>
-      </div>
-    </div>
-  `;
-  mobileFiltersContent.innerHTML = html;
-
-  // Set current values
-  const mobileSourceKind = document.getElementById("mobileSourceKind");
-  const mobileDateRange = document.getElementById("mobileDateRange");
-  const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
-
-  if (mobileSourceKind) mobileSourceKind.value = _mobileFilterValues.sourceKind;
-
-  // Populate category options if available
-  if (mobileCategoryFilter && cacheCat && cacheCat.length) {
-    mobileCategoryFilter.innerHTML =
-      `<option value="all">(All categories)</option>` +
-      cacheCat
-        .map(
-          (c) =>
-            `<option value="${c.code}">${c.code} — ${
-              c.label || c.code
-            }</option>`,
-        )
-        .join("");
-    mobileCategoryFilter.value = _mobileFilterValues.categoryCode;
-  }
-
-  // Set up date picker for mobile date range if flatpickr is available
-  if (mobileDateRange && window.flatpickr) {
-    window.flatpickr(mobileDateRange, {
-      mode: "range",
-      dateFormat: "d-m-Y",
-      allowInput: true,
-    });
-  }
-
-  // Open the modal and make background inert for accessibility
-  try {
-    _lastActiveElement = document.activeElement;
-    mobileFiltersModal.classList.add("open");
-    mobileFiltersModal.setAttribute("aria-hidden", "false");
-    setBackgroundInert(true, [mobileFiltersModal]);
-
-    // compute and store focusable elements for the mobile modal
-    _mobileModalFocusable = _getFocusable(mobileFiltersModal);
-    if (
-      _mobileModalFocusable &&
-      _mobileModalFocusable.length &&
-      typeof _mobileModalFocusable[0].focus === "function"
-    ) {
-      _mobileModalFocusable[0].focus();
-    } else if (
-      mobileFiltersClose &&
-      typeof mobileFiltersClose.focus === "function"
-    ) {
-      mobileFiltersClose.focus();
-    }
-
-    // attach focus-trap handlers for the mobile modal
-    document.addEventListener("focus", _maintainFocusMobile, true);
-    document.addEventListener("keydown", _trapTabHandlerMobile);
-  } catch {
-    /* ignore errors opening modal */
-  }
+  if (!mobileFiltersModal) return;
+  syncDateRangeAvailability();
+  mobileFiltersModal.classList.add("open");
+  mobileFiltersModal.setAttribute("aria-hidden", "false");
+  if (filtersBtn) filtersBtn.setAttribute("aria-expanded", "true");
 }
 
 function closeMobileFiltersModal() {
   if (!mobileFiltersModal) return;
-  // remove focus-trap handlers first
-  try {
-    document.removeEventListener("focus", _maintainFocusMobile, true);
-    document.removeEventListener("keydown", _trapTabHandlerMobile);
-  } catch {
-    /* ignore */
-  }
-  _mobileModalFocusable = [];
-
   mobileFiltersModal.classList.remove("open");
   mobileFiltersModal.setAttribute("aria-hidden", "true");
-  // restore page accessibility
-  try {
-    setBackgroundInert(false);
-  } catch {
-    /* ignore */
-  }
-  // restore focus to open button
-  try {
-    if (mobileFiltersBtn && typeof mobileFiltersBtn.focus === "function")
-      mobileFiltersBtn.focus();
-  } catch {
-    /* ignore */
-  }
+  if (filtersBtn) filtersBtn.setAttribute("aria-expanded", "false");
+  updateFiltersBtnActive();
 }
 
-function applyMobileFilters() {
-  // Get values from modal inputs
-  const mobileSourceKind = document.getElementById("mobileSourceKind");
-  const mobileSearchInput = document.getElementById("mobileSearchInput");
-  const mobileDateRange = document.getElementById("mobileDateRange");
-  const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
-  const mobileSubcategoryFilter = document.getElementById(
-    "mobileSubcategoryFilter",
-  );
-  const mobileGroupFilter = document.getElementById("mobileGroupFilter");
-  const mobileSubgroupFilter = document.getElementById("mobileSubgroupFilter");
-
-  // Update main filter state
-  if (mobileSourceKind) {
-    state.currentSourceKind = mobileSourceKind.value;
-    if (classificationSelect)
-      classificationSelect.value = mobileSourceKind.value;
-  }
-
-  if (mobileSearchInput) {
-    state.currentSearchText = mobileSearchInput.value.trim();
-    if (searchInput) searchInput.value = mobileSearchInput.value;
-    if (mobileSearch) mobileSearch.value = mobileSearchInput.value;
-  }
-
-  if (mobileDateRange && dateRangeInput) {
-    dateRangeInput.value = mobileDateRange.value;
-    // Parse date range for state
-    const dateStr = mobileDateRange.value;
-    if (dateStr && dateStr.includes(" to ")) {
-      const [fromDate, toDate] = dateStr.split(" to ");
-      state.currentFromDate = fromDate.trim();
-      state.currentToDate = toDate.trim();
-    } else {
-      state.currentFromDate = "";
-      state.currentToDate = "";
-    }
-  }
-
-  if (mobileCategoryFilter) {
-    state.currentCategoryCode = mobileCategoryFilter.value;
-    if (categoryFilter) categoryFilter.value = mobileCategoryFilter.value;
-  }
-
-  if (mobileSubcategoryFilter) {
-    state.currentSubcategoryCode = mobileSubcategoryFilter.value;
-    if (subcategoryFilter)
-      subcategoryFilter.value = mobileSubcategoryFilter.value;
-  }
-
-  if (mobileGroupFilter) {
-    state.currentGroupCode = mobileGroupFilter.value;
-    if (groupFilter) groupFilter.value = mobileGroupFilter.value;
-  }
-
-  if (mobileSubgroupFilter) {
-    state.currentSubgroupCode = mobileSubgroupFilter.value;
-    if (subgroupFilter) subgroupFilter.value = mobileSubgroupFilter.value;
-  }
-
-  // Reset pagination and reload data
-  resetPages();
-  reloadActiveTab();
-
-  // Update clear button visibility after applying values
-  if (typeof toggleMobileClearButton === "function") {
-    toggleMobileClearButton();
-  }
-  if (typeof toggleMainClearButton === "function") {
-    toggleMainClearButton();
-  }
-
-  // Close modal
-  closeMobileFiltersModal();
-
-  // Show confirmation
-  showStatusToast("Filters applied", "success", 2000);
-}
-
-function resetMobileFilters() {
-  // Reset all filter inputs in modal to defaults
-  const mobileSourceKind = document.getElementById("mobileSourceKind");
-  const mobileSearchInput = document.getElementById("mobileSearchInput");
-  const mobileDateRange = document.getElementById("mobileDateRange");
-  const mobileCategoryFilter = document.getElementById("mobileCategoryFilter");
-  const mobileSubcategoryFilter = document.getElementById(
-    "mobileSubcategoryFilter",
-  );
-  const mobileGroupFilter = document.getElementById("mobileGroupFilter");
-  const mobileSubgroupFilter = document.getElementById("mobileSubgroupFilter");
-
-  if (mobileSourceKind) mobileSourceKind.value = "all";
-  if (mobileSearchInput) mobileSearchInput.value = "";
-  if (mobileDateRange) mobileDateRange.value = "";
-  if (mobileCategoryFilter) mobileCategoryFilter.value = "all";
-  if (mobileSubcategoryFilter) mobileSubcategoryFilter.value = "all";
-  if (mobileGroupFilter) mobileGroupFilter.value = "all";
-  if (mobileSubgroupFilter) mobileSubgroupFilter.value = "all";
-}
-
-// Reset main (desktop) filters to defaults
-function resetFilters() {
+function resetDrawerFilters() {
   if (classificationSelect) classificationSelect.value = "all";
   if (categoryFilter) categoryFilter.value = "all";
-  if (subcategoryFilter) subcategoryFilter.value = "all";
-  if (groupFilter) groupFilter.value = "all";
-  if (subgroupFilter) subgroupFilter.value = "all";
-  if (searchInput) searchInput.value = "";
-  if (dateRangeInput) dateRangeInput.value = "";
-
-  // Update canonical state
+  fillEmptySelect(subcategoryFilter, "(All sub-categories)");
+  fillEmptySelect(groupFilter, "(All groups)");
+  fillEmptySelect(subgroupFilter, "(All sub-groups)");
+  if (dateRangeInput) {
+    if (dateRangeInput._flatpickr) dateRangeInput._flatpickr.clear();
+    else dateRangeInput.value = "";
+  }
   state.currentSourceKind = "all";
   state.currentCategoryCode = "all";
   state.currentSubcategoryCode = "all";
   state.currentGroupCode = "all";
   state.currentSubgroupCode = "all";
-  state.currentSearchText = "";
   state.currentFromDate = "";
   state.currentToDate = "";
-
-  // Ensure any mobile modal inputs reflect the reset as well
-  try {
-    const mobileSource = document.getElementById("mobileSourceKind");
-    const mobileSearchInput = document.getElementById("mobileSearchInput");
-    const mobileDateRange = document.getElementById("mobileDateRange");
-    const mobileCategory = document.getElementById("mobileCategoryFilter");
-    const mobileSubcategory = document.getElementById(
-      "mobileSubcategoryFilter",
-    );
-    const mobileGroup = document.getElementById("mobileGroupFilter");
-    const mobileSubgroup = document.getElementById("mobileSubgroupFilter");
-    if (mobileSource) mobileSource.value = "all";
-    if (mobileSearchInput) mobileSearchInput.value = "";
-    if (mobileDateRange) mobileDateRange.value = "";
-    if (mobileCategory) mobileCategory.value = "all";
-    if (mobileSubcategory) mobileSubcategory.value = "all";
-    if (mobileGroup) mobileGroup.value = "all";
-    if (mobileSubgroup) mobileSubgroup.value = "all";
-  } catch {
-    /* ignore */
-  }
-
-  // Close advanced drawer if open
-  try {
-    if (advancedDrawer && advancedDrawer.classList.contains("open")) {
-      advancedDrawer.classList.remove("open");
-      advancedDrawer.setAttribute("aria-hidden", "true");
-      if (advToggleBtn) {
-        advToggleBtn.setAttribute("aria-expanded", "false");
-        advToggleBtn.classList.remove("open");
-      }
-      if (filtersCard) filtersCard.classList.remove("expanded");
-    }
-  } catch {
-    /* ignore */
-  }
-
-  // Close mobile filters modal if it's open
-  try {
-    if (mobileFiltersModal && mobileFiltersModal.classList.contains("open")) {
-      closeMobileFiltersModal();
-    }
-  } catch {
-    /* ignore */
-  }
-
-  // Reset pagination and reload
+  updateFiltersBtnActive();
   resetPages();
   reloadActiveTab();
-
-  // Update clear button visibility
-  if (typeof toggleMainClearButton === "function") toggleMainClearButton();
-  if (typeof toggleMobileClearButton === "function") toggleMobileClearButton();
-
   showStatusToast("Filters reset", "info", 1200);
 }
 
-if (mobileFiltersBtn) {
-  mobileFiltersBtn.addEventListener("click", (ev) => {
+if (filtersBtn) {
+  filtersBtn.addEventListener("click", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    const isMobile = typeof window !== "undefined" && window.innerWidth <= 520;
-    if (isMobile) {
-      openMobileFiltersModal();
-    } else {
-      // On larger screens, toggle the advanced drawer using the existing toggle button
-      if (advToggleBtn) {
-        advToggleBtn.click();
-      }
-    }
-  });
-}
-
-// Mobile filters modal event handlers
-if (mobileFiltersClose) {
-  mobileFiltersClose.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    closeMobileFiltersModal();
-  });
-}
-
-if (mobileFiltersApply) {
-  mobileFiltersApply.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    applyMobileFilters();
+    if (isFiltersDrawerOpen()) closeMobileFiltersModal();
+    else openMobileFiltersModal();
   });
 }
 
 if (mobileFiltersReset) {
   mobileFiltersReset.addEventListener("click", (ev) => {
     ev.preventDefault();
-    resetMobileFilters();
+    resetDrawerFilters();
   });
 }
 
-// Wire desktop Reset button
-const resetFiltersBtn = document.getElementById("resetFiltersBtn");
-if (resetFiltersBtn) {
-  resetFiltersBtn.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    resetFilters();
-  });
-}
+document.addEventListener("mousedown", (ev) => {
+  if (!isFiltersDrawerOpen()) return;
+  if (isFiltersFocusInside(ev.target)) return;
+  const active = document.activeElement;
+  if (
+    active &&
+    mobileFiltersModal &&
+    mobileFiltersModal.contains(active) &&
+    (active.tagName === "SELECT" || active.id === "dateRange")
+  ) {
+    return;
+  }
+  closeMobileFiltersModal();
+});
 
-// Close modal when clicking backdrop
-if (mobileFiltersModal) {
-  mobileFiltersModal.addEventListener("click", (ev) => {
-    if (ev.target === mobileFiltersModal) {
-      closeMobileFiltersModal();
-    }
-  });
-}
+document.addEventListener("focusin", (ev) => {
+  if (!isFiltersDrawerOpen()) return;
+  if (isFiltersFocusInside(ev.target)) return;
+  closeMobileFiltersModal();
+});
 
-// Close modal on escape key
 document.addEventListener("keydown", (ev) => {
   if (
     ev.key === "Escape" &&
@@ -1397,108 +1112,24 @@ document.addEventListener("keydown", (ev) => {
   }
 });
 
-// Sync mobile search with main search input (two-way)
-if (mobileSearch && searchInput) {
-  // initialize
-  mobileSearch.value = searchInput.value || "";
-  mobileSearch.addEventListener("input", () => {
-    searchInput.value = mobileSearch.value;
-    // Update state immediately to keep UI in sync
-    resetPages();
-    state.currentSearchText = searchInput.value.trim();
-    // Use the same debounce timer as main search to coordinate loading
-    if (_searchDebounceTimer) {
-      clearTimeout(_searchDebounceTimer);
-    }
-    _searchDebounceTimer = setTimeout(() => {
-      _searchDebounceTimer = null;
-      reloadActiveTab();
-    }, 500);
-  });
-  // keep mobileSearch updated when main search changes (e.g., reset)
-  searchInput.addEventListener("input", () => {
-    if (mobileSearch.value !== searchInput.value)
-      mobileSearch.value = searchInput.value;
-  });
-}
-
-// Main search clear button functionality
 const searchClear = document.getElementById("searchClear");
-let toggleMainClearButton; // Declare function in outer scope
+let toggleMainClearButton;
 if (searchInput && searchClear) {
-  // Show/hide clear button based on input content
   toggleMainClearButton = function () {
-    if (searchInput.value.trim()) {
-      searchClear.style.display = "flex";
-    } else {
-      searchClear.style.display = "none";
-    }
+    searchClear.style.display = searchInput.value.trim() ? "flex" : "none";
   };
-
-  // Initialize clear button visibility
   toggleMainClearButton();
-
-  // Listen for input changes to show/hide clear button
   searchInput.addEventListener("input", toggleMainClearButton);
-
-  // Clear button click handler
   searchClear.addEventListener("click", () => {
     searchInput.value = "";
     searchInput.focus();
-    // Sync with mobile search
-    if (mobileSearch) {
-      mobileSearch.value = "";
-    }
-    // Update state and reload
     resetPages();
     state.currentSearchText = "";
     toggleMainClearButton();
-    // Also update mobile clear button visibility if it exists
-    if (mobileSearchClear && typeof toggleMobileClearButton === "function") {
-      toggleMobileClearButton();
-    }
     reloadActiveTab();
   });
 }
 
-// Mobile search clear button functionality
-const mobileSearchClear = document.getElementById("mobileSearchClear");
-let toggleMobileClearButton; // Declare function in outer scope
-if (mobileSearch && mobileSearchClear) {
-  // Show/hide clear button based on input content
-  toggleMobileClearButton = function () {
-    if (mobileSearch.value.trim()) {
-      mobileSearchClear.style.display = "flex";
-    } else {
-      mobileSearchClear.style.display = "none";
-    }
-  };
-
-  // Initialize clear button visibility
-  toggleMobileClearButton();
-
-  // Listen for input changes to show/hide clear button
-  mobileSearch.addEventListener("input", toggleMobileClearButton);
-
-  // Clear button click handler
-  mobileSearchClear.addEventListener("click", () => {
-    mobileSearch.value = "";
-    mobileSearch.focus();
-    // Sync with main search
-    if (searchInput) {
-      searchInput.value = "";
-    }
-    // Update state and reload
-    resetPages();
-    state.currentSearchText = "";
-    toggleMobileClearButton();
-    // Also update main clear button visibility if it exists
-    if (searchClear && typeof toggleMainClearButton === "function") {
-      toggleMainClearButton();
-    }
-    reloadActiveTab();
-  });
-}
 // Data loading functions
 // JS SNIPPET 4: helper to apply canonical classification filters
 function applyClassificationFilters(query) {
@@ -2199,17 +1830,22 @@ function copyRmReceivingRows() {
 // Rendering functions
 function renderLoading() {
   tableArea.innerHTML = "";
+  if (speCardsList) speCardsList.innerHTML = "";
   setBusy(true, "Loading\u2026");
 }
 function renderError(msg) {
   tableArea.innerHTML = `<div class="error">${msg}</div>`;
+  renderSpeStatusCard(msg || "Error loading data");
   setBusy(false);
 }
 function renderNoData() {
   tableArea.innerHTML = '<div class="no-data">No data found.</div>';
+  renderSpeStatusCard("No data found.");
   setBusy(false);
-  const p = document.getElementById("paginator");
-  if (p) p.innerHTML = "";
+  state.hasMore = false;
+  state.loadingMore = false;
+  LAST_ACTIVE_ROWS = [];
+  updateScrollSentinel("");
 }
 
 // Card-level busy overlay (inside .table-card, not full-page)
@@ -2252,6 +1888,213 @@ function getRowUOM(row) {
   );
 }
 
+const SPE_CARD_CHEV = `<svg class="spe-result-card-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>`;
+
+function speCardMetaHtml(parts) {
+  return (parts || [])
+    .filter((p) => p != null && String(p).trim() !== "")
+    .map(
+      (p) =>
+        `<span class="spe-result-card-meta">${escapeHtml(String(p))}</span>`,
+    )
+    .join('<span class="spe-result-card-dot">·</span>');
+}
+
+function speResultCardHtml(index, spec) {
+  const {
+    id,
+    selectable,
+    actionable,
+    name,
+    metaParts,
+    subLine,
+    classLine,
+    metrics,
+  } = spec;
+  const alt = index % 2 === 1 ? " spe-result-card--alt" : "";
+  const selected =
+    id && String(id) === String(state.selectedItemId) ? " selected" : "";
+  const staticCls = !selectable && !actionable ? " spe-result-card--static" : "";
+  const actionCls = actionable ? " spe-result-card--action" : "";
+  const attrs = [];
+  if (id) attrs.push(`data-id="${escapeHtml(String(id))}"`);
+  if (selectable || actionable) {
+    attrs.push('role="button"', 'tabindex="0"');
+  }
+  const metricsHtml = (metrics || [])
+    .map((m, i) => {
+      const extra = i > 0 ? " spe-result-card-metric--rule" : "";
+      return `<div class="spe-result-card-metric${extra}"><span class="spe-result-card-k">${escapeHtml(m.label)}</span> ${m.html}</div>`;
+    })
+    .join("");
+  return `<article class="spe-result-card${alt}${staticCls}${actionCls}${selected}" ${attrs.join(" ")}>
+    ${actionable ? SPE_CARD_CHEV : ""}
+    <div class="spe-result-card-line1">
+      <span class="spe-result-card-name">${escapeHtml(name || "–")}</span>
+    </div>
+    <div class="spe-result-card-line-meta">${speCardMetaHtml(metaParts)}</div>
+    ${subLine ? `<div class="spe-result-card-sub">${escapeHtml(subLine)}</div>` : ""}
+    ${classLine ? `<div class="spe-result-card-class">${escapeHtml(classLine)}</div>` : ""}
+    ${metricsHtml}
+  </article>`;
+}
+
+function overviewCardHtml(row, index) {
+  return speResultCardHtml(index, {
+    id: row.inv_stock_item_id,
+    selectable: true,
+    actionable: false,
+    name: row.name,
+    metaParts: [row.code, getRowUOM(row)],
+    classLine: formatClassification(row),
+    metrics: [
+      {
+        label: "Stock:",
+        html: `${formatIndianNumber(row.current_stock_qty)} @ ${formatCurrencyINR(row.current_stock_rate)}`,
+      },
+      {
+        label: "Purchased:",
+        html: `${formatIndianNumber(row.total_purchased_qty)} @ ${formatCurrencyINR(row.avg_purchase_rate)}`,
+      },
+      {
+        label: "Consumed:",
+        html: formatIndianNumber(row.total_consumed_qty),
+      },
+    ],
+  });
+}
+
+function stockCardHtml(row, index) {
+  return speResultCardHtml(index, {
+    selectable: false,
+    actionable: false,
+    name: row.name,
+    metaParts: [row.code, getRowUOM(row)],
+    classLine: formatClassification(row),
+    metrics: [
+      { label: "Stock:", html: formatIndianNumber(row.qty_value) },
+      { label: "Rate:", html: formatCurrencyINR(row.avg_rate_value) },
+    ],
+  });
+}
+
+function purchaseCardHtml(row, index) {
+  const tx = row.purchase_lines ?? "–";
+  return speResultCardHtml(index, {
+    id: row.inv_stock_item_id,
+    selectable: true,
+    actionable: true,
+    name: row.name,
+    metaParts: [row.code, getRowUOM(row)],
+    classLine: formatClassification(row),
+    metrics: [
+      {
+        label: "Purchased:",
+        html: `${formatIndianNumber(row.total_purchased_qty)} @ ${formatCurrencyINR(row.avg_purchase_rate)}`,
+      },
+      {
+        label: "Last:",
+        html: `${escapeHtml(row.last_purchase_date ?? "–")} · ${escapeHtml(String(tx))} txns`,
+      },
+    ],
+  });
+}
+
+function consumptionCardHtml(row, index) {
+  return speResultCardHtml(index, {
+    id: row.inv_stock_item_id,
+    selectable: true,
+    actionable: true,
+    name: row.name,
+    metaParts: [row.code, getRowUOM(row)],
+    classLine: formatClassification(row),
+    metrics: [
+      {
+        label: "Consumed:",
+        html: formatIndianNumber(row.total_consumed_qty),
+      },
+      {
+        label: "Split:",
+        html: `RM/PLM ${formatIndianNumber(row.rm_pm_issue_qty)} · Consumables ${formatIndianNumber(row.consumable_out_qty)}`,
+      },
+    ],
+  });
+}
+
+function rmReceivingCardHtml(row, index) {
+  return speResultCardHtml(index, {
+    selectable: false,
+    actionable: false,
+    name: row.name,
+    metaParts: [row.code ?? "–", row.as_of_date ?? "–"],
+    subLine: row.tally_item_name || "",
+    classLine: formatClassification(row),
+    metrics: [
+      { label: "Qty:", html: formatIndianNumber(row.qty_value) },
+      {
+        label: "Rate / Value:",
+        html: `${formatCurrencyINR(row.rate_value)} · ${formatCurrencyINR(row.stock_value)}`,
+      },
+    ],
+  });
+}
+
+function cardHtmlForTab(row, index) {
+  if (state.currentTab === "overview") return overviewCardHtml(row, index);
+  if (state.currentTab === "stock") return stockCardHtml(row, index);
+  if (state.currentTab === "purchase") return purchaseCardHtml(row, index);
+  if (state.currentTab === "consumption") return consumptionCardHtml(row, index);
+  if (state.currentTab === "rm-receiving-stock")
+    return rmReceivingCardHtml(row, index);
+  return "";
+}
+
+function syncSpeCards(rows, { append = false, startIndex = 0 } = {}) {
+  if (!speCardsList) return;
+  const html = (rows || [])
+    .map((row, i) => cardHtmlForTab(row, startIndex + i))
+    .join("");
+  if (!append) speCardsList.innerHTML = html;
+  else speCardsList.insertAdjacentHTML("beforeend", html);
+}
+
+function renderSpeStatusCard(msg) {
+  if (!speCardsList) return;
+  speCardsList.innerHTML = `<article class="spe-result-card spe-result-card--status">${escapeHtml(msg)}</article>`;
+}
+
+function onSpeCardActivate(card) {
+  if (
+    !card ||
+    card.classList.contains("spe-result-card--status") ||
+    card.classList.contains("spe-result-card--static")
+  )
+    return;
+  const id = card.getAttribute("data-id");
+  if (!id) return;
+  state.selectedItemId = id;
+  syncRowSelection(id);
+  if (state.currentTab === "purchase") loadAndRenderPurchaseDetail(id);
+  else if (state.currentTab === "consumption")
+    loadAndRenderConsumptionMonthly(id);
+}
+
+function wireSpeCardClicks() {
+  if (!speCardsList || speCardsList.dataset.wired) return;
+  speCardsList.dataset.wired = "1";
+  speCardsList.addEventListener("click", (ev) => {
+    const card = ev.target.closest(".spe-result-card");
+    if (card) onSpeCardActivate(card);
+  });
+  speCardsList.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    const card = ev.target.closest(".spe-result-card");
+    if (!card) return;
+    ev.preventDefault();
+    onSpeCardActivate(card);
+  });
+}
+
 // Fetch default UOM codes for a set of inv_stock_item ids and return map id->uomCode
 async function fetchUomsForItemIds(ids) {
   if (!ids || !ids.length) return new Map();
@@ -2286,11 +2129,38 @@ async function fetchUomsForItemIds(ids) {
   return result;
 }
 
-function renderOverviewTable(rows) {
-  // rows: array, totalCount passed via second arg when available
-  const totalCount = arguments[1] || 0;
-  if (!rows || !rows.length) return renderNoData();
-  let html = `<table><thead><tr>
+function overviewRowHtml(row) {
+  return `<tr data-id="${row.inv_stock_item_id}"${
+    row.inv_stock_item_id === state.selectedItemId ? " class='selected'" : ""
+  }>
+      <td style="vertical-align:middle; text-align:center">${row.code}</td>
+      <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(row)}</td>
+      <td style="vertical-align:middle; text-align:center">${formatClassification(row)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.current_stock_qty)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(row.current_stock_rate)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.total_purchased_qty)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(row.avg_purchase_rate)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.total_consumed_qty)}</td>
+      <td style="vertical-align:middle; text-align:center">${row.months_with_usage ?? "–"}</td>
+      <td style="vertical-align:middle; text-align:center">${row.last_purchase_date ?? "–"}</td>
+    </tr>`;
+}
+
+function bindOverviewRowClicks() {
+  tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
+    tr.onclick = () => {
+      state.selectedItemId = tr.getAttribute("data-id");
+      syncRowSelection(state.selectedItemId);
+    };
+  });
+}
+
+function renderOverviewTable(rows, totalCount = 0, opts = {}) {
+  const append = !!opts.append;
+  if (!append) {
+    if (!rows || !rows.length) return renderNoData();
+    tableArea.innerHTML = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
     <th style="vertical-align:middle; text-align:center">UOM</th>
@@ -2299,102 +2169,106 @@ function renderOverviewTable(rows) {
     <th style="vertical-align:middle; text-align:center">Current Stock Rate</th>
     <th style="vertical-align:middle; text-align:center">Total Purchased Qty</th>
     <th style="vertical-align:middle; text-align:center">Avg Purchase Rate</th>
-      <th style="vertical-align:middle; text-align:center">Total Consumed Qty</th>
-      <th style="vertical-align:middle; text-align:center">Usage Months</th>
-      <th style="vertical-align:middle; text-align:center">Last Purchase Date</th>
-  </tr></thead><tbody>`;
-  rows.forEach((row) => {
-    html += `<tr data-id="${row.inv_stock_item_id}"${
-      row.inv_stock_item_id === state.selectedItemId ? " class='selected'" : ""
-    }>
-      <td style="vertical-align:middle; text-align:center">${row.code}</td>
-      <td style="vertical-align:middle; text-align:left">${row.name}</td>
-      <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.current_stock_qty,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.current_stock_rate,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_purchased_qty,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.avg_purchase_rate,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_consumed_qty,
-      )}</td>
-      <td style="vertical-align:middle; text-align:center">${
-        row.months_with_usage ?? "–"
-      }</td>
-      <td style="vertical-align:middle; text-align:center">${
-        row.last_purchase_date ?? "–"
-      }</td>
-    </tr>`;
-  });
-  html += "</tbody></table>";
-  tableArea.innerHTML = html;
+    <th style="vertical-align:middle; text-align:center">Total Consumed Qty</th>
+    <th style="vertical-align:middle; text-align:center">Usage Months</th>
+    <th style="vertical-align:middle; text-align:center">Last Purchase Date</th>
+  </tr></thead><tbody>${rows.map(overviewRowHtml).join("")}</tbody></table>`;
+    LAST_ACTIVE_ROWS = [...rows];
+    syncSpeCards(rows, { append: false, startIndex: 0 });
+  } else {
+    if (!rows || !rows.length) {
+      state.hasMore = false;
+      updateScrollSentinel();
+      return;
+    }
+    const tbody = tableArea.querySelector("tbody");
+    if (!tbody) return renderOverviewTable(rows, totalCount, { append: false });
+    tbody.insertAdjacentHTML("beforeend", rows.map(overviewRowHtml).join(""));
+    const startIndex = LAST_ACTIVE_ROWS.length;
+    LAST_ACTIVE_ROWS = LAST_ACTIVE_ROWS.concat(rows);
+    syncSpeCards(rows, { append: true, startIndex });
+  }
+  setHasMoreFromBatch(rows.length, totalCount, LAST_ACTIVE_ROWS.length);
+  ensureScrollSentinel();
+  updateScrollSentinel();
   setBusy(false);
-  // render paginator
-  renderPaginator(totalCount, state.pageOverview, state.pageSize, "overview");
-  // Row click
-  tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
-    tr.addEventListener("click", () => {
-      // Select/highlight the clicked row but do not open the detail modal.
-      // The user requested no in-page modal for overview row clicks.
-      state.selectedItemId = tr.getAttribute("data-id");
-      renderOverviewTable(rows); // re-render to apply 'selected' class
-    });
-  });
+  bindOverviewRowClicks();
 }
 
-// side-panel removed; modal used for details.
+function stockRowHtml(row) {
+  return `<tr>
+      <td style="vertical-align:middle; text-align:center">${row.code}</td>
+      <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(row)}</td>
+      <td style="vertical-align:middle; text-align:center">${formatClassification(row)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.qty_value)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(row.avg_rate_value)}</td>
+    </tr>`;
+}
 
-function renderStockTable(rows) {
-  const totalCount = arguments[1] || 0;
-  if (!rows || !rows.length) return renderNoData();
-  let html = `<table><thead><tr>
+function renderStockTable(rows, totalCount = 0, opts = {}) {
+  const append = !!opts.append;
+  if (!append) {
+    if (!rows || !rows.length) return renderNoData();
+    tableArea.innerHTML = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
     <th style="vertical-align:middle; text-align:center">UOM</th>
     <th style="vertical-align:middle; text-align:center">Classification</th>
     <th style="vertical-align:middle; text-align:center">Current Stock</th>
     <th style="vertical-align:middle; text-align:center">Valuation Rate</th>
-  </tr></thead><tbody>`;
-  rows.forEach((row) => {
-    html += `<tr>
-      <td style="vertical-align:middle; text-align:center">${row.code}</td>
-      <td style="vertical-align:middle; text-align:left">${row.name}</td>
-      <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.qty_value,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.avg_rate_value,
-      )}</td>
-    </tr>`;
-  });
-  html += "</tbody></table>";
-  tableArea.innerHTML = html;
+  </tr></thead><tbody>${rows.map(stockRowHtml).join("")}</tbody></table>`;
+    LAST_ACTIVE_ROWS = [...rows];
+    syncSpeCards(rows, { append: false, startIndex: 0 });
+  } else {
+    if (!rows || !rows.length) {
+      state.hasMore = false;
+      updateScrollSentinel();
+      return;
+    }
+    const tbody = tableArea.querySelector("tbody");
+    if (!tbody) return renderStockTable(rows, totalCount, { append: false });
+    tbody.insertAdjacentHTML("beforeend", rows.map(stockRowHtml).join(""));
+    const startIndex = LAST_ACTIVE_ROWS.length;
+    LAST_ACTIVE_ROWS = LAST_ACTIVE_ROWS.concat(rows);
+    syncSpeCards(rows, { append: true, startIndex });
+  }
+  setHasMoreFromBatch(rows.length, totalCount, LAST_ACTIVE_ROWS.length);
+  ensureScrollSentinel();
+  updateScrollSentinel();
   setBusy(false);
-  renderPaginator(totalCount, state.pageStock, state.pageSize, "stock");
 }
 
-function renderPurchaseSummaryTable(rows) {
-  const totalCount = arguments[1] || 0;
-  if (!rows || !rows.length) return renderNoData();
-  let html = `<table><thead><tr>
+function purchaseRowHtml(row) {
+  return `<tr data-id="${row.inv_stock_item_id}"${
+    row.inv_stock_item_id === state.selectedItemId ? " class='selected'" : ""
+  }>
+      <td style="vertical-align:middle; text-align:center">${row.code}</td>
+      <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(row)}</td>
+      <td style="vertical-align:middle; text-align:center">${formatClassification(row)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.total_purchased_qty)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(row.avg_purchase_rate)}</td>
+      <td style="vertical-align:middle; text-align:center">${row.last_purchase_date ?? "–"}</td>
+      <td style="vertical-align:middle; text-align:center">${row.purchase_lines ?? "–"}</td>
+    </tr>`;
+}
+
+function bindPurchaseRowClicks() {
+  tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
+    tr.onclick = () => {
+      state.selectedItemId = tr.getAttribute("data-id");
+      syncRowSelection(state.selectedItemId);
+      loadAndRenderPurchaseDetail(state.selectedItemId);
+    };
+  });
+}
+
+function renderPurchaseSummaryTable(rows, totalCount = 0, opts = {}) {
+  const append = !!opts.append;
+  if (!append) {
+    if (!rows || !rows.length) return renderNoData();
+    tableArea.innerHTML = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
     <th style="vertical-align:middle; text-align:center">UOM</th>
@@ -2403,55 +2277,67 @@ function renderPurchaseSummaryTable(rows) {
     <th style="vertical-align:middle; text-align:center">Avg Purchase Rate</th>
     <th style="vertical-align:middle; text-align:center">Last Purchase Date</th>
     <th style="vertical-align:middle; text-align:center">Transactions</th>
-  </tr></thead><tbody>`;
-  rows.forEach((row) => {
-    html += `<tr data-id="${row.inv_stock_item_id}"${
-      row.inv_stock_item_id === state.selectedItemId ? " class='selected'" : ""
-    }>
-      <td style="vertical-align:middle; text-align:center">${row.code}</td>
-      <td style="vertical-align:middle; text-align:left">${row.name}</td>
-      <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_purchased_qty,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatCurrencyINR(
-        row.avg_purchase_rate,
-      )}</td>
-      <td style="vertical-align:middle; text-align:center">${
-        row.last_purchase_date ?? "–"
-      }</td>
-      <td style="vertical-align:middle; text-align:center">${
-        row.purchase_lines ?? "–"
-      }</td>
-    </tr>`;
-  });
-  html += "</tbody></table>";
-  tableArea.innerHTML = html;
+  </tr></thead><tbody>${rows.map(purchaseRowHtml).join("")}</tbody></table>`;
+    LAST_ACTIVE_ROWS = [...rows];
+    syncSpeCards(rows, { append: false, startIndex: 0 });
+  } else {
+    if (!rows || !rows.length) {
+      state.hasMore = false;
+      updateScrollSentinel();
+      return;
+    }
+    const tbody = tableArea.querySelector("tbody");
+    if (!tbody)
+      return renderPurchaseSummaryTable(rows, totalCount, { append: false });
+    tbody.insertAdjacentHTML("beforeend", rows.map(purchaseRowHtml).join(""));
+    const startIndex = LAST_ACTIVE_ROWS.length;
+    LAST_ACTIVE_ROWS = LAST_ACTIVE_ROWS.concat(rows);
+    syncSpeCards(rows, { append: true, startIndex });
+  }
+  setHasMoreFromBatch(rows.length, totalCount, LAST_ACTIVE_ROWS.length);
+  ensureScrollSentinel();
+  updateScrollSentinel();
   setBusy(false);
-  renderPaginator(totalCount, state.pagePurchase, state.pageSize, "purchase");
-  // Row click
-  tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
-    tr.addEventListener("click", () => {
-      state.selectedItemId = tr.getAttribute("data-id");
-      renderPurchaseSummaryTable(rows); // highlight
-      loadAndRenderPurchaseDetail(state.selectedItemId);
-    });
-  });
-  // If an item is selected, show its detail
-  if (state.selectedItemId) loadAndRenderPurchaseDetail(state.selectedItemId);
-  else sidePanel.classList.remove("active");
+  bindPurchaseRowClicks();
+  if (!append && state.selectedItemId) {
+    loadAndRenderPurchaseDetail(state.selectedItemId);
+  } else if (!append && sidePanel) {
+    sidePanel.classList.remove("active");
+  }
 }
 
-// NEW: render consumption summary table
-function renderConsumptionTable(rows, totalCount) {
-  if (!rows || !rows.length) return renderNoData();
+function consumptionRowHtml(row) {
+  return `<tr data-id="${row.inv_stock_item_id}"${
+    row.inv_stock_item_id === state.selectedItemId ? " class='selected'" : ""
+  }>
+      <td style="vertical-align:middle; text-align:center">${row.code}</td>
+      <td style="vertical-align:middle; text-align:left">${row.name}</td>
+      <td style="vertical-align:middle; text-align:center">${getRowUOM(row)}</td>
+      <td style="vertical-align:middle; text-align:center">${formatClassification(row)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.total_consumed_qty)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.rm_pm_issue_qty)}</td>
+      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(row.consumable_out_qty)}</td>
+      <td style="vertical-align:middle; text-align:center">${row.months_with_usage ?? "–"}</td>
+      <td style="vertical-align:middle; text-align:center">${row.first_month ?? "–"}</td>
+      <td style="vertical-align:middle; text-align:center">${row.last_month ?? "–"}</td>
+    </tr>`;
+}
 
-  let html = `<table><thead><tr>
+function bindConsumptionRowClicks() {
+  tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
+    tr.onclick = () => {
+      state.selectedItemId = tr.getAttribute("data-id");
+      syncRowSelection(state.selectedItemId);
+      loadAndRenderConsumptionMonthly(state.selectedItemId);
+    };
+  });
+}
+
+function renderConsumptionTable(rows, totalCount = 0, opts = {}) {
+  const append = !!opts.append;
+  if (!append) {
+    if (!rows || !rows.length) return renderNoData();
+    tableArea.innerHTML = `<table><thead><tr>
     <th style="vertical-align:middle; text-align:center">Code</th>
     <th style="vertical-align:middle; text-align:center">Name</th>
     <th style="vertical-align:middle; text-align:center">UOM</th>
@@ -2462,60 +2348,30 @@ function renderConsumptionTable(rows, totalCount) {
     <th style="vertical-align:middle; text-align:center">Usage Months</th>
     <th style="vertical-align:middle; text-align:center">First Month</th>
     <th style="vertical-align:middle; text-align:center">Last Month</th>
-  </tr></thead><tbody>`;
-
-  rows.forEach((row) => {
-    html += `<tr data-id="${row.inv_stock_item_id}"${
-      row.inv_stock_item_id === state.selectedItemId ? " class='selected'" : ""
-    }>
-      <td style="vertical-align:middle; text-align:center">${row.code}</td>
-      <td style="vertical-align:middle; text-align:left">${row.name}</td>
-      <td style="vertical-align:middle; text-align:center">${getRowUOM(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:center">${formatClassification(
-        row,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.total_consumed_qty,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.rm_pm_issue_qty,
-      )}</td>
-      <td style="vertical-align:middle; text-align:right">${formatIndianNumber(
-        row.consumable_out_qty,
-      )}</td>
-      <td style="vertical-align:middle; text-align:center">${
-        row.months_with_usage ?? "–"
-      }</td>
-      <td style="vertical-align:middle; text-align:center">${
-        row.first_month ?? "–"
-      }</td>
-      <td style="vertical-align:middle; text-align:center">${
-        row.last_month ?? "–"
-      }</td>
-    </tr>`;
-  });
-
-  html += "</tbody></table>";
-  tableArea.innerHTML = html;
+  </tr></thead><tbody>${rows.map(consumptionRowHtml).join("")}</tbody></table>`;
+    LAST_ACTIVE_ROWS = [...rows];
+    syncSpeCards(rows, { append: false, startIndex: 0 });
+  } else {
+    if (!rows || !rows.length) {
+      state.hasMore = false;
+      updateScrollSentinel();
+      return;
+    }
+    const tbody = tableArea.querySelector("tbody");
+    if (!tbody) return renderConsumptionTable(rows, totalCount, { append: false });
+    tbody.insertAdjacentHTML(
+      "beforeend",
+      rows.map(consumptionRowHtml).join(""),
+    );
+    const startIndex = LAST_ACTIVE_ROWS.length;
+    LAST_ACTIVE_ROWS = LAST_ACTIVE_ROWS.concat(rows);
+    syncSpeCards(rows, { append: true, startIndex });
+  }
+  setHasMoreFromBatch(rows.length, totalCount, LAST_ACTIVE_ROWS.length);
+  ensureScrollSentinel();
+  updateScrollSentinel();
   setBusy(false);
-
-  renderPaginator(
-    totalCount,
-    state.pageConsumption,
-    state.pageSize,
-    "consumption",
-  );
-
-  // Row click: open monthly history modal
-  tableArea.querySelectorAll("tr[data-id]").forEach((tr) => {
-    tr.addEventListener("click", () => {
-      state.selectedItemId = tr.getAttribute("data-id");
-      renderConsumptionTable(rows, totalCount); // re-render highlight
-      loadAndRenderConsumptionMonthly(state.selectedItemId);
-    });
-  });
+  bindConsumptionRowClicks();
 }
 
 // NEW: open modal and render monthly consumption for an item
@@ -2541,20 +2397,20 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
     return;
   }
 
-  let html = `<h3 style="margin-top:0">Monthly Consumption</h3>
+  let html = `<h3 class="spe-modal-title">Monthly Consumption</h3>
     <div class="modal-table-wrap">
       <table class="erp-table">
         <thead><tr>
-          <th style="width:120px">Month</th>
-          <th style="width:120px; text-align:right">RM/PLM Issues</th>
-          <th style="width:140px; text-align:right">Consumables Out</th>
-          <th style="width:140px; text-align:right">Total Consumed</th>
+          <th class="col-date">Month</th>
+          <th class="numeric">RM/PLM Issues</th>
+          <th class="numeric">Consumables Out</th>
+          <th class="numeric">Total Consumed</th>
         </tr></thead>
         <tbody>`;
 
   data.forEach((row) => {
     html += `<tr>
-      <td>${row.month_label ?? row.month_start_date ?? "–"}</td>
+      <td class="col-date">${row.month_label ?? row.month_start_date ?? "–"}</td>
       <td class="numeric">${formatIndianNumber(row.rm_pm_issue_qty)}</td>
       <td class="numeric">${formatIndianNumber(row.consumable_out_qty)}</td>
       <td class="numeric">${formatIndianNumber(row.total_consumed_qty)}</td>
@@ -2600,7 +2456,6 @@ async function loadRmReceivingStock({
   if (dataRes.error) return { error: handleSupabaseError(dataRes.error) };
   if (countRes.error) return { error: handleSupabaseError(countRes.error) };
 
-  // count RPC may return [{count:N}] or a plain number
   let count = 0;
   const cd = countRes.data;
   if (typeof cd === "number") {
@@ -2614,30 +2469,74 @@ async function loadRmReceivingStock({
   return { data: dataRes.data || [], count };
 }
 
-function renderRmReceivingStockTable(rows, totalCount) {
-  if (!rows || !rows.length) {
-    LAST_RM_RECEIVING_ROWS = [];
-    LAST_ACTIVE_ROWS = [];
-    LAST_RM_RECEIVING_TOTAL = 0;
-    LAST_RM_RECEIVING_AS_OF_DATE = null;
-    LAST_RM_RECEIVING_INSERTED_AT = null;
+function rmReceivingRowHtml(row) {
+  const classLabel = formatClassification(row);
+  return `<tr>
+      <td style="vertical-align:middle;text-align:center;white-space:nowrap">${row.as_of_date ?? "–"}</td>
+      <td style="vertical-align:middle;text-align:left">${row.tally_item_name ?? "–"}</td>
+      <td style="vertical-align:middle;text-align:center">${row.code ?? "–"}</td>
+      <td style="vertical-align:middle;text-align:left">${row.name ?? "–"}</td>
+      <td style="vertical-align:middle;text-align:center">${classLabel}</td>
+      <td style="vertical-align:middle;text-align:right">${formatIndianNumber(row.qty_value)}</td>
+      <td style="vertical-align:middle;text-align:right">${formatCurrencyINR(row.rate_value)}</td>
+      <td style="vertical-align:middle;text-align:right">${formatCurrencyINR(row.stock_value)}</td>
+    </tr>`;
+}
+
+function mountRmReceivingCopyAction() {
+  try {
+    const existing = document.getElementById("rmHeaderActions");
+    if (existing) existing.remove();
+    const host = document.getElementById("tableHeaderActions");
+    if (!host) return;
+    host.innerHTML = "";
+    const actionsDiv = document.createElement("div");
+    actionsDiv.id = "rmHeaderActions";
+    const btn = document.createElement("button");
+    btn.id = "copyRmReceivingRowsBtn";
+    btn.type = "button";
+    btn.className = "rm-copy-btn";
+    btn.title = "Copy RM Receiving Stock";
+    btn.setAttribute("aria-label", "Copy RM Receiving Stock");
+    btn.innerHTML = iconHtml("document", 16);
+    actionsDiv.appendChild(btn);
+    host.appendChild(actionsDiv);
+    btn.addEventListener("click", copyRmReceivingRows);
+    syncTableHeaderBarVisibility();
+  } catch (err) {
+    console.debug(err);
+  }
+}
+
+function clearTableHeaderActions() {
+  const host = document.getElementById("tableHeaderActions");
+  if (host) host.innerHTML = "";
+  const existing = document.getElementById("rmHeaderActions");
+  if (existing) existing.remove();
+  syncTableHeaderBarVisibility();
+}
+
+function renderRmReceivingStockTable(rows, totalCount = 0, opts = {}) {
+  const append = !!opts.append;
+  if (!append) {
+    if (!rows || !rows.length) {
+      LAST_RM_RECEIVING_ROWS = [];
+      LAST_ACTIVE_ROWS = [];
+      LAST_RM_RECEIVING_TOTAL = 0;
+      LAST_RM_RECEIVING_AS_OF_DATE = null;
+      LAST_RM_RECEIVING_INSERTED_AT = null;
+      updateTableContextMeta(
+        "Stock Stage: Receiving · Godown: Warehouse No.2 (RMS)",
+      );
+      clearTableHeaderActions();
+      return renderNoData();
+    }
+    LAST_RM_RECEIVING_AS_OF_DATE = rows[0]?.as_of_date || null;
+    LAST_RM_RECEIVING_INSERTED_AT = rows[0]?.inserted_at || null;
     updateTableContextMeta(
       "Stock Stage: Receiving · Godown: Warehouse No.2 (RMS)",
     );
-    return renderNoData();
-  }
-
-  LAST_RM_RECEIVING_ROWS = rows || [];
-  LAST_ACTIVE_ROWS = rows || [];
-  LAST_RM_RECEIVING_TOTAL = totalCount || 0;
-  LAST_RM_RECEIVING_AS_OF_DATE = rows[0]?.as_of_date || null;
-  LAST_RM_RECEIVING_INSERTED_AT = rows[0]?.inserted_at || null;
-
-  updateTableContextMeta(
-    "Stock Stage: Receiving · Godown: Warehouse No.2 (RMS)",
-  );
-
-  let html = `<table><thead><tr>
+    tableArea.innerHTML = `<table><thead><tr>
     <th style="vertical-align:middle;text-align:center">Date</th>
     <th style="vertical-align:middle;text-align:left">Tally Item Name</th>
     <th style="vertical-align:middle;text-align:center">Code</th>
@@ -2646,131 +2545,159 @@ function renderRmReceivingStockTable(rows, totalCount) {
     <th style="vertical-align:middle;text-align:right">Qty</th>
     <th style="vertical-align:middle;text-align:right">Rate</th>
     <th style="vertical-align:middle;text-align:right">Stock Value</th>
-  </tr></thead><tbody>`;
-
-  rows.forEach((row) => {
-    const classLabel = formatClassification(row);
-
-    html += `<tr>
-      <td style="vertical-align:middle;text-align:center;white-space:nowrap">${row.as_of_date ?? "\u2013"}</td>
-      <td style="vertical-align:middle;text-align:left">${row.tally_item_name ?? "\u2013"}</td>
-      <td style="vertical-align:middle;text-align:center">${row.code ?? "\u2013"}</td>
-      <td style="vertical-align:middle;text-align:left">${row.name ?? "\u2013"}</td>
-      <td style="vertical-align:middle;text-align:center">${classLabel}</td>
-      <td style="vertical-align:middle;text-align:right">${formatIndianNumber(row.qty_value)}</td>
-      <td style="vertical-align:middle;text-align:right">${formatCurrencyINR(row.rate_value)}</td>
-      <td style="vertical-align:middle;text-align:right">${formatCurrencyINR(row.stock_value)}</td>
-    </tr>`;
-  });
-
-  html += "</tbody></table>";
-  tableArea.innerHTML = html;
+  </tr></thead><tbody>${rows.map(rmReceivingRowHtml).join("")}</tbody></table>`;
+    LAST_RM_RECEIVING_ROWS = [...rows];
+    LAST_ACTIVE_ROWS = [...rows];
+    syncSpeCards(rows, { append: false, startIndex: 0 });
+    mountRmReceivingCopyAction();
+  } else {
+    if (!rows || !rows.length) {
+      state.hasMore = false;
+      updateScrollSentinel();
+      return;
+    }
+    const tbody = tableArea.querySelector("tbody");
+    if (!tbody)
+      return renderRmReceivingStockTable(rows, totalCount, { append: false });
+    tbody.insertAdjacentHTML(
+      "beforeend",
+      rows.map(rmReceivingRowHtml).join(""),
+    );
+    const startIndex = LAST_ACTIVE_ROWS.length;
+    LAST_RM_RECEIVING_ROWS = LAST_RM_RECEIVING_ROWS.concat(rows);
+    LAST_ACTIVE_ROWS = LAST_ACTIVE_ROWS.concat(rows);
+    syncSpeCards(rows, { append: true, startIndex });
+  }
+  LAST_RM_RECEIVING_TOTAL = totalCount || 0;
+  setHasMoreFromBatch(rows.length, totalCount, LAST_ACTIVE_ROWS.length);
+  ensureScrollSentinel();
+  updateScrollSentinel();
   setBusy(false);
-  renderPaginator(
-    totalCount,
-    state.pageRmReceivingStock,
-    state.pageSize,
-    "rm-receiving-stock",
-  );
+}
 
-  // Place the copy button into the paginator (left of page-size selector)
+async function loadMoreActiveTab() {
+  if (state.loadingMore || !state.hasMore) return;
+  const tab = state.currentTab;
+  const nextPage = getTabPage(tab) + 1;
+  state.loadingMore = true;
+  updateScrollSentinel("Loading more…");
+  const mySeq = _requestSeq;
   try {
-    const existing = document.getElementById("rmHeaderActions");
-    if (existing) existing.remove();
-    const paginatorEl = document.getElementById("paginator");
-    if (paginatorEl && paginatorEl.parentNode) {
-      const actionsDiv = document.createElement("div");
-      actionsDiv.id = "rmHeaderActions";
-      actionsDiv.style.display = "flex";
-      actionsDiv.style.alignItems = "center";
-      actionsDiv.style.gap = "8px";
-      actionsDiv.style.marginRight = "8px";
-
-      const btn = document.createElement("button");
-      btn.id = "copyRmReceivingRowsBtn";
-      btn.type = "button";
-      btn.className = "rm-copy-btn";
-      btn.title = "Copy RM Receiving Stock";
-      btn.setAttribute("aria-label", "Copy RM Receiving Stock");
-      btn.style.display = "inline-flex";
-      btn.style.alignItems = "center";
-      btn.style.justifyContent = "center";
-      btn.style.padding = "4px";
-      btn.style.border = "none";
-      btn.style.background = "transparent";
-      btn.style.cursor = "pointer";
-      btn.style.color = "#2563eb";
-      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-
-      // Append to p-left of paginator (rendered after this block) so it sits left of the page-size selector
-      actionsDiv.appendChild(btn);
-      const pLeft = paginatorEl.querySelector(".p-left");
-      if (pLeft) {
-        pLeft.insertBefore(actionsDiv, pLeft.firstChild);
-      } else {
-        paginatorEl.parentNode.insertBefore(actionsDiv, paginatorEl);
-      }
-      btn.addEventListener("click", copyRmReceivingRows);
+    setTabPage(tab, nextPage);
+    let res;
+    if (tab === "overview") {
+      res = await loadOverviewItems({
+        sourceKind: state.currentSourceKind,
+        searchText: state.currentSearchText,
+        page: nextPage,
+        pageSize: state.pageSize,
+      });
+      if (mySeq !== _requestSeq) return;
+      if (res.error) throw res.error;
+      renderOverviewTable(res.data || [], res.count || 0, { append: true });
+    } else if (tab === "stock") {
+      res = await loadStockSnapshot({
+        sourceKind: state.currentSourceKind,
+        searchText: state.currentSearchText,
+        page: nextPage,
+        pageSize: state.pageSize,
+      });
+      if (mySeq !== _requestSeq) return;
+      if (res.error) throw res.error;
+      renderStockTable(res.data || [], res.count || 0, { append: true });
+    } else if (tab === "purchase") {
+      res = await loadPurchaseSummary({
+        sourceKind: state.currentSourceKind,
+        searchText: state.currentSearchText,
+        fromDate: state.currentFromDate,
+        toDate: state.currentToDate,
+        page: nextPage,
+        pageSize: state.pageSize,
+      });
+      if (mySeq !== _requestSeq) return;
+      if (res.error) throw res.error;
+      renderPurchaseSummaryTable(res.data || [], res.count || 0, {
+        append: true,
+      });
+    } else if (tab === "consumption") {
+      res = await loadConsumptionSummary({
+        sourceKind: state.currentSourceKind,
+        searchText: state.currentSearchText,
+        fromDate: state.currentFromDate,
+        toDate: state.currentToDate,
+        page: nextPage,
+        pageSize: state.pageSize,
+      });
+      if (mySeq !== _requestSeq) return;
+      if (res.error) throw res.error;
+      renderConsumptionTable(res.data || [], res.count || 0, { append: true });
+    } else if (tab === "rm-receiving-stock") {
+      res = await loadRmReceivingStock({
+        searchText: state.currentSearchText,
+        categoryCode: state.currentCategoryCode,
+        subcategoryCode: state.currentSubcategoryCode,
+        groupCode: state.currentGroupCode,
+        subgroupCode: state.currentSubgroupCode,
+        page: nextPage,
+        pageSize: state.pageSize,
+        mappingStatus: "mapped",
+      });
+      if (mySeq !== _requestSeq) return;
+      if (res.error) throw res.error;
+      renderRmReceivingStockTable(res.data || [], res.count || 0, {
+        append: true,
+      });
     }
   } catch (err) {
-    /* ignore header insert errors */
-    console.debug(err);
+    setTabPage(tab, Math.max(1, nextPage - 1));
+    showStatusToast(
+      err?.userMessage || err?.message || "Failed to load more rows",
+      "error",
+      4000,
+    );
+    updateScrollSentinel();
+  } finally {
+    state.loadingMore = false;
+    updateScrollSentinel();
   }
 }
 
-// Paginator renderer and navigation
-function renderPaginator(total, page, pageSize, tab) {
-  const p = document.getElementById("paginator");
-  if (!p) return;
-  if (!total || total <= 0) {
-    p.innerHTML = "";
-    return;
-  }
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const from = (page - 1) * pageSize + 1;
-  const to = Math.min(total, page * pageSize);
+function isNearScrollBottom(el) {
+  if (!el) return false;
+  return el.scrollTop + el.clientHeight >= el.scrollHeight - 120;
+}
 
-  // page-size selector
-  const sizes = [10, 30, 50, 100];
-  const selHtml = `<select id="pageSizeSel" aria-label="Rows per page">${sizes
-    .map(
-      (s) =>
-        `<option value="${s}" ${s === pageSize ? "selected" : ""}>${s}</option>`,
-    )
-    .join("")}</select>`;
-
-  const prevDisabled = page <= 1;
-  const nextDisabled = page >= totalPages;
-
-  p.innerHTML = `
-    <div class="p-left">${selHtml}</div>
-    <div class="p-center"></div>
-    <div class="p-right"><button id="p_prev" ${
-      prevDisabled ? "disabled" : ""
-    } aria-label="Previous page">‹</button>
-    <div class="page-info">${from}–${to} of ${total}</div>
-    <button id="p_next" ${
-      nextDisabled ? "disabled" : ""
-    } aria-label="Next page">›</button></div>
-  `;
-
-  // attach handlers
-  const pSize = document.getElementById("pageSizeSel");
-  if (pSize)
-    pSize.addEventListener("change", (ev) => {
-      const v = Number(ev.target.value) || 30;
-      state.pageSize = v;
-      resetPages();
-      reloadActiveTab();
-    });
-  const prev = document.getElementById("p_prev");
-  const next = document.getElementById("p_next");
-  if (prev)
-    prev.addEventListener("click", () => goToPage(tab, Math.max(1, page - 1)));
-  if (next)
-    next.addEventListener("click", () =>
-      goToPage(tab, Math.min(totalPages, page + 1)),
+let __speInfiniteScrollWired = false;
+function wireInfiniteScroll() {
+  if (__speInfiniteScrollWired) return;
+  __speInfiniteScrollWired = true;
+  const onScroll = (el) => {
+    if (state.loadingMore || !state.hasMore) return;
+    if (isNearScrollBottom(el)) void loadMoreActiveTab();
+  };
+  if (tableArea) {
+    tableArea.addEventListener(
+      "scroll",
+      () => onScroll(tableArea),
+      { passive: true },
     );
+  }
+  if (speCardsWrap) {
+    speCardsWrap.addEventListener(
+      "scroll",
+      () => onScroll(speCardsWrap),
+      { passive: true },
+    );
+  }
+}
+
+function wireResultsPresentationMode() {
+  applyResultsPresentationMode();
+  const mq = window.matchMedia("(max-width: 520px)");
+  const onChange = () => applyResultsPresentationMode();
+  if (typeof mq.addEventListener === "function")
+    mq.addEventListener("change", onChange);
+  else if (typeof mq.addListener === "function") mq.addListener(onChange);
 }
 
 // Adjust the table card height so it fits within the viewport and provides
@@ -2794,6 +2721,10 @@ function adjustTableCardHeight() {
   if (tableArea) {
     tableArea.style.minHeight = "0";
     tableArea.style.flex = "1 1 auto";
+  }
+  if (speCardsWrap) {
+    speCardsWrap.style.minHeight = "0";
+    speCardsWrap.style.flex = "1 1 auto";
   }
   // After sizing the table card, ensure page-level overflow is correct
   try {
@@ -2884,17 +2815,6 @@ window.addEventListener("resize", () => {
 // We call adjustTableCardHeight() at the end of `reloadActiveTab` instead
 // of wrapping it to avoid reassigning the function reference.
 
-function goToPage(tab, newPage) {
-  if (!newPage || newPage < 1) return;
-  if (tab === "overview") state.pageOverview = newPage;
-  else if (tab === "stock") state.pageStock = newPage;
-  else if (tab === "purchase") state.pagePurchase = newPage;
-  else if (tab === "consumption") state.pageConsumption = newPage;
-  else if (tab === "rm-receiving-stock") state.pageRmReceivingStock = newPage;
-  else return;
-  reloadActiveTab();
-}
-
 async function loadAndRenderPurchaseDetail(invStockItemId) {
   // show modal with loading
   openDetailModal('<div class="loading">Loading…</div>');
@@ -2912,23 +2832,23 @@ async function loadAndRenderPurchaseDetail(invStockItemId) {
   if (!data || !data.length)
     return (modalContent.innerHTML =
       '<div class="no-data">No purchase history found.</div>');
-  let html = `<h3 style="margin-top:0">Purchase History</h3>
+  let html = `<h3 class="spe-modal-title">Purchase History</h3>
     <div class="modal-table-wrap">
       <table class="erp-table">
         <thead><tr>
-          <th style="width:110px">Date</th>
-          <th>Supplier</th>
-          <th style="width:140px">Godown</th>
-          <th style="width:110px; text-align:right">Qty</th>
-          <th style="width:120px; text-align:right">Rate</th>
-          <th style="width:140px; text-align:right">Billed Amount</th>
+          <th class="col-date">Date</th>
+          <th class="col-text">Supplier</th>
+          <th class="col-text">Godown</th>
+          <th class="numeric">Qty</th>
+          <th class="numeric">Rate</th>
+          <th class="numeric">Billed Amount</th>
         </tr></thead>
-        <tbody>`;
+  <tbody>`;
   data.forEach((row) => {
     html += `<tr>
-      <td>${row.voucher_date ?? "–"}</td>
-      <td>${row.supplier_name ?? "–"}</td>
-      <td>${row.godown_label ?? "–"}</td>
+      <td class="col-date">${row.voucher_date ?? "–"}</td>
+      <td class="col-text">${row.supplier_name ?? "–"}</td>
+      <td class="col-text">${row.godown_label ?? "–"}</td>
       <td class="numeric">${formatIndianNumber(row.canonical_qty_value)}</td>
       <td class="numeric">${formatCurrencyINR(row.avg_rate_value)}</td>
       <td class="numeric">${formatCurrencyINR(row.billed_amount_value)}</td>
@@ -2943,6 +2863,9 @@ async function reloadActiveTab(preselectId) {
   // Stale-result guard: capture sequence before going async; discard results
   // if a newer request has been started before this one resolves.
   const mySeq = ++_requestSeq;
+  resetPages();
+  state.loadingMore = false;
+  state.hasMore = false;
   renderLoading();
   // ensure modal closed
   closeDetailModal();
@@ -2951,6 +2874,7 @@ async function reloadActiveTab(preselectId) {
   setActiveTab(state.currentTab);
   if (state.currentTab !== "rm-receiving-stock") {
     updateTableContextMeta("");
+    clearTableHeaderActions();
   }
   if (state.currentTab === "overview") {
     const res = await loadOverviewItems({
@@ -2973,8 +2897,6 @@ async function reloadActiveTab(preselectId) {
     }
     renderOverviewTable(res.data, res.count || 0);
     LAST_ACTIVE_ROWS = res.data || [];
-    LAST_REFRESH_TIME = new Date();
-    updateFreshnessIndicator();
     // Do not auto-open the overview item modal on reload. Selection/highlight
     // is preserved in `state.selectedItemId`, but the in-page modal will not
     // be shown for overview rows per user preference.
@@ -2999,8 +2921,6 @@ async function reloadActiveTab(preselectId) {
     }
     renderStockTable(res.data, res.count || 0);
     LAST_ACTIVE_ROWS = res.data || [];
-    LAST_REFRESH_TIME = new Date();
-    updateFreshnessIndicator();
   } else if (state.currentTab === "purchase") {
     const res = await loadPurchaseSummary({
       sourceKind: state.currentSourceKind,
@@ -3024,8 +2944,6 @@ async function reloadActiveTab(preselectId) {
     }
     renderPurchaseSummaryTable(res.data, res.count || 0);
     LAST_ACTIVE_ROWS = res.data || [];
-    LAST_REFRESH_TIME = new Date();
-    updateFreshnessIndicator();
   } else if (state.currentTab === "consumption") {
     const res = await loadConsumptionSummary({
       sourceKind: state.currentSourceKind,
@@ -3049,8 +2967,6 @@ async function reloadActiveTab(preselectId) {
     }
     renderConsumptionTable(res.data, res.count || 0);
     LAST_ACTIVE_ROWS = res.data || [];
-    LAST_REFRESH_TIME = new Date();
-    updateFreshnessIndicator();
   } else if (state.currentTab === "rm-receiving-stock") {
     const res = await loadRmReceivingStock({
       searchText: state.currentSearchText,
@@ -3075,8 +2991,6 @@ async function reloadActiveTab(preselectId) {
       return renderError(res.error.userMessage || res.error.message);
     }
     renderRmReceivingStockTable(res.data || [], res.count || 0);
-    LAST_REFRESH_TIME = new Date();
-    updateFreshnessIndicator();
   }
   // table area uses CSS flex + internal scrolling; pagination controlled by page-size selector
   // Refresh stock value chip (fire-and-forget) respecting current filters
@@ -3088,6 +3002,7 @@ async function reloadActiveTab(preselectId) {
   } catch {
     /* ignore */
   }
+  updateFiltersBtnActive();
 }
 
 // Initial load: populate classification selects then load the active tab
@@ -3096,6 +3011,9 @@ loadClassificationOptions()
   .finally(async () => {
     // Ensure initial render and sizing run after layout stabilizes.
     try {
+      wireInfiniteScroll();
+      wireSpeCardClicks();
+      wireResultsPresentationMode();
       await reloadActiveTab();
     } catch {
       // ignore
@@ -3120,8 +3038,7 @@ loadClassificationOptions()
     }, 120);
   });
 
-updateFreshnessIndicator();
-setInterval(updateFreshnessIndicator, 60000);
+updateFiltersBtnActive();
 
 refreshStockValueChip().catch((err) =>
   console.warn("Initial stock value refresh failed", err),

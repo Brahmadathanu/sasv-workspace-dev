@@ -3,8 +3,26 @@
  ***************************************************************************/
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import {
+  mountModuleHome,
+  enhanceSearchableSelect,
+  syncSearchableSelect,
+} from "./sasv-module-chrome.js";
 
 const $ = (id) => document.getElementById(id);
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+(function mountFillPlannerHome() {
+  const homeEl = $("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome($("homeBtn")),
+      { once: true },
+    );
+  }
+})();
 
 /* ──────────────────────────────────────────────────────────────────────
    WORKINGS PANEL — math-style logging (headings + neat equation lines)
@@ -114,8 +132,7 @@ wCopy?.addEventListener("click", async () => {
 // (Optional test line — uncomment to verify the panel updates on load)
 // wNote("Workings panel is ready.");
 
-const elProdInput = $("fp-product-input"); // the visible input
-const elProdList = $("fp-product-list"); // the <datalist>
+const elProd = $("fp-product"); // authoritative native select
 const elBulk = $("fp-bulk");
 const elUom = $("fp-uom");
 const elRunBtn = $("fp-run");
@@ -124,7 +141,6 @@ const elTable = $("fp-table");
 const elHead = $("fp-head");
 const elBody = $("fp-body");
 const homeBtn = $("homeBtn");
-const clearBtn = $("fp-clear");
 const emgTitle = $("fp-emg-title");
 const runWrap = $("fp-run-wrap");
 const fpTitle = $("fp-title");
@@ -135,7 +151,8 @@ const metricsTable = $("fp-metrics-table");
 const metricsHead = $("fp-metrics-head");
 const metricsBody = $("fp-metrics-body");
 const metricsHeader = $("fp-metrics-header");
-const stockUpdated = $("fp-stock-updated");
+const elUpdated = $("fp-updated");
+const elStatusDetail = $("fp-status-detail");
 const metricsWrap = wrapTable(metricsTable); // SKU Metrics
 const emgWrap = wrapTable(emgTable); // Urgent Orders
 const planWrap = wrapTable(elTable); // Fill Plan
@@ -168,20 +185,7 @@ if (emgTitle) {
   emgToggleBtn.type = "button";
   emgToggleBtn.id = "fp-emg-toggle";
   emgToggleBtn.className = "fp-small-toggle";
-  // ERP-styled icon button (SVG only)
-  emgToggleBtn.style.marginLeft = "6px";
-  emgToggleBtn.style.width = "24px";
-  emgToggleBtn.style.height = "24px";
-  emgToggleBtn.style.border = "none";
-  emgToggleBtn.style.background = "rgba(0,0,0,0.04)"; // light button background
-  emgToggleBtn.style.display = "inline-flex";
-  emgToggleBtn.style.alignItems = "center";
-  emgToggleBtn.style.justifyContent = "center";
-  emgToggleBtn.style.cursor = "pointer";
-  emgToggleBtn.style.padding = "3px";
-  emgToggleBtn.style.borderRadius = "4px";
-  emgToggleBtn.style.verticalAlign = "middle";
-  emgToggleBtn.style.transition = "background .12s ease, transform .12s ease";
+  // Presentation: sasv-fill-planner.css (.fp-small-toggle)
   emgToggleBtn.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -195,14 +199,6 @@ if (emgTitle) {
     updateEmgToggle();
     fitVisibleWraps();
   });
-  emgToggleBtn.addEventListener(
-    "mouseenter",
-    () => (emgToggleBtn.style.background = "rgba(0,0,0,0.06)"),
-  );
-  emgToggleBtn.addEventListener(
-    "mouseleave",
-    () => (emgToggleBtn.style.background = "rgba(0,0,0,0.04)"),
-  );
   emgTitle.appendChild(emgToggleBtn);
   updateEmgToggle();
 }
@@ -213,32 +209,13 @@ if (fpTitle) {
   copyPlanBtn.type = "button";
   copyPlanBtn.id = "fp-copy-summary";
   copyPlanBtn.className = "fp-small-toggle";
-  copyPlanBtn.style.marginLeft = "4px";
-  copyPlanBtn.style.width = "20px";
-  copyPlanBtn.style.height = "20px";
-  copyPlanBtn.style.border = "none";
-  copyPlanBtn.style.background = "#e6f8e6"; /* light green */
   copyPlanBtn.style.display = "none"; // hidden until plan available
-  copyPlanBtn.style.alignItems = "center";
-  copyPlanBtn.style.justifyContent = "center";
-  copyPlanBtn.style.cursor = "pointer";
-  copyPlanBtn.style.padding = "2px";
-  copyPlanBtn.style.borderRadius = "4px";
-  copyPlanBtn.style.verticalAlign = "middle";
-  copyPlanBtn.style.transition = "background .12s ease";
+  // Presentation: sasv-fill-planner.css (#fp-copy-summary)
   copyPlanBtn.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
     </svg>`;
-  copyPlanBtn.addEventListener(
-    "mouseenter",
-    () => (copyPlanBtn.style.background = "#d0f0d0"),
-  );
-  copyPlanBtn.addEventListener(
-    "mouseleave",
-    () => (copyPlanBtn.style.background = "#e6f8e6"),
-  );
   // tooltip + accessibility label for hover/assistive tech
   copyPlanBtn.title = "Copy plan summary to clipboard";
   copyPlanBtn.setAttribute("aria-label", "Copy plan summary to clipboard");
@@ -278,18 +255,22 @@ if (fpTitle) {
 
 let allProducts = [];
 let productMap = {}; // id -> { name, uom }
-let productByName = {}; // lowercase name -> { id, uom }
+let productSearchApi = null;
 
 initProductList();
+wireFreshnessChip();
+updateStockSnapshotLabel(); // header chip — global latest (Stock Checker pattern)
 
-// When user finishes typing or picks an option, resolve -> product id
-elProdInput.addEventListener("change", resolveAndGo);
-elProdInput.addEventListener("blur", resolveAndGo);
-elProdInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    resolveAndGo();
+// Authoritative product change → load metrics or reset linked state
+elProd?.addEventListener("change", () => {
+  const prodId = String(elProd.value || "");
+  if (!prodId) {
+    // Central Product-clear path: linked Bulk + product-dependent UI
+    applyProductClearedSideEffects();
   }
+  onProductSelect().then(() => {
+    if (prodId) elBulk?.focus();
+  });
 });
 
 // Allow Enter in the Bulk input to trigger Calculate (desktop & mobile keyboards)
@@ -301,43 +282,20 @@ elBulk?.addEventListener("keydown", (e) => {
   }
 });
 
-function resolveAndGo() {
-  const typed = (elProdInput.value || "").trim().toLowerCase();
-  const hit = typed ? productByName[typed] : null;
-
-  if (hit) {
-    // store chosen id on the input
-    elProdInput.dataset.id = hit.id;
-    // set the UOM immediately (nice UX)
-    const rec = productMap[hit.id];
-    if (rec) elUom.textContent = rec.uom || "(base UOM)";
-    // drive the rest
-    onProductSelect();
-    // move focus to Bulk for convenience
-    $("fp-bulk")?.focus();
-  } else {
-    // unknown text → clear selection and collapse UI
-    delete elProdInput.dataset.id;
-    onProductSelect(); // will hide the downstream sections
-  }
-}
-
-function clearPlanner() {
-  // clear the type-to-search input + chosen id
-  elProdInput.value = "";
-  delete elProdInput.dataset.id;
-
-  // clear downstream
-  elBulk.value = "";
-  elUom.textContent = "(base UOM)";
-  elRunBtn.disabled = true;
-
-  // wipe workings panel
+/**
+ * Side effects when committed Product becomes empty.
+ * Does NOT run while typing an uncommitted Product search query.
+ */
+function applyProductClearedSideEffects() {
+  if (elBulk) elBulk.value = "";
+  if (elUom) elUom.textContent = "(base UOM)";
+  if (elRunBtn) elRunBtn.disabled = true;
+  latestSummaryData = null;
+  if (copyPlanBtn) copyPlanBtn.style.display = "none";
   wClear();
   wShow(false);
-
-  // collapse sections
-  onProductSelect(); // this already hides tables/sections
+  // Restore global snapshot chip (not product-scoped)
+  updateStockSnapshotLabel();
 }
 
 /* ─── make tables scrollable with sticky headers ─────────────────── */
@@ -351,10 +309,10 @@ function wrapTable(el) {
   return wrap;
 }
 
-// Load ALL products once and populate the datalist
+// Load ALL products once and enhance native select as searchable single-select
 async function initProductList() {
-  // show a temporary option while loading (harmless in datalist)
-  elProdList.innerHTML = `<option value="Loading…"></option>`;
+  if (!elProd) return;
+  elProd.innerHTML = `<option value="">Loading…</option>`;
 
   const { data, error } = await supabase
     .from("products")
@@ -365,23 +323,32 @@ async function initProductList() {
   if (error) {
     console.error("Product load error:", error);
     elMsg.textContent = "Failed to load products.";
-    elProdList.innerHTML = "";
+    elProd.innerHTML = `<option value=""></option>`;
     return;
   }
 
   allProducts = data || [];
   productMap = {};
-  productByName = {};
 
-  // Build <option>s for the datalist and the lookup maps
-  const opts = [];
+  const opts = ['<option value=""></option>'];
   allProducts.forEach((p) => {
     const name = p.item || "";
-    opts.push(`<option value="${escapeHtml(name)}"></option>`);
-    productMap[p.id] = { name, uom: p.uom_base };
-    productByName[name.toLowerCase()] = { id: String(p.id), uom: p.uom_base };
+    const id = String(p.id);
+    opts.push(`<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`);
+    productMap[id] = { name, uom: p.uom_base };
   });
-  elProdList.innerHTML = opts.join("");
+  elProd.innerHTML = opts.join("");
+
+  if (elProd._sasvSearch) {
+    syncSearchableSelect(elProd);
+  } else {
+    productSearchApi = enhanceSearchableSelect(elProd, {
+      placeholder: "Type to select…",
+      allowEmptyOption: true,
+      debounceMs: 220,
+      clearSelectedOnBackspace: true,
+    });
+  }
 }
 
 // tiny helper to safely inject text into HTML
@@ -416,7 +383,7 @@ function fitVisibleWraps() {
 window.addEventListener("resize", fitVisibleWraps);
 
 async function onProductSelect() {
-  const prodId = elProdInput.dataset.id || "";
+  const prodId = String(elProd?.value || "");
   const rec = prodId ? productMap[prodId] : null;
   // reset the workings log whenever product changes
   wClear();
@@ -433,9 +400,8 @@ async function onProductSelect() {
     );
   }
   if (!rec) {
-    // hide all downstream, as before
-    elUom.textContent =
-      emgTitle.style.display =
+    // hide all downstream, as before (UOM text handled by applyProductClearedSideEffects)
+    emgTitle.style.display =
       runWrap.style.display =
       metricsHeader.style.display =
       fpTitle.style.display =
@@ -746,23 +712,15 @@ async function loadMetrics(skus, productId) {
     elMsg.textContent = "Could not load last stock update.";
   } else if (luRows?.length) {
     const dt = new Date(luRows[0].as_of_date);
-    stockUpdated.textContent = `Last stock snapshot: ${dt.toLocaleDateString(
-      "en-GB",
-      {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      },
-    )}`;
-    // make sure it’s visible
-    stockUpdated.style.display = "";
+    // Header freshness chip (Stock Checker grammar); date source unchanged
+    applySnapshotDateToChip(dt);
     // Cache and log the snapshot date too
     const dstr = dt.toISOString().slice(0, 10);
     if (metricsCache[productId]) metricsCache[productId].as_of_date = dstr;
     wEq("Stock snapshot as_of_date", "", dstr);
   } else {
-    // no snapshot rows → clear
-    stockUpdated.textContent = "";
+    // no snapshot rows for these SKUs → fall back to global latest
+    updateStockSnapshotLabel();
   }
 
   metricsHeader.style.display = "";
@@ -779,7 +737,7 @@ elRunBtn.addEventListener("click", async () => {
   wClear();
   wShow();
 
-  const prodId = elProdInput.dataset.id || "";
+  const prodId = String(elProd?.value || "");
   const rec = prodId ? productMap[prodId] : null;
   if (!rec) {
     elMsg.textContent = "Choose a valid product.";
@@ -1375,7 +1333,7 @@ elRunBtn.addEventListener("click", async () => {
         urgents,
         fillPlan,
       };
-      if (copyPlanBtn) copyPlanBtn.style.display = "";
+      if (copyPlanBtn) copyPlanBtn.style.display = "inline-flex";
     } catch {
       // non-fatal: ignore summary caching failures
       latestSummaryData = null;
@@ -1393,6 +1351,151 @@ elRunBtn.addEventListener("click", async () => {
   }
 });
 
-// Unified HOME & CLEAR
+// Unified HOME (CLEAR removed — Product searchable clear is canonical)
 homeBtn?.addEventListener("click", () => Platform.goHome());
-clearBtn?.addEventListener("click", clearPlanner);
+
+/* ─── Stock Checker–family freshness chip (header, before HOME) ───────── */
+function applySnapshotDateToChip(snapshotDate) {
+  if (!elUpdated || !snapshotDate || Number.isNaN(snapshotDate.getTime()))
+    return;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const asOf = new Date(snapshotDate);
+  asOf.setHours(0, 0, 0, 0);
+
+  const diffMs = today - asOf;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  const labelEl = elUpdated.querySelector(".sc-snapshot-label");
+  let statusClass = "snapshot-fresh";
+  let statusText = "";
+  let detailText = "";
+
+  if (diffDays === 0) {
+    statusText = "Today";
+    detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (today)`;
+    statusClass = "snapshot-fresh";
+  } else if (diffDays === 1) {
+    statusText = "Yesterday";
+    detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (1 day ago)`;
+    statusClass = "snapshot-warning";
+  } else if (diffDays > 1 && diffDays <= 7) {
+    statusText = `${diffDays}d ago`;
+    detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (${diffDays} days ago)`;
+    statusClass = "snapshot-warning";
+  } else {
+    statusText = `${diffDays}d ago`;
+    detailText = `Stock snapshot: ${asOf.toLocaleDateString()} (${diffDays} days ago) - Data may be outdated`;
+    statusClass = "snapshot-stale";
+  }
+
+  if (labelEl) labelEl.textContent = statusText;
+  if (elStatusDetail) elStatusDetail.textContent = detailText;
+  elUpdated.className =
+    elUpdated.className.replace(/snapshot-\w+/g, "").trim() +
+    " " +
+    statusClass;
+  elUpdated.setAttribute("aria-label", detailText);
+}
+
+async function updateStockSnapshotLabel() {
+  if (!elUpdated) return;
+  try {
+    const { data, error } = await supabase
+      .from("sku_stock_snapshot")
+      .select("as_of_date")
+      .order("as_of_date", { ascending: false })
+      .limit(1);
+
+    if (error || !data || !data.length) {
+      const labelEl = elUpdated.querySelector(".sc-snapshot-label");
+      if (labelEl) labelEl.textContent = "No snapshot data";
+      elUpdated.className =
+        elUpdated.className.replace(/snapshot-\w+/g, "").trim() +
+        " snapshot-stale";
+      if (elStatusDetail) {
+        elStatusDetail.textContent = "No stock snapshot data available";
+      }
+      elUpdated.setAttribute("aria-label", "No stock snapshot data available");
+      return;
+    }
+
+    applySnapshotDateToChip(new Date(data[0].as_of_date));
+  } catch (err) {
+    console.error("Failed to load stock snapshot label", err);
+  }
+}
+
+function wireFreshnessChip() {
+  if (!elUpdated) return;
+
+  function hideStatusDetail(detail) {
+    if (!detail) return;
+    detail.style.display = "none";
+    detail.style.position = "";
+  }
+
+  function positionStatusDetail(statusDetail) {
+    try {
+      const rect = elUpdated.getBoundingClientRect();
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
+      const margin = 8;
+      const MAX_WIDTH = 360;
+      const vw = window.innerWidth;
+      let width = Math.min(MAX_WIDTH, Math.max(220, rect.width * 2));
+      let left = rect.left + scrollX;
+      if (left + width > vw + scrollX - margin)
+        left = vw + scrollX - width - margin;
+      if (left < scrollX + margin) left = scrollX + margin;
+      const top = rect.bottom + scrollY + 6;
+      statusDetail.style.position = "absolute";
+      statusDetail.style.display = "block";
+      statusDetail.style.left = left + "px";
+      statusDetail.style.top = top + "px";
+      statusDetail.style.width = width + "px";
+      statusDetail.style.maxWidth = Math.min(MAX_WIDTH, vw - margin * 2) + "px";
+      statusDetail.style.zIndex = "1200";
+    } catch {
+      try {
+        statusDetail.style.position = "";
+        statusDetail.style.display = "block";
+      } catch {
+        void 0;
+      }
+    }
+  }
+
+  elUpdated.addEventListener("click", (ev) => {
+    try {
+      ev.preventDefault();
+      const expanded = elUpdated.classList.toggle("sc-status-expanded");
+      elUpdated.setAttribute("aria-expanded", String(expanded));
+      if (!elStatusDetail) return;
+      if (expanded) positionStatusDetail(elStatusDetail);
+      else hideStatusDetail(elStatusDetail);
+    } catch {
+      void 0;
+    }
+  });
+
+  elUpdated.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      elUpdated.click();
+    }
+  });
+
+  document.addEventListener("click", (ev) => {
+    try {
+      if (!elUpdated.contains(ev.target)) {
+        elUpdated.classList.remove("sc-status-expanded");
+        elUpdated.setAttribute("aria-expanded", "false");
+        hideStatusDetail(elStatusDetail);
+      }
+    } catch {
+      void 0;
+    }
+  });
+}

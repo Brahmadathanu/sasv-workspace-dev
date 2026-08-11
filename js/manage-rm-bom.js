@@ -1,5 +1,11 @@
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import {
+  mountModuleActionIcons,
+  enhanceSearchableSelect,
+  syncSearchableSelect,
+  setSearchableSelectValue,
+} from "../public/shared/js/sasv-module-chrome.js";
 
 // Elements
 const el = (id) => document.getElementById(id);
@@ -44,8 +50,8 @@ const kbHelpPopover = el("kbHelpPopover");
 let LINES_EDIT_MODE = false; // default View mode
 // Permissions
 const MODULE_ID = "manage-rm-bom";
-let PERM_CAN_VIEW = true;
-let PERM_CAN_EDIT = true;
+let PERM_CAN_VIEW = false;
+let PERM_CAN_EDIT = false;
 // Horizontal scroll sync and back-to-top
 const linesScroll = document.getElementById("linesScroll");
 const linesHScrollTop = document.getElementById("linesHScrollTop");
@@ -231,9 +237,20 @@ async function loadProducts() {
     .order("label", { ascending: true });
   if (error) throw error;
   PRODUCTS = data || [];
-  productPicker.innerHTML = PRODUCTS.map(
-    (p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`
-  ).join("");
+  productPicker.innerHTML = [
+    `<option value=""></option>`,
+    ...PRODUCTS.map(
+      (p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`
+    ),
+  ].join("");
+  productPicker.value = "";
+  if (productPicker._sasvSearch) syncSearchableSelect(productPicker);
+  else {
+    enhanceSearchableSelect(productPicker, {
+      placeholder: "Search or select a product…",
+      allowEmptyOption: true,
+    });
+  }
 }
 
 async function loadRmItems() {
@@ -583,9 +600,24 @@ function renderQA() {
     if (ln.qty_per_reference_output == null || ln.qty_per_reference_output <= 0)
       issues.push(`Line ${i + 1}: qty per reference must be > 0`);
   });
-  qaList.innerHTML = issues.length
-    ? issues.map((m) => `<li class="danger">${escapeHtml(m)}</li>`).join("")
-    : '<li class="success">Looks good ✅</li>';
+  const feedback = el("bomInlineFeedback");
+  if (qaList) {
+    if (issues.length) {
+      qaList.innerHTML = issues
+        .map((m) => `<li class="danger">${escapeHtml(m)}</li>`)
+        .join("");
+      if (feedback) {
+        feedback.hidden = false;
+        feedback.classList.add("is-visible");
+      }
+    } else {
+      qaList.innerHTML = "";
+      if (feedback) {
+        feedback.hidden = true;
+        feedback.classList.remove("is-visible");
+      }
+    }
+  }
   // Update compact QA status chip (if present)
   if (qaChip) {
     qaChip.style.display = "inline-flex";
@@ -769,7 +801,25 @@ async function saveBom() {
 
 /* ---------------- Events ---------------- */
 productPicker.addEventListener("change", async () => {
-  CURRENT_PRODUCT_ID = parseInt(productPicker.value, 10);
+  const raw = String(productPicker.value || "").trim();
+  CURRENT_PRODUCT_ID = raw ? parseInt(raw, 10) : null;
+  if (!CURRENT_PRODUCT_ID || Number.isNaN(CURRENT_PRODUCT_ID)) {
+    CURRENT_PRODUCT_ID = null;
+    CURRENT_HEADER = null;
+    CURRENT_LINES = [];
+    if (refQty) refQty.value = "";
+    if (refUom) refUom.value = "";
+    if (lossPct) lossPct.value = "";
+    renderLines();
+    if (typeof renderQA === "function") renderQA();
+    if (typeof updateHeaderPills === "function") updateHeaderPills();
+    if (typeof updateSelectionPills === "function") updateSelectionPills();
+    if (deleteBtn) deleteBtn.disabled = true;
+    if (editHeaderBtn) editHeaderBtn.disabled = true;
+    if (typeof syncMenuState === "function") syncMenuState();
+    setStatus("");
+    return;
+  }
   setStatus("");
   showMask("Loading…");
   try {
@@ -1312,7 +1362,7 @@ nhCreateBtn.addEventListener("click", async () => {
   }
 
   CURRENT_PRODUCT_ID = prodId;
-  productPicker.value = String(prodId);
+  setSearchableSelectValue(productPicker, prodId);
   CURRENT_HEADER = null; // new unsaved header state
   refQty.value = refQtyVal.toFixed(3);
   refUom.value = refUomId;
@@ -1507,6 +1557,18 @@ if (insertPopover)
 
 /* ---------------- Boot ---------------- */
 (async function init() {
+  mountModuleActionIcons({
+    home: el("homeBtn"),
+    refresh: reloadBtn,
+    download: exportBtn,
+  });
+  const homeBtn = el("homeBtn");
+  if (homeBtn) {
+    homeBtn.addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+  }
+
   try {
     const {
       data: { session },
@@ -1525,21 +1587,10 @@ if (insertPopover)
           PERM_CAN_EDIT = !!p.can_edit;
         }
       } else {
-        // fallback
-        try {
-          const { data: permRows } = await supabase
-            .from("user_permissions")
-            .select("module_id, can_view, can_edit")
-            .eq("user_id", session.user.id)
-            .eq("module_id", MODULE_ID)
-            .limit(1);
-          if (Array.isArray(permRows) && permRows.length) {
-            PERM_CAN_VIEW = !!permRows[0].can_view;
-            PERM_CAN_EDIT = !!permRows[0].can_edit;
-          }
-        } catch (pErr) {
-          console.warn("Permission load failed (legacy)", pErr);
-        }
+        console.warn(
+          "Permission load failed (RPC)",
+          permsErr || "unexpected non-array result",
+        );
       }
     } catch (pErr) {
       console.warn("Permission load failed (RPC)", pErr);
@@ -1553,12 +1604,16 @@ if (insertPopover)
     await loadRmItems();
     // Backfill codes if any missing (some RPC versions might not return code)
     await ensureRmItemCodes();
-    if (PRODUCTS.length) {
-      CURRENT_PRODUCT_ID = PRODUCTS[0].id;
-      productPicker.value = String(CURRENT_PRODUCT_ID);
-      await loadBom(CURRENT_PRODUCT_ID);
-      await ensureRmItemCodes();
-    } else {
+    // Start empty — load BOM only after user searches and selects a product
+    CURRENT_PRODUCT_ID = null;
+    CURRENT_HEADER = null;
+    CURRENT_LINES = [];
+    setSearchableSelectValue(productPicker, "", true);
+    renderLines();
+    if (typeof updateHeaderPills === "function") updateHeaderPills();
+    if (editHeaderBtn) editHeaderBtn.disabled = true;
+    if (deleteBtn) deleteBtn.disabled = true;
+    if (!PRODUCTS.length) {
       setStatus("No products available.", "error");
     }
     applyPermissionUi();

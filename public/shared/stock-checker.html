@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-GB">
+<html lang="en-GB" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -17,17 +17,32 @@
       content="black-translucent"
     />
     <meta name="apple-mobile-web-app-title" content="StockChecker" />
-    <link rel="apple-touch-icon" href="/utilities-hub/icons/icon-192x192.png" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/shared/assets/branding/derived/apple-touch-icon-180.png"
+    />
     <link
       rel="apple-touch-icon"
       sizes="512x512"
-      href="/utilities-hub/icons/icon-512x512.png"
+      href="/shared/assets/branding/derived/icon-512.png"
+    />
+    <link
+      rel="icon"
+      href="/shared/assets/branding/derived/favicon.ico"
+      sizes="any"
     />
     <link
       rel="icon"
       type="image/png"
       sizes="32x32"
-      href="/utilities-hub/icons/icon-192x192.png"
+      href="/shared/assets/branding/derived/favicon-32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="/shared/assets/branding/derived/icon-192.png"
     />
 
     <!-- Vendor + shared CSS -->
@@ -46,11 +61,13 @@
         --ink: #111827;
         --bg: #fff;
         --bg-soft: #f9fafb;
-        --primary: #2563eb;
+        /* Operational SC accent (not Tailwind #2563eb); body layer also sets --sc-accent */
+        --primary: #0a62c3;
       }
 
       body {
-        background: #fafafa;
+        /* Background/padding owned by sasv-stock-checker.css reconciliation layer */
+        background: transparent;
       }
 
       .sc-header {
@@ -2329,114 +2346,117 @@
         }
       }
     </style>
+    <!-- SC-2 specialization after inline legacy styles so token rules win cascade -->
+    <link rel="stylesheet" href="../shared/css/sasv-stock-checker.css" />
   </head>
-  <body data-theme="system" style="padding: 20px">
-    <div class="sc-header">
-      <h2 class="sc-page-title" style="margin: 0; color: #005a8d">
-        Stock Checker
-      </h2>
-      <div class="sc-actions">
-        <button
-          id="sc-total-value"
-          class="sc-pill sc-pill-icon"
-          aria-haspopup="dialog"
-          aria-label="Open value summary"
-          title="Open value summary"
-          style="margin-right: 4px; cursor: pointer"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            <text
-              x="50%"
-              y="50%"
-              font-size="14"
-              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif"
-              fill="currentColor"
-              text-anchor="middle"
-              dominant-baseline="central"
-            >
-              ₹
-            </text>
-          </svg>
-          <span class="sc-pill-text">Value: ₹ —</span>
-        </button>
-        <div
-          id="sc-updated"
-          class="sc-snapshot"
-          tabindex="0"
-          role="button"
-          aria-haspopup="true"
-          aria-expanded="false"
-        >
-          <span class="sc-snapshot-dot" aria-hidden="true"></span>
-          <span class="sc-snapshot-label">Snapshot</span>
-          <div id="sc-status-detail" style="display: none">
-            Last stock snapshot: —
-          </div>
+  <body class="sasv-stock-checker" data-theme="system">
+    <div class="header-card sc-header-card">
+      <header class="page-header sc-header">
+        <div class="sc-header-copy">
+          <h1 class="sasv-module-title sc-page-title">Stock Checker</h1>
+          <p class="page-sub">
+            Check product stock, demand, and months of supply by pack size and
+            location.
+          </p>
         </div>
-
-        <button
-          id="sc-download"
-          class="sc-btn sc-btn-icon"
-          type="button"
-          aria-label="Export options"
-          title="Export options"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
+        <div class="header-actions sc-actions">
+          <button
+            id="sc-total-value"
+            class="sc-pill sc-pill-icon"
+            aria-haspopup="dialog"
+            aria-label="Open value summary"
+            title="Open value summary"
           >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-        </button>
-
-        <button
-          id="sc-filters-btn"
-          class="sc-btn sc-btn-icon"
-          type="button"
-          aria-label="Filters"
-          title="Open filters"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+              xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <text
+                x="50%"
+                y="50%"
+                font-size="14"
+                font-family="var(--sasv-font-sans), Inter, sans-serif"
+                fill="currentColor"
+                text-anchor="middle"
+                dominant-baseline="central"
+              >
+                ₹
+              </text>
+            </svg>
+            <span class="sc-pill-text">Value: ₹ —</span>
+          </button>
+          <div
+            id="sc-updated"
+            class="sc-snapshot"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            aria-expanded="false"
           >
-            <path d="M3 4h18l-7 9v6l-4-2v-5L3 4z" />
-          </svg>
-        </button>
+            <span class="sc-snapshot-dot" aria-hidden="true"></span>
+            <span class="sc-snapshot-label">Snapshot</span>
+            <div id="sc-status-detail" style="display: none">
+              Last stock snapshot: —
+            </div>
+          </div>
 
-        <button id="homeBtn" class="sc-btn" type="button" aria-label="Home">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
+          <button
+            id="sc-download"
+            class="sc-btn sc-btn-icon"
+            type="button"
+            aria-label="Export options"
+            title="Export options"
           >
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-          <span class="home-label">HOME</span>
-        </button>
-      </div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+
+          <button
+            id="sc-filters-btn"
+            class="sc-btn sc-btn-icon"
+            type="button"
+            aria-label="Filters"
+            title="Open filters"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M3 4h18l-7 9v6l-4-2v-5L3 4z" />
+            </svg>
+          </button>
+
+          <button
+            id="homeBtn"
+            class="sc-btn sasv-home-btn"
+            type="button"
+            aria-label="HOME"
+            title="HOME"
+          >
+            <!-- Canonical HOME glyph mounted by mountModuleHome (ui-icons `home`) -->
+            <span class="home-label">HOME</span>
+          </button>
+        </div>
+      </header>
     </div>
 
     <!-- Placeholder for filters (we will move the filters into a centered modal on demand) -->
@@ -2468,56 +2488,79 @@
           </button>
         </div>
         <div class="sc-modal-body">
-          <div class="modal-actions">
-            <button
-              id="sc-export"
-              class="sc-btn primary sc-btn-block"
-              type="button"
-              title="Export current filter result to CSV"
-            >
-              Export CSV
-            </button>
+          <div class="sc-export-sheet">
+            <section class="sc-export-section" aria-labelledby="sc-export-csv-heading">
+              <div class="sc-export-section-head">
+                <h4 id="sc-export-csv-heading" class="sc-export-section-title">
+                  Data export
+                </h4>
+                <p class="sc-export-section-hint">Current filtered rows</p>
+              </div>
+              <div class="sc-export-section-actions">
+                <button
+                  id="sc-export"
+                  class="sc-btn primary"
+                  type="button"
+                  title="Export current filter result to CSV"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </section>
 
-            <div>
-              <button
-                id="sc-export-pdf"
-                class="sc-btn secondary sc-btn-block"
-                type="button"
-                aria-haspopup="true"
-                aria-expanded="false"
-              >
-                Stock Coverage Report ▾
-              </button>
+            <section
+              class="sc-export-section"
+              aria-labelledby="sc-export-pdf"
+            >
+              <div class="sc-export-section-head">
+                <button
+                  id="sc-export-pdf"
+                  class="sc-export-section-title sc-export-section-title-btn"
+                  type="button"
+                  tabindex="-1"
+                  aria-expanded="true"
+                  aria-controls="sc-export-drawer"
+                >
+                  Stock Coverage Report
+                </button>
+                <p class="sc-export-section-hint">PDF by coverage scope</p>
+              </div>
               <div
                 id="sc-export-drawer"
-                class="sc-export-drawer"
+                class="sc-export-drawer sc-export-choice-list"
                 role="menu"
-                aria-hidden="true"
-                style="display: none"
+                aria-label="Stock Coverage Report options"
+                aria-hidden="false"
               >
                 <button
                   id="sc-export-godowns"
-                  class="sc-btn sc-btn-block"
+                  class="sc-export-choice"
                   type="button"
+                  role="menuitem"
                 >
-                  Stock Coverage Report - Godowns
+                  <span class="sc-export-choice-label">Godowns</span>
+                  <span class="sc-export-choice-meta">Coverage PDF</span>
                 </button>
                 <button
                   id="sc-export-region"
-                  class="sc-btn sc-btn-block"
+                  class="sc-export-choice"
                   type="button"
+                  role="menuitem"
                 >
-                  Stock Coverage Report - Region
+                  <span class="sc-export-choice-label">Region</span>
+                  <span class="sc-export-choice-meta">Coverage PDF</span>
                 </button>
                 <button
                   id="sc-export-ho"
-                  class="sc-btn sc-btn-block"
+                  class="sc-export-choice"
                   type="button"
+                  role="menuitem"
                 >
-                  Stock Coverage Report - HO Depot
+                  <span class="sc-export-choice-label">HO Depot</span>
+                  <span class="sc-export-choice-meta">Coverage PDF</span>
                 </button>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>
@@ -2903,7 +2946,7 @@
           >
             Reset Filters
           </button>
-          <button id="sc-filters-cancel" class="sc-btn" type="button">
+          <button id="sc-filters-cancel" class="sc-btn secondary" type="button">
             Cancel
           </button>
           <button id="sc-filters-apply" class="sc-btn primary" type="button">
@@ -3066,12 +3109,9 @@
       <!-- paginator moved below next to Explode Details -->
     </div>
 
-    <div
-      class="drawer-row"
-      style="display: flex; align-items: center; gap: 8px"
-    >
+    <div class="drawer-row sc-ops-toolbar">
       <!-- Explode details: icon-only button opens central modal (inputs moved to modal) -->
-      <div style="display: flex; align-items: center; gap: 8px; margin: 0">
+      <div class="sc-ops-group">
         <button
           id="explode-details-btn"
           class="sc-btn sc-btn-icon"

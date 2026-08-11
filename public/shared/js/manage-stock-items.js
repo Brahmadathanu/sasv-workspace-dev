@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { $, toast } from "./ui-helpers.js";
+import { mountModuleActionIcons } from "./sasv-module-chrome.js";
+import { Platform } from "./platform.js";
 
 // Elements
 const tbody = $("#tbl tbody");
@@ -2000,8 +2002,27 @@ filterCategory.addEventListener("change", () => {
 
 // Tabs and classification management removed; only Stock Items remain
 
+function goHome() {
+  if (typeof Platform.goHome === "function") {
+    Platform.goHome();
+    return;
+  }
+  window.location.href = "index.html";
+}
+
 // ---------- Boot ----------
 (async () => {
+  const homeBtn = document.getElementById("homeBtn");
+  mountModuleActionIcons({
+    home: homeBtn,
+    close: [
+      document.getElementById("editorClose"),
+      document.getElementById("confirmClose"),
+      document.getElementById("catClose"),
+    ],
+  });
+  if (homeBtn) homeBtn.addEventListener("click", goHome);
+
   await initAuth();
   await loadUOM();
   await loadCategories();

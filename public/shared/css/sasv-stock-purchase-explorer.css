@@ -1,0 +1,1365 @@
+/**
+ * UI-MOD-SPE-1 — Stock & Purchase Explorer SASV specialization.
+ *
+ * Explorer is NOT Stock Checker. This file does NOT:
+ * - force sasv-module / sasv-module--app geometry
+ * - copy Stock Checker infinite-scroll / cards / autocomplete
+ * - alter RPC / filter / pagination contracts
+ *
+ * Scope: body.sasv-stock-purchase-explorer only.
+ *
+ * Specialist gutter exception:
+ * Explorer keeps its existing full-viewport `.page` flex column
+ * (height: 100vh + local padding ~16–18px) so `.table-card` / `#tableArea`
+ * flex-fill is not broken by canonical 20/10/6 body padding.
+ * Visual edge parity is achieved via token surfaces/chrome, not body padding.
+ *
+ * Regression sources:
+ * A = page inline CSS
+ * B = sasv-module.css (only if body.sasv-module — we intentionally avoid that)
+ * C = sasv-primitives / style.css
+ * D = JS-injected inline presentation (prefer post-cascade override)
+ */
+
+/* ── 1. Page root (no forced 20/10/6 body padding) ───────────────────────── */
+body.sasv-stock-purchase-explorer {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  color: var(--sasv-text, var(--text-color));
+  background: var(--sasv-bg, var(--bg-color, #fafafa));
+  box-sizing: border-box;
+  margin: 0;
+  /* Remap local ERP accents to SASV action tokens */
+  --erp-accent: var(--sasv-action-primary);
+  --erp-accent-2: var(--sasv-action-primary-active);
+  --erp-text: var(--sasv-text);
+  --erp-muted: var(--sasv-text-muted);
+  --erp-border: var(--sasv-border);
+  --erp-card: var(--sasv-surface);
+  --erp-panel-bg: var(--sasv-surface-soft);
+  --erp-table-head: var(--sasv-surface-soft);
+  --erp-bg: var(--sasv-bg);
+  --primary: var(--sasv-action-primary);
+  --spe-accent: var(--sasv-action-primary);
+}
+
+body.sasv-stock-purchase-explorer .spe-page.page,
+body.sasv-stock-purchase-explorer .page {
+  /* Preserve intentional full-height flex shell */
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  gap: 10px;
+  /* Specialist gutter (not canonical body 20/10/6) */
+  padding: 14px 16px 16px;
+  background: transparent;
+}
+
+@media (max-width: 1080px) {
+  body.sasv-stock-purchase-explorer .page {
+    padding: 10px 12px 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-purchase-explorer .page {
+    padding: 8px 8px 10px;
+  }
+}
+
+/* ── 2. Flex-fill protection (intentional regions) ───────────────────────── */
+body.sasv-stock-purchase-explorer .content {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  align-items: stretch;
+}
+
+body.sasv-stock-purchase-explorer .table-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  box-shadow: none;
+}
+
+body.sasv-stock-purchase-explorer #tableArea,
+body.sasv-stock-purchase-explorer #spe-cards-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.sasv-stock-purchase-explorer .table-card.spe-view-cards #tableArea {
+  display: none;
+}
+
+body.sasv-stock-purchase-explorer .table-card.spe-view-table #spe-cards-wrap,
+body.sasv-stock-purchase-explorer #spe-cards-wrap[hidden] {
+  display: none !important;
+}
+
+@media (min-width: 521px) {
+  body.sasv-stock-purchase-explorer #spe-cards-wrap {
+    display: none !important;
+  }
+}
+
+/*
+ * Do NOT apply shared module table-wrap flex:1 here.
+ * Explorer does not use .table-wrap as a fill region (CSS-only leftover).
+ * Explicitly neutralize accidental shared inheritance if body ever gains module class.
+ */
+body.sasv-stock-purchase-explorer .table-wrap,
+body.sasv-stock-purchase-explorer .table-scroll,
+body.sasv-stock-purchase-explorer .table-container {
+  flex: initial;
+  min-height: auto;
+  overflow: visible;
+}
+
+/* ── 3. Header / chrome ──────────────────────────────────────────────────── */
+body.sasv-stock-purchase-explorer .page-header.spe-header,
+body.sasv-stock-purchase-explorer .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  flex-shrink: 0;
+}
+
+body.sasv-stock-purchase-explorer .spe-header-copy,
+body.sasv-stock-purchase-explorer .header-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+body.sasv-stock-purchase-explorer .spe-page-title,
+body.sasv-stock-purchase-explorer .page-header h1 {
+  margin: 0;
+  font-family: var(--sasv-font-sans);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+  color: var(--sasv-text);
+  text-align: left;
+}
+
+body.sasv-stock-purchase-explorer .spe-page-desc,
+body.sasv-stock-purchase-explorer .page-header .hint {
+  margin: 2px 0 0;
+  padding: 0;
+  font-size: var(--sasv-text-sm, 0.875rem);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--sasv-text-muted);
+  text-align: left;
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-purchase-explorer .spe-header-copy,
+  body.sasv-stock-purchase-explorer .header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+}
+
+body.sasv-stock-purchase-explorer .spe-actions,
+body.sasv-stock-purchase-explorer .header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersBtn {
+  display: none !important;
+}
+
+/* ── 4. HOME (canonical tokens; no Explorer-specific colours) ────────────── */
+body.sasv-stock-purchase-explorer #homeBtn.sasv-home-btn,
+body.sasv-stock-purchase-explorer #homeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md, 36px);
+  padding: 6px 12px;
+  border: 1px solid var(--sasv-action-home-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-action-home-bg);
+  color: var(--sasv-action-home);
+  box-shadow: none;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.sasv-stock-purchase-explorer #homeBtn.sasv-home-btn:hover,
+body.sasv-stock-purchase-explorer #homeBtn:hover {
+  background: var(--sasv-action-home-bg-hover);
+  border-color: var(--sasv-action-home-bg-hover);
+  color: var(--sasv-action-home-fg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+body.sasv-stock-purchase-explorer #homeBtn:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-purchase-explorer #homeBtn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-purchase-explorer #homeBtn.sasv-home-btn,
+  body.sasv-stock-purchase-explorer #homeBtn {
+    padding: 6px;
+    gap: 0;
+  }
+
+  body.sasv-stock-purchase-explorer #homeBtn .home-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* ── 5. Stock Value chip (Explorer hierarchy, SC semantic language) */
+body.sasv-stock-purchase-explorer .stock-value-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--sasv-control-md, 36px);
+  padding: 4px 10px;
+  border: 1px solid var(--sasv-action-primary-soft-border, var(--sasv-border));
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-selection-soft, var(--sasv-surface-soft));
+  color: var(--sasv-text);
+  box-shadow: none;
+  font-family: var(--sasv-font-sans);
+  cursor: pointer;
+}
+
+body.sasv-stock-purchase-explorer .stock-value-chip:hover {
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border, var(--sasv-border));
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-purchase-explorer .stock-value-label {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 500;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-purchase-explorer .stock-value-amount {
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-purchase-explorer .stock-value-icon {
+  font-weight: 600 !important;
+  color: var(--sasv-text-secondary);
+}
+
+/* ── 6. Filters card: Filters btn + full-width search + Reset ─────────────── */
+body.sasv-stock-purchase-explorer .filters-card {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  box-shadow: none;
+  overflow: visible;
+  position: relative;
+  left: auto;
+  top: auto;
+  width: auto;
+  height: auto;
+  max-height: none;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary .primary-item.filters-open {
+  flex: 0 0 auto;
+  align-self: flex-end;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary .primary-item.search {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  width: auto;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary .primary-item.search .label-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+body.sasv-stock-purchase-explorer .filters-primary .primary-item.search label {
+  display: block;
+  position: relative;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary .primary-item.reset {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary label .label-text,
+body.sasv-stock-purchase-explorer .filters-grid .label-text,
+body.sasv-stock-purchase-explorer .filters-grid label,
+body.sasv-stock-purchase-explorer .filters-primary label {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-purchase-explorer .filters-primary .primary-item.reset .label-text {
+  display: none; /* icon-only Reset with aria/title */
+}
+
+body.sasv-stock-purchase-explorer .filters-primary input[type="text"],
+body.sasv-stock-purchase-explorer #search {
+  min-height: var(--sasv-control-md, 36px);
+  height: var(--sasv-control-md, 36px);
+  padding: 6px 10px;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 400;
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-search-select-border, var(--sasv-control-border));
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-search-select-bg, var(--sasv-control-bg));
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+body.sasv-stock-purchase-explorer .spe-filters-popover select,
+body.sasv-stock-purchase-explorer .spe-filters-popover input[type="text"],
+body.sasv-stock-purchase-explorer #mobileFiltersModal select,
+body.sasv-stock-purchase-explorer #mobileFiltersModal input[type="text"],
+body.sasv-stock-purchase-explorer #dateRange {
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 0 8px !important;
+  line-height: 34px !important;
+  font-family: var(--sasv-font-sans);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-search-select-border, var(--sasv-control-border));
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-search-select-bg, var(--sasv-control-bg));
+  box-sizing: border-box;
+  box-shadow: none;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+body.sasv-stock-purchase-explorer .spe-filters-popover select,
+body.sasv-stock-purchase-explorer #mobileFiltersModal select {
+  padding-right: 22px !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--sasv-text-secondary) 50%),
+    linear-gradient(135deg, var(--sasv-text-secondary) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+body.sasv-stock-purchase-explorer .filter-field.date.is-disabled,
+body.sasv-stock-purchase-explorer .primary-item.date.is-disabled {
+  opacity: 0.55;
+}
+
+body.sasv-stock-purchase-explorer #dateRange:disabled {
+  cursor: not-allowed;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  pointer-events: none;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary input::placeholder,
+body.sasv-stock-purchase-explorer #search::placeholder,
+body.sasv-stock-purchase-explorer #mobileSearch::placeholder,
+body.sasv-stock-purchase-explorer #dateRange::placeholder {
+  color: var(--sasv-text-muted);
+  opacity: 1;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary select:focus,
+body.sasv-stock-purchase-explorer .filters-primary input:focus,
+body.sasv-stock-purchase-explorer .filters-grid select:focus,
+body.sasv-stock-purchase-explorer .filters-grid input:focus,
+body.sasv-stock-purchase-explorer #dateRange:focus,
+body.sasv-stock-purchase-explorer #search:focus,
+body.sasv-stock-purchase-explorer #mobileSearch:focus {
+  outline: 2px solid var(--sasv-focus-ring) !important;
+  outline-offset: 2px;
+  border-color: var(--sasv-action-primary);
+  box-shadow: none !important;
+}
+
+body.sasv-stock-purchase-explorer .input-with-icon {
+  background: transparent;
+  position: relative;
+}
+
+/* SPE remnant pass: remove search lens glyph */
+body.sasv-stock-purchase-explorer .input-with-icon > svg {
+  display: none;
+}
+
+body.sasv-stock-purchase-explorer .filters-primary .input-with-icon input[type="text"] {
+  padding-left: 10px;
+  width: 100%;
+}
+
+body.sasv-stock-purchase-explorer #filtersBtn.filters-open-btn,
+body.sasv-stock-purchase-explorer #filtersBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sasv-control-md, 36px);
+  min-width: var(--sasv-control-md, 36px);
+  min-height: var(--sasv-control-md, 36px);
+  padding: 6px;
+  color: var(--sasv-text-secondary);
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+body.sasv-stock-purchase-explorer #filtersBtn:hover {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-purchase-explorer #filtersBtn:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-purchase-explorer #filtersBtn.is-active,
+body.sasv-stock-purchase-explorer #filtersBtn[aria-expanded="true"] {
+  color: var(--sasv-action-primary-active);
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border, var(--sasv-border));
+}
+
+body.sasv-stock-purchase-explorer #filtersBtn svg.sasv-icon {
+  width: 16px;
+  height: 16px;
+}
+
+body.sasv-stock-purchase-explorer .filters-grid,
+body.sasv-stock-purchase-explorer .spe-filter-drawer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  overflow: visible;
+}
+
+body.sasv-stock-purchase-explorer .filters-grid select,
+body.sasv-stock-purchase-explorer .filters-grid input {
+  margin: 1px;
+  width: 100%;
+}
+
+/* ── 7. Tabs — Costing-suite lens grammar (soft selected surface) ─────────── */
+body.sasv-stock-purchase-explorer .tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+body.sasv-stock-purchase-explorer .tab-buttons {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  align-items: stretch;
+  padding: 4px;
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  /* kill legacy blue wash under lenses */
+  background-image: none;
+  box-shadow: none;
+}
+
+body.sasv-stock-purchase-explorer .tab-btn {
+  appearance: none;
+  margin: 0;
+  padding: 6px 10px;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--sasv-radius-sm);
+  background: transparent;
+  color: var(--sasv-text-muted);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+body.sasv-stock-purchase-explorer .tab-btn:hover:not(.active):not([aria-selected="true"]) {
+  color: var(--sasv-text);
+  background: var(--sasv-action-primary-soft, var(--sasv-selection-soft));
+  border-color: var(--sasv-action-primary-soft-border, transparent);
+  box-shadow: none;
+}
+
+body.sasv-stock-purchase-explorer .tab-btn.active,
+body.sasv-stock-purchase-explorer .tab-btn[aria-selected="true"] {
+  color: var(--sasv-action-primary-active);
+  font-weight: 600;
+  background: var(--sasv-selection-soft);
+  background-image: none;
+  border-color: var(--sasv-action-primary-soft-border);
+  box-shadow: none;
+  border-bottom-color: var(--sasv-action-primary-soft-border);
+  text-shadow: none;
+}
+
+body.sasv-stock-purchase-explorer .tab-btn:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-purchase-explorer #tabSelect.tab-select,
+body.sasv-stock-purchase-explorer .tab-select {
+  min-height: var(--sasv-control-md, 36px);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-purchase-explorer .tab-bar {
+    display: block;
+    width: 100%;
+  }
+
+  /* Desktop lens track must fully hide — leftover padding/bg was the pale sliver */
+  body.sasv-stock-purchase-explorer .tab-buttons {
+    display: none;
+  }
+
+  body.sasv-stock-purchase-explorer .tab-select-wrap {
+    display: block;
+    position: relative;
+    width: 100%;
+  }
+
+  body.sasv-stock-purchase-explorer #tabSelect.tab-select,
+  body.sasv-stock-purchase-explorer .tab-select {
+    display: block;
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* ── 8. Table header strip + context meta ────────────────────────────────── */
+body.sasv-stock-purchase-explorer .table-header h3,
+body.sasv-stock-purchase-explorer .table-card h3 {
+  margin: 0;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-purchase-explorer .table-context-meta {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 500;
+}
+
+/* ── 9. Tables — dense ERP (preserve sticky + scroll in #tableArea) ───────── */
+body.sasv-stock-purchase-explorer #tableArea table,
+body.sasv-stock-purchase-explorer .erp-table,
+body.sasv-stock-purchase-explorer .modal-box table,
+body.sasv-stock-purchase-explorer .modal-table-wrap table {
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  border-collapse: collapse;
+  width: 100%;
+}
+
+body.sasv-stock-purchase-explorer #tableArea thead th,
+body.sasv-stock-purchase-explorer .erp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 5px 8px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--sasv-text-muted);
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-border);
+  text-align: center;
+}
+
+body.sasv-stock-purchase-explorer #tableArea tbody td,
+body.sasv-stock-purchase-explorer .erp-table tbody td {
+  padding: 4px 8px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--sasv-text);
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-stock-purchase-explorer #tableArea tbody tr:hover td,
+body.sasv-stock-purchase-explorer .erp-table tbody tr:hover td {
+  background: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-purchase-explorer #tableArea tbody tr.selected td,
+body.sasv-stock-purchase-explorer .erp-table tbody tr.selected td {
+  background: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-purchase-explorer #tableArea .sp-decimal,
+body.sasv-stock-purchase-explorer .modal-box .sp-decimal,
+body.sasv-stock-purchase-explorer .modal-box td.numeric {
+  font-family: var(--sasv-font-sans) !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--sasv-text) !important;
+}
+
+/* ── 10. Paginator removed — infinite scroll sentinel ─────────────────────── */
+body.sasv-stock-purchase-explorer #paginator,
+body.sasv-stock-purchase-explorer .paginator {
+  display: none !important;
+}
+
+body.sasv-stock-purchase-explorer .spe-scroll-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 8px 4px 12px;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+}
+
+/* ── 10b. Narrow result cards (dual presentation, ≤520px) ─────────────────── */
+body.sasv-stock-purchase-explorer .spe-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.sasv-stock-purchase-explorer .spe-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card {
+  position: relative;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface);
+  padding: 10px 12px;
+  user-select: none;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card--action,
+body.sasv-stock-purchase-explorer .spe-result-card[role="button"] {
+  cursor: pointer;
+  padding-right: 28px;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card--static {
+  cursor: default;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card--alt {
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card[role="button"]:hover {
+  border-color: var(--sasv-action-primary-soft-border, var(--sasv-border));
+  background: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card[role="button"]:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card.selected {
+  border-color: var(--sasv-action-primary-soft-border, var(--sasv-border));
+  background: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-chev {
+  position: absolute;
+  right: 8px;
+  top: 11px;
+  width: 16px;
+  height: 16px;
+  color: var(--sasv-text-muted);
+  pointer-events: none;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card--status {
+  text-align: center;
+  color: var(--sasv-text-muted);
+  padding: 20px 12px;
+  cursor: default;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-line1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-name {
+  font-weight: 600;
+  color: var(--sasv-text);
+  word-break: break-word;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-line-meta,
+body.sasv-stock-purchase-explorer .spe-result-card-sub,
+body.sasv-stock-purchase-explorer .spe-result-card-class {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--sasv-text-muted);
+  word-break: break-word;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-dot {
+  margin: 0 4px;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-metric {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--sasv-text);
+  word-break: break-word;
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-metric--rule {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--sasv-divider, var(--sasv-border));
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card-k {
+  font-weight: 600;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-purchase-explorer .spe-result-card .sp-decimal {
+  font-family: var(--sasv-font-sans) !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--sasv-text) !important;
+}
+
+body.sasv-stock-purchase-explorer .table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+  padding: 4px 0 6px;
+}
+
+body.sasv-stock-purchase-explorer .table-header.spe-header-empty {
+  display: none;
+}
+
+body.sasv-stock-purchase-explorer #tableHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ── 11. Detail modal (#detailModal) ─────────────────────────────────────── */
+body.sasv-stock-purchase-explorer #detailModal.modal-overlay {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  padding: 12px;
+  z-index: 1400;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box {
+  width: min(1120px, 98vw);
+  max-width: 98vw;
+  min-width: min(640px, 98vw);
+  max-height: min(94vh, 920px);
+  border-radius: var(--sasv-radius-md, 8px);
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface);
+  box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box::before {
+  height: 0;
+  background: none;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  min-width: var(--sasv-control-sm, 32px);
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-close:hover {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-close:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-content,
+body.sasv-stock-purchase-explorer #modalContent {
+  padding: 12px 14px 14px;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  color: var(--sasv-text);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-table-wrap {
+  max-height: none;
+  overflow: auto;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box th,
+body.sasv-stock-purchase-explorer #detailModal .modal-box td {
+  padding: 5px 8px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 5px 8px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--sasv-text-muted);
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-border);
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box tbody tr:hover {
+  background: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-table-wrap {
+  max-height: min(78vh, 720px);
+  overflow: auto;
+}
+
+/* Card-view (≤520px): Purchase / Consumption detail is a full-page sheet */
+@media (max-width: 520px) {
+  body.sasv-stock-purchase-explorer #detailModal.modal-overlay {
+    padding: 0 !important;
+    align-items: stretch;
+    justify-content: stretch;
+    background: var(--sasv-surface);
+    backdrop-filter: none;
+  }
+
+  body.sasv-stock-purchase-explorer #detailModal .modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0;
+    border-radius: 0 !important;
+    border: none;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  body.sasv-stock-purchase-explorer #detailModal .modal-close {
+    top: 8px;
+    right: 8px;
+  }
+
+  body.sasv-stock-purchase-explorer #detailModal .modal-content,
+  body.sasv-stock-purchase-explorer #modalContent {
+    padding: 48px 16px 16px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.sasv-stock-purchase-explorer #detailModal .modal-table-wrap {
+    max-height: none !important;
+    overflow: visible;
+  }
+}
+
+/* ── 12. Stock Value modal (Explorer geometry; SC semantic language) ─────── */
+body.sasv-stock-purchase-explorer #stockValueModal.stock-value-modal {
+  z-index: 1500;
+}
+
+body.sasv-stock-purchase-explorer .stock-value-modal-backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+body.sasv-stock-purchase-explorer .stock-value-modal-panel {
+  width: min(480px, 94vw);
+  max-height: min(92vh, 720px);
+  border-radius: var(--sasv-radius-md, 8px);
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface);
+  box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body.sasv-stock-purchase-explorer .stock-value-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sasv-divider);
+  background: var(--sasv-surface);
+  flex-shrink: 0;
+}
+
+body.sasv-stock-purchase-explorer .stock-value-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+  font-family: var(--sasv-font-sans);
+}
+
+body.sasv-stock-purchase-explorer #stockValueModalClose.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  min-width: var(--sasv-control-sm, 32px);
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: none;
+}
+
+body.sasv-stock-purchase-explorer #stockValueModalClose.modal-close:hover {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-purchase-explorer #stockValueModalClose.modal-close:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-purchase-explorer .stock-value-modal-body,
+body.sasv-stock-purchase-explorer #stockValueModalBody {
+  padding: 10px 12px 12px;
+  overflow: auto;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+
+body.sasv-stock-purchase-explorer #stockValueModalBody .stock-value-row,
+body.sasv-stock-purchase-explorer #stockValueModalBody > div {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  padding: 8px 10px;
+  margin: 0 0 6px;
+}
+
+body.sasv-stock-purchase-explorer #stockValueModalBody .stock-value-amount,
+body.sasv-stock-purchase-explorer #stockValueModalBody strong,
+body.sasv-stock-purchase-explorer #stockValueModalBody .num {
+  font-family: var(--sasv-font-sans) !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--sasv-text) !important;
+}
+
+/* ── 13. Filters popover (anchored under Filters button) ─────────────────── */
+body.sasv-stock-purchase-explorer .filters-card {
+  overflow: visible;
+  z-index: 5;
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersModal.spe-filters-popover,
+body.sasv-stock-purchase-explorer #mobileFiltersModal {
+  display: none;
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 6px !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 80;
+  width: min(360px, calc(100% - 12px)) !important;
+  max-width: 360px;
+  height: auto !important;
+  max-height: min(70vh, calc(100vh - 96px));
+  margin: 0;
+  padding: 0 !important;
+  background: var(--sasv-surface) !important;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md, 8px);
+  box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12));
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  inset: auto !important;
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersModal.open {
+  display: flex !important;
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersModal .popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--sasv-divider);
+  flex-shrink: 0;
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersModal .popover-header h3 {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersModal .popover-body {
+  padding: 8px;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersModal .filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersModal label,
+body.sasv-stock-purchase-explorer #mobileFiltersModal .label-text {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-purchase-explorer #mobileFiltersReset.btn,
+body.sasv-stock-purchase-explorer #mobileFiltersReset {
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--sasv-control-border);
+  color: var(--sasv-text-secondary);
+  border-radius: var(--sasv-radius-sm);
+}
+
+@media (max-width: 380px) {
+  body.sasv-stock-purchase-explorer #mobileFiltersModal.spe-filters-popover,
+  body.sasv-stock-purchase-explorer #mobileFiltersModal {
+    left: 6px !important;
+    right: 6px !important;
+    width: auto !important;
+    max-width: none;
+  }
+}
+
+/* ── 14. RM copy + misc actions ──────────────────────────────────────────── */
+body.sasv-stock-purchase-explorer .rm-copy-btn,
+body.sasv-stock-purchase-explorer #copyRmReceivingRowsBtn {
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px 10px;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 600;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  box-shadow: none;
+}
+
+body.sasv-stock-purchase-explorer .rm-copy-btn:hover,
+body.sasv-stock-purchase-explorer #copyRmReceivingRowsBtn:hover {
+  background: var(--sasv-selection-soft);
+}
+
+/* ── 15. Local toast ─────────────────────────────────────────────────────── */
+body.sasv-stock-purchase-explorer #statusToastContainer .toast {
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-border);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+/* ── 16. Weight / legacy colour neutralization ───────────────────────────── */
+body.sasv-stock-purchase-explorer .page-header h1,
+body.sasv-stock-purchase-explorer .stock-value-modal-header h3,
+body.sasv-stock-purchase-explorer #mobileFiltersTitle {
+  font-weight: 600;
+}
+
+body.sasv-stock-purchase-explorer .pill {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-text-secondary);
+  border-color: var(--sasv-border);
+  font-weight: 500;
+}
+
+/* Kill blue radial page wash from inline body background */
+body.sasv-stock-purchase-explorer {
+  background-image: none;
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-purchase-explorer .stock-value-modal-panel {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UI-MOD-SPE-1B — Visual language convergence (post SPE-1)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box td.numeric,
+body.sasv-stock-purchase-explorer #detailModal .modal-box th.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box th.col-text,
+body.sasv-stock-purchase-explorer #detailModal .modal-box td.col-text {
+  text-align: left;
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-box th.col-date,
+body.sasv-stock-purchase-explorer #detailModal .modal-box td.col-date {
+  text-align: left;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-stock-purchase-explorer #modalContent h3,
+body.sasv-stock-purchase-explorer #modalContent h4,
+body.sasv-stock-purchase-explorer #modalContent .spe-modal-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-purchase-explorer #detailModal .modal-close svg.sasv-icon,
+body.sasv-stock-purchase-explorer #stockValueModalClose svg.sasv-icon {
+  width: 16px;
+  height: 16px;
+}
+
+body.sasv-stock-purchase-explorer #homeBtn.sasv-home-btn svg.sasv-icon,
+body.sasv-stock-purchase-explorer #homeBtn svg.sasv-icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+body.sasv-stock-purchase-explorer .table-header {
+  gap: 8px;
+}
+
+body.sasv-stock-purchase-explorer #rmHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+
+body.sasv-stock-purchase-explorer #copyRmReceivingRowsBtn {
+  color: var(--sasv-text-secondary);
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-purchase-explorer .filters-card {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    max-width: none !important;
+    overflow: visible !important;
+    padding: 8px 10px !important;
+    z-index: 5;
+  }
+
+  body.sasv-stock-purchase-explorer .filters-primary {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+  }
+
+  body.sasv-stock-purchase-explorer #mobileSearchWrap {
+    display: none !important;
+  }
+}

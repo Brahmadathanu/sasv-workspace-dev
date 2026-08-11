@@ -1,153 +1,261 @@
 <!doctype html>
-<html>
+<html data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <title>SASV WORKSPACE | Login</title>
+    <link
+      rel="icon"
+      href="public/shared/assets/branding/derived/favicon.ico"
+      sizes="any"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="public/shared/assets/branding/derived/favicon-32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="public/shared/assets/branding/derived/icon-192.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="public/shared/assets/branding/derived/apple-touch-icon-180.png"
+    />
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <link rel="stylesheet" href="public/shared/css/seasonal-banners.css" />
     <style>
-      :root {
-        --primary: #005a8d;
-        --primary-dark: #004876;
-        --text: #333;
-        --bg: #f7f9fb;
+      /* Login shell — visual reference for SASV Workspace (Phase 2) */
+      html,
+      body {
+        height: 100%;
       }
       body {
-        font-family: Arial, sans-serif;
-        background-color: var(--bg);
-        color: var(--text);
         margin: 0;
         display: flex;
-        height: 100vh;
+        min-height: 100vh;
         align-items: center;
         justify-content: center;
+        padding: var(--sasv-space-6);
+        font-family: var(--sasv-font-sans);
+        font-size: var(--sasv-text-md);
+        color: var(--sasv-text);
+        background:
+          radial-gradient(
+            1200px 520px at 12% -10%,
+            rgba(20, 122, 108, 0.12),
+            transparent 55%
+          ),
+          radial-gradient(
+            900px 420px at 100% 0%,
+            rgba(20, 122, 108, 0.06),
+            transparent 50%
+          ),
+          linear-gradient(180deg, #f8fbfb 0%, var(--sasv-bg) 48%, #eef3f4 100%);
       }
       .login-container {
-        background: #fff;
-        padding: 32px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        width: 320px;
+        width: min(100%, 380px);
+        padding: var(--sasv-space-8) var(--sasv-space-6) var(--sasv-space-6);
+        background: var(--sasv-surface);
+        border: 1px solid var(--sasv-border);
+        border-radius: var(--sasv-radius-xl);
+        box-shadow: var(--sasv-shadow-lg);
       }
       .login-brand {
         text-align: center;
-        margin-bottom: 6px;
+        margin-bottom: var(--sasv-space-3);
       }
       .login-brand img {
-        width: 84px;
-        height: 84px;
-        object-fit: cover;
-        border-radius: 12px;
+        width: 88px;
+        height: 88px;
+        object-fit: contain;
         display: inline-block;
-        box-shadow: 0 8px 20px rgba(0, 90, 141, 0.12);
-        border: 2px solid rgba(0, 90, 141, 0.06);
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .login-product {
+        margin: 0 0 2px;
+        text-align: center;
+        font-size: var(--sasv-text-sm);
+        font-weight: var(--sasv-fw-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--sasv-primary);
+      }
+      .login-product-sub {
+        margin: 0 0 var(--sasv-space-5);
+        text-align: center;
+        font-size: var(--sasv-text-xs);
+        font-weight: var(--sasv-fw-medium);
+        color: var(--sasv-text-muted);
+        letter-spacing: 0.02em;
       }
       h2 {
         text-align: center;
-        margin-bottom: 24px;
-        color: var(--primary);
+        margin: 0 0 var(--sasv-space-5);
+        font-size: var(--sasv-text-xl);
+        font-weight: var(--sasv-fw-semibold);
+        color: var(--sasv-text);
+        letter-spacing: -0.01em;
       }
       .input-group {
-        margin-bottom: 16px;
+        margin-bottom: var(--sasv-space-4);
       }
       .input-group label {
         display: block;
-        font-size: 0.9em;
-        margin-bottom: 4px;
+        font-size: var(--sasv-text-sm);
+        font-weight: var(--sasv-fw-semibold);
+        color: var(--sasv-text-secondary);
+        margin-bottom: var(--sasv-space-1);
       }
       .input-group input {
         width: 100%;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 0.9em;
+        height: var(--sasv-control-lg);
+        padding: 0 12px;
+        border: 1px solid var(--sasv-border-strong);
+        border-radius: var(--sasv-radius-md);
+        font-size: var(--sasv-text-md);
+        font-family: inherit;
+        color: var(--sasv-text);
+        background: var(--sasv-surface);
         box-sizing: border-box;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .input-group input::placeholder {
+        color: var(--sasv-text-muted);
+      }
+      .input-group input:hover {
+        border-color: rgba(20, 122, 108, 0.35);
+      }
+      .input-group input:focus {
+        outline: none;
+        border-color: var(--sasv-primary);
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+      }
+      .password-group input {
+        padding-right: 42px;
       }
       .btn-group {
         display: flex;
-        gap: 12px;
-        margin-top: 24px;
+        gap: var(--sasv-space-3);
+        margin-top: var(--sasv-space-5);
       }
       .btn-group .btn {
         flex: 1;
-        min-height: 40px;
+        min-height: var(--sasv-control-lg);
+        border-radius: var(--sasv-radius-md);
+        font-weight: var(--sasv-fw-semibold);
+      }
+      .btn-group .btn.primary,
+      .btn-group #signInBtn {
+        background: var(--sasv-primary);
+        border-color: var(--sasv-primary);
+        color: var(--sasv-text-on-primary);
+      }
+      .btn-group .btn.primary:hover,
+      .btn-group #signInBtn:hover {
+        background: var(--sasv-primary-hover);
+        border-color: var(--sasv-primary-hover);
       }
 
-      /* Password toggle button inside the field */
       .password-group {
         position: relative;
       }
       .password-group .icon-btn {
         position: absolute;
         right: 8px;
-        top: 32px;
+        top: 30px;
         border: 0;
         background: transparent;
         cursor: pointer;
-        color: #6b7280;
+        color: var(--sasv-text-muted);
         padding: 4px;
         line-height: 1;
-        z-index: 2; /* ensure above input for clickability */
+        z-index: 2;
+        border-radius: var(--sasv-radius-sm);
+      }
+      .password-group .icon-btn:hover {
+        color: var(--sasv-primary);
       }
       .password-group .icon-btn:focus-visible {
-        outline: 2px solid rgba(37, 99, 235, 0.6);
+        outline: 2px solid var(--sasv-focus-ring-strong);
         outline-offset: 2px;
       }
       .caps-hint {
         margin-top: 6px;
-        font-size: 0.8em;
-        color: #92400e;
+        font-size: var(--sasv-text-xs);
+        color: var(--sasv-warning);
         display: none;
       }
 
-      /* Remember/reset row */
       .meta-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-top: 10px;
-        font-size: 0.9em;
+        font-size: var(--sasv-text-sm);
+        color: var(--sasv-text-secondary);
       }
       .remember input {
         margin-right: 6px;
+        accent-color: var(--sasv-primary);
       }
       .reset-link,
       .reset-btn {
         background: none;
         border: none;
         padding: 0;
-        color: var(--primary);
+        color: var(--sasv-primary);
         text-decoration: underline;
-        font-size: 0.9em;
+        text-underline-offset: 2px;
+        font-size: var(--sasv-text-sm);
         cursor: pointer;
+        font-family: inherit;
       }
       .reset-link:hover,
       .reset-btn:hover {
-        opacity: 0.85;
+        color: var(--sasv-primary-hover);
       }
       .aux-row {
         display: flex;
-        justify-content: center; /* center the forgot password link */
-        margin-top: 16px; /* increased spacing from buttons */
-      }
-      .reset-btn {
-        background: none;
-        border: none;
-        color: var(--primary);
-        text-decoration: underline;
-        font-size: 0.9em;
-        cursor: pointer;
-        padding: 0;
-      }
-      .reset-btn:hover {
-        background: none;
-        opacity: 0.8;
+        justify-content: center;
+        margin-top: var(--sasv-space-4);
       }
       .error {
-        margin-top: 16px;
-        color: #d32f2f;
-        font-size: 0.85em;
+        margin-top: var(--sasv-space-4);
+        padding: var(--sasv-space-2) var(--sasv-space-3);
+        border-radius: var(--sasv-radius-md);
+        background: var(--sasv-danger-bg);
+        border: 1px solid var(--sasv-danger-border);
+        color: var(--sasv-danger);
+        font-size: var(--sasv-text-sm);
         text-align: center;
+      }
+      .error:empty {
+        display: none;
+        padding: 0;
+        border: 0;
+        margin: 0;
+      }
+
+      @media (max-width: 420px) {
+        body {
+          padding: var(--sasv-space-4);
+          align-items: flex-start;
+          padding-top: 12vh;
+        }
+        .login-container {
+          padding: var(--sasv-space-6) var(--sasv-space-4);
+        }
+        .btn-group {
+          flex-direction: column;
+        }
       }
 
       /* ─── Option A: Status Morph (card stays in place) ─────── */
@@ -200,26 +308,29 @@
       .lsp-brand-icon {
         width: 32px;
         height: 32px;
-        border-radius: 7px;
-        background: var(--primary);
+        border-radius: 0;
         flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: visible;
       }
-      .lsp-brand-icon svg {
+      .lsp-brand-icon img {
         display: block;
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
       }
       .lsp-brand-text {
         font-size: 0.82em;
         font-weight: 600;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--primary);
+        color: var(--sasv-primary);
       }
       .lsp-brand-sub {
         font-size: 0.72em;
-        color: #6b7280;
+        color: var(--sasv-text-muted);
         letter-spacing: 0.04em;
         margin-top: 1px;
       }
@@ -259,16 +370,16 @@
 
       /* Active: spinning arc, primary colour */
       .lsp-step[data-state="active"] .lsp-icon {
-        border: 2px solid #d6e4f0;
-        border-top-color: var(--primary);
-        border-right-color: var(--primary);
+        border: 2px solid var(--sasv-primary-100);
+        border-top-color: var(--sasv-primary);
+        border-right-color: var(--sasv-primary);
         animation: lsp-spin 0.65s linear infinite;
       }
 
       /* Done: filled circle with checkmark */
       .lsp-step[data-state="done"] .lsp-icon {
-        background: var(--primary);
-        border: 2px solid var(--primary);
+        background: var(--sasv-primary);
+        border: 2px solid var(--sasv-primary);
       }
       .lsp-step[data-state="done"] .lsp-icon::after {
         content: "";
@@ -290,25 +401,25 @@
         color: #b0bac6;
       }
       .lsp-step[data-state="active"] .lsp-label {
-        color: var(--primary);
+        color: var(--sasv-primary);
         font-weight: 600;
       }
       .lsp-step[data-state="done"] .lsp-label {
-        color: #374151;
+        color: var(--sasv-text-secondary);
       }
 
       /* Progress bar */
       .lsp-bar-track {
         margin-top: 28px;
         height: 3px;
-        background: #e8edf3;
+        background: var(--sasv-primary-100);
         border-radius: 2px;
         overflow: hidden;
       }
       .lsp-bar-fill {
         height: 100%;
         width: 0%;
-        background: var(--primary);
+        background: var(--sasv-primary);
         border-radius: 2px;
         animation: lsp-bar 1.85s cubic-bezier(0.4, 0, 0.2, 1) forwards;
       }
@@ -319,10 +430,12 @@
     <div class="login-container">
       <div class="login-brand">
         <img
-          src="public/shared/assets/sasv_workspace_sw_transparent_512.png"
+          src="public/shared/assets/branding/derived/app-mark-512.png"
           alt="SASV Workspace"
         />
       </div>
+      <p class="login-product">SASV Workspace</p>
+      <p class="login-product-sub">Manufacturing operations workspace</p>
       <h2>Sign In</h2>
 
       <div class="input-group">

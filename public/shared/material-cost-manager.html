@@ -1,10 +1,11 @@
 <!doctype html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Material Cost Manager</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
+    <link rel="stylesheet" href="../shared/css/sasv-costing.css" />
     <style>
       :root {
         --cp-fw-body: 400;
@@ -35,12 +36,7 @@
         margin: 0;
         overflow: hidden;
         box-sizing: border-box;
-        font-family:
-          system-ui,
-          Segoe UI,
-          Roboto,
-          Arial,
-          sans-serif;
+        /* font from sasv-costing / Inter via style.css */
       }
       body {
         display: flex;
@@ -65,7 +61,7 @@
       }
       .page-header h1 {
         margin: 0;
-        color: var(--primary);
+        color: var(--sasv-text, var(--text, #0f172a));
         font-weight: var(--cp-fw-heading);
       }
       .page-sub {
@@ -90,13 +86,13 @@
         cursor: pointer;
       }
       .icon-btn.costing-refresh-dirty {
-        border-color: #d97706;
-        color: #b45309;
-        background: #fffbeb;
-        box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.18);
+        border-color: var(--sasv-warning-border);
+        color: var(--sasv-warning);
+        background: var(--sasv-warning-bg);
+        box-shadow: 0 0 0 2px var(--sasv-focus-ring);
       }
       .icon-btn:hover {
-        background: #f3f4f6;
+        background: var(--sasv-surface-soft, #f3f4f6);
       }
       .icon-btn:disabled {
         opacity: 0.55;
@@ -109,15 +105,15 @@
         width: 30px;
         height: 30px;
         padding: 0;
-        border-color: #fecaca;
-        background: #fef2f2;
-        color: #991b1b;
+        border-color: var(--sasv-danger-border);
+        background: var(--sasv-danger-bg);
+        color: var(--sasv-danger);
       }
       .icon-btn.cp-danger-icon-btn:hover,
       .icon-btn.cp-danger-icon-btn:focus-visible {
-        background: #fee2e2;
-        border-color: #fca5a5;
-        color: #7f1d1d;
+        background: color-mix(in srgb, var(--sasv-danger) 14%, #fff);
+        border-color: var(--sasv-danger-border);
+        color: var(--sasv-danger);
       }
       .icon-btn.cp-danger-icon-btn svg {
         stroke: currentColor;
@@ -200,10 +196,10 @@
         width: 100%;
       }
       .kpi {
-        background: linear-gradient(180deg, var(--panel-bg), var(--panel-bg));
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        background: var(--sasv-surface, var(--panel-bg));
+        border: 1px solid var(--sasv-border, rgba(0, 0, 0, 0.06));
         padding: 5px 8px;
-        border-radius: 7px;
+        border-radius: var(--sasv-radius-sm, 7px);
         min-width: 0;
         display: flex;
         flex-direction: row;
@@ -245,48 +241,28 @@
         border-color: rgba(15, 23, 42, 0.12);
       }
       .cp-kpi-action:focus-visible {
-        outline: 2px solid var(--primary, #2563eb);
+        outline: 2px solid var(--sasv-action-primary);
         outline-offset: 2px;
       }
       .kpi.total {
-        border-left: 3px solid #2563eb;
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.06),
-          rgba(37, 99, 235, 0.02)
-        );
+        border-left: 3px solid var(--sasv-action-primary);
+        background: var(--sasv-action-primary-soft);
       }
       .kpi.ready {
-        border-left: 3px solid #16a34a;
-        background: linear-gradient(
-          135deg,
-          rgba(22, 163, 74, 0.07),
-          rgba(22, 163, 74, 0.02)
-        );
+        border-left: 3px solid var(--sasv-success);
+        background: var(--sasv-success-bg);
       }
       .kpi.review {
-        border-left: 3px solid #f59e0b;
-        background: linear-gradient(
-          135deg,
-          rgba(245, 158, 11, 0.07),
-          rgba(245, 158, 11, 0.02)
-        );
+        border-left: 3px solid var(--sasv-warning);
+        background: var(--sasv-warning-bg);
       }
       .kpi.blocked {
-        border-left: 3px solid #ef4444;
-        background: linear-gradient(
-          135deg,
-          rgba(239, 68, 68, 0.07),
-          rgba(239, 68, 68, 0.02)
-        );
+        border-left: 3px solid var(--sasv-danger);
+        background: var(--sasv-danger-bg);
       }
       .kpi.scheme {
-        border-left: 3px solid #4f46e5;
-        background: linear-gradient(
-          135deg,
-          rgba(79, 70, 229, 0.07),
-          rgba(79, 70, 229, 0.02)
-        );
+        border-left: 3px solid var(--sasv-info);
+        background: var(--sasv-info-bg);
       }
       @media (max-width: 800px) {
         .kpi-strip {
@@ -427,30 +403,32 @@
         }
       }
       #search,
-      #rmTraceSearch {
-        background: #e6f7ff;
-        border-color: rgba(14, 165, 233, 0.35);
-        padding: 8px 10px;
-        border-radius: 8px;
-        border: 1px solid var(--border, #e5e7eb);
-        font-weight: 400;
+      #rmTraceSearch,
+      #pmTraceSearch {
+        background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+        border: 1px solid var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+        padding: 8px 38px 8px 10px;
+        border-radius: var(--sasv-radius-sm, 6px);
+        font-weight: var(--sasv-fw-regular, 400);
         width: 100%;
         box-sizing: border-box;
-      }
-      #search {
-        padding-right: 38px;
+        min-height: var(--sasv-control-md, 36px);
+        color: var(--sasv-text, inherit);
       }
       #search::placeholder,
-      #rmTraceSearch::placeholder {
-        font-weight: 400;
-        color: var(--muted, #6b7280);
+      #rmTraceSearch::placeholder,
+      #pmTraceSearch::placeholder {
+        font-weight: var(--sasv-fw-regular, 400);
+        color: var(--sasv-text-muted, var(--muted, #6b7280));
         opacity: 0.9;
       }
       #search:focus,
-      #rmTraceSearch:focus {
+      #rmTraceSearch:focus,
+      #pmTraceSearch:focus {
         outline: none;
-        border-color: var(--erp-accent-2, #0ea5e9);
-        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
+        border-color: var(--sasv-control-border-focus, var(--sasv-action-primary));
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+        background: var(--sasv-control-bg, #fff);
       }
       .input-clear-btn {
         position: absolute;
@@ -490,18 +468,20 @@
       }
       .peq-filter-btn:hover,
       .peq-filter-btn:focus-visible {
-        background: var(--erp-hover, #f3f4f6);
-        border-color: var(--erp-accent, #2563eb);
-        color: var(--erp-accent, #2563eb);
+        background: var(--sasv-surface-soft, var(--erp-hover, #f3f4f6));
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
         outline: none;
       }
       .peq-filter-btn--active {
-        background: #eff6ff;
-        border-color: #bfdbfe;
-        color: #2563eb;
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
       }
       .peq-filter-btn--active:hover {
-        background: #dbeafe;
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
       }
       .peq-filter-badge {
         position: absolute;
@@ -511,8 +491,8 @@
         height: 14px;
         padding: 0 3px;
         border-radius: 999px;
-        background: #2563eb;
-        color: #fff;
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
         font-size: 9px;
         font-weight: var(--cp-fw-heading);
         line-height: 14px;
@@ -581,7 +561,7 @@
       .peq-filter-checklist input[type="checkbox"] {
         width: 14px;
         height: 14px;
-        accent-color: #2563eb;
+        accent-color: var(--sasv-action-primary-active);
         cursor: pointer;
         flex-shrink: 0;
       }
@@ -612,12 +592,8 @@
         display: flex;
         gap: 8px;
         padding: 8px;
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.05),
-          rgba(37, 99, 235, 0.02)
-        );
-        border: 1px solid var(--erp-border, var(--border, #e5e7eb));
+        background: var(--sasv-surface-soft, var(--panel-bg, #f8fafc));
+        border: 1px solid var(--sasv-border, var(--erp-border, var(--border, #e5e7eb)));
         border-radius: 10px;
         align-items: center;
         overflow-x: auto;
@@ -665,17 +641,19 @@
         transition: all 0.16s ease;
         white-space: nowrap;
         line-height: 1.2;
+        box-shadow: none;
       }
       .lens-pills .pill:hover {
-        color: var(--erp-text, #0f172a);
-        background: rgba(37, 99, 235, 0.05);
-        border-color: rgba(37, 99, 235, 0.12);
+        color: var(--sasv-text, var(--erp-text, #0f172a));
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
       }
       .lens-pills .pill.active {
-        color: #fff;
-        background: var(--erp-accent, var(--primary, #2563eb));
-        border-color: var(--erp-accent, var(--primary, #2563eb));
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+        color: var(--sasv-action-primary-active);
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
         font-weight: var(--cp-fw-heading);
       }
       @media (max-width: 520px) {
@@ -704,11 +682,11 @@
           width: 100%;
           padding: 8px 42px 8px 10px;
           border-radius: 8px;
-          border: 1px solid var(--erp-accent, #2563eb);
+          border: 1px solid var(--sasv-action-primary);
           background: linear-gradient(
             135deg,
-            rgba(37, 99, 235, 0.12),
-            rgba(37, 99, 235, 0.06)
+            var(--sasv-action-primary-soft-border),
+            var(--sasv-action-primary-soft)
           );
           color: #0f172a;
           font-weight: var(--cp-fw-label);
@@ -725,7 +703,7 @@
           height: 18px;
           pointer-events: none;
           display: block;
-          color: var(--erp-accent, #2563eb);
+          color: var(--sasv-action-primary);
         }
         #homeBtn .home-label {
           display: none;
@@ -760,10 +738,10 @@
         flex-direction: column;
         overflow: hidden;
         position: relative;
-        border: 1px solid var(--border, #e5e7eb);
-        border-radius: 8px;
+        border: 1px solid var(--sasv-border, var(--border, #e5e7eb));
+        border-radius: var(--sasv-radius-md, 8px);
         padding: 8px;
-        background: var(--panel-bg);
+        background: var(--sasv-surface, var(--panel-bg));
       }
       #tableWrap {
         flex: 1 1 0;
@@ -799,15 +777,15 @@
         border-radius: 999px;
       }
       .generic-table-meta-actions .icon-btn.icon-btn-primary {
-        background: color-mix(in srgb, var(--primary, #2563eb) 16%, #fff);
-        border-color: color-mix(in srgb, var(--primary, #2563eb) 34%, #fff);
-        color: var(--primary, #2563eb);
+        background: color-mix(in srgb, var(--sasv-action-primary) 16%, #fff);
+        border-color: color-mix(in srgb, var(--sasv-action-primary) 34%, #fff);
+        color: var(--sasv-action-primary-active, var(--primary));
       }
       .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
       .generic-table-meta-actions .icon-btn.icon-btn-primary:focus-visible {
-        background: color-mix(in srgb, var(--primary, #2563eb) 24%, #fff);
-        border-color: color-mix(in srgb, var(--primary, #2563eb) 48%, #fff);
-        color: var(--primary, #2563eb);
+        background: color-mix(in srgb, var(--sasv-action-primary) 24%, #fff);
+        border-color: color-mix(in srgb, var(--sasv-action-primary) 48%, #fff);
+        color: var(--sasv-action-primary-active);
       }
       .generic-table-meta-actions .icon-btn.icon-btn-primary svg {
         display: block;
@@ -858,7 +836,7 @@
         cursor: pointer;
       }
       tr.clickable:hover {
-        background: rgba(37, 99, 235, 0.045);
+        background: var(--sasv-action-primary-soft);
       }
       .lane-col {
         width: 6px;
@@ -870,19 +848,19 @@
         width: 5px;
         min-height: 28px;
         border-radius: 6px;
-        background: #6b7280;
+        background: var(--sasv-text-muted, #6b7280);
       }
       .lane.ready {
-        background: #16a34a;
+        background: var(--sasv-success);
       }
       .lane.review {
-        background: #f59e0b;
+        background: var(--sasv-warning);
       }
       .lane.blocked {
-        background: #ef4444;
+        background: var(--sasv-danger);
       }
       .lane.scheme {
-        background: #4f46e5;
+        background: var(--sasv-info);
       }
       .c-center {
         text-align: center;
@@ -963,7 +941,7 @@
         width: 16px;
         height: 16px;
         border: 2px solid #d1d5db;
-        border-top-color: var(--primary, #2563eb);
+        border-top-color: var(--sasv-action-primary);
         border-radius: 50%;
         animation: cp-spin 0.75s linear infinite;
       }
@@ -990,39 +968,39 @@
       }
       .chip.green,
       .status-chip.green {
-        background: #ecfdf5;
-        border-color: #86efac;
-        color: #166534;
+        background: var(--sasv-success-bg);
+        border-color: var(--sasv-success-border);
+        color: var(--sasv-success);
       }
       .chip.amber,
       .status-chip.amber {
-        background: #fffbeb;
-        border-color: #fcd34d;
-        color: #92400e;
+        background: var(--sasv-warning-bg);
+        border-color: var(--sasv-warning-border);
+        color: var(--sasv-warning);
       }
       .chip.red,
       .status-chip.red {
-        background: #fef2f2;
-        border-color: #fca5a5;
-        color: #991b1b;
+        background: var(--sasv-danger-bg);
+        border-color: var(--sasv-danger-border);
+        color: var(--sasv-danger);
       }
       .chip.blue,
       .status-chip.blue {
-        background: #eff6ff;
-        border-color: #93c5fd;
-        color: #1d4ed8;
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
       }
       .chip.indigo,
       .status-chip.indigo {
-        background: #eef2ff;
-        border-color: #a5b4fc;
-        color: #3730a3;
+        background: var(--sasv-info-bg);
+        border-color: var(--sasv-info-border);
+        color: var(--sasv-info);
       }
       .chip.gray,
       .status-chip.gray {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
-        color: #475569;
+        background: var(--sasv-surface-soft);
+        border-color: var(--sasv-border);
+        color: var(--sasv-text-secondary);
       }
       #detailsModal .modal-content .status-chip,
       .modal-content .cp-audit-card-head .status-chip {
@@ -1054,9 +1032,9 @@
       }
       [data-theme="dark"] .status-chip.blue,
       [data-theme="dark"] .chip.blue {
-        background: #172554;
-        border-color: #1d4ed8;
-        color: #93c5fd;
+        background: color-mix(in srgb, var(--sasv-action-primary) 28%, #0f172a);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-soft);
       }
       [data-theme="dark"] .status-chip.indigo,
       [data-theme="dark"] .chip.indigo {
@@ -1294,8 +1272,8 @@
         white-space: nowrap;
       }
       .cp-printable-section-row td {
-        background: rgba(37, 99, 235, 0.055);
-        color: var(--text, #0f172a);
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-text, var(--text, #0f172a));
         font-size: 12px;
         font-weight: var(--cp-fw-section);
         text-transform: uppercase;
@@ -1359,19 +1337,17 @@
       }
       .icon-btn.icon-btn-primary,
       button.icon-btn-primary {
-        background: var(--primary, #2563eb);
-        border-color: var(--primary, #2563eb);
-        color: #fff;
+        background: var(--sasv-action-primary);
+        border-color: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
       }
       .icon-btn.icon-btn-primary:hover,
       button.icon-btn-primary:hover,
       .icon-btn.icon-btn-primary:focus-visible,
       button.icon-btn-primary:focus-visible {
-        background: #1d4ed8;
-        background: color-mix(in srgb, var(--primary, #2563eb) 86%, #000);
-        border-color: #1d4ed8;
-        border-color: color-mix(in srgb, var(--primary, #2563eb) 86%, #000);
-        color: #fff;
+        background: var(--sasv-action-primary-hover);
+        border-color: var(--sasv-action-primary-hover);
+        color: var(--sasv-text-on-primary, #fff);
       }
       .icon-btn.icon-btn-primary svg,
       button.icon-btn-primary svg {
@@ -1379,24 +1355,24 @@
       }
       #costSheetPdfBtn.icon-btn.icon-btn-primary,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary {
-        background: var(--primary, #2563eb) !important;
-        border-color: var(--primary, #2563eb) !important;
+        background: var(--sasv-action-primary, var(--primary)) !important;
+        border-color: var(--sasv-action-primary, var(--primary)) !important;
         color: #fff !important;
       }
       #costSheetPdfBtn.icon-btn.icon-btn-primary:hover,
       #costSheetPdfBtn.icon-btn.icon-btn-primary:focus-visible,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:hover,
       #costSheetSignConfirmBtn.icon-btn.icon-btn-primary:focus-visible {
-        background: #1d4ed8 !important;
+        background: var(--sasv-action-primary-hover) !important;
         background: color-mix(
           in srgb,
-          var(--primary, #2563eb) 86%,
+          var(--sasv-action-primary) 86%,
           #000
         ) !important;
-        border-color: #1d4ed8 !important;
+        border-color: var(--sasv-action-primary-hover) !important;
         border-color: color-mix(
           in srgb,
-          var(--primary, #2563eb) 86%,
+          var(--sasv-action-primary) 86%,
           #000
         ) !important;
         color: #fff !important;
@@ -1757,7 +1733,7 @@
       }
       .manual-rate-material-option:hover,
       .manual-rate-material-option.is-active {
-        background: rgba(37, 99, 235, 0.07);
+        background: var(--sasv-action-primary-soft);
       }
       .manual-rate-material-option-title {
         font-size: 13px;
@@ -1912,7 +1888,7 @@
         min-height: 0;
         padding: 0;
         flex-shrink: 0;
-        accent-color: #2563eb;
+        accent-color: var(--sasv-action-primary-active);
       }
       .cp-checkbox-row {
         margin-top: 4px;
@@ -1993,16 +1969,17 @@
         color: inherit;
       }
       .cp-manager-tab-card:hover {
-        border-color: rgba(37, 99, 235, 0.28);
-        background: rgba(37, 99, 235, 0.035);
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
       }
       .cp-manager-tab-card.active {
-        border-color: rgba(37, 99, 235, 0.55);
-        background: rgba(37, 99, 235, 0.08);
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+        box-shadow: none;
       }
       .cp-manager-tab-card.active .cp-card-label,
       .cp-manager-tab-card.active .cp-card-value {
-        color: var(--primary, #2563eb);
+        color: var(--sasv-action-primary-active);
       }
       #manualRateManagerControls {
         margin: 8px 0 6px;
@@ -2060,21 +2037,23 @@
         background: var(--panel-bg, #fff);
       }
       .rm-cost-trace-toolbar .cp-period-item {
-        flex: 0 1 150px;
-        min-width: 120px;
+        flex: 0 1 116px;
+        min-width: 108px;
+        max-width: 124px;
       }
       .rm-cost-trace-toolbar .rm-trace-select-wrap {
-        flex: 0 1 170px;
-        min-width: 130px;
+        flex: 0 1 136px;
+        min-width: 120px;
+        max-width: 148px;
       }
       .rm-cost-trace-toolbar .rm-trace-search-wrap {
-        flex: 1 1 220px;
-        min-width: 160px;
+        flex: 1 1 180px;
+        min-width: 180px;
       }
       .rm-cost-trace-toolbar .link-btn {
         background: none;
         border: none;
-        color: var(--primary, #2563eb);
+        color: var(--sasv-action-primary-active, var(--primary));
         cursor: pointer;
         padding: 6px 2px;
         font-size: 13px;
@@ -2111,15 +2090,90 @@
         font-size: 12px;
         color: var(--muted, #6b7280);
       }
-      #tableWrap[data-lens="rm-cost-trace"] table {
-        min-width: 1280px;
+      #tableWrap[data-lens="rm-cost-trace"] table,
+      #tableWrap[data-lens="pm-cost-trace"] table {
+        min-width: 1180px;
       }
-      .rm-trace-warning-cell {
+      .cp-anchored-disclosure {
+        position: relative;
         display: inline-block;
-        max-width: 180px;
-        white-space: nowrap;
+        max-width: 100%;
+        vertical-align: middle;
+      }
+      .cp-evidence-warning-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        padding: 2px 8px;
+        border: 1px solid var(--sasv-action-primary);
+        border-radius: 999px;
+        color: var(--sasv-action-primary-active, var(--primary));
+        background: var(--sasv-action-primary-soft);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        cursor: pointer;
+      }
+      .cp-evidence-warning-chip-label {
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cp-anchored-disclosure.is-open .cp-evidence-warning-chip,
+      .cp-anchored-disclosure.is-preview .cp-evidence-warning-chip {
+        background: var(--sasv-action-primary-soft-border);
+      }
+      .cp-anchored-popover {
+        position: fixed;
+        z-index: 6000;
+        left: 0;
+        top: 0;
+        box-sizing: border-box;
+        min-width: 220px;
+        width: min(360px, calc(100vw - 16px));
+        max-width: min(360px, calc(100vw - 16px));
+        max-height: min(280px, calc(100vh - 16px));
+        padding: 8px 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+        font-size: 12px;
+        line-height: 1.45;
+        overflow: auto;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        white-space: normal !important;
+      }
+      .cp-anchored-popover,
+      .cp-anchored-popover * {
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .cp-anchored-popover-row {
+        display: grid;
+        gap: 2px;
+        margin-bottom: 8px;
+      }
+      .cp-anchored-popover-row:last-child {
+        margin-bottom: 0;
+      }
+      .cp-anchored-popover[hidden] {
+        display: none !important;
+      }
+      .trace-load-more-sentinel {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 28px;
+        padding: 8px 4px 12px;
+        color: var(--muted, #6b7280);
+        font-size: 12px;
+      }
+      .trace-load-more-sentinel.hidden {
+        display: none !important;
       }
       @media (max-width: 960px) {
         .rm-cost-trace-toolbar .link-btn {
@@ -2257,10 +2311,10 @@
         box-sizing: border-box;
       }
       .modal-window .tab.active {
-        background: var(--primary, #2563eb);
-        color: #fff;
-        border-color: var(--primary, #2563eb);
-        font-weight: var(--cp-fw-heading);
+        background: var(--sasv-selection-soft);
+        color: var(--sasv-action-primary-active);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
       }
       .modal-content {
         flex: 1 1 auto;
@@ -2425,12 +2479,12 @@
       }
     </style>
   </head>
-  <body
+  <body class="sasv-module sasv-module--app sasv-costing sasv-material-cost-manager"
     data-costing-module-key="material-cost-manager"
     data-costing-suite-id="material-cost"
     data-costing-default-lens="manual-rate-manager"
     data-costing-show-kpi="false"
-  >
+   data-theme="system">
     <div
       id="manualProvisionEditModal"
       class="cost-sheet-sign-modal hidden"
@@ -2633,7 +2687,7 @@
     >
       <div class="page-header">
         <div>
-          <h1>Material Cost Manager</h1>
+          <h1 class="sasv-module-title">Material Cost Manager</h1>
           <div class="page-sub" id="subtitle">
             RM/PM manual rates, material action queue, review acceptance, and
             costing material blockers
@@ -2647,45 +2701,14 @@
             title="Request Costing Refresh"
             aria-label="Request Costing Refresh"
             class="icon-btn"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="23 4 23 10 17 10"></polyline>
-              <polyline points="1 20 1 14 7 14"></polyline>
-              <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
-              <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
-            </svg>
-          </button>
+          ></button>
           <button
             id="exportCsv"
             type="button"
             title="Export CSV"
             aria-label="Export CSV"
             class="icon-btn"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
+          ></button>
           <div
             id="lastRefreshed"
             class="sc-snapshot"
@@ -2700,20 +2723,13 @@
               Last refreshed: --
             </div>
           </div>
-          <button id="homeBtn" type="button" title="Home" aria-label="Home">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            <span class="home-label">HOME</span>
-          </button>
+          <button
+            id="homeBtn"
+            type="button"
+            class="icon-btn sasv-home-btn"
+            title="HOME"
+            aria-label="HOME"
+          ></button>
         </div>
       </div>
     </div>
@@ -2778,8 +2794,8 @@
               aria-haspopup="true"
             >
               <svg
-                width="15"
-                height="15"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -3075,7 +3091,7 @@
           <div id="rmCostTraceRestricted" class="rm-cost-trace-restricted hidden"></div>
           <div id="rmCostTraceFilters" class="rm-cost-trace-filters">
             <div class="rm-cost-trace-toolbar">
-              <div class="filter-item cp-period-item">
+              <div class="filter-item cp-period-item" id="rmTracePeriodHost">
                 <select
                   id="costingPeriodSelect"
                   class="cp-period-select"
@@ -3166,11 +3182,100 @@
                 <input
                   id="rmTraceSearch"
                   type="search"
-                  placeholder="Material code or name"
-                  aria-label="RM trace material search"
+                  placeholder="Search item code, item name, product or SKU"
+                  aria-label="Search item code, item name, product or SKU"
                 />
               </div>
               <button type="button" id="rmTraceClearFilters" class="link-btn">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+        <div
+          id="pmCostTraceChrome"
+          class="rm-cost-trace-chrome hidden"
+          aria-hidden="true"
+        >
+          <div id="pmCostTraceSnapshot" class="rm-cost-trace-meta"></div>
+          <div id="pmCostTraceRestricted" class="rm-cost-trace-restricted hidden"></div>
+          <div id="pmCostTraceFilters" class="rm-cost-trace-filters">
+            <div class="rm-cost-trace-toolbar">
+              <div class="filter-item cp-period-item" id="pmTracePeriodHost"></div>
+              <div class="rm-trace-select-wrap">
+                <select id="pmTraceProduct" aria-label="PM trace product"></select>
+              </div>
+              <div class="rm-trace-select-wrap">
+                <select id="pmTraceSku" aria-label="PM trace SKU"></select>
+              </div>
+              <div id="pmTraceAdvancedWrap" class="rm-trace-advanced-wrap">
+                <button
+                  type="button"
+                  id="pmTraceAdvancedBtn"
+                  class="peq-filter-btn"
+                  title="Filters"
+                  aria-label="Filters"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  aria-controls="pmTraceAdvancedPanel"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg>
+                  <span
+                    id="pmTraceFilterBadge"
+                    class="peq-filter-badge"
+                    style="display: none"
+                  ></span>
+                </button>
+                <div
+                  id="pmTraceAdvancedPanel"
+                  class="rm-trace-advanced-panel"
+                  role="dialog"
+                  aria-label="PM Cost Trace secondary filters"
+                >
+                  <label>
+                    PM source
+                    <select
+                      id="pmTraceBomSource"
+                      aria-label="PM trace source type"
+                    ></select>
+                  </label>
+                  <label>
+                    Review state
+                    <select
+                      id="pmTraceReviewState"
+                      aria-label="PM trace review state"
+                    ></select>
+                  </label>
+                  <label>
+                    Warning / status
+                    <select
+                      id="pmTraceWarningStatus"
+                      aria-label="PM trace warning status"
+                    ></select>
+                  </label>
+                </div>
+              </div>
+              <div class="rm-trace-search-wrap">
+                <input
+                  id="pmTraceSearch"
+                  type="search"
+                  placeholder="Search PM item code, item name, product or pack"
+                  aria-label="Search PM item code, item name, product or pack"
+                />
+              </div>
+              <button type="button" id="pmTraceClearFilters" class="link-btn">
                 Clear
               </button>
             </div>

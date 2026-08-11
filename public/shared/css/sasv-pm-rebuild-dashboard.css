@@ -1,0 +1,597 @@
+/**
+ * UI-MOD-4I — PM Rebuild Dashboard specialization.
+ * Scoped to body.sasv-pm-rebuild-dashboard only.
+ * Contracts: v_mrp_plm_* / mrp_plm_rebuild_*.
+ *
+ * Viewport gutter: inherit body.sasv-module.sasv-module--app
+ * (--sasv-module-page-padding 20 / 10 / 6) — do not restate here.
+ */
+
+body.sasv-module.sasv-module--app.sasv-pm-rebuild-dashboard {
+  margin: 0;
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  font-family: var(--sasv-font-sans);
+  box-sizing: border-box;
+}
+
+/* Chrome / context / filters / actions stay; table region fills */
+body.sasv-pm-rebuild-dashboard > .header-card,
+body.sasv-pm-rebuild-dashboard > .pmr-workspace-strip,
+body.sasv-pm-rebuild-dashboard > #filters,
+body.sasv-pm-rebuild-dashboard > .pmr-actions-block,
+body.sasv-pm-rebuild-dashboard > #dryRunPanel {
+  flex-shrink: 0;
+}
+
+body.sasv-pm-rebuild-dashboard > .pmr-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/*
+ * Table-wrap safety audit (UI-MOD-4I):
+ * A. #summaryContainer — intentional flex-fill overview workspace (KEEP fill).
+ * B. No .table-wrap / .table-scroll / #tableWrap currently used.
+ * Neutralize ordinary shared wrappers if introduced later.
+ */
+body.sasv-pm-rebuild-dashboard .table-wrap,
+body.sasv-pm-rebuild-dashboard .table-scroll,
+body.sasv-pm-rebuild-dashboard .table-container,
+body.sasv-pm-rebuild-dashboard #tableWrap {
+  flex: 0 1 auto;
+  min-height: auto;
+}
+
+body.sasv-pm-rebuild-dashboard #summaryContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+  max-height: none;
+}
+
+/* ── Header / HOME ──────────────────────────────────────────────────────── */
+body.sasv-pm-rebuild-dashboard .header-card {
+  padding: 0;
+  margin: 0 0 8px;
+  background: transparent;
+  border: none;
+  display: block;
+}
+
+body.sasv-pm-rebuild-dashboard .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+  width: 100%;
+}
+
+body.sasv-pm-rebuild-dashboard .pmr-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-pm-rebuild-dashboard .page-header h1,
+body.sasv-pm-rebuild-dashboard .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-pm-rebuild-dashboard .page-sub {
+  margin: 4px 0 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+}
+
+body.sasv-pm-rebuild-dashboard .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+body.sasv-pm-rebuild-dashboard #homeBtn.sasv-home-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  body.sasv-pm-rebuild-dashboard .page-sub {
+    display: none;
+  }
+}
+
+/* ── Workspace context strip (Month only) ───────────────────────────────── */
+body.sasv-pm-rebuild-dashboard .pmr-workspace-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: none;
+}
+
+body.sasv-pm-rebuild-dashboard .pmr-workspace-strip .filter-pair label {
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Filter / search toolbar ────────────────────────────────────────────── */
+body.sasv-pm-rebuild-dashboard .filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 8px;
+}
+
+body.sasv-pm-rebuild-dashboard .filter-pair {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+body.sasv-pm-rebuild-dashboard .filter-pair label {
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-pm-rebuild-dashboard .filter-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+body.sasv-pm-rebuild-dashboard input[type="checkbox"],
+body.sasv-pm-rebuild-dashboard input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-pm-rebuild-dashboard
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    .sasv-search-select__input
+  ),
+body.sasv-pm-rebuild-dashboard select:not(.sasv-native-select-sr),
+body.sasv-pm-rebuild-dashboard textarea {
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-pm-rebuild-dashboard
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    .sasv-search-select__input
+  ):focus,
+body.sasv-pm-rebuild-dashboard select:not(.sasv-native-select-sr):focus,
+body.sasv-pm-rebuild-dashboard textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-pm-rebuild-dashboard .filter-pair:has(#plmFilter),
+body.sasv-pm-rebuild-dashboard .pmr-plm-filter {
+  flex: 1 1 260px;
+  min-width: 220px;
+  max-width: 420px;
+}
+
+body.sasv-pm-rebuild-dashboard .pmr-plm-filter .sasv-search-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+body.sasv-pm-rebuild-dashboard .sasv-search-select__input {
+  background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+  border: 1px solid
+    var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+  height: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+}
+
+body.sasv-pm-rebuild-dashboard #rowCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border: 1px solid var(--sasv-action-primary-soft-border);
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  font-weight: 600;
+}
+
+/* ── Rebuild actions (UI-MOD-3D) ────────────────────────────────────────── */
+body.sasv-pm-rebuild-dashboard .pmr-actions-block {
+  margin: 0 0 8px;
+}
+
+body.sasv-pm-rebuild-dashboard .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+body.sasv-pm-rebuild-dashboard .btn,
+body.sasv-pm-rebuild-dashboard .btn-primary,
+body.sasv-pm-rebuild-dashboard .btn-secondary,
+body.sasv-pm-rebuild-dashboard #dryRunAllBtn,
+body.sasv-pm-rebuild-dashboard #rebuildAllBtn,
+body.sasv-pm-rebuild-dashboard #refreshBtn,
+body.sasv-pm-rebuild-dashboard #clearFilters,
+body.sasv-pm-rebuild-dashboard .link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+body.sasv-pm-rebuild-dashboard #rebuildAllBtn,
+body.sasv-pm-rebuild-dashboard .btn-primary {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  border: 1px solid var(--sasv-action-primary);
+}
+
+body.sasv-pm-rebuild-dashboard #rebuildAllBtn:hover,
+body.sasv-pm-rebuild-dashboard .btn-primary:hover {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-pm-rebuild-dashboard #dryRunAllBtn,
+body.sasv-pm-rebuild-dashboard .btn-secondary {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-control-border);
+}
+
+body.sasv-pm-rebuild-dashboard #dryRunAllBtn:hover,
+body.sasv-pm-rebuild-dashboard .btn-secondary:hover {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-pm-rebuild-dashboard #refreshBtn,
+body.sasv-pm-rebuild-dashboard #clearFilters,
+body.sasv-pm-rebuild-dashboard .link-btn {
+  background: transparent;
+  color: var(--sasv-action-primary-active);
+  border: 1px solid transparent;
+  font-weight: 500;
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px 10px;
+}
+
+body.sasv-pm-rebuild-dashboard #refreshBtn:hover,
+body.sasv-pm-rebuild-dashboard #clearFilters:hover,
+body.sasv-pm-rebuild-dashboard .link-btn:hover {
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable .link-btn {
+  padding: 4px 8px;
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable .link-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-pm-rebuild-dashboard #rebuildStatus {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+}
+
+body.sasv-pm-rebuild-dashboard .pmr-rebuild-hint {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  font-weight: 400;
+  margin-top: 4px;
+}
+
+/* ── Overview table ─────────────────────────────────────────────────────── */
+body.sasv-pm-rebuild-dashboard #plmOverviewTable {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  background: var(--sasv-surface);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-family: var(--sasv-font-sans);
+  font-weight: 600;
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-border);
+  vertical-align: middle;
+  font-family: var(--sasv-font-sans);
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable tbody tr:hover td {
+  background: var(--sasv-selection-soft, rgba(15, 40, 42, 0.04));
+  cursor: pointer;
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable tbody tr.selected td {
+  background: var(--sasv-selection-soft, rgba(15, 40, 42, 0.06));
+}
+
+/* Column alignment contracts via data-key */
+body.sasv-pm-rebuild-dashboard #plmOverviewTable th[data-key="plm"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="plm"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable th[data-key="flags"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="flags"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable th[data-key="top_consumers"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="top_consumers"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable th[data-key="actions"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="actions"] {
+  text-align: left;
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable th[data-key="planned_total_qty"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="planned_total_qty"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable th[data-key="issued_total_qty"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="issued_total_qty"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable th[data-key="net_requirement"],
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="net_requirement"] {
+  text-align: right;
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * FLAGS hover gap fix (UI-MOD-4I.1):
+ * Do NOT set display:flex on the <td> — that replaces table-cell layout and
+ * leaves a white strip from the table surface behind/around the cell paint.
+ * Keep td as table-cell; only the inner .flags wrapper is flex + transparent.
+ */
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="flags"] {
+  background-clip: padding-box;
+}
+
+body.sasv-pm-rebuild-dashboard #plmOverviewTable td[data-key="flags"] .flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.sasv-pm-rebuild-dashboard .badge-warning {
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  border: 1px solid var(--sasv-warning-border);
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  white-space: nowrap;
+}
+
+body.sasv-pm-rebuild-dashboard .badge-info {
+  background: var(--sasv-info-bg, var(--sasv-selection-soft));
+  color: var(--sasv-info, var(--sasv-action-primary-active));
+  border: 1px solid
+    var(--sasv-info-border, var(--sasv-action-primary-soft-border));
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  white-space: nowrap;
+}
+
+/* Dry-run / detail panel */
+body.sasv-pm-rebuild-dashboard .detail-panel,
+body.sasv-pm-rebuild-dashboard #dryRunPanel {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  padding: 12px;
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  flex-shrink: 0;
+}
+
+body.sasv-pm-rebuild-dashboard .muted {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
+/* Dynamic modals (#plm-modal-root) */
+body.sasv-pm-rebuild-dashboard #plm-modal-root .pmr-modal-box,
+body.sasv-pm-rebuild-dashboard #plm-modal-root > div:last-child {
+  background: var(--sasv-surface) !important;
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: var(--sasv-shadow-md, 0 6px 24px rgba(0, 0, 0, 0.18));
+}
+
+body.sasv-pm-rebuild-dashboard #plm-modal-root button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Detail modal actions (#copilot-detail-modal / mrp-btn) ─────────────── */
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal #copilot-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: none;
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn:hover:not(:disabled) {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: var(--sasv-text-muted);
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-border);
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn-secondary,
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn-ghost {
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-control-border);
+  font-weight: 500;
+}
+
+body.sasv-pm-rebuild-dashboard
+  #copilot-detail-modal
+  .mrp-btn-secondary:hover:not(:disabled),
+body.sasv-pm-rebuild-dashboard
+  #copilot-detail-modal
+  .mrp-btn-ghost:hover:not(:disabled) {
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn-primary {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  border-color: var(--sasv-action-primary);
+  font-weight: 600;
+}
+
+body.sasv-pm-rebuild-dashboard
+  #copilot-detail-modal
+  .mrp-btn-primary:hover:not(:disabled) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn-primary:disabled {
+  background: var(--sasv-text-muted);
+  border-color: var(--sasv-text-muted);
+  color: var(--sasv-text-on-primary);
+  opacity: 0.55;
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal .mrp-btn-danger {
+  background: var(--sasv-danger-bg);
+  color: var(--sasv-danger);
+  border-color: var(--sasv-danger-border);
+}
+
+body.sasv-pm-rebuild-dashboard #copilot-detail-modal #copilot-modal-close {
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  min-width: var(--sasv-control-sm, 32px);
+  padding: 4px;
+  flex-shrink: 0;
+}

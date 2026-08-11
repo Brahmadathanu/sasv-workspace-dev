@@ -1,4 +1,5 @@
 import { supabase } from '../public/shared/js/supabaseClient.js';
+import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 
 // — Dialog helpers —
 const dlgOv  = document.getElementById('dialogOverlay');
@@ -200,7 +201,8 @@ multiAddBtn.onclick = async () => {
 };
 
 // — Home nav —
-homeIcon.onclick = () => location.href = 'index.html';
+mountModuleHome(homeIcon);
+homeIcon.onclick = () => { location.href = 'index.html'; };
 
 // — Init —
 window.addEventListener('DOMContentLoaded', () => {

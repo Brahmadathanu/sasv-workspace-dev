@@ -83,7 +83,7 @@ INSERT INTO app_module_registry
 
 ### Permission Setup
 
-Add permission entry in user_permissions or user_permissions_canonical:
+Add a canonical permission entry (via Admin Console or SQL):
 
 ```sql
 INSERT INTO public.user_permissions_canonical
@@ -91,6 +91,8 @@ INSERT INTO public.user_permissions_canonical
 VALUES
 ('{user_uuid}', 'module:lab-workflow-access-control', true, true, now());
 ```
+
+Module access is resolved through `get_user_permissions` (canonical RPC), with an optional read of `user_permissions_canonical` if the RPC is unavailable. Missing grants deny access.
 
 ## Features Implemented
 

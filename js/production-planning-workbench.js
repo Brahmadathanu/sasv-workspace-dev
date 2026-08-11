@@ -1,10 +1,27 @@
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { showToast as sasvShowToast } from "../public/shared/js/toast.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
 
 // ============= Constants & State =============
 const PAGE_SIZE = 50; // Increased from 25 for better performance
 
 let currentUser = null;
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+try {
+  const homeEl = document.getElementById("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  else {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(document.getElementById("homeBtn")),
+      { once: true },
+    );
+  }
+} catch {
+  /* ignore chrome mount failures */
+}
 
 // Net SKU plan load guard to drop stale responses
 let currentNetSkuLoadId = 0;
@@ -49,8 +66,15 @@ function addMonths(d, n) {
 }
 
 function showToast(msg, type = "info") {
+  try {
+    sasvShowToast(msg, type, 3000);
+    return;
+  } catch {
+    /* fall through to legacy #toast host */
+  }
   const el = document.getElementById("toast");
-  el.textContent = msg;
+  if (!el) return;
+  el.textContent = msg == null ? "" : String(msg);
   el.style.background =
     type === "error" ? "#dc2626" : type === "success" ? "#10b981" : "#111827";
   el.style.display = "block";
@@ -1679,6 +1703,15 @@ function initTabSystem() {
   const SCROLL_DELTA = 200;
   function updateChevronState() {
     if (!tabsEl || !leftChevron || !rightChevron) return;
+    // Desktop: chevrons are a narrow-viewport overflow affordance only
+    // (see sasv-production-planning.css @media min-width 1081px).
+    if (window.matchMedia && window.matchMedia("(min-width: 1081px)").matches) {
+      leftChevron.style.display = "none";
+      rightChevron.style.display = "none";
+      leftChevron.setAttribute("disabled", "true");
+      rightChevron.setAttribute("disabled", "true");
+      return;
+    }
     const isOverflowing = tabsEl.scrollWidth > tabsEl.clientWidth + 2;
     if (!isOverflowing) {
       // hide chevrons when no overflow

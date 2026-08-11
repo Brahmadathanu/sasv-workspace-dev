@@ -1,0 +1,1923 @@
+/**
+ * UI-MOD-SC-2 — Stock Checker SASV Workspace specialization.
+ *
+ * Stock Checker remains a mature, purpose-built operational module.
+ * This file does NOT force generic sasv-module--app flex geometry.
+ *
+ * Scope: body.sasv-stock-checker only.
+ *
+ * Goals:
+ * - Full SASV Workspace visual appropriation via design tokens
+ * - Protect mature SC layout from shared/global side-effects
+ * - Keep local autocomplete, cards, infinite-scroll table intact
+ * - Merge SC-1 regression protections and expand token coverage
+ *
+ * Regression source key:
+ * A = Stock Checker local CSS (inline + legacy)
+ * B = sasv-module.css
+ * C = sasv-primitives.css
+ * D = style.css legacy/global
+ * E = shared HOME/action rules
+ */
+
+/* ── 2. Page root ─────────────────────────────────────────────────────────── */
+body.sasv-stock-checker {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  color: var(--sasv-text, var(--text-color));
+  background: var(--sasv-bg, var(--bg-color, #fafafa));
+  box-sizing: border-box;
+  margin: 0;
+  padding: 20px;
+  /* Operational accent derived from SASV action tokens (not legacy #0a62c3 / #2563eb) */
+  --sc-accent: var(--sasv-action-primary);
+  --sc-accent-strong: var(--sasv-action-primary-active);
+  --primary: var(--sc-accent);
+}
+
+@media (max-width: 1080px) {
+  body.sasv-stock-checker {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-checker {
+    padding: 6px;
+  }
+}
+
+/* ── 3. Canonical header ──────────────────────────────────────────────────── */
+body.sasv-stock-checker .sc-header-card,
+body.sasv-stock-checker .header-card.sc-header-card {
+  padding: 0;
+  margin: 0 0 12px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+body.sasv-stock-checker .sc-header-card .page-header.sc-header,
+body.sasv-stock-checker .page-header.sc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  margin-bottom: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-stock-checker .sc-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-stock-checker .sasv-module-title.sc-page-title,
+body.sasv-stock-checker .sc-page-title {
+  margin: 0;
+  padding: 0;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker .page-sub {
+  margin: 4px 0 0;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: var(--sasv-text-sm, 0.875rem);
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker .sc-actions,
+body.sasv-stock-checker .header-actions.sc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-checker .page-sub {
+    display: none;
+  }
+
+  body.sasv-stock-checker .sasv-module-title.sc-page-title,
+  body.sasv-stock-checker .sc-page-title {
+    font-size: 1.08rem;
+    line-height: 1.25;
+    font-weight: 600;
+  }
+
+  body.sasv-stock-checker .sc-actions,
+  body.sasv-stock-checker .header-actions.sc-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+/* ── 4. Value chip (#sc-total-value / .sc-pill) ───────────────────────────── */
+body.sasv-stock-checker #sc-total-value.sc-pill,
+body.sasv-stock-checker .sc-pill {
+  padding: 6px 10px;
+  border-radius: var(--sasv-radius-pill, 999px);
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary-active);
+  border: 1px solid var(--sasv-action-primary-soft-border);
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  width: auto;
+  flex: 0 1 auto;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 34px;
+  box-sizing: border-box;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+body.sasv-stock-checker #sc-total-value.sc-pill:hover,
+body.sasv-stock-checker .sc-pill:hover {
+  background: var(--sasv-action-secondary-hover, var(--sasv-primary-50));
+  border-color: var(--sasv-control-border-hover, var(--sasv-action-primary-soft-border));
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-stock-checker #sc-total-value.sc-pill:focus-visible,
+body.sasv-stock-checker .sc-pill:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-checker #sc-total-value.sc-pill svg,
+body.sasv-stock-checker .sc-pill svg {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+body.sasv-stock-checker #sc-total-value.sc-pill-icon svg text {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-checker #sc-total-value.sc-pill-icon {
+    min-width: auto;
+    max-width: none;
+    padding: 5px 10px;
+    border-radius: var(--sasv-radius-md, 8px);
+    gap: 0;
+  }
+
+  body.sasv-stock-checker #sc-total-value.sc-pill-icon svg {
+    display: none !important;
+  }
+
+  body.sasv-stock-checker #sc-total-value.sc-pill-icon .sc-pill-text {
+    display: inline-block;
+  }
+}
+
+/* ── 5. Freshness (.sc-snapshot) ──────────────────────────────────────────── */
+body.sasv-stock-checker .sc-snapshot {
+  background: var(--sasv-surface, #fff);
+  border: 1px solid var(--sasv-border, #e6eef8);
+  color: var(--sasv-text, #0f172a);
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+body.sasv-stock-checker .sc-snapshot:hover {
+  border-color: var(--sasv-border-strong, #cbd5e1);
+  box-shadow: var(--sasv-shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.05));
+}
+
+body.sasv-stock-checker .sc-snapshot:focus,
+body.sasv-stock-checker .sc-snapshot:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-checker .sc-snapshot-label {
+  color: var(--sasv-text-secondary, #374151);
+  font-size: var(--sasv-text-sm, 0.85rem);
+  font-weight: 500;
+}
+
+body.sasv-stock-checker .sc-snapshot.sc-status-expanded {
+  background: var(--sasv-surface-soft, #f8fafc);
+  border-color: var(--sasv-border-strong, #94a3b8);
+}
+
+body.sasv-stock-checker #sc-status-detail {
+  background: var(--sasv-surface-soft, #f8fafc);
+  border: 1px solid var(--sasv-border, #e2e8f0);
+  color: var(--sasv-text-secondary, #475569);
+  box-shadow: var(--sasv-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.06));
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+}
+
+body.sasv-stock-checker .sc-snapshot.snapshot-fresh .sc-snapshot-dot {
+  background: var(--sasv-success, #16a34a);
+}
+
+body.sasv-stock-checker .sc-snapshot.snapshot-warning .sc-snapshot-dot {
+  background: var(--sasv-warning, #f59e0b);
+}
+
+body.sasv-stock-checker .sc-snapshot.snapshot-stale .sc-snapshot-dot {
+  background: var(--sasv-danger, #ef4444);
+}
+
+/* ── 6. Icon utility buttons (#sc-download, #sc-filters-btn, #explode-details-btn) */
+body.sasv-stock-checker #sc-download,
+body.sasv-stock-checker #sc-filters-btn,
+body.sasv-stock-checker #explode-details-btn,
+body.sasv-stock-checker .sc-btn.sc-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: var(--sasv-control-md, 36px);
+  width: var(--sasv-control-md, 36px);
+  height: var(--sasv-control-md, 36px);
+  min-height: var(--sasv-control-md, 36px);
+  padding: 0;
+  gap: 0;
+  border-radius: var(--sasv-radius-sm, 6px);
+  border: 1px solid var(--sasv-control-border, var(--sasv-border-strong));
+  background: var(--sasv-surface-soft, var(--sasv-action-secondary));
+  color: var(--sasv-text-secondary);
+  box-shadow: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+body.sasv-stock-checker #sc-download:hover,
+body.sasv-stock-checker #sc-filters-btn:hover,
+body.sasv-stock-checker #explode-details-btn:hover,
+body.sasv-stock-checker .sc-btn.sc-btn-icon:hover {
+  background: var(--sasv-action-secondary-hover, var(--sasv-primary-50));
+  border-color: var(--sasv-control-border-hover, var(--sasv-action-primary-soft-border));
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-download:focus-visible,
+body.sasv-stock-checker #sc-filters-btn:focus-visible,
+body.sasv-stock-checker #explode-details-btn:focus-visible,
+body.sasv-stock-checker .sc-btn.sc-btn-icon:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-stock-checker .sc-btn.sc-btn-icon svg,
+body.sasv-stock-checker #explode-details-btn svg,
+body.sasv-stock-checker #sc-filters-btn svg,
+body.sasv-stock-checker #sc-download svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  color: currentColor;
+}
+
+/* Active / filters-active: soft primary selected (not solid white invert) */
+body.sasv-stock-checker .sc-btn.sc-btn-icon.filters-active,
+body.sasv-stock-checker .sc-btn.sc-btn-icon.is-active,
+body.sasv-stock-checker #explode-details-btn.filters-active,
+body.sasv-stock-checker #explode-details-btn.is-active,
+body.sasv-stock-checker #sc-filters-btn.filters-active,
+body.sasv-stock-checker #sc-filters-btn.is-active {
+  background: var(--sasv-action-primary-soft) !important;
+  color: var(--sasv-action-primary-active) !important;
+  border-color: var(--sasv-action-primary) !important;
+  box-shadow: none !important;
+}
+
+body.sasv-stock-checker .sc-btn.sc-btn-icon.filters-active svg,
+body.sasv-stock-checker .sc-btn.sc-btn-icon.is-active svg,
+body.sasv-stock-checker #explode-details-btn.filters-active svg,
+body.sasv-stock-checker #explode-details-btn.is-active svg,
+body.sasv-stock-checker #sc-filters-btn.filters-active svg,
+body.sasv-stock-checker #sc-filters-btn.is-active svg {
+  stroke: currentColor !important;
+  fill: none !important;
+  color: currentColor !important;
+}
+
+body.sasv-stock-checker .sc-btn {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  white-space: nowrap;
+  width: auto;
+  flex-shrink: 0;
+}
+
+/* ── 7. HOME (canonical — keep SC-1 protections) ──────────────────────────── */
+body.sasv-stock-checker #homeBtn.sc-btn,
+body.sasv-stock-checker #homeBtn.sasv-home-btn {
+  border: 1px solid var(--sasv-action-home-border);
+  background: var(--sasv-action-home-bg);
+  color: var(--sasv-action-home);
+  box-shadow: none;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  gap: 6px;
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: var(--sasv-fw-semibold, 600);
+}
+
+body.sasv-stock-checker #homeBtn.sc-btn:hover,
+body.sasv-stock-checker #homeBtn.sasv-home-btn:hover {
+  background: var(--sasv-action-home-bg-hover);
+  border-color: var(--sasv-action-home-bg-hover);
+  color: var(--sasv-action-home-fg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+body.sasv-stock-checker #homeBtn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-checker #homeBtn.sc-btn,
+  body.sasv-stock-checker #homeBtn.sasv-home-btn {
+    padding: 6px;
+    gap: 0;
+  }
+
+  body.sasv-stock-checker #homeBtn .home-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    display: block;
+  }
+}
+
+/* ── 8. Search unification (.sc-filters) ──────────────────────────────────── */
+body.sasv-stock-checker .sc-filters select,
+body.sasv-stock-checker .sc-filters input,
+body.sasv-stock-checker .sc-filters #sc-item,
+body.sasv-stock-checker .sc-filters #sc-packsize,
+body.sasv-stock-checker .autocomplete input#sc-item {
+  height: 38px;
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  line-height: 1.25;
+  border: 1px solid var(--sasv-search-select-border);
+  border-radius: var(--sasv-radius-sm, 6px);
+  background: var(--sasv-search-select-bg);
+  color: var(--sasv-text);
+  box-sizing: border-box;
+}
+
+body.sasv-stock-checker .sc-filters select:focus,
+body.sasv-stock-checker .sc-filters input:focus,
+body.sasv-stock-checker .sc-filters #sc-item:focus,
+body.sasv-stock-checker .sc-filters #sc-packsize:focus,
+body.sasv-stock-checker .autocomplete input#sc-item:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+  background: var(--sasv-control-bg, #fff);
+}
+
+/* ── 9. Ops toolbar (.sc-ops-toolbar) ─────────────────────────────────────── */
+body.sasv-stock-checker .sc-ops-toolbar,
+body.sasv-stock-checker .drawer-row.sc-ops-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+body.sasv-stock-checker .sc-ops-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+body.sasv-stock-checker #sc-mobile-sort-col {
+  box-sizing: border-box;
+  height: var(--sasv-control-md, 36px);
+  min-height: var(--sasv-control-md, 36px);
+  width: 112px;
+  max-width: 112px;
+  padding: 4px 24px 4px 8px;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: var(--sasv-radius-sm, 6px);
+  border: 1px solid var(--sasv-control-border, var(--sasv-border-strong));
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-checker #sc-mobile-sort-col:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+  background: var(--sasv-control-bg);
+}
+
+body.sasv-stock-checker #sc-mobile-sort-dir,
+body.sasv-stock-checker #sc-mobile-select-toggle {
+  box-sizing: border-box;
+  height: var(--sasv-control-md, 36px);
+  min-height: var(--sasv-control-md, 36px);
+  padding: 6px 10px;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: var(--sasv-radius-sm, 6px);
+  border: 1px solid var(--sasv-control-border, var(--sasv-border-strong));
+  background: var(--sasv-action-secondary, var(--sasv-surface-soft));
+  color: var(--sasv-text-secondary);
+  cursor: pointer;
+}
+
+body.sasv-stock-checker #sc-mobile-sort-dir:hover,
+body.sasv-stock-checker #sc-mobile-select-toggle:hover {
+  background: var(--sasv-action-secondary-hover, var(--sasv-primary-50));
+  border-color: var(--sasv-control-border-hover);
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-mobile-sort-dir:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+body.sasv-stock-checker #sc-mobile-sort-dir[aria-pressed="true"],
+body.sasv-stock-checker #sc-mobile-sort-dir.is-active,
+body.sasv-stock-checker #sc-mobile-select-toggle[aria-pressed="true"],
+body.sasv-stock-checker #sc-mobile-select-toggle.is-active,
+body.sasv-stock-checker .sc-btn.sc-btn-subtle[aria-pressed="true"],
+body.sasv-stock-checker .sc-btn.sc-btn-subtle.is-active {
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary-active);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-stock-checker #sc-loaded-count.sc-loaded-count,
+body.sasv-stock-checker .sc-loaded-count {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* Ops toolbar explode btn: compact square within group */
+body.sasv-stock-checker .sc-ops-group #explode-details-btn {
+  min-width: var(--sasv-control-sm, 32px);
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  min-height: var(--sasv-control-sm, 32px);
+}
+
+body.sasv-stock-checker #sc-mobile-sort-dir {
+  width: var(--sasv-control-sm, 32px);
+  min-width: var(--sasv-control-sm, 32px);
+  padding: 4px;
+}
+
+/* ── 10. Table (#sc-table) ────────────────────────────────────────────────── */
+body.sasv-stock-checker #sc-table {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  border-collapse: collapse;
+}
+
+body.sasv-stock-checker #sc-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: var(--sasv-z-sticky, 500);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--sasv-text-muted);
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-border);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  padding: 5px 8px;
+}
+
+body.sasv-stock-checker #sc-table thead th:first-child {
+  text-align: center;
+}
+
+body.sasv-stock-checker #sc-table tbody td {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 400;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  line-height: 1.25;
+  text-align: center;
+  vertical-align: middle;
+  border-top: 1px solid var(--sasv-divider);
+  padding: 4px 8px;
+}
+
+body.sasv-stock-checker #sc-table tbody td:first-child,
+body.sasv-stock-checker #sc-table tbody td.col-item {
+  text-align: left;
+}
+
+/* Tabular nums for numeric columns */
+body.sasv-stock-checker #sc-table td.col-stock,
+body.sasv-stock-checker #sc-table td.col-demand,
+body.sasv-stock-checker #sc-table td.col-mos,
+body.sasv-stock-checker #sc-table td.col-overall,
+body.sasv-stock-checker #sc-table td.col-meta,
+body.sasv-stock-checker #sc-table th.col-stock,
+body.sasv-stock-checker #sc-table th.col-demand,
+body.sasv-stock-checker #sc-table th.col-mos,
+body.sasv-stock-checker #sc-table th.col-overall,
+body.sasv-stock-checker #sc-table th.col-meta {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tonal grouping: restrained surface-soft (not cool blue-grey) */
+body.sasv-stock-checker #sc-table thead th.col-stock,
+body.sasv-stock-checker #sc-table thead th.col-demand,
+body.sasv-stock-checker #sc-table thead th.col-mos,
+body.sasv-stock-checker #sc-table thead th.col-overall,
+body.sasv-stock-checker #sc-table tbody td.col-stock,
+body.sasv-stock-checker #sc-table tbody td.col-demand,
+body.sasv-stock-checker #sc-table tbody td.col-mos,
+body.sasv-stock-checker #sc-table tbody td.col-overall {
+  background-color: var(--sasv-surface-soft);
+}
+
+body.sasv-stock-checker #sc-table tbody tr:hover td {
+  background-color: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-checker #sc-table tbody tr:hover td.col-stock,
+body.sasv-stock-checker #sc-table tbody tr:hover td.col-demand,
+body.sasv-stock-checker #sc-table tbody tr:hover td.col-mos,
+body.sasv-stock-checker #sc-table tbody tr:hover td.col-overall {
+  background-color: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-checker #sc-table tbody tr.selected-row td {
+  background-color: var(--sasv-warning-bg, #ffeeba) !important;
+}
+
+body.sasv-stock-checker #sc-table thead th:not(:first-child),
+body.sasv-stock-checker #sc-table tbody td:not(:first-child) {
+  border-left: 1px solid var(--sasv-divider);
+}
+
+body.sasv-stock-checker #sc-table tbody tr {
+  cursor: pointer;
+}
+
+body.sasv-stock-checker #sc-table tbody td {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body.sasv-stock-checker #sc-table,
+body.sasv-stock-checker #sc-table * {
+  -webkit-touch-callout: none;
+}
+
+/* ── 11. Row details (.sc-row-details) ────────────────────────────────────── */
+body.sasv-stock-checker .sc-row-details {
+  margin: 0;
+  padding: 6px;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--sasv-text-secondary);
+  border: none;
+  box-shadow: none;
+  vertical-align: middle;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+body.sasv-stock-checker .sc-row-details:hover {
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-stock-checker .sc-row-details:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--sasv-radius-sm, 6px);
+}
+
+body.sasv-stock-checker .sc-row-details svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  stroke: currentColor;
+  color: currentColor;
+}
+
+/* ── 12. Cards (.sc-result-card) ──────────────────────────────────────────── */
+body.sasv-stock-checker .sc-result-card {
+  border: 1px solid var(--sasv-border, #e5e7eb);
+  border-radius: var(--sasv-radius-md, 8px);
+  background: var(--sasv-surface, #fff);
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker .sc-result-card--alt {
+  background: var(--sasv-surface-soft, #f8fafc);
+}
+
+body.sasv-stock-checker .sc-result-card-name {
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker .sc-result-card-pack,
+body.sasv-stock-checker .sc-result-card-uom {
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker .sc-result-card-line2,
+body.sasv-stock-checker .sc-result-card-line-demand,
+body.sasv-stock-checker .sc-result-card-line3 {
+  color: var(--sasv-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-stock-checker .sc-result-card-k {
+  color: var(--sasv-text-secondary);
+}
+
+/* ── 13. Modals (.sc-modal-panel) ─────────────────────────────────────────── */
+body.sasv-stock-checker .sc-modal-panel {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md, 8px);
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker .sc-modal-header {
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-stock-checker .sc-modal-header h3 {
+  color: var(--sasv-text);
+  font-weight: 600;
+}
+
+body.sasv-stock-checker .sc-modal-body {
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-checker .sc-btn.primary {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary, #fff);
+  border-color: var(--sasv-action-primary);
+  font-weight: 600;
+}
+
+body.sasv-stock-checker .sc-btn.primary:hover {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-stock-checker .sc-btn.secondary,
+body.sasv-stock-checker .sc-btn.secondary:not([disabled]) {
+  background: var(--sasv-action-secondary, var(--sasv-surface-soft));
+  color: var(--sasv-text);
+  border-color: var(--sasv-border);
+  box-shadow: none;
+}
+
+body.sasv-stock-checker .sc-btn.secondary:hover:not([disabled]) {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-control-border-hover);
+}
+
+body.sasv-stock-checker .sc-modal-header .sc-btn.sc-btn-icon,
+body.sasv-stock-checker .sc-modal-header button.sc-btn-icon {
+  min-width: var(--sasv-control-sm, 32px);
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  border-radius: var(--sasv-radius-sm, 6px);
+}
+
+body.sasv-stock-checker .sc-modal-header .sc-btn.sc-btn-icon:hover,
+body.sasv-stock-checker .sc-modal-header button.sc-btn-icon:hover {
+  background: var(--sasv-action-secondary-hover);
+  color: var(--sasv-text);
+}
+
+/* ── 14. Pagination: neutralize space-between (SC-1) ──────────────────────── */
+body.sasv-stock-checker .pagination {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  margin: 0;
+  margin-left: auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  width: auto;
+}
+
+body.sasv-stock-checker .pagination .sc-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── 15. Table-wrap flex lock (SC-1) ──────────────────────────────────────── */
+body.sasv-stock-checker .table-wrap {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+}
+
+body.sasv-stock-checker .sc-results.sc-view-cards .table-wrap {
+  display: none;
+}
+
+body.sasv-stock-checker .table-scroll,
+body.sasv-stock-checker .table-container,
+body.sasv-stock-checker #tableWrap {
+  flex: 0 1 auto;
+  min-height: auto;
+}
+
+/* ── 16. Chip quick filters ───────────────────────────────────────────────── */
+body.sasv-stock-checker .sc-quick .chip,
+body.sasv-stock-checker .sc-quick-modal .chip {
+  display: inline-block;
+  padding: 6px 12px;
+  margin: 4px 0;
+  border: 1px solid var(--sasv-border, #d1d5db);
+  border-radius: var(--sasv-radius-pill, 9999px);
+  background: var(--sasv-surface-soft, #f9fafb);
+  color: var(--sasv-text, var(--ink, #111827));
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  font-size: inherit;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+body.sasv-stock-checker .sc-quick .chip:hover,
+body.sasv-stock-checker .sc-quick-modal .chip:hover {
+  border-color: var(--sasv-control-border-hover);
+  background: var(--sasv-action-secondary-hover);
+}
+
+body.sasv-stock-checker .sc-quick .chip[aria-pressed="true"],
+body.sasv-stock-checker .sc-quick .chip.is-active,
+body.sasv-stock-checker .sc-quick-modal .chip[aria-pressed="true"],
+body.sasv-stock-checker .sc-quick-modal .chip.is-active {
+  background: var(--sasv-action-primary-soft) !important;
+  color: var(--sasv-action-primary-active) !important;
+  border-color: var(--sasv-action-primary) !important;
+  font-weight: 600;
+}
+
+/* ── 17. Autocomplete (ac-list / ac-item — SC-1 improved) ─────────────────── */
+body.sasv-stock-checker .ac-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  max-height: 260px;
+  overflow: auto;
+  z-index: 1200;
+  background: var(--sasv-surface-elevated, #fff);
+  border: 1px solid var(--sasv-border, #e5e7eb);
+  border-radius: var(--sasv-radius-md, 8px);
+  box-shadow: var(--sasv-shadow-md, 0 8px 22px rgba(2, 6, 23, 0.12));
+}
+
+body.sasv-stock-checker .ac-item {
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  color: var(--sasv-text);
+  cursor: pointer;
+}
+
+body.sasv-stock-checker .ac-item[aria-selected="true"],
+body.sasv-stock-checker .ac-item:hover {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-stock-checker .ac-loading {
+  font-family: var(--sasv-font-sans, Inter, system-ui, sans-serif);
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker .ac-spinner {
+  border-top-color: var(--sc-accent);
+}
+
+/* ── 18. Responsive header (<=520) — consolidated above in sections 3 & 7 ─── */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UI-MOD-SC-3 — Deep density / typography / modal globalization
+   Post-cascade overrides of inline legacy modal + table depth styles.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Page-wide type scale (non-table) ─────────────────────────────────────── */
+body.sasv-stock-checker .sc-btn {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 500;
+  min-height: var(--sasv-control-md, 36px);
+  padding: 6px 12px;
+}
+
+body.sasv-stock-checker .sc-btn.primary,
+body.sasv-stock-checker .sc-btn.secondary {
+  font-weight: 600;
+  padding: 6px 12px;
+  min-height: var(--sasv-control-md, 36px);
+}
+
+body.sasv-stock-checker .sc-btn.sc-btn-block {
+  width: auto;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+body.sasv-stock-checker .modal-actions .sc-btn.sc-btn-block,
+body.sasv-stock-checker .modal-actions .sc-btn.block {
+  width: 100%;
+}
+
+body.sasv-stock-checker .sc-loaded-count {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker .sc-result-card {
+  padding: 8px 24px 8px 10px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+
+body.sasv-stock-checker .ac-item {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  padding: 6px 10px;
+}
+
+/* Info icon stay compact after denser rows */
+body.sasv-stock-checker .sc-row-details {
+  padding: 2px 4px;
+}
+
+/* ── Main table density (SC-3.1) — ERP compact like Material Board / RM Issue
+ * Target ~28–32px rows: 4px vertical pad, 1.25 lh, single-line item ellipsis.
+ */
+body.sasv-stock-checker #sc-table.collapsed-default tbody td,
+body.sasv-stock-checker #sc-table.explode-stock-active tbody td,
+body.sasv-stock-checker #sc-table.explode-demand-active tbody td,
+body.sasv-stock-checker #sc-table.explode-mos-active tbody td,
+body.sasv-stock-checker #sc-table tbody td {
+  padding: 4px 8px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  line-height: 1.25;
+  height: auto;
+  min-height: 0;
+}
+
+body.sasv-stock-checker #sc-table thead th {
+  padding: 5px 8px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  line-height: 1.2;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+body.sasv-stock-checker #sc-table .sc-item-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+body.sasv-stock-checker #sc-table td.col-item .sc-item-name {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.sasv-stock-checker #sc-table .sc-row-details {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 2px;
+}
+
+/* ── Shared modal chrome (all .sc-modal) ──────────────────────────────────── */
+body.sasv-stock-checker .sc-modal {
+  padding: 12px;
+}
+
+body.sasv-stock-checker .sc-modal-panel {
+  box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12));
+  max-height: min(92vh, 900px);
+}
+
+body.sasv-stock-checker .sc-modal-header {
+  padding: 10px 12px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+body.sasv-stock-checker .sc-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker .sc-modal-body {
+  padding: 10px 12px 12px;
+  max-height: calc(100vh - 160px);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+
+body.sasv-stock-checker .sc-modal-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--sasv-divider);
+  background: var(--sasv-surface-soft);
+  gap: 8px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  color: var(--sasv-text-muted);
+  font-weight: 400;
+}
+
+/* Close: compact square, not oversized ✕ glyph */
+body.sasv-stock-checker .sc-modal-header .sc-btn.sc-btn-icon,
+body.sasv-stock-checker .sc-modal-header button.sc-btn-icon,
+body.sasv-stock-checker .sc-modal-header [id$="-close"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  min-width: var(--sasv-control-sm, 32px);
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  box-shadow: none;
+}
+
+body.sasv-stock-checker .sc-modal-header .sc-btn.sc-btn-icon:hover,
+body.sasv-stock-checker .sc-modal-header button.sc-btn-icon:hover {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-text);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-stock-checker .sc-modal-header .sc-btn.sc-btn-icon:focus-visible,
+body.sasv-stock-checker .sc-modal-header button.sc-btn-icon:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Modal form controls */
+body.sasv-stock-checker .sc-modal input:not([type="checkbox"]):not([type="radio"]),
+body.sasv-stock-checker .sc-modal select,
+body.sasv-stock-checker .sc-modal textarea,
+body.sasv-stock-checker .drawer-body .drawer-grid select,
+body.sasv-stock-checker .drawer-body .drawer-grid input:not([type="checkbox"]) {
+  min-height: var(--sasv-control-md, 36px);
+  height: var(--sasv-control-md, 36px);
+  padding: 4px 8px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-family: var(--sasv-font-sans);
+  font-weight: 400;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  box-sizing: border-box;
+}
+
+body.sasv-stock-checker .sc-modal input[type="checkbox"],
+body.sasv-stock-checker .sc-modal input[type="radio"],
+body.sasv-stock-checker .drawer-body input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-stock-checker .sc-modal label,
+body.sasv-stock-checker .drawer-body label,
+body.sasv-stock-checker .mos-label {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-checker .drawer > summary,
+body.sasv-stock-checker .drawer-summary {
+  font-size: var(--sasv-text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--sasv-text);
+  padding: 8px 10px;
+}
+
+body.sasv-stock-checker .drawer-body {
+  padding: 8px 10px 10px;
+}
+
+body.sasv-stock-checker .drawer-grid {
+  gap: 8px 10px;
+}
+
+body.sasv-stock-checker .drawer-grid > label {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 500;
+}
+
+/* Classification grid: reflow instead of awkward horizontal scroll
+ * (inline CSS uses minmax(220px) which forces overflow in modal width). */
+body.sasv-stock-checker #drawer-classification .drawer-grid {
+  overflow-x: visible;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+body.sasv-stock-checker #drawer-classification .drawer-grid > label,
+body.sasv-stock-checker #drawer-classification .drawer-grid select,
+body.sasv-stock-checker #drawer-classification .drawer-grid input {
+  min-width: 0 !important;
+  max-width: 100%;
+  width: 100%;
+}
+
+body.sasv-stock-checker #drawer-advanced .drawer-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  justify-content: stretch;
+  column-gap: 10px;
+}
+
+@media (max-width: 900px) and (min-width: 641px) {
+  body.sasv-stock-checker #drawer-classification .drawer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  body.sasv-stock-checker #drawer-classification .drawer-grid,
+  body.sasv-stock-checker #drawer-advanced .drawer-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* MOS filter rows denser */
+body.sasv-stock-checker #drawer-advanced .drawer-grid,
+body.sasv-stock-checker [id^="mos"] {
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+
+body.sasv-stock-checker #sc-filters-modal .sc-modal-footer,
+body.sasv-stock-checker #sc-filters-modal .modal-actions,
+body.sasv-stock-checker #sc-filters-modal-body + .sc-modal-footer,
+body.sasv-stock-checker #sc-filters-modal .sc-modal-panel > .sc-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+body.sasv-stock-checker #sc-filters-apply.sc-btn.primary,
+body.sasv-stock-checker #sc-filters-cancel.sc-btn,
+body.sasv-stock-checker #sc-clear.sc-btn {
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Reset = ghost / tertiary */
+body.sasv-stock-checker #sc-clear.sc-btn.secondary,
+body.sasv-stock-checker #sc-clear.sc-btn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sasv-text-secondary);
+  box-shadow: none;
+  font-weight: 500;
+}
+
+body.sasv-stock-checker #sc-clear.sc-btn:hover {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-text);
+  border-color: transparent;
+}
+
+body.sasv-stock-checker #sc-filters-modal .sc-quick-modal .chip {
+  padding: 4px 10px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 500;
+  min-height: 28px;
+}
+
+/* ── Export Options modal — ERP two-section action sheet ─────────────────── */
+body.sasv-stock-checker #sc-export-modal .sc-modal-panel {
+  width: min(440px, 94vw);
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-modal-body {
+  padding: 10px 12px 12px;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 12px;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-section + .sc-export-section {
+  border-top: 1px solid var(--sasv-divider);
+  padding-top: 12px;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-section-title,
+body.sasv-stock-checker #sc-export-modal .sc-export-section-title-btn {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.875rem);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sasv-text);
+  text-align: left;
+  cursor: default;
+  pointer-events: none;
+  width: auto;
+  min-height: 0;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-section-title-btn:disabled {
+  opacity: 0.7;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-section-hint {
+  margin: 0;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+body.sasv-stock-checker #sc-export-modal #sc-export.sc-btn.primary {
+  width: auto;
+  max-width: 100%;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md, 36px);
+  padding: 6px 14px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 600;
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary, #fff);
+  box-shadow: none;
+}
+
+/* Always-visible coverage choice list */
+body.sasv-stock-checker #sc-export-modal #sc-export-drawer,
+body.sasv-stock-checker #sc-export-modal .sc-export-choice-list {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+  overflow: hidden;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--sasv-control-md, 36px);
+  margin: 0;
+  padding: 6px 10px;
+  border: none;
+  border-bottom: 1px solid var(--sasv-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 500;
+  color: var(--sasv-text);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-choice:last-child {
+  border-bottom: none;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-choice:hover {
+  background: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-choice:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-choice-label {
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-export-modal .sc-export-choice-meta {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+  flex-shrink: 0;
+}
+
+/* ── Stock Value Summary modal ──────────────────────────────────────────────
+ * JS builds: <div>IK: <strong>…</strong></div> then #sc-value-unmapped.
+ * Target: 2×2 cards (IK|KKD / OK|Overall), then full-width Unmapped row.
+ */
+body.sasv-stock-checker #sc-value-modal .sc-modal-panel {
+  width: min(480px, 94vw);
+}
+
+body.sasv-stock-checker #sc-value-modal .sc-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-value-modal .sc-modal-body {
+  padding: 10px 12px 12px;
+}
+
+body.sasv-stock-checker #sc-value-modal-count {
+  font-size: var(--sasv-text-xs, 0.75rem) !important;
+  font-weight: 500 !important;
+  color: var(--sasv-text-secondary) !important;
+  margin: 0 0 8px !important;
+}
+
+body.sasv-stock-checker #sc-value-body-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  color: var(--sasv-text-secondary);
+}
+
+/* Location metric cards only — exclude Unmapped strip */
+body.sasv-stock-checker #sc-value-body-content > div:not(#sc-value-unmapped) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 6px 8px;
+  gap: 2px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface-soft);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--sasv-text-muted);
+  min-height: 0;
+  grid-column: auto;
+}
+
+/* Restrained location differentiation (not rainbow / blue-era) */
+body.sasv-stock-checker #sc-value-body-content > div:nth-child(1):not(#sc-value-unmapped) {
+  background: var(--sasv-info-bg, var(--sasv-selection-soft));
+  border-color: var(--sasv-info-border, var(--sasv-action-primary-soft-border));
+}
+body.sasv-stock-checker #sc-value-body-content > div:nth-child(2):not(#sc-value-unmapped) {
+  background: var(--sasv-success-bg);
+  border-color: var(--sasv-success-border);
+}
+body.sasv-stock-checker #sc-value-body-content > div:nth-child(3):not(#sc-value-unmapped) {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning-border);
+}
+body.sasv-stock-checker #sc-value-body-content > div:nth-child(4):not(#sc-value-unmapped) {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-stock-checker #sc-value-body-content > div:not(#sc-value-unmapped) .label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker #sc-value-body-content > div:not(#sc-value-unmapped) .value,
+body.sasv-stock-checker #sc-value-body-content > div:not(#sc-value-unmapped) strong {
+  font-family: var(--sasv-font-sans) !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: var(--sasv-text) !important;
+  line-height: 1.25;
+}
+
+/* Unmapped strip: full width, label left / info button right */
+body.sasv-stock-checker #sc-value-unmapped {
+  grid-column: 1 / -1;
+  display: block;
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 2px 0 0 !important;
+  padding: 6px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-checker #sc-value-unmapped > div {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body.sasv-stock-checker #sc-value-unmapped > div > div {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-checker #sc-value-unmapped strong {
+  font-size: var(--sasv-text-xs, 0.75rem) !important;
+  font-weight: 600 !important;
+  color: var(--sasv-text) !important;
+}
+
+body.sasv-stock-checker #sc-value-unmapped-amt {
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-value-unmapped-detail.sc-btn.sc-btn-icon {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface) !important;
+  border: 1px solid var(--sasv-control-border) !important;
+  color: var(--sasv-text-secondary) !important;
+}
+
+body.sasv-stock-checker #sc-value-unmapped-detail svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.sasv-stock-checker #sc-value-modal .sc-modal-footer {
+  padding: 8px 12px;
+  background: var(--sasv-surface-soft);
+  border-top: 1px solid var(--sasv-divider);
+}
+
+body.sasv-stock-checker #sc-value-snapshot {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+}
+
+/* ── Unmapped Stock modal ───────────────────────────────────────────────────
+ * Landscape ERP panel: wide enough for multi-column table; dense cells.
+ */
+body.sasv-stock-checker #sc-unmapped-modal .sc-modal-panel {
+  width: min(1120px, 96vw);
+  max-width: calc(100% - 24px);
+  max-height: min(92vh, 860px);
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .sc-modal-header {
+  padding: 8px 12px;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .sc-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .sc-modal-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 !important;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--sasv-divider);
+  background: var(--sasv-surface);
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker #sc-unmapped-modal-count > div {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+body.sasv-stock-checker .sc-unmapped-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--sasv-divider);
+  background: var(--sasv-surface-soft);
+  flex-shrink: 0;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal-count,
+body.sasv-stock-checker .sc-unmapped-toolbar .left,
+body.sasv-stock-checker #sc-unmapped-count {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-stock-checker .sc-unmapped-toolbar .left .muted,
+body.sasv-stock-checker .sc-unmapped-toolbar .left strong {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-checker #sc-unmapped-modal-total {
+  font-family: var(--sasv-font-sans) !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: var(--sasv-text) !important;
+}
+
+body.sasv-stock-checker .sc-unmapped-toolbar .actions .sc-btn,
+body.sasv-stock-checker #sc-unmapped-export.sc-btn {
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px 10px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 600;
+}
+
+body.sasv-stock-checker #sc-unmapped-body-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+body.sasv-stock-checker .sc-unmapped-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(68vh, 620px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Dense unmapped ERP table — scoped so main #sc-table is unaffected */
+body.sasv-stock-checker #sc-unmapped-modal .erp-table {
+  width: 100%;
+  min-width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+  font-family: var(--sasv-font-sans);
+  font-size: 0.75rem;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 5px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--sasv-text-muted);
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-border);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table tbody td {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  border-bottom: 1px solid var(--sasv-divider);
+  color: var(--sasv-text);
+  vertical-align: middle;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table thead th:not(:first-child),
+body.sasv-stock-checker #sc-unmapped-modal .erp-table tbody td:not(:first-child) {
+  border-left: 1px solid var(--sasv-divider);
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table tbody tr:hover {
+  background: var(--sasv-selection-soft);
+}
+
+/* Content-aware widths: compact cols shrink; tally name takes remaining room */
+body.sasv-stock-checker #sc-unmapped-modal .erp-table th.col-compact,
+body.sasv-stock-checker #sc-unmapped-modal .erp-table td.col-compact,
+body.sasv-stock-checker #sc-unmapped-modal .erp-table th.col-num,
+body.sasv-stock-checker #sc-unmapped-modal .erp-table td.col-num {
+  width: 1%;
+  white-space: nowrap;
+  max-width: none;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table th.col-num,
+body.sasv-stock-checker #sc-unmapped-modal .erp-table td.col-num {
+  text-align: center;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table td.col-compact {
+  text-align: center;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table th.col-name,
+body.sasv-stock-checker #sc-unmapped-modal .erp-table td.col-name {
+  width: auto;
+  min-width: min(420px, 42vw);
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: left;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table th.col-name {
+  text-align: center;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table .sc-unmapped-item {
+  display: block;
+  font-weight: 500;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table .num {
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--sasv-text);
+  white-space: nowrap;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table .sc-unmapped-flag {
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .erp-table .muted {
+  font-size: 0.6875rem;
+  color: var(--sasv-text-muted);
+  font-weight: 400;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal .sc-modal-footer {
+  padding: 6px 12px;
+  flex-shrink: 0;
+}
+
+body.sasv-stock-checker #sc-unmapped-modal-note {
+  font-size: 0.6875rem;
+  color: var(--sasv-text-muted);
+}
+
+/* Shared erp-table fallback (other SC contexts) */
+body.sasv-stock-checker .erp-table {
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+}
+
+body.sasv-stock-checker .erp-table thead th {
+  padding: 6px 8px;
+  font-size: var(--sasv-text-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--sasv-text-muted);
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-border);
+}
+
+body.sasv-stock-checker .erp-table tbody td {
+  padding: 5px 8px;
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  border-bottom: 1px solid var(--sasv-divider);
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker .erp-table tbody tr:hover {
+  background: var(--sasv-selection-soft);
+}
+
+body.sasv-stock-checker .erp-table .num {
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--sasv-text);
+  text-align: right;
+}
+
+body.sasv-stock-checker .erp-table .muted {
+  font-size: var(--sasv-text-xs, 0.75rem);
+  color: var(--sasv-text-muted);
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  body.sasv-stock-checker #sc-unmapped-modal .sc-modal-panel {
+    width: min(96vw, 900px);
+  }
+
+  body.sasv-stock-checker #sc-unmapped-modal .erp-table th.col-name,
+  body.sasv-stock-checker #sc-unmapped-modal .erp-table td.col-name {
+    min-width: min(260px, 48vw);
+  }
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-checker #sc-unmapped-modal .sc-modal-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  body.sasv-stock-checker #sc-value-body-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Explode Options modal ────────────────────────────────────────────────── */
+body.sasv-stock-checker #sc-explode-modal .sc-modal-panel {
+  width: min(380px, 94vw);
+}
+
+body.sasv-stock-checker #sc-explode-modal .sc-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+body.sasv-stock-checker #sc-explode-modal .explode-controls {
+  gap: 6px;
+}
+
+body.sasv-stock-checker #sc-explode-modal .explode-chip {
+  padding: 6px 10px;
+  min-height: var(--sasv-control-md, 36px);
+  font-size: var(--sasv-text-sm, 0.8125rem);
+  font-weight: 500;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  box-shadow: none;
+}
+
+body.sasv-stock-checker #sc-explode-modal .explode-chip::before {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border-color: var(--sasv-control-border);
+}
+
+body.sasv-stock-checker
+  #sc-explode-modal
+  .explode-checkbox:checked
+  + .explode-chip::before {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-stock-checker
+  #sc-explode-modal
+  .explode-checkbox:focus
+  + .explode-chip {
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* ── Row detail modal denser ──────────────────────────────────────────────── */
+body.sasv-stock-checker #sc-row-modal .sc-modal-header {
+  padding: 8px 12px;
+}
+
+body.sasv-stock-checker #sc-row-modal .sc-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-stock-checker #sc-row-modal .sc-modal-body {
+  padding: 10px 12px;
+}
+
+body.sasv-stock-checker #sc-row-modal .sc-modal-footer {
+  padding: 8px 12px;
+}
+
+/* Kill residual 700 weights in SC chrome */
+body.sasv-stock-checker #sc-total-value,
+body.sasv-stock-checker .sc-page-title,
+body.sasv-stock-checker .sc-modal-header h3 {
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  body.sasv-stock-checker .sc-modal {
+    padding: 0;
+  }
+
+  body.sasv-stock-checker .sc-modal-header {
+    padding: 8px 10px;
+  }
+
+  body.sasv-stock-checker .sc-modal-body {
+    padding: 8px 10px 10px;
+  }
+
+  body.sasv-stock-checker #sc-unmapped-modal .sc-modal-body {
+    padding: 0;
+  }
+
+  body.sasv-stock-checker .sc-modal-footer {
+    padding: 8px 10px;
+  }
+
+  body.sasv-stock-checker #sc-value-body-content {
+    grid-template-columns: 1fr;
+  }
+}

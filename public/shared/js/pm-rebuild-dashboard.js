@@ -2,6 +2,25 @@ import { supabase } from "./supabaseClient.js";
 import { showToast } from "./toast.js";
 import { loadAccessContext, canEditPM } from "./mrpAccess.js";
 import { ensureDetailModal } from "./detailModal.js";
+import { Platform } from "./platform.js";
+import {
+  mountModuleHome,
+  enhanceSearchableSelect,
+  syncSearchableSelect,
+} from "./sasv-module-chrome.js";
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+(function mountPmRebuildHome() {
+  const homeEl = document.getElementById("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(document.getElementById("homeBtn")),
+      { once: true },
+    );
+  }
+})();
 
 // Preferred view name; if the view isn't present on the server we'll try
 // a short list of fallbacks to remain resilient during early deployments.
@@ -115,6 +134,7 @@ function showHtmlModal(title, htmlContent) {
     });
 
     const box = document.createElement("div");
+    box.className = "pmr-modal-box";
     Object.assign(box.style, {
       background: "#fff",
       padding: "16px",
@@ -135,6 +155,8 @@ function showHtmlModal(title, htmlContent) {
     hdr.innerHTML = `<strong>${escapeHtml(title)}</strong>`;
 
     const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "btn-secondary";
     closeBtn.style.marginLeft = "12px";
     closeBtn.setAttribute("aria-label", "Close dialog");
     closeBtn.title = "Close";
@@ -175,6 +197,7 @@ function showConfirmModal(message) {
     });
 
     const box = document.createElement("div");
+    box.className = "pmr-modal-box";
     Object.assign(box.style, {
       background: "#fff",
       padding: "16px",
@@ -196,6 +219,8 @@ function showConfirmModal(message) {
     actions.style.marginTop = "12px";
 
     const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "btn-secondary";
     cancelBtn.textContent = "Cancel";
     cancelBtn.addEventListener("click", () => {
       root.innerHTML = "";
@@ -203,6 +228,8 @@ function showConfirmModal(message) {
     });
 
     const okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.className = "btn-primary";
     okBtn.textContent = "OK";
     okBtn.addEventListener("click", () => {
       root.innerHTML = "";
@@ -239,6 +266,18 @@ function buildPlmDropdown() {
     }`;
     select.appendChild(opt);
   });
+
+  // Large option set → searchable single-select
+  if (select._sasvSearch) {
+    syncSearchableSelect(select);
+  } else {
+    enhanceSearchableSelect(select, {
+      placeholder: "Search PLM items…",
+      allowEmptyOption: true,
+      debounceMs: 220,
+      clearSelectedOnBackspace: true,
+    });
+  }
 }
 
 function getPlmLabel(row) {
@@ -258,7 +297,7 @@ function summarizeFlags(row) {
   if (row.allocation_approx_present) {
     parts.push('<span class="badge-info">Approx</span>');
   }
-  return parts.join(" ");
+  return parts.length ? `<div class="flags">${parts.join("")}</div>` : "";
 }
 
 function summarizeTopConsumers(row) {
@@ -377,16 +416,16 @@ function renderOverviewTable() {
     const consumersHtml = summarizeTopConsumers(row);
 
     tr.innerHTML = `
-      <td>${plmLabel}</td>
-      <td style="text-align:right">${formatNumber(row.planned_total_qty)}</td>
-      <td style="text-align:right">${formatNumber(row.issued_total_qty)}</td>
-      <td style="text-align:right">${formatNumber(row.net_requirement)}</td>
-      <td>${flagsHtml}</td>
-      <td>${consumersHtml}</td>
-      <td>
-        <button class="link-btn dry-run-one">Dry run</button>
-        <button class="link-btn rebuild-one">Rebuild</button>
-        <button class="link-btn open-allocation">Open allocation</button>
+      <td data-key="plm">${plmLabel}</td>
+      <td data-key="planned_total_qty">${formatNumber(row.planned_total_qty)}</td>
+      <td data-key="issued_total_qty">${formatNumber(row.issued_total_qty)}</td>
+      <td data-key="net_requirement">${formatNumber(row.net_requirement)}</td>
+      <td data-key="flags">${flagsHtml}</td>
+      <td data-key="top_consumers">${consumersHtml}</td>
+      <td data-key="actions">
+        <button type="button" class="link-btn dry-run-one">Dry run</button>
+        <button type="button" class="link-btn rebuild-one">Rebuild</button>
+        <button type="button" class="link-btn open-allocation">Open allocation</button>
       </td>
     `;
 
@@ -563,10 +602,19 @@ function openAllocationForItem(row) {
 /* Wiring */
 function wireUp() {
   els.homeBtn().addEventListener("click", () => {
-    window.location.href = "../../index.html";
+    try {
+      Platform.goHome();
+    } catch {
+      window.location.href = "../../index.html";
+    }
   });
   els.clearFilters().addEventListener("click", () => {
-    els.plmFilter().value = "";
+    const select = els.plmFilter();
+    if (select._sasvSearch) {
+      select._sasvSearch.setValue("", false);
+    } else {
+      select.value = "";
+    }
     els.filterUnassigned().checked = false;
     els.filterApprox().checked = false;
     els.filterNetNonZero().checked = false;

@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Supply Overrides</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="public/shared/css/sasv-supply-overrides.css" />
     <style>
       :root {
         --muted: #6b7280;
@@ -31,10 +33,9 @@
         box-sizing: border-box;
       }
       body {
-        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
-        margin: 16px;
-        background: #f8fafc;
-        color: #0f172a;
+        /* Inter + viewport gutter from sasv-module--app tokens */
+        margin: 0;
+        color: var(--sasv-text, #0f172a);
       }
       h1,
       h2,
@@ -58,9 +59,11 @@
         align-items: center;
         margin-bottom: 20px;
       }
+      /* page title: sasv-supply-overrides.css */
       .page-header h1 {
-        font-size: 1.5rem;
-        color: var(--primary, #3b82f6);
+        font-size: 1.125rem;
+        color: var(--sasv-text);
+        font-weight: 600;
       }
       .header-actions {
         display: flex;
@@ -183,9 +186,10 @@
         gap: 4px;
         min-width: 160px;
         color: var(--muted);
-        font-weight: 600;
+        font-weight: 500;
         font-size: 0.9rem;
-        transition: all 0.2s ease;
+        transition: background 0.15s ease, color 0.15s ease;
+        white-space: nowrap;
       }
       .tab-btn .tab-description {
         font-size: 0.75rem;
@@ -193,22 +197,18 @@
         color: #94a3b8;
       }
       .tab-btn:hover {
-        background: #f1f5f9;
-        color: #334155;
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-text);
       }
       .tab-btn[aria-selected="true"] {
-        background: linear-gradient(
-          180deg,
-          rgba(37, 99, 235, 0.12),
-          rgba(37, 99, 235, 0.05)
-        );
-        color: #0b3a9a;
-        border-color: rgba(13, 60, 160, 0.18);
+        background: var(--sasv-selection-soft);
+        color: var(--sasv-action-primary-active);
+        border-color: var(--sasv-action-primary-soft-border);
         border-bottom-color: transparent;
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+        box-shadow: none;
       }
       .tab-btn:focus-visible {
-        outline: 3px solid rgba(37, 99, 235, 0.24);
+        outline: 3px solid var(--sasv-focus-ring);
         outline-offset: 2px;
       }
       .tab-panel {
@@ -366,8 +366,8 @@
         border-left: 1px solid #eef2f7;
       }
       .toggle-option.active {
-        background: #2563eb;
-        color: #fff;
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
         box-shadow: none;
       }
       /* Absent state should be visually negative (red) rather than blue.
@@ -570,8 +570,8 @@
       }
       input:focus-visible,
       select:focus-visible {
-        outline: 3px solid rgba(59, 130, 246, 0.25);
-        border-color: rgba(59, 130, 246, 0.6);
+        outline: 3px solid var(--sasv-focus-ring);
+        border-color: var(--sasv-control-border-focus);
       }
       .status-text {
         font-size: 0.8rem;
@@ -760,9 +760,9 @@
         box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
       }
       .btn.primary {
-        background: #3b82f6;
-        border-color: #2563eb;
-        color: #fff;
+        background: var(--sasv-action-primary);
+        border-color: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
       }
       .btn.primary:hover {
         filter: brightness(0.96);
@@ -783,12 +783,12 @@
         color: #991b1b;
       }
       .btn.outline {
-        background: transparent;
-        border-color: rgba(59, 130, 246, 0.4);
-        color: #1d4ed8;
+        background: var(--sasv-surface, #fff);
+        border-color: var(--sasv-control-border, #cbd5e1);
+        color: var(--sasv-text);
       }
       .btn.outline:hover {
-        background: rgba(37, 99, 235, 0.1);
+        background: var(--sasv-action-primary-soft);
       }
       .btn[disabled],
       .btn:disabled {
@@ -863,35 +863,9 @@
         font-size: 0.85rem;
         color: #475569;
       }
-      /* Home Button */
-      #homeBtn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border: 1px solid #fdba74 !important;
-        border-radius: 6px;
-        background: #fed7aa !important;
-        color: #9a3412 !important;
-        cursor: pointer;
-        font-size: 0.875rem;
-        font-family: inherit;
-        font-weight: 500;
-        transition: all 0.2s;
-      }
-      #homeBtn:hover {
-        background: #fdba74 !important;
-        border-color: #fb923c !important;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      #homeBtn svg {
-        flex-shrink: 0;
-      }
-      @media (max-width: 720px) {
-        body {
-          margin: 12px;
-        }
+      /* HOME chrome: body.sasv-module #homeBtn.sasv-home-btn */
+@media (max-width: 720px) {
+        /* viewport gutter from sasv-module--app */
         .page-header {
           flex-direction: column;
           align-items: flex-start;
@@ -928,10 +902,10 @@
       }
       /* Reconcile table: visually highlight "needed" rows */
       #unifiedTable tr.needed td {
-        background: rgba(250, 204, 21, 0.12); /* soft amber */
+        background: var(--sasv-warning-bg); /* needed = warning semantics */
       }
       #unifiedTable tr.needed:hover td {
-        background: rgba(250, 204, 21, 0.18);
+        background: var(--sasv-warning-bg);
       }
 
       /* (Only Needed toggle removed) */
@@ -1101,27 +1075,20 @@
       }
     </style>
   </head>
-  <body data-theme="system">
-    <header class="page-header">
-      <h1>Supply Overrides</h1>
-      <div class="header-actions">
-        <button id="homeBtn">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-          HOME
-        </button>
+  <body class="sasv-module sasv-module--app sasv-supply-overrides" data-theme="system">
+    <div class="header-card">
+      <div class="page-header">
+        <div class="so-header-copy">
+          <h1 class="sasv-module-title">Supply Overrides</h1>
+          <div class="page-sub">
+            Manual plan sets through reconcile and apply for supply quantity overrides.
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="homeBtn" type="button" class="icon-btn sasv-home-btn" title="HOME" aria-label="HOME"></button>
+        </div>
       </div>
-      <!-- logged-in details removed from header; shown elsewhere if needed -->
-    </header>
+    </div>
 
     <main class="page-content">
       <!-- Plan selector: persistent bar above tabs -->
@@ -1329,25 +1296,7 @@
               </p>
             </div>
             <div class="card-actions">
-              <button
-                id="btnZeroSeeded"
-                class="btn"
-                type="button"
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                  padding: 6px;
-                  border-radius: 8px;
-                  border: 1px solid #f59e0b;
-                  background: #fff7ed;
-                  color: #92400e;
-                  cursor: pointer;
-                  font: inherit;
-                  font-weight: 600;
-                  transition: all 0.2s ease;
-                "
-              >
+              <button id="btnZeroSeeded" class="btn" type="button">
                 Zero Seeded
               </button>
               <button id="btnAddLine" class="btn primary">Add Line</button>
@@ -1760,12 +1709,6 @@
                     class="btn"
                     type="button"
                     title="Refresh Supply Rollups"
-                    style="
-                      margin-right: 8px;
-                      background: #ffd54f;
-                      border-color: #e6b800;
-                      color: #000;
-                    "
                   >
                     Refresh Supply Rollups
                   </button>
@@ -2263,5 +2206,6 @@
     </dialog>
 
     <script type="module" src="js/supply-overrides.js"></script>
+      <div id="toast" hidden></div>
   </body>
 </html>

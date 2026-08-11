@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" data-sasv-theme="sasv-core">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PPW strip probe</title>
+  <link rel="stylesheet" href="../public/shared/css/style.css" />
+  <link rel="stylesheet" href="../public/shared/css/sasv-production-planning.css" />
+</head>
+<body class="sasv-module sasv-module--app sasv-production-planning-workbench" data-theme="system">
+  <div id="probe" style="position:fixed;inset:0;overflow:auto;background:#111;color:#0f0;font:12px/1.4 monospace;z-index:999999;padding:12px;white-space:pre-wrap"></div>
+  <iframe id="frame" src="../production-planning-workbench.html" style="position:fixed;left:0;top:0;width:1440px;height:900px;border:0;opacity:0;pointer-events:none"></iframe>
+  <script>
+    const frame = document.getElementById("frame");
+    const out = document.getElementById("probe");
+    frame.addEventListener("load", () => {
+      try {
+        const doc = frame.contentDocument;
+        const win = frame.contentWindow;
+        // Simulate chevron init overflow check
+        const tabsEl = doc.querySelector(".tabs");
+        const left = doc.querySelector(".tabs-chevron.left");
+        const right = doc.querySelector(".tabs-chevron.right");
+        const isOverflowing = tabsEl && tabsEl.scrollWidth > tabsEl.clientWidth + 2;
+        if (left && right && tabsEl) {
+          if (!isOverflowing) {
+            left.style.display = "none";
+            right.style.display = "none";
+          } else {
+            left.style.display = "inline-flex";
+            right.style.display = "inline-flex";
+          }
+        }
+        const nodes = [
+          ".header-card",
+          ".page-header",
+          ".workflow-steps",
+          ".workflow-progress",
+          ".tabs-wrap",
+          ".tabs-chevron.left",
+          ".tabs",
+          ".tabs-chevron.right",
+          ".tabpanel.active",
+          "#toast",
+          "select",
+        ];
+        const rows = [];
+        rows.push(`viewport ${win.innerWidth}x${win.innerHeight}`);
+        rows.push(`tabs overflow scrollW=${tabsEl?.scrollWidth} clientW=${tabsEl?.clientWidth} overflowing=${isOverflowing}`);
+        rows.push(`left display=${left && getComputedStyle(left).display} inline=${left?.style.display}`);
+        rows.push(`right display=${right && getComputedStyle(right).display} inline=${right?.style.display}`);
+        for (const sel of nodes) {
+          const els = sel === "select" ? [...doc.querySelectorAll("select")] : [doc.querySelector(sel)].filter(Boolean);
+          for (const el of els) {
+            const r = el.getBoundingClientRect();
+            const cs = getComputedStyle(el);
+            if (r.height < 0.5 && r.width < 0.5 && cs.display === "none") continue;
+            rows.push(
+              `${sel} tag=${el.tagName} id=${el.id||"-"} class=${el.className}` +
+              `\n  rect=${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}` +
+              `\n  display=${cs.display} overflow=${cs.overflow}/${cs.overflowX}/${cs.overflowY}` +
+              `\n  bg=${cs.backgroundColor} border=${cs.borderTopWidth}`
+            );
+          }
+        }
+        // Find elements whose top is between workflow bottom and tabs top
+        const wf = doc.querySelector(".workflow-steps")?.getBoundingClientRect();
+        const tw = doc.querySelector(".tabs-wrap")?.getBoundingClientRect();
+        rows.push(`\nGAP workflow.bottom=${wf && Math.round(wf.bottom)} tabs.top=${tw && Math.round(tw.top)} gap=${wf && tw && Math.round(tw.top - wf.bottom)}`);
+        const all = [...doc.body.querySelectorAll("*")];
+        const between = all.filter((el) => {
+          const r = el.getBoundingClientRect();
+          if (!wf || !tw) return false;
+          if (r.height < 2 || r.width < 40) return false;
+          const mid = r.top + r.height / 2;
+          return mid > wf.bottom - 2 && mid < tw.top + 2;
+        }).slice(0, 30);
+        rows.push(`\nElements intersecting gap (${between.length}):`);
+        for (const el of between) {
+          const r = el.getBoundingClientRect();
+          rows.push(`- ${el.tagName}.${el.className}#${el.id} ${Math.round(r.width)}x${Math.round(r.height)} @${Math.round(r.y)}`);
+        }
+        // Also list body direct children rects
+        rows.push(`\nBODY direct children:`);
+        for (const el of doc.body.children) {
+          const r = el.getBoundingClientRect();
+          const cs = getComputedStyle(el);
+          rows.push(`- ${el.tagName}#${el.id||""}.${String(el.className).slice(0,60)} ${Math.round(r.width)}x${Math.round(r.height)} y=${Math.round(r.y)} display=${cs.display} overflowY=${cs.overflowY}`);
+        }
+        out.textContent = rows.join("\n");
+      } catch (e) {
+        out.textContent = "ERR " + e + "\n" + e.stack;
+      }
+    });
+  </script>
+</body>
+</html>

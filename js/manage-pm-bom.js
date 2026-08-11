@@ -1,5 +1,11 @@
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import {
+  mountModuleActionIcons,
+  enhanceSearchableSelect,
+  syncSearchableSelect,
+  setSearchableSelectValue,
+} from "../public/shared/js/sasv-module-chrome.js";
 
 // Elements
 const el = (id) => document.getElementById(id);
@@ -73,7 +79,7 @@ const exportMenu = el("exportMenu");
 const exportCsvBtn = el("exportCsv");
 const exportPdfBtn = el("exportPdf");
 const exportHtmlBtn = el("exportHtml");
-// Rebuild tab elements (cloned from plm-rebuild-dashboard)
+// Rebuild tab elements
 const rebuildTabBtn = el("tabBtnRebuild");
 const tabPanelRebuild = el("tabRebuild");
 const rebuildTplPicker = el("rebuildTplPicker");
@@ -141,10 +147,10 @@ let PENDING_DELETE_LINE_INDEX = null;
 // Permissions
 const MODULE_ID = "plm-templates";
 const MAP_MODULE_ID = "plm-sku-map";
-let PERM_CAN_VIEW = true;
-let PERM_CAN_EDIT = true;
-let MAP_PERM_CAN_VIEW = true;
-let MAP_PERM_CAN_EDIT = true;
+let PERM_CAN_VIEW = false;
+let PERM_CAN_EDIT = false;
+let MAP_PERM_CAN_VIEW = false;
+let MAP_PERM_CAN_EDIT = false;
 let MAP_INIT_DONE = false;
 let MAP_MAPPED_SKUS = new Set();
 // Overrides edit-mode global so tab switcher can reset it
@@ -324,11 +330,19 @@ async function loadTemplates() {
   if (error) throw error;
   TEMPLATES = (data || []).map((r) => ({ tpl_id: r.id, tpl_code: r.code }));
   tplPicker.innerHTML = [
-    "<option value=''>— select template —</option>",
+    "<option value=''></option>",
     ...TEMPLATES.map(
       (t) => `<option value='${t.tpl_id}'>${escapeHtml(t.tpl_code)}</option>`
     ),
   ].join("");
+  tplPicker.value = "";
+  if (tplPicker._sasvSearch) syncSearchableSelect(tplPicker);
+  else {
+    enhanceSearchableSelect(tplPicker, {
+      placeholder: "Search or select a template…",
+      allowEmptyOption: true,
+    });
+  }
 }
 
 // ---------- Mapping tab logic (cloned and adapted) ----------
@@ -3594,6 +3608,12 @@ function renderQA() {
   if (!CURRENT_TPL_ID) {
     if (qaChip) qaChip.style.display = "none";
     if (qaPopover) qaPopover.style.display = "none";
+    const feedbackEmpty = el("bomInlineFeedback");
+    if (feedbackEmpty) {
+      feedbackEmpty.hidden = true;
+      feedbackEmpty.classList.remove("is-visible");
+    }
+    if (qaList) qaList.innerHTML = "";
     return [];
   }
   const issues = [];
@@ -3613,12 +3633,30 @@ function renderQA() {
     if (ln.qty_per_reference_output == null || ln.qty_per_reference_output <= 0)
       issues.push(`Line ${i + 1}: qty per reference must be > 0`);
   });
+  const feedback = el("bomInlineFeedback");
+  if (qaList) {
+    if (issues.length) {
+      qaList.innerHTML = issues
+        .map((m) => `<li class="danger">${escapeHtml(m)}</li>`)
+        .join("");
+      if (feedback) {
+        feedback.hidden = false;
+        feedback.classList.add("is-visible");
+      }
+    } else {
+      qaList.innerHTML = "";
+      if (feedback) {
+        feedback.hidden = true;
+        feedback.classList.remove("is-visible");
+      }
+    }
+  }
   if (qaChip) {
     qaChip.style.display = "inline-flex";
     if (issues.length) {
       qaChip.classList.remove("ok");
       qaChip.classList.add("warn");
-      const warnSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+      const warnSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
       const icon = qaChip.querySelector(".qa-icon");
       if (icon) icon.innerHTML = warnSvg;
       qaChip.setAttribute("aria-label", `Validation issues: ${issues.length}`);
@@ -3782,7 +3820,7 @@ tplPicker.addEventListener("change", async () => {
     refQty.value = "";
     refUom.value = "";
     lossPct.value = "";
-    CURRENT_LINES = [blankLine()];
+    CURRENT_LINES = [];
     renderLines();
     syncHeaderPills();
     renderQA();
@@ -3828,7 +3866,7 @@ async function createNewTemplateFromModal() {
     return setStatus("Process Loss % must be 0–100.", "error");
 
   // Initialize header + a blank line, then save immediately
-  tplPicker.value = "";
+  setSearchableSelectValue(tplPicker, "");
   CURRENT_TPL_ID = null;
   if (tplCode) tplCode.value = code;
   refQty.value = q != null ? String(q) : "1.000";
@@ -4315,7 +4353,7 @@ renumberBtn.addEventListener("click", async () => {
 
 saveBtn?.addEventListener("click", saveAll);
 
-// --- Rebuild tab behavior (cloned/adapted from plm-rebuild-dashboard) ---
+// --- Rebuild tab behavior ---
 function renderRebuildDryRun(rows) {
   if (!rebuildResultBody) return;
   rebuildResultBody.innerHTML = (rows || [])
@@ -4522,28 +4560,10 @@ rebuildTplPicker?.addEventListener("change", async () => {
           MAP_PERM_CAN_EDIT = !!mPerm.can_edit;
         }
       } else {
-        // fallback to legacy
-        try {
-          const { data: permRows } = await supabase
-            .from("user_permissions")
-            .select("module_id, can_view, can_edit")
-            .eq("user_id", session.user.id)
-            .in("module_id", [MODULE_ID, MAP_MODULE_ID]);
-          if (Array.isArray(permRows) && permRows.length) {
-            const tPerm2 = permRows.find((r) => r.module_id === MODULE_ID);
-            if (tPerm2) {
-              PERM_CAN_VIEW = !!tPerm2.can_view;
-              PERM_CAN_EDIT = !!tPerm2.can_edit;
-            }
-            const mPerm2 = permRows.find((r) => r.module_id === MAP_MODULE_ID);
-            if (mPerm2) {
-              MAP_PERM_CAN_VIEW = !!mPerm2.can_view;
-              MAP_PERM_CAN_EDIT = !!mPerm2.can_edit;
-            }
-          }
-        } catch (pErr) {
-          console.warn("Permission load failed (legacy)", pErr);
-        }
+        console.warn(
+          "Permission load failed (RPC)",
+          permsErr || "unexpected non-array result",
+        );
       }
     } catch (pErr) {
       console.warn("Permission load failed (RPC)", pErr);
@@ -4590,13 +4610,10 @@ rebuildTplPicker?.addEventListener("change", async () => {
         }
       });
     }
-    // Auto-select first template by default (parity with RM-BOM selecting first BOM)
-    if (Array.isArray(TEMPLATES) && TEMPLATES.length > 0) {
-      CURRENT_TPL_ID = TEMPLATES[0].tpl_id;
-      if (tplPicker) tplPicker.value = String(CURRENT_TPL_ID);
-      if (tplCode) tplCode.value = TEMPLATES[0].tpl_code || "";
-      await refreshTemplate();
-    }
+    // Start empty — load template only after user searches and selects
+    CURRENT_TPL_ID = null;
+    setSearchableSelectValue(tplPicker, "", true);
+    if (tplCode) tplCode.value = "";
     // Populate New Template UOM select
     if (ntRefUomSel) {
       ntRefUomSel.innerHTML = UOMS.map(
@@ -4610,14 +4627,12 @@ rebuildTplPicker?.addEventListener("change", async () => {
         (u) => `<option value="${u.id}">${u.code}</option>`
       ).join("");
     }
-    // default state when no template exists
-    if (!CURRENT_TPL_ID) {
-      CURRENT_LINES = [blankLine()];
-      renderLines();
-      syncHeaderPills();
-      renderQA();
-      updateExportVisibility();
-    }
+    // default empty workbench when no template selected
+    CURRENT_LINES = [];
+    renderLines();
+    syncHeaderPills();
+    renderQA();
+    updateExportVisibility();
     // Permission-based global class like RM-BOM
     if (!PERM_CAN_EDIT) document.body.classList.add("no-edit");
     else document.body.classList.remove("no-edit");
@@ -4626,6 +4641,11 @@ rebuildTplPicker?.addEventListener("change", async () => {
         ? window.Platform.goHome()
         : (window.location.href = "index.html")
     );
+    mountModuleActionIcons({
+      home: homeBtn,
+      refresh: el("reloadBtn"),
+      download: el("exportBtn"),
+    });
     // Kebab menu interactions (simple fixed-positioning like RM-BOM)
     const moreMenuBtn = document.getElementById("moreMenuBtn");
     const moreMenu = document.getElementById("moreMenu");
@@ -4964,7 +4984,7 @@ rebuildTplPicker?.addEventListener("change", async () => {
         if (delErr) throw delErr;
         // Reset UI and reload list
         CURRENT_TPL_ID = null;
-        tplPicker.value = "";
+        setSearchableSelectValue(tplPicker, "");
         if (tplCode) tplCode.value = "";
         refQty.value = "";
         refUom.value = "";

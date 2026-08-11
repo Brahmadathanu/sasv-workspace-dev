@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Supply Batch Plan</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="public/shared/css/sasv-supply-batch-plan.css" />
     <style>
       :root {
         /* Page-local button tokens so standard .btn matches this page's light buttons */
@@ -12,9 +14,9 @@
         --btn-hover-bg: #e6eef8;
       }
       body {
-        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
-        margin: 16px;
-        color: #111;
+        /* Inter + viewport gutter from sasv-module--app tokens */
+        margin: 0;
+        color: var(--sasv-text, #111);
       }
       h1 {
         margin: 0 0 12px;
@@ -54,31 +56,57 @@
         filter: brightness(0.98);
       }
       .btn.primary {
-        background: var(--btn-bg, #005a8d);
-        color: var(--btn-text, #fff);
-        border-color: var(--btn-bg, #005a8d);
+        background: var(--sasv-action-primary, var(--btn-bg, #005a8d));
+        color: var(--sasv-text-on-primary, #fff);
+        border-color: var(--sasv-action-primary, var(--btn-bg, #005a8d));
       }
       .btn.primary:hover {
-        background: var(--btn-hover-bg, #004876);
-        border-color: var(--btn-hover-bg, #004876);
-        filter: brightness(1.02);
+        background: var(--sasv-action-primary-hover, var(--btn-hover-bg, #004876));
+        border-color: var(--sasv-action-primary-hover, var(--btn-hover-bg, #004876));
+        filter: none;
       }
       .btn.warn {
-        background: #fef3c7;
-        border-color: #f59e0b;
-        color: #92400e;
+        background: var(--sasv-warning-bg, #fef3c7);
+        border-color: var(--sasv-warning-border, #f59e0b);
+        color: var(--sasv-warning, #92400e);
       }
       .btn.warn:hover {
         background: #fde68a;
         border-color: #d97706;
       }
-      /* Ensure Refresh and per-row Edit buttons in Batch Size References use black text
-         (scoped to avoid changing other button colors elsewhere). Target only the
-         Refresh control and the Edit action button; leave Delete buttons (which
-         intentionally use red) unaffected. */
+      /* Ensure Refresh and per-row Revise buttons in Batch Size References use black text
+         (scoped to avoid changing other button colors elsewhere). */
       #tab-batch-sizes #refreshBatchSizesBtn,
-      #tab-batch-sizes table tbody button[onclick^="editBatchSizeRef"] {
+      #tab-batch-sizes table tbody button[data-bs-revise] {
         color: #000 !important;
+      }
+      .bs-chip {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .bs-chip-active {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .bs-chip-inactive {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .bs-chip-missing {
+        background: #e2e8f0;
+        color: #334155;
+      }
+      .bs-chip-invalid {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .bs-chip-ok {
+        background: #f0fdf4;
+        color: #166534;
       }
       /* Ensure the small header reload button (after plan selector) shows a
          black icon regardless of other button color rules. Targets SVG
@@ -186,7 +214,7 @@
       }
 
       .bn-picker-btn:focus {
-        outline: 2px solid #3b82f6;
+        outline: 2px solid var(--sasv-focus-ring);
         outline-offset: -2px;
       }
 
@@ -282,7 +310,7 @@
         height: 28px;
         border-radius: 50%;
         border: 3px solid #e5e7eb;
-        border-top: 3px solid #3b82f6;
+        border-top: 3px solid var(--sasv-action-primary);
         animation: spin 1s linear infinite;
       }
       .processing-text {
@@ -341,7 +369,7 @@
         justify-content: flex-end;
       }
       .inpage-modal .btn-primary {
-        background: #3b82f6;
+        background: var(--sasv-action-primary);
         color: white;
         border: none;
         padding: 8px 12px;
@@ -656,23 +684,16 @@
       }
       input:focus,
       select:focus {
-        outline: 2px solid var(--primary, #005a8d);
-        outline-offset: 2px;
-        border-color: var(--primary, #005a8d);
+        outline: none;
+        border-color: var(--sasv-control-border-focus, var(--primary, #005a8d));
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
       }
       input::placeholder {
         color: #6b7280;
         opacity: 1;
       }
       #toast {
-        display: none;
-        position: fixed;
-        right: 16px;
-        bottom: 16px;
-        background: #111;
-        color: #fff;
-        padding: 8px 12px;
-        border-radius: 4px;
+        display: none !important; /* canonical toast.js */
       }
       .grid {
         display: grid;
@@ -1322,23 +1343,23 @@
         white-space: nowrap;
       }
       .tab-btn:hover {
-        background: #f1f5f9;
-        color: #374151;
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-text);
       }
       .tab-btn[aria-selected="true"] {
-        background: linear-gradient(
-          180deg,
-          rgba(37, 99, 235, 0.12),
-          rgba(37, 99, 235, 0.06)
-        );
-        color: #0b3a9a;
-        border-color: rgba(13, 60, 160, 0.12);
+        background: var(--sasv-selection-soft);
+        color: var(--sasv-action-primary-active);
+        border-color: var(--sasv-action-primary-soft-border);
         border-bottom-color: transparent;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+        box-shadow: none;
+        font-weight: 600;
+      }
+      .tab-btn:focus-visible {
+        outline: 3px solid var(--sasv-focus-ring);
+        outline-offset: 2px;
       }
       .tab-btn:focus {
-        outline: 3px solid rgba(37, 99, 235, 0.12);
-        outline-offset: 2px;
+        outline: none;
       }
       .tab-btn.has-data::after {
         content: "●";
@@ -1385,7 +1406,7 @@
         top: 0;
         width: 40px;
         height: 3px;
-        background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        background: var(--sasv-action-primary);
         border-radius: 2px;
       }
 
@@ -1432,15 +1453,15 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
       .config-tab-btn[aria-selected="true"] {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        background: var(--sasv-selection-soft);
         color: #ffffff;
-        border-color: #2563eb;
-        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
       }
       .config-tab-btn[aria-selected="true"]:hover {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        background: var(--sasv-action-primary-soft);
         transform: translateY(-1px);
-        box-shadow: 0 3px 8px rgba(37, 99, 235, 0.35);
+        box-shadow: none;
       }
       .config-tab-btn svg {
         width: 12px;
@@ -1545,10 +1566,10 @@
       }
 
       .step.active .step-icon {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        background: var(--sasv-selection-soft);
+        color: var(--sasv-action-primary-active);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
       }
 
       .step.active .step-title {
@@ -1729,12 +1750,12 @@
       .btn-link {
         background: none !important;
         border: none !important;
-        color: #2563eb !important;
+        color: var(--sasv-action-primary) !important;
         text-decoration: underline;
         padding: 2px 4px !important;
       }
       .btn-link:hover {
-        color: #1d4ed8 !important;
+        color: var(--sasv-action-primary-hover) !important;
         background: #eff6ff !important;
       }
 
@@ -1865,14 +1886,21 @@
       }
     </style>
   </head>
-  <body>
-    <!-- Simplified Page Header -->
-    <header class="page-header">
-      <h1>Supply Batch Plan</h1>
-      <div class="header-actions">
-        <button id="homeBtn">HOME</button>
+  <body class="sasv-module sasv-module--app sasv-supply-batch-plan" data-theme="system">
+    <!-- Page Header -->
+    <div class="header-card">
+      <div class="page-header">
+        <div class="sbp-header-copy">
+          <h1 class="sasv-module-title">Supply Batch Plan</h1>
+          <div class="page-sub">
+            Build, size, and apply supply batch plans with preferred batch-size references.
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="homeBtn" type="button" class="icon-btn sasv-home-btn" title="HOME" aria-label="HOME"></button>
+        </div>
       </div>
-    </header>
+    </div>
 
     <!-- Persistent Plan Header Bar -->
     <div class="persistent-header">
@@ -2485,59 +2513,43 @@
               Clear
             </button>
 
-            <!-- Boolean filters for presence/absence of sizes -->
             <label
-              title="Filter by Preferred Batch Size: set / not set"
+              title="Filter by reference state"
               style="display: flex; align-items: center"
             >
               <select
-                id="batchSizeFilterPreferredMode"
+                id="batchSizeFilterState"
                 style="
                   padding: 6px;
                   border-radius: 6px;
                   border: 1px solid #d1d5db;
                 "
               >
-                <option value="any">Preferred: any</option>
-                <option value="set">Preferred = set</option>
-                <option value="notset">Preferred = not set</option>
+                <option value="ALL">All</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="MISSING">Missing</option>
               </select>
             </label>
 
             <label
-              title="Filter by Min Batch Size: set / not set"
-              style="display: flex; align-items: center"
+              title="Optional Product ID filter"
+              style="display: flex; align-items: center; gap: 6px"
             >
-              <select
-                id="batchSizeFilterMinMode"
+              <span style="font-size: 12px; color: #666">Product ID</span>
+              <input
+                type="number"
+                id="batchSizeProductIdFilter"
+                min="1"
+                step="1"
+                placeholder="e.g. 616"
                 style="
-                  padding: 6px;
+                  width: 100px;
+                  padding: 6px 8px;
                   border-radius: 6px;
                   border: 1px solid #d1d5db;
                 "
-              >
-                <option value="any">Min: any</option>
-                <option value="set">Min = set</option>
-                <option value="notset">Min = not set</option>
-              </select>
-            </label>
-
-            <label
-              title="Filter by Max Batch Size: set / not set"
-              style="display: flex; align-items: center"
-            >
-              <select
-                id="batchSizeFilterMaxMode"
-                style="
-                  padding: 6px;
-                  border-radius: 6px;
-                  border: 1px solid #d1d5db;
-                "
-              >
-                <option value="any">Max: any</option>
-                <option value="set">Max = set</option>
-                <option value="notset">Max = not set</option>
-              </select>
+              />
             </label>
           </div>
 
@@ -2545,9 +2557,9 @@
             <button
               id="addNewBatchSizeBtn"
               class="btn primary"
-              title="Add new product batch size reference"
+              title="Add Product Batch Size Reference"
             >
-              Add New Product
+              Add
             </button>
             <button
               id="refreshBatchSizesBtn"
@@ -2555,6 +2567,20 @@
               title="Refresh batch size list"
             >
               Refresh
+            </button>
+          </div>
+        </div>
+        <div
+          class="row"
+          style="justify-content: space-between; align-items: center"
+        >
+          <div id="batchSizePagerInfo" class="muted">—</div>
+          <div style="display: flex; gap: 8px">
+            <button type="button" class="btn" id="batchSizePrevPage">
+              Previous
+            </button>
+            <button type="button" class="btn" id="batchSizeNextPage">
+              Next
             </button>
           </div>
         </div>
@@ -2580,12 +2606,12 @@
                 </th>
                 <th
                   style="
-                    text-align: center;
+                    text-align: left;
                     padding: 8px;
                     border-bottom: 2px solid #e5e7eb;
                   "
                 >
-                  Preferred Size
+                  Product Group
                 </th>
                 <th
                   style="
@@ -2594,7 +2620,7 @@
                     border-bottom: 2px solid #e5e7eb;
                   "
                 >
-                  Min Size
+                  Preferred
                 </th>
                 <th
                   style="
@@ -2603,7 +2629,25 @@
                     border-bottom: 2px solid #e5e7eb;
                   "
                 >
-                  Max Size
+                  Minimum
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Maximum
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  UOM
                 </th>
                 <th
                   style="
@@ -2621,7 +2665,7 @@
                     border-bottom: 2px solid #e5e7eb;
                   "
                 >
-                  Status
+                  Effective To
                 </th>
                 <th
                   style="
@@ -2630,7 +2674,25 @@
                     border-bottom: 2px solid #e5e7eb;
                   "
                 >
-                  Notes
+                  State
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Range
+                </th>
+                <th
+                  style="
+                    text-align: center;
+                    padding: 8px;
+                    border-bottom: 2px solid #e5e7eb;
+                  "
+                >
+                  Updated
                 </th>
                 <th
                   style="
@@ -2646,7 +2708,7 @@
             <tbody id="batchSizeRefsBody">
               <tr>
                 <td
-                  colspan="8"
+                  colspan="12"
                   style="text-align: center; padding: 20px; color: #666"
                 >
                   Loading batch size references...
@@ -3163,6 +3225,7 @@
           <button class="modal-close" id="batchSizeModalClose">&times;</button>
         </div>
         <div class="modal-body" style="padding: 24px">
+          <div id="batchSizeCurrentReadonly" style="display: none"></div>
           <form id="batchSizeForm">
             <div class="form-group" style="margin-bottom: 16px">
               <label
@@ -3184,7 +3247,28 @@
                 <option value="">Select a product...</option>
               </select>
               <small style="color: #666; font-size: 12px"
-                >Choose the product for batch size configuration.</small
+                >Selectable only in Create mode.</small
+              >
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px">
+              <label style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Product UOM</label
+              >
+              <div
+                id="batchSizeUomDisplay"
+                style="
+                  padding: 8px 12px;
+                  background: #f8fafc;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 6px;
+                  color: #374151;
+                "
+              >
+                —
+              </div>
+              <small style="color: #666; font-size: 12px"
+                >Read-only Product-master evidence.</small
               >
             </div>
 
@@ -3237,7 +3321,7 @@
                     border-radius: 6px;
                     font-size: 14px;
                   "
-                  placeholder="Optional"
+                  placeholder="Minimum"
                 />
               </div>
               <div class="form-group">
@@ -3258,7 +3342,7 @@
                     border-radius: 6px;
                     font-size: 14px;
                   "
-                  placeholder="Optional"
+                  placeholder="Maximum"
                 />
               </div>
             </div>
@@ -3282,41 +3366,20 @@
                 "
               />
               <small style="color: #666; font-size: 12px; margin-left: 8px"
-                >Date when this configuration becomes active.</small
+                >Future-dated create/revise is not supported.</small
               >
             </div>
 
             <div class="form-group" style="margin-bottom: 16px">
               <label
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  font-weight: 500;
-                "
-              >
-                <input
-                  type="checkbox"
-                  id="batchSizeIsActive"
-                  checked
-                  style="margin: 0"
-                />
-                Active
-              </label>
-              <small style="color: #666; font-size: 12px"
-                >Only one active configuration per product is allowed.</small
-              >
-            </div>
-
-            <div class="form-group" style="margin-bottom: 20px">
-              <label
-                for="batchSizeNotes"
+                for="batchSizeChangeReason"
                 style="display: block; margin-bottom: 4px; font-weight: 500"
-                >Notes</label
+                >Change reason <span style="color: #b91c1c">*</span></label
               >
               <textarea
-                id="batchSizeNotes"
-                rows="3"
+                id="batchSizeChangeReason"
+                rows="2"
+                required
                 style="
                   width: 100%;
                   padding: 8px 12px;
@@ -3325,10 +3388,52 @@
                   font-size: 14px;
                   resize: vertical;
                 "
-                placeholder="Optional notes about this batch size configuration..."
+                placeholder="Mandatory meaningful reason for this change..."
+              ></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px">
+              <label
+                for="batchSizeNotes"
+                style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Notes</label
+              >
+              <textarea
+                id="batchSizeNotes"
+                rows="2"
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  font-size: 14px;
+                  resize: vertical;
+                "
+                placeholder="Optional notes..."
               ></textarea>
             </div>
           </form>
+
+          <div id="batchSizeHistorySection" style="display: none; margin-top: 8px">
+            <h4 style="margin: 0 0 8px; font-size: 14px">Product history</h4>
+            <div style="overflow-x: auto; max-height: 180px">
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px">
+                <thead>
+                  <tr>
+                    <th style="text-align: left; padding: 4px 6px">Ref</th>
+                    <th style="text-align: center; padding: 4px 6px">Pref/Min/Max</th>
+                    <th style="text-align: center; padding: 4px 6px">From</th>
+                    <th style="text-align: center; padding: 4px 6px">To</th>
+                    <th style="text-align: center; padding: 4px 6px">State</th>
+                    <th style="text-align: left; padding: 4px 6px">Reason</th>
+                    <th style="text-align: center; padding: 4px 6px">Supersedes</th>
+                    <th style="text-align: left; padding: 4px 6px">Timestamps</th>
+                  </tr>
+                </thead>
+                <tbody id="batchSizeHistoryBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
         <div
           class="modal-footer"
@@ -3339,11 +3444,18 @@
             display: flex;
             gap: 12px;
             justify-content: flex-end;
+            flex-wrap: wrap;
             margin-top: 16px;
           "
         >
           <button class="btn" id="batchSizeCancel">Cancel</button>
+          <button class="btn" id="batchSizeInactivate" style="display: none">
+            Inactivate
+          </button>
           <button class="btn primary" id="batchSizeSave">Save</button>
+          <button class="btn primary" id="batchSizeSaveRecalc">
+            Save and Recalculate Product
+          </button>
         </div>
       </div>
     </div>
@@ -3388,6 +3500,23 @@
           </div>
 
           <form id="quickEditBatchSizeForm">
+            <div class="form-group" style="margin-bottom: 12px">
+              <label style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Product UOM</label
+              >
+              <div
+                id="quickEditUomDisplay"
+                style="
+                  padding: 8px 12px;
+                  background: #f8fafc;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 6px;
+                  color: #374151;
+                "
+              >
+                —
+              </div>
+            </div>
             <div
               class="form-row"
               style="
@@ -3437,7 +3566,7 @@
                     border-radius: 6px;
                     font-size: 14px;
                   "
-                  placeholder="Optional"
+                  placeholder="Minimum"
                 />
               </div>
               <div class="form-group">
@@ -3458,7 +3587,7 @@
                     border-radius: 6px;
                     font-size: 14px;
                   "
-                  placeholder="Optional"
+                  placeholder="Maximum"
                 />
               </div>
             </div>
@@ -3485,24 +3614,24 @@
 
             <div class="form-group" style="margin-bottom: 16px">
               <label
+                for="quickEditChangeReason"
+                style="display: block; margin-bottom: 4px; font-weight: 500"
+                >Change reason <span style="color: #b91c1c">*</span></label
+              >
+              <textarea
+                id="quickEditChangeReason"
+                rows="2"
+                required
                 style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  font-weight: 500;
+                  width: 100%;
+                  padding: 8px 12px;
+                  border: 1px solid #d1d5db;
+                  border-radius: 6px;
+                  font-size: 14px;
+                  resize: vertical;
                 "
-              >
-                <input
-                  type="checkbox"
-                  id="quickEditIsActive"
-                  checked
-                  style="margin: 0"
-                />
-                Active
-              </label>
-              <small style="color: #666; font-size: 12px"
-                >Only one active configuration per product is allowed.</small
-              >
+                placeholder="Mandatory meaningful reason..."
+              ></textarea>
             </div>
 
             <div class="form-group" style="margin-bottom: 20px">
@@ -3522,7 +3651,7 @@
                   font-size: 14px;
                   resize: vertical;
                 "
-                placeholder="Optional notes about this batch size configuration..."
+                placeholder="Optional notes..."
               ></textarea>
             </div>
           </form>
@@ -3536,27 +3665,120 @@
             display: flex;
             gap: 12px;
             justify-content: flex-end;
+            flex-wrap: wrap;
             margin-top: 16px;
           "
         >
           <button class="btn" id="quickEditCancel">Cancel</button>
+          <button class="btn primary" id="quickEditSave">Save</button>
           <button class="btn primary" id="quickEditRebuild">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              style="margin-right: 4px"
-            >
-              <path
-                d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"
-              />
-            </svg>
-            Rebuild Plan
+            Save and Recalculate Product
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Inactivate Batch Size Reference -->
+    <div
+      id="batchSizeInactivateModal"
+      class="modal-overlay"
+      style="display: none"
+    >
+      <div class="modal-content" style="width: 520px; max-width: 90vw">
+        <div class="modal-header">
+          <h3>Inactivate Batch Size Reference</h3>
+          <button
+            class="modal-close"
+            id="batchSizeInactivateModalClose"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 20px">
+          <input type="hidden" id="inactivateBatchSizeRefId" />
+          <p style="margin: 0 0 10px">
+            Product:
+            <strong id="inactivateBatchSizeProduct">—</strong>
+          </p>
+          <p style="margin: 0 0 12px; font-size: 13px; color: #444">
+            History is retained. Product will have no active preferred
+            batch-size reference until another is created. No plan
+            recalculation occurs unless separately requested. No costing
+            refresh or Stage 03 occurs.
+          </p>
+          <div class="form-group" style="margin-bottom: 12px">
+            <label
+              for="inactivateBatchSizeEffectiveTo"
+              style="display: block; margin-bottom: 4px; font-weight: 500"
+              >Effective to</label
+            >
+            <input
+              type="date"
+              id="inactivateBatchSizeEffectiveTo"
+              required
+              style="
+                width: 200px;
+                padding: 8px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+              "
+            />
+          </div>
+          <div class="form-group">
+            <label
+              for="inactivateBatchSizeReason"
+              style="display: block; margin-bottom: 4px; font-weight: 500"
+              >Change reason <span style="color: #b91c1c">*</span></label
+            >
+            <textarea
+              id="inactivateBatchSizeReason"
+              rows="3"
+              required
+              style="
+                width: 100%;
+                padding: 8px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                resize: vertical;
+              "
+            ></textarea>
+          </div>
+        </div>
+        <div
+          class="modal-footer"
+          style="
+            padding: 12px 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+          "
+        >
+          <button class="btn" id="batchSizeInactivateCancel">Cancel</button>
+          <button class="btn primary" id="batchSizeInactivateConfirm">
+            Confirm Inactivate
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact Product history modal -->
+    <div
+      id="batchSizeHistoryModal"
+      class="modal-overlay"
+      style="display: none"
+    >
+      <div
+        class="modal-content"
+        style="width: 720px; max-width: 95vw; max-height: 90vh; overflow: auto"
+      >
+        <div class="modal-header">
+          <h3 id="batchSizeHistoryModalTitle">Batch size history</h3>
+          <button class="modal-close" id="batchSizeHistoryModalClose">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 16px" id="batchSizeHistoryModalBody"></div>
       </div>
     </div>
 

@@ -1,9 +1,47 @@
 import { supabase } from "./supabaseClient.js";
 
-export const MATERIAL_COST_LENS_IDS = ["manual-rate-manager", "rm-cost-trace"];
+export const MATERIAL_COST_LENS_IDS = [
+  "manual-rate-manager",
+  "rm-cost-trace",
+  "pm-cost-trace",
+];
+
+export const STAGE05_REMEDIATION_ROUTE_RM = "MATERIAL_RATE_MANAGER_RM";
+export const STAGE05_REMEDIATION_ROUTE_PM = "MATERIAL_RATE_MANAGER_PM";
+export const STAGE05_REMEDIATION_ROUTES = Object.freeze([
+  STAGE05_REMEDIATION_ROUTE_RM,
+  STAGE05_REMEDIATION_ROUTE_PM,
+]);
+export const STAGE05_REMEDIATION_DRILLDOWN_VIEW =
+  "v_costing_pricing_material_action_drilldown_snapshot";
+export const MANUAL_RATE_MANAGER_ACTION_QUEUE_VIEW =
+  "v_costing_manual_rate_manager_action_queue";
 
 export function isMaterialCostLens(lensId) {
   return MATERIAL_COST_LENS_IDS.includes(lensId);
+}
+
+export function isMaterialCostTraceLens(lensId) {
+  return lensId === "rm-cost-trace" || lensId === "pm-cost-trace";
+}
+
+export function normalizeStage05RemediationRoutes(issueFilters) {
+  const wanted = new Set(
+    (Array.isArray(issueFilters) ? issueFilters : [])
+      .map((value) => String(value || "").trim().toUpperCase())
+      .filter(Boolean),
+  );
+  return STAGE05_REMEDIATION_ROUTES.filter((route) => wanted.has(route));
+}
+
+export function isStage05MaterialRemediationMode({
+  lensId,
+  managerTab,
+  issueFilters,
+} = {}) {
+  if (String(lensId || "").trim() !== "manual-rate-manager") return false;
+  if (String(managerTab || "").trim() !== "action-queue") return false;
+  return normalizeStage05RemediationRoutes(issueFilters).length > 0;
 }
 
 const MANUAL_RATE_HEADERS_BY_TAB = {
@@ -18,6 +56,18 @@ const MANUAL_RATE_HEADERS_BY_TAB = {
     "Affected Products",
     "Affected SKUs",
     "Recommended Action",
+  ],
+  "stage05-remediation": [
+    "Material",
+    "Area",
+    "Product / SKU",
+    "Issue",
+    "Current Rate",
+    "Rate Source",
+    "Rate Date",
+    "Required Action",
+    "Warning",
+    "BOM Source",
   ],
   register: [
     "",
@@ -61,6 +111,22 @@ const MANUAL_RATE_HEADERS_BY_TAB = {
     "Warning",
     "Semi-process Source",
   ],
+  "pm-cost-trace": [
+    "Stock Item Code",
+    "Stock Item Name",
+    "Product",
+    "SKU",
+    "Qty",
+    "UOM",
+    "Rate",
+    "Rate Source",
+    "Rate Date",
+    "PM Line Cost",
+    "Contribution %",
+    "State",
+    "Warning",
+    "PM Source",
+  ],
 };
 
 const MANUAL_RATE_ALIGNMENTS_BY_TAB = {
@@ -74,6 +140,18 @@ const MANUAL_RATE_ALIGNMENTS_BY_TAB = {
     "c-right",
     "c-right",
     "c-right",
+    "c-left",
+  ],
+  "stage05-remediation": [
+    "c-left",
+    "c-left",
+    "c-left",
+    "c-left",
+    "c-right",
+    "c-left",
+    "c-left",
+    "c-left",
+    "c-left",
     "c-left",
   ],
   register: [
@@ -103,6 +181,22 @@ const MANUAL_RATE_ALIGNMENTS_BY_TAB = {
     "c-left",
   ],
   "rm-cost-trace": [
+    "c-left",
+    "c-left",
+    "c-left",
+    "c-left",
+    "c-right",
+    "c-left",
+    "c-right",
+    "c-left",
+    "c-left",
+    "c-right",
+    "c-right",
+    "c-left",
+    "c-left",
+    "c-left",
+  ],
+  "pm-cost-trace": [
     "c-left",
     "c-left",
     "c-left",
@@ -168,9 +262,35 @@ const RM_TRACE_EXPORT_COLUMNS = [
   "snapshot_refreshed_at",
 ];
 
+const PM_TRACE_EXPORT_COLUMNS = [
+  "period_start",
+  "valuation_date",
+  "refresh_run_id",
+  "product_name",
+  "sku_column_label",
+  "stock_item_code",
+  "stock_item_name",
+  "pm_source",
+  "sku_quantity",
+  "quantity_uom",
+  "selected_rate",
+  "rate_source",
+  "rate_date",
+  "pm_line_cost",
+  "contribution_share_percent",
+  "review_state",
+  "warning_code",
+  "warning_text",
+  "snapshot_refreshed_at",
+];
+
 const RM_TRACE_RESTRICTED_MESSAGE = `Restricted RM contribution detail
 
 Your Material Cost Manager access does not include confidential raw-material contribution traceability.`;
+
+const PM_TRACE_RESTRICTED_MESSAGE = `Restricted PM contribution detail
+
+Your Material Cost Manager access does not include packing-material contribution traceability.`;
 
 const HARD_BLOCKER_ISSUE_CODES = [
   "MISSING_REQUIRED_RM_RATE",
@@ -425,6 +545,9 @@ export function createMaterialCostController(deps) {
     genericTableMetaActions,
     setVisible,
     escapeHtml,
+    getActiveFilters,
+    getStage05RemediationLaunchContext,
+    clearStage05RemediationLaunchContext,
   } = deps;
 
   const {
@@ -488,6 +611,7 @@ export function createMaterialCostController(deps) {
   let materialReviewAcceptanceRows = [];
   let materialReviewAcceptanceByKey = new Map();
   let materialActionDrilldownRows = [];
+  let materialActionDrilldownCacheKey = null;
   let manualRateEditRow = null;
   let manualRateReturnFocus = null;
   let manualRateCloseRow = null;
@@ -512,8 +636,9 @@ export function createMaterialCostController(deps) {
   let workbenchMatchPeriodStart = null;
   let workbenchMatchLoaded = false;
   let workbenchMatchLoadPromise = null;
+  let lastActionQueueLoadWasRemediation = false;
 
-  const CURRENT_TRACE_COMPONENT = "RM";
+  let ACTIVE_TRACE_COMPONENT = "RM";
   let TRACE_FILTERS = {
     product_id: null,
     sku_id: null,
@@ -526,8 +651,10 @@ export function createMaterialCostController(deps) {
   };
   let TRACE_ROWS = [];
   let TRACE_TOTAL_COUNT = 0;
-  let TRACE_PAGE = 1;
   let TRACE_PAGE_SIZE = 25;
+  let TRACE_LOADING = false;
+  let TRACE_HAS_MORE = false;
+  let TRACE_QUERY_VERSION = 0;
   let TRACE_LOAD_STATE = "idle";
   let TRACE_ERROR_MESSAGE = "";
   let TRACE_FILTER_OPTIONS = {
@@ -539,10 +666,20 @@ export function createMaterialCostController(deps) {
     warning_statuses: [],
     trace_component: "RM",
     snapshot_refreshed_at: null,
+    valuation_date: null,
+    refresh_run_id: null,
   };
   let TRACE_SNAPSHOT_REFRESHED_AT = null;
+  let TRACE_VALUATION_DATE = null;
+  let TRACE_REFRESH_RUN_ID = null;
   let rmTraceSearchTimer = null;
   let rmTraceEventsBound = false;
+  let pmTraceSearchTimer = null;
+  let pmTraceEventsBound = false;
+  let TRACE_SCROLL_OBSERVER = null;
+  let TRACE_SCROLL_LISTENER = null;
+  let TRACE_SCROLL_ROOT = null;
+  let TRACE_LOAD_MORE_IN_FLIGHT = false;
 
   const MATERIAL_COST_READ_ONLY_TOAST =
     "Read-only access. You do not have permission to change material costing actions.";
@@ -1305,96 +1442,164 @@ export function createMaterialCostController(deps) {
     await refreshOpenDrawerIfNeeded();
   }
 
-  async function refreshSelectedMaterialActionDrilldown(row) {
+  function isBlankDrilldownContextValue(value) {
+    return value === null || value === undefined || value === "";
+  }
+
+  function resolveMaterialActionDrilldownContext(row) {
+    const periodStart = row?.period_start || getActivePeriodStart();
+    const valuationDate = row?.valuation_date;
+    const refreshRunId = row?.refresh_run_id;
+    const stockItemId = row?.stock_item_id;
+    const materialArea = row?.material_area;
+    const actionSeverity = row?.action_severity;
+    const recommendedUiRoute = row?.recommended_ui_route;
+
     const missing = [
-      ["stock_item_id", row?.stock_item_id],
-      ["material_area", row?.material_area],
-      ["action_severity", row?.action_severity],
-      ["recommended_ui_route", row?.recommended_ui_route],
+      ["period_start", periodStart],
+      ["valuation_date", valuationDate],
+      ["refresh_run_id", refreshRunId],
+      ["stock_item_id", stockItemId],
+      ["material_area", materialArea],
+      ["action_severity", actionSeverity],
+      ["recommended_ui_route", recommendedUiRoute],
     ]
-      .filter(
-        ([, value]) => value === null || value === undefined || value === "",
-      )
+      .filter(([, value]) => isBlankDrilldownContextValue(value))
       .map(([key]) => key);
 
     if (missing.length) {
-      throw new Error(
-        `Material action drilldown context missing: ${missing.join(", ")}`,
-      );
+      return { ok: false, missing };
     }
 
-    const { error: refreshError } = await costingRpc(
-      "rpc_refresh_material_action_drilldown_snapshot",
-      {
-        p_period_start: getActivePeriodStart(),
-        p_stock_item_id: row.stock_item_id,
-        p_material_area: row.material_area,
-        p_action_severity: row.action_severity,
-        p_recommended_ui_route: row.recommended_ui_route,
-      },
-    );
+    return {
+      ok: true,
+      periodStart,
+      valuationDate,
+      refreshRunId,
+      stockItemId,
+      materialArea,
+      actionSeverity,
+      recommendedUiRoute,
+      cacheKey: [
+        periodStart,
+        valuationDate,
+        refreshRunId,
+        stockItemId,
+        materialArea,
+        actionSeverity,
+        recommendedUiRoute,
+      ].join("|"),
+    };
+  }
 
-    if (refreshError) throw refreshError;
+  function resolveReviewActionDrilldownContext(row) {
+    const periodStart = row?.period_start || getActivePeriodStart();
+    const valuationDate = row?.valuation_date;
+    const refreshRunId = row?.refresh_run_id;
+    const stockItemId = row?.stock_item_id;
+    const materialIssueCode = row?.material_issue_code;
+    const bomSource = row?.bom_source;
+
+    const missing = [
+      ["period_start", periodStart],
+      ["valuation_date", valuationDate],
+      ["refresh_run_id", refreshRunId],
+      ["stock_item_id", stockItemId],
+      ["material_issue_code", materialIssueCode],
+      ["bom_source", bomSource],
+    ]
+      .filter(([, value]) => isBlankDrilldownContextValue(value))
+      .map(([key]) => key);
+
+    if (missing.length) {
+      return { ok: false, missing };
+    }
+
+    return {
+      ok: true,
+      periodStart,
+      valuationDate,
+      refreshRunId,
+      stockItemId,
+      materialIssueCode,
+      bomSource,
+    };
+  }
+
+  /** Read-only exact-context load from staged material action drilldown snapshot. */
+  async function loadSelectedMaterialActionDrilldown(row) {
+    const context = resolveMaterialActionDrilldownContext(row);
+    if (!context.ok) {
+      console.warn(
+        "[costing-suite] Material action drilldown exact context incomplete:",
+        context.missing.join(", "),
+      );
+      materialActionDrilldownRows = [];
+      materialActionDrilldownCacheKey = null;
+      return [];
+    }
+
+    if (
+      materialActionDrilldownCacheKey === context.cacheKey &&
+      Array.isArray(materialActionDrilldownRows)
+    ) {
+      return materialActionDrilldownRows;
+    }
 
     materialActionDrilldownRows = await fetchAllRows(
       () =>
         costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
           .select("*")
-          .eq("period_start", getActivePeriodStart())
-          .eq("stock_item_id", row.stock_item_id)
-          .eq("material_area", row.material_area)
-          .eq("action_severity", row.action_severity)
-          .eq("recommended_ui_route", row.recommended_ui_route)
+          .eq("period_start", context.periodStart)
+          .eq("valuation_date", context.valuationDate)
+          .eq("refresh_run_id", context.refreshRunId)
+          .eq("stock_item_id", context.stockItemId)
+          .eq("material_area", context.materialArea)
+          .eq("action_severity", context.actionSeverity)
+          .eq("recommended_ui_route", context.recommendedUiRoute)
           .order("product_name", { ascending: true })
           .order("sku_id", { ascending: true })
           .order("bom_source", { ascending: true })
           .order("line_no", { ascending: true, nullsFirst: false }),
       1000,
     );
-
+    materialActionDrilldownCacheKey = context.cacheKey;
     return materialActionDrilldownRows;
   }
 
-  async function fetchLegacyActionDrilldown(row) {
-    const readSnapshot = async () => {
-      const { data, error } = await costingFrom(
-        "v_costing_pricing_review_action_item_drilldown_snapshot",
-      )
-        .select("*")
-        .eq("period_start", getActivePeriodStart())
-        .eq("stock_item_id", row.stock_item_id)
-        .eq("material_issue_code", row.material_issue_code)
-        .eq("bom_source", row.bom_source)
-        .limit(1000);
+  /** Read-only exact-context load from staged review action item drilldown snapshot. */
+  async function loadReviewActionItemDrilldown(row) {
+    const context = resolveReviewActionDrilldownContext(row);
+    if (!context.ok) {
+      console.warn(
+        "[costing-suite] Review action drilldown exact context incomplete:",
+        context.missing.join(", "),
+      );
+      return [];
+    }
 
-      if (error) throw error;
-      return data || [];
-    };
+    const { data, error } = await costingFrom(
+      "v_costing_pricing_review_action_item_drilldown_snapshot",
+    )
+      .select("*")
+      .eq("period_start", context.periodStart)
+      .eq("valuation_date", context.valuationDate)
+      .eq("refresh_run_id", context.refreshRunId)
+      .eq("stock_item_id", context.stockItemId)
+      .eq("material_issue_code", context.materialIssueCode)
+      .eq("bom_source", context.bomSource)
+      .limit(1000);
 
-    const rows = await readSnapshot();
-    if (rows.length) return rows;
-
-    const { error: refreshError } = await costingRpc(
-      "rpc_refresh_costing_review_action_drilldown_snapshot",
-      {
-        p_period_start: getActivePeriodStart(),
-        p_stock_item_id: row.stock_item_id,
-        p_material_issue_code: row.material_issue_code,
-        p_bom_source: row.bom_source,
-      },
-    );
-
-    if (refreshError) throw refreshError;
-
-    return readSnapshot();
+    if (error) throw error;
+    return data || [];
   }
 
   async function fetchActionDrilldown(row) {
     if (getCurrentLens() === "costing-review-workbench") {
-      return refreshSelectedMaterialActionDrilldown(row);
+      return loadSelectedMaterialActionDrilldown(row);
     }
 
-    return fetchLegacyActionDrilldown(row);
+    return loadReviewActionItemDrilldown(row);
   }
 
   async function fetchManualRateHistory(row) {
@@ -1564,12 +1769,13 @@ export function createMaterialCostController(deps) {
 
   async function fetchVendorOffersForStockItem(stockItemId) {
     if (stockItemId == null) return [];
-    const { data, error } = await costingFrom("v_proc_vendor_item_rate_effective")
-      .select("*")
-      .eq("stock_item_id", stockItemId)
-      .eq("is_active", true)
-      .order("vendor_display_name", { ascending: true })
-      .order("valid_from", { ascending: false });
+    const { data, error } = await costingRpc(
+      "rpc_get_material_vendor_rate_offers",
+      {
+        p_stock_item_id: stockItemId,
+        p_limit: 50,
+      },
+    );
     if (error) throw error;
     return Array.isArray(data) ? data : [];
   }
@@ -3026,7 +3232,7 @@ export function createMaterialCostController(deps) {
   }
 
   async function renderControlWorkbenchAffectedSkusTab(row) {
-    const rows = await refreshSelectedMaterialActionDrilldown(row);
+    const rows = await loadSelectedMaterialActionDrilldown(row);
 
     return simpleTable(
       [
@@ -3742,27 +3948,77 @@ export function createMaterialCostController(deps) {
       return getTracePermissions();
     }
     return {
-      currentComponent: CURRENT_TRACE_COMPONENT,
+      currentComponent: ACTIVE_TRACE_COMPONENT,
       canViewTrace: false,
       canExportTrace: false,
       permissionsResolved: false,
+      canViewRmTrace: false,
+      canExportRmTrace: false,
+      canViewPmTrace: false,
+      canExportPmTrace: false,
     };
+  }
+
+  function syncActiveTraceComponentFromLens() {
+    const lens = getCurrentLens();
+    if (lens === "pm-cost-trace") ACTIVE_TRACE_COMPONENT = "PM";
+    else if (lens === "rm-cost-trace") ACTIVE_TRACE_COMPONENT = "RM";
   }
 
   function canAccessRmTrace() {
     const perms = getTracePermissionsSafe();
+    if (perms.permissionsResolved !== true) return false;
+    if (typeof perms.canViewRmTrace === "boolean") {
+      return perms.canViewRmTrace === true;
+    }
     return (
-      perms.permissionsResolved === true &&
       perms.canViewTrace === true &&
-      (perms.currentComponent || CURRENT_TRACE_COMPONENT) === "RM"
+      (perms.currentComponent || ACTIVE_TRACE_COMPONENT) === "RM"
     );
   }
 
   function canExportRmTrace() {
     const perms = getTracePermissionsSafe();
+    if (!canAccessRmTrace()) return false;
+    if (typeof perms.canExportRmTrace === "boolean") {
+      return perms.canExportRmTrace === true;
+    }
+    return perms.canExportTrace === true;
+  }
+
+  function canAccessPmTrace() {
+    const perms = getTracePermissionsSafe();
+    if (perms.permissionsResolved !== true) return false;
+    if (typeof perms.canViewPmTrace === "boolean") {
+      return perms.canViewPmTrace === true;
+    }
     return (
-      canAccessRmTrace() && perms.canExportTrace === true
+      perms.canViewTrace === true &&
+      (perms.currentComponent || ACTIVE_TRACE_COMPONENT) === "PM"
     );
+  }
+
+  function canExportPmTrace() {
+    const perms = getTracePermissionsSafe();
+    if (!canAccessPmTrace()) return false;
+    if (typeof perms.canExportPmTrace === "boolean") {
+      return perms.canExportPmTrace === true;
+    }
+    return perms.canExportTrace === true;
+  }
+
+  function canAccessActiveTrace() {
+    syncActiveTraceComponentFromLens();
+    return ACTIVE_TRACE_COMPONENT === "PM"
+      ? canAccessPmTrace()
+      : canAccessRmTrace();
+  }
+
+  function canExportActiveTrace() {
+    syncActiveTraceComponentFromLens();
+    return ACTIVE_TRACE_COMPONENT === "PM"
+      ? canExportPmTrace()
+      : canExportRmTrace();
   }
 
   function getManualRateManagerTab() {
@@ -3777,16 +4033,30 @@ export function createMaterialCostController(deps) {
   }
 
   function syncTracePageFromShell(page, pageSize) {
-    TRACE_PAGE = Math.max(1, Number(page) || 1);
+    // Progressive Trace no longer uses shell page numbers; keep pageSize sync only.
+    void page;
     if (pageSize) TRACE_PAGE_SIZE = Number(pageSize) || 25;
   }
 
   function getTracePage() {
-    return TRACE_PAGE;
+    // Compatibility shim: progressive list has no discrete page UX.
+    return 1;
   }
 
   function getTraceTotalCount() {
     return TRACE_TOTAL_COUNT;
+  }
+
+  function getTraceRows() {
+    return TRACE_ROWS;
+  }
+
+  function getTraceHasMore() {
+    return TRACE_HAS_MORE === true;
+  }
+
+  function isTraceLoadingMore() {
+    return TRACE_LOADING === true || TRACE_LOAD_MORE_IN_FLIGHT === true;
   }
 
   function getTraceLoadState() {
@@ -3800,13 +4070,36 @@ export function createMaterialCostController(deps) {
   function clearTraceConfidentialState() {
     TRACE_ROWS = [];
     TRACE_TOTAL_COUNT = 0;
+    TRACE_HAS_MORE = false;
+    TRACE_LOADING = false;
+    TRACE_LOAD_MORE_IN_FLIGHT = false;
+    TRACE_VALUATION_DATE = null;
+    TRACE_REFRESH_RUN_ID = null;
+  }
+
+  function normalizeTraceComponent(value) {
+    const raw = String(value || "").trim().toUpperCase();
+    if (raw === "PM") return "PM";
+    if (raw === "RM") return "RM";
+    return "";
   }
 
   function applyTraceLaunchContext(context = {}) {
-    const materialArea = String(context.materialArea || "").trim();
-    const traceComponent = String(context.traceComponent || "").trim();
-    if (materialArea && materialArea !== "RM") return;
-    if (traceComponent && traceComponent !== "RM") return;
+    const materialArea = normalizeTraceComponent(
+      context.materialArea || context.material_area,
+    );
+    const traceComponent = normalizeTraceComponent(
+      context.traceComponent || context.trace_component,
+    );
+    const resolved = traceComponent || materialArea;
+
+    if (resolved === "PM") {
+      ACTIVE_TRACE_COMPONENT = "PM";
+    } else if (resolved === "RM") {
+      ACTIVE_TRACE_COMPONENT = "RM";
+    } else if (resolved) {
+      return;
+    }
 
     if (context.productId != null) TRACE_FILTERS.product_id = context.productId;
     if (context.skuId != null) TRACE_FILTERS.sku_id = context.skuId;
@@ -3851,12 +4144,36 @@ export function createMaterialCostController(deps) {
     };
   }
 
-  function countActiveSecondaryTraceFilters() {
+  function getPmTraceDom() {
+    return {
+      chrome: document.getElementById("pmCostTraceChrome"),
+      snapshot: document.getElementById("pmCostTraceSnapshot"),
+      restricted: document.getElementById("pmCostTraceRestricted"),
+      filters: document.getElementById("pmCostTraceFilters"),
+      product: document.getElementById("pmTraceProduct"),
+      sku: document.getElementById("pmTraceSku"),
+      search: document.getElementById("pmTraceSearch"),
+      bom: document.getElementById("pmTraceBomSource"),
+      review: document.getElementById("pmTraceReviewState"),
+      warning: document.getElementById("pmTraceWarningStatus"),
+      clear: document.getElementById("pmTraceClearFilters"),
+      advancedBtn: document.getElementById("pmTraceAdvancedBtn"),
+      advancedPanel: document.getElementById("pmTraceAdvancedPanel"),
+      advancedWrap: document.getElementById("pmTraceAdvancedWrap"),
+      filterBadge: document.getElementById("pmTraceFilterBadge"),
+    };
+  }
+
+  function countActiveSecondaryTraceFilters(component = ACTIVE_TRACE_COMPONENT) {
     let count = 0;
     if (TRACE_FILTERS.bom_source) count += 1;
     if (TRACE_FILTERS.review_state) count += 1;
     if (TRACE_FILTERS.warning_status) count += 1;
-    if (TRACE_FILTERS.has_semi_process === true || TRACE_FILTERS.has_semi_process === false) {
+    if (
+      component === "RM" &&
+      (TRACE_FILTERS.has_semi_process === true ||
+        TRACE_FILTERS.has_semi_process === false)
+    ) {
       count += 1;
     }
     return count;
@@ -3865,7 +4182,29 @@ export function createMaterialCostController(deps) {
   function updateRmTraceAdvancedButtonLabel() {
     const dom = getRmTraceDom();
     if (!dom.advancedBtn) return;
-    const count = countActiveSecondaryTraceFilters();
+    const count = countActiveSecondaryTraceFilters("RM");
+    const badge =
+      dom.filterBadge ||
+      dom.advancedBtn.querySelector(".peq-filter-badge");
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = String(count);
+        badge.style.display = "";
+      } else {
+        badge.textContent = "";
+        badge.style.display = "none";
+      }
+    }
+    dom.advancedBtn.classList.toggle("peq-filter-btn--active", count > 0);
+    const label = count > 0 ? `Filters (${count})` : "Filters";
+    dom.advancedBtn.title = label;
+    dom.advancedBtn.setAttribute("aria-label", label);
+  }
+
+  function updatePmTraceAdvancedButtonLabel() {
+    const dom = getPmTraceDom();
+    if (!dom.advancedBtn) return;
+    const count = countActiveSecondaryTraceFilters("PM");
     const badge =
       dom.filterBadge ||
       dom.advancedBtn.querySelector(".peq-filter-badge");
@@ -3891,8 +4230,23 @@ export function createMaterialCostController(deps) {
     dom.advancedBtn.setAttribute("aria-expanded", "false");
   }
 
+  function closePmTraceAdvancedPanel() {
+    const dom = getPmTraceDom();
+    if (!dom.advancedPanel || !dom.advancedBtn) return;
+    dom.advancedPanel.classList.remove("open");
+    dom.advancedBtn.setAttribute("aria-expanded", "false");
+  }
+
   function toggleRmTraceAdvancedPanel() {
     const dom = getRmTraceDom();
+    if (!dom.advancedPanel || !dom.advancedBtn) return;
+    const open = !dom.advancedPanel.classList.contains("open");
+    dom.advancedPanel.classList.toggle("open", open);
+    dom.advancedBtn.setAttribute("aria-expanded", String(open));
+  }
+
+  function togglePmTraceAdvancedPanel() {
+    const dom = getPmTraceDom();
     if (!dom.advancedPanel || !dom.advancedBtn) return;
     const open = !dom.advancedPanel.classList.contains("open");
     dom.advancedPanel.classList.toggle("open", open);
@@ -3981,6 +4335,64 @@ export function createMaterialCostController(deps) {
     updateRmTraceAdvancedButtonLabel();
   }
 
+  function renderPmTraceFilterControls() {
+    const dom = getPmTraceDom();
+    const skuOptions = (TRACE_FILTER_OPTIONS.skus || []).filter((sku) => {
+      if (TRACE_FILTERS.product_id == null) return true;
+      return String(sku.product_id) === String(TRACE_FILTERS.product_id);
+    });
+
+    fillSelectOptions(dom.product, TRACE_FILTER_OPTIONS.products, {
+      valueKey: "product_id",
+      labelKey: "product_name",
+      selected: TRACE_FILTERS.product_id,
+      blankLabel: "All products",
+    });
+    fillSelectOptions(dom.sku, skuOptions, {
+      valueKey: "sku_id",
+      labelKey: "sku_column_label",
+      selected: TRACE_FILTERS.sku_id,
+      blankLabel: "All SKUs",
+    });
+    fillPlainOptions(
+      dom.bom,
+      TRACE_FILTER_OPTIONS.bom_sources,
+      TRACE_FILTERS.bom_source,
+      "All PM sources",
+    );
+    fillPlainOptions(
+      dom.review,
+      TRACE_FILTER_OPTIONS.review_states,
+      TRACE_FILTERS.review_state,
+      "All review states",
+    );
+    fillPlainOptions(
+      dom.warning,
+      TRACE_FILTER_OPTIONS.warning_statuses,
+      TRACE_FILTERS.warning_status,
+      "All warning statuses",
+    );
+    if (dom.search && document.activeElement !== dom.search) {
+      dom.search.value = TRACE_FILTERS.search_text || "";
+    }
+    updatePmTraceAdvancedButtonLabel();
+  }
+
+  function renderTraceSnapshotBannerHtml({ title, bits }) {
+    const safeBits = (Array.isArray(bits) ? bits : []).filter(Boolean);
+    if (!safeBits.length) {
+      return `
+      <span class="rm-cost-trace-meta-title">${text(title || "Cost Trace")}</span>`;
+    }
+    const bitsHtml = safeBits
+      .map((bit) => `<span>${text(bit)}</span>`)
+      .join('<span class="rm-cost-trace-meta-sep">·</span>');
+    return `
+      <span class="rm-cost-trace-meta-title">${text(title || "Cost Trace")}</span>
+      <span class="rm-cost-trace-meta-sep">·</span>
+      ${bitsHtml}`;
+  }
+
   function renderRmTraceSnapshotBanner() {
     const dom = getRmTraceDom();
     if (!dom.snapshot) return;
@@ -3990,71 +4402,190 @@ export function createMaterialCostController(deps) {
       null;
     const total = Number(TRACE_TOTAL_COUNT || 0);
     const totalLabel = `${total.toLocaleString("en-IN")} record${total === 1 ? "" : "s"}`;
-    const snapshotLabel = stamp
-      ? `Snapshot refreshed ${formatDateTime(stamp)}`
-      : "Snapshot refreshed —";
-    dom.snapshot.innerHTML = `
-      <span class="rm-cost-trace-meta-title">RM Cost Trace</span>
-      <span class="rm-cost-trace-meta-sep">·</span>
-      <span>${text(totalLabel)}</span>
-      <span class="rm-cost-trace-meta-sep">·</span>
-      <span title="Current Costing Refresh">${text(snapshotLabel)}</span>`;
+    const bits = [totalLabel];
+    // RM list RPC does not expose valuation/run — do not invent them.
+    if (stamp) bits.push(`Snapshot refreshed ${formatDateTime(stamp)}`);
+    dom.snapshot.innerHTML = renderTraceSnapshotBannerHtml({
+      title: "RM Cost Trace",
+      bits,
+    });
+  }
+
+  function renderPmTraceSnapshotBanner() {
+    const dom = getPmTraceDom();
+    if (!dom.snapshot) return;
+    const stamp =
+      TRACE_SNAPSHOT_REFRESHED_AT ||
+      TRACE_FILTER_OPTIONS.snapshot_refreshed_at ||
+      null;
+    const total = Number(TRACE_TOTAL_COUNT || 0);
+    const totalLabel = `${total.toLocaleString("en-IN")} record${total === 1 ? "" : "s"}`;
+    const valuation =
+      TRACE_VALUATION_DATE || TRACE_FILTER_OPTIONS.valuation_date || null;
+    const runId =
+      TRACE_REFRESH_RUN_ID ?? TRACE_FILTER_OPTIONS.refresh_run_id ?? null;
+    const bits = [totalLabel];
+    if (valuation) bits.push(`Valuation ${formatDate(valuation)}`);
+    if (runId != null && runId !== "") bits.push(`Run ${runId}`);
+    if (stamp) bits.push(`Snapshot refreshed ${formatDateTime(stamp)}`);
+    dom.snapshot.innerHTML = renderTraceSnapshotBannerHtml({
+      title: "PM Cost Trace",
+      bits,
+    });
+  }
+
+  function moveFocusOutOfInteractiveRegion(region, preferredTargets = []) {
+    const active = document.activeElement;
+    if (!region || !active || active === document.body) return;
+    if (!region.contains(active)) return;
+
+    for (const target of preferredTargets) {
+      if (
+        !target ||
+        region.contains(target) ||
+        target.hasAttribute?.("disabled") ||
+        target.getAttribute?.("aria-hidden") === "true"
+      ) {
+        continue;
+      }
+      const hiddenAncestor = target.closest?.(
+        '[aria-hidden="true"], .hidden, [hidden]',
+      );
+      if (hiddenAncestor) continue;
+      try {
+        if (typeof target.focus === "function") {
+          if (!target.hasAttribute("tabindex") && target.tabIndex < 0) {
+            target.setAttribute("tabindex", "-1");
+          }
+          target.focus({ preventScroll: true });
+          if (document.activeElement === target) return;
+        }
+      } catch {
+        /* continue */
+      }
+    }
+
+    if (typeof active.blur === "function") {
+      active.blur();
+    }
+  }
+
+  function hideInteractiveRegion(region, preferredFocusTargets = []) {
+    if (!region) return;
+    moveFocusOutOfInteractiveRegion(region, preferredFocusTargets);
+    region.classList.add("hidden");
+    if ("inert" in region) region.inert = true;
+    region.setAttribute("aria-hidden", "true");
+  }
+
+  function showInteractiveRegion(region) {
+    if (!region) return;
+    region.classList.remove("hidden");
+    if ("inert" in region) region.inert = false;
+    region.setAttribute("aria-hidden", "false");
+  }
+
+  function getTraceFocusFallbackTargets() {
+    return [
+      document.getElementById("lensSelect"),
+      document.getElementById("rmTraceSearch"),
+      document.getElementById("pmTraceSearch"),
+      document.getElementById("rmTraceProduct"),
+      document.getElementById("pmTraceProduct"),
+      document.getElementById("tableWrap"),
+      document.getElementById("statusArea"),
+    ].filter(Boolean);
   }
 
   function syncManualRateManagerControlsVisibility() {
     const controls = document.getElementById("manualRateManagerControls");
     if (!controls) return;
     const show = getCurrentLens() === "manual-rate-manager";
-    controls.classList.toggle("hidden", !show);
-    controls.setAttribute("aria-hidden", show ? "false" : "true");
-    if (!show) {
+    if (show) {
+      showInteractiveRegion(controls);
+    } else {
       document.getElementById("peqFilterDrawer")?.classList.remove("open");
+      hideInteractiveRegion(controls, getTraceFocusFallbackTargets());
     }
   }
 
-  function syncRmTraceChrome() {
-    const dom = getRmTraceDom();
-    const active = getCurrentLens() === "rm-cost-trace";
+  function hideTraceChrome(dom, closeAdvanced) {
+    if (dom.chrome) {
+      hideInteractiveRegion(dom.chrome, getTraceFocusFallbackTargets());
+    }
+    closeAdvanced?.();
+  }
 
+  function syncRmTraceChrome() {
+    syncActiveTraceComponentFromLens();
     syncManualRateManagerControlsVisibility();
 
-    if (!active) {
-      if (dom.chrome) {
-        dom.chrome.classList.add("hidden");
-        dom.chrome.setAttribute("aria-hidden", "true");
-      }
-      closeRmTraceAdvancedPanel();
+    const rmDom = getRmTraceDom();
+    const pmDom = getPmTraceDom();
+    const rmActive = getCurrentLens() === "rm-cost-trace";
+    const pmActive = getCurrentLens() === "pm-cost-trace";
+
+    if (!rmActive) {
+      hideTraceChrome(rmDom, closeRmTraceAdvancedPanel);
+    }
+    if (!pmActive) {
+      hideTraceChrome(pmDom, closePmTraceAdvancedPanel);
+    }
+
+    if (!rmActive && !pmActive) {
       if (typeof syncTraceExportButtonState === "function") {
         syncTraceExportButtonState();
       }
       return;
     }
 
-    if (dom.chrome) {
-      dom.chrome.classList.remove("hidden");
-      dom.chrome.setAttribute("aria-hidden", "false");
+    const activeDom = rmActive ? rmDom : pmDom;
+    const allowed = rmActive ? canAccessRmTrace() : canAccessPmTrace();
+    const restrictedMessage = rmActive
+      ? RM_TRACE_RESTRICTED_MESSAGE
+      : PM_TRACE_RESTRICTED_MESSAGE;
+
+    const periodSelect = document.getElementById("costingPeriodSelect");
+    const rmPeriodHost = document.getElementById("rmTracePeriodHost");
+    const pmPeriodHost = document.getElementById("pmTracePeriodHost");
+    if (periodSelect) {
+      if (pmActive && pmPeriodHost && periodSelect.parentElement !== pmPeriodHost) {
+        pmPeriodHost.appendChild(periodSelect);
+      } else if (
+        rmActive &&
+        rmPeriodHost &&
+        periodSelect.parentElement !== rmPeriodHost
+      ) {
+        rmPeriodHost.appendChild(periodSelect);
+      }
     }
 
-    const allowed = canAccessRmTrace();
-    if (dom.restricted) {
-      dom.restricted.classList.toggle("hidden", allowed);
+    if (activeDom.chrome) {
+      showInteractiveRegion(activeDom.chrome);
+    }
+    if (activeDom.restricted) {
+      activeDom.restricted.classList.toggle("hidden", allowed);
       if (!allowed) {
-        dom.restricted.innerHTML = `<div class="status error">${text(
-          RM_TRACE_RESTRICTED_MESSAGE,
+        activeDom.restricted.innerHTML = `<div class="status error">${text(
+          restrictedMessage,
         ).replace(/\n/g, "<br>")}</div>`;
       }
     }
-    if (dom.filters) {
-      dom.filters.classList.toggle("hidden", !allowed);
+    if (activeDom.filters) {
+      activeDom.filters.classList.toggle("hidden", !allowed);
     }
-    if (dom.snapshot) {
-      dom.snapshot.classList.toggle("hidden", !allowed);
+    if (activeDom.snapshot) {
+      activeDom.snapshot.classList.toggle("hidden", !allowed);
     }
     if (!allowed) {
-      closeRmTraceAdvancedPanel();
-    } else {
+      if (rmActive) closeRmTraceAdvancedPanel();
+      else closePmTraceAdvancedPanel();
+    } else if (rmActive) {
       renderRmTraceFilterControls();
       renderRmTraceSnapshotBanner();
+    } else {
+      renderPmTraceFilterControls();
+      renderPmTraceSnapshotBanner();
     }
     if (typeof syncTraceExportButtonState === "function") {
       syncTraceExportButtonState();
@@ -4072,6 +4603,20 @@ export function createMaterialCostController(deps) {
       p_bom_source: TRACE_FILTERS.bom_source,
       p_warning_status: TRACE_FILTERS.warning_status,
       p_has_semi_process: TRACE_FILTERS.has_semi_process,
+      p_search_text: TRACE_FILTERS.search_text || null,
+    };
+  }
+
+  function buildPmTraceRpcFilters() {
+    const periodStart = getActivePeriodStart();
+    return {
+      p_period_start: periodStart || null,
+      p_product_id: TRACE_FILTERS.product_id,
+      p_sku_id: TRACE_FILTERS.sku_id,
+      p_stock_item_id: TRACE_FILTERS.stock_item_id,
+      p_review_state: TRACE_FILTERS.review_state,
+      p_bom_source: TRACE_FILTERS.bom_source,
+      p_warning_status: TRACE_FILTERS.warning_status,
       p_search_text: TRACE_FILTERS.search_text || null,
     };
   }
@@ -4106,6 +4651,8 @@ export function createMaterialCostController(deps) {
         : [],
       trace_component: payload?.trace_component || "RM",
       snapshot_refreshed_at: payload?.snapshot_refreshed_at || null,
+      valuation_date: payload?.valuation_date || null,
+      refresh_run_id: payload?.refresh_run_id ?? null,
     };
     TRACE_SNAPSHOT_REFRESHED_AT =
       TRACE_FILTER_OPTIONS.snapshot_refreshed_at || TRACE_SNAPSHOT_REFRESHED_AT;
@@ -4120,7 +4667,60 @@ export function createMaterialCostController(deps) {
     }
   }
 
-  async function loadRmCostTraceRows() {
+  async function loadPmTraceFilterOptions() {
+    if (!canAccessPmTrace()) return;
+    const periodStart = getActivePeriodStart();
+    if (!periodStart) return;
+
+    const { data, error } = await costingRpc(
+      "rpc_get_material_rate_pm_cost_trace_filter_options",
+      {
+        p_period_start: periodStart,
+        p_product_id: TRACE_FILTERS.product_id,
+      },
+    );
+    if (error) throw error;
+
+    const payload = Array.isArray(data) ? data[0] : data;
+    TRACE_FILTER_OPTIONS = {
+      period_start: payload?.period_start ?? periodStart,
+      products: Array.isArray(payload?.products) ? payload.products : [],
+      skus: Array.isArray(payload?.skus) ? payload.skus : [],
+      bom_sources: Array.isArray(payload?.bom_sources)
+        ? payload.bom_sources
+        : Array.isArray(payload?.pm_sources)
+          ? payload.pm_sources
+          : [],
+      review_states: Array.isArray(payload?.review_states)
+        ? payload.review_states
+        : [],
+      warning_statuses: Array.isArray(payload?.warning_statuses)
+        ? payload.warning_statuses
+        : [],
+      trace_component: payload?.trace_component || "PM",
+      snapshot_refreshed_at: payload?.snapshot_refreshed_at || null,
+      valuation_date: payload?.valuation_date || null,
+      refresh_run_id: payload?.refresh_run_id ?? null,
+    };
+    TRACE_SNAPSHOT_REFRESHED_AT =
+      TRACE_FILTER_OPTIONS.snapshot_refreshed_at || TRACE_SNAPSHOT_REFRESHED_AT;
+    TRACE_VALUATION_DATE =
+      TRACE_FILTER_OPTIONS.valuation_date || TRACE_VALUATION_DATE;
+    TRACE_REFRESH_RUN_ID =
+      TRACE_FILTER_OPTIONS.refresh_run_id ?? TRACE_REFRESH_RUN_ID;
+
+    if (
+      TRACE_FILTERS.sku_id != null &&
+      !TRACE_FILTER_OPTIONS.skus.some(
+        (sku) => String(sku.sku_id) === String(TRACE_FILTERS.sku_id),
+      )
+    ) {
+      TRACE_FILTERS.sku_id = null;
+    }
+  }
+
+  async function loadRmCostTraceRows({ reset = true } = {}) {
+    ACTIVE_TRACE_COMPONENT = "RM";
     const perms = getTracePermissionsSafe();
     if (!perms.permissionsResolved) {
       TRACE_LOAD_STATE = "idle";
@@ -4134,19 +4734,29 @@ export function createMaterialCostController(deps) {
       return [];
     }
 
+    void reset;
+    const queryVersion = ++TRACE_QUERY_VERSION;
+    TRACE_LOADING = true;
+    TRACE_LOAD_MORE_IN_FLIGHT = false;
+    TRACE_ROWS = [];
+    TRACE_TOTAL_COUNT = 0;
+    TRACE_HAS_MORE = true;
     TRACE_LOAD_STATE = "loading";
     TRACE_ERROR_MESSAGE = "";
     try {
       await loadRmTraceFilterOptions();
-      const offset = (TRACE_PAGE - 1) * TRACE_PAGE_SIZE;
+      if (queryVersion !== TRACE_QUERY_VERSION) return TRACE_ROWS;
+
       const { data, error } = await costingRpc(
         "rpc_get_material_rate_rm_cost_trace",
         {
           ...buildRmTraceRpcFilters(),
           p_limit: TRACE_PAGE_SIZE,
-          p_offset: offset,
+          p_offset: 0,
         },
       );
+      if (queryVersion !== TRACE_QUERY_VERSION) return TRACE_ROWS;
+
       if (error) {
         const msg = String(error.message || error.code || "");
         if (/permission|not authorized|forbidden|42501/i.test(msg)) {
@@ -4165,8 +4775,10 @@ export function createMaterialCostController(deps) {
       if (rows[0]?.snapshot_refreshed_at) {
         TRACE_SNAPSHOT_REFRESHED_AT = rows[0].snapshot_refreshed_at;
       }
+      TRACE_HAS_MORE =
+        TRACE_ROWS.length < TRACE_TOTAL_COUNT && rows.length > 0;
       TRACE_LOAD_STATE = rows.length ? "ready" : "empty";
-      return rows;
+      return TRACE_ROWS;
     } catch (err) {
       console.warn("[costing-suite] RM cost trace load failed", err);
       TRACE_LOAD_STATE = "error";
@@ -4174,11 +4786,269 @@ export function createMaterialCostController(deps) {
         err?.message || "Unable to load RM Cost Trace.";
       clearTraceConfidentialState();
       return [];
+    } finally {
+      if (queryVersion === TRACE_QUERY_VERSION) {
+        TRACE_LOADING = false;
+      }
     }
   }
 
+  async function loadPmCostTraceRows({ reset = true } = {}) {
+    ACTIVE_TRACE_COMPONENT = "PM";
+    const perms = getTracePermissionsSafe();
+    if (!perms.permissionsResolved) {
+      TRACE_LOAD_STATE = "idle";
+      clearTraceConfidentialState();
+      return [];
+    }
+    if (!canAccessPmTrace()) {
+      TRACE_LOAD_STATE = "restricted";
+      TRACE_ERROR_MESSAGE = "";
+      clearTraceConfidentialState();
+      return [];
+    }
+
+    void reset;
+    const queryVersion = ++TRACE_QUERY_VERSION;
+    TRACE_LOADING = true;
+    TRACE_LOAD_MORE_IN_FLIGHT = false;
+    TRACE_ROWS = [];
+    TRACE_TOTAL_COUNT = 0;
+    TRACE_HAS_MORE = true;
+    TRACE_LOAD_STATE = "loading";
+    TRACE_ERROR_MESSAGE = "";
+    try {
+      await loadPmTraceFilterOptions();
+      if (queryVersion !== TRACE_QUERY_VERSION) return TRACE_ROWS;
+
+      const { data, error } = await costingRpc(
+        "rpc_get_material_rate_pm_cost_trace",
+        {
+          ...buildPmTraceRpcFilters(),
+          p_limit: TRACE_PAGE_SIZE,
+          p_offset: 0,
+        },
+      );
+      if (queryVersion !== TRACE_QUERY_VERSION) return TRACE_ROWS;
+
+      if (error) {
+        const msg = String(error.message || error.code || "");
+        if (/permission|not authorized|forbidden|42501/i.test(msg)) {
+          TRACE_LOAD_STATE = "restricted";
+          clearTraceConfidentialState();
+          return [];
+        }
+        throw error;
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      TRACE_ROWS = rows;
+      TRACE_TOTAL_COUNT = rows.length
+        ? Number(rows[0]?.total_row_count || 0)
+        : 0;
+      if (rows[0]?.snapshot_refreshed_at) {
+        TRACE_SNAPSHOT_REFRESHED_AT = rows[0].snapshot_refreshed_at;
+      }
+      if (rows[0]?.valuation_date) {
+        TRACE_VALUATION_DATE = rows[0].valuation_date;
+      }
+      if (rows[0]?.refresh_run_id != null) {
+        TRACE_REFRESH_RUN_ID = rows[0].refresh_run_id;
+      }
+      TRACE_HAS_MORE =
+        TRACE_ROWS.length < TRACE_TOTAL_COUNT && rows.length > 0;
+      TRACE_LOAD_STATE = rows.length ? "ready" : "empty";
+      return TRACE_ROWS;
+    } catch (err) {
+      console.warn("[costing-suite] PM cost trace load failed", err);
+      TRACE_LOAD_STATE = "error";
+      TRACE_ERROR_MESSAGE =
+        err?.message || "Unable to load PM Cost Trace.";
+      clearTraceConfidentialState();
+      return [];
+    } finally {
+      if (queryVersion === TRACE_QUERY_VERSION) {
+        TRACE_LOADING = false;
+      }
+    }
+  }
+
+  async function loadMoreTraceRowsInternal(component) {
+    if (TRACE_LOADING || TRACE_LOAD_MORE_IN_FLIGHT || !TRACE_HAS_MORE) {
+      return { appended: [], stale: false, blocked: true };
+    }
+
+    const queryVersion = TRACE_QUERY_VERSION;
+    const offset = TRACE_ROWS.length;
+    TRACE_LOADING = true;
+    TRACE_LOAD_MORE_IN_FLIGHT = true;
+    refreshTraceLoadMoreFooter();
+
+    try {
+      const rpcName =
+        component === "PM"
+          ? "rpc_get_material_rate_pm_cost_trace"
+          : "rpc_get_material_rate_rm_cost_trace";
+      const filters =
+        component === "PM"
+          ? buildPmTraceRpcFilters()
+          : buildRmTraceRpcFilters();
+      const { data, error } = await costingRpc(rpcName, {
+        ...filters,
+        p_limit: TRACE_PAGE_SIZE,
+        p_offset: offset,
+      });
+
+      if (queryVersion !== TRACE_QUERY_VERSION) {
+        return { appended: [], stale: true };
+      }
+      if (error) throw error;
+
+      const rows = Array.isArray(data) ? data : [];
+      if (!rows.length) {
+        TRACE_HAS_MORE = false;
+        return { appended: [], stale: false };
+      }
+
+      if (rows[0]?.total_row_count != null) {
+        TRACE_TOTAL_COUNT = Number(rows[0].total_row_count || 0);
+      }
+      if (rows[0]?.snapshot_refreshed_at) {
+        TRACE_SNAPSHOT_REFRESHED_AT = rows[0].snapshot_refreshed_at;
+      }
+      if (component === "PM") {
+        if (rows[0]?.valuation_date) {
+          TRACE_VALUATION_DATE = rows[0].valuation_date;
+        }
+        if (rows[0]?.refresh_run_id != null) {
+          TRACE_REFRESH_RUN_ID = rows[0].refresh_run_id;
+        }
+      }
+
+      TRACE_ROWS = TRACE_ROWS.concat(rows);
+      TRACE_HAS_MORE =
+        TRACE_ROWS.length < TRACE_TOTAL_COUNT && rows.length > 0;
+      TRACE_LOAD_STATE = TRACE_ROWS.length ? "ready" : "empty";
+      return { appended: rows, stale: false };
+    } catch (err) {
+      console.warn("[costing-suite] Trace progressive load failed", err);
+      if (queryVersion === TRACE_QUERY_VERSION) {
+        TRACE_ERROR_MESSAGE =
+          err?.message || "Unable to load more Trace rows.";
+      }
+      return { appended: [], stale: queryVersion !== TRACE_QUERY_VERSION, error: err };
+    } finally {
+      if (queryVersion === TRACE_QUERY_VERSION) {
+        TRACE_LOADING = false;
+        TRACE_LOAD_MORE_IN_FLIGHT = false;
+        refreshTraceLoadMoreFooter();
+      }
+    }
+  }
+
+  async function loadMoreTraceRows() {
+    syncActiveTraceComponentFromLens();
+    const component = ACTIVE_TRACE_COMPONENT === "PM" ? "PM" : "RM";
+    return loadMoreTraceRowsInternal(component);
+  }
+
+  function refreshTraceLoadMoreFooter() {
+    const label = document.getElementById("traceLoadMoreLabel");
+    const sentinel = document.getElementById("traceLoadMoreSentinel");
+    if (!sentinel) return;
+    const active =
+      getCurrentLens() === "rm-cost-trace" ||
+      getCurrentLens() === "pm-cost-trace";
+    if (!active) {
+      sentinel.classList.add("hidden");
+      return;
+    }
+    sentinel.classList.remove("hidden");
+    if (!label) return;
+    if (TRACE_LOADING || TRACE_LOAD_MORE_IN_FLIGHT) {
+      label.textContent = "Loading more…";
+    } else if (!TRACE_HAS_MORE && TRACE_ROWS.length > 0) {
+      label.textContent = "";
+    } else {
+      label.textContent = "";
+    }
+  }
+
+  function teardownTraceProgressiveScroll() {
+    if (TRACE_SCROLL_OBSERVER) {
+      TRACE_SCROLL_OBSERVER.disconnect();
+      TRACE_SCROLL_OBSERVER = null;
+    }
+    if (TRACE_SCROLL_LISTENER && TRACE_SCROLL_ROOT) {
+      TRACE_SCROLL_ROOT.removeEventListener("scroll", TRACE_SCROLL_LISTENER);
+    }
+    TRACE_SCROLL_LISTENER = null;
+    TRACE_SCROLL_ROOT = null;
+    const sentinel = document.getElementById("traceLoadMoreSentinel");
+    if (sentinel) sentinel.remove();
+  }
+
+  function setupTraceProgressiveScroll({ root, onLoadMore } = {}) {
+    teardownTraceProgressiveScroll();
+    const wrap = root || document.getElementById("tableWrap");
+    if (!wrap || typeof onLoadMore !== "function") return;
+    if (
+      getCurrentLens() !== "rm-cost-trace" &&
+      getCurrentLens() !== "pm-cost-trace"
+    ) {
+      return;
+    }
+
+    const sentinel = document.createElement("div");
+    sentinel.id = "traceLoadMoreSentinel";
+    sentinel.className = "trace-load-more-sentinel";
+    sentinel.setAttribute("aria-live", "polite");
+    sentinel.innerHTML =
+      '<span id="traceLoadMoreLabel" class="trace-load-more-label"></span>';
+    wrap.appendChild(sentinel);
+    TRACE_SCROLL_ROOT = wrap;
+    refreshTraceLoadMoreFooter();
+
+    const requestMore = () => {
+      if (!TRACE_HAS_MORE || TRACE_LOADING || TRACE_LOAD_MORE_IN_FLIGHT) return;
+      void onLoadMore();
+    };
+
+    if (typeof IntersectionObserver === "function") {
+      TRACE_SCROLL_OBSERVER = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          requestMore();
+        },
+        { root: wrap, rootMargin: "120px 0px", threshold: 0 },
+      );
+      TRACE_SCROLL_OBSERVER.observe(sentinel);
+      return;
+    }
+
+    TRACE_SCROLL_LISTENER = () => {
+      const remaining =
+        wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
+      if (remaining <= 160) requestMore();
+    };
+    wrap.addEventListener("scroll", TRACE_SCROLL_LISTENER, { passive: true });
+  }
+
   async function reloadRmTraceFromFilters() {
-    TRACE_PAGE = 1;
+    TRACE_QUERY_VERSION += 1;
+    TRACE_ROWS = [];
+    TRACE_TOTAL_COUNT = 0;
+    TRACE_HAS_MORE = true;
+    if (typeof reloadRows === "function") {
+      await reloadRows();
+    }
+  }
+
+  async function reloadPmTraceFromFilters() {
+    TRACE_QUERY_VERSION += 1;
+    TRACE_ROWS = [];
+    TRACE_TOTAL_COUNT = 0;
+    TRACE_HAS_MORE = true;
     if (typeof reloadRows === "function") {
       await reloadRows();
     }
@@ -4302,6 +5172,130 @@ export function createMaterialCostController(deps) {
     }
   }
 
+  async function fetchAllPmTraceExportRows(rpcParams) {
+    const allRows = [];
+    let offset = 0;
+    let expectedTotal = null;
+    const maxOffset = 5_000_000;
+
+    while (offset <= maxOffset) {
+      const rangeTo = offset + RM_TRACE_EXPORT_BATCH_SIZE - 1;
+      const { data, error } = await costingRpc(
+        "rpc_export_material_rate_pm_cost_trace",
+        rpcParams,
+        { rangeFrom: offset, rangeTo },
+      );
+      if (error) {
+        console.error("PM Cost Trace export batch failed", {
+          offset,
+          rangeTo,
+          message: error?.message || String(error),
+        });
+        throw error;
+      }
+
+      const batch = Array.isArray(data) ? data : [];
+      if (batch.length === 0) break;
+
+      const batchTotalRaw = Number(batch[0]?.export_total_row_count);
+      if (Number.isFinite(batchTotalRaw) && batchTotalRaw >= 0) {
+        if (expectedTotal == null) {
+          expectedTotal = batchTotalRaw;
+        } else if (batchTotalRaw !== expectedTotal) {
+          console.warn(
+            "PM Cost Trace export_total_row_count differed across batches; retaining first total",
+            {
+              firstTotal: expectedTotal,
+              laterTotal: batchTotalRaw,
+              offset,
+            },
+          );
+        }
+      }
+
+      allRows.push(...batch);
+      if (batch.length < RM_TRACE_EXPORT_BATCH_SIZE) break;
+      offset += RM_TRACE_EXPORT_BATCH_SIZE;
+      if (expectedTotal != null && allRows.length >= expectedTotal) break;
+    }
+
+    if (expectedTotal != null && allRows.length > expectedTotal) {
+      console.warn(
+        "PM Cost Trace export retrieved more rows than export_total_row_count; truncating to server total",
+        {
+          retrieved: allRows.length,
+          expectedTotal,
+        },
+      );
+      allRows.length = expectedTotal;
+    }
+
+    if (expectedTotal != null && allRows.length < expectedTotal) {
+      throw new Error(
+        `Export could not retrieve all filtered PM trace rows. Retrieved ${allRows.length} of ${expectedTotal} rows. Please retry.`,
+      );
+    }
+
+    return allRows;
+  }
+
+  async function exportPmCostTraceCsv() {
+    if (!canExportPmTrace()) {
+      showToast(
+        "PM Cost Trace export is restricted for your access.",
+        "error",
+      );
+      return;
+    }
+
+    let rows = [];
+    try {
+      setLoadingMask?.(true, "Exporting PM Cost Trace...");
+      rows = await fetchAllPmTraceExportRows(buildPmTraceRpcFilters());
+      if (!rows.length) {
+        showToast("No rows to export", "info");
+        return;
+      }
+
+      const csvEscape = (value) =>
+        `"${String(value ?? "").replace(/"/g, '""')}"`;
+      const csv = [
+        PM_TRACE_EXPORT_COLUMNS.map(csvEscape).join(","),
+        ...rows.map((row) =>
+          PM_TRACE_EXPORT_COLUMNS.map((key) => csvEscape(row[key])).join(","),
+        ),
+      ].join("\n");
+      const period = String(getActivePeriodStart() || "period").slice(0, 10);
+      const filename = `pm-cost-trace_${period}.csv`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${rows.length} rows`, "success");
+    } catch (err) {
+      rows = [];
+      handleError("Failed to export PM Cost Trace", err);
+    } finally {
+      setLoadingMask?.(false);
+      if (typeof syncTraceExportButtonState === "function") {
+        syncTraceExportButtonState();
+      }
+    }
+  }
+
+  async function exportActiveTraceCsv() {
+    syncActiveTraceComponentFromLens();
+    if (ACTIVE_TRACE_COMPONENT === "PM") {
+      return exportPmCostTraceCsv();
+    }
+    return exportRmCostTraceCsv();
+  }
+
   function bindRmTraceFilterEvents() {
     if (rmTraceEventsBound) return;
     const dom = getRmTraceDom();
@@ -4369,33 +5363,412 @@ export function createMaterialCostController(deps) {
     });
   }
 
+  function bindPmTraceFilterEvents() {
+    if (pmTraceEventsBound) return;
+    const dom = getPmTraceDom();
+    if (!dom.filters) return;
+    pmTraceEventsBound = true;
+
+    dom.product?.addEventListener("change", async () => {
+      const value = dom.product.value;
+      TRACE_FILTERS.product_id = value ? Number(value) : null;
+      TRACE_FILTERS.sku_id = null;
+      await reloadPmTraceFromFilters();
+    });
+    dom.sku?.addEventListener("change", async () => {
+      const value = dom.sku.value;
+      TRACE_FILTERS.sku_id = value ? Number(value) : null;
+      await reloadPmTraceFromFilters();
+    });
+    dom.bom?.addEventListener("change", async () => {
+      TRACE_FILTERS.bom_source = dom.bom.value || null;
+      updatePmTraceAdvancedButtonLabel();
+      await reloadPmTraceFromFilters();
+    });
+    dom.review?.addEventListener("change", async () => {
+      TRACE_FILTERS.review_state = dom.review.value || null;
+      updatePmTraceAdvancedButtonLabel();
+      await reloadPmTraceFromFilters();
+    });
+    dom.warning?.addEventListener("change", async () => {
+      TRACE_FILTERS.warning_status = dom.warning.value || null;
+      updatePmTraceAdvancedButtonLabel();
+      await reloadPmTraceFromFilters();
+    });
+    dom.search?.addEventListener("input", () => {
+      if (pmTraceSearchTimer) clearTimeout(pmTraceSearchTimer);
+      pmTraceSearchTimer = setTimeout(async () => {
+        TRACE_FILTERS.search_text = String(dom.search.value || "").trim();
+        await reloadPmTraceFromFilters();
+      }, 300);
+    });
+    dom.clear?.addEventListener("click", async () => {
+      resetOptionalTraceFilters();
+      if (dom.search) dom.search.value = "";
+      updatePmTraceAdvancedButtonLabel();
+      closePmTraceAdvancedPanel();
+      await reloadPmTraceFromFilters();
+    });
+    dom.advancedBtn?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      togglePmTraceAdvancedPanel();
+    });
+    dom.advancedPanel?.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+    document.addEventListener("click", (event) => {
+      const wrap = dom.advancedWrap;
+      if (!wrap || wrap.contains(event.target)) return;
+      closePmTraceAdvancedPanel();
+    });
+  }
+
+  let traceDisclosureSeq = 0;
+
+  function formatTraceWarningLabel(warningCode) {
+    const code = String(warningCode || "")
+      .trim()
+      .toUpperCase();
+    const labels = {
+      STALE_PURCHASE_RATE: "Stale purchase rate",
+      STALE_RM_PURCHASE_RATE: "Stale purchase rate",
+      STALE_PM_PURCHASE_RATE: "Stale purchase rate",
+      STOCK_VALUATION_FALLBACK: "Stock valuation fallback",
+      PM_STOCK_VALUATION_FALLBACK: "Stock valuation fallback",
+      MANUAL_RATE_USED: "Manual rate used",
+      MISSING_MATERIAL_RATE: "Missing material rate",
+      RATE_WARNING: "Rate warning",
+      CALCULATION_WARNING: "Calculation warning",
+    };
+    if (labels[code]) return labels[code];
+    if (!code) return "—";
+    return code
+      .replaceAll("_", " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  function ensureAnchoredDisclosureWiring() {
+    if (typeof document === "undefined" || document.__cpAnchoredDisclosureWired) {
+      return;
+    }
+    document.__cpAnchoredDisclosureWired = true;
+    const canHover =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(hover: hover)").matches;
+
+    function clearPopoverPlacement(panel) {
+      if (!panel) return;
+      panel.style.position = "";
+      panel.style.top = "";
+      panel.style.left = "";
+      panel.style.right = "";
+      panel.style.bottom = "";
+      panel.style.zIndex = "";
+      panel.style.maxWidth = "";
+      panel.style.width = "";
+      panel.style.boxSizing = "";
+      panel.style.whiteSpace = "";
+    }
+
+    function placePopover(trigger, panel) {
+      if (!trigger || !panel || typeof window === "undefined") return;
+      const rect = trigger.getBoundingClientRect();
+      const gap = 4;
+      const isAudit = panel.classList.contains("cp-anchored-popover--audit");
+      const maxWidth = Math.min(isAudit ? 420 : 360, window.innerWidth - 16);
+      panel.style.position = "fixed";
+      panel.style.zIndex = "6000";
+      panel.style.right = "auto";
+      panel.style.bottom = "auto";
+      panel.style.boxSizing = "border-box";
+      panel.style.width = `${maxWidth}px`;
+      panel.style.maxWidth = `${maxWidth}px`;
+      panel.style.whiteSpace = "normal";
+      panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - maxWidth - 8))}px`;
+      panel.style.top = `${rect.bottom + gap}px`;
+      const pr = panel.getBoundingClientRect();
+      if (pr.bottom > window.innerHeight - 8) {
+        panel.style.top = `${Math.max(8, rect.top - pr.height - gap)}px`;
+      }
+      if (pr.right > window.innerWidth - 8) {
+        panel.style.left = `${Math.max(8, window.innerWidth - pr.width - 8)}px`;
+      }
+    }
+
+    function setOpen(wrap, open, mode) {
+      if (!wrap) return;
+      const trigger = wrap.querySelector("[data-cp-disclosure-trigger]");
+      const panel = wrap.querySelector("[data-cp-disclosure-panel]");
+      wrap.classList.toggle("is-open", open && mode === "open");
+      wrap.classList.toggle("is-preview", open && mode === "preview");
+      if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
+      if (panel) {
+        if (open) {
+          panel.removeAttribute("hidden");
+          placePopover(trigger, panel);
+        } else {
+          panel.setAttribute("hidden", "");
+          clearPopoverPlacement(panel);
+        }
+      }
+    }
+
+    function closeAll(except = null) {
+      document
+        .querySelectorAll(
+          ".cp-anchored-disclosure.is-open, .cp-anchored-disclosure.is-preview",
+        )
+        .forEach((wrap) => {
+          if (except && wrap === except) return;
+          setOpen(wrap, false);
+        });
+    }
+
+    document.addEventListener("click", (event) => {
+      const trigger = event.target.closest?.("[data-cp-disclosure-trigger]");
+      if (trigger) {
+        const wrap = trigger.closest(".cp-anchored-disclosure");
+        if (!wrap) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const wasOpen = wrap.classList.contains("is-open");
+        closeAll();
+        if (!wasOpen) setOpen(wrap, true, "open");
+        return;
+      }
+      if (!event.target.closest?.(".cp-anchored-disclosure")) closeAll();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeAll();
+    });
+
+    document.addEventListener(
+      "scroll",
+      () => {
+        closeAll();
+      },
+      true,
+    );
+    window.addEventListener("resize", () => {
+      closeAll();
+    });
+
+    document.addEventListener("focusin", (event) => {
+      const wrap = event.target.closest?.(".cp-anchored-disclosure");
+      if (!wrap || wrap.classList.contains("is-open")) return;
+      closeAll(wrap);
+      setOpen(wrap, true, "preview");
+    });
+
+    document.addEventListener("focusout", (event) => {
+      const wrap = event.target.closest?.(".cp-anchored-disclosure");
+      if (!wrap || wrap.classList.contains("is-open")) return;
+      const next = event.relatedTarget;
+      if (next && wrap.contains(next)) return;
+      setOpen(wrap, false);
+    });
+
+    if (canHover) {
+      document.addEventListener("pointerover", (event) => {
+        const wrap = event.target.closest?.(".cp-anchored-disclosure");
+        if (!wrap || wrap.classList.contains("is-open")) return;
+        setOpen(wrap, true, "preview");
+      });
+      document.addEventListener("pointerout", (event) => {
+        const wrap = event.target.closest?.(".cp-anchored-disclosure");
+        if (!wrap || wrap.classList.contains("is-open")) return;
+        const next = event.relatedTarget;
+        if (next && wrap.contains(next)) return;
+        setOpen(wrap, false);
+      });
+    }
+  }
+
+  function renderWarningPopoverChip(row) {
+    const code = String(row?.warning_code || "").trim();
+    const warningText = String(row?.warning_text || "").trim();
+    if (!code && !warningText) {
+      return '<span class="cp-muted-text">--</span>';
+    }
+    ensureAnchoredDisclosureWiring();
+    const label = formatTraceWarningLabel(code || warningText);
+    const panelId = `cp-trace-warn-${++traceDisclosureSeq}`;
+    return `
+      <span class="cp-anchored-disclosure">
+        <button
+          type="button"
+          class="cp-evidence-warning-chip"
+          data-cp-disclosure-trigger="true"
+          aria-expanded="false"
+          aria-controls="${panelId}"
+          aria-haspopup="dialog"
+        >
+          <span class="cp-evidence-warning-chip-label">${text(label)}</span>
+        </button>
+        <div
+          id="${panelId}"
+          class="cp-anchored-popover"
+          role="dialog"
+          data-cp-disclosure-panel="true"
+          hidden
+        >
+          <div class="cp-anchored-popover-row">
+            <div class="cp-muted-text">Code</div>
+            <div>${text(code || "—")}</div>
+          </div>
+          <div class="cp-anchored-popover-row">
+            <div class="cp-muted-text">Warning</div>
+            <div>${text(warningText || "—")}</div>
+          </div>
+        </div>
+      </span>
+    `;
+  }
+
   function formatRmWarningCell(row) {
-    const code = row.warning_code || "";
-    const warningText = row.warning_text || "";
-    const expansion = row.expansion_note || "";
-    const titleParts = [warningText, expansion].filter(Boolean);
-    const title = titleParts.length
-      ? ` title="${text(titleParts.join(" — "), "")}"`
+    return renderWarningPopoverChip(row);
+  }
+
+  function renderDenseRmTraceRow(row, trAttrs) {
+    const expansionTitle = row.expansion_note
+      ? ` title="${text(row.expansion_note, "")}"`
       : "";
-    if (!code && !warningText) return '<span class="cp-muted-text">--</span>';
-    return `<span class="rm-trace-warning-cell"${title}>${text(
-      code || warningText,
-    )}</span>`;
+    return `<tr ${trAttrs}>
+      <td>${text(row.stock_item_code)}</td>
+      <td>${cpCellPrimary(row.stock_item_name || row.stock_item_id)}</td>
+      <td>${text(row.product_name || row.product_id)}</td>
+      <td>${text(row.sku_column_label || row.sku_id)}</td>
+      <td class="c-right">${formatNumber(row.sku_quantity)}</td>
+      <td>${text(row.quantity_uom)}</td>
+      <td class="c-right">${formatMoney(row.selected_rate)}</td>
+      <td>${text(row.rate_source)}</td>
+      <td>${formatDate(row.rate_date)}</td>
+      <td class="c-right">${formatMoney(row.rm_line_cost)}</td>
+      <td class="c-right">${formatPercent(row.contribution_share_percent)}</td>
+      <td>${compactStatusText(row.review_state)}</td>
+      <td>${formatRmWarningCell(row)}</td>
+      <td${expansionTitle}>${text(row.semi_process_source)}</td>
+    </tr>`;
+  }
+
+  function renderDensePmTraceRow(row, trAttrs) {
+    return `<tr ${trAttrs}>
+      <td>${text(row.stock_item_code)}</td>
+      <td>${cpCellPrimary(row.stock_item_name || row.stock_item_id)}</td>
+      <td>${text(row.product_name || row.product_id)}</td>
+      <td>${text(row.sku_column_label || row.sku_id)}</td>
+      <td class="c-right">${formatNumber(row.sku_quantity)}</td>
+      <td>${text(row.quantity_uom)}</td>
+      <td class="c-right">${formatMoney(row.selected_rate)}</td>
+      <td>${text(row.rate_source)}</td>
+      <td>${formatDate(row.rate_date)}</td>
+      <td class="c-right">${formatMoney(row.pm_line_cost)}</td>
+      <td class="c-right">${formatPercent(row.contribution_share_percent)}</td>
+      <td>${compactStatusText(row.review_state)}</td>
+      <td>${formatRmWarningCell(row)}</td>
+      <td>${text(row.pm_source)}</td>
+    </tr>`;
+  }
+
+  async function loadStage05RemediationRows() {
+    const periodStart = getActivePeriodStart();
+    if (!periodStart) {
+      lastActionQueueLoadWasRemediation = true;
+      return [];
+    }
+
+    const filters =
+      typeof getActiveFilters === "function" ? getActiveFilters() || {} : {};
+    const routes = normalizeStage05RemediationRoutes(filters.issue);
+    if (!routes.length) {
+      lastActionQueueLoadWasRemediation = false;
+      return [];
+    }
+
+    const launch =
+      typeof getStage05RemediationLaunchContext === "function"
+        ? getStage05RemediationLaunchContext() || {}
+        : {};
+
+    const rows = await fetchAllRows(
+      () => {
+        let query = costingFrom(STAGE05_REMEDIATION_DRILLDOWN_VIEW)
+          .select("*")
+          .eq("period_start", periodStart)
+          .eq("action_severity", "BLOCKER")
+          .in("recommended_ui_route", routes);
+
+        if (launch.productId != null) {
+          query = query.eq("product_id", launch.productId);
+        }
+        if (launch.skuId != null) {
+          query = query.eq("sku_id", launch.skuId);
+        }
+
+        return query
+          .order("material_area", { ascending: true })
+          .order("product_name", { ascending: true })
+          .order("sku_id", { ascending: true })
+          .order("stock_item_name", { ascending: true })
+          .order("line_no", { ascending: true, nullsFirst: false });
+      },
+      1000,
+    );
+
+    lastActionQueueLoadWasRemediation = true;
+    return rows || [];
+  }
+
+  function isStage05RemediationActive() {
+    const filters =
+      typeof getActiveFilters === "function" ? getActiveFilters() || {} : {};
+    return isStage05MaterialRemediationMode({
+      lensId: getCurrentLens(),
+      managerTab: manualRateManagerTab,
+      issueFilters: filters.issue,
+    });
+  }
+
+  function wasLastActionQueueLoadRemediation() {
+    return lastActionQueueLoadWasRemediation === true;
+  }
+
+  function formatSkuPackCell(row) {
+    const pack = [row.pack_size, row.pack_uom || row.sku_uom]
+      .filter((part) => part !== null && part !== undefined && part !== "")
+      .join(" ");
+    const skuLabel =
+      row.sku_column_label ||
+      (row.sku_id != null ? `SKU ${row.sku_id}` : "");
+    if (skuLabel && pack) return `${skuLabel} · ${pack}`;
+    return skuLabel || pack || text(row.sku_id);
   }
 
   async function loadManualRateManagerRows(tab) {
     const activeTab = tab || manualRateManagerTab;
     if (activeTab === "register") {
+      lastActionQueueLoadWasRemediation = false;
       return fetchManualRateManagerRegisterRows();
     }
     if (activeTab === "history") {
+      lastActionQueueLoadWasRemediation = false;
       return fetchManualRateManagerHistoryRows();
     }
+
+    if (isStage05RemediationActive()) {
+      return loadStage05RemediationRows();
+    }
+
+    lastActionQueueLoadWasRemediation = false;
     const periodStart = getActivePeriodStart();
     return fetchAllRows(
       () => {
-        let query = costingFrom("v_costing_manual_rate_manager_action_queue")
-          .select("*");
+        let query = costingFrom(MANUAL_RATE_MANAGER_ACTION_QUEUE_VIEW).select(
+          "*",
+        );
         if (periodStart) {
           query = query.eq("period_start", periodStart);
         }
@@ -4412,7 +5785,16 @@ export function createMaterialCostController(deps) {
     if (lensId === "rm-cost-trace") {
       return MANUAL_RATE_HEADERS_BY_TAB["rm-cost-trace"];
     }
+    if (lensId === "pm-cost-trace") {
+      return MANUAL_RATE_HEADERS_BY_TAB["pm-cost-trace"];
+    }
     if (lensId !== "manual-rate-manager") return null;
+    if (
+      manualRateManagerTab === "action-queue" &&
+      (isStage05RemediationActive() || lastActionQueueLoadWasRemediation)
+    ) {
+      return MANUAL_RATE_HEADERS_BY_TAB["stage05-remediation"];
+    }
     return (
       MANUAL_RATE_HEADERS_BY_TAB[manualRateManagerTab] ||
       MANUAL_RATE_HEADERS_BY_TAB["action-queue"]
@@ -4423,7 +5805,16 @@ export function createMaterialCostController(deps) {
     if (lensId === "rm-cost-trace") {
       return MANUAL_RATE_ALIGNMENTS_BY_TAB["rm-cost-trace"];
     }
+    if (lensId === "pm-cost-trace") {
+      return MANUAL_RATE_ALIGNMENTS_BY_TAB["pm-cost-trace"];
+    }
     if (lensId !== "manual-rate-manager") return null;
+    if (
+      manualRateManagerTab === "action-queue" &&
+      (isStage05RemediationActive() || lastActionQueueLoadWasRemediation)
+    ) {
+      return MANUAL_RATE_ALIGNMENTS_BY_TAB["stage05-remediation"];
+    }
     return (
       MANUAL_RATE_ALIGNMENTS_BY_TAB[manualRateManagerTab] ||
       MANUAL_RATE_ALIGNMENTS_BY_TAB["action-queue"]
@@ -4432,25 +5823,11 @@ export function createMaterialCostController(deps) {
 
   function renderTableRow(lensId, row, trAttrs) {
     if (lensId === "rm-cost-trace") {
-      const expansionTitle = row.expansion_note
-        ? ` title="${text(row.expansion_note, "")}"`
-        : "";
-      return `<tr ${trAttrs}>
-        <td>${text(row.stock_item_code)}</td>
-        <td>${cpCellPrimary(row.stock_item_name || row.stock_item_id)}</td>
-        <td>${text(row.product_name || row.product_id)}</td>
-        <td>${text(row.sku_column_label || row.sku_id)}</td>
-        <td class="c-right">${formatNumber(row.sku_quantity)}</td>
-        <td>${text(row.quantity_uom)}</td>
-        <td class="c-right">${formatMoney(row.selected_rate)}</td>
-        <td>${text(row.rate_source)}</td>
-        <td>${formatDate(row.rate_date)}</td>
-        <td class="c-right">${formatMoney(row.rm_line_cost)}</td>
-        <td class="c-right">${formatPercent(row.contribution_share_percent)}</td>
-        <td>${compactStatusText(row.review_state)}</td>
-        <td>${formatRmWarningCell(row)}</td>
-        <td${expansionTitle}>${text(row.semi_process_source)}</td>
-      </tr>`;
+      return renderDenseRmTraceRow(row, trAttrs);
+    }
+
+    if (lensId === "pm-cost-trace") {
+      return renderDensePmTraceRow(row, trAttrs);
     }
 
     if (lensId !== "manual-rate-manager") return null;
@@ -4490,6 +5867,34 @@ export function createMaterialCostController(deps) {
         <td>${text(row.reason)}</td>
         <td>${formatDateTime(row.created_at)}</td>
         <td>${formatDateTime(row.last_updated_at)}</td>
+      </tr>`;
+    }
+
+    if (isStage05RemediationActive() || lastActionQueueLoadWasRemediation) {
+      const area = String(row.material_area || "").trim().toUpperCase() || "—";
+      const warning =
+        row.warning_code || row.warning_text
+          ? `${text(row.warning_code || "")}${
+              row.warning_code && row.warning_text ? " — " : ""
+            }${text(row.warning_text || "")}`
+          : '<span class="cp-muted-text">--</span>';
+      return `<tr ${trAttrs}>
+        <td>
+          ${cpCellPrimary(row.stock_item_name || row.stock_item_id)}
+          <div class="cp-muted-text">${text(row.stock_item_code || "")}</div>
+        </td>
+        <td>${text(area)}</td>
+        <td>
+          ${cpCellPrimary(row.product_name || row.product_id)}
+          <div class="cp-muted-text">${text(formatSkuPackCell(row))}</div>
+        </td>
+        <td>${text(issueCodeLabel(row.material_issue_code) || row.material_issue_code)}</td>
+        <td class="c-right">${formatMoney(row.selected_rate)}</td>
+        <td>${text(row.rate_source)}</td>
+        <td>${formatDate(row.rate_date)}</td>
+        <td>${text(row.action_required || row.action_note || "Set Costing Rate")}</td>
+        <td>${warning}</td>
+        <td>${text(row.bom_source || row.frozen_source_type)}</td>
       </tr>`;
     }
 
@@ -4692,6 +6097,11 @@ export function createMaterialCostController(deps) {
   }
 
   function handleEscapeKey() {
+    const pmAdvancedPanel = document.getElementById("pmTraceAdvancedPanel");
+    if (pmAdvancedPanel?.classList.contains("open")) {
+      closePmTraceAdvancedPanel();
+      return true;
+    }
     const advancedPanel = document.getElementById("rmTraceAdvancedPanel");
     if (advancedPanel?.classList.contains("open")) {
       closeRmTraceAdvancedPanel();
@@ -4721,6 +6131,7 @@ export function createMaterialCostController(deps) {
     eventsBound = true;
 
     bindRmTraceFilterEvents();
+    bindPmTraceFilterEvents();
 
     manualRateMaterialSearch?.addEventListener("input", () => {
       if (manualRateMaterialSearch.readOnly) return;
@@ -4821,6 +6232,14 @@ export function createMaterialCostController(deps) {
     setManualRateManagerTab,
     loadManualRateManagerRows,
     loadRmCostTraceRows,
+    loadPmCostTraceRows,
+    loadMoreTraceRows,
+    getTraceRows,
+    getTraceHasMore,
+    isTraceLoadingMore,
+    setupTraceProgressiveScroll,
+    teardownTraceProgressiveScroll,
+    refreshTraceLoadMoreFooter,
     loadMaterialReviewAcceptanceRegister,
     getTableHeaders,
     getTableAlignments,
@@ -4859,5 +6278,13 @@ export function createMaterialCostController(deps) {
     getTraceLoadState,
     getTraceErrorMessage,
     exportRmCostTraceCsv,
+    exportPmCostTraceCsv,
+    exportActiveTraceCsv,
+    isStage05RemediationActive,
+    wasLastActionQueueLoadRemediation,
+    canAccessRmTrace,
+    canAccessPmTrace,
+    canExportRmTrace,
+    canExportPmTrace,
   };
 }

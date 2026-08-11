@@ -24,7 +24,7 @@ export async function loadAccessContext() {
     }
     _ctx.actor = actor;
 
-    // load canonical permissions via RPC if available; fall back to old tables
+    // Load canonical permissions via RPC only (fail closed on error).
     if (actor.actor_id && typeof actor.actor_id === "string") {
       try {
         const { data: perms, error: permsErr } = await supabase.rpc(
@@ -76,65 +76,19 @@ export async function loadAccessContext() {
           }
           _ctx.hub_access = perms;
         } else {
-          // RPC missing or errored; fall back to legacy module permissions only.
-          await (async function legacyLoad() {
-            try {
-              const maybeUuid = String(actor.actor_id);
-              const uuidLike = /^[0-9a-fA-F-]{20,}$/i.test(maybeUuid);
-              if (!uuidLike) return;
-
-              // Merge legacy user_permissions module flags as a compatibility
-              // fallback. Do not read hub_user_access; canonical access is the
-              // source of truth for module and role grants.
-              try {
-                const { data: ups, error: upErr } = await supabase
-                  .from("user_permissions")
-                  .select("user_id, module_id, can_view, can_edit")
-                  .eq("user_id", actor.actor_id)
-                  .limit(200);
-                if (!upErr && Array.isArray(ups)) {
-                  const modules = {};
-                  for (const u of ups) {
-                    modules[String(u.module_id)] = {
-                      can_view: !!u.can_view,
-                      can_edit: !!u.can_edit,
-                    };
-                  }
-                  _ctx.module_permissions = modules;
-                  // normalization (defensive — same as RPC branch)
-                  try {
-                    for (const k of Object.keys(
-                      _ctx.module_permissions || {},
-                    )) {
-                      const v = _ctx.module_permissions[k];
-                      if (v === true || v === false || typeof v !== "object") {
-                        _ctx.module_permissions[k] = {
-                          can_view: !!v,
-                          can_edit: !!v,
-                          meta: null,
-                        };
-                      } else {
-                        _ctx.module_permissions[k].can_view =
-                          !!_ctx.module_permissions[k].can_view;
-                        _ctx.module_permissions[k].can_edit =
-                          !!_ctx.module_permissions[k].can_edit;
-                        if (!("meta" in _ctx.module_permissions[k]))
-                          _ctx.module_permissions[k].meta = null;
-                      }
-                    }
-                  } catch (e) {
-                    /* ignore */
-                  }
-                }
-              } catch (e) {
-                console.debug("mrpAccess: user_permissions query failed", e);
-              }
-            } catch (e) {
-              console.debug("mrpAccess: legacyLoad failed", e);
-            }
-          })();
+          // Canonical RPC unavailable — empty permission context (fail closed).
+          _ctx.roles = [];
+          _ctx.module_permissions = {};
+          _ctx.hub_access = null;
+          console.debug(
+            "mrpAccess: get_user_permissions returned no usable data",
+            permsErr,
+          );
         }
       } catch (e) {
+        _ctx.roles = [];
+        _ctx.module_permissions = {};
+        _ctx.hub_access = null;
         console.debug("mrpAccess: get_user_permissions RPC failed", e);
       }
     }

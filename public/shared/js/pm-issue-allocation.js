@@ -2,6 +2,25 @@ import { supabase } from "./supabaseClient.js";
 import { showToast } from "./toast.js";
 import { loadAccessContext, canEditPM } from "./mrpAccess.js";
 import { ensureDetailModal } from "./detailModal.js";
+import { Platform } from "./platform.js";
+import {
+  mountModuleHome,
+  enhanceSearchableSelect,
+  syncSearchableSelect,
+} from "./sasv-module-chrome.js";
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+(function mountPmIssueAllocationHome() {
+  const homeEl = document.getElementById("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(document.getElementById("homeBtn")),
+      { once: true },
+    );
+  }
+})();
 
 // Simple PM Issue Allocation console
 // - Summary sourced from RPC `mrp_pm_allocation_console` (LIST mode)
@@ -248,10 +267,17 @@ async function loadProductLookup() {
 function buildPmDropdown() {
   const sel = document.getElementById("pmFilter");
   if (!sel) return;
+  const prev = sel.value;
   // Preserve empty/default option, rebuild unique options
   const first = sel.querySelector("option[value='']");
   sel.innerHTML = "";
   if (first) sel.appendChild(first);
+  else {
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "-- All PM items --";
+    sel.appendChild(empty);
+  }
   const seen = new Set();
   summaryRows.forEach((r) => {
     const rawId = r.pm_stock_item_id;
@@ -265,6 +291,23 @@ function buildPmDropdown() {
     o.textContent = label;
     sel.appendChild(o);
   });
+
+  // Page-scoped PM list can be large within the current page — searchable select
+  if (sel._sasvSearch) {
+    syncSearchableSelect(sel);
+  } else {
+    enhanceSearchableSelect(sel, {
+      placeholder: "Search PM items…",
+      allowEmptyOption: true,
+      debounceMs: 220,
+      clearSelectedOnBackspace: true,
+    });
+  }
+
+  if (prev && Array.from(sel.options).some((o) => o.value === prev)) {
+    if (sel._sasvSearch) sel._sasvSearch.setValue(prev, false);
+    else sel.value = prev;
+  }
 }
 
 // load SKUs and group by product (used for the editable dropdowns in detail)
@@ -469,11 +512,11 @@ function renderSummaryTable() {
       if (r.has_unassigned_issues)
         flagsHtml += '<span class="badge-warning">Unassigned</span>';
       if (r.allocation_approx)
-        flagsHtml +=
-          (flagsHtml ? " " : "") + '<span class="badge-info">Approx</span>';
+        flagsHtml += '<span class="badge-info">Approx</span>';
     } else {
       flagsHtml = '<span class="badge-success">Clean</span>';
     }
+    if (flagsHtml) flagsHtml = `<div class="flags">${flagsHtml}</div>`;
 
     // Aging column: show — when not applicable; otherwise show oldest date and qty breakdown
     let agingHtml = "—";
@@ -490,14 +533,14 @@ function renderSummaryTable() {
     }
 
     tr.innerHTML = `
-      <td>${escapeHtml(pmDisplay)}</td>
-      <td>${escapeHtml(combo)}</td>
-      <td style="text-align:right">${formatNumber(
+      <td data-key="pm_display">${escapeHtml(pmDisplay)}</td>
+      <td data-key="combination">${escapeHtml(combo)}</td>
+      <td data-key="issued_pm_qty">${formatNumber(
         r.issued_pm_qty
       )} ${escapeHtml(rowUom)}</td>
-      <td>${agingHtml}</td>
-      <td>${flagsHtml}</td>
-      <td><button class="link-btn view-lines">View issue lines</button></td>
+      <td data-key="max_age_days">${agingHtml}</td>
+      <td data-key="flags">${flagsHtml}</td>
+      <td data-key="actions"><button type="button" class="link-btn view-lines">View issue lines</button></td>
     `;
 
     tr.addEventListener("click", () => selectSummaryRow(idx));
@@ -534,6 +577,8 @@ function renderPaginator() {
   const end = Math.min(totalCount, (currentPage + 1) * pageSize);
 
   const prev = document.createElement("button");
+  prev.type = "button";
+  prev.className = "pg-btn";
   prev.textContent = "Prev";
   prev.disabled = currentPage === 0;
   prev.addEventListener("click", () => {
@@ -543,6 +588,8 @@ function renderPaginator() {
   });
 
   const next = document.createElement("button");
+  next.type = "button";
+  next.className = "pg-btn";
   next.textContent = "Next";
   next.disabled = (currentPage + 1) * pageSize >= totalCount;
   next.addEventListener("click", () => {
@@ -552,6 +599,7 @@ function renderPaginator() {
   });
 
   const info = document.createElement("span");
+  info.className = "pg-info";
   // compute page-level attention stats
   const pageCount = filteredSummary.length;
   const attentionCount = filteredSummary.reduce(
@@ -561,6 +609,7 @@ function renderPaginator() {
   info.textContent = `Showing ${start}-${end} of ${totalCount} • Page Attention: ${attentionCount} / ${pageCount}`;
 
   const sizeSel = document.createElement("select");
+  sizeSel.setAttribute("aria-label", "Page size");
   [25, 50, 100, 200].forEach((s) => {
     const o = document.createElement("option");
     o.value = String(s);
@@ -574,10 +623,20 @@ function renderPaginator() {
     loadAndRenderSummary();
   });
 
-  container.appendChild(prev);
+  const sizeLabel = document.createElement("span");
+  sizeLabel.className = "pg-size-label";
+  sizeLabel.textContent = "/ page";
+
+  const controls = document.createElement("div");
+  controls.className = "pg-controls";
+  controls.appendChild(prev);
+  controls.appendChild(next);
+  controls.appendChild(sizeSel);
+  controls.appendChild(sizeLabel);
+
+  // Coherent pager: metadata + adjacent nav/size (presentation only)
   container.appendChild(info);
-  container.appendChild(next);
-  container.appendChild(sizeSel);
+  container.appendChild(controls);
 }
 
 function escapeHtml(s) {
@@ -765,21 +824,21 @@ function renderIssueLines() {
     const lineUom = selectedSummary?.pm_uom_code || "";
 
     tr.innerHTML = `
-      <td>${escapeHtml(l.issue_date)}</td>
-      <td>${escapeHtml(
+      <td data-key="date">${escapeHtml(l.issue_date)}</td>
+      <td data-key="voucher">${escapeHtml(
         (l.voucher_type || "") + " " + (l.voucher_number || "")
       )}</td>
-      <td style="text-align:right">${formatNumber(l.qty_issued)} ${escapeHtml(
+      <td data-key="qty">${formatNumber(l.qty_issued)} ${escapeHtml(
       lineUom
     )}</td>
-      <td>${escapeHtml(l.raw_batch_number || "")}</td>
-      <td>${escapeHtml(l.batch_number || "")}</td>
-      <td><select data-field="product_id" class="product-select"></select></td>
-      <td><select data-field="sku_id" class="sku-select"></select></td>
-      <td><input data-field="region_code" type="text" value="${escapeHtml(
+      <td data-key="raw_batch">${escapeHtml(l.raw_batch_number || "")}</td>
+      <td data-key="batch">${escapeHtml(l.batch_number || "")}</td>
+      <td data-key="product"><select data-field="product_id" class="product-select"></select></td>
+      <td data-key="sku"><select data-field="sku_id" class="sku-select"></select></td>
+      <td data-key="region"><input data-field="region_code" type="text" value="${escapeHtml(
         l.region_code ?? ""
       )}" /></td>
-      <td>
+      <td data-key="allocation_status">
         <select data-field="allocation_status">
           <option value="unassigned" ${
             l.allocation_status === "unassigned" ? "selected" : ""
@@ -798,7 +857,7 @@ function renderIssueLines() {
           }>by_sku</option>
         </select>
       </td>
-      <td><input data-field="allocation_note" type="text" value="${escapeHtml(
+      <td data-key="note"><input data-field="allocation_note" type="text" value="${escapeHtml(
         l.allocation_note || ""
       )}" /></td>
     `;
@@ -913,16 +972,22 @@ function renderIssueLines() {
 function wireUp() {
   const homeBtn = document.getElementById("homeBtn");
   if (homeBtn)
-    homeBtn.addEventListener(
-      "click",
-      () => (window.location.href = "../../index.html")
-    );
+    homeBtn.addEventListener("click", () => {
+      try {
+        Platform.goHome();
+      } catch {
+        window.location.href = "../../index.html";
+      }
+    });
 
   const clearBtn = document.getElementById("clearFilters");
   if (clearBtn)
     clearBtn.addEventListener("click", () => {
       const pmSel = document.getElementById("pmFilter");
-      if (pmSel) pmSel.value = "";
+      if (pmSel) {
+        if (pmSel._sasvSearch) pmSel._sasvSearch.setValue("", false);
+        else pmSel.value = "";
+      }
       const fu = document.getElementById("filterUnassigned");
       if (fu) fu.checked = false;
       const fa = document.getElementById("filterApprox");
@@ -1170,11 +1235,12 @@ async function loadAndRenderSummary(opts = {}) {
   if (pendingPmIdFromUrl) {
     const sel = document.getElementById("pmFilter");
     if (sel) {
-      // set only if option exists
-      const opt = Array.from(sel.options).find(
-        (o) => o.value === String(pendingPmIdFromUrl)
-      );
-      if (opt) sel.value = String(pendingPmIdFromUrl);
+      const id = String(pendingPmIdFromUrl);
+      const opt = Array.from(sel.options).find((o) => o.value === id);
+      if (opt) {
+        if (sel._sasvSearch) sel._sasvSearch.setValue(id, false);
+        else sel.value = id;
+      }
     }
     pendingPmIdFromUrl = null;
   }
@@ -1359,35 +1425,10 @@ function insertBackButtonFromUrl() {
 
   const homeBtn = document.getElementById("homeBtn");
 
-  // Ensure a small stylesheet for the injected back button so it looks like
-  // other ERP-style action buttons and has spacing from the HOME button.
-  if (!document.getElementById("backBtnStyles")) {
-    const s = document.createElement("style");
-    s.id = "backBtnStyles";
-    s.textContent = `
-      .back-btn{
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        padding:6px 10px;
-        border-radius:6px;
-        border:1px solid rgba(0,0,0,0.08);
-        background:#f7fafc;
-        color:#111827;
-        font-weight:600;
-        margin-right:8px;
-        cursor:pointer;
-      }
-      .back-btn:hover{ background:#eef2f7; }
-    `;
-    document.head.appendChild(s);
-  }
-
   const btn = document.createElement("button");
   btn.id = "backToBtn";
   btn.type = "button";
-  // keep existing link-btn semantics but add back-btn for styling
-  btn.className = "link-btn back-btn";
+  btn.className = "btn-secondary back-btn";
   btn.setAttribute("aria-label", `Back to ${returnLabel}`);
   btn.textContent = `← ${returnLabel}`;
   btn.addEventListener("click", (ev) => {
@@ -1396,7 +1437,7 @@ function insertBackButtonFromUrl() {
     window.location.href = returnTo;
   });
 
-  // Insert before the HOME button when possible; the .back-btn has right margin
+  // Insert before the HOME button when possible
   if (homeBtn && homeBtn.parentNode === headerActions) {
     headerActions.insertBefore(btn, homeBtn);
   } else {

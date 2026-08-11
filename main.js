@@ -23,7 +23,10 @@ const {
 const path = require("path");
 
 /** Windows/Linux window chrome; same asset as electron-builder `win.icon`. */
-const APP_ICON_PATH = path.join(__dirname, "public/shared/assets/favicon.ico");
+const APP_ICON_PATH = path.join(
+  __dirname,
+  "public/shared/assets/branding/derived/favicon.ico",
+);
 
 if (process.platform === "win32") {
   app.setAppUserModelId("com.brahmadathanu.sasvworkspace");

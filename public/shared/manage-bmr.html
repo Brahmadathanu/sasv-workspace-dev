@@ -457,6 +457,16 @@
         background: #b91c1c;
         border-color: #b91c1c;
       }
+      .btn.warn {
+        background: #fef3c7;
+        color: #92400e;
+        border-color: #f59e0b;
+        font-weight: 700;
+      }
+      .btn.warn:hover {
+        background: #fde68a;
+        border-color: #d97706;
+      }
       .btn.secondary {
         background: #f1f5f9;
         color: #334155;
@@ -749,6 +759,482 @@
         word-break: break-word;
       }
 
+      /* ── Change History register ─────────────────── */
+      .hist-toolbar-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        position: relative;
+      }
+      .hist-register-toolbar {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .hist-filter-wrap {
+        position: relative;
+        flex: 0 0 auto;
+      }
+      .hist-filters-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        flex-shrink: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        color: #374151;
+        cursor: pointer;
+      }
+      .hist-filters-btn:hover,
+      .hist-filters-btn:focus-visible {
+        background: #f3f4f6;
+        border-color: var(--primary, #2563eb);
+        color: var(--primary, #2563eb);
+        outline: none;
+      }
+      .hist-filters-btn.hist-filters-btn--open,
+      .hist-filters-btn.hist-filters-btn--active {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #2563eb;
+      }
+      .hist-filters-btn svg {
+        width: 15px;
+        height: 15px;
+        display: block;
+        pointer-events: none;
+      }
+      .hist-filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 14px;
+        text-align: center;
+      }
+      .hist-filter-badge.hidden {
+        display: none;
+      }
+      .hist-search-wrap {
+        position: relative;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .hist-search-wrap input {
+        width: 100%;
+        padding-right: 28px;
+        box-sizing: border-box;
+        font-size: 13px;
+        font-weight: 400;
+      }
+      .hist-search-clear {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1;
+        padding: 2px 4px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .hist-search-clear:hover {
+        color: #0f172a;
+        background: #f1f5f9;
+      }
+      .hist-search-clear.hidden {
+        display: none;
+      }
+      .hist-filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: auto;
+        width: min(360px, calc(100vw - 24px));
+        max-width: calc(100vw - 24px);
+        max-height: min(520px, 80vh);
+        overflow-y: auto;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        z-index: 320;
+        padding: 12px 14px;
+        box-sizing: border-box;
+      }
+      .hist-filter-drawer.open {
+        display: block;
+      }
+      .hist-filter-drawer-scrim {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.28);
+        z-index: 310;
+      }
+      .hist-filter-drawer-scrim.open {
+        display: block;
+      }
+      .hist-drawer-section {
+        margin-bottom: 12px;
+      }
+      .hist-drawer-section:last-child {
+        margin-bottom: 0;
+      }
+      .hist-drawer-label {
+        display: block;
+        font-size: 10.5px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        margin-bottom: 6px;
+      }
+      .hist-drawer-note {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 400;
+        color: #64748b;
+        line-height: 1.35;
+      }
+      .hist-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .hist-chip {
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #334155;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 400;
+        cursor: pointer;
+        line-height: 1.25;
+      }
+      .hist-chip:hover {
+        border-color: #bfdbfe;
+        color: #1d4ed8;
+      }
+      .hist-chip.active {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #1d4ed8;
+        font-weight: 500;
+      }
+      .hist-date-trigger {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: #fff;
+        font-size: 12.5px;
+        font-weight: 400;
+        color: #0f172a;
+        cursor: pointer;
+        text-align: left;
+        box-sizing: border-box;
+      }
+      .hist-date-trigger:hover,
+      .hist-date-trigger:focus-visible {
+        border-color: var(--primary, #2563eb);
+        outline: none;
+      }
+      .hist-date-panel {
+        display: none;
+        margin-top: 8px;
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        background: #f8fafc;
+      }
+      .hist-date-panel.open {
+        display: block;
+      }
+      .hist-date-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .hist-date-fields .field {
+        margin: 0;
+      }
+      .hist-date-fields input {
+        font-size: 12.5px;
+        font-weight: 400;
+      }
+      .hist-date-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .hist-date-presets button {
+        border: none;
+        background: transparent;
+        color: var(--primary, #2563eb);
+        font-size: 12px;
+        font-weight: 400;
+        padding: 0;
+        cursor: pointer;
+      }
+      .hist-date-presets button:hover {
+        text-decoration: underline;
+      }
+      .hist-date-error {
+        margin: 6px 0 0;
+        font-size: 11px;
+        font-weight: 400;
+        color: #b91c1c;
+      }
+      .hist-date-error.hidden {
+        display: none;
+      }
+      .hist-drawer-actions {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 4px;
+        border-top: 1px solid #eef2f7;
+        margin-top: 4px;
+      }
+      .hist-drawer-reset {
+        border: none;
+        background: none;
+        padding: 0;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--primary, #2563eb);
+        cursor: pointer;
+      }
+      .hist-drawer-reset:hover {
+        text-decoration: underline;
+      }
+      .hist-product-select {
+        width: 100%;
+        font-size: 12.5px;
+        font-weight: 400;
+      }
+      .hist-error {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 400;
+        margin: 0 0 8px;
+      }
+      .hist-table-wrap {
+        overflow-x: auto;
+        overflow-y: visible;
+        max-width: 100%;
+      }
+      .hist-scroll-status {
+        margin: 6px 0 0;
+        min-height: 18px;
+        font-size: 11.5px;
+        font-weight: 400;
+        color: #64748b;
+        text-align: center;
+      }
+      .hist-scroll-status.hist-scroll-status--error {
+        color: #b91c1c;
+      }
+      .hist-scroll-status button {
+        border: none;
+        background: none;
+        padding: 0;
+        margin-left: 6px;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--primary, #2563eb);
+        cursor: pointer;
+      }
+      .hist-scroll-status button:hover {
+        text-decoration: underline;
+      }
+      .hist-sentinel {
+        height: 1px;
+        width: 100%;
+        pointer-events: none;
+      }
+      .hist-live {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .hist-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+        font-weight: 400;
+      }
+      .hist-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f8fafc;
+        font-size: 10.5px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #64748b;
+        padding: 7px 8px;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap;
+        text-align: left;
+      }
+      .hist-table td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #eef2f7;
+        vertical-align: top;
+        font-weight: 400;
+        color: #0f172a;
+      }
+      .hist-muted {
+        color: #64748b;
+        font-weight: 400;
+      }
+      .hist-retired-label,
+      .hist-row-retired td:nth-child(5) {
+        color: #64748b;
+        font-style: italic;
+      }
+      .hist-dl-group {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #94a3b8;
+        margin: 12px 0 4px;
+      }
+      .hist-dl-group:first-child {
+        margin-top: 0;
+      }
+      .hist-dl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .hist-dl th,
+      .hist-dl td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #eef2f7;
+        text-align: left;
+        vertical-align: top;
+        font-weight: 400;
+      }
+      .hist-dl th {
+        width: 36%;
+        color: #64748b;
+        font-weight: 500;
+        background: #f8fafc;
+      }
+      .hist-tech {
+        margin-top: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 8px 10px;
+      }
+      .hist-tech summary {
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        color: #475569;
+      }
+      .hist-json {
+        margin: 8px 0 0;
+        padding: 8px;
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 6px;
+        font-size: 11px;
+        overflow: auto;
+        max-height: 280px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #historyDetailModal .modal-window {
+        width: min(720px, 96vw);
+        max-height: min(92vh, 880px);
+        overflow: auto;
+      }
+      @media (max-width: 720px) {
+        .hist-register-toolbar {
+          width: 100%;
+        }
+        .hist-search-wrap {
+          flex: 1 1 auto;
+        }
+        .hist-filter-drawer {
+          left: 0;
+          right: auto;
+          width: min(360px, calc(100vw - 24px));
+          max-width: calc(100vw - 24px);
+        }
+      }
+      @media (max-width: 520px) {
+        #historyDetailModal.modal-overlay {
+          padding: 0;
+          align-items: stretch;
+        }
+        #historyDetailModal .modal-window {
+          width: 100%;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+          border-radius: 0;
+          box-shadow: none;
+          padding-top: calc(12px + env(safe-area-inset-top, 0px));
+          padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        }
+        .hist-filter-drawer {
+          position: fixed;
+          top: auto;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          width: 100%;
+          max-width: none;
+          max-height: min(88vh, 640px);
+          border-radius: 12px 12px 0 0;
+          padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+          z-index: 330;
+        }
+        .hist-date-fields {
+          grid-template-columns: 1fr;
+        }
+      }
+
       /* ── Toast ───────────────────────────────────── */
       #toastContainer {
         position: fixed;
@@ -907,6 +1393,9 @@
       </button>
       <button class="tab-btn" data-tab="add" role="tab" type="button">
         Create BMR
+      </button>
+      <button class="tab-btn" data-tab="history" role="tab" type="button">
+        Change History
       </button>
     </div>
 
@@ -1246,6 +1735,191 @@
           </table>
         </div>
       </section>
+
+      <!-- CHANGE HISTORY tab ───────────────────────── -->
+      <section id="panel-history" class="panel" role="tabpanel">
+        <div class="card hist-toolbar-card">
+          <div class="hist-register-toolbar" id="histRegisterToolbar">
+            <div class="hist-filter-wrap">
+              <button
+                id="histFiltersBtn"
+                class="hist-filters-btn"
+                type="button"
+                title="Filters"
+                aria-label="Filters"
+                aria-expanded="false"
+                aria-controls="histFilterDrawer"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon
+                    points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                  />
+                </svg>
+                <span id="histFilterBadge" class="hist-filter-badge hidden"
+                  >0</span
+                >
+              </button>
+              <div
+                id="histFilterDrawer"
+                class="hist-filter-drawer"
+                role="dialog"
+                aria-label="Advanced filters"
+              >
+                <div class="hist-drawer-section">
+                  <span class="hist-drawer-label">Date range</span>
+                  <button
+                    id="histDateTrigger"
+                    class="hist-date-trigger"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="histDatePanel"
+                  >
+                    <span id="histDateLabel">Any date</span>
+                    <span aria-hidden="true">▾</span>
+                  </button>
+                  <div id="histDatePanel" class="hist-date-panel">
+                    <div class="hist-date-fields">
+                      <label class="field"
+                        >From
+                        <input id="histFilterDateFrom" type="date" />
+                      </label>
+                      <label class="field"
+                        >To
+                        <input id="histFilterDateTo" type="date" />
+                      </label>
+                    </div>
+                    <p id="histDateError" class="hist-date-error hidden"></p>
+                    <div class="hist-date-presets">
+                      <button type="button" data-hist-date-preset="today">
+                        Today
+                      </button>
+                      <button type="button" data-hist-date-preset="last7">
+                        Last 7 days
+                      </button>
+                      <button type="button" data-hist-date-preset="last30">
+                        Last 30 days
+                      </button>
+                      <button type="button" data-hist-date-preset="month">
+                        This month
+                      </button>
+                      <button type="button" data-hist-date-preset="clear">
+                        Clear date range
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="hist-drawer-section">
+                  <span class="hist-drawer-label">Operation</span>
+                  <div
+                    id="histOperationChips"
+                    class="hist-chip-row"
+                    role="group"
+                    aria-label="Operation"
+                  ></div>
+                </div>
+                <div class="hist-drawer-section">
+                  <span class="hist-drawer-label">Result</span>
+                  <div
+                    id="histResultChips"
+                    class="hist-chip-row"
+                    role="group"
+                    aria-label="Result"
+                  ></div>
+                </div>
+                <div class="hist-drawer-section">
+                  <span class="hist-drawer-label">Product</span>
+                  <select
+                    id="histFilterProduct"
+                    class="hist-product-select"
+                    aria-label="Product"
+                  >
+                    <option value="">All products</option>
+                  </select>
+                  <p class="hist-drawer-note" style="margin-top: 6px">
+                    Historical inactive products remain searchable through
+                    General search.
+                  </p>
+                </div>
+                <div class="hist-drawer-actions">
+                  <button
+                    id="histResetFiltersBtn"
+                    class="hist-drawer-reset"
+                    type="button"
+                  >
+                    Reset filters
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="hist-search-wrap">
+              <input
+                id="histFilterSearch"
+                type="search"
+                placeholder="Search correction no., product, BN, reason, reference, user, plan…"
+                autocomplete="off"
+                aria-label="General search"
+              />
+              <button
+                id="histSearchClear"
+                class="hist-search-clear hidden"
+                type="button"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="histFilterScrim"
+          class="hist-filter-drawer-scrim"
+          hidden
+        ></div>
+
+        <div id="histError" class="hist-error hidden" role="alert"></div>
+        <div id="histLiveStatus" class="hist-live" aria-live="polite"></div>
+
+        <div class="table-wrap hist-table-wrap">
+          <table id="histTable" class="hist-table">
+            <thead>
+              <tr>
+                <th>Correction No.</th>
+                <th>Executed At</th>
+                <th>Product</th>
+                <th>BMR</th>
+                <th>Operation</th>
+                <th>Old Size</th>
+                <th>New Size</th>
+                <th>Planned Size</th>
+                <th>Result</th>
+                <th>Reason</th>
+                <th>Executed By</th>
+              </tr>
+            </thead>
+            <tbody id="histTableBody">
+              <tr>
+                <td colspan="11" class="empty-state">
+                  Open this tab to load change history.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="histScrollStatus" class="hist-scroll-status" hidden></div>
+        <div id="histSentinel" class="hist-sentinel" aria-hidden="true"></div>
+      </section>
     </div>
     <!-- /.layout -->
 
@@ -1429,7 +2103,15 @@
             </svg>
             Copy
           </button>
-          <div style="display: flex; gap: 8px">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <button
+              id="detailAdminCorrectBtn"
+              class="btn warn hidden"
+              type="button"
+              title="Exceptional governed correction — requires admin-correction permission"
+            >
+              Administrative Correction
+            </button>
             <button
               id="detailDeleteBtn"
               class="btn danger hidden"
@@ -1692,6 +2374,35 @@
           </button>
           <button id="applyHierarchyBtn" class="btn primary" type="button">
             Apply
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Change History Detail Modal ───────────────────────── -->
+    <div
+      id="historyDetailModal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="histDtTitle"
+    >
+      <div class="modal-window">
+        <div class="modal-header">
+          <h2 id="histDtTitle" class="modal-title">Correction detail</h2>
+          <button
+            id="histDetailClose"
+            class="modal-close-btn"
+            type="button"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body" id="histDtBody"></div>
+        <div class="modal-footer">
+          <button id="histDetailCloseBtn" class="btn secondary" type="button">
+            Close
           </button>
         </div>
       </div>

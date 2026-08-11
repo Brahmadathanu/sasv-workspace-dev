@@ -1,16 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
-    <title>Manage Raw Material BOM</title>
+    <title>SASV WORKSPACE | Manage Raw Material BOM</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
-    <link rel="stylesheet" href="css/shared-ui.css" />
+<link rel="stylesheet" href="css/shared-ui.css" />
+    <link rel="stylesheet" href="public/shared/css/sasv-bom.css" />
+
     <style>
       /* Typography & base (align with manage-category-map ERP style) */
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
-        font-size: 14px;
+        /* font from sasv-module */
+        /* size from tokens */
         line-height: 1.35;
       }
       .toolbar {
@@ -51,7 +52,7 @@
       .grid tbody tr:hover {
         background: #f1f5f9;
       }
-      .grid td input,
+      .grid td input:not([type="checkbox"]):not([type="radio"]),
       .grid td select {
         width: 100%;
         font: inherit;
@@ -475,29 +476,20 @@
         font-weight: 600;
         color: #64748b;
       }
-      .product-heading-label select {
-        font-size: 15px;
-        font-weight: 600;
-        padding: 8px 14px;
-        min-width: 240px;
-        border: 1px solid #0ea5e9;
-        background: #e0f2fe;
-        color: #0c4a6e;
-        border-radius: 8px;
-        outline: none;
-        transition: border-color 0.15s, background 0.15s;
-      }
-      .product-heading-label select:focus {
-        border-color: #0369a1;
-        background: #cfe9fa;
-      }
-      .product-heading-label select:hover {
-        background: #cfe9fa;
+      /* Native select is SR-only; searchable UI owns visual styling */
+      .product-heading-label select.sasv-native-select-sr {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        border: 0 !important;
+        background: transparent !important;
       }
       .icon-btn {
         padding: 6px;
-        width: 40px;
-        height: 40px;
         justify-content: center;
       }
       .icon-btn svg {
@@ -965,7 +957,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
   </head>
-  <body data-theme="system">
+  <body data-theme="system" class="sasv-module sasv-module--app sasv-bom">
     <header>
       <div
         style="
@@ -976,11 +968,8 @@
         "
       >
         <div>
-          <h1 style="margin: 0; text-align: left">Manage Raw Material BOM</h1>
-          <p
-            class="hint"
-            style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
-          >
+          <h1 class="sasv-module-title">Manage Raw Material BOM</h1>
+          <p class="hint" style="margin: 4px 0 0 0; text-align: left">
             Define raw-material composition per product. Header is the standard
             reference output; lines are per reference-output quantity.
           </p>
@@ -989,22 +978,10 @@
           <button
             id="homeBtn"
             type="button"
-            onclick="location.href='index.html'"
-            style="display: inline-flex; align-items: center; gap: 6px"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            HOME
-          </button>
+            class="icon-btn"
+            title="Home"
+            aria-label="Home"
+          ></button>
         </div>
       </div>
     </header>
@@ -1013,8 +990,25 @@
       <div class="panel-header" style="gap: 12px; flex-wrap: wrap">
         <div class="hdr-line hdr-top">
           <label class="product-heading-label">
-            <span class="title">Product</span>
-            <select id="productPicker"></select>
+            <select
+              id="productPicker"
+              class="sasv-native-select-sr"
+              aria-hidden="true"
+              tabindex="-1"
+            ></select>
+            <div
+              class="sasv-search-select autocomplete input-with-icon"
+              data-sasv-search-shell
+            >
+              <input
+                type="text"
+                class="sasv-search-select__input"
+                placeholder="Search or select a product…"
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="Search or select a product…"
+              />
+            </div>
           </label>
           <!-- Inline ERP pills directly after product selector -->
           <div class="erp-pills-bar">
@@ -1208,7 +1202,7 @@
           </div>
         </div>
       </div>
-      <div class="panel-body">
+      <div class="panel-body bom-hidden-fields">
         <!-- Hidden controls retained for logic and saving -->
         <input
           id="refQty"
@@ -1228,16 +1222,9 @@
           readonly
           class="sr-only"
         />
-        <div class="subpanel" style="margin-top: 4px; display: none">
-          <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1e293b">
-            Quick Checks
-          </h3>
-          <ul
-            id="qaList"
-            class="hint"
-            style="margin: 0; padding-left: 18px"
-          ></ul>
-        </div>
+      </div>
+      <div id="bomInlineFeedback" class="bom-inline-feedback" hidden>
+        <ul id="qaList" class="hint"></ul>
       </div>
     </section>
 
@@ -1348,7 +1335,7 @@
               <th class="right">Qty per Ref</th>
               <th>UOM</th>
               <th class="right">Wastage</th>
-              <th>Optional</th>
+              <th data-col="optional">Optional</th>
               <th>Remarks</th>
               <th class="nowrap">Actions</th>
             </tr>
@@ -1682,8 +1669,7 @@
         </div>
       </div>
     </div>
-
-    <script type="module" src="public/shared/js/supabaseClient.js"></script>
+<script type="module" src="public/shared/js/supabaseClient.js"></script>
     <script type="module" src="js/manage-rm-bom.js"></script>
 
     <!-- Loading Mask -->

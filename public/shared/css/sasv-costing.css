@@ -1,0 +1,1713 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SASV Workspace — Costing Suite specialization (UI-MOD-3 / UI-MOD-3R)
+   Presentation only. Consumes semantic tokens; preserves peq/cp DOM contracts.
+
+   Architecture (UI-MOD-3R):
+   - body.sasv-costing → generic Costing chrome/tokens ONLY (no page geometry)
+   - body.sasv-cost-sheet-review → accepted CSR layout / sheet / explain
+   - body.sasv-costing-control-center / material-cost / cost-build /
+     pricing-policy / production-route → page roots for future migrations
+     (no suite geometry imposed here until each page is individually accepted)
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── A. GENERIC COSTING PRIMITIVES (body.sasv-costing) ──────────────────── */
+
+body.sasv-module.sasv-costing {
+  --cp-fw-body: var(--sasv-fw-regular);
+  --cp-fw-muted: var(--sasv-fw-medium);
+  --cp-fw-label: var(--sasv-fw-medium);
+  --cp-fw-emphasis: var(--sasv-fw-medium);
+  --cp-fw-heading: var(--sasv-fw-semibold);
+  --cp-fw-metric: var(--sasv-fw-semibold);
+  --cp-fw-section: var(--sasv-fw-semibold);
+
+  font-family: var(--sasv-font-sans);
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+}
+
+/* Header / title */
+body.sasv-costing .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+body.sasv-costing .page-header h1,
+body.sasv-costing .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  font-size: 1.125rem;
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-costing .page-sub {
+  margin: 4px 0 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-regular);
+  line-height: 1.4;
+}
+
+body.sasv-costing .header-card {
+  flex-shrink: 0;
+}
+
+/* Toolbar / icon actions */
+body.sasv-costing .toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/*
+ * UI-MOD-3D — Costing action grammar
+ * Default .icon-btn is natural-width (text-safe). Icon-only utilities stay square.
+ * Do not force square sizing on text-bearing deep actions.
+ */
+body.sasv-costing .icon-btn:not(#homeBtn):not(.sasv-home-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sasv-space-2, 8px);
+  box-sizing: border-box;
+  width: auto;
+  min-width: var(--sasv-control-md);
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  line-height: 1.2;
+}
+
+/* C. Icon-only utility — compact square (refresh/close/filter glyph-only) */
+body.sasv-costing
+  .icon-btn:not(#homeBtn):not(.sasv-home-btn):where(
+    :empty,
+    :has(> svg:only-child),
+    :has(> .sasv-icon:only-child)
+  ) {
+  width: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+}
+
+body.sasv-costing .icon-btn:not(#homeBtn):not(.sasv-home-btn):hover {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-control-border-hover);
+  color: var(--sasv-text);
+}
+
+body.sasv-costing .icon-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.sasv-costing .icon-btn svg,
+body.sasv-costing .icon-btn .sasv-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-costing .icon-btn.costing-refresh-dirty {
+  border-color: var(--sasv-warning-border);
+  color: var(--sasv-warning);
+  background: var(--sasv-warning-bg);
+  box-shadow: 0 0 0 2px var(--sasv-focus-ring);
+}
+
+/* A. Primary text action */
+body.sasv-costing .icon-btn.icon-btn-primary,
+body.sasv-costing button.icon-btn-primary {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  padding: 6px 12px;
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+}
+
+body.sasv-costing .icon-btn.icon-btn-primary:hover,
+body.sasv-costing .icon-btn.icon-btn-primary:focus-visible,
+body.sasv-costing button.icon-btn-primary:hover,
+body.sasv-costing button.icon-btn-primary:focus-visible {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-costing .icon-btn.cp-danger-icon-btn,
+body.sasv-costing .icon-btn.cp-danger-text-btn {
+  border-color: var(--sasv-danger-border);
+  background: var(--sasv-danger-bg);
+  color: var(--sasv-danger);
+}
+
+/* B. Secondary text action — clickable, not stale white card */
+body.sasv-costing .icon-btn.cost-sheet-explain-toolbar-btn,
+body.sasv-costing .icon-btn.cp-evidence-trace-btn,
+body.sasv-costing .icon-btn.cp-wb-audit-btn,
+body.sasv-costing .icon-btn.sasv-costing-action-secondary,
+body.sasv-costing
+  .cost-sheet-modal-actions
+  .icon-btn:not(.icon-btn-primary):not(#costSheetCloseBtn):not(.modal-close-btn):not(:has(> svg:only-child)):not(:has(> .sasv-icon:only-child)):not(:empty) {
+  background: var(--sasv-action-secondary);
+  border-color: var(--sasv-control-border);
+  color: var(--sasv-action-primary-active);
+  padding: 6px 12px;
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+}
+
+body.sasv-costing .icon-btn.cost-sheet-explain-toolbar-btn:hover:not(:disabled),
+body.sasv-costing .icon-btn.cp-evidence-trace-btn:hover:not(:disabled),
+body.sasv-costing .icon-btn.cp-wb-audit-btn:hover:not(:disabled),
+body.sasv-costing .icon-btn.sasv-costing-action-secondary:hover:not(:disabled),
+body.sasv-costing
+  .cost-sheet-modal-actions
+  .icon-btn:not(.icon-btn-primary):not(#costSheetCloseBtn):not(.modal-close-btn):not(:has(> svg:only-child)):hover:not(:disabled) {
+  background: var(--sasv-action-secondary-hover);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-costing .icon-btn.cost-sheet-explain-toolbar-btn:focus-visible,
+body.sasv-costing .icon-btn.cp-evidence-trace-btn:focus-visible,
+body.sasv-costing .icon-btn.cp-wb-audit-btn:focus-visible,
+body.sasv-costing .icon-btn.sasv-costing-action-secondary:focus-visible,
+body.sasv-costing .icon-btn.icon-btn-primary:focus-visible,
+body.sasv-costing button.icon-btn-primary:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-costing .icon-btn.cost-sheet-explain-toolbar-btn:active:not(:disabled),
+body.sasv-costing .icon-btn.cp-evidence-trace-btn:active:not(:disabled),
+body.sasv-costing .icon-btn.cp-wb-audit-btn:active:not(:disabled),
+body.sasv-costing .icon-btn.sasv-costing-action-secondary:active:not(:disabled) {
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+/* Known deep-action adapters (preserve JS class hooks) */
+body.sasv-costing .cost-sheet-export-btn,
+body.sasv-costing .cost-sheet-drill-btn,
+body.sasv-costing .cost-sheet-explain-toolbar-btn,
+body.sasv-costing .cp-evidence-trace-btn,
+body.sasv-costing .cp-wb-audit-btn,
+body.sasv-costing .sasv-costing-action-secondary,
+body.sasv-costing .sasv-costing-action-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sasv-space-2, 8px);
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+body.sasv-costing .cost-sheet-export-label {
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Action groups — whole controls may wrap; labels must not */
+body.sasv-costing .cost-sheet-modal-actions,
+body.sasv-costing .cost-sheet-drill-actions,
+body.sasv-costing .cost-sheet-sign-actions,
+body.sasv-costing .generic-table-meta-actions,
+body.sasv-costing .cp-prm-actions,
+body.sasv-costing .cp-prm-form-actions,
+body.sasv-costing .cp-prm-candidate-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sasv-space-2, 8px);
+}
+
+body.sasv-costing .cost-sheet-modal-actions .icon-btn,
+body.sasv-costing .cost-sheet-drill-actions .icon-btn,
+body.sasv-costing .generic-table-meta-actions .icon-btn,
+body.sasv-costing .cp-prm-actions .icon-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Close / glyph-only in action groups stay square */
+body.sasv-costing .cost-sheet-modal-actions #costSheetCloseBtn.icon-btn,
+body.sasv-costing .cost-sheet-modal-actions .modal-close-btn.icon-btn,
+body.sasv-costing .cost-sheet-sign-actions .icon-btn:where(:has(> svg:only-child), :empty) {
+  width: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+}
+
+/* HOME: never force square icon-only box */
+body.sasv-costing #homeBtn.icon-btn,
+body.sasv-costing #homeBtn.sasv-home-btn,
+body.sasv-costing button#homeBtn {
+  width: auto;
+  min-width: auto;
+  max-width: none;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  gap: 6px;
+  overflow: visible;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Status chips → semantic */
+body.sasv-costing .status-chip,
+body.sasv-costing .chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: var(--sasv-fw-medium);
+  white-space: nowrap;
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-costing .chip.green,
+body.sasv-costing .status-chip.green {
+  background: var(--sasv-success-bg);
+  border-color: var(--sasv-success-border);
+  color: var(--sasv-success);
+}
+
+body.sasv-costing .chip.amber,
+body.sasv-costing .status-chip.amber {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning-border);
+  color: var(--sasv-warning);
+}
+
+body.sasv-costing .chip.red,
+body.sasv-costing .status-chip.red {
+  background: var(--sasv-danger-bg);
+  border-color: var(--sasv-danger-border);
+  color: var(--sasv-danger);
+}
+
+body.sasv-costing .chip.blue,
+body.sasv-costing .status-chip.blue,
+body.sasv-costing .chip.indigo,
+body.sasv-costing .status-chip.indigo {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-costing .chip.gray,
+body.sasv-costing .status-chip.gray {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-border);
+  color: var(--sasv-text-secondary);
+}
+
+/* Filters / drawers / modals — token skin only */
+body.sasv-costing .peq-filter-btn {
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  font-family: inherit;
+}
+
+body.sasv-costing .peq-filter-btn:hover,
+body.sasv-costing .peq-filter-btn:focus-visible {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-costing .peq-filter-btn--active {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+  box-shadow: none;
+}
+
+body.sasv-costing .peq-filter-badge {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-costing .peq-filter-drawer {
+  background: var(--sasv-surface-elevated);
+  border-color: var(--sasv-border);
+  box-shadow: var(--sasv-shadow-lg);
+  z-index: var(--sasv-z-drawer, var(--sasv-z-overlay));
+}
+
+body.sasv-costing .modal-overlay,
+body.sasv-costing .modal-backdrop {
+  background: color-mix(in srgb, var(--sasv-text) 28%, transparent);
+}
+
+body.sasv-costing .modal-window,
+body.sasv-costing .modal-panel {
+  background: var(--sasv-surface-elevated);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: var(--sasv-shadow-lg);
+  color: var(--sasv-text);
+}
+
+body.sasv-costing .cp-modal-title {
+  font-weight: var(--cp-fw-heading);
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+}
+
+/* Pagination — colour/token only */
+body.sasv-costing .pagination,
+body.sasv-costing #peqRowCount {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-costing .pagination button,
+body.sasv-costing #prevPage,
+body.sasv-costing #nextPage {
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-sm, 32px);
+}
+
+body.sasv-costing .pagination button:hover:not(:disabled),
+body.sasv-costing #prevPage:hover:not(:disabled),
+body.sasv-costing #nextPage:hover:not(:disabled) {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-control-border-hover);
+}
+
+body.sasv-costing .sc-snapshot {
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  border-radius: var(--sasv-radius-sm);
+  font-size: var(--sasv-text-xs);
+}
+
+/* Lens pills — soft selection COLOUR only (no layout geometry) */
+body.sasv-costing .lens-pills {
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-border);
+}
+
+body.sasv-costing .lens-pills .pill,
+body.sasv-costing #lensPills button,
+body.sasv-costing .lens-pill {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sasv-text-muted);
+  border-radius: var(--sasv-radius-sm);
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-medium);
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+body.sasv-costing .lens-pills .pill:hover,
+body.sasv-costing #lensPills button:hover,
+body.sasv-costing .lens-pill:hover {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-text);
+  box-shadow: none;
+}
+
+body.sasv-costing .lens-pills .pill.active,
+body.sasv-costing #lensPills button.active,
+body.sasv-costing .lens-pill.active,
+body.sasv-costing #lensPills button[aria-pressed="true"] {
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+  box-shadow: none;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-costing .lens-pills .pill:focus-visible,
+body.sasv-costing #lensPills button:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Generic search / control fill */
+body.sasv-costing #search,
+body.sasv-costing #rmTraceSearch,
+body.sasv-costing #pmTraceSearch {
+  min-height: var(--sasv-control-md);
+  background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+  border: 1px solid var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+  border-radius: var(--sasv-radius-sm);
+  color: var(--sasv-text);
+  box-shadow: none;
+}
+
+body.sasv-costing #search::placeholder,
+body.sasv-costing #rmTraceSearch::placeholder,
+body.sasv-costing #pmTraceSearch::placeholder {
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-costing #search:focus,
+body.sasv-costing #rmTraceSearch:focus,
+body.sasv-costing #pmTraceSearch:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+  background: var(--sasv-control-bg);
+}
+
+body.sasv-costing #costingPeriodSelect,
+body.sasv-costing #lensSelect {
+  min-height: var(--sasv-control-md);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-costing #costingPeriodSelect:focus,
+body.sasv-costing #lensSelect:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-costing .modal-window .tab.active,
+body.sasv-costing .tabs .tab.active {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border-color: var(--sasv-action-primary-soft-border);
+  box-shadow: none;
+}
+
+body.sasv-costing .cp-cell-primary {
+  font-weight: var(--cp-fw-emphasis);
+  color: var(--sasv-text);
+}
+
+body.sasv-costing .cp-field-label {
+  font-weight: var(--cp-fw-label);
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-costing td.num,
+body.sasv-costing th.num,
+body.sasv-costing .num-cell,
+body.sasv-costing .cp-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Prefer shared toast when page uses sasv-costing; hide legacy peq stack if empty */
+body.sasv-costing #peqToastContainer:empty {
+  display: none;
+}
+
+/* ── B. COST SHEET REVIEW (accepted pilot) ──────────────────────────────── */
+
+body.sasv-module.sasv-costing.sasv-cost-sheet-review.sasv-module--app,
+body.sasv-cost-sheet-review.sasv-module--app {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  gap: 8px;
+}
+
+@media (max-width: 1080px) {
+  body.sasv-cost-sheet-review.sasv-module--app {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  body.sasv-cost-sheet-review.sasv-module--app {
+    padding: 6px 8px;
+  }
+}
+
+/* CSR dense analytical table / workbench geometry */
+body.sasv-cost-sheet-review #tableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+body.sasv-cost-sheet-review #tableWrap table,
+body.sasv-cost-sheet-review .generic-table,
+body.sasv-cost-sheet-review table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-cost-sheet-review #tableWrap th,
+body.sasv-cost-sheet-review #tableHead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sasv-border);
+  white-space: nowrap;
+}
+
+body.sasv-cost-sheet-review #tableWrap td,
+body.sasv-cost-sheet-review #tableBody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: middle;
+  color: var(--sasv-text);
+}
+
+body.sasv-cost-sheet-review #tableBody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-cost-sheet-review #tableBody td.num,
+body.sasv-cost-sheet-review #tableHead th.num,
+body.sasv-cost-sheet-review #tableBody td[data-align="right"],
+body.sasv-cost-sheet-review #tableHead th[data-align="right"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* CSR Explain drawer */
+body.sasv-cost-sheet-review .cost-sheet-explain-backdrop {
+  background: color-mix(in srgb, var(--sasv-text) 28%, transparent);
+}
+
+body.sasv-cost-sheet-review .cost-sheet-explain-panel {
+  background: var(--sasv-surface-elevated);
+  border-left: 1px solid var(--sasv-border);
+  box-shadow: var(--sasv-shadow-lg);
+  width: min(480px, 100%);
+}
+
+body.sasv-cost-sheet-review .cost-sheet-explain-header {
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 12px 14px;
+}
+
+body.sasv-cost-sheet-review .cost-sheet-explain-meta {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-cost-sheet-review .cost-sheet-explain-content {
+  padding: 12px 14px 18px;
+  overflow-x: hidden;
+}
+
+/* CSR printable preview columns */
+body.sasv-cost-sheet-review .cost-sheet-th-component,
+body.sasv-cost-sheet-review .cost-sheet-td-component {
+  text-align: left;
+}
+
+body.sasv-cost-sheet-review .cost-sheet-th-value,
+body.sasv-cost-sheet-review .cost-sheet-td-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-cost-sheet-review .cost-sheet-col-value {
+  width: 7.25rem;
+}
+
+/* CSR modal / export / explain text actions */
+body.sasv-cost-sheet-review .cost-sheet-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+body.sasv-cost-sheet-review .cost-sheet-explain-toolbar-btn,
+body.sasv-cost-sheet-review .cost-sheet-export-btn,
+body.sasv-cost-sheet-review .cost-sheet-drill-btn,
+body.sasv-cost-sheet-review .cost-sheet-export-label {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-cost-sheet-review .cost-sheet-export-btn,
+body.sasv-cost-sheet-review .cost-sheet-explain-toolbar-btn,
+body.sasv-cost-sheet-review .cost-sheet-drill-btn {
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── C. COSTING CONTROL CENTER (UI-MOD-3C individual migration) ─────────── */
+/* Preserve CCC dashboard/workbench geometry. Do NOT import CSR #tableWrap
+   workbench shell, explain drawer, or printable preview geometry here. */
+
+body.sasv-costing-control-center .page-header h1,
+body.sasv-costing-control-center .sasv-module-title {
+  color: var(--sasv-text);
+}
+
+body.sasv-costing-control-center .page-sub {
+  color: var(--sasv-text-muted);
+}
+
+/* Icon-only utilities stay square; text actions use suite deep-action grammar */
+body.sasv-costing-control-center
+  .icon-btn:not(#homeBtn):not(.sasv-home-btn):where(
+    :empty,
+    :has(> svg:only-child),
+    :has(> .sasv-icon:only-child)
+  ) {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-costing-control-center .icon-btn svg,
+body.sasv-costing-control-center .icon-btn .sasv-icon,
+body.sasv-costing-control-center .peq-filter-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-costing-control-center .peq-filter-btn {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  border-radius: var(--sasv-radius-sm);
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+}
+
+/* KPI / readiness — compact ERP summary cells */
+body.sasv-costing-control-center .kpi-strip {
+  gap: 6px;
+}
+
+body.sasv-costing-control-center .kpi {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-costing-control-center .kpi > div:first-child {
+  color: var(--sasv-text-muted);
+  font-weight: var(--sasv-fw-medium);
+}
+
+body.sasv-costing-control-center .kpi > div:last-child {
+  color: var(--sasv-text);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-costing-control-center .kpi.total {
+  border-left: 3px solid var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-costing-control-center .kpi.ready {
+  border-left: 3px solid var(--sasv-success);
+  background: var(--sasv-success-bg);
+}
+
+body.sasv-costing-control-center .kpi.review {
+  border-left: 3px solid var(--sasv-warning);
+  background: var(--sasv-warning-bg);
+}
+
+body.sasv-costing-control-center .kpi.blocked {
+  border-left: 3px solid var(--sasv-danger);
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-costing-control-center .kpi.scheme {
+  border-left: 3px solid var(--sasv-info);
+  background: var(--sasv-info-bg);
+}
+
+/* Search / period controls — light filled shared language */
+body.sasv-costing-control-center #globalSearchCard.search-card,
+body.sasv-costing-control-center #globalSearchCard {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-costing-control-center .search-card .cp-period-select {
+  min-height: var(--sasv-control-md);
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-costing-control-center .search-card .cp-period-select:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* Lens pills — soft selected state (no glow) */
+body.sasv-costing-control-center .lens-pills .pill.active {
+  box-shadow: none;
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+/* CCC workbench card / dense table — keep CCC show/hide model */
+body.sasv-costing-control-center .table-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-costing-control-center #mainTable,
+body.sasv-costing-control-center .costing-pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-costing-control-center #tableHead th,
+body.sasv-costing-control-center #mainTable thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+body.sasv-costing-control-center #tableBody td,
+body.sasv-costing-control-center #mainTable tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: middle;
+  color: var(--sasv-text);
+}
+
+body.sasv-costing-control-center #tableBody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-costing-control-center #tableBody td.num,
+body.sasv-costing-control-center #tableHead th.num,
+body.sasv-costing-control-center .c-right {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cost Sheet modal — hidden by default; never in normal CCC flow */
+body.sasv-costing-control-center .cost-sheet-modal.hidden {
+  display: none !important;
+}
+
+body.sasv-costing-control-center .cost-sheet-modal:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--sasv-text) 28%, transparent);
+}
+
+/* Text-bearing / modal actions — suite deep-action grammar (UI-MOD-3D) */
+body.sasv-costing-control-center .cost-sheet-modal-actions .icon-btn,
+body.sasv-costing-control-center .generic-table-meta-actions .icon-btn,
+body.sasv-costing-control-center .icon-btn.cp-evidence-trace-btn,
+body.sasv-costing-control-center .icon-btn.cp-wb-audit-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-costing-control-center
+  .cost-sheet-modal-actions
+  .icon-btn:not(#costSheetCloseBtn):not(.modal-close-btn):not(:has(> svg:only-child)),
+body.sasv-costing-control-center .generic-table-meta-actions .icon-btn,
+body.sasv-costing-control-center .icon-btn.cp-evidence-trace-btn,
+body.sasv-costing-control-center .icon-btn.cp-wb-audit-btn,
+body.sasv-costing-control-center .icon-btn.icon-btn-primary {
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+}
+
+/* ── D. MATERIAL COST MANAGER (UI-MOD-3E individual migration) ──────────── */
+/* Preserve MCM RM/PM trace + manual-rate workbench geometry.
+   Do NOT import CSR #tableWrap shell or CCC dashboard geometry. */
+
+body.sasv-material-cost-manager .page-header h1,
+body.sasv-material-cost-manager .sasv-module-title {
+  color: var(--sasv-text);
+}
+
+body.sasv-material-cost-manager .page-sub {
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-material-cost-manager
+  .icon-btn:not(#homeBtn):not(.sasv-home-btn):where(
+    :empty,
+    :has(> svg:only-child),
+    :has(> .sasv-icon:only-child)
+  ) {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-material-cost-manager .icon-btn svg,
+body.sasv-material-cost-manager .icon-btn .sasv-icon,
+body.sasv-material-cost-manager .peq-filter-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-material-cost-manager .peq-filter-btn {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  border-radius: var(--sasv-radius-sm);
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-material-cost-manager .kpi {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-material-cost-manager .kpi.total {
+  border-left: 3px solid var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-material-cost-manager .kpi.ready {
+  border-left: 3px solid var(--sasv-success);
+  background: var(--sasv-success-bg);
+}
+
+body.sasv-material-cost-manager .kpi.review {
+  border-left: 3px solid var(--sasv-warning);
+  background: var(--sasv-warning-bg);
+}
+
+body.sasv-material-cost-manager .kpi.blocked {
+  border-left: 3px solid var(--sasv-danger);
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-material-cost-manager .kpi.scheme {
+  border-left: 3px solid var(--sasv-info);
+  background: var(--sasv-info-bg);
+}
+
+body.sasv-material-cost-manager #globalSearchCard.search-card,
+body.sasv-material-cost-manager #globalSearchCard,
+body.sasv-material-cost-manager .tabs-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-material-cost-manager .lens-pills .pill.active {
+  box-shadow: none;
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-material-cost-manager .table-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-material-cost-manager #mainTable,
+body.sasv-material-cost-manager .costing-pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-material-cost-manager #tableHead th,
+body.sasv-material-cost-manager #mainTable thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+body.sasv-material-cost-manager #tableBody td,
+body.sasv-material-cost-manager #mainTable tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: middle;
+  color: var(--sasv-text);
+}
+
+body.sasv-material-cost-manager #tableBody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-material-cost-manager #tableBody td.num,
+body.sasv-material-cost-manager #tableHead th.num,
+body.sasv-material-cost-manager .c-right {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keep Cost Sheet modal out of normal MCM flow */
+body.sasv-material-cost-manager .cost-sheet-modal.hidden {
+  display: none !important;
+}
+
+body.sasv-material-cost-manager .cost-sheet-modal:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--sasv-text) 28%, transparent);
+}
+
+body.sasv-material-cost-manager .generic-table-meta-actions .icon-btn,
+body.sasv-material-cost-manager .cost-sheet-modal-actions .icon-btn,
+body.sasv-material-cost-manager .icon-btn.icon-btn-primary {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-material-cost-manager
+  .cost-sheet-modal-actions
+  .icon-btn:not(#costSheetCloseBtn):not(.modal-close-btn):not(:has(> svg:only-child)),
+body.sasv-material-cost-manager .generic-table-meta-actions .icon-btn,
+body.sasv-material-cost-manager .icon-btn.icon-btn-primary {
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+}
+
+/* Manual-rate option hover (MCM-specific; keep list geometry page-local) */
+body.sasv-material-cost-manager .manual-rate-material-option:hover,
+body.sasv-material-cost-manager .manual-rate-material-option.is-active {
+  background: var(--sasv-action-primary-soft);
+}
+
+/* ── E. COST BUILD MANAGER (UI-MOD-3F individual migration) ─────────────── */
+/* Preserve CBM cost/staff governance + manual provisions workbench.
+   Do NOT import CSR #tableWrap shell, CCC dashboard, or MCM trace geometry. */
+
+body.sasv-cost-build-manager .page-header h1,
+body.sasv-cost-build-manager .sasv-module-title {
+  color: var(--sasv-text);
+}
+
+body.sasv-cost-build-manager .page-sub {
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-cost-build-manager
+  .icon-btn:not(#homeBtn):not(.sasv-home-btn):where(
+    :empty,
+    :has(> svg:only-child),
+    :has(> .sasv-icon:only-child)
+  ) {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-cost-build-manager .icon-btn svg,
+body.sasv-cost-build-manager .icon-btn .sasv-icon,
+body.sasv-cost-build-manager .peq-filter-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-cost-build-manager .peq-filter-btn {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  border-radius: var(--sasv-radius-sm);
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-cost-build-manager .kpi {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-cost-build-manager .kpi.total {
+  border-left: 3px solid var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-cost-build-manager .kpi.ready {
+  border-left: 3px solid var(--sasv-success);
+  background: var(--sasv-success-bg);
+}
+
+body.sasv-cost-build-manager .kpi.review {
+  border-left: 3px solid var(--sasv-warning);
+  background: var(--sasv-warning-bg);
+}
+
+body.sasv-cost-build-manager .kpi.blocked {
+  border-left: 3px solid var(--sasv-danger);
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-cost-build-manager .kpi.scheme {
+  border-left: 3px solid var(--sasv-info);
+  background: var(--sasv-info-bg);
+}
+
+body.sasv-cost-build-manager #globalSearchCard.search-card,
+body.sasv-cost-build-manager #globalSearchCard,
+body.sasv-cost-build-manager .tabs-card,
+body.sasv-cost-build-manager .card.search-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-cost-build-manager .lens-pills .pill.active,
+body.sasv-cost-build-manager [data-cost-governance-tab].active,
+body.sasv-cost-build-manager .cp-manager-tab-card.active {
+  box-shadow: none;
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-cost-build-manager .table-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-cost-build-manager #mainTable,
+body.sasv-cost-build-manager .costing-pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-cost-build-manager #tableHead th,
+body.sasv-cost-build-manager #mainTable thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+body.sasv-cost-build-manager #tableBody td,
+body.sasv-cost-build-manager #mainTable tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: middle;
+  color: var(--sasv-text);
+}
+
+body.sasv-cost-build-manager #tableBody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-cost-build-manager #tableBody td.num,
+body.sasv-cost-build-manager #tableHead th.num,
+body.sasv-cost-build-manager .c-right {
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-cost-build-manager .cost-sheet-modal.hidden,
+body.sasv-cost-build-manager .cost-sheet-sign-modal.hidden {
+  display: none !important;
+}
+
+body.sasv-cost-build-manager .cost-sheet-modal:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--sasv-text) 28%, transparent);
+}
+
+body.sasv-cost-build-manager .generic-table-meta-actions .icon-btn,
+body.sasv-cost-build-manager .cost-sheet-modal-actions .icon-btn,
+body.sasv-cost-build-manager .cost-sheet-sign-actions .icon-btn,
+body.sasv-cost-build-manager .icon-btn.icon-btn-primary {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-cost-build-manager
+  .cost-sheet-sign-actions
+  .icon-btn:not(.cp-danger-icon-btn):not(:has(> svg:only-child)):not(:empty),
+body.sasv-cost-build-manager .generic-table-meta-actions .icon-btn,
+body.sasv-cost-build-manager .icon-btn.icon-btn-primary {
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+}
+
+/* ── F. PRICING POLICY MANAGER (UI-MOD-3G individual migration) ─────────── */
+/* Preserve PPM workspace nav, policy forms, and registers.
+   Do NOT import CSR #tableWrap shell, CCC dashboard, MCM trace, or CBM
+   governance geometry. */
+
+body.sasv-pricing-policy-manager .page-header h1,
+body.sasv-pricing-policy-manager .sasv-module-title {
+  color: var(--sasv-text);
+}
+
+body.sasv-pricing-policy-manager .page-sub {
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-pricing-policy-manager
+  .icon-btn:not(#homeBtn):not(.sasv-home-btn):where(
+    :empty,
+    :has(> svg:only-child),
+    :has(> .sasv-icon:only-child)
+  ) {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-pricing-policy-manager .icon-btn svg,
+body.sasv-pricing-policy-manager .icon-btn .sasv-icon,
+body.sasv-pricing-policy-manager .peq-filter-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-pricing-policy-manager .peq-filter-btn {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  border-radius: var(--sasv-radius-sm);
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-pricing-policy-manager .kpi {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-pricing-policy-manager .kpi.total {
+  border-left: 3px solid var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-pricing-policy-manager .kpi.ready {
+  border-left: 3px solid var(--sasv-success);
+  background: var(--sasv-success-bg);
+}
+
+body.sasv-pricing-policy-manager .kpi.review {
+  border-left: 3px solid var(--sasv-warning);
+  background: var(--sasv-warning-bg);
+}
+
+body.sasv-pricing-policy-manager .kpi.blocked {
+  border-left: 3px solid var(--sasv-danger);
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-pricing-policy-manager .kpi.scheme {
+  border-left: 3px solid var(--sasv-info);
+  background: var(--sasv-info-bg);
+}
+
+body.sasv-pricing-policy-manager #globalSearchCard.search-card,
+body.sasv-pricing-policy-manager #globalSearchCard,
+body.sasv-pricing-policy-manager .tabs-card,
+body.sasv-pricing-policy-manager .card.search-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+/* Workspace / policy nav — soft selected state, no glow */
+body.sasv-pricing-policy-manager .lens-pills .pill.active,
+body.sasv-pricing-policy-manager .cp-pricing-direct-workspace-tab.active,
+body.sasv-pricing-policy-manager .cp-pricing-direct-workspace-tab[aria-selected="true"],
+body.sasv-pricing-policy-manager .cp-pricing-workspace-tab.active,
+body.sasv-pricing-policy-manager .cp-pricing-workspace-tab[aria-selected="true"],
+body.sasv-pricing-policy-manager .cp-manager-tab-card.active {
+  box-shadow: none;
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-pricing-policy-manager .cp-pricing-direct-workspace-tab:focus-visible,
+body.sasv-pricing-policy-manager .cp-pricing-workspace-tab:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Policy forms — compact controls stay compact */
+body.sasv-pricing-policy-manager input[type="checkbox"],
+body.sasv-pricing-policy-manager input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-pricing-policy-manager input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.sasv-pricing-policy-manager select,
+body.sasv-pricing-policy-manager textarea {
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+}
+
+body.sasv-pricing-policy-manager input:not([type="checkbox"]):not([type="radio"]):focus,
+body.sasv-pricing-policy-manager select:focus,
+body.sasv-pricing-policy-manager textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-pricing-policy-manager .table-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-pricing-policy-manager #mainTable,
+body.sasv-pricing-policy-manager .costing-pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-pricing-policy-manager #tableHead th,
+body.sasv-pricing-policy-manager #mainTable thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+body.sasv-pricing-policy-manager #tableBody td,
+body.sasv-pricing-policy-manager #mainTable tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: middle;
+  color: var(--sasv-text);
+}
+
+body.sasv-pricing-policy-manager #tableBody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-pricing-policy-manager #tableBody td.num,
+body.sasv-pricing-policy-manager #tableHead th.num,
+body.sasv-pricing-policy-manager .c-right,
+body.sasv-pricing-policy-manager .cp-num {
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-pricing-policy-manager .cost-sheet-modal.hidden,
+body.sasv-pricing-policy-manager .cost-sheet-sign-modal.hidden {
+  display: none !important;
+}
+
+body.sasv-pricing-policy-manager .cost-sheet-modal:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--sasv-text) 28%, transparent);
+}
+
+body.sasv-pricing-policy-manager .generic-table-meta-actions .icon-btn,
+body.sasv-pricing-policy-manager .cost-sheet-modal-actions .icon-btn,
+body.sasv-pricing-policy-manager .cost-sheet-sign-actions .icon-btn,
+body.sasv-pricing-policy-manager .icon-btn.icon-btn-primary {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-pricing-policy-manager
+  .cost-sheet-sign-actions
+  .icon-btn:not(.cp-danger-icon-btn):not(:has(> svg:only-child)):not(:empty),
+body.sasv-pricing-policy-manager .generic-table-meta-actions .icon-btn,
+body.sasv-pricing-policy-manager .icon-btn.icon-btn-primary {
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+}
+
+/* ── G. PRODUCTION ROUTE MANAGER (UI-MOD-3H individual migration) ───────── */
+/* Preserve PRM route-family workbench, lenses, editors, and parallel-agent
+   geometry. Do NOT import CSR #tableWrap shell, CCC dashboard, MCM/CBM/PPM
+   layouts. PRM uses #tableWrap.tw-visible (not CSR .hidden) for show/hide. */
+
+body.sasv-production-route-manager .page-header h1,
+body.sasv-production-route-manager .sasv-module-title {
+  color: var(--sasv-text);
+}
+
+body.sasv-production-route-manager {
+  accent-color: var(--sasv-action-primary);
+}
+
+body.sasv-production-route-manager ::selection {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-production-route-manager .search-card .cp-period-select,
+body.sasv-production-route-manager .peq-filter-drawer .cp-period-select,
+body.sasv-production-route-manager #prmAsOfDate {
+  border-color: var(--sasv-control-border);
+  background-color: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  accent-color: var(--sasv-action-primary);
+}
+
+body.sasv-production-route-manager .search-card .cp-period-select:hover,
+body.sasv-production-route-manager .peq-filter-drawer .cp-period-select:hover,
+body.sasv-production-route-manager #prmAsOfDate:hover {
+  border-color: var(--sasv-control-border-hover);
+}
+
+body.sasv-production-route-manager .search-card .cp-period-select:focus,
+body.sasv-production-route-manager .search-card .cp-period-select:focus-visible,
+body.sasv-production-route-manager .peq-filter-drawer .cp-period-select:focus,
+body.sasv-production-route-manager .peq-filter-drawer .cp-period-select:focus-visible,
+body.sasv-production-route-manager #prmAsOfDate:focus,
+body.sasv-production-route-manager #prmAsOfDate:focus-visible {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-production-route-manager .page-sub {
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-production-route-manager
+  .icon-btn:not(#homeBtn):not(.sasv-home-btn):where(
+    :empty,
+    :has(> svg:only-child),
+    :has(> .sasv-icon:only-child)
+  ) {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-production-route-manager .icon-btn svg,
+body.sasv-production-route-manager .icon-btn .sasv-icon,
+body.sasv-production-route-manager .peq-filter-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-production-route-manager .peq-filter-btn {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  border-radius: var(--sasv-radius-sm);
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-production-route-manager .kpi {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-production-route-manager .kpi.total {
+  border-left: 3px solid var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-production-route-manager .kpi.ready {
+  border-left: 3px solid var(--sasv-success);
+  background: var(--sasv-success-bg);
+}
+
+body.sasv-production-route-manager .kpi.review {
+  border-left: 3px solid var(--sasv-warning);
+  background: var(--sasv-warning-bg);
+}
+
+body.sasv-production-route-manager .kpi.blocked {
+  border-left: 3px solid var(--sasv-danger);
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-production-route-manager .kpi.scheme {
+  border-left: 3px solid var(--sasv-info);
+  background: var(--sasv-info-bg);
+}
+
+body.sasv-production-route-manager #globalSearchCard.search-card,
+body.sasv-production-route-manager #globalSearchCard,
+body.sasv-production-route-manager .tabs-card,
+body.sasv-production-route-manager .card.search-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+/* Lens pills — soft selected state, no glow */
+body.sasv-production-route-manager .lens-pills .pill.active {
+  box-shadow: none;
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-production-route-manager .lens-pills .pill:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Compact controls */
+body.sasv-production-route-manager input[type="checkbox"],
+body.sasv-production-route-manager input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-production-route-manager
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.sasv-production-route-manager select,
+body.sasv-production-route-manager textarea {
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  accent-color: var(--sasv-action-primary);
+}
+
+body.sasv-production-route-manager
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+body.sasv-production-route-manager
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+body.sasv-production-route-manager select:focus,
+body.sasv-production-route-manager select:focus-visible,
+body.sasv-production-route-manager textarea:focus,
+body.sasv-production-route-manager textarea:focus-visible {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-production-route-manager .table-card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-production-route-manager #mainTable,
+body.sasv-production-route-manager .cp-prm-step-table,
+body.sasv-production-route-manager .cp-prm-cc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-production-route-manager #tableHead th,
+body.sasv-production-route-manager #mainTable thead th,
+body.sasv-production-route-manager .cp-prm-step-table thead th,
+body.sasv-production-route-manager .cp-prm-cc-table th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+body.sasv-production-route-manager #tableBody td,
+body.sasv-production-route-manager #mainTable tbody td,
+body.sasv-production-route-manager .cp-prm-step-table tbody td,
+body.sasv-production-route-manager .cp-prm-cc-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: middle;
+  color: var(--sasv-text);
+}
+
+body.sasv-production-route-manager #tableBody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-production-route-manager #tableBody td.num,
+body.sasv-production-route-manager #tableHead th.num,
+body.sasv-production-route-manager .c-right {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preserve PRM modal hide contract */
+body.sasv-production-route-manager .modal-overlay.hidden {
+  display: none !important;
+}
+
+/* Deep-action grammar for PRM text actions */
+body.sasv-production-route-manager .cp-prm-actions .icon-btn,
+body.sasv-production-route-manager .cp-prm-editor-lifecycle .icon-btn,
+body.sasv-production-route-manager .cp-prm-form-actions .icon-btn,
+body.sasv-production-route-manager .cp-prm-candidate-controls .icon-btn,
+body.sasv-production-route-manager .generic-table-meta-actions .icon-btn.icon-btn-primary,
+body.sasv-production-route-manager .icon-btn.icon-btn-primary {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-production-route-manager .cp-prm-actions .icon-btn,
+body.sasv-production-route-manager .cp-prm-editor-lifecycle .icon-btn,
+body.sasv-production-route-manager .cp-prm-form-actions .icon-btn,
+body.sasv-production-route-manager .cp-prm-candidate-controls .icon-btn,
+body.sasv-production-route-manager
+  .icon-btn.icon-btn-primary:not(:has(> svg:only-child)):not(:empty) {
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+}
+
+/* Costing suite visual migration track complete for the six sibling pages. */

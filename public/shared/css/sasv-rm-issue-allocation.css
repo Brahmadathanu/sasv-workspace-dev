@@ -1,0 +1,895 @@
+/**
+ * UI-MOD-4J — RM Issue Allocation specialization.
+ * Scoped to body.sasv-rm-issue-allocation only.
+ * Contracts: mrp_rm_allocation_console / mrp_rm_issue_lines_save /
+ * refresh_after_rm_allocation.
+ *
+ * Viewport gutter: inherit body.sasv-module.sasv-module--app
+ * (--sasv-module-page-padding 20 / 10 / 6) — do not restate here.
+ */
+
+body.sasv-module.sasv-module--app.sasv-rm-issue-allocation {
+  margin: 0;
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  font-family: var(--sasv-font-sans);
+  box-sizing: border-box;
+}
+
+/* Chrome / context / filters / pager / tabs stay; workspace fills */
+body.sasv-rm-issue-allocation > .header-card,
+body.sasv-rm-issue-allocation > .ria-workspace-strip,
+body.sasv-rm-issue-allocation > #filters,
+body.sasv-rm-issue-allocation > #paginator,
+body.sasv-rm-issue-allocation > .tab-bar {
+  flex-shrink: 0;
+}
+
+body.sasv-rm-issue-allocation > .ria-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/*
+ * Table-wrap safety audit (UI-MOD-4J):
+ * A. #summaryContainer — intentional flex-fill summary workspace (KEEP fill).
+ * B. Neutralize ordinary shared wrappers if introduced later.
+ */
+body.sasv-rm-issue-allocation .table-wrap,
+body.sasv-rm-issue-allocation .table-scroll,
+body.sasv-rm-issue-allocation .table-container,
+body.sasv-rm-issue-allocation #tableWrap {
+  flex: 0 1 auto;
+  min-height: auto;
+}
+
+body.sasv-rm-issue-allocation .ria-main > #summarySection,
+body.sasv-rm-issue-allocation .ria-main > #detailSection {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sasv-rm-issue-allocation #summaryContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+  max-height: none;
+}
+
+body.sasv-rm-issue-allocation #detailPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sasv-rm-issue-allocation #issueLinesContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: none;
+}
+
+/* ── Header / HOME ──────────────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation .header-card {
+  padding: 0;
+  margin: 0 0 8px;
+  background: transparent;
+  border: none;
+  display: block;
+}
+
+body.sasv-rm-issue-allocation .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+  width: 100%;
+}
+
+body.sasv-rm-issue-allocation .ria-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-rm-issue-allocation .page-header h1,
+body.sasv-rm-issue-allocation .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-rm-issue-allocation .page-sub {
+  margin: 4px 0 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+}
+
+body.sasv-rm-issue-allocation .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+body.sasv-rm-issue-allocation #homeBtn.sasv-home-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  body.sasv-rm-issue-allocation .page-sub {
+    display: none;
+  }
+}
+
+/* ── Back navigation (return_to deep link) ──────────────────────────────── */
+body.sasv-rm-issue-allocation #backToBtn,
+body.sasv-rm-issue-allocation .back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: none;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-control-border);
+}
+
+body.sasv-rm-issue-allocation #backToBtn:hover,
+body.sasv-rm-issue-allocation .back-btn:hover {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-rm-issue-allocation #backToBtn:focus-visible,
+body.sasv-rm-issue-allocation .back-btn:focus-visible {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* ── Workspace context strip (Month only) ───────────────────────────────── */
+body.sasv-rm-issue-allocation .ria-workspace-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation .ria-workspace-strip .filter-pair label {
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Filter / search toolbar ────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation .filter-strip,
+body.sasv-rm-issue-allocation #filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 8px;
+}
+
+body.sasv-rm-issue-allocation .filter-pair {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+body.sasv-rm-issue-allocation .filter-pair label {
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-rm-issue-allocation .filter-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+body.sasv-rm-issue-allocation input[type="checkbox"],
+body.sasv-rm-issue-allocation input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-rm-issue-allocation
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    .sasv-search-select__input
+  ),
+body.sasv-rm-issue-allocation select:not(.sasv-native-select-sr),
+body.sasv-rm-issue-allocation textarea {
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-rm-issue-allocation
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    .sasv-search-select__input
+  ):focus,
+body.sasv-rm-issue-allocation select:not(.sasv-native-select-sr):focus,
+body.sasv-rm-issue-allocation textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-rm-issue-allocation .filter-pair:has(#rmFilter),
+body.sasv-rm-issue-allocation .ria-rm-filter {
+  flex: 1 1 260px;
+  min-width: 220px;
+  max-width: 420px;
+}
+
+body.sasv-rm-issue-allocation .ria-rm-filter .sasv-search-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+body.sasv-rm-issue-allocation .sasv-search-select__input {
+  background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+  border: 1px solid
+    var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+  height: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+}
+
+body.sasv-rm-issue-allocation #rowCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border: 1px solid var(--sasv-action-primary-soft-border);
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  font-weight: 600;
+}
+
+/* ── Shared action buttons ──────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation .btn,
+body.sasv-rm-issue-allocation .btn-primary,
+body.sasv-rm-issue-allocation .btn-secondary,
+body.sasv-rm-issue-allocation #saveChangesBtn,
+body.sasv-rm-issue-allocation #reloadDetailBtn,
+body.sasv-rm-issue-allocation #clearFilters,
+body.sasv-rm-issue-allocation .link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation #saveChangesBtn,
+body.sasv-rm-issue-allocation .btn-primary {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  border: 1px solid var(--sasv-action-primary);
+}
+
+body.sasv-rm-issue-allocation #saveChangesBtn:hover:not(:disabled),
+body.sasv-rm-issue-allocation .btn-primary:hover:not(:disabled) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-rm-issue-allocation #saveChangesBtn:disabled,
+body.sasv-rm-issue-allocation .btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.sasv-rm-issue-allocation #reloadDetailBtn,
+body.sasv-rm-issue-allocation .btn-secondary {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-control-border);
+}
+
+body.sasv-rm-issue-allocation #reloadDetailBtn:hover:not(:disabled),
+body.sasv-rm-issue-allocation .btn-secondary:hover:not(:disabled) {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-rm-issue-allocation #clearFilters,
+body.sasv-rm-issue-allocation .link-btn:not(.back-btn) {
+  background: transparent;
+  color: var(--sasv-action-primary-active);
+  border: 1px solid transparent;
+  font-weight: 500;
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px 10px;
+}
+
+body.sasv-rm-issue-allocation #clearFilters:hover,
+body.sasv-rm-issue-allocation .link-btn:not(.back-btn):hover {
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-rm-issue-allocation #summaryTable .link-btn {
+  padding: 4px 8px;
+  font-size: var(--sasv-text-xs);
+}
+
+/* ── Tabs (Summary / Issue lines) ───────────────────────────────────────── */
+body.sasv-rm-issue-allocation .tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation .tab-bar .tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sasv-text-secondary);
+  font-family: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation .tab-bar .tab:hover:not(:disabled):not(.active) {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-border);
+  color: var(--sasv-text);
+}
+
+body.sasv-rm-issue-allocation .tab-bar .tab.active {
+  font-weight: 600;
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border-color: var(--sasv-action-primary-soft-border);
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation .tab-bar .tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+body.sasv-rm-issue-allocation .tab-bar .tab:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ── Pagination (compact right-aligned group) ───────────────────────────── */
+body.sasv-rm-issue-allocation #paginator,
+body.sasv-rm-issue-allocation #paginator.sasv-pager,
+body.sasv-rm-issue-allocation #paginator.pager-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 10px;
+  margin: 0 0 8px;
+  margin-left: auto;
+  padding: 0;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation #paginator .pg-info {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+body.sasv-rm-issue-allocation #paginator .pg-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+body.sasv-rm-issue-allocation #paginator button,
+body.sasv-rm-issue-allocation #paginator .pg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px 10px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  font-family: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation #paginator button:hover:not(:disabled),
+body.sasv-rm-issue-allocation #paginator .pg-btn:hover:not(:disabled) {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-rm-issue-allocation #paginator button:disabled,
+body.sasv-rm-issue-allocation #paginator .pg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+body.sasv-rm-issue-allocation #paginator button svg,
+body.sasv-rm-issue-allocation #paginator .pg-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.sasv-rm-issue-allocation #paginator select {
+  min-height: var(--sasv-control-sm, 32px);
+  width: auto;
+  max-width: none;
+  padding: 4px 8px;
+  font-size: var(--sasv-text-sm);
+  font-family: inherit;
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+body.sasv-rm-issue-allocation #paginator .pg-size-label {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Summary table ──────────────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation #summaryTable {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  background: var(--sasv-surface);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+}
+
+body.sasv-rm-issue-allocation #summaryTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-family: var(--sasv-font-sans);
+  font-weight: 600;
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+body.sasv-rm-issue-allocation #summaryTable tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-border);
+  vertical-align: middle;
+  font-family: var(--sasv-font-sans);
+}
+
+body.sasv-rm-issue-allocation #summaryTable tbody tr:hover td {
+  background: var(--sasv-selection-soft, rgba(15, 40, 42, 0.04));
+  cursor: pointer;
+}
+
+body.sasv-rm-issue-allocation #summaryTable tbody tr.selected td {
+  background: var(--sasv-selection-soft, rgba(15, 40, 42, 0.06));
+}
+
+body.sasv-rm-issue-allocation #summaryTable tbody tr.highlight td {
+  background: var(--sasv-warning-bg);
+}
+
+/* Column alignment contracts via data-key */
+body.sasv-rm-issue-allocation #summaryTable th[data-key="rm_display"],
+body.sasv-rm-issue-allocation #summaryTable td[data-key="rm_display"],
+body.sasv-rm-issue-allocation #summaryTable th[data-key="combination"],
+body.sasv-rm-issue-allocation #summaryTable td[data-key="combination"],
+body.sasv-rm-issue-allocation #summaryTable th[data-key="flags"],
+body.sasv-rm-issue-allocation #summaryTable td[data-key="flags"],
+body.sasv-rm-issue-allocation #summaryTable th[data-key="actions"],
+body.sasv-rm-issue-allocation #summaryTable td[data-key="actions"],
+body.sasv-rm-issue-allocation #summaryTable th[data-key="max_age_days"],
+body.sasv-rm-issue-allocation #summaryTable td[data-key="max_age_days"] {
+  text-align: left;
+}
+
+body.sasv-rm-issue-allocation #summaryTable th[data-key="issued_rm_qty"],
+body.sasv-rm-issue-allocation #summaryTable td[data-key="issued_rm_qty"] {
+  text-align: right;
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * FLAGS hover gap fix:
+ * Do NOT set display:flex on the <td> — only the inner .flags wrapper is flex.
+ */
+body.sasv-rm-issue-allocation #summaryTable td[data-key="flags"] {
+  background-clip: padding-box;
+}
+
+body.sasv-rm-issue-allocation #summaryTable td[data-key="flags"] .flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation .badge-warning {
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  border: 1px solid var(--sasv-warning-border);
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  white-space: nowrap;
+}
+
+body.sasv-rm-issue-allocation .badge-info {
+  background: var(--sasv-info-bg, var(--sasv-selection-soft));
+  color: var(--sasv-info, var(--sasv-action-primary-active));
+  border: 1px solid
+    var(--sasv-info-border, var(--sasv-action-primary-soft-border));
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  white-space: nowrap;
+}
+
+body.sasv-rm-issue-allocation .badge-success {
+  background: var(--sasv-success-bg);
+  color: var(--sasv-success);
+  border: 1px solid var(--sasv-success-border);
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  white-space: nowrap;
+}
+
+/* ── Detail panel ───────────────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation .detail-panel,
+body.sasv-rm-issue-allocation #detailPanel {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  padding: 12px;
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+}
+
+body.sasv-rm-issue-allocation .muted {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-rm-issue-allocation #detailMetrics {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  color: var(--sasv-text-secondary);
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-rm-issue-allocation .detail-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+body.sasv-rm-issue-allocation .detail-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+  white-space: nowrap;
+}
+
+body.sasv-rm-issue-allocation .ria-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* ── Issue lines table ──────────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation #issueLinesTable {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: collapse;
+  background: var(--sasv-surface);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-family: var(--sasv-font-sans);
+  font-weight: 600;
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  vertical-align: middle;
+  text-align: left;
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable tbody td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--sasv-border);
+  vertical-align: middle;
+  text-align: left;
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable th[data-key="qty"],
+body.sasv-rm-issue-allocation #issueLinesTable td[data-key="qty"],
+body.sasv-rm-issue-allocation #issueLinesTable tbody td:nth-child(3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable input,
+body.sasv-rm-issue-allocation #issueLinesTable select,
+body.sasv-rm-issue-allocation #issueLinesTable textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  box-sizing: border-box;
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable textarea {
+  height: auto;
+  min-height: 32px;
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable input:focus,
+body.sasv-rm-issue-allocation #issueLinesTable select:focus,
+body.sasv-rm-issue-allocation #issueLinesTable textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable tbody tr.dirty td {
+  background: var(--sasv-warning-bg);
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable tbody tr.ria-suggest td {
+  background: var(--sasv-success-bg, rgba(16, 185, 129, 0.1));
+}
+
+body.sasv-rm-issue-allocation #issueLinesTable .ria-empty-row {
+  text-align: center;
+  color: var(--sasv-text-muted);
+  padding: 14px;
+}
+
+/* ── Help icon / popover ────────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation .help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  margin: 0 0 0 4px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  cursor: pointer;
+  vertical-align: middle;
+  flex-shrink: 0;
+  box-shadow: none;
+}
+
+body.sasv-rm-issue-allocation .help-icon:hover {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+  color: var(--sasv-text);
+}
+
+body.sasv-rm-issue-allocation .help-icon svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-rm-issue-allocation .help-popover,
+body.sasv-rm-issue-allocation #allocHelpPopover {
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12));
+  padding: 12px 14px;
+  font-size: var(--sasv-text-sm);
+  line-height: 1.45;
+  z-index: 10000;
+}
+
+body.sasv-rm-issue-allocation .help-popover .help-close,
+body.sasv-rm-issue-allocation #allocHelpCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  padding: 4px;
+  border: none;
+  border-radius: var(--sasv-radius-sm);
+  background: transparent;
+  color: var(--sasv-text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  float: right;
+}
+
+body.sasv-rm-issue-allocation .help-popover .help-close:hover,
+body.sasv-rm-issue-allocation #allocHelpCloseBtn:hover {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-rm-issue-allocation .help-popover hr {
+  border: none;
+  border-top: 1px solid var(--sasv-border);
+  margin: 8px 0;
+}
+
+body.sasv-rm-issue-allocation .help-popover ul {
+  margin: 0 0 8px 18px;
+  padding: 0;
+}
+
+/* ── Loading overlay ────────────────────────────────────────────────────── */
+body.sasv-rm-issue-allocation #loadingOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background: color-mix(in srgb, var(--sasv-bg) 72%, transparent);
+  color: var(--sasv-text);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  box-shadow: none;
+}

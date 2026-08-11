@@ -97,6 +97,21 @@ function switchView(view) {
 export {};
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { showToast as sasvShowToast } from "./toast.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+(function mountMrpMaterialBoardHome() {
+  const homeEl = document.getElementById("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(document.getElementById("homeBtn")),
+      { once: true },
+    );
+  }
+})();
 
 // Toggle to enable compact debug traces
 const DEBUG = false;
@@ -1163,29 +1178,12 @@ function applyDisabledCheckboxes(disabledMap) {
   }
 }
 
+/** Thin adapter → canonical toast.js; keep call sites as showToast(msg, timeout). */
 function showToast(msg, timeout = 5000) {
   try {
-    let t = document.getElementById("mrpToast");
-    if (!t) {
-      t = document.createElement("div");
-      t.id = "mrpToast";
-      t.style.position = "fixed";
-      t.style.right = "16px";
-      t.style.bottom = "16px";
-      t.style.padding = "10px 14px";
-      t.style.borderRadius = "6px";
-      t.style.background = "var(--panel-bg)";
-      t.style.color = "var(--text-color)";
-      t.style.boxShadow = "0 6px 18px rgba(0,0,0,0.08)";
-      t.style.zIndex = 9999;
-      document.body.appendChild(t);
-    }
-    t.textContent = msg;
-    t.style.display = "block";
-    clearTimeout(t._tm);
-    t._tm = setTimeout(() => {
-      t.style.display = "none";
-    }, timeout);
+    sasvShowToast(String(msg ?? ""), {
+      duration: typeof timeout === "number" ? timeout : 5000,
+    });
   } catch (e) {
     console.warn("Toast failed", e, msg);
   }
@@ -1499,14 +1497,14 @@ function renderTable() {
       flags.push('<span class="badge-info">Not issued</span>');
 
     tr.innerHTML = `
-      <td>${codeLabel}</td>
-      <td>${nameLabel}</td>
-      <td>${typeLabel}</td>
-      <td>${uomLabel}</td>
-      <td style="text-align:right">${formatNumber(r.planned_total_qty)}</td>
-      <td style="text-align:right">${formatNumber(r.issued_total_qty)}</td>
-      <td style="text-align:right">${formatNumber(r.net_requirement)}</td>
-      <td><div class="flags">${flags.join("")}</div></td>
+      <td data-key="stock_item_code">${codeLabel}</td>
+      <td data-key="stock_item_name">${nameLabel}</td>
+      <td data-key="material_kind">${typeLabel}</td>
+      <td data-key="stock_uom">${uomLabel}</td>
+      <td data-key="planned_total_qty">${formatNumber(r.planned_total_qty)}</td>
+      <td data-key="issued_total_qty">${formatNumber(r.issued_total_qty)}</td>
+      <td data-key="net_requirement">${formatNumber(r.net_requirement)}</td>
+      <td data-key="flags"><div class="flags">${flags.join("")}</div></td>
     `;
 
     tr.addEventListener("click", () => selectRow(idx));

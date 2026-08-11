@@ -1,3 +1,55 @@
+import {
+  QC_EXCLUSION_DISCLOSURE,
+  buildQcExplainCacheEntry,
+  extractNestedProductQcExplain,
+  formatQcAbsorptionMethodLabel,
+  formatQcAbsorptionSourceMonth,
+  formatQcCoveragePercent,
+  formatQcEffectiveTestSourceLabel,
+  formatQcMethodWorkloadFormulaText,
+  formatQcMoney,
+  formatQcProjectionSourceLabel,
+  formatQcQuantity,
+  formatQcQuantitySourceLabel,
+  formatQcReasonLabel,
+  formatQcStatusLabel,
+  isBlankQcValue,
+  isQcExplainCacheEntryReusable,
+  mergeSkuAndProductQcExplain,
+  pickFirstDefined,
+  qcExplainRequestIdentity,
+  resolveQcOverheadCalculationLineage,
+  scrubObsoleteQcSalesShareText,
+} from "./costing-suite-qc-explain-helpers.js";
+import {
+  MATERIALS_STORES_OVERHEAD_LINE_LABEL,
+  MATERIALS_STORES_OVERHEAD_LINE_LABEL_NORMALIZED,
+  MS_CALCULATION_FORMULA_ORDER,
+  buildMsExplainCacheEntry,
+  extractMsCalculationBlock,
+  extractMsProductRm,
+  extractMsProductSkus,
+  extractMsSkuBlock,
+  formatMsAbsorptionSourceMonth,
+  formatMsActionLabel,
+  formatMsCalculationFormulaLabel,
+  formatMsFieldLabel,
+  formatMsMoney,
+  formatMsQuantity,
+  formatMsStatusLabel,
+  formatMsWorkloadSharePercent,
+  isBlankMsValue,
+  isMsExplainCacheEntryReusable,
+  msExplainRequestIdentity,
+  normalizeMsExplainRpcPayload,
+  pickFirstDefinedMs,
+  resolveMsOverheadCalculation,
+  resolveMsOverheadDescription,
+  resolveMsOverheadSourceLineage,
+  resolveMsOverheadSourceNote,
+  scrubObsoleteMsExplainText,
+} from "./costing-suite-materials-stores-explain-helpers.js";
+
 export const TRACEABILITY_VIEW =
   "v_costing_pricing_cost_sheet_line_traceability";
 
@@ -7,7 +59,13 @@ export const PRINTABLE_LINES_VIEW =
 export const PRINTABLE_PRODUCT_SUMMARY_VIEW =
   "v_costing_pricing_printable_cost_sheet_product_summary";
 
-const EVIDENCE_KEY_META = [
+/**
+ * Whitelisted evidence_json keys for Cost Sheet Explain.
+ * Tuple: [key, label, valueType, section?]
+ * section: governance | allocation_basis | workload | (default Evidence Summary)
+ * Unknown keys are never dumped.
+ */
+export const COST_SHEET_EVIDENCE_KEY_META = [
   ["display_value_numeric", "Display Value", "money"],
   ["display_value_text", "Display Value", "text"],
   ["formula", "Formula", "text"],
@@ -40,7 +98,184 @@ const EVIDENCE_KEY_META = [
   ["cost_sheet_status", "Cost Sheet Status", "text"],
   ["cost_sheet_note", "Cost Sheet Note", "text"],
   ["more_in_module", "More In Module", "text"],
+
+  // Common governance (run-82 non-material)
+  ["policy_id", "Policy ID", "text", "governance"],
+  ["policy_envelope_id", "Policy Envelope ID", "text", "governance"],
+  ["pool_snapshot_id", "Pool Snapshot ID", "text", "governance"],
+  ["frozen_pool_amount", "Frozen Pool Amount", "money", "governance"],
+
+  // Allocation basis
+  ["allocation_basis_snapshot_id", "Allocation Basis Snapshot", "text", "allocation_basis"],
+  ["allocation_basis_source", "Allocation Basis Source", "text", "allocation_basis"],
+  ["allocation_resolution_status", "Allocation Resolution Status", "text", "allocation_basis"],
+  ["allocation_resolution_note", "Allocation Resolution Note", "text", "allocation_basis"],
+
+  // Workload / product allocation (DL / POH / shared)
+  ["product_workload_snapshot_id", "Product Workload Snapshot", "text", "workload"],
+  ["standard_batch_count", "Standard Batch Count", "number", "workload"],
+  ["rounded_batch_count", "Rounded Batch Count", "number", "workload"],
+  ["product_workload_units", "Product Workload Units", "number", "workload"],
+  ["company_workload_units", "Company Workload Units", "number", "workload"],
+  ["product_workload_share", "Product Workload Share", "share", "workload"],
+  ["product_allocation_amount", "Product Allocation Amount", "money", "workload"],
+
+  // Materials / Stores
+  ["workload_snapshot_id", "Workload Snapshot", "text", "workload"],
+  ["rm_workload_units", "RM Workload Units", "number", "workload"],
+  ["pm_workload_units", "PM Workload Units", "number", "workload"],
+  ["unified_workload_units", "Unified Workload Units", "number", "workload"],
+  ["company_eligible_workload_units", "Company Eligible Workload", "number", "workload"],
+  ["workload_share", "Workload Share", "share", "workload"],
+  ["monthly_sku_allocation_amount", "Monthly SKU Allocation", "money", "workload"],
+  ["monthly_driver_source", "Monthly Driver Source", "text", "workload"],
+  ["monthly_driver_status", "Monthly Driver Status", "text", "workload"],
+
+  // QC
+  ["product_qc_allocation_snapshot_id", "Product QC Allocation Snapshot", "text", "workload"],
+  ["workload_units", "Workload Units", "number", "workload"],
+  ["company_resolved_workload_units", "Company Resolved Workload", "number", "workload"],
+  ["product_qc_allocation_amount", "Product QC Allocation Amount", "money", "workload"],
+  ["absorption_basis_source", "Absorption Basis Source", "text", "allocation_basis"],
+  ["absorption_basis_status", "Absorption Basis Status", "text", "allocation_basis"],
+
+  // Admin / Finance
+  ["resolved_product_allocation_share", "Product Allocation Share", "share", "workload"],
+  ["component_allocation_status", "Component Allocation Status", "text", "governance"],
+  ["component_allocation_note", "Component Allocation Note", "text", "governance"],
+
+  // Marketing
+  ["marketing_value_source", "Marketing Value Source", "text", "governance"],
+  ["marketing_evidence_status", "Marketing Evidence Status", "text", "governance"],
+  ["product_monetary_allocation_share", "Product Monetary Allocation Share", "share", "workload"],
+  ["product_marketing_allocation", "Product Marketing Allocation", "money", "workload"],
+  ["region_code", "Region", "text", "workload"],
+  ["regional_basis_source", "Regional Basis Source", "text", "allocation_basis"],
+  ["regional_basis_status", "Regional Basis Status", "text", "allocation_basis"],
+  ["product_region_monetary_allocation_share", "Product-Region Monetary Share", "share", "workload"],
 ];
+
+/** @deprecated Use COST_SHEET_EVIDENCE_KEY_META */
+const EVIDENCE_KEY_META = COST_SHEET_EVIDENCE_KEY_META;
+
+const EVIDENCE_SECTION_TITLES = Object.freeze({
+  governance: "Governance",
+  allocation_basis: "Allocation Basis",
+  workload: "Workload / Allocation",
+});
+
+/**
+ * Pure: list present whitelisted evidence entries (no unknown-key dump).
+ * @returns {{ key: string, label: string, valueType: string, section: string|null, value: unknown }[]}
+ */
+export function listPresentWhitelistedEvidence(evidenceJson, keyMeta = COST_SHEET_EVIDENCE_KEY_META) {
+  if (!evidenceJson || typeof evidenceJson !== "object" || Array.isArray(evidenceJson)) {
+    return [];
+  }
+  const out = [];
+  for (const entry of keyMeta) {
+    const [key, label, valueType, section = null] = entry;
+    if (!(key in evidenceJson)) continue;
+    const value = evidenceJson[key];
+    if (value === null || value === undefined || value === "") continue;
+    if (typeof value === "object") continue;
+    out.push({ key, label, valueType, section, value });
+  }
+  return out;
+}
+
+/**
+ * Pure: decide whether Explain trace load can use exact-run filters.
+ * @returns {{ mode: "exact-run"|"missing-exact-run", valuationDate: string|null, refreshRunId: number|null }}
+ */
+export function resolveTraceabilityExactRunMode({
+  valuationDate,
+  refreshRunId,
+} = {}) {
+  const date = String(valuationDate ?? "").trim();
+  const runRaw = refreshRunId;
+  const run =
+    runRaw == null || runRaw === "" ? NaN : Number(runRaw);
+  if (date && Number.isFinite(run)) {
+    return { mode: "exact-run", valuationDate: date, refreshRunId: run };
+  }
+  return { mode: "missing-exact-run", valuationDate: null, refreshRunId: null };
+}
+
+/**
+ * Pure: interpret 0/1/N trace rows with fail-closed semantics (no arbitrary pick).
+ * @returns {{ ok: true, row: object } | { ok: false, code: string, message: string }}
+ */
+export function interpretTraceabilityRows(
+  rows,
+  {
+    expectedValuationDate = null,
+    expectedRefreshRunId = null,
+    usedExactRunFilters = false,
+  } = {},
+) {
+  const list = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  if (list.length === 0) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message:
+        "Traceability is not available for this line. Run costing refresh and try again.",
+    };
+  }
+  if (list.length > 1) {
+    return {
+      ok: false,
+      code: "AMBIGUOUS",
+      message:
+        "Multiple trace rows matched this line. Exact costing run context is required.",
+    };
+  }
+  const row = list[0];
+  if (usedExactRunFilters || expectedRefreshRunId != null || expectedValuationDate) {
+    const rowRun = Number(row.refresh_run_id);
+    const rowVal = String(row.valuation_date ?? "").trim();
+    const expectedRun =
+      expectedRefreshRunId == null || expectedRefreshRunId === ""
+        ? NaN
+        : Number(expectedRefreshRunId);
+    const expectedVal = String(expectedValuationDate ?? "").trim();
+    if (Number.isFinite(expectedRun) && rowRun !== expectedRun) {
+      return {
+        ok: false,
+        code: "WRONG_RUN",
+        message:
+          "Trace row belongs to a different refresh run than the selected cost sheet.",
+      };
+    }
+    if (expectedVal && rowVal && rowVal !== expectedVal) {
+      return {
+        ok: false,
+        code: "WRONG_RUN",
+        message:
+          "Trace row belongs to a different valuation date than the selected cost sheet.",
+      };
+    }
+  }
+  return { ok: true, row };
+}
+
+export function isTraceabilityLoadError(result) {
+  return Boolean(result && result.__traceLoadError === true);
+}
+
+export function explainRequestIdentity(params = {}) {
+  return [
+    String(params.periodStart ?? "").trim(),
+    String(params.valuationDate ?? "").trim(),
+    String(params.refreshRunId ?? "").trim(),
+    String(params.productId ?? "").trim(),
+    String(params.skuId ?? "").trim(),
+    String(params.lineLabel ?? "").trim(),
+    String(params.sectionCode ?? "").trim(),
+    String(params.lineOrder ?? "").trim(),
+  ].join("|");
+}
 
 export const COST_SHEET_LENS_IDS = [
   "sku-cost-sheet",
@@ -186,11 +421,29 @@ export function createCostSheetController(deps) {
   let printableLines = [];
   let printableProductSummaryCache = null;
   const printableProductLinesCache = new Map();
+  /** Exact-tuple cache for rpc_get_monthly_allocation_driver_trace (successful rows only). */
+  const monthlyAllocationDriverTraceCache = new Map();
+  /**
+   * Exact-tuple cache for rpc_get_cost_sheet_marketing_explain_summary.
+   * Stores valid governed response rows only (not transport failures).
+   */
+  const marketingExplainSummaryCache = new Map();
+  /**
+   * QC Explain cache keyed by period|product|sku (or period|product|product).
+   * Entries store { payload, refresh_run_id, projection_source } for successful
+   * responses only. Run identity is validated before reuse.
+   */
+  const qcExplainCache = new Map();
+  const msExplainCache = new Map();
   let currentCostSheetProductId = null;
+  /** Validated printable export tuple for the open modal / PDF. */
+  let currentPrintableExactRunContext = null;
+  let currentPrintableSummaryRow = null;
   let costSheetReturnFocus = null;
   let costSheetSignReturnFocus = null;
   let costSheetExplainReturnFocus = null;
   let currentExplainTraceabilityRow = null;
+  let costSheetExplainLoadToken = 0;
   let selectedExplainContext = null;
   let selectedExplainCell = null;
   let eventsBound = false;
@@ -208,6 +461,98 @@ export function createCostSheetController(deps) {
 
   function normalizePrintableCachePeriod(periodStart) {
     return String(periodStart ?? "").trim();
+  }
+
+  function normalizePrintableDateOnly(value) {
+    const raw = String(value ?? "").trim();
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(raw);
+    return match ? match[1] : "";
+  }
+
+  class PrintableExactRunLoadError extends Error {
+    constructor(code, message) {
+      super(message);
+      this.name = "PrintableExactRunLoadError";
+      this.code = code;
+    }
+  }
+
+  const PRINTABLE_INCOMPLETE_CONTEXT_MESSAGE =
+    "Unable to load this cost sheet because its costing run context is incomplete. Refresh the list and try again.";
+  const PRINTABLE_MIXED_TUPLE_MESSAGE =
+    "Cost-sheet lines did not match the selected costing run. No document was generated.";
+  const PRINTABLE_EMPTY_LINES_MESSAGE =
+    "No printable cost sheet lines found for this costing run.";
+
+  /**
+   * Canonical printable export tuple from a summary row.
+   * @returns {{ periodStart: string, valuationDate: string, refreshRunId: number, productId: number } | null}
+   */
+  function resolvePrintableExactRunContext(summaryRow) {
+    if (!summaryRow) return null;
+    const periodStart = normalizePrintableDateOnly(
+      summaryRow.period_start ?? summaryRow.periodStart,
+    );
+    const valuationDate = normalizePrintableDateOnly(
+      summaryRow.valuation_date ?? summaryRow.valuationDate,
+    );
+    const refreshRunId = Number(
+      summaryRow.refresh_run_id ?? summaryRow.refreshRunId,
+    );
+    const productId = Number(
+      summaryRow.product_id ?? summaryRow.productId,
+    );
+    if (
+      !periodStart ||
+      !valuationDate ||
+      !Number.isFinite(refreshRunId) ||
+      !Number.isFinite(productId)
+    ) {
+      return null;
+    }
+    return { periodStart, valuationDate, refreshRunId, productId };
+  }
+
+  function printableExactRunCacheKey(context) {
+    return `${context.periodStart}::${context.valuationDate}::${context.refreshRunId}::${context.productId}`;
+  }
+
+  function printableLineMatchesExactRunContext(row, context) {
+    if (!row || !context) return false;
+    const periodStart = normalizePrintableDateOnly(row.period_start);
+    const valuationDate = normalizePrintableDateOnly(row.valuation_date);
+    const refreshRunId = Number(row.refresh_run_id);
+    const productId = Number(row.product_id);
+    if (
+      !periodStart ||
+      !valuationDate ||
+      !Number.isFinite(refreshRunId) ||
+      !Number.isFinite(productId)
+    ) {
+      return false;
+    }
+    return (
+      periodStart === context.periodStart &&
+      valuationDate === context.valuationDate &&
+      refreshRunId === context.refreshRunId &&
+      productId === context.productId
+    );
+  }
+
+  function validatePrintableLinesForContext(rows, context) {
+    if (!rows?.length) {
+      return { ok: false, code: "EMPTY", message: PRINTABLE_EMPTY_LINES_MESSAGE };
+    }
+    for (const row of rows) {
+      if (!printableLineMatchesExactRunContext(row, context)) {
+        return {
+          ok: false,
+          code: "MIXED_TUPLE",
+          message: PRINTABLE_MIXED_TUPLE_MESSAGE,
+        };
+      }
+    }
+    return { ok: true };
   }
 
   async function fetchAllProductSummaryRowsForPeriod(periodStart) {
@@ -235,15 +580,23 @@ export function createCostSheetController(deps) {
   }
 
   function mapProductSummaryRowToPrintableGroup(row) {
+    const periodStart = normalizePrintableDateOnly(row.period_start);
+    const valuationDate = normalizePrintableDateOnly(row.valuation_date);
+    const refreshRunIdRaw = row.refresh_run_id;
+    const productIdRaw = row.product_id;
+    const refreshRunId = Number(refreshRunIdRaw);
+    const productId = Number(productIdRaw);
     return {
-      product_id: row.product_id,
+      product_id: Number.isFinite(productId) ? productId : productIdRaw,
       product_name: row.product_name,
       category_name: row.category_name,
       subcategory_name: row.subcategory_name,
       group_name: row.group_name,
       sub_group_name: row.sub_group_name,
       product_hierarchy: row.product_hierarchy,
-      period_start: row.period_start,
+      period_start: periodStart || row.period_start,
+      valuation_date: valuationDate || row.valuation_date,
+      refresh_run_id: Number.isFinite(refreshRunId) ? refreshRunId : refreshRunIdRaw,
       product_cost_sheet_status: row.cost_sheet_status,
       cost_sheet_status: row.cost_sheet_status,
       cost_sheet_note: row.cost_sheet_note,
@@ -455,13 +808,11 @@ export function createCostSheetController(deps) {
     );
   }
 
-  function productLinesCacheKey(periodStart, productId) {
-    return `${normalizePrintableCachePeriod(periodStart)}::${String(productId ?? "")}`;
-  }
-
-  function findCachedProductLines(periodStart, productId) {
+  function findCachedProductLines(exactRunContext) {
+    const context = resolvePrintableExactRunContext(exactRunContext);
+    if (!context) return null;
     const cached = printableProductLinesCache.get(
-      productLinesCacheKey(periodStart, productId),
+      printableExactRunCacheKey(context),
     );
     return cached?.lines || null;
   }
@@ -477,8 +828,16 @@ export function createCostSheetController(deps) {
     );
   }
 
-  async function loadPrintableLinesForProduct(periodStart, productId) {
-    const cached = findCachedProductLines(periodStart, productId);
+  async function loadPrintableLinesForProduct(exactRunContext) {
+    const context = resolvePrintableExactRunContext(exactRunContext);
+    if (!context) {
+      throw new PrintableExactRunLoadError(
+        "INCOMPLETE_CONTEXT",
+        PRINTABLE_INCOMPLETE_CONTEXT_MESSAGE,
+      );
+    }
+
+    const cached = findCachedProductLines(context);
     if (cached) return cached;
 
     const pageSize = 1000;
@@ -489,8 +848,10 @@ export function createCostSheetController(deps) {
       const to = from + pageSize - 1;
       const { data, error } = await costingFrom(PRINTABLE_LINES_VIEW)
         .select("*")
-        .eq("period_start", periodStart)
-        .eq("product_id", productId)
+        .eq("period_start", context.periodStart)
+        .eq("valuation_date", context.valuationDate)
+        .eq("refresh_run_id", context.refreshRunId)
+        .eq("product_id", context.productId)
         .order("sku_column_label", { ascending: true })
         .order("section_code", { ascending: true })
         .order("line_order", { ascending: true })
@@ -503,14 +864,22 @@ export function createCostSheetController(deps) {
       from += pageSize;
     }
 
-    printableProductLinesCache.set(productLinesCacheKey(periodStart, productId), {
+    const validation = validatePrintableLinesForContext(rows, context);
+    if (!validation.ok) {
+      throw new PrintableExactRunLoadError(
+        validation.code,
+        validation.message,
+      );
+    }
+
+    printableProductLinesCache.set(printableExactRunCacheKey(context), {
       lines: rows,
       fetchedAt: Date.now(),
     });
     return rows;
   }
 
-  function printableRowsForProduct(productId, periodStart = getActivePeriodStart()) {
+  function printableRowsForProduct(productId) {
     if (
       String(currentCostSheetProductId ?? "") === String(productId ?? "") &&
       printableLines.length
@@ -518,8 +887,15 @@ export function createCostSheetController(deps) {
       return printableLines;
     }
 
-    const cached = findCachedProductLines(periodStart, productId);
-    return cached || [];
+    if (
+      currentPrintableExactRunContext &&
+      String(currentPrintableExactRunContext.productId) === String(productId)
+    ) {
+      const cached = findCachedProductLines(currentPrintableExactRunContext);
+      return cached || [];
+    }
+
+    return [];
   }
 
   function getPrintableSkuColumns(rows) {
@@ -606,6 +982,9 @@ export function createCostSheetController(deps) {
 
     if (costSheetA4) costSheetA4.innerHTML = "";
     currentCostSheetProductId = null;
+    currentPrintableExactRunContext = null;
+    currentPrintableSummaryRow = null;
+    printableLines = [];
 
     const returnTarget =
       costSheetReturnFocus &&
@@ -661,9 +1040,10 @@ export function createCostSheetController(deps) {
   async function confirmCostSheetSignatories() {
     readCostSheetSignatoriesFromModal();
     const productId = currentCostSheetProductId;
+    const summaryRow = currentPrintableSummaryRow;
     closeCostSheetSignModal();
     if (productId) {
-      await openCostSheetModal(productId);
+      await openCostSheetModal(productId, { summaryRow });
       await generateCostSheetPdf(productId);
     }
   }
@@ -725,15 +1105,7 @@ export function createCostSheetController(deps) {
       "profit value: ik",
       "profit value: ok",
     ];
-    const subRows = [
-      "production overhead",
-      "quality control overhead",
-      "materials / stores overhead",
-      "administrative overhead",
-      "finance admin overhead",
-    ];
     if (strongRows.includes(label)) return "cost-sheet-row-strong";
-    if (subRows.includes(label)) return "cost-sheet-row-sub";
     return "";
   }
 
@@ -753,7 +1125,9 @@ export function createCostSheetController(deps) {
   function inferEvidenceValueType(key, hintedType) {
     if (hintedType) return hintedType;
     const normalized = String(key || "").toLowerCase();
-    if (normalized.endsWith("_percent")) return "percent";
+    if (normalized.endsWith("_percent") || normalized.endsWith("_share")) {
+      return normalized.endsWith("_share") ? "share" : "percent";
+    }
     if (
       normalized.includes("_amount") ||
       normalized.includes("_cost") ||
@@ -763,7 +1137,11 @@ export function createCostSheetController(deps) {
     ) {
       return "money";
     }
-    if (normalized.endsWith("_count") || normalized.endsWith("_qty")) {
+    if (
+      normalized.endsWith("_count") ||
+      normalized.endsWith("_qty") ||
+      normalized.endsWith("_units")
+    ) {
       return "number";
     }
     return "text";
@@ -772,34 +1150,88 @@ export function createCostSheetController(deps) {
   function formatEvidenceValue(key, value, hintedType) {
     if (value === null || value === undefined || value === "") return null;
     if (typeof value === "boolean") return value ? "Yes" : "No";
-    if (typeof value === "object") {
-      return `<span class="cp-muted-text">${text(JSON.stringify(value))}</span>`;
-    }
+    // Never dump raw JSON objects into Explain.
+    if (typeof value === "object") return null;
 
     const valueType = inferEvidenceValueType(key, hintedType);
     if (valueType === "money") return formatMoney(value);
     if (valueType === "percent") return formatPercent(value);
+    if (valueType === "share") {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return text(value);
+      const pct = Math.abs(n) <= 1 ? n * 100 : n;
+      return formatPercent(pct);
+    }
     if (valueType === "number") return formatNumber(value);
     return text(value);
   }
 
-  function renderEvidenceSummary(evidenceJson) {
+  function renderEvidenceSummary(
+    evidenceJson,
+    {
+      scrubObsoleteQcSalesShare = false,
+      scrubObsoleteMsSalesShare = false,
+      omitDisplayValueEvidence = false,
+    } = {},
+  ) {
     if (!evidenceJson || typeof evidenceJson !== "object") return "";
 
-    const items = [];
+    const sectionItems = {
+      governance: [],
+      allocation_basis: [],
+      workload: [],
+      default: [],
+    };
 
-    EVIDENCE_KEY_META.forEach(([key, label, valueType]) => {
-      if (!(key in evidenceJson)) return;
-      const formatted = formatEvidenceValue(key, evidenceJson[key], valueType);
+    const present = listPresentWhitelistedEvidence(evidenceJson, EVIDENCE_KEY_META);
+    present.forEach(({ key, label, valueType, section, value }) => {
+      if (
+        omitDisplayValueEvidence &&
+        (key === "display_value_numeric" || key === "display_value_text")
+      ) {
+        return;
+      }
+      let rawValue = value;
+      if (
+        scrubObsoleteQcSalesShare &&
+        (key === "formula" || key === "source_note") &&
+        typeof rawValue === "string"
+      ) {
+        rawValue = scrubObsoleteQcSalesShareText(rawValue);
+      }
+      if (scrubObsoleteMsSalesShare && typeof rawValue === "string") {
+        if (key === "formula") {
+          rawValue = scrubObsoleteMsExplainText(rawValue, "formula");
+        } else if (key === "source_note") {
+          rawValue = scrubObsoleteMsExplainText(rawValue, "source_note");
+        }
+      }
+      const formatted = formatEvidenceValue(key, rawValue, valueType);
       if (formatted === null) return;
-      items.push([label, formatted]);
+      const bucket =
+        section && sectionItems[section] ? sectionItems[section] : sectionItems.default;
+      bucket.push([label, formatted]);
     });
 
-    if (!items.length) return "";
-    return kvSection(
-      "Evidence Summary",
-      items.map(([label, value]) => [label, value]),
-    );
+    const parts = [];
+    if (sectionItems.governance.length) {
+      parts.push(kvSection(EVIDENCE_SECTION_TITLES.governance, sectionItems.governance));
+    }
+    if (sectionItems.allocation_basis.length) {
+      parts.push(
+        kvSection(
+          EVIDENCE_SECTION_TITLES.allocation_basis,
+          sectionItems.allocation_basis,
+        ),
+      );
+    }
+    if (sectionItems.workload.length) {
+      parts.push(kvSection(EVIDENCE_SECTION_TITLES.workload, sectionItems.workload));
+    }
+    if (sectionItems.default.length) {
+      parts.push(kvSection("Evidence Summary", sectionItems.default));
+    }
+    return parts.join("");
   }
 
   function formatTraceabilityDisplayValue(row) {
@@ -882,15 +1314,62 @@ export function createCostSheetController(deps) {
     }
   }
 
-  function renderCostSheetExplainContent(row) {
-    const calculationText = row.trace_formula || row.calculation_basis;
+  function renderExplainContextSection(row, fallback = {}) {
+    const period =
+      row?.period_start || fallback.periodStart || fallback.period_start || "";
+    const valuation =
+      row?.valuation_date ||
+      fallback.valuationDate ||
+      fallback.valuation_date ||
+      "";
+    const runRaw =
+      row?.refresh_run_id ?? fallback.refreshRunId ?? fallback.refresh_run_id;
+    const runNum = Number(runRaw);
+    const items = [
+      period ? ["Period", text(formatPeriodMonth(period))] : null,
+      valuation
+        ? ["Valuation", text(formatMonthlyDriverDateOnly(valuation) || valuation)]
+        : null,
+      runRaw != null && runRaw !== ""
+        ? [
+            "Run",
+            text(Number.isFinite(runNum) ? String(runNum) : String(runRaw)),
+          ]
+        : null,
+    ].filter(Boolean);
+    if (!items.length) return "";
+    return kvSection("Context", items);
+  }
+
+  function renderCostSheetExplainContent(row, fallback = {}) {
+    const isQcOverhead = isQualityControlOverheadExplainLine(row);
+    const isMsOverhead = isMaterialsStoresOverheadExplainLine(row);
+    const rawCalculationText = row.trace_formula || row.calculation_basis;
+    let calculationText = rawCalculationText;
+    let explanationSummary = row.trace_summary || row.line_description;
+    let sourceNote = row.source_note;
+    let sourceLineage = row.trace_source_snapshot;
+    if (isQcOverhead) {
+      calculationText = resolveQcOverheadCalculationLineage(rawCalculationText);
+      explanationSummary = scrubObsoleteQcSalesShareText(explanationSummary);
+      sourceNote = row.source_note
+        ? scrubObsoleteQcSalesShareText(row.source_note)
+        : row.source_note;
+    } else if (isMsOverhead) {
+      calculationText = resolveMsOverheadCalculation(rawCalculationText);
+      explanationSummary = resolveMsOverheadDescription(explanationSummary);
+      sourceNote = resolveMsOverheadSourceNote(row.source_note);
+      sourceLineage = resolveMsOverheadSourceLineage(row.trace_source_snapshot);
+    }
     const sourceItems = [
-      row.source_note ? ["Source Note", text(row.source_note)] : null,
+      sourceNote
+        ? ["Source Note", text(sourceNote)]
+        : null,
       row.trace_source_type
         ? ["Source Type", text(row.trace_source_type)]
         : null,
-      row.trace_source_snapshot
-        ? ["Source Snapshot", text(row.trace_source_snapshot)]
+      sourceLineage
+        ? ["Source Snapshot", text(sourceLineage)]
         : null,
       row.source_module_label
         ? ["Source Module", text(row.source_module_label)]
@@ -922,23 +1401,28 @@ export function createCostSheetController(deps) {
     ].filter(Boolean);
 
     return detailPanel([
+      renderExplainContextSection(row, fallback),
       kvSection("Displayed Value", [
         ["Value", formatTraceabilityDisplayValue(row)],
         row.value_type ? ["Value Type", text(row.value_type)] : null,
       ].filter(Boolean)),
+      explanationSummary
+        ? kvSection("Explanation", [["Summary", text(explanationSummary)]])
+        : "",
       calculationText
         ? kvSection("How This Value Is Calculated", [
             ["Calculation", text(calculationText)],
           ])
         : "",
-      row.trace_summary
-        ? kvSection("Explanation", [["Summary", text(row.trace_summary)]])
-        : "",
       sourceItems.length
         ? `${kvSection("Source", sourceItems)}${sourceTechnical}`
         : sourceTechnical,
+      renderEvidenceSummary(row.evidence_json, {
+        scrubObsoleteQcSalesShare: isQcOverhead,
+        scrubObsoleteMsSalesShare: isMsOverhead,
+        omitDisplayValueEvidence: isMsOverhead,
+      }),
       renderTraceabilityDrillSection(row),
-      renderEvidenceSummary(row.evidence_json),
       auditItems.length ? kvSection("Audit / Control", auditItems) : "",
       refreshItems.length ? kvSection("Refresh", refreshItems) : "",
     ]);
@@ -952,6 +1436,24 @@ export function createCostSheetController(deps) {
     const skuId = valueRow?.sku_id ?? sku?.sku_id;
     const productId = valueRow?.product_id ?? explainContext.productId;
     const periodStart = valueRow?.period_start ?? explainContext.periodStart;
+    const valuationDate =
+      normalizePrintableDateOnly(
+        valueRow?.valuation_date ??
+          valueRow?.valuationDate ??
+          explainContext.valuationDate ??
+          explainContext.valuation_date,
+      ) || undefined;
+    const refreshRunRaw =
+      valueRow?.refresh_run_id ??
+      valueRow?.refreshRunId ??
+      explainContext.refreshRunId ??
+      explainContext.refresh_run_id;
+    const refreshRunNum = Number(refreshRunRaw);
+    const refreshRunId = Number.isFinite(refreshRunNum)
+      ? refreshRunNum
+      : refreshRunRaw != null && refreshRunRaw !== ""
+        ? refreshRunRaw
+        : undefined;
     const lineLabel = valueRow?.line_label ?? line?.line_label;
     const sectionCode = valueRow?.section_code ?? line?.section_code ?? "";
     const lineOrder = valueRow?.line_order ?? line?.line_order;
@@ -970,6 +1472,8 @@ export function createCostSheetController(deps) {
 
     return {
       periodStart,
+      valuationDate,
+      refreshRunId,
       productId: Number(productId),
       skuId: Number(skuId),
       sectionCode: sectionCode || undefined,
@@ -984,6 +1488,8 @@ export function createCostSheetController(deps) {
     if (!context) return "";
     return `data-explain-enabled="true"
       data-explain-period-start="${attr(context.periodStart)}"
+      data-explain-valuation-date="${attr(context.valuationDate ?? "")}"
+      data-explain-refresh-run-id="${attr(context.refreshRunId ?? "")}"
       data-explain-product-id="${attr(context.productId)}"
       data-explain-sku-id="${attr(context.skuId)}"
       data-explain-section-code="${attr(context.sectionCode ?? "")}"
@@ -997,8 +1503,17 @@ export function createCostSheetController(deps) {
 
   function parseExplainContextFromCell(cell) {
     const lineOrderRaw = cell.dataset.explainLineOrder;
+    const refreshRunRaw = cell.dataset.explainRefreshRunId;
+    const refreshRunNum = Number(refreshRunRaw);
     return {
       periodStart: cell.dataset.explainPeriodStart,
+      valuationDate: cell.dataset.explainValuationDate || undefined,
+      refreshRunId:
+        refreshRunRaw !== undefined && refreshRunRaw !== ""
+          ? Number.isFinite(refreshRunNum)
+            ? refreshRunNum
+            : refreshRunRaw
+          : undefined,
       productId: Number(cell.dataset.explainProductId),
       skuId: Number(cell.dataset.explainSkuId),
       sectionCode: cell.dataset.explainSectionCode || undefined,
@@ -1068,6 +1583,8 @@ export function createCostSheetController(deps) {
   function closeCostSheetExplainDrawer() {
     if (!costSheetExplainDrawer) return;
 
+    costSheetExplainLoadToken += 1;
+
     const active = document.activeElement;
     if (active && costSheetExplainDrawer.contains(active)) {
       active.blur();
@@ -1100,13 +1617,31 @@ export function createCostSheetController(deps) {
     }
     if (!costSheetExplainSubtitle) return;
 
+    const isMsOverhead = isMaterialsStoresOverheadExplainLine({
+      line_label: row?.line_label,
+      lineLabel: fallback.lineLabel,
+    });
     const statusBadge = row?.cost_sheet_status
-      ? statusChip(normalizeStatus(row.cost_sheet_status))
+      ? isMsOverhead
+        ? `<span class="cp-ms-overall-status"><span class="cp-muted-text">Overall Cost Sheet status</span> ${statusChip(normalizeStatus(row.cost_sheet_status))}</span>`
+        : statusChip(normalizeStatus(row.cost_sheet_status))
       : "";
     const productName = row?.product_name || fallback.productName || "";
     const skuLabel =
       row?.sku_column_label || row?.sku_id || fallback.skuLabel || "";
     const period = row?.period_start || fallback.periodStart || "";
+    const valuation =
+      row?.valuation_date || fallback.valuationDate || fallback.valuation_date || "";
+    const runRaw =
+      row?.refresh_run_id ?? fallback.refreshRunId ?? fallback.refresh_run_id;
+    const runNum = Number(runRaw);
+    const valuationBit = valuation
+      ? `<span class="cs-sep">·</span><span>Valuation ${text(formatMonthlyDriverDateOnly(valuation) || valuation)}</span>`
+      : "";
+    const runBit =
+      runRaw != null && runRaw !== ""
+        ? `<span class="cs-sep">·</span><span>Run ${text(Number.isFinite(runNum) ? String(runNum) : String(runRaw))}</span>`
+        : "";
 
     costSheetExplainSubtitle.innerHTML = `
       <span>${text(productName)}</span>
@@ -1114,6 +1649,8 @@ export function createCostSheetController(deps) {
       <span>${text(skuLabel)}</span>
       <span class="cs-sep">·</span>
       <span>${formatPeriodMonth(period)}</span>
+      ${valuationBit}
+      ${runBit}
       ${statusBadge}`;
   }
 
@@ -1132,6 +1669,2603 @@ export function createCostSheetController(deps) {
   function isRawMaterialCostExplainLine(params = {}) {
     const label = normalizeCostSheetDisplayLabel(params.lineLabel);
     return label === "Raw Material Cost (RM)";
+  }
+
+  /**
+   * Allocation-driven cost lines eligible for monthly-driver lineage.
+   * No unique component code exists per line on the trace row (section_code is
+   * shared across COP lines), so eligibility uses normalized line_label.
+   */
+  const MONTHLY_ALLOCATION_DRIVER_LINE_LABELS = new Set([
+    "direct labour",
+    "direct labour (dl)",
+    "production overhead",
+    "quality control overhead",
+    "materials / stores overhead",
+    "administrative overhead",
+    "admin overhead",
+    "finance admin overhead",
+    "finance-administration overhead",
+    "finance administration overhead",
+    "marketing expense",
+  ]);
+
+  const MONTHLY_DRIVER_CODE_LABELS = {
+    ACTUAL_MONTHLY_MAX: "Actual monthly max",
+    GOVERNED_SKU_ASSUMPTION: "Governed SKU assumption",
+    GOVERNED_SCENARIO_DEFAULT: "Governed scenario default",
+    MANUAL_ASSUMPTION: "Manual assumption",
+    DEFAULT_NEW_SKU_EXISTING_PRODUCT: "Default — new SKU, existing product",
+    DEFAULT_NEW_PRODUCT_NO_HISTORY: "Default — new product, no history",
+    NEW_SKU_EXISTING_PRODUCT: "New SKU, existing product",
+    NEW_PRODUCT_NO_HISTORY: "New product, no history",
+    READY: "Ready",
+    REVIEW_REQUIRED: "Review required",
+    BLOCKED: "Blocked",
+  };
+
+  function isBlankDriverValue(value) {
+    return value === null || value === undefined || value === "";
+  }
+
+  function isMonthlyAllocationDriverExplainLine(rowOrParams = {}) {
+    const raw =
+      rowOrParams.line_label ??
+      rowOrParams.lineLabel ??
+      rowOrParams?.params?.lineLabel ??
+      "";
+    const label = normalizeCostSheetDisplayLabel(raw).trim().toLowerCase();
+    return MONTHLY_ALLOCATION_DRIVER_LINE_LABELS.has(label);
+  }
+
+  function humanizeMonthlyDriverCode(code) {
+    if (isBlankDriverValue(code)) return null;
+    const raw = String(code).trim();
+    if (!raw) return null;
+    const mapped = MONTHLY_DRIVER_CODE_LABELS[raw];
+    if (mapped) return text(mapped);
+    return text(raw);
+  }
+
+  function formatMonthlyDriverStatus(code) {
+    if (isBlankDriverValue(code)) return null;
+    const raw = String(code).trim();
+    if (!raw) return null;
+    const upper = raw.toUpperCase();
+    if (
+      upper === "READY" ||
+      upper === "REVIEW_REQUIRED" ||
+      upper === "BLOCKED"
+    ) {
+      return statusChip(normalizeStatus(raw));
+    }
+    return humanizeMonthlyDriverCode(raw);
+  }
+
+  /**
+   * Display-only: decimal ratio → percent with adaptive precision.
+   * Does not alter or persist the underlying ratio.
+   */
+  function formatAllocationShareRatio(value) {
+    if (isBlankDriverValue(value)) return null;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return text(value);
+    const pct = n * 100;
+    const abs = Math.abs(pct);
+    const digits = abs >= 1 ? 2 : abs >= 0.01 ? 3 : 4;
+    return `${pct.toLocaleString("en-IN", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    })}%`;
+  }
+
+  function formatDriverNumber(value) {
+    if (isBlankDriverValue(value)) return null;
+    return formatNumber(value);
+  }
+
+  /**
+   * Display-only date formatter for PostgreSQL date values.
+   * Parses YYYY-MM-DD without constructing a local midnight Date (avoids TZ shift).
+   */
+  function formatMonthlyDriverDateOnly(value) {
+    if (isBlankDriverValue(value)) return null;
+    const raw = String(value).trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+    if (!match) return text(raw);
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(day) ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31
+    ) {
+      return text(raw);
+    }
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  }
+
+  function formatDriverDate(value) {
+    return formatMonthlyDriverDateOnly(value);
+  }
+
+  function pushDriverKv(items, label, valueHtml) {
+    if (valueHtml == null || valueHtml === "") return;
+    items.push([label, valueHtml]);
+  }
+
+  function getMonthlyAllocationDriverTuple(row) {
+    if (!row) return null;
+    const period_start = String(row.period_start ?? "").trim();
+    const valuation_date = String(row.valuation_date ?? "").trim();
+    const refresh_run_id = row.refresh_run_id;
+    const sku_id = row.sku_id;
+    if (
+      !period_start ||
+      !valuation_date ||
+      refresh_run_id == null ||
+      refresh_run_id === "" ||
+      sku_id == null ||
+      sku_id === ""
+    ) {
+      return null;
+    }
+    const runId = Number(refresh_run_id);
+    const skuNum = Number(sku_id);
+    if (!Number.isFinite(runId) || !Number.isFinite(skuNum)) return null;
+    return {
+      period_start,
+      valuation_date,
+      refresh_run_id: runId,
+      sku_id: skuNum,
+    };
+  }
+
+  function monthlyAllocationDriverCacheKey(tuple) {
+    return `${tuple.period_start}|${tuple.valuation_date}|${tuple.refresh_run_id}|${tuple.sku_id}`;
+  }
+
+  function clearMonthlyAllocationDriverTraceCache() {
+    monthlyAllocationDriverTraceCache.clear();
+  }
+
+  async function loadMonthlyAllocationDriverTrace(tuple) {
+    if (!tuple || typeof costingRpc !== "function") return null;
+    const { data, error } = await costingRpc(
+      "rpc_get_monthly_allocation_driver_trace",
+      {
+        p_period_start: tuple.period_start,
+        p_valuation_date: tuple.valuation_date,
+        p_refresh_run_id: tuple.refresh_run_id,
+        p_sku_id: tuple.sku_id,
+      },
+    );
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return row || null;
+  }
+
+  function renderMonthlyAllocationDriverStateMessage(message) {
+    return `<section class="cp-detail-section cp-monthly-driver-trace" id="cpMonthlyDriverTraceHost" data-monthly-driver-trace="true">
+      <h3 class="cp-section-title">Monthly Allocation Driver</h3>
+      <div class="status cp-monthly-driver-trace-status">${text(message)}</div>
+    </section>`;
+  }
+
+  function renderMonthlyAllocationDriverLoading() {
+    return `<section class="cp-detail-section cp-monthly-driver-trace" id="cpMonthlyDriverTraceHost" data-monthly-driver-trace="true">
+      <h3 class="cp-section-title">Monthly Allocation Driver</h3>
+      <div class="cost-sheet-explain-loading cp-monthly-driver-trace-loading">
+        <span class="cp-loading-spinner" aria-hidden="true"></span>
+        <span>Loading monthly allocation-driver lineage…</span>
+      </div>
+    </section>`;
+  }
+
+  function renderMonthlyAllocationDriverSection(trace) {
+    if (!trace) {
+      return renderMonthlyAllocationDriverStateMessage(
+        "No monthly allocation-driver snapshot was found for this exact costing run.",
+      );
+    }
+
+    const decision = [];
+    pushDriverKv(
+      decision,
+      "Method",
+      humanizeMonthlyDriverCode(trace.monthly_driver_method),
+    );
+    pushDriverKv(
+      decision,
+      "Source",
+      humanizeMonthlyDriverCode(trace.monthly_driver_source),
+    );
+    pushDriverKv(
+      decision,
+      "Status",
+      formatMonthlyDriverStatus(trace.monthly_driver_status),
+    );
+    pushDriverKv(
+      decision,
+      "Monthly SKU units",
+      formatDriverNumber(trace.monthly_allocation_units),
+    );
+    pushDriverKv(
+      decision,
+      "Monthly SKU base quantity",
+      formatDriverNumber(trace.monthly_allocation_base_qty),
+    );
+    pushDriverKv(
+      decision,
+      "Monthly product units",
+      formatDriverNumber(trace.monthly_product_allocation_units),
+    );
+    pushDriverKv(
+      decision,
+      "Monthly company units",
+      formatDriverNumber(trace.monthly_company_allocation_units),
+    );
+    pushDriverKv(
+      decision,
+      "Product allocation share",
+      formatAllocationShareRatio(trace.monthly_product_allocation_share),
+    );
+    pushDriverKv(
+      decision,
+      "Valuation date",
+      formatDriverDate(trace.valuation_date),
+    );
+    pushDriverKv(
+      decision,
+      "Refresh run",
+      formatDriverNumber(trace.refresh_run_id),
+    );
+
+    const evidence = [];
+    pushDriverKv(
+      evidence,
+      "Historical SKU units — 12 months",
+      formatDriverNumber(trace.actual_sales_units_12m),
+    );
+    pushDriverKv(
+      evidence,
+      "Historical SKU base quantity — 12 months",
+      formatDriverNumber(trace.actual_sales_base_qty_12m),
+    );
+    pushDriverKv(
+      evidence,
+      "Historical product units — 12 months",
+      formatDriverNumber(trace.actual_product_sales_units_12m),
+    );
+    pushDriverKv(
+      evidence,
+      "Historical product base quantity — 12 months",
+      formatDriverNumber(trace.actual_product_sales_base_qty_12m),
+    );
+    pushDriverKv(
+      evidence,
+      "Historical company units — 12 months",
+      formatDriverNumber(trace.actual_company_sales_units_12m),
+    );
+    {
+      const start = formatDriverDate(trace.monthly_driver_lookback_start);
+      const end = formatDriverDate(trace.monthly_driver_lookback_end);
+      if (start && end) {
+        pushDriverKv(evidence, "Lookback period", `${start} – ${end}`);
+      } else if (start) {
+        pushDriverKv(evidence, "Lookback period", start);
+      } else if (end) {
+        pushDriverKv(evidence, "Lookback period", end);
+      }
+    }
+    pushDriverKv(
+      evidence,
+      "Source month",
+      formatDriverDate(trace.monthly_driver_source_month),
+    );
+    pushDriverKv(
+      evidence,
+      "Tied-month count",
+      formatDriverNumber(trace.monthly_driver_tied_month_count),
+    );
+    pushDriverKv(
+      evidence,
+      "Driver note",
+      isBlankDriverValue(trace.monthly_driver_note)
+        ? null
+        : text(trace.monthly_driver_note),
+    );
+
+    const governance = [];
+    if (!isBlankDriverValue(trace.assumption_id)) {
+      pushDriverKv(
+        governance,
+        "Assumption ID",
+        formatDriverNumber(trace.assumption_id),
+      );
+      pushDriverKv(
+        governance,
+        "Assumption basis",
+        humanizeMonthlyDriverCode(trace.assumption_basis),
+      );
+      pushDriverKv(
+        governance,
+        "Effective from",
+        formatDriverDate(trace.assumption_effective_from),
+      );
+      pushDriverKv(
+        governance,
+        "Effective to",
+        formatDriverDate(trace.assumption_effective_to),
+      );
+    }
+    if (!isBlankDriverValue(trace.default_policy_id)) {
+      pushDriverKv(
+        governance,
+        "Default policy ID",
+        formatDriverNumber(trace.default_policy_id),
+      );
+      pushDriverKv(
+        governance,
+        "Scenario",
+        humanizeMonthlyDriverCode(trace.default_policy_scenario),
+      );
+      pushDriverKv(
+        governance,
+        "Effective from",
+        formatDriverDate(trace.default_policy_effective_from),
+      );
+      pushDriverKv(
+        governance,
+        "Effective to",
+        formatDriverDate(trace.default_policy_effective_to),
+      );
+    }
+    pushDriverKv(
+      governance,
+      "Allocation resolution status",
+      formatMonthlyDriverStatus(trace.allocation_resolution_status) ||
+        humanizeMonthlyDriverCode(trace.allocation_resolution_status),
+    );
+    pushDriverKv(
+      governance,
+      "Allocation resolution note",
+      isBlankDriverValue(trace.allocation_resolution_note)
+        ? null
+        : text(trace.allocation_resolution_note),
+    );
+
+    const parts = [
+      decision.length ? kvSection("Decision", decision) : "",
+      evidence.length ? kvSection("Evidence", evidence) : "",
+      governance.length ? kvSection("Governance", governance) : "",
+    ].filter(Boolean);
+
+    if (!parts.length) {
+      return renderMonthlyAllocationDriverStateMessage(
+        "No monthly allocation-driver snapshot was found for this exact costing run.",
+      );
+    }
+
+    return `<section class="cp-detail-section cp-monthly-driver-trace" id="cpMonthlyDriverTraceHost" data-monthly-driver-trace="true">
+      <h3 class="cp-section-title">Monthly Allocation Driver</h3>
+      <div class="cp-monthly-driver-trace-body">${parts.join("")}</div>
+    </section>`;
+  }
+
+  function replaceMonthlyAllocationDriverHost(html) {
+    if (!costSheetExplainContent) return;
+    const host = costSheetExplainContent.querySelector(
+      "#cpMonthlyDriverTraceHost",
+    );
+    if (!host) return;
+    host.outerHTML = html;
+  }
+
+  async function fillMonthlyAllocationDriverSection(row) {
+    if (!row || !costSheetExplainContent) return;
+    if (currentExplainTraceabilityRow !== row) return;
+
+    const tuple = getMonthlyAllocationDriverTuple(row);
+    if (!tuple) {
+      replaceMonthlyAllocationDriverHost(
+        renderMonthlyAllocationDriverStateMessage(
+          "Monthly allocation-driver lineage is unavailable because the exact costing context is incomplete.",
+        ),
+      );
+      return;
+    }
+
+    const cacheKey = monthlyAllocationDriverCacheKey(tuple);
+    const cached = monthlyAllocationDriverTraceCache.get(cacheKey);
+    if (cached) {
+      if (currentExplainTraceabilityRow !== row) return;
+      replaceMonthlyAllocationDriverHost(
+        renderMonthlyAllocationDriverSection(cached),
+      );
+      return;
+    }
+
+    try {
+      const trace = await loadMonthlyAllocationDriverTrace(tuple);
+      if (currentExplainTraceabilityRow !== row) return;
+      if (!trace) {
+        replaceMonthlyAllocationDriverHost(
+          renderMonthlyAllocationDriverStateMessage(
+            "No monthly allocation-driver snapshot was found for this exact costing run.",
+          ),
+        );
+        return;
+      }
+      monthlyAllocationDriverTraceCache.set(cacheKey, trace);
+      replaceMonthlyAllocationDriverHost(
+        renderMonthlyAllocationDriverSection(trace),
+      );
+    } catch (err) {
+      console.warn(
+        "[costing-suite] rpc_get_monthly_allocation_driver_trace failed",
+        err,
+      );
+      if (currentExplainTraceabilityRow !== row) return;
+      replaceMonthlyAllocationDriverHost(
+        renderMonthlyAllocationDriverStateMessage(
+          "Monthly allocation-driver lineage could not be loaded.",
+        ),
+      );
+    }
+  }
+
+  /**
+   * @typedef {Object} CostSheetMarketingExplainSummary
+   * @property {string} [period_start]
+   * @property {string|null} [valuation_date]
+   * @property {number|null} [refresh_run_id]
+   * @property {number} [product_id]
+   * @property {number} [sku_id]
+   * @property {string|null} [marketing_driver_code]
+   * @property {string|null} [marketing_value_source]
+   * @property {number|null} [actual_product_signed_billed_value]
+   * @property {number|null} [actual_company_signed_billed_value]
+   * @property {number|null} [resolved_product_marketing_sales_value]
+   * @property {number|null} [resolved_company_marketing_sales_value]
+   * @property {number|null} [marketing_assumption_id]
+   * @property {number|null} [marketing_assumed_sales_value]
+   * @property {string|null} [marketing_assumption_approval_reference]
+   * @property {string|null} [marketing_assumption_effective_from]
+   * @property {string|null} [marketing_assumption_effective_to]
+   * @property {number|null} [product_monetary_allocation_share]
+   * @property {number|null} [product_marketing_allocation]
+   * @property {number|null} [recipient_product_base_qty]
+   * @property {number|null} [sku_base_qty_per_unit]
+   * @property {number|null} [marketing_expense_cost_per_sku]
+   * @property {string|null} [marketing_lookback_start]
+   * @property {string|null} [marketing_lookback_end]
+   * @property {string|null} [marketing_source_cutoff_at]
+   * @property {number|null} [marketing_evidence_row_count]
+   * @property {string|null} [marketing_evidence_status]
+   * @property {string|null} [allocation_basis_source]
+   * @property {string|null} [allocation_resolution_status]
+   * @property {string|null} [allocation_resolution_note]
+   * @property {string|null} [marketing_expense_allocation_status]
+   * @property {string|null} [marketing_expense_allocation_note]
+   * @property {string|null} [summary_status]
+   * @property {string|null} [snapshot_refreshed_at]
+   */
+
+  const MARKETING_DRIVER_CODE_LABELS = {
+    MARKETING_SIGNED_BILLED_SALES_VALUE: "Signed Billed Sales Value",
+  };
+
+  const MARKETING_VALUE_SOURCE_LABELS = {
+    ACTUAL_SIGNED_BILLED_SALES: "Actual signed billed sales",
+    APPROVED_MONETARY_ASSUMPTION: "Approved monetary assumption",
+    NO_ELIGIBLE_HISTORY: "No eligible sales history",
+  };
+
+  const MARKETING_STATUS_LABELS = {
+    READY: "Ready",
+    REVIEW_REQUIRED: "Review required",
+    BLOCKED: "Blocked",
+    NO_CURRENT_SUCCESSFUL_RUN: "No current successful run",
+    NO_TRACE_DATA: "No trace data",
+    UNKNOWN: "Unknown",
+    APPROVED_ASSUMPTION_NO_ACTUAL_HISTORY:
+      "Approved assumption — no actual history",
+    MANUAL_ASSUMPTION: "Manual assumption",
+  };
+
+  function isMarketingExpenseExplainLine(rowOrParams = {}) {
+    const raw =
+      rowOrParams.line_label ??
+      rowOrParams.lineLabel ??
+      rowOrParams?.params?.lineLabel ??
+      "";
+    const label = normalizeCostSheetDisplayLabel(raw).trim().toLowerCase();
+    return label === "marketing expense";
+  }
+
+  function humanizeMarketingCode(code, map) {
+    if (isBlankDriverValue(code)) return null;
+    const raw = String(code).trim();
+    if (!raw) return null;
+    const mapped = map[raw] || map[raw.toUpperCase()];
+    if (mapped) return text(mapped);
+    return text(raw);
+  }
+
+  function formatMarketingStatus(code) {
+    if (isBlankDriverValue(code)) return null;
+    const raw = String(code).trim();
+    if (!raw) return null;
+    const upper = raw.toUpperCase();
+    if (
+      upper === "READY" ||
+      upper === "REVIEW_REQUIRED" ||
+      upper === "BLOCKED"
+    ) {
+      return statusChip(normalizeStatus(raw));
+    }
+    return humanizeMarketingCode(raw, MARKETING_STATUS_LABELS);
+  }
+
+  /** Null-aware money; zero is a valid displayed value. */
+  function formatMarketingMoney(value) {
+    if (value === null || value === undefined || value === "") return null;
+    return formatMoney(value);
+  }
+
+  /** Null-aware number; zero is a valid displayed value. */
+  function formatMarketingNumber(value) {
+    if (value === null || value === undefined || value === "") return null;
+    return formatNumber(value);
+  }
+
+  /** Higher-precision display aid for formula reconciliation only. */
+  function formatMarketingReconcileNumber(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return text(value);
+    return n.toLocaleString("en-IN", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 10,
+    });
+  }
+
+  function getMarketingExplainTuple(row) {
+    if (!row) return null;
+    const period_start = String(row.period_start ?? "").trim();
+    const product_id = Number(row.product_id);
+    const sku_id = Number(row.sku_id);
+    if (
+      !period_start ||
+      !Number.isFinite(product_id) ||
+      !Number.isFinite(sku_id)
+    ) {
+      return null;
+    }
+    return { period_start, product_id, sku_id };
+  }
+
+  function marketingExplainCacheKey(tuple) {
+    return `${tuple.period_start}|${tuple.product_id}|${tuple.sku_id}`;
+  }
+
+  function marketingExplainRequestIdentity(row) {
+    const tuple = getMarketingExplainTuple(row);
+    if (!tuple) return null;
+    const label = normalizeCostSheetDisplayLabel(row.line_label ?? "")
+      .trim()
+      .toLowerCase();
+    return `${marketingExplainCacheKey(tuple)}|${label || "marketing expense"}`;
+  }
+
+  function clearMarketingExplainSummaryCache() {
+    marketingExplainSummaryCache.clear();
+  }
+
+  function isMarketingExplainResponseCurrent(row, requestIdentity) {
+    if (!costSheetExplainContent || !row || !requestIdentity) return false;
+    if (!currentExplainTraceabilityRow) return false;
+    if (currentExplainTraceabilityRow !== row) return false;
+    const currentIdentity = marketingExplainRequestIdentity(
+      currentExplainTraceabilityRow,
+    );
+    if (!currentIdentity || currentIdentity !== requestIdentity) return false;
+    const currentTuple = getMarketingExplainTuple(currentExplainTraceabilityRow);
+    const requestTuple = getMarketingExplainTuple(row);
+    if (!currentTuple || !requestTuple) return false;
+    if (
+      currentTuple.period_start !== requestTuple.period_start ||
+      currentTuple.product_id !== requestTuple.product_id ||
+      currentTuple.sku_id !== requestTuple.sku_id
+    ) {
+      return false;
+    }
+    return Boolean(
+      costSheetExplainContent.querySelector("#cpMarketingExplainHost"),
+    );
+  }
+
+  /**
+   * @returns {CostSheetMarketingExplainSummary|null}
+   */
+  function normalizeMarketingExplainRpcRow(data) {
+    if (data == null) return null;
+    if (Array.isArray(data)) {
+      if (!data.length) return null;
+      const first = data[0];
+      if (!first || typeof first !== "object") return null;
+      return first;
+    }
+    if (typeof data !== "object") return null;
+    return data;
+  }
+
+  async function loadMarketingExplainSummary(tuple) {
+    if (!tuple || typeof costingRpc !== "function") return null;
+    const { data, error } = await costingRpc(
+      "rpc_get_cost_sheet_marketing_explain_summary",
+      {
+        p_period_start: tuple.period_start,
+        p_product_id: tuple.product_id,
+        p_sku_id: tuple.sku_id,
+      },
+    );
+    if (error) throw error;
+    return normalizeMarketingExplainRpcRow(data);
+  }
+
+  function renderMarketingExplainStateMessage(message, extraClass = "") {
+    const cls = ["status", "cp-marketing-explain-status", extraClass]
+      .filter(Boolean)
+      .join(" ");
+    return `<section class="cp-detail-section cp-marketing-explain" id="cpMarketingExplainHost" data-marketing-explain="true">
+      <h3 class="cp-section-title">Marketing Allocation Explanation</h3>
+      <div class="${cls}" role="status">${text(message)}</div>
+    </section>`;
+  }
+
+  function renderMarketingExplainLoading() {
+    return `<section class="cp-detail-section cp-marketing-explain" id="cpMarketingExplainHost" data-marketing-explain="true">
+      <h3 class="cp-section-title">Marketing Allocation Explanation</h3>
+      <div class="cost-sheet-explain-loading cp-marketing-explain-loading">
+        <span class="cp-loading-spinner" aria-hidden="true"></span>
+        <span>Loading Marketing allocation explanation…</span>
+      </div>
+    </section>`;
+  }
+
+  function renderMarketingExplainEmptyStatus(summaryStatus) {
+    const status = String(summaryStatus || "UNKNOWN").trim().toUpperCase();
+    if (status === "NO_CURRENT_SUCCESSFUL_RUN") {
+      return renderMarketingExplainStateMessage(
+        "No current successful costing run is available for Marketing allocation explanation on the selected period, product and SKU.",
+        "cp-marketing-explain-empty",
+      );
+    }
+    if (status === "NO_TRACE_DATA") {
+      return renderMarketingExplainStateMessage(
+        "No Marketing allocation trace was found for the selected product, SKU and current costing run.",
+        "cp-marketing-explain-empty",
+      );
+    }
+    if (status === "UNKNOWN" || !status) {
+      return renderMarketingExplainStateMessage(
+        "Marketing allocation explanation is unavailable for this selection.",
+        "cp-marketing-explain-empty",
+      );
+    }
+    return null;
+  }
+
+  function renderMarketingReconcileFormula(summary) {
+    const allocation = formatMarketingReconcileNumber(
+      summary.product_marketing_allocation,
+    );
+    const recipientQty = formatMarketingReconcileNumber(
+      summary.recipient_product_base_qty,
+    );
+    const skuQty = formatMarketingReconcileNumber(
+      summary.sku_base_qty_per_unit,
+    );
+    const perSku = formatMarketingReconcileNumber(
+      summary.marketing_expense_cost_per_sku,
+    );
+    if (!allocation || !recipientQty || !skuQty || !perSku) return "";
+    return `<div class="cp-marketing-explain-formula" role="note">
+      <div class="cp-marketing-explain-formula-title">Reconciliation</div>
+      <div class="cp-marketing-explain-formula-body">
+        <div>Product Marketing allocation&nbsp;&nbsp;${allocation}</div>
+        <div>÷ Recipient product base quantity&nbsp;&nbsp;${recipientQty}</div>
+        <div>× SKU base quantity per unit&nbsp;&nbsp;${skuQty}</div>
+        <div>= Marketing expense per SKU&nbsp;&nbsp;${perSku}</div>
+        <div class="cp-marketing-explain-formula-note">Authoritative per-SKU amount is the server field marketing_expense_cost_per_sku.</div>
+      </div>
+    </div>`;
+  }
+
+  /**
+   * @param {CostSheetMarketingExplainSummary} summary
+   */
+  function renderMarketingExplainSection(summary) {
+    if (!summary) {
+      return renderMarketingExplainStateMessage(
+        "Marketing allocation explanation is unavailable for this selection.",
+      );
+    }
+
+    const summaryStatus = String(summary.summary_status || "")
+      .trim()
+      .toUpperCase();
+    const emptyOnly = renderMarketingExplainEmptyStatus(summaryStatus);
+    if (emptyOnly) return emptyOnly;
+
+    const driver = [];
+    pushDriverKv(
+      driver,
+      "Driver",
+      humanizeMarketingCode(
+        summary.marketing_driver_code,
+        MARKETING_DRIVER_CODE_LABELS,
+      ),
+    );
+    pushDriverKv(
+      driver,
+      "Value source",
+      humanizeMarketingCode(
+        summary.marketing_value_source,
+        MARKETING_VALUE_SOURCE_LABELS,
+      ),
+    );
+
+    const monetary = [];
+    pushDriverKv(
+      monetary,
+      "Actual product signed billed value",
+      formatMarketingMoney(summary.actual_product_signed_billed_value),
+    );
+    pushDriverKv(
+      monetary,
+      "Actual eligible company signed billed value",
+      formatMarketingMoney(summary.actual_company_signed_billed_value),
+    );
+    pushDriverKv(
+      monetary,
+      "Resolved product Marketing value",
+      formatMarketingMoney(summary.resolved_product_marketing_sales_value),
+    );
+    pushDriverKv(
+      monetary,
+      "Resolved company Marketing value",
+      formatMarketingMoney(summary.resolved_company_marketing_sales_value),
+    );
+    pushDriverKv(
+      monetary,
+      "Product monetary allocation share",
+      formatAllocationShareRatio(summary.product_monetary_allocation_share),
+    );
+
+    const allocation = [];
+    pushDriverKv(
+      allocation,
+      "Product Marketing allocation",
+      formatMarketingMoney(summary.product_marketing_allocation),
+    );
+    pushDriverKv(
+      allocation,
+      "Recipient product base quantity",
+      formatMarketingNumber(summary.recipient_product_base_qty),
+    );
+    pushDriverKv(
+      allocation,
+      "SKU base quantity per unit",
+      formatMarketingNumber(summary.sku_base_qty_per_unit),
+    );
+    pushDriverKv(
+      allocation,
+      "Marketing expense per SKU",
+      formatMarketingMoney(summary.marketing_expense_cost_per_sku),
+    );
+
+    const assumption = [];
+    const isApprovedAssumption =
+      String(summary.marketing_value_source || "").trim() ===
+      "APPROVED_MONETARY_ASSUMPTION";
+    if (isApprovedAssumption) {
+      pushDriverKv(
+        assumption,
+        "Assumption ID",
+        formatMarketingNumber(summary.marketing_assumption_id),
+      );
+      pushDriverKv(
+        assumption,
+        "Assumed sales value",
+        formatMarketingMoney(summary.marketing_assumed_sales_value),
+      );
+      pushDriverKv(
+        assumption,
+        "Approval reference",
+        isBlankDriverValue(summary.marketing_assumption_approval_reference)
+          ? null
+          : text(summary.marketing_assumption_approval_reference),
+      );
+      pushDriverKv(
+        assumption,
+        "Effective from",
+        formatDriverDate(summary.marketing_assumption_effective_from),
+      );
+      pushDriverKv(
+        assumption,
+        "Effective to",
+        formatDriverDate(summary.marketing_assumption_effective_to),
+      );
+      pushDriverKv(
+        assumption,
+        "Allocation basis source",
+        humanizeMarketingCode(
+          summary.allocation_basis_source,
+          MARKETING_STATUS_LABELS,
+        ),
+      );
+      pushDriverKv(
+        assumption,
+        "Review status",
+        formatMarketingStatus("REVIEW_REQUIRED"),
+      );
+    }
+
+    const frozen = [];
+    pushDriverKv(
+      frozen,
+      "Lookback start",
+      formatDriverDate(summary.marketing_lookback_start),
+    );
+    pushDriverKv(
+      frozen,
+      "Lookback end",
+      formatDriverDate(summary.marketing_lookback_end),
+    );
+    pushDriverKv(
+      frozen,
+      "Source cutoff",
+      isBlankDriverValue(summary.marketing_source_cutoff_at)
+        ? null
+        : formatDateTime(summary.marketing_source_cutoff_at),
+    );
+    pushDriverKv(
+      frozen,
+      "Valuation date",
+      formatDriverDate(summary.valuation_date),
+    );
+    pushDriverKv(
+      frozen,
+      "Refresh run ID",
+      formatMarketingNumber(summary.refresh_run_id),
+    );
+    pushDriverKv(
+      frozen,
+      "Snapshot refreshed time",
+      isBlankDriverValue(summary.snapshot_refreshed_at)
+        ? null
+        : formatDateTime(summary.snapshot_refreshed_at),
+    );
+
+    const statusNotes = [];
+    pushDriverKv(
+      statusNotes,
+      "Marketing evidence status",
+      formatMarketingStatus(summary.marketing_evidence_status) ||
+        humanizeMarketingCode(
+          summary.marketing_evidence_status,
+          MARKETING_STATUS_LABELS,
+        ),
+    );
+    pushDriverKv(
+      statusNotes,
+      "Allocation resolution status",
+      formatMarketingStatus(summary.allocation_resolution_status) ||
+        humanizeMarketingCode(
+          summary.allocation_resolution_status,
+          MARKETING_STATUS_LABELS,
+        ),
+    );
+    pushDriverKv(
+      statusNotes,
+      "Marketing allocation status",
+      formatMarketingStatus(summary.marketing_expense_allocation_status) ||
+        humanizeMarketingCode(
+          summary.marketing_expense_allocation_status,
+          MARKETING_STATUS_LABELS,
+        ),
+    );
+    pushDriverKv(
+      statusNotes,
+      "Summary status",
+      formatMarketingStatus(summary.summary_status) ||
+        humanizeMarketingCode(summary.summary_status, MARKETING_STATUS_LABELS),
+    );
+    pushDriverKv(
+      statusNotes,
+      "Allocation resolution note",
+      isBlankDriverValue(summary.allocation_resolution_note)
+        ? null
+        : text(summary.allocation_resolution_note),
+    );
+    pushDriverKv(
+      statusNotes,
+      "Marketing allocation note",
+      isBlankDriverValue(summary.marketing_expense_allocation_note)
+        ? null
+        : text(summary.marketing_expense_allocation_note),
+    );
+
+    const blockedBanner =
+      summaryStatus === "BLOCKED"
+        ? `<div class="status cp-marketing-explain-blocked" role="status">Marketing allocation is blocked for this selection. Review the server notes below.</div>`
+        : "";
+    const reviewBanner =
+      summaryStatus === "REVIEW_REQUIRED"
+        ? `<div class="status cp-marketing-explain-review" role="status">Review required — values are shown for governance review and are not treated as invalid.</div>`
+        : "";
+    const assumptionNote = isApprovedAssumption
+      ? `<div class="cp-marketing-explain-assumption-note" role="note">The approved monetary assumption is used because no eligible actual product sales exist. Eligible actual sales will supersede the assumption in a later governed refresh.</div>`
+      : "";
+
+    const parts = [
+      blockedBanner,
+      reviewBanner,
+      driver.length ? kvSection("Driver", driver) : "",
+      monetary.length ? kvSection("Monetary evidence", monetary) : "",
+      allocation.length ? kvSection("Product allocation", allocation) : "",
+      allocation.length ? renderMarketingReconcileFormula(summary) : "",
+      assumption.length ? kvSection("Assumption evidence", assumption) : "",
+      assumptionNote,
+      frozen.length ? kvSection("Frozen evidence context", frozen) : "",
+      statusNotes.length ? kvSection("Status and notes", statusNotes) : "",
+    ].filter(Boolean);
+
+    if (!parts.length) {
+      return renderMarketingExplainStateMessage(
+        "Marketing allocation explanation is unavailable for this selection.",
+      );
+    }
+
+    return `<section class="cp-detail-section cp-marketing-explain" id="cpMarketingExplainHost" data-marketing-explain="true">
+      <h3 class="cp-section-title">Marketing Allocation Explanation</h3>
+      <div class="cp-marketing-explain-body">${parts.join("")}</div>
+    </section>`;
+  }
+
+  function replaceMarketingExplainHost(html) {
+    if (!costSheetExplainContent) return;
+    const host = costSheetExplainContent.querySelector(
+      "#cpMarketingExplainHost",
+    );
+    if (!host) return;
+    host.outerHTML = html;
+  }
+
+  async function fillMarketingExplainSection(row) {
+    if (!row || !costSheetExplainContent) return;
+    if (currentExplainTraceabilityRow !== row) return;
+
+    const tuple = getMarketingExplainTuple(row);
+    const requestIdentity = marketingExplainRequestIdentity(row);
+    if (!tuple || !requestIdentity) {
+      replaceMarketingExplainHost(
+        renderMarketingExplainStateMessage(
+          "Marketing allocation explanation is unavailable because the exact costing context is incomplete.",
+        ),
+      );
+      return;
+    }
+
+    if (!isMarketingExplainResponseCurrent(row, requestIdentity)) return;
+
+    const cacheKey = marketingExplainCacheKey(tuple);
+    const cached = marketingExplainSummaryCache.get(cacheKey);
+    if (cached) {
+      if (!isMarketingExplainResponseCurrent(row, requestIdentity)) return;
+      replaceMarketingExplainHost(renderMarketingExplainSection(cached));
+      return;
+    }
+
+    try {
+      const summary = await loadMarketingExplainSummary(tuple);
+      if (!isMarketingExplainResponseCurrent(row, requestIdentity)) return;
+      if (!summary) {
+        replaceMarketingExplainHost(
+          renderMarketingExplainStateMessage(
+            "Marketing allocation explanation is unavailable for this selection.",
+          ),
+        );
+        return;
+      }
+      marketingExplainSummaryCache.set(cacheKey, summary);
+      replaceMarketingExplainHost(renderMarketingExplainSection(summary));
+    } catch (err) {
+      console.warn(
+        "[costing-suite] rpc_get_cost_sheet_marketing_explain_summary failed",
+        err,
+      );
+      if (!isMarketingExplainResponseCurrent(row, requestIdentity)) return;
+      replaceMarketingExplainHost(
+        renderMarketingExplainStateMessage(
+          "Marketing allocation explanation could not be loaded.",
+        ),
+      );
+    }
+  }
+
+  function isQualityControlOverheadExplainLine(rowOrParams = {}) {
+    const raw =
+      rowOrParams.line_label ??
+      rowOrParams.lineLabel ??
+      rowOrParams?.params?.lineLabel ??
+      "";
+    const label = normalizeCostSheetDisplayLabel(raw).trim().toLowerCase();
+    return label === "quality control overhead";
+  }
+
+  function isQcPermissionError(err) {
+    if (!err) return false;
+    const status = Number(err.status ?? err.statusCode ?? err.code);
+    if (status === 401 || status === 403) return true;
+    const msg = String(err.message || err.error_description || "").toLowerCase();
+    return (
+      msg.includes("permission") ||
+      msg.includes("not authorized") ||
+      msg.includes("forbidden") ||
+      msg.includes("401") ||
+      msg.includes("403")
+    );
+  }
+
+  function formatQcStatusChip(code) {
+    if (isBlankQcValue(code)) return null;
+    const raw = String(code).trim();
+    const upper = raw.toUpperCase();
+    if (
+      upper === "READY" ||
+      upper === "REVIEW_REQUIRED" ||
+      upper === "BLOCKED"
+    ) {
+      return statusChip(normalizeStatus(raw));
+    }
+    return text(formatQcStatusLabel(raw) || raw);
+  }
+
+  function getQcExplainTuple(row) {
+    if (!row) return null;
+    const period_start = String(row.period_start ?? "").trim();
+    const product_id = Number(row.product_id);
+    if (!period_start || !Number.isFinite(product_id)) return null;
+    const skuRaw = row.sku_id;
+    if (skuRaw == null || skuRaw === "") {
+      return { period_start, product_id, sku_id: null };
+    }
+    const sku_id = Number(skuRaw);
+    if (!Number.isFinite(sku_id)) {
+      return { period_start, product_id, sku_id: null };
+    }
+    return { period_start, product_id, sku_id };
+  }
+
+  function qcExplainCacheKey(tuple) {
+    return qcExplainRequestIdentity(tuple);
+  }
+
+  function qcExplainRowRequestIdentity(row) {
+    const tuple = getQcExplainTuple(row);
+    if (!tuple) return null;
+    const label = normalizeCostSheetDisplayLabel(row.line_label ?? "")
+      .trim()
+      .toLowerCase();
+    return `${qcExplainCacheKey(tuple)}|${label || "quality control overhead"}`;
+  }
+
+  function clearQcExplainCache() {
+    qcExplainCache.clear();
+  }
+
+  function currentQcRunIdFromRow(row) {
+    if (!row) return null;
+    return pickFirstDefined(row.refresh_run_id, row.refreshRunId);
+  }
+
+  function isQcExplainResponseCurrent(row, requestIdentity) {
+    if (!costSheetExplainContent || !row || !requestIdentity) return false;
+    if (!currentExplainTraceabilityRow) return false;
+    if (currentExplainTraceabilityRow !== row) return false;
+    const currentIdentity = qcExplainRowRequestIdentity(
+      currentExplainTraceabilityRow,
+    );
+    if (!currentIdentity || currentIdentity !== requestIdentity) return false;
+    const currentTuple = getQcExplainTuple(currentExplainTraceabilityRow);
+    const requestTuple = getQcExplainTuple(row);
+    if (!currentTuple || !requestTuple) return false;
+    if (
+      currentTuple.period_start !== requestTuple.period_start ||
+      currentTuple.product_id !== requestTuple.product_id ||
+      currentTuple.sku_id !== requestTuple.sku_id
+    ) {
+      return false;
+    }
+    return Boolean(costSheetExplainContent.querySelector("#cpQcExplainHost"));
+  }
+
+  function normalizeQcExplainRpcRow(data) {
+    if (data == null) return null;
+    if (Array.isArray(data)) {
+      if (!data.length) return null;
+      const first = data[0];
+      if (!first || typeof first !== "object") return null;
+      return first;
+    }
+    if (typeof data !== "object") return null;
+    return data;
+  }
+
+  async function loadSkuQcExplain(tuple) {
+    if (!tuple || typeof costingRpc !== "function") return null;
+    const { data, error } = await costingRpc("rpc_get_sku_qc_explain", {
+      p_period_start: tuple.period_start,
+      p_product_id: tuple.product_id,
+      p_sku_id: tuple.sku_id,
+    });
+    if (error) throw error;
+    return normalizeQcExplainRpcRow(data);
+  }
+
+  async function loadProductQcExplain(tuple) {
+    if (!tuple || typeof costingRpc !== "function") return null;
+    const { data, error } = await costingRpc("rpc_get_product_qc_explain", {
+      p_period_start: tuple.period_start,
+      p_product_id: tuple.product_id,
+    });
+    if (error) throw error;
+    return normalizeQcExplainRpcRow(data);
+  }
+
+  function renderQcExplainStateMessage(message, extraClass = "") {
+    const cls = ["status", "cp-qc-explain-status", extraClass]
+      .filter(Boolean)
+      .join(" ");
+    return `<section class="cp-detail-section cp-qc-explain" id="cpQcExplainHost" data-qc-explain="true">
+      <h3 class="cp-section-title">Quality Control Allocation Explanation</h3>
+      <div class="${cls}" role="status">${text(message)}</div>
+    </section>`;
+  }
+
+  function renderQcExplainLoading() {
+    return `<section class="cp-detail-section cp-qc-explain" id="cpQcExplainHost" data-qc-explain="true">
+      <h3 class="cp-section-title">Quality Control Allocation Explanation</h3>
+      <div class="cost-sheet-explain-loading cp-qc-explain-loading">
+        <span class="cp-loading-spinner" aria-hidden="true"></span>
+        <span>Loading Quality Control allocation explanation…</span>
+      </div>
+    </section>`;
+  }
+
+  function renderQcExplainEmptyStatus(summaryStatus) {
+    const status = String(summaryStatus || "UNKNOWN").trim().toUpperCase();
+    if (status === "NO_CURRENT_SUCCESSFUL_RUN") {
+      return renderQcExplainStateMessage(
+        "No current successful costing run is available for Quality Control allocation explanation on the selected period, product and SKU.",
+        "cp-qc-explain-empty",
+      );
+    }
+    if (status === "NO_TRACE_DATA" || status === "NO_PERSISTED_DATA") {
+      return renderQcExplainStateMessage(
+        "No Quality Control allocation trace was found for the selected product, SKU and costing run.",
+        "cp-qc-explain-empty",
+      );
+    }
+    if (status === "UNKNOWN" || !status) {
+      return renderQcExplainStateMessage(
+        "Quality Control allocation explanation is unavailable for this selection.",
+        "cp-qc-explain-empty",
+      );
+    }
+    return null;
+  }
+
+  function qcPushKv(items, label, valueHtml) {
+    if (valueHtml == null || valueHtml === "") return;
+    items.push([label, valueHtml]);
+  }
+
+  function renderQcCalcBlock(title, lines, noteHtml = "") {
+    if (!lines.length) return "";
+    return `<div class="cp-qc-explain-calc" role="note">
+      <div class="cp-qc-explain-calc-title">${text(title)}</div>
+      <div class="cp-qc-explain-calc-body">
+        ${lines.map((line) => `<div>${line}</div>`).join("")}
+        ${noteHtml ? `<div class="cp-qc-explain-calc-note">${noteHtml}</div>` : ""}
+      </div>
+    </div>`;
+  }
+
+  function renderQcMethodSection(methods) {
+    if (!Array.isArray(methods) || !methods.length) {
+      return `<div class="cp-qc-method-empty status" role="status">No analytical-method evidence was returned for this Product.</div>`;
+    }
+    const items = methods
+      .map((method, idx) => {
+        const name = method?.method_name || method?.method_code || `Method ${idx + 1}`;
+        const code = method?.method_code;
+        const formula = formatQcMethodWorkloadFormulaText(method);
+        const tests = Array.isArray(method?.effective_test_evidence)
+          ? method.effective_test_evidence
+          : Array.isArray(method?.tests)
+            ? method.tests
+            : [];
+        const testHtml = tests.length
+          ? `<ul class="cp-qc-test-list">${tests
+              .map((test) => {
+                const source = formatQcEffectiveTestSourceLabel(
+                  test.source_type || test.source,
+                );
+                const overrideId = pickFirstDefined(test.source_override_id);
+                const overrideNote = !isBlankQcValue(overrideId)
+                  ? `<div class="cp-qc-test-override">Evidence came through Product-level governance (override ID ${text(overrideId)}).</div>`
+                  : "";
+                return `<li class="cp-qc-test">
+                  <div class="cp-qc-test-head">
+                    <span class="cp-qc-test-seq">#${text(test.seq_no ?? test.sequence ?? "—", "—")}</span>
+                    <span class="cp-qc-test-name">${text(test.test_name || test.test_code || "Test")}</span>
+                    <span class="cp-qc-test-source">${text(source || test.source_type || "—")}</span>
+                  </div>
+                  ${test.test_code ? `<div class="cp-muted-text">${text(test.test_code)}</div>` : ""}
+                  ${overrideNote}
+                </li>`;
+              })
+              .join("")}</ul>`
+          : `<div class="cp-muted-text">No contributing effective tests returned for this method.</div>`;
+
+        return `<details class="cp-qc-method" ${idx === 0 ? "open" : ""}>
+          <summary class="cp-qc-method-summary">
+            <span class="cp-qc-method-name">${text(name)}</span>
+            ${code ? `<span class="cp-muted-text">${text(code)}</span>` : ""}
+            <span class="cp-qc-method-units">${text(formatQcQuantity(method.method_workload_units) ?? "—")} units</span>
+          </summary>
+          <div class="cp-qc-method-body">
+            <div class="cp-kv">
+              <div><span class="cp-muted-text">Required lines</span><div>${text(formatQcQuantity(method.required_line_count, { maximumFractionDigits: 0 }) ?? "—")}</div></div>
+              <div><span class="cp-muted-text">Method base units</span><div>${text(formatQcQuantity(method.method_base_units) ?? "—")}</div></div>
+              <div><span class="cp-muted-text">Additional-parameter units</span><div>${text(formatQcQuantity(method.additional_parameter_units) ?? "—")}</div></div>
+              <div><span class="cp-muted-text">Method workload units</span><div>${text(formatQcQuantity(method.method_workload_units) ?? "—")}</div></div>
+            </div>
+            ${formula ? `<div class="cp-qc-method-formula">${text(formula)}</div>` : ""}
+            <div class="cp-qc-method-tests-title">Contributing effective tests</div>
+            ${testHtml}
+          </div>
+        </details>`;
+      })
+      .join("");
+    return `<div class="cp-qc-methods">${items}</div>`;
+  }
+
+  function resolveQcDisplayModel(payload, usedSkuRpc) {
+    if (!payload) return null;
+    if (usedSkuRpc) return mergeSkuAndProductQcExplain(payload) || payload;
+    return {
+      ...payload,
+      __product: payload,
+      __sku: null,
+      __has_sku: false,
+    };
+  }
+
+  function renderQcExplainSection(payload, { usedSkuRpc = false } = {}) {
+    if (!payload) {
+      return renderQcExplainStateMessage(
+        "Quality Control allocation explanation is unavailable for this selection.",
+      );
+    }
+
+    const model = resolveQcDisplayModel(payload, usedSkuRpc);
+    const product =
+      model.__product || extractNestedProductQcExplain(payload) || {};
+    const sku = model.__sku || (model.__has_sku ? model : null) || {};
+
+    const summaryStatus = String(
+      pickFirstDefined(
+        sku.summary_status,
+        model.summary_status,
+        product.summary_status,
+      ) || "",
+    )
+      .trim()
+      .toUpperCase();
+    const emptyOnly = renderQcExplainEmptyStatus(summaryStatus);
+    if (emptyOnly) return emptyOnly;
+
+    const projection = String(
+      pickFirstDefined(
+        sku.projection_source,
+        model.projection_source,
+        product.projection_source,
+      ) || "",
+    )
+      .trim()
+      .toUpperCase();
+    const allocationStatus = pickFirstDefined(
+      sku.allocation_status,
+      model.allocation_status,
+      product.allocation_status,
+    );
+    const allocationReason = pickFirstDefined(
+      sku.allocation_reason_code,
+      sku.allocation_reason,
+      model.allocation_reason_code,
+      model.allocation_reason,
+      product.allocation_reason_code,
+      product.allocation_reason,
+    );
+    const allocationNote = pickFirstDefined(
+      sku.allocation_note,
+      model.allocation_note,
+      product.allocation_note,
+    );
+
+    const statusItems = [];
+    qcPushKv(statusItems, "Allocation status", formatQcStatusChip(allocationStatus));
+    qcPushKv(
+      statusItems,
+      "Reason",
+      isBlankQcValue(allocationReason)
+        ? null
+        : text(formatQcReasonLabel(allocationReason) || allocationReason),
+    );
+    qcPushKv(
+      statusItems,
+      "Note",
+      isBlankQcValue(allocationNote) ? null : text(allocationNote),
+    );
+    qcPushKv(
+      statusItems,
+      "Summary status",
+      formatQcStatusChip(summaryStatus) ||
+        text(formatQcStatusLabel(summaryStatus) || summaryStatus),
+    );
+
+    const runItems = [];
+    qcPushKv(
+      runItems,
+      "Refresh run ID",
+      text(
+        formatQcQuantity(
+          pickFirstDefined(
+            sku.refresh_run_id,
+            model.refresh_run_id,
+            product.refresh_run_id,
+          ),
+          { maximumFractionDigits: 0 },
+        ) ?? "—",
+        "—",
+      ),
+    );
+    qcPushKv(
+      runItems,
+      "Valuation date",
+      text(
+        pickFirstDefined(
+          sku.valuation_date,
+          model.valuation_date,
+          product.valuation_date,
+        ),
+        "—",
+      ),
+    );
+    qcPushKv(
+      runItems,
+      "Projection source",
+      text(
+        formatQcProjectionSourceLabel(
+          pickFirstDefined(
+            sku.projection_source,
+            model.projection_source,
+            product.projection_source,
+          ),
+        ) ||
+          pickFirstDefined(
+            sku.projection_source,
+            model.projection_source,
+            product.projection_source,
+          ) ||
+          "—",
+        "—",
+      ),
+    );
+    qcPushKv(
+      runItems,
+      "Period start",
+      text(
+        pickFirstDefined(
+          sku.period_start,
+          model.period_start,
+          product.period_start,
+        ),
+        "—",
+      ),
+    );
+
+    // Product ownership first → live names → legacy aliases → model fallback
+    const workloadUnits = pickFirstDefined(
+      product.workload_units,
+      product.product_workload_units,
+      model.workload_units,
+      model.product_workload_units,
+    );
+    const companyWorkload = pickFirstDefined(
+      product.company_resolved_workload_units,
+      product.company_resolved_workload,
+      model.company_resolved_workload_units,
+      model.company_resolved_workload,
+    );
+    const workloadShare = pickFirstDefined(
+      product.product_workload_share,
+      model.product_workload_share,
+    );
+    const frozenPool = pickFirstDefined(
+      product.quality_control_pool_amount,
+      product.frozen_qc_pool_amount,
+      product.frozen_qc_pool,
+      model.quality_control_pool_amount,
+      model.frozen_qc_pool_amount,
+      model.frozen_qc_pool,
+    );
+    const productAllocation = pickFirstDefined(
+      product.product_qc_allocation_amount,
+      product.product_qc_allocation,
+      model.product_qc_allocation_amount,
+      model.product_qc_allocation,
+    );
+
+    const allocationItems = [];
+    qcPushKv(
+      allocationItems,
+      "Product workload units",
+      text(formatQcQuantity(workloadUnits) ?? "—", "—"),
+    );
+    qcPushKv(
+      allocationItems,
+      "Company resolved workload units",
+      text(formatQcQuantity(companyWorkload) ?? "—", "—"),
+    );
+    qcPushKv(
+      allocationItems,
+      "Product workload share",
+      text(formatQcCoveragePercent(workloadShare) ?? "—", "—"),
+    );
+    qcPushKv(
+      allocationItems,
+      "Frozen QC pool",
+      text(formatQcMoney(frozenPool) ?? "—", "—"),
+    );
+    qcPushKv(
+      allocationItems,
+      "Product QC allocation amount",
+      text(formatQcMoney(productAllocation) ?? "—", "—"),
+    );
+
+    const absorptionQty = pickFirstDefined(
+      product.product_absorption_base_qty,
+      product.product_absorption_quantity,
+      product.absorption_quantity,
+      model.product_absorption_base_qty,
+      model.product_absorption_quantity,
+      model.absorption_quantity,
+    );
+    const baseUom = pickFirstDefined(
+      sku.product_base_uom,
+      product.product_base_uom,
+      model.product_base_uom,
+      model.base_uom,
+    );
+    const qcPerBase = pickFirstDefined(
+      product.qc_cost_per_product_base_uom,
+      model.qc_cost_per_product_base_uom,
+      sku.qc_cost_per_product_base_uom,
+    );
+    const absorptionSource = pickFirstDefined(
+      product.absorption_basis_source,
+      product.absorption_source,
+      model.absorption_basis_source,
+      model.absorption_source,
+    );
+    const absorptionMethod = pickFirstDefined(
+      product.absorption_basis_method,
+      product.absorption_method,
+      model.absorption_basis_method,
+      model.absorption_method,
+    );
+    const absorptionSourceMonth = pickFirstDefined(
+      product.absorption_basis_source_month,
+      product.absorption_source_month,
+      model.absorption_basis_source_month,
+      model.absorption_source_month,
+    );
+    const absorptionStatus = pickFirstDefined(
+      product.absorption_basis_status,
+      product.absorption_status,
+      model.absorption_basis_status,
+      model.absorption_status,
+    );
+    const absorptionNote = pickFirstDefined(
+      product.absorption_basis_note,
+      product.absorption_note,
+      model.absorption_basis_note,
+      model.absorption_note,
+    );
+
+    const absorptionItems = [];
+    qcPushKv(
+      absorptionItems,
+      "Product absorption quantity",
+      `${text(formatQcQuantity(absorptionQty) ?? "—", "—")}${
+        baseUom ? ` ${text(baseUom)}` : ""
+      }`,
+    );
+    qcPushKv(
+      absorptionItems,
+      "Product base UOM",
+      isBlankQcValue(baseUom) ? null : text(baseUom),
+    );
+    qcPushKv(
+      absorptionItems,
+      "Absorption source",
+      text(
+        formatQcQuantitySourceLabel(absorptionSource) ||
+          absorptionSource ||
+          "—",
+        "—",
+      ),
+    );
+    qcPushKv(
+      absorptionItems,
+      "Absorption method",
+      text(
+        formatQcAbsorptionMethodLabel(absorptionMethod) ||
+          absorptionMethod ||
+          "—",
+        "—",
+      ),
+    );
+    qcPushKv(
+      absorptionItems,
+      "Absorption source month",
+      text(
+        formatQcAbsorptionSourceMonth(absorptionSourceMonth) ||
+          absorptionSourceMonth ||
+          "—",
+        "—",
+      ),
+    );
+    qcPushKv(
+      absorptionItems,
+      "Absorption status",
+      formatQcStatusChip(absorptionStatus),
+    );
+    qcPushKv(
+      absorptionItems,
+      "Absorption note",
+      isBlankQcValue(absorptionNote) ? null : text(absorptionNote),
+    );
+    qcPushKv(
+      absorptionItems,
+      "QC cost per Product base UOM",
+      text(formatQcMoney(qcPerBase) ?? "—", "—"),
+    );
+
+    // SKU ownership first
+    const skuBaseQty = pickFirstDefined(
+      sku.sku_base_qty_per_unit,
+      sku.sku_base_quantity_per_unit,
+      model.sku_base_qty_per_unit,
+      model.sku_base_quantity_per_unit,
+    );
+    const qcPerSku = pickFirstDefined(
+      sku.quality_control_overhead_cost_per_sku,
+      sku.qc_overhead_cost_per_sku,
+      model.quality_control_overhead_cost_per_sku,
+      model.qc_overhead_cost_per_sku,
+    );
+    const skuId = pickFirstDefined(sku.sku_id, model.sku_id);
+    const packSize = pickFirstDefined(sku.pack_size, model.pack_size);
+    const packUom = pickFirstDefined(sku.pack_uom, model.pack_uom);
+
+    const skuItems = [];
+    if (model.__has_sku || usedSkuRpc) {
+      qcPushKv(skuItems, "SKU ID", text(skuId, "—"));
+      qcPushKv(
+        skuItems,
+        "Pack size",
+        text(formatQcQuantity(packSize) ?? packSize ?? "—", "—"),
+      );
+      qcPushKv(skuItems, "Pack UOM", text(packUom, "—"));
+      qcPushKv(
+        skuItems,
+        "SKU base quantity per unit",
+        text(
+          formatQcQuantity(skuBaseQty) != null
+            ? `${formatQcQuantity(skuBaseQty)}${baseUom ? ` ${baseUom}` : ""}`
+            : "—",
+          "—",
+        ),
+      );
+      qcPushKv(
+        skuItems,
+        "QC overhead cost per SKU",
+        text(formatQcMoney(qcPerSku) ?? "—", "—"),
+      );
+    }
+
+    const recipient = pickFirstDefined(
+      product.recipient_product_count,
+      model.recipient_product_count,
+    );
+    const included = pickFirstDefined(
+      product.included_product_count,
+      model.included_product_count,
+    );
+    const excluded = pickFirstDefined(
+      product.excluded_product_count,
+      model.excluded_product_count,
+    );
+    const coverage = pickFirstDefined(
+      product.resolved_coverage_ratio,
+      model.resolved_coverage_ratio,
+    );
+
+    const coverageItems = [];
+    qcPushKv(
+      coverageItems,
+      "Recipient Products",
+      text(formatQcQuantity(recipient, { maximumFractionDigits: 0 }) ?? "—", "—"),
+    );
+    qcPushKv(
+      coverageItems,
+      "Included Products",
+      text(formatQcQuantity(included, { maximumFractionDigits: 0 }) ?? "—", "—"),
+    );
+    qcPushKv(
+      coverageItems,
+      "Excluded Products",
+      text(formatQcQuantity(excluded, { maximumFractionDigits: 0 }) ?? "—", "—"),
+    );
+    qcPushKv(
+      coverageItems,
+      "Resolved coverage",
+      text(formatQcCoveragePercent(coverage) ?? "—", "—"),
+    );
+
+    const profileItems = [];
+    qcPushKv(
+      profileItems,
+      "Product Group ID",
+      text(
+        pickFirstDefined(product.product_group_id, model.product_group_id),
+        "—",
+      ),
+    );
+    qcPushKv(
+      profileItems,
+      "Protocol category ID",
+      text(
+        pickFirstDefined(
+          product.protocol_category_id,
+          product.protocol_category,
+          model.protocol_category_id,
+          model.protocol_category,
+        ),
+        "—",
+      ),
+    );
+    qcPushKv(
+      profileItems,
+      "Base specification profile ID",
+      text(
+        pickFirstDefined(
+          product.base_specification_profile_id,
+          product.base_spec_profile_id,
+          model.base_specification_profile_id,
+          model.base_spec_profile_id,
+        ),
+        "—",
+      ),
+    );
+    qcPushKv(
+      profileItems,
+      "Policy ID",
+      text(pickFirstDefined(product.policy_id, model.policy_id), "—"),
+    );
+
+    const calcAllocation = renderQcCalcBlock(
+      "Product workload allocation",
+      [
+        `Product workload&nbsp;&nbsp;${text(formatQcQuantity(workloadUnits) ?? "—", "—")}`,
+        `÷ company resolved workload&nbsp;&nbsp;${text(formatQcQuantity(companyWorkload) ?? "—", "—")}`,
+        `× frozen QC pool&nbsp;&nbsp;${text(formatQcMoney(frozenPool) ?? "—", "—")}`,
+        `= Product QC allocation&nbsp;&nbsp;${text(formatQcMoney(productAllocation) ?? "—", "—")}`,
+      ],
+      "Explanatory layout using server values. Product absorption quantity is not the Product QC allocation-share driver.",
+    );
+    const calcAbsorption = renderQcCalcBlock(
+      "Product absorption",
+      [
+        `Product QC allocation&nbsp;&nbsp;${text(formatQcMoney(productAllocation) ?? "—", "—")}`,
+        `÷ governed Product monthly base quantity&nbsp;&nbsp;${text(formatQcQuantity(absorptionQty) ?? "—", "—")}${
+          baseUom ? ` ${text(baseUom)}` : ""
+        }`,
+        `= QC cost per Product base UOM&nbsp;&nbsp;${text(formatQcMoney(qcPerBase) ?? "—", "—")}`,
+      ],
+    );
+    const calcSku =
+      model.__has_sku || usedSkuRpc
+        ? renderQcCalcBlock("SKU conversion", [
+            `QC cost per Product base UOM&nbsp;&nbsp;${text(formatQcMoney(qcPerBase) ?? "—", "—")}`,
+            `× SKU base quantity per unit&nbsp;&nbsp;${text(formatQcQuantity(skuBaseQty) ?? "—", "—")}`,
+            `= QC overhead cost per SKU&nbsp;&nbsp;${text(formatQcMoney(qcPerSku) ?? "—", "—")}`,
+          ])
+        : "";
+
+    const fallbackBanner =
+      projection === "CONTROLLED_PRE_REFRESH_FALLBACK"
+        ? `<div class="status cp-qc-explain-fallback" role="status">Awaiting governed refresh. Workload and specification preview may be shown; unavailable monetary values remain unavailable and are not calculated in the browser.${
+            summaryStatus === "PENDING_NEW_GOVERNED_REFRESH" ||
+            String(allocationStatus || "").toUpperCase() ===
+              "PENDING_NEW_GOVERNED_REFRESH"
+              ? " Status: PENDING_NEW_GOVERNED_REFRESH."
+              : ""
+          }</div>`
+        : "";
+    const blockedBanner =
+      String(allocationStatus || summaryStatus).toUpperCase() === "BLOCKED"
+        ? `<div class="status cp-qc-explain-blocked" role="status">Quality Control allocation is blocked for this selection. Review the server notes below and the QC Action Queue.</div>`
+        : "";
+    const reviewBanner =
+      String(allocationStatus || summaryStatus).toUpperCase() ===
+      "REVIEW_REQUIRED"
+        ? `<div class="status cp-qc-explain-review" role="status">Review required — values are shown for governance review and are not treated as invalid.</div>`
+        : "";
+
+    const methods = Array.isArray(product.methods)
+      ? product.methods
+      : Array.isArray(model.methods)
+        ? model.methods
+        : [];
+
+    const parts = [
+      blockedBanner,
+      reviewBanner,
+      fallbackBanner,
+      statusItems.length ? kvSection("Status", statusItems) : "",
+      runItems.length ? kvSection("Run identity", runItems) : "",
+      allocationItems.length
+        ? kvSection("Product workload allocation", allocationItems)
+        : "",
+      calcAllocation,
+      absorptionItems.length
+        ? kvSection("Product absorption (per base UOM)", absorptionItems)
+        : "",
+      calcAbsorption,
+      skuItems.length ? kvSection("SKU conversion", skuItems) : "",
+      calcSku,
+      coverageItems.length ? kvSection("Coverage", coverageItems) : "",
+      `<div class="cp-qc-explain-exclusion" role="note">${text(QC_EXCLUSION_DISCLOSURE)}</div>`,
+      profileItems.length
+        ? kvSection("Specification / policy identity", profileItems)
+        : "",
+      `<div class="cp-detail-section cp-qc-methods-wrap"><h4 class="cp-section-title">Analytical methods</h4>${renderQcMethodSection(methods)}</div>`,
+    ];
+
+    return `<section class="cp-detail-section cp-qc-explain" id="cpQcExplainHost" data-qc-explain="true">
+      <h3 class="cp-section-title">Quality Control Allocation Explanation</h3>
+      <div class="cp-qc-explain-body">${parts.join("")}</div>
+    </section>`;
+  }
+
+  function replaceQcExplainHost(html) {
+    if (!costSheetExplainContent) return;
+    const host = costSheetExplainContent.querySelector("#cpQcExplainHost");
+    if (!host) return;
+    host.outerHTML = html;
+  }
+
+  async function fillQcExplainSection(row) {
+    if (!row || !costSheetExplainContent) return;
+    if (currentExplainTraceabilityRow !== row) return;
+
+    const tuple = getQcExplainTuple(row);
+    const requestIdentity = qcExplainRowRequestIdentity(row);
+    if (!tuple || !requestIdentity) {
+      replaceQcExplainHost(
+        renderQcExplainStateMessage(
+          "Quality Control allocation explanation is unavailable because the exact costing context is incomplete.",
+        ),
+      );
+      return;
+    }
+
+    if (!isQcExplainResponseCurrent(row, requestIdentity)) return;
+
+    const cacheKey = qcExplainCacheKey(tuple);
+    const cached = qcExplainCache.get(cacheKey);
+    const currentRunId = currentQcRunIdFromRow(row);
+    if (cached && isQcExplainCacheEntryReusable(cached, currentRunId)) {
+      if (!isQcExplainResponseCurrent(row, requestIdentity)) return;
+      replaceQcExplainHost(
+        renderQcExplainSection(cached.payload, {
+          usedSkuRpc: tuple.sku_id != null,
+        }),
+      );
+      return;
+    }
+    if (cached && !isQcExplainCacheEntryReusable(cached, currentRunId)) {
+      qcExplainCache.delete(cacheKey);
+    }
+
+    try {
+      let payload = null;
+      let usedSkuRpc = false;
+      if (tuple.sku_id != null) {
+        payload = await loadSkuQcExplain(tuple);
+        usedSkuRpc = true;
+      } else {
+        payload = await loadProductQcExplain(tuple);
+      }
+      if (!isQcExplainResponseCurrent(row, requestIdentity)) return;
+      if (!payload) {
+        replaceQcExplainHost(
+          renderQcExplainStateMessage(
+            "Quality Control allocation explanation is unavailable for this selection.",
+          ),
+        );
+        return;
+      }
+      const entry = buildQcExplainCacheEntry(payload);
+      if (entry) qcExplainCache.set(cacheKey, entry);
+      replaceQcExplainHost(renderQcExplainSection(payload, { usedSkuRpc }));
+    } catch (err) {
+      console.warn("[costing-suite] QC explain RPC failed", err);
+      if (!isQcExplainResponseCurrent(row, requestIdentity)) return;
+      if (isQcPermissionError(err)) {
+        replaceQcExplainHost(
+          renderQcExplainStateMessage(
+            "Permission denied. Quality Control allocation explanation requires module:cost-sheet-review can_view.",
+            "cp-qc-explain-denied",
+          ),
+        );
+        return;
+      }
+      replaceQcExplainHost(
+        renderQcExplainStateMessage(
+          "Quality Control allocation explanation could not be loaded.",
+        ),
+      );
+    }
+  }
+
+  /**
+   * Thin Product-only QC Explain entry for QC Action Queue.
+   * Does not run SKU Explain; does not open printable cost sheet.
+   */
+  async function openProductQcExplainFromQueue(row = {}) {
+    if (!costSheetExplainDrawer || !costSheetExplainContent) return false;
+    const period_start = String(
+      row.period_start ||
+        (typeof getActivePeriodStart === "function"
+          ? getActivePeriodStart()
+          : "") ||
+        "",
+    ).trim();
+    const product_id = Number(row.product_id);
+    if (!period_start || !Number.isFinite(product_id)) {
+      showToast?.(
+        "Product QC Explain needs period and product context.",
+        "warning",
+      );
+      return false;
+    }
+
+    costSheetExplainReturnFocus = document.activeElement;
+    costSheetExplainDrawer.classList.remove("hidden");
+    costSheetExplainDrawer.setAttribute("aria-hidden", "false");
+    const synthetic = {
+      period_start,
+      product_id,
+      sku_id: null,
+      line_label: "Quality Control Overhead",
+      product_name: row.product_name,
+      refresh_run_id: row.refresh_run_id,
+      valuation_date: row.valuation_date,
+    };
+    setCostSheetExplainHeader(synthetic, {
+      lineLabel: "Quality Control Overhead",
+      productName: row.product_name,
+      periodStart: period_start,
+    });
+    currentExplainTraceabilityRow = synthetic;
+    costSheetExplainContent.innerHTML = renderQcExplainLoading();
+    setTimeout(() => {
+      costSheetExplainCloseBtn?.focus();
+    }, 0);
+    void fillQcExplainSection(synthetic);
+    return true;
+  }
+
+  function isMaterialsStoresOverheadExplainLine(rowOrParams = {}) {
+    const raw =
+      rowOrParams.line_label ??
+      rowOrParams.lineLabel ??
+      rowOrParams?.params?.lineLabel ??
+      "";
+    const label = normalizeCostSheetDisplayLabel(raw).trim().toLowerCase();
+    return (
+      label === MATERIALS_STORES_OVERHEAD_LINE_LABEL_NORMALIZED ||
+      label === "materials / stores overhead"
+    );
+  }
+
+  function isMsPermissionError(err) {
+    if (!err) return false;
+    const status = Number(err.status ?? err.statusCode ?? err.code);
+    if (status === 401 || status === 403) return true;
+    const msg = String(err.message || err.error_description || "").toLowerCase();
+    return (
+      msg.includes("permission") ||
+      msg.includes("not authorized") ||
+      msg.includes("forbidden") ||
+      msg.includes("401") ||
+      msg.includes("403")
+    );
+  }
+
+  function clearMsExplainCache() {
+    msExplainCache.clear();
+  }
+
+  function getMsExplainTuple(row) {
+    if (!row || typeof row !== "object") return null;
+    const period_start = String(
+      row.period_start ||
+        (typeof getActivePeriodStart === "function"
+          ? getActivePeriodStart()
+          : "") ||
+        "",
+    ).trim();
+    const product_id = Number(row.product_id);
+    if (!period_start || !Number.isFinite(product_id)) return null;
+    const skuRaw = row.sku_id;
+    if (skuRaw == null || skuRaw === "") {
+      return { period_start, product_id, sku_id: null };
+    }
+    const sku_id = Number(skuRaw);
+    if (!Number.isFinite(sku_id)) {
+      return { period_start, product_id, sku_id: null };
+    }
+    return { period_start, product_id, sku_id };
+  }
+
+  function msExplainCacheKey(tuple) {
+    return msExplainRequestIdentity(tuple);
+  }
+
+  function msExplainRowRequestIdentity(row) {
+    const tuple = getMsExplainTuple(row);
+    if (!tuple) return null;
+    const label = normalizeCostSheetDisplayLabel(row.line_label ?? "")
+      .trim()
+      .toLowerCase();
+    return `${msExplainCacheKey(tuple)}|${label || MATERIALS_STORES_OVERHEAD_LINE_LABEL_NORMALIZED}`;
+  }
+
+  function currentMsRunIdFromRow(row) {
+    if (!row) return null;
+    return pickFirstDefinedMs(row.refresh_run_id, row.refreshRunId);
+  }
+
+  function isMsExplainResponseCurrent(row, requestIdentity) {
+    if (!costSheetExplainContent || !row || !requestIdentity) return false;
+    if (!currentExplainTraceabilityRow) return false;
+    if (currentExplainTraceabilityRow !== row) return false;
+    const currentIdentity = msExplainRowRequestIdentity(
+      currentExplainTraceabilityRow,
+    );
+    if (!currentIdentity || currentIdentity !== requestIdentity) return false;
+    return Boolean(costSheetExplainContent.querySelector("#cpMaterialsStoresExplainHost"));
+  }
+
+  async function loadSkuMaterialsStoresExplain(tuple) {
+    if (!tuple || typeof costingRpc !== "function") return null;
+    const { data, error } = await costingRpc(
+      "rpc_get_sku_materials_stores_explain",
+      {
+        p_period_start: tuple.period_start,
+        p_product_id: tuple.product_id,
+        p_sku_id: tuple.sku_id,
+      },
+    );
+    if (error) throw error;
+    return normalizeMsExplainRpcPayload(data);
+  }
+
+  async function loadProductMaterialsStoresExplain(tuple) {
+    if (!tuple || typeof costingRpc !== "function") return null;
+    const { data, error } = await costingRpc(
+      "rpc_get_product_materials_stores_explain",
+      {
+        p_period_start: tuple.period_start,
+        p_product_id: tuple.product_id,
+      },
+    );
+    if (error) throw error;
+    return normalizeMsExplainRpcPayload(data);
+  }
+
+  function msMoneyHtml(value) {
+    const formatted = formatMsMoney(value);
+    if (formatted == null) return text("unavailable");
+    return text(formatted);
+  }
+
+  function msQtyHtml(value, opts) {
+    const formatted = formatMsQuantity(value, opts);
+    if (formatted == null) return null;
+    return text(formatted);
+  }
+
+  function msShareHtml(value) {
+    const formatted = formatMsWorkloadSharePercent(value);
+    if (formatted == null) return null;
+    return text(formatted);
+  }
+
+  function msTextHtml(value) {
+    if (isBlankMsValue(value)) return null;
+    return text(value);
+  }
+
+  function msStatusHtml(code) {
+    if (isBlankMsValue(code)) return null;
+    const raw = String(code).trim();
+    const upper = raw.toUpperCase();
+    if (
+      upper === "READY" ||
+      upper === "REVIEW_REQUIRED" ||
+      upper === "BLOCKED"
+    ) {
+      return statusChip(normalizeStatus(raw));
+    }
+    return text(formatMsStatusLabel(raw) || raw);
+  }
+
+  function msPushKv(items, label, valueHtml) {
+    if (valueHtml == null || valueHtml === "") return;
+    items.push([label, valueHtml]);
+  }
+
+  function renderMsExplainStateMessage(message, extraClass = "") {
+    const cls = ["status", "cp-ms-explain-status", extraClass]
+      .filter(Boolean)
+      .join(" ");
+    return `<section class="cp-detail-section cp-ms-explain" id="cpMaterialsStoresExplainHost" data-ms-explain="true">
+      <h3 class="cp-section-title">Materials / Stores Allocation Explanation</h3>
+      <div class="${cls}" role="status">${text(message)}</div>
+    </section>`;
+  }
+
+  function renderMsExplainLoading() {
+    return `<section class="cp-detail-section cp-ms-explain" id="cpMaterialsStoresExplainHost" data-ms-explain="true">
+      <h3 class="cp-section-title">Materials / Stores Allocation Explanation</h3>
+      <div class="cost-sheet-explain-loading cp-ms-explain-loading">
+        <span class="cp-loading-spinner" aria-hidden="true"></span>
+        <span>Loading Materials / Stores allocation explanation…</span>
+      </div>
+    </section>`;
+  }
+
+  function renderMsExplainEmptyStatus(summaryStatus) {
+    const status = String(summaryStatus || "UNKNOWN").trim().toUpperCase();
+    if (status === "NO_CURRENT_SUCCESSFUL_RUN") {
+      return renderMsExplainStateMessage(
+        "No current successful costing run is available for Materials / Stores allocation explanation on the selected period, product and SKU.",
+        "cp-ms-explain-empty",
+      );
+    }
+    if (status === "NO_TRACE_DATA" || status === "NO_PERSISTED_DATA") {
+      return renderMsExplainStateMessage(
+        "No Materials / Stores allocation trace was found for the selected product, SKU and costing run.",
+        "cp-ms-explain-empty",
+      );
+    }
+    if (status === "UNKNOWN" || !status) {
+      return renderMsExplainStateMessage(
+        "Materials / Stores allocation explanation is unavailable for this selection.",
+        "cp-ms-explain-empty",
+      );
+    }
+    return null;
+  }
+
+  function renderMsCalcBlock(title, lines) {
+    if (!lines.length) return "";
+    return `<div class="cp-ms-explain-calc" role="note">
+      <div class="cp-ms-explain-calc-title">${text(title)}</div>
+      <div class="cp-ms-explain-calc-body">
+        ${lines.map((line) => `<div>${line}</div>`).join("")}
+      </div>
+    </div>`;
+  }
+
+  function renderMsProductSkusTable(skus) {
+    if (!Array.isArray(skus) || !skus.length) {
+      return `<div class="cp-muted-text">No SKU rows were returned for this Product.</div>`;
+    }
+    const rows = skus
+      .map((sku) => {
+        const pack = [
+          formatMsQuantity(sku.pack_size) ?? sku.pack_size,
+          sku.pack_uom,
+        ]
+          .filter((v) => !isBlankMsValue(v))
+          .join(" ");
+        const cost = formatMsMoney(sku.materials_stores_overhead_cost_per_sku);
+        return `<tr>
+          <td>${text(sku.sku_id)}</td>
+          <td>${text(pack || "—")}</td>
+          <td>${msStatusHtml(sku.allocation_status) || text("—")}</td>
+          <td>${text(formatMsActionLabel(sku.allocation_reason_code) || sku.allocation_reason_code || "—")}</td>
+          <td>${cost != null ? text(cost) : text("unavailable")}</td>
+        </tr>`;
+      })
+      .join("");
+    return `<table class="cp-ms-sku-table">
+      <thead><tr>
+        <th>SKU ID</th><th>Pack</th><th>Status</th><th>Reason</th><th>Stores / SKU</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function renderMsProductExplainSection(payload) {
+    if (!payload) {
+      return renderMsExplainStateMessage(
+        "Materials / Stores allocation explanation is unavailable for this selection.",
+      );
+    }
+    const summaryStatus = String(payload.summary_status || "")
+      .trim()
+      .toUpperCase();
+    const emptyOnly = renderMsExplainEmptyStatus(summaryStatus);
+    if (emptyOnly) return emptyOnly;
+
+    const productRm = extractMsProductRm(payload) || {};
+    const skus = extractMsProductSkus(payload);
+    const rmItems = [];
+    msPushKv(rmItems, "required_rm_line_count", msQtyHtml(productRm.required_rm_line_count, { maximumFractionDigits: 0 }));
+    msPushKv(rmItems, "distinct_purchase_item_count", msQtyHtml(productRm.distinct_purchase_item_count, { maximumFractionDigits: 0 }));
+    msPushKv(rmItems, "repeated_rm_line_count", msQtyHtml(productRm.repeated_rm_line_count, { maximumFractionDigits: 0 }));
+    msPushKv(rmItems, "form_conversion_line_count", msQtyHtml(productRm.form_conversion_line_count, { maximumFractionDigits: 0 }));
+    msPushKv(rmItems, "rm_complexity_units", msQtyHtml(productRm.rm_complexity_units));
+    msPushKv(rmItems, "rm_reference_output_qty", msQtyHtml(productRm.rm_reference_output_qty));
+    msPushKv(rmItems, "rm_reference_output_uom", msTextHtml(productRm.rm_reference_output_uom));
+    msPushKv(rmItems, "rm_uom_compatibility_status", msTextHtml(productRm.rm_uom_compatibility_status));
+    msPushKv(rmItems, "zero_rm_classification_code", msTextHtml(productRm.zero_rm_classification_code));
+    msPushKv(rmItems, "rm_evidence_status", msStatusHtml(productRm.rm_evidence_status) || msTextHtml(productRm.rm_evidence_status));
+    msPushKv(rmItems, "rm_evidence_reason", msTextHtml(productRm.rm_evidence_reason));
+    msPushKv(rmItems, "policy_code", msTextHtml(productRm.policy_code));
+    msPushKv(rmItems, "policy_version", msTextHtml(productRm.policy_version));
+    msPushKv(rmItems, "policy_approval_reference", msTextHtml(productRm.policy_approval_reference));
+
+    const parts = [
+      rmItems.length ? kvSection("Product RM evidence", rmItems) : "",
+      `<div class="cp-detail-section"><h4 class="cp-section-title">Product SKUs</h4>${renderMsProductSkusTable(skus)}</div>`,
+    ];
+
+    return `<section class="cp-detail-section cp-ms-explain" id="cpMaterialsStoresExplainHost" data-ms-explain="true">
+      <h3 class="cp-section-title">Materials / Stores Allocation Explanation</h3>
+      <div class="cp-ms-explain-body">${parts.join("")}</div>
+    </section>`;
+  }
+
+  function renderMsSkuExplainSection(payload) {
+    if (!payload) {
+      return renderMsExplainStateMessage(
+        "Materials / Stores allocation explanation is unavailable for this selection.",
+      );
+    }
+    const summaryStatus = String(payload.summary_status || "")
+      .trim()
+      .toUpperCase();
+    const emptyOnly = renderMsExplainEmptyStatus(summaryStatus);
+    if (emptyOnly) return emptyOnly;
+
+    const sku = extractMsSkuBlock(payload) || {};
+    const calculation = extractMsCalculationBlock(payload) || {};
+
+    const statusItems = [];
+    msPushKv(
+      statusItems,
+      formatMsFieldLabel("allocation_status"),
+      msStatusHtml(sku.allocation_status) || msTextHtml(sku.allocation_status),
+    );
+    msPushKv(
+      statusItems,
+      formatMsFieldLabel("allocation_reason_code"),
+      msTextHtml(
+        formatMsActionLabel(sku.allocation_reason_code) ||
+          sku.allocation_reason_code,
+      ),
+    );
+    msPushKv(
+      statusItems,
+      formatMsFieldLabel("allocation_note"),
+      msTextHtml(sku.allocation_note),
+    );
+
+    const monthlyItems = [];
+    msPushKv(
+      monthlyItems,
+      formatMsFieldLabel("monthly_sku_units"),
+      msQtyHtml(sku.monthly_sku_units),
+    );
+    msPushKv(
+      monthlyItems,
+      formatMsFieldLabel("monthly_sku_base_qty"),
+      msQtyHtml(sku.monthly_sku_base_qty),
+    );
+    msPushKv(
+      monthlyItems,
+      formatMsFieldLabel("monthly_driver_method"),
+      msTextHtml(sku.monthly_driver_method),
+    );
+    msPushKv(
+      monthlyItems,
+      formatMsFieldLabel("monthly_driver_source"),
+      msTextHtml(sku.monthly_driver_source),
+    );
+    msPushKv(
+      monthlyItems,
+      formatMsFieldLabel("monthly_driver_source_month"),
+      msTextHtml(
+        formatMsAbsorptionSourceMonth(sku.monthly_driver_source_month) ||
+          sku.monthly_driver_source_month,
+      ),
+    );
+    msPushKv(
+      monthlyItems,
+      formatMsFieldLabel("monthly_driver_status"),
+      msStatusHtml(sku.monthly_driver_status) ||
+        msTextHtml(sku.monthly_driver_status),
+    );
+    msPushKv(
+      monthlyItems,
+      formatMsFieldLabel("monthly_driver_note"),
+      msTextHtml(sku.monthly_driver_note),
+    );
+
+    const pmItems = [];
+    msPushKv(
+      pmItems,
+      formatMsFieldLabel("required_pm_line_count"),
+      msQtyHtml(sku.required_pm_line_count, { maximumFractionDigits: 0 }),
+    );
+    msPushKv(
+      pmItems,
+      formatMsFieldLabel("distinct_pm_item_count"),
+      msQtyHtml(sku.distinct_pm_item_count, { maximumFractionDigits: 0 }),
+    );
+    msPushKv(
+      pmItems,
+      formatMsFieldLabel("pm_override_line_count"),
+      msQtyHtml(sku.pm_override_line_count, { maximumFractionDigits: 0 }),
+    );
+    msPushKv(
+      pmItems,
+      formatMsFieldLabel("pm_complexity_units"),
+      msQtyHtml(sku.pm_complexity_units),
+    );
+    msPushKv(
+      pmItems,
+      formatMsFieldLabel("pm_reference_output_qty"),
+      msQtyHtml(sku.pm_reference_output_qty),
+    );
+    msPushKv(
+      pmItems,
+      "zero_pm_classification_code",
+      msTextHtml(sku.zero_pm_classification_code),
+    );
+    msPushKv(
+      pmItems,
+      formatMsFieldLabel("pm_evidence_status"),
+      msStatusHtml(sku.pm_evidence_status) || msTextHtml(sku.pm_evidence_status),
+    );
+    msPushKv(
+      pmItems,
+      formatMsFieldLabel("pm_evidence_reason"),
+      msTextHtml(sku.pm_evidence_reason),
+    );
+
+    const workloadItems = [];
+    msPushKv(
+      workloadItems,
+      formatMsFieldLabel("rm_workload_units"),
+      msQtyHtml(sku.rm_workload_units),
+    );
+    msPushKv(
+      workloadItems,
+      formatMsFieldLabel("pm_workload_units"),
+      msQtyHtml(sku.pm_workload_units),
+    );
+    msPushKv(
+      workloadItems,
+      formatMsFieldLabel("unified_workload_units"),
+      msQtyHtml(sku.unified_workload_units),
+    );
+    msPushKv(
+      workloadItems,
+      formatMsFieldLabel("company_eligible_workload_units"),
+      msQtyHtml(sku.company_eligible_workload_units),
+    );
+    msPushKv(
+      workloadItems,
+      formatMsFieldLabel("workload_share"),
+      msShareHtml(sku.workload_share),
+    );
+
+    const moneyItems = [];
+    msPushKv(
+      moneyItems,
+      formatMsFieldLabel("frozen_pool_amount"),
+      msMoneyHtml(sku.frozen_pool_amount),
+    );
+    msPushKv(
+      moneyItems,
+      formatMsFieldLabel("monthly_sku_allocation_amount"),
+      msMoneyHtml(sku.monthly_sku_allocation_amount),
+    );
+    msPushKv(
+      moneyItems,
+      formatMsFieldLabel("materials_stores_overhead_cost_per_sku"),
+      msMoneyHtml(sku.materials_stores_overhead_cost_per_sku),
+    );
+
+    const calcLines = [];
+    const seenFormulaBodies = new Set();
+    for (const key of MS_CALCULATION_FORMULA_ORDER) {
+      const body = calculation[key];
+      if (isBlankMsValue(body)) continue;
+      const bodyText = String(body);
+      seenFormulaBodies.add(bodyText.trim());
+      calcLines.push(
+        `<div class="cp-ms-formula-item"><div class="cp-ms-formula-label">${text(formatMsCalculationFormulaLabel(key))}</div><div class="cp-ms-formula-body">${text(bodyText)}</div></div>`,
+      );
+    }
+    if (
+      !isBlankMsValue(calculation.formula_text) &&
+      !seenFormulaBodies.has(String(calculation.formula_text).trim())
+    ) {
+      calcLines.push(text(calculation.formula_text));
+      seenFormulaBodies.add(String(calculation.formula_text).trim());
+    }
+    if (
+      !isBlankMsValue(calculation.calculation_note) &&
+      !seenFormulaBodies.has(String(calculation.calculation_note).trim())
+    ) {
+      calcLines.push(text(calculation.calculation_note));
+    }
+
+    const parts = [
+      statusItems.length
+        ? kvSection("Materials / Stores status", statusItems)
+        : "",
+      monthlyItems.length ? kvSection("Monthly driver inputs", monthlyItems) : "",
+      pmItems.length ? kvSection("PM evidence", pmItems) : "",
+      workloadItems.length ? kvSection("Workload", workloadItems) : "",
+      moneyItems.length ? kvSection("Allocation amounts", moneyItems) : "",
+      renderMsCalcBlock("Calculation", calcLines),
+    ];
+
+    return `<section class="cp-detail-section cp-ms-explain" id="cpMaterialsStoresExplainHost" data-ms-explain="true">
+      <h3 class="cp-section-title">Materials / Stores Allocation Explanation</h3>
+      <div class="cp-ms-explain-body">${parts.join("")}</div>
+    </section>`;
+  }
+
+  function renderMsExplainSection(payload, { usedSkuRpc = false } = {}) {
+    if (usedSkuRpc) return renderMsSkuExplainSection(payload);
+    return renderMsProductExplainSection(payload);
+  }
+
+  function replaceMsExplainHost(html) {
+    if (!costSheetExplainContent) return;
+    const host = costSheetExplainContent.querySelector(
+      "#cpMaterialsStoresExplainHost",
+    );
+    if (!host) return;
+    host.outerHTML = html;
+  }
+
+  async function fillMsExplainSection(row) {
+    if (!row || !costSheetExplainContent) return;
+    if (currentExplainTraceabilityRow !== row) return;
+
+    const tuple = getMsExplainTuple(row);
+    const requestIdentity = msExplainRowRequestIdentity(row);
+    if (!tuple || !requestIdentity) {
+      replaceMsExplainHost(
+        renderMsExplainStateMessage(
+          "Materials / Stores allocation explanation is unavailable because the exact costing context is incomplete.",
+        ),
+      );
+      return;
+    }
+
+    if (!isMsExplainResponseCurrent(row, requestIdentity)) return;
+
+    const cacheKey = msExplainCacheKey(tuple);
+    const cached = msExplainCache.get(cacheKey);
+    const currentRunId = currentMsRunIdFromRow(row);
+    if (cached && isMsExplainCacheEntryReusable(cached, currentRunId)) {
+      if (!isMsExplainResponseCurrent(row, requestIdentity)) return;
+      replaceMsExplainHost(
+        renderMsExplainSection(cached.payload, {
+          usedSkuRpc: tuple.sku_id != null,
+        }),
+      );
+      return;
+    }
+    if (cached && !isMsExplainCacheEntryReusable(cached, currentRunId)) {
+      msExplainCache.delete(cacheKey);
+    }
+
+    try {
+      let payload = null;
+      let usedSkuRpc = false;
+      if (tuple.sku_id != null) {
+        payload = await loadSkuMaterialsStoresExplain(tuple);
+        usedSkuRpc = true;
+      } else {
+        payload = await loadProductMaterialsStoresExplain(tuple);
+      }
+      if (!isMsExplainResponseCurrent(row, requestIdentity)) return;
+      if (!payload) {
+        replaceMsExplainHost(
+          renderMsExplainStateMessage(
+            "Materials / Stores allocation explanation is unavailable for this selection.",
+          ),
+        );
+        return;
+      }
+      const entry = buildMsExplainCacheEntry(payload);
+      if (entry) msExplainCache.set(cacheKey, entry);
+      replaceMsExplainHost(renderMsExplainSection(payload, { usedSkuRpc }));
+    } catch (err) {
+      console.warn("[costing-suite] Materials / Stores explain RPC failed", err);
+      if (!isMsExplainResponseCurrent(row, requestIdentity)) return;
+      if (isMsPermissionError(err)) {
+        replaceMsExplainHost(
+          renderMsExplainStateMessage(
+            "Permission denied. Materials / Stores allocation explanation requires module:cost-sheet-review can_view.",
+            "cp-ms-explain-denied",
+          ),
+        );
+        return;
+      }
+      replaceMsExplainHost(
+        renderMsExplainStateMessage(
+          "Materials / Stores allocation explanation could not be loaded.",
+        ),
+      );
+    }
+  }
+
+  /**
+   * Primary queue action: open full Cost Sheet Explain for Materials / Stores Overhead
+   * so base lineage + MS Explain + Monthly Allocation Driver all compose.
+   */
+  async function openSkuMaterialsStoresExplainFromQueue(row = {}) {
+    const periodStart = String(
+      row.period_start ||
+        (typeof getActivePeriodStart === "function"
+          ? getActivePeriodStart()
+          : "") ||
+        "",
+    ).trim();
+    const productId = Number(row.product_id);
+    const skuId = Number(row.sku_id);
+    if (!periodStart || !Number.isFinite(productId) || !Number.isFinite(skuId)) {
+      showToast?.(
+        "SKU Materials / Stores Explain needs period, product and SKU context.",
+        "warning",
+      );
+      return false;
+    }
+    const valuationDate =
+      normalizePrintableDateOnly(
+        row.valuation_date ??
+          row.valuationDate ??
+          currentPrintableExactRunContext?.valuationDate,
+      ) || undefined;
+    const refreshRunRaw =
+      row.refresh_run_id ??
+      row.refreshRunId ??
+      currentPrintableExactRunContext?.refreshRunId;
+    const refreshRunNum = Number(refreshRunRaw);
+    const refreshRunId = Number.isFinite(refreshRunNum)
+      ? refreshRunNum
+      : undefined;
+    await openCostSheetExplainDrawer({
+      periodStart,
+      valuationDate,
+      refreshRunId,
+      productId,
+      skuId,
+      lineLabel: MATERIALS_STORES_OVERHEAD_LINE_LABEL,
+      productName: row.product_name,
+      skuLabel: row.sku_column_label,
+    });
+    return true;
+  }
+
+  /**
+   * Secondary queue action: Product-only Materials / Stores Explain (no SKU Monthly Driver).
+   */
+  async function openProductMaterialsStoresExplainFromQueue(row = {}) {
+    if (!costSheetExplainDrawer || !costSheetExplainContent) return false;
+    const period_start = String(
+      row.period_start ||
+        (typeof getActivePeriodStart === "function"
+          ? getActivePeriodStart()
+          : "") ||
+        "",
+    ).trim();
+    const product_id = Number(row.product_id);
+    if (!period_start || !Number.isFinite(product_id)) {
+      showToast?.(
+        "Product Materials / Stores Explain needs period and product context.",
+        "warning",
+      );
+      return false;
+    }
+
+    costSheetExplainReturnFocus = document.activeElement;
+    costSheetExplainDrawer.classList.remove("hidden");
+    costSheetExplainDrawer.setAttribute("aria-hidden", "false");
+    const synthetic = {
+      period_start,
+      product_id,
+      sku_id: null,
+      line_label: MATERIALS_STORES_OVERHEAD_LINE_LABEL,
+      product_name: row.product_name,
+      refresh_run_id: row.refresh_run_id,
+      valuation_date: row.valuation_date,
+    };
+    setCostSheetExplainHeader(synthetic, {
+      lineLabel: MATERIALS_STORES_OVERHEAD_LINE_LABEL,
+      productName: row.product_name,
+      periodStart: period_start,
+    });
+    currentExplainTraceabilityRow = synthetic;
+    costSheetExplainContent.innerHTML = renderMsExplainLoading();
+    setTimeout(() => {
+      costSheetExplainCloseBtn?.focus();
+    }, 0);
+    void fillMsExplainSection(synthetic);
+    return true;
   }
 
   function renderTraceSummary(summary, { component = "RM" } = {}) {
@@ -1264,12 +4398,17 @@ export function createCostSheetController(deps) {
   async function openCostSheetExplainDrawer(params = {}) {
     if (!costSheetExplainDrawer || !costSheetExplainContent) return;
 
+    const loadToken = ++costSheetExplainLoadToken;
+    const requestIdentity = explainRequestIdentity(params);
+
     costSheetExplainReturnFocus = document.activeElement;
     costSheetExplainDrawer.classList.remove("hidden");
     costSheetExplainDrawer.setAttribute("aria-hidden", "false");
     setCostSheetExplainLoading({
       lineLabel: params.lineLabel,
       periodStart: params.periodStart,
+      valuationDate: params.valuationDate,
+      refreshRunId: params.refreshRunId,
     });
 
     setTimeout(() => {
@@ -1278,6 +4417,8 @@ export function createCostSheetController(deps) {
 
     if (isRawMaterialCostExplainLine(params)) {
       const summary = await loadCostSheetRmExplainSummary(params);
+      if (loadToken !== costSheetExplainLoadToken) return;
+      if (explainRequestIdentity(params) !== requestIdentity) return;
       if (!summary) {
         if (costSheetExplainTitle) {
           costSheetExplainTitle.textContent =
@@ -1296,6 +4437,10 @@ export function createCostSheetController(deps) {
         {
           line_label: params.lineLabel,
           period_start: summary.period_start || params.periodStart,
+          valuation_date:
+            summary.valuation_date || params.valuationDate || null,
+          refresh_run_id:
+            summary.refresh_run_id ?? params.refreshRunId ?? null,
           product_id: summary.product_id,
           sku_id: summary.sku_id,
           product_name: params.productName,
@@ -1308,28 +4453,88 @@ export function createCostSheetController(deps) {
         summary,
         params,
       };
-      costSheetExplainContent.innerHTML = renderTraceSummary(summary, {
-        component: "RM",
-      });
+      costSheetExplainContent.innerHTML = [
+        renderExplainContextSection(
+          {
+            period_start: summary.period_start || params.periodStart,
+            valuation_date:
+              summary.valuation_date || params.valuationDate || null,
+            refresh_run_id:
+              summary.refresh_run_id ?? params.refreshRunId ?? null,
+          },
+          params,
+        ),
+        renderTraceSummary(summary, { component: "RM" }),
+      ].join("");
       return;
     }
 
-    const row = await loadCostSheetLineTraceability(params);
+    const result = await loadCostSheetLineTraceability(params);
+    if (loadToken !== costSheetExplainLoadToken) return;
+    if (explainRequestIdentity(params) !== requestIdentity) return;
+
+    if (isTraceabilityLoadError(result)) {
+      if (costSheetExplainTitle) {
+        costSheetExplainTitle.textContent = params.lineLabel || "Explain Line";
+      }
+      setCostSheetExplainHeader(
+        {
+          line_label: params.lineLabel,
+          period_start: params.periodStart,
+          valuation_date: params.valuationDate,
+          refresh_run_id: params.refreshRunId,
+          product_name: params.productName,
+          sku_column_label: params.skuLabel,
+        },
+        params,
+      );
+      currentExplainTraceabilityRow = null;
+      costSheetExplainContent.innerHTML = `<div class="status">${text(
+        result.message ||
+          "Traceability is not available for this line. Run costing refresh and try again.",
+      )}</div>`;
+      return;
+    }
+
+    const row = result;
     if (!row) {
       if (costSheetExplainTitle) {
         costSheetExplainTitle.textContent = params.lineLabel || "Explain Line";
       }
-      if (costSheetExplainSubtitle) {
-        costSheetExplainSubtitle.innerHTML = "";
-      }
+      setCostSheetExplainHeader(
+        {
+          line_label: params.lineLabel,
+          period_start: params.periodStart,
+          valuation_date: params.valuationDate,
+          refresh_run_id: params.refreshRunId,
+          product_name: params.productName,
+          sku_column_label: params.skuLabel,
+        },
+        params,
+      );
+      currentExplainTraceabilityRow = null;
       costSheetExplainContent.innerHTML =
         '<div class="status">Traceability is not available for this line. Run costing refresh and try again.</div>';
       return;
     }
 
-    setCostSheetExplainHeader(row);
+    setCostSheetExplainHeader(row, params);
     currentExplainTraceabilityRow = row;
-    costSheetExplainContent.innerHTML = renderCostSheetExplainContent(row);
+    const explainHtml = renderCostSheetExplainContent(row, params);
+    const showMarketing = isMarketingExpenseExplainLine(row);
+    const showQc = isQualityControlOverheadExplainLine(row);
+    const showMs = isMaterialsStoresOverheadExplainLine(row);
+    const showMonthly = isMonthlyAllocationDriverExplainLine(row);
+    const sections = [explainHtml];
+    if (showMarketing) sections.push(renderMarketingExplainLoading());
+    if (showQc) sections.push(renderQcExplainLoading());
+    if (showMs) sections.push(renderMsExplainLoading());
+    if (showMonthly) sections.push(renderMonthlyAllocationDriverLoading());
+    costSheetExplainContent.innerHTML = sections.join("");
+    if (showMarketing) void fillMarketingExplainSection(row);
+    if (showQc) void fillQcExplainSection(row);
+    if (showMs) void fillMsExplainSection(row);
+    if (showMonthly) void fillMonthlyAllocationDriverSection(row);
   }
 
   function handleCostSheetExplainDrillClick(event) {
@@ -1452,7 +4657,7 @@ export function createCostSheetController(deps) {
                 ? `<span class="cost-sheet-line-calc">${text(line.calculation_basis)}</span>`
                 : "";
             return `<tr class="${costSheetLineClass(line)}">
-            <td><span class="cost-sheet-line-label">${text(normalizeCostSheetDisplayLabel(line.line_label))}</span>${calc}</td>
+            <td class="cost-sheet-td-component"><span class="cost-sheet-line-label">${text(normalizeCostSheetDisplayLabel(line.line_label))}</span>${calc}</td>
             ${skuColumns
               .map((sku) => {
                 const valueRow = line.values.get(printableSkuMapKey(sku));
@@ -1468,6 +4673,7 @@ export function createCostSheetController(deps) {
                       )
                     : null;
                 const cellClasses = [
+                  "cost-sheet-td-value",
                   isText ? "cost-sheet-text-cell" : "",
                   explainContextData
                     ? "cost-sheet-value-cell-explainable cost-sheet-screen-only"
@@ -1488,10 +4694,14 @@ export function createCostSheetController(deps) {
         <div class="cost-sheet-section-title">${text(section.section_title || section.section_code || "Section")}</div>
         ${desc ? `<div class="cost-sheet-section-desc">${text(desc)}</div>` : ""}
         <table class="cost-sheet-table">
+          <colgroup>
+            <col class="cost-sheet-col-component" />
+            ${skuColumns.map(() => `<col class="cost-sheet-col-value" />`).join("")}
+          </colgroup>
           <thead>
             <tr>
-              <th>${text(costSheetFirstColumnHeader(section.section_code))}</th>
-              ${skuColumns.map((sku) => `<th>${text(sku.label)}</th>`).join("")}
+              <th class="cost-sheet-th-component" scope="col">${text(costSheetFirstColumnHeader(section.section_code))}</th>
+              ${skuColumns.map((sku) => `<th class="cost-sheet-th-value" scope="col">${text(sku.label)}</th>`).join("")}
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -1523,6 +4733,19 @@ export function createCostSheetController(deps) {
     );
   }
 
+  function abortCostSheetModalLoad(message, tone = "error") {
+    if (costSheetA4) costSheetA4.innerHTML = "";
+    printableLines = [];
+    currentCostSheetProductId = null;
+    currentPrintableExactRunContext = null;
+    currentPrintableSummaryRow = null;
+    if (costSheetModal) {
+      costSheetModal.classList.add("hidden");
+      costSheetModal.setAttribute("aria-hidden", "true");
+    }
+    showToast(message, tone);
+  }
+
   async function openCostSheetModal(productId, options = {}) {
     if (!costSheetModal || !costSheetA4) return;
 
@@ -1532,13 +4755,21 @@ export function createCostSheetController(deps) {
       return;
     }
 
+    const summaryRow =
+      options.summaryRow || findProductSummaryRow(productId, periodStart);
+    const exactRunContext = resolvePrintableExactRunContext(summaryRow);
+    if (!exactRunContext) {
+      showToast(PRINTABLE_INCOMPLETE_CONTEXT_MESSAGE, "error");
+      return;
+    }
+
     if (costSheetModal.classList.contains("hidden")) {
       costSheetReturnFocus = document.activeElement;
     }
     currentCostSheetProductId = productId;
-
-    const summaryRow =
-      options.summaryRow || findProductSummaryRow(productId, periodStart);
+    currentPrintableSummaryRow = summaryRow;
+    currentPrintableExactRunContext = exactRunContext;
+    printableLines = [];
 
     if (costSheetModalTitle) {
       costSheetModalTitle.textContent = "Cost Sheet Review";
@@ -1558,19 +4789,19 @@ export function createCostSheetController(deps) {
 
     let rows;
     try {
-      rows = await loadPrintableLinesForProduct(periodStart, productId);
+      rows = await loadPrintableLinesForProduct(exactRunContext);
     } catch (err) {
       console.error("[costing-suite] loadPrintableLinesForProduct failed", err);
-      showToast("Failed to load cost sheet lines for this product.", "error");
-      costSheetModal.classList.add("hidden");
-      costSheetModal.setAttribute("aria-hidden", "true");
+      const message =
+        err instanceof PrintableExactRunLoadError
+          ? err.message
+          : "Failed to load cost sheet lines for this product.";
+      abortCostSheetModalLoad(message, "error");
       return;
     }
 
     if (!rows.length) {
-      showToast("No printable cost sheet lines found for this product.", "info");
-      costSheetModal.classList.add("hidden");
-      costSheetModal.setAttribute("aria-hidden", "true");
+      abortCostSheetModalLoad(PRINTABLE_EMPTY_LINES_MESSAGE, "info");
       return;
     }
 
@@ -1588,6 +4819,14 @@ export function createCostSheetController(deps) {
       explainContext: {
         periodStart: productRow.period_start || first.period_start || periodStart,
         productId: productRow.product_id ?? productId,
+        valuationDate:
+          exactRunContext.valuationDate ||
+          productRow.valuation_date ||
+          first.valuation_date,
+        refreshRunId:
+          exactRunContext.refreshRunId ??
+          productRow.refresh_run_id ??
+          first.refresh_run_id,
       },
     });
     const notesHtml = buildCostSheetStatusNote(rows);
@@ -1711,17 +4950,6 @@ export function createCostSheetController(deps) {
     );
   }
 
-  function isSubCostSheetLine(label) {
-    const l = String(label || "").toLowerCase();
-    return (
-      l.includes("production overhead") ||
-      l.includes("quality control overhead") ||
-      l.includes("materials / stores overhead") ||
-      l.includes("administrative overhead") ||
-      l.includes("finance admin overhead")
-    );
-  }
-
   function buildCostSheetPdfBody(rows, skuColumns) {
     const lineMap = new Map();
 
@@ -1812,11 +5040,7 @@ export function createCostSheetController(deps) {
           return formatPrintablePdfValue(row);
         }),
       ];
-      valueRow._marker = isStrongCostSheetLine(line.line_label)
-        ? "strong"
-        : isSubCostSheetLine(line.line_label)
-          ? "sub"
-          : "";
+      valueRow._marker = isStrongCostSheetLine(line.line_label) ? "strong" : "";
       valueRow._hasFormula = hasFormula;
       valueRow._label = displayLabel;
       valueRow._lineLabel = displayLabel;
@@ -1887,23 +5111,41 @@ export function createCostSheetController(deps) {
       return;
     }
 
+    const exactRunContext =
+      currentPrintableExactRunContext &&
+      String(currentPrintableExactRunContext.productId) === String(productId)
+        ? currentPrintableExactRunContext
+        : resolvePrintableExactRunContext(
+            currentPrintableSummaryRow ||
+              findProductSummaryRow(productId, periodStart),
+          );
+    if (!exactRunContext) {
+      showToast(PRINTABLE_INCOMPLETE_CONTEXT_MESSAGE, "error");
+      return;
+    }
+
     let rows;
     try {
-      rows = await loadPrintableLinesForProduct(periodStart, productId);
+      rows = await loadPrintableLinesForProduct(exactRunContext);
     } catch (err) {
       console.error("[costing-suite] generateCostSheetPdf line load failed", err);
-      showToast("Failed to load cost sheet lines for PDF.", "error");
+      const message =
+        err instanceof PrintableExactRunLoadError
+          ? err.message
+          : "Failed to load cost sheet lines for PDF.";
+      showToast(message, "error");
       return;
     }
 
     printableLines = rows;
     if (!rows.length) {
-      showToast("No cost sheet rows available for PDF.", "error");
+      showToast(PRINTABLE_EMPTY_LINES_MESSAGE, "error");
       return;
     }
 
     const first = rows[0] || {};
     const productRow =
+      currentPrintableSummaryRow ||
       findProductSummaryRow(productId, periodStart) ||
       groupPrintableLinesByProduct(rows)[0] ||
       first;
@@ -2357,24 +5599,47 @@ export function createCostSheetController(deps) {
     closeCostSheetModal();
   }
 
-  function onLensLoadStart() {
-    closeCostSheetExplainDrawer();
-    closeCostSheetModal();
-    printableLines = [];
-  }
-
   function invalidatePrintableLinesCache() {
     printableProductSummaryCache = null;
     printableProductLinesCache.clear();
     printableLines = [];
+    clearMonthlyAllocationDriverTraceCache();
+    // Shared costing-data invalidation hook: selected period/lens snapshot context changed.
+    clearMarketingExplainSummaryCache();
+    clearQcExplainCache();
+    clearMsExplainCache();
   }
 
+  function onLensLoadStart() {
+    closeCostSheetExplainDrawer();
+    closeCostSheetModal();
+    printableLines = [];
+    printableProductSummaryCache = null;
+    currentPrintableExactRunContext = null;
+    currentPrintableSummaryRow = null;
+    clearMonthlyAllocationDriverTraceCache();
+    // Shared lens-load invalidation: period/run/snapshot context is reloading.
+    clearMarketingExplainSummaryCache();
+    clearQcExplainCache();
+    clearMsExplainCache();
+  }
+
+  /**
+   * Summary cache is reusable only when period matches and every cached row
+   * still carries a complete exact-run tuple (period/valuation/run/product).
+   * Stale pre-10F mapped rows fail this check and force a transparent refetch.
+   */
   function isPrintableProductSummaryCacheValid(periodStart) {
     if (!printableProductSummaryCache) return false;
-    return (
-      printableProductSummaryCache.periodStart ===
+    if (
+      printableProductSummaryCache.periodStart !==
       normalizePrintableCachePeriod(periodStart)
-    );
+    ) {
+      return false;
+    }
+    const rows = printableProductSummaryCache.rows;
+    if (!Array.isArray(rows) || !rows.length) return false;
+    return rows.every((row) => Boolean(resolvePrintableExactRunContext(row)));
   }
 
   async function loadPrintableLensRows(periodStart) {
@@ -2382,6 +5647,9 @@ export function createCostSheetController(deps) {
     if (isPrintableProductSummaryCacheValid(periodKey)) {
       return { groupedRows: printableProductSummaryCache.rows };
     }
+
+    // Discard incomplete/stale shape before refetch (no user error).
+    printableProductSummaryCache = null;
 
     const summaryRows = await fetchAllProductSummaryRowsForPeriod(periodStart);
     const groupedRows = summaryRows.map(mapProductSummaryRowToPrintableGroup);
@@ -2400,11 +5668,26 @@ export function createCostSheetController(deps) {
     sectionCode,
     lineOrder,
     lineLabel,
+    valuationDate,
+    refreshRunId,
   } = {}) {
     const period = String(periodStart ?? "").trim();
     const label = String(lineLabel ?? "").trim();
     if (!period || productId == null || skuId == null || !label) {
       return null;
+    }
+
+    const exactMode = resolveTraceabilityExactRunMode({
+      valuationDate,
+      refreshRunId,
+    });
+    if (exactMode.mode !== "exact-run") {
+      return {
+        __traceLoadError: true,
+        code: "MISSING_EXACT_RUN",
+        message:
+          "Exact costing run context (valuation date and refresh run) is required to explain this line.",
+      };
     }
 
     try {
@@ -2419,6 +5702,7 @@ export function createCostSheetController(deps) {
             "section_code",
             "line_order",
             "line_label",
+            "line_description",
             "value_numeric",
             "value_text",
             "value_type",
@@ -2437,6 +5721,8 @@ export function createCostSheetController(deps) {
             "refresh_stage_code",
             "evidence_refreshed_at",
             "refreshed_at",
+            "valuation_date",
+            "refresh_run_id",
             "evidence_json",
             "drill_route_module_key",
             "drill_route_lens_id",
@@ -2444,6 +5730,8 @@ export function createCostSheetController(deps) {
           ].join(","),
         )
         .eq("period_start", period)
+        .eq("valuation_date", exactMode.valuationDate)
+        .eq("refresh_run_id", exactMode.refreshRunId)
         .eq("product_id", productId)
         .eq("sku_id", skuId)
         .eq("line_label", label);
@@ -2457,22 +5745,53 @@ export function createCostSheetController(deps) {
         query = query.eq("line_order", lineOrder);
       }
 
-      const { data, error } = await query.limit(1);
+      const { data, error } = await query.maybeSingle();
       if (error) {
         console.warn(
           "[costing-suite] loadCostSheetLineTraceability query failed",
           error,
         );
-        return null;
+        // maybeSingle errors when more than one row matches — fail closed.
+        if (/multiple|more than one/i.test(String(error.message || ""))) {
+          return {
+            __traceLoadError: true,
+            code: "AMBIGUOUS",
+            message:
+              "Multiple trace rows matched this line. Exact costing run context is required.",
+          };
+        }
+        return {
+          __traceLoadError: true,
+          code: "QUERY_FAILED",
+          message:
+            "Traceability could not be loaded for this line. Try again after refresh completes.",
+        };
       }
 
-      return Array.isArray(data) && data.length ? data[0] : null;
+      const interpreted = interpretTraceabilityRows(data ? [data] : [], {
+        expectedValuationDate: exactMode.valuationDate,
+        expectedRefreshRunId: exactMode.refreshRunId,
+        usedExactRunFilters: true,
+      });
+      if (!interpreted.ok) {
+        return {
+          __traceLoadError: true,
+          code: interpreted.code,
+          message: interpreted.message,
+        };
+      }
+      return interpreted.row;
     } catch (err) {
       console.warn(
         "[costing-suite] loadCostSheetLineTraceability exception",
         err,
       );
-      return null;
+      return {
+        __traceLoadError: true,
+        code: "EXCEPTION",
+        message:
+          "Traceability could not be loaded for this line. Try again after refresh completes.",
+      };
     }
   }
 
@@ -2568,6 +5887,9 @@ export function createCostSheetController(deps) {
     renderComparisonDrawerTab,
     closeCostSheetModal,
     closeCostSheetExplainDrawer,
+    openProductQcExplainFromQueue,
+    openSkuMaterialsStoresExplainFromQueue,
+    openProductMaterialsStoresExplainFromQueue,
     handleEscapeKeyForEditForms,
   };
 }

@@ -1811,6 +1811,50 @@
       .mf-btn.primary:hover {
         background: #1d4ed8;
       }
+      .mf-btn.primary:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      /* FG Transfer Valuation Statement period modal */
+      .fvs-modal .mf-dialog {
+        width: min(480px, calc(100% - 24px));
+      }
+      .fvs-body {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 14px 16px;
+      }
+      .fvs-field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--erp-muted);
+        margin-bottom: 6px;
+      }
+      .fvs-field input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--erp-border);
+        border-radius: 8px;
+        background: var(--erp-bg);
+        color: var(--erp-text);
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      .fvs-field input:focus {
+        outline: none;
+        border-color: var(--erp-accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .fvs-hint {
+        font-size: 13px;
+        color: var(--erp-muted);
+        margin: 0;
+      }
 
       /* Local tab filters */
       .local-filters {
@@ -2229,9 +2273,84 @@
       </div>
     </div>
 
+    <!-- FG Transfer Valuation Statement period modal -->
+    <div
+      id="fvsPeriodModal"
+      class="mf-modal fvs-modal"
+      aria-hidden="true"
+    >
+      <div class="mf-backdrop" data-fvs-close="true"></div>
+
+      <div
+        class="mf-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fvsTitle"
+      >
+        <div class="mf-header">
+          <div>
+            <div class="eyebrow" style="margin: 0">Report</div>
+            <h3 id="fvsTitle" style="margin: 2px 0 0">
+              FG Transfer Valuation Statement
+            </h3>
+            <div class="mf-subtitle">Select extract period</div>
+          </div>
+          <button
+            class="mf-close"
+            type="button"
+            title="Close"
+            data-fvs-close="true"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="fvs-body">
+          <p class="fvs-hint">
+            Defaults to the previous calendar month. Adjust the dates if needed,
+            then generate the PDF.
+          </p>
+          <div class="fvs-field">
+            <label for="fvsFromDate">From</label>
+            <input
+              type="text"
+              id="fvsFromDate"
+              placeholder="DD-MM-YYYY"
+              autocomplete="off"
+              aria-label="Valuation statement from date"
+            />
+          </div>
+          <div class="fvs-field">
+            <label for="fvsToDate">To</label>
+            <input
+              type="text"
+              id="fvsToDate"
+              placeholder="DD-MM-YYYY"
+              autocomplete="off"
+              aria-label="Valuation statement to date"
+            />
+          </div>
+        </div>
+
+        <div class="mf-footer">
+          <div class="mf-left"></div>
+          <div class="mf-right">
+            <button class="mf-btn" type="button" data-fvs-close="true">
+              Cancel
+            </button>
+            <button class="mf-btn primary" id="fvsGenerateBtn" type="button">
+              Generate PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Scripts -->
     <script src="../vendor/flatpickr.min.js"></script>
     <script src="../vendor/tom-select/tom-select.complete.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script type="module" src="./js/fg-transfer-reconciliation.js"></script>
   </body>
 </html>

@@ -1,43 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="utf-8" />
-    <title>Manage UOM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SASV WORKSPACE | Manage UOM</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <link rel="stylesheet" href="css/shared-ui.css" />
     <style>
-      /* Home Button */
-      #homeBtn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
+      /* Page-specific layout only (UI-MOD-1B) — UOM tabs + table */
+      /* Neutralize shared-ui hard-coded blues against semantic tokens */
+      body.sasv-module button.primary {
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary);
+        border: none;
         padding: 8px 12px;
-        border: 1px solid #fdba74 !important;
-        border-radius: 6px;
-        background: #fed7aa !important;
-        color: #9a3412 !important;
+        border-radius: var(--sasv-radius-md);
         cursor: pointer;
-        font-size: 0.875rem;
-        font-family: inherit;
-        font-weight: 500;
-        transition: all 0.2s;
       }
-      #homeBtn:hover {
-        background: #fdba74 !important;
-        border-color: #fb923c !important;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      body.sasv-module button.primary:hover {
+        background: var(--sasv-action-primary-hover);
       }
-      #homeBtn svg {
-        flex-shrink: 0;
+      body.sasv-module button.ghost {
+        background: var(--sasv-surface-soft);
+        border: 1px solid var(--sasv-border);
+        color: var(--sasv-text);
+        padding: 8px 12px;
+        border-radius: var(--sasv-radius-md);
+        cursor: pointer;
+      }
+      body.sasv-module button.ghost:hover {
+        background: var(--sasv-action-secondary-hover);
+        border-color: var(--sasv-border-strong);
+      }
+      body.sasv-module .table {
+        background: var(--sasv-surface);
+        color: var(--sasv-text);
+      }
+      body.sasv-module input[type="text"],
+      body.sasv-module input[type="number"],
+      body.sasv-module select,
+      body.sasv-module textarea {
+        background: var(--sasv-control-bg);
+        border: 1px solid var(--sasv-control-border);
+        color: var(--sasv-text);
+        border-radius: var(--sasv-radius-sm);
       }
 
-      /* Tabs navigator look (like reference) */
       .tabs-wrap {
         display: flex;
         align-items: center;
         gap: 8px;
         width: 100%;
+        margin: 12px 0;
+        padding: 8px 12px;
+        background: transparent;
+        border-bottom: 1px solid var(--sasv-divider);
+        border-radius: var(--sasv-radius-sm);
       }
       .tabs {
         display: flex;
@@ -46,55 +64,46 @@
       }
       .tabs .tab {
         padding: 8px 12px;
-        border-radius: 8px 8px 0 0;
+        border-radius: var(--sasv-radius-md) var(--sasv-radius-md) 0 0;
         border: 1px solid transparent;
         background: transparent;
         cursor: pointer;
-        font-weight: 600;
-        color: var(--muted, #6b7280);
-        transition: all 0.15s ease;
+        font-weight: var(--sasv-fw-semibold);
+        color: var(--sasv-text-muted);
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         white-space: nowrap;
       }
       .tabs .tab:hover {
-        background: #f1f5f9;
-        color: #374151;
+        background: var(--sasv-surface-soft);
+        color: var(--sasv-text);
       }
       .tabs .tab.active {
-        background: linear-gradient(
-          180deg,
-          rgba(37, 99, 235, 0.08),
-          rgba(37, 99, 235, 0.03)
-        );
-        color: #0b3a9a;
-        border-color: rgba(13, 60, 160, 0.08);
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-action-primary);
+        border-color: var(--sasv-action-primary-soft-border);
         border-bottom-color: transparent;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+        box-shadow: var(--sasv-shadow-sm);
       }
 
-      /* Table typography/layout adjustments to match reference */
       .table {
         width: 100%;
         border-collapse: collapse;
-        font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
-        font-size: 1.15rem; /* increased for better readability */
-        color: #111827;
-        border: none; /* use single-line row separators instead of cell borders */
+        font-size: 1.15rem;
+        border: none;
       }
       .table th,
       .table td {
         padding: 12px 14px;
-        border: none; /* remove vertical cell borders */
-        font-size: 1.15rem; /* ensure cell content matches table font */
-        text-align: center; /* horizontally center all cells */
-        vertical-align: middle; /* vertically center content */
-        border-bottom: 1px solid #eef2f7; /* single horizontal separator */
+        border: none;
+        font-size: 1.15rem;
+        text-align: center;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--sasv-divider);
       }
-      /* remove bottom border on last row for a clean edge */
       .table tbody tr:last-child td {
         border-bottom: none;
       }
 
-      /* Icon-only action buttons */
       .actions .icon {
         width: 36px;
         height: 32px;
@@ -102,9 +111,8 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 6px;
+        border-radius: var(--sasv-radius-sm);
       }
-      /* Ensure action cell centers its buttons horizontally and vertically */
       .table td.actions,
       .table th.actions {
         display: flex;
@@ -117,82 +125,78 @@
         height: 14px;
       }
       .actions .icon:hover {
-        background: #f3f4f6;
+        background: var(--sasv-surface-soft);
       }
 
-      /* Input small tweaks */
-      .toolbar input {
-        padding: 8px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
+      #uomToolbar {
+        margin-bottom: 8px;
+      }
+      #uomToolbar #rowCount {
+        margin-left: auto;
+        color: var(--sasv-text-muted);
+      }
+
+      /* Preserve shared-ui label|field editor grid (sasv-module .form-row is flex) */
+      #editor .form-row {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 10px;
+        align-items: center;
+        margin: 8px 0;
+      }
+      #editor .actions {
+        margin-top: 10px;
+      }
+      #dimensionsPanel {
+        margin-top: 18px;
+      }
+      #dimensionsPanel .toolbar {
+        justify-content: space-between;
+        align-items: center;
+      }
+      #dimensionsPanel .toolbar > div {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      #dimTable {
+        margin-top: 12px;
+      }
+      #editor {
+        margin-top: 18px;
       }
     </style>
   </head>
-  <body>
-    <header>
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        "
-      >
-        <div>
-          <h1 style="text-align: left; margin: 0">Manage UOM</h1>
-          <p class="section-hint">
-            Manage unit of measurements and their dimensions
-          </p>
-        </div>
-        <div class="header-actions">
-          <button
-            id="homeBtn"
-            type="button"
-            onclick="location.href='index.html'"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            HOME
-          </button>
+  <body class="sasv-module" data-theme="system">
+    <div class="page-header">
+      <div>
+        <h1>Manage UOM</h1>
+        <div class="page-sub">
+          Manage unit of measurements and their dimensions
         </div>
       </div>
-    </header>
+      <div class="header-actions">
+        <button
+          id="homeBtn"
+          type="button"
+          title="Home"
+          aria-label="Home"
+          class="icon-btn"
+        ></button>
+      </div>
+    </div>
 
-    <main class="panel" style="padding: 16px">
-      <!-- Tab navigator (like reference) -->
-      <div
-        class="tabs-wrap"
-        style="
-          margin: 12px 0;
-          padding: 8px 12px;
-          background: transparent;
-          border-bottom: 1px solid #eef2f7;
-          border-radius: 6px;
-        "
-      >
-        <div
-          id="subTabs"
-          class="tabs"
-          style="display: flex; gap: 8px; align-items: center"
-        >
-          <button id="tabUoms" class="tab active">UOMs</button>
-          <button id="tabDims" class="tab">Dimensions</button>
+    <main class="panel">
+      <div class="tabs-wrap">
+        <div id="subTabs" class="tabs">
+          <button id="tabUoms" class="tab active" type="button">UOMs</button>
+          <button id="tabDims" class="tab" type="button">Dimensions</button>
         </div>
       </div>
 
-      <!-- Toolbar for UOMs (appears immediately above the UOMs table) -->
-      <div id="uomToolbar" class="toolbar" style="margin-bottom: 8px">
-        <button id="btnAdd" class="primary">New UOM</button>
-        <span id="rowCount" style="margin-left: auto; color: #6b7280"></span>
+      <div id="uomToolbar" class="toolbar">
+        <button id="btnAdd" class="primary" type="button">New UOM</button>
+        <span id="rowCount"></span>
       </div>
 
       <table class="table" id="uomTable" aria-label="UOM list">
@@ -207,22 +211,20 @@
         <tbody></tbody>
       </table>
 
-      <!-- Dimensions panel (hidden by default) -->
-      <section id="dimensionsPanel" style="display: none; margin-top: 18px">
+      <section id="dimensionsPanel" style="display: none">
         <h3>New UOM Dimension</h3>
-        <div
-          class="toolbar"
-          style="justify-content: space-between; align-items: center"
-        >
-          <div style="display: flex; gap: 8px; align-items: center">
+        <div class="toolbar">
+          <div>
             <input id="dimName" type="text" placeholder="Name (e.g., Mass)" />
             <input id="dimNotes" type="text" placeholder="Optional notes" />
           </div>
-          <div style="display: flex; gap: 8px; align-items: center">
-            <button id="btnAddDim" class="primary">Add Dimension</button>
+          <div>
+            <button id="btnAddDim" class="primary" type="button">
+              Add Dimension
+            </button>
           </div>
         </div>
-        <table class="table" id="dimTable" style="margin-top: 12px">
+        <table class="table" id="dimTable">
           <thead>
             <tr>
               <th style="width: 80px">ID</th>
@@ -235,8 +237,7 @@
         </table>
       </section>
 
-      <!-- Drawer / modal substitute -->
-      <section id="editor" style="margin-top: 18px; display: none">
+      <section id="editor" style="display: none">
         <h3 id="editorTitle">New UOM</h3>
         <div class="form-row">
           <label for="code">Code</label>
@@ -259,9 +260,9 @@
             <option value="false">False</option>
           </select>
         </div>
-        <div class="actions" style="margin-top: 10px">
-          <button id="btnSave" class="primary">Save</button>
-          <button id="btnCancel" class="ghost">Cancel</button>
+        <div class="actions">
+          <button id="btnSave" class="primary" type="button">Save</button>
+          <button id="btnCancel" class="ghost" type="button">Cancel</button>
         </div>
         <input type="hidden" id="uomId" />
       </section>

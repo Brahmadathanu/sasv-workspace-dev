@@ -1,0 +1,142 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Theme profile: sasv-core
+
+   Selector contract:
+     html[data-sasv-theme="sasv-core"]
+
+   This profile assigns semantic UI tokens → foundation palette values.
+   Identical defaults also live on :root in design-tokens.css so pages without
+   the attribute still resolve sasv-core colours (no JS required).
+
+   Future profiles add a sibling file and override semantic tokens only.
+   Do not redefine component CSS in theme files.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html[data-sasv-theme="sasv-core"] {
+  /* Surfaces */
+  --sasv-bg: var(--sasv-neutral-100);
+  --sasv-bg-accent: var(--sasv-neutral-150);
+  --sasv-surface: var(--sasv-neutral-0);
+  --sasv-surface-soft: var(--sasv-neutral-50);
+  --sasv-surface-elevated: var(--sasv-neutral-0);
+
+  /* Module HOME — soft identity (not warning amber) */
+  --sasv-home-bg: var(--sasv-primary-100);
+  --sasv-home-border: var(--sasv-primary-soft-border-raw);
+  --sasv-home-fg: var(--sasv-primary-800);
+  --sasv-home-bg-hover: var(--sasv-primary-700);
+  --sasv-home-fg-hover: var(--sasv-text-on-primary);
+
+  /* Borders / dividers */
+  --sasv-border: var(--sasv-neutral-300);
+  --sasv-border-strong: var(--sasv-neutral-400);
+  --sasv-divider: var(--sasv-neutral-200);
+
+  /* Text */
+  --sasv-text: var(--sasv-neutral-800);
+  --sasv-text-secondary: var(--sasv-neutral-700);
+  --sasv-text-muted: var(--sasv-neutral-500);
+  --sasv-text-on-primary: #ffffff;
+  --sasv-text-on-accent: #ffffff;
+
+  /* Actions — teal scale chosen for ERP contrast on light surfaces */
+  --sasv-action-primary: var(--sasv-primary-600);
+  --sasv-action-primary-hover: var(--sasv-primary-700);
+  --sasv-action-primary-active: var(--sasv-primary-800);
+  --sasv-action-primary-soft: var(--sasv-primary-100);
+  --sasv-action-primary-soft-border: var(--sasv-primary-soft-border-raw);
+  --sasv-search-select-bg: var(--sasv-primary-50);
+  --sasv-search-select-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-action-secondary: var(--sasv-neutral-50);
+  --sasv-action-secondary-hover: var(--sasv-primary-50);
+
+  --sasv-action-home: var(--sasv-home-fg);
+  --sasv-action-home-hover: var(--sasv-home-bg-hover);
+  --sasv-action-home-bg: var(--sasv-home-bg);
+  --sasv-action-home-border: var(--sasv-home-border);
+  --sasv-action-home-bg-hover: var(--sasv-home-bg-hover);
+  --sasv-action-home-fg-hover: var(--sasv-home-fg-hover);
+
+  /* Links / selection / focus */
+  --sasv-link: var(--sasv-action-primary);
+  --sasv-link-hover: var(--sasv-action-primary-hover);
+  --sasv-selection: var(--sasv-primary-600);
+  --sasv-selection-soft: var(--sasv-primary-100);
+  --sasv-focus-ring: var(--sasv-focus-ring-raw);
+  --sasv-focus-ring-strong: var(--sasv-focus-ring-strong-raw);
+
+  /* Controls */
+  --sasv-control-bg: var(--sasv-surface);
+  --sasv-control-border: var(--sasv-border-strong);
+  --sasv-control-border-hover: var(--sasv-action-primary-soft-border);
+  --sasv-control-border-focus: var(--sasv-action-primary);
+
+  /* Status */
+  --sasv-success: var(--sasv-palette-success);
+  --sasv-success-bg: var(--sasv-palette-success-bg);
+  --sasv-success-border: var(--sasv-palette-success-border);
+  --sasv-warning: var(--sasv-palette-warning);
+  --sasv-warning-bg: var(--sasv-palette-warning-bg);
+  --sasv-warning-border: var(--sasv-palette-warning-border);
+  --sasv-danger: var(--sasv-palette-danger);
+  --sasv-danger-bg: var(--sasv-palette-danger-bg);
+  --sasv-danger-border: var(--sasv-palette-danger-border);
+  --sasv-info: var(--sasv-palette-info);
+  --sasv-info-bg: var(--sasv-palette-info-bg);
+  --sasv-info-border: var(--sasv-palette-info-border);
+
+  /* Section-family accents */
+  --sasv-section-ops-fg: var(--sasv-primary-600);
+  --sasv-section-ops-bg: var(--sasv-primary-100);
+  --sasv-section-ops-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-section-plan-fg: var(--sasv-primary-700);
+  --sasv-section-plan-bg: var(--sasv-primary-50);
+  --sasv-section-plan-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-section-procure-fg: var(--sasv-palette-info);
+  --sasv-section-procure-bg: var(--sasv-palette-info-bg);
+  --sasv-section-procure-border: var(--sasv-palette-info-border);
+
+  --sasv-section-inventory-fg: var(--sasv-primary-800);
+  --sasv-section-inventory-bg: var(--sasv-neutral-150);
+  --sasv-section-inventory-border: var(--sasv-neutral-400);
+
+  --sasv-section-finance-fg: var(--sasv-neutral-700);
+  --sasv-section-finance-bg: var(--sasv-neutral-50);
+  --sasv-section-finance-border: var(--sasv-neutral-300);
+
+  --sasv-section-quality-fg: var(--sasv-palette-success);
+  --sasv-section-quality-bg: var(--sasv-palette-success-bg);
+  --sasv-section-quality-border: var(--sasv-palette-success-border);
+
+  --sasv-section-report-fg: var(--sasv-primary-800);
+  --sasv-section-report-bg: var(--sasv-primary-50);
+  --sasv-section-report-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-section-admin-fg: var(--sasv-neutral-500);
+  --sasv-section-admin-bg: var(--sasv-neutral-50);
+  --sasv-section-admin-border: var(--sasv-neutral-300);
+
+  --sasv-section-general-fg: var(--sasv-neutral-700);
+  --sasv-section-general-bg: var(--sasv-neutral-150);
+  --sasv-section-general-border: var(--sasv-neutral-300);
+
+  /* Home personal command dock */
+  --sasv-home-command-bg: var(--sasv-primary-200);
+  --sasv-home-command-fg: var(--sasv-primary-800);
+  --sasv-home-command-border: var(--sasv-primary-soft-border-raw);
+  --sasv-home-command-meta-bg: var(--sasv-primary-700);
+  --sasv-home-command-meta-fg: var(--sasv-text-on-primary);
+  --sasv-home-command-chip-bg: var(--sasv-neutral-0);
+
+  /* Phase 1/2 shorthand → semantic (kept for Login/Home equivalence) */
+  --sasv-primary: var(--sasv-action-primary);
+  --sasv-primary-hover: var(--sasv-action-primary-hover);
+  --sasv-primary-active: var(--sasv-action-primary-active);
+  --sasv-primary-soft: var(--sasv-action-primary-soft);
+  --sasv-primary-soft-border: var(--sasv-action-primary-soft-border);
+  --sasv-home: var(--sasv-action-home);
+  --sasv-home-hover: var(--sasv-action-home-hover);
+}

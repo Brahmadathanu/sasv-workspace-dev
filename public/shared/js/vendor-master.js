@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 
 const MODULE_ID = "vendor-master";
 const MODULE_TARGET = "module:vendor-master";
@@ -229,23 +230,7 @@ async function loadAccessState() {
         found = canonicalRows[0];
       }
     } catch {
-      // fall through
-    }
-  }
-
-  if (!found) {
-    try {
-      const { data: rows } = await supabase
-        .from("user_permissions")
-        .select("can_view, can_edit")
-        .eq("user_id", uid)
-        .eq("module_id", MODULE_ID)
-        .limit(1);
-      if (Array.isArray(rows) && rows.length) {
-        found = rows[0];
-      }
-    } catch {
-      // fail closed
+      // fall through — fail closed
     }
   }
 
@@ -2343,6 +2328,10 @@ function wireAuxModals() {
 }
 
 function wireGlobalControls() {
+  mountModuleActionIcons({
+    home: qs("homeBtn"),
+    refresh: qs("btnRefresh"),
+  });
   qs("homeBtn")?.addEventListener("click", () => Platform.goHome());
   qs("btnRefresh")?.addEventListener("click", async () => {
     state.loaded.vendors = false;

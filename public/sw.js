@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v200"; // bumped to force asset refresh
+const CACHE_NAME = "hub-cache-v271"; // PRM family route editor header density (C.3E.2C)
 
 const PRECACHE = [
   // Hub shell
@@ -24,16 +24,17 @@ const PRECACHE = [
   "/shared/etl-monitor.html",
   "/shared/js/etl-control.js",
 
-  // Icons referenced by the manifest
-  "/utilities-hub/icons/icon-48x48.png",
-  "/utilities-hub/icons/icon-72x72.png",
-  "/utilities-hub/icons/icon-96x96.png",
-  "/utilities-hub/icons/icon-144x144.png",
-  "/utilities-hub/icons/icon-152x152.png",
-  "/utilities-hub/icons/icon-192x192.png",
-  "/utilities-hub/icons/icon-384x384.png",
-  "/utilities-hub/icons/icon-512x512.png",
-  "/utilities-hub/icons/icon-1024.png",
+  // Icons referenced by the Hub manifest (canonical branding derived)
+  "/shared/assets/branding/derived/icon-48.png",
+  "/shared/assets/branding/derived/icon-72.png",
+  "/shared/assets/branding/derived/icon-96.png",
+  "/shared/assets/branding/derived/icon-144.png",
+  "/shared/assets/branding/derived/icon-152.png",
+  "/shared/assets/branding/derived/icon-192.png",
+  "/shared/assets/branding/derived/icon-384.png",
+  "/shared/assets/branding/derived/icon-512.png",
+  "/shared/assets/branding/derived/apple-touch-icon-180.png",
+  "/shared/assets/branding/derived/favicon.ico",
 ];
 
 self.addEventListener("install", (event) => {

@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
-    <title>Manage PM BOM</title>
+    <title>SASV WORKSPACE | Manage Packing Material BOM</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
-    <link rel="stylesheet" href="css/shared-ui.css" />
+<link rel="stylesheet" href="css/shared-ui.css" />
+    <link rel="stylesheet" href="public/shared/css/sasv-bom.css" />
+
     <style>
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
-        font-size: 14px;
+        /* font from sasv-module */
+        /* size from tokens */
         line-height: 1.35;
       }
       .toolbar {
@@ -1120,7 +1121,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
   </head>
-  <body>
+  <body class="sasv-module sasv-module--app sasv-bom" data-theme="system">
     <header>
       <div
         style="
@@ -1131,14 +1132,11 @@
         "
       >
         <div>
-          <h1 style="margin: 0; text-align: left">Manage PM BOM</h1>
+          <h1 class="sasv-module-title">Manage PM BOM</h1>
           <!-- Rebuild Tab Panel removed from header and placed with other tab panels -->
 
           <!-- Templates Tab Panel -->
-          <p
-            class="hint"
-            style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
-          >
+          <p class="hint" style="margin: 4px 0 0 0; text-align: left">
             Manage packing material templates and mapping SKUs
           </p>
         </div>
@@ -1146,22 +1144,10 @@
           <button
             id="homeBtn"
             type="button"
-            onclick="location.href='index.html'"
-            style="display: inline-flex; align-items: center; gap: 6px"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            HOME
-          </button>
+            class="icon-btn"
+            title="Home"
+            aria-label="Home"
+          ></button>
         </div>
       </div>
       <div id="statusToastContainer"></div>
@@ -1303,7 +1289,7 @@
                     <th class="qty-col">Qty per Ref</th>
                     <th class="uom-col">UOM</th>
                     <th class="wast-col">Wastage %</th>
-                    <th class="opt-col">Optional</th>
+                    <th class="opt-col" data-col="optional">Optional</th>
                     <th>Remarks</th>
                     <th class="actions-col">Actions</th>
                   </tr>
@@ -1502,7 +1488,7 @@
                     <th>Qty per Ref</th>
                     <th>UOM</th>
                     <th>Wastage %</th>
-                    <th>Optional</th>
+                    <th data-col="optional">Optional</th>
                     <th>Remarks</th>
                   </tr>
                 </thead>
@@ -1592,8 +1578,25 @@
             style="display: flex; align-items: center; gap: 12px; width: 100%"
           >
             <label class="product-heading-label">
-              <span class="title">Template</span>
-              <select id="tplPicker"></select>
+              <select
+                id="tplPicker"
+                class="sasv-native-select-sr"
+                aria-hidden="true"
+                tabindex="-1"
+              ></select>
+              <div
+                class="sasv-search-select autocomplete input-with-icon"
+                data-sasv-search-shell
+              >
+                <input
+                  type="text"
+                  class="sasv-search-select__input"
+                  placeholder="Search or select a template…"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Search or select a template…"
+                />
+              </div>
             </label>
             <div class="erp-pills-bar">
               <div class="erp-pill-chip" id="pillRefOutputWrap">
@@ -1796,7 +1799,7 @@
             </div>
           </div>
         </div>
-        <div class="panel-body">
+        <div class="panel-body bom-hidden-fields">
           <!-- Hidden controls retained for logic and saving (match RM-BOM pattern) -->
           <input
             id="tplCode"
@@ -1821,6 +1824,9 @@
             max="100"
             class="sr-only"
           />
+        </div>
+        <div id="bomInlineFeedback" class="bom-inline-feedback" hidden>
+          <ul id="qaList" class="hint"></ul>
         </div>
       </section>
 
@@ -1888,7 +1894,7 @@
                   <th>Qty per Ref</th>
                   <th>UOM</th>
                   <th>Wastage %</th>
-                  <th>Optional</th>
+                  <th data-col="optional">Optional</th>
                   <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
@@ -3029,8 +3035,7 @@
         <div id="pageMaskText">Loading…</div>
       </div>
     </div>
-
-    <script type="module" src="public/shared/js/supabaseClient.js"></script>
+<script type="module" src="public/shared/js/supabaseClient.js"></script>
     <script type="module" src="js/manage-pm-bom.js"></script>
   </body>
 </html>

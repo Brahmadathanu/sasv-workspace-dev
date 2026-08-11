@@ -1,0 +1,509 @@
+/**
+ * UI-MOD-4B / 4B.1 — Forecast Console specialization layer.
+ * Geometry and remaps scoped to body.sasv-forecast-console only.
+ * Does not define a generic Procurement/Planning family template.
+ *
+ * Viewport gutter: inherit body.sasv-module.sasv-module--app
+ * (--sasv-module-page-padding 20 / 10 / 6) — do not restate here.
+ */
+
+/* Forecast KPI semantic aliases (map through theme tokens — no hard hex) */
+body.sasv-forecast-console {
+  --sasv-forecast-kpi-bg: var(--sasv-section-plan-bg, var(--sasv-action-primary-soft));
+  --sasv-forecast-kpi-border: var(--sasv-section-plan-border, var(--sasv-action-primary-soft-border));
+  --sasv-forecast-kpi-fg: var(--sasv-section-plan-fg, var(--sasv-action-primary-active));
+  --sasv-forecast-kpi-accent: var(--sasv-action-primary);
+  --sasv-forecast-kpi-positive-bg: var(--sasv-success-bg);
+  --sasv-forecast-kpi-positive-border: var(--sasv-success-border);
+  --sasv-forecast-kpi-positive-accent: var(--sasv-success);
+  --sasv-forecast-kpi-warning-bg: var(--sasv-warning-bg);
+  --sasv-forecast-kpi-warning-border: var(--sasv-warning-border);
+  --sasv-forecast-kpi-warning-accent: var(--sasv-warning);
+  --sasv-forecast-kpi-info-bg: var(--sasv-info-bg);
+  --sasv-forecast-kpi-info-border: var(--sasv-info-border);
+  --sasv-forecast-kpi-info-accent: var(--sasv-info);
+}
+
+/* ── Header / title — match accepted module shell grammar ─────────────── */
+body.sasv-forecast-console .header-card {
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+body.sasv-forecast-console .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+}
+
+body.sasv-forecast-console .fc-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-forecast-console .page-header h1,
+body.sasv-forecast-console .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 1.125rem;
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-forecast-console .page-sub {
+  margin: 4px 0 0;
+  padding: 0;
+  text-align: left;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-regular);
+  line-height: 1.4;
+}
+
+body.sasv-forecast-console .fc-header-actions,
+body.sasv-forecast-console .toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+body.sasv-forecast-console #fcLastRefreshed {
+  font-size: 11.5px;
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+}
+
+body.sasv-forecast-console .toolbar .icon-btn:not(.sasv-home-btn):where(
+    :empty,
+    :has(> svg:only-child),
+    :has(> .sasv-icon:only-child)
+  ) {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-forecast-console .icon-btn svg,
+body.sasv-forecast-console .icon-btn .sasv-icon,
+body.sasv-forecast-console #homeBtn.sasv-home-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  body.sasv-forecast-console .page-header {
+    flex-wrap: wrap;
+  }
+
+  body.sasv-forecast-console .page-sub {
+    display: none;
+  }
+}
+
+/* ── KPI strip — coherent Forecast identity (not rainbow) ─────────────── */
+body.sasv-forecast-console .kpi-strip {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  margin: 8px 0 6px;
+  align-items: stretch;
+  justify-content: space-between;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+body.sasv-forecast-console .kpi-strip::-webkit-scrollbar {
+  display: none;
+}
+
+body.sasv-forecast-console .kpi {
+  flex: 1 1 0;
+  min-width: 108px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-forecast-kpi-border);
+  border-left: 3px solid var(--sasv-forecast-kpi-accent);
+  background: var(--sasv-forecast-kpi-bg);
+  box-shadow: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+body.sasv-forecast-console .kpi > .kpi-label {
+  font-weight: var(--sasv-fw-medium);
+  font-size: 10px;
+  color: var(--sasv-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+body.sasv-forecast-console .kpi > .kpi-val {
+  font-size: 13px;
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  flex: 0 0 auto;
+}
+
+/* Shared identity for core planning metrics */
+body.sasv-forecast-console .kpi.kpi-pairs,
+body.sasv-forecast-console .kpi.kpi-rows {
+  background: var(--sasv-forecast-kpi-bg);
+  border-color: var(--sasv-forecast-kpi-border);
+  border-left-color: var(--sasv-forecast-kpi-accent);
+}
+
+/* Coverage — restrained positive */
+body.sasv-forecast-console .kpi.kpi-cov {
+  background: var(--sasv-forecast-kpi-positive-bg);
+  border-color: var(--sasv-forecast-kpi-positive-border);
+  border-left-color: var(--sasv-forecast-kpi-positive-accent);
+}
+
+/* Missing LLT / Missing Seasonal — restrained warning (not danger rainbow) */
+body.sasv-forecast-console .kpi.kpi-llt,
+body.sasv-forecast-console .kpi.kpi-seas {
+  background: var(--sasv-forecast-kpi-warning-bg);
+  border-color: var(--sasv-forecast-kpi-warning-border);
+  border-left-color: var(--sasv-forecast-kpi-warning-accent);
+  cursor: pointer;
+}
+
+body.sasv-forecast-console .kpi.kpi-llt:hover,
+body.sasv-forecast-console .kpi.kpi-seas:hover {
+  filter: brightness(0.98);
+}
+
+/* Active Overrides — informational */
+body.sasv-forecast-console .kpi.kpi-ov {
+  background: var(--sasv-forecast-kpi-info-bg);
+  border-color: var(--sasv-forecast-kpi-info-border);
+  border-left-color: var(--sasv-forecast-kpi-info-accent);
+}
+
+@media (max-width: 800px) {
+  body.sasv-forecast-console .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: visible;
+    gap: 5px;
+  }
+
+  body.sasv-forecast-console .kpi {
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
+/* Soft lens selected state (Forecast keeps its own pill structure) */
+body.sasv-forecast-console .lens-pills .pill {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+body.sasv-forecast-console .lens-pills .pill.active {
+  box-shadow: none;
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+  font-weight: 600;
+}
+
+body.sasv-forecast-console .lens-pills .pill:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-forecast-console .tabs-card {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border);
+}
+
+/* Controls */
+body.sasv-forecast-console input[type="checkbox"],
+body.sasv-forecast-console input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-forecast-console
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.sasv-forecast-console select,
+body.sasv-forecast-console textarea,
+body.sasv-forecast-console .filter-input {
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-md);
+  box-sizing: border-box;
+}
+
+body.sasv-forecast-console
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+body.sasv-forecast-console select:focus,
+body.sasv-forecast-console textarea:focus,
+body.sasv-forecast-console .filter-input:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* Dense analytical tables */
+body.sasv-forecast-console .grid,
+body.sasv-forecast-console .card {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-forecast-console thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  border-bottom: 1px solid var(--sasv-border);
+}
+
+body.sasv-forecast-console tbody td {
+  border-bottom: 1px solid var(--sasv-divider);
+  color: var(--sasv-text);
+}
+
+body.sasv-forecast-console tbody tr:hover {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-forecast-console .right,
+body.sasv-forecast-console td.num,
+body.sasv-forecast-console th.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status chips — map presentation; meanings preserved via class names */
+body.sasv-forecast-console .chip.ok {
+  background: var(--sasv-success);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console .chip.warn {
+  background: var(--sasv-warning);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console .chip.err {
+  background: var(--sasv-danger);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console .chip.gray {
+  background: var(--sasv-text-muted);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console .view-only-banner {
+  border-color: var(--sasv-warning-border);
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+}
+
+body.sasv-forecast-console #accessStatus {
+  border-color: var(--sasv-danger-border);
+  background: var(--sasv-danger-bg);
+  color: var(--sasv-danger);
+}
+
+/* UI-MOD-3D action grammar for Forecast .btn */
+body.sasv-forecast-console .btn,
+body.sasv-forecast-console button.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  font: inherit;
+  font-weight: var(--sasv-fw-medium, 500);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+body.sasv-forecast-console .btn:hover:not([disabled]),
+body.sasv-forecast-console button.btn:hover:not([disabled]) {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-forecast-console .btn.primary,
+body.sasv-forecast-console .btn.btn-primary,
+body.sasv-forecast-console button.btn.primary,
+body.sasv-forecast-console button.btn.btn-primary {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console .btn.primary:hover:not([disabled]),
+body.sasv-forecast-console .btn.btn-primary:hover:not([disabled]),
+body.sasv-forecast-console button.btn.primary:hover:not([disabled]),
+body.sasv-forecast-console button.btn.btn-primary:hover:not([disabled]) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console .btn.danger,
+body.sasv-forecast-console .btn.btn-danger,
+body.sasv-forecast-console button.btn.danger,
+body.sasv-forecast-console button.btn.btn-danger {
+  background: var(--sasv-danger);
+  border-color: var(--sasv-danger);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console .btn.danger:hover:not([disabled]),
+body.sasv-forecast-console .btn.btn-danger:hover:not([disabled]) {
+  background: color-mix(in srgb, var(--sasv-danger) 86%, #000);
+  border-color: color-mix(in srgb, var(--sasv-danger) 86%, #000);
+}
+
+body.sasv-forecast-console .btn:disabled,
+body.sasv-forecast-console button.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.sasv-forecast-console .btn svg,
+body.sasv-forecast-console .icon-toggle svg,
+body.sasv-forecast-console .action-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Re-scope global style.css #tab-overrides presentation under Forecast root
+   without deleting the global compatibility rules. */
+body.sasv-forecast-console #tab-overrides #runControls h3 {
+  color: var(--sasv-text);
+}
+
+body.sasv-forecast-console #tab-overrides .card .btn.primary,
+body.sasv-forecast-console #tab-overrides .card .btn.btn-primary,
+body.sasv-forecast-console #tab-overrides #runControls .btn.primary,
+body.sasv-forecast-console #tab-overrides #runControls .btn.btn-primary {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console #tab-overrides .card .btn.primary:hover:not([disabled]),
+body.sasv-forecast-console #tab-overrides .card .btn.btn-primary:hover:not([disabled]),
+body.sasv-forecast-console #tab-overrides #runControls .btn.primary:hover:not([disabled]),
+body.sasv-forecast-console #tab-overrides #runControls .btn.btn-primary:hover:not([disabled]) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-forecast-console #tab-overrides .card .btn.danger,
+body.sasv-forecast-console #tab-overrides .card .btn.btn-danger,
+body.sasv-forecast-console #tab-overrides #runControls .btn.danger,
+body.sasv-forecast-console #tab-overrides #runControls .btn.btn-danger {
+  background: var(--sasv-danger);
+  border-color: var(--sasv-danger);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-forecast-console #tab-overrides .overrides-table-wrap table thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-forecast-console #tab-overrides .overrides-table-wrap table tbody tr:hover {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-forecast-console #tab-overrides .pager-right .btn,
+body.sasv-forecast-console #tab-overrides .staging-toolbar .staging-actions .btn,
+body.sasv-forecast-console #tab-overrides .active-toolbar .staging-actions .btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+  width: auto;
+}
+
+body.sasv-forecast-console #tab-overrides .icon-toggle {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-forecast-console #tab-overrides .action-menu-panel .action-btn {
+  white-space: nowrap;
+  width: auto;
+  min-width: auto;
+}
+
+/* Modal */
+body.sasv-forecast-console #fcModal {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  padding: 0;
+  max-width: min(520px, 94vw);
+}
+
+body.sasv-forecast-console #fcModal::backdrop {
+  background: color-mix(in srgb, var(--sasv-text) 28%, transparent);
+}
+
+/* Hide legacy local toast host; canonical toast.js owns feedback */
+body.sasv-forecast-console #toast {
+  display: none !important;
+}

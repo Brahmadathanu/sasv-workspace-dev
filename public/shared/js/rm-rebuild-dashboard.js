@@ -4,6 +4,25 @@ import { canEditRM, isProcurementAdmin } from "./mrpAccess.js";
 import { openDetailModal } from "./detailModal.js";
 import { fetchRMTrace } from "./detailFetchers.js";
 import { downloadJSON } from "./mrpExports.js";
+import { Platform } from "./platform.js";
+import {
+  mountModuleHome,
+  enhanceSearchableSelect,
+  syncSearchableSelect,
+} from "./sasv-module-chrome.js";
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+(function mountRmRebuildHome() {
+  const homeEl = document.getElementById("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(document.getElementById("homeBtn")),
+      { once: true },
+    );
+  }
+})();
 
 const RM_OVERVIEW_VIEW = "v_mrp_rm_planned_vs_issued_overview";
 const RPC_DRY_RUN_ALL = "mrp_rm_rebuild_dry_run_all";
@@ -297,6 +316,18 @@ function buildRmDropdown() {
     }`;
     select.appendChild(opt);
   });
+
+  // Large option set → Stock Checker-family searchable single-select
+  if (select._sasvSearch) {
+    syncSearchableSelect(select);
+  } else {
+    enhanceSearchableSelect(select, {
+      placeholder: "Search RM items…",
+      allowEmptyOption: true,
+      debounceMs: 220,
+      clearSelectedOnBackspace: true,
+    });
+  }
 }
 
 function getRmLabel(row) {
@@ -316,7 +347,7 @@ function summarizeFlags(row) {
   if (row.allocation_approx_present) {
     parts.push('<span class="badge-info">Approx</span>');
   }
-  return parts.join(" ");
+  return parts.length ? `<div class="flags">${parts.join("")}</div>` : "";
 }
 
 function summarizeTopConsumers(row) {
@@ -455,16 +486,16 @@ function renderOverviewTable() {
     const consumersHtml = summarizeTopConsumers(row);
 
     tr.innerHTML = `
-      <td>${rmLabel}</td>
-      <td style="text-align:right">${formatNumber(row.planned_total_qty)}</td>
-      <td style="text-align:right">${formatNumber(row.issued_total_qty)}</td>
-      <td style="text-align:right">${formatNumber(row.net_requirement)}</td>
-      <td>${flagsHtml}</td>
-      <td>${consumersHtml}</td>
-      <td>
-        <button class="link-btn dry-run-one">Dry run</button>
-        <button class="link-btn rebuild-one">Rebuild</button>
-        <button class="link-btn open-allocation">Open allocation</button>
+      <td data-key="rm">${rmLabel}</td>
+      <td data-key="planned_total_qty">${formatNumber(row.planned_total_qty)}</td>
+      <td data-key="issued_total_qty">${formatNumber(row.issued_total_qty)}</td>
+      <td data-key="net_requirement">${formatNumber(row.net_requirement)}</td>
+      <td data-key="flags">${flagsHtml}</td>
+      <td data-key="top_consumers">${consumersHtml}</td>
+      <td data-key="actions">
+        <button type="button" class="link-btn dry-run-one">Dry run</button>
+        <button type="button" class="link-btn rebuild-one">Rebuild</button>
+        <button type="button" class="link-btn open-allocation">Open allocation</button>
       </td>
     `;
 
@@ -901,10 +932,19 @@ function openAllocationForItem(row) {
 /* Wiring */
 function wireUp() {
   els.homeBtn().addEventListener("click", () => {
-    window.location.href = "../../index.html";
+    try {
+      Platform.goHome();
+    } catch {
+      window.location.href = "../../index.html";
+    }
   });
   els.clearFilters().addEventListener("click", () => {
-    els.rmFilter().value = "";
+    const select = els.rmFilter();
+    if (select._sasvSearch) {
+      select._sasvSearch.setValue("", false);
+    } else {
+      select.value = "";
+    }
     els.filterUnassigned().checked = false;
     els.filterApprox().checked = false;
     els.filterNetNonZero().checked = false;

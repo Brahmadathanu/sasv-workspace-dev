@@ -1,4 +1,5 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 
 // DOM refs
 const sectionFilter = document.getElementById("sectionFilter");
@@ -404,6 +405,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   multiClearBtn.onclick = clearMulti;
 
   const homeBtn = document.getElementById("homeBtn");
+  mountModuleHome(homeBtn);
   if (homeBtn) {
     homeBtn.addEventListener("click", () => {
       window.location.assign("index.html");

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <title>Stock & Purchase Explorer</title>
@@ -149,9 +149,6 @@
         display: inline;
       }
       @media (max-width: 520px) {
-        .sc-snapshot .sc-snapshot-label {
-          display: none;
-        }
         #homeBtn .home-label {
           display: none;
         }
@@ -315,24 +312,7 @@
         pointer-events: auto;
       }
 
-      /* Mobile Filters Modal */
-      #mobileFiltersModal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(2, 6, 23, 0.6);
-        z-index: 2000;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-      #mobileFiltersModal.open {
-        display: flex;
-      }
+      /* Filters popover layout is owned by sasv-stock-purchase-explorer.css */
       #mobileFiltersModal .modal-container {
         background: white;
         border-radius: 12px;
@@ -476,12 +456,6 @@
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.06);
       }
 
-      /* Hide mobile filters modal on larger screens */
-      @media (min-width: 521px) {
-        #mobileFiltersModal {
-          display: none !important;
-        }
-      }
       /* Mobile: hide off-canvas drawer styles since we're using modal */
       @media (max-width: 520px) {
         .filters-card {
@@ -1742,12 +1716,6 @@
         }
       }
 
-      /* Match freshness pill height to home button */
-      #lastRefreshed {
-        height: 32px;
-        box-sizing: border-box;
-      }
-
       /* ── Stock Value modal ─────────────────────────────────────── */
       .stock-value-modal {
         display: none;
@@ -1853,40 +1821,21 @@
         }
       }
     </style>
+    <!-- SPE-1 specialization after inline legacy styles so token rules win cascade -->
+    <link rel="stylesheet" href="./css/sasv-stock-purchase-explorer.css" />
   </head>
-  <body data-theme="system">
-    <div class="page">
-      <header class="page-header">
-        <div class="header-left">
-          <button
-            id="mobileFiltersBtn"
-            class="link-btn"
-            type="button"
-            aria-label="Open filters"
-            title="Filters"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <path d="M3 5h18M6 12h12M10 19h4" />
-            </svg>
-          </button>
-
-          <h1 style="margin: 0; text-align: left">Stock & Purchase Explorer</h1>
-          <p
-            class="hint"
-            style="margin: 4px 0 0 0; padding-left: 0; text-align: left"
-          >
+  <body class="sasv-stock-purchase-explorer" data-theme="system">
+    <div class="page spe-page">
+      <header class="page-header spe-header">
+        <div class="header-left spe-header-copy">
+          <h1 class="sasv-module-title spe-page-title">
+            Stock & Purchase Explorer
+          </h1>
+          <p class="hint page-sub spe-page-desc">
             Inventory & purchase analytics by stock item
           </p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions spe-actions">
           <button
             id="stockValueChip"
             class="stock-value-chip"
@@ -1909,155 +1858,36 @@
             >
           </button>
           <button
-            id="lastRefreshed"
-            class="sc-snapshot"
+            id="homeBtn"
+            class="sasv-home-btn"
             type="button"
-            aria-label="Data not yet loaded"
-            title="Data not yet loaded"
-            tabindex="0"
-            role="button"
-            aria-haspopup="true"
-            aria-expanded="false"
+            title="HOME"
+            aria-label="HOME"
           >
-            <span class="sc-snapshot-dot" aria-hidden="true"></span>
-            <span class="sc-snapshot-label">Not loaded</span>
-          </button>
-          <button id="homeBtn" type="button" title="Home" aria-label="Home">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
+            <!-- Canonical HOME glyph mounted by mountModuleHome (ui-icons `home`) -->
             <span class="home-label">HOME</span>
           </button>
         </div>
       </header>
 
-      <!-- Mobile search: visible only on small screens, synced with #search -->
-      <div id="mobileSearchWrap" style="padding: 6px 0">
-        <div class="card" style="padding: 8px">
-          <div class="input-with-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle
-                cx="11"
-                cy="11"
-                r="7"
-                stroke="currentColor"
-                stroke-width="2"
-              ></circle>
-              <line
-                x1="21"
-                y1="21"
-                x2="16.65"
-                y2="16.65"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              ></line>
-            </svg>
-            <input
-              id="mobileSearch"
-              type="text"
-              placeholder="Search by code or name…"
-            />
-            <button
-              id="mobileSearchClear"
-              class="input-clear-btn"
-              type="button"
-              aria-label="Clear search"
-              title="Clear search"
-              style="display: none"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <line
-                  x1="18"
-                  y1="6"
-                  x2="6"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                ></line>
-                <line
-                  x1="6"
-                  y1="6"
-                  x2="18"
-                  y2="18"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                ></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <section class="card filters-card">
-        <button
-          id="filtersCloseBtn"
-          class="drawer-close"
-          type="button"
-          aria-label="Close filters"
-          title="Close filters"
-          style="display: none"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-        <!-- Primary filters always visible -->
         <div class="filters-primary">
-          <div class="primary-item source">
-            <label>
-              <span class="label-text">Source Kind (Tally)</span>
-              <select id="classification">
-                <option value="all">(All)</option>
-                <option value="rm">RM</option>
-                <option value="plm">PLM</option>
-                <option value="consumable">Consumables</option>
-                <option value="fuel">Fuel</option>
-              </select>
-            </label>
+          <div class="primary-item filters-open">
+            <button
+              id="filtersBtn"
+              class="filters-open-btn"
+              type="button"
+              aria-haspopup="true"
+              aria-controls="mobileFiltersModal"
+              aria-expanded="false"
+              aria-label="Filters"
+              title="Filters"
+            ></button>
           </div>
-
           <div class="primary-item search">
             <label>
               <span class="label-text">Search</span>
               <div class="input-with-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle
-                    cx="11"
-                    cy="11"
-                    r="7"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  ></circle>
-                  <line
-                    x1="21"
-                    y1="21"
-                    x2="16.65"
-                    y2="16.65"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  ></line>
-                </svg>
                 <input
                   id="search"
                   type="text"
@@ -2095,131 +1925,76 @@
               </div>
             </label>
           </div>
-          <div class="primary-item date">
-            <label>
-              <span class="label-text">Date Range</span>
-              <input
-                id="dateRange"
-                type="text"
-                placeholder="Pick a date range"
-              />
-            </label>
-          </div>
-          <div class="primary-item reset">
-            <div class="reset-wrap">
-              <span class="label-text">Reset</span>
-              <button
-                id="resetFiltersBtn"
-                type="button"
-                aria-label="Reset filters"
-                title="Reset filters"
-                style="
-                  background: none;
-                  border: none;
-                  padding: 4px;
-                  cursor: pointer;
-                  display: inline-flex;
-                  align-items: center;
-                  justify-content: center;
-                  color: var(--erp-muted);
-                "
-              >
-                <!-- refresh / reset SVG (Edit Lines icon reused from supply-overrides) -->
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
-                  />
-                  <path d="M21 3v5h-5" />
-                  <path
-                    d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
-                  />
-                  <path d="M3 21v-5h5" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="advanced-toggle-container">
+        </div>
+        <div
+          id="mobileFiltersModal"
+          class="spe-filters-popover"
+          aria-hidden="true"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="mobileFiltersTitle"
+        >
+          <div class="popover-header">
+            <h3 id="mobileFiltersTitle">Filters</h3>
             <button
-              id="toggleAdvancedFilters"
-              class="link-btn advanced-toggle"
-              aria-expanded="false"
-              aria-controls="advancedDrawer"
+              type="button"
+              id="mobileFiltersReset"
+              class="btn btn-secondary"
             >
-              <span class="advanced-label">Advanced</span>
-              <svg
-                class="adv-chevron"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <polyline
-                  points="6 9 12 15 18 9"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  fill="none"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              Reset
             </button>
           </div>
-        </div>
-
-        <!-- Advanced filters hidden in a drawer by default -->
-        <div id="advancedDrawer" class="advanced-drawer" aria-hidden="true">
-          <div class="filters-grid">
-            <!-- Source Kind moved to primary filters; kept advanced fields below -->
-            <!-- Canonical category (RM / PLM / IND etc) -->
-            <label>
-              <span class="label-text">Category</span>
-              <select id="categoryFilter">
-                <option value="all">(All)</option>
-                <!-- Options will be populated from inv_class_category via JS -->
-              </select>
-            </label>
-
-            <!-- Canonical subcategory -->
-            <label>
-              <span class="label-text">Subcategory</span>
-              <select id="subcategoryFilter">
-                <option value="all">(All)</option>
-                <!-- Options will be populated via JS -->
-              </select>
-            </label>
-
-            <!-- Canonical group -->
-            <label>
-              <span class="label-text">Group</span>
-              <select id="groupFilter">
-                <option value="all">(All)</option>
-                <!-- Options will be populated via JS -->
-              </select>
-            </label>
-
-            <!-- Canonical subgroup -->
-            <label>
-              <span class="label-text">Subgroup</span>
-              <select id="subgroupFilter">
-                <option value="all">(All)</option>
-                <!-- Options will be populated via JS -->
-              </select>
-            </label>
+          <div class="popover-body" id="mobileFiltersContent">
+            <div class="filters-grid spe-filter-drawer-grid">
+              <label class="filter-field source">
+                <span class="label-text">Source Kind (Tally)</span>
+                <select id="classification">
+                  <option value="all">(All)</option>
+                  <option value="rm">RM</option>
+                  <option value="plm">PLM</option>
+                  <option value="consumable">Consumables</option>
+                  <option value="fuel">Fuel</option>
+                </select>
+              </label>
+              <label class="filter-field date">
+                <span class="label-text">Date Range</span>
+                <input
+                  id="dateRange"
+                  type="text"
+                  placeholder="Pick a date range"
+                />
+              </label>
+              <label class="filter-field">
+                <span class="label-text">Category</span>
+                <select id="categoryFilter">
+                  <option value="all">(All)</option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span class="label-text">Subcategory</span>
+                <select id="subcategoryFilter">
+                  <option value="all">(All)</option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span class="label-text">Group</span>
+                <select id="groupFilter">
+                  <option value="all">(All)</option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span class="label-text">Subgroup</span>
+                <select id="subgroupFilter">
+                  <option value="all">(All)</option>
+                </select>
+              </label>
+            </div>
           </div>
         </div>
       </section>
 
       <section class="content">
-        <div class="card table-card">
+        <div class="card table-card spe-view-table">
           <!-- Card-level busy overlay, shown while tab data is loading -->
           <div
             id="tableCardBusy"
@@ -2279,16 +2054,28 @@
               </svg>
             </div>
           </div>
-          <div class="table-header">
+          <div class="table-header spe-header-empty" id="tableHeaderBar">
             <div class="table-title-group">
-              <h3>Records</h3>
               <div id="tableContextMeta" class="table-context-meta"></div>
             </div>
-            <div id="paginator" class="paginator" aria-live="polite"></div>
+            <div id="tableHeaderActions" class="table-header-actions"></div>
           </div>
           <div id="tableArea" class="mobile-scroll-container">
             <!-- Table will be rendered here -->
           </div>
+          <section
+            id="spe-cards-wrap"
+            class="spe-cards-wrap"
+            aria-label="Explorer results"
+            hidden
+          >
+            <div id="spe-cards-list" class="spe-cards-list" role="list"></div>
+            <div
+              id="speCardsSentinel"
+              class="spe-scroll-sentinel"
+              aria-live="polite"
+            ></div>
+          </section>
         </div>
         <aside class="card side-panel" id="sidePanel">
           <!-- Item details will be rendered here -->
@@ -2319,53 +2106,6 @@
           </svg>
         </button>
         <div class="modal-content" id="modalContent"></div>
-      </div>
-    </div>
-    <!-- Mobile Filters Modal -->
-    <div
-      id="mobileFiltersModal"
-      class="modal-overlay"
-      aria-hidden="true"
-      role="dialog"
-      aria-labelledby="mobileFiltersTitle"
-    >
-      <div class="modal-container">
-        <div class="modal-header">
-          <h3 id="mobileFiltersTitle">Filters</h3>
-          <button
-            type="button"
-            class="modal-close"
-            id="mobileFiltersClose"
-            aria-label="Close filters"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        <div class="modal-content" id="mobileFiltersContent">
-          <!-- Filters will be dynamically populated here -->
-        </div>
-        <div class="modal-footer">
-          <button
-            type="button"
-            id="mobileFiltersReset"
-            class="btn btn-secondary"
-          >
-            Reset
-          </button>
-          <button type="button" id="mobileFiltersApply" class="btn btn-primary">
-            Apply Filters
-          </button>
-        </div>
       </div>
     </div>
     <!-- Stock Value split-up modal -->

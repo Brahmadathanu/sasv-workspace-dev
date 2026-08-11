@@ -1,336 +1,363 @@
-// seasonal-banners.js — injects a small banner for Christmas / New Year
-// NOTE: temporary debug logs to help diagnose visibility issue on login page
+// seasonal-banners.js — SASV chip on login + home for dated greetings
 (function () {
-  try {
-    console.log("seasonal-banners: script loaded");
-  } catch {
-    void 0;
+  // Set to a season id (e.g. "christmas") to preview out of calendar; null = scheduled windows.
+  const TRIAL_FORCE_SEASON = null;
+
+  const WORKDAYS_BEFORE = 3;
+  const WORKDAYS_AFTER = 3;
+
+  const GLYPH = {
+    independence:
+      '<svg class="sasv-seasonal-flag" viewBox="0 0 18 12" width="16" height="11" aria-hidden="true" focusable="false"><g clip-path="url(#sasv-in-flag-clip)"><rect width="18" height="4" fill="#FF9933"/><rect y="4" width="18" height="4" fill="#fff"/><rect y="8" width="18" height="4" fill="#138808"/><circle cx="9" cy="6" r="1.55" fill="none" stroke="#000080" stroke-width="0.7"/></g><clipPath id="sasv-in-flag-clip"><rect width="18" height="12" rx="1.4"/></clipPath><rect width="18" height="12" rx="1.4" fill="none" stroke="rgba(15,40,42,0.22)" stroke-width="0.75"/></svg>',
+    christmas:
+      '<svg class="sasv-seasonal-mark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 1.1v1.7" stroke="#7a5c14" stroke-width="1.15" stroke-linecap="round"/><rect x="6.15" y="2.5" width="3.7" height="1.7" rx="0.35" fill="#c4a35a"/><circle cx="8" cy="9.35" r="5.15" fill="#b91c1c"/><ellipse cx="6.15" cy="7.55" rx="1.25" ry="1.7" fill="#fff" opacity="0.28"/></svg>',
+    newyear:
+      '<svg class="sasv-seasonal-mark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 .5l1.45 5.5L15.5 8 9.45 10 8 15.5 6.55 10 .5 8 6.55 6Z" fill="#b45309"/><circle cx="8" cy="8" r="1.45" fill="#f7f0df"/><path d="M13.15 1.35l.45 1.55 1.55.45-1.55.45-.45 1.55-.45-1.55-1.55-.45 1.55-.45Z" fill="#c4a35a"/></svg>',
+    onam:
+      '<svg class="sasv-seasonal-mark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="7" fill="#FF9933"/><circle cx="8" cy="8" r="5.35" fill="#fff"/><circle cx="8" cy="8" r="5.35" fill="none" stroke="#138808" stroke-width="1.35"/><circle cx="8" cy="8" r="3.15" fill="#FF9933"/><circle cx="8" cy="8" r="1.35" fill="#7a5c14"/></svg>',
+    vishu:
+      '<svg class="sasv-seasonal-mark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><circle cx="5.1" cy="6.4" r="3.15" fill="#eab308"/><circle cx="11.1" cy="5.4" r="2.75" fill="#ca8a04"/><circle cx="8.6" cy="10.5" r="2.55" fill="#eab308"/><circle cx="5.1" cy="6.4" r="0.9" fill="#7a5c14"/><circle cx="11.1" cy="5.4" r="0.8" fill="#7a5c14"/><circle cx="8.6" cy="10.5" r="0.75" fill="#7a5c14"/></svg>',
+    ayurveda:
+      '<svg class="sasv-seasonal-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><g stroke="#b45309" stroke-width="1.4" stroke-linecap="round"><line x1="8" y1="0.55" x2="8" y2="2.55"/><line x1="8" y1="13.45" x2="8" y2="15.45"/><line x1="0.55" y1="8" x2="2.55" y2="8"/><line x1="13.45" y1="8" x2="15.45" y2="8"/><line x1="2.65" y1="2.65" x2="4.1" y2="4.1"/><line x1="11.9" y1="11.9" x2="13.35" y2="13.35"/><line x1="13.35" y1="2.65" x2="11.9" y2="4.1"/><line x1="4.1" y1="11.9" x2="2.65" y2="13.35"/></g><circle cx="8" cy="8" r="3.55" fill="#eab308"/><circle cx="8" cy="8" r="2.15" fill="#fde68a"/></svg>',
+    kerala:
+      '<svg class="sasv-seasonal-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><g fill="none" stroke="#166534" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 14.2Q8 8.3 14.6 1.8" stroke-width="1.05"/><path stroke-width="0.82" d="M3.1 12.9Q3.6 9.8 4.5 6.8M4.5 11.4Q5.1 8.3 6.2 5.4M5.9 9.9Q6.6 6.9 7.8 4.1M7.3 8.4Q8.1 5.5 9.4 2.9M8.7 6.9Q9.5 4.2 10.9 1.8M10.1 5.4Q10.9 3.0 12.2 1.1M11.5 4.0Q12.2 1.9 13.3 0.6M3.2 12.8Q6.0 12.4 8.8 12.9M4.6 11.3Q7.4 10.8 10.1 11.1M6.0 9.8Q8.7 9.2 11.3 9.4M7.4 8.3Q9.9 7.6 12.3 7.7M8.8 6.8Q11.1 6.1 13.2 6.0M10.2 5.3Q12.2 4.6 13.9 4.4M11.6 3.9Q13.2 3.3 14.5 3.0"/></g></svg>',
+    siddha:
+      '<svg class="sasv-seasonal-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="1.4" y="2.6" width="13.2" height="4.5" rx="2.2" fill="#c4a35a"/><rect x="1.4" y="8.9" width="13.2" height="4.5" rx="2.2" fill="#b45309"/><circle cx="3.55" cy="4.85" r="0.75" fill="#7a5c14"/><circle cx="3.55" cy="11.15" r="0.75" fill="#f7f0df"/></svg>',
+  };
+
+  const SEASONS = [
+    {
+      id: "independence",
+      month: 8,
+      day: 15,
+      glyphHtml: GLYPH.independence,
+      label: "15 Aug",
+      greeting: "Happy Independence Day. Proud to serve with you.",
+    },
+    {
+      id: "onam",
+      // Thiruvonam moves each year (Malayalam Chingam). Add later years when known.
+      datesByYear: {
+        2025: [9, 5],
+        2026: [8, 26],
+        2027: [9, 12],
+        2028: [9, 1],
+        2029: [8, 22],
+        2030: [9, 9],
+      },
+      glyphHtml: GLYPH.onam,
+      label: "Onam",
+      greeting: "Happy Onam. Wishing you a season of togetherness.",
+    },
+    {
+      id: "christmas",
+      month: 12,
+      day: 25,
+      glyphHtml: GLYPH.christmas,
+      label: "Christmas",
+      greeting: "Merry Christmas. Enjoy the festive season.",
+    },
+    {
+      id: "newyear",
+      month: 1,
+      day: 1,
+      glyphHtml: GLYPH.newyear,
+      label: "New Year",
+      greeting: "Happy New Year. Wishing you a productive year ahead.",
+    },
+    {
+      id: "republic",
+      month: 1,
+      day: 26,
+      glyphHtml: GLYPH.independence,
+      label: "26 Jan",
+      greeting: "Happy Republic Day. Proud to serve with you.",
+    },
+    {
+      id: "vishu",
+      datesByYear: {
+        2025: [4, 14],
+        2026: [4, 15],
+        2027: [4, 15],
+        2028: [4, 14],
+        2029: [4, 14],
+        2030: [4, 15],
+      },
+      glyphHtml: GLYPH.vishu,
+      label: "Vishu",
+      greeting: "Happy Vishu. Wishing you a prosperous new year.",
+    },
+    {
+      id: "ayurveda",
+      month: 9,
+      day: 23,
+      glyphHtml: GLYPH.ayurveda,
+      label: "Ayurveda",
+      greeting: "Happy Ayurveda Day. Honouring the science we practise every day.",
+    },
+    {
+      id: "siddha",
+      // Ayilyam star in Margazhi; date moves. Listed years first; Jan 6 is fallback.
+      month: 1,
+      day: 6,
+      datesByYear: {
+        2024: [12, 19],
+        2026: [1, 6],
+      },
+      glyphHtml: GLYPH.siddha,
+      label: "Siddha",
+      greeting: "Happy Siddha Day. Honouring the science we practise every day.",
+    },
+    {
+      id: "kerala",
+      month: 11,
+      day: 1,
+      glyphHtml: GLYPH.kerala,
+      label: "Kerala",
+      greeting: "Happy Kerala Piravi. Proud of our home and heritage.",
+    },
+  ];
+
+  function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }
-  const now = new Date();
-  const y = now.getFullYear();
-  const mm = now.getMonth() + 1; // 1-12
-  const dd = now.getDate();
 
-  // Christmas window: Dec 1 .. Dec 26 (inclusive)
-  const isChristmas = mm === 12 && dd >= 1 && dd <= 26;
+  function isWeekend(d) {
+    const day = d.getDay();
+    return day === 0 || day === 6;
+  }
 
-  // New Year window: 5 days before Jan 1 through Jan 2 (inclusive)
-  // That means: Dec 27..Dec31 and Jan 1..Jan 2
-  const isNewYear =
-    (mm === 12 && dd >= 27 && dd <= 31) || (mm === 1 && dd <= 2);
+  function addWorkdays(date, n) {
+    const d = startOfDay(date);
+    const step = n >= 0 ? 1 : -1;
+    let remaining = Math.abs(n);
+    while (remaining > 0) {
+      d.setDate(d.getDate() + step);
+      if (!isWeekend(d)) remaining -= 1;
+    }
+    return d;
+  }
 
-  if (!isChristmas && !isNewYear) return; // nothing to show
+  function inInclusiveRange(today, start, end) {
+    const t = startOfDay(today).getTime();
+    return t >= startOfDay(start).getTime() && t <= startOfDay(end).getTime();
+  }
 
-  const cls = isChristmas ? "christmas" : "newyear";
-  const emoji = isChristmas ? "🎄" : "🎉";
-  const text = isChristmas
-    ? `Merry Christmas! Thanks for using the app — enjoy the festive season!`
-    : `Happy New Year! Wishing you a productive year ahead.`;
+  function eventDateForYear(season, year) {
+    if (season.datesByYear && season.datesByYear[year]) {
+      const pair = season.datesByYear[year];
+      return new Date(year, pair[0] - 1, pair[1]);
+    }
+    if (season.month && season.day) {
+      return new Date(year, season.month - 1, season.day);
+    }
+    return null;
+  }
 
-  // Build banner element (compact badge variant)
-  function makeBanner() {
-    // wrapper contains a small circular badge and a hidden expanded panel
-    const wrapper = document.createElement("div");
-    wrapper.className = "seasonal-wrapper";
+  function windowForSeason(today, season) {
+    const years = [
+      today.getFullYear() - 1,
+      today.getFullYear(),
+      today.getFullYear() + 1,
+    ];
+    for (let i = 0; i < years.length; i += 1) {
+      const event = eventDateForYear(season, years[i]);
+      if (!event) continue;
+      const start = addWorkdays(event, -WORKDAYS_BEFORE);
+      const end = addWorkdays(event, WORKDAYS_AFTER);
+      if (inInclusiveRange(today, start, end)) {
+        return { event: startOfDay(event), start, end, year: years[i] };
+      }
+    }
+    return null;
+  }
 
-    const badge = document.createElement("div");
-    badge.className = `seasonal-badge circle ${cls}`;
-    const em = document.createElement("span");
-    em.className = "sb-emoji";
-    em.textContent = emoji;
-    badge.appendChild(em);
-
-    const panel = document.createElement("div");
-    panel.className = `seasonal-panel ${cls}`;
-    const row = document.createElement("div");
-    row.className = "panel-row";
-    const ptxt = document.createElement("div");
-    ptxt.className = "panel-text";
-    ptxt.textContent = text;
-    const btnClose = document.createElement("button");
-    btnClose.className = "panel-close";
-    btnClose.type = "button";
-    btnClose.setAttribute("aria-label", "Dismiss");
-    btnClose.innerHTML = "×";
-    row.appendChild(ptxt);
-    row.appendChild(btnClose);
-    panel.appendChild(row);
-
-    // append panel to body to avoid clipping by parent stacking contexts
+  function parseDebugSeason() {
     try {
-      panel.style.position = "fixed";
-      panel.style.zIndex = "2147483647"; // highest positive 32-bit int
-      panel.style.pointerEvents = "auto";
-      panel.style.left = "50%";
-      panel.style.top = "-9999px"; // hidden until positioned
-      panel.style.transform = "translateX(-50%) translateY(-8px) scale(0.98)";
-      panel.classList.remove("expanded");
-      // append to documentElement to avoid any body stacking/context issues
-      (document.documentElement || document.body).appendChild(panel);
+      const params = new URLSearchParams(location.search || "");
+      const raw = (params.get("seasonalDebug") || "").trim().toLowerCase();
+      if (!raw) return null;
+      if (raw === "1" || raw === "true") return "auto";
+      if (SEASONS.some((s) => s.id === raw)) return raw;
+      return null;
     } catch {
-      wrapper.appendChild(panel);
+      return null;
     }
-
-    // interactions: hover/focus to expand; close persists dismissal
-    function doDismiss() {
-      try {
-        const page =
-          (location.pathname || location.href || "page").split("/").pop() ||
-          "page";
-        const pageKey = `${page}`.replace(/[^a-z0-9._-]/gi, "_");
-        const key = `seasonal-dismissed-${y}-${cls}-${pageKey}`;
-        // Use sessionStorage so dismissal lasts only for this session/renderer
-        // and the badge will reappear on next app start within the season.
-        sessionStorage.setItem(key, "1");
-      } catch {
-        void 0;
-      }
-      try {
-        wrapper.remove();
-      } catch {
-        void 0;
-      }
-      try {
-        panel.remove();
-      } catch {
-        void 0;
-      }
-    }
-    btnClose.addEventListener("click", doDismiss);
-
-    // helper to position panel under/near badge
-    function positionPanel() {
-      try {
-        const brect = badge.getBoundingClientRect();
-        const top = Math.round(brect.bottom + 8);
-        const left = Math.round(brect.left + brect.width / 2);
-        panel.style.left = left + "px";
-        panel.style.top = top + "px";
-        panel.style.transform = "translateX(-50%) translateY(0) scale(1)";
-      } catch {
-        void 0;
-      }
-    }
-
-    function openPanel() {
-      if (isExpanded) return;
-      positionPanel();
-      panel.classList.add("expanded");
-      wrapper.classList.add("expanded");
-      isExpanded = true;
-      window.addEventListener("resize", positionPanel);
-      window.addEventListener("scroll", positionPanel, { passive: true });
-    }
-    function closePanel() {
-      if (!isExpanded) return;
-      panel.classList.remove("expanded");
-      wrapper.classList.remove("expanded");
-      isExpanded = false;
-      window.removeEventListener("resize", positionPanel);
-      window.removeEventListener("scroll", positionPanel, { passive: true });
-    }
-
-    // keep track of hover/focus state on badge and panel so panel hides
-    // only when neither is hovered/focused (prevents persistence)
-    let isOverBadge = false;
-    let isOverPanel = false;
-    let closeTimer = null;
-    let isExpanded = false;
-
-    function scheduleClose() {
-      if (closeTimer) clearTimeout(closeTimer);
-      closeTimer = setTimeout(() => {
-        if (!isOverBadge && !isOverPanel && isExpanded) {
-          closePanel();
-          isExpanded = false;
-        }
-        closeTimer = null;
-      }, 200);
-    }
-
-    badge.addEventListener("mouseenter", () => {
-      isOverBadge = true;
-      if (closeTimer) clearTimeout(closeTimer);
-      openPanel();
-    });
-    badge.addEventListener("mouseleave", () => {
-      isOverBadge = false;
-      scheduleClose();
-    });
-    badge.addEventListener("focusin", () => {
-      isOverBadge = true;
-      if (closeTimer) clearTimeout(closeTimer);
-      openPanel();
-    });
-    badge.addEventListener("focusout", () => {
-      isOverBadge = false;
-      scheduleClose();
-    });
-
-    panel.addEventListener("mouseenter", () => {
-      isOverPanel = true;
-      if (closeTimer) clearTimeout(closeTimer);
-    });
-    panel.addEventListener("mouseleave", () => {
-      isOverPanel = false;
-      scheduleClose();
-    });
-    panel.addEventListener("focusin", () => {
-      isOverPanel = true;
-      if (closeTimer) clearTimeout(closeTimer);
-    });
-    panel.addEventListener("focusout", () => {
-      isOverPanel = false;
-      scheduleClose();
-    });
-
-    // close on Escape
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closePanel();
-    });
-
-    wrapper.appendChild(badge);
-    return { wrapper, badge, panel, positionPanel, openPanel, closePanel };
   }
 
-  // helper: check if dismissed
-  function isDismissed() {
+  function seasonById(id) {
+    for (let i = 0; i < SEASONS.length; i += 1) {
+      if (SEASONS[i].id === id) return SEASONS[i];
+    }
+    return null;
+  }
+
+  function resolveSeason(today) {
+    const debug = parseDebugSeason();
+    if (debug && debug !== "auto") {
+      const forced = seasonById(debug);
+      if (forced) {
+        return { season: forced, year: today.getFullYear() };
+      }
+    }
+
+    if (TRIAL_FORCE_SEASON) {
+      const trial = seasonById(TRIAL_FORCE_SEASON);
+      if (trial) {
+        return { season: trial, year: today.getFullYear() };
+      }
+    }
+
+    const matches = [];
+    for (let i = 0; i < SEASONS.length; i += 1) {
+      const season = SEASONS[i];
+      const win = windowForSeason(today, season);
+      if (win) {
+        matches.push({
+          season,
+          year: win.year,
+          distance: Math.abs(startOfDay(today).getTime() - win.event.getTime()),
+        });
+      }
+    }
+    if (!matches.length) {
+      if (debug === "auto") {
+        const fallback = seasonById("independence") || SEASONS[0];
+        return { season: fallback, year: today.getFullYear() };
+      }
+      return null;
+    }
+    matches.sort((a, b) => a.distance - b.distance);
+    return { season: matches[0].season, year: matches[0].year };
+  }
+
+  function pageKey() {
+    const page =
+      (location.pathname || location.href || "page").split("/").pop() || "page";
+    return `${page}`.replace(/[^a-z0-9._-]/gi, "_");
+  }
+
+  function dismissKey(year, seasonId) {
+    return `seasonal-dismissed-${year}-${seasonId}-${pageKey()}`;
+  }
+
+  function isDismissed(year, seasonId) {
     try {
-      const page =
-        (location.pathname || location.href || "page").split("/").pop() ||
-        "page";
-      const pageKey = `${page}`.replace(/[^a-z0-9._-]/gi, "_");
-      const key = `seasonal-dismissed-${y}-${cls}-${pageKey}`;
-      // Check sessionStorage to determine if user dismissed during this session
-      return sessionStorage.getItem(key) === "1";
+      return sessionStorage.getItem(dismissKey(year, seasonId)) === "1";
     } catch {
       return false;
     }
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    // attach CSS if not already present (check both absolute and relative hrefs)
-    const cssCandidates = [
+  function markDismissed(year, seasonId) {
+    try {
+      sessionStorage.setItem(dismissKey(year, seasonId), "1");
+    } catch {
+      void 0;
+    }
+  }
+
+  function makeChip(season, year) {
+    const chip = document.createElement("span");
+    chip.className = "sasv-chip sasv-chip--primary sasv-seasonal-chip";
+    chip.setAttribute("role", "status");
+
+    const glyph = document.createElement("span");
+    glyph.className = "sasv-seasonal-chip__glyph";
+    glyph.setAttribute("aria-hidden", "true");
+    if (season.glyphHtml) glyph.innerHTML = season.glyphHtml;
+    else glyph.textContent = season.glyph;
+
+    const label = document.createElement("span");
+    label.className = "sasv-seasonal-chip__label";
+    label.textContent = season.label;
+
+    const tip = document.createElement("span");
+    tip.className = "sasv-seasonal-chip__tip";
+    tip.textContent = season.greeting;
+
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "sasv-seasonal-chip__dismiss";
+    dismiss.setAttribute("aria-label", "Dismiss greeting");
+    dismiss.innerHTML =
+      '<svg class="sasv-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    dismiss.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      markDismissed(year, season.id);
+      const slot = chip.closest(".sasv-seasonal-chip-slot");
+      if (slot) slot.remove();
+      else chip.remove();
+    });
+
+    chip.appendChild(glyph);
+    chip.appendChild(label);
+    chip.appendChild(tip);
+    chip.appendChild(dismiss);
+
+    const finishIn = () => chip.classList.add("is-ready");
+    chip.addEventListener("animationend", finishIn, { once: true });
+    setTimeout(finishIn, 400);
+    try {
+      if (
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        finishIn();
+      }
+    } catch {
+      void 0;
+    }
+
+    return chip;
+  }
+
+  function placeChip(chip) {
+    const userZone = document.getElementById("user-zone");
+    const presence = document.getElementById("presence-chip");
+    if (userZone && presence && presence.parentNode === userZone) {
+      userZone.insertBefore(chip, presence);
+      return true;
+    }
+    if (userZone) {
+      userZone.insertBefore(chip, userZone.firstChild);
+      return true;
+    }
+
+    const sub = document.querySelector(".login-container .login-product-sub");
+    if (sub && sub.parentNode) {
+      const slot = document.createElement("div");
+      slot.className = "sasv-seasonal-chip-slot sasv-seasonal-chip-slot--login";
+      slot.appendChild(chip);
+      sub.parentNode.insertBefore(slot, sub.nextSibling);
+      return true;
+    }
+
+    return false;
+  }
+
+  function ensureCss() {
+    const hrefs = [
       "/public/shared/css/seasonal-banners.css",
       "public/shared/css/seasonal-banners.css",
     ];
-    const found = cssCandidates.some((href) =>
+    const found = hrefs.some((href) =>
       document.querySelector(`link[href="${href}"]`)
     );
-    if (!found) {
-      const l = document.createElement("link");
-      l.rel = "stylesheet";
-      l.href = cssCandidates[1];
-      document.head.appendChild(l);
-    }
+    if (found) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = hrefs[1];
+    document.head.appendChild(link);
+  }
 
-    // allow a debug URL param to force-display the seasonal banner during testing
-    // e.g. open login.html?seasonalDebug=1
-    const debugForce =
-      location &&
-      location.search &&
-      location.search.indexOf("seasonalDebug=1") !== -1;
-    if (isDismissed()) {
-      try {
-        if (debugForce)
-          console.log(
-            "seasonal-banners: dismissed but debug forced, continuing"
-          );
-        else
-          console.log(
-            "seasonal-banners: dismissed for this page/season, not showing"
-          );
-      } catch {
-        void 0;
-      }
-      if (!debugForce) return; // don't show if user dismissed this season
-    }
-
-    // Preferred targets: header h1 (home) and login h2 (sign in)
-    // placement: 'right-center' (to the right, vertically centered)
-    //            'above-center' (above and centered)
-    const targets = [
-      { sel: "header h1", placement: "right-center" },
-      { sel: ".login-container h2", placement: "above-center" },
-    ];
-
-    let placed = false;
-    for (const t of targets) {
-      const el = document.querySelector(t.sel);
-      if (!el) continue;
-      // For login above-center: insert wrapper before the parent card so it sits outside
-      const made = makeBanner();
-      const wrapper = made.wrapper;
-      if (t.placement === "above-center") {
-        // place the wrapper absolutely inside the login card so it does NOT
-        // affect document flow. This centers the badge above the card.
-        const card = el.closest(".login-container") || el.parentElement;
-        wrapper.classList.add("placement-above");
-        if (card) {
-          const cs = window.getComputedStyle(card);
-          if (cs.position === "static") card.style.position = "relative";
-          // append wrapper into the card and absolutely position it above
-          card.appendChild(wrapper);
-          try {
-            console.log("seasonal-banners: appended wrapper into login card");
-          } catch {
-            void 0;
-          }
-          wrapper.style.position = "absolute";
-          wrapper.style.top = "-40px";
-          wrapper.style.left = "50%";
-          wrapper.style.transform = "translateX(-50%)";
-          wrapper.style.margin = "0";
-          wrapper.style.width = "auto";
-          // panel will be positioned on first hover/focus
-        }
-      } else if (t.placement === "right-center") {
-        wrapper.classList.add("placement-right");
-        // Prefer inserting immediately after the page title (h1)
-        // `el` is expected to be the title element (header h1)
-        try {
-          if (el && el.parentNode) {
-            el.parentNode.insertBefore(wrapper, el.nextSibling);
-            // small spacing so it doesn't stick to the title
-            wrapper.style.marginLeft = "8px";
-            wrapper.style.display = "inline-flex";
-            wrapper.style.verticalAlign = "middle";
-          } else {
-            // fallback: append to header
-            const header = document.querySelector("header");
-            if (header) header.appendChild(wrapper);
-            else document.body.appendChild(wrapper);
-            try {
-              console.log(
-                "seasonal-banners: appended wrapper for right-center placement"
-              );
-            } catch {
-              void 0;
-            }
-          }
-          // Panel will be positioned on first hover/focus - no initial positioning
-        } catch {
-          const header = document.querySelector("header");
-          if (header) header.appendChild(wrapper);
-        }
-      }
-      placed = true;
-    }
-
-    // fallback: if no targets found, insert at top but compact
-    if (!placed) {
-      const banner = makeBanner();
-      // `makeBanner()` returns an object containing the DOM `wrapper`.
-      // Prepend the wrapper element itself so the badge appears.
-      try {
-        document.body.prepend(banner.wrapper);
-      } catch {
-        try {
-          document.body.appendChild(banner.wrapper);
-        } catch {
-          void 0;
-        }
-      }
-    }
+  document.addEventListener("DOMContentLoaded", () => {
+    ensureCss();
+    const resolved = resolveSeason(new Date());
+    if (!resolved) return;
+    if (isDismissed(resolved.year, resolved.season.id)) return;
+    const chip = makeChip(resolved.season, resolved.year);
+    placeChip(chip);
   });
 })();

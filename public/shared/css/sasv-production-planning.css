@@ -1,0 +1,412 @@
+/**
+ * UI-MOD-4C / 4C.1 — Production Planning Workbench specialization.
+ * Scoped to body.sasv-production-planning-workbench only.
+ * Preserves multi-stage workflow geometry — not Forecast lens pills.
+ *
+ * Viewport gutter: inherit body.sasv-module.sasv-module--app
+ * (--sasv-module-page-padding 20 / 10 / 6) — do not restate here.
+ */
+
+body.sasv-module.sasv-module--app.sasv-production-planning-workbench {
+  margin: 0;
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  font-family: var(--sasv-font-sans);
+  box-sizing: border-box;
+}
+
+/* App-shell flex: keep chrome rows from collapsing under overflow:hidden */
+body.sasv-production-planning-workbench > .header-card,
+body.sasv-production-planning-workbench > .workflow-steps,
+body.sasv-production-planning-workbench > .tabs-wrap {
+  flex-shrink: 0;
+}
+
+body.sasv-production-planning-workbench > .tabpanel.active {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ── Header / HOME ──────────────────────────────────────────────────────── */
+body.sasv-production-planning-workbench .header-card {
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  background: transparent;
+  border: none;
+}
+
+body.sasv-production-planning-workbench .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+}
+
+body.sasv-production-planning-workbench .ppw-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-production-planning-workbench .page-header h1,
+body.sasv-production-planning-workbench .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-production-planning-workbench .page-sub {
+  margin: 4px 0 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+}
+
+body.sasv-production-planning-workbench .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+body.sasv-production-planning-workbench #homeBtn.sasv-home-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  body.sasv-production-planning-workbench .page-sub {
+    display: none;
+  }
+}
+
+/* ── Workflow stepper (PPW-specific — keep stepper, not lenses) ─────────── */
+body.sasv-production-planning-workbench .workflow-steps {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+  border: 1px solid var(--sasv-border);
+  box-shadow: none;
+  /* Horizontal scroll on narrow viewports only; lock Y to avoid a
+     thin empty scrollbar strip under the stepper on desktop. */
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+body.sasv-production-planning-workbench .workflow-progress::before {
+  background: var(--sasv-divider);
+  height: 1.5px;
+}
+
+body.sasv-production-planning-workbench .workflow-step-icon {
+  background: var(--sasv-surface-soft);
+  border: 2px solid var(--sasv-border);
+  box-shadow: none;
+}
+
+body.sasv-production-planning-workbench .workflow-step-icon svg {
+  width: 16px;
+  height: 16px;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-production-planning-workbench .workflow-step-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+  white-space: nowrap;
+}
+
+body.sasv-production-planning-workbench .workflow-step-status {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Active stage — soft semantic, no blue glow */
+body.sasv-production-planning-workbench .workflow-step.active .workflow-step-icon {
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  box-shadow: none;
+}
+
+body.sasv-production-planning-workbench .workflow-step.active .workflow-step-icon svg {
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-production-planning-workbench .workflow-step.active .workflow-step-label {
+  color: var(--sasv-action-primary-active);
+  font-weight: 600;
+}
+
+body.sasv-production-planning-workbench .workflow-step.active .workflow-step-status {
+  color: var(--sasv-action-primary);
+}
+
+/* Completed — success semantics */
+body.sasv-production-planning-workbench .workflow-step.completed .workflow-step-icon {
+  background: var(--sasv-success-bg);
+  border-color: var(--sasv-success-border);
+}
+
+body.sasv-production-planning-workbench .workflow-step.completed .workflow-step-icon svg {
+  color: var(--sasv-success);
+}
+
+body.sasv-production-planning-workbench .workflow-step.completed .workflow-step-label {
+  color: var(--sasv-success);
+  font-weight: 500;
+}
+
+body.sasv-production-planning-workbench .workflow-step.completed .workflow-step-status {
+  color: var(--sasv-success);
+}
+
+/* Pending — restrained warning */
+body.sasv-production-planning-workbench .workflow-step.pending .workflow-step-icon {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning-border);
+}
+
+body.sasv-production-planning-workbench .workflow-step.pending .workflow-step-icon svg {
+  color: var(--sasv-warning);
+}
+
+body.sasv-production-planning-workbench .workflow-step.pending .workflow-step-label {
+  color: var(--sasv-warning);
+  font-weight: 500;
+}
+
+body.sasv-production-planning-workbench .workflow-step.pending .workflow-step-status {
+  color: var(--sasv-warning);
+}
+
+/* ── Secondary stage tabs (below stepper) ───────────────────────────────── */
+body.sasv-production-planning-workbench .tab-btn {
+  font-weight: 500;
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+  border-color: transparent;
+  background: transparent;
+}
+
+body.sasv-production-planning-workbench .tab-btn:hover {
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-production-planning-workbench .tab-btn[aria-selected="true"],
+body.sasv-production-planning-workbench .tab-btn.active {
+  font-weight: 600;
+  color: var(--sasv-action-primary-active);
+  background: var(--sasv-selection-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  box-shadow: none;
+}
+
+body.sasv-production-planning-workbench .tab-btn:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-production-planning-workbench .tabs {
+  border-bottom-color: var(--sasv-border);
+  background: var(--sasv-surface);
+}
+
+/*
+ * .tabs-chevron — overflow scroll affordance for the secondary stage tabs.
+ * Intended for narrow viewports when .tabs overflows horizontally.
+ * On normal desktop width, hide even if JS detects slight overflow so the
+ * empty chevron chrome does not appear as a blank control strip.
+ * IDs / JS wiring preserved; trackpad / overflow-x scroll still works.
+ */
+body.sasv-production-planning-workbench .tabs-chevron {
+  color: var(--sasv-text-muted);
+  border-color: var(--sasv-border);
+}
+
+body.sasv-production-planning-workbench .tabs-chevron:hover {
+  background: var(--sasv-surface-soft);
+}
+
+@media (min-width: 1081px) {
+  body.sasv-production-planning-workbench .tabs-chevron {
+    display: none !important;
+  }
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+body.sasv-production-planning-workbench input[type="checkbox"],
+body.sasv-production-planning-workbench input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sasv-action-primary);
+}
+
+body.sasv-production-planning-workbench
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.sasv-production-planning-workbench select,
+body.sasv-production-planning-workbench textarea {
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-md);
+  box-sizing: border-box;
+}
+
+body.sasv-production-planning-workbench
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+body.sasv-production-planning-workbench select:focus,
+body.sasv-production-planning-workbench textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+body.sasv-production-planning-workbench .card,
+body.sasv-production-planning-workbench .table-container {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-production-planning-workbench .card h3,
+body.sasv-production-planning-workbench .section-title,
+body.sasv-production-planning-workbench .tab-intro h2,
+body.sasv-production-planning-workbench .tab-intro h3 {
+  color: var(--sasv-text);
+  font-weight: 600;
+}
+
+body.sasv-production-planning-workbench thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--sasv-border);
+}
+
+body.sasv-production-planning-workbench tbody td {
+  border-bottom: 1px solid var(--sasv-divider);
+  color: var(--sasv-text);
+}
+
+body.sasv-production-planning-workbench tbody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+/* ── Actions (UI-MOD-3D) ────────────────────────────────────────────────── */
+body.sasv-production-planning-workbench .btn,
+body.sasv-production-planning-workbench .action-btn,
+body.sasv-production-planning-workbench button.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: none;
+  transform: none;
+}
+
+body.sasv-production-planning-workbench .btn:hover:not([disabled]),
+body.sasv-production-planning-workbench .action-btn:hover:not([disabled]) {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
+body.sasv-production-planning-workbench .btn.primary,
+body.sasv-production-planning-workbench .action-btn.primary {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-production-planning-workbench .btn.primary:hover:not([disabled]),
+body.sasv-production-planning-workbench .action-btn.primary:hover:not([disabled]) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-production-planning-workbench .btn.secondary,
+body.sasv-production-planning-workbench .action-btn.secondary {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-border);
+  color: var(--sasv-text);
+}
+
+body.sasv-production-planning-workbench .action-btn.reset {
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+  border: 1px solid var(--sasv-control-border);
+  padding: 6px 10px;
+  box-shadow: none;
+}
+
+body.sasv-production-planning-workbench .action-btn svg,
+body.sasv-production-planning-workbench .btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Toggle options — semantic, no legacy blue fill */
+body.sasv-production-planning-workbench .toggle-option.active {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-production-planning-workbench .toggle-option.inactive {
+  background: var(--sasv-danger);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+/* Modal */
+body.sasv-production-planning-workbench .modal,
+body.sasv-production-planning-workbench #drillModal,
+body.sasv-production-planning-workbench .drill-modal {
+  border-color: var(--sasv-border);
+}
+
+/* Hide local toast host; canonical toast.js used at runtime */
+body.sasv-production-planning-workbench #toast {
+  display: none !important;
+}

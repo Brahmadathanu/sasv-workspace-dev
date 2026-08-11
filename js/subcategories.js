@@ -1,5 +1,6 @@
 // subcategories.js
 import { supabase } from '../public/shared/js/supabaseClient.js';
+import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 
 const catSelect     = document.getElementById('categorySelect');
 const addForm       = document.getElementById('addSubForm');
@@ -174,6 +175,7 @@ subTableBody.addEventListener('click', async e => {
 });
 
 // Home navigation
+mountModuleHome(homeIcon);
 homeIcon.onclick = () => {
   window.location.href = 'index.html';
 };

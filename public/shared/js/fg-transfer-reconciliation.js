@@ -3866,6 +3866,476 @@ async function copyTransferSummary() {
 }
 
 // =========================================================================
+// FG TRANSFER VALUATION STATEMENT (PDF)
+// =========================================================================
+
+const FVS_EXPORT_ROW_LIMIT = 5000;
+const FVS_EXPORT_PAGE_SIZE = 500;
+let fvsGenerating = false;
+
+function getPreviousCalendarMonthRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const from = new Date(y, m - 1, 1);
+  const to = new Date(y, m, 0);
+  return { from: formatDate(from), to: formatDate(to) };
+}
+
+function parseDdMmYyyyToDate(ddmmyyyy) {
+  const db = formatDateForDB(ddmmyyyy);
+  if (!db) return null;
+  const d = new Date(`${db}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function ensureFvsDatePickers() {
+  const fp = window.flatpickr;
+  if (!fp) return;
+  const fromEl = document.getElementById("fvsFromDate");
+  const toEl = document.getElementById("fvsToDate");
+  if (fromEl && !fromEl._flatpickr) {
+    fp(fromEl, { dateFormat: "d-m-Y", allowInput: true, clickOpens: true });
+  }
+  if (toEl && !toEl._flatpickr) {
+    fp(toEl, { dateFormat: "d-m-Y", allowInput: true, clickOpens: true });
+  }
+}
+
+function setFvsModalDates(fromDdMmYyyy, toDdMmYyyy) {
+  ensureFvsDatePickers();
+  const fromEl = document.getElementById("fvsFromDate");
+  const toEl = document.getElementById("fvsToDate");
+  if (fromEl) {
+    fromEl.value = fromDdMmYyyy || "";
+    if (fromEl._flatpickr) {
+      const d = parseDdMmYyyyToDate(fromDdMmYyyy);
+      if (d) fromEl._flatpickr.setDate(d, false);
+    }
+  }
+  if (toEl) {
+    toEl.value = toDdMmYyyy || "";
+    if (toEl._flatpickr) {
+      const d = parseDdMmYyyyToDate(toDdMmYyyy);
+      if (d) toEl._flatpickr.setDate(d, false);
+    }
+  }
+}
+
+function openFgTransferValuationModal() {
+  const modal = document.getElementById("fvsPeriodModal");
+  if (!modal) {
+    showToast("Valuation statement dialog not found", "error");
+    return;
+  }
+  const range = getPreviousCalendarMonthRange();
+  setFvsModalDates(range.from, range.to);
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  // Do not focus date inputs on open — that would pop the flatpickr calendar.
+  try {
+    const fromEl = document.getElementById("fvsFromDate");
+    const toEl = document.getElementById("fvsToDate");
+    if (fromEl && fromEl._flatpickr) fromEl._flatpickr.close();
+    if (toEl && toEl._flatpickr) toEl._flatpickr.close();
+  } catch {
+    /* ignore */
+  }
+}
+
+function closeFgTransferValuationModal() {
+  const modal = document.getElementById("fvsPeriodModal");
+  if (!modal) return;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function getFvsModalPeriod() {
+  const fromEl = document.getElementById("fvsFromDate");
+  const toEl = document.getElementById("fvsToDate");
+  const fromUi = (fromEl && fromEl.value ? fromEl.value : "").trim();
+  const toUi = (toEl && toEl.value ? toEl.value : "").trim();
+  return { fromUi, toUi };
+}
+
+async function fetchValuedLinesForValuationStatement(fromDB, toDB) {
+  const valuedColumns =
+    "transfer_date, batch_code, transfer_godown_code, item_name_raw, sku_label, product_name, qty_value_raw, transferred_pack_count, mrp_notional_line_value, mrp_notional_line_value_raw";
+  const baseColumns =
+    "transfer_date, batch_code, transfer_godown_code, item_name_raw, sku_label, product_name, qty_value_raw";
+
+  const buildPagedQuery = (viewName, columns, fromInclusive, toInclusive) =>
+    supabase
+      .from(viewName)
+      .select(columns)
+      .gte("transfer_date", fromDB)
+      .lte("transfer_date", toDB)
+      .order("transfer_date", { ascending: true })
+      .order("item_name_raw", { ascending: true })
+      .range(fromInclusive, toInclusive);
+
+  let useValued = true;
+  let offset = 0;
+  const acc = [];
+
+  while (acc.length < FVS_EXPORT_ROW_LIMIT) {
+    const toInclusive = offset + FVS_EXPORT_PAGE_SIZE - 1;
+    let data;
+    let error;
+
+    if (useValued) {
+      ({ data, error } = await buildPagedQuery(
+        "v_tally_fg_transfer_normalized_valued",
+        valuedColumns,
+        offset,
+        toInclusive,
+      ));
+      if (error) {
+        console.warn(
+          "v_tally_fg_transfer_normalized_valued unavailable for valuation statement; falling back to base normalized view",
+          error,
+        );
+        useValued = false;
+        ({ data, error } = await buildPagedQuery(
+          "v_tally_fg_transfer_normalized",
+          baseColumns,
+          offset,
+          toInclusive,
+        ));
+      }
+    } else {
+      ({ data, error } = await buildPagedQuery(
+        "v_tally_fg_transfer_normalized",
+        baseColumns,
+        offset,
+        toInclusive,
+      ));
+    }
+
+    if (error) {
+      console.error(
+        "valuation statement normalized lines query failed",
+        error,
+        { fromDB, toDB, offset },
+      );
+      handleSupabaseError(error);
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) break;
+    acc.push(...rows);
+    if (rows.length < FVS_EXPORT_PAGE_SIZE) break;
+    offset += FVS_EXPORT_PAGE_SIZE;
+  }
+
+  return acc.slice(0, FVS_EXPORT_ROW_LIMIT);
+}
+
+function buildFgTransferValuationPdfRows(valuedLines) {
+  const mapped = (valuedLines || []).map((line) => {
+    const sku =
+      (line.item_name_raw && String(line.item_name_raw).trim()) ||
+      (line.sku_label && String(line.sku_label).trim()) ||
+      (line.product_name && String(line.product_name).trim()) ||
+      "—";
+    const transferDate = line.transfer_date
+      ? formatDateFromDBToDDMMYYYY(line.transfer_date) ||
+        String(line.transfer_date)
+      : "—";
+    const bn =
+      line.batch_code !== null &&
+      typeof line.batch_code !== "undefined" &&
+      String(line.batch_code).trim()
+        ? String(line.batch_code).trim()
+        : "—";
+    const godown =
+      line.transfer_godown_code !== null &&
+      typeof line.transfer_godown_code !== "undefined" &&
+      String(line.transfer_godown_code).trim()
+        ? String(line.transfer_godown_code).trim()
+        : "—";
+    const packCount = line.transferred_pack_count ?? line.qty_value_raw ?? null;
+    const count =
+      packCount === null || packCount === undefined
+        ? "—"
+        : formatNumberPlain(packCount);
+    const hasMrp =
+      Object.prototype.hasOwnProperty.call(line, "mrp_notional_line_value_raw") ||
+      Object.prototype.hasOwnProperty.call(line, "mrp_notional_line_value");
+    const mrp = hasMrp
+      ? formatMoney(
+          line.mrp_notional_line_value_raw ?? line.mrp_notional_line_value,
+        )
+      : "—";
+
+    return {
+      sku,
+      transferDate,
+      bn,
+      godown,
+      count,
+      mrp,
+      _sortDate: line.transfer_date || "",
+      _sortBn: bn,
+      _sortGodown: godown,
+    };
+  });
+
+  mapped.sort((a, b) => {
+    if (a._sortDate < b._sortDate) return -1;
+    if (a._sortDate > b._sortDate) return 1;
+    if (a._sortBn < b._sortBn) return -1;
+    if (a._sortBn > b._sortBn) return 1;
+    if (a._sortGodown < b._sortGodown) return -1;
+    if (a._sortGodown > b._sortGodown) return 1;
+    return String(a.sku).localeCompare(String(b.sku));
+  });
+
+  return mapped.map((r, i) => ({
+    sn: String(i + 1),
+    sku: r.sku,
+    transferDate: r.transferDate,
+    bn: r.bn,
+    godown: r.godown,
+    count: r.count,
+    mrp: r.mrp,
+  }));
+}
+
+function summarizeValuationStatementMrp(valuedLines) {
+  let total = 0;
+  let valuedCount = 0;
+  let missingMrpCount = 0;
+
+  for (const line of valuedLines || []) {
+    const raw = line.mrp_notional_line_value_raw ?? line.mrp_notional_line_value;
+    if (raw === null || typeof raw === "undefined" || raw === "") {
+      missingMrpCount += 1;
+      continue;
+    }
+    const num = Number(raw);
+    if (!Number.isFinite(num)) {
+      missingMrpCount += 1;
+      continue;
+    }
+    total += num;
+    valuedCount += 1;
+  }
+
+  return {
+    total: valuedCount > 0 ? total : null,
+    missingMrpCount,
+  };
+}
+
+async function exportFgTransferValuationStatementPdf() {
+  if (fvsGenerating) return;
+
+  const { fromUi, toUi } = getFvsModalPeriod();
+  if (!fromUi || !toUi) {
+    showToast("Please enter both From and To dates", "warning");
+    return;
+  }
+
+  const fromDate = parseDdMmYyyyToDate(fromUi);
+  const toDate = parseDdMmYyyyToDate(toUi);
+  if (!fromDate || !toDate) {
+    showToast("Dates must be in DD-MM-YYYY format", "warning");
+    return;
+  }
+  if (fromDate.getTime() > toDate.getTime()) {
+    showToast("From date cannot be after To date", "warning");
+    return;
+  }
+
+  const fromDB = formatDateForDB(fromUi);
+  const toDB = formatDateForDB(toUi);
+  if (!fromDB || !toDB) {
+    showToast("Invalid date range", "warning");
+    return;
+  }
+
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast("PDF library failed to load", "error");
+    return;
+  }
+
+  const generateBtn = document.getElementById("fvsGenerateBtn");
+  fvsGenerating = true;
+  if (generateBtn) {
+    generateBtn.disabled = true;
+    generateBtn.textContent = "Generating…";
+  }
+
+  try {
+    showToast("Preparing valuation statement…", "info", 1200);
+    const valuedLines = await fetchValuedLinesForValuationStatement(
+      fromDB,
+      toDB,
+    );
+    if (!valuedLines.length) {
+      showToast(
+        "No normalized transfer lines found for the selected period",
+        "warning",
+      );
+      return;
+    }
+
+    const body = buildFgTransferValuationPdfRows(valuedLines);
+    const mrpSummary = summarizeValuationStatementMrp(valuedLines);
+    const mrpTotalText =
+      mrpSummary.total === null
+        ? "—"
+        : `Rs. ${formatMoney(mrpSummary.total)}`;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const periodLine = `Period: ${fromUi} to ${toUi}  |  Rows: ${body.length.toLocaleString("en-IN")}  |  Without MRP: ${mrpSummary.missingMrpCount.toLocaleString("en-IN")}  |  Total MRP Notional Value: ${mrpTotalText}`;
+    const generatedOn = new Date().toLocaleString("en-GB");
+
+    doc
+      .setFont("Helvetica", "normal")
+      .setFontSize(10)
+      .text("Gurucharanam Saranam", pw / 2, 28, { align: "center" });
+    doc
+      .setFont("Helvetica", "bold")
+      .setFontSize(12)
+      .text("Santhigiri Ayurveda Siddha Vaidyasala", pw / 2, 48, {
+        align: "center",
+      });
+    doc
+      .setFont("Helvetica", "bold")
+      .setFontSize(13)
+      .text("FG TRANSFER VALUATION STATEMENT", pw / 2, 70, { align: "center" });
+    doc
+      .setFont("Helvetica", "normal")
+      .setFontSize(8)
+      .text(periodLine, pw / 2, 88, { align: "center", maxWidth: pw - 56 });
+
+    doc.autoTable({
+      startY: 104,
+      margin: { left: 28, right: 28 },
+      theme: "grid",
+      columns: [
+        { header: "SN", dataKey: "sn" },
+        { header: "SKU", dataKey: "sku" },
+        { header: "TRANSFER DATE", dataKey: "transferDate" },
+        { header: "BN", dataKey: "bn" },
+        { header: "GODOWN", dataKey: "godown" },
+        { header: "COUNT", dataKey: "count" },
+        { header: "MRP NOTIONAL VALUE", dataKey: "mrp" },
+      ],
+      body,
+      styles: {
+        font: "Helvetica",
+        fontStyle: "normal",
+        fontSize: 7,
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.5,
+        valign: "middle",
+      },
+      headStyles: {
+        font: "Helvetica",
+        fontStyle: "bold",
+        fontSize: 7,
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.5,
+        halign: "center",
+      },
+      columnStyles: {
+        sn: { halign: "center", cellWidth: 24 },
+        sku: { halign: "left", cellWidth: "auto" },
+        transferDate: { halign: "center", cellWidth: 68 },
+        bn: { halign: "center", cellWidth: 48 },
+        godown: { halign: "center", cellWidth: 48 },
+        count: { halign: "right", cellWidth: 42 },
+        mrp: { halign: "right", cellWidth: 78 },
+      },
+      rowPageBreak: "avoid",
+      willDrawCell: (hookData) => {
+        doc.setFont(
+          "Helvetica",
+          hookData.section === "head" ? "bold" : "normal",
+        );
+      },
+      didDrawPage: () => {
+        doc.setFont("Helvetica", "normal").setFontSize(8);
+        doc.text(`Generated: ${generatedOn}`, 40, ph - 14);
+        doc.text(
+          `Page ${doc.internal.getNumberOfPages()}`,
+          pw - 40,
+          ph - 14,
+          { align: "right" },
+        );
+      },
+    });
+
+    doc.save(`fg-transfer-valuation-statement_${fromDB}_to_${toDB}.pdf`);
+    closeFgTransferValuationModal();
+
+    if (valuedLines.length >= FVS_EXPORT_ROW_LIMIT) {
+      showToast(
+        `Exported ${body.length} rows (limit reached)`,
+        "warning",
+      );
+    } else {
+      showToast(`Valuation statement exported (${body.length} rows)`, "success");
+    }
+  } catch (err) {
+    console.error("exportFgTransferValuationStatementPdf failed", err);
+    showToast(
+      `Failed to generate PDF: ${err && err.message ? err.message : "unknown error"}`,
+      "error",
+    );
+  } finally {
+    fvsGenerating = false;
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.textContent = "Generate PDF";
+    }
+  }
+}
+
+function initFgTransferValuationStatementUi() {
+  const modal = document.getElementById("fvsPeriodModal");
+  if (!modal) return;
+
+  ensureFvsDatePickers();
+
+  modal.querySelectorAll("[data-fvs-close='true']").forEach((el) => {
+    el.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      if (fvsGenerating) return;
+      closeFgTransferValuationModal();
+    });
+  });
+
+  const generateBtn = document.getElementById("fvsGenerateBtn");
+  if (generateBtn) {
+    generateBtn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      try {
+        await exportFgTransferValuationStatementPdf();
+      } catch (err) {
+        console.error("Generate valuation statement failed", err);
+      }
+    });
+  }
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape") return;
+    if (!modal.classList.contains("open")) return;
+    if (fvsGenerating) return;
+    closeFgTransferValuationModal();
+  });
+}
+
+// =========================================================================
 // INITIALIZATION
 // =========================================================================
 
@@ -4076,6 +4546,7 @@ async function init() {
 
   // Initialize filters
   await initFilters();
+  initFgTransferValuationStatementUi();
   void prepareTransferSummaryForCopy().catch((err) => {
     console.error("prepareTransferSummaryForCopy failed", err);
   });
@@ -4172,8 +4643,15 @@ async function init() {
     btnCopy.setAttribute("role", "menuitem");
     btnCopy.textContent = "Copy Transfer Summary";
 
+    const btnFvs = document.createElement("button");
+    btnFvs.id = "exportValuationStatementBtn";
+    btnFvs.type = "button";
+    btnFvs.setAttribute("role", "menuitem");
+    btnFvs.textContent = "FG Transfer Valuation Statement";
+
     menu.appendChild(btnCsv);
     menu.appendChild(btnCopy);
+    menu.appendChild(btnFvs);
     wrap.appendChild(menu);
 
     // Minimal styles to position the menu — scoped and non-intrusive
@@ -4183,7 +4661,7 @@ async function init() {
       style.id = styleId;
       style.textContent = `
         .export-menu-wrap{position:relative;display:inline-block}
-        .export-menu{position:absolute;right:0;top:100%;background:#fff;border:1px solid #ccc;padding:6px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 18px rgba(0,0,0,0.08);z-index:9999;min-width:160px}
+        .export-menu{position:absolute;right:0;top:100%;background:#fff;border:1px solid #ccc;padding:6px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 18px rgba(0,0,0,0.08);z-index:9999;min-width:240px}
         .export-menu.hidden{display:none}
         .export-menu button{background:none;border:0;padding:8px 10px;text-align:left;cursor:pointer;color:#222}
         .export-menu button:hover,.export-menu button:focus{background:#f3f3f3;outline:none}
@@ -4245,6 +4723,12 @@ async function init() {
       } catch (err) {
         console.error("copyTransferSummary failed", err);
       }
+    });
+
+    btnFvs.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      closeExportMenu();
+      openFgTransferValuationModal();
     });
 
     document.addEventListener("click", onDocClick);

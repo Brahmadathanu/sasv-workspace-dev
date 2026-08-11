@@ -1,10 +1,11 @@
 ﻿<!doctype html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Forecast Console</title>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/sasv-forecast.css" />
     <style>
       /* == 1. Layout ================================================ */
       :root {
@@ -18,86 +19,49 @@
         margin: 0;
         overflow: hidden;
         box-sizing: border-box;
-        font-family:
-          system-ui,
-          Segoe UI,
-          Roboto,
-          Arial,
-          sans-serif;
+        /* Inter via style.css / sasv-fonts */
       }
       body {
         display: flex;
         flex-direction: column;
-        padding: 16px 20px 12px;
+        /* viewport gutter: body.sasv-module.sasv-module--app tokens */
         color: var(--text-color, #111827);
       }
-      @media (max-width: 1080px) {
-        body {
-          padding: 10px;
-        }
-      }
-      @media (max-width: 520px) {
-        body {
-          padding: 6px;
-        }
-      }
 
-      /* == 2. Page header =========================================== */
-      .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        flex-wrap: wrap;
-        flex-shrink: 0;
-      }
-      .page-header h1 {
-        margin: 0;
-        color: var(--primary, #2563eb);
-        font-size: clamp(1.1rem, 3vw, 1.6rem);
-        line-height: 1.2;
-      }
-      .page-sub {
-        color: var(--muted, #6b7280);
-        font-size: 0.87rem;
-        margin: 2px 0 0;
-      }
-      .toolbar {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-shrink: 0;
-      }
-      #homeBtn {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 7px 11px;
-        border: 1px solid #fdba74 !important;
-        border-radius: 6px;
-        background: #fed7aa !important;
-        color: #9a3412 !important;
-        cursor: pointer;
-        font-size: 0.82rem;
+      /* == 2. Page header — canonical shell in sasv-forecast.css ==== */
+      /* HOME chrome: canonical body.sasv-module #homeBtn.sasv-home-btn */
+      .view-only-banner {
+        margin: 0 0 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(245, 158, 11, 0.38);
+        background: rgba(251, 191, 36, 0.14);
+        color: #92400e;
+        font-size: 13px;
         font-weight: 600;
-        transition: all 0.18s ease;
-      }
-      #homeBtn svg {
-        width: 14px;
-        height: 14px;
         flex-shrink: 0;
       }
-      #homeBtn:hover {
-        background: #fdba74 !important;
-        border-color: #fb923c !important;
-        transform: translateY(-1px);
+      body.view-only-mode [data-edit-action="true"]:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      #accessStatus {
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(220, 38, 38, 0.35);
+        background: rgba(239, 68, 68, 0.08);
+        color: #991b1b;
+        font-size: 13px;
+        font-weight: 600;
+        flex-shrink: 0;
       }
       .home-label {
         display: inline;
       }
       #fcLastRefreshed {
         font-size: 11.5px;
-        color: var(--muted, #6b7280);
+        color: var(--sasv-text-muted, var(--muted, #6b7280));
         white-space: nowrap;
       }
 
@@ -123,128 +87,17 @@
         display: none !important;
       }
 
-      /* == 4. KPI strip ============================================= */
-      .kpi-strip {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        gap: 6px;
-        margin: 8px 0 6px;
-        align-items: stretch;
-        justify-content: space-between;
-        scrollbar-width: none;
-        flex-shrink: 0;
-      }
-      .kpi-strip::-webkit-scrollbar {
-        display: none;
-      }
-      .kpi {
-        background: var(--panel-bg, #fff);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        padding: 5px 10px;
-        border-radius: 7px;
-        min-width: fit-content;
-        flex-shrink: 0;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 6px;
-        white-space: nowrap;
-      }
-      .kpi > .kpi-label {
-        font-weight: 600;
-        font-size: 10.5px;
-        color: var(--muted, #6b7280);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-      }
-      .kpi > .kpi-val {
-        font-size: 13px;
-        color: var(--text, #0f172a);
-        font-weight: 700;
-      }
-      .kpi.kpi-pairs {
-        border-left: 4px solid #2563eb;
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.06),
-          rgba(37, 99, 235, 0.02)
-        );
-      }
-      .kpi.kpi-rows {
-        border-left: 4px solid #0ea5e9;
-        background: linear-gradient(
-          135deg,
-          rgba(14, 165, 233, 0.06),
-          rgba(14, 165, 233, 0.02)
-        );
-      }
-      .kpi.kpi-cov {
-        border-left: 4px solid #16a34a;
-        background: linear-gradient(
-          135deg,
-          rgba(22, 163, 74, 0.07),
-          rgba(22, 163, 74, 0.02)
-        );
-      }
-      .kpi.kpi-llt {
-        border-left: 4px solid #f59e0b;
-        background: linear-gradient(
-          135deg,
-          rgba(245, 158, 11, 0.07),
-          rgba(245, 158, 11, 0.02)
-        );
-        cursor: pointer;
-      }
+      /* == 4. KPI strip — foundation in sasv-forecast.css =========== */
+      .kpi.kpi-llt,
       .kpi.kpi-seas {
-        border-left: 4px solid #ef4444;
-        background: linear-gradient(
-          135deg,
-          rgba(239, 68, 68, 0.07),
-          rgba(239, 68, 68, 0.02)
-        );
         cursor: pointer;
-      }
-      .kpi.kpi-ov {
-        border-left: 4px solid #7c3aed;
-        background: linear-gradient(
-          135deg,
-          rgba(124, 58, 237, 0.07),
-          rgba(124, 58, 237, 0.02)
-        );
-      }
-      .kpi.kpi-llt:hover,
-      .kpi.kpi-seas:hover {
-        opacity: 0.88;
-        transform: translateY(-1px);
-        transition: all 0.15s ease;
-      }
-      @media (max-width: 800px) {
-        .kpi-strip {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          overflow-x: visible;
-          gap: 5px;
-        }
-        .kpi {
-          min-width: 0;
-          flex-shrink: unset;
-          white-space: normal;
-          padding: 5px 8px;
-        }
       }
 
       /* == 5. Lens tabs ============================================= */
       .tabs-card {
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.05) 0%,
-          rgba(37, 99, 235, 0.02) 100%
-        );
-        border: 1px solid var(--border, #e5e7eb);
-        border-radius: 10px;
+        background: var(--sasv-surface, var(--panel-bg, #fff));
+        border: 1px solid var(--sasv-border, var(--border, #e5e7eb));
+        border-radius: var(--sasv-radius-md, 10px);
         padding: 6px 8px;
         flex-shrink: 0;
         margin-bottom: 6px;
@@ -265,7 +118,7 @@
         border: 1px solid transparent;
         color: var(--muted, #6b7280);
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 500;
         cursor: pointer;
         border-radius: 8px;
         transition: all 0.16s ease;
@@ -273,19 +126,23 @@
         line-height: 1.2;
       }
       .lens-pills .pill:hover {
-        color: #0f172a;
-        background: rgba(37, 99, 235, 0.05);
-        border-color: rgba(37, 99, 235, 0.12);
+        color: var(--sasv-text, #0f172a);
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
       }
       .lens-pills .pill:focus {
         outline: none;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .lens-pills .pill:focus-visible {
+        outline: 3px solid var(--sasv-focus-ring);
+        outline-offset: 2px;
       }
       .lens-pills .pill.active {
-        color: #fff;
-        background: var(--primary, #2563eb);
-        border-color: var(--primary, #2563eb);
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+        color: var(--sasv-action-primary-active);
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
+        font-weight: 600;
       }
       .tab-select-wrap {
         display: none;
@@ -296,14 +153,10 @@
       .tab-select {
         width: 100%;
         padding: 8px 40px 8px 10px;
-        border-radius: 8px;
-        border: 1px solid var(--primary, #2563eb);
-        background: linear-gradient(
-          135deg,
-          rgba(37, 99, 235, 0.12),
-          rgba(37, 99, 235, 0.06)
-        );
-        color: #0f172a;
+        border-radius: var(--sasv-radius-sm, 8px);
+        border: 1px solid var(--sasv-control-border-focus, var(--sasv-action-primary));
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-text, #0f172a);
         font-weight: 600;
         font-size: 14px;
         appearance: none;
@@ -315,10 +168,10 @@
         right: 12px;
         top: 50%;
         transform: translateY(-50%);
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
         pointer-events: none;
-        color: var(--primary, #2563eb);
+        color: var(--sasv-action-primary-active);
       }
       @media (max-width: 520px) {
         .lens-pills {
@@ -386,7 +239,7 @@
         background: rgba(148, 163, 184, 0.05);
       }
       tbody tr:hover {
-        background: rgba(37, 99, 235, 0.06);
+        background: var(--sasv-action-primary-soft);
       }
       .grid table {
         min-width: 0;
@@ -425,10 +278,10 @@
         font-size: 0.82rem;
       }
       .ok {
-        color: #0f7a44;
+        color: var(--sasv-success);
       }
       .warn {
-        color: #c2410c;
+        color: var(--sasv-warning);
       }
       .status {
         font-size: 0.82rem;
@@ -452,16 +305,16 @@
         font-weight: 600;
       }
       .chip.ok {
-        background: #16a34a;
+        background: var(--sasv-success);
       }
       .chip.warn {
-        background: #f59e0b;
+        background: var(--sasv-warning);
       }
       .chip.err {
-        background: #ef4444;
+        background: var(--sasv-danger);
       }
       .chip.gray {
-        background: #6b7280;
+        background: var(--sasv-text-muted, #6b7280);
       }
 
       /* == 8. Toolbars & filters ==================================== */
@@ -596,16 +449,9 @@
         min-height: 24px;
         font-size: 0.85rem;
       }
+      /* Local #toast retained in DOM for compat; canonical toast.js used at runtime */
       #toast {
-        position: fixed;
-        right: 16px;
-        bottom: 16px;
-        background: #111;
-        color: #fff;
-        padding: 10px 14px;
-        border-radius: 8px;
-        display: none;
-        z-index: 9999;
+        display: none !important;
       }
 
       /* == 9. Overrides grid ======================================== */
@@ -772,20 +618,8 @@
         table {
           min-width: 0;
         }
-        .page-header h1 {
-          font-size: 1.15rem;
-        }
       }
       @media (max-width: 520px) {
-        .home-label {
-          display: none;
-        }
-        #homeBtn {
-          padding: 7px 8px;
-        }
-        .page-header .page-sub {
-          display: none;
-        }
         #fcLastRefreshed {
           display: none;
         }
@@ -803,12 +637,6 @@
         }
       }
       @media (max-width: 390px) {
-        .kpi > .kpi-label {
-          font-size: 9px;
-        }
-        .kpi > .kpi-val {
-          font-size: 11.5px;
-        }
         .lens-pills .pill {
           padding: 6px 10px;
           font-size: 12px;
@@ -816,37 +644,43 @@
       }
     </style>
   </head>
-  <body data-theme="system">
+  <body class="sasv-module sasv-module--app sasv-forecast-console" data-theme="system">
     <!-- == PAGE HEADER ============================================ -->
-    <header class="page-header">
-      <div>
-        <h1>Forecast Console</h1>
-        <p class="page-sub">
-          Forecast generation, overrides, exceptions, and published planning
-          snapshots.
-        </p>
+    <div class="header-card">
+      <div class="page-header">
+        <div class="fc-header-copy">
+          <h1 class="sasv-module-title">Forecast Console</h1>
+          <div class="page-sub">
+            Forecast generation, overrides, exceptions, and published planning
+            snapshots.
+          </div>
+        </div>
+        <div class="toolbar fc-header-actions">
+          <span id="fcLastRefreshed"></span>
+          <button
+            id="homeBtn"
+            type="button"
+            class="icon-btn sasv-home-btn"
+            title="HOME"
+            aria-label="HOME"
+          ></button>
+        </div>
       </div>
-      <div class="toolbar">
-        <span id="fcLastRefreshed"></span>
-        <button id="homeBtn" type="button" title="Home">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-          <span class="home-label">HOME</span>
-        </button>
-      </div>
-    </header>
+    </div>
 
+    <div
+      id="viewOnlyBanner"
+      class="view-only-banner"
+      role="status"
+      aria-live="polite"
+      hidden
+    >
+      Read-only access — forecast mutations, overrides, and publish actions are
+      disabled.
+    </div>
+    <div id="accessStatus" role="alert" hidden></div>
+
+    <div id="mainPanel">
     <!-- == KPI STRIP ============================================== -->
     <div class="kpi-strip">
       <div class="kpi kpi-pairs" id="tilePairsChip">
@@ -1677,14 +1511,6 @@
                   <button id="btnDeactivateAll" class="btn danger">
                     Deactivate All
                   </button>
-                  <button
-                    id="btnDeleteAllActive"
-                    class="btn danger"
-                    title="Delete all promoted overrides in window"
-                    style="margin-left: 6px"
-                  >
-                    Delete All
-                  </button>
                 </div>
                 <div class="pager-compact pager-right">
                   <label class="small muted pager-size" for="activePageSize">
@@ -1789,6 +1615,8 @@
       </section>
     </div>
     <!-- /.main -->
+    </div>
+    <!-- /#mainPanel -->
 
     <!-- Scripts -->
     <script type="module" src="js/supabaseClient.js"></script>

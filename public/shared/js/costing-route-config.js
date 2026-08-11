@@ -14,9 +14,13 @@ export const COSTING_ROUTE_CONFIG = {
     defaultLens: "dashboard",
     title: "Costing Control Center",
     subtitle:
-      "Dashboard, costing control workbench, blockers, review queue, and integrity checks",
+      "Dashboard, SKU control status, costing control workbench, blockers, review queue, and integrity checks",
     routePath: "public/shared/costing-control-center.html",
-    allowedLensIds: ["dashboard", "costing-review-workbench"],
+    allowedLensIds: [
+      "dashboard",
+      "costing-review-workbench",
+      "sku-control-status",
+    ],
   },
   "material-cost-manager": {
     moduleKey: "material-cost-manager",
@@ -27,7 +31,7 @@ export const COSTING_ROUTE_CONFIG = {
     subtitle:
       "RM/PM manual rates, material action queue, review acceptance, and costing material blockers",
     routePath: "public/shared/material-cost-manager.html",
-    allowedLensIds: ["manual-rate-manager", "rm-cost-trace"],
+    allowedLensIds: ["manual-rate-manager", "rm-cost-trace", "pm-cost-trace"],
   },
   "cost-build-manager": {
     moduleKey: "cost-build-manager",
@@ -36,9 +40,14 @@ export const COSTING_ROUTE_CONFIG = {
     defaultLens: "cost-governance",
     title: "Cost Build Manager",
     subtitle:
-      "Expense mapping, staff classification, overhead allocation, and manual provisions",
+      "Expense mapping, staff classification, overhead allocation, manual provisions, and driver governance",
     routePath: "public/shared/cost-build-manager.html",
-    allowedLensIds: ["cost-governance", "staff-governance", "manual-provisions"],
+    allowedLensIds: [
+      "cost-governance",
+      "staff-governance",
+      "manual-provisions",
+      "driver-governance",
+    ],
   },
   "pricing-policy-manager": {
     moduleKey: "pricing-policy-manager",
@@ -62,13 +71,38 @@ export const COSTING_ROUTE_CONFIG = {
     defaultLens: "sku-cost-sheet",
     title: "Cost Sheet Review & Approval",
     subtitle:
-      "SKU cost details, printable cost sheets, snapshot comparison, and scheme viability",
+      "SKU cost details, printable cost sheets, snapshot comparison, scheme viability, QC and Materials / Stores action queues",
     routePath: "public/shared/cost-sheet-review.html",
     allowedLensIds: [
       "sku-cost-sheet",
       "printable-cost-sheet",
       "cost-comparison",
       "scheme-comparison",
+      "qc-action-queue",
+      "materials-stores-action-queue",
+    ],
+  },
+  "production-route-manager": {
+    moduleKey: "production-route-manager",
+    permissionTarget: "module:production-route-manager",
+    suiteId: "production-route",
+    defaultLens: "route-readiness",
+    title: "Production Route Manager",
+    subtitle:
+      "Manufacturing Route Families, Product deltas, historical candidates, and effective Product-to-Process routes",
+    routePath: "public/shared/production-route-manager.html",
+    allowedLensIds: [
+      "route-readiness",
+      "product-route-assignments",
+      "shared-workload-preview",
+      "route-families",
+      "route-family-mapping-review",
+      "route-family-foundation-review",
+      "production-cost-centres",
+      "route-family-route-editor",
+      "product-route-editor",
+      "historical-candidate-review",
+      "effective-route-viewer",
     ],
   },
 };

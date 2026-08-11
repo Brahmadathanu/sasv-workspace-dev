@@ -1,20 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <title>SASV WORKSPACE | Material Requirements Board</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/sasv-mrp-material-board.css" />
     <style>
       body {
-        margin: 18px;
-        font-family: Arial, sans-serif;
-        background: var(--bg-color);
-        color: var(--text-color);
-        /* Use a column flex layout so main content can grow to fill viewport */
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
+        /* Inter + viewport gutter from sasv-module--app tokens */
+        margin: 0;
+        color: var(--sasv-text, var(--text-color));
+        background: var(--sasv-bg, var(--bg-color));
       }
       .header-bar {
         display: flex;
@@ -35,13 +32,11 @@
           align-items: flex-start;
           gap: 6px;
         }
-        .header-title-row #homeBtn {
-          align-self: flex-start;
-        }
       }
-      .header-bar h2 {
+      .header-bar h2,
+      .header-bar h1 {
         margin: 0;
-        color: var(--primary);
+        color: var(--sasv-text, var(--text-color));
       }
       .header-actions {
         display: flex;
@@ -135,19 +130,19 @@
       th {
         background: var(--panel-bg);
         color: var(--muted);
-        font-weight: 700;
+        font-weight: 600;
         font-size: 0.86rem;
         text-transform: uppercase;
         letter-spacing: 0.02em;
         padding: 10px 12px;
         border-bottom: 2px solid rgba(0, 0, 0, 0.06);
-        /* center header labels by default (overridden per-column as required) */
-        text-align: center;
+        /* default; per-column alignment in sasv-mrp-material-board.css */
+        text-align: left;
         vertical-align: middle;
       }
-      /* Column widths and alignment */
-      /* Use percentage-based columns for a balanced ERP layout */
+      /* Column widths — alignment overridden in sasv-mrp-material-board.css */
       th[data-key="stock_item_code"],
+      td[data-key="stock_item_code"],
       td:nth-child(1) {
         width: 10%;
         min-width: 90px;
@@ -157,8 +152,8 @@
       }
 
       th[data-key="stock_item_name"],
+      td[data-key="stock_item_name"],
       td:nth-child(2) {
-        /* Slightly reduced to allow more room for Flags */
         width: 38%;
         min-width: 200px;
         overflow: hidden;
@@ -167,70 +162,41 @@
       }
 
       th[data-key="material_kind"],
+      td[data-key="material_kind"],
       td:nth-child(3) {
         width: 8%;
         min-width: 70px;
-        text-align: center;
       }
 
       th[data-key="stock_uom"],
+      td[data-key="stock_uom"],
       td:nth-child(4) {
         width: 6%;
         min-width: 60px;
-        text-align: center;
       }
 
       th[data-key="planned_total_qty"],
       th[data-key="issued_total_qty"],
       th[data-key="net_requirement"],
+      td[data-key="planned_total_qty"],
+      td[data-key="issued_total_qty"],
+      td[data-key="net_requirement"],
       td:nth-child(5),
       td:nth-child(6),
       td:nth-child(7) {
         width: 8%;
         min-width: 80px;
-        text-align: right;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono",
-          monospace;
-        /* Prevent numeric truncation; keep numbers on a single line so
-           the table becomes horizontally scrollable instead of ellipsizing. */
         white-space: nowrap;
         overflow: visible;
       }
 
+      th[data-key="flags"],
+      td[data-key="flags"],
       td:nth-child(8) {
-        /* Flags column: increase to provide room for multiple badges */
         width: 14%;
         min-width: 140px;
       }
 
-      /* Column-specific overrides for horizontal alignment */
-      /* Center small code/type/uom columns (both header and body) */
-      th[data-key="stock_item_code"],
-      td:nth-child(1),
-      th[data-key="material_kind"],
-      td:nth-child(3),
-      th[data-key="stock_uom"],
-      td:nth-child(4) {
-        text-align: center;
-      }
-
-      /* Left align Item and Flags columns */
-      th[data-key="stock_item_name"],
-      td:nth-child(2),
-      th:nth-child(8),
-      td:nth-child(8) {
-        text-align: left;
-      }
-
-      /* Right align numeric columns including headers */
-      th[data-key="planned_total_qty"],
-      th[data-key="issued_total_qty"],
-      th[data-key="net_requirement"],
-      td:nth-child(5),
-      td:nth-child(6),
-      td:nth-child(7) {
-        text-align: right;
-      }
       /* Top consumers column removed: no longer needed in table */
 
       td,
@@ -323,15 +289,15 @@
         flex-wrap: nowrap; /* default: no wrap on wide screens */
       }
       .badge-warning {
-        background: #fff4e5;
-        color: #7a4900;
+        background: var(--sasv-warning-bg, #fff4e5);
+        color: var(--sasv-warning, #7a4900);
         padding: 4px 6px;
         border-radius: 999px;
         font-size: 0.8rem;
       }
       .badge-info {
-        background: #e8f4ff;
-        color: #045a8d;
+        background: var(--sasv-selection-soft, #e8f4ff);
+        color: var(--sasv-action-primary-active, #045a8d);
         padding: 4px 6px;
         border-radius: 999px;
         font-size: 0.8rem;
@@ -539,7 +505,7 @@
         cursor: not-allowed;
       }
       .btn-primary:hover:not(:disabled) {
-        background: var(--primary-dark, #1d4ed8);
+        background: var(--sasv-action-primary-hover, var(--primary-hover, #004876));
       }
       .btn-secondary {
         background: transparent;
@@ -595,27 +561,10 @@
         cursor: not-allowed;
       }
 
-      /* Home Button */
+      /* Home Button — presentation from sasv-module + sasv-mrp-material-board.css */
       #homeBtn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border: 1px solid #fdba74 !important;
-        border-radius: 6px;
-        background: #fed7aa !important;
-        color: #9a3412 !important;
         cursor: pointer;
-        font-size: 0.875rem;
         font-family: inherit;
-        font-weight: 500;
-        transition: all 0.2s;
-      }
-      #homeBtn:hover {
-        background: #fdba74 !important;
-        border-color: #fb923c !important;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
       #homeBtn svg {
         flex-shrink: 0;
@@ -626,50 +575,18 @@
           max-width: 100%;
         }
       }
-      /* View (master) tabs: bold segmented control in header */
+      /* View / mode tab geometry retained; colours overridden in specialization CSS */
       #viewTabs {
         display: inline-flex;
         gap: 8px;
         padding: 8px;
-        /* Soft blue card backing to visually separate master view from
-             the surrounding UI while remaining subtle and accessible */
-        background: var(--viewtabs-bg, #eef6ff);
         border-radius: 10px;
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        box-shadow: 0 1px 4px rgba(2, 6, 23, 0.04);
       }
       #viewTabs .subtab {
-        background: transparent;
-        color: var(--muted);
         padding: 8px 14px;
         border-radius: 8px;
         border: none;
-        font-weight: 600;
         cursor: pointer;
-      }
-      #viewTabs .subtab.active,
-      #viewTabs .subtab[aria-pressed="true"] {
-        background: var(--primary);
-        color: white;
-        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
-      }
-
-      /* Accent colors for each master view when selected. Summary keeps
-           the primary accent; Exceptions gets a warm warning-style card so
-           it reads as a different category at-a-glance. */
-      #viewTabs .subtab.active[data-view="summary"],
-      #viewTabs .subtab[aria-pressed="true"][data-view="summary"] {
-        background: var(--primary);
-        color: white;
-        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
-      }
-
-      #viewTabs .subtab.active[data-view="exceptions"],
-      #viewTabs .subtab[aria-pressed="true"][data-view="exceptions"] {
-        background: linear-gradient(90deg, #fff7ed, #ffedd5);
-        color: #92400e;
-        border: 1px solid rgba(249, 115, 22, 0.12);
-        box-shadow: none;
       }
 
       /* Mode (refinement) tabs: lighter chip-style buttons above table */
@@ -680,19 +597,10 @@
         align-items: center;
       }
       #boardTabs .tab {
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        background: rgba(255, 255, 255, 0.02);
-        color: var(--text-color);
         padding: 6px 10px;
         border-radius: 6px;
         cursor: pointer;
         font-size: 0.95rem;
-      }
-      #boardTabs .tab.active,
-      #boardTabs .tab[aria-pressed="true"] {
-        background: rgba(2, 6, 23, 0.04);
-        color: var(--primary);
-        border-color: rgba(0, 0, 0, 0.08);
       }
       /* small refiner dot: shown when in All mode a checkbox maps to this tab */
       #boardTabs .tab.refiner-dot {
@@ -854,84 +762,63 @@
       }
     </style>
   </head>
-  <body data-theme="system">
+  <body
+    class="sasv-module sasv-module--app sasv-mrp-material-board"
+    data-theme="system"
+  >
     <div id="mrpLoadingOverlay" aria-hidden="true">
       <div class="panel" role="status" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
         <div id="mrpLoadingMessage">Loading…</div>
       </div>
     </div>
-    <div class="header-bar">
-      <div style="flex: 1">
-        <div class="header-title-row">
-          <h2>Material Requirements Board</h2>
-          <button id="homeBtn">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9,22 9,12 15,12 15,22" />
-            </svg>
-            HOME
-          </button>
+    <div class="header-card">
+      <header class="page-header">
+        <div class="mmb-header-copy">
+          <h1 class="sasv-module-title">MRP Material Board</h1>
+          <p class="page-sub section-hint">
+            Review raw material & packing material requirements vs actual issues
+            for planning and procurement.
+          </p>
         </div>
-        <div class="section-hint">
-          Review raw material & packing material requirements vs actual issues
-          for planning and procurement.
+        <div class="header-actions">
+          <button type="button" id="homeBtn">HOME</button>
         </div>
-        <div style="margin-top: 8px">
-          <nav
-            id="viewTabs"
-            aria-label="View tabs"
-            style="
-              display: flex;
-              gap: 12px;
-              align-items: center;
-              margin-bottom: 12px;
-            "
+      </header>
+    </div>
+
+    <div class="mmb-workspace-strip" id="mmbWorkspaceStrip">
+      <nav id="viewTabs" aria-label="View tabs">
+        <div class="filter-pair mmb-month-pair">
+          <label
+            for="horizonMonth"
+            data-tooltip="Select month to load MRP data for analysis"
+            >Month</label
           >
-            <div
-              class="filter-pair"
-              style="align-items: center; margin-right: 8px"
-            >
-              <label
-                for="horizonMonth"
-                data-tooltip="Select month to load MRP data for analysis"
-                style="margin-right: 6px"
-                >Month</label
-              >
-              <input
-                id="horizonMonth"
-                type="month"
-                data-tooltip="Dataset month - changes reload all data"
-              />
-            </div>
-            <button
-              class="subtab active"
-              data-view="summary"
-              aria-pressed="true"
-              data-tooltip="Show all items, refine using mode tabs and filters"
-            >
-              Summary
-            </button>
-            <button
-              class="subtab"
-              data-view="exceptions"
-              aria-pressed="false"
-              data-tooltip="Show only problematic items (unassigned/approx/no-plan/pni/over-issued)"
-            >
-              Exceptions
-            </button>
-          </nav>
-          <div id="mrpGovernanceBanner" aria-live="polite"></div>
-          <!-- boardTabs moved below to sit immediately above the table -->
+          <input
+            id="horizonMonth"
+            type="month"
+            data-tooltip="Dataset month - changes reload all data"
+          />
         </div>
-      </div>
+        <button
+          class="subtab active"
+          data-view="summary"
+          aria-pressed="true"
+          data-tooltip="Show all items, refine using mode tabs and filters"
+        >
+          Summary
+        </button>
+        <button
+          class="subtab"
+          data-view="exceptions"
+          aria-pressed="false"
+          data-tooltip="Show only problematic items (unassigned/approx/no-plan/pni/over-issued)"
+        >
+          Exceptions
+        </button>
+      </nav>
+      <div id="mrpGovernanceBanner" aria-live="polite"></div>
     </div>
 
     <div id="filters" class="filter-strip">
@@ -1196,7 +1083,7 @@
               <th data-key="planned_total_qty">Planned</th>
               <th data-key="issued_total_qty">Issued</th>
               <th data-key="net_requirement">Net</th>
-              <th>Flags</th>
+              <th data-key="flags">Flags</th>
               <!-- Top consumers column removed from table; details shown in modal -->
             </tr>
           </thead>

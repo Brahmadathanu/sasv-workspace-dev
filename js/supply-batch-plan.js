@@ -1,14 +1,73 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { Platform } from "../public/shared/js/platform.js";
+import { hasPermission } from "../public/shared/js/appAuth.js";
+import { showToast as sasvShowToast } from "../public/shared/js/toast.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
+import {
+  ADMIN_CORRECTION_ROLE,
+  OPERATION_TYPES,
+} from "../public/shared/js/bmr-admin-correction.js";
+import { openBmrAdminCorrectionModal } from "../public/shared/js/bmr-admin-correction-modal.js";
+import {
+  SUPPLY_BATCH_PLAN_PERMISSION_TARGET,
+  SUPPLY_BATCH_SIZE_INACTIVATE_COPY,
+  SUPPLY_BATCH_SIZE_RPC_NAMES,
+  buildCreateSupplyBatchSizeReferenceArgs,
+  buildGetSupplyBatchSizeReferencesArgs,
+  buildInactivateSupplyBatchSizeReferenceArgs,
+  buildReviseSupplyBatchSizeReferenceArgs,
+  isMeaningfulSupplyBatchSizeChangeReason,
+  normalizeSupplyBatchSizeIntegerId,
+  normalizeSupplyBatchSizeReferenceRow,
+  parseSupplyBatchPlanDeepLink,
+  resolveQuickEditSupplyBatchSizeBranch,
+  supplyBatchSizeTodayIsoDate,
+  unwrapSupplyBatchSizeReferencesPayload,
+  validateSupplyBatchSizeRange,
+} from "../public/shared/js/supply-batch-size-references.js";
 
 const q = (id) => document.getElementById(id);
-const toast = (m) => {
+
+/** Thin adapter → canonical toast.js; keep call sites as toast(msg). */
+const toast = (m, type = "info") => {
+  try {
+    sasvShowToast(m, type, 3000);
+    return;
+  } catch {
+    /* fall through */
+  }
   const t = q("toast");
   if (!t) return showAlert(m);
-  t.textContent = m;
+  t.hidden = false;
+  t.textContent = m == null ? "" : String(m);
   t.style.display = "block";
-  setTimeout(() => (t.style.display = "none"), 3000);
+  setTimeout(() => {
+    t.style.display = "none";
+    t.hidden = true;
+  }, 3000);
 };
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+try {
+  const homeEl = q("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  else {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(q("homeBtn")),
+      { once: true },
+    );
+  }
+} catch {
+  /* ignore chrome mount failures */
+}
+
+/** Exceptional admin-correction permission (UX gate only). */
+let _canAdminCorrect = false;
+
+/** Preferred batch-size register — fail closed until permission resolves. */
+let _canViewBatchSizes = false;
+let _canEditBatchSizes = false;
 
 // Processing overlay helpers
 function showProcessingOverlay(message) {
@@ -1528,45 +1587,40 @@ async function loadBmrCandidates() {
 
 // onLinkBmr removed (mapping panel moved inline). Use onPickBmrForBatch/onMapByBN for inline mapping flows.
 
+// Opens the shared Administrative Correction workflow preselected to UNLINK_BMR.
+// Authenticated clients must not call the retired plan-batch unlink RPC.
 async function onUnlinkBmr(evt) {
   const batchId =
     Number(evt?.currentTarget?.dataset?.batch) ||
-    Number(q("mapBatchSel").value);
+    Number(q("mapBatchSel")?.value);
   if (!batchId) return toast("Pick a batch");
 
-  const isApplied = _headerStatus === "applied";
-  const title = isApplied ? "Force Unlink BMR" : "Unlink BMR";
-  const confirmMsg = isApplied
-    ? "Plan is applied. Force-unlink this batch only? The plan stays applied; Manage BMR will unlock for size edits. Adjust Overrides separately if month qty must change."
-    : "Unlink the mapped BMR from this planned batch?";
-
-  const ok = await showConfirm(confirmMsg, title);
-  if (!ok) return;
-
-  const reason = await showPrompt(
-    isApplied
-      ? "Reason for force unlink (required):"
-      : "Reason for unlink (required):",
-    "",
-  );
-  if (reason === null) return;
-  const trimmed = String(reason).trim();
-  if (trimmed.length < 3) {
-    return toast("Reason is required (at least 3 characters)");
+  if (!_canAdminCorrect) {
+    return toast(
+      "Administrative correction permission is required to unlink a mapped BMR.",
+    );
   }
 
-  const { error } = await supabase.rpc("force_unlink_plan_batch", {
-    p_batch_id: batchId,
-    p_reason: trimmed,
-  });
-  if (error) {
-    console.error(error);
-    return toast(`Unlink failed: ${error.message || "unknown error"}`);
+  const isWip = evt?.currentTarget?.dataset?.wip === "true";
+  if (isWip) return toast("Cannot unlink WIP");
+
+  try {
+    await openBmrAdminCorrectionModal({
+      batchPlanBatchId: batchId,
+      initialOperation: OPERATION_TYPES.UNLINK_BMR,
+      monthFrom: window._headerFrom || null,
+      monthTo: window._headerTo || null,
+      onSuccess: async () => {
+        toast("Administrative correction completed ✔");
+        await loadBatches();
+        await loadMapRollup();
+        await loadUnmappedBatches();
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    toast(`Administrative correction failed: ${err.message || "unknown error"}`);
   }
-  toast(isApplied ? "Force unlinked ✔" : "Unlinked ✔");
-  await loadBatches();
-  await loadMapRollup();
-  await loadUnmappedBatches();
 }
 
 async function onPickBmrForBatch(evt) {
@@ -1931,7 +1985,7 @@ window.showInlineBnPicker = async function (button) {
     }
   };
   dropdown.addEventListener("keydown", handleDropdownKeydown);
-  button.style.borderColor = "#3b82f6";
+  button.style.borderColor = "var(--sasv-action-primary)";
   button.style.background = "#eff6ff";
   button.setAttribute("aria-expanded", "true");
 
@@ -2153,7 +2207,7 @@ function showBnPickerModal(choices, productId, batchId) {
 
       // Hover effects
       option.addEventListener("mouseenter", () => {
-        option.style.borderColor = "#3b82f6";
+        option.style.borderColor = "var(--sasv-action-primary)";
         option.style.background = "#eff6ff";
         option.style.transform = "translateY(-1px)";
         option.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
@@ -2483,6 +2537,57 @@ document.addEventListener("DOMContentLoaded", () => {
   // Platform-aware HOME button
   q("homeBtn")?.addEventListener("click", () => Platform.goHome());
 
+  // Exceptional admin-correction permission (UX only; server is final)
+  hasPermission(ADMIN_CORRECTION_ROLE, "edit")
+    .then(async (allowed) => {
+      _canAdminCorrect = !!allowed;
+      // Re-render batches so kebab actions reflect permission once known.
+      if (typeof loadBatches === "function" && q("bpHeaderSel")?.value) {
+        try {
+          await loadBatches();
+        } catch (e) {
+          console.warn("[supply-batch-plan] reload after permission check failed", e);
+        }
+      }
+    })
+    .catch((err) => {
+      console.warn(
+        "[supply-batch-plan] admin-correction permission check failed",
+        err,
+      );
+      _canAdminCorrect = false;
+    });
+
+  // Preferred batch-size register — module:supply-batch-plan (fail closed)
+  Promise.all([
+    hasPermission(SUPPLY_BATCH_PLAN_PERMISSION_TARGET, "view"),
+    hasPermission(SUPPLY_BATCH_PLAN_PERMISSION_TARGET, "edit"),
+  ])
+    .then(async ([viewAllowed, editAllowed]) => {
+      _canViewBatchSizes = !!viewAllowed;
+      _canEditBatchSizes = !!editAllowed && !!viewAllowed;
+      applyBatchSizePermissionUi();
+      try {
+        await applySupplyBatchPlanDeepLink();
+      } catch (e) {
+        console.warn("[supply-batch-plan] deep-link apply failed", e);
+      }
+      if (
+        document.getElementById("tab-batch-sizes")?.classList.contains("active")
+      ) {
+        await loadBatchSizeReferences();
+      }
+    })
+    .catch((err) => {
+      console.warn(
+        "[supply-batch-plan] batch-size permission check failed",
+        err,
+      );
+      _canViewBatchSizes = false;
+      _canEditBatchSizes = false;
+      applyBatchSizePermissionUi();
+    });
+
   // Initialize products cache
   loadProductsCache();
 
@@ -2781,24 +2886,25 @@ function renderBatches() {
         )}', '_blank')">Create BN</button>`,
       ];
     } else {
-      // mapped or WIP
-      const unlinkLabel =
-        _headerStatus === "applied" ? "Force Unlink…" : "Unlink";
-      const unlinkTitle = isWip
-        ? "Cannot unlink WIP"
-        : _headerStatus === "applied"
-          ? "Rare correction: unlink this batch while plan stays applied"
-          : "Unlink mapped BMR (reason required)";
-      menuItems = [
+      // mapped or WIP — administrative unlink only via governed correction workflow
+      const menu = [
         `<button class="kebab-item" onclick="window.location.href='public/shared/manage-bmr.html?item=${encodeURIComponent(
           productDisplay,
         )}&bn=${encodeURIComponent(r.mapped_bn || "")}'">View BMR</button>`,
-        `<button class="kebab-item" data-batch="${
-          r.batch_id
-        }" onclick="onUnlinkBmr(event)" ${
-          isWip ? "disabled" : ""
-        } title="${unlinkTitle}">${unlinkLabel}</button>`,
       ];
+      if (_canAdminCorrect) {
+        const unlinkTitle = isWip
+          ? "Cannot unlink WIP"
+          : "Administrative Correction — remove mapping (governed)";
+        menu.push(
+          `<button class="kebab-item" data-batch="${
+            r.batch_id
+          }" data-wip="${isWip ? "true" : "false"}" onclick="onUnlinkBmr(event)" ${
+            isWip ? "disabled" : ""
+          } title="${unlinkTitle}">Administrative Correction…</button>`,
+        );
+      }
+      menuItems = menu;
     }
 
     const actionHtml = `
@@ -3304,7 +3410,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // Expose handlers that may be invoked from other modules/templates or used in inline markup
 window.onPickBmrForBatch = onPickBmrForBatch;
 window.onMapByBN = onMapByBN;
-window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
+window.onUnlinkBmr = onUnlinkBmr; // opens shared Administrative Correction (UNLINK_BMR)
 
 // --- Enhanced tab switcher with status indicators ---
 (function initTabs() {
@@ -3349,6 +3455,7 @@ window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
 
   // Auto-update status indicators when data changes
   window.updateTabStatuses = updateTabStatuses; // Use our global function
+  window.activateSupplyBatchPlanTab = activate;
 
   allTabs.forEach((btn) => {
     btn.addEventListener("click", () =>
@@ -3356,9 +3463,14 @@ window.onUnlinkBmr = onUnlinkBmr; // exposed for inline Unlink buttons
     );
   });
 
-  const saved = localStorage.getItem(key);
-  if (saved && document.getElementById(saved)) activate(saved);
-  else activate("tab-build"); // Start with Build tab
+  const deepLink = parseSupplyBatchPlanDeepLink(window.location.search || "");
+  if (deepLink.openBatchSizesTab) {
+    activate("tab-batch-sizes");
+  } else {
+    const saved = localStorage.getItem(key);
+    if (saved && document.getElementById(saved)) activate(saved);
+    else activate("tab-build"); // Start with Build tab
+  }
 
   // Initial status update (only for workflow tabs)
   updateTabStatuses();
@@ -3867,7 +3979,7 @@ window.updateHealthChecks = updateHealthChecks;
     mapBmrSel: "Candidate BMR cards for the selected product/size.",
     btnLinkBmr: "Link the UNMAPPED batch to the selected BMR (BN).",
     btnUnlinkBmr:
-      "Unlink a mapped BMR (reason required). On applied plans uses Force Unlink for that batch only.",
+      "Administrative Correction (UNLINK_BMR). Requires role:manager-bmr-admin-correction. Opens the governed correction workflow.",
     btnReloadMap: "Rebuild mapping rollup and candidates.",
 
     // Overrides
@@ -3891,798 +4003,2603 @@ window.updateHealthChecks = updateHealthChecks;
 });
 
 // ============================================================================
-// BATCH SIZE REFERENCE MANAGEMENT
+
+// BATCH SIZE REFERENCE MANAGEMENT (Gate 11Y.4E.4 — governed RPCs only)
+
 // ============================================================================
 
-let _batchSizeRefsCache = [];
-let _currentEditingBatchSizeId = null;
 
-// Load batch size reference data (without UI updates)
-async function loadBatchSizeReferencesData() {
+
+const BATCH_SIZE_PAGE_LIMIT = 50;
+
+
+
+/** Register UI state — no full-table authoritative cache. */
+
+const _batchSizeRegister = {
+
+  rows: [],
+
+  total_count: 0,
+
+  status_counts: {},
+
+  invalid_range_count: 0,
+
+  search: "",
+
+  state: "ALL",
+
+  limit: BATCH_SIZE_PAGE_LIMIT,
+
+  offset: 0,
+
+  loading: false,
+
+  error: null,
+
+  generation: 0,
+
+};
+
+
+
+/** Product-scoped cache built only from register RPC. */
+
+const _productBatchSizeCache = new Map();
+
+
+
+let _batchSizeModalMode = "create"; // create | revise
+
+let _currentRevisingReference = null;
+
+let _currentHistoryProductId = null;
+
+let _batchSizeHistoryRows = [];
+
+let _pendingDeepLink = null;
+
+let _quickEditActiveReference = null;
+
+let _currentQuickEditProductId = null;
+
+let _currentQuickEditMonth = null;
+
+
+
+function canEditBatchSizes() {
+
+  return !!_canEditBatchSizes;
+
+}
+
+
+
+function canViewBatchSizes() {
+
+  return !!_canViewBatchSizes;
+
+}
+
+
+
+function applyBatchSizePermissionUi() {
+
+  const edit = canEditBatchSizes();
+
+  const view = canViewBatchSizes();
+
+  const addBtn = q("addNewBatchSizeBtn");
+
+  if (addBtn) addBtn.style.display = edit ? "" : "none";
+
+  const saveBtn = q("batchSizeSave");
+
+  if (saveBtn) saveBtn.style.display = edit ? "" : "none";
+
+  const saveRecalcBtn = q("batchSizeSaveRecalc");
+
+  if (saveRecalcBtn) saveRecalcBtn.style.display = edit ? "" : "none";
+
+  const inactivateBtn = q("batchSizeInactivate");
+
+  if (inactivateBtn) {
+
+    inactivateBtn.style.display =
+
+      edit && _batchSizeModalMode === "revise" ? "" : "none";
+
+  }
+
+  const qeSave = q("quickEditSave");
+
+  if (qeSave) qeSave.style.display = edit ? "" : "none";
+
+  const qeRebuild = q("quickEditRebuild");
+
+  if (qeRebuild) qeRebuild.style.display = edit ? "" : "none";
+
+  const form = q("batchSizeForm");
+
+  if (form) {
+
+    form.querySelectorAll("input, select, textarea").forEach((el) => {
+
+      if (el.id === "batchSizeProductSelect") return;
+
+      if (
+
+        el.id === "batchSizeUomDisplay" ||
+
+        el.id === "batchSizeCurrentReadonly"
+
+      )
+
+        return;
+
+      if (!edit) el.setAttribute("readonly", "readonly");
+
+      else el.removeAttribute("readonly");
+
+      if (el.tagName === "SELECT" || el.type === "checkbox" || el.type === "date") {
+
+        el.disabled = !edit && el.id !== "batchSizeProductSelect";
+
+      }
+
+    });
+
+  }
+
+  const qeForm = q("quickEditBatchSizeForm");
+
+  if (qeForm) {
+
+    qeForm.querySelectorAll("input, textarea").forEach((el) => {
+
+      el.disabled = !edit;
+
+      if (!edit) el.setAttribute("readonly", "readonly");
+
+      else el.removeAttribute("readonly");
+
+    });
+
+  }
+
+  if (!view) {
+
+    const tbody = q("batchSizeRefsBody");
+
+    if (tbody) {
+
+      tbody.innerHTML =
+
+        '<tr><td colspan="12" style="text-align:center;padding:20px;color:#666;">View permission required for Batch Size References.</td></tr>';
+
+    }
+
+  }
+
+}
+
+
+
+function invalidateProductBatchSizeCache(productId = null) {
+
+  if (productId == null) {
+
+    _productBatchSizeCache.clear();
+
+    return;
+
+  }
+
+  const pid = normalizeSupplyBatchSizeIntegerId(productId);
+
+  if (pid != null) _productBatchSizeCache.delete(pid);
+
+}
+
+
+
+function escapeBatchSizeHtml(value) {
+
+  return String(value ?? "")
+
+    .replace(/&/g, "&amp;")
+
+    .replace(/</g, "&lt;")
+
+    .replace(/>/g, "&gt;")
+
+    .replace(/"/g, "&quot;");
+
+}
+
+
+
+function formatBatchSizeNumber(value) {
+
+  if (value == null || value === "") return "—";
+
+  const n = Number(value);
+
+  if (!Number.isFinite(n)) return "—";
+
+  return n.toLocaleString("en-IN");
+
+}
+
+
+
+function formatBatchSizeDate(value) {
+
+  if (!value) return "—";
+
   try {
-    const { data, error } = await supabase
-      .from("production_batch_size_ref")
-      .select("*")
-      .order("product_id")
-      .order("effective_from", { ascending: false });
+
+    return new Date(String(value).slice(0, 10) + "T00:00:00").toLocaleDateString();
+
+  } catch {
+
+    return String(value).slice(0, 10);
+
+  }
+
+}
+
+
+
+function batchSizeStateChip(row) {
+
+  const state = String(row.state || (row.is_active ? "ACTIVE" : "INACTIVE")).toUpperCase();
+
+  if (state === "ACTIVE") {
+
+    return '<span class="bs-chip bs-chip-active">Active</span>';
+
+  }
+
+  if (state === "MISSING") {
+
+    return '<span class="bs-chip bs-chip-missing">Missing</span>';
+
+  }
+
+  return '<span class="bs-chip bs-chip-inactive">Inactive</span>';
+
+}
+
+
+
+function batchSizeRangeChip(row) {
+
+  if (row.state === "MISSING" || row.reference_id == null) return "—";
+
+  if (row.invalid_range) {
+
+    return '<span class="bs-chip bs-chip-invalid">Invalid range</span>';
+
+  }
+
+  return '<span class="bs-chip bs-chip-ok">Valid</span>';
+
+}
+
+
+
+async function invokeSupplyBatchSizeRpc(rpcName, built, fallbackMessage) {
+
+  if (!built?.ok) {
+
+    const msg = (built?.errors || []).join("; ") || fallbackMessage;
+
+    return { ok: false, error: { message: msg }, data: null };
+
+  }
+
+  try {
+
+    const { data, error } = await supabase.rpc(rpcName, built.params);
 
     if (error) {
-      console.error("Error loading batch size references data:", error);
-      return;
+
+      console.error(`[supply-batch-plan] ${rpcName} failed`, error);
+
+      return { ok: false, error, data: null };
+
     }
 
-    _batchSizeRefsCache = data || [];
+    return { ok: true, error: null, data };
+
   } catch (err) {
-    console.error("Failed to load batch size references data:", err);
+
+    console.error(`[supply-batch-plan] ${rpcName} threw`, err);
+
+    return {
+
+      ok: false,
+
+      error: { message: err?.message || fallbackMessage },
+
+      data: null,
+
+    };
+
   }
+
 }
 
-// Load batch size references
-async function loadBatchSizeReferences() {
-  const tbody = q("batchSizeRefsBody");
-  if (!tbody) return;
 
-  tbody.innerHTML =
-    '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">Loading batch size references...</td></tr>';
 
-  // Ensure products cache is loaded
-  await loadProductsCache();
+function isActiveReferenceConflict(error) {
 
-  // Load batch size reference data
-  await loadBatchSizeReferencesData();
+  const msg = String(error?.message || error?.details || "").toLowerCase();
 
-  // Render the UI
-  renderBatchSizeReferences();
-}
+  const code = String(error?.code || "");
 
-// Render batch size references table
-function renderBatchSizeReferences() {
-  const tbody = q("batchSizeRefsBody");
-  if (!tbody) return;
+  return (
 
-  const searchTerm =
-    q("batchSizeSearchInput")?.value?.toLowerCase().trim() || "";
+    code === "23505" ||
 
-  if (_batchSizeRefsCache.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">No batch size references found. Click "Add New Product" to create one.</td></tr>';
-    return;
-  }
+    msg.includes("active") &&
 
-  let filteredRefs = _batchSizeRefsCache;
+      (msg.includes("already") || msg.includes("exist") || msg.includes("conflict"))
 
-  // Apply text search filter
-  if (searchTerm) {
-    filteredRefs = filteredRefs.filter((ref) => {
-      const productDisplay = getProductDisplay(ref.product_id).toLowerCase();
-      return productDisplay.includes(searchTerm);
-    });
-  }
-
-  // Apply boolean presence filters from the Controls card
-  const preferredMode = q("batchSizeFilterPreferredMode")?.value || "any";
-  const minMode = q("batchSizeFilterMinMode")?.value || "any";
-  const maxMode = q("batchSizeFilterMaxMode")?.value || "any";
-
-  if (preferredMode !== "any" || minMode !== "any" || maxMode !== "any") {
-    filteredRefs = filteredRefs.filter((ref) => {
-      // presence checks (treat null/undefined/"" as not set)
-      const hasPreferred =
-        ref.preferred_batch_size != null && ref.preferred_batch_size !== "";
-      const hasMin = ref.min_batch_size != null && ref.min_batch_size !== "";
-      const hasMax = ref.max_batch_size != null && ref.max_batch_size !== "";
-
-      if (preferredMode === "set" && !hasPreferred) return false;
-      if (preferredMode === "notset" && hasPreferred) return false;
-
-      if (minMode === "set" && !hasMin) return false;
-      if (minMode === "notset" && hasMin) return false;
-
-      if (maxMode === "set" && !hasMax) return false;
-      if (maxMode === "notset" && hasMax) return false;
-
-      return true;
-    });
-  }
-
-  if (filteredRefs.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">No matching products found.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = filteredRefs
-    .map((ref) => {
-      const statusBadge = ref.is_active
-        ? '<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 11px;">ACTIVE</span>'
-        : '<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">INACTIVE</span>';
-
-      const effectiveDate = new Date(ref.effective_from).toLocaleDateString();
-
-      return `
-      <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${getProductDisplay(
-          ref.product_id,
-        )}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${Number(
-          ref.preferred_batch_size,
-        ).toLocaleString()}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${
-          ref.min_batch_size ? Number(ref.min_batch_size).toLocaleString() : "-"
-        }</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${
-          ref.max_batch_size ? Number(ref.max_batch_size).toLocaleString() : "-"
-        }</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${effectiveDate}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${statusBadge}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${
-          ref.notes || ""
-        }">${ref.notes || "-"}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">
-          <button class="btn" style="padding: 4px 8px; margin-right: 4px; font-size: 12px;" onclick="editBatchSizeRef(${
-            ref.id
-          })">Edit</button>
-          <button class="btn" style="padding: 4px 8px; font-size: 12px; background: #fef2f2; color: #dc2626; border-color: #fecaca;" onclick="deleteBatchSizeRef(${
-            ref.id
-          })">Delete</button>
-        </td>
-      </tr>
-    `;
-    })
-    .join("");
-}
-
-// Initialize batch size search
-function initializeBatchSizeSearch() {
-  const searchInput = q("batchSizeSearchInput");
-  const clearBtn = q("clearBatchSizeSearchBtn");
-
-  if (!searchInput || !clearBtn) return;
-
-  searchInput.addEventListener("input", () => {
-    renderBatchSizeReferences();
-    clearBtn.style.display = searchInput.value.trim() ? "inline-block" : "none";
-  });
-
-  searchInput.addEventListener("keyup", (e) => {
-    if (e.key === "Escape") {
-      searchInput.value = "";
-      renderBatchSizeReferences();
-      clearBtn.style.display = "none";
-    }
-  });
-
-  clearBtn.addEventListener("click", () => {
-    searchInput.value = "";
-    renderBatchSizeReferences();
-    clearBtn.style.display = "none";
-  });
-
-  // Wire boolean filter selects to re-render on change
-  const prefSel = q("batchSizeFilterPreferredMode");
-  const minSel = q("batchSizeFilterMinMode");
-  const maxSel = q("batchSizeFilterMaxMode");
-
-  [prefSel, minSel, maxSel].forEach((sel) => {
-    if (!sel) return;
-    sel.addEventListener("change", () => {
-      renderBatchSizeReferences();
-    });
-  });
-}
-
-// Load products for batch size modal
-async function loadProductsForBatchSize() {
-  const select = q("batchSizeProductSelect");
-  if (!select) return;
-
-  // Ensure products cache is loaded
-  await loadProductsCache();
-
-  // Clear existing options except the first one
-  select.innerHTML = '<option value="">Select a product...</option>';
-
-  // Get products that already have batch size references
-  const existingProductIds = new Set(
-    _batchSizeRefsCache
-      .filter((ref) => ref.is_active) // Only consider active references
-      .map((ref) => ref.product_id),
   );
 
-  // Convert cache to array, filter out products with existing batch size refs, and sort
-  const availableProducts = Array.from(_productsCache.values())
-    .filter((p) => p.status === "Active" && !existingProductIds.has(p.id))
-    .sort((a, b) => a.item.localeCompare(b.item));
+}
 
-  if (availableProducts.length === 0) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent =
-      "No products available (all active products already have batch size references)";
-    option.disabled = true;
-    select.appendChild(option);
-    return;
+
+
+async function fetchProductActiveBatchSizeReference(productId) {
+
+  const pid = normalizeSupplyBatchSizeIntegerId(productId);
+
+  if (pid == null) return null;
+
+  if (_productBatchSizeCache.has(pid)) {
+
+    return _productBatchSizeCache.get(pid)?.active || null;
+
   }
 
-  availableProducts.forEach((product) => {
-    const option = document.createElement("option");
-    option.value = product.id;
-    option.textContent = getProductDisplay(product.id);
-    select.appendChild(option);
+  const built = buildGetSupplyBatchSizeReferencesArgs({
+
+    product_id: pid,
+
+    state: "ACTIVE",
+
+    limit: 20,
+
+    offset: 0,
+
   });
+
+  const res = await invokeSupplyBatchSizeRpc(
+
+    SUPPLY_BATCH_SIZE_RPC_NAMES.register,
+
+    built,
+
+    "Unable to load batch size references.",
+
+  );
+
+  if (!res.ok) return null;
+
+  const unwrapped = unwrapSupplyBatchSizeReferencesPayload(res.data);
+
+  const active =
+
+    unwrapped.rows.find((r) => r.state === "ACTIVE" && r.reference_id != null) ||
+
+    null;
+
+  _productBatchSizeCache.set(pid, { active, rows: unwrapped.rows });
+
+  return active;
+
 }
 
-// Load all products for editing (including the currently selected one)
-async function loadAllProductsForEdit() {
-  const select = q("batchSizeProductSelect");
-  if (!select) return;
 
-  // Ensure products cache is loaded
+
+async function loadProductBatchSizeHistory(productId) {
+
+  const pid = normalizeSupplyBatchSizeIntegerId(productId);
+
+  _currentHistoryProductId = pid;
+
+  const host = q("batchSizeHistoryBody");
+
+  if (!pid) {
+
+    _batchSizeHistoryRows = [];
+
+    if (host) host.innerHTML = "";
+
+    return [];
+
+  }
+
+  if (host) {
+
+    host.innerHTML =
+
+      '<tr><td colspan="8" style="text-align:center;padding:8px;color:#666;">Loading history…</td></tr>';
+
+  }
+
+  const built = buildGetSupplyBatchSizeReferencesArgs({
+
+    product_id: pid,
+
+    state: "ALL",
+
+    limit: 100,
+
+    offset: 0,
+
+  });
+
+  const res = await invokeSupplyBatchSizeRpc(
+
+    SUPPLY_BATCH_SIZE_RPC_NAMES.register,
+
+    built,
+
+    "Unable to load Product batch-size history.",
+
+  );
+
+  if (!res.ok) {
+
+    if (host) {
+
+      host.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:8px;color:#b91c1c;">${escapeBatchSizeHtml(
+
+        res.error?.message || "Failed to load history",
+
+      )}</td></tr>`;
+
+    }
+
+    return [];
+
+  }
+
+  const unwrapped = unwrapSupplyBatchSizeReferencesPayload(res.data);
+
+  _batchSizeHistoryRows = unwrapped.rows.filter((r) => r.reference_id != null);
+
+  _productBatchSizeCache.set(pid, {
+
+    active: _batchSizeHistoryRows.find((r) => r.state === "ACTIVE") || null,
+
+    rows: _batchSizeHistoryRows,
+
+  });
+
+  renderBatchSizeHistory();
+
+  return _batchSizeHistoryRows;
+
+}
+
+
+
+function renderBatchSizeHistory() {
+
+  const host = q("batchSizeHistoryBody");
+
+  const section = q("batchSizeHistorySection");
+
+  if (section) section.style.display = _currentHistoryProductId ? "" : "none";
+
+  if (!host) return;
+
+  if (!_batchSizeHistoryRows.length) {
+
+    host.innerHTML =
+
+      '<tr><td colspan="8" style="text-align:center;padding:8px;color:#666;">No history rows.</td></tr>';
+
+    return;
+
+  }
+
+  host.innerHTML = _batchSizeHistoryRows
+
+    .map((r) => {
+
+      return `<tr>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;">${escapeBatchSizeHtml(r.reference_id)}</td>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${formatBatchSizeNumber(r.preferred_batch_size)} / ${formatBatchSizeNumber(r.min_batch_size)} / ${formatBatchSizeNumber(r.max_batch_size)}</td>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${escapeBatchSizeHtml(formatBatchSizeDate(r.effective_from))}</td>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${escapeBatchSizeHtml(formatBatchSizeDate(r.effective_to))}</td>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${batchSizeStateChip(r)}</td>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeBatchSizeHtml(r.change_reason || "")}">${escapeBatchSizeHtml(r.change_reason || "—")}</td>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${escapeBatchSizeHtml(r.supersedes_reference_id ?? "—")}</td>
+
+        <td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;font-size:11px;">
+
+          <div>c: ${escapeBatchSizeHtml(r.created_at ? String(r.created_at).slice(0, 19) : "—")}</div>
+
+          <div>u: ${escapeBatchSizeHtml(r.updated_at ? String(r.updated_at).slice(0, 19) : "—")}</div>
+
+          <div>i: ${escapeBatchSizeHtml(r.inactivated_at ? String(r.inactivated_at).slice(0, 19) : "—")}</div>
+
+        </td>
+
+      </tr>`;
+
+    })
+
+    .join("");
+
+}
+
+
+
+async function loadBatchSizeReferencesData(options = {}) {
+
+  if (!canViewBatchSizes()) {
+
+    _batchSizeRegister.rows = [];
+
+    _batchSizeRegister.total_count = 0;
+
+    _batchSizeRegister.error = "View permission required.";
+
+    return { ok: false, reason: "permission" };
+
+  }
+
+
+
+  const search =
+
+    options.search != null
+
+      ? String(options.search)
+
+      : q("batchSizeSearchInput")?.value?.trim() || _batchSizeRegister.search;
+
+  const state =
+
+    options.state != null
+
+      ? String(options.state).toUpperCase()
+
+      : q("batchSizeFilterState")?.value || _batchSizeRegister.state || "ALL";
+
+  let offset =
+
+    options.offset != null ? Number(options.offset) : _batchSizeRegister.offset;
+
+  if (options.resetOffset) offset = 0;
+
+  const limit = options.limit != null ? Number(options.limit) : _batchSizeRegister.limit;
+
+  const productId =
+
+    options.product_id != null
+
+      ? normalizeSupplyBatchSizeIntegerId(options.product_id)
+
+      : normalizeSupplyBatchSizeIntegerId(
+
+          q("batchSizeProductIdFilter")?.value || null,
+
+        );
+
+
+
+  _batchSizeRegister.search = search;
+
+  _batchSizeRegister.state = state;
+
+  _batchSizeRegister.offset = Math.max(0, offset || 0);
+
+  _batchSizeRegister.limit = Math.max(1, limit || BATCH_SIZE_PAGE_LIMIT);
+
+  _batchSizeRegister.loading = true;
+
+  _batchSizeRegister.error = null;
+
+  const generation = ++_batchSizeRegister.generation;
+
+
+
+  const built = buildGetSupplyBatchSizeReferencesArgs({
+
+    product_id: productId,
+
+    search,
+
+    state,
+
+    limit: _batchSizeRegister.limit,
+
+    offset: _batchSizeRegister.offset,
+
+  });
+
+  const res = await invokeSupplyBatchSizeRpc(
+
+    SUPPLY_BATCH_SIZE_RPC_NAMES.register,
+
+    built,
+
+    "Unable to load batch size references.",
+
+  );
+
+
+
+  if (generation !== _batchSizeRegister.generation) {
+
+    return { ok: false, reason: "stale" };
+
+  }
+
+
+
+  _batchSizeRegister.loading = false;
+
+  if (!res.ok) {
+
+    _batchSizeRegister.rows = [];
+
+    _batchSizeRegister.total_count = 0;
+
+    _batchSizeRegister.error = res.error?.message || "Load failed";
+
+    return { ok: false, error: res.error };
+
+  }
+
+
+
+  const unwrapped = unwrapSupplyBatchSizeReferencesPayload(res.data);
+
+  _batchSizeRegister.rows = unwrapped.rows;
+
+  _batchSizeRegister.total_count = unwrapped.total_count;
+
+  _batchSizeRegister.status_counts = unwrapped.status_counts || {};
+
+  _batchSizeRegister.invalid_range_count = unwrapped.invalid_range_count || 0;
+
+
+
+  if (productId != null) {
+
+    _productBatchSizeCache.set(productId, {
+
+      active: unwrapped.rows.find((r) => r.state === "ACTIVE") || null,
+
+      rows: unwrapped.rows,
+
+    });
+
+  }
+
+
+
+  return { ok: true, generation };
+
+}
+
+
+
+async function loadBatchSizeReferences(options = {}) {
+
+  const tbody = q("batchSizeRefsBody");
+
+  if (!tbody) return;
+
+  if (!canViewBatchSizes()) {
+
+    applyBatchSizePermissionUi();
+
+    return;
+
+  }
+
+  tbody.innerHTML =
+
+    '<tr><td colspan="12" style="text-align:center;padding:20px;color:#666;">Loading batch size references...</td></tr>';
+
   await loadProductsCache();
 
-  // Clear existing options
-  select.innerHTML = "";
+  const result = await loadBatchSizeReferencesData(options);
 
-  // Convert cache to array and sort
-  const allProducts = Array.from(_productsCache.values())
-    .filter((p) => p.status === "Active")
-    .sort((a, b) => a.item.localeCompare(b.item));
+  if (result?.reason === "stale") return;
 
-  allProducts.forEach((product) => {
-    const option = document.createElement("option");
-    option.value = product.id;
-    option.textContent = getProductDisplay(product.id);
-    select.appendChild(option);
-  });
+  renderBatchSizeReferences();
+
+  updateBatchSizePager();
+
 }
 
-// Show batch size modal
-async function showBatchSizeModal(batchSizeRef = null) {
+
+
+function updateBatchSizePager() {
+
+  const info = q("batchSizePagerInfo");
+
+  const prev = q("batchSizePrevPage");
+
+  const next = q("batchSizeNextPage");
+
+  const total = Number(_batchSizeRegister.total_count) || 0;
+
+  const limit = Number(_batchSizeRegister.limit) || BATCH_SIZE_PAGE_LIMIT;
+
+  const offset = Number(_batchSizeRegister.offset) || 0;
+
+  const page = Math.floor(offset / limit) + 1;
+
+  const pages = Math.max(1, Math.ceil(total / limit) || 1);
+
+  if (info) {
+
+    info.textContent = total
+
+      ? `Page ${page} of ${pages} · ${total.toLocaleString("en-IN")} row(s)`
+
+      : "No rows";
+
+    if (_batchSizeRegister.invalid_range_count > 0) {
+
+      info.textContent += ` · ${_batchSizeRegister.invalid_range_count} invalid range`;
+
+    }
+
+  }
+
+  if (prev) prev.disabled = offset <= 0 || _batchSizeRegister.loading;
+
+  if (next) next.disabled = offset + limit >= total || _batchSizeRegister.loading;
+
+}
+
+
+
+function renderBatchSizeReferences() {
+
+  const tbody = q("batchSizeRefsBody");
+
+  if (!tbody) return;
+
+  applyBatchSizePermissionUi();
+
+
+
+  if (_batchSizeRegister.error) {
+
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:20px;color:#b91c1c;">${escapeBatchSizeHtml(
+
+      _batchSizeRegister.error,
+
+    )}</td></tr>`;
+
+    return;
+
+  }
+
+
+
+  if (!_batchSizeRegister.rows.length) {
+
+    tbody.innerHTML =
+
+      '<tr><td colspan="12" style="text-align:center;padding:20px;color:#666;">No batch size references found for the current filters.</td></tr>';
+
+    return;
+
+  }
+
+
+
+  const edit = canEditBatchSizes();
+
+  tbody.innerHTML = _batchSizeRegister.rows
+
+    .map((ref) => {
+
+      const productLabel =
+
+        ref.product_name ||
+
+        getProductDisplay(ref.product_id) ||
+
+        `Product ${ref.product_id}`;
+
+      const group = ref.product_group_name || "—";
+
+      const uom = ref.uom || _productsCache.get(ref.product_id)?.uom_base || "—";
+
+      const updated = ref.updated_at
+
+        ? String(ref.updated_at).slice(0, 19).replace("T", " ")
+
+        : "—";
+
+      let actions = "";
+
+      if (edit && ref.state === "ACTIVE" && ref.reference_id != null) {
+
+        actions += `<button type="button" class="btn" style="padding:4px 8px;margin-right:4px;font-size:12px;" data-bs-revise="${ref.reference_id}">Revise</button>`;
+
+        actions += `<button type="button" class="btn" style="padding:4px 8px;margin-right:4px;font-size:12px;" data-bs-inactivate="${ref.reference_id}">Inactivate</button>`;
+
+      }
+
+      if (ref.product_id != null) {
+
+        actions += `<button type="button" class="btn" style="padding:4px 8px;font-size:12px;" data-bs-history="${ref.product_id}">History</button>`;
+
+      }
+
+      return `<tr data-product-id="${escapeBatchSizeHtml(ref.product_id ?? "")}" data-reference-id="${escapeBatchSizeHtml(ref.reference_id ?? "")}">
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeBatchSizeHtml(productLabel)} <span class="muted">#${escapeBatchSizeHtml(ref.product_id ?? "")}</span></td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeBatchSizeHtml(group)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${formatBatchSizeNumber(ref.preferred_batch_size)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${formatBatchSizeNumber(ref.min_batch_size)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${formatBatchSizeNumber(ref.max_batch_size)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${escapeBatchSizeHtml(uom)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${escapeBatchSizeHtml(formatBatchSizeDate(ref.effective_from))}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${escapeBatchSizeHtml(formatBatchSizeDate(ref.effective_to))}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${batchSizeStateChip(ref)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${batchSizeRangeChip(ref)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px;">${escapeBatchSizeHtml(updated)}</td>
+
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;white-space:nowrap;">${actions || "—"}</td>
+
+      </tr>`;
+
+    })
+
+    .join("");
+
+}
+
+
+
+function initializeBatchSizeSearch() {
+
+  const searchInput = q("batchSizeSearchInput");
+
+  const clearBtn = q("clearBatchSizeSearchBtn");
+
+  let debounce = null;
+
+
+
+  const reload = (resetOffset = true) => {
+
+    loadBatchSizeReferences({ resetOffset });
+
+  };
+
+
+
+  if (searchInput) {
+
+    searchInput.addEventListener("input", () => {
+
+      if (clearBtn) {
+
+        clearBtn.style.display = searchInput.value.trim()
+
+          ? "inline-block"
+
+          : "none";
+
+      }
+
+      clearTimeout(debounce);
+
+      debounce = setTimeout(() => reload(true), 300);
+
+    });
+
+    searchInput.addEventListener("keyup", (e) => {
+
+      if (e.key === "Escape") {
+
+        searchInput.value = "";
+
+        if (clearBtn) clearBtn.style.display = "none";
+
+        reload(true);
+
+      }
+
+    });
+
+  }
+
+  clearBtn?.addEventListener("click", () => {
+
+    if (searchInput) searchInput.value = "";
+
+    clearBtn.style.display = "none";
+
+    reload(true);
+
+  });
+
+
+
+  q("batchSizeFilterState")?.addEventListener("change", () => reload(true));
+
+  q("batchSizeProductIdFilter")?.addEventListener("change", () => reload(true));
+
+  q("batchSizePrevPage")?.addEventListener("click", () => {
+
+    const nextOffset = Math.max(
+
+      0,
+
+      _batchSizeRegister.offset - _batchSizeRegister.limit,
+
+    );
+
+    loadBatchSizeReferences({ offset: nextOffset, resetOffset: false });
+
+  });
+
+  q("batchSizeNextPage")?.addEventListener("click", () => {
+
+    const nextOffset = _batchSizeRegister.offset + _batchSizeRegister.limit;
+
+    loadBatchSizeReferences({ offset: nextOffset, resetOffset: false });
+
+  });
+
+
+
+  q("batchSizeRefsBody")?.addEventListener("click", async (e) => {
+
+    const reviseBtn = e.target.closest?.("[data-bs-revise]");
+
+    const inactivateBtn = e.target.closest?.("[data-bs-inactivate]");
+
+    const historyBtn = e.target.closest?.("[data-bs-history]");
+
+    if (reviseBtn) {
+
+      const id = Number(reviseBtn.getAttribute("data-bs-revise"));
+
+      await reviseBatchSizeRef(id);
+
+    } else if (inactivateBtn) {
+
+      const id = Number(inactivateBtn.getAttribute("data-bs-inactivate"));
+
+      await openInactivateBatchSizeFlow(id);
+
+    } else if (historyBtn) {
+
+      const pid = Number(historyBtn.getAttribute("data-bs-history"));
+
+      await openBatchSizeHistoryForProduct(pid);
+
+    }
+
+  });
+
+}
+
+
+
+async function loadProductsForBatchSize() {
+
+  const select = q("batchSizeProductSelect");
+
+  if (!select) return;
+
+  await loadProductsCache();
+
+  select.innerHTML = '<option value="">Select a product...</option>';
+
+  const availableProducts = Array.from(_productsCache.values())
+
+    .filter((p) => p.status === "Active")
+
+    .sort((a, b) => a.item.localeCompare(b.item));
+
+  availableProducts.forEach((product) => {
+
+    const option = document.createElement("option");
+
+    option.value = product.id;
+
+    option.textContent = getProductDisplay(product.id);
+
+    select.appendChild(option);
+
+  });
+
+}
+
+
+
+function setBatchSizeUomDisplay(productId) {
+
+  const el = q("batchSizeUomDisplay");
+
+  if (!el) return;
+
+  const product = _productsCache.get(Number(productId));
+
+  el.textContent = product?.uom_base || "—";
+
+}
+
+
+
+function setQuickEditUomDisplay(productId) {
+
+  const el = q("quickEditUomDisplay");
+
+  if (!el) return;
+
+  const product = _productsCache.get(Number(productId));
+
+  el.textContent = product?.uom_base || "—";
+
+}
+
+
+
+function fillBatchSizeCurrentReadonly(ref) {
+
+  const host = q("batchSizeCurrentReadonly");
+
+  if (!host) return;
+
+  if (!ref) {
+
+    host.style.display = "none";
+
+    host.innerHTML = "";
+
+    return;
+
+  }
+
+  host.style.display = "";
+
+  host.innerHTML = `
+
+    <div class="form-group" style="margin-bottom:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;">
+
+      <div style="font-weight:600;margin-bottom:6px;">Current reference (read-only)</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:13px;">
+
+        <div>Reference ID: <strong>${escapeBatchSizeHtml(ref.reference_id)}</strong></div>
+
+        <div>State: ${batchSizeStateChip(ref)}</div>
+
+        <div>Product: ${escapeBatchSizeHtml(getProductDisplay(ref.product_id))}</div>
+
+        <div>UOM: ${escapeBatchSizeHtml(ref.uom || _productsCache.get(ref.product_id)?.uom_base || "—")}</div>
+
+        <div>Preferred / Min / Max: ${formatBatchSizeNumber(ref.preferred_batch_size)} / ${formatBatchSizeNumber(ref.min_batch_size)} / ${formatBatchSizeNumber(ref.max_batch_size)}</div>
+
+        <div>Effective from: ${escapeBatchSizeHtml(formatBatchSizeDate(ref.effective_from))}</div>
+
+        <div>Range: ${batchSizeRangeChip(ref)}</div>
+
+      </div>
+
+    </div>`;
+
+}
+
+
+
+async function showBatchSizeModal(mode = "create", batchSizeRef = null) {
+
+  if (!canViewBatchSizes()) {
+
+    showAlert("View permission required.");
+
+    return;
+
+  }
+
+  if ((mode === "create" || mode === "revise") && !canEditBatchSizes()) {
+
+    showAlert("Edit permission required to create or revise batch-size references.");
+
+    return;
+
+  }
+
+
+
   const modal = q("batchSizeModal");
+
   const title = q("batchSizeModalTitle");
+
   const form = q("batchSizeForm");
 
   if (!modal || !title || !form) return;
 
-  // Ensure batch size references are loaded first (needed for filtering available products)
-  if (_batchSizeRefsCache.length === 0) {
-    await loadBatchSizeReferencesData();
-  }
 
-  // Set title and current editing ID
-  if (batchSizeRef) {
-    title.textContent = "Edit Product Batch Size Reference";
-    _currentEditingBatchSizeId = batchSizeRef.id;
 
-    // For editing, load all products and allow the current product to be selected
-    await loadAllProductsForEdit();
+  _batchSizeModalMode = mode;
 
-    // Populate form
-    q("batchSizeProductSelect").value = batchSizeRef.product_id;
-    q("batchSizePreferred").value = batchSizeRef.preferred_batch_size;
-    q("batchSizeMin").value = batchSizeRef.min_batch_size || "";
-    q("batchSizeMax").value = batchSizeRef.max_batch_size || "";
-    q("batchSizeEffectiveFrom").value = batchSizeRef.effective_from;
-    q("batchSizeIsActive").checked = batchSizeRef.is_active;
-    q("batchSizeNotes").value = batchSizeRef.notes || "";
+  _currentRevisingReference = batchSizeRef
 
-    // Disable product selection when editing
-    q("batchSizeProductSelect").disabled = true;
-  } else {
-    title.textContent = "Add Product Batch Size Reference";
-    _currentEditingBatchSizeId = null;
+    ? normalizeSupplyBatchSizeReferenceRow(batchSizeRef)
 
-    // For adding, load only available products
+    : null;
+
+
+
+  const productSelect = q("batchSizeProductSelect");
+
+  const reasonInput = q("batchSizeChangeReason");
+
+  const notesInput = q("batchSizeNotes");
+
+
+
+  if (mode === "revise" && _currentRevisingReference) {
+
+    title.textContent = "Revise Batch Size Reference";
+
+    fillBatchSizeCurrentReadonly(_currentRevisingReference);
+
     await loadProductsForBatchSize();
 
-    // Reset form
-    form.reset();
-    q("batchSizeIsActive").checked = true;
-    q("batchSizeEffectiveFrom").value = new Date().toISOString().split("T")[0];
+    if (productSelect) {
 
-    // Enable product selection when adding
-    q("batchSizeProductSelect").disabled = false;
+      productSelect.value = String(_currentRevisingReference.product_id);
+
+      productSelect.disabled = true;
+
+    }
+
+    setBatchSizeUomDisplay(_currentRevisingReference.product_id);
+
+    q("batchSizePreferred").value =
+
+      _currentRevisingReference.preferred_batch_size ?? "";
+
+    q("batchSizeMin").value = _currentRevisingReference.min_batch_size ?? "";
+
+    q("batchSizeMax").value = _currentRevisingReference.max_batch_size ?? "";
+
+    q("batchSizeEffectiveFrom").value = supplyBatchSizeTodayIsoDate();
+
+    if (reasonInput) reasonInput.value = "";
+
+    if (notesInput) notesInput.value = "";
+
+    await loadProductBatchSizeHistory(_currentRevisingReference.product_id);
+
+  } else {
+
+    title.textContent = "Add Product Batch Size Reference";
+
+    fillBatchSizeCurrentReadonly(null);
+
+    _currentRevisingReference = null;
+
+    await loadProductsForBatchSize();
+
+    form.reset();
+
+    if (productSelect) productSelect.disabled = false;
+
+    q("batchSizeEffectiveFrom").value = supplyBatchSizeTodayIsoDate();
+
+    setBatchSizeUomDisplay(null);
+
+    if (reasonInput) reasonInput.value = "";
+
+    const hist = q("batchSizeHistorySection");
+
+    if (hist) hist.style.display = "none";
+
   }
+
+
+
+  applyBatchSizePermissionUi();
 
   modal.style.display = "flex";
+
 }
 
-// Hide batch size modal
+
+
 function hideBatchSizeModal() {
+
   const modal = q("batchSizeModal");
-  if (modal) {
-    modal.style.display = "none";
-    _currentEditingBatchSizeId = null;
-  }
+
+  if (modal) modal.style.display = "none";
+
+  _batchSizeModalMode = "create";
+
+  _currentRevisingReference = null;
+
 }
 
-// Save batch size reference
-async function saveBatchSizeRef() {
-  const form = q("batchSizeForm");
-  if (!form) return;
 
-  // Validate form
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
 
-  const formData = {
-    product_id: Number(q("batchSizeProductSelect").value),
-    preferred_batch_size: Number(q("batchSizePreferred").value),
-    min_batch_size: q("batchSizeMin").value
-      ? Number(q("batchSizeMin").value)
-      : null,
-    max_batch_size: q("batchSizeMax").value
-      ? Number(q("batchSizeMax").value)
-      : null,
-    effective_from: q("batchSizeEffectiveFrom").value,
-    is_active: q("batchSizeIsActive").checked,
-    notes: q("batchSizeNotes").value.trim() || null,
+function collectBatchSizeFormPayload() {
+
+  const preferred = q("batchSizePreferred")?.value;
+
+  const min = q("batchSizeMin")?.value;
+
+  const max = q("batchSizeMax")?.value;
+
+  const effective_from = q("batchSizeEffectiveFrom")?.value;
+
+  const change_reason = q("batchSizeChangeReason")?.value;
+
+  const notes = q("batchSizeNotes")?.value;
+
+  const product_id = Number(q("batchSizeProductSelect")?.value);
+
+  return {
+
+    product_id,
+
+    preferred_batch_size: preferred,
+
+    min_batch_size: min === "" ? null : min,
+
+    max_batch_size: max === "" ? null : max,
+
+    effective_from,
+
+    change_reason,
+
+    notes,
+
   };
 
-  // Validate min <= preferred <= max
-  if (
-    formData.min_batch_size &&
-    formData.min_batch_size > formData.preferred_batch_size
-  ) {
-    showAlert(
-      "Minimum batch size cannot be greater than preferred batch size.",
-    );
+}
+
+
+
+async function saveBatchSizeRef({ recalculate = false } = {}) {
+
+  if (!canEditBatchSizes()) {
+
+    showAlert("Edit permission required.");
+
     return;
+
   }
 
-  if (
-    formData.max_batch_size &&
-    formData.max_batch_size < formData.preferred_batch_size
-  ) {
-    showAlert("Maximum batch size cannot be less than preferred batch size.");
+  const form = q("batchSizeForm");
+
+  if (!form) return;
+
+  if (!form.checkValidity()) {
+
+    form.reportValidity();
+
     return;
+
+  }
+
+
+
+  const payload = collectBatchSizeFormPayload();
+
+  const range = validateSupplyBatchSizeRange(payload);
+
+  if (!range.ok) {
+
+    showAlert(range.errors.join("\n"));
+
+    return;
+
+  }
+
+  if (!isMeaningfulSupplyBatchSizeChangeReason(payload.change_reason)) {
+
+    showAlert("A meaningful change reason is required.");
+
+    q("batchSizeChangeReason")?.focus();
+
+    return;
+
+  }
+
+
+
+  let built;
+
+  if (_batchSizeModalMode === "revise" && _currentRevisingReference?.reference_id) {
+
+    built = buildReviseSupplyBatchSizeReferenceArgs({
+
+      reference_id: _currentRevisingReference.reference_id,
+
+      ...payload,
+
+    });
+
+  } else {
+
+    const existing = await fetchProductActiveBatchSizeReference(payload.product_id);
+
+    if (existing) {
+
+      const openRevise = await showConfirm(
+
+        "This product already has an active batch size reference. Create is not allowed.\n\nOpen the active reference for Revise?",
+
+      );
+
+      if (openRevise) await showBatchSizeModal("revise", existing);
+
+      return;
+
+    }
+
+    built = buildCreateSupplyBatchSizeReferenceArgs(payload);
+
+  }
+
+
+
+  const rpcName =
+
+    _batchSizeModalMode === "revise"
+
+      ? SUPPLY_BATCH_SIZE_RPC_NAMES.revise
+
+      : SUPPLY_BATCH_SIZE_RPC_NAMES.create;
+
+  const res = await invokeSupplyBatchSizeRpc(
+
+    rpcName,
+
+    built,
+
+    "Failed to save batch size reference.",
+
+  );
+
+  if (!res.ok) {
+
+    if (
+
+      _batchSizeModalMode === "create" &&
+
+      isActiveReferenceConflict(res.error)
+
+    ) {
+
+      const active = await fetchProductActiveBatchSizeReference(payload.product_id);
+
+      const openRevise = await showConfirm(
+
+        "An active batch size reference already exists for this Product. Create was rejected.\n\nOpen the active reference for Revise?",
+
+      );
+
+      if (openRevise && active) await showBatchSizeModal("revise", active);
+
+      else showAlert(res.error?.message || "Create rejected.");
+
+      return;
+
+    }
+
+    showAlert(res.error?.message || "Failed to save batch size reference.");
+
+    return;
+
+  }
+
+
+
+  const savedProductId = payload.product_id;
+
+  invalidateProductBatchSizeCache(savedProductId);
+
+
+
+  let successMsg =
+
+    _batchSizeModalMode === "revise"
+
+      ? "Batch size reference revised successfully."
+
+      : "Batch size reference created successfully.";
+
+  const resultRow =
+
+    res.data && typeof res.data === "object" && !Array.isArray(res.data)
+
+      ? res.data
+
+      : Array.isArray(res.data)
+
+        ? res.data[0]
+
+        : null;
+
+  if (resultRow) {
+
+    const newId =
+
+      resultRow.reference_id ?? resultRow.new_reference_id ?? resultRow.id;
+
+    const oldId =
+
+      resultRow.superseded_reference_id ??
+
+      resultRow.supersedes_reference_id ??
+
+      resultRow.old_reference_id;
+
+    if (newId != null) successMsg += ` New reference ID: ${newId}.`;
+
+    if (oldId != null) successMsg += ` Superseded reference ID: ${oldId}.`;
+
+  }
+
+
+
+  hideBatchSizeModal();
+
+  await loadBatchSizeReferences();
+
+  if (savedProductId) await loadProductBatchSizeHistory(savedProductId);
+
+  try {
+
+    if (typeof loadLines === "function" && q("bpHeaderSel")?.value) {
+
+      await loadLines();
+
+    }
+
+  } catch (e) {
+
+    console.warn("[supply-batch-plan] line refresh after batch-size save failed", e);
+
+  }
+
+
+
+  if (!recalculate) {
+
+    showAlert(successMsg);
+
+    return;
+
+  }
+
+
+
+  const headerId = Number(q("bpHeaderSel")?.value);
+
+  if (!headerId) {
+
+    showAlert(
+
+      `${successMsg} Product recalculation was skipped because no plan header is selected.`,
+
+    );
+
+    return;
+
   }
 
   try {
-    let result;
 
-    if (_currentEditingBatchSizeId) {
-      // Update existing
-      result = await supabase
-        .from("production_batch_size_ref")
-        .update(formData)
-        .eq("id", _currentEditingBatchSizeId);
-    } else {
-      // Insert new
-      result = await supabase
-        .from("production_batch_size_ref")
-        .insert(formData);
-    }
+    const { error } = await rpcRecalcForProduct(headerId, savedProductId);
 
-    if (result.error) {
-      console.error("Error saving batch size reference:", result.error);
+    if (error) {
 
-      if (result.error.code === "23505") {
-        showAlert(
-          "This product already has an active batch size reference. Please deactivate the existing one first or edit it instead.",
-        );
-      } else {
-        showAlert(
-          "Failed to save batch size reference: " + result.error.message,
-        );
-      }
+      console.error("recalc_batch_plan_for_product failed", error);
+
+      showAlert(
+
+        "Batch-size reference saved successfully, but Product recalculation failed." +
+
+          (error.message ? `\n${error.message}` : ""),
+
+      );
+
       return;
+
     }
+
+    showAlert(`${successMsg} Product recalculation completed.`);
+
+    await loadLines();
+
+    await loadBatches();
+
+    await loadMapRollup();
+
+  } catch (err) {
+
+    console.error("recalc threw", err);
 
     showAlert(
-      _currentEditingBatchSizeId
-        ? "Batch size reference updated successfully!"
-        : "Batch size reference added successfully!",
+
+      "Batch-size reference saved successfully, but Product recalculation failed.",
+
     );
-    hideBatchSizeModal();
-    await loadBatchSizeReferences();
-  } catch (err) {
-    console.error("Failed to save batch size reference:", err);
-    showAlert("Failed to save batch size reference. Please try again.");
+
   }
+
 }
 
-// Edit batch size reference
-async function editBatchSizeRef(id) {
-  const ref = _batchSizeRefsCache.find((r) => r.id === id);
-  if (!ref) {
-    showAlert("Batch size reference not found.");
+
+
+async function reviseBatchSizeRef(id) {
+
+  if (!canEditBatchSizes()) {
+
+    showAlert("Edit permission required.");
+
     return;
+
   }
 
-  await showBatchSizeModal(ref);
+  let ref = _batchSizeRegister.rows.find(
+
+    (r) => Number(r.reference_id) === Number(id),
+
+  );
+
+  if (!ref) {
+
+    showAlert("Batch size reference not found on the current page.");
+
+    return;
+
+  }
+
+  if (ref.state !== "ACTIVE") {
+
+    showAlert("Revise is only available for an active reference.");
+
+    return;
+
+  }
+
+  await showBatchSizeModal("revise", ref);
+
 }
 
-// Delete batch size reference
-async function deleteBatchSizeRef(id) {
-  const ref = _batchSizeRefsCache.find((r) => r.id === id);
-  if (!ref) {
-    showAlert("Batch size reference not found.");
+
+
+async function openInactivateBatchSizeFlow(id) {
+
+  if (!canEditBatchSizes()) {
+
+    showAlert("Edit permission required.");
+
     return;
+
   }
 
-  const productDisplay = getProductDisplay(ref.product_id);
+  const ref =
+
+    _batchSizeRegister.rows.find((r) => Number(r.reference_id) === Number(id)) ||
+
+    _currentRevisingReference;
+
+  if (!ref || ref.state !== "ACTIVE") {
+
+    showAlert("Inactivate requires an active reference.");
+
+    return;
+
+  }
+
+
+
+  const modal = q("batchSizeInactivateModal");
+
+  if (modal) {
+
+    q("inactivateBatchSizeRefId").value = String(ref.reference_id);
+
+    q("inactivateBatchSizeProduct").textContent = getProductDisplay(ref.product_id);
+
+    q("inactivateBatchSizeEffectiveTo").value = supplyBatchSizeTodayIsoDate();
+
+    q("inactivateBatchSizeReason").value = "";
+
+    modal.style.display = "flex";
+
+    return;
+
+  }
+
+
+
+  // Fallback confirm path if modal markup is missing
+
+  const reason = window.prompt("Change reason for inactivate (required):");
+
+  if (!isMeaningfulSupplyBatchSizeChangeReason(reason)) {
+
+    showAlert("A meaningful change reason is required.");
+
+    return;
+
+  }
+
   const confirmed = await showConfirm(
-    `Delete batch size reference for ${productDisplay}?\n\nThis action cannot be undone.`,
+
+    [
+
+      `Inactivate batch size reference ${ref.reference_id} for ${getProductDisplay(ref.product_id)}?`,
+
+      "",
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.historyRetained,
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.noActiveUntilCreate,
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.noPlanRecalcUnlessRequested,
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.noCostingOrStage03,
+
+    ].join("\n"),
+
   );
 
   if (!confirmed) return;
 
-  try {
-    const { error } = await supabase
-      .from("production_batch_size_ref")
-      .delete()
-      .eq("id", id);
+  await executeInactivateBatchSize(ref.reference_id, supplyBatchSizeTodayIsoDate(), reason);
 
-    if (error) {
-      console.error("Error deleting batch size reference:", error);
-      showAlert("Failed to delete batch size reference: " + error.message);
-      return;
-    }
-
-    showAlert("Batch size reference deleted successfully!");
-    await loadBatchSizeReferences();
-  } catch (err) {
-    console.error("Failed to delete batch size reference:", err);
-    showAlert("Failed to delete batch size reference. Please try again.");
-  }
 }
 
-// Initialize batch size management
-function initializeBatchSizeManagement() {
-  // Search functionality
-  initializeBatchSizeSearch();
 
-  // Control buttons
-  q("addNewBatchSizeBtn")?.addEventListener("click", () =>
-    showBatchSizeModal(),
+
+function hideInactivateBatchSizeModal() {
+
+  const modal = q("batchSizeInactivateModal");
+
+  if (modal) modal.style.display = "none";
+
+}
+
+
+
+async function confirmInactivateBatchSize() {
+
+  if (!canEditBatchSizes()) {
+
+    showAlert("Edit permission required.");
+
+    return;
+
+  }
+
+  const referenceId = Number(q("inactivateBatchSizeRefId")?.value);
+
+  const effectiveTo = q("inactivateBatchSizeEffectiveTo")?.value;
+
+  const reason = q("inactivateBatchSizeReason")?.value;
+
+  if (!isMeaningfulSupplyBatchSizeChangeReason(reason)) {
+
+    showAlert("A meaningful change reason is required.");
+
+    return;
+
+  }
+
+  const confirmed = await showConfirm(
+
+    [
+
+      "Confirm inactivate?",
+
+      "",
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.historyRetained,
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.noActiveUntilCreate,
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.noPlanRecalcUnlessRequested,
+
+      SUPPLY_BATCH_SIZE_INACTIVATE_COPY.noCostingOrStage03,
+
+    ].join("\n"),
+
   );
-  q("refreshBatchSizesBtn")?.addEventListener("click", loadBatchSizeReferences);
 
-  // Modal controls
-  q("batchSizeModalClose")?.addEventListener("click", hideBatchSizeModal);
-  q("batchSizeCancel")?.addEventListener("click", hideBatchSizeModal);
-  q("batchSizeSave")?.addEventListener("click", saveBatchSizeRef);
+  if (!confirmed) return;
 
-  // Close modal on outside click
-  q("batchSizeModal")?.addEventListener("click", (e) => {
-    if (e.target.id === "batchSizeModal") {
-      hideBatchSizeModal();
-    }
+  await executeInactivateBatchSize(referenceId, effectiveTo, reason);
+
+  hideInactivateBatchSizeModal();
+
+  hideBatchSizeModal();
+
+}
+
+
+
+async function executeInactivateBatchSize(referenceId, effectiveTo, reason) {
+
+  const built = buildInactivateSupplyBatchSizeReferenceArgs({
+
+    reference_id: referenceId,
+
+    effective_to: effectiveTo,
+
+    change_reason: reason,
+
   });
 
-  // Form validation
-  q("batchSizePreferred")?.addEventListener("input", validateBatchSizes);
-  q("batchSizeMin")?.addEventListener("input", validateBatchSizes);
-  q("batchSizeMax")?.addEventListener("input", validateBatchSizes);
+  const res = await invokeSupplyBatchSizeRpc(
+
+    SUPPLY_BATCH_SIZE_RPC_NAMES.inactivate,
+
+    built,
+
+    "Failed to inactivate batch size reference.",
+
+  );
+
+  if (!res.ok) {
+
+    showAlert(res.error?.message || "Failed to inactivate.");
+
+    return;
+
+  }
+
+  const row =
+
+    _batchSizeRegister.rows.find((r) => Number(r.reference_id) === Number(referenceId)) ||
+
+    null;
+
+  invalidateProductBatchSizeCache(row?.product_id);
+
+  showAlert("Batch size reference inactivated. History retained.");
+
+  await loadBatchSizeReferences();
+
+  if (row?.product_id) await loadProductBatchSizeHistory(row.product_id);
+
 }
 
-// Validate batch size relationships
+
+
+async function openBatchSizeHistoryForProduct(productId) {
+
+  if (!canViewBatchSizes()) return;
+
+  await loadProductBatchSizeHistory(productId);
+
+  const modal = q("batchSizeHistoryModal");
+
+  if (modal) {
+
+    q("batchSizeHistoryModalTitle").textContent = `Batch size history — ${getProductDisplay(productId)}`;
+
+    const body = q("batchSizeHistoryModalBody");
+
+    if (body && q("batchSizeHistoryBody")) {
+
+      body.innerHTML = q("batchSizeHistorySection")?.querySelector("table")?.outerHTML || "";
+
+    }
+
+    modal.style.display = "flex";
+
+    return;
+
+  }
+
+  // If no secondary modal, open create/revise shell with history section
+
+  const active = await fetchProductActiveBatchSizeReference(productId);
+
+  if (active && canEditBatchSizes()) await showBatchSizeModal("revise", active);
+
+  else {
+
+    showAlert(`Loaded ${ _batchSizeHistoryRows.length } history row(s) for this Product. Open Revise on an active row to inspect in the modal.`);
+
+  }
+
+}
+
+
+
+function hideBatchSizeHistoryModal() {
+
+  const modal = q("batchSizeHistoryModal");
+
+  if (modal) modal.style.display = "none";
+
+}
+
+
+
+function initializeBatchSizeManagement() {
+
+  initializeBatchSizeSearch();
+
+  q("addNewBatchSizeBtn")?.addEventListener("click", () =>
+
+    showBatchSizeModal("create"),
+
+  );
+
+  q("refreshBatchSizesBtn")?.addEventListener("click", () =>
+
+    loadBatchSizeReferences(),
+
+  );
+
+  q("batchSizeModalClose")?.addEventListener("click", hideBatchSizeModal);
+
+  q("batchSizeCancel")?.addEventListener("click", hideBatchSizeModal);
+
+  q("batchSizeSave")?.addEventListener("click", () =>
+
+    saveBatchSizeRef({ recalculate: false }),
+
+  );
+
+  q("batchSizeSaveRecalc")?.addEventListener("click", () =>
+
+    saveBatchSizeRef({ recalculate: true }),
+
+  );
+
+  q("batchSizeInactivate")?.addEventListener("click", async () => {
+
+    if (_currentRevisingReference?.reference_id) {
+
+      await openInactivateBatchSizeFlow(_currentRevisingReference.reference_id);
+
+    }
+
+  });
+
+  q("batchSizeModal")?.addEventListener("click", (e) => {
+
+    if (e.target.id === "batchSizeModal") hideBatchSizeModal();
+
+  });
+
+  q("batchSizeProductSelect")?.addEventListener("change", (e) => {
+
+    setBatchSizeUomDisplay(e.target.value);
+
+  });
+
+  q("batchSizePreferred")?.addEventListener("input", validateBatchSizes);
+
+  q("batchSizeMin")?.addEventListener("input", validateBatchSizes);
+
+  q("batchSizeMax")?.addEventListener("input", validateBatchSizes);
+
+
+
+  q("batchSizeInactivateCancel")?.addEventListener(
+
+    "click",
+
+    hideInactivateBatchSizeModal,
+
+  );
+
+  q("batchSizeInactivateConfirm")?.addEventListener(
+
+    "click",
+
+    confirmInactivateBatchSize,
+
+  );
+
+  q("batchSizeInactivateModalClose")?.addEventListener(
+
+    "click",
+
+    hideInactivateBatchSizeModal,
+
+  );
+
+  q("batchSizeHistoryModalClose")?.addEventListener(
+
+    "click",
+
+    hideBatchSizeHistoryModal,
+
+  );
+
+}
+
+
+
 function validateBatchSizes() {
-  const preferred = Number(q("batchSizePreferred").value) || 0;
-  const min = Number(q("batchSizeMin").value) || 0;
-  const max = Number(q("batchSizeMax").value) || 0;
+
+  const preferred = Number(q("batchSizePreferred")?.value) || 0;
+
+  const min = Number(q("batchSizeMin")?.value) || 0;
+
+  const max = Number(q("batchSizeMax")?.value) || 0;
 
   const minInput = q("batchSizeMin");
+
   const maxInput = q("batchSizeMax");
 
-  // Reset styles
+  if (!minInput || !maxInput) return;
+
   minInput.style.borderColor = "#d1d5db";
+
   maxInput.style.borderColor = "#d1d5db";
 
-  // Validate min vs preferred
   if (min > 0 && preferred > 0 && min > preferred) {
-    minInput.style.borderColor = "#dc2626";
-    minInput.title = "Minimum cannot be greater than preferred";
-  } else {
-    minInput.title = "";
-  }
 
-  // Validate max vs preferred
+    minInput.style.borderColor = "#dc2626";
+
+    minInput.title = "Minimum cannot be greater than preferred";
+
+  } else minInput.title = "";
+
   if (max > 0 && preferred > 0 && max < preferred) {
+
     maxInput.style.borderColor = "#dc2626";
+
     maxInput.title = "Maximum cannot be less than preferred";
-  } else {
-    maxInput.title = "";
-  }
+
+  } else maxInput.title = "";
+
 }
 
+
+
 // ============================================================================
+
 // QUICK EDIT BATCH SIZE (FOR LINES TAB)
+
 // ============================================================================
 
-let _currentQuickEditProductId = null;
-let _currentQuickEditMonth = null; // YYYY-MM-DD string representing the month_start user clicked
 
-// Open quick edit modal for batch size from Lines tab
+
 async function openBatchSizeQuickEdit(productId, monthStart = null) {
+
+  if (!canViewBatchSizes()) {
+
+    showAlert("View permission required.");
+
+    return;
+
+  }
+
   _currentQuickEditProductId = productId;
+
   _currentQuickEditMonth = monthStart || null;
 
-  // Ensure batch size references are loaded
-  if (_batchSizeRefsCache.length === 0) {
-    await loadBatchSizeReferencesData();
-  }
+  const existingRef = await fetchProductActiveBatchSizeReference(productId);
 
-  // Find the active batch size ref that is applicable for the given month
-  // i.e., the ref with is_active = true and effective_from <= monthStart,
-  // choosing the one with the latest effective_from.
-  let existingRef = null;
-  if (monthStart) {
-    const candidates = _batchSizeRefsCache
-      .filter((ref) => ref.product_id === productId && ref.is_active)
-      .filter((ref) => ref.effective_from <= monthStart)
-      .sort((a, b) => (a.effective_from < b.effective_from ? 1 : -1));
-    if (candidates.length) existingRef = candidates[0];
-  }
+  _quickEditActiveReference = existingRef;
 
-  // Fallback: if no applicable by month, pick any active ref for the product
-  if (!existingRef) {
-    existingRef = _batchSizeRefsCache.find(
-      (ref) => ref.product_id === productId && ref.is_active,
-    );
-  }
-
-  // Show modal and populate data
   showQuickEditModal(productId, existingRef);
+
 }
 
-// Show the quick edit modal
+
+
 function showQuickEditModal(productId, batchSizeRef = null) {
+
   const modal = q("quickEditBatchSizeModal");
+
   const title = q("quickEditModalTitle");
+
   const productDisplay = q("quickEditProductDisplay");
+
   const form = q("quickEditBatchSizeForm");
 
   if (!modal || !title || !productDisplay || !form) return;
 
-  // Set product display
+
+
   productDisplay.textContent = getProductDisplay(productId);
 
-  // Set title
-  title.textContent = batchSizeRef ? "Edit Batch Size" : "Set Batch Size";
+  setQuickEditUomDisplay(productId);
+
+  const branch = resolveQuickEditSupplyBatchSizeBranch(batchSizeRef);
+
+  title.textContent =
+
+    branch === "revise"
+
+      ? "Revise Batch Size Reference"
+
+      : "Add Product Batch Size Reference";
+
+
 
   if (batchSizeRef) {
-    // Populate existing data
-    q("quickEditPreferred").value = batchSizeRef.preferred_batch_size;
-    q("quickEditMin").value = batchSizeRef.min_batch_size || "";
-    q("quickEditMax").value = batchSizeRef.max_batch_size || "";
-    q("quickEditEffectiveFrom").value = batchSizeRef.effective_from;
-    q("quickEditIsActive").checked = batchSizeRef.is_active;
-    q("quickEditNotes").value = batchSizeRef.notes || "";
+
+    q("quickEditPreferred").value = batchSizeRef.preferred_batch_size ?? "";
+
+    q("quickEditMin").value = batchSizeRef.min_batch_size ?? "";
+
+    q("quickEditMax").value = batchSizeRef.max_batch_size ?? "";
+
+    q("quickEditEffectiveFrom").value = supplyBatchSizeTodayIsoDate();
+
+    q("quickEditNotes").value = "";
+
   } else {
-    // Reset form for new entry
+
     form.reset();
-    q("quickEditIsActive").checked = true;
-    // If the user clicked a specific month, default effective_from to that month
+
     if (_currentQuickEditMonth) {
+
       q("quickEditEffectiveFrom").value = _currentQuickEditMonth;
+
     } else {
-      q("quickEditEffectiveFrom").value = new Date()
-        .toISOString()
-        .split("T")[0];
+
+      q("quickEditEffectiveFrom").value = supplyBatchSizeTodayIsoDate();
+
     }
+
   }
+
+  const reason = q("quickEditChangeReason");
+
+  if (reason) reason.value = "";
+
+  applyBatchSizePermissionUi();
 
   modal.style.display = "flex";
+
 }
 
-// Hide quick edit modal
+
+
 function hideQuickEditModal() {
+
   const modal = q("quickEditBatchSizeModal");
-  if (modal) {
-    modal.style.display = "none";
-    _currentQuickEditProductId = null;
-  }
+
+  if (modal) modal.style.display = "none";
+
+  _currentQuickEditProductId = null;
+
+  _quickEditActiveReference = null;
+
 }
 
-// Save batch size and rebuild plan for specific product
-async function saveAndRebuildBatchSize() {
+
+
+async function saveQuickEditBatchSize({ recalculate = false } = {}) {
+
+  if (!canEditBatchSizes()) {
+
+    showAlert("Edit permission required.");
+
+    return;
+
+  }
+
   const form = q("quickEditBatchSizeForm");
+
   if (!form) return;
 
-  // Validate form
   if (!form.checkValidity()) {
+
     form.reportValidity();
+
     return;
+
   }
 
   if (!_currentQuickEditProductId) {
+
     showAlert("No product selected for editing.");
+
     return;
+
   }
 
-  const formData = {
+
+
+  const payload = {
+
     product_id: _currentQuickEditProductId,
-    preferred_batch_size: Number(q("quickEditPreferred").value),
-    min_batch_size: q("quickEditMin").value
-      ? Number(q("quickEditMin").value)
+
+    preferred_batch_size: q("quickEditPreferred")?.value,
+
+    min_batch_size: q("quickEditMin")?.value
+
+      ? q("quickEditMin").value
+
       : null,
-    max_batch_size: q("quickEditMax").value
-      ? Number(q("quickEditMax").value)
+
+    max_batch_size: q("quickEditMax")?.value
+
+      ? q("quickEditMax").value
+
       : null,
-    effective_from: q("quickEditEffectiveFrom").value,
-    is_active: q("quickEditIsActive").checked,
-    notes: q("quickEditNotes").value.trim() || null,
+
+    effective_from: q("quickEditEffectiveFrom")?.value,
+
+    change_reason: q("quickEditChangeReason")?.value,
+
+    notes: q("quickEditNotes")?.value?.trim() || null,
+
   };
 
-  // Validate min <= preferred <= max
-  if (
-    formData.min_batch_size &&
-    formData.min_batch_size > formData.preferred_batch_size
-  ) {
-    showAlert(
-      "Minimum batch size cannot be greater than preferred batch size.",
-    );
+
+
+  const range = validateSupplyBatchSizeRange(payload);
+
+  if (!range.ok) {
+
+    showAlert(range.errors.join("\n"));
+
     return;
+
   }
 
-  if (
-    formData.max_batch_size &&
-    formData.max_batch_size < formData.preferred_batch_size
-  ) {
-    showAlert("Maximum batch size cannot be less than preferred batch size.");
+  if (!isMeaningfulSupplyBatchSizeChangeReason(payload.change_reason)) {
+
+    showAlert("A meaningful change reason is required.");
+
+    q("quickEditChangeReason")?.focus();
+
     return;
+
+  }
+
+
+
+  // Resolve active reference from governed register before submit.
+
+  const active = await fetchProductActiveBatchSizeReference(
+
+    _currentQuickEditProductId,
+
+  );
+
+  const branch = resolveQuickEditSupplyBatchSizeBranch(active);
+
+  let built;
+
+  let rpcName;
+
+  if (branch === "revise") {
+
+    built = buildReviseSupplyBatchSizeReferenceArgs({
+
+      reference_id: active.reference_id,
+
+      ...payload,
+
+    });
+
+    rpcName = SUPPLY_BATCH_SIZE_RPC_NAMES.revise;
+
+  } else {
+
+    built = buildCreateSupplyBatchSizeReferenceArgs(payload);
+
+    rpcName = SUPPLY_BATCH_SIZE_RPC_NAMES.create;
+
+  }
+
+
+
+  const res = await invokeSupplyBatchSizeRpc(
+
+    rpcName,
+
+    built,
+
+    "Failed to save batch size reference.",
+
+  );
+
+  if (!res.ok) {
+
+    showAlert(res.error?.message || "Failed to save batch size reference.");
+
+    return;
+
+  }
+
+
+
+  const pid = _currentQuickEditProductId;
+
+  hideQuickEditModal();
+
+  invalidateProductBatchSizeCache(pid);
+
+  await loadBatchSizeReferencesData({ product_id: pid, state: "ALL", resetOffset: true });
+
+  try {
+
+    if (typeof loadLines === "function" && q("bpHeaderSel")?.value) {
+
+      await loadLines();
+
+    }
+
+  } catch (e) {
+
+    console.warn("[supply-batch-plan] line refresh after quick-edit failed", e);
+
+  }
+
+
+
+  if (!recalculate) {
+
+    showAlert("Batch size reference saved successfully.");
+
+    return;
+
+  }
+
+
+
+  const headerId = Number(q("bpHeaderSel")?.value);
+
+  if (!headerId) {
+
+    showAlert(
+
+      "Batch size reference saved successfully. Product recalculation was skipped because no plan header is selected.",
+
+    );
+
+    return;
+
   }
 
   try {
-    // Find existing record that would be effective for this effective_from date
-    // i.e., same product_id, is_active = true and effective_from = formData.effective_from
-    const existingRef = _batchSizeRefsCache.find(
-      (ref) =>
-        ref.product_id === _currentQuickEditProductId &&
-        ref.is_active &&
-        ref.effective_from === formData.effective_from,
-    );
 
-    let result;
+    const { error } = await rpcRecalcForProduct(headerId, pid);
 
-    if (existingRef) {
-      // Update the exact existing record for that effective_from
-      result = await supabase
-        .from("production_batch_size_ref")
-        .update(formData)
-        .eq("id", existingRef.id);
-    } else {
-      // Insert new record
-      result = await supabase
-        .from("production_batch_size_ref")
-        .insert(formData);
-    }
+    if (error) {
 
-    if (result.error) {
-      console.error("Error saving batch size reference:", result.error);
+      showAlert(
 
-      if (result.error.code === "23505") {
-        // If there's already an active batch size reference we want to surface
-        // the alert immediately and ensure the quick-edit modal is closed so
-        // it doesn't stay on top of the alert.
-        hideQuickEditModal();
-        showAlert(
-          "This product already has an active batch size reference. Please deactivate the existing one first.",
-        );
-      } else {
-        showAlert(
-          "Failed to save batch size reference: " + result.error.message,
-        );
-      }
+        "Batch-size reference saved successfully, but Product recalculation failed." +
+
+          (error.message ? `\n${error.message}` : ""),
+
+      );
+
       return;
+
     }
 
-    // Capture product id now (hideQuickEditModal resets _currentQuickEditProductId)
-    const pid = _currentQuickEditProductId;
+    showAlert("Batch size saved and Product recalculation completed.");
 
-    // Close modal
-    hideQuickEditModal();
+    await loadLines();
 
-    // Show success message
+    await loadBatches();
+
+    await loadMapRollup();
+
+  } catch (err) {
+
+    console.error(err);
+
     showAlert(
-      "Batch size updated successfully! Rebuilding plan for this product...",
+
+      "Batch-size reference saved successfully, but Product recalculation failed.",
+
     );
 
-    // Refresh batch size references cache so the rebuild sees the new values
-    await loadBatchSizeReferencesData();
-
-    // Rebuild plan for this specific product (use captured id)
-    await rebuildPlanForProduct(pid);
-  } catch (err) {
-    console.error("Failed to save batch size reference:", err);
-    showAlert("Failed to save batch size reference. Please try again.");
   }
+
 }
 
-// Rebuild plan for specific product (similar to Rebuild Selected but for one product)
+
+
 async function rebuildPlanForProduct(productId) {
+
   const headerId = Number(q("bpHeaderSel").value);
+
   if (!headerId) {
+
     showAlert("No plan header selected.");
+
     return;
+
   }
 
   try {
-    // Use the existing recalc function for specific product
+
     const { error } = await rpcRecalcForProduct(headerId, productId);
 
     if (error) {
+
       console.error("Error rebuilding plan for product:", error);
+
       showAlert("Failed to rebuild plan for product: " + error.message);
+
       return;
+
     }
 
     showAlert(
+
       "Plan rebuilt successfully for " + getProductDisplay(productId) + "!",
+
     );
 
-    // Refresh all tabs to show updated data
     await loadLines();
+
     await loadBatches();
+
     await loadMapRollup();
+
   } catch (err) {
+
     console.error("Failed to rebuild plan for product:", err);
+
     showAlert("Failed to rebuild plan for product. Please try again.");
+
   }
+
 }
 
-// Initialize quick edit functionality
-function initializeQuickEditBatchSize() {
-  // Modal controls
-  q("quickEditModalClose")?.addEventListener("click", hideQuickEditModal);
-  q("quickEditCancel")?.addEventListener("click", hideQuickEditModal);
-  q("quickEditRebuild")?.addEventListener("click", saveAndRebuildBatchSize);
 
-  // Close modal on outside click
+
+function initializeQuickEditBatchSize() {
+
+  q("quickEditModalClose")?.addEventListener("click", hideQuickEditModal);
+
+  q("quickEditCancel")?.addEventListener("click", hideQuickEditModal);
+
+  q("quickEditSave")?.addEventListener("click", () =>
+
+    saveQuickEditBatchSize({ recalculate: false }),
+
+  );
+
+  q("quickEditRebuild")?.addEventListener("click", () =>
+
+    saveQuickEditBatchSize({ recalculate: true }),
+
+  );
+
   q("quickEditBatchSizeModal")?.addEventListener("click", (e) => {
-    if (e.target.id === "quickEditBatchSizeModal") {
-      hideQuickEditModal();
-    }
+
+    if (e.target.id === "quickEditBatchSizeModal") hideQuickEditModal();
+
   });
 
-  // Form validation
-  q("quickEditPreferred")?.addEventListener(
-    "input",
-    validateQuickEditBatchSizes,
-  );
+  q("quickEditPreferred")?.addEventListener("input", validateQuickEditBatchSizes);
+
   q("quickEditMin")?.addEventListener("input", validateQuickEditBatchSizes);
+
   q("quickEditMax")?.addEventListener("input", validateQuickEditBatchSizes);
+
 }
 
-// Validate batch size relationships in quick edit
+
+
 function validateQuickEditBatchSizes() {
-  const preferred = Number(q("quickEditPreferred").value) || 0;
-  const min = Number(q("quickEditMin").value) || 0;
-  const max = Number(q("quickEditMax").value) || 0;
+
+  const preferred = Number(q("quickEditPreferred")?.value) || 0;
+
+  const min = Number(q("quickEditMin")?.value) || 0;
+
+  const max = Number(q("quickEditMax")?.value) || 0;
 
   const minInput = q("quickEditMin");
+
   const maxInput = q("quickEditMax");
 
-  // Reset styles
+  if (!minInput || !maxInput) return;
+
   minInput.style.borderColor = "#d1d5db";
+
   maxInput.style.borderColor = "#d1d5db";
 
-  // Validate min vs preferred
   if (min > 0 && preferred > 0 && min > preferred) {
-    minInput.style.borderColor = "#dc2626";
-    minInput.title = "Minimum cannot be greater than preferred";
-  } else {
-    minInput.title = "";
-  }
 
-  // Validate max vs preferred
+    minInput.style.borderColor = "#dc2626";
+
+    minInput.title = "Minimum cannot be greater than preferred";
+
+  } else minInput.title = "";
+
   if (max > 0 && preferred > 0 && max < preferred) {
+
     maxInput.style.borderColor = "#dc2626";
+
     maxInput.title = "Maximum cannot be less than preferred";
-  } else {
-    maxInput.title = "";
-  }
+
+  } else maxInput.title = "";
+
 }
 
-// Expose global functions
-window.editBatchSizeRef = editBatchSizeRef;
-window.deleteBatchSizeRef = deleteBatchSizeRef;
+
+
+async function applySupplyBatchPlanDeepLink() {
+
+  const link = parseSupplyBatchPlanDeepLink(window.location.search || "");
+
+  _pendingDeepLink = link;
+
+  if (!link.openBatchSizesTab) return;
+
+
+
+  // Preserve browser Back: do not replaceHistory aggressively; only ensure tab opens.
+
+  const tabBtn = document.querySelector('[aria-controls="tab-batch-sizes"]');
+
+  if (tabBtn) tabBtn.click();
+
+  else if (typeof window.activateSupplyBatchPlanTab === "function") {
+
+    window.activateSupplyBatchPlanTab("tab-batch-sizes");
+
+  }
+
+
+
+  if (link.product_id) {
+
+    const filter = q("batchSizeProductIdFilter");
+
+    if (filter) filter.value = String(link.product_id);
+
+    const search = q("batchSizeSearchInput");
+
+    if (search && !search.value) {
+
+      // Prefer product_id filter; also set search to product display when useful
+
+      search.value = String(link.product_id);
+
+    }
+
+  }
+
+
+
+  await loadBatchSizeReferences({
+
+    product_id: link.product_id,
+
+    resetOffset: true,
+
+  });
+
+
+
+  if (!link.action) return;
+
+  // No automatic mutation — open modal only when action present + permission + lifecycle OK.
+
+  if (!canEditBatchSizes()) {
+
+    showAlert("Edit permission required for this deep-link action.");
+
+    return;
+
+  }
+
+  if (link.action === "create-batch-size") {
+
+    const active = link.product_id
+
+      ? await fetchProductActiveBatchSizeReference(link.product_id)
+
+      : null;
+
+    if (active) {
+
+      showAlert(
+
+        "Create action is not available because an active preferred batch-size reference already exists. Use Revise instead.",
+
+      );
+
+      return;
+
+    }
+
+    await showBatchSizeModal("create");
+
+    if (link.product_id && q("batchSizeProductSelect")) {
+
+      q("batchSizeProductSelect").value = String(link.product_id);
+
+      setBatchSizeUomDisplay(link.product_id);
+
+    }
+
+    return;
+
+  }
+
+  if (link.action === "revise-batch-size") {
+
+    if (!link.product_id) {
+
+      showAlert("Revise deep-link requires product_id.");
+
+      return;
+
+    }
+
+    const active = await fetchProductActiveBatchSizeReference(link.product_id);
+
+    if (!active) {
+
+      showAlert(
+
+        "Revise action is not available because no active preferred batch-size reference exists.",
+
+      );
+
+      return;
+
+    }
+
+    await showBatchSizeModal("revise", active);
+
+  }
+
+}
+
+
+
+// Expose global functions (Delete / hard-delete intentionally absent)
+
+window.reviseBatchSizeRef = reviseBatchSizeRef;
+
 window.openBatchSizeQuickEdit = openBatchSizeQuickEdit;
+
 window.downloadWorklist = downloadWorklist;
+
 
 // ========= DOWNLOAD WORKLIST FUNCTIONALITY =========
 

@@ -133,6 +133,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { showToast as sasvShowToast } from "../public/shared/js/toast.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
 // Load Luxon from a CDN ESM build so the renderer can import it without a bundler.
 // Using jsDelivr ESM build for Luxon v3.x
 // --- Lines status pill auto-reset state ---
@@ -145,6 +147,21 @@ let __linesLoadCallId = 0;
 // Toggle debug logging for loadLines (set true to trace overlapping calls)
 const __linesLoadDebug = true;
 import { DateTime } from "https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/es6/luxon.js";
+
+/** Canonical HOME chrome (presentation). Click handler remains on #homeBtn. */
+try {
+  const homeEl = document.getElementById("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  else {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(document.getElementById("homeBtn")),
+      { once: true },
+    );
+  }
+} catch {
+  /* ignore chrome mount failures */
+}
 
 /* ========== utilities ========== */
 const $ = (id) => document.getElementById(id);
@@ -653,18 +670,28 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
 });
 
-// lightweight toast used by several modules; fallback to console if no #toast element
-function showToast(msg) {
+/** Thin adapter → canonical toast.js; keep call sites as showToast(msg). */
+function showToast(msg, type = "info") {
+  try {
+    sasvShowToast(msg, type, 3000);
+    return;
+  } catch {
+    /* fall through to legacy #toast host */
+  }
   try {
     const el = document.getElementById("toast");
     if (el) {
-      el.textContent = msg;
+      el.hidden = false;
+      el.textContent = msg == null ? "" : String(msg);
       el.style.display = "block";
-      setTimeout(() => (el.style.display = "none"), 3000);
+      setTimeout(() => {
+        el.style.display = "none";
+        el.hidden = true;
+      }, 3000);
       return;
     }
   } catch {
-    // ignore
+    /* ignore */
   }
   console.log("TOAST:", msg);
 }

@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Production Planning Workbench</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
+    <link rel="stylesheet" href="public/shared/css/sasv-production-planning.css" />
     <style>
       :root {
         --muted: #6b7280;
@@ -11,9 +13,9 @@
         --table-header: #f9fafb;
       }
       body {
-        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
-        margin: 16px;
-        color: #111;
+        /* Inter + viewport gutter from sasv-module--app tokens */
+        margin: 0;
+        color: var(--sasv-text, #111);
       }
       h1 {
         margin: 0 0 12px;
@@ -53,67 +55,29 @@
         filter: brightness(0.98);
       }
       .btn.primary {
-        background: var(--primary, #3b82f6);
-        color: white;
-        border-color: var(--primary, #3b82f6);
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
+        border-color: var(--sasv-action-primary);
       }
       .btn.secondary {
-        background: #6b7280;
-        color: white;
-        border-color: #6b7280;
+        background: var(--sasv-surface-soft, #f3f4f6);
+        color: var(--sasv-text);
+        border-color: var(--sasv-border, #d1d5db);
       }
 
-      /* Home Button */
-      #homeBtn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border: 1px solid #fdba74 !important;
-        border-radius: 6px;
-        background: #fed7aa !important;
-        color: #9a3412 !important;
-        cursor: pointer;
-        font-size: 0.875rem;
-        font-family: inherit;
-        font-weight: 500;
-        transition: all 0.2s;
-      }
-      #homeBtn:hover {
-        background: #fdba74 !important;
-        border-color: #fb923c !important;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      #homeBtn svg {
-        flex-shrink: 0;
-      }
-
-      /* Page Header */
-      .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-      }
-      .page-header h1 {
-        margin: 0;
-        font-size: 1.5rem;
-        color: var(--primary);
-      }
-      .header-actions {
-        display: flex;
-        gap: 8px;
-      }
+      /* HOME chrome: body.sasv-module #homeBtn.sasv-home-btn */
+      /* Page header geometry: sasv-production-planning.css */
 
       /* Workflow Progress Indicator */
       .workflow-steps {
-        margin-bottom: 20px;
-        padding: 12px 20px;
-        background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        margin-bottom: 16px;
+        padding: 10px 14px;
+        background: var(--sasv-surface, #fff);
+        border-radius: var(--sasv-radius-md, 8px);
+        border: 1px solid var(--sasv-border, #e2e8f0);
+        box-shadow: none;
+        overflow-x: auto;
+        overflow-y: hidden;
       }
 
       .workflow-progress {
@@ -152,18 +116,19 @@
       }
 
       .workflow-step-icon svg {
-        width: 18px;
-        height: 18px;
-        color: #94a3b8;
+        width: 16px;
+        height: 16px;
+        color: var(--sasv-text-muted, #94a3b8);
       }
 
       .workflow-step-label {
         font-size: 0.7rem;
-        font-weight: 600;
-        color: #64748b;
+        font-weight: 500;
+        color: var(--sasv-text-secondary, #64748b);
         text-align: center;
         line-height: 1.1;
         max-width: 90px;
+        white-space: nowrap;
       }
 
       .workflow-step-status {
@@ -194,55 +159,58 @@
 
       /* Step States */
       .workflow-step.completed .workflow-step-icon {
-        background: #dcfce7;
-        border-color: #16a34a;
+        background: var(--sasv-success-bg);
+        border-color: var(--sasv-success-border);
       }
 
       .workflow-step.completed .workflow-step-icon svg {
-        color: #16a34a;
+        color: var(--sasv-success);
       }
 
       .workflow-step.completed .workflow-step-label {
-        color: #166534;
+        color: var(--sasv-success);
+        font-weight: 500;
       }
 
       .workflow-step.completed .workflow-step-status {
-        color: #16a34a;
+        color: var(--sasv-success);
       }
 
       .workflow-step.active .workflow-step-icon {
-        background: #dbeafe;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
       }
 
       .workflow-step.active .workflow-step-icon svg {
-        color: #3b82f6;
+        color: var(--sasv-action-primary-active);
       }
 
       .workflow-step.active .workflow-step-label {
-        color: #1e40af;
+        color: var(--sasv-action-primary-active);
+        font-weight: 600;
       }
 
       .workflow-step.active .workflow-step-status {
-        color: #3b82f6;
+        color: var(--sasv-action-primary);
       }
 
       .workflow-step.pending .workflow-step-icon {
-        background: #fef3c7;
-        border-color: #f59e0b;
+        background: var(--sasv-warning-bg);
+        border-color: var(--sasv-warning-border);
       }
 
       .workflow-step.pending .workflow-step-icon svg {
-        color: #d97706;
+        color: var(--sasv-warning);
       }
 
       .workflow-step.pending .workflow-step-label {
-        color: #92400e;
+        color: var(--sasv-warning);
+        font-weight: 500;
       }
 
       .workflow-step.pending .workflow-step-status {
-        color: #f59e0b;
+        color: var(--sasv-warning);
       }
 
       /* Responsive */
@@ -356,27 +324,27 @@
         flex: 0 0 auto;
       }
       .tab-btn:hover {
-        background: #f1f5f9;
-        color: #374151;
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-text);
       }
       .tab-btn[aria-selected="true"] {
-        background: linear-gradient(
-          180deg,
-          rgba(37, 99, 235, 0.12),
-          rgba(37, 99, 235, 0.06)
-        );
-        color: #0b3a9a;
-        border-color: rgba(13, 60, 160, 0.12);
+        background: var(--sasv-selection-soft);
+        color: var(--sasv-action-primary-active);
+        border-color: var(--sasv-action-primary-soft-border);
         border-bottom-color: transparent;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+        box-shadow: none;
+        font-weight: 600;
       }
       .tab-btn:focus {
-        outline: 3px solid rgba(37, 99, 235, 0.12);
+        outline: none;
+      }
+      .tab-btn:focus-visible {
+        outline: 3px solid var(--sasv-focus-ring);
         outline-offset: 2px;
       }
       .tab-btn.has-data::after {
         content: "●";
-        color: #10b981;
+        color: var(--sasv-success, #10b981);
         font-size: 8px;
         position: absolute;
         top: 4px;
@@ -403,7 +371,7 @@
       }
 
       .tab-btn[aria-selected="true"] .tab-badge {
-        background: var(--primary, #3b82f6);
+        background: var(--primary, var(--sasv-action-primary));
         color: white;
       }
 
@@ -509,8 +477,8 @@
 
       .filter-input:focus {
         outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        border-color: var(--sasv-control-border-focus, var(--sasv-action-primary));
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
       }
 
       .month-selector {
@@ -536,8 +504,8 @@
       }
 
       .month-display.active {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        border-color: var(--sasv-action-primary);
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
       }
 
       .month-dropdown {
@@ -570,7 +538,7 @@
       }
 
       .month-option.selected {
-        background: #3b82f6;
+        background: var(--sasv-action-primary);
         color: white;
       }
 
@@ -606,13 +574,13 @@
       }
 
       .toggle-option.active {
-        background: #3b82f6;
-        color: white;
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
       }
 
       .toggle-option.inactive {
-        background: #ef4444;
-        color: white;
+        background: var(--sasv-danger);
+        color: var(--sasv-text-on-primary, #fff);
       }
 
       /* Action Buttons */
@@ -631,25 +599,26 @@
       }
 
       .action-btn.primary {
-        background: #3b82f6;
-        color: white;
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
       }
 
       .action-btn.primary:hover {
-        background: #2563eb;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        background: var(--sasv-action-primary-hover);
+        transform: none;
+        box-shadow: none;
       }
 
       .action-btn.secondary {
-        background: #64748b;
-        color: white;
+        background: var(--sasv-surface-soft);
+        color: var(--sasv-text);
+        border: 1px solid var(--sasv-border);
       }
 
       .action-btn.secondary:hover {
-        background: #475569;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        background: var(--sasv-action-primary-soft);
+        transform: none;
+        box-shadow: none;
       }
 
       .action-btn.reset {
@@ -736,7 +705,7 @@
       }
 
       .actions a {
-        color: var(--primary, #3b82f6);
+        color: var(--primary, var(--sasv-action-primary));
         text-decoration: none;
         margin-right: 8px;
         font-size: 13px;
@@ -1262,19 +1231,9 @@
         margin-top: 0;
       }
 
-      /* Toast notification */
+      /* Toast notification — canonical toast.js at runtime */
       #toast {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #111827;
-        color: #fff;
-        padding: 12px 16px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        font-size: 14px;
-        z-index: 1000;
+        display: none !important;
       }
 
       /* ═══ MODERN TABLE STYLES ═══ */
@@ -1409,7 +1368,7 @@
       }
 
       .tooltip-header:hover {
-        border-bottom-color: #3b82f6;
+        border-bottom-color: var(--sasv-action-primary);
       }
 
       .tooltip-header::after {
@@ -1469,27 +1428,22 @@
       }
     </style>
   </head>
-  <body>
+  <body class="sasv-module sasv-module--app sasv-production-planning-workbench" data-theme="system">
     <!-- Page Header -->
-    <header class="page-header">
-      <h1>Production Planning Workbench</h1>
-      <div class="header-actions">
-        <button id="homeBtn">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-          HOME
-        </button>
+    <div class="header-card">
+      <div class="page-header">
+        <div class="ppw-header-copy">
+          <h1 class="sasv-module-title">Production Planning Workbench</h1>
+          <div class="page-sub">
+            Forecast plan through output normalization for batch-ready production
+            planning.
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="homeBtn" type="button" class="icon-btn sasv-home-btn" title="HOME" aria-label="HOME"></button>
+        </div>
       </div>
-    </header>
+    </div>
 
     <!-- Workflow Progress Indicator -->
     <div class="workflow-steps">

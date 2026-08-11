@@ -4,6 +4,7 @@
  ***************************************************************************/
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
 
 // ─────────────────────────── Config (adjust paths if needed) ───────────────────────────
 const PDF_LOAD_MODE = "auto"; // "auto" | "umd" | "esm"
@@ -2344,22 +2345,17 @@ async function init() {
 
     // Wire export buttons early
     elExport && elExport.addEventListener("click", exportCSV);
-    elExportPDF &&
-      elExportPDF.addEventListener("click", () => {
-        // toggle drawer
-        const dr = $("sc-export-drawer");
-        if (!dr) return;
-        const expanded = elExportPDF.getAttribute("aria-expanded") === "true";
-        if (expanded) {
-          dr.style.display = "none";
-          dr.setAttribute("aria-hidden", "true");
-          elExportPDF.setAttribute("aria-expanded", "false");
-        } else {
-          dr.style.display = "block";
-          dr.setAttribute("aria-hidden", "false");
-          elExportPDF.setAttribute("aria-expanded", "true");
-        }
-      });
+    // #sc-export-pdf is a non-toggling section heading (kept for disable-during-PDF).
+    // Coverage choices are always visible in #sc-export-drawer.
+    const ensureExportDrawerVisible = () => {
+      const dr = $("sc-export-drawer");
+      if (!dr) return;
+      dr.style.display = "flex";
+      dr.setAttribute("aria-hidden", "false");
+      if (elExportPDF) elExportPDF.setAttribute("aria-expanded", "true");
+    };
+    ensureExportDrawerVisible();
+
     // Open export modal (accessible: manage focus and inertness)
     if (elDownload && elExportModal) {
       const setModalInert = (on) => {
@@ -2394,6 +2390,7 @@ async function init() {
         elExportModal.style.display = "flex";
         elExportModal.setAttribute("aria-hidden", "false");
         elDownload.setAttribute("aria-expanded", "true");
+        ensureExportDrawerVisible();
         // Focus primary action if present, otherwise the close button
         setTimeout(() => {
           const primary = $("sc-export");
@@ -2506,8 +2503,7 @@ async function init() {
             const top = document.getElementById("sc-value-modal-count");
             if (top) {
               top.textContent = `Product SKUs: ${fmtInt(cnt)} nos`;
-              top.style.color = "#0b79d0"; // accent colour for SKU count
-              top.style.fontWeight = "600";
+              /* Presentation (colour/weight) owned by sasv-stock-checker.css */
             }
             elValueBody.innerHTML = `
               <div>IK: <strong>${fmtINR(t.value_ik)}</strong></div>
@@ -2578,7 +2574,7 @@ async function init() {
                     if (rpcErr) throw rpcErr;
                     let rows = (rpcData && rpcData.rows) || [];
                     // local sort state for the unmapped modal (keeps export in-sync)
-                    let unmappedSortCol = "item";
+                    let unmappedSortCol = "tally_item_name";
                     let unmappedSortDir = "asc";
                     const totalCount =
                       (rpcData && (rpcData.count ?? 0)) || rows.length;
@@ -2619,33 +2615,104 @@ async function init() {
                     const tableWrap = document.createElement("div");
                     tableWrap.className = "sc-unmapped-table-wrap";
 
-                    // Determine column ordering: prefer common columns first
-                    const rawKeys = Object.keys(rows[0]);
-                    const preferred = [
-                      "item",
-                      "product_code",
-                      "pack_size",
-                      "uom",
-                      "location",
-                      "stock_kkd",
-                      "stock_ik",
-                      "stock_value",
-                      "stock_value_overall",
-                      "rate",
-                      "rate_overall",
+                    // Canonical unmapped columns (v_unmapped_stock_today)
+                    const rawKeys = Object.keys(rows[0] || {});
+                    const unmappedColDefs = [
+                      { key: "as_of_date", label: "AS OF DATE", cls: "col-compact" },
+                      {
+                        key: "tally_item_name",
+                        label: "TALLY ITEM NAME",
+                        cls: "col-name",
+                      },
+                      { key: "qty_units", label: "QTY UNITS", cls: "col-num" },
+                      { key: "stock_value", label: "STOCK VALUE", cls: "col-num" },
+                      {
+                        key: "missing_godown_map",
+                        label: "MISSING GODOWN MAP",
+                        cls: "col-compact",
+                      },
+                      {
+                        key: "missing_sku_map",
+                        label: "MISSING SKU MAP",
+                        cls: "col-compact",
+                      },
                     ];
-                    const keys = [];
-                    for (const p of preferred)
-                      if (rawKeys.includes(p)) keys.push(p);
-                    for (const k of rawKeys)
-                      if (!keys.includes(k)) keys.push(k);
+                    // Resolve each canonical key; allow known aliases if view/RPC differs
+                    const unmappedKeyAliases = {
+                      tally_item_name: ["tally_item_name", "item", "item_name"],
+                      stock_value: [
+                        "stock_value",
+                        "stock_value_overall",
+                        "value",
+                      ],
+                      qty_units: ["qty_units", "qty", "quantity"],
+                      as_of_date: ["as_of_date", "as_of", "snapshot_date"],
+                      missing_godown_map: [
+                        "missing_godown_map",
+                        "missing_godown",
+                      ],
+                      missing_sku_map: ["missing_sku_map", "missing_sku"],
+                    };
+                    const resolvedKeys = [];
+                    const keySourceByResolved = {};
+                    for (const def of unmappedColDefs) {
+                      const aliases = unmappedKeyAliases[def.key] || [def.key];
+                      const found = aliases.find((a) => rawKeys.includes(a));
+                      if (found) {
+                        resolvedKeys.push(found);
+                        keySourceByResolved[found] = def.key;
+                      }
+                    }
+                    const keys = resolvedKeys;
+                    const unmappedLabelByKey = Object.fromEntries(
+                      keys.map((k) => {
+                        const canon = keySourceByResolved[k] || k;
+                        const def = unmappedColDefs.find((d) => d.key === canon);
+                        return [
+                          k,
+                          def?.label ||
+                            String(k).replace(/_/g, " ").toUpperCase(),
+                        ];
+                      }),
+                    );
+                    const unmappedClassByKey = Object.fromEntries(
+                      keys.map((k) => {
+                        const canon = keySourceByResolved[k] || k;
+                        const def = unmappedColDefs.find((d) => d.key === canon);
+                        return [k, def?.cls || "col-compact"];
+                      }),
+                    );
+                    const nameSortKey = keys.find(
+                      (k) => (keySourceByResolved[k] || k) === "tally_item_name",
+                    );
+                    if (nameSortKey) unmappedSortCol = nameSortKey;
 
                     // Helper to format cell values by column name
                     const formatCell = (k, v) => {
                       if (v == null) return "";
-                      if (/value/i.test(k)) return fmtINR(v);
+                      const canon = keySourceByResolved[k] || k;
+                      if (
+                        canon === "missing_godown_map" ||
+                        canon === "missing_sku_map"
+                      ) {
+                        if (v === true || v === "true" || v === "t" || v === 1)
+                          return "Yes";
+                        if (
+                          v === false ||
+                          v === "false" ||
+                          v === "f" ||
+                          v === 0
+                        )
+                          return "No";
+                        return String(v);
+                      }
+                      if (canon === "stock_value" || /value/i.test(k))
+                        return fmtINR(v);
                       if (/rate|mrp|price/i.test(k)) return fmtRate(v);
-                      if (/qty|stock|count|nos|quantity/i.test(k))
+                      if (
+                        canon === "qty_units" ||
+                        /qty|stock|count|nos|quantity|units/i.test(k)
+                      )
                         return fmtInt(v);
                       return String(v);
                     };
@@ -2659,7 +2726,11 @@ async function init() {
                       const trh = document.createElement("tr");
                       for (const k of keys) {
                         const th = document.createElement("th");
-                        th.textContent = k.replace(/_/g, " ");
+                        th.textContent =
+                          unmappedLabelByKey[k] ||
+                          String(k).replace(/_/g, " ").toUpperCase();
+                        th.dataset.col = k;
+                        th.className = unmappedClassByKey[k] || "col-compact";
                         // attach sort metadata and indicator
                         th.dataset.sortCol = k;
                         th.tabIndex = 0;
@@ -2813,16 +2884,24 @@ async function init() {
                         const tr = document.createElement("tr");
                         for (const k of keys) {
                           const td = document.createElement("td");
+                          td.dataset.col = k;
+                          td.className = unmappedClassByKey[k] || "col-compact";
                           const raw = r[k];
                           const formatted = formatCell(k, raw);
-                          if (/value|rate|mrp/i.test(k)) {
-                            td.innerHTML = `<span class="num">${escapeHtml(formatted)}</span>`;
-                          } else if (
-                            /item|product|code|location|uom/i.test(k)
+                          const canon = keySourceByResolved[k] || k;
+                          if (
+                            canon === "stock_value" ||
+                            canon === "qty_units" ||
+                            /value|rate|mrp|qty|units/i.test(k)
                           ) {
-                            td.innerHTML = `<span>${escapeHtml(formatted)}</span>`;
-                          } else if (/stock|qty|count|nos|quantity/i.test(k)) {
                             td.innerHTML = `<span class="num">${escapeHtml(formatted)}</span>`;
+                          } else if (canon === "tally_item_name") {
+                            td.innerHTML = `<span class="sc-unmapped-item">${escapeHtml(formatted)}</span>`;
+                          } else if (
+                            canon === "missing_godown_map" ||
+                            canon === "missing_sku_map"
+                          ) {
+                            td.innerHTML = `<span class="sc-unmapped-flag">${escapeHtml(formatted)}</span>`;
                           } else {
                             td.textContent = formatted;
                           }
@@ -2852,7 +2931,14 @@ async function init() {
                       exp.addEventListener("click", () => {
                         try {
                           const lines = [
-                            keys.map((k) => csvEscape(k)).join(","),
+                            keys
+                              .map((k) =>
+                                csvEscape(
+                                  unmappedLabelByKey[k] ||
+                                    String(k).replace(/_/g, " ").toUpperCase(),
+                                ),
+                              )
+                              .join(","),
                           ];
                           for (const r of rows) {
                             const row = keys.map((k) => csvEscape(r[k]));
@@ -3297,9 +3383,9 @@ async function init() {
         } finally {
           const d = $("sc-export-drawer");
           if (d) {
-            d.style.display = "none";
-            d.setAttribute("aria-hidden", "true");
-            elExportPDF.setAttribute("aria-expanded", "false");
+            d.style.display = "flex";
+            d.setAttribute("aria-hidden", "false");
+            elExportPDF?.setAttribute("aria-expanded", "true");
           }
         }
       });
@@ -3310,9 +3396,9 @@ async function init() {
         } finally {
           const d = $("sc-export-drawer");
           if (d) {
-            d.style.display = "none";
-            d.setAttribute("aria-hidden", "true");
-            elExportPDF.setAttribute("aria-expanded", "false");
+            d.style.display = "flex";
+            d.setAttribute("aria-hidden", "false");
+            elExportPDF?.setAttribute("aria-expanded", "true");
           }
         }
       });
@@ -3323,9 +3409,9 @@ async function init() {
         } finally {
           const d = $("sc-export-drawer");
           if (d) {
-            d.style.display = "none";
-            d.setAttribute("aria-hidden", "true");
-            elExportPDF.setAttribute("aria-expanded", "false");
+            d.style.display = "flex";
+            d.setAttribute("aria-hidden", "false");
+            elExportPDF?.setAttribute("aria-expanded", "true");
           }
         }
       });
@@ -3542,8 +3628,11 @@ async function init() {
       void 0;
     }
 
-    // Navigation
-    elHome && elHome.addEventListener("click", () => Platform.goHome());
+    // Navigation — canonical HOME glyph via ui-icons / mountModuleHome
+    if (elHome) {
+      mountModuleHome(elHome);
+      elHome.addEventListener("click", () => Platform.goHome());
+    }
     elClear && elClear.addEventListener("click", clearAll);
 
     // Primary filters

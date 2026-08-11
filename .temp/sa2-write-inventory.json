@@ -1,0 +1,1696 @@
+{
+  "byTable": {
+    "activities": [
+      {
+        "table": "activities",
+        "dyn": false,
+        "op": "update",
+        "file": "js/activities.js",
+        "line": 230,
+        "fromLine": 229,
+        "fn": "saveEdit",
+        "snippet": ".update({"
+      },
+      {
+        "table": "activities",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/activities.js",
+        "line": 251,
+        "fromLine": 250,
+        "fn": "onDelete",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "activities",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/activities.js",
+        "line": 348,
+        "fromLine": 348,
+        "fn": "for",
+        "snippet": "const { error } = await supabase.from(\"activities\").insert(["
+      }
+    ],
+    "areas": [
+      {
+        "table": "areas",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/areas.js",
+        "line": 185,
+        "fromLine": 184,
+        "fn": "if",
+        "snippet": ".insert([{ section_id: secId, subsection_id: subId, area_name: name }]);"
+      },
+      {
+        "table": "areas",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/areas.js",
+        "line": 211,
+        "fromLine": 211,
+        "fn": "if",
+        "snippet": "const { error } = await supabase.from('areas').delete().eq('id', id);"
+      },
+      {
+        "table": "areas",
+        "dyn": false,
+        "op": "update",
+        "file": "js/areas.js",
+        "line": 248,
+        "fromLine": 247,
+        "fn": "if",
+        "snippet": ".update({ area_name: newN })"
+      }
+    ],
+    "categories": [
+      {
+        "table": "categories",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/categories.js",
+        "line": 97,
+        "fromLine": 96,
+        "fn": "if",
+        "snippet": ".insert([{ category_name: name }])"
+      },
+      {
+        "table": "categories",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/categories.js",
+        "line": 128,
+        "fromLine": 127,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "categories",
+        "dyn": false,
+        "op": "update",
+        "file": "js/categories.js",
+        "line": 178,
+        "fromLine": 177,
+        "fn": "if",
+        "snippet": ".update({ category_name: newName })"
+      }
+    ],
+    "text_chapters": [
+      {
+        "table": "text_chapters",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/chapters.js",
+        "line": 103,
+        "fromLine": 102,
+        "fn": "if",
+        "snippet": ".insert([{ text_id: currentTextId, chapter_name: name }]);"
+      },
+      {
+        "table": "text_chapters",
+        "dyn": false,
+        "op": "update",
+        "file": "js/chapters.js",
+        "line": 142,
+        "fromLine": 141,
+        "fn": "if",
+        "snippet": ".update({ chapter_name: newName })"
+      },
+      {
+        "table": "text_chapters",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/chapters.js",
+        "line": 162,
+        "fromLine": 161,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "event_skus": [
+      {
+        "table": "event_skus",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/log-edit.js",
+        "line": 445,
+        "fromLine": 445,
+        "fn": "ids",
+        "snippet": "await supabase.from(\"event_skus\").delete().in(\"packaging_event_id\", ids);"
+      },
+      {
+        "table": "event_skus",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/update-log-status.js",
+        "line": 626,
+        "fromLine": 626,
+        "fn": "if",
+        "snippet": "await supabase.from(\"event_skus\").delete().in(\"packaging_event_id\", ids);"
+      }
+    ],
+    "packaging_events": [
+      {
+        "table": "packaging_events",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/log-edit.js",
+        "line": 447,
+        "fromLine": 447,
+        "fn": "ids",
+        "snippet": "await supabase.from(\"packaging_events\").delete().in(\"id\", ids);"
+      },
+      {
+        "table": "packaging_events",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/update-log-status.js",
+        "line": 627,
+        "fromLine": 627,
+        "fn": "if",
+        "snippet": "await supabase.from(\"packaging_events\").delete().in(\"id\", ids);"
+      }
+    ],
+    "daily_work_log": [
+      {
+        "table": "daily_work_log",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/log-edit.js",
+        "line": 926,
+        "fromLine": 925,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "machine_types": [
+      {
+        "table": "machine_types",
+        "dyn": false,
+        "op": "update",
+        "file": "js/machine-types.js",
+        "line": 106,
+        "fromLine": 105,
+        "fn": "if",
+        "snippet": ".update({ name: nv })"
+      },
+      {
+        "table": "machine_types",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/machine-types.js",
+        "line": 120,
+        "fromLine": 119,
+        "fn": "deleteType",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "machine_types",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/machine-types.js",
+        "line": 195,
+        "fromLine": 194,
+        "fn": "for",
+        "snippet": ".insert([{ name: v }]);"
+      }
+    ],
+    "plm_sku_pack_map": [
+      {
+        "table": "plm_sku_pack_map",
+        "dyn": false,
+        "op": "update",
+        "file": "js/manage-pm-bom.js",
+        "line": 1265,
+        "fromLine": 1264,
+        "fn": "if",
+        "snippet": ".update({ notes: c.newNotes })"
+      },
+      {
+        "table": "plm_sku_pack_map",
+        "dyn": false,
+        "op": "update",
+        "file": "js/manage-pm-bom.js",
+        "line": 1317,
+        "fromLine": 1316,
+        "fn": "if",
+        "snippet": ".update({ notes: newNotes })"
+      }
+    ],
+    "plm_tpl_header": [
+      {
+        "table": "plm_tpl_header",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/manage-pm-bom.js",
+        "line": 4982,
+        "fromLine": 4981,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "rm_bom_header": [
+      {
+        "table": "rm_bom_header",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/manage-rm-bom.js",
+        "line": 1317,
+        "fromLine": 1316,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "sp_bom_header": [
+      {
+        "table": "sp_bom_header",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/manage-sp-bom.js",
+        "line": 1766,
+        "fromLine": 1765,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "inv_stock_item_alias": [
+      {
+        "table": "inv_stock_item_alias",
+        "dyn": false,
+        "op": "update",
+        "file": "js/manage-tally-inv-mapping.js",
+        "line": 568,
+        "fromLine": 567,
+        "fn": "updateAlias",
+        "snippet": ".update(payload)"
+      }
+    ],
+    "inv_stock_item": [
+      {
+        "table": "inv_stock_item",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/manage-tally-inv-mapping.js",
+        "line": 605,
+        "fromLine": 604,
+        "fn": "createStockItemAndMap",
+        "snippet": ".insert(insert)"
+      },
+      {
+        "table": "inv_stock_item",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 1775,
+        "fromLine": 1775,
+        "fn": "if",
+        "snippet": "const { error } = await supabase.from(\"inv_stock_item\").insert(payload);"
+      },
+      {
+        "table": "inv_stock_item",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 1782,
+        "fromLine": 1781,
+        "fn": "if",
+        "snippet": ".update({"
+      },
+      {
+        "table": "inv_stock_item",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 1806,
+        "fromLine": 1805,
+        "fn": "onToggle",
+        "snippet": ".update({ active: !isActive })"
+      },
+      {
+        "table": "inv_stock_item",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 1921,
+        "fromLine": 1921,
+        "fn": "onDeleteItem",
+        "snippet": "const { error } = await supabase.from(\"inv_stock_item\").delete().eq(\"id\", id);"
+      }
+    ],
+    "plant_machinery": [
+      {
+        "table": "plant_machinery",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/plants.js",
+        "line": 57,
+        "fromLine": 56,
+        "fn": "for",
+        "snippet": ".insert([{"
+      },
+      {
+        "table": "plant_machinery",
+        "dyn": false,
+        "op": "update",
+        "file": "js/plants.js",
+        "line": 274,
+        "fromLine": 273,
+        "fn": "if",
+        "snippet": ".update({ plant_name: newName, type_id: newType, status: newStat })"
+      },
+      {
+        "table": "plant_machinery",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/plants.js",
+        "line": 355,
+        "fromLine": 355,
+        "fn": "clearMulti",
+        "snippet": "await supabase.from('plant_machinery').delete().eq('id', tr.dataset.id);"
+      }
+    ],
+    "product_groups": [
+      {
+        "table": "product_groups",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/product-groups.js",
+        "line": 167,
+        "fromLine": 166,
+        "fn": "if",
+        "snippet": ".insert([{ sub_category_id: subcategorySelect.value, group_name: act.name }]);"
+      },
+      {
+        "table": "product_groups",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/product-groups.js",
+        "line": 173,
+        "fromLine": 172,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "product_groups",
+        "dyn": false,
+        "op": "update",
+        "file": "js/product-groups.js",
+        "line": 179,
+        "fromLine": 178,
+        "fn": "if",
+        "snippet": ".update({ group_name: act.name })"
+      }
+    ],
+    "product_references": [
+      {
+        "table": "product_references",
+        "dyn": false,
+        "op": "update",
+        "file": "js/productReferences.js",
+        "line": 202,
+        "fromLine": 201,
+        "fn": "if",
+        "snippet": ".update({ text_id: txt, pn, chapter: ch, reference_nature: nat })"
+      },
+      {
+        "table": "product_references",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/productReferences.js",
+        "line": 208,
+        "fromLine": 207,
+        "fn": "if",
+        "snippet": ".insert([{ product_id: selectedProd, text_id: txt, pn, chapter: ch, reference_nature: nat }])"
+      },
+      {
+        "table": "product_references",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/productReferences.js",
+        "line": 225,
+        "fromLine": 224,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "publication_details": [
+      {
+        "table": "publication_details",
+        "dyn": false,
+        "op": "update",
+        "file": "js/publications.js",
+        "line": 131,
+        "fromLine": 130,
+        "fn": "if",
+        "snippet": ".update({"
+      },
+      {
+        "table": "publication_details",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/publications.js",
+        "line": 142,
+        "fromLine": 141,
+        "fn": "if",
+        "snippet": ".insert([{"
+      },
+      {
+        "table": "publication_details",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/publications.js",
+        "line": 162,
+        "fromLine": 161,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "season_profile": [
+      {
+        "table": "season_profile",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/season_profiles.js",
+        "line": 58,
+        "fromLine": 57,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "season_profile",
+        "dyn": false,
+        "op": "update",
+        "file": "js/season_profiles.js",
+        "line": 74,
+        "fromLine": 73,
+        "fn": "if",
+        "snippet": ".update({ label, entity_kind: kind, notes })"
+      },
+      {
+        "table": "season_profile",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/season_profiles.js",
+        "line": 81,
+        "fromLine": 80,
+        "fn": "if",
+        "snippet": ".insert([{ label, entity_kind: kind, notes }]);"
+      },
+      {
+        "table": "season_profile",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2742,
+        "fromLine": 2741,
+        "fn": "manufMonths",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "season_profile",
+        "dyn": false,
+        "op": "upsert",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2924,
+        "fromLine": 2923,
+        "fn": "for",
+        "snippet": ".upsert(payload, { returning: \"representation\" });"
+      }
+    ],
+    "sections": [
+      {
+        "table": "sections",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sections.js",
+        "line": 72,
+        "fromLine": 71,
+        "fn": "if",
+        "snippet": ".insert([{ section_name: name }]);"
+      },
+      {
+        "table": "sections",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/sections.js",
+        "line": 92,
+        "fromLine": 92,
+        "fn": "if",
+        "snippet": "await supabase.from('sections').delete().eq('id', id);"
+      },
+      {
+        "table": "sections",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sections.js",
+        "line": 124,
+        "fromLine": 123,
+        "fn": "if",
+        "snippet": ".update({ section_name: newName })"
+      }
+    ],
+    "sop_master": [
+      {
+        "table": "sop_master",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sop-editor.js",
+        "line": 527,
+        "fromLine": 526,
+        "fn": "createSop",
+        "snippet": ".insert(["
+      },
+      {
+        "table": "sop_master",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 762,
+        "fromLine": 761,
+        "fn": "if",
+        "snippet": ".update({ review_policy_code, product_group_kind_id })"
+      },
+      {
+        "table": "sop_master",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 1649,
+        "fromLine": 1648,
+        "fn": "url",
+        "snippet": ".update({ title: newTitle })"
+      }
+    ],
+    "sop_revisions": [
+      {
+        "table": "sop_revisions",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sop-editor.js",
+        "line": 544,
+        "fromLine": 543,
+        "fn": "createSop",
+        "snippet": ".insert(["
+      },
+      {
+        "table": "sop_revisions",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 769,
+        "fromLine": 768,
+        "fn": "if",
+        "snippet": ".update({ effective_date: planned_effective_from })"
+      },
+      {
+        "table": "sop_revisions",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 1056,
+        "fromLine": 1055,
+        "fn": "markObsolete",
+        "snippet": ".update({ status: \"obsolete\" })"
+      },
+      {
+        "table": "sop_revisions",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sop-editor.js",
+        "line": 1106,
+        "fromLine": 1105,
+        "fn": "if",
+        "snippet": ".insert(["
+      }
+    ],
+    "sop_sections": [
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sop-editor.js",
+        "line": 1167,
+        "fromLine": 1167,
+        "fn": "seedDefaultSections",
+        "snippet": "const { error } = await supabase.from(\"sop_sections\").insert(template);"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 1292,
+        "fromLine": 1291,
+        "fn": "if",
+        "snippet": ".update({ title: title.value.trim(), content: ta.value })"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/sop-editor.js",
+        "line": 1311,
+        "fromLine": 1310,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 1355,
+        "fromLine": 1354,
+        "fn": "nudge",
+        "snippet": ".update({ position: tmp })"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 1365,
+        "fromLine": 1364,
+        "fn": "if",
+        "snippet": ".update({ position: newPos })"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 1371,
+        "fromLine": 1370,
+        "fn": "if",
+        "snippet": ".update({ position: neighbor.position })"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "update",
+        "file": "js/sop-editor.js",
+        "line": 1379,
+        "fromLine": 1378,
+        "fn": "if",
+        "snippet": ".update({ position: me.position })"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sop-editor.js",
+        "line": 1415,
+        "fromLine": 1415,
+        "fn": "cloneSections",
+        "snippet": "const { error: insErr } = await supabase.from(\"sop_sections\").insert(payload);"
+      },
+      {
+        "table": "sop_sections",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sop-editor.js",
+        "line": 1442,
+        "fromLine": 1442,
+        "fn": "nextPos",
+        "snippet": "const { error } = await supabase.from(\"sop_sections\").insert(["
+      }
+    ],
+    "sop_attachments": [
+      {
+        "table": "sop_attachments",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/sop-editor.js",
+        "line": 1565,
+        "fromLine": 1564,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "sop_attachments",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/sop-editor.js",
+        "line": 1617,
+        "fromLine": 1617,
+        "fn": "url",
+        "snippet": "const { error } = await supabase.from(\"sop_attachments\").insert(["
+      }
+    ],
+    "sub_categories": [
+      {
+        "table": "sub_categories",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/subcategories.js",
+        "line": 107,
+        "fromLine": 106,
+        "fn": "if",
+        "snippet": ".insert([{ category_id: catId, subcategory_name: name }]);"
+      },
+      {
+        "table": "sub_categories",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/subcategories.js",
+        "line": 132,
+        "fromLine": 131,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "sub_categories",
+        "dyn": false,
+        "op": "update",
+        "file": "js/subcategories.js",
+        "line": 164,
+        "fromLine": 163,
+        "fn": "if",
+        "snippet": ".update({ subcategory_name: newName })"
+      }
+    ],
+    "sub_groups": [
+      {
+        "table": "sub_groups",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/subgroups.js",
+        "line": 136,
+        "fromLine": 135,
+        "fn": "renderSubGroups",
+        "snippet": ".insert([{ product_group_id: groupId, sub_group_name: name }]);"
+      },
+      {
+        "table": "sub_groups",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/subgroups.js",
+        "line": 154,
+        "fromLine": 154,
+        "fn": "renderSubGroups",
+        "snippet": "await supabase.from('sub_groups').delete().eq('id', id);"
+      },
+      {
+        "table": "sub_groups",
+        "dyn": false,
+        "op": "update",
+        "file": "js/subgroups.js",
+        "line": 183,
+        "fromLine": 182,
+        "fn": "if",
+        "snippet": ".update({ sub_group_name: newName })"
+      }
+    ],
+    "subsections": [
+      {
+        "table": "subsections",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/subsections.js",
+        "line": 124,
+        "fromLine": 123,
+        "fn": "if",
+        "snippet": ".insert([{ section_id: secId, subsection_name: name }]);"
+      },
+      {
+        "table": "subsections",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/subsections.js",
+        "line": 152,
+        "fromLine": 151,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "subsections",
+        "dyn": false,
+        "op": "update",
+        "file": "js/subsections.js",
+        "line": 191,
+        "fromLine": 190,
+        "fn": "if",
+        "snippet": ".update({ subsection_name: newN })"
+      }
+    ],
+    "batch_plan_headers": [
+      {
+        "table": "batch_plan_headers",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-batch-plan.js",
+        "line": 558,
+        "fromLine": 557,
+        "fn": "setHeaderStatus",
+        "snippet": ".update({ status: next })"
+      },
+      {
+        "table": "batch_plan_headers",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/supply-batch-plan.js",
+        "line": 621,
+        "fromLine": 620,
+        "fn": "if",
+        "snippet": ".insert([insertData])"
+      },
+      {
+        "table": "batch_plan_headers",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-batch-plan.js",
+        "line": 711,
+        "fromLine": 710,
+        "fn": "if",
+        "snippet": ".update({"
+      },
+      {
+        "table": "batch_plan_headers",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/supply-batch-plan.js",
+        "line": 752,
+        "fromLine": 751,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "batch_plan_headers",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-batch-plan.js",
+        "line": 791,
+        "fromLine": 790,
+        "fn": "if",
+        "snippet": ".update({ status: \"archived\", updated_at: new Date().toISOString() })"
+      }
+    ],
+    "batch_plan_batches": [
+      {
+        "table": "batch_plan_batches",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-batch-plan.js",
+        "line": 3103,
+        "fromLine": 3102,
+        "fn": "if",
+        "snippet": ".update({ batch_size: val, updated_at: new Date().toISOString() })"
+      }
+    ],
+    "manual_plan_lines": [
+      {
+        "table": "manual_plan_lines",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-overrides.js",
+        "line": 621,
+        "fromLine": 620,
+        "fn": "if",
+        "snippet": ".update({"
+      },
+      {
+        "table": "manual_plan_lines",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-overrides.js",
+        "line": 1781,
+        "fromLine": 1780,
+        "fn": "if",
+        "snippet": ".update(row)"
+      },
+      {
+        "table": "manual_plan_lines",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/supply-overrides.js",
+        "line": 1804,
+        "fromLine": 1803,
+        "fn": "addLine",
+        "snippet": ".insert([{ set_id: setId, product_id, month_start, proposed_qty, note }]);"
+      },
+      {
+        "table": "manual_plan_lines",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/supply-overrides.js",
+        "line": 1830,
+        "fromLine": 1829,
+        "fn": "deleteSelectedLines",
+        "snippet": ".delete()"
+      }
+    ],
+    "manual_plan_sets": [
+      {
+        "table": "manual_plan_sets",
+        "dyn": false,
+        "op": "insert",
+        "file": "js/supply-overrides.js",
+        "line": 931,
+        "fromLine": 930,
+        "fn": "createSet",
+        "snippet": ".insert([{ title: set_name, note: notes, created_by }])"
+      },
+      {
+        "table": "manual_plan_sets",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-overrides.js",
+        "line": 2409,
+        "fromLine": 2408,
+        "fn": "applyUnifiedOverrides",
+        "snippet": ".update({ status: \"applied\" })"
+      },
+      {
+        "table": "manual_plan_sets",
+        "dyn": false,
+        "op": "update",
+        "file": "js/supply-overrides.js",
+        "line": 2873,
+        "fromLine": 2872,
+        "fn": "renamePlan",
+        "snippet": ".update({ title: newTitle })"
+      },
+      {
+        "table": "manual_plan_sets",
+        "dyn": false,
+        "op": "delete",
+        "file": "js/supply-overrides.js",
+        "line": 2895,
+        "fromLine": 2894,
+        "fn": "deletePlan",
+        "snippet": ".delete()"
+      }
+    ],
+    "marketing_overrides_staging": [
+      {
+        "table": "marketing_overrides_staging",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/forecast-console.js",
+        "line": 2803,
+        "fromLine": 2802,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "marketing_overrides_staging",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/forecast-console.js",
+        "line": 2866,
+        "fromLine": 2865,
+        "fn": "if",
+        "snippet": ".update({ delta_units: newVal })"
+      },
+      {
+        "table": "marketing_overrides_staging",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/forecast-console.js",
+        "line": 3086,
+        "fromLine": 3085,
+        "fn": "for",
+        "snippet": ".insert(chunk);"
+      },
+      {
+        "table": "marketing_overrides_staging",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/forecast-console.js",
+        "line": 3954,
+        "fromLine": 3954,
+        "fn": "if",
+        "snippet": "let q = supabase.from(\"marketing_overrides_staging\").delete();"
+      },
+      {
+        "table": "marketing_overrides_staging",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/forecast-console.js",
+        "line": 4268,
+        "fromLine": 4267,
+        "fn": "if",
+        "snippet": ".insert([row]);"
+      }
+    ],
+    "plan_publish_headers": [
+      {
+        "table": "plan_publish_headers",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/forecast-console.js",
+        "line": 4466,
+        "fromLine": 4465,
+        "fn": "if",
+        "snippet": ".insert([{ plan_key, as_of_date, notes }])"
+      }
+    ],
+    "plan_publish_lines": [
+      {
+        "table": "plan_publish_lines",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/forecast-console.js",
+        "line": 4544,
+        "fromLine": 4543,
+        "fn": "for",
+        "snippet": ".insert(payload);"
+      }
+    ],
+    "bmr_details": [
+      {
+        "table": "bmr_details",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/manage-bmr.js",
+        "line": 468,
+        "fromLine": 468,
+        "fn": "insertBmrRow",
+        "snippet": "const { error } = await supabase.from(\"bmr_details\").insert(["
+      },
+      {
+        "table": "bmr_details",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-bmr.js",
+        "line": 894,
+        "fromLine": 893,
+        "fn": "if",
+        "snippet": ".update(updates)"
+      },
+      {
+        "table": "bmr_details",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-bmr.js",
+        "line": 1568,
+        "fromLine": 1567,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ],
+    "inv_class_subcategory": [
+      {
+        "table": "inv_class_subcategory",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 893,
+        "fromLine": 893,
+        "fn": "if",
+        "snippet": "const { error } = await supabase.from(\"inv_class_subcategory\").insert({"
+      },
+      {
+        "table": "inv_class_subcategory",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 967,
+        "fromLine": 966,
+        "fn": "if",
+        "snippet": ".update(patch)"
+      },
+      {
+        "table": "inv_class_subcategory",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 1010,
+        "fromLine": 1010,
+        "fn": "onDeleteNode",
+        "snippet": "err = (await supabase.from(\"inv_class_subcategory\").delete().eq(\"id\", id))"
+      }
+    ],
+    "inv_class_group": [
+      {
+        "table": "inv_class_group",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 900,
+        "fromLine": 900,
+        "fn": "if",
+        "snippet": "const { error } = await supabase.from(\"inv_class_group\").insert({"
+      },
+      {
+        "table": "inv_class_group",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 976,
+        "fromLine": 975,
+        "fn": "if",
+        "snippet": ".update(patch)"
+      },
+      {
+        "table": "inv_class_group",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 1013,
+        "fromLine": 1013,
+        "fn": "onDeleteNode",
+        "snippet": "err = (await supabase.from(\"inv_class_group\").delete().eq(\"id\", id)).error;"
+      }
+    ],
+    "inv_class_subgroup": [
+      {
+        "table": "inv_class_subgroup",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 909,
+        "fromLine": 908,
+        "fn": "if",
+        "snippet": ".insert({ group_id: parentId, code: trimmedCode, label: trimmedLabel });"
+      },
+      {
+        "table": "inv_class_subgroup",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 985,
+        "fromLine": 984,
+        "fn": "if",
+        "snippet": ".update(patch)"
+      },
+      {
+        "table": "inv_class_subgroup",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 1015,
+        "fromLine": 1015,
+        "fn": "onDeleteNode",
+        "snippet": "err = (await supabase.from(\"inv_class_subgroup\").delete().eq(\"id\", id))"
+      }
+    ],
+    "inv_class_category": [
+      {
+        "table": "inv_class_category",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 958,
+        "fromLine": 957,
+        "fn": "if",
+        "snippet": ".update(patch)"
+      },
+      {
+        "table": "inv_class_category",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 1007,
+        "fromLine": 1007,
+        "fn": "onDeleteNode",
+        "snippet": "err = (await supabase.from(\"inv_class_category\").delete().eq(\"id\", id))"
+      }
+    ],
+    "inv_stock_item_class_map": [
+      {
+        "table": "inv_stock_item_class_map",
+        "dyn": false,
+        "op": "upsert",
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 1875,
+        "fromLine": 1874,
+        "fn": "saveMap",
+        "snippet": ".upsert(payload, { onConflict: \"stock_item_id\" });"
+      },
+      {
+        "table": "inv_stock_item_class_map",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 1888,
+        "fromLine": 1887,
+        "fn": "clearMap",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "inv_stock_item_class_map",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 1906,
+        "fromLine": 1905,
+        "fn": "onDeleteMapping",
+        "snippet": ".delete()"
+      }
+    ],
+    "inv_uom": [
+      {
+        "table": "inv_uom",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-uom.js",
+        "line": 107,
+        "fromLine": 107,
+        "fn": "render",
+        "snippet": "const { error } = await supabase.from(\"inv_uom\").delete().eq(\"id\", id);"
+      },
+      {
+        "table": "inv_uom",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-uom.js",
+        "line": 220,
+        "fromLine": 219,
+        "fn": "saveInlineEdit",
+        "snippet": ".update(payload)"
+      },
+      {
+        "table": "inv_uom",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/manage-uom.js",
+        "line": 369,
+        "fromLine": 369,
+        "fn": "if",
+        "snippet": "const { error } = await supabase.from(\"inv_uom\").insert(payload);"
+      },
+      {
+        "table": "inv_uom",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-uom.js",
+        "line": 377,
+        "fromLine": 376,
+        "fn": "if",
+        "snippet": ".update({"
+      }
+    ],
+    "inv_uom_dimension": [
+      {
+        "table": "inv_uom_dimension",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/manage-uom.js",
+        "line": 203,
+        "fromLine": 202,
+        "fn": "saveInlineEditDim",
+        "snippet": ".update(payload)"
+      },
+      {
+        "table": "inv_uom_dimension",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/manage-uom.js",
+        "line": 308,
+        "fromLine": 307,
+        "fn": "renderDimensions",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "inv_uom_dimension",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/manage-uom.js",
+        "line": 323,
+        "fromLine": 322,
+        "fn": "notes",
+        "snippet": ".insert({ name, notes });"
+      }
+    ],
+    "inv_stock_item_moq_policy": [
+      {
+        "table": "inv_stock_item_moq_policy",
+        "dyn": false,
+        "op": "upsert",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 1085,
+        "fromLine": 1084,
+        "fn": null,
+        "snippet": ".upsert(payload);"
+      },
+      {
+        "table": "inv_stock_item_moq_policy",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 1203,
+        "fromLine": 1202,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "inv_stock_item_moq_policy",
+        "dyn": false,
+        "op": "upsert",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 1370,
+        "fromLine": 1369,
+        "fn": "if",
+        "snippet": ".upsert(payload);"
+      }
+    ],
+    "inv_rm_form_conversion": [
+      {
+        "table": "inv_rm_form_conversion",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2133,
+        "fromLine": 2132,
+        "fn": "if",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "inv_rm_form_conversion",
+        "dyn": false,
+        "op": "update",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2283,
+        "fromLine": 2282,
+        "fn": "if",
+        "snippet": ".update(payload)"
+      },
+      {
+        "table": "inv_rm_form_conversion",
+        "dyn": false,
+        "op": "insert",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2289,
+        "fromLine": 2288,
+        "fn": "if",
+        "snippet": ".insert(payload);"
+      }
+    ],
+    "season_profile_weight": [
+      {
+        "table": "season_profile_weight",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2732,
+        "fromLine": 2731,
+        "fn": "manufMonths",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "season_profile_weight",
+        "dyn": false,
+        "op": "upsert",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2961,
+        "fromLine": 2960,
+        "fn": "if",
+        "snippet": ".upsert(weightRows, { returning: \"minimal\" });"
+      }
+    ],
+    "season_profile_month": [
+      {
+        "table": "season_profile_month",
+        "dyn": false,
+        "op": "delete",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2737,
+        "fromLine": 2736,
+        "fn": "manufMonths",
+        "snippet": ".delete()"
+      },
+      {
+        "table": "season_profile_month",
+        "dyn": false,
+        "op": "upsert",
+        "file": "public/shared/js/mrp-master-data-console.js",
+        "line": 2942,
+        "fromLine": 2941,
+        "fn": "if",
+        "snippet": ".upsert(monthRows, { returning: \"minimal\" });"
+      }
+    ],
+    "user_presence": [
+      {
+        "table": "user_presence",
+        "dyn": false,
+        "op": "upsert",
+        "file": "index.html",
+        "line": 1202,
+        "fromLine": 1202,
+        "fn": "sendHeartbeat",
+        "snippet": "await supabase.from(\"user_presence\").upsert("
+      },
+      {
+        "table": "user_presence",
+        "dyn": false,
+        "op": "delete",
+        "file": "index.html",
+        "line": 1400,
+        "fromLine": 1400,
+        "fn": "if",
+        "snippet": "supabase.from(\"user_presence\").delete().eq(\"user_id\", user.id);"
+      },
+      {
+        "table": "user_presence",
+        "dyn": false,
+        "op": "delete",
+        "file": "index.html",
+        "line": 1409,
+        "fromLine": 1408,
+        "fn": "if",
+        "snippet": ".delete()"
+      }
+    ]
+  },
+  "allFromKeys": [
+    "DYN:PROBLEM_KIND_OPTIONS",
+    "DYN:RECON_STATUS_OPTIONS",
+    "DYN:RM_OVERVIEW_VIEW",
+    "DYN:SELECTED_CELLS",
+    "DYN:analysedBy.options",
+    "DYN:batchSel.options",
+    "DYN:candidate",
+    "DYN:categoryFilter.options",
+    "DYN:cfg.table",
+    "DYN:cfg.view",
+    "DYN:dimTable.children",
+    "DYN:drawerPgroup.options",
+    "DYN:drawerSgroup.options",
+    "DYN:drawerSubcat.options",
+    "DYN:e_item.options",
+    "DYN:e_status.options",
+    "DYN:el._selectedIds",
+    "DYN:excluded",
+    "DYN:first.children",
+    "DYN:idsSet",
+    "DYN:mfWorkingProblem",
+    "DYN:mfWorkingStatus",
+    "DYN:missing",
+    "DYN:monthsSet",
+    "DYN:multiBody.rows",
+    "DYN:paginatorEl.children",
+    "DYN:personInCharge.options",
+    "DYN:pids",
+    "DYN:refSpecTypeSelect.options",
+    "DYN:roles",
+    "DYN:s",
+    "DYN:sActivity.options",
+    "DYN:sel.options",
+    "DYN:selSet",
+    "DYN:select.selectedOptions",
+    "DYN:selectEl._selectedIds",
+    "DYN:selectEl.options",
+    "DYN:state.problemFilter",
+    "DYN:state.statusFilter",
+    "DYN:statusSel.options",
+    "DYN:table",
+    "DYN:tbl",
+    "DYN:tbody.rows",
+    "DYN:td.classList",
+    "DYN:tr.cells",
+    "DYN:tr.children",
+    "DYN:uomEl.options",
+    "DYN:view",
+    "DYN:viewName",
+    "activities",
+    "activity_kinds",
+    "analysis_status_history",
+    "app_nav_sections",
+    "areas",
+    "batch_plan_batches",
+    "batch_plan_headers",
+    "batch_plan_lines",
+    "bmr_card_not_initiated",
+    "bmr_details",
+    "bottled_stock_on_hand",
+    "bulk_stock",
+    "categories",
+    "coa_issue",
+    "daily_work_log",
+    "etl_jobs",
+    "event_skus",
+    "event_type_lkp",
+    "fg_bulk_stock",
+    "forecast_demand_overrides",
+    "forecast_run",
+    "inv_class_category",
+    "inv_class_group",
+    "inv_class_subcategory",
+    "inv_class_subgroup",
+    "inv_rm_form_conversion",
+    "inv_stock_item",
+    "inv_stock_item_alias",
+    "inv_stock_item_class_map",
+    "inv_stock_item_moq_policy",
+    "inv_stock_item_season_profile",
+    "inv_uom",
+    "inv_uom_dimension",
+    "lab_uom",
+    "machine_types",
+    "manual_plan_lines",
+    "manual_plan_sets",
+    "marketing_overrides_staging",
+    "mrp_rm_overlay_season_detail",
+    "mrp_rm_overlay_season_runs",
+    "mv_mis_executive_summary",
+    "packaging_events",
+    "plan_publish_headers",
+    "plan_publish_lines",
+    "plant_machinery",
+    "plm_sku_pack_map",
+    "plm_tpl_header",
+    "pm_reservation_snapshot_current_month",
+    "pm_status_snapshot_current_month",
+    "priority_queue_snapshot_current_month",
+    "product_group_kinds",
+    "product_groups",
+    "product_references",
+    "product_skus",
+    "production_qty_overrides",
+    "products",
+    "profiles",
+    "protocol_category",
+    "protocol_category_inv_group_map",
+    "protocol_category_pm_subcategory_map",
+    "protocol_category_product_group_map",
+    "protocol_category_test",
+    "publication_details",
+    "rm_bom_header",
+    "rm_bom_line",
+    "rm_reservation_snapshot_current_month",
+    "rm_status_snapshot_current_month",
+    "season_profile",
+    "season_profile_month",
+    "season_profile_weight",
+    "sections",
+    "sku_stock_snapshot",
+    "sop-attachments",
+    "sop_approvals",
+    "sop_attachments",
+    "sop_master",
+    "sop_review_policies",
+    "sop_revisions",
+    "sop_sections",
+    "sop_series",
+    "sp_bom_header",
+    "sp_bom_line",
+    "spec_line",
+    "spec_override",
+    "spec_profile",
+    "spec_profile_inv_group_map",
+    "sub_categories",
+    "sub_groups",
+    "subsections",
+    "test_default_method_map",
+    "test_master",
+    "test_method",
+    "text_chapters",
+    "user_permissions_canonical",
+    "user_presence",
+    "v_analysis_header",
+    "v_analysis_pending_scrutiny",
+    "v_analysis_result_calculation_summary",
+    "v_analysis_result_entry",
+    "v_analysis_result_observation",
+    "v_app_module_registry",
+    "v_batch_plan_batches_status",
+    "v_batch_plan_lines_with_impact",
+    "v_batch_plan_mapping",
+    "v_batch_plan_mapping_rollup",
+    "v_batch_plan_rollup",
+    "v_batch_risk_reduction_current_month",
+    "v_bmr_with_map_flag",
+    "v_coa_form50_header",
+    "v_coa_form50_lines",
+    "v_coa_register",
+    "v_coa_register_versions",
+    "v_coa_signatory_picker",
+    "v_control_register_active",
+    "v_control_sample_exempted",
+    "v_control_sample_pending_collection",
+    "v_control_sample_ready_for_removal",
+    "v_control_sample_register",
+    "v_control_sample_sku_option",
+    "v_current_user_staff_context",
+    "v_dwl_fg_transfer_event",
+    "v_fg_bulk_transfer_history",
+    "v_fg_product_with_group",
+    "v_fg_storage_residuals",
+    "v_fill_inputs",
+    "v_forecast_overview",
+    "v_forecast_plan_12m",
+    "v_forecast_production_plan_net_sku",
+    "v_forecast_runs_recent",
+    "v_health_last_heartbeat",
+    "v_health_mapping_today",
+    "v_health_snapshot_today",
+    "v_inv_stock_item_alias_coverage",
+    "v_inv_stock_item_alias_search",
+    "v_inv_stock_item_with_class",
+    "v_item_consumption_monthly_by_item",
+    "v_item_supply_overview",
+    "v_job_activity",
+    "v_job_activity_detailed",
+    "v_mis_finance_outstanding_detail",
+    "v_mis_finance_tab_summary",
+    "v_mis_finished_goods_tab_summary",
+    "v_mis_inventory_tab_summary",
+    "v_mis_production_tab_summary",
+    "v_mis_sales_tab_summary",
+    "v_module_badges",
+    "v_mrp_pm_contrib_detail",
+    "v_mrp_rm_conversion_contrib_detail",
+    "v_mrp_rm_overlay_season_monthly_active",
+    "v_mrp_rm_trace",
+    "v_mrp_rm_trace_batch",
+    "v_mrp_rm_trace_horizon",
+    "v_pending_spec_change_requests",
+    "v_picker_products",
+    "v_picker_sp_owners",
+    "v_product_bulk_consolidated",
+    "v_product_bulk_net_to_make",
+    "v_product_bulk_net_to_make_after_wip",
+    "v_product_bulk_required_monthly",
+    "v_product_details",
+    "v_protocol_usage_preview",
+    "v_purchases_summary_by_item",
+    "v_rm_pm_item_with_group",
+    "v_sample_receipt_fg_batch_picker",
+    "v_sample_receipt_fg_picker",
+    "v_sample_receipt_staff_picker",
+    "v_sdv_dim_godown_region",
+    "v_sdv_freshness",
+    "v_sdv_sales_enriched",
+    "v_season_calendar",
+    "v_sku_catalog_enriched",
+    "v_sku_mrp_current",
+    "v_sop_flat",
+    "v_spec_change_request_review_counts",
+    "v_spec_change_request_review_queue",
+    "v_spec_lifecycle_history",
+    "v_spec_override_register",
+    "v_spec_profile_detail",
+    "v_staff_compensation_monthly_manager",
+    "v_stock_checker",
+    "v_stock_current_by_item",
+    "v_stock_item_picker",
+    "v_supply_recon",
+    "v_tally_fg_transfer_normalized",
+    "v_test_with_default_method",
+    "v_wip_batches"
+  ],
+  "writeCount": 136
+}

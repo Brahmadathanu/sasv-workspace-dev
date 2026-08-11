@@ -1,36 +1,16 @@
 <!-- manage-products.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
-    <title>Manage Products</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SASV WORKSPACE | Manage Products</title>
     <link rel="stylesheet" href="public/shared/css/style.css" />
     <style>
-      /* Module-specific layout (all theming vars are in style.css) */
-      .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 10px;
-      }
-      .header h1 {
-        margin: 0;
-        color: var(--primary);
-      }
+      /* Page-specific layout only (UI-MOD-1B) — tokens from sasv-module.css */
+      /* page-header from sasv-module.css */
 
-      /* make body/container fill viewport and avoid page-level scrollbar
-         by letting the header occupy its natural height and the container
-         flex to remaining space. Use min-height:0 so children with
-         overflow can shrink properly. */
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
-      body {
-        display: flex;
-        flex-direction: column;
-      }
+      /* viewport fill: body.sasv-module--app */
       .container {
         display: flex;
         flex: 1 1 auto;
@@ -41,7 +21,7 @@
       .sidebar {
         position: relative;
         width: 30%;
-        border: 1px solid #ccc;
+        border: 1px solid var(--sasv-border);
         border-radius: 4px;
         padding: 10px;
         box-sizing: border-box;
@@ -50,7 +30,7 @@
       .sidebar input {
         /* search input lives inside .search-row which is sticky */
         position: static;
-        background: var(--panel-bg);
+        background: var(--sasv-surface);
         z-index: 1;
         width: 100%;
         padding: 6px;
@@ -62,16 +42,16 @@
       .search-row {
         position: sticky;
         top: 0;
-        background: var(--panel-bg);
+        background: var(--sasv-surface);
         z-index: 5;
         /* subtle separation while scrolling */
-        box-shadow: 0 6px 18px rgba(11, 41, 73, 0.06);
+        box-shadow: var(--sasv-shadow-sm);
         display: flex;
         gap: 8px;
         align-items: center;
         padding: 6px 0;
         box-sizing: border-box;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        border-bottom: 1px solid var(--sasv-divider);
       }
       .search-row input {
         flex: 1 1 auto;
@@ -93,7 +73,7 @@
         transform: translateY(-50%);
         width: 16px;
         height: 16px;
-        stroke: #6b7280;
+        stroke: var(--sasv-text-muted);
         pointer-events: none;
         z-index: 2;
       }
@@ -119,7 +99,7 @@
         z-index: 2;
       }
       .clear-search svg {
-        stroke: #6b7280;
+        stroke: var(--sasv-text-muted);
       }
       .clear-search:hover {
         background: rgba(0, 0, 0, 0.05);
@@ -128,14 +108,14 @@
         display: inline-flex;
       }
       .pill {
-        background: var(--primary);
-        color: #fff;
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary);
         padding: 6px 10px;
         border-radius: 999px;
         font-size: 12px;
         min-width: 46px;
         text-align: center;
-        box-shadow: 0 4px 10px rgba(11, 41, 73, 0.08);
+        box-shadow: var(--sasv-shadow-sm);
         font-weight: 600;
         cursor: default;
         transition: transform 140ms ease, box-shadow 140ms ease,
@@ -143,7 +123,7 @@
       }
       .pill:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(11, 41, 73, 0.12);
+        box-shadow: var(--sasv-shadow-md);
         opacity: 0.98;
       }
       .sidebar ul {
@@ -154,15 +134,15 @@
       .sidebar li {
         padding: 6px 4px;
         cursor: pointer;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--sasv-divider);
       }
       .sidebar li:hover,
       .sidebar li.selected,
       .sidebar li.focused {
-        background: #f0f8ff;
+        background: var(--sasv-selection-soft);
       }
       .sidebar ul:focus {
-        outline: 2px solid var(--primary);
+        outline: 2px solid var(--sasv-action-primary);
         outline-offset: 4px;
         border-radius: 6px;
       }
@@ -170,14 +150,14 @@
         font-weight: 600;
       }
       .sidebar li.focused {
-        box-shadow: inset 0 0 0 2px rgba(43, 110, 163, 0.12);
+        box-shadow: inset 0 0 0 2px var(--sasv-focus-ring);
       }
 
       .details {
         flex: 1;
         margin-left: 20px;
         overflow-y: auto;
-        border: 1px solid #ccc;
+        border: 1px solid var(--sasv-border);
         border-radius: 4px;
         padding: 10px;
         box-sizing: border-box;
@@ -282,8 +262,8 @@
       }
 
       .icon-btn {
-        background: var(--panel-bg);
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        background: var(--sasv-surface);
+        border: 1px solid var(--sasv-border);
         padding: 6px 8px;
         margin-left: 6px;
         cursor: pointer;
@@ -294,7 +274,7 @@
         justify-content: center;
         transition: transform 120ms ease, box-shadow 120ms ease,
           background-color 120ms ease;
-        box-shadow: 0 2px 6px rgba(11, 41, 73, 0.04);
+        box-shadow: var(--sasv-shadow-sm);
       }
       .icon-btn svg {
         width: 16px;
@@ -303,11 +283,11 @@
       }
       .icon-btn:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 8px 18px rgba(11, 41, 73, 0.08);
+        box-shadow: var(--sasv-shadow-md);
         background: rgba(0, 0, 0, 0.03);
       }
       .icon-btn:focus {
-        outline: 3px solid rgba(43, 110, 163, 0.12);
+        outline: 3px solid var(--sasv-focus-ring);
         outline-offset: 2px;
       }
       .icon-btn:disabled {
@@ -325,7 +305,7 @@
         right: 16px;
         bottom: 20px;
         background: rgba(0, 0, 0, 0.8);
-        color: #fff;
+        color: var(--sasv-text-on-primary);
         padding: 10px 14px;
         border-radius: 6px;
         opacity: 0;
@@ -356,7 +336,7 @@
       }
       .loading-box {
         background: rgba(0, 0, 0, 0.8);
-        color: #fff;
+        color: var(--sasv-text-on-primary);
         padding: 12px 16px;
         border-radius: 8px;
         display: inline-flex;
@@ -369,7 +349,7 @@
         height: 20px;
         border-radius: 50%;
         border: 3px solid rgba(255, 255, 255, 0.2);
-        border-top-color: #fff;
+        border-top-color: var(--sasv-text-on-primary);
         animation: spin 900ms linear infinite;
       }
       @keyframes spin {
@@ -378,8 +358,31 @@
         }
       }
 
+      #accessStatus {
+        margin: 12px 16px 0;
+        padding: 12px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--sasv-danger-border);
+        background: var(--sasv-danger-bg);
+        color: var(--sasv-danger);
+        font-size: 13.5px;
+      }
+      #viewOnlyBanner {
+        margin: 10px 16px 0;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--sasv-warning-border);
+        background: var(--sasv-warning-bg);
+        color: var(--sasv-warning);
+        font-size: 13px;
+      }
+      body.access-denied .container {
+        display: none;
+      }
+
       /* Modal (ERP-styled) */
-      #modalOverlay {
+      #modalOverlay,
+      #governanceModalOverlay {
         position: fixed;
         inset: 0;
         display: none;
@@ -392,18 +395,72 @@
         backdrop-filter: blur(4px) saturate(120%);
         z-index: 4000;
       }
-      #modalOverlay.show {
+      #modalOverlay.show,
+      #governanceModalOverlay.show {
         display: flex;
       }
+      #governanceModalBox {
+        background: var(--sasv-surface);
+        color: var(--text-color);
+        width: min(480px, 92vw);
+        border-radius: 10px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        border: 1px solid var(--sasv-border);
+        overflow: hidden;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        text-align: left;
+      }
+      #governanceModalBox.type-danger .modal-title {
+        color: var(--sasv-danger);
+      }
+      .governance-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 12px;
+      }
+      .governance-field label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--sasv-text-muted);
+      }
+      .governance-field input,
+      .governance-field textarea {
+        width: 100%;
+        border: 1px solid var(--sasv-control-border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        background: var(--sasv-control-bg);
+        color: inherit;
+        box-sizing: border-box;
+      }
+      .governance-field textarea {
+        min-height: 78px;
+        resize: vertical;
+      }
+      .governance-error {
+        color: var(--sasv-danger);
+        font-size: 12.5px;
+        min-height: 1.2em;
+        margin-top: 4px;
+      }
+      .governance-hint {
+        font-size: 12px;
+        color: var(--sasv-text-muted);
+      }
       #modalBox {
-        background: var(--panel-bg);
+        background: var(--sasv-surface);
         color: var(--text-color);
         padding: 18px;
         border-radius: 8px;
         width: 100%;
         max-width: 540px;
         box-shadow: 0 10px 30px rgba(8, 12, 20, 0.45);
-        border: 1px solid rgba(0, 0, 0, 0.06);
+        border: 1px solid var(--sasv-border);
         text-align: left;
         display: flex;
         flex-direction: column;
@@ -428,7 +485,7 @@
         margin: 0;
         font-size: 16px;
         font-weight: 600;
-        color: var(--primary);
+        color: var(--sasv-action-primary);
       }
       .modal-body p {
         margin: 0;
@@ -452,75 +509,64 @@
       .modal-actions .btn.secondary {
         background: transparent;
         color: var(--text-color);
-        border-color: rgba(0, 0, 0, 0.06);
+        border-color: var(--sasv-border);
       }
       .modal-actions .btn.primary {
         background: var(--btn-bg);
         color: var(--btn-text);
       }
       .modal-actions .btn.danger {
-        background: #d9534f;
-        color: #fff;
+        background: var(--sasv-danger);
+        color: var(--sasv-text-on-primary);
       }
       /* type-specific styling */
       #modalBox.type-delete .modal-icon {
-        background: rgba(217, 83, 79, 0.12);
+        background: var(--sasv-danger-bg);
       }
       #modalBox.type-delete .modal-title {
-        color: #d9534f;
+        color: var(--sasv-danger);
       }
       #modalBox.type-save .modal-icon {
-        background: rgba(40, 167, 69, 0.08);
+        background: var(--sasv-success-bg);
       }
       #modalBox.type-save .modal-title {
-        color: #2d8f46;
+        color: var(--sasv-success);
       }
       #modalBox.type-warning .modal-icon {
-        background: rgba(255, 159, 67, 0.08);
+        background: var(--sasv-warning-bg);
       }
       #modalBox.type-warning .modal-title {
-        color: #b36b00;
+        color: var(--sasv-warning);
       }
     </style>
   </head>
-  <body data-theme="system">
-    <div
-      class="header"
-      style="flex-direction: column; align-items: flex-start; gap: 6px"
-    >
-      <div
-        style="
-          display: flex;
-          width: 100%;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <h1 style="margin: 0">Manage Products</h1>
-        <button id="homeBtn" type="button" title="Home">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9,22 9,12 15,12 15,22" />
-          </svg>
-          HOME
-        </button>
+  <body class="sasv-module sasv-module--app" data-theme="system">
+    <div class="page-header">
+      <div>
+        <h1>Manage Products</h1>
+        <div class="page-sub">
+          Create and manage product master data, classifications, and ERP
+          attributes.
+        </div>
       </div>
-      <div style="font-size: 13px; color: var(--muted)">
-        Create and manage product master data, classifications, and ERP
-        attributes.
+      <div class="header-actions">
+        <button
+          id="homeBtn"
+          type="button"
+          title="Home"
+          aria-label="Home"
+          class="icon-btn"
+        ></button>
       </div>
     </div>
 
-    <div class="container">
+    <div id="accessStatus" hidden role="alert"></div>
+    <div id="viewOnlyBanner" hidden role="status">
+      View-only access. You can browse product details but cannot create, edit,
+      or deactivate products.
+    </div>
+
+    <div class="container" id="productMasterMain">
       <div class="sidebar">
         <div
           class="search-row"
@@ -662,10 +708,11 @@
                 id="inlineDeleteBtn"
                 class="icon-btn"
                 type="button"
-                title="Delete product"
+                title="Deactivate product"
+                aria-label="Deactivate product"
                 style="display: none"
               >
-                <!-- dustbin-style SVG -->
+                <!-- deactivate / archive-style SVG -->
                 <svg
                   width="18"
                   height="18"
@@ -910,6 +957,51 @@
         <div class="modal-actions">
           <button id="modalCancel" class="btn secondary">Cancel</button>
           <button id="modalConfirm" class="btn primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="governanceModalOverlay" aria-hidden="true">
+      <div
+        id="governanceModalBox"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="governanceModalTitle"
+      >
+        <div class="modal-header">
+          <div class="modal-icon" id="governanceModalIcon" aria-hidden="true"></div>
+          <h3 class="modal-title" id="governanceModalTitle">Confirm</h3>
+        </div>
+        <div class="modal-body">
+          <p id="governanceModalMessage"></p>
+          <div class="governance-field">
+            <label for="governanceReason">Reason <span aria-hidden="true">*</span></label>
+            <textarea
+              id="governanceReason"
+              maxlength="1000"
+              placeholder="Enter a clear business reason"
+              required
+            ></textarea>
+            <div id="governanceReasonError" class="governance-error" aria-live="polite"></div>
+          </div>
+          <div class="governance-field">
+            <label for="governanceApprovalRef">Approval reference (optional)</label>
+            <input
+              type="text"
+              id="governanceApprovalRef"
+              maxlength="200"
+              placeholder="Optional approval or ticket reference"
+            />
+            <div class="governance-hint">Leave blank if no approval reference applies.</div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="governanceCancel" class="btn secondary" type="button">
+            Cancel
+          </button>
+          <button id="governanceConfirm" class="btn primary" type="button">
+            Confirm
+          </button>
         </div>
       </div>
     </div>

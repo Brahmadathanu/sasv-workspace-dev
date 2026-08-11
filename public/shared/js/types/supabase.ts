@@ -14,126 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _archive_etl_jobs: {
-        Row: {
-          attempts: number | null
-          created_at: string | null
-          error_text: string | null
-          finished_at: string | null
-          id: string | null
-          idempotency_key: string | null
-          job_type: string | null
-          not_before: string | null
-          params: Json | null
-          priority: number | null
-          started_at: string | null
-          status: Database["public"]["Enums"]["job_status"] | null
-        }
-        Insert: {
-          attempts?: number | null
-          created_at?: string | null
-          error_text?: string | null
-          finished_at?: string | null
-          id?: string | null
-          idempotency_key?: string | null
-          job_type?: string | null
-          not_before?: string | null
-          params?: Json | null
-          priority?: number | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["job_status"] | null
-        }
-        Update: {
-          attempts?: number | null
-          created_at?: string | null
-          error_text?: string | null
-          finished_at?: string | null
-          id?: string | null
-          idempotency_key?: string | null
-          job_type?: string | null
-          not_before?: string | null
-          params?: Json | null
-          priority?: number | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["job_status"] | null
-        }
-        Relationships: []
-      }
-      _archive_storage_cleanup_queue: {
-        Row: {
-          bucket: string | null
-          deleted_at: string | null
-          enqueued_at: string | null
-          id: number | null
-          job_id: string | null
-          key: string | null
-        }
-        Insert: {
-          bucket?: string | null
-          deleted_at?: string | null
-          enqueued_at?: string | null
-          id?: number | null
-          job_id?: string | null
-          key?: string | null
-        }
-        Update: {
-          bucket?: string | null
-          deleted_at?: string | null
-          enqueued_at?: string | null
-          id?: number | null
-          job_id?: string | null
-          key?: string | null
-        }
-        Relationships: []
-      }
-      _ddl_backup_functions: {
-        Row: {
-          captured_at: string
-          ddl: string
-          id: number
-          obj_identity: string
-          obj_name: string
-          obj_schema: string
-        }
-        Insert: {
-          captured_at?: string
-          ddl: string
-          id?: never
-          obj_identity: string
-          obj_name: string
-          obj_schema: string
-        }
-        Update: {
-          captured_at?: string
-          ddl?: string
-          id?: never
-          obj_identity?: string
-          obj_name?: string
-          obj_schema?: string
-        }
-        Relationships: []
-      }
-      _view_backups: {
-        Row: {
-          def: string | null
-          saved_at: string | null
-          schema_name: string | null
-          view_name: string | null
-        }
-        Insert: {
-          def?: string | null
-          saved_at?: string | null
-          schema_name?: string | null
-          view_name?: string | null
-        }
-        Update: {
-          def?: string | null
-          saved_at?: string | null
-          schema_name?: string | null
-          view_name?: string | null
-        }
-        Relationships: []
-      }
       activities: {
         Row: {
           activity_name: string
@@ -141,7 +21,7 @@ export type Database = {
           area_id: number
           duration_days: number
           id: number
-          kind_id: string | null
+          kind_id: string
           section_id: number
           sub_section_id: number
         }
@@ -151,7 +31,7 @@ export type Database = {
           area_id: number
           duration_days?: number
           id?: number
-          kind_id?: string | null
+          kind_id: string
           section_id: number
           sub_section_id: number
         }
@@ -161,7 +41,7 @@ export type Database = {
           area_id?: number
           duration_days?: number
           id?: number
-          kind_id?: string | null
+          kind_id?: string
           section_id?: number
           sub_section_id?: number
         }
@@ -309,39 +189,6 @@ export type Database = {
           },
           {
             foreignKeyName: "app_module_clients_module_key_fkey"
-            columns: ["module_key"]
-            isOneToOne: false
-            referencedRelation: "v_app_module_registry"
-            referencedColumns: ["module_key"]
-          },
-        ]
-      }
-      app_module_legacy_map: {
-        Row: {
-          legacy_key: string
-          module_key: string
-          source_system: string
-        }
-        Insert: {
-          legacy_key: string
-          module_key: string
-          source_system: string
-        }
-        Update: {
-          legacy_key?: string
-          module_key?: string
-          source_system?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "app_module_legacy_map_module_key_fkey"
-            columns: ["module_key"]
-            isOneToOne: false
-            referencedRelation: "app_modules"
-            referencedColumns: ["module_key"]
-          },
-          {
-            foreignKeyName: "app_module_legacy_map_module_key_fkey"
             columns: ["module_key"]
             isOneToOne: false
             referencedRelation: "v_app_module_registry"
@@ -717,6 +564,384 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_batch_plan_rollup"
             referencedColumns: ["header_id"]
+          },
+        ]
+      }
+      bmr_administrative_corrections: {
+        Row: {
+          after_snapshot: Json
+          batch_plan_batch_id: number
+          batch_plan_header_id: number
+          before_snapshot: Json
+          client_request_id: string
+          correction_no: string
+          executed_at: string
+          executed_by: string
+          id: number
+          impact_acknowledged: boolean
+          new_bmr_batch_size: number | null
+          new_bmr_id: number | null
+          new_bn: string | null
+          old_bmr_batch_size: number | null
+          old_bmr_id: number | null
+          old_bn: string | null
+          operation_result: string
+          operation_type: string
+          planned_batch_size: number
+          product_id: number
+          reason: string
+          requested_at: string
+          requested_by: string
+          status: string
+          supporting_reference: string | null
+          uom: string | null
+          validation_snapshot: Json
+        }
+        Insert: {
+          after_snapshot: Json
+          batch_plan_batch_id: number
+          batch_plan_header_id: number
+          before_snapshot: Json
+          client_request_id: string
+          correction_no: string
+          executed_at?: string
+          executed_by: string
+          id?: never
+          impact_acknowledged: boolean
+          new_bmr_batch_size?: number | null
+          new_bmr_id?: number | null
+          new_bn?: string | null
+          old_bmr_batch_size?: number | null
+          old_bmr_id?: number | null
+          old_bn?: string | null
+          operation_result: string
+          operation_type: string
+          planned_batch_size: number
+          product_id: number
+          reason: string
+          requested_at?: string
+          requested_by: string
+          status?: string
+          supporting_reference?: string | null
+          uom?: string | null
+          validation_snapshot: Json
+        }
+        Update: {
+          after_snapshot?: Json
+          batch_plan_batch_id?: number
+          batch_plan_header_id?: number
+          before_snapshot?: Json
+          client_request_id?: string
+          correction_no?: string
+          executed_at?: string
+          executed_by?: string
+          id?: never
+          impact_acknowledged?: boolean
+          new_bmr_batch_size?: number | null
+          new_bmr_id?: number | null
+          new_bn?: string | null
+          old_bmr_batch_size?: number | null
+          old_bmr_id?: number | null
+          old_bn?: string | null
+          operation_result?: string
+          operation_type?: string
+          planned_batch_size?: number
+          product_id?: number
+          reason?: string
+          requested_at?: string
+          requested_by?: string
+          status?: string
+          supporting_reference?: string | null
+          uom?: string | null
+          validation_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bmr_administrative_corrections_batch_plan_batch_id_fkey"
+            columns: ["batch_plan_batch_id"]
+            isOneToOne: false
+            referencedRelation: "batch_plan_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_batch_plan_batch_id_fkey"
+            columns: ["batch_plan_batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_plan_batches_enriched"
+            referencedColumns: ["batch_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_batch_plan_batch_id_fkey"
+            columns: ["batch_plan_batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_plan_batches_status"
+            referencedColumns: ["batch_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_batch_plan_batch_id_fkey"
+            columns: ["batch_plan_batch_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_plan_mapping"
+            referencedColumns: ["batch_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_batch_plan_header_id_fkey"
+            columns: ["batch_plan_header_id"]
+            isOneToOne: false
+            referencedRelation: "batch_plan_headers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_batch_plan_header_id_fkey"
+            columns: ["batch_plan_header_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_plan_mapping_rollup"
+            referencedColumns: ["header_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_batch_plan_header_id_fkey"
+            columns: ["batch_plan_header_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_plan_rollup"
+            referencedColumns: ["header_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_new_bmr_id_fkey"
+            columns: ["new_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "bmr_card_not_initiated"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_new_bmr_id_fkey"
+            columns: ["new_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "bmr_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_new_bmr_id_fkey"
+            columns: ["new_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_pm_usage"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_new_bmr_id_fkey"
+            columns: ["new_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_rm_requirement"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_new_bmr_id_fkey"
+            columns: ["new_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_rm_usage"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_new_bmr_id_fkey"
+            columns: ["new_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_bmr_with_map_flag"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_new_bmr_id_fkey"
+            columns: ["new_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_pm_issues_clean"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_old_bmr_id_fkey"
+            columns: ["old_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "bmr_card_not_initiated"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_old_bmr_id_fkey"
+            columns: ["old_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "bmr_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_old_bmr_id_fkey"
+            columns: ["old_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_pm_usage"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_old_bmr_id_fkey"
+            columns: ["old_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_rm_requirement"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_old_bmr_id_fkey"
+            columns: ["old_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_batch_rm_usage"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_old_bmr_id_fkey"
+            columns: ["old_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_bmr_with_map_flag"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_old_bmr_id_fkey"
+            columns: ["old_bmr_id"]
+            isOneToOne: false
+            referencedRelation: "v_rm_pm_issues_clean"
+            referencedColumns: ["bmr_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "bmr_administrative_corrections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1121,6 +1346,42 @@ export type Database = {
           id?: number
           message?: string
           status?: string
+        }
+        Relationships: []
+      }
+      etl_job_status_history: {
+        Row: {
+          attempts: number | null
+          changed_at: string
+          error_text: string | null
+          history_id: number
+          job_id: string
+          job_type: string
+          new_status: Database["public"]["Enums"]["job_status"]
+          old_status: Database["public"]["Enums"]["job_status"] | null
+          validation_status: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          changed_at?: string
+          error_text?: string | null
+          history_id?: never
+          job_id: string
+          job_type: string
+          new_status: Database["public"]["Enums"]["job_status"]
+          old_status?: Database["public"]["Enums"]["job_status"] | null
+          validation_status?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          changed_at?: string
+          error_text?: string | null
+          history_id?: never
+          job_id?: string
+          job_type?: string
+          new_status?: Database["public"]["Enums"]["job_status"]
+          old_status?: Database["public"]["Enums"]["job_status"] | null
+          validation_status?: string | null
         }
         Relationships: []
       }
@@ -2070,6 +2331,78 @@ export type Database = {
           },
         ]
       }
+      godown_master_audit: {
+        Row: {
+          actor_user_id: string
+          approval_reference: string | null
+          event_at: string
+          event_type: string
+          godown_id: number
+          id: number
+          new_snapshot: Json
+          old_snapshot: Json | null
+          reason: string
+        }
+        Insert: {
+          actor_user_id: string
+          approval_reference?: string | null
+          event_at?: string
+          event_type: string
+          godown_id: number
+          id?: number
+          new_snapshot: Json
+          old_snapshot?: Json | null
+          reason: string
+        }
+        Update: {
+          actor_user_id?: string
+          approval_reference?: string | null
+          event_at?: string
+          event_type?: string
+          godown_id?: number
+          id?: number
+          new_snapshot?: Json
+          old_snapshot?: Json | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "godown_master_audit_godown_id_fkey"
+            columns: ["godown_id"]
+            isOneToOne: false
+            referencedRelation: "godowns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "godown_master_audit_godown_id_fkey"
+            columns: ["godown_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_godown_region"
+            referencedColumns: ["godown_id"]
+          },
+          {
+            foreignKeyName: "godown_master_audit_godown_id_fkey"
+            columns: ["godown_id"]
+            isOneToOne: false
+            referencedRelation: "v_tally_fg_transfer_daily_batch_agg"
+            referencedColumns: ["transfer_godown_id"]
+          },
+          {
+            foreignKeyName: "godown_master_audit_godown_id_fkey"
+            columns: ["godown_id"]
+            isOneToOne: false
+            referencedRelation: "v_tally_fg_transfer_normalized"
+            referencedColumns: ["transfer_godown_id"]
+          },
+          {
+            foreignKeyName: "godown_master_audit_godown_id_fkey"
+            columns: ["godown_id"]
+            isOneToOne: false
+            referencedRelation: "v_tally_fg_transfer_normalized_valued"
+            referencedColumns: ["transfer_godown_id"]
+          },
+        ]
+      }
       godowns: {
         Row: {
           code: string
@@ -2618,13 +2951,6 @@ export type Database = {
             referencedColumns: ["uom_id"]
           },
           {
-            foreignKeyName: "inv_rm_form_conversion_consume_uom_id_fkey"
-            columns: ["consume_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "inv_rm_form_conversion_purchase_stock_item_id_fkey"
             columns: ["purchase_stock_item_id"]
             isOneToOne: false
@@ -2806,13 +3132,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_rm_form_conversion_purchase_uom_id_fkey"
-            columns: ["purchase_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       inv_stock_item: {
@@ -2872,13 +3191,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["default_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -3546,13 +3858,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_moq_policy_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       inv_stock_item_season_profile: {
@@ -3851,13 +4156,6 @@ export type Database = {
             referencedColumns: ["uom_id"]
           },
           {
-            foreignKeyName: "inv_uom_conversion_from_uom_id_fkey"
-            columns: ["from_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "inv_uom_conversion_to_uom_id_fkey"
             columns: ["to_uom_id"]
             isOneToOne: false
@@ -3870,13 +4168,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_uom_conversion_to_uom_id_fkey"
-            columns: ["to_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -5252,13 +5543,6 @@ export type Database = {
             referencedColumns: ["uom_id"]
           },
           {
-            foreignKeyName: "plm_bom_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "plm_bom_header_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: true
@@ -5603,304 +5887,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "plm_bom_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      plm_bom_tpl_header: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: number
-          last_updated_at: string
-          last_updated_by: string | null
-          notes: string | null
-          pack_format_code: string
-          reference_output_qty: number
-          reference_output_uom_id: number
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: number
-          last_updated_at?: string
-          last_updated_by?: string | null
-          notes?: string | null
-          pack_format_code: string
-          reference_output_qty: number
-          reference_output_uom_id: number
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: number
-          last_updated_at?: string
-          last_updated_by?: string | null
-          notes?: string | null
-          pack_format_code?: string
-          reference_output_qty?: number
-          reference_output_uom_id?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plm_bom_tpl_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "inv_uom"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_sku_picker"
-            referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      plm_bom_tpl_line: {
-        Row: {
-          id: number
-          is_optional: boolean
-          line_no: number
-          qty_per_reference_output: number
-          remarks: string | null
-          stock_item_id: number
-          tpl_id: number
-          uom_id: number
-          wastage_pct: number | null
-        }
-        Insert: {
-          id?: number
-          is_optional?: boolean
-          line_no: number
-          qty_per_reference_output: number
-          remarks?: string | null
-          stock_item_id: number
-          tpl_id: number
-          uom_id: number
-          wastage_pct?: number | null
-        }
-        Update: {
-          id?: number
-          is_optional?: boolean
-          line_no?: number
-          qty_per_reference_output?: number
-          remarks?: string | null
-          stock_item_id?: number
-          tpl_id?: number
-          uom_id?: number
-          wastage_pct?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "inv_stock_item"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_costing_material_manual_rate_review"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_inv_stock_item_with_class"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_item_consumption_consumables_monthly"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_item_consumption_rm_pm_monthly"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_picker_sp_owners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_excess_acceptance_audit_console"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_indent_excess_supply_net"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_best_avg_last3"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_best_rate_180d"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_history"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_last_purchase"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_excess_console"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_fact_with_vendor"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_unallocated"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_unallocated_net"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchases_for_indent"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_purchases_by_item"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_purchases_summary_by_item"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_rm_seasonal_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_rm_stock_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_semiprocess_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_item_picker"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_items_with_semiflag"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_tpl_id_fkey"
-            columns: ["tpl_id"]
-            isOneToOne: false
-            referencedRelation: "plm_bom_tpl_header"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "inv_uom"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_sku_picker"
-            referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "plm_bom_tpl_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       plm_pack_format: {
@@ -5939,13 +5925,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "plm_pack_format_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -6172,13 +6151,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "plm_pack_format_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -6676,13 +6648,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "plm_sku_plm_override_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       plm_tpl_header: {
@@ -6721,13 +6686,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "plm_tpl_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -6961,13 +6919,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "plm_tpl_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -7784,22 +7735,16 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
-      proc_indent_line_balance_snapshot: {
+      proc_indent_line_balance_generation: {
         Row: {
           indent_id: number
           indent_line_id: number
           material_class_id: number | null
           refreshed_at: string
           remaining_qty: number
+          run_id: number
           stock_item_id: number | null
         }
         Insert: {
@@ -7808,6 +7753,7 @@ export type Database = {
           material_class_id?: number | null
           refreshed_at?: string
           remaining_qty: number
+          run_id: number
           stock_item_id?: number | null
         }
         Update: {
@@ -7816,11 +7762,20 @@ export type Database = {
           material_class_id?: number | null
           refreshed_at?: string
           remaining_qty?: number
+          run_id?: number
           stock_item_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_balance_generation_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "proc_snapshot_refresh_run"
+            referencedColumns: ["run_id"]
+          },
+        ]
       }
-      proc_indent_line_priority_snapshot: {
+      proc_indent_line_priority_generation: {
         Row: {
           aging_days: number | null
           approved_date: string | null
@@ -7850,6 +7805,7 @@ export type Database = {
           prod_pull_score: number | null
           prod_pull_why: Json | null
           refreshed_at: string
+          run_id: number
           score_aging: number | null
           score_criticality: number | null
           score_lead_time: number | null
@@ -7894,6 +7850,7 @@ export type Database = {
           prod_pull_score?: number | null
           prod_pull_why?: Json | null
           refreshed_at?: string
+          run_id: number
           score_aging?: number | null
           score_criticality?: number | null
           score_lead_time?: number | null
@@ -7938,6 +7895,7 @@ export type Database = {
           prod_pull_score?: number | null
           prod_pull_why?: Json | null
           refreshed_at?: string
+          run_id?: number
           score_aging?: number | null
           score_criticality?: number | null
           score_lead_time?: number | null
@@ -7953,7 +7911,15 @@ export type Database = {
           urgency_reason?: string | null
           urgency_score?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_priority_generation_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "proc_snapshot_refresh_run"
+            referencedColumns: ["run_id"]
+          },
+        ]
       }
       proc_indent_line_sourcing_decision: {
         Row: {
@@ -7996,6 +7962,83 @@ export type Database = {
           vendor_assignment_cleared?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "proc_indent_line"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_fifo_allocation"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_line_balance"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_lines_all"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_lines_console"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_lines_console_ordered"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_open_lines"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_priority_final"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_priority_system"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_indent_sourcing_variance"
+            referencedColumns: ["indent_line_id"]
+          },
+          {
+            foreignKeyName: "proc_indent_line_sourcing_decision_line_fk"
+            columns: ["indent_line_id"]
+            isOneToOne: true
+            referencedRelation: "v_proc_procurement_action_queue"
+            referencedColumns: ["indent_line_id"]
+          },
           {
             foreignKeyName: "proc_indent_line_sourcing_decision_rec_fk"
             columns: ["recommended_vendor_id"]
@@ -8168,6 +8211,57 @@ export type Database = {
         }
         Relationships: []
       }
+      proc_lifecycle_audit: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          after_state: Json | null
+          before_state: Json | null
+          context: Json
+          entity_id: number | null
+          entity_type: string
+          event_at: string
+          event_id: number
+          event_type: string
+          parent_entity_id: number | null
+          parent_entity_type: string | null
+          reason: string | null
+          transaction_id: number
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          context?: Json
+          entity_id?: number | null
+          entity_type: string
+          event_at?: string
+          event_id?: number
+          event_type: string
+          parent_entity_id?: number | null
+          parent_entity_type?: string | null
+          reason?: string | null
+          transaction_id?: number
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          context?: Json
+          entity_id?: number | null
+          entity_type?: string
+          event_at?: string
+          event_id?: number
+          event_type?: string
+          parent_entity_id?: number | null
+          parent_entity_type?: string | null
+          reason?: string | null
+          transaction_id?: number
+        }
+        Relationships: []
+      }
       proc_pr_header: {
         Row: {
           created_at: string
@@ -8303,13 +8397,6 @@ export type Database = {
             columns: ["indent_line_id"]
             isOneToOne: true
             referencedRelation: "v_proc_indent_line_balance"
-            referencedColumns: ["indent_line_id"]
-          },
-          {
-            foreignKeyName: "proc_pr_indent_line_map_indent_line_id_fkey"
-            columns: ["indent_line_id"]
-            isOneToOne: true
-            referencedRelation: "v_proc_indent_line_buylist_base"
             referencedColumns: ["indent_line_id"]
           },
           {
@@ -8624,6 +8711,53 @@ export type Database = {
           },
         ]
       }
+      proc_snapshot_refresh_control: {
+        Row: {
+          completed_revision: number
+          last_request_source: string | null
+          last_requested_at: string | null
+          last_requested_by: string | null
+          published_at: string | null
+          published_revision: number
+          published_run_id: number | null
+          refresh_name: string
+          requested_revision: number
+          updated_at: string
+        }
+        Insert: {
+          completed_revision?: number
+          last_request_source?: string | null
+          last_requested_at?: string | null
+          last_requested_by?: string | null
+          published_at?: string | null
+          published_revision?: number
+          published_run_id?: number | null
+          refresh_name: string
+          requested_revision?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_revision?: number
+          last_request_source?: string | null
+          last_requested_at?: string | null
+          last_requested_by?: string | null
+          published_at?: string | null
+          published_revision?: number
+          published_run_id?: number | null
+          refresh_name?: string
+          requested_revision?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proc_snapshot_refresh_control_published_run_id_fkey"
+            columns: ["published_run_id"]
+            isOneToOne: false
+            referencedRelation: "proc_snapshot_refresh_run"
+            referencedColumns: ["run_id"]
+          },
+        ]
+      }
       proc_snapshot_refresh_log: {
         Row: {
           finished_at: string | null
@@ -8662,7 +8796,9 @@ export type Database = {
       }
       proc_snapshot_refresh_run: {
         Row: {
+          coalesced_request_count: number
           finished_at: string | null
+          latest_requested_revision: number
           message: string | null
           refresh_name: string
           request_source: string
@@ -8671,9 +8807,12 @@ export type Database = {
           run_id: number
           started_at: string | null
           status: string
+          target_revision: number
         }
         Insert: {
+          coalesced_request_count?: number
           finished_at?: string | null
+          latest_requested_revision?: number
           message?: string | null
           refresh_name?: string
           request_source?: string
@@ -8682,9 +8821,12 @@ export type Database = {
           run_id?: number
           started_at?: string | null
           status?: string
+          target_revision?: number
         }
         Update: {
+          coalesced_request_count?: number
           finished_at?: string | null
+          latest_requested_revision?: number
           message?: string | null
           refresh_name?: string
           request_source?: string
@@ -8693,6 +8835,7 @@ export type Database = {
           run_id?: number
           started_at?: string | null
           status?: string
+          target_revision?: number
         }
         Relationships: []
       }
@@ -8948,12 +9091,13 @@ export type Database = {
           },
         ]
       }
-      proc_vendor_item_candidate_snapshot: {
+      proc_vendor_item_candidate_generation: {
         Row: {
           evidence: Json
           material_class_id: number
           rate_value: number
           refreshed_at: string
+          run_id: number
           source_summary: string | null
           stock_item_id: number
           vendor_id: number
@@ -8963,6 +9107,7 @@ export type Database = {
           material_class_id: number
           rate_value: number
           refreshed_at?: string
+          run_id: number
           source_summary?: string | null
           stock_item_id: number
           vendor_id: number
@@ -8972,11 +9117,20 @@ export type Database = {
           material_class_id?: number
           rate_value?: number
           refreshed_at?: string
+          run_id?: number
           source_summary?: string | null
           stock_item_id?: number
           vendor_id?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "proc_vendor_item_candidate_generation_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "proc_snapshot_refresh_run"
+            referencedColumns: ["run_id"]
+          },
+        ]
       }
       proc_vendor_item_rate: {
         Row: {
@@ -9159,6 +9313,183 @@ export type Database = {
           product_name?: string
         }
         Relationships: []
+      }
+      product_master_audit: {
+        Row: {
+          actor_user_id: string
+          approval_reference: string | null
+          event_at: string
+          event_type: string
+          id: number
+          new_snapshot: Json
+          old_snapshot: Json | null
+          product_id: number
+          reason: string
+        }
+        Insert: {
+          actor_user_id: string
+          approval_reference?: string | null
+          event_at?: string
+          event_type: string
+          id?: number
+          new_snapshot: Json
+          old_snapshot?: Json | null
+          product_id: number
+          reason: string
+        }
+        Update: {
+          actor_user_id?: string
+          approval_reference?: string | null
+          event_at?: string
+          event_type?: string
+          id?: number
+          new_snapshot?: Json
+          old_snapshot?: Json | null
+          product_id?: number
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+        ]
       }
       product_references: {
         Row: {
@@ -9540,6 +9871,305 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_season_calendar"
             referencedColumns: ["season_profile_id"]
+          },
+        ]
+      }
+      product_sku_master_audit: {
+        Row: {
+          actor_user_id: string
+          approval_reference: string | null
+          event_at: string
+          event_type: string
+          id: number
+          new_snapshot: Json
+          old_snapshot: Json | null
+          product_id: number
+          reason: string
+          sku_id: number
+        }
+        Insert: {
+          actor_user_id: string
+          approval_reference?: string | null
+          event_at?: string
+          event_type: string
+          id?: number
+          new_snapshot: Json
+          old_snapshot?: Json | null
+          product_id: number
+          reason: string
+          sku_id: number
+        }
+        Update: {
+          actor_user_id?: string
+          approval_reference?: string | null
+          event_at?: string
+          event_type?: string
+          id?: number
+          new_snapshot?: Json
+          old_snapshot?: Json | null
+          product_id?: number
+          reason?: string
+          sku_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fg_bulk_stock"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_fg_bulk_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mv_wip_rollup"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_bottled_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_bulk_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_storage_residuals"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_fg_wip_stock_by_product_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_picker_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_bulk_soh"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_details"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_reference_readiness"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_product_hierarchy"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_batches"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_expected_output_base"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "product_skus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_scheme_policy_rule_register"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_costing_scheme_policy_selected_overview"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_dwl_fg_transfer_event_lines"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_mrp_plm_issue_monthly_enriched"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_mrp_adjustment_evidence"
+            referencedColumns: ["target_sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_sku_share_current_month"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sdv_dim_sku"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_catalog_enriched"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_llt_attrs"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_picker"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_planning_attrs"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_plm_requirement_unit"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_seasonal_attrs"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_to_base_multiplier"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_sku_without_pack_format_map"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "product_sku_master_audit_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_checker"
+            referencedColumns: ["sku_id"]
           },
         ]
       }
@@ -10141,40 +10771,61 @@ export type Database = {
       }
       production_batch_size_ref: {
         Row: {
+          change_reason: string | null
           created_at: string
+          created_by: string | null
           effective_from: string
+          effective_to: string | null
           id: number
+          inactivated_at: string | null
+          inactivated_by: string | null
           is_active: boolean
           max_batch_size: number | null
           min_batch_size: number | null
           notes: string | null
           preferred_batch_size: number
           product_id: number
+          supersedes_reference_id: number | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
+          change_reason?: string | null
           created_at?: string
+          created_by?: string | null
           effective_from?: string
+          effective_to?: string | null
           id?: number
+          inactivated_at?: string | null
+          inactivated_by?: string | null
           is_active?: boolean
           max_batch_size?: number | null
           min_batch_size?: number | null
           notes?: string | null
           preferred_batch_size: number
           product_id: number
+          supersedes_reference_id?: number | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
+          change_reason?: string | null
           created_at?: string
+          created_by?: string | null
           effective_from?: string
+          effective_to?: string | null
           id?: number
+          inactivated_at?: string | null
+          inactivated_by?: string | null
           is_active?: boolean
           max_batch_size?: number | null
           min_batch_size?: number | null
           notes?: string | null
           preferred_batch_size?: number
           product_id?: number
+          supersedes_reference_id?: number | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -10316,6 +10967,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_wip_expected_output_base"
             referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "production_batch_size_ref_supersedes_reference_id_fkey"
+            columns: ["supersedes_reference_id"]
+            isOneToOne: false
+            referencedRelation: "production_batch_size_ref"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -11114,13 +11772,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "rm_bom_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       rm_bom_line: {
@@ -11353,13 +12004,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "rm_bom_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -12939,13 +13583,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "sp_bom_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       sp_bom_line: {
@@ -13171,13 +13808,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "sp_bom_line_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -14054,57 +14684,6 @@ export type Database = {
         }
         Relationships: []
       }
-      tally_sales_vreg_snapshot_backup_all: {
-        Row: {
-          act_qty_value: number | null
-          bill_qty_value: number | null
-          billed_amount_abs: number | null
-          billed_amount_value: number | null
-          canonical_qty_value: number | null
-          godown_label: string
-          id: number
-          inserted_at: string
-          parser_settings: Json | null
-          parser_version: string | null
-          source_desc: string | null
-          source_key: string | null
-          tally_item_name: string
-          voucher_date: string
-        }
-        Insert: {
-          act_qty_value?: number | null
-          bill_qty_value?: number | null
-          billed_amount_abs?: number | null
-          billed_amount_value?: number | null
-          canonical_qty_value?: number | null
-          godown_label: string
-          id?: number
-          inserted_at?: string
-          parser_settings?: Json | null
-          parser_version?: string | null
-          source_desc?: string | null
-          source_key?: string | null
-          tally_item_name: string
-          voucher_date: string
-        }
-        Update: {
-          act_qty_value?: number | null
-          bill_qty_value?: number | null
-          billed_amount_abs?: number | null
-          billed_amount_value?: number | null
-          canonical_qty_value?: number | null
-          godown_label?: string
-          id?: number
-          inserted_at?: string
-          parser_settings?: Json | null
-          parser_version?: string | null
-          source_desc?: string | null
-          source_key?: string | null
-          tally_item_name?: string
-          voucher_date?: string
-        }
-        Relationships: []
-      }
       tally_stock_by_name: {
         Row: {
           as_of_date: string
@@ -14163,42 +14742,6 @@ export type Database = {
             columns: ["text_id"]
             isOneToOne: false
             referencedRelation: "publication_details"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_permissions: {
-        Row: {
-          can_edit: boolean
-          can_view: boolean
-          module_id: string
-          user_id: string
-        }
-        Insert: {
-          can_edit?: boolean
-          can_view?: boolean
-          module_id: string
-          user_id: string
-        }
-        Update: {
-          can_edit?: boolean
-          can_view?: boolean
-          module_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_permissions_module_id_fkey"
-            columns: ["module_id"]
-            isOneToOne: false
-            referencedRelation: "modules"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_permissions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -16755,13 +17298,6 @@ export type Database = {
             referencedColumns: ["uom_id"]
           },
           {
-            foreignKeyName: "rm_bom_header_reference_output_uom_id_fkey"
-            columns: ["reference_output_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "rm_bom_line_stock_item_id_fkey"
             columns: ["stock_item_id"]
             isOneToOne: false
@@ -16942,13 +17478,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "rm_bom_line_uom_id_fkey"
-            columns: ["line_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -18289,16 +18818,25 @@ export type Database = {
           actual_sales_units_12m: number | null
           allocation_basis_status: string | null
           assumption_id: number | null
+          assumption_resolution_status: string | null
           assumption_source: string | null
           commercial_sales_basis: string | null
           commercial_sales_status: string | null
           commercial_sales_units: number | null
           commercial_sales_value: number | null
           commercial_sales_warning: string | null
+          default_policy_effective_from: string | null
+          default_policy_effective_to: string | null
+          default_policy_id: number | null
+          default_policy_scenario: string | null
+          default_resolution_status: string | null
+          default_sales_units: number | null
           lookback_end: string | null
           lookback_start: string | null
+          management_valuation_date: string | null
           manual_assumed_sales_units: number | null
           manual_assumed_sales_value: number | null
+          manual_assumption_approval_reference: string | null
           manual_assumption_basis: string | null
           manual_assumption_remarks: string | null
           manual_assumption_status: string | null
@@ -18376,6 +18914,7 @@ export type Database = {
           pm_review_affected_sku_count: number | null
           pm_review_item_count: number | null
           ready_sku_count: number | null
+          refresh_run_id: number | null
           review_required_sku_count: number | null
           rm_blocker_affected_sku_count: number | null
           rm_blocker_item_count: number | null
@@ -18407,96 +18946,7 @@ export type Database = {
           top_rm_review_stock_item_id: number | null
           top_rm_review_stock_item_name: string | null
           total_sku_count: number | null
-        }
-        Insert: {
-          blocked_sku_count?: number | null
-          generated_at?: string | null
-          material_cost_blocked_sku_count?: number | null
-          material_review_required_sku_count?: number | null
-          overall_control_note?: string | null
-          overall_control_status?: string | null
-          period_start?: string | null
-          pm_blocker_affected_sku_count?: number | null
-          pm_blocker_item_count?: number | null
-          pm_review_affected_sku_count?: number | null
-          pm_review_item_count?: number | null
-          ready_sku_count?: number | null
-          review_required_sku_count?: number | null
-          rm_blocker_affected_sku_count?: number | null
-          rm_blocker_item_count?: number | null
-          rm_review_affected_sku_count?: number | null
-          rm_review_item_count?: number | null
-          snapshot_refreshed_at?: string | null
-          top_pm_blocker_affected_line_count?: number | null
-          top_pm_blocker_affected_product_count?: number | null
-          top_pm_blocker_affected_sku_count?: number | null
-          top_pm_blocker_stock_item_code?: string | null
-          top_pm_blocker_stock_item_id?: number | null
-          top_pm_blocker_stock_item_name?: string | null
-          top_pm_review_affected_line_count?: number | null
-          top_pm_review_affected_product_count?: number | null
-          top_pm_review_affected_sku_count?: number | null
-          top_pm_review_stock_item_code?: string | null
-          top_pm_review_stock_item_id?: number | null
-          top_pm_review_stock_item_name?: string | null
-          top_rm_blocker_affected_line_count?: number | null
-          top_rm_blocker_affected_product_count?: number | null
-          top_rm_blocker_affected_sku_count?: number | null
-          top_rm_blocker_stock_item_code?: string | null
-          top_rm_blocker_stock_item_id?: number | null
-          top_rm_blocker_stock_item_name?: string | null
-          top_rm_review_affected_line_count?: number | null
-          top_rm_review_affected_product_count?: number | null
-          top_rm_review_affected_sku_count?: number | null
-          top_rm_review_stock_item_code?: string | null
-          top_rm_review_stock_item_id?: number | null
-          top_rm_review_stock_item_name?: string | null
-          total_sku_count?: number | null
-        }
-        Update: {
-          blocked_sku_count?: number | null
-          generated_at?: string | null
-          material_cost_blocked_sku_count?: number | null
-          material_review_required_sku_count?: number | null
-          overall_control_note?: string | null
-          overall_control_status?: string | null
-          period_start?: string | null
-          pm_blocker_affected_sku_count?: number | null
-          pm_blocker_item_count?: number | null
-          pm_review_affected_sku_count?: number | null
-          pm_review_item_count?: number | null
-          ready_sku_count?: number | null
-          review_required_sku_count?: number | null
-          rm_blocker_affected_sku_count?: number | null
-          rm_blocker_item_count?: number | null
-          rm_review_affected_sku_count?: number | null
-          rm_review_item_count?: number | null
-          snapshot_refreshed_at?: string | null
-          top_pm_blocker_affected_line_count?: number | null
-          top_pm_blocker_affected_product_count?: number | null
-          top_pm_blocker_affected_sku_count?: number | null
-          top_pm_blocker_stock_item_code?: string | null
-          top_pm_blocker_stock_item_id?: number | null
-          top_pm_blocker_stock_item_name?: string | null
-          top_pm_review_affected_line_count?: number | null
-          top_pm_review_affected_product_count?: number | null
-          top_pm_review_affected_sku_count?: number | null
-          top_pm_review_stock_item_code?: string | null
-          top_pm_review_stock_item_id?: number | null
-          top_pm_review_stock_item_name?: string | null
-          top_rm_blocker_affected_line_count?: number | null
-          top_rm_blocker_affected_product_count?: number | null
-          top_rm_blocker_affected_sku_count?: number | null
-          top_rm_blocker_stock_item_code?: string | null
-          top_rm_blocker_stock_item_id?: number | null
-          top_rm_blocker_stock_item_name?: string | null
-          top_rm_review_affected_line_count?: number | null
-          top_rm_review_affected_product_count?: number | null
-          top_rm_review_affected_sku_count?: number | null
-          top_rm_review_stock_item_code?: string | null
-          top_rm_review_stock_item_id?: number | null
-          top_rm_review_stock_item_name?: string | null
-          total_sku_count?: number | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -18518,25 +18968,9 @@ export type Database = {
           expected_rule: string | null
           observed_count: number | null
           period_start: string | null
+          refresh_run_id: number | null
           snapshot_refreshed_at: string | null
-        }
-        Insert: {
-          check_code?: string | null
-          check_status?: string | null
-          diagnostic_note?: string | null
-          expected_rule?: string | null
-          observed_count?: number | null
-          period_start?: string | null
-          snapshot_refreshed_at?: string | null
-        }
-        Update: {
-          check_code?: string | null
-          check_status?: string | null
-          diagnostic_note?: string | null
-          expected_rule?: string | null
-          observed_count?: number | null
-          period_start?: string | null
-          snapshot_refreshed_at?: string | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -18557,13 +18991,17 @@ export type Database = {
           line_label: string | null
           line_order: number | null
           line_trace_id: number | null
+          material_cost_snapshot_id: number | null
           period_start: string | null
           product_id: number | null
           product_name: string | null
+          refresh_run_id: number | null
           refresh_stage_code: string | null
           refreshed_at: string | null
+          scheme_viability_snapshot_id: number | null
           section_code: string | null
           section_title: string | null
+          selected_scheme_policy_context_id: number | null
           sku_column_label: string | null
           sku_id: number | null
           source_lens_id: string | null
@@ -18574,83 +19012,10 @@ export type Database = {
           trace_source_snapshot: string | null
           trace_source_type: string | null
           trace_summary: string | null
+          valuation_date: string | null
           value_numeric: number | null
           value_text: string | null
           value_type: string | null
-        }
-        Insert: {
-          audit_hint?: string | null
-          calculation_basis?: string | null
-          control_hint?: string | null
-          cost_sheet_note?: string | null
-          cost_sheet_status?: string | null
-          created_at?: string | null
-          drill_filter_json?: Json | null
-          drill_route_lens_id?: string | null
-          drill_route_module_key?: string | null
-          evidence_json?: Json | null
-          evidence_refreshed_at?: string | null
-          line_description?: string | null
-          line_label?: string | null
-          line_order?: number | null
-          line_trace_id?: number | null
-          period_start?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          refresh_stage_code?: string | null
-          refreshed_at?: string | null
-          section_code?: string | null
-          section_title?: string | null
-          sku_column_label?: string | null
-          sku_id?: number | null
-          source_lens_id?: string | null
-          source_module_key?: string | null
-          source_module_label?: string | null
-          source_note?: string | null
-          trace_formula?: string | null
-          trace_source_snapshot?: string | null
-          trace_source_type?: string | null
-          trace_summary?: string | null
-          value_numeric?: number | null
-          value_text?: string | null
-          value_type?: string | null
-        }
-        Update: {
-          audit_hint?: string | null
-          calculation_basis?: string | null
-          control_hint?: string | null
-          cost_sheet_note?: string | null
-          cost_sheet_status?: string | null
-          created_at?: string | null
-          drill_filter_json?: Json | null
-          drill_route_lens_id?: string | null
-          drill_route_module_key?: string | null
-          evidence_json?: Json | null
-          evidence_refreshed_at?: string | null
-          line_description?: string | null
-          line_label?: string | null
-          line_order?: number | null
-          line_trace_id?: number | null
-          period_start?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          refresh_stage_code?: string | null
-          refreshed_at?: string | null
-          section_code?: string | null
-          section_title?: string | null
-          sku_column_label?: string | null
-          sku_id?: number | null
-          source_lens_id?: string | null
-          source_module_key?: string | null
-          source_module_label?: string | null
-          source_note?: string | null
-          trace_formula?: string | null
-          trace_source_snapshot?: string | null
-          trace_source_type?: string | null
-          trace_summary?: string | null
-          value_numeric?: number | null
-          value_text?: string | null
-          value_type?: string | null
         }
         Relationships: []
       }
@@ -18682,6 +19047,7 @@ export type Database = {
           product_base_uom: string | null
           product_id: number | null
           product_name: string | null
+          product_rm_material_cost_line_snapshot_id: number | null
           purchase_stock_item_id: number | null
           purchase_stock_item_name: string | null
           purchase_uom_code: string | null
@@ -18692,6 +19058,7 @@ export type Database = {
           rate_warning_code: string | null
           rate_warning_flag: boolean | null
           rate_warning_text: string | null
+          refresh_run_id: number | null
           review_state_label: string | null
           rm_cost_per_base_unit_line: number | null
           rm_cost_per_sku_line: number | null
@@ -18701,8 +19068,11 @@ export type Database = {
           semi_stock_item_names: string | null
           sku_column_label: string | null
           sku_id: number | null
+          sku_material_cost_snapshot_id: number | null
           sku_qty_purchase_form: number | null
+          sku_rm_material_cost_line_snapshot_id: number | null
           snapshot_refreshed_at: string | null
+          valuation_date: string | null
         }
         Insert: {
           action_required?: string | null
@@ -18731,6 +19101,7 @@ export type Database = {
           product_base_uom?: string | null
           product_id?: number | null
           product_name?: string | null
+          product_rm_material_cost_line_snapshot_id?: number | null
           purchase_stock_item_id?: number | null
           purchase_stock_item_name?: string | null
           purchase_uom_code?: string | null
@@ -18741,6 +19112,7 @@ export type Database = {
           rate_warning_code?: string | null
           rate_warning_flag?: boolean | null
           rate_warning_text?: string | null
+          refresh_run_id?: number | null
           review_state_label?: string | null
           rm_cost_per_base_unit_line?: number | null
           rm_cost_per_sku_line?: number | null
@@ -18750,8 +19122,11 @@ export type Database = {
           semi_stock_item_names?: string | null
           sku_column_label?: string | null
           sku_id?: number | null
+          sku_material_cost_snapshot_id?: number | null
           sku_qty_purchase_form?: number | null
+          sku_rm_material_cost_line_snapshot_id?: number | null
           snapshot_refreshed_at?: string | null
+          valuation_date?: string | null
         }
         Update: {
           action_required?: string | null
@@ -18780,6 +19155,7 @@ export type Database = {
           product_base_uom?: string | null
           product_id?: number | null
           product_name?: string | null
+          product_rm_material_cost_line_snapshot_id?: number | null
           purchase_stock_item_id?: number | null
           purchase_stock_item_name?: string | null
           purchase_uom_code?: string | null
@@ -18790,6 +19166,7 @@ export type Database = {
           rate_warning_code?: string | null
           rate_warning_flag?: boolean | null
           rate_warning_text?: string | null
+          refresh_run_id?: number | null
           review_state_label?: string | null
           rm_cost_per_base_unit_line?: number | null
           rm_cost_per_sku_line?: number | null
@@ -18799,8 +19176,11 @@ export type Database = {
           semi_stock_item_names?: string | null
           sku_column_label?: string | null
           sku_id?: number | null
+          sku_material_cost_snapshot_id?: number | null
           sku_qty_purchase_form?: number | null
+          sku_rm_material_cost_line_snapshot_id?: number | null
           snapshot_refreshed_at?: string | null
+          valuation_date?: string | null
         }
         Relationships: []
       }
@@ -18816,6 +19196,7 @@ export type Database = {
           pricing_bridge_ready_count: number | null
           pricing_bridge_review_required_count: number | null
           pricing_bridge_sku_count: number | null
+          refresh_run_id: number | null
           scheme_blocked_count: number | null
           scheme_ready_count: number | null
           scheme_review_required_count: number | null
@@ -18824,6 +19205,7 @@ export type Database = {
           selling_price_ready_count: number | null
           selling_price_review_required_count: number | null
           selling_price_sku_count: number | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -18914,6 +19296,9 @@ export type Database = {
           form_conversion_consume_uom_id: number | null
           form_conversion_factor: number | null
           form_conversion_purchase_uom_id: number | null
+          frozen_pm_line_snapshot_id: number | null
+          frozen_rm_line_snapshot_id: number | null
+          frozen_source_type: string | null
           ik_margin_amount_before_scheme: number | null
           ik_margin_percent_before_scheme: number | null
           ik_selling_price: number | null
@@ -18947,6 +19332,7 @@ export type Database = {
           rate_resolution_note: string | null
           rate_source: string | null
           recommended_ui_route: string | null
+          refresh_run_id: number | null
           resolved_rate_stock_item_code: string | null
           resolved_rate_stock_item_default_uom_id: number | null
           resolved_rate_stock_item_id: number | null
@@ -18971,155 +19357,10 @@ export type Database = {
           stock_item_id: number | null
           stock_item_name: string | null
           uom_id: number | null
+          valuation_date: string | null
           warning_code: string | null
           warning_text: string | null
           wastage_pct: number | null
-        }
-        Insert: {
-          action_note?: string | null
-          action_required?: string | null
-          action_severity?: string | null
-          approval_block_flag?: boolean | null
-          bom_source?: string | null
-          drilldown_resolution_type?: string | null
-          first_control_status?: string | null
-          form_conversion_applied?: boolean | null
-          form_conversion_consume_uom_id?: number | null
-          form_conversion_factor?: number | null
-          form_conversion_purchase_uom_id?: number | null
-          ik_margin_amount_before_scheme?: number | null
-          ik_margin_percent_before_scheme?: number | null
-          ik_selling_price?: number | null
-          is_optional?: boolean | null
-          line_no?: number | null
-          material_area?: string | null
-          material_cost_per_sku?: number | null
-          material_costing_status?: string | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          mrp_ik?: number | null
-          mrp_ok?: number | null
-          ok_margin_amount_before_scheme?: number | null
-          ok_margin_percent_before_scheme?: number | null
-          ok_selling_price?: number | null
-          pack_size?: number | null
-          pack_uom?: string | null
-          period_start?: string | null
-          pm_blocking_line_count?: number | null
-          pm_costing_status?: string | null
-          pm_manual_rate_line_count?: number | null
-          pm_review_rate_line_count?: number | null
-          pm_stale_purchase_rate_line_count?: number | null
-          pm_stock_valuation_fallback_line_count?: number | null
-          product_hierarchy?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          qty_per_reference_output?: number | null
-          rate_date?: string | null
-          rate_lookup_basis?: string | null
-          rate_resolution_note?: string | null
-          rate_source?: string | null
-          recommended_ui_route?: string | null
-          resolved_rate_stock_item_code?: string | null
-          resolved_rate_stock_item_default_uom_id?: number | null
-          resolved_rate_stock_item_id?: number | null
-          resolved_rate_stock_item_name?: string | null
-          rm_blocking_line_count?: number | null
-          rm_costing_status?: string | null
-          rm_manual_rate_line_count?: number | null
-          rm_review_rate_line_count?: number | null
-          rm_stale_purchase_rate_line_count?: number | null
-          rm_stock_valuation_fallback_line_count?: number | null
-          selected_rate?: number | null
-          sku_control_note?: string | null
-          sku_control_severity?: string | null
-          sku_id?: number | null
-          sku_recommended_ui_route?: string | null
-          snapshot_refreshed_at?: string | null
-          source_line_key?: string | null
-          source_pack_size?: number | null
-          source_sku_id?: number | null
-          source_sku_uom?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          uom_id?: number | null
-          warning_code?: string | null
-          warning_text?: string | null
-          wastage_pct?: number | null
-        }
-        Update: {
-          action_note?: string | null
-          action_required?: string | null
-          action_severity?: string | null
-          approval_block_flag?: boolean | null
-          bom_source?: string | null
-          drilldown_resolution_type?: string | null
-          first_control_status?: string | null
-          form_conversion_applied?: boolean | null
-          form_conversion_consume_uom_id?: number | null
-          form_conversion_factor?: number | null
-          form_conversion_purchase_uom_id?: number | null
-          ik_margin_amount_before_scheme?: number | null
-          ik_margin_percent_before_scheme?: number | null
-          ik_selling_price?: number | null
-          is_optional?: boolean | null
-          line_no?: number | null
-          material_area?: string | null
-          material_cost_per_sku?: number | null
-          material_costing_status?: string | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          mrp_ik?: number | null
-          mrp_ok?: number | null
-          ok_margin_amount_before_scheme?: number | null
-          ok_margin_percent_before_scheme?: number | null
-          ok_selling_price?: number | null
-          pack_size?: number | null
-          pack_uom?: string | null
-          period_start?: string | null
-          pm_blocking_line_count?: number | null
-          pm_costing_status?: string | null
-          pm_manual_rate_line_count?: number | null
-          pm_review_rate_line_count?: number | null
-          pm_stale_purchase_rate_line_count?: number | null
-          pm_stock_valuation_fallback_line_count?: number | null
-          product_hierarchy?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          qty_per_reference_output?: number | null
-          rate_date?: string | null
-          rate_lookup_basis?: string | null
-          rate_resolution_note?: string | null
-          rate_source?: string | null
-          recommended_ui_route?: string | null
-          resolved_rate_stock_item_code?: string | null
-          resolved_rate_stock_item_default_uom_id?: number | null
-          resolved_rate_stock_item_id?: number | null
-          resolved_rate_stock_item_name?: string | null
-          rm_blocking_line_count?: number | null
-          rm_costing_status?: string | null
-          rm_manual_rate_line_count?: number | null
-          rm_review_rate_line_count?: number | null
-          rm_stale_purchase_rate_line_count?: number | null
-          rm_stock_valuation_fallback_line_count?: number | null
-          selected_rate?: number | null
-          sku_control_note?: string | null
-          sku_control_severity?: string | null
-          sku_id?: number | null
-          sku_recommended_ui_route?: string | null
-          snapshot_refreshed_at?: string | null
-          source_line_key?: string | null
-          source_pack_size?: number | null
-          source_sku_id?: number | null
-          source_sku_uom?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          uom_id?: number | null
-          warning_code?: string | null
-          warning_text?: string | null
-          wastage_pct?: number | null
         }
         Relationships: []
       }
@@ -19175,6 +19416,7 @@ export type Database = {
           oldest_rate_date: string | null
           period_start: string | null
           recommended_ui_route: string | null
+          refresh_run_id: number | null
           review_line_count: number | null
           review_sku_count: number | null
           sample_product_name: string | null
@@ -19183,109 +19425,8 @@ export type Database = {
           stock_item_code: string | null
           stock_item_id: number | null
           stock_item_name: string | null
+          valuation_date: string | null
           warning_codes: string | null
-        }
-        Insert: {
-          action_note_summary?: string | null
-          action_required_summary?: string | null
-          action_severity?: string | null
-          affected_line_count?: number | null
-          affected_product_count?: number | null
-          affected_sku_count?: number | null
-          approval_blocking_line_count?: number | null
-          approval_blocking_sku_count?: number | null
-          bom_sources?: string | null
-          has_missing_rate_source?: boolean | null
-          has_missing_selected_rate?: boolean | null
-          has_optional_lines?: boolean | null
-          issue_codes?: string | null
-          latest_rate_date?: string | null
-          material_area?: string | null
-          material_line_statuses?: string | null
-          oldest_rate_date?: string | null
-          period_start?: string | null
-          recommended_ui_route?: string | null
-          review_line_count?: number | null
-          review_sku_count?: number | null
-          sample_product_name?: string | null
-          sample_sku_id?: number | null
-          snapshot_refreshed_at?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          warning_codes?: string | null
-        }
-        Update: {
-          action_note_summary?: string | null
-          action_required_summary?: string | null
-          action_severity?: string | null
-          affected_line_count?: number | null
-          affected_product_count?: number | null
-          affected_sku_count?: number | null
-          approval_blocking_line_count?: number | null
-          approval_blocking_sku_count?: number | null
-          bom_sources?: string | null
-          has_missing_rate_source?: boolean | null
-          has_missing_selected_rate?: boolean | null
-          has_optional_lines?: boolean | null
-          issue_codes?: string | null
-          latest_rate_date?: string | null
-          material_area?: string | null
-          material_line_statuses?: string | null
-          oldest_rate_date?: string | null
-          period_start?: string | null
-          recommended_ui_route?: string | null
-          review_line_count?: number | null
-          review_sku_count?: number | null
-          sample_product_name?: string | null
-          sample_sku_id?: number | null
-          snapshot_refreshed_at?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          warning_codes?: string | null
-        }
-        Relationships: []
-      }
-      v_costing_pricing_material_costing_diagnostics: {
-        Row: {
-          material_cost_per_sku: number | null
-          material_costing_note: string | null
-          material_costing_status: string | null
-          material_diagnostic_code: string | null
-          pack_size: number | null
-          pack_uom: string | null
-          pm_cost_per_sku: number | null
-          product_id: number | null
-          product_name: string | null
-          rm_cost_per_sku: number | null
-          sku_id: number | null
-        }
-        Insert: {
-          material_cost_per_sku?: number | null
-          material_costing_note?: string | null
-          material_costing_status?: string | null
-          material_diagnostic_code?: never
-          pack_size?: number | null
-          pack_uom?: string | null
-          pm_cost_per_sku?: number | null
-          product_id?: number | null
-          product_name?: string | null
-          rm_cost_per_sku?: number | null
-          sku_id?: number | null
-        }
-        Update: {
-          material_cost_per_sku?: number | null
-          material_costing_note?: string | null
-          material_costing_status?: string | null
-          material_diagnostic_code?: never
-          pack_size?: number | null
-          pack_uom?: string | null
-          pm_cost_per_sku?: number | null
-          product_id?: number | null
-          product_name?: string | null
-          rm_cost_per_sku?: number | null
-          sku_id?: number | null
         }
         Relationships: []
       }
@@ -19336,15 +19477,23 @@ export type Database = {
           cost_sheet_note: string | null
           cost_sheet_status: string | null
           group_name: string | null
+          ik_policy_resolution_status: string | null
+          ik_scheme_viability_snapshot_id: number | null
+          ik_selected_scheme_policy_context_id: number | null
           line_description: string | null
           line_label: string | null
           line_order: number | null
+          material_cost_snapshot_id: number | null
+          ok_policy_resolution_status: string | null
+          ok_scheme_viability_snapshot_id: number | null
+          ok_selected_scheme_policy_context_id: number | null
           pack_size: number | null
           pack_uom: string | null
           period_start: string | null
           product_hierarchy: string | null
           product_id: number | null
           product_name: string | null
+          refresh_run_id: number | null
           refreshed_at: string | null
           section_code: string | null
           section_title: string | null
@@ -19353,6 +19502,7 @@ export type Database = {
           source_note: string | null
           sub_group_name: string | null
           subcategory_name: string | null
+          valuation_date: string | null
           value_numeric: number | null
           value_text: string | null
           value_type: string | null
@@ -19372,6 +19522,7 @@ export type Database = {
           product_id: number | null
           product_name: string | null
           ready_line_count: number | null
+          refresh_run_id: number | null
           refreshed_at: string | null
           review_required_line_count: number | null
           sku_column_labels: string | null
@@ -19379,6 +19530,7 @@ export type Database = {
           snapshot_refreshed_at: string | null
           sub_group_name: string | null
           subcategory_name: string | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -19444,6 +19596,9 @@ export type Database = {
           form_conversion_consume_uom_id: number | null
           form_conversion_factor: number | null
           form_conversion_purchase_uom_id: number | null
+          frozen_pm_line_snapshot_id: number | null
+          frozen_rm_line_snapshot_id: number | null
+          frozen_source_type: string | null
           is_optional: boolean | null
           line_no: number | null
           material_issue_code: string | null
@@ -19458,6 +19613,7 @@ export type Database = {
           rate_lookup_basis: string | null
           rate_resolution_note: string | null
           rate_source: string | null
+          refresh_run_id: number | null
           resolved_rate_stock_item_code: string | null
           resolved_rate_stock_item_default_uom_id: number | null
           resolved_rate_stock_item_id: number | null
@@ -19470,85 +19626,10 @@ export type Database = {
           stock_item_id: number | null
           stock_item_name: string | null
           uom_id: number | null
+          valuation_date: string | null
           warning_code: string | null
           warning_text: string | null
           wastage_pct: number | null
-        }
-        Insert: {
-          action_required?: string | null
-          approval_block_flag?: boolean | null
-          bom_source?: string | null
-          form_conversion_applied?: boolean | null
-          form_conversion_consume_uom_id?: number | null
-          form_conversion_factor?: number | null
-          form_conversion_purchase_uom_id?: number | null
-          is_optional?: boolean | null
-          line_no?: number | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          pack_size?: number | null
-          period_start?: string | null
-          product_hierarchy?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          qty_per_reference_output?: number | null
-          rate_date?: string | null
-          rate_lookup_basis?: string | null
-          rate_resolution_note?: string | null
-          rate_source?: string | null
-          resolved_rate_stock_item_code?: string | null
-          resolved_rate_stock_item_default_uom_id?: number | null
-          resolved_rate_stock_item_id?: number | null
-          resolved_rate_stock_item_name?: string | null
-          selected_rate?: number | null
-          sku_id?: number | null
-          sku_uom?: string | null
-          snapshot_refreshed_at?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          uom_id?: number | null
-          warning_code?: string | null
-          warning_text?: string | null
-          wastage_pct?: number | null
-        }
-        Update: {
-          action_required?: string | null
-          approval_block_flag?: boolean | null
-          bom_source?: string | null
-          form_conversion_applied?: boolean | null
-          form_conversion_consume_uom_id?: number | null
-          form_conversion_factor?: number | null
-          form_conversion_purchase_uom_id?: number | null
-          is_optional?: boolean | null
-          line_no?: number | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          pack_size?: number | null
-          period_start?: string | null
-          product_hierarchy?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          qty_per_reference_output?: number | null
-          rate_date?: string | null
-          rate_lookup_basis?: string | null
-          rate_resolution_note?: string | null
-          rate_source?: string | null
-          resolved_rate_stock_item_code?: string | null
-          resolved_rate_stock_item_default_uom_id?: number | null
-          resolved_rate_stock_item_id?: number | null
-          resolved_rate_stock_item_name?: string | null
-          selected_rate?: number | null
-          sku_id?: number | null
-          sku_uom?: string | null
-          snapshot_refreshed_at?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          uom_id?: number | null
-          warning_code?: string | null
-          warning_text?: string | null
-          wastage_pct?: number | null
         }
         Relationships: []
       }
@@ -19587,52 +19668,14 @@ export type Database = {
           rate_date: string | null
           rate_source: string | null
           recommended_action: string | null
+          refresh_run_id: number | null
           selected_rate: number | null
           snapshot_refreshed_at: string | null
           stock_item_code: string | null
           stock_item_id: number | null
           stock_item_name: string | null
+          valuation_date: string | null
           warning_text: string | null
-        }
-        Insert: {
-          action_required?: string | null
-          affected_line_count?: number | null
-          affected_product_count?: number | null
-          affected_sku_count?: number | null
-          bom_source?: string | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          period_start?: string | null
-          priority_sort?: number | null
-          rate_date?: string | null
-          rate_source?: string | null
-          recommended_action?: string | null
-          selected_rate?: number | null
-          snapshot_refreshed_at?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          warning_text?: string | null
-        }
-        Update: {
-          action_required?: string | null
-          affected_line_count?: number | null
-          affected_product_count?: number | null
-          affected_sku_count?: number | null
-          bom_source?: string | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          period_start?: string | null
-          priority_sort?: number | null
-          rate_date?: string | null
-          rate_source?: string | null
-          recommended_action?: string | null
-          selected_rate?: number | null
-          snapshot_refreshed_at?: string | null
-          stock_item_code?: string | null
-          stock_item_id?: number | null
-          stock_item_name?: string | null
-          warning_text?: string | null
         }
         Relationships: []
       }
@@ -19664,35 +19707,9 @@ export type Database = {
           material_line_status: string | null
           period_start: string | null
           priority_sort: number | null
+          refresh_run_id: number | null
           snapshot_refreshed_at: string | null
-        }
-        Insert: {
-          affected_product_count?: number | null
-          affected_sku_count?: number | null
-          affected_stock_item_count?: number | null
-          bom_source?: string | null
-          earliest_rate_date?: string | null
-          issue_line_count?: number | null
-          latest_rate_date?: string | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          period_start?: string | null
-          priority_sort?: number | null
-          snapshot_refreshed_at?: string | null
-        }
-        Update: {
-          affected_product_count?: number | null
-          affected_sku_count?: number | null
-          affected_stock_item_count?: number | null
-          bom_source?: string | null
-          earliest_rate_date?: string | null
-          issue_line_count?: number | null
-          latest_rate_date?: string | null
-          material_issue_code?: string | null
-          material_line_status?: string | null
-          period_start?: string | null
-          priority_sort?: number | null
-          snapshot_refreshed_at?: string | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -19837,86 +19854,6 @@ export type Database = {
           sku_id: number | null
           snapshot_refreshed_at: string | null
         }
-        Insert: {
-          control_note?: string | null
-          control_severity?: string | null
-          cost_sheet_status?: string | null
-          first_control_status?: string | null
-          ik_margin_amount_before_scheme?: number | null
-          ik_margin_percent_before_scheme?: number | null
-          ik_selling_price?: number | null
-          internal_loaded_cost_status?: string | null
-          manufacturing_cop_status?: string | null
-          material_cost_per_sku?: number | null
-          material_costing_status?: string | null
-          mrp_ik?: number | null
-          mrp_ok?: number | null
-          ok_margin_amount_before_scheme?: number | null
-          ok_margin_percent_before_scheme?: number | null
-          ok_selling_price?: number | null
-          pack_size?: number | null
-          pack_uom?: string | null
-          period_start?: string | null
-          pm_blocking_line_count?: number | null
-          pm_costing_status?: string | null
-          pm_manual_rate_line_count?: number | null
-          pm_review_rate_line_count?: number | null
-          pm_stale_purchase_rate_line_count?: number | null
-          pm_stock_valuation_fallback_line_count?: number | null
-          pricing_bridge_status?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          recommended_ui_route?: string | null
-          rm_blocking_line_count?: number | null
-          rm_costing_status?: string | null
-          rm_manual_rate_line_count?: number | null
-          rm_review_rate_line_count?: number | null
-          rm_stale_purchase_rate_line_count?: number | null
-          rm_stock_valuation_fallback_line_count?: number | null
-          selling_price_bridge_status?: string | null
-          sku_id?: number | null
-          snapshot_refreshed_at?: string | null
-        }
-        Update: {
-          control_note?: string | null
-          control_severity?: string | null
-          cost_sheet_status?: string | null
-          first_control_status?: string | null
-          ik_margin_amount_before_scheme?: number | null
-          ik_margin_percent_before_scheme?: number | null
-          ik_selling_price?: number | null
-          internal_loaded_cost_status?: string | null
-          manufacturing_cop_status?: string | null
-          material_cost_per_sku?: number | null
-          material_costing_status?: string | null
-          mrp_ik?: number | null
-          mrp_ok?: number | null
-          ok_margin_amount_before_scheme?: number | null
-          ok_margin_percent_before_scheme?: number | null
-          ok_selling_price?: number | null
-          pack_size?: number | null
-          pack_uom?: string | null
-          period_start?: string | null
-          pm_blocking_line_count?: number | null
-          pm_costing_status?: string | null
-          pm_manual_rate_line_count?: number | null
-          pm_review_rate_line_count?: number | null
-          pm_stale_purchase_rate_line_count?: number | null
-          pm_stock_valuation_fallback_line_count?: number | null
-          pricing_bridge_status?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          recommended_ui_route?: string | null
-          rm_blocking_line_count?: number | null
-          rm_costing_status?: string | null
-          rm_manual_rate_line_count?: number | null
-          rm_review_rate_line_count?: number | null
-          rm_stale_purchase_rate_line_count?: number | null
-          rm_stock_valuation_fallback_line_count?: number | null
-          selling_price_bridge_status?: string | null
-          sku_id?: number | null
-          snapshot_refreshed_at?: string | null
-        }
         Relationships: []
       }
       v_costing_pricing_sku_detailed_cost_sheet: {
@@ -19960,9 +19897,11 @@ export type Database = {
           product_name: string | null
           production_overhead_cost_per_sku: number | null
           quality_control_overhead_cost_per_sku: number | null
+          refresh_run_id: number | null
           refreshed_at: string | null
           selling_price_bridge_status: string | null
           sku_id: number | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -19991,80 +19930,20 @@ export type Database = {
           period_start: string | null
           product_id: number | null
           product_name: string | null
+          refresh_run_id: number | null
           refreshed_at: string | null
+          scheme_context_source: string | null
           scheme_id: number | null
+          scheme_is_system_defined: boolean | null
+          scheme_master_context_snapshot_id: number | null
+          scheme_master_updated_at: string | null
           scheme_name: string | null
           scheme_viability_note: string | null
           scheme_viability_status: string | null
           sku_display_name: string | null
           sku_id: number | null
           total_qty: number | null
-        }
-        Insert: {
-          free_qty?: number | null
-          ik_contingency_value?: number | null
-          ik_margin_amount_after_scheme?: number | null
-          ik_margin_percent_after_scheme?: number | null
-          ik_net_sales_realisation?: number | null
-          ik_scheme_effective_selling_price?: number | null
-          ik_scheme_margin_band?: never
-          ik_selling_price?: number | null
-          internal_loaded_cost_per_sku?: number | null
-          marketing_expense_cost_per_sku?: number | null
-          ok_contingency_value?: number | null
-          ok_margin_amount_after_scheme?: number | null
-          ok_margin_percent_after_scheme?: number | null
-          ok_net_sales_realisation?: number | null
-          ok_scheme_effective_selling_price?: number | null
-          ok_scheme_margin_band?: never
-          ok_selling_price?: number | null
-          pack_size?: number | null
-          pack_uom?: string | null
-          paid_qty?: number | null
-          period_start?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          refreshed_at?: string | null
-          scheme_id?: number | null
-          scheme_name?: string | null
-          scheme_viability_note?: string | null
-          scheme_viability_status?: string | null
-          sku_display_name?: never
-          sku_id?: number | null
-          total_qty?: number | null
-        }
-        Update: {
-          free_qty?: number | null
-          ik_contingency_value?: number | null
-          ik_margin_amount_after_scheme?: number | null
-          ik_margin_percent_after_scheme?: number | null
-          ik_net_sales_realisation?: number | null
-          ik_scheme_effective_selling_price?: number | null
-          ik_scheme_margin_band?: never
-          ik_selling_price?: number | null
-          internal_loaded_cost_per_sku?: number | null
-          marketing_expense_cost_per_sku?: number | null
-          ok_contingency_value?: number | null
-          ok_margin_amount_after_scheme?: number | null
-          ok_margin_percent_after_scheme?: number | null
-          ok_net_sales_realisation?: number | null
-          ok_scheme_effective_selling_price?: number | null
-          ok_scheme_margin_band?: never
-          ok_selling_price?: number | null
-          pack_size?: number | null
-          pack_uom?: string | null
-          paid_qty?: number | null
-          period_start?: string | null
-          product_id?: number | null
-          product_name?: string | null
-          refreshed_at?: string | null
-          scheme_id?: number | null
-          scheme_name?: string | null
-          scheme_viability_note?: string | null
-          scheme_viability_status?: string | null
-          sku_display_name?: never
-          sku_id?: number | null
-          total_qty?: number | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -20163,11 +20042,13 @@ export type Database = {
           primary_diagnostic_note: string | null
           product_id: number | null
           product_name: string | null
+          refresh_run_id: number | null
           refreshed_at: string | null
           scheme_viability_status: string | null
           selling_price_bridge_note: string | null
           selling_price_bridge_status: string | null
           sku_id: number | null
+          valuation_date: string | null
         }
         Relationships: []
       }
@@ -21207,54 +21088,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_etl_recent_detailed: {
-        Row: {
-          as_of_date: string | null
-          company: string | null
-          created_at: string | null
-          finished_at: string | null
-          group_name: string | null
-          id: string | null
-          job_type: string | null
-          params: Json | null
-          priority: number | null
-          report_key: string | null
-          started_at: string | null
-          status: Database["public"]["Enums"]["job_status"] | null
-          vreg_date: string | null
-        }
-        Insert: {
-          as_of_date?: never
-          company?: never
-          created_at?: string | null
-          finished_at?: string | null
-          group_name?: never
-          id?: string | null
-          job_type?: string | null
-          params?: Json | null
-          priority?: number | null
-          report_key?: never
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["job_status"] | null
-          vreg_date?: never
-        }
-        Update: {
-          as_of_date?: never
-          company?: never
-          created_at?: string | null
-          finished_at?: string | null
-          group_name?: never
-          id?: string | null
-          job_type?: string | null
-          params?: Json | null
-          priority?: number | null
-          report_key?: never
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["job_status"] | null
-          vreg_date?: never
-        }
-        Relationships: []
-      }
       v_etl_report_keys: {
         Row: {
           job_type: string | null
@@ -21415,194 +21248,6 @@ export type Database = {
         ]
       }
       v_fg_bulk_batch_balance_by_location: {
-        Row: {
-          area_id: number | null
-          area_name: string | null
-          batch_number: string | null
-          item: string | null
-          plant_id: number | null
-          plant_name: string | null
-          product_id: number | null
-          qty: number | null
-          qty_base: number | null
-          section_id: number | null
-          section_name: string | null
-          subsection_id: number | null
-          subsection_name: string | null
-          uom: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_area_fkey"
-            columns: ["area_id"]
-            isOneToOne: false
-            referencedRelation: "areas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_plant_fkey"
-            columns: ["plant_id"]
-            isOneToOne: false
-            referencedRelation: "plant_machinery"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fg_bulk_stock"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "mv_fg_bulk_rollup"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "mv_wip_rollup"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_bottled_stock_by_product_base"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_fg_bulk_stock_by_product_base"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_fg_storage_residuals"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_fg_wip_stock_by_product_base"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_picker_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_ppq_p2_time_sensitivity_by_product"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_ppq_p3_supply_continuity_by_product"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_product_bulk_soh"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_product_details"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_product_mrp_adjustment_evidence"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_product_mrp_reference_readiness"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_sdv_dim_product_hierarchy"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_sku_planning_attrs"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_checker"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_wip_batches"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_wip_expected_output_base"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_section_fkey"
-            columns: ["section_id"]
-            isOneToOne: false
-            referencedRelation: "sections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fg_bulk_stock_ledger_subsection_fkey"
-            columns: ["subsection_id"]
-            isOneToOne: false
-            referencedRelation: "subsections"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_fg_bulk_stock_by_location: {
         Row: {
           area_id: number | null
           area_name: string | null
@@ -23950,13 +23595,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["inv_default_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_inv_stock_item_with_class: {
@@ -24022,13 +23660,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["default_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -24298,27 +23929,6 @@ export type Database = {
           last_finished: string | null
           report_key: string | null
           status: Database["public"]["Enums"]["job_status"] | null
-        }
-        Relationships: []
-      }
-      v_last_heartbeat: {
-        Row: {
-          agent_ver: string | null
-          hostname: string | null
-          last_error: string | null
-          last_seen_at: string | null
-        }
-        Insert: {
-          agent_ver?: string | null
-          hostname?: string | null
-          last_error?: string | null
-          last_seen_at?: string | null
-        }
-        Update: {
-          agent_ver?: string | null
-          hostname?: string | null
-          last_error?: string | null
-          last_seen_at?: string | null
         }
         Relationships: []
       }
@@ -24754,13 +24364,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_mrp_material_gross_requirement_pm_detail: {
@@ -24793,13 +24396,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -25174,13 +24770,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_mrp_pm_contrib_summary: {
@@ -25213,13 +24802,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -25456,13 +25038,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["default_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -26103,13 +25678,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "plm_tpl_header_reference_output_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_picker_products: {
@@ -26439,13 +26007,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_indent_console: {
@@ -26522,13 +26083,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -26755,13 +26309,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -27095,13 +26642,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_indent_line_buylist_base: {
@@ -27141,202 +26681,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "proc_indent_line_indent_fk"
-            columns: ["indent_id"]
-            isOneToOne: false
-            referencedRelation: "proc_indent_header"
-            referencedColumns: ["indent_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_indent_fk"
-            columns: ["indent_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_indent_console"
-            referencedColumns: ["indent_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_indent_fk"
-            columns: ["indent_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_indent_header_balance"
-            referencedColumns: ["indent_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_material_class_fk"
-            columns: ["material_class_id"]
-            isOneToOne: false
-            referencedRelation: "inv_class_category"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "inv_stock_item"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_costing_material_manual_rate_review"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_inv_stock_item_with_class"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_item_consumption_consumables_monthly"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_item_consumption_rm_pm_monthly"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_picker_sp_owners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_excess_acceptance_audit_console"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_indent_excess_supply_net"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_best_avg_last3"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_best_rate_180d"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_history"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_last_purchase"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_excess_console"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_fact_with_vendor"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_unallocated"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_unallocated_net"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchases_for_indent"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_purchases_by_item"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_purchases_summary_by_item"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_rm_seasonal_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_rm_stock_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_semiprocess_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_item_picker"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_items_with_semiflag"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
             foreignKeyName: "proc_indent_line_uom_fk"
             columns: ["uom_id"]
             isOneToOne: false
@@ -27349,13 +26693,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -27618,13 +26955,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_indent_lines_console: {
@@ -27883,13 +27213,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -28213,13 +27536,6 @@ export type Database = {
             referencedColumns: ["uom_id"]
           },
           {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "proc_pr_indent_line_map_pr_id_fkey"
             columns: ["source_pr_id"]
             isOneToOne: false
@@ -28478,13 +27794,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -28746,13 +28055,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_indent_priority_system: {
@@ -29004,13 +28306,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -29660,13 +28955,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_prod_pull_by_item: {
@@ -29702,6 +28990,29 @@ export type Database = {
           prod_pull_score: number | null
           prod_pull_why: Json | null
           stock_item_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_published_indent_line_balance: {
+        Row: {
+          indent_id: number | null
+          indent_line_id: number | null
+          material_class_id: number | null
+          refreshed_at: string | null
+          remaining_qty: number | null
+          stock_item_id: number | null
+        }
+        Relationships: []
+      }
+      v_proc_published_vendor_item_candidate: {
+        Row: {
+          evidence: Json | null
+          material_class_id: number | null
+          rate_value: number | null
+          refreshed_at: string | null
+          source_summary: string | null
+          stock_item_id: number | null
+          vendor_id: number | null
         }
         Relationships: []
       }
@@ -29748,13 +29059,6 @@ export type Database = {
             referencedColumns: ["uom_id"]
           },
           {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "proc_vendor_alias_vendor_fk"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -29799,13 +29103,6 @@ export type Database = {
             referencedColumns: ["uom_id"]
           },
           {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "proc_vendor_alias_vendor_fk"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -29847,13 +29144,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_purchase_unallocated_net: {
@@ -29891,13 +29181,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_purchases_for_indent: {
@@ -29930,13 +29213,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -30045,181 +29321,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "proc_indent_line_material_class_fk"
-            columns: ["material_class_id"]
-            isOneToOne: false
-            referencedRelation: "inv_class_category"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "inv_stock_item"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_costing_material_manual_rate_review"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_inv_stock_item_with_class"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_item_consumption_consumables_monthly"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_item_consumption_rm_pm_monthly"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_picker_sp_owners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_excess_acceptance_audit_console"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_indent_excess_supply_net"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_best_avg_last3"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_best_rate_180d"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_history"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_item_vendor_last_purchase"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_excess_console"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_fact_with_vendor"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_unallocated"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchase_unallocated_net"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_proc_purchases_for_indent"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_purchases_by_item"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_purchases_summary_by_item"
-            referencedColumns: ["inv_stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_rm_seasonal_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_rm_stock_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_semiprocess_items"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_item_picker"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
-            foreignKeyName: "proc_indent_line_stock_item_fk"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_items_with_semiflag"
-            referencedColumns: ["stock_item_id"]
-          },
-          {
             foreignKeyName: "proc_indent_line_uom_fk"
             columns: ["uom_id"]
             isOneToOne: false
@@ -30233,13 +29334,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "proc_indent_line_uom_fk"
-            columns: ["uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_proc_vendorwise_buylist_material_class_options: {
@@ -30249,15 +29343,7 @@ export type Database = {
           material_class_id: number | null
           material_class_label: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "proc_indent_line_material_class_fk"
-            columns: ["material_class_id"]
-            isOneToOne: false
-            referencedRelation: "inv_class_category"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       v_proc_vendorwise_buylist_rm_scope_options: {
         Row: {
@@ -30595,6 +29681,8 @@ export type Database = {
       v_product_mrp_derivation_current: {
         Row: {
           approval_reference: string | null
+          cancellation_approval_reference: string | null
+          cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           ceiling_increment: number | null
@@ -30635,6 +29723,8 @@ export type Database = {
       v_product_mrp_derivation_history: {
         Row: {
           approval_reference: string | null
+          cancellation_approval_reference: string | null
+          cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           ceiling_increment: number | null
@@ -32625,13 +31715,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["default_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -35376,6 +34459,10 @@ export type Database = {
         Row: {
           approval_reference: string | null
           calc_mode: string | null
+          cancellation_approval_reference: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           closed_at: string | null
           closed_by: string | null
           created_at: string | null
@@ -35710,13 +34797,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "plm_tpl_header_reference_output_uom_id_fkey"
-            columns: ["pack_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "product_skus_product_id_fkey"
@@ -37032,13 +36112,6 @@ export type Database = {
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
           },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["default_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_stock_items_with_semiflag: {
@@ -37105,13 +36178,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_sku_picker"
             referencedColumns: ["uom_id"]
-          },
-          {
-            foreignKeyName: "inv_stock_item_default_uom_id_fkey"
-            columns: ["default_uom_id"]
-            isOneToOne: false
-            referencedRelation: "v_uom_picker"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -37487,42 +36553,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      v_tally_expenses_today: {
-        Row: {
-          as_of_date: string | null
-          credit_amount_value: number | null
-          debit_amount_value: number | null
-          expense_group: string | null
-          head_name: string | null
-          id: number | null
-          inserted_at: string | null
-          net_cb_value: number | null
-          source_key: string | null
-        }
-        Insert: {
-          as_of_date?: string | null
-          credit_amount_value?: number | null
-          debit_amount_value?: number | null
-          expense_group?: string | null
-          head_name?: string | null
-          id?: number | null
-          inserted_at?: string | null
-          net_cb_value?: number | null
-          source_key?: string | null
-        }
-        Update: {
-          as_of_date?: string | null
-          credit_amount_value?: number | null
-          debit_amount_value?: number | null
-          expense_group?: string | null
-          head_name?: string | null
-          id?: number | null
-          inserted_at?: string | null
-          net_cb_value?: number | null
-          source_key?: string | null
-        }
-        Relationships: []
       }
       v_tally_fg_transfer_daily_batch_agg: {
         Row: {
@@ -39108,21 +38138,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_uom_picker: {
-        Row: {
-          id: number | null
-          uom_code: string | null
-        }
-        Insert: {
-          id?: number | null
-          uom_code?: string | null
-        }
-        Update: {
-          id?: number | null
-          uom_code?: string | null
-        }
-        Relationships: []
-      }
       v_user_permissions_effective: {
         Row: {
           can_edit: boolean | null
@@ -39293,6 +38308,10 @@ export type Database = {
       }
       base36: { Args: { n: number }; Returns: string }
       basename: { Args: { p: string }; Returns: string }
+      bmr_admin_assert_not_operational: {
+        Args: { p_bmr_id: number }
+        Returns: Json
+      }
       build_batch_plan: {
         Args: { p_from: string; p_header_id: number; p_to: string }
         Returns: {
@@ -39441,6 +38460,18 @@ export type Database = {
         Returns: number
       }
       create_pr_from_mrp_plan: {
+        Args: {
+          p_effective_from_date: string
+          p_generation_filters: Json
+          p_horizon_end_month: string
+          p_horizon_start_month: string
+          p_material_class_id: number
+          p_notes: string
+          p_pr_number: string
+        }
+        Returns: number
+      }
+      create_pr_from_mrp_plan_pec_internal: {
         Args: {
           p_effective_from_date: string
           p_generation_filters: Json
@@ -39699,6 +38730,10 @@ export type Database = {
       enqueue_vreg_sales_recent_window: {
         Args: { p_company: string; p_date: string; p_days: number }
         Returns: undefined
+      }
+      etl_is_known_tally_error_fingerprint: {
+        Args: { p_source_hash: string; p_source_size_bytes: number }
+        Returns: boolean
       }
       f_has_perm: {
         Args: { p_need_edit?: boolean; p_targets: string[] }
@@ -40070,6 +39105,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_sales_monthly_clean_as_of: {
+        Args: { p_as_of_date: string }
+        Returns: {
+          godown_id: number
+          month_start: string
+          product_id: number
+          qty_clean: number
+          region_id: number
+          sku_id: number
+        }[]
+      }
       fn_stock_item_id: { Args: { p_code_or_name: string }; Returns: number }
       fn_stock_purchase_value_summary: {
         Args: {
@@ -40091,10 +39137,6 @@ export type Database = {
         }[]
       }
       fn_uom_id: { Args: { p_code: string }; Returns: number }
-      force_unlink_plan_batch: {
-        Args: { p_batch_id: number; p_reason: string }
-        Returns: undefined
-      }
       forecast_lock_acquire: { Args: never; Returns: boolean }
       forecast_lock_release: { Args: never; Returns: undefined }
       forecast_run_close: {
@@ -40796,6 +39838,44 @@ export type Database = {
           total_qty: number
         }[]
       }
+      proc_apply_vendor_to_same_item_lines_pec_internal: {
+        Args: {
+          p_include_cleared?: boolean
+          p_material_class_id: number
+          p_rate_value: number
+          p_reason: string
+          p_stock_item_id: number
+          p_uom_id: number
+          p_vendor_id: number
+        }
+        Returns: {
+          affected_indent_count: number
+          affected_line_count: number
+          message: string
+          total_qty: number
+        }[]
+      }
+      proc_build_indent_balance_generation_internal: {
+        Args: { p_run_id: number }
+        Returns: {
+          refreshed_at: string
+          refreshed_count: number
+        }[]
+      }
+      proc_build_indent_priority_generation_internal: {
+        Args: { p_run_id: number }
+        Returns: {
+          refreshed_at: string
+          refreshed_count: number
+        }[]
+      }
+      proc_build_vendor_candidate_generation_internal: {
+        Args: { p_run_id: number }
+        Returns: {
+          refreshed_at: string
+          refreshed_count: number
+        }[]
+      }
       proc_clear_vendor_assignment_for_same_item_lines: {
         Args: {
           p_include_cleared?: boolean
@@ -40811,7 +39891,55 @@ export type Database = {
           total_qty: number
         }[]
       }
+      proc_clear_vendor_assignment_for_same_item_lines_pec_internal: {
+        Args: {
+          p_include_cleared?: boolean
+          p_material_class_id: number
+          p_reason?: string
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: {
+          affected_indent_count: number
+          affected_line_count: number
+          message: string
+          total_qty: number
+        }[]
+      }
+      proc_create_snapshot_refresh_run_internal: {
+        Args: {
+          p_request_source: string
+          p_requested_by: string
+          p_target_revision: number
+        }
+        Returns: number
+      }
+      proc_get_published_snapshot_generation: {
+        Args: never
+        Returns: {
+          indent_balance_count: number
+          priority_count: number
+          published_at: string
+          revision: number
+          run_id: number
+          vendor_candidate_count: number
+        }[]
+      }
       proc_get_snapshot_refresh_status: {
+        Args: { p_run_id?: number }
+        Returns: {
+          finished_at: string
+          message: string
+          refresh_name: string
+          request_source: string
+          requested_at: string
+          run_id: number
+          stages: Json
+          started_at: string
+          status: string
+        }[]
+      }
+      proc_get_snapshot_refresh_status_pec_internal: {
         Args: { p_run_id?: number }
         Returns: {
           finished_at: string
@@ -40839,6 +39967,20 @@ export type Database = {
           unallocated_qty: number
         }[]
       }
+      proc_indent_accept_excess_pec_internal: {
+        Args: {
+          p_accept_qty: number
+          p_purchase_fact_id: number
+          p_reason?: string
+        }
+        Returns: {
+          accepted_now: number
+          accepted_total: number
+          purchase_fact_id: number
+          remaining_unallocated: number
+          unallocated_qty: number
+        }[]
+      }
       proc_indent_accept_recommended_vendors: {
         Args: { p_indent_id: number; p_reason?: string }
         Returns: {
@@ -40848,6 +39990,17 @@ export type Database = {
         }[]
       }
       proc_indent_add_line: {
+        Args: {
+          p_indent_id: number
+          p_material_class_id: number
+          p_reason?: string
+          p_requested_qty?: number
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: number
+      }
+      proc_indent_add_line_pec_internal: {
         Args: {
           p_indent_id: number
           p_material_class_id: number
@@ -40881,7 +40034,19 @@ export type Database = {
         Args: { p_indent_line_id: number }
         Returns: undefined
       }
+      proc_indent_clear_priority_override_pec_internal: {
+        Args: { p_indent_line_id: number }
+        Returns: undefined
+      }
       proc_indent_clear_vendor_assignment: {
+        Args: { p_indent_line_id: number }
+        Returns: {
+          cleared: boolean
+          indent_line_id: number
+          message: string
+        }[]
+      }
+      proc_indent_clear_vendor_assignment_pec_internal: {
         Args: { p_indent_line_id: number }
         Returns: {
           cleared: boolean
@@ -40893,7 +40058,15 @@ export type Database = {
         Args: { p_indent_id: number }
         Returns: undefined
       }
+      proc_indent_close_strict_pec_internal: {
+        Args: { p_indent_id: number }
+        Returns: undefined
+      }
       proc_indent_close_with_override: {
+        Args: { p_indent_id: number; p_reason: string }
+        Returns: undefined
+      }
+      proc_indent_close_with_override_pec_internal: {
         Args: { p_indent_id: number; p_reason: string }
         Returns: undefined
       }
@@ -40917,12 +40090,40 @@ export type Database = {
         }
         Returns: number
       }
+      proc_indent_create_from_pr_pec_internal: {
+        Args: {
+          p_allow_duplicate?: boolean
+          p_indent_date?: string
+          p_indent_number?: string
+          p_notes?: string
+          p_pr_id: number
+        }
+        Returns: number
+      }
+      proc_indent_create_pec_internal: {
+        Args: {
+          p_generation_filters?: Json
+          p_indent_date?: string
+          p_indent_number: string
+          p_material_class_id?: number
+          p_notes?: string
+        }
+        Returns: number
+      }
       proc_indent_delete_draft: {
+        Args: { p_indent_id: number; p_reason?: string }
+        Returns: undefined
+      }
+      proc_indent_delete_draft_pec_internal: {
         Args: { p_indent_id: number; p_reason?: string }
         Returns: undefined
       }
       proc_indent_get_status: { Args: { p_indent_id: number }; Returns: string }
       proc_indent_issue: {
+        Args: { p_indent_id: number; p_issued_date?: string }
+        Returns: undefined
+      }
+      proc_indent_issue_pec_internal: {
         Args: { p_indent_id: number; p_issued_date?: string }
         Returns: undefined
       }
@@ -40958,7 +40159,27 @@ export type Database = {
           stale_recommendations_cleared: number
         }[]
       }
+      proc_indent_recommend_and_accept_vendors_step_pec_internal: {
+        Args: {
+          p_clear_selected_inactive?: boolean
+          p_indent_id: number
+          p_limit?: number
+          p_reason?: string
+        }
+        Returns: {
+          accepted_count: number
+          candidate_batch_count: number
+          inactive_selections_cleared: number
+          recommended_count: number
+          remaining_open_unselected_count: number
+          stale_recommendations_cleared: number
+        }[]
+      }
       proc_indent_recommend_vendor: {
+        Args: { p_indent_line_id: number }
+        Returns: undefined
+      }
+      proc_indent_recommend_vendor_pec_internal: {
         Args: { p_indent_line_id: number }
         Returns: undefined
       }
@@ -40989,7 +40210,19 @@ export type Database = {
         Args: { p_indent_id: number; p_mode?: string }
         Returns: undefined
       }
+      proc_indent_resync_from_pr_pec_internal: {
+        Args: { p_indent_id: number; p_mode?: string }
+        Returns: undefined
+      }
       proc_indent_set_priority_override: {
+        Args: {
+          p_indent_line_id: number
+          p_override_band: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
+      proc_indent_set_priority_override_pec_internal: {
         Args: {
           p_indent_line_id: number
           p_override_band: string
@@ -41001,7 +40234,19 @@ export type Database = {
         Args: { p_indent_id: number; p_note?: string; p_pr_id: number }
         Returns: undefined
       }
+      proc_indent_set_source_pr_pec_internal: {
+        Args: { p_indent_id: number; p_note?: string; p_pr_id: number }
+        Returns: undefined
+      }
       proc_indent_set_status: {
+        Args: {
+          p_approved_date?: string
+          p_indent_id: number
+          p_status: string
+        }
+        Returns: undefined
+      }
+      proc_indent_set_status_pec_internal: {
         Args: {
           p_approved_date?: string
           p_indent_id: number
@@ -41018,11 +40263,372 @@ export type Database = {
         }
         Returns: undefined
       }
+      proc_indent_set_vendor_selection_pec_internal: {
+        Args: {
+          p_indent_line_id: number
+          p_reason?: string
+          p_selected_rate?: number
+          p_selected_vendor_id: number
+        }
+        Returns: undefined
+      }
+      proc_lifecycle_audit_write_internal: {
+        Args: {
+          p_after_state?: Json
+          p_before_state?: Json
+          p_context?: Json
+          p_entity_id: number
+          p_entity_type: string
+          p_event_type: string
+          p_parent_entity_id?: number
+          p_parent_entity_type?: string
+          p_reason?: string
+        }
+        Returns: number
+      }
       proc_material_kind_for_class: {
         Args: { p_material_class_id: number }
         Returns: string
       }
+      proc_pec_buylist_material_class_options: {
+        Args: never
+        Returns: {
+          material_class_code: string | null
+          material_class_display: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_vendorwise_buylist_material_class_options"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_buylist_rm_scope_options: {
+        Args: never
+        Returns: {
+          rm_scope: string | null
+          rm_scope_label: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_vendorwise_buylist_rm_scope_options"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_excess_acceptance_audit: {
+        Args: never
+        Returns: {
+          acceptance_id: number | null
+          accepted_at: string | null
+          accepted_by: string | null
+          accepted_qty: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          meta: Json | null
+          purchase_fact_id: number | null
+          reason: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_code: string | null
+          uom_id: number | null
+          voucher_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_excess_acceptance_audit_console"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_indent_headers: {
+        Args: never
+        Returns: {
+          approved_date: string | null
+          created_at: string | null
+          has_remaining: boolean | null
+          indent_date: string | null
+          indent_id: number | null
+          indent_number: string | null
+          is_actionable: boolean | null
+          issued_date: string | null
+          line_count: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          source_pr_id: number | null
+          source_pr_number: string | null
+          status: string | null
+          total_allocated_qty: number | null
+          total_remaining_qty: number | null
+          total_requested_qty: number | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_indent_console"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_indent_lines: {
+        Args: { p_indent_id: number }
+        Returns: {
+          allocated_qty: number | null
+          approved_date: string | null
+          code: string | null
+          has_any_vendor: boolean | null
+          has_remaining: boolean | null
+          has_selected_vendor: boolean | null
+          indent_id: number | null
+          indent_line_id: number | null
+          indent_line_sort_key: string | null
+          indent_line_sort_no: number | null
+          indent_number: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          own_category_code: string | null
+          own_category_id: number | null
+          own_category_label: string | null
+          own_category_sort_order: number | null
+          own_group_code: string | null
+          own_group_id: number | null
+          own_group_label: string | null
+          own_group_sort_order: number | null
+          own_stock_item_code: string | null
+          own_stock_item_master_name: string | null
+          own_subcategory_code: string | null
+          own_subcategory_id: number | null
+          own_subcategory_label: string | null
+          own_subcategory_sort_order: number | null
+          own_subgroup_code: string | null
+          own_subgroup_id: number | null
+          own_subgroup_label: string | null
+          own_subgroup_sort_order: number | null
+          recommended_rate: number | null
+          recommended_vendor_id: number | null
+          recommended_vendor_name: string | null
+          remaining_qty: number | null
+          requested_qty: number | null
+          resolved_rate: number | null
+          resolved_vendor_id: number | null
+          resolved_vendor_name: string | null
+          selected_rate: number | null
+          selected_vendor_id: number | null
+          selected_vendor_name: string | null
+          selection_reason: string | null
+          source_category_label: string | null
+          source_category_sort_order: number | null
+          source_group_label: string | null
+          source_group_sort_order: number | null
+          source_pr_id: number | null
+          source_pr_line_id: number | null
+          source_pr_line_sort_key: string | null
+          source_pr_line_sort_no: number | null
+          source_pr_unmapped_sort: number | null
+          source_stock_item_code: string | null
+          source_subcategory_label: string | null
+          source_subcategory_sort_order: number | null
+          source_subgroup_label: string | null
+          source_subgroup_sort_order: number | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          uom_code: string | null
+          uom_id: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_indent_lines_console_ordered"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_pr_headers: {
+        Args: never
+        Returns: {
+          created_at: string | null
+          created_by: string | null
+          effective_from_date: string | null
+          generation_filters: Json | null
+          horizon_end_month: string | null
+          horizon_start_month: string | null
+          line_count: number | null
+          material_class_code: string | null
+          material_class_display: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          notes: string | null
+          pr_id: number | null
+          pr_number: string | null
+          rm_scope: string | null
+          rm_scope_label: string | null
+          status: string | null
+          total_final_qty: number | null
+          updated_at: string | null
+          updated_by: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_pr_header"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_pr_lines: {
+        Args: { p_pr_id: number }
+        Returns: {
+          category_code: string | null
+          category_id: number | null
+          category_label: string | null
+          category_sort_order: number | null
+          category_unmapped_sort: number | null
+          created_at: string | null
+          final_requested_qty: number | null
+          group_code: string | null
+          group_id: number | null
+          group_label: string | null
+          group_sort_order: number | null
+          item_unmapped_sort: number | null
+          line_sort_key: string | null
+          line_sort_no: number | null
+          manual_delta_qty: number | null
+          manual_reason: string | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          normalized_class_code: string | null
+          pr_id: number | null
+          pr_line_id: number | null
+          requested_qty: number | null
+          rm_procurement_mode: string | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_master_name: string | null
+          stock_item_name: string | null
+          stock_item_rm_procurement_mode: string | null
+          subcategory_code: string | null
+          subcategory_id: number | null
+          subcategory_label: string | null
+          subcategory_sort_order: number | null
+          subcategory_unmapped_sort: number | null
+          subgroup_code: string | null
+          subgroup_id: number | null
+          subgroup_label: string | null
+          subgroup_sort_order: number | null
+          system_suggested_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_pr_lines_ordered"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_purchase_excess: {
+        Args: never
+        Returns: {
+          accepted_qty: number | null
+          allocated_qty: number | null
+          material_class_code: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          net_unallocated_qty: number | null
+          purchase_fact_id: number | null
+          purchase_qty: number | null
+          stock_item_code: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          unallocated_qty: number | null
+          uom_code: string | null
+          uom_id: number | null
+          vendor_display_name: string | null
+          vendor_id: number | null
+          voucher_date: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_purchase_excess_console"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_sourcing_decisions: {
+        Args: { p_indent_id?: number }
+        Returns: {
+          decided_at: string
+          decided_by: string | null
+          indent_line_id: number
+          recommended_meta: Json
+          recommended_rate: number | null
+          recommended_source: string | null
+          recommended_vendor_id: number | null
+          selected_rate: number | null
+          selected_vendor_id: number | null
+          selection_reason: string | null
+          vendor_assignment_cleared: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "proc_indent_line_sourcing_decision"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      proc_pec_vendor_details: {
+        Args: { p_vendor_ids?: number[] }
+        Returns: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          display_name: string
+          district: string | null
+          email: string | null
+          gstin: string | null
+          is_active: boolean
+          legal_name: string | null
+          meta: Json
+          notes: string | null
+          pan: string | null
+          payment_terms: string | null
+          phone: string | null
+          pincode: string | null
+          state: string | null
+          updated_at: string
+          updated_by: string | null
+          vendor_id: number
+          vendor_type: string
+          website: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "proc_vendor"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       proc_pr_add_line: {
+        Args: {
+          p_material_class_id: number
+          p_pr_id: number
+          p_reason?: string
+          p_requested_qty?: number
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: number
+      }
+      proc_pr_add_line_pec_internal: {
         Args: {
           p_material_class_id: number
           p_pr_id: number
@@ -41037,7 +40643,15 @@ export type Database = {
         Args: { p_notes?: string; p_pr_id: number }
         Returns: number
       }
+      proc_pr_create_revision_from_active_pec_internal: {
+        Args: { p_notes?: string; p_pr_id: number }
+        Returns: number
+      }
       proc_pr_delete_draft: {
+        Args: { p_pr_id: number; p_reason?: string }
+        Returns: undefined
+      }
+      proc_pr_delete_draft_pec_internal: {
         Args: { p_pr_id: number; p_reason?: string }
         Returns: undefined
       }
@@ -41049,6 +40663,10 @@ export type Database = {
         Args: { p_mode?: string; p_pr_id: number }
         Returns: undefined
       }
+      proc_pr_rebuild_from_mrp_pec_internal: {
+        Args: { p_mode?: string; p_pr_id: number }
+        Returns: undefined
+      }
       proc_pr_set_manual_delta: {
         Args: {
           p_manual_delta_qty: number
@@ -41057,7 +40675,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      proc_pr_set_manual_delta_pec_internal: {
+        Args: {
+          p_manual_delta_qty: number
+          p_manual_reason?: string
+          p_pr_line_id: number
+        }
+        Returns: undefined
+      }
       proc_pr_set_manual_reason: {
+        Args: { p_pr_line_id: number; p_reason: string }
+        Returns: undefined
+      }
+      proc_pr_set_manual_reason_pec_internal: {
         Args: { p_pr_line_id: number; p_reason: string }
         Returns: undefined
       }
@@ -41073,7 +40703,32 @@ export type Database = {
         Args: { p_note?: string; p_pr_id: number; p_status: string }
         Returns: undefined
       }
+      proc_pr_set_status_pec_internal: {
+        Args: { p_note?: string; p_pr_id: number; p_status: string }
+        Returns: undefined
+      }
       proc_preview_same_item_vendor_action: {
+        Args: {
+          p_include_cleared?: boolean
+          p_material_class_id: number
+          p_stock_item_id: number
+          p_uom_id: number
+        }
+        Returns: {
+          affected_indent_count: number
+          affected_line_count: number
+          affected_lines: Json
+          candidate_vendors: Json
+          current_split: Json
+          material_class_id: number
+          stock_item_id: number
+          stock_item_name: string
+          total_qty: number
+          uom_code: string
+          uom_id: number
+        }[]
+      }
+      proc_preview_same_item_vendor_action_pec_internal: {
         Args: {
           p_include_cleared?: boolean
           p_material_class_id: number
@@ -41122,28 +40777,43 @@ export type Database = {
           total_count: number
         }[]
       }
-      proc_refresh_indent_line_balance_snapshot: {
-        Args: { p_indent_id?: number }
+      proc_procurement_action_queue_paged_pec_internal: {
+        Args: {
+          p_group_mode?: string
+          p_indent_id?: number
+          p_limit?: number
+          p_material_class_id?: number
+          p_needs?: string
+          p_offset?: number
+          p_priority_band?: string
+          p_q?: string
+          p_selected_state?: string
+        }
         Returns: {
-          refreshed_at: string
-          refreshed_count: number
+          row_data: Json
+          total_count: number
         }[]
       }
-      proc_refresh_indent_line_priority_snapshot: {
-        Args: { p_indent_id?: number }
+      proc_publish_snapshot_generation_internal: {
+        Args: { p_run_id: number }
         Returns: {
-          refreshed_at: string
-          refreshed_count: number
-        }[]
-      }
-      proc_refresh_vendor_item_candidate_snapshot: {
-        Args: never
-        Returns: {
-          refreshed_at: string
-          refreshed_count: number
+          indent_balance_count: number
+          priority_count: number
+          published_at: string
+          published_revision: number
+          published_run_id: number
+          vendor_candidate_count: number
         }[]
       }
       proc_request_snapshot_refresh: {
+        Args: { p_request_source?: string }
+        Returns: {
+          message: string
+          run_id: number
+          status: string
+        }[]
+      }
+      proc_request_snapshot_refresh_pec_internal: {
         Args: { p_request_source?: string }
         Returns: {
           message: string
@@ -41468,7 +41138,73 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      proc_vendorwise_buylist_filtered_pec_internal: {
+        Args: {
+          p_assignment_status?: string
+          p_material_class_id?: number
+          p_q?: string
+          p_rate_status?: string
+          p_rm_scope?: string
+        }
+        Returns: {
+          actual_vendor_count: number | null
+          actual_vendor_summary: string | null
+          assignment_status: string | null
+          has_rate: boolean | null
+          has_vendor: boolean | null
+          indent_breakdown: Json | null
+          material_class_code: string | null
+          material_class_display: string | null
+          material_class_id: number | null
+          material_class_label: string | null
+          rate_status: string | null
+          rate_value: number | null
+          rm_scope: string | null
+          rm_scope_label: string | null
+          stock_item_id: number | null
+          stock_item_name: string | null
+          total_amount: number | null
+          total_qty_to_buy: number | null
+          uom_code: string | null
+          uom_id: number | null
+          vendor_bucket_key: string | null
+          vendor_bucket_name: string | null
+          vendor_bucket_type: string | null
+          vendor_id: number | null
+          vendor_name: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_proc_vendorwise_buylist"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       proc_vendorwise_buylist_split_items: {
+        Args: {
+          p_assignment_status?: string
+          p_material_class_id?: number
+          p_q?: string
+          p_rate_status?: string
+          p_rm_scope?: string
+        }
+        Returns: {
+          assigned_vendor_count: number
+          has_unassigned: boolean
+          material_class_code: string
+          material_class_display: string
+          material_class_id: number
+          material_class_label: string
+          stock_item_id: number
+          stock_item_name: string
+          total_qty_to_buy: number
+          uom_code: string
+          uom_id: number
+          vendor_bucket_count: number
+          vendor_split: Json
+        }[]
+      }
+      proc_vendorwise_buylist_split_items_pec_internal: {
         Args: {
           p_assignment_status?: string
           p_material_class_id?: number
@@ -41527,10 +41263,19 @@ export type Database = {
           updated_lines: number
         }[]
       }
-      rebuild_fg_transfer_snapshot_window: {
-        Args: { p_as_of_date: string; p_store: string }
-        Returns: undefined
-      }
+      rebuild_fg_transfer_snapshot_window:
+        | {
+            Args: { p_as_of_date: string; p_store: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_as_of_date: string
+              p_replace_from_date: string
+              p_store: string
+            }
+            Returns: undefined
+          }
       rebuild_unmapped_only: { Args: { p_header_id: number }; Returns: number }
       recalc_batch_plan_for_product: {
         Args: { p_header_id: number; p_product_id: number }
@@ -41711,6 +41456,34 @@ export type Database = {
           sku_id: number
         }[]
       }
+      rpc_admin_correct_bmr_plan_mapping: {
+        Args: {
+          p_batch_plan_batch_id: number
+          p_client_request_id?: string
+          p_impact_acknowledged?: boolean
+          p_new_batch_size?: number
+          p_new_bn?: string
+          p_operation_type: string
+          p_reason?: string
+          p_supporting_reference?: string
+          p_target_bmr_id?: number
+        }
+        Returns: Json
+      }
+      rpc_admin_correct_bmr_plan_mapping_internal_v1: {
+        Args: {
+          p_batch_plan_batch_id: number
+          p_client_request_id?: string
+          p_impact_acknowledged?: boolean
+          p_new_batch_size?: number
+          p_new_bn?: string
+          p_operation_type: string
+          p_reason?: string
+          p_supporting_reference?: string
+          p_target_bmr_id?: number
+        }
+        Returns: Json
+      }
       rpc_apply_product_mrp_proposal: {
         Args: { p_application_note?: string; p_proposal_id: number }
         Returns: {
@@ -41784,7 +41557,110 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      rpc_approve_cost_driver_policy_envelope: {
+        Args: { p_approval_reference: string; p_envelope_id: number }
+        Returns: Json
+      }
+      rpc_approve_direct_labour_workload_policy: {
+        Args: { p_approval_reference: string; p_policy_id: number }
+        Returns: Json
+      }
+      rpc_approve_product_route: {
+        Args: { p_approval_reference: string; p_product_route_id: number }
+        Returns: Json
+      }
+      rpc_approve_product_route_family_assignment: {
+        Args: {
+          p_approval_reference: string
+          p_assignment_id: number
+          p_effective_from?: string
+        }
+        Returns: Json
+      }
+      rpc_approve_production_cost_centre: {
+        Args: {
+          p_approval_reference: string
+          p_cost_centre_id: number
+          p_effective_from?: string
+        }
+        Returns: Json
+      }
+      rpc_approve_production_overhead_workload_policy: {
+        Args: { p_approval_reference: string; p_policy_id: number }
+        Returns: Json
+      }
+      rpc_approve_route_family: {
+        Args: {
+          p_approval_reference: string
+          p_effective_from?: string
+          p_route_family_id: number
+        }
+        Returns: Json
+      }
+      rpc_approve_route_family_mapping: {
+        Args: {
+          p_approval_reference: string
+          p_effective_from?: string
+          p_mapping_id: number
+        }
+        Returns: Json
+      }
+      rpc_approve_route_family_route: {
+        Args: { p_approval_reference: string; p_family_route_id: number }
+        Returns: Json
+      }
       rpc_cancel_jobs: { Args: { p_job_ids: string[] }; Returns: number }
+      rpc_cancel_product_route_family_assignment: {
+        Args: { p_assignment_id: number; p_cancellation_reason: string }
+        Returns: Json
+      }
+      rpc_cancel_scheduled_product_mrp_derivation_policy: {
+        Args: {
+          p_cancellation_approval_reference?: string
+          p_cancellation_reason: string
+          p_derivation_policy_id: number
+        }
+        Returns: {
+          cancellation_approval_reference: string
+          cancellation_reason: string
+          cancelled_at: string
+          cancelled_by: string
+          derivation_policy_id: number
+          effective_from: string
+          effective_to: string
+          policy_status: string
+          previous_policy_id: number
+          product_id: number
+        }[]
+      }
+      rpc_cancel_scheduled_sku_mrp_policy: {
+        Args: {
+          p_cancellation_approval_reference?: string
+          p_cancellation_reason: string
+          p_policy_id: number
+        }
+        Returns: {
+          cancellation_approval_reference: string
+          cancellation_reason: string
+          cancelled_at: string
+          cancelled_by: string
+          effective_from: string
+          effective_to: string
+          policy_id: number
+          policy_status: string
+          previous_policy_id: number
+          sku_id: number
+        }[]
+      }
+      rpc_clone_route_family_route_draft: {
+        Args: {
+          p_effective_from: string
+          p_route_name?: string
+          p_route_note?: string
+          p_source_family_route_id: number
+        }
+        Returns: Json
+      }
       rpc_close_expense_head_costing_map: {
         Args: { p_mapping_id: number; p_remarks?: string }
         Returns: {
@@ -41854,6 +41730,56 @@ export type Database = {
           scheme_name: string
         }[]
       }
+      rpc_close_sku_regional_sales_assumption: {
+        Args: {
+          p_approval_reference: string
+          p_close_remarks: string
+          p_period_start: string
+          p_region_code: string
+          p_sku_id: number
+        }
+        Returns: {
+          approval_reference: string
+          assumption_id: number
+          closed_at: string
+          closed_by: string
+          effective_from: string
+          effective_to: string
+          period_start: string
+          previous_assumption_id: number
+          region_code: string
+          remarks: string
+          sku_id: number
+          status: string
+        }[]
+      }
+      rpc_close_sku_sales_assumption: {
+        Args: {
+          p_approval_reference?: string
+          p_effective_to: string
+          p_period_start: string
+          p_remarks: string
+          p_sku_id: number
+        }
+        Returns: {
+          approval_reference: string
+          assumed_sales_units: number
+          assumed_sales_value: number
+          assumption_basis: string
+          assumption_id: number
+          closed_at: string
+          closed_by: string
+          effective_from: string
+          effective_to: string
+          period_start: string
+          previous_assumption_id: number
+          remarks: string
+          sku_id: number
+          status: string
+          updated_at: string
+          updated_by: string
+        }[]
+      }
       rpc_close_staff_costing_classification: {
         Args: {
           p_classification_id: number
@@ -41888,7 +41814,65 @@ export type Database = {
           total_count: number
         }[]
       }
+      rpc_create_cost_driver_policy_envelope_draft: {
+        Args: {
+          p_client_status?: string
+          p_cost_element_code: string
+          p_cutover_status?: string
+          p_data_quality_status?: string
+          p_effective_from: string
+          p_effective_to?: string
+          p_formula_type: string
+          p_maturity_status?: string
+          p_policy_code: string
+          p_policy_note?: string
+          p_policy_version: number
+          p_specialised_policy_id?: number
+          p_specialised_policy_schema?: string
+          p_specialised_policy_table?: string
+          p_supersedes_envelope_id?: number
+        }
+        Returns: Json
+      }
       rpc_create_daily_work_log_with_packaging: {
+        Args: {
+          p_activity: string
+          p_area_id: number
+          p_batch_number: string
+          p_batch_size: number
+          p_batch_uom: string
+          p_completed_on: string
+          p_count_of_saravam: number
+          p_due_date: string
+          p_fuel: string
+          p_fuel_over: string
+          p_fuel_under: string
+          p_item: string
+          p_juice_or_decoction: string
+          p_lab_ref_number: string
+          p_log_date: string
+          p_plant_id: number
+          p_qty_after_process: number
+          p_qty_uom: string
+          p_remarks: string
+          p_rm_juice_qty: number
+          p_rm_juice_uom: string
+          p_section_id: number
+          p_sku_breakdown: string
+          p_specify: string
+          p_started_on: string
+          p_status: string
+          p_storage_qty: number
+          p_storage_qty_uom: string
+          p_subsection_id: number
+        }
+        Returns: {
+          daily_work_log_id: number
+          inserted_event_sku_count: number
+          packaging_event_id: number
+        }[]
+      }
+      rpc_create_daily_work_log_with_packaging__core: {
         Args: {
           p_activity: string
           p_area_id: number
@@ -41974,6 +41958,183 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_create_fg_bulk_internal_transfer__core: {
+        Args: {
+          p_batch_number: string
+          p_from_area_id: number
+          p_from_plant_id: number
+          p_from_section_id: number
+          p_from_subsection_id: number
+          p_item: string
+          p_product_id: number
+          p_qty: number
+          p_remarks?: string
+          p_source_work_log_id?: number
+          p_to_area_id: number
+          p_to_plant_id: number
+          p_to_section_id: number
+          p_to_subsection_id: number
+          p_transfer_date: string
+          p_uom: string
+        }
+        Returns: {
+          batch_number: string
+          created_at: string
+          created_by: string | null
+          from_area_id: number | null
+          from_plant_id: number | null
+          from_section_id: number | null
+          from_subsection_id: number | null
+          id: number
+          item: string
+          product_id: number
+          qty: number
+          qty_base: number
+          remarks: string | null
+          source_work_log_id: number | null
+          to_area_id: number | null
+          to_plant_id: number | null
+          to_section_id: number | null
+          to_subsection_id: number | null
+          transfer_date: string
+          uom: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fg_bulk_internal_transfer"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rpc_create_godown: {
+        Args: {
+          p_approval_reference?: string
+          p_code: string
+          p_name: string
+          p_reason: string
+          p_region_id: number
+        }
+        Returns: {
+          code: string
+          godown_id: number
+          name: string
+          region_id: number
+        }[]
+      }
+      rpc_create_product: {
+        Args: {
+          p_approval_reference?: string
+          p_conversion_to_base: number
+          p_is_llt: boolean
+          p_is_pto: boolean
+          p_is_seasonal: boolean
+          p_item: string
+          p_malayalam_name: string
+          p_manufacture_lead_time_months: number
+          p_reason: string
+          p_season_profile_id: number
+          p_status: string
+          p_sub_group_id: number
+          p_uom_base: string
+        }
+        Returns: {
+          conversion_to_base: number
+          is_llt: boolean
+          is_pto: boolean
+          is_seasonal: boolean
+          item: string
+          malayalam_name: string
+          manufacture_lead_time_months: number
+          product_id: number
+          season_profile_id: number
+          status: string
+          sub_group_id: number
+          uom_base: string
+        }[]
+      }
+      rpc_create_product_route_draft: {
+        Args: {
+          p_base_route_family_route_id: number
+          p_batch_size_ref_id: number
+          p_effective_from?: string
+          p_evidence_status?: string
+          p_product_id: number
+          p_route_note?: string
+          p_source_type?: string
+          p_supersedes_route_id?: number
+        }
+        Returns: Json
+      }
+      rpc_create_product_route_family_assignment_draft: {
+        Args: {
+          p_assignment_basis?: string
+          p_assignment_note?: string
+          p_effective_from?: string
+          p_product_id: number
+          p_route_family_id: number
+        }
+        Returns: Json
+      }
+      rpc_create_product_sku: {
+        Args: {
+          p_approval_reference?: string
+          p_is_active: boolean
+          p_is_sample: boolean
+          p_pack_size: number
+          p_product_id: number
+          p_reason: string
+          p_uom: string
+        }
+        Returns: {
+          is_active: boolean
+          is_sample: boolean
+          pack_size: number
+          product_id: number
+          sku_id: number
+          uom: string
+        }[]
+      }
+      rpc_create_production_cost_centre_draft: {
+        Args: {
+          p_area_id?: number
+          p_cost_centre_code: string
+          p_cost_centre_name: string
+          p_cost_centre_type: string
+          p_default_resource_class_code?: string
+          p_description?: string
+          p_effective_from?: string
+          p_plant_id?: number
+          p_pool_scope?: string
+          p_section_id?: number
+          p_subsection_id?: number
+        }
+        Returns: Json
+      }
+      rpc_create_route_family: {
+        Args: {
+          p_description?: string
+          p_effective_from?: string
+          p_family_code: string
+          p_family_name: string
+        }
+        Returns: Json
+      }
+      rpc_create_route_family_onboarding_draft: {
+        Args: { p_family: Json; p_route: Json; p_steps: Json }
+        Returns: Json
+      }
+      rpc_create_route_family_route_draft: {
+        Args: {
+          p_effective_from?: string
+          p_evidence_status?: string
+          p_route_family_id: number
+          p_route_name: string
+          p_route_note?: string
+          p_source_type?: string
+          p_supersedes_route_id?: number
+        }
+        Returns: Json
+      }
       rpc_create_scheme_master: {
         Args: {
           p_approval_reference?: string
@@ -41996,6 +42157,18 @@ export type Database = {
           scheme_name: string
           total_qty: number
         }[]
+      }
+      rpc_create_supply_batch_size_reference: {
+        Args: {
+          p_change_reason?: string
+          p_effective_from?: string
+          p_max_batch_size?: number
+          p_min_batch_size?: number
+          p_notes?: string
+          p_preferred_batch_size: number
+          p_product_id: number
+        }
+        Returns: Json
       }
       rpc_deactivate_manual_cost_pool_provision: {
         Args: { p_provision_id: number; p_remarks?: string }
@@ -42129,6 +42302,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      rpc_delete_product_route_override: {
+        Args: { p_override_id: number; p_product_route_id: number }
+        Returns: Json
+      }
+      rpc_delete_route_family_route_step: {
+        Args: { p_family_route_id: number; p_step_id: number }
+        Returns: Json
+      }
       rpc_enqueue_job: {
         Args: { p_job_type: string; p_params: Json; p_priority?: number }
         Returns: string
@@ -42140,6 +42321,40 @@ export type Database = {
           refresh_status: string
           refreshed_period_start: string
           review_drilldown_rows_updated: number
+        }[]
+      }
+      rpc_export_material_rate_pm_cost_trace: {
+        Args: {
+          p_bom_source?: string
+          p_period_start: string
+          p_product_id?: number
+          p_review_state?: string
+          p_search_text?: string
+          p_sku_id?: number
+          p_stock_item_id?: number
+          p_warning_status?: string
+        }
+        Returns: {
+          contribution_share_percent: number
+          export_total_row_count: number
+          period_start: string
+          pm_line_cost: number
+          pm_source: string
+          product_name: string
+          quantity_uom: string
+          rate_date: string
+          rate_source: string
+          refresh_run_id: number
+          review_state: string
+          selected_rate: number
+          sku_column_label: string
+          sku_quantity: number
+          snapshot_refreshed_at: string
+          stock_item_code: string
+          stock_item_name: string
+          valuation_date: string
+          warning_code: string
+          warning_text: string
         }[]
       }
       rpc_export_material_rate_rm_cost_trace: {
@@ -43044,6 +43259,119 @@ export type Database = {
           warning_line_count: number
         }[]
       }
+      rpc_get_bmr_admin_correction_history: {
+        Args: {
+          p_batch_plan_batch_id?: number
+          p_bmr_id?: number
+          p_limit?: number
+        }
+        Returns: {
+          batch_plan_batch_id: number
+          batch_plan_header_id: number
+          correction_no: string
+          executed_at: string
+          executed_by: string
+          new_bmr_batch_size: number
+          new_bmr_id: number
+          new_bn: string
+          old_bmr_batch_size: number
+          old_bmr_id: number
+          old_bn: string
+          operation_result: string
+          operation_type: string
+          planned_batch_size: number
+          product_id: number
+          reason: string
+          supporting_reference: string
+        }[]
+      }
+      rpc_get_cost_driver_governance_detail: {
+        Args: { p_cost_element_code: string }
+        Returns: Json
+      }
+      rpc_get_cost_driver_policy_registry: {
+        Args: { p_cost_element_code?: string }
+        Returns: Json
+      }
+      rpc_get_cost_period_governance_history: {
+        Args: { p_period_start: string }
+        Returns: {
+          actor_user_id: string
+          approval_reference: string
+          audit_id: number
+          event_source: string
+          event_type: string
+          evidence_json: Json
+          new_status: string
+          new_valuation_date: string
+          new_valuation_date_status: string
+          occurred_at: string
+          period_start: string
+          previous_status: string
+          previous_valuation_date: string
+          previous_valuation_date_status: string
+          reason: string
+        }[]
+      }
+      rpc_get_cost_period_valuation_context: {
+        Args: { p_period_start: string }
+        Returns: {
+          close_reason: string
+          closed_at: string
+          lock_reason: string
+          locked_at: string
+          period_end: string
+          period_start: string
+          period_status: string
+          queued_or_running_refresh_count: number
+          remarks: string
+          valuation_date: string
+          valuation_date_approval_reference: string
+          valuation_date_change_reason: string
+          valuation_date_set_at: string
+          valuation_date_set_by: string
+          valuation_date_source: string
+          valuation_date_status: string
+        }[]
+      }
+      rpc_get_cost_sheet_marketing_explain_summary: {
+        Args: { p_period_start: string; p_product_id: number; p_sku_id: number }
+        Returns: {
+          actual_company_signed_billed_value: number
+          actual_product_signed_billed_value: number
+          allocation_basis_source: string
+          allocation_resolution_note: string
+          allocation_resolution_status: string
+          marketing_assumed_sales_value: number
+          marketing_assumption_approval_reference: string
+          marketing_assumption_effective_from: string
+          marketing_assumption_effective_to: string
+          marketing_assumption_id: number
+          marketing_driver_code: string
+          marketing_evidence_row_count: number
+          marketing_evidence_status: string
+          marketing_expense_allocation_note: string
+          marketing_expense_allocation_status: string
+          marketing_expense_cost_per_sku: number
+          marketing_lookback_end: string
+          marketing_lookback_start: string
+          marketing_source_cutoff_at: string
+          marketing_value_source: string
+          period_start: string
+          product_id: number
+          product_marketing_allocation: number
+          product_monetary_allocation_share: number
+          recipient_product_base_qty: number
+          refresh_run_id: number
+          resolved_company_marketing_sales_value: number
+          resolved_product_marketing_sales_value: number
+          sku_base_qty_per_unit: number
+          sku_id: number
+          snapshot_refreshed_at: string
+          summary_status: string
+          valuation_date: string
+        }[]
+      }
       rpc_get_cost_sheet_rm_explain_summary: {
         Args: { p_period_start: string; p_product_id: number; p_sku_id: number }
         Returns: {
@@ -43060,6 +43388,25 @@ export type Database = {
           sku_id: number
           snapshot_refreshed_at: string
           summary_status: string
+        }[]
+      }
+      rpc_get_costing_refresh_context: {
+        Args: { p_refresh_run_id: number }
+        Returns: {
+          context_consistent_stage_count: number
+          context_integrity_status: string
+          context_mismatch_stage_count: number
+          overall_status: string
+          period_start: string
+          period_status_at_request: string
+          refresh_run_id: number
+          requested_scope: string
+          source_trigger: string
+          stage_count: number
+          valuation_context_captured_at: string
+          valuation_context_source: string
+          valuation_date: string
+          valuation_date_status_at_request: string
         }[]
       }
       rpc_get_costing_refresh_status: {
@@ -43086,6 +43433,69 @@ export type Database = {
           stages: Json
           started_at: string
         }[]
+      }
+      rpc_get_current_material_foundation_diagnosis: {
+        Args: { p_product_id: number; p_sku_id?: number }
+        Returns: Json
+      }
+      rpc_get_effective_product_process_route: {
+        Args: { p_as_of_date?: string; p_product_id: number }
+        Returns: Json
+      }
+      rpc_get_exact_run_cost_pool_reconciliation: {
+        Args: {
+          p_period_start: string
+          p_refresh_run_id: number
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_get_material_rate_pm_cost_trace: {
+        Args: {
+          p_bom_source?: string
+          p_limit?: number
+          p_offset?: number
+          p_period_start: string
+          p_product_id?: number
+          p_review_state?: string
+          p_search_text?: string
+          p_sku_id?: number
+          p_stock_item_id?: number
+          p_warning_status?: string
+        }
+        Returns: {
+          action_required: string
+          approval_block_flag: boolean
+          contribution_share_percent: number
+          period_start: string
+          pm_line_cost: number
+          pm_source: string
+          product_id: number
+          product_name: string
+          quantity_uom: string
+          rate_date: string
+          rate_source: string
+          refresh_run_id: number
+          review_required_flag: boolean
+          review_state: string
+          selected_rate: number
+          sku_column_label: string
+          sku_id: number
+          sku_quantity: number
+          snapshot_refreshed_at: string
+          stock_item_code: string
+          stock_item_id: number
+          stock_item_name: string
+          total_row_count: number
+          trace_component: string
+          valuation_date: string
+          warning_code: string
+          warning_text: string
+        }[]
+      }
+      rpc_get_material_rate_pm_cost_trace_filter_options: {
+        Args: { p_period_start: string; p_product_id?: number }
+        Returns: Json
       }
       rpc_get_material_rate_rm_cost_trace: {
         Args: {
@@ -43138,6 +43548,242 @@ export type Database = {
         Args: { p_period_start: string; p_product_id?: number }
         Returns: Json
       }
+      rpc_get_material_vendor_rate_offers: {
+        Args: { p_limit?: number; p_stock_item_id: number }
+        Returns: {
+          lead_time_days: number
+          material_class_id: number
+          min_order_qty: number
+          rate_id: number
+          rate_value: number
+          remarks: string
+          stock_item_code: string
+          stock_item_id: number
+          stock_item_name: string
+          uom_code: string
+          uom_id: number
+          valid_from: string
+          valid_to: string
+          vendor_display_name: string
+          vendor_id: number
+        }[]
+      }
+      rpc_get_materials_stores_action_queue: {
+        Args: {
+          p_action_code?: string
+          p_limit?: number
+          p_offset?: number
+          p_period_start?: string
+          p_q?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
+      rpc_get_monthly_allocation_driver_trace: {
+        Args: {
+          p_period_start: string
+          p_refresh_run_id: number
+          p_sku_id: number
+          p_valuation_date: string
+        }
+        Returns: {
+          actual_company_sales_units_12m: number
+          actual_product_sales_base_qty_12m: number
+          actual_product_sales_units_12m: number
+          actual_sales_base_qty_12m: number
+          actual_sales_units_12m: number
+          allocation_basis_source: string
+          allocation_basis_status: string
+          allocation_resolution_note: string
+          allocation_resolution_status: string
+          allocation_snapshot_id: number
+          assumption_basis: string
+          assumption_effective_from: string
+          assumption_effective_to: string
+          assumption_id: number
+          conversion_to_base: number
+          default_policy_effective_from: string
+          default_policy_effective_to: string
+          default_policy_id: number
+          default_policy_scenario: string
+          monthly_allocation_base_qty: number
+          monthly_allocation_units: number
+          monthly_company_allocation_units: number
+          monthly_driver_lookback_end: string
+          monthly_driver_lookback_start: string
+          monthly_driver_method: string
+          monthly_driver_note: string
+          monthly_driver_source: string
+          monthly_driver_source_month: string
+          monthly_driver_status: string
+          monthly_driver_tied_month_count: number
+          monthly_product_allocation_base_qty: number
+          monthly_product_allocation_share: number
+          monthly_product_allocation_units: number
+          pack_size: number
+          pack_uom: string
+          period_start: string
+          product_base_uom: string
+          product_id: number
+          product_name: string
+          refresh_run_id: number
+          resolved_company_sales_units: number
+          resolved_product_allocation_share: number
+          resolved_product_sales_base_qty: number
+          resolved_product_sales_units: number
+          resolved_sales_base_qty: number
+          resolved_sales_units: number
+          run_finished_at: string
+          run_overall_status: string
+          run_requested_at: string
+          run_started_at: string
+          sku_base_qty_per_unit: number
+          sku_id: number
+          snapshot_refreshed_at: string
+          valuation_context_source: string
+          valuation_date: string
+        }[]
+      }
+      rpc_get_product_materials_stores_explain: {
+        Args: { p_period_start: string; p_product_id: number }
+        Returns: Json
+      }
+      rpc_get_product_qc_explain: {
+        Args: { p_period_start: string; p_product_id: number }
+        Returns: Json
+      }
+      rpc_get_product_route_detail: {
+        Args: { p_product_route_id: number }
+        Returns: Json
+      }
+      rpc_get_product_route_history: {
+        Args: { p_product_id: number }
+        Returns: Json
+      }
+      rpc_get_production_cost_centre_detail: {
+        Args: { p_cost_centre_id: number }
+        Returns: Json
+      }
+      rpc_get_production_cost_centres: {
+        Args: {
+          p_as_of_date?: string
+          p_pool_scope?: string
+          p_search?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
+      rpc_get_production_route_manager_exact_run_readiness: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_period_start: string
+          p_product_group_id?: number
+          p_readiness_status?: string
+          p_refresh_run_id: number
+          p_route_family_id?: number
+          p_search?: string
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_get_production_route_manager_product_assignments: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_product_group_id?: number
+          p_product_id?: number
+          p_route_family_id?: number
+          p_search?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
+      rpc_get_production_route_manager_readiness: {
+        Args: {
+          p_as_of_date?: string
+          p_limit?: number
+          p_offset?: number
+          p_product_group_id?: number
+          p_readiness_status?: string
+          p_route_family_id?: number
+          p_search?: string
+        }
+        Returns: Json
+      }
+      rpc_get_production_route_manager_workload_detail: {
+        Args: {
+          p_period_start: string
+          p_product_id: number
+          p_refresh_run_id: number
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_get_production_route_manager_workload_preview: {
+        Args: {
+          p_dl_scope_filter?: string
+          p_foundation_status?: string
+          p_limit?: number
+          p_offset?: number
+          p_period_start: string
+          p_poh_scope_filter?: string
+          p_product_group_id?: number
+          p_product_id?: number
+          p_quantity_driver_status?: string
+          p_refresh_run_id: number
+          p_route_family_id?: number
+          p_search?: string
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_get_production_route_master_options: {
+        Args: {
+          p_as_of_date?: string
+          p_product_group_id?: number
+          p_product_id?: number
+          p_route_family_id?: number
+        }
+        Returns: Json
+      }
+      rpc_get_production_route_pipeline_status: {
+        Args: {
+          p_period_start: string
+          p_refresh_run_id: number
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_get_qc_action_queue: {
+        Args: {
+          p_action_code?: string
+          p_limit?: number
+          p_offset?: number
+          p_period_start?: string
+          p_q?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
+      rpc_get_regional_marketing_action_queue: {
+        Args: {
+          p_action_code?: string
+          p_limit?: number
+          p_offset?: number
+          p_period_start?: string
+          p_q?: string
+          p_region_code?: string
+        }
+        Returns: {
+          row_data: Json
+          total_count: number
+        }[]
+      }
       rpc_get_rm_items: {
         Args: never
         Returns: {
@@ -43145,12 +43791,178 @@ export type Database = {
           name: string
         }[]
       }
+      rpc_get_route_family_onboarding_status: {
+        Args: {
+          p_period_start?: string
+          p_refresh_run_id?: number
+          p_route_family_id: number
+          p_valuation_date?: string
+        }
+        Returns: Json
+      }
+      rpc_get_route_family_route_detail: {
+        Args: { p_family_route_id: number }
+        Returns: Json
+      }
+      rpc_get_route_family_route_history: {
+        Args: { p_route_family_id: number }
+        Returns: Json
+      }
+      rpc_get_sales_allocation_default_policies: {
+        Args: never
+        Returns: {
+          approval_reference: string
+          created_at: string
+          created_by: string
+          default_sales_units: number
+          effective_from: string
+          effective_to: string
+          policy_id: number
+          previous_policy_id: number
+          reason: string
+          scenario_code: string
+          status: string
+        }[]
+      }
+      rpc_get_sku_materials_stores_explain: {
+        Args: { p_period_start: string; p_product_id: number; p_sku_id: number }
+        Returns: Json
+      }
+      rpc_get_sku_qc_explain: {
+        Args: { p_period_start: string; p_product_id: number; p_sku_id: number }
+        Returns: Json
+      }
+      rpc_get_sku_regional_sales_assumptions: {
+        Args: {
+          p_period_start: string
+          p_region_code?: string
+          p_sku_id?: number
+        }
+        Returns: {
+          approval_reference: string
+          approved_total_value_override: number
+          assumed_free_units: number
+          assumed_paid_units: number
+          assumed_total_base_qty: number
+          assumed_total_units: number
+          assumption_basis: string
+          assumption_id: number
+          closed_at: string
+          closed_by: string
+          commercial_resolution_mode: string
+          created_at: string
+          created_by: string
+          derived_assumed_sales_value: number
+          effective_from: string
+          effective_to: string
+          override_billed_price_per_paid_unit: number
+          override_discount_amount_per_paid_unit: number
+          override_discount_percent: number
+          override_reason: string
+          pack_size: number
+          pack_uom: string
+          period_start: string
+          previous_assumption_id: number
+          product_base_uom: string
+          product_id: number
+          product_name: string
+          region_code: string
+          remarks: string
+          resolved_assumed_sales_value: number
+          resolved_basic_price: number
+          resolved_billed_price_per_paid_unit: number
+          resolved_discount_amount_per_paid_unit: number
+          resolved_discount_percent: number
+          resolved_gst_percent: number
+          resolved_mrp: number
+          scheme_free_qty: number
+          scheme_id: number
+          scheme_name: string
+          scheme_paid_qty: number
+          scheme_policy_reference: string
+          scheme_resolution_source: string
+          scheme_total_qty: number
+          sku_base_qty_per_unit: number
+          sku_id: number
+          standard_billed_price_per_paid_unit: number
+          standard_derived_sales_value: number
+          standard_discount_amount_per_paid_unit: number
+          standard_discount_percent: number
+          status: string
+          updated_at: string
+          updated_by: string
+          value_resolution_source: string
+        }[]
+      }
+      rpc_get_sku_sales_assumptions: {
+        Args: { p_period_start: string; p_sku_id?: number }
+        Returns: {
+          approval_reference: string
+          assumed_sales_units: number
+          assumed_sales_value: number
+          assumption_basis: string
+          assumption_id: number
+          created_at: string
+          created_by: string
+          effective_from: string
+          effective_to: string
+          pack_size: number
+          pack_uom: string
+          period_start: string
+          previous_assumption_id: number
+          product_id: number
+          product_name: string
+          remarks: string
+          sku_id: number
+          status: string
+        }[]
+      }
+      rpc_get_supply_batch_size_references: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_product_id?: number
+          p_search?: string
+          p_state?: string
+        }
+        Returns: Json
+      }
+      rpc_inactivate_product_route_family_assignment: {
+        Args: { p_assignment_id: number; p_effective_to: string }
+        Returns: Json
+      }
+      rpc_inactivate_production_cost_centre: {
+        Args: {
+          p_cost_centre_id: number
+          p_effective_to: string
+          p_inactivation_reference: string
+        }
+        Returns: Json
+      }
+      rpc_inactivate_supply_batch_size_reference: {
+        Args: {
+          p_change_reason?: string
+          p_effective_to?: string
+          p_reference_id: number
+        }
+        Returns: Json
+      }
       rpc_incomplete_pairs: {
         Args: {
           p_end: string
           p_page?: number
           p_page_size?: number
           p_start: string
+        }
+        Returns: Json
+      }
+      rpc_map_product_group_to_route_family: {
+        Args: {
+          p_effective_from?: string
+          p_mapping_basis?: string
+          p_mapping_note?: string
+          p_product_group_id: number
+          p_route_family_id: number
         }
         Returns: Json
       }
@@ -43317,6 +44129,156 @@ export type Database = {
         }
         Returns: number
       }
+      rpc_preview_bmr_admin_correction: {
+        Args: { p_batch_plan_batch_id: number }
+        Returns: Json
+      }
+      rpc_preview_direct_labour_shadow_monetary_reconciliation: {
+        Args: {
+          p_period_start: string
+          p_policy_id: number
+          p_reference_pool_amount: number
+          p_refresh_run_id: number
+          p_route_family_id?: number
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_preview_direct_labour_shadow_workload: {
+        Args: {
+          p_period_start: string
+          p_policy_id: number
+          p_refresh_run_id: number
+          p_route_family_id?: number
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_preview_product_process_route_candidate: {
+        Args: {
+          p_as_of_date?: string
+          p_lookback_months?: number
+          p_product_id: number
+        }
+        Returns: Json
+      }
+      rpc_preview_product_route_delta_candidate: {
+        Args: {
+          p_as_of_date?: string
+          p_lookback_months?: number
+          p_product_id: number
+        }
+        Returns: Json
+      }
+      rpc_preview_production_cost_centre_candidates: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_product_group_id: number
+        }
+        Returns: Json
+      }
+      rpc_preview_production_overhead_workload: {
+        Args: {
+          p_period_start: string
+          p_policy_id: number
+          p_refresh_run_id: number
+          p_route_family_id?: number
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_preview_route_family_candidate: {
+        Args: {
+          p_as_of_date?: string
+          p_lookback_months?: number
+          p_product_group_ids?: number[]
+          p_route_family_id?: number
+        }
+        Returns: Json
+      }
+      rpc_preview_route_family_route_steps: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_family_route_id: number
+        }
+        Returns: Json
+      }
+      rpc_preview_shared_standard_batch_route_foundation: {
+        Args: {
+          p_period_start: string
+          p_refresh_run_id: number
+          p_route_family_id?: number
+          p_valuation_date: string
+        }
+        Returns: Json
+      }
+      rpc_preview_sku_regional_sales_assumption: {
+        Args: {
+          p_approved_total_value_override?: number
+          p_assumed_paid_units: number
+          p_assumption_basis: string
+          p_commercial_resolution_mode?: string
+          p_effective_from: string
+          p_override_billed_price_per_paid_unit?: number
+          p_override_discount_amount_per_paid_unit?: number
+          p_override_discount_percent?: number
+          p_override_reason?: string
+          p_period_start: string
+          p_region_code: string
+          p_scheme_id?: number
+          p_sku_id: number
+        }
+        Returns: {
+          approved_total_value_override: number
+          assumed_free_units: number
+          assumed_paid_units: number
+          assumed_total_base_qty: number
+          assumed_total_units: number
+          assumption_basis: string
+          commercial_resolution_mode: string
+          conversion_to_base: number
+          derived_assumed_sales_value: number
+          effective_from: string
+          mrp_policy_id: number
+          override_billed_price_per_paid_unit: number
+          override_discount_amount_per_paid_unit: number
+          override_discount_percent: number
+          override_reason: string
+          pack_size: number
+          pack_uom: string
+          period_start: string
+          preview_note: string
+          preview_status: string
+          product_base_uom: string
+          product_id: number
+          product_name: string
+          region_code: string
+          resolved_assumed_sales_value: number
+          resolved_basic_price: number
+          resolved_billed_price_per_paid_unit: number
+          resolved_discount_amount_per_paid_unit: number
+          resolved_discount_percent: number
+          resolved_gst_percent: number
+          resolved_mrp: number
+          scheme_free_qty: number
+          scheme_id: number
+          scheme_name: string
+          scheme_paid_qty: number
+          scheme_policy_reference: string
+          scheme_resolution_source: string
+          scheme_total_qty: number
+          selling_price_policy_id: number
+          sku_base_qty_per_unit: number
+          sku_id: number
+          standard_billed_price_per_paid_unit: number
+          standard_derived_sales_value: number
+          standard_discount_amount_per_paid_unit: number
+          standard_discount_percent: number
+          value_resolution_source: string
+        }[]
+      }
       rpc_process_next_costing_refresh_stage: {
         Args: { p_refresh_run_id?: number }
         Returns: {
@@ -43382,24 +44344,27 @@ export type Database = {
         }[]
       }
       rpc_refresh_cost_sheet_line_monthly_snapshot: {
-        Args: { p_period_start: string }
+        Args: {
+          p_period_start: string
+          p_refresh_run_id: number
+          p_valuation_date: string
+        }
         Returns: {
+          context_mismatch_count: number
           deleted_rows: number
           inserted_rows: number
+          refresh_run_id: number
           refreshed_at: string
           snapshot_period_start: string
-        }[]
-      }
-      rpc_refresh_costing_control_integrity_audit_snapshot: {
-        Args: { p_period_start?: string }
-        Returns: {
-          audit_rows_inserted: number
-          refresh_status: string
-          refreshed_period_start: string
+          valuation_date: string
         }[]
       }
       rpc_refresh_costing_control_maintenance_chain: {
-        Args: { p_period_start?: string }
+        Args: {
+          p_period_start: string
+          p_refresh_run_id: number
+          p_valuation_date: string
+        }
         Returns: {
           audit_rows_inserted: number
           dashboard_snapshot_rows: number
@@ -43416,7 +44381,11 @@ export type Database = {
         }[]
       }
       rpc_refresh_costing_control_summary_snapshots: {
-        Args: { p_period_start?: string }
+        Args: {
+          p_period_start: string
+          p_refresh_run_id: number
+          p_valuation_date: string
+        }
         Returns: {
           audit_rows_inserted: number
           blocked_count: number
@@ -43427,21 +44396,6 @@ export type Database = {
           refreshed_period_start: string
           review_required_count: number
           sku_rows_inserted: number
-        }[]
-      }
-      rpc_refresh_costing_review_action_drilldown_snapshot: {
-        Args: {
-          p_bom_source: string
-          p_material_issue_code: string
-          p_period_start: string
-          p_stock_item_id: number
-        }
-        Returns: {
-          bom_source: string
-          drilldown_rows_inserted: number
-          material_issue_code: string
-          period_start: string
-          stock_item_id: number
         }[]
       }
       rpc_refresh_costing_review_workbench_snapshot: {
@@ -43460,35 +44414,6 @@ export type Database = {
           drilldown_rows_inserted: number
           period_start: string
           summary_rows_inserted: number
-        }[]
-      }
-      rpc_refresh_material_action_drilldown_snapshot: {
-        Args: {
-          p_action_severity: string
-          p_material_area: string
-          p_period_start: string
-          p_recommended_ui_route: string
-          p_stock_item_id: number
-        }
-        Returns: {
-          action_severity: string
-          deleted_rows: number
-          inserted_rows: number
-          material_area: string
-          recommended_ui_route: string
-          refresh_status: string
-          refreshed_at: string
-          refreshed_period_start: string
-          stock_item_id: number
-        }[]
-      }
-      rpc_refresh_material_action_snapshots_maintenance: {
-        Args: { p_period_start?: string }
-        Returns: {
-          drilldown_rows_inserted: number
-          queue_rows_inserted: number
-          refresh_status: string
-          refreshed_period_start: string
         }[]
       }
       rpc_request_costing_refresh: {
@@ -43524,6 +44449,18 @@ export type Database = {
         Args: { p_from: string; p_job_type: string; p_to: string }
         Returns: number
       }
+      rpc_revise_supply_batch_size_reference: {
+        Args: {
+          p_change_reason?: string
+          p_effective_from?: string
+          p_max_batch_size?: number
+          p_min_batch_size?: number
+          p_notes?: string
+          p_preferred_batch_size: number
+          p_reference_id: number
+        }
+        Returns: Json
+      }
       rpc_run_master_aggregator: {
         Args: { p_company?: string; p_date: string }
         Returns: string
@@ -43556,6 +44493,42 @@ export type Database = {
           remarks: string
           source_reference: string
           updated_at: string
+        }[]
+      }
+      rpc_search_bmr_admin_correction_history: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_executed_by?: string
+          p_operation_result?: string
+          p_operation_type?: string
+          p_page?: number
+          p_page_size?: number
+          p_product_id?: number
+          p_search?: string
+        }
+        Returns: Json
+      }
+      rpc_set_cost_period_valuation_date: {
+        Args: {
+          p_approval_reference?: string
+          p_period_start: string
+          p_reason: string
+          p_valuation_date: string
+        }
+        Returns: {
+          action_result: string
+          period_end: string
+          period_start: string
+          period_status: string
+          previous_valuation_date: string
+          valuation_date: string
+          valuation_date_approval_reference: string
+          valuation_date_change_reason: string
+          valuation_date_set_at: string
+          valuation_date_set_by: string
+          valuation_date_source: string
+          valuation_date_status: string
         }[]
       }
       rpc_set_expense_head_costing_map: {
@@ -43641,6 +44614,43 @@ export type Database = {
           source_type: string
         }[]
       }
+      rpc_set_product_sku_active: {
+        Args: {
+          p_approval_reference?: string
+          p_is_active: boolean
+          p_reason: string
+          p_sku_id: number
+        }
+        Returns: {
+          audit_event_type: string
+          is_active: boolean
+          is_sample: boolean
+          pack_size: number
+          product_id: number
+          sku_id: number
+          uom: string
+        }[]
+      }
+      rpc_set_sales_allocation_default_policy: {
+        Args: {
+          p_approval_reference?: string
+          p_default_sales_units: number
+          p_effective_from: string
+          p_reason: string
+          p_scenario_code: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          default_sales_units: number
+          effective_from: string
+          effective_to: string
+          policy_id: number
+          previous_policy_id: number
+          scenario_code: string
+          status: string
+        }[]
+      }
       rpc_set_scheme_policy_rule: {
         Args: {
           p_apply_mode?: string
@@ -43692,6 +44702,72 @@ export type Database = {
           policy_id: number
           previous_policy_id: number
           reason: string
+          sku_id: number
+          status: string
+        }[]
+      }
+      rpc_set_sku_regional_sales_assumption: {
+        Args: {
+          p_approval_reference?: string
+          p_approved_total_value_override?: number
+          p_assumed_paid_units: number
+          p_assumption_basis: string
+          p_commercial_resolution_mode?: string
+          p_effective_from: string
+          p_override_billed_price_per_paid_unit?: number
+          p_override_discount_amount_per_paid_unit?: number
+          p_override_discount_percent?: number
+          p_override_reason?: string
+          p_period_start: string
+          p_region_code: string
+          p_remarks?: string
+          p_scheme_id?: number
+          p_sku_id: number
+        }
+        Returns: {
+          assumed_free_units: number
+          assumed_paid_units: number
+          assumed_total_base_qty: number
+          assumed_total_units: number
+          assumption_basis: string
+          assumption_id: number
+          commercial_resolution_mode: string
+          created_at: string
+          created_by: string
+          effective_from: string
+          effective_to: string
+          period_start: string
+          previous_assumption_id: number
+          region_code: string
+          resolved_assumed_sales_value: number
+          sku_id: number
+          status: string
+          superseded_assumption_id: number
+          value_resolution_source: string
+        }[]
+      }
+      rpc_set_sku_sales_assumption: {
+        Args: {
+          p_approval_reference?: string
+          p_assumed_sales_units: number
+          p_assumed_sales_value: number
+          p_assumption_basis: string
+          p_effective_from: string
+          p_period_start: string
+          p_remarks: string
+          p_sku_id: number
+        }
+        Returns: {
+          assumed_sales_units: number
+          assumed_sales_value: number
+          assumption_basis: string
+          assumption_id: number
+          created_at: string
+          created_by: string
+          effective_from: string
+          effective_to: string
+          period_start: string
+          previous_assumption_id: number
           sku_id: number
           status: string
         }[]
@@ -43837,6 +44913,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      rpc_submit_cost_driver_policy_envelope_for_review: {
+        Args: { p_envelope_id: number }
+        Returns: Json
+      }
+      rpc_submit_direct_labour_workload_policy_for_review: {
+        Args: { p_policy_id: number }
+        Returns: Json
+      }
       rpc_submit_product_mrp_proposal: {
         Args: { p_proposal_id: number; p_submission_note: string }
         Returns: {
@@ -43859,6 +44943,30 @@ export type Database = {
           warning_line_count: number
         }[]
       }
+      rpc_submit_product_route_family_assignment_for_review: {
+        Args: { p_assignment_id: number }
+        Returns: Json
+      }
+      rpc_submit_product_route_for_review: {
+        Args: { p_product_route_id: number }
+        Returns: Json
+      }
+      rpc_submit_production_overhead_workload_policy_for_review: {
+        Args: { p_policy_id: number }
+        Returns: Json
+      }
+      rpc_submit_route_family_route_for_review: {
+        Args: { p_family_route_id: number }
+        Returns: Json
+      }
+      rpc_supersede_product_route: {
+        Args: { p_new_product_route_id: number; p_old_product_route_id: number }
+        Returns: Json
+      }
+      rpc_supersede_route_family_route: {
+        Args: { p_new_family_route_id: number; p_old_family_route_id: number }
+        Returns: Json
+      }
       rpc_trace_log_pipeline: {
         Args: { p_batch_number: string; p_item?: string }
         Returns: Json
@@ -43878,6 +44986,31 @@ export type Database = {
         }[]
       }
       rpc_update_daily_work_log_status: {
+        Args: {
+          p_completed_on?: string
+          p_count_of_saravam?: number
+          p_fuel?: string
+          p_fuel_over?: string
+          p_fuel_under?: string
+          p_id: number
+          p_juice_or_decoction?: string
+          p_lab_ref_number?: string
+          p_new_status: string
+          p_qty_after_process?: number
+          p_qty_uom?: string
+          p_sku_breakdown?: string
+          p_specify?: string
+          p_storage_qty?: number
+          p_storage_qty_uom?: string
+        }
+        Returns: {
+          daily_work_log_id: number
+          final_status: string
+          inserted_event_sku_count: number
+          packaging_event_id: number
+        }[]
+      }
+      rpc_update_daily_work_log_status__core: {
         Args: {
           p_completed_on?: string
           p_count_of_saravam?: number
@@ -43941,6 +45074,124 @@ export type Database = {
           packaging_event_id: number
         }[]
       }
+      rpc_update_daily_work_log_with_packaging__core: {
+        Args: {
+          p_activity: string
+          p_area_id: number
+          p_batch_number: string
+          p_batch_size: number
+          p_batch_uom: string
+          p_completed_on: string
+          p_count_of_saravam: number
+          p_due_date: string
+          p_fuel: string
+          p_fuel_over: string
+          p_fuel_under: string
+          p_id: number
+          p_item: string
+          p_juice_or_decoction: string
+          p_lab_ref_number: string
+          p_log_date: string
+          p_plant_id: number
+          p_qty_after_process: number
+          p_qty_uom: string
+          p_remarks: string
+          p_rm_juice_qty: number
+          p_rm_juice_uom: string
+          p_section_id: number
+          p_sku_breakdown: string
+          p_specify: string
+          p_started_on: string
+          p_status: string
+          p_storage_qty: number
+          p_storage_qty_uom: string
+          p_subsection_id: number
+        }
+        Returns: {
+          daily_work_log_id: number
+          inserted_event_sku_count: number
+          packaging_event_id: number
+        }[]
+      }
+      rpc_update_godown: {
+        Args: {
+          p_approval_reference?: string
+          p_code: string
+          p_godown_id: number
+          p_name: string
+          p_reason: string
+          p_region_id: number
+        }
+        Returns: {
+          code: string
+          godown_id: number
+          name: string
+          region_id: number
+        }[]
+      }
+      rpc_update_product: {
+        Args: {
+          p_approval_reference?: string
+          p_conversion_to_base: number
+          p_is_llt: boolean
+          p_is_pto: boolean
+          p_is_seasonal: boolean
+          p_item: string
+          p_malayalam_name: string
+          p_manufacture_lead_time_months: number
+          p_product_id: number
+          p_reason: string
+          p_season_profile_id: number
+          p_status: string
+          p_sub_group_id: number
+          p_uom_base: string
+        }
+        Returns: {
+          audit_event_type: string
+          conversion_to_base: number
+          is_llt: boolean
+          is_pto: boolean
+          is_seasonal: boolean
+          item: string
+          malayalam_name: string
+          manufacture_lead_time_months: number
+          product_id: number
+          season_profile_id: number
+          status: string
+          sub_group_id: number
+          uom_base: string
+        }[]
+      }
+      rpc_update_product_route_draft: {
+        Args: { p_patch: Json; p_product_route_id: number }
+        Returns: Json
+      }
+      rpc_update_product_sku: {
+        Args: {
+          p_approval_reference?: string
+          p_is_sample: boolean
+          p_pack_size: number
+          p_reason: string
+          p_sku_id: number
+          p_uom: string
+        }
+        Returns: {
+          is_active: boolean
+          is_sample: boolean
+          pack_size: number
+          product_id: number
+          sku_id: number
+          uom: string
+        }[]
+      }
+      rpc_update_production_cost_centre_draft: {
+        Args: { p_cost_centre_id: number; p_patch: Json }
+        Returns: Json
+      }
+      rpc_update_route_family_mapping_draft: {
+        Args: { p_mapping_id: number; p_patch: Json }
+        Returns: Json
+      }
       rpc_update_scheme_master_metadata: {
         Args: {
           p_approval_reference?: string
@@ -43961,6 +45212,30 @@ export type Database = {
           updated_at: string
           updated_by: string
         }[]
+      }
+      rpc_upsert_product_route_override: {
+        Args: {
+          p_override?: Json
+          p_override_id?: number
+          p_product_route_id: number
+        }
+        Returns: Json
+      }
+      rpc_upsert_route_family_route_step: {
+        Args: { p_family_route_id: number; p_step?: Json; p_step_id?: number }
+        Returns: Json
+      }
+      rpc_validate_product_route: {
+        Args: { p_product_route_id: number }
+        Returns: Json
+      }
+      rpc_validate_production_cost_centre: {
+        Args: { p_cost_centre_id: number }
+        Returns: Json
+      }
+      rpc_validate_route_family_route: {
+        Args: { p_family_route_id: number }
+        Returns: Json
       }
       sdv_zero_revenue_abs: {
         Args: {
@@ -44061,39 +45336,6 @@ export type Database = {
           p_sort_dir?: string
         }
         Returns: Json
-      }
-      upsert_forecast_override: {
-        Args: {
-          p_created_by?: string
-          p_delta_units: number
-          p_godown_id: number
-          p_is_active?: boolean
-          p_month_start: string
-          p_reason?: string
-          p_region_id: number
-          p_sku_id: number
-          p_source?: string
-        }
-        Returns: {
-          created_at: string
-          created_by: string | null
-          delta_units: number
-          godown_id: number
-          id: number
-          is_active: boolean
-          month_start: string
-          reason: string | null
-          region_id: number
-          sku_id: number
-          source: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "forecast_demand_overrides"
-          isOneToOne: true
-          isSetofReturn: false
-        }
       }
       upsert_godown_alias: {
         Args: { p_alias: string; p_godown_id: number; p_note?: string }

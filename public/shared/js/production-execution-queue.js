@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 
 const MODULE_ID = "production-execution-queue";
-let PERM_CAN_VIEW = true;
+let PERM_CAN_VIEW = false;
 
 // Elements
 const $ = (id) => document.getElementById(id);
@@ -730,6 +730,7 @@ function clearStatus() {
 }
 
 async function loadPermissions(sessionUserId) {
+  PERM_CAN_VIEW = false;
   try {
     const { data: perms, error: permsErr } = await supabase.rpc(
       "get_user_permissions",
@@ -739,20 +740,10 @@ async function loadPermissions(sessionUserId) {
       const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
       if (p) PERM_CAN_VIEW = !!p.can_view;
     } else {
-      // fallback
-      try {
-        const { data: permRows } = await supabase
-          .from("user_permissions")
-          .select("module_id, can_view")
-          .eq("user_id", sessionUserId)
-          .eq("module_id", MODULE_ID)
-          .limit(1);
-        if (Array.isArray(permRows) && permRows.length) {
-          PERM_CAN_VIEW = !!permRows[0].can_view;
-        }
-      } catch (e) {
-        console.warn("Permission fallback failed", e);
-      }
+      console.warn(
+        "Permission RPC failed",
+        permsErr || "unexpected non-array result",
+      );
     }
   } catch (e) {
     console.warn("Permission RPC failed", e);

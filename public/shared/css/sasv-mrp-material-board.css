@@ -1,0 +1,633 @@
+/**
+ * UI-MOD-4G — MRP Material Board specialization.
+ * Scoped to body.sasv-mrp-material-board only.
+ * Preserves Summary/Exceptions views, mode tabs, filters, dense table board,
+ * item-detail modal, filter drawer, and mrp_material_overview_page contracts.
+ *
+ * Viewport gutter: inherit body.sasv-module.sasv-module--app
+ * (--sasv-module-page-padding 20 / 10 / 6) — do not restate here.
+ */
+
+body.sasv-module.sasv-module--app.sasv-mrp-material-board {
+  margin: 0;
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  font-family: var(--sasv-font-sans);
+  box-sizing: border-box;
+  /* App shell already provides column flex + viewport height */
+}
+
+/* Chrome / filter / mode rows stay; table region fills */
+body.sasv-mrp-material-board > .header-card,
+body.sasv-mrp-material-board > .mmb-workspace-strip,
+body.sasv-mrp-material-board > #filters,
+body.sasv-mrp-material-board > .board-header-row {
+  flex-shrink: 0;
+}
+
+body.sasv-mrp-material-board > .main-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/*
+ * Table-wrap safety audit (UI-MOD-4G):
+ * A. #mrpTableContainer — intentional flex-fill workspace (KEEP fill).
+ * B. No .table-wrap / .table-scroll / #tableWrap in this page.
+ * Neutralize ordinary shared wrappers if introduced later; do NOT collapse
+ * the intentional board container.
+ */
+body.sasv-mrp-material-board .table-wrap,
+body.sasv-mrp-material-board .table-scroll,
+body.sasv-mrp-material-board .table-container,
+body.sasv-mrp-material-board #tableWrap {
+  flex: 0 1 auto;
+  min-height: auto;
+}
+
+body.sasv-mrp-material-board #mrpTableContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+/* ── Header / HOME ──────────────────────────────────────────────────────── */
+body.sasv-mrp-material-board .header-card {
+  padding: 0;
+  margin: 0 0 8px;
+  background: transparent;
+  border: none;
+  display: block; /* never side-by-side with workspace controls */
+}
+
+body.sasv-mrp-material-board .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+  width: 100%;
+}
+
+body.sasv-mrp-material-board .mmb-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-mrp-material-board .page-header h1,
+body.sasv-mrp-material-board .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-mrp-material-board .page-sub,
+body.sasv-mrp-material-board .section-hint {
+  margin: 4px 0 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+}
+
+body.sasv-mrp-material-board .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/*
+ * UI-MOD-4H.1 — do not override HOME hover colours here.
+ * A prior page-local rule kept color: var(--sasv-action-home) on hover while
+ * background used --sasv-action-home-bg-hover (dark), causing poor contrast.
+ * Canonical contract lives in sasv-module.css (fg-hover on hover).
+ */
+body.sasv-mrp-material-board #homeBtn.sasv-home-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  body.sasv-mrp-material-board .page-sub,
+  body.sasv-mrp-material-board .section-hint {
+    display: none;
+  }
+}
+
+/* ── Workspace strip: Month + Summary / Exceptions (not module header) ── */
+body.sasv-mrp-material-board .mmb-workspace-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board .mmb-workspace-strip #viewTabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board .mmb-workspace-strip .mmb-month-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+
+body.sasv-mrp-material-board .mmb-workspace-strip .mmb-month-pair label {
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+  white-space: nowrap;
+}
+
+body.sasv-mrp-material-board #viewTabs .subtab {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sasv-text-secondary);
+  font-family: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board #viewTabs .subtab.active,
+body.sasv-mrp-material-board #viewTabs .subtab[aria-pressed="true"] {
+  font-weight: 600;
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border-color: var(--sasv-action-primary-soft-border);
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board #viewTabs .subtab.active[data-view="exceptions"],
+body.sasv-mrp-material-board
+  #viewTabs
+  .subtab[aria-pressed="true"][data-view="exceptions"] {
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  border-color: var(--sasv-warning-border);
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board #viewTabs .subtab:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Mode tabs (board refiners) ─────────────────────────────────────────── */
+body.sasv-mrp-material-board #boardTabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+body.sasv-mrp-material-board #boardTabs .tab {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  font-family: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board #boardTabs .tab.active,
+body.sasv-mrp-material-board #boardTabs .tab[aria-pressed="true"] {
+  font-weight: 600;
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-mrp-material-board #boardTabs .tab.refiner-dot::after {
+  background: var(--sasv-action-primary);
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board #boardTabs .tab:focus-visible {
+  outline: 2px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Filters / controls ─────────────────────────────────────────────────── */
+body.sasv-mrp-material-board .filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+body.sasv-mrp-material-board .filter-pair label {
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-mrp-material-board input[type="checkbox"],
+body.sasv-mrp-material-board input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-mrp-material-board
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.sasv-mrp-material-board select,
+body.sasv-mrp-material-board textarea {
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-mrp-material-board
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+body.sasv-mrp-material-board select:focus,
+body.sasv-mrp-material-board textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-mrp-material-board #rowCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border: 1px solid var(--sasv-action-primary-soft-border);
+  border-radius: 999px;
+  font-size: var(--sasv-text-xs);
+  font-weight: 600;
+}
+
+/* Icon-only filter actions */
+body.sasv-mrp-material-board .filter-actions .link-btn {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  transform: none;
+}
+
+body.sasv-mrp-material-board .filter-actions .link-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.sasv-mrp-material-board .filter-actions .link-btn:hover:not(:disabled) {
+  background: var(--sasv-surface);
+  color: var(--sasv-action-primary-active);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+  transform: none;
+}
+
+/* ── Actions (UI-MOD-3D) ────────────────────────────────────────────────── */
+body.sasv-mrp-material-board .btn-primary,
+body.sasv-mrp-material-board .btn-secondary,
+body.sasv-mrp-material-board .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+body.sasv-mrp-material-board .btn-primary {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  border: 1px solid var(--sasv-action-primary);
+}
+
+body.sasv-mrp-material-board .btn-primary:hover:not(:disabled) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-mrp-material-board .btn-primary:disabled {
+  background: var(--sasv-text-muted);
+  border-color: var(--sasv-text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+body.sasv-mrp-material-board .btn-secondary {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-control-border);
+}
+
+body.sasv-mrp-material-board .btn-secondary:hover {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-mrp-material-board .btn-primary svg,
+body.sasv-mrp-material-board .btn-secondary svg,
+body.sasv-mrp-material-board .btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Table / board — font + column alignment contracts ─────────────────── */
+body.sasv-mrp-material-board #mrpTable {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  background: var(--sasv-surface);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+}
+
+body.sasv-mrp-material-board #mrpTable thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-family: var(--sasv-font-sans);
+  font-weight: 600;
+  font-size: var(--sasv-text-xs);
+  border-bottom: 1px solid var(--sasv-border);
+  vertical-align: middle;
+}
+
+body.sasv-mrp-material-board #mrpTable tbody td {
+  font-family: var(--sasv-font-sans);
+  font-weight: 400;
+  color: var(--sasv-text);
+  vertical-align: middle;
+}
+
+body.sasv-mrp-material-board #mrpTable tbody tr:hover td {
+  background: var(--sasv-selection-soft, rgba(15, 40, 42, 0.04));
+}
+
+body.sasv-mrp-material-board #mrpTable tbody tr.selected td {
+  background: var(--sasv-selection-soft);
+}
+
+/* Shared th/td alignment via data-key (stable contract) */
+body.sasv-mrp-material-board #mrpTable th[data-key="stock_item_code"],
+body.sasv-mrp-material-board #mrpTable td[data-key="stock_item_code"],
+body.sasv-mrp-material-board #mrpTable th[data-key="stock_item_name"],
+body.sasv-mrp-material-board #mrpTable td[data-key="stock_item_name"],
+body.sasv-mrp-material-board #mrpTable th[data-key="material_kind"],
+body.sasv-mrp-material-board #mrpTable td[data-key="material_kind"],
+body.sasv-mrp-material-board #mrpTable th[data-key="stock_uom"],
+body.sasv-mrp-material-board #mrpTable td[data-key="stock_uom"],
+body.sasv-mrp-material-board #mrpTable th[data-key="flags"],
+body.sasv-mrp-material-board #mrpTable td[data-key="flags"] {
+  text-align: left;
+}
+
+body.sasv-mrp-material-board #mrpTable th[data-key="planned_total_qty"],
+body.sasv-mrp-material-board #mrpTable td[data-key="planned_total_qty"],
+body.sasv-mrp-material-board #mrpTable th[data-key="issued_total_qty"],
+body.sasv-mrp-material-board #mrpTable td[data-key="issued_total_qty"],
+body.sasv-mrp-material-board #mrpTable th[data-key="net_requirement"],
+body.sasv-mrp-material-board #mrpTable td[data-key="net_requirement"] {
+  text-align: right;
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* CODE: Inter primary; tabular for identifier readability (not numeric mono) */
+body.sasv-mrp-material-board #mrpTable th[data-key="stock_item_code"],
+body.sasv-mrp-material-board #mrpTable td[data-key="stock_item_code"] {
+  font-family: var(--sasv-font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sortable headers: keep label+icon as one aligned group */
+body.sasv-mrp-material-board #mrpTable thead th.sortable {
+  white-space: nowrap;
+}
+
+body.sasv-mrp-material-board #mrpTable thead th .sort-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+body.sasv-mrp-material-board #mrpTable thead th .sort-icon svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.7;
+}
+
+body.sasv-mrp-material-board #mrpTable thead th[data-key="planned_total_qty"],
+body.sasv-mrp-material-board #mrpTable thead th[data-key="issued_total_qty"],
+body.sasv-mrp-material-board #mrpTable thead th[data-key="net_requirement"] {
+  /* whole header cluster stays right-aligned including sort icon */
+  text-align: right;
+}
+
+/* FLAGS chips */
+body.sasv-mrp-material-board #mrpTable td[data-key="flags"] .flags,
+body.sasv-mrp-material-board #mrpTable .flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+body.sasv-mrp-material-board #mrpTable .flags .badge-warning,
+body.sasv-mrp-material-board #mrpTable .flags .badge-info {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Status badges — semantic tokens; retain warning vs info distinction */
+body.sasv-mrp-material-board .badge-warning {
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  border: 1px solid var(--sasv-warning-border);
+}
+
+body.sasv-mrp-material-board .badge-info {
+  background: var(--sasv-info-bg, var(--sasv-selection-soft));
+  color: var(--sasv-info, var(--sasv-action-primary-active));
+  border: 1px solid
+    var(--sasv-info-border, var(--sasv-action-primary-soft-border));
+}
+
+/* Board toolbar row: mode chips left, pager right */
+body.sasv-mrp-material-board .board-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+body.sasv-mrp-material-board #paginator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+body.sasv-mrp-material-board #paginator .pg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px 10px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  font-size: var(--sasv-text-sm);
+  cursor: pointer;
+}
+
+body.sasv-mrp-material-board #paginator .pg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+body.sasv-mrp-material-board #paginator .pg-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.sasv-mrp-material-board #paginator .pg-info {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
+/* ── Drawer / modal ─────────────────────────────────────────────────────── */
+body.sasv-mrp-material-board .filter-drawer,
+body.sasv-mrp-material-board .modal-dialog {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12));
+  color: var(--sasv-text);
+}
+
+body.sasv-mrp-material-board .modal-close,
+body.sasv-mrp-material-board .drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  padding: 4px;
+  border: none;
+  border-radius: var(--sasv-radius-sm);
+  background: transparent;
+  color: var(--sasv-text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+body.sasv-mrp-material-board .modal-footer,
+body.sasv-mrp-material-board .drawer-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Loading overlay spinner accent */
+body.sasv-mrp-material-board #mrpLoadingOverlay .spinner {
+  border-top-color: var(--sasv-action-primary);
+}
+
+body.sasv-mrp-material-board #mrpLoadingOverlay .panel {
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-border);
+  box-shadow: var(--sasv-shadow-md, 0 10px 30px rgba(0, 0, 0, 0.12));
+}
+
+/* Prefer canonical toast.js; hide legacy host if present */
+body.sasv-mrp-material-board #mrpToast {
+  display: none !important;
+}

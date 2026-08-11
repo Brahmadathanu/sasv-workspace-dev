@@ -1,1747 +1,68 @@
 <!doctype html>
-<html>
+<html data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <title>SASV WORKSPACE</title>
+    <link
+      rel="icon"
+      href="public/shared/assets/branding/derived/favicon.ico"
+      sizes="any"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="public/shared/assets/branding/derived/favicon-32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="public/shared/assets/branding/derived/icon-192.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="public/shared/assets/branding/derived/apple-touch-icon-180.png"
+    />
     <link rel="stylesheet" href="public/shared/css/style.css" />
-    <style>
-      :root {
-        --sasv-primary: #005a8d;
-        --sasv-primary-dark: #004876;
-        --sasv-bg: #f3f6f9;
-        --sasv-surface: #ffffff;
-        --sasv-surface-soft: #f8fafc;
-        --sasv-border: rgba(15, 23, 42, 0.08);
-        --sasv-text: #1e293b;
-        --sasv-text-soft: #334155;
-        --sasv-muted: #64748b;
-        --sasv-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.035);
-        --sasv-shadow-md: 0 6px 16px rgba(15, 23, 42, 0.06);
-        --sasv-radius-md: 12px;
-        --sasv-radius-lg: 16px;
-      }
-
-      [data-theme="dark"] {
-        --sasv-bg: #181c22;
-        --sasv-surface: #242a31;
-        --sasv-surface-soft: rgba(255, 255, 255, 0.055);
-        --sasv-border: rgba(255, 255, 255, 0.08);
-        --sasv-text: #e5e7eb;
-        --sasv-text-soft: #cbd5e1;
-        --sasv-muted: #a8b3c2;
-        --sasv-shadow-sm: none;
-        --sasv-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.24);
-      }
-
-      /* ── Soft Modern ERP Home Page ── */
-      body {
-        overflow-x: hidden;
-        padding-top: 0 !important;
-        background:
-          radial-gradient(
-            circle at 18% 0%,
-            rgba(0, 90, 141, 0.045),
-            transparent 32%
-          ),
-          linear-gradient(180deg, #f7f9fb 0%, var(--sasv-bg) 42%);
-        font-family:
-          "Inter",
-          "Segoe UI",
-          system-ui,
-          -apple-system,
-          BlinkMacSystemFont,
-          "Roboto",
-          "Helvetica Neue",
-          Arial,
-          sans-serif;
-        font-size: 14px;
-        letter-spacing: 0;
-      }
-      [data-theme="dark"] body,
-      body[data-theme="dark"] {
-        background:
-          radial-gradient(
-            circle at 18% 0%,
-            rgba(125, 211, 252, 0.055),
-            transparent 34%
-          ),
-          linear-gradient(180deg, #1c2229 0%, var(--sasv-bg) 44%);
-      }
-
-      header {
-        position: sticky;
-        top: 0;
-        z-index: 500;
-        display: flex !important;
-        align-items: center;
-        gap: 18px;
-        min-height: 64px;
-        padding: 0 24px;
-        background: rgba(255, 255, 255, 0.96) !important;
-        border-bottom: 1px solid var(--sasv-border);
-        box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        text-align: left !important;
-        margin-bottom: 0 !important;
-      }
-
-      [data-theme="dark"] header {
-        background: rgba(36, 42, 49, 0.94) !important;
-        border-bottom-color: var(--sasv-border);
-        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.22);
-      }
-
-      #brand-zone {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-shrink: 0;
-        text-decoration: none;
-        min-width: 220px;
-      }
-      #app-logo {
-        height: 40px;
-        width: 40px;
-        border-radius: var(--sasv-radius-md);
-        object-fit: cover;
-        flex-shrink: 0;
-        box-shadow: 0 1px 6px rgba(15, 23, 42, 0.12);
-      }
-      #brand-text {
-        display: flex;
-        flex-direction: column;
-        line-height: 1.05;
-        gap: 4px;
-      }
-      #brand-name {
-        font-size: 15px;
-        font-weight: 700;
-        letter-spacing: 0.025em;
-        white-space: nowrap;
-        text-transform: uppercase;
-      }
-      #brand-name .brand-sasv {
-        color: var(--sasv-primary);
-      }
-      #brand-name .brand-workspace {
-        color: var(--sasv-text-soft);
-        font-weight: 700;
-        opacity: 0.82;
-      }
-      [data-theme="dark"] #brand-name .brand-workspace {
-        color: #e5e7eb;
-        opacity: 0.85;
-      }
-      #appVersion {
-        font-size: 10.5px;
-        color: #8a5a00;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        background: #fff7df;
-        border: 1px solid #f2d68a;
-        border-radius: 999px;
-        padding: 2px 8px;
-        display: inline-block;
-        width: fit-content;
-      }
-      [data-theme="dark"] #appVersion {
-        background: rgba(245, 166, 35, 0.12);
-        border-color: rgba(245, 166, 35, 0.24);
-        color: #f7c56b;
-      }
-
-      #header-search-slot {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-width: 0;
-      }
-
-      #user-zone {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-shrink: 0;
-        margin-left: auto;
-      }
-
-      #presence-chip {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
-        background: var(--sasv-surface-soft);
-        border: 1px solid var(--sasv-border);
-        border-radius: 999px;
-        overflow: visible;
-        box-shadow: var(--sasv-shadow-sm);
-      }
-      #presence-label {
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--sasv-muted);
-        white-space: nowrap;
-      }
-      #userInfo {
-        padding: 0;
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--sasv-text-soft);
-        white-space: nowrap;
-        max-width: 230px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      #onlineUsersCount {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--sasv-text-soft);
-        background: var(--sasv-surface);
-        border: 1px solid var(--sasv-border);
-        border-radius: 999px;
-        padding: 4px 8px;
-        white-space: nowrap;
-      }
-      #user-chip {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px 6px 6px;
-        background: var(--sasv-surface);
-        border: 1px solid var(--sasv-border);
-        border-radius: 999px;
-        box-shadow: var(--sasv-shadow-sm);
-      }
-      #userAvatar {
-        width: 28px;
-        height: 28px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 11px;
-        font-weight: 800;
-        color: #fff;
-        background: var(--avatar-bg, #005a8d);
-        box-shadow: 0 1px 6px rgba(15, 23, 42, 0.14);
-      }
-      #logoutLink {
-        background: linear-gradient(180deg, #fff7f7, #fff1f1);
-        border: 1px solid rgba(220, 38, 38, 0.16);
-        border-radius: 999px;
-        padding: 7px 12px;
-        font-size: 11.5px;
-        font-weight: 700;
-        color: #b42318;
-        cursor: pointer;
-        white-space: nowrap;
-        transition:
-          background 0.15s ease,
-          border-color 0.15s ease,
-          box-shadow 0.15s ease;
-        font-family: inherit;
-      }
-      #logoutLink:hover {
-        background: #fff0f0;
-        border-color: rgba(220, 38, 38, 0.32);
-        box-shadow: 0 1px 6px rgba(220, 38, 38, 0.08);
-      }
-      #logoutLink:focus {
-        outline: 3px solid rgba(220, 38, 38, 0.14);
-        outline-offset: 2px;
-      }
-      [data-theme="dark"] #userInfo {
-        color: #e5e7eb;
-        background: rgba(255, 255, 255, 0.06);
-        border-color: rgba(255, 255, 255, 0.1);
-      }
-      [data-theme="dark"] #logoutLink {
-        background: rgba(255, 255, 255, 0.05);
-        color: #fca5a5;
-        border-color: rgba(248, 113, 113, 0.22);
-      }
-      [data-theme="dark"] #logoutLink:hover {
-        background: rgba(248, 113, 113, 0.1);
-      }
-
-      .online-bubble {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px;
-        height: 30px;
-        padding: 0;
-        border-radius: 999px;
-        background: var(--bubble-bg, #3b82f6);
-        color: #fff;
-        font-size: 11px;
-        font-weight: 700;
-        position: relative;
-        cursor: default;
-        user-select: none;
-        border: 1px solid rgba(255, 255, 255, 0.9);
-        margin-left: 0;
-        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
-        overflow: visible;
-      }
-      .online-bubble .bubble-initials {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.16);
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.02em;
-        flex-shrink: 0;
-      }
-      [data-theme="dark"] .online-bubble {
-        border-color: #2a2a2a;
-      }
-      .online-bubble .tooltip {
-        position: absolute;
-        top: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: #0f172a;
-        color: #fff;
-        padding: 7px 10px;
-        border-radius: 10px;
-        white-space: nowrap;
-        font-size: 11px;
-        line-height: 1.35;
-        visibility: hidden;
-        opacity: 0;
-        z-index: 600;
-        transition:
-          opacity 0.12s ease,
-          transform 0.12s ease;
-        pointer-events: none;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        min-width: 160px;
-        text-align: left;
-      }
-      .online-bubble:hover .tooltip {
-        visibility: visible;
-        opacity: 1;
-      }
-      #onlineUsersContainer {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      main#workspace-sections {
-        max-width: 1320px;
-        margin: 0 auto;
-        padding: 24px 28px 40px;
-      }
-
-      #workspace-activity-band {
-        max-width: 1320px;
-        margin: 0 auto;
-        padding: 14px 28px 0;
-      }
-
-      #workspace-activity-band {
-        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-      }
-
-      .workspace-stat {
-        background: transparent;
-        border: none;
-        border-radius: 0;
-        padding: 2px 18px 2px 0;
-        box-shadow: none;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-height: 0;
-        min-width: 0;
-      }
-
-      .workspace-stat + .workspace-stat {
-        margin-left: 18px;
-        padding-left: 18px;
-        border-left: 1px solid rgba(15, 23, 42, 0.08);
-      }
-
-      .workspace-stat-label {
-        font-size: 0.66rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #6b7b8c;
-      }
-
-      .workspace-stat-value {
-        font-size: 1rem;
-        font-weight: 800;
-        line-height: 1.1;
-        color: var(--sasv-text);
-      }
-
-      .workspace-stat-note {
-        font-size: 0.72rem;
-        color: var(--sasv-muted);
-        line-height: 1.25;
-      }
-
-      #workspace-quick-access {
-        position: relative;
-        overflow: hidden;
-        background: #e6f0f7;
-        border: 1px solid rgba(73, 114, 146, 0.3);
-        border-radius: 14px;
-        box-shadow:
-          0 8px 18px rgba(15, 23, 42, 0.08),
-          inset 0 1px 0 rgba(255, 255, 255, 0.55);
-        padding: 12px;
-      }
-
-      #workspace-quick-access::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #2f6f98, #5a8fb4);
-      }
-
-      .workspace-band-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 10px;
-        padding: 2px 2px 10px;
-        border-bottom: 1px solid rgba(73, 114, 146, 0.22);
-      }
-
-      .workspace-band-title {
-        margin: 0;
-        font-size: 0.9rem;
-        font-weight: 800;
-        color: #153e5b;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-      }
-
-      .workspace-band-note {
-        margin: 3px 0 0;
-        font-size: 0.74rem;
-        color: #4d6579;
-      }
-
-      .workspace-band-meta {
-        font-size: 0.67rem;
-        font-weight: 600;
-        color: #325874;
-        background: rgba(255, 255, 255, 0.72);
-        border: 1px solid rgba(73, 114, 146, 0.24);
-        border-radius: 999px;
-        padding: 3px 8px;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        white-space: nowrap;
-      }
-
-      .workspace-suggestion {
-        display: none;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin: 0 0 10px;
-        padding: 8px 10px;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.78);
-        border: 1px dashed rgba(49, 96, 127, 0.28);
-      }
-
-      .workspace-suggestion.show {
-        display: flex;
-      }
-
-      .workspace-suggestion-copy {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .workspace-suggestion-label {
-        font-size: 0.69rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.07em;
-        color: #0f5d85;
-      }
-
-      .workspace-suggestion-text {
-        font-size: 0.77rem;
-        color: var(--sasv-text-soft);
-        line-height: 1.25;
-      }
-
-      .workspace-suggestion-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
-      }
-
-      .workspace-suggestion-btn {
-        min-height: 30px;
-        padding: 0 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(0, 90, 141, 0.18);
-        background: rgba(255, 255, 255, 0.88);
-        color: #0f5d85;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        cursor: pointer;
-      }
-
-      .workspace-suggestion-btn:hover {
-        background: rgba(0, 90, 141, 0.08);
-      }
-
-      .workspace-suggestion-btn.subtle {
-        border-color: rgba(15, 23, 42, 0.08);
-        color: #697b8d;
-      }
-
-      #workspace-quick-links {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 8px;
-      }
-
-      .workspace-shortcut-wrap {
-        display: block;
-        position: relative;
-        min-width: 0;
-      }
-
-      .workspace-shortcut {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        position: relative;
-        overflow: hidden;
-        min-height: 48px;
-        padding: 9px 40px 9px 11px;
-        border-radius: 10px;
-        border: 1px solid var(--identity-border, rgba(15, 23, 42, 0.1));
-        background: rgba(255, 255, 255, 0.92);
-        text-decoration: none;
-        color: var(--sasv-text-soft);
-        box-shadow: 0 1px 5px rgba(15, 23, 42, 0.05);
-        transition:
-          transform 0.12s ease,
-          box-shadow 0.14s ease,
-          background 0.14s ease,
-          border-color 0.14s ease,
-          color 0.14s ease;
-        flex: 1;
-        min-width: 0;
-      }
-
-      .workspace-shortcut::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: var(--identity-color, var(--sasv-primary));
-        opacity: 0.7;
-      }
-
-      .workspace-shortcut:hover {
-        transform: translateY(-1px);
-        background: #ffffff;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
-        border-color: var(--identity-hover-border, rgba(0, 90, 141, 0.32));
-        color: var(--identity-color, var(--sasv-primary));
-        text-decoration: none;
-      }
-
-      .workspace-shortcut:focus-visible {
-        outline: 3px solid rgba(0, 90, 141, 0.18);
-        outline-offset: 2px;
-      }
-
-      .workspace-shortcut-initial {
-        flex-shrink: 0;
-        width: 28px;
-        height: 28px;
-        border-radius: 9px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 800;
-        background: var(--identity-bg, rgba(0, 90, 141, 0.12));
-        color: var(--identity-color, var(--sasv-primary));
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
-      }
-
-      .workspace-shortcut-copy {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        max-width: 220px;
-      }
-
-      .workspace-shortcut-title {
-        font-size: 0.81rem;
-        font-weight: 700;
-        color: inherit;
-        line-height: 1.15;
-      }
-
-      .workspace-shortcut-meta {
-        font-size: 0.68rem;
-        color: #5f7283;
-        line-height: 1.2;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-      }
-
-      .workspace-shortcut-pin {
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        width: 24px;
-        height: 24px;
-        padding: 0;
-        border-radius: 999px;
-        border: 1px solid rgba(49, 96, 127, 0.2);
-        background: rgba(255, 255, 255, 0.82);
-        color: #56728a;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        transform: translateY(-50%);
-        z-index: 2;
-        transition:
-          border-color 0.14s ease,
-          background 0.14s ease,
-          color 0.14s ease,
-          box-shadow 0.14s ease,
-          transform 0.12s ease;
-      }
-
-      .workspace-shortcut-pin svg {
-        width: 12px;
-        height: 12px;
-        stroke-width: 2;
-        fill: currentColor;
-      }
-
-      .workspace-shortcut-pin:hover {
-        border-color: rgba(0, 90, 141, 0.3);
-        background: rgba(0, 90, 141, 0.1);
-        color: #0f5d85;
-        transform: translateY(calc(-50% - 1px));
-      }
-
-      .workspace-shortcut-pin[aria-pressed="true"] {
-        border-color: rgba(0, 90, 141, 0.3);
-        background: rgba(0, 90, 141, 0.1);
-        color: #0f5d85;
-      }
-
-      .workspace-shortcut-pin:focus-visible {
-        outline: 3px solid rgba(0, 90, 141, 0.18);
-        outline-offset: 1px;
-      }
-
-      .workspace-quick-empty {
-        border: 1px dashed rgba(49, 96, 127, 0.28);
-        background: rgba(255, 255, 255, 0.62);
-        border-radius: 10px;
-        padding: 10px 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-
-      .workspace-quick-empty-title {
-        font-size: 0.74rem;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: #1d4663;
-      }
-
-      .workspace-quick-empty-value {
-        font-size: 0.95rem;
-        font-weight: 800;
-        color: #173d59;
-      }
-
-      .workspace-quick-empty-note {
-        font-size: 0.74rem;
-        color: #5d7385;
-      }
-
-      .cmd-result-main {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-        flex: 1;
-      }
-
-      .cmd-result-copy {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .cmd-result-title {
-        font-size: 0.9rem;
-        font-weight: 600;
-        line-height: 1.2;
-        color: inherit;
-      }
-
-      .cmd-result-meta {
-        font-size: 0.71rem;
-        color: #7b8ea0;
-        line-height: 1.2;
-      }
-
-      .cmd-result-pin {
-        min-height: 28px;
-        width: 28px;
-        padding: 0;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        background: rgba(255, 255, 255, 0.9);
-        color: #60788c;
-        cursor: pointer;
-        flex-shrink: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .cmd-result-pin svg {
-        width: 13px;
-        height: 13px;
-        stroke-width: 2;
-        fill: transparent;
-      }
-
-      .cmd-result-pin:hover {
-        border-color: rgba(0, 90, 141, 0.22);
-        background: rgba(0, 90, 141, 0.06);
-        color: var(--sasv-primary);
-      }
-
-      .cmd-result-pin[aria-pressed="true"] {
-        border-color: rgba(0, 90, 141, 0.28);
-        background: rgba(0, 90, 141, 0.08);
-        color: var(--sasv-primary);
-      }
-
-      .cmd-result-pin[aria-pressed="true"] svg {
-        fill: currentColor;
-      }
-
-      .section-hint {
-        margin: 0 0 14px;
-        font-size: 0.82rem;
-        color: var(--sasv-muted);
-        line-height: 1.45;
-      }
-
-      /* Placeholder (coming-soon) links */
-      .module-link[aria-disabled="true"] {
-        pointer-events: auto;
-        text-decoration: none;
-        cursor: not-allowed;
-      }
-
-      .locked-module {
-        pointer-events: auto;
-        text-decoration: none;
-        cursor: not-allowed;
-        position: relative;
-      }
-
-      #module-search-wrapper {
-        width: 100%;
-        max-width: 430px;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        pointer-events: auto;
-        margin: 0;
-      }
-      #module-search-container {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        background: var(--sasv-surface-soft);
-        border: 1px solid rgba(15, 23, 42, 0.1);
-        border-radius: 999px;
-        transition:
-          border-color 0.15s ease,
-          box-shadow 0.15s ease,
-          background 0.15s ease;
-        overflow: hidden;
-      }
-      #module-search-container:focus-within {
-        border-color: rgba(0, 90, 141, 0.45);
-        background: var(--sasv-surface);
-        box-shadow: 0 0 0 4px rgba(0, 90, 141, 0.08);
-      }
-      #module-search-icon {
-        flex-shrink: 0;
-        width: 38px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #7893a6;
-        height: 38px;
-      }
-      #moduleSearch {
-        flex: 1;
-        padding: 9px 6px 9px 0;
-        border: none;
-        outline: none;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--sasv-text);
-        background: transparent;
-        min-width: 0;
-      }
-      #moduleSearch::placeholder {
-        color: #9aaebe;
-      }
-      #module-search-kbd {
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        padding: 0 12px 0 6px;
-        flex-shrink: 0;
-        pointer-events: none;
-      }
-      .kbd-key {
-        display: inline-flex;
-        align-items: center;
-        padding: 1px 6px;
-        background: #eef3f7;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 6px;
-        font-size: 10px;
-        font-weight: 700;
-        color: #60788c;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        line-height: 1.6;
-      }
-      [data-theme="dark"] #module-search-container {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(255, 255, 255, 0.1);
-      }
-      [data-theme="dark"] #module-search-container:focus-within {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(125, 211, 252, 0.45);
-      }
-      [data-theme="dark"] #moduleSearch {
-        color: #e5e7eb;
-      }
-      [data-theme="dark"] .kbd-key {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.12);
-        color: #cbd5e1;
-      }
-
-      /* ── Command Palette Overlay ── */
-      #cmd-backdrop {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.45);
-        backdrop-filter: blur(3px);
-        -webkit-backdrop-filter: blur(3px);
-        z-index: 9000;
-        align-items: flex-start;
-        justify-content: center;
-        padding-top: 12vh;
-      }
-      #cmd-backdrop.open {
-        display: flex;
-      }
-      #cmd-palette {
-        width: 92%;
-        max-width: 600px;
-        background: #fff;
-        border-radius: 18px;
-        box-shadow:
-          0 24px 70px rgba(15, 23, 42, 0.24),
-          0 4px 18px rgba(15, 23, 42, 0.08);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        animation: cmdSlideIn 0.15s ease;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-      }
-      @keyframes cmdSlideIn {
-        from {
-          opacity: 0;
-          transform: translateY(-12px) scale(0.98);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      #cmd-search-row {
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-        padding: 0 16px;
-        gap: 12px;
-      }
-      #cmd-search-row svg {
-        flex-shrink: 0;
-        color: #005a8d;
-      }
-      #cmdPaletteInput {
-        flex: 1;
-        border: none;
-        outline: none;
-        font-size: 16px;
-        font-weight: 500;
-        color: #1e293b;
-        padding: 16px 0;
-        background: transparent;
-      }
-      #cmdPaletteInput::placeholder {
-        color: #94a3b8;
-        font-weight: 400;
-      }
-      #cmd-esc-hint {
-        font-size: 11px;
-        color: #94a3b8;
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      #cmd-results {
-        max-height: 360px;
-        overflow-y: auto;
-        padding: 6px 0;
-      }
-      #cmd-results:empty::after {
-        content: "No modules found";
-        display: block;
-        text-align: center;
-        padding: 24px;
-        color: #94a3b8;
-        font-size: 14px;
-      }
-      .cmd-result-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 11px 18px;
-        cursor: pointer;
-        font-size: 14px;
-        color: #1e293b;
-        border-radius: 0;
-        transition:
-          background 0.08s ease,
-          color 0.08s ease;
-      }
-      .cmd-result-item:hover,
-      .cmd-result-item.active {
-        background: #f1f7fb;
-        color: #005a8d;
-      }
-      .cmd-result-item.active {
-        background: #e6f2f8;
-      }
-      .cmd-result-item svg {
-        flex-shrink: 0;
-        opacity: 0.45;
-      }
-      #cmd-footer {
-        border-top: 1.5px solid #f1f5f9;
-        padding: 8px 18px;
-        display: flex;
-        gap: 16px;
-        font-size: 11px;
-        color: #94a3b8;
-      }
-      #cmd-footer span {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-      }
-
-      #workspace-sections .section-identity-operations,
-      #workspace-sections .identity-operations {
-        --identity-color: #005a8d;
-        --identity-bg: rgba(0, 90, 141, 0.12);
-        --identity-border: rgba(0, 90, 141, 0.34);
-        --identity-hover-border: rgba(0, 90, 141, 0.46);
-      }
-      #workspace-sections .section-identity-inventory,
-      #workspace-sections .identity-inventory {
-        --identity-color: #0f766e;
-        --identity-bg: rgba(15, 118, 110, 0.12);
-        --identity-border: rgba(15, 118, 110, 0.32);
-        --identity-hover-border: rgba(15, 118, 110, 0.44);
-      }
-      #workspace-sections .section-identity-finance,
-      #workspace-sections .identity-finance {
-        --identity-color: #15803d;
-        --identity-bg: rgba(21, 128, 61, 0.12);
-        --identity-border: rgba(21, 128, 61, 0.32);
-        --identity-hover-border: rgba(21, 128, 61, 0.44);
-      }
-      #workspace-sections .section-identity-quality,
-      #workspace-sections .identity-quality {
-        --identity-color: #b45309;
-        --identity-bg: rgba(180, 83, 9, 0.12);
-        --identity-border: rgba(180, 83, 9, 0.32);
-        --identity-hover-border: rgba(180, 83, 9, 0.44);
-      }
-      #workspace-sections .section-identity-admin,
-      #workspace-sections .identity-admin {
-        --identity-color: #475569;
-        --identity-bg: rgba(100, 116, 139, 0.14);
-        --identity-border: rgba(100, 116, 139, 0.32);
-        --identity-hover-border: rgba(100, 116, 139, 0.44);
-      }
-      #workspace-sections .section-identity-reports,
-      #workspace-sections .identity-reports {
-        --identity-color: #7c3aed;
-        --identity-bg: rgba(124, 58, 237, 0.12);
-        --identity-border: rgba(124, 58, 237, 0.3);
-        --identity-hover-border: rgba(124, 58, 237, 0.42);
-      }
-      #workspace-sections .section-identity-general,
-      #workspace-sections .identity-general {
-        --identity-color: #42657a;
-        --identity-bg: rgba(66, 101, 122, 0.11);
-        --identity-border: rgba(66, 101, 122, 0.28);
-        --identity-hover-border: rgba(66, 101, 122, 0.4);
-      }
-
-      #workspace-sections .module-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-        gap: 10px;
-        margin-top: 12px;
-      }
-      #workspace-sections .module-link {
-        display: none; /* JS sets to flex when permitted */
-        align-items: center;
-        gap: 11px;
-        position: relative;
-        overflow: hidden;
-        min-height: 58px;
-        padding: 11px 13px;
-        background: #ffffff;
-        border: 1px solid rgba(15, 23, 42, 0.11);
-        border-radius: 10px;
-        color: var(--sasv-text-soft);
-        text-decoration: none;
-        font-size: 0.84rem;
-        font-weight: 700;
-        letter-spacing: 0.008em;
-        line-height: 1.25;
-        transition:
-          background 0.14s ease,
-          border-color 0.14s ease,
-          box-shadow 0.14s ease,
-          transform 0.1s ease,
-          color 0.14s ease;
-        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-        white-space: normal;
-        will-change: transform, box-shadow;
-      }
-
-      #workspace-sections .module-link::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 4px;
-        background: var(--identity-color, var(--sasv-primary));
-        opacity: 0.34;
-      }
-
-      #workspace-sections .module-link:not(.locked-module):not(.read-only-module)::after {
-        content: "›";
-        font-size: 18px;
-        font-weight: 800;
-        color: var(--identity-color, var(--sasv-primary));
-        margin-left: auto;
-        opacity: 0.55;
-        transform: translateX(-1px);
-        transition:
-          opacity 0.14s ease,
-          transform 0.14s ease;
-      }
-      #workspace-sections .module-link:hover {
-        background: #f8fbfe;
-        border-color: var(--identity-hover-border, rgba(0, 90, 141, 0.4));
-        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.09);
-        transform: translateY(-1px);
-        color: #113e5f;
-        text-decoration: none;
-      }
-      #workspace-sections .module-link:not(.locked-module):not(.read-only-module):hover::after {
-        opacity: 1;
-        transform: translateX(1px);
-      }
-      #workspace-sections .module-link:focus-visible {
-        outline: 3px solid rgba(0, 90, 141, 0.18);
-        outline-offset: 2px;
-        border-color: rgba(0, 90, 141, 0.32);
-      }
-      #workspace-sections .module-link:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-        background: #f1f7fc;
-      }
-      .ml-initial {
-        flex-shrink: 0;
-        width: 34px;
-        height: 34px;
-        border-radius: 9px;
-        background: var(--identity-bg, rgba(66, 101, 122, 0.11));
-        color: var(--identity-color, #42657a);
-        font-size: 11px;
-        font-weight: 800;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        letter-spacing: 0.05em;
-        box-shadow:
-          inset 0 0 0 1px rgba(255, 255, 255, 0.45),
-          inset 0 -8px 16px rgba(255, 255, 255, 0.16);
-      }
-      #workspace-sections .module-link:hover .ml-initial {
-        background: var(--identity-color, var(--sasv-primary));
-        color: #fff;
-      }
-      .ml-label {
-        flex: 1;
-        min-width: 0;
-        word-break: break-word;
-        line-height: 1.2;
-        color: inherit;
-        display: -webkit-box;
-        line-clamp: 2;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .ml-copy {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .ml-badge {
-        display: inline-flex;
-        align-items: center;
-        align-self: flex-start;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 800;
-        line-height: 1.2;
-        white-space: nowrap;
-      }
-      .ml-badge.hidden {
-        display: none;
-      }
-      .ml-badge.warn {
-        background: #fffbeb;
-        border: 1px solid #fcd34d;
-        color: #b45309;
-      }
-      .ml-badge.danger {
-        background: #fef2f2;
-        border: 1px solid #fca5a5;
-        color: #b91c1c;
-      }
-      #workspace-sections .module-link.locked-module {
-        border-color: rgba(148, 163, 184, 0.22);
-        color: var(--sasv-muted);
-        opacity: 1;
-        background: linear-gradient(
-          180deg,
-          rgba(248, 250, 252, 0.95),
-          rgba(241, 245, 249, 0.95)
-        );
-        box-shadow: var(--sasv-shadow-sm);
-      }
-      #workspace-sections .module-link.locked-module .ml-initial {
-        background: rgba(148, 163, 184, 0.13);
-        color: #94a3b8;
-      }
-      #workspace-sections .module-link.locked-module:hover {
-        transform: none;
-        box-shadow: var(--sasv-shadow-sm);
-        color: var(--sasv-muted);
-        border-color: rgba(148, 163, 184, 0.24);
-      }
-      #workspace-sections .module-link.locked-module::after {
-        content: "Locked";
-        padding: 2px 6px;
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        border-radius: 999px;
-        background: rgba(148, 163, 184, 0.08);
-        color: #64748b;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        line-height: 1.35;
-        flex-shrink: 0;
-        margin-left: auto;
-      }
-      #workspace-sections .module-link.read-only-module {
-        border-color: rgba(245, 158, 11, 0.28);
-      }
-      #workspace-sections .module-link.read-only-module::after {
-        content: "Read only";
-        padding: 2px 6px;
-        border: 1px solid rgba(245, 158, 11, 0.35);
-        border-radius: 999px;
-        background: rgba(245, 158, 11, 0.1);
-        color: #92400e;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        line-height: 1.35;
-        flex-shrink: 0;
-        margin-left: auto;
-      }
-      #workspace-sections
-        .module-link[aria-disabled="true"]:not(.locked-module) {
-        border-color: rgba(148, 163, 184, 0.18);
-        color: #9ca3af;
-        cursor: not-allowed;
-        opacity: 1;
-        background: repeating-linear-gradient(
-          -35deg,
-          rgba(248, 250, 252, 0.86),
-          rgba(248, 250, 252, 0.86) 8px,
-          rgba(241, 245, 249, 0.86) 8px,
-          rgba(241, 245, 249, 0.86) 16px
-        );
-        box-shadow: var(--sasv-shadow-sm);
-      }
-      #workspace-sections
-        .module-link[aria-disabled="true"]:not(.locked-module)
-        .ml-initial {
-        background: rgba(156, 163, 175, 0.1);
-        color: #cbd5e1;
-      }
-      #workspace-sections
-        .module-link[aria-disabled="true"]:not(.locked-module):hover {
-        transform: none;
-        border-color: rgba(148, 163, 184, 0.2);
-        color: #9ca3af;
-        box-shadow: var(--sasv-shadow-sm);
-      }
-
-      #workspace-sections .panel {
-        margin-bottom: 26px;
-        border-radius: var(--sasv-radius-lg);
-        background: var(--sasv-surface);
-        border: 1px solid rgba(15, 23, 42, 0.06);
-        border-top: 3px solid var(--identity-border, rgba(66, 101, 122, 0.3));
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.035);
-        padding: 20px 22px 22px;
-      }
-      #workspace-sections .panel h2 {
-        font-size: 0.96rem;
-        font-weight: 700;
-        color: var(--sasv-text);
-        text-transform: none;
-        letter-spacing: 0.015em;
-        margin: 0 0 5px;
-        padding-bottom: 0;
-        border-bottom: none;
-        display: flex;
-        align-items: center;
-        gap: 9px;
-      }
-      #workspace-sections .panel h2::before {
-        content: "";
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background: var(--identity-color, var(--sasv-primary));
-        border-radius: 999px;
-        flex-shrink: 0;
-        opacity: 0.9;
-        box-shadow: 0 0 0 4px var(--identity-bg, rgba(0, 90, 141, 0.08));
-      }
-      #workspace-sections .section-hint {
-        margin: 0 0 14px;
-        font-size: 0.78rem;
-        color: var(--sasv-muted);
-        line-height: 1.45;
-      }
-      [data-theme="dark"] #workspace-sections .panel {
-        background: var(--sasv-surface);
-        border-color: var(--sasv-border);
-        border-top-color: var(--identity-border, rgba(148, 163, 184, 0.22));
-        box-shadow: var(--sasv-shadow-md);
-      }
-      [data-theme="dark"] #workspace-sections .panel h2 {
-        color: var(--sasv-text);
-      }
-      [data-theme="dark"] #workspace-sections .section-hint {
-        color: var(--sasv-muted);
-      }
-      [data-theme="dark"] #workspace-sections .section-identity-operations,
-      [data-theme="dark"] #workspace-sections .identity-operations {
-        --identity-color: #7dd3fc;
-        --identity-bg: rgba(125, 211, 252, 0.12);
-        --identity-border: rgba(125, 211, 252, 0.22);
-        --identity-hover-border: rgba(125, 211, 252, 0.34);
-      }
-      [data-theme="dark"] #workspace-sections .section-identity-inventory,
-      [data-theme="dark"] #workspace-sections .identity-inventory {
-        --identity-color: #5eead4;
-        --identity-bg: rgba(94, 234, 212, 0.12);
-        --identity-border: rgba(94, 234, 212, 0.2);
-        --identity-hover-border: rgba(94, 234, 212, 0.32);
-      }
-      [data-theme="dark"] #workspace-sections .section-identity-finance,
-      [data-theme="dark"] #workspace-sections .identity-finance {
-        --identity-color: #86efac;
-        --identity-bg: rgba(134, 239, 172, 0.12);
-        --identity-border: rgba(134, 239, 172, 0.2);
-        --identity-hover-border: rgba(134, 239, 172, 0.32);
-      }
-      [data-theme="dark"] #workspace-sections .section-identity-quality,
-      [data-theme="dark"] #workspace-sections .identity-quality {
-        --identity-color: #facc15;
-        --identity-bg: rgba(250, 204, 21, 0.11);
-        --identity-border: rgba(250, 204, 21, 0.22);
-        --identity-hover-border: rgba(250, 204, 21, 0.34);
-      }
-      [data-theme="dark"] #workspace-sections .section-identity-admin,
-      [data-theme="dark"] #workspace-sections .identity-admin {
-        --identity-color: #cbd5e1;
-        --identity-bg: rgba(203, 213, 225, 0.12);
-        --identity-border: rgba(203, 213, 225, 0.18);
-        --identity-hover-border: rgba(203, 213, 225, 0.3);
-      }
-      [data-theme="dark"] #workspace-sections .section-identity-reports,
-      [data-theme="dark"] #workspace-sections .identity-reports {
-        --identity-color: #c4b5fd;
-        --identity-bg: rgba(196, 181, 253, 0.12);
-        --identity-border: rgba(196, 181, 253, 0.22);
-        --identity-hover-border: rgba(196, 181, 253, 0.34);
-      }
-      [data-theme="dark"] #workspace-sections .section-identity-general,
-      [data-theme="dark"] #workspace-sections .identity-general {
-        --identity-color: #bae6fd;
-        --identity-bg: rgba(186, 230, 253, 0.1);
-        --identity-border: rgba(186, 230, 253, 0.18);
-        --identity-hover-border: rgba(186, 230, 253, 0.3);
-      }
-      [data-theme="dark"] #workspace-sections .module-link {
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(255, 255, 255, 0.1);
-        color: #e5e7eb;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
-      }
-      [data-theme="dark"] #workspace-sections .module-link:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: var(--identity-hover-border, rgba(125, 211, 252, 0.28));
-        color: #b5ddff;
-        box-shadow: var(--sasv-shadow-md);
-      }
-      [data-theme="dark"] #workspace-sections .module-link::before {
-        opacity: 0.5;
-      }
-      [data-theme="dark"] .ml-initial {
-        background: var(--identity-bg, rgba(125, 211, 252, 0.12));
-        color: var(--identity-color, #93c5fd);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-      }
-      [data-theme="dark"]
-        #workspace-sections
-        .module-link.locked-module::after {
-        border-color: rgba(148, 163, 184, 0.24);
-        background: rgba(148, 163, 184, 0.12);
-        color: #cbd5e1;
-      }
-      [data-theme="dark"]
-        #workspace-sections
-        .module-link.read-only-module::after {
-        border-color: rgba(245, 158, 11, 0.35);
-        background: rgba(245, 158, 11, 0.14);
-        color: #fbbf24;
-      }
-      [data-theme="dark"] #workspace-sections .module-link:hover .ml-initial {
-        background: var(--identity-color, #0ea5e9);
-        color: #fff;
-      }
-      [data-theme="dark"] #workspace-sections .module-link:focus-visible {
-        outline-color: rgba(125, 211, 252, 0.35);
-        border-color: rgba(125, 211, 252, 0.38);
-      }
-      [data-theme="dark"]
-        #workspace-sections
-        .module-link[aria-disabled="true"]:not(.locked-module) {
-        background: repeating-linear-gradient(
-          -35deg,
-          rgba(51, 65, 85, 0.55),
-          rgba(51, 65, 85, 0.55) 8px,
-          rgba(30, 41, 59, 0.52) 8px,
-          rgba(30, 41, 59, 0.52) 16px
-        );
-      }
-      [data-theme="dark"] #workspace-activity-band {
-        color: #d9e4ee;
-      }
-      [data-theme="dark"] .workspace-stat + .workspace-stat {
-        border-left-color: rgba(255, 255, 255, 0.08);
-      }
-      [data-theme="dark"] .workspace-stat-label,
-      [data-theme="dark"] .workspace-band-meta {
-        color: #9fb0c2;
-      }
-      [data-theme="dark"] .workspace-stat-value,
-      [data-theme="dark"] .workspace-band-title {
-        color: var(--sasv-text);
-      }
-      [data-theme="dark"] .workspace-stat-note,
-      [data-theme="dark"] .workspace-band-note,
-      [data-theme="dark"] .workspace-shortcut-meta {
-        color: var(--sasv-muted);
-      }
-      [data-theme="dark"] #workspace-quick-access {
-        background: rgba(39, 57, 71, 0.9);
-        border-color: rgba(125, 211, 252, 0.3);
-      }
-      [data-theme="dark"] .workspace-suggestion {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(125, 211, 252, 0.24);
-      }
-      [data-theme="dark"] .workspace-suggestion-label {
-        color: #93c5fd;
-      }
-      [data-theme="dark"] .workspace-suggestion-btn {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(125, 211, 252, 0.16);
-        color: #93c5fd;
-      }
-      [data-theme="dark"] .workspace-suggestion-btn.subtle {
-        border-color: rgba(255, 255, 255, 0.08);
-        color: #cbd5e1;
-      }
-      [data-theme="dark"] .workspace-band-head {
-        border-bottom-color: rgba(125, 211, 252, 0.2);
-      }
-      [data-theme="dark"] .workspace-band-meta {
-        background: rgba(15, 23, 42, 0.35);
-        border-color: rgba(125, 211, 252, 0.24);
-      }
-      [data-theme="dark"] .workspace-shortcut {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: var(--identity-border, rgba(255, 255, 255, 0.14));
-        color: #e5e7eb;
-      }
-      [data-theme="dark"] .workspace-shortcut:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: var(--identity-color, #93c5fd);
-      }
-      [data-theme="dark"] .workspace-shortcut-initial {
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-      }
-      [data-theme="dark"] .workspace-shortcut-pin {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: rgba(125, 211, 252, 0.18);
-        color: #9fc7e3;
-      }
-      [data-theme="dark"] .workspace-shortcut-pin:hover,
-      [data-theme="dark"] .workspace-shortcut-pin[aria-pressed="true"] {
-        background: rgba(125, 211, 252, 0.12);
-        border-color: rgba(125, 211, 252, 0.25);
-        color: #cde9ff;
-      }
-      [data-theme="dark"] .workspace-quick-empty {
-        border-color: rgba(125, 211, 252, 0.24);
-        background: rgba(255, 255, 255, 0.04);
-      }
-      [data-theme="dark"] .workspace-quick-empty-title,
-      [data-theme="dark"] .workspace-quick-empty-value {
-        color: #d6ebfb;
-      }
-      [data-theme="dark"] .workspace-quick-empty-note {
-        color: #9fb5c7;
-      }
-      [data-theme="dark"] .cmd-result-pin {
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(255, 255, 255, 0.08);
-        color: #cbd5e1;
-      }
-      [data-theme="dark"] .cmd-result-pin:hover,
-      [data-theme="dark"] .cmd-result-pin[aria-pressed="true"] {
-        background: rgba(125, 211, 252, 0.12);
-        border-color: rgba(125, 211, 252, 0.2);
-        color: #93c5fd;
-      }
-      [data-theme="dark"] .cmd-result-pin[aria-pressed="true"] svg {
-        fill: currentColor;
-      }
-      [data-theme="dark"] .cmd-result-meta {
-        color: #93a7bb;
-      }
-      [data-theme="dark"]
-        #workspace-sections
-        .module-link.locked-module:hover
-        .ml-initial,
-      [data-theme="dark"]
-        #workspace-sections
-        .module-link[aria-disabled="true"]:not(.locked-module):hover
-        .ml-initial {
-        background: rgba(148, 163, 184, 0.13);
-        color: #94a3b8;
-      }
-
-      @media (max-width: 900px) {
-        header {
-          gap: 12px;
-          padding: 0 14px;
-        }
-
-        #brand-zone {
-          min-width: auto;
-        }
-
-        #brand-name {
-          font-size: 14px;
-        }
-
-        #userInfo {
-          max-width: 170px;
-        }
-      }
-
-      @media (max-width: 768px) {
-        #workspace-activity-band,
-        main#workspace-sections {
-          padding: 14px 14px 28px;
-        }
-
-        #workspace-sections .module-list {
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 9px;
-        }
-
-        #workspace-sections .module-link {
-          min-height: 54px;
-          padding: 10px 12px;
-        }
-
-        .ml-initial {
-          width: 30px;
-          height: 30px;
-          font-size: 10px;
-        }
-
-        .workspace-stat {
-          width: calc(50% - 9px);
-          padding-right: 0;
-          margin-bottom: 8px;
-        }
-
-        .workspace-stat + .workspace-stat {
-          margin-left: 0;
-          padding-left: 0;
-          border-left: none;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        #workspace-sections .module-link,
-        #workspace-sections .module-link::after {
-          transition: none;
-        }
-      }
-
-      @media (max-width: 700px) {
-        header {
-          min-height: auto;
-          padding: 10px 12px;
-          flex-wrap: wrap;
-        }
-
-        #header-search-slot {
-          order: 3;
-          width: 100%;
-          flex-basis: 100%;
-        }
-
-        #module-search-wrapper {
-          display: flex;
-          max-width: none;
-        }
-
-        #user-zone {
-          margin-left: auto;
-        }
-
-        .workspace-band-head {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-
-        .workspace-shortcut-copy {
-          max-width: 170px;
-        }
-
-        .workspace-suggestion {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .workspace-stat {
-          width: 100%;
-          margin-bottom: 6px;
-        }
-
-        .workspace-shortcut-wrap {
-          width: 100%;
-        }
-
-        .workspace-shortcut {
-          flex: 1;
-          min-width: 0;
-          padding-right: 34px;
-        }
-
-        .workspace-shortcut-pin {
-          width: 22px;
-          height: 22px;
-          right: 6px;
-        }
-
-        .workspace-shortcut-copy {
-          max-width: none;
-        }
-
-        .workspace-band-meta {
-          white-space: normal;
-          max-width: 100%;
-        }
-
-        #brand-text {
-          display: none;
-        }
-
-        #userInfo {
-          display: none;
-        }
-
-        #presence-chip {
-          gap: 8px;
-          padding: 6px 8px;
-        }
-
-        #presence-label {
-          display: none;
-        }
-
-        #onlineUsersCount {
-          display: none;
-        }
-
-        #logoutLink {
-          padding: 7px 10px;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="public/shared/css/sasv-home.css" />
     <link rel="stylesheet" href="public/shared/css/seasonal-banners.css" />
+    <script type="module" src="public/shared/js/ui-icons.js"></script>
     <script src="public/shared/js/seasonal-banners.js" defer></script>
     <!-- head-mounted permission gating removed; gating now performed in initApp() -->
   </head>
-  <body data-theme="system">
-    <header>
-      <!-- Brand: Logo + Name -->
-      <div id="brand-zone">
+  <body class="sasv-home" data-theme="system">
+    <header class="sasv-home-header" role="banner">
+      <div class="sasv-home-header__brand" id="brand-zone">
         <img
-          src="public/shared/assets/sasv_workspace_sw_transparent_512.png"
+          src="public/shared/assets/branding/derived/app-mark-512.png"
           alt="SASV Workspace"
           id="app-logo"
         />
-        <div id="brand-text">
+        <div class="sasv-home-brand-text" id="brand-text">
           <span id="brand-name"
             ><span class="brand-sasv">SASV</span>
             <span class="brand-workspace">Workspace</span></span
           >
-          <small id="appVersion"></small>
+          <small id="appVersion" aria-label="App version"></small>
         </div>
       </div>
 
-      <!-- Centre: Module search (also triggered by Ctrl+K) -->
-      <div id="header-search-slot">
+      <div class="sasv-home-header__command" id="header-search-slot">
         <div id="module-search-wrapper">
           <div id="module-search-container">
-            <div id="module-search-icon">
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </div>
+            <div id="module-search-icon" aria-hidden="true"></div>
             <input
               id="moduleSearch"
               list="module-list-datalist"
-              placeholder="Jump to module…"
+              placeholder="Search modules…"
               autocomplete="off"
-              aria-label="Jump to module"
+              aria-label="Search modules"
             />
-            <div id="module-search-kbd">
+            <div id="module-search-kbd" aria-hidden="true">
               <span class="kbd-key">Ctrl</span>
-              <span style="font-size: 10px; color: #aac0cd">+</span>
+              <span style="font-size: 10px; color: var(--sasv-text-muted)">+</span>
               <span class="kbd-key">K</span>
             </div>
           </div>
@@ -1749,8 +70,7 @@
         </div>
       </div>
 
-      <!-- Right: Online users + User chip -->
-      <div id="user-zone">
+      <div class="sasv-home-header__session" id="user-zone">
         <div id="presence-chip" aria-label="Workspace activity">
           <span id="presence-label">Online</span>
           <span id="onlineUsersContainer"></span>
@@ -1759,31 +79,45 @@
         <div id="user-chip">
           <span id="userAvatar" aria-hidden="true">?</span>
           <span id="userInfo">Loading…</span>
-          <button id="logoutLink" type="button">Log Out</button>
+          <button id="logoutLink" type="button">Log out</button>
         </div>
       </div>
     </header>
 
-    <section
+    <div class="sasv-home-shell" id="workspace-shell">
+      <aside
+        class="sasv-quick-access"
       id="workspace-activity-band"
-      aria-label="Quick access workspace panel"
-    >
-      <section id="workspace-quick-access">
-        <div class="workspace-band-head">
-          <div>
-            <h2 class="workspace-band-title">Quick Access</h2>
+        aria-label="Quick Access"
+      >
+        <div class="sasv-quick-access__dock" id="workspace-quick-access">
+          <div class="sasv-quick-access__identity workspace-band-head">
+            <h2 class="sasv-quick-access__title workspace-band-title">
+              Quick Access
+            </h2>
+            <span
+              class="sasv-quick-access__meta workspace-band-meta"
+              id="workspace-band-meta"
+              >Waiting…</span
+            >
             <p class="workspace-band-note" id="workspace-band-note">
               Modules you explicitly pin from Ctrl + K.
             </p>
           </div>
-          <div class="workspace-band-meta" id="workspace-band-meta">
-            Waiting for workspace modules...
+          <div
+            class="sasv-quick-access__strip"
+            id="workspace-quick-links"
+          ></div>
+          <div class="workspace-suggestion" id="workspace-suggestion"></div>
           </div>
+      </aside>
+
+      <main
+        class="sasv-home-sections"
+        id="workspace-sections"
+        aria-live="polite"
+      ></main>
         </div>
-        <div class="workspace-suggestion" id="workspace-suggestion"></div>
-        <div id="workspace-quick-links"></div>
-      </section>
-    </section>
 
     <!-- Command Palette Overlay (Ctrl+K) -->
     <div
@@ -1863,8 +197,6 @@
         </div>
       </div>
     </div>
-
-    <main id="workspace-sections" aria-live="polite"></main>
 
     <!-- Supabase & Init -->
     <script>
@@ -2394,8 +726,8 @@
         const shortcuts = pinnedItems;
 
         workspaceBandMeta.textContent = shortcuts.length
-          ? `${pinnedItems.length} pinned in your panel`
-          : "Pin modules from Ctrl + K to build this panel";
+          ? `${pinnedItems.length} pinned`
+          : "Pin from Ctrl+K";
 
         if (workspaceBandNote) {
           workspaceBandNote.textContent = `Quick Access is personal to ${workspaceUserLabel} and only shows modules you pin.`;
@@ -2405,7 +737,7 @@
 
         if (!shortcuts.length) {
           quickLinksRoot.innerHTML =
-            '<div class="workspace-quick-empty"><span class="workspace-quick-empty-title">Quick Access</span><strong class="workspace-quick-empty-value">No pinned modules</strong><span class="workspace-quick-empty-note">Use Ctrl + K and pin the modules you want to keep close.</span></div>';
+            '<div class="workspace-quick-empty"><strong class="workspace-quick-empty-value">No pins yet</strong><span class="workspace-quick-empty-note">Use Ctrl+K to pin high-frequency modules.</span></div>';
           return;
         }
 
@@ -2425,7 +757,7 @@
               anchor.dataset.moduleId || label,
             );
 
-            return `<div class="workspace-shortcut-wrap" style="--identity-color:${escapeHtml(computed.getPropertyValue("--identity-color").trim() || "#005a8d")};--identity-bg:${escapeHtml(computed.getPropertyValue("--identity-bg").trim() || "rgba(0, 90, 141, 0.12)")};--identity-border:${escapeHtml(computed.getPropertyValue("--identity-border").trim() || "rgba(0, 90, 141, 0.28)")};--identity-hover-border:${escapeHtml(computed.getPropertyValue("--identity-hover-border").trim() || "rgba(0, 90, 141, 0.4)")};"><a class="workspace-shortcut" href="${escapeHtml(href)}" data-module-id="${escapeHtml(moduleId)}"><span class="workspace-shortcut-initial" aria-hidden="true">${escapeHtml(initial)}</span><span class="workspace-shortcut-copy"><span class="workspace-shortcut-title">${escapeHtml(label.trim())}</span></span></a><button type="button" class="workspace-shortcut-pin" data-action="unpin" data-module-id="${escapeHtml(moduleId)}" aria-label="Unpin ${escapeHtml(label.trim())} from Quick Access" title="Unpin from Quick Access"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3.2 4.8 5.6 1.5-3.6 4.6.3 6-5.5-2.2-5.5 2.2.3-6-3.6-4.6 5.6-1.5z"/></svg></button></div>`;
+            return `<div class="sasv-qa-item workspace-shortcut-wrap" style="--identity-color:${escapeHtml(computed.getPropertyValue("--identity-color").trim() || "var(--sasv-action-primary)")};--identity-bg:${escapeHtml(computed.getPropertyValue("--identity-bg").trim() || "var(--sasv-action-primary-soft)")};--identity-border:${escapeHtml(computed.getPropertyValue("--identity-border").trim() || "var(--sasv-action-primary-soft-border)")};--identity-hover-border:${escapeHtml(computed.getPropertyValue("--identity-hover-border").trim() || "var(--sasv-control-border-hover)")};"><a class="sasv-qa-chip workspace-shortcut" href="${escapeHtml(href)}" data-module-id="${escapeHtml(moduleId)}"><span class="workspace-shortcut-initial" aria-hidden="true">${escapeHtml(initial)}</span><span class="workspace-shortcut-copy"><span class="workspace-shortcut-title">${escapeHtml(label.trim())}</span></span></a><button type="button" class="workspace-shortcut-pin" data-action="unpin" data-module-id="${escapeHtml(moduleId)}" aria-label="Unpin ${escapeHtml(label.trim())} from Quick Access" title="Unpin from Quick Access"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3.2 4.8 5.6 1.5-3.6 4.6.3 6-5.5-2.2-5.5 2.2.3-6-3.6-4.6 5.6-1.5z"/></svg></button></div>`;
           })
           .join("");
       }
@@ -2433,6 +765,9 @@
       function refreshWorkspaceChrome() {
         syncWorkspacePanels();
         renderQuickAccess();
+        if (typeof window.__paintHomeSectionIcons === "function") {
+          window.__paintHomeSectionIcons();
+        }
         if (typeof window._rebuildModuleIndex === "function") {
           window._rebuildModuleIndex();
         }
@@ -2543,19 +878,26 @@
             sectionCatalog.get(row.sectionLabel) ||
             null;
           const sectionTitle = row.sectionLabel || "Other";
+          const sectionKey = String(
+            sectionMeta?.key || row.sectionKey || "",
+          ).trim();
           if (!sections.has(sectionTitle)) {
             sections.set(sectionTitle, {
+              key: sectionKey,
               title: sectionTitle,
               hint: sectionMeta?.description || "",
               order: sectionMeta?.sortOrder ?? index,
               items: [],
             });
+          } else if (!sections.get(sectionTitle).key && sectionKey) {
+            sections.get(sectionTitle).key = sectionKey;
           }
 
           sections.get(sectionTitle).items.push({
             moduleKey: row.moduleKey,
             targetKey: row.targetKey || `module:${row.moduleKey}`,
             label: row.label || row.moduleKey,
+            description: String(row.description || "").trim(),
             routePath: row.routePath || "#",
             order: Number.isFinite(Number(row.sortOrder))
               ? Number(row.sortOrder)
@@ -2581,77 +923,79 @@
         if (!workspaceRoot) return;
         workspaceRoot.innerHTML = "";
 
-        function getSectionIdentity(sectionTitle) {
+        /* Colour/tone family by stable sectionKey (not icon identity). */
+        const SECTION_KEY_FAMILY = {
+          "work-log": "operations",
+          "planning-workspace": "planning",
+          "mrp-procurement": "procurement",
+          "inventory-sales": "inventory",
+          "product-reference-master": "finance",
+          "plant-assets": "operations",
+          "qa-qc": "quality",
+          "bmr-production-records": "operations",
+          sops: "quality",
+          system: "admin",
+          admin: "admin",
+          "laboratory-masters": "quality",
+          "admin-masters": "admin",
+        };
+
+        function getSectionIdentity(sectionKey, sectionTitle) {
+          const key = String(sectionKey || "")
+            .trim()
+            .toLowerCase()
+            .replace(/_/g, "-");
+          if (SECTION_KEY_FAMILY[key]) return SECTION_KEY_FAMILY[key];
+
+          /* Fallback for unknown keys only — colour family, not icon pick */
           const title = String(sectionTitle || "").toLowerCase();
           const hasAny = (terms) => terms.some((term) => title.includes(term));
-
-          if (
-            hasAny([
-              "production",
-              "manufacturing",
-              "batch",
-              "bmr",
-              "factory",
-              "workbench",
-            ])
-          ) {
+          if (hasAny(["procure", "mrp", "purchase", "vendor"]))
+            return "procurement";
+          if (hasAny(["plan", "forecast", "schedule"])) return "planning";
+          if (hasAny(["bmr", "production", "plant", "work log", "worklog"]))
             return "operations";
-          }
-          if (
-            hasAny([
-              "inventory",
-              "stock",
-              "sales",
-              "forecast",
-              "analytics",
-              "fill",
-            ])
-          ) {
-            return "inventory";
-          }
-          if (
-            hasAny([
-              "finance",
-              "payment",
-              "cost",
-              "budget",
-              "purchase",
-              "payable",
-            ])
-          ) {
-            return "finance";
-          }
-          if (hasAny(["quality", "qc", "lab", "analysis", "coa", "test"])) {
-            return "quality";
-          }
-          if (
-            hasAny([
-              "admin",
-              "user",
-              "permission",
-              "setting",
-              "master",
-              "configuration",
-            ])
-          ) {
-            return "admin";
-          }
-          if (hasAny(["report", "dashboard", "mis", "summary"])) {
-            return "reports";
-          }
+          if (hasAny(["inventory", "stock", "sales"])) return "inventory";
+          if (hasAny(["cost", "finance", "pricing"])) return "finance";
+          if (hasAny(["quality", "qc", "lab", "sop"])) return "quality";
+          if (hasAny(["report", "dashboard", "mis"])) return "reports";
+          if (hasAny(["admin", "system", "setting"])) return "admin";
           return "general";
         }
 
+        function paintSectionIcon(host, sectionKey) {
+          if (!host) return;
+          const paint =
+            window.SASVIcons?.sectionKeyIcon ||
+            window.SASVIcons?.sectionFamilyIcon;
+          if (typeof paint !== "function") {
+            host.innerHTML = "";
+            return;
+          }
+          host.innerHTML = paint(sectionKey || "", {
+            size: 16,
+            strokeWidth: 2,
+            className: "sasv-section-icon__svg",
+          });
+        }
+
         sections.forEach((section) => {
-          const identity = getSectionIdentity(section.title);
+          const sectionKey = String(section.key || "").trim();
+          const identity = getSectionIdentity(sectionKey, section.title);
           const panel = document.createElement("section");
-          panel.className = `panel section-identity-${identity}`;
+          panel.className = `sasv-section panel section-identity-${identity}`;
+          panel.dataset.sectionIdentity = identity;
+          if (sectionKey) panel.dataset.sectionKey = sectionKey;
           panel.innerHTML =
-            '<h2></h2><p class="section-hint"></p><div class="module-list"></div>';
+            '<div class="sasv-section__rail" aria-hidden="true"></div><header class="sasv-section-header"><span class="sasv-section-icon" data-section-icon aria-hidden="true"></span><div class="sasv-section-copy"><h2 class="sasv-section-title"></h2><p class="sasv-section-desc section-hint"></p></div></header><div class="sasv-module-grid module-list"></div>';
 
           const heading = panel.querySelector("h2");
           const hint = panel.querySelector(".section-hint");
           const list = panel.querySelector(".module-list");
+          paintSectionIcon(
+            panel.querySelector("[data-section-icon]"),
+            sectionKey,
+          );
           if (heading) heading.textContent = section.title;
           if (hint) hint.textContent = section.hint || "";
           if (list) {
@@ -2660,8 +1004,9 @@
               .map((item) => {
                 const href = item.placeholder ? "#" : item.routePath || "#";
                 const initial = (item.label.trim()[0] || "?").toUpperCase();
+                const desc = String(item.description || "").trim();
                 const attrs = [
-                  `class="module-link ${identityClass}"`,
+                  `class="sasv-module-launch module-link ${identityClass}"`,
                   `data-module-id="${escapeHtml(item.moduleKey)}"`,
                   `data-target-key="${escapeHtml(item.targetKey || `module:${item.moduleKey}`)}"`,
                   `data-module-label="${escapeHtml(item.label)}"`,
@@ -2680,7 +1025,10 @@
                     attrs.push(`title="${escapeHtml(item.title)}"`);
                   }
                 }
-                return `<a ${attrs.join(" ")} href="${escapeHtml(href)}"><span class="ml-initial ${identityClass}" aria-hidden="true">${escapeHtml(initial)}</span><span class="ml-copy"><span class="ml-label">${escapeHtml(item.label)}</span><span class="ml-badge hidden" data-module-badge="true"></span></span></a>`;
+                const descHtml = desc
+                  ? `<span class="sasv-module-launch__desc">${escapeHtml(desc)}</span>`
+                  : `<span class="sasv-module-launch__desc"></span>`;
+                return `<a ${attrs.join(" ")} href="${escapeHtml(href)}"><span class="sasv-module-launch__badge ml-initial ${identityClass}" aria-hidden="true">${escapeHtml(initial)}</span><span class="sasv-module-launch__body ml-copy"><span class="sasv-module-launch__title ml-label">${escapeHtml(item.label)}</span>${descHtml}<span class="ml-badge hidden" data-module-badge="true"></span></span></a>`;
               })
               .join("");
           }
@@ -2693,19 +1041,56 @@
         workspaceRoot.innerHTML = "";
 
         const panel = document.createElement("section");
-        panel.className = "panel";
+        panel.className = "sasv-section panel section-identity-general";
         panel.dataset.statusPanel = "true";
+        panel.dataset.sectionIdentity = "general";
+        panel.dataset.sectionKey = "";
         panel.innerHTML =
-          '<h2></h2><p class="section-hint"></p><div class="module-list"></div>';
+          '<div class="sasv-section__rail" aria-hidden="true"></div><header class="sasv-section-header"><span class="sasv-section-icon" data-section-icon aria-hidden="true"></span><div class="sasv-section-copy"><h2 class="sasv-section-title"></h2><p class="sasv-section-desc section-hint"></p></div></header><div class="sasv-module-grid module-list"></div>';
 
         const heading = panel.querySelector("h2");
         const hint = panel.querySelector(".section-hint");
         const list = panel.querySelector(".module-list");
+        const iconHost = panel.querySelector("[data-section-icon]");
+        if (iconHost && typeof window.SASVIcons?.sectionKeyIcon === "function") {
+          iconHost.innerHTML = window.SASVIcons.sectionKeyIcon("", {
+            size: 16,
+            strokeWidth: 2,
+            className: "sasv-section-icon__svg",
+          });
+        }
         if (heading) heading.textContent = title;
         if (hint) hint.textContent = message;
         if (list) list.innerHTML = "";
         workspaceRoot.appendChild(panel);
       }
+
+      function paintAllSectionIcons() {
+        const paint =
+          window.SASVIcons?.sectionKeyIcon ||
+          window.SASVIcons?.sectionFamilyIcon;
+        if (typeof paint !== "function") return;
+        document
+          .querySelectorAll("#workspace-sections [data-section-icon]")
+          .forEach((host) => {
+            const section = host.closest(".sasv-section, .panel");
+            const sectionKey = section?.dataset?.sectionKey || "";
+            const fallbackIdentity =
+              section?.dataset?.sectionIdentity || "general";
+            host.innerHTML = window.SASVIcons.sectionKeyIcon
+              ? window.SASVIcons.sectionKeyIcon(sectionKey, {
+                  size: 16,
+                  strokeWidth: 2,
+                  className: "sasv-section-icon__svg",
+                })
+              : paint(fallbackIdentity, {
+                  size: 16,
+                  strokeWidth: 2,
+                  className: "sasv-section-icon__svg",
+                });
+          });
+      }
+      window.__paintHomeSectionIcons = paintAllSectionIcons;
 
       async function renderRegistryWorkspaceMenu() {
         const [registryRows, sectionRows] = await Promise.all([
@@ -3202,7 +1587,8 @@
       window.addEventListener("DOMContentLoaded", async () => {
         try {
           const v = await window.electronAPI.getAppVersion();
-          document.getElementById("appVersion").textContent = `v${v}`;
+          const appVersionEl = document.getElementById("appVersion");
+          if (appVersionEl) appVersionEl.textContent = `v${v}`;
         } catch (err) {
           console.error("Could not obtain app version:", err);
         }
@@ -3210,8 +1596,23 @@
     </script>
     <script type="module">
       import { initUpdaterUI } from "/public/shared/js/updater-ui.js";
+      import { svgIcon } from "/public/shared/js/ui-icons.js";
 
       initUpdaterUI();
+
+      // Low-risk shared chrome: canonical action icon for module search
+      const searchIconHost = document.getElementById("module-search-icon");
+      if (searchIconHost) {
+        searchIconHost.innerHTML = svgIcon("search", {
+          size: 15,
+          strokeWidth: 2.2,
+        });
+      }
+
+      // Ensure section icons paint even if registry rendered before module load
+      if (typeof window.__paintHomeSectionIcons === "function") {
+        window.__paintHomeSectionIcons();
+      }
     </script>
   </body>
 </html>

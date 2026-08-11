@@ -1,346 +1,163 @@
 <!DOCTYPE html>
-<html lang="en-GB">
+<html lang="en-GB" data-sasv-theme="sasv-core">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SASV WORKSPACE | Fill Planner</title>
-    <!-- CSS: use the shared stylesheet -->
+    <title>SASV WORKSPACE | Fill Planner</title>
     <link rel="stylesheet" href="../shared/css/style.css" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="../shared/css/sasv-fill-planner.css" />
+    <link rel="manifest" href="/utilities-hub/manifest.webmanifest" />
+    <link
+      rel="icon"
+      href="/shared/assets/branding/derived/favicon.ico"
+      sizes="any"
+    />
     <link
       rel="icon"
       type="image/png"
-      href="../utilities-hub/icons/icon-192x192.png"
+      sizes="192x192"
+      href="/shared/assets/branding/derived/icon-192.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/shared/assets/branding/derived/apple-touch-icon-180.png"
     />
     <meta name="theme-color" content="#005A8D" />
-    <style>
-      /* ───────────  PAGE CHROME  ─────────── */
-      body {
-        padding: 20px;
-        font-family: Arial, sans-serif;
-      }
-      h2 {
-        margin: 0;
-        color: #005a8d;
-      }
-
-      /* ───────────  CONTROL BAR  ─────────── */
-      .fp-controls {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 1rem;
-        margin: 1rem 0;
-      }
-      .fp-controls label {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        margin: 0;
-      }
-
-      /* unified pill dimensions (native controls only) */
-      .fp-controls select,
-      .fp-controls input[type="number"] {
-        height: 48px;
-        font-size: 16px;
-        padding: 8px 12px;
-        min-width: 120px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-sizing: border-box;
-      }
-
-      /* Make the Product select grow like the old TS control */
-      .fp-controls label > select#fp-product {
-        flex: 1 1 260px;
-        min-width: 220px;
-        max-width: 100%;
-      }
-
-      /* ───────────  CALCULATE PILL  ─────────── */
-      .fp-run-wrap {
-        display: flex;
-        justify-content: center;
-        margin: 1rem 0 0.4rem;
-      }
-      #fp-run {
-        background: #0a62c3;
-        color: #fff;
-        border: none;
-        padding: 12px 32px;
-        font-size: 16px;
-        border-radius: 9999px;
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
-      }
-      #fp-run:hover {
-        background: #084e9c;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
-        transform: translateY(-2px);
-      }
-      #fp-run:active {
-        background: #073f7d;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transform: none;
-      }
-
-      /* ───────────  SECTION TITLES  ─────────── */
-      .fp-subtitle,
-      #fp-metrics-header,
-      #fp-emg-title,
-      #fp-title {
-        margin: 0.8rem 0 0.4rem;
-        font-size: 1.17em;
-        font-weight: 600;
-        color: #333;
-        position: sticky;
-        top: 0;
-        z-index: 3;
-        padding: 4px 0;
-      }
-      #fp-metrics-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-      }
-      #fp-stock-updated {
-        font-weight: 600;
-        color: #d00;
-      }
-
-      /* ───────────  TABLES  ─────────── */
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 0.6rem 0 0;
-      }
-      th,
-      td {
-        border: 1px solid #ccc;
-        padding: 8px 12px;
-        text-align: center;
-        vertical-align: middle;
-      }
-      th {
-        background: #f3f6fa;
-      }
-      tbody tr:hover {
-        background: #eef6ff;
-      }
-
-      /* urgent-order qty box */
-      #fp-emg-table input.emg-qty {
-        width: 90%;
-        max-width: 140px;
-        height: 32px;
-        padding: 6px 8px;
-        font-size: 14px;
-        text-align: center;
-        box-sizing: border-box;
-      }
-
-      /* scroll wrappers */
-      .fp-table-wrap {
-        overflow: auto;
-        max-height: 60vh;
-        -webkit-overflow-scrolling: touch;
-      }
-      .fp-table-wrap.has-scroll {
-        box-shadow: inset 1px 0 #ccc, inset -1px 0 #ccc;
-      }
-      .fp-table-wrap table {
-        margin: 0;
-        min-width: 600px;
-      }
-
-      /* ───────────  MOBILE (<600 px)  ─────────── */
-      @media (max-width: 600px) {
-        .fp-controls {
-          flex-direction: column;
-          align-items: stretch;
-        }
-        .fp-controls label {
-          width: 100%;
-        }
-        #fp-emg-table input.emg-qty {
-          max-width: none;
-        }
-        /* Let the Product select wrap naturally on small screens */
-        .fp-controls label > select#fp-product {
-          min-width: 0;
-          flex: 1 1 auto;
-        }
-      }
-      /* header row: title left, buttons right */
-      .page-header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 0.5rem;
-      }
-      .page-header .page-title {
-        margin: 0;
-        color: #005a8d;
-      }
-      .page-header .actions {
-        margin-left: auto; /* push buttons to the right */
-        display: flex;
-        gap: 0.5rem;
-      }
-
-      /* if your shared stylesheet already defines .button/.button-secondary, keep using those.
-   Otherwise, this is a simple fallback so it still looks decent: */
-      .button {
-        appearance: none;
-        border: 1px solid #c8d1dc;
-        background: #f7fafc;
-        padding: 0.45rem 0.9rem;
-        border-radius: 6px;
-        font-size: 14px;
-        cursor: pointer;
-      }
-      .button:hover {
-        background: #eef3f8;
-      }
-      .button-secondary {
-        background: #ffffff;
-      }
-    </style>
   </head>
-  <body data-theme="system">
-    <header class="page-header">
-      <h2 class="page-title">Fill Planner</h2>
-      <div class="actions">
-        <button id="fp-clear" class="button button-secondary">CLEAR</button>
-        <button id="homeBtn" class="button">HOME</button>
-      </div>
-    </header>
-
-    <div class="fp-controls">
-      <label>
-        Product&nbsp;
-        <!-- single field: type + dropdown suggestions -->
-        <input
-          id="fp-product-input"
-          list="fp-product-list"
-          placeholder="Type to select…"
-          autocomplete="off"
-          style="
-            height: 48px;
-            font-size: 16px;
-            padding: 8px 12px;
-            min-width: 220px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            flex: 1 1 260px;
-            max-width: 100%;
-          "
-        />
-        <datalist id="fp-product-list"></datalist>
-      </label>
-
-      <label>
-        Bulk 
-        <input id="fp-bulk" type="number" step="0.01" inputmode="decimal" />
-        <span id="fp-uom">(base UOM)</span>
-      </label>
-
-      <label>
-        <input id="fp-overshoot" type="checkbox" /> allow overshoot
-      </label>
+  <body
+    class="sasv-module sasv-module--app sasv-fill-planner"
+    data-theme="system"
+  >
+    <div class="header-card">
+      <header class="page-header">
+        <div class="fp-header-copy">
+          <h1 class="sasv-module-title">Fill Planner</h1>
+          <p class="page-sub">
+            Calculate fill quantities by product, bulk, and optional urgent
+            orders.
+          </p>
+        </div>
+        <div class="header-actions actions">
+          <div
+            id="fp-updated"
+            class="sc-snapshot"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-label="Stock snapshot"
+          >
+            <span class="sc-snapshot-dot" aria-hidden="true"></span>
+            <span class="sc-snapshot-label">Snapshot</span>
+            <div id="fp-status-detail" style="display: none">
+              Last stock snapshot: —
+            </div>
+          </div>
+          <button type="button" id="homeBtn" class="btn">HOME</button>
+        </div>
+      </header>
     </div>
 
-    <!-- ─── SKU Metrics table (appears after product pick) ───────────── -->
-    <div id="fp-metrics-header" class="fp-metrics-header" style="display: none">
-      <h3 class="fp-subtitle" id="fp-metrics-title">SKU Metrics</h3>
-      <span id="fp-stock-updated" class="fp-stock-updated"></span>
-    </div>
+    <div class="fp-main">
+      <div class="fp-controls">
+        <label class="fp-product-field">
+          Product&nbsp;
+          <!-- Native select remains authoritative; searchable UI via enhanceSearchableSelect -->
+          <select
+            id="fp-product"
+            class="sasv-native-select-sr"
+            aria-label="Product"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <option value=""></option>
+          </select>
+        </label>
 
-    <table id="fp-metrics-table" style="display: none">
-      <thead id="fp-metrics-head"></thead>
-      <tbody id="fp-metrics-body"></tbody>
-    </table>
+        <label>
+          Bulk&nbsp;
+          <input id="fp-bulk" type="number" step="0.01" inputmode="decimal" />
+          <span id="fp-uom">(base&nbsp;UOM)</span>
+        </label>
 
-    <!-- Urgent / ad-hoc orders ----------------------------------------->
-    <h3 id="fp-emg-title" class="fp-subtitle" style="display: none">
-      Urgent Orders (optional)
-    </h3>
-
-    <table id="fp-emg-table" style="display: none; margin-bottom: 0.6rem">
-      <thead>
-        <tr>
-          <th style="text-align: left">SKU</th>
-          <th>Qty&nbsp;(Nos)</th>
-        </tr>
-      </thead>
-      <tbody id="fp-emg-body">
-        <!-- rows injected by JS -->
-      </tbody>
-    </table>
-
-    <!-- centred Calculate button -->
-    <div id="fp-run-wrap" class="fp-run-wrap" style="display: none">
-      <button id="fp-run">Calculate</button>
-    </div>
-
-    <div id="msg"></div>
-
-    <!-- Suggested fill plan heading -->
-    <h3
-      id="fp-title"
-      style="text-align: left; margin: 1.2rem 0 0.4rem 0; display: none"
-    >
-      Fill Plan for Remaining Bulk (after urgent orders)
-    </h3>
-
-    <table id="fp-table" style="display: none">
-      <thead>
-        <tr id="fp-head">
-          <th>Region</th>
-        </tr>
-      </thead>
-      <tbody id="fp-body"></tbody>
-    </table>
-
-    <!-- Supabase client + module logic -->
-    <script type="module" src="../shared/js/fill-planner.js"></script>
-    <!-- Hidden, scrollable "Calculation Workings" panel -->
-    <details id="fp-workings" style="display: none; margin-top: 16px">
-      <summary style="cursor: pointer; font-weight: 600">
-        Calculation Workings
-      </summary>
-
-      <div style="display: flex; gap: 8px; align-items: center; margin: 8px 0">
-        <button id="fp-workings-copy" type="button">Copy</button>
-        <label style="display: inline-flex; gap: 6px; align-items: center">
-          <input id="fp-workings-autoscroll" type="checkbox" checked />
-          Auto-scroll
+        <label>
+          <input id="fp-overshoot" type="checkbox" /> allow&nbsp;overshoot
         </label>
       </div>
 
+      <!-- ─── SKU Metrics table (appears after product pick) ───────────── -->
       <div
-        style="
-          border: 1px solid #e5e7eb;
-          border-radius: 6px;
-          max-height: 40vh;
-          overflow: auto;
-        "
+        id="fp-metrics-header"
+        class="fp-metrics-header"
+        style="display: none"
       >
-        <pre
-          id="fp-workings-body"
-          style="
-            margin: 0;
-            padding: 12px;
-            font-family: ui-monospace, Menlo, Consolas, monospace;
-            white-space: pre-wrap;
-            word-break: break-word;
-          "
-        ></pre>
+        <h3 class="fp-subtitle" id="fp-metrics-title">SKU Metrics</h3>
       </div>
-    </details>
+
+      <table id="fp-metrics-table" style="display: none">
+        <thead id="fp-metrics-head"></thead>
+        <tbody id="fp-metrics-body"></tbody>
+      </table>
+
+      <!-- Urgent / ad-hoc orders ----------------------------------------->
+      <h3 id="fp-emg-title" class="fp-subtitle" style="display: none">
+        Urgent Orders (optional)
+      </h3>
+
+      <table id="fp-emg-table" style="display: none; margin-bottom: 0.6rem">
+        <thead>
+          <tr>
+            <th style="text-align: left">SKU</th>
+            <th>Qty&nbsp;(Nos)</th>
+          </tr>
+        </thead>
+        <tbody id="fp-emg-body">
+          <!-- rows injected by JS -->
+        </tbody>
+      </table>
+
+      <div id="fp-run-wrap" class="fp-run-wrap" style="display: none">
+        <button type="button" id="fp-run" class="btn primary">Calculate</button>
+      </div>
+
+      <div id="msg"></div>
+
+      <h3
+        id="fp-title"
+        class="fp-subtitle"
+        style="text-align: left; margin: 1.2rem 0 0.4rem 0; display: none"
+      >
+        Fill&nbsp;Plan for Remaining&nbsp;Bulk (after urgent orders)
+      </h3>
+
+      <table id="fp-table" style="display: none">
+        <thead>
+          <tr id="fp-head">
+            <th>Region</th>
+          </tr>
+        </thead>
+        <tbody id="fp-body"></tbody>
+      </table>
+
+      <details id="fp-workings" style="display: none; margin-top: 16px">
+        <summary>Calculation Workings</summary>
+
+        <div class="fp-workings-toolbar">
+          <button type="button" id="fp-workings-copy" class="btn">Copy</button>
+          <label style="display: inline-flex; gap: 6px; align-items: center">
+            <input id="fp-workings-autoscroll" type="checkbox" checked />
+            Auto-scroll
+          </label>
+        </div>
+
+        <div class="fp-workings-scroll">
+          <pre id="fp-workings-body"></pre>
+        </div>
+      </details>
+    </div>
+
+    <script type="module" src="../shared/js/fill-planner.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker

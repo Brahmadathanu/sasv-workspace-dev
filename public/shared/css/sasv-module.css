@@ -1,0 +1,1506 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SASV Workspace — CRUD / master module shell (UI-MOD-1)
+   Consumes semantic tokens. Scoped to body.sasv-module.
+   Keeps legacy IDs/classes used by manage-* JS (header-bar, filters, overlays).
+═══════════════════════════════════════════════════════════════════════════ */
+
+body.sasv-module {
+  margin: 0;
+  padding: 16px 20px 32px;
+  min-height: 100vh;
+  background: var(--sasv-bg);
+  color: var(--sasv-text);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-md);
+}
+
+body.sasv-module .sasv-module-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+body.sasv-module .sasv-module-header,
+body.sasv-module .header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  margin: 0 0 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--sasv-divider);
+  background: transparent;
+}
+
+body.sasv-module .sasv-module-heading {
+  min-width: 0;
+}
+
+body.sasv-module .sasv-module-title,
+body.sasv-module .header-bar h1,
+body.sasv-module .header-bar h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: var(--sasv-fw-bold);
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-module .sasv-module-meta {
+  margin: 4px 0 0;
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text-muted);
+  line-height: 1.35;
+}
+
+body.sasv-module .sasv-module-header #homeIcon,
+body.sasv-module .header-bar #homeIcon {
+  flex-shrink: 0;
+}
+
+body.sasv-module #homeIcon.action-link,
+body.sasv-module #homeBtn.action-link,
+body.sasv-module #homeBtn.btn.home,
+body.sasv-module #homeBtn.icon-btn,
+body.sasv-module #homeBtn.sasv-home-btn,
+body.sasv-module button#homeBtn,
+body.sasv-module button#homeIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: auto;
+  max-width: none;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  overflow: visible;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-action-home-border);
+  background: var(--sasv-action-home-bg);
+  color: var(--sasv-action-home);
+  text-decoration: none;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: none;
+  box-sizing: border-box;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.06s ease;
+}
+
+body.sasv-module #homeIcon.action-link:hover,
+body.sasv-module #homeBtn.action-link:hover,
+body.sasv-module #homeBtn.icon-btn:hover,
+body.sasv-module #homeBtn.sasv-home-btn:hover,
+body.sasv-module button#homeBtn:hover,
+body.sasv-module button#homeIcon:hover {
+  background: var(--sasv-action-home-bg-hover);
+  border-color: var(--sasv-action-home-bg-hover);
+  color: var(--sasv-action-home-fg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+body.sasv-module #homeBtn:focus-visible,
+body.sasv-module #homeIcon:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-module #homeIcon .sasv-icon,
+body.sasv-module #homeBtn .sasv-icon,
+body.sasv-module #homeBtn svg,
+body.sasv-module #homeIcon svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-module #homeBtn .home-label,
+body.sasv-module #homeIcon .home-label {
+  display: inline;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+@media (max-width: 520px) {
+  body.sasv-module #homeBtn,
+  body.sasv-module #homeIcon,
+  body.sasv-module button#homeBtn,
+  body.sasv-module button#homeIcon {
+    padding: 6px;
+    gap: 0;
+  }
+  body.sasv-module #homeBtn .home-label,
+  body.sasv-module #homeIcon .home-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* ── Toolbar / filters ──────────────────────────────────────────────────── */
+
+body.sasv-module .filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+body.sasv-module .filters input[type="text"],
+body.sasv-module .filters input[type="search"],
+body.sasv-module .filters select {
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-module .filters input[type="text"],
+body.sasv-module .filters input[type="search"] {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+body.sasv-module .filters input:focus,
+body.sasv-module .filters select:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-module .filters button:not(.btn),
+body.sasv-module .filters .sasv-clear-link,
+body.sasv-module .filter-bar .clear-link,
+body.sasv-module .clear-link,
+body.sasv-module #clearSearch,
+body.sasv-module #clearFilters {
+  background: none;
+  border: none;
+  color: var(--sasv-link);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-medium);
+  padding: 0 4px;
+  min-height: var(--sasv-control-md);
+}
+
+body.sasv-module .filters button:not(.btn):hover,
+body.sasv-module .clear-link:hover,
+body.sasv-module #clearSearch:hover,
+body.sasv-module #clearFilters:hover {
+  color: var(--sasv-link-hover);
+}
+
+body.sasv-module .filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+body.sasv-module .add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+body.sasv-module .add-row input {
+  flex: 1 1 200px;
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-module .list {
+  max-width: 720px;
+}
+
+body.sasv-module .list .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+body.sasv-module .list .row input,
+body.sasv-module .list .row select {
+  flex: 1 1 160px;
+}
+
+body.sasv-module .list .actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.sasv-module .sasv-profile-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-module .sasv-profile-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+body.sasv-module .sasv-profile-notes {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-module .sasv-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body.sasv-module .list hr {
+  border: none;
+  border-top: 1px solid var(--sasv-divider);
+  margin: 12px 0;
+}
+
+/* ── Content panels / section titles ────────────────────────────────────── */
+
+body.sasv-module section {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-lg);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+body.sasv-module section > h3,
+body.sasv-module .sasv-module-section-title {
+  margin: 0 0 10px;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text-secondary);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+
+body.sasv-module table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 12px;
+  background: var(--sasv-surface);
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-module th,
+body.sasv-module td {
+  padding: 8px 10px;
+  border: 1px solid var(--sasv-border);
+  vertical-align: middle;
+  text-align: left;
+}
+
+body.sasv-module thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-module tbody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-module td:has(.action-link),
+body.sasv-module td.actions {
+  white-space: nowrap;
+}
+
+/* ── Action links (edit/delete text actions) ─────────────────────────────── */
+
+body.sasv-module .action-link {
+  background: none !important;
+  border: none !important;
+  color: var(--sasv-link) !important;
+  text-decoration: underline !important;
+  padding: 0 !important;
+  margin: 0 4px !important;
+  cursor: pointer !important;
+  font: inherit !important;
+  font-size: var(--sasv-text-sm) !important;
+  font-weight: var(--sasv-fw-medium) !important;
+}
+
+body.sasv-module .action-link:hover {
+  color: var(--sasv-link-hover) !important;
+}
+
+body.sasv-module .action-link.delete-btn,
+body.sasv-module .action-link[data-action="delete"] {
+  color: var(--sasv-danger) !important;
+}
+
+body.sasv-module .action-link.delete-btn:hover {
+  color: var(--sasv-danger) !important;
+  opacity: 0.85;
+}
+
+/* ── Forms / inline editors ─────────────────────────────────────────────── */
+
+body.sasv-module .edit-input,
+body.sasv-module input.m-name,
+body.sasv-module form input[type="text"],
+body.sasv-module form select,
+body.sasv-module form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-module .edit-input:focus,
+body.sasv-module form input:focus,
+body.sasv-module form select:focus,
+body.sasv-module form textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-module form#addSectionForm,
+body.sasv-module form#addSubForm,
+body.sasv-module form#addAreaForm,
+body.sasv-module form#addCategoryForm,
+body.sasv-module form.sasv-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 4px;
+}
+
+body.sasv-module form#addSectionForm input[type="text"],
+body.sasv-module form#addSubForm input[type="text"],
+body.sasv-module form#addAreaForm input[type="text"],
+body.sasv-module form#addCategoryForm input[type="text"] {
+  flex: 1 1 200px;
+}
+
+body.sasv-module .form-inline,
+body.sasv-module .form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 0;
+}
+
+body.sasv-module .form-inline label,
+body.sasv-module .form-row label {
+  white-space: nowrap;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-medium);
+}
+
+body.sasv-module select {
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  max-width: 100%;
+}
+
+body.sasv-module select:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* Edit modal (categories and similar) */
+body.sasv-module #editOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 40, 42, 0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--sasv-z-modal);
+  padding: 16px;
+}
+
+body.sasv-module #editBox {
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  padding: 20px;
+  border-radius: var(--sasv-radius-lg);
+  border: 1px solid var(--sasv-border);
+  box-shadow: var(--sasv-shadow-lg);
+  width: min(360px, 100%);
+}
+
+body.sasv-module #editBox h3 {
+  margin: 0 0 12px;
+  font-size: var(--sasv-text-md);
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text);
+}
+
+body.sasv-module #editForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body.sasv-module #editInput {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--sasv-control-md);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-module .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+body.sasv-module .modal-actions button {
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-action-secondary);
+  color: var(--sasv-text);
+  cursor: pointer;
+}
+
+body.sasv-module .modal-actions #saveEdit {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-module #confirmMessage,
+body.sasv-module #confirmMsg {
+  margin: 0 0 16px;
+  font-size: var(--sasv-text-sm);
+  line-height: 1.45;
+}
+
+/* ── Multi-add row controls ─────────────────────────────────────────────── */
+
+body.sasv-module .row-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+body.sasv-module .row-add,
+body.sasv-module .row-remove {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: var(--sasv-fw-bold);
+  background: var(--sasv-surface-soft);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  cursor: pointer;
+  line-height: 1;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-module .row-add {
+  color: var(--sasv-success);
+  border-color: var(--sasv-success-border);
+  background: var(--sasv-success-bg);
+}
+
+body.sasv-module .row-remove {
+  color: var(--sasv-danger);
+  border-color: var(--sasv-danger-border);
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-module .row-add:hover,
+body.sasv-module .row-remove:hover {
+  opacity: 0.85;
+}
+
+/* ── Buttons inside modules: prefer shared .btn; neutralize local overrides ─ */
+
+body.sasv-module .btn {
+  margin-right: 8px;
+}
+
+body.sasv-module .btn.primary,
+body.sasv-module #multiAddBtn.btn {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-module .btn.primary:hover,
+body.sasv-module #multiAddBtn.btn:hover {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+/* ── Confirm / dialog overlays (legacy IDs) ─────────────────────────────── */
+
+body.sasv-module #dialogOverlay,
+body.sasv-module #confirmOverlay,
+body.sasv-module #confirmOverlay.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 40, 42, 0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--sasv-z-modal);
+  padding: 16px;
+}
+
+body.sasv-module #dialogBox,
+body.sasv-module #confirmBox,
+body.sasv-module #confirmOverlay .modal {
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  padding: 20px;
+  border-radius: var(--sasv-radius-lg);
+  border: 1px solid var(--sasv-border);
+  box-shadow: var(--sasv-shadow-lg);
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+}
+
+body.sasv-module #confirmOverlay .modal-actions {
+  justify-content: center;
+}
+
+body.sasv-module #confirmOverlay .modal-actions .confirm {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-module #dialogMessage,
+body.sasv-module #confirmBox p,
+body.sasv-module #confirmMessage {
+  margin: 0 0 16px;
+  font-size: var(--sasv-text-sm);
+  line-height: 1.45;
+  color: var(--sasv-text);
+}
+
+body.sasv-module #dialogButtons button,
+body.sasv-module #confirmBox button {
+  margin: 0 6px;
+  min-height: var(--sasv-control-md);
+  padding: 6px 14px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-action-secondary);
+  color: var(--sasv-text);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  cursor: pointer;
+}
+
+body.sasv-module #dialogButtons #btnYes,
+body.sasv-module #confirmYes {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-module #dialogButtons #btnNo,
+body.sasv-module #confirmNo {
+  background: var(--sasv-surface);
+}
+
+body.sasv-module #dialogButtons button:hover,
+body.sasv-module #confirmBox button:hover {
+  border-color: var(--sasv-control-border-hover);
+}
+
+body.sasv-module #dialogButtons button:focus-visible,
+body.sasv-module #confirmBox button:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Plants scroll table (behavioural layout, tokenized) */
+body.sasv-module #plantsTableContainer {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-module #plantsTable thead th {
+  position: sticky;
+  top: 0;
+  background: var(--sasv-surface-soft);
+  z-index: 2;
+}
+
+body.sasv-module #previewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 40, 42, 0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--sasv-z-modal);
+  padding: 16px;
+}
+
+body.sasv-module #previewBox {
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  padding: 20px;
+  border-radius: var(--sasv-radius-lg);
+  border: 1px solid var(--sasv-border);
+  box-shadow: var(--sasv-shadow-lg);
+  max-width: min(860px, 100%);
+  max-height: 80vh;
+  overflow: auto;
+  width: 100%;
+}
+
+body.sasv-module #previewBox h3 {
+  margin: 0 0 12px;
+  font-size: var(--sasv-text-md);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-module .edit-type,
+body.sasv-module .edit-status,
+body.sasv-module .edit-select,
+body.sasv-module .edit-number {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--sasv-control-md);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-module .filters select {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+@media (max-width: 720px) {
+  body.sasv-module {
+    padding: 12px 12px 28px;
+  }
+
+  body.sasv-module .filters {
+    padding: 10px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UI-MOD-1B — Medium master / ERP app shell
+   Viewport-flex pages (shelf-life, staff, vendor, stock, mapping, etc.)
+═══════════════════════════════════════════════════════════════════════════ */
+
+html:has(body.sasv-module.sasv-module--app) {
+  height: 100%;
+}
+
+/*
+ * Canonical app-shell viewport gutter.
+ * Tokens: --sasv-module-page-padding (-md / -sm) in design-tokens.css.
+ * Pages may override those vars (or padding) for genuine density exceptions
+ * (e.g. BOM denser workbench) — do not restate 20/10/6 in page CSS.
+ */
+body.sasv-module.sasv-module--app {
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-block: var(--sasv-module-page-padding);
+  padding-inline: var(--sasv-module-page-padding);
+  box-sizing: border-box;
+}
+
+body.sasv-module.sasv-module--app .sasv-module-shell {
+  max-width: none;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 1080px) {
+  body.sasv-module.sasv-module--app {
+    padding-block: var(--sasv-module-page-padding-md);
+    padding-inline: var(--sasv-module-page-padding-md);
+  }
+}
+
+@media (max-width: 520px) {
+  body.sasv-module.sasv-module--app {
+    padding-block: var(--sasv-module-page-padding-sm);
+    padding-inline: var(--sasv-module-page-padding-sm);
+  }
+}
+
+/* Page header (medium masters) */
+body.sasv-module .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-module .page-header h1 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: var(--sasv-fw-bold);
+  color: var(--sasv-text);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+body.sasv-module .page-sub {
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  margin-top: 3px;
+}
+
+body.sasv-module .header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+body.sasv-module .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 7px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+  cursor: pointer;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-module .icon-btn:hover {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-control-border-hover);
+  color: var(--sasv-text);
+}
+
+body.sasv-module .icon-btn .sasv-icon {
+  width: 16px;
+  height: 16px;
+}
+
+body.sasv-module #homeBtn.icon-btn,
+body.sasv-module #homeBtn.action-link {
+  width: auto;
+  min-width: auto;
+  max-width: none;
+  height: auto;
+  overflow: visible;
+  white-space: nowrap;
+  border-color: var(--sasv-action-home-border);
+  background: var(--sasv-action-home-bg);
+  color: var(--sasv-action-home);
+  font-size: var(--sasv-text-sm);
+  gap: 6px;
+  padding: 6px 12px;
+}
+
+body.sasv-module #homeBtn.icon-btn:hover {
+  background: var(--sasv-action-home-bg-hover);
+  border-color: var(--sasv-action-home-bg-hover);
+  color: var(--sasv-action-home-fg-hover);
+}
+
+/* Status banner */
+body.sasv-module #statusArea {
+  padding: 10px 12px;
+  border-radius: var(--sasv-radius-sm);
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text-muted);
+  display: none;
+  flex-shrink: 0;
+}
+
+body.sasv-module #statusArea[data-type="error"] {
+  display: block;
+  background: var(--sasv-danger-bg);
+  color: var(--sasv-danger);
+  border: 1px solid var(--sasv-danger-border);
+}
+
+body.sasv-module #statusArea[data-type="loading"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sasv-info-bg);
+  color: var(--sasv-info);
+  border: 1px solid var(--sasv-info-border);
+}
+
+/* KPI strip */
+body.sasv-module .kpi-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  align-items: stretch;
+  justify-content: space-between;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+body.sasv-module .kpi-strip::-webkit-scrollbar {
+  display: none;
+}
+
+body.sasv-module .kpi {
+  flex: 1 1 0;
+  min-width: 110px;
+  padding: 8px 10px;
+  border-radius: var(--sasv-radius-md);
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+body.sasv-module .kpi > .kpi-label {
+  font-size: 10px;
+  font-weight: var(--sasv-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-module .kpi > .kpi-value {
+  font-size: 1.15rem;
+  font-weight: var(--sasv-fw-bold);
+  color: var(--sasv-text);
+  line-height: 1.2;
+}
+
+body.sasv-module .kpi-products {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-module .kpi-with,
+body.sasv-module .kpi-active {
+  background: var(--sasv-success-bg);
+  border-color: var(--sasv-success-border);
+}
+
+body.sasv-module .kpi-without,
+body.sasv-module .kpi-history {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning-border);
+}
+
+/* Search card / toolbar row */
+body.sasv-module .search-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+body.sasv-module .search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+}
+
+body.sasv-module .search-wrap input[type="text"],
+body.sasv-module .search-wrap input[type="search"],
+body.sasv-module #pslmSearch,
+body.sasv-module #staffSearch,
+body.sasv-module #vendorSearch,
+body.sasv-module #searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--sasv-control-md);
+  padding: 8px 36px 8px 10px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  background: var(--sasv-control-bg);
+}
+
+body.sasv-module .search-wrap input:focus,
+body.sasv-module #pslmSearch:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-module .input-clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--sasv-text-muted);
+  cursor: pointer;
+  padding: 0;
+  border-radius: var(--sasv-radius-sm);
+}
+
+body.sasv-module .input-clear-btn:hover {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-module .input-clear-btn.visible {
+  display: inline-flex;
+}
+
+body.sasv-module .filter-btn-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+body.sasv-module .filter-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--sasv-danger);
+  color: var(--sasv-text-on-primary);
+  border-radius: var(--sasv-radius-pill);
+  font-size: 10px;
+  font-weight: var(--sasv-fw-bold);
+  min-width: 16px;
+  height: 16px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+body.sasv-module .filter-badge.visible {
+  display: flex;
+}
+
+/* Main + table card */
+body.sasv-module .main {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 12px;
+  min-height: 0;
+}
+
+body.sasv-module .table-card {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  padding: 8px;
+  background: var(--sasv-surface);
+  box-shadow: var(--sasv-shadow-sm);
+}
+
+body.sasv-module .table-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+
+body.sasv-module #rowCount,
+body.sasv-module .row-count {
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+}
+
+body.sasv-module #tableWrap,
+body.sasv-module .table-wrap,
+body.sasv-module .table-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+body.sasv-module.sasv-module--app table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+body.sasv-module.sasv-module--app thead th {
+  position: sticky;
+  top: 0;
+  background: var(--sasv-surface-soft);
+  z-index: 3;
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--sasv-border);
+  border-left: none;
+  border-right: none;
+  font-size: var(--sasv-text-xs);
+  white-space: nowrap;
+  color: var(--sasv-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-module.sasv-module--app tbody td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--sasv-divider);
+  border-left: none;
+  border-right: none;
+  font-size: var(--sasv-text-sm);
+  vertical-align: middle;
+}
+
+body.sasv-module.sasv-module--app tbody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-module .item-primary {
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-sm);
+  line-height: 1.35;
+}
+
+body.sasv-module .item-secondary {
+  display: block;
+  color: var(--sasv-text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* Semantic badge adapters used by medium masters */
+body.sasv-module .badge-active,
+body.sasv-module .badge-current,
+body.sasv-module .badge-pass {
+  background: var(--sasv-success-bg);
+  color: var(--sasv-success);
+  border-color: var(--sasv-success-border);
+}
+
+body.sasv-module .badge-inactive,
+body.sasv-module .badge-neutral {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  border-color: var(--sasv-border);
+}
+
+body.sasv-module .badge-missing,
+body.sasv-module .badge-fail {
+  background: var(--sasv-danger-bg);
+  color: var(--sasv-danger);
+  border-color: var(--sasv-danger-border);
+}
+
+body.sasv-module .badge-flag,
+body.sasv-module .badge-info,
+body.sasv-module .badge-mapped {
+  background: var(--sasv-info-bg);
+  color: var(--sasv-info);
+  border-color: var(--sasv-info-border);
+}
+
+body.sasv-module .badge-warn,
+body.sasv-module .badge-warning,
+body.sasv-module .badge-pending,
+body.sasv-module .badge-unmapped {
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  border-color: var(--sasv-warning-border);
+}
+
+/* Filter popover panel */
+body.sasv-module #filterPanel {
+  position: fixed;
+  z-index: calc(var(--sasv-z-modal) + 50);
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: var(--sasv-shadow-lg);
+  padding: 14px 16px;
+  min-width: 260px;
+  max-width: 320px;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+body.sasv-module #filterPanel.open {
+  display: flex;
+}
+
+body.sasv-module .filter-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+body.sasv-module .filter-panel-title {
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-module .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.sasv-module .filter-group label {
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-module .filter-group select {
+  padding: 6px 10px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+}
+
+body.sasv-module .filter-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Legacy medium-master button class adapters → Phase 3A */
+body.sasv-module .btn-primary,
+body.sasv-module .btn-secondary,
+body.sasv-module .btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+body.sasv-module .btn-primary {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  border: 1px solid var(--sasv-action-primary);
+}
+
+body.sasv-module .btn-primary:hover:not(:disabled) {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-module .btn-secondary {
+  background: var(--sasv-action-secondary);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-control-border);
+}
+
+body.sasv-module .btn-secondary:hover:not(:disabled) {
+  background: var(--sasv-action-secondary-hover);
+}
+
+body.sasv-module .btn-danger {
+  background: var(--sasv-surface);
+  color: var(--sasv-danger);
+  border: 1px solid var(--sasv-danger-border);
+}
+
+body.sasv-module .btn-danger:hover:not(:disabled) {
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-module .btn-sm {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-module .modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-module .modal-close-btn:hover {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+}
+
+/* Forms in modals */
+body.sasv-module .form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body.sasv-module .form-row {
+  display: flex;
+  gap: 10px;
+}
+
+body.sasv-module .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+body.sasv-module .form-group label {
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-module .req {
+  color: var(--sasv-danger);
+}
+
+body.sasv-module .form-control {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--sasv-control-md);
+  background: var(--sasv-control-bg);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+}
+
+body.sasv-module .form-control:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-module .form-control:disabled,
+body.sasv-module .form-control[readonly] {
+  opacity: 0.7;
+  background: var(--sasv-surface-soft);
+  cursor: not-allowed;
+}
+
+body.sasv-module textarea.form-control {
+  min-height: 70px;
+  resize: vertical;
+}
+
+body.sasv-module .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.sasv-module .modal-banner[data-type="error"] {
+  display: block;
+  padding: 10px 12px;
+  border-radius: var(--sasv-radius-sm);
+  font-size: var(--sasv-text-sm);
+  background: var(--sasv-danger-bg);
+  border: 1px solid var(--sasv-danger-border);
+  color: var(--sasv-danger);
+}
+
+body.sasv-module .product-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  padding: 10px;
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-module .summary-label {
+  font-size: 11px;
+  color: var(--sasv-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+body.sasv-module .summary-value {
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-module .modal-divider {
+  border: 0;
+  border-top: 1px solid var(--sasv-divider);
+  margin: 2px 0;
+}
+
+body.sasv-module .history-wrap {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  overflow: auto;
+}
+
+@media (max-width: 800px) {
+  body.sasv-module .col-hide-mobile {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  body.sasv-module .form-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  body.sasv-module .search-card {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 520px) {
+  body.sasv-module .page-header h1 {
+    font-size: 15px;
+  }
+
+  body.sasv-module .page-sub {
+    display: none;
+  }
+}

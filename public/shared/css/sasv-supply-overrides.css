@@ -1,0 +1,461 @@
+/**
+ * UI-MOD-4D — Supply Overrides specialization.
+ * Scoped to body.sasv-supply-overrides only.
+ * Preserves 4-tab override workspace + plan header — not Forecast/PPW geometry.
+ *
+ * Viewport gutter: inherit body.sasv-module.sasv-module--app
+ * (--sasv-module-page-padding 20 / 10 / 6) — do not restate here.
+ */
+
+body.sasv-module.sasv-module--app.sasv-supply-overrides {
+  margin: 0;
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  font-family: var(--sasv-font-sans);
+  box-sizing: border-box;
+}
+
+/* App-shell flex: chrome stays put; main scrolls */
+body.sasv-supply-overrides > .header-card {
+  flex-shrink: 0;
+}
+
+body.sasv-supply-overrides > .page-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Header / HOME ──────────────────────────────────────────────────────── */
+body.sasv-supply-overrides .header-card {
+  padding: 0;
+  margin: 0 0 12px;
+  background: transparent;
+  border: none;
+}
+
+body.sasv-supply-overrides .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+}
+
+body.sasv-supply-overrides .so-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-supply-overrides .page-header h1,
+body.sasv-supply-overrides .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-supply-overrides .page-sub {
+  margin: 4px 0 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+}
+
+body.sasv-supply-overrides .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+body.sasv-supply-overrides #homeBtn.sasv-home-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  body.sasv-supply-overrides .page-sub {
+    display: none;
+  }
+}
+
+/* ── Plan selector (SO-specific persistent header) ──────────────────────── */
+body.sasv-supply-overrides .persistent-header {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+body.sasv-supply-overrides .plan-selector-label {
+  color: var(--sasv-text-secondary);
+  font-weight: 600;
+}
+
+body.sasv-supply-overrides .plan-name {
+  color: var(--sasv-text);
+  font-weight: 600;
+}
+
+body.sasv-supply-overrides #selPlanHeader.large-select,
+body.sasv-supply-overrides .plan-selector {
+  min-height: var(--sasv-control-md);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-weight: 500;
+}
+
+body.sasv-supply-overrides #selPlanHeader.large-select:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* ── Tabs (SO 4-tab nav — not Forecast lenses / PPW stepper) ───────────── */
+body.sasv-supply-overrides .tabs-container {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: none;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+body.sasv-supply-overrides .tabs {
+  background: var(--sasv-surface);
+  border-bottom-color: var(--sasv-border);
+}
+
+body.sasv-supply-overrides .tab-btn {
+  font-weight: 500;
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.sasv-supply-overrides .tab-btn .tab-title {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+body.sasv-supply-overrides .tab-btn .tab-description {
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+}
+
+body.sasv-supply-overrides .tab-btn:hover {
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-text);
+}
+
+body.sasv-supply-overrides .tab-btn[aria-selected="true"] {
+  background: var(--sasv-selection-soft);
+  color: var(--sasv-action-primary-active);
+  border-color: var(--sasv-action-primary-soft-border);
+  border-bottom-color: transparent;
+  box-shadow: none;
+}
+
+body.sasv-supply-overrides .tab-btn[aria-selected="true"] .tab-title {
+  font-weight: 600;
+}
+
+body.sasv-supply-overrides .tab-btn:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Cards / surfaces ───────────────────────────────────────────────────── */
+body.sasv-supply-overrides .card {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  box-shadow: none;
+}
+
+body.sasv-supply-overrides .card-header h2,
+body.sasv-supply-overrides .card-header h3 {
+  font-weight: 600;
+  color: var(--sasv-text);
+}
+
+body.sasv-supply-overrides .filter-panel,
+body.sasv-supply-overrides .recon-toolbar {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-border);
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+body.sasv-supply-overrides input[type="checkbox"],
+body.sasv-supply-overrides input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sasv-action-primary);
+}
+
+body.sasv-supply-overrides
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.sasv-supply-overrides select,
+body.sasv-supply-overrides textarea {
+  border-color: var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-md);
+  box-sizing: border-box;
+  font: inherit;
+}
+
+body.sasv-supply-overrides
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+body.sasv-supply-overrides select:focus,
+body.sasv-supply-overrides textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-supply-overrides .toggle-group {
+  border-color: var(--sasv-border);
+  background: var(--sasv-surface);
+}
+
+body.sasv-supply-overrides .toggle-option {
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-supply-overrides .toggle-option.active {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-supply-overrides .toggle-option[data-proposed-toggle="absent"].active,
+body.sasv-supply-overrides .toggle-option[data-proposed-toggle="zero"].active,
+body.sasv-supply-overrides .toggle-option[data-proposed-toggle="no"].active {
+  background: var(--sasv-danger);
+  color: var(--sasv-text-on-primary, #fff);
+}
+
+body.sasv-supply-overrides .toggle-option[data-proposed-toggle="absent"]:hover,
+body.sasv-supply-overrides .toggle-option[data-proposed-toggle="zero"]:hover,
+body.sasv-supply-overrides .toggle-option[data-proposed-toggle="no"]:hover {
+  background: var(--sasv-danger);
+  color: var(--sasv-text-on-primary, #fff);
+  opacity: 0.9;
+}
+
+/* ── Actions (UI-MOD-3D grammar) ────────────────────────────────────────── */
+body.sasv-supply-overrides .btn,
+body.sasv-supply-overrides .action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+body.sasv-supply-overrides .btn svg,
+body.sasv-supply-overrides .action-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-supply-overrides .btn.primary {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-supply-overrides .btn.primary:hover {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+  filter: none;
+  box-shadow: none;
+}
+
+body.sasv-supply-overrides .btn.secondary {
+  background: var(--sasv-surface-soft);
+  border-color: var(--sasv-border);
+  color: var(--sasv-text);
+}
+
+body.sasv-supply-overrides .btn.outline {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-control-border);
+  color: var(--sasv-text);
+}
+
+body.sasv-supply-overrides .btn.outline:hover {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+  color: var(--sasv-action-primary-active);
+}
+
+body.sasv-supply-overrides .btn.danger {
+  background: var(--sasv-danger-bg);
+  border-color: var(--sasv-danger-border);
+  color: var(--sasv-danger);
+}
+
+body.sasv-supply-overrides .btn.danger:hover {
+  background: var(--sasv-danger-bg);
+  border-color: var(--sasv-danger);
+  color: var(--sasv-danger);
+  filter: brightness(0.98);
+}
+
+/* Warning-accent secondary actions (keep domain meaning, drop hard hex) */
+body.sasv-supply-overrides #btnZeroSeeded {
+  background: var(--sasv-warning-bg);
+  border: 1px solid var(--sasv-warning-border);
+  color: var(--sasv-warning);
+}
+
+body.sasv-supply-overrides #btnRefreshSupplyRollups {
+  background: var(--sasv-warning-bg);
+  border: 1px solid var(--sasv-warning-border);
+  color: var(--sasv-warning);
+}
+
+body.sasv-supply-overrides .action-btn.reset {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-control-border);
+  color: var(--sasv-text-secondary);
+}
+
+/* ── Status chips ───────────────────────────────────────────────────────── */
+body.sasv-supply-overrides .status-chip,
+body.sasv-supply-overrides .chip {
+  border-radius: var(--sasv-radius-pill);
+  font-weight: 500;
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-supply-overrides .status-chip.ok,
+body.sasv-supply-overrides .chip.ok {
+  background: var(--sasv-success-bg);
+  border-color: var(--sasv-success-border);
+  color: var(--sasv-success);
+}
+
+body.sasv-supply-overrides .status-chip.warn,
+body.sasv-supply-overrides .chip.warn {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning-border);
+  color: var(--sasv-warning);
+}
+
+body.sasv-supply-overrides .status-chip.err,
+body.sasv-supply-overrides .chip.err {
+  background: var(--sasv-danger-bg);
+  border-color: var(--sasv-danger-border);
+  color: var(--sasv-danger);
+}
+
+/* Needed rows — warning semantics (unchanged meaning) */
+body.sasv-supply-overrides #unifiedTable tr.needed td {
+  background: var(--sasv-warning-bg);
+}
+
+body.sasv-supply-overrides #unifiedTable tr.needed:hover td {
+  background: var(--sasv-warning-bg);
+  filter: brightness(0.98);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+/*
+ * UI-MOD-4D.1 — neutralize shared sasv-module .table-wrap flex-fill.
+ * SO uses .table-wrap as ordinary card content wrappers (Sets / Lines /
+ * Reconcile / AO), not as app-shell flex-fill regions. Shared rule
+ * `flex: 1 1 0; min-height: 0` collapsed wrappers to ~0 height.
+ * Page-local max-height rules (lines / reconcile / ao) still govern scroll.
+ */
+body.sasv-supply-overrides .table-wrap {
+  flex: 0 1 auto;
+  min-height: auto;
+  overflow: auto;
+}
+
+body.sasv-supply-overrides table {
+  border-collapse: collapse;
+  background: var(--sasv-surface);
+}
+
+body.sasv-supply-overrides thead th,
+body.sasv-supply-overrides th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: 600;
+  font-size: var(--sasv-text-sm);
+  border-bottom: 1px solid var(--sasv-border);
+}
+
+body.sasv-supply-overrides tbody td {
+  color: var(--sasv-text);
+  font-weight: 400;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-supply-overrides tbody tr:hover td {
+  background: var(--sasv-surface-soft);
+}
+
+/* ── Dialogs ────────────────────────────────────────────────────────────── */
+body.sasv-supply-overrides dialog {
+  border: none;
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  box-shadow: var(--sasv-shadow-lg);
+}
+
+body.sasv-supply-overrides dialog .modal-footer {
+  background: var(--sasv-surface-soft);
+  border-top-color: var(--sasv-border);
+}
+
+body.sasv-supply-overrides .form-error {
+  color: var(--sasv-danger);
+}
+
+/* Legacy host unused — canonical toast.js mounts its own container */
+body.sasv-supply-overrides #toast {
+  display: none !important;
+}

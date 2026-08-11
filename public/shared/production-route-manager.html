@@ -1,0 +1,2988 @@
+<!doctype html>
+<html lang="en" data-sasv-theme="sasv-core">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Production Route Manager</title>
+    <link rel="stylesheet" href="../shared/css/style.css" />
+    <link rel="stylesheet" href="../shared/css/sasv-costing.css" />
+    <style>
+      :root {
+        --cp-fw-body: 400;
+        --cp-fw-muted: 500;
+        --cp-fw-label: 500;
+        --cp-fw-emphasis: 500;
+        --cp-fw-heading: 600;
+        --cp-fw-metric: 600;
+        --cp-fw-section: 600;
+      }
+      .cp-modal-title {
+        font-weight: var(--cp-fw-heading);
+        font-size: 14px;
+        color: var(--text, #0f172a);
+      }
+      .cp-cell-primary {
+        font-weight: var(--cp-fw-emphasis);
+        color: var(--text, #0f172a);
+      }
+      .cp-field-label {
+        font-weight: var(--cp-fw-label);
+        color: var(--muted, #6b7280);
+      }
+      html,
+      body {
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+        /* font from sasv-costing / Inter via style.css */
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+      }
+      @media (max-width: 1080px) {
+        body {
+          padding: 10px;
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+      }
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .page-header h1 {
+        margin: 0;
+        color: var(--sasv-text, var(--text, #0f172a));
+        font-weight: var(--cp-fw-heading);
+      }
+      .page-sub {
+        color: var(--muted, #6b7280);
+        font-size: 0.95rem;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--panel-bg);
+        color: inherit;
+        cursor: pointer;
+      }
+      /* Text action buttons (editor + modals): regular size, filled — not icon-only white chips */
+      .cp-prm-actions .icon-btn,
+      .cp-prm-editor-lifecycle .icon-btn,
+      .cp-prm-form-actions .icon-btn,
+      .cp-prm-summary .cp-prm-actions .icon-btn,
+      .cp-prm-candidate-controls .icon-btn,
+      .cp-workbench-summary-card .cp-prm-actions .icon-btn {
+        width: auto;
+        height: auto;
+        min-height: 28px;
+        padding: 4px 10px;
+        gap: 4px;
+        font-size: 12.5px;
+        font-weight: 500;
+        line-height: 1.25;
+        letter-spacing: normal;
+        white-space: nowrap;
+        flex-shrink: 0;
+        background: var(--sasv-surface-soft, #eef2f7);
+        border-color: var(--sasv-border, #cbd5e1);
+        color: var(--sasv-text, var(--text, #0f172a));
+      }
+      .cp-prm-actions .icon-btn:hover:not(:disabled),
+      .cp-prm-editor-lifecycle .icon-btn:hover:not(:disabled),
+      .cp-prm-form-actions .icon-btn:hover:not(:disabled),
+      .cp-prm-summary .cp-prm-actions .icon-btn:hover:not(:disabled),
+      .cp-prm-candidate-controls .icon-btn:hover:not(:disabled),
+      .cp-workbench-summary-card .cp-prm-actions .icon-btn:hover:not(:disabled) {
+        background: var(--sasv-action-primary-soft, #e2e8f0);
+        border-color: var(--sasv-action-primary-soft-border, #94a3b8);
+      }
+      .cp-prm-actions .icon-btn.icon-btn-primary,
+      .cp-prm-editor-lifecycle .icon-btn.icon-btn-primary,
+      .cp-prm-form-actions .icon-btn.icon-btn-primary,
+      .cp-prm-summary .cp-prm-actions .icon-btn.icon-btn-primary,
+      .cp-prm-candidate-controls .icon-btn.icon-btn-primary,
+      .cp-workbench-summary-card .cp-prm-actions .icon-btn.icon-btn-primary {
+        background: var(--sasv-action-primary, var(--primary));
+        border-color: var(--sasv-action-primary, var(--primary));
+        color: #fff;
+      }
+      .cp-prm-actions .icon-btn.icon-btn-primary:hover:not(:disabled),
+      .cp-prm-editor-lifecycle .icon-btn.icon-btn-primary:hover:not(:disabled),
+      .cp-prm-form-actions .icon-btn.icon-btn-primary:hover:not(:disabled),
+      .cp-prm-summary .cp-prm-actions .icon-btn.icon-btn-primary:hover:not(:disabled),
+      .cp-prm-candidate-controls .icon-btn.icon-btn-primary:hover:not(:disabled),
+      .cp-workbench-summary-card .cp-prm-actions .icon-btn.icon-btn-primary:hover:not(:disabled) {
+        background: var(--sasv-action-primary-hover);
+        background: color-mix(in srgb, var(--sasv-action-primary) 86%, #000);
+        border-color: var(--sasv-action-primary-hover);
+        border-color: color-mix(in srgb, var(--sasv-action-primary) 86%, #000);
+        color: #fff;
+      }
+      [data-theme="dark"] .cp-prm-actions .icon-btn,
+      [data-theme="dark"] .cp-prm-editor-lifecycle .icon-btn,
+      [data-theme="dark"] .cp-prm-form-actions .icon-btn,
+      [data-theme="dark"] .cp-prm-summary .cp-prm-actions .icon-btn,
+      [data-theme="dark"] .cp-prm-candidate-controls .icon-btn,
+      [data-theme="dark"] .cp-workbench-summary-card .cp-prm-actions .icon-btn {
+        background: color-mix(in srgb, #94a3b8 18%, transparent);
+        border-color: #475569;
+        color: inherit;
+      }
+      [data-theme="dark"] .cp-prm-actions .icon-btn:hover:not(:disabled),
+      [data-theme="dark"] .cp-prm-editor-lifecycle .icon-btn:hover:not(:disabled),
+      [data-theme="dark"] .cp-prm-form-actions .icon-btn:hover:not(:disabled),
+      [data-theme="dark"] .cp-prm-summary .cp-prm-actions .icon-btn:hover:not(:disabled),
+      [data-theme="dark"] .cp-prm-candidate-controls .icon-btn:hover:not(:disabled),
+      [data-theme="dark"] .cp-workbench-summary-card .cp-prm-actions .icon-btn:hover:not(:disabled) {
+        background: color-mix(in srgb, #94a3b8 28%, transparent);
+        border-color: #64748b;
+      }
+      .icon-btn.costing-refresh-dirty {
+        border-color: var(--sasv-warning-border);
+        color: var(--sasv-warning);
+        background: var(--sasv-warning-bg);
+        box-shadow: 0 0 0 2px var(--sasv-focus-ring);
+      }
+      .icon-btn:hover {
+        background: var(--sasv-surface-soft, #f3f4f6);
+      }
+      .icon-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .icon-btn.hidden {
+        display: none;
+      }
+      .icon-btn.cp-danger-icon-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border-color: var(--sasv-danger-border);
+        background: var(--sasv-danger-bg);
+        color: var(--sasv-danger);
+      }
+      .icon-btn.cp-danger-icon-btn:hover,
+      .icon-btn.cp-danger-icon-btn:focus-visible {
+        background: color-mix(in srgb, var(--sasv-danger) 14%, #fff);
+        border-color: var(--sasv-danger-border);
+        color: var(--sasv-danger);
+      }
+      .icon-btn.cp-danger-icon-btn svg {
+        stroke: currentColor;
+      }
+      .icon-btn.cp-danger-text-btn {
+        width: auto;
+        height: auto;
+        min-height: 30px;
+        padding: 7px 12px;
+        border-color: var(--sasv-danger-border);
+        background: var(--sasv-danger-bg);
+        color: var(--sasv-danger);
+        font-weight: var(--cp-fw-label);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .icon-btn.cp-danger-text-btn:hover,
+      .icon-btn.cp-danger-text-btn:focus-visible {
+        background: color-mix(in srgb, var(--sasv-danger) 14%, #fff);
+        border-color: var(--sasv-danger-border);
+        color: var(--sasv-danger);
+      }
+      .icon-btn.cp-muted-icon-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+      }
+      #prevPage.sc-btn,
+      #nextPage.sc-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        line-height: 1;
+      }
+      #prevPage.sc-btn:hover,
+      #nextPage.sc-btn:hover {
+        background: rgba(15, 23, 42, 0.04);
+      }
+      #prevPage.sc-btn svg,
+      #nextPage.sc-btn svg {
+        display: block;
+      }
+      #peqPage {
+        min-height: 28px;
+        line-height: 28px;
+      }
+      .kpi-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+        gap: 6px;
+        margin: 0;
+        align-items: stretch;
+        width: 100%;
+      }
+      .kpi {
+        background: linear-gradient(180deg, var(--panel-bg), var(--panel-bg));
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 5px 8px;
+        border-radius: 7px;
+        min-width: 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        white-space: normal;
+        min-height: 32px;
+        box-sizing: border-box;
+      }
+      .kpi > div:first-child {
+        min-width: 0;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        line-height: 1.15;
+        font-weight: var(--cp-fw-label);
+        font-size: 10.5px;
+        color: var(--muted, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .kpi > div:last-child {
+        flex: 0 0 auto;
+        font-size: 13px;
+        color: var(--text, #0f172a);
+        font-weight: var(--cp-fw-metric);
+        line-height: 1.15;
+        font-variant-numeric: tabular-nums;
+      }
+      .cp-kpi-action {
+        text-align: left;
+        cursor: pointer;
+        appearance: none;
+        font: inherit;
+      }
+      .cp-kpi-action:hover {
+        background: rgba(15, 23, 42, 0.018);
+        border-color: rgba(15, 23, 42, 0.12);
+      }
+      .cp-kpi-action:focus-visible {
+        outline: 2px solid var(--sasv-action-primary);
+        outline-offset: 2px;
+      }
+      .kpi.total {
+        border-left: 3px solid var(--sasv-action-primary);
+        background: var(--sasv-action-primary-soft);
+      }
+      .kpi.ready {
+        border-left: 3px solid var(--sasv-success);
+        background: var(--sasv-success-bg);
+      }
+      .kpi.review {
+        border-left: 3px solid var(--sasv-warning);
+        background: var(--sasv-warning-bg);
+      }
+      .kpi.blocked {
+        border-left: 3px solid var(--sasv-danger);
+        background: var(--sasv-danger-bg);
+      }
+      .kpi.scheme {
+        border-left: 3px solid var(--sasv-info);
+        background: var(--sasv-info-bg);
+      }
+      @media (max-width: 800px) {
+        .kpi-strip {
+          grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+          gap: 5px;
+        }
+        .kpi {
+          padding: 5px 8px;
+        }
+        .kpi > div:first-child {
+          font-size: 10px;
+        }
+        .kpi > div:last-child {
+          font-size: 12.5px;
+        }
+      }
+      @media (max-width: 520px) {
+        .kpi-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .kpi {
+          min-height: 30px;
+        }
+      }
+      .search-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .search-card .filter-item.search {
+        flex: 1;
+        min-width: 160px;
+        position: relative;
+      }
+      .search-card .cp-period-item {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+      }
+      .search-card .cp-period-select,
+      .peq-filter-drawer .cp-period-select {
+        width: 132px;
+        max-width: 100%;
+        min-height: var(--sasv-control-md, 36px);
+        padding: 7px 28px 7px 10px;
+        border-radius: var(--sasv-radius-sm, 8px);
+        border: 1px solid var(--sasv-control-border, var(--border));
+        background-color: var(--sasv-control-bg, var(--panel-bg));
+        color: var(--sasv-text, var(--text));
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.2;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        cursor: pointer;
+        accent-color: var(--sasv-action-primary);
+        box-sizing: border-box;
+      }
+      .peq-filter-drawer .cp-period-select {
+        width: 100%;
+      }
+      .search-card .cp-period-select:hover,
+      .peq-filter-drawer .cp-period-select:hover {
+        border-color: var(--sasv-control-border-hover);
+      }
+      .search-card .cp-period-select:focus,
+      .search-card .cp-period-select:focus-visible,
+      .peq-filter-drawer .cp-period-select:focus,
+      .peq-filter-drawer .cp-period-select:focus-visible {
+        outline: none;
+        border-color: var(--sasv-control-border-focus, var(--sasv-action-primary));
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+      }
+      .search-card .cp-period-select:disabled,
+      .peq-filter-drawer .cp-period-select:disabled {
+        opacity: 0.72;
+        cursor: not-allowed;
+        background-color: var(--sasv-surface-soft, var(--panel-bg));
+        color: var(--sasv-text-muted, var(--muted));
+      }
+      .modal-content .cp-audit-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .modal-content .cp-audit-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        padding: 10px 12px;
+      }
+      .modal-content .cp-audit-card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .modal-content .cp-audit-code {
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-emphasis);
+        color: var(--text, #0f172a);
+      }
+      .modal-content .cp-audit-observed {
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        font-weight: var(--cp-fw-label);
+      }
+      .modal-content .cp-audit-kv {
+        margin-top: 0;
+      }
+      .modal-content .cp-blocker-card {
+        margin-bottom: 0;
+      }
+      .modal-content .cp-blocker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      @media (max-width: 640px) {
+        .search-card {
+          flex-wrap: wrap;
+        }
+        .search-card .cp-period-item {
+          flex: 1 1 120px;
+        }
+        .search-card .cp-period-select {
+          width: 100%;
+        }
+        .search-card .filter-item.search {
+          flex: 1 1 100%;
+        }
+      }
+      #search {
+        background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+        border: 1px solid var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+        padding: 8px 38px 8px 10px;
+        border-radius: var(--sasv-radius-sm, 6px);
+        font-weight: var(--sasv-fw-regular, 400);
+        width: 100%;
+        box-sizing: border-box;
+        min-height: var(--sasv-control-md, 36px);
+        color: var(--sasv-text, inherit);
+      }
+      #search::placeholder {
+        font-weight: var(--sasv-fw-regular, 400);
+        color: var(--sasv-text-muted, var(--muted, #6b7280));
+        opacity: 0.9;
+      }
+      #search:focus {
+        outline: none;
+        border-color: var(--sasv-control-border-focus, var(--sasv-action-primary));
+        box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+        background: var(--sasv-control-bg, #fff);
+      }
+      .input-clear-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        color: var(--erp-muted, #6b7280);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 6px;
+      }
+      .input-clear-btn:hover {
+        background: rgba(15, 23, 42, 0.03);
+        color: var(--erp-text, #0f172a);
+      }
+      .peq-filter-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        flex-shrink: 0;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--surface, #fff);
+        color: var(--erp-text, #374151);
+        cursor: pointer;
+      }
+      .peq-filter-btn:hover,
+      .peq-filter-btn:focus-visible {
+        background: var(--sasv-surface-soft, var(--erp-hover, #f3f4f6));
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
+        outline: none;
+      }
+      .peq-filter-btn--active {
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
+      }
+      .peq-filter-btn--active:hover {
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        color: var(--sasv-action-primary-active);
+      }
+      .peq-filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: var(--sasv-action-primary);
+        color: var(--sasv-text-on-primary, #fff);
+        font-size: 9px;
+        font-weight: var(--cp-fw-heading);
+        line-height: 14px;
+        text-align: center;
+      }
+      .peq-filter-drawer {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 280px;
+        max-width: min(280px, calc(100vw - 24px));
+        background: var(--surface, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        z-index: 300;
+        padding: 12px 14px;
+        box-sizing: border-box;
+      }
+      @media (max-width: 480px) {
+        .peq-filter-drawer {
+          position: fixed;
+          left: 8px;
+          right: 8px;
+          top: auto;
+          width: auto;
+          max-width: none;
+        }
+      }
+      .peq-filter-drawer {
+        max-height: min(480px, 80vh);
+        overflow-y: auto;
+      }
+      .peq-filter-drawer.open {
+        display: block;
+      }
+      .peq-filter-section {
+        margin-bottom: 10px;
+      }
+      .peq-filter-section-title {
+        font-size: 11px;
+        font-weight: var(--cp-fw-section);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted, #6b7280);
+        margin-bottom: 8px;
+      }
+      .peq-filter-checklist {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .peq-filter-checklist li label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        color: var(--erp-text, #374151);
+        cursor: pointer;
+        user-select: none;
+      }
+      .peq-filter-checklist input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        accent-color: var(--sasv-action-primary-active);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .peq-filter-summary {
+        margin-top: 8px;
+        font-size: 11.5px;
+        color: var(--muted, #6b7280);
+        font-style: italic;
+        min-height: 16px;
+      }
+      .peq-filter-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .peq-filter-action-btn {
+        flex: 1;
+        padding: 5px 8px;
+        font-size: 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--surface, #fff);
+        color: var(--erp-text, #374151);
+        cursor: pointer;
+      }
+      .lens-pills {
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        background: var(--sasv-surface-soft, var(--panel-bg, #f8fafc));
+        border: 1px solid var(--sasv-border, var(--erp-border, var(--border, #e5e7eb)));
+        border-radius: 10px;
+        align-items: center;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+      .cp-lens-suite-label {
+        font-size: 12px;
+        font-weight: var(--cp-fw-label);
+        color: var(--erp-muted, var(--muted, #6b7280));
+        margin-bottom: 6px;
+        line-height: 1.35;
+      }
+      .cp-lens-suite-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .cp-lens-suite-heading {
+        font-size: 10px;
+        font-weight: var(--cp-fw-heading);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        white-space: nowrap;
+        padding-right: 2px;
+      }
+      .cp-lens-suite-separator {
+        display: inline-block;
+        width: 1px;
+        height: 24px;
+        background: var(--erp-border, var(--border, #e5e7eb));
+        flex-shrink: 0;
+        margin: 0 2px;
+      }
+      .lens-pills .pill {
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--erp-muted, var(--muted, #6b7280));
+        font-size: 13px;
+        font-weight: var(--cp-fw-label);
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.16s ease;
+        white-space: nowrap;
+        line-height: 1.2;
+        box-shadow: none;
+      }
+      .lens-pills .pill:hover {
+        color: var(--sasv-text, var(--erp-text, #0f172a));
+        background: var(--sasv-action-primary-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
+      }
+      .lens-pills .pill.active {
+        color: var(--sasv-action-primary-active);
+        background: var(--sasv-selection-soft);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
+        font-weight: var(--cp-fw-heading);
+      }
+      @media (max-width: 520px) {
+        .page-header h1 {
+          font-size: 16px;
+          line-height: 1.1;
+        }
+        .page-header .page-sub {
+          display: none;
+        }
+        .cp-lens-suite-heading,
+        .cp-lens-suite-separator {
+          display: none;
+        }
+        .lens-pills {
+          display: none;
+        }
+        .tab-select-wrap {
+          position: relative;
+          display: inline-block;
+          width: 100%;
+          margin: 8px 0;
+        }
+        .tab-select {
+          display: inline-block;
+          width: 100%;
+          padding: 8px 42px 8px 10px;
+          border-radius: 8px;
+          border: 1px solid var(--sasv-action-primary);
+          background: linear-gradient(
+            135deg,
+            var(--sasv-action-primary-soft-border),
+            var(--sasv-action-primary-soft)
+          );
+          color: #0f172a;
+          font-weight: var(--cp-fw-label);
+          font-size: 14px;
+          appearance: none;
+          cursor: pointer;
+        }
+        .tab-select-icon {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 18px;
+          height: 18px;
+          pointer-events: none;
+          display: block;
+          color: var(--sasv-action-primary);
+        }
+        #homeBtn .home-label {
+          display: none;
+        }
+        #homeBtn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
+        #homeBtn svg {
+          display: block;
+        }
+      }
+      @media (min-width: 521px) {
+        .tab-select,
+        .tab-select-wrap,
+        .tab-select-icon {
+          display: none;
+        }
+      }
+      .main {
+        display: flex;
+        flex: 1 1 auto;
+        gap: 12px;
+        min-height: 0;
+      }
+      .table-card {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px;
+        background: var(--panel-bg);
+      }
+      .hidden {
+        display: none !important;
+      }
+      #costingLoadingMask.cp-loading-mask {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: color-mix(in srgb, var(--panel-bg, #fff) 72%, transparent);
+      }
+      #costingLoadingMask.cp-loading-mask.hidden,
+      #costingLoadingMask.cp-loading-mask[hidden] {
+        display: none !important;
+      }
+      #costingLoadingMask .cp-loading-panel {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sasv-space-2, 8px);
+        padding: var(--sasv-space-2, 8px) var(--sasv-space-3, 12px);
+        border-radius: var(--sasv-radius-sm, 8px);
+        border: 1px solid var(--border, var(--sasv-border));
+        background: var(--panel-bg, var(--sasv-surface));
+        color: var(--muted, var(--sasv-text-muted));
+        font-size: 13px;
+      }
+      body.sasv-production-route-manager #kpiStripWrap {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+      }
+      #statusArea:empty,
+      #statusArea[hidden] {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #tableWrap {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+        display: none;
+      }
+      #tableWrap.tw-visible {
+        display: block;
+      }
+      .generic-table-meta-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+      }
+
+      .generic-table-meta-actions.hidden {
+        display: none !important;
+      }
+
+      .generic-table-meta-actions:not(.hidden) {
+        margin-left: auto;
+      }
+      .generic-table-meta-actions:not(.hidden) + .pagination {
+        margin-left: 0 !important;
+      }
+
+      .generic-table-meta-actions .icon-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border-radius: 999px;
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary {
+        background: color-mix(in srgb, var(--sasv-action-primary) 16%, #fff);
+        border-color: color-mix(in srgb, var(--sasv-action-primary) 34%, #fff);
+        color: var(--sasv-action-primary-active, var(--primary));
+      }
+      .generic-table-meta-actions .icon-btn.icon-btn-primary:hover,
+      button.icon-btn-primary:hover,
+      .icon-btn.icon-btn-primary:focus-visible,
+      button.icon-btn-primary:focus-visible {
+        background: var(--sasv-action-primary-hover);
+        border-color: var(--sasv-action-primary-hover);
+        color: var(--sasv-text-on-primary, #fff);
+      }
+      .icon-btn.icon-btn-primary svg,
+      button.icon-btn-primary svg {
+        stroke: currentColor;
+      }
+      .cp-workbench-summary {
+        display: none;
+        margin: 0 0 8px;
+        padding: 8px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.015);
+        flex-shrink: 0;
+      }
+      .cp-workbench-summary.is-visible {
+        display: block;
+      }
+      .cp-workbench-compact-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        align-items: stretch;
+      }
+      .cp-workbench-summary-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 7px;
+        background: var(--panel-bg, #fff);
+        padding: 7px 9px;
+        min-width: 0;
+      }
+      .cp-workbench-summary-card .cp-card-label {
+        font-size: 10px;
+      }
+      .cp-workbench-summary-card .cp-card-value {
+        margin-top: 2px;
+        font-size: 13px;
+        font-weight: var(--cp-fw-emphasis);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cp-workbench-summary-card .icon-btn {
+        min-height: 26px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: var(--cp-fw-label);
+      }
+      .cp-manager-tab-card {
+        text-align: left;
+        cursor: pointer;
+        color: inherit;
+      }
+      .cp-manager-tab-card:hover {
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+      }
+      .cp-manager-tab-card.active {
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+        box-shadow: none;
+      }
+      .cp-manager-tab-card.active .cp-card-label,
+      .cp-manager-tab-card.active .cp-card-value {
+        color: var(--sasv-action-primary-active);
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        table {
+        min-width: 980px;
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        td:nth-child(2) {
+        min-width: 220px;
+        max-width: 320px;
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        td:nth-child(4) {
+        min-width: 150px;
+        max-width: 220px;
+      }
+      #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+        td:nth-child(11) {
+        min-width: 220px;
+      }
+      @media (max-width: 760px) {
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          table {
+          min-width: 820px;
+        }
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          th:nth-child(6),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(6),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          th:nth-child(10),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(10),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          th:nth-child(11),
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(11) {
+          display: none;
+        }
+        #tableWrap[data-lens="manual-rate-manager"][data-manager-tab="register"]
+          td:nth-child(2) {
+          min-width: 190px;
+          max-width: 230px;
+        }
+      }
+      @media (max-width: 620px) {
+        .cp-workbench-compact-summary {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .cp-workbench-summary-wide {
+          grid-column: 1 / -1;
+        }
+      }
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.42);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+      }
+      .modal-overlay.hidden {
+        display: none;
+      }
+      .modal-window {
+        width: min(1120px, calc(100vw - 28px));
+        max-height: min(86vh, 860px);
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-bg, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.22);
+        overflow: hidden;
+      }
+      .modal-window.cp-prm-modal-window--wide {
+        width: min(94vw, 1480px);
+        max-height: 90vh;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+      }
+      .modal-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 6px;
+        background: var(--surface, #fff);
+        color: inherit;
+        cursor: pointer;
+      }
+      .modal-window .tabs {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        overflow-x: auto;
+        overflow-y: hidden;
+        min-height: 44px;
+        box-sizing: border-box;
+        scrollbar-width: thin;
+      }
+      .modal-window .tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        min-height: 28px;
+        padding: 6px 12px;
+        border-radius: 7px;
+        border: 1px solid var(--border, #e5e7eb);
+        color: var(--muted, #6b7280);
+        font-size: 13px;
+        font-weight: var(--cp-fw-label);
+        cursor: pointer;
+        white-space: nowrap;
+        line-height: 1.2;
+        box-sizing: border-box;
+      }
+      .modal-window .tab.active {
+        background: var(--sasv-selection-soft);
+        color: var(--sasv-action-primary-active);
+        border-color: var(--sasv-action-primary-soft-border);
+        box-shadow: none;
+      }
+      .modal-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 12px;
+        overflow: auto;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .modal-content .cp-table-wrap {
+        max-height: calc(86vh - 190px);
+        overflow: auto;
+      }
+      .modal-content .cp-table-wrap thead th {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        background: var(--table-header, #fafafa);
+      }
+      .modal-content .cp-card-label,
+      .modal-content .cp-kv dt {
+        font-size: 10.5px;
+      }
+      .modal-content .cp-card-value {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .modal-content .cp-kv dd,
+      .modal-content .cp-table-wrap td {
+        font-size: 12.5px;
+        font-weight: 400;
+      }
+      .modal-content .cp-table-wrap th {
+        font-size: 11.5px;
+      }
+      .modal-content .cp-printable-table strong {
+        font-weight: var(--cp-fw-emphasis);
+      }
+      .modal-content .cp-printable-section-row td {
+        font-weight: var(--cp-fw-section);
+      }
+      .peq-modal-subtitle {
+        color: var(--muted, #6b7280);
+        font-size: 12.5px;
+        margin-top: 2px;
+      }
+      #peqToastContainer {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+      .peq-toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        pointer-events: auto;
+        animation: peq-toast-in 0.2s ease forwards;
+        max-width: 320px;
+        line-height: 1.4;
+      }
+      .peq-toast.toast-success {
+        background: var(--sasv-success-bg);
+        border-color: var(--sasv-success-border);
+        color: var(--sasv-success);
+      }
+      .peq-toast.toast-info {
+        background: var(--sasv-info-bg);
+        border-color: var(--sasv-info-border);
+        color: var(--sasv-info);
+      }
+      .peq-toast.toast-error {
+        background: var(--sasv-danger-bg);
+        border-color: var(--sasv-danger-border);
+        color: var(--sasv-danger);
+      }
+      .peq-toast.toast-fade-out {
+        animation: peq-toast-out 0.3s ease forwards;
+      }
+      @keyframes peq-toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes peq-toast-out {
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+      @media (max-width: 760px) {
+        .page-header {
+          flex-direction: column;
+        }
+        .page-header > div:last-child {
+          width: 100%;
+          justify-content: flex-end;
+        }
+        .modal-overlay {
+          padding: 8px;
+          align-items: stretch;
+        }
+        .modal-window {
+          width: 100%;
+          max-height: none;
+        }
+        .modal-overlay.cp-prm-modal-overlay--workload-summary {
+          padding: 0;
+          align-items: stretch;
+        }
+        .modal-window.cp-prm-modal-window--workload-summary {
+          width: 100vw;
+          height: 100dvh;
+          max-width: none;
+          max-height: none;
+          border-radius: 0;
+        }
+        .modal-window.cp-prm-modal-window--workload-summary .modal-header {
+          padding: 8px 10px;
+          align-items: center;
+          gap: 8px;
+        }
+        .modal-window.cp-prm-modal-window--workload-summary .cp-modal-title {
+          font-size: 0.95rem;
+          line-height: 1.25;
+        }
+        .modal-window.cp-prm-modal-window--workload-summary .peq-modal-subtitle {
+          font-size: 0.78rem;
+          line-height: 1.3;
+        }
+        .modal-window.cp-prm-modal-window--workload-summary .modal-close-btn {
+          flex: 0 0 auto;
+        }
+        .modal-window.cp-prm-modal-window--workload-summary .modal-content {
+          min-width: 0;
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+      }
+      @media (max-width: 520px) {
+        .page-header {
+          flex-direction: row;
+          align-items: center;
+          gap: 6px;
+        }
+        .page-header > div:first-child {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+        .page-header > div:last-child {
+          width: auto;
+          flex: 0 0 auto;
+          align-items: center !important;
+          gap: 5px !important;
+        }
+        .page-header h1 {
+          font-size: 13.5px;
+          line-height: 1;
+          white-space: nowrap;
+        }
+        .page-header .icon-btn,
+        .page-header #homeBtn {
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          flex: 0 0 28px;
+        }
+        .page-header #lastRefreshed {
+          min-width: 28px;
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          justify-content: center;
+        }
+        .page-header #lastRefreshed .sc-snapshot-label {
+          display: none;
+        }
+      }
+    
+      /* Production Route Manager specialty hosts */
+      #prmSetupBanner:not(.hidden) {
+        margin: 0 0 10px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        position: relative;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .cp-prm-setup-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border: 1px solid var(--sasv-warning-border, #fcd34d);
+        border-radius: 999px;
+        background: var(--sasv-warning-bg, #fffbeb);
+        color: var(--sasv-warning, #92400e);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        max-width: 100%;
+      }
+      .cp-prm-setup-chip:hover,
+      .cp-prm-setup-chip:focus-visible {
+        background: color-mix(in srgb, var(--sasv-warning) 12%, #fff);
+      }
+      .cp-prm-setup-chip:focus {
+        outline: none;
+      }
+      .cp-prm-setup-chip:focus-visible {
+        outline: 2px solid var(--sasv-warning);
+        outline-offset: 2px;
+      }
+      .cp-prm-setup-chip--ok {
+        background: var(--sasv-success-bg, #ecfdf5);
+        border-color: var(--sasv-success-border, #6ee7b7);
+        color: var(--sasv-success, #065f46);
+      }
+      .cp-prm-setup-chip--ok:hover,
+      .cp-prm-setup-chip--ok:focus-visible {
+        background: #d1fae5;
+      }
+      .cp-prm-setup-chip--ok:focus-visible {
+        outline: 2px solid #059669;
+      }
+      .cp-prm-setup-chip--loading {
+        background: var(--sasv-surface-soft, #f8fafc);
+        border-color: var(--sasv-border, #e2e8f0);
+        color: var(--sasv-text-secondary, #64748b);
+      }
+      .cp-prm-setup-chip--loading:focus-visible {
+        outline: 2px solid var(--sasv-action-primary);
+        outline-offset: 2px;
+      }
+      .cp-prm-cost-centre-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .cp-prm-cc-metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 10px;
+      }
+      .cp-prm-cc-table-wrap {
+        overflow: auto;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+      }
+      .cp-prm-cc-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .cp-prm-cc-table th,
+      .cp-prm-cc-table td {
+        padding: 7px 8px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+        text-align: left;
+        vertical-align: top;
+      }
+      .cp-prm-cc-table th {
+        background: var(--table-header, #fafafa);
+        color: var(--muted, #6b7280);
+        font-size: 11px;
+        font-weight: var(--cp-fw-section, 600);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      .cp-prm-cc-table tr:last-child td {
+        border-bottom: none;
+      }
+      .cp-prm-cc-code {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        color: var(--muted, #6b7280);
+        font-weight: var(--cp-fw-label, 500);
+      }
+      .cp-prm-cc-policy {
+        margin: 10px 0 0;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+        color: var(--muted, #6b7280);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .cp-prm-cost-centre-row {
+        display: table-row;
+      }
+      .cp-prm-step-details td {
+        padding-top: 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      }
+      .cp-prm-step-details.hidden {
+        display: none;
+      }
+      .cp-prm-step-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        font-size: 12px;
+        color: var(--muted, #6b7280);
+        padding: 2px 0 8px;
+      }
+      .cp-prm-step-details-actions {
+        margin-top: 4px;
+      }
+      .cp-prm-text-action {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        color: var(--muted, #6b7280);
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .cp-prm-text-action:hover {
+        color: var(--text, #0f172a);
+      }
+      .cp-prm-text-action:focus {
+        outline: none;
+      }
+      .cp-prm-text-action:focus-visible {
+        outline: 1px solid var(--sasv-action-primary);
+        outline-offset: 2px;
+        border-radius: 2px;
+      }
+      .cp-prm-editor[data-prm-editor="family"] {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 0 8px;
+        min-height: 0;
+      }
+      .cp-prm-editor-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 4px 0 8px;
+        border-bottom: 1px solid var(--sasv-border, var(--border, #e5e7eb));
+      }
+      .cp-prm-editor-toolbar-primary {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 16px;
+        min-width: 0;
+      }
+      .cp-prm-editor-toolbar-left,
+      .cp-prm-editor-toolbar-right {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 6px 10px;
+        min-width: 0;
+      }
+      .cp-prm-editor-toolbar-right {
+        flex-shrink: 0;
+      }
+      .cp-prm-editor-title-block {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .cp-prm-title-action {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        margin: 0;
+        padding: 2px 2px 2px 0;
+        border: 0;
+        border-radius: 2px;
+        background: transparent;
+        color: var(--sasv-action-primary);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .cp-prm-title-action:hover {
+        color: var(--sasv-action-primary-active);
+        color: color-mix(in srgb, var(--sasv-action-primary) 82%, #000);
+      }
+      .cp-prm-title-action:focus {
+        outline: none;
+      }
+      .cp-prm-title-action:focus-visible {
+        outline: 1px solid var(--sasv-action-primary);
+        outline-offset: 3px;
+      }
+      .cp-prm-title-action .cp-cell-primary {
+        color: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+        text-decoration-color: color-mix(in srgb, var(--sasv-action-primary) 35%, transparent);
+      }
+      .cp-prm-title-action:hover .cp-cell-primary {
+        text-decoration-color: currentColor;
+      }
+      .cp-prm-title-chevron {
+        display: inline-flex;
+        flex: 0 0 auto;
+        opacity: 0.7;
+      }
+      .cp-prm-title-action:hover .cp-prm-title-chevron {
+        opacity: 1;
+      }
+      .cp-prm-title-chevron svg {
+        display: block;
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2.25;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      [data-theme="dark"] .cp-prm-title-action {
+        color: var(--sasv-action-primary-soft);
+      }
+      [data-theme="dark"] .cp-prm-title-action:hover {
+        color: var(--sasv-action-primary-active);
+      }
+      [data-theme="dark"] .cp-prm-title-action .cp-cell-primary {
+        text-decoration-color: color-mix(
+          in srgb,
+          var(--sasv-action-primary-soft) 40%,
+          transparent
+        );
+      }
+      .cp-prm-family-editor-empty {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px 4px 8px;
+        max-width: 36rem;
+      }
+      .cp-prm-family-editor-empty .cp-cell-primary {
+        font-size: var(--sasv-text-md, 15px);
+        font-weight: var(--sasv-fw-semibold, 600);
+      }
+      .cp-prm-family-editor-empty .icon-btn {
+        align-self: flex-start;
+        margin-top: 4px;
+      }
+      .cp-prm-family-step-form .cp-prm-form-notice,
+      .cp-prm-form-notice {
+        margin: 0 0 10px;
+        padding: 8px 10px;
+        border-left: 3px solid var(--sasv-warning, #d97706);
+        background: var(--sasv-surface-soft, #f8fafc);
+        color: var(--sasv-text, #0f172a);
+        font-size: var(--sasv-text-sm, 13px);
+      }
+      .cp-prm-step-table-wrap {
+        overflow-x: auto;
+        min-width: 0;
+      }
+      .cp-prm-editor-lifecycle {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        gap: 6px;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      @media (max-width: 900px) {
+        .cp-prm-editor-toolbar-primary {
+          flex-wrap: wrap;
+        }
+        .cp-prm-editor-toolbar-left,
+        .cp-prm-editor-toolbar-right,
+        .cp-prm-editor-lifecycle,
+        .cp-prm-editor-title-block {
+          flex-wrap: wrap;
+          white-space: normal;
+        }
+        .cp-prm-editor-title-block {
+          overflow: visible;
+        }
+      }
+      .cp-prm-editor-cue {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--muted, #6b7280);
+        font: inherit;
+        font-size: 12.5px;
+        text-align: left;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .cp-prm-editor-cue--warn {
+        color: var(--sasv-warning);
+      }
+      .cp-prm-editor-cue:focus {
+        outline: none;
+      }
+      .cp-prm-editor-cue:focus-visible {
+        outline: 1px solid var(--sasv-action-primary);
+        outline-offset: 2px;
+        border-radius: 2px;
+      }
+      .cp-prm-editor-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 2px 0 4px;
+      }
+      .cp-prm-step-table tr[data-prm-step-row] {
+        cursor: pointer;
+      }
+      .cp-prm-step-table tr[data-prm-step-row]:hover {
+        background: color-mix(in srgb, var(--sasv-action-primary) 6%, transparent);
+      }
+      .cp-prm-step-table tr[data-prm-step-row]:focus {
+        outline: none;
+      }
+      .cp-prm-step-table tr[data-prm-step-row]:focus-visible {
+        outline: 1px solid var(--sasv-action-primary);
+        outline-offset: -1px;
+      }
+      .cp-prm-overview-metrics,
+      .cp-prm-step-detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 10px;
+      }
+      .cp-prm-step-detail-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .cp-prm-validation-strip,
+      .cp-prm-evidence-strip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        padding: 4px 0;
+        font-size: 12.5px;
+      }
+      .cp-prm-validation-metrics {
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .cp-prm-validation-issues {
+        margin: 4px 0 0;
+        padding-left: 18px;
+        width: 100%;
+      }
+      .cp-prm-evidence-gap {
+        margin-top: 0;
+      }
+      .cp-prm-badge-info {
+        background: var(--sasv-info-bg, #e0f2fe);
+        color: var(--sasv-info, #075985);
+      }
+      body[data-costing-module-key="production-route-manager"][data-costing-lens="route-family-route-editor"] #tableWrap,
+      body[data-costing-module-key="production-route-manager"][data-costing-lens="product-route-editor"] #tableWrap {
+        padding-top: 4px;
+      }
+      body[data-costing-module-key="production-route-manager"][data-costing-lens="route-family-route-editor"] #tableWrap .cp-prm-step-table-wrap {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .cp-prm-setup-detail[data-prm-notice="setup"] {
+        color: #92400e;
+      }
+      .cp-prm-row {
+        cursor: pointer;
+      }
+      .cp-prm-row:focus {
+        outline: none;
+      }
+      tr[tabindex="0"]:focus {
+        outline: none;
+      }
+      .cp-prm-row:focus-visible {
+        outline: 1px solid var(--sasv-action-primary);
+        outline-offset: -1px;
+      }
+      tr[tabindex="0"]:focus-visible {
+        outline: 1px solid var(--sasv-action-primary);
+        outline-offset: -1px;
+      }
+      .cp-prm-row--active {
+        background: transparent;
+        box-shadow: none;
+        border-color: inherit;
+      }
+      .cp-prm-row--active:focus:not(:focus-visible) {
+        outline: none;
+        box-shadow: none;
+      }
+      /* Gate 11Y.4D.1B — Workload Preview row density only */
+      #mainTable[data-prm-workload-table] tbody tr.cp-prm-workload-row > td {
+        padding-top: 4px;
+        padding-bottom: 4px;
+        vertical-align: middle;
+        line-height: 1.25;
+      }
+      #mainTable[data-prm-workload-table] .cp-prm-workload-compact {
+        white-space: nowrap;
+      }
+      #mainTable[data-prm-workload-table] .cp-prm-workload-batch {
+        white-space: nowrap;
+      }
+      #mainTable[data-prm-workload-table] .cp-prm-workload-product {
+        display: inline;
+      }
+      #mainTable[data-prm-workload-table] .cp-prm-workload-product-id {
+        font-size: 0.92em;
+        font-weight: 400;
+        white-space: nowrap;
+      }
+      #mainTable[data-prm-workload-table] .cp-prm-workload-explain-btn {
+        margin-left: 0.35rem;
+        vertical-align: baseline;
+      }
+      .cp-prm-link-btn {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        color: var(--sasv-action-primary, var(--primary));
+        font: inherit;
+        font-size: 0.92em;
+        font-weight: var(--cp-fw-emphasis, 500);
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .cp-prm-link-btn:hover,
+      .cp-prm-link-btn:focus-visible {
+        color: var(--sasv-action-primary-hover, var(--primary));
+        outline: none;
+      }
+      .cp-prm-workload-explain-tabs {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        margin: 0.65rem 0 0.75rem;
+      }
+      .cp-prm-workload-explain-tab {
+        appearance: none;
+        border: 1px solid var(--sasv-border, var(--border, #cbd5e1));
+        background: var(--sasv-surface-soft, #eef2f7);
+        color: var(--sasv-text, var(--text, #0f172a));
+        border-radius: 999px;
+        padding: 0.28rem 0.75rem;
+        font: inherit;
+        font-size: 0.92em;
+        font-weight: var(--cp-fw-emphasis, 500);
+        cursor: pointer;
+      }
+      .cp-prm-workload-explain-tab.is-active {
+        background: var(--sasv-action-primary, var(--primary));
+        border-color: var(--sasv-action-primary, var(--primary));
+        color: #fff;
+      }
+      .cp-prm-workload-explain-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+        gap: 0.55rem 0.75rem;
+        margin: 0.35rem 0 0.85rem;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--sasv-border, var(--border, #e5e7eb));
+        border-radius: 8px;
+        background: var(--panel-bg, transparent);
+      }
+      .cp-prm-workload-explain-metric-value {
+        font-weight: var(--cp-fw-metric, 600);
+        color: var(--sasv-text, var(--text, #0f172a));
+      }
+      .cp-prm-workload-explain-formula {
+        margin: 0.25rem 0 0;
+        padding-left: 1.1rem;
+      }
+      .cp-prm-workload-explain-table th,
+      .cp-prm-workload-explain-table td {
+        white-space: nowrap;
+      }
+      .cp-prm-workload-explain-lineage {
+        margin-top: 0.5rem;
+      }
+      /* Gate 11Y.10I.2C.2B.2B — Foundation density + Explain metric spans */
+      .cp-prm-workload-product-summary [data-prm-workload-foundation] .cp-prm-workload-foundation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+        gap: 0.45rem 0.75rem;
+        margin: 0.15rem 0 0.85rem;
+        min-width: 0;
+      }
+      .cp-prm-workload-product-summary [data-prm-workload-foundation] .cp-prm-workload-foundation-cell,
+      .cp-prm-workload-product-summary [data-prm-workload-foundation] .cp-prm-workload-foundation-value {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .cp-prm-workload-product-summary [data-prm-workload-foundation] .cp-prm-workload-foundation-cell--full,
+      .cp-prm-workload-product-summary [data-prm-workload-foundation] .cp-prm-workload-foundation-full {
+        grid-column: 1 / -1;
+        min-width: 0;
+      }
+      .cp-prm-workload-product-summary [data-prm-workload-foundation] h4.cp-field-label {
+        margin: 0.55rem 0 0.2rem;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-strip {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        align-items: start;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-metric {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-metric-value {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-metric--span-2 {
+        grid-column: span 2;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-metric-audit {
+        margin-top: 0.15rem;
+        font-size: 0.78em;
+        line-height: 1.3;
+        color: var(--muted, #6b7280);
+        font-weight: 400;
+        overflow-wrap: anywhere;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-formula-grid {
+        display: grid;
+        gap: 0.4rem 0.85rem;
+        margin: 0.25rem 0 0;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-formula-row {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 0.35rem 0.75rem;
+        min-width: 0;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-formula-row--plain {
+        grid-template-columns: 1fr;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-formula-meaning,
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-formula-expression {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        color: var(--muted, #6b7280);
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-formula-meaning {
+        font-weight: var(--cp-fw-emphasis, 500);
+        color: var(--sasv-text, var(--text, #0f172a));
+      }
+      @media (max-width: 1100px) {
+        .cp-prm-workload-product-summary .cp-prm-workload-explain-strip {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .cp-prm-workload-product-summary .cp-prm-workload-explain-metric--span-2 {
+          grid-column: span 2;
+        }
+      }
+      @media (max-width: 720px) {
+        .cp-prm-workload-product-summary [data-prm-workload-foundation] .cp-prm-workload-foundation-grid {
+          grid-template-columns: 1fr;
+        }
+        .cp-prm-workload-product-summary .cp-prm-workload-explain-strip {
+          grid-template-columns: 1fr;
+        }
+        .cp-prm-workload-product-summary .cp-prm-workload-explain-metric--span-2 {
+          grid-column: auto;
+        }
+        .cp-prm-workload-product-summary .cp-prm-workload-explain-formula-row {
+          grid-template-columns: 1fr;
+        }
+        .cp-prm-workload-product-summary .cp-prm-workload-explain-recon-grid {
+          grid-template-columns: 1fr;
+        }
+        .cp-prm-workload-product-summary .cp-prm-workload-effective-meta {
+          grid-template-columns: 1fr;
+        }
+      }
+      /* Gate 11Y.10I.2C.2B.2C — section hierarchy + recon + narrow full-page */
+      .cp-prm-workload-product-summary .cp-prm-workload-section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.65rem 1rem;
+        flex-wrap: wrap;
+        margin: 0.75rem 0 0.35rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid var(--sasv-border, var(--border, #e5e7eb));
+        min-width: 0;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-section-title {
+        margin: 0;
+        font-size: 0.95em;
+        font-weight: var(--cp-fw-emphasis, 500);
+        color: var(--sasv-text, var(--text, #0f172a));
+        min-width: 0;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-section-head .cp-prm-link-btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-recon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+        gap: 0.5rem 0.75rem;
+        margin: 0.35rem 0 0.85rem;
+        min-width: 0;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-recon-grid .cp-prm-workload-explain-metric {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-explain-tab {
+        flex: 0 0 auto;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-effective-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+        gap: 0.45rem 0.75rem;
+        margin: 0.15rem 0 0.85rem;
+        min-width: 0;
+      }
+      .cp-prm-workload-product-summary .cp-prm-workload-effective-meta-cell,
+      .cp-prm-workload-product-summary .cp-prm-workload-effective-meta-value {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 1100px) {
+        .cp-prm-workload-product-summary .cp-prm-workload-explain-recon-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .cp-prm-workload-product-summary .cp-prm-workload-effective-meta {
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+        }
+      }
+      @media (max-width: 1100px) {
+        #mainTable[data-prm-workload-table] .cp-prm-workload-batch {
+          white-space: normal;
+          max-width: 18rem;
+        }
+      }
+      .cp-prm-field-hint {
+        display: block;
+        margin-top: 2px;
+        font-size: 11.5px;
+        line-height: 1.35;
+        color: var(--muted, #6b7280);
+        font-weight: 400;
+      }
+      .peq-toast-msg {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .cp-prm-modal-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .cp-prm-action-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .cp-prm-action-reason {
+        font-size: 12px;
+      }
+      .cp-prm-candidate-controls label {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      [data-prm-lens-root] {
+        margin: 0 0 12px;
+        padding: 12px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+      }
+      .cp-prm-cards,
+      .cp-prm-step-cards {
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .cp-prm-card,
+      .cp-prm-step-card {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 10px;
+        background: var(--panel-bg, #fff);
+      }
+      .cp-prm-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 8px 0;
+      }
+      .cp-prm-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .cp-prm-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .cp-prm-form-notice {
+        margin: 0;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+        color: var(--muted, #6b7280);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+      [data-theme="dark"] .cp-prm-form-notice {
+        border-color: var(--sasv-action-primary-soft-border);
+        background: var(--sasv-action-primary-soft);
+        color: var(--sasv-text-secondary, var(--sasv-text));
+      }
+      .cp-prm-form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .cp-prm-form-field .cp-field-label {
+        font-size: 12px;
+      }
+      .cp-prm-form-field input,
+      .cp-prm-form-field select,
+      .cp-prm-form-field textarea {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        min-height: var(--sasv-control-md, 36px);
+        padding: 8px 10px;
+        border: 1px solid var(--sasv-control-border, var(--border, #e5e7eb));
+        border-radius: var(--sasv-radius-sm, 8px);
+        background: var(--sasv-control-bg, var(--panel-bg, #fff));
+        color: var(--sasv-text, var(--text, #0f172a));
+        font-size: 12.5px;
+        font-weight: var(--cp-fw-label);
+        line-height: 1.3;
+        font: inherit;
+      }
+      .cp-prm-form-field select {
+        appearance: none;
+        padding-right: 28px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        cursor: pointer;
+      }
+      .cp-prm-form-field input:focus,
+      .cp-prm-form-field select:focus,
+      .cp-prm-form-field textarea:focus {
+        outline: none;
+        border-color: var(--sasv-action-primary, var(--primary));
+        box-shadow: 0 0 0 3px var(--sasv-action-primary-soft-border);
+      }
+      .cp-prm-form-field textarea {
+        min-height: 84px;
+        resize: vertical;
+        line-height: 1.4;
+        font-weight: 400;
+      }
+      .cp-prm-form-field--full,
+      .cp-detail-span-full {
+        grid-column: 1 / -1;
+      }
+      [data-theme="dark"] .cp-prm-form-field input,
+      [data-theme="dark"] .cp-prm-form-field select,
+      [data-theme="dark"] .cp-prm-form-field textarea {
+        background: var(--panel-bg, #1e293b);
+        border-color: #334155;
+        color: inherit;
+      }
+      .cp-prm-form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 2px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      [data-theme="dark"] .cp-prm-form-actions {
+        border-top-color: #334155;
+      }
+      .cp-prm-workflow {
+        margin: 0;
+        padding-left: 1.1rem;
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+      .cp-prm-workflow li[data-state="complete"] .cp-prm-workflow-mark {
+        color: var(--sasv-success);
+      }
+      .cp-prm-workflow li[data-state="current"] .cp-prm-workflow-mark {
+        color: var(--sasv-warning);
+        font-weight: var(--cp-fw-label, 500);
+      }
+      .cp-prm-workflow li[data-state="pending"] .cp-prm-workflow-mark {
+        color: var(--sasv-text-muted, #6b7280);
+      }
+      .cp-prm-mapping-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .cp-prm-mapping-list li {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      .cp-prm-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--sasv-surface-soft, #f3f4f6);
+        font-size: 12px;
+        font-weight: var(--cp-fw-label, 500);
+      }
+      .cp-prm-badge-ok { background: var(--sasv-success-bg); color: var(--sasv-success); }
+      .cp-prm-badge-warn { background: var(--sasv-warning-bg); color: var(--sasv-warning); }
+      .cp-prm-badge-danger { background: var(--sasv-danger-bg); color: var(--sasv-danger); }
+      .cp-prm-action-blocked {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+      }
+      .cp-prm-server-contract {
+        font-size: 12px;
+      }
+      .cp-prm-exact-run {
+        margin: 0 0 8px;
+      }
+      .cp-workbench-summary.cp-prm-mapping-review-summary-host {
+        margin: 0 0 6px;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      .cp-prm-mapping-review-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 0;
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.35;
+        color: var(--text, var(--sasv-text));
+      }
+      .cp-prm-mapping-review-meta-sep {
+        margin: 0 0.35em;
+        color: var(--muted, var(--sasv-text-muted));
+      }
+      .cp-prm-mapping-review-row {
+        cursor: pointer;
+      }
+      .cp-prm-mapping-review-row:focus {
+        outline: none;
+      }
+      .cp-prm-mapping-review-row:focus-visible {
+        outline: 2px solid var(--sasv-action-primary, var(--primary));
+        outline-offset: -2px;
+      }
+      .cp-prm-mapping-review-products-wrap {
+        overflow-x: auto;
+        max-height: 280px;
+        overflow-y: auto;
+      }
+      .cp-prm-mapping-review-products {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .cp-prm-mapping-review-products th,
+      .cp-prm-mapping-review-products td {
+        border-bottom: 1px solid var(--border, var(--sasv-border));
+        padding: 4px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .cp-prm-mapping-review-products th {
+        font-weight: var(--cp-fw-label);
+        color: var(--muted, var(--sasv-text-muted));
+        white-space: nowrap;
+      }
+      .cp-prm-mapping-review-product-row td {
+        background: transparent;
+        vertical-align: middle;
+        padding-top: 4px;
+        padding-bottom: 4px;
+      }
+      .cp-prm-mapping-review-modal .cp-prm-form-actions {
+        justify-content: flex-start;
+      }
+      .cp-workbench-summary.cp-prm-foundation-review-summary-host {
+        margin: 0 0 6px;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      .cp-prm-chrome-row {
+        display: block;
+        width: 100%;
+      }
+      .table-card.cp-prm-cost-centres-chrome-active > .cp-prm-chrome-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: var(--sasv-space-2, 8px);
+        row-gap: var(--sasv-space-2, 8px);
+        width: 100%;
+        margin: 0 0 var(--sasv-space-3, 12px);
+      }
+      .cp-prm-cost-centres-chrome-active #prmSetupBanner:not(.hidden) {
+        display: inline-flex;
+        flex: 0 1 auto;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--sasv-space-2, 8px);
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        max-width: 100%;
+      }
+      .cp-prm-cost-centres-chrome-active
+        #workbenchSummary.cp-prm-cost-centres-summary-host {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        max-width: 100%;
+      }
+      .cp-workbench-summary.cp-prm-cost-centres-summary-host {
+        margin: 0;
+        padding: 0;
+        border-radius: 0;
+        width: auto;
+        max-width: 100%;
+      }
+      .cp-prm-cost-centres-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--sasv-space-2, 8px) var(--sasv-space-3, 12px);
+        width: 100%;
+      }
+      .cp-prm-cc-catalog {
+        font-size: 12px;
+        color: var(--muted, var(--sasv-text-muted));
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+      .cp-prm-cost-centres-toolbar [data-prm-create-cost-centre] {
+        margin-left: auto;
+      }
+      .cp-prm-cost-centre-manager-row {
+        cursor: pointer;
+      }
+      .cp-prm-cost-centre-manager-row:focus {
+        outline: none;
+      }
+      .cp-prm-cost-centre-manager-row:focus-visible {
+        outline: 1px solid var(--sasv-action-primary);
+        outline-offset: -1px;
+      }
+      .cp-prm-cc-desc {
+        margin: 0;
+      }
+      #mainTable[data-prm-cost-centres-table] {
+        min-width: 960px;
+      }
+      .cp-prm-cost-centre-modal.cp-prm-form,
+      .cp-prm-cost-centre-modal.cp-prm-summary {
+        gap: var(--sasv-space-4, 16px);
+      }
+      .cp-prm-cost-centre-modal .cp-prm-form-field {
+        gap: var(--sasv-space-2, 8px);
+      }
+      .cp-prm-cost-centre-modal .cp-detail-section {
+        margin: 0;
+        padding-block: var(--sasv-space-2, 8px);
+      }
+      .cp-prm-cost-centre-modal .cp-detail-grid {
+        gap: var(--sasv-space-2, 8px) var(--sasv-space-4, 16px);
+      }
+      .cp-prm-cost-centre-modal .cp-field-label {
+        margin-bottom: var(--sasv-space-2, 8px);
+      }
+      .cp-prm-foundation-review-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 0;
+        margin: 0;
+        font-size: 12.5px;
+        line-height: 1.35;
+        color: var(--text, var(--sasv-text));
+      }
+      .cp-prm-foundation-meta-sep {
+        margin: 0 0.35em;
+        color: var(--muted, var(--sasv-text-muted));
+      }
+      .cp-prm-foundation-class-chip {
+        white-space: nowrap;
+      }
+      .cp-prm-foundation-review-row {
+        cursor: pointer;
+      }
+      .cp-prm-foundation-review-row:focus {
+        outline: none;
+      }
+      .cp-prm-foundation-review-row:focus-visible {
+        outline: 2px solid var(--sasv-action-primary, var(--primary));
+        outline-offset: -2px;
+      }
+      .cp-prm-foundation-products-wrap,
+      .cp-prm-foundation-steps-wrap {
+        overflow-x: auto;
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .cp-prm-foundation-products,
+      .cp-prm-foundation-steps {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .cp-prm-foundation-products th,
+      .cp-prm-foundation-products td,
+      .cp-prm-foundation-steps th,
+      .cp-prm-foundation-steps td {
+        border-bottom: 1px solid var(--border, var(--sasv-border));
+        padding: 4px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .cp-prm-foundation-products th,
+      .cp-prm-foundation-steps th {
+        font-weight: var(--cp-fw-label);
+        color: var(--muted, var(--sasv-text-muted));
+        white-space: nowrap;
+      }
+      .cp-prm-editor-header {
+        display: grid;
+        gap: 4px;
+        margin-bottom: 6px;
+      }
+      .cp-prm-step-table-wrap {
+        overflow-x: auto;
+        margin-top: 2px;
+      }
+      .cp-prm-step-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .cp-prm-step-table th,
+      .cp-prm-step-table td {
+        border-bottom: 1px solid var(--border, #e5e7eb);
+        padding: 6px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .cp-prm-sticky-seq,
+      .cp-prm-sticky-actions {
+        position: sticky;
+        background: var(--panel-bg, #fff);
+      }
+      .cp-prm-sticky-seq { left: 0; }
+      .cp-prm-sticky-actions { right: 0; }
+      .cp-prm-unresolved {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin: 6px 0;
+      }
+      #prmProductGroupFilter,
+      #prmRouteFamilyFilter {
+        width: 100%;
+        margin-top: 4px;
+      }
+      #prmAsOfDateWrap {
+        min-width: 148px;
+      }
+      #prmAsOfDateWrap.cp-prm-asof-disabled {
+        opacity: 0.72;
+      }
+      #prmAsOfDateWrap.cp-prm-asof-disabled input:disabled {
+        cursor: not-allowed;
+      }
+      body[data-costing-module-key="production-route-manager"] #costingPeriodSelectWrap {
+        display: none !important;
+      }
+      @media (max-width: 900px) {
+        .cp-prm-cards,
+        .cp-prm-step-cards { display: flex; }
+        #tableWrap.cp-prm-table-wrap table,
+        .cp-prm-step-table-wrap table { display: none; }
+      }
+
+    </style>
+  </head>
+  <body class="sasv-module sasv-module--app sasv-costing sasv-production-route-manager"
+    data-costing-module-key="production-route-manager"
+    data-costing-suite-id="production-route"
+    data-costing-default-lens="route-readiness"
+    data-costing-show-kpi="false"
+   data-theme="system">
+    <div
+      class="header-card"
+      style="
+        padding: 12px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+      "
+    >
+      <div class="page-header">
+        <div>
+          <h1 class="sasv-module-title">Production Route Manager</h1>
+          <div class="page-sub" id="subtitle">
+            Manufacturing Route Families, Product route deltas, historical candidates, and effective Product-to-Process routes
+          </div>
+          <div class="toolbar"></div>
+        </div>
+        <div style="display: flex; align-items: stretch; gap: 8px">
+          <button id="refreshBtn"
+            type="button"
+            title="Reload current Production Route Manager lens"
+            aria-label="Reload current lens"
+            class="icon-btn"
+          ></button>
+          <button id="exportCsv"
+            type="button"
+            title="Export CSV"
+            aria-label="Export CSV"
+            class="icon-btn"
+          ></button>
+          <div
+            id="lastRefreshed"
+            class="sc-snapshot"
+            tabindex="0"
+            role="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            <span class="sc-snapshot-dot" aria-hidden="true"></span>
+            <span class="sc-snapshot-label">Not loaded</span>
+            <div id="sc-status-detail" style="display: none">
+              Last refreshed: --
+            </div>
+          </div>
+          <button id="homeBtn"
+            type="button"
+            class="icon-btn sasv-home-btn"
+            title="HOME"
+            aria-label="HOME"
+          ></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="kpiStripWrap" hidden aria-hidden="true" style="display: none; margin: 0; overflow: hidden">
+      <div class="kpi-strip" id="kpiStrip"></div>
+    </div>
+
+    <div
+      id="globalSearchCard"
+      class="card search-card"
+      style="
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      "
+    >
+      <div id="peqFilterWrapper" style="position: relative; flex-shrink: 0">
+        <button
+          id="peqFilterBtn"
+          type="button"
+          class="peq-filter-btn"
+          title="Filters"
+          aria-label="Filters"
+          aria-haspopup="true"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          <span class="peq-filter-badge" style="display: none"></span>
+        </button>
+        <div
+          id="peqFilterDrawer"
+          class="peq-filter-drawer"
+          role="dialog"
+          aria-label="Costing filters"
+        >
+          <div class="peq-filter-section" data-peq-section="prm-readiness">
+            <div class="peq-filter-section-title">Readiness status</div>
+            <ul class="peq-filter-checklist" id="prmReadinessChecklist">
+              <li>
+                <label
+                  ><input
+                    type="radio"
+                    name="prmReadinessStatus"
+                    data-prm-readiness=""
+                    value=""
+                    checked
+                  />
+                  All statuses</label
+                >
+              </li>
+              <!-- Primary chips for statuses present in exact-run status_counts are filled by rebuildReadinessPeqOptions -->
+            </ul>
+          </div>
+          <div class="peq-filter-section" data-peq-section="prm-assignments" hidden>
+            <div class="peq-filter-section-title">Assignment status</div>
+            <ul class="peq-filter-checklist" id="prmAssignmentChecklist">
+              <li>
+                <label
+                  ><input
+                    type="radio"
+                    name="prmAssignmentStatus"
+                    data-prm-assignment-status=""
+                    value=""
+                    checked
+                  />
+                  All</label
+                >
+              </li>
+            </ul>
+            <label class="cp-prm-field" style="display:block;margin-top:8px" for="prmAssignmentMoreStatuses">
+              <span class="peq-filter-section-title">More statuses</span>
+              <select
+                id="prmAssignmentMoreStatuses"
+                class="cp-period-select"
+                aria-label="More assignment statuses"
+              >
+                <option value="">Select status…</option>
+              </select>
+            </label>
+          </div>
+          <div class="peq-filter-section" data-peq-section="prm-workload" hidden>
+            <div class="peq-filter-section-title">Foundation status</div>
+            <ul class="peq-filter-checklist" id="prmWorkloadFoundationChecklist">
+              <li>
+                <label
+                  ><input
+                    type="radio"
+                    name="prmWorkloadFoundation"
+                    data-prm-workload-foundation=""
+                    value=""
+                    checked
+                  />
+                  All</label
+                >
+              </li>
+            </ul>
+            <label class="cp-prm-field" style="display:block;margin-top:8px" for="prmWorkloadMoreFoundations">
+              <span class="peq-filter-section-title">More foundation statuses</span>
+              <select
+                id="prmWorkloadMoreFoundations"
+                class="cp-period-select"
+                aria-label="More foundation statuses"
+              >
+                <option value="">Select status…</option>
+              </select>
+            </label>
+            <div class="peq-filter-section-title" style="margin-top:10px">Quantity-driver status</div>
+            <ul class="peq-filter-checklist" id="prmWorkloadQuantityChecklist">
+              <li>
+                <label
+                  ><input
+                    type="radio"
+                    name="prmWorkloadQuantity"
+                    data-prm-workload-quantity=""
+                    value=""
+                    checked
+                  />
+                  All</label
+                >
+              </li>
+            </ul>
+            <label class="cp-prm-field" style="display:block;margin-top:8px" for="prmWorkloadMoreQuantities">
+              <span class="peq-filter-section-title">More quantity statuses</span>
+              <select
+                id="prmWorkloadMoreQuantities"
+                class="cp-period-select"
+                aria-label="More quantity-driver statuses"
+              >
+                <option value="">Select status…</option>
+              </select>
+            </label>
+            <div class="peq-filter-section-title" style="margin-top:10px">DL / POH scope</div>
+            <select
+              id="prmWorkloadDlScopeFilter"
+              class="cp-period-select"
+              aria-label="DL scope filter"
+            >
+              <option value="">All DL scopes</option>
+              <option value="HAS_DL">Has DL scope</option>
+              <option value="NO_DL">No DL scope</option>
+            </select>
+            <select
+              id="prmWorkloadPohScopeFilter"
+              class="cp-period-select"
+              style="margin-top:6px"
+              aria-label="POH scope filter"
+            >
+              <option value="">All POH scopes</option>
+              <option value="HAS_POH">Has POH scope</option>
+              <option value="NO_POH">No POH scope</option>
+            </select>
+          </div>
+          <div class="peq-filter-section" data-peq-section="prm-group">
+            <div class="peq-filter-section-title">Product Group</div>
+            <select
+              id="prmProductGroupFilter"
+              class="cp-period-select"
+              aria-label="Product Group filter"
+            >
+              <option value="">All Product Groups</option>
+            </select>
+          </div>
+          <div class="peq-filter-section" data-peq-section="prm-family">
+            <div class="peq-filter-section-title">Route Family</div>
+            <select
+              id="prmRouteFamilyFilter"
+              class="cp-period-select"
+              aria-label="Route Family filter"
+            >
+              <option value="">All Route Families</option>
+            </select>
+          </div>
+          <div
+            class="peq-filter-section"
+            data-peq-section="prm-cost-centres"
+            hidden
+            style="display: none"
+          >
+            <div class="peq-filter-section-title">Status</div>
+            <select
+              id="prmCcStatusFilter"
+              class="cp-period-select"
+              aria-label="Cost Centre status filter"
+            >
+              <option value="">All</option>
+            </select>
+            <div class="peq-filter-section-title" style="margin-top: 10px">
+              Pool Scope
+            </div>
+            <select
+              id="prmCcPoolFilter"
+              class="cp-period-select"
+              aria-label="Cost Centre pool scope filter"
+            >
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="peq-filter-actions">
+            <button
+              id="peqFilterSelectAll"
+              type="button"
+              class="peq-filter-action-btn"
+            >
+              Select all
+            </button>
+            <button
+              id="peqFilterClear"
+              type="button"
+              class="peq-filter-action-btn"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="filter-item cp-period-item" id="costingPeriodSelectWrap" hidden aria-hidden="true" style="display:none !important">
+        <select
+          id="costingPeriodSelect"
+          class="cp-period-select"
+          aria-label="Costing period"
+          title="Select costing period"
+          disabled
+          tabindex="-1"
+        >
+          <option value="">Loading...</option>
+        </select>
+      </div>
+      <div class="filter-item cp-period-item" id="prmAsOfDateWrap" title="Route as-of date (not Costing period)">
+        <input
+          type="date"
+          id="prmAsOfDate"
+          class="cp-period-select"
+          aria-label="Route as-of date"
+          title="Route as-of date (not Costing period)"
+        />
+      </div>
+      <div class="filter-item search">
+        <input
+          type="text"
+          id="search"
+          placeholder="Search Product or Product Group"
+          title="Search Product or Product Group"
+          aria-label="Search Product or Product Group"
+        />
+        <button
+          id="searchClear"
+          type="button"
+          class="input-clear-btn"
+          title="Clear search"
+          aria-label="Clear search"
+          style="display: none"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+            <line
+              x1="18"
+              y1="6"
+              x2="6"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            ></line>
+            <line
+              x1="6"
+              y1="6"
+              x2="18"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            ></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="card tabs-card"
+      style="
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+      "
+    >
+      <div id="lensSuiteLabel" class="cp-lens-suite-label">Production Route Manager</div>
+      <div class="tab-select-wrap">
+        <select
+          id="lensSelect"
+          class="tab-select"
+          aria-label="Select lens"
+        ></select>
+        <svg
+          class="tab-select-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <polyline
+            points="6 9 12 15 18 9"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div class="lens-pills" id="lensPills"></div>
+    </div>
+
+    <div class="main" style="margin-top: 8px">
+      <div class="table-card">
+        <div id="prmChromeRow" class="cp-prm-chrome-row">
+          <div id="prmSetupBanner" class="hidden" role="status"></div>
+          <div id="workbenchSummary" class="cp-workbench-summary"></div>
+        </div>
+        <div id="prmEditorHost" class="hidden"></div>
+        <div id="prmCandidateHost" class="hidden"></div>
+        <div id="prmEffectiveHost" class="hidden"></div>
+        <div id="statusArea" class="status" hidden style="display: none"></div>
+        <div
+          id="genericTableMetaRow"
+          style="
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+          "
+        >
+          <span
+            id="peqRowCount"
+            class="peq-row-count"
+            style="display: none; margin-left: 0"
+          ></span>
+          <div id="genericTableMetaActions" class="generic-table-meta-actions hidden"></div>
+          <div
+            class="pagination"
+            style="
+              margin-left: auto;
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+              background: transparent;
+              border: none;
+              padding: 0;
+            "
+          >
+            <button
+              id="prevPage"
+              class="sc-btn"
+              type="button"
+              disabled
+              title="Previous page"
+              aria-label="Previous page"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+            </button>
+            <span id="peqPage" style="display: inline-flex; align-items: center"
+              >Page 1/1</span
+            >
+            <button
+              id="nextPage"
+              class="sc-btn"
+              type="button"
+              disabled
+              title="Next page"
+              aria-label="Next page"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="tableWrap">
+          <table id="mainTable" class="costing-pricing-table">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div
+          id="costingLoadingMask"
+          class="cp-loading-mask hidden"
+          hidden
+          aria-live="polite"
+          aria-busy="false"
+          aria-hidden="true"
+          style="display: none"
+        >
+          <div class="cp-loading-panel">
+            <span class="cp-loading-spinner" aria-hidden="true"></span>
+            <span id="costingLoadingText">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay hidden" id="detailsModal" data-readonly-overlay="true" aria-hidden="true">
+        <div class="modal-window">
+          <div class="modal-header">
+            <div>
+              <span id="drawerTitle" class="cp-modal-title">Details</span>
+              <div class="peq-modal-subtitle" id="drawerSubtitle"></div>
+            </div>
+            <button
+              id="drawerClose"
+              class="modal-close-btn"
+              title="Close"
+              aria-label="Close"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div class="tabs" id="drawerTabs"></div>
+          <div id="drawerContent" class="modal-content">
+            Select a row to view details.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="peqToastContainer"></div>
+    <script type="module" src="js/production-route-manager-entry.js"></script>
+  </body>
+</html>

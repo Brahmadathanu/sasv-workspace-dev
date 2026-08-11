@@ -1,12 +1,21 @@
 /**
  * manage-bmr.js
  * Canonical BMR module: Create / Manage / Explore
- * Replaces add-bmr-entry, edit-bmr-entry, view-bmr-entry pages.
  */
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { bootstrapApp } from "./appBootstrap.js";
 import { hasPermission } from "./appAuth.js";
+import {
+  ADMIN_CORRECTION_ROLE,
+  canOfferAdminCorrection,
+} from "./bmr-admin-correction.js";
+import { openBmrAdminCorrectionModal } from "./bmr-admin-correction-modal.js";
+import {
+  activateBmrChangeHistoryTab,
+  initBmrChangeHistoryTab,
+  refreshBmrChangeHistoryProducts,
+} from "./bmr-admin-correction-history.js";
 
 /* ── Permission targets ──────────────────────────────────────── */
 const MODULE_TARGETS = ["module:manage-bmr", "module:bmr"];
@@ -20,6 +29,7 @@ const TAB_TARGETS = {
 const state = {
   activeTab: "explore",
   allowedTabs: new Set(),
+  canAdminCorrect: false,
   products: [], // [{id, item, sub_group_id, uom_base}]
   hierarchyMap: Object.create(null), // item.toLowerCase() -> {category_name,…}
   hierarchyData: { cats: [], subs: [], grps: [], sgs: [] }, // raw hierarchy tables
@@ -56,6 +66,7 @@ const els = {
     add: $("panel-add"),
     manage: $("panel-manage"),
     explore: $("panel-explore"),
+    history: $("panel-history"),
   },
   add: {
     csvFile: $("csvFile"),
@@ -125,6 +136,7 @@ const els = {
     copyBtn: $("detailCopyBtn"),
     editBtn: $("detailEditBtn"),
     deleteBtn: $("detailDeleteBtn"),
+    adminCorrectBtn: $("detailAdminCorrectBtn"),
     item: $("dtItem"),
     bn: $("dtBn"),
     size: $("dtSize"),
@@ -249,19 +261,26 @@ async function loadPermissions() {
     );
     return false;
   }
-  // Module-level "edit" (Full Access) unlocks all three tabs without requiring
+  // Module-level "edit" (Full Access) unlocks create/manage/explore without requiring
   // granular sub-target entries (module:manage-bmr:add etc.).
-  const [moduleEdit, canAdd, canManage, canExplore] = await Promise.all([
-    canAccessAny(MODULE_TARGETS, "edit"),
-    canAccessAny(TAB_TARGETS.add, ["edit", "view"]),
-    canAccessAny(TAB_TARGETS.manage, "edit"),
-    canAccessAny(TAB_TARGETS.explore, "view"),
-  ]);
+  const [moduleEdit, canAdd, canManage, canExplore, canAdminCorrect] =
+    await Promise.all([
+      canAccessAny(MODULE_TARGETS, "edit"),
+      canAccessAny(TAB_TARGETS.add, ["edit", "view"]),
+      canAccessAny(TAB_TARGETS.manage, "edit"),
+      canAccessAny(TAB_TARGETS.explore, "view"),
+      hasPermission(ADMIN_CORRECTION_ROLE, "edit"),
+    ]);
   if (moduleEdit || canAdd) state.allowedTabs.add("add");
   if (moduleEdit || canManage) state.allowedTabs.add("manage");
   if (moduleEdit || canExplore) state.allowedTabs.add("explore");
+  // Change History follows module view — already granted to open this page.
+  state.allowedTabs.add("history");
+  state.canAdminCorrect = !!canAdminCorrect;
   // Fallback: at minimum grant explore
-  if (!state.allowedTabs.size) state.allowedTabs.add("explore");
+  if (!state.allowedTabs.has("explore") && !state.allowedTabs.has("manage") && !state.allowedTabs.has("add")) {
+    state.allowedTabs.add("explore");
+  }
   return true;
 }
 
@@ -283,6 +302,7 @@ async function setActiveTab(tab) {
   }
   if (tab === "manage") await renderManageTable();
   if (tab === "explore") await renderExploreTable();
+  if (tab === "history") await activateBmrChangeHistoryTab();
 }
 
 /* ── SELECT helper ───────────────────────────────────────────── */
@@ -587,7 +607,9 @@ async function renderManageTable(cursor = null) {
   // Run data fetch and total-count HEAD query in parallel
   let dataQ = supabase
     .from("v_bmr_with_map_flag")
-    .select("bmr_id,item,bn,batch_size,uom,is_mapped")
+    .select(
+      "bmr_id,item,bn,batch_size,uom,is_mapped,mapped_batch_plan_batch_id,product_id",
+    )
     .order("bmr_id", { ascending: false })
     .limit(ps + 1);
   if (cursor !== null) dataQ = dataQ.lt("bmr_id", cursor);
@@ -627,6 +649,8 @@ async function renderManageTable(cursor = null) {
     .map(
       (r) => `
     <tr class="clickable-row" data-id="${r.bmr_id}" data-mapped="${r.is_mapped}"
+        data-plan-batch-id="${escHtml(r.mapped_batch_plan_batch_id ?? "")}"
+        data-product-id="${escHtml(r.product_id ?? "")}"
         data-item="${escHtml(r.item)}" data-bn="${escHtml(r.bn)}"
         data-size="${escHtml(r.batch_size ?? "")}" data-uom="${escHtml(r.uom ?? "")}">
       <td>${escHtml(r.item)}</td>
@@ -643,6 +667,7 @@ async function renderManageTable(cursor = null) {
 /* ── Detail modal ────────────────────────────────────────────── */
 function openDetailModal(row) {
   // row: { source, id?, item, bn, batchSize, uom, isMapped?,
+  //        mappedBatchPlanBatchId?, productId?,
   //        category, subcategory, group, subGroup }
   state.detailRow = row;
   const dm = els.detailModal;
@@ -669,7 +694,61 @@ function openDetailModal(row) {
   dm.editBtn.classList.toggle("hidden", !canEditManage);
   dm.deleteBtn.classList.toggle("hidden", !canEditManage);
 
+  // Exceptional path only — does not unlock ordinary mapped BN/size edit.
+  const showAdminCorrect =
+    isManage &&
+    canOfferAdminCorrection({
+      canAdminCorrect: state.canAdminCorrect,
+      isMapped: row.isMapped,
+      mappedBatchPlanBatchId: row.mappedBatchPlanBatchId,
+    });
+  if (dm.adminCorrectBtn) {
+    dm.adminCorrectBtn.classList.toggle("hidden", !showAdminCorrect);
+  }
+
   dm.overlay.classList.remove("hidden");
+}
+
+async function openAdminCorrectionFromDetail() {
+  const row = state.detailRow;
+  if (
+    !canOfferAdminCorrection({
+      canAdminCorrect: state.canAdminCorrect,
+      isMapped: row?.isMapped,
+      mappedBatchPlanBatchId: row?.mappedBatchPlanBatchId,
+    })
+  ) {
+    toast("Administrative correction is not available for this BMR.", "warn");
+    return;
+  }
+  const batchPlanBatchId = Number(row.mappedBatchPlanBatchId);
+  await openBmrAdminCorrectionModal({
+    batchPlanBatchId,
+    bmrId: row.id != null ? Number(row.id) : null,
+    onSuccess: async () => {
+      toast("Administrative correction completed.", "success");
+      await renderManageTable(state.managePg.currentCursor);
+      // Refresh detail snapshot from the refreshed list row when possible.
+      const tr = els.manage.tableBody.querySelector(
+        `tr.clickable-row[data-id="${row.id}"]`,
+      );
+      if (tr) {
+        state.detailRow = {
+          ...state.detailRow,
+          bn: tr.dataset.bn,
+          batchSize: tr.dataset.size,
+          uom: tr.dataset.uom,
+          isMapped: tr.dataset.mapped === "true",
+          mappedBatchPlanBatchId: tr.dataset.planBatchId || null,
+          productId: tr.dataset.productId || null,
+        };
+        openDetailModal(state.detailRow);
+      } else if (state.detailRow) {
+        // Row may have changed identity after remap; keep modal open with prior context.
+        openDetailModal(state.detailRow);
+      }
+    },
+  });
 }
 
 function closeDetailModal() {
@@ -1266,12 +1345,21 @@ function wireEvents() {
     try {
       clearStatus();
       await loadProducts();
+      refreshBmrChangeHistoryProducts(state.products);
       if (state.activeTab === "manage") await renderManageTable();
       if (state.activeTab === "explore") await renderExploreTable();
+      if (state.activeTab === "history") await activateBmrChangeHistoryTab();
       toast("Refreshed.", "success", 2000);
     } catch (e) {
       showStatus(`Refresh failed: ${e.message}`, "error");
     }
+  });
+
+  // Change History tab (module-view register)
+  initBmrChangeHistoryTab({
+    toast,
+    getProducts: () => state.products,
+    isHistoryActive: () => state.activeTab === "history",
   });
 
   // Tab bar
@@ -1362,12 +1450,20 @@ function wireEvents() {
       batchSize: tr.dataset.size,
       uom: tr.dataset.uom,
       isMapped: tr.dataset.mapped === "true",
+      mappedBatchPlanBatchId: tr.dataset.planBatchId || null,
+      productId: tr.dataset.productId || null,
       category: h.category_name || "",
       subcategory: h.subcategory_name || "",
       group: h.group_name || "",
       subGroup: h.sub_group_name || "",
     });
   });
+
+  if (els.detailModal.adminCorrectBtn) {
+    els.detailModal.adminCorrectBtn.addEventListener("click", () => {
+      openAdminCorrectionFromDetail().catch(console.error);
+    });
+  }
 
   // Edit modal
   els.editModal.closeBtn.addEventListener("click", closeEditModal);
@@ -1639,6 +1735,7 @@ async function init() {
 
   // Load all shared data in parallel
   await Promise.all([loadProducts(), loadHierarchyMap(), loadCategories()]);
+  refreshBmrChangeHistoryProducts(state.products);
   // Populate all hierarchy dropdowns (ERP-style: all open at startup)
   populateSubCategories();
   populateGroups();

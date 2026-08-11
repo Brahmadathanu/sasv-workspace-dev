@@ -1,4 +1,5 @@
 import { supabase } from '../public/shared/js/supabaseClient.js';
+import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');
@@ -187,6 +188,7 @@ confirmNo.addEventListener('click', () => {
 });
 
 /** 10. Navigate home */
+mountModuleHome(homeIcon);
 homeIcon.addEventListener('click', () => {
   window.location.href = 'index.html';
 });

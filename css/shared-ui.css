@@ -1,3 +1,13 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   shared-ui.css — compatibility / multi-consumer layer (UI-MOD-2)
+   Consumers:
+     BOM: manage-rm-bom, manage-sp-bom, manage-pm-bom (+ public/shared/css/sasv-bom.css)
+     Non-BOM (protected): manage-uom, manage-stock-items, manage-tally-inv-mapping,
+                          manage-category-map, mrp-master-data-console
+   Generic primitives + BOM selection/pills: semantic tokens.
+   MRP table (#mrpTable_*) and stock-checker (#sc-*) blocks: retained unchanged.
+═══════════════════════════════════════════════════════════════════════════ */
+
 /* Responsive: allow PR lines toolbar controls to wrap on small screens */
 @media (max-width: 500px) {
   .pr-lines-toolbar-erp {
@@ -11,20 +21,23 @@
     justify-content: flex-start;
   }
 }
-/* Neutral shared UI styles: tables, forms, toolbars, actions, and buttons */
+/* Neutral shared UI styles: tables, forms, toolbars, actions, and buttons
+   UI-MOD-2: generic primitives consume semantic tokens (compat for non-BOM
+   consumers). BOM cell-selection / pills also tokenized. MRP + stock-checker
+   blocks below are intentionally left intact to protect those consumers. */
 .table {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
+  background: var(--sasv-surface, #fff);
 }
 .table th,
 .table td {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--sasv-border, #e5e7eb);
   padding: 8px 10px;
   text-align: left;
 }
 .table th {
-  background: #f8fafc;
+  background: var(--sasv-surface-soft, #f8fafc);
   font-weight: 600;
 }
 .toolbar {
@@ -46,64 +59,78 @@
 }
 input[type="text"],
 input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="datetime-local"],
 select,
 textarea {
   width: 100%;
   padding: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--sasv-control-border, #d1d5db);
   border-radius: 6px;
-  background: #fff;
+  background: var(--sasv-control-bg, #fff);
+  color: var(--sasv-text, inherit);
+}
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--sasv-action-primary, #0a64c8);
 }
 button.primary {
-  background: #0a64c8;
-  color: #fff;
+  background: var(--sasv-action-primary, #0a64c8);
+  color: var(--sasv-text-on-primary, #fff);
   border: none;
   padding: 8px 12px;
   border-radius: 8px;
 }
 button.ghost {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--sasv-action-secondary, #f3f4f6);
+  border: 1px solid var(--sasv-border, #e5e7eb);
+  color: var(--sasv-text, inherit);
   padding: 8px 12px;
   border-radius: 8px;
 }
 
 /* Styles for selected cells */
 .selected {
-  background-color: #007bff; /* Highlight color */
-  color: #fff; /* Text color */
-  border: 1px solid #0056b3; /* Border color */
+  background-color: var(--sasv-action-primary, #007bff);
+  color: var(--sasv-text-on-primary, #fff);
+  border: 1px solid var(--sasv-action-primary-hover, #0056b3);
 }
 
 /* Selected cell highlight for view-mode selection (rectangular border edges)
-   Designed to match RM/SP BOM visual style */
+   Designed to match RM/SP BOM visual style — semantic warning stroke */
 td.cell-selected {
   background: transparent;
 }
 td.cell-selected.sel-t {
-  border-top: 2px solid #f97316;
+  border-top: 2px solid var(--sasv-warning, #f97316);
 }
 td.cell-selected.sel-b {
-  border-bottom: 2px solid #f97316;
+  border-bottom: 2px solid var(--sasv-warning, #f97316);
 }
 td.cell-selected.sel-l {
-  border-left: 2px solid #f97316;
+  border-left: 2px solid var(--sasv-warning, #f97316);
 }
 td.cell-selected.sel-r {
-  border-right: 2px solid #f97316;
+  border-right: 2px solid var(--sasv-warning, #f97316);
 }
 /* Active (last-selected) cell uses slightly stronger stroke */
 td.cell-active.sel-t {
-  border-top: 2px solid #ea580c;
+  border-top: 2px solid var(--sasv-warning, #ea580c);
 }
 td.cell-active.sel-b {
-  border-bottom: 2px solid #ea580c;
+  border-bottom: 2px solid var(--sasv-warning, #ea580c);
 }
 td.cell-active.sel-l {
-  border-left: 2px solid #ea580c;
+  border-left: 2px solid var(--sasv-warning, #ea580c);
 }
 td.cell-active.sel-r {
-  border-right: 2px solid #ea580c;
+  border-right: 2px solid var(--sasv-warning, #ea580c);
 }
 
 /* Selection pills styling (matching RM-BOM) */
@@ -126,9 +153,9 @@ td.cell-active.sel-r {
   text-transform: uppercase;
   letter-spacing: 0.8px;
   font-weight: 700;
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  color: #ffffff;
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  background: var(--sasv-warning, #f97316);
+  color: var(--sasv-text-on-primary, #ffffff);
+  border-right: 1px solid color-mix(in srgb, var(--sasv-text-on-primary, #fff) 30%, transparent);
 }
 #selectionPills .erp-pill-chip .pill-seg.title::before {
   content: "";
@@ -142,8 +169,8 @@ td.cell-active.sel-r {
 }
 #selectionPills .erp-pill-chip .pill-seg.value {
   padding: 4px 10px;
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--sasv-warning-bg, #fff7ed);
+  color: var(--sasv-warning, #c2410c);
   font-size: 12px;
   font-weight: 600;
   min-width: 32px;
@@ -151,7 +178,7 @@ td.cell-active.sel-r {
 }
 #selectionPills .erp-pill-chip:hover {
   transform: translateY(-0.5px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--sasv-shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.12));
   transition: all 0.15s ease;
 }
 #selectionPills .btn {
@@ -160,11 +187,11 @@ td.cell-active.sel-r {
   margin-left: 4px;
 }
 #selectionPills .btn.ghost {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: var(--sasv-surface-soft, #f8fafc);
+  border-color: var(--sasv-border-strong, #cbd5e1);
 }
 #selectionPills .btn.ghost:hover {
-  background: #f1f5f9;
+  background: var(--sasv-surface-soft, #f1f5f9);
 }
 #selectionPills .pill-icon {
   width: 10px;

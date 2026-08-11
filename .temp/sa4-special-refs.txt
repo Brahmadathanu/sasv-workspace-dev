@@ -1,0 +1,100 @@
+### v_costing_
+.\scripts\material-remediation-evidence-smoke.mjs:110:    materialSrc.includes("v_costing_pricing_material_action_drilldown_snapshot") &&
+.\scripts\material-remediation-evidence-smoke.mjs:116:  materialSrc.includes("v_costing_manual_rate_manager_action_queue") ||
+.\scripts\material-remediation-evidence-smoke.mjs:153:    controlSrc.includes("v_costing_pricing_material_action_drilldown_snapshot"),
+.\scripts\material-remediation-evidence-foundation-smoke.mjs:52:  /v_costing_pricing_material_action_drilldown_snapshot/.test(controlSrc) &&
+.\scripts\material-vendor-rate-offers-smoke.mjs:76:    materialSrc.includes("v_costing_pricing_material_action_drilldown_snapshot") &&
+.\scripts\materials-stores-explain-helpers-smoke.mjs:317:  "public.v_costing_cost_pool_monthly_summary / costing.v_sku_detailed_cost_sheet";
+.\scripts\materials-stores-explain-helpers-smoke.mjs:379:  !/v_costing_cost_pool_monthly_summary|v_sku_detailed_cost_sheet/i.test(
+.\scripts\recommended-ui-route-smoke.mjs:393:  controlSrc.includes("v_costing_pricing_sku_control_status_snapshot") &&
+.\public\shared\js\costing-suite-commercial-sales-assumptions.js:5: * - v_costing_pricing_commercial_sales_basis
+.\public\shared\js\costing-suite-commercial-sales-assumptions.js:366:        costingFrom("v_costing_pricing_commercial_sales_basis")
+.\public\shared\js\costing-suite-cost-build.js:367:      "v_costing_expense_allocation_pool_options",
+.\public\shared\js\costing-suite-cost-build.js:378:      "v_costing_staff_costing_class_options",
+.\public\shared\js\costing-suite-cost-build.js:413:          costingFrom("v_costing_expense_head_mapping_register")
+.\public\shared\js\costing-suite-cost-build.js:424:          costingFrom("v_costing_expense_head_mapping_register")
+.\public\shared\js\costing-suite-cost-build.js:436:          costingFrom("v_costing_cost_pool_monthly_summary")
+.\public\shared\js\costing-suite-cost-build.js:446:        costingFrom("v_costing_unmapped_expense_heads_for_mapping")
+.\public\shared\js\costing-suite-cost-build.js:473:          costingFrom("v_costing_staff_classification_register")
+.\public\shared\js\costing-suite-cost-build.js:484:          costingFrom("v_costing_staff_cost_pool_summary")
+.\public\shared\js\costing-suite-cost-build.js:495:        costingFrom("v_costing_unclassified_staff_for_costing")
+.\public\shared\js\costing-suite-cost-build.js:558:        costingFrom("v_costing_manual_provision_pool_options")
+.\public\shared\js\costing-suite-cost-build.js:564:        costingFrom("v_costing_manual_provision_type_options")
+.\public\shared\js\costing-suite-cost-build.js:579:    let query = costingFrom("v_costing_manual_cost_pool_provision_register")
+.\public\shared\js\costing-suite-cost-build.js:596:    let query = costingFrom("v_costing_cost_pool_monthly_summary")
+.\public\shared\js\costing-suite-control-center.js:498:    const { data, error } = await costingFrom("v_costing_pricing_dashboard_summary")
+.\public\shared\js\costing-suite-control-center.js:508:      "v_costing_pricing_business_kpi_summary",
+.\public\shared\js\costing-suite-control-center.js:519:      "v_costing_pricing_control_dashboard_snapshot",
+.\public\shared\js\costing-suite-control-center.js:531:        costingFrom("v_costing_pricing_control_integrity_audit_snapshot")
+.\public\shared\js\costing-suite-control-center.js:555:          costingFrom("v_costing_pricing_material_action_queue_snapshot")
+.\public\shared\js\costing-suite-control-center.js:597:        costingFrom("v_costing_pricing_sku_control_status_snapshot")
+.\public\shared\js\costing-suite-control-center.js:1246:          costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
+.\public\shared\js\costing-suite-control-center.js:1262:        costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
+.\public\shared\js\costing-suite-control-center.js:1976:        costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
+.\public\shared\js\costing-suite-cost-sheet.js:54:  "v_costing_pricing_cost_sheet_line_traceability";
+.\public\shared\js\costing-suite-cost-sheet.js:57:  "v_costing_pricing_printable_cost_sheet_lines";
+.\public\shared\js\costing-suite-cost-sheet.js:60:  "v_costing_pricing_printable_cost_sheet_product_summary";
+.\public\shared\js\costing-suite-pricing-policy.js:4403:      "v_costing_policy_manager_scheme_options",
+.\public\shared\js\costing-suite-pricing-policy.js:4417:        costingFrom("v_costing_scheme_policy_scope_options")
+.\public\shared\js\costing-suite-pricing-policy.js:5126:    const { data, error } = await costingFrom("v_costing_scheme_master_audit")
+.\public\shared\js\costing-suite-pricing-policy.js:5871:          costingFrom("v_costing_scheme_master_register")
+.\public\shared\js\costing-suite-pricing-policy.js:5880:          costingFrom("v_costing_scheme_policy_rule_register")
+.\public\shared\js\costing-suite-pricing-policy.js:5905:        costingFrom("v_costing_policy_manager_sku_overview")
+.\public\shared\js\costing-suite-pricing-policy.js:5931:      "v_costing_policy_manager_selling_policy_history",
+.\public\shared\js\costing-suite-pricing-policy.js:5947:      "v_costing_policy_manager_scheme_policy_history",
+.\public\shared\js\costing-suite-materials-stores-explain-helpers.js:76:  /v_costing_cost_pool_monthly_summary|v_sku_detailed_cost_sheet/i;
+.\public\shared\js\costing-suite-material-cost.js:16:  "v_costing_pricing_material_action_drilldown_snapshot";
+.\public\shared\js\costing-suite-material-cost.js:18:  "v_costing_manual_rate_manager_action_queue";
+.\public\shared\js\costing-suite-material-cost.js:1006:              costingFrom("v_costing_pricing_material_action_queue_snapshot")
+.\public\shared\js\costing-suite-material-cost.js:1334:      "v_costing_material_review_acceptance_register",
+.\public\shared\js\costing-suite-material-cost.js:1551:        costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
+.\public\shared\js\costing-suite-material-cost.js:1582:      "v_costing_pricing_review_action_item_drilldown_snapshot",
+.\public\shared\js\costing-suite-material-cost.js:1609:      "v_costing_material_manual_rate_history",
+.\public\shared\js\costing-suite-material-cost.js:1624:        costingFrom("v_costing_material_manual_rate_register")
+.\public\shared\js\costing-suite-material-cost.js:1636:        costingFrom("v_costing_material_manual_rate_history")
+.\public\shared\js\costing-suite-material-cost.js:1649:      "v_costing_material_manual_rate_review",
+.\public\shared\js\costing-suite-material-cost.js:1762:    const { data, error } = await costingFrom("v_costing_material_manual_rate_review")
+.\public\shared\js\costing-suite-material-cost.js:1802:    const { data, error } = await costingFrom("v_costing_material_manual_rate_review")
+.\public\shared\js\costing-suite-scheme-comparison.js:5: * Server source: public.v_costing_pricing_sku_scheme_comparison
+.\public\shared\js\costing-suite-scheme-comparison.js:11:  "v_costing_pricing_sku_scheme_comparison";
+.\public\shared\js\costing-suite-shell.js:1986:  dashboard: "v_costing_pricing_dashboard_summary",
+.\public\shared\js\costing-suite-shell.js:1987:  "sku-cost-sheet": "v_costing_pricing_sku_selector",
+.\public\shared\js\costing-suite-shell.js:1988:  "printable-cost-sheet": "v_costing_pricing_printable_cost_sheet_lines",
+.\public\shared\js\costing-suite-shell.js:1990:  "policy-manager": "v_costing_policy_manager_sku_overview",
+.\public\shared\js\costing-suite-shell.js:1992:  "cost-governance": "v_costing_unmapped_expense_heads_for_mapping",
+.\public\shared\js\costing-suite-shell.js:1993:  "staff-governance": "v_costing_unclassified_staff_for_costing",
+.\public\shared\js\costing-suite-shell.js:1994:  "manual-provisions": "v_costing_manual_cost_pool_provision_register",
+.\public\shared\js\costing-suite-shell.js:1996:    "v_costing_pricing_material_action_queue_snapshot",
+.\public\shared\js\costing-suite-shell.js:1998:    "v_costing_pricing_sku_control_status_snapshot",
+.\public\shared\js\costing-suite-shell.js:1999:  "manual-rate-manager": "v_costing_manual_rate_manager_action_queue",
+.\public\shared\js\costing-suite-shell.js:3055:      "v_costing_pricing_control_dashboard_snapshot",
+.\public\shared\js\costing-suite-shell.js:3064:      "v_costing_pricing_control_dashboard_snapshot",
+.\public\shared\js\costing-suite-shell.js:3077:    "v_costing_pricing_dashboard_summary",
+.\public\shared\js\costing-suite-shell.js:3242:        costingFrom("v_costing_pricing_control_dashboard_snapshot")
+.\public\shared\js\costing-suite-shell.js:3895:        costingFrom("v_costing_pricing_sku_status_diagnosis")
+.\public\shared\js\costing-suite-shell.js:6144:    "v_costing_pricing_sku_detailed_cost_sheet",
+.\public\shared\js\costing-suite-shell.js:6168:    "v_costing_pricing_workflow_diagnostics",
+
+### v_proc_vendor_item_rate_effective
+.\scripts\material-vendor-rate-offers-smoke.mjs:44:  !materialSrc.includes("v_proc_vendor_item_rate_effective"),
+.\scripts\material-vendor-rate-offers-smoke.mjs:45:  "MCM Set Costing Rate path does not use v_proc_vendor_item_rate_effective",
+
+### v_product_mrp_
+.\public\shared\js\costing-suite-mrp-proposal-shared.js:184:      costingFrom("v_product_mrp_proposal_register")
+.\public\shared\js\costing-suite-mrp-proposal-shared.js:201:      costingFrom("v_product_mrp_proposal_lines")
+.\public\shared\js\costing-suite-pricing-policy.js:3105:        costingFrom("v_product_mrp_reference_readiness")
+.\public\shared\js\costing-suite-pricing-policy.js:3121:      ? "v_product_mrp_derivation_history"
+.\public\shared\js\costing-suite-pricing-policy.js:3122:      : "v_product_mrp_derivation_current";
+.\public\shared\js\costing-suite-mrp-proposals.js:472:        costingFrom("v_product_mrp_proposal_register")
+.\public\shared\js\costing-suite-mrp-proposals.js:490:        costingFrom("v_product_mrp_proposal_lines")
+.\public\shared\js\costing-suite-mrp-proposals.js:1340:        costingFrom("v_product_mrp_derivation_current")
+
+### v_sku_mrp_effective
+.\tools\sql\ppm-s1-pricing-policy-write-rpc-security-smoke-test.sql:310:    ('v_sku_mrp_effective'),
+
+### v_sku_mrp_policy_history
+.\tools\sql\ppm-s1-pricing-policy-write-rpc-security-smoke-test.sql:311:    ('v_sku_mrp_policy_history')
+.\public\shared\js\costing-suite-mrp-applied-history.js:6: *   → v_sku_mrp_policy_history.policy_id → previous_policy_id
+.\public\shared\js\costing-suite-mrp-applied-history.js:504:          costingFrom("v_sku_mrp_policy_history")
+.\public\shared\js\costing-suite-pricing-policy.js:1518:    const { data, error } = await costingFrom("v_sku_mrp_policy_history")
+.\public\shared\js\costing-suite-pricing-policy.js:1660:          costingFrom("v_sku_mrp_policy_history")

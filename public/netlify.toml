@@ -9,9 +9,9 @@
   [headers.values]
     Cache-Control = "no-cache"
 
-# (Optional but nice) Set a short cache for the manifest so icon/metadata updates propagate.
+# (Optional but nice) Set a short cache for the Hub manifest so icon/metadata updates propagate.
 [[headers]]
-  for = "/manifest.webmanifest"
+  for = "/utilities-hub/manifest.webmanifest"
   [headers.values]
     Cache-Control = "max-age=600, must-revalidate"
 

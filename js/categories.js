@@ -1,5 +1,6 @@
 // js/categories.js
 import { supabase } from '../public/shared/js/supabaseClient.js'
+import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 
 //
 // In-page confirmation helper
@@ -188,6 +189,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   })
 
   // Home navigation
+  mountModuleHome(document.getElementById('homeIcon'));
   document.getElementById('homeIcon').onclick = () => {
     window.location.href = 'index.html'
   }

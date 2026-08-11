@@ -1788,6 +1788,7 @@ async function checkModuleAccess(uid) {
     if (!error && Array.isArray(perms)) {
       const hit = perms.find((r) => r?.target === `module:${MODULE_ID}`);
       if (hit) return !!hit.can_view;
+      return false;
     }
   } catch {
     /* fallthrough */
@@ -1804,22 +1805,10 @@ async function checkModuleAccess(uid) {
       return !!canonicalRows[0].can_view;
     }
   } catch {
-    // fallthrough
+    // fallthrough — deny
   }
 
-  try {
-    const { data: rows } = await supabase
-      .from("user_permissions")
-      .select("can_view")
-      .eq("user_id", uid)
-      .eq("module_id", MODULE_ID)
-      .limit(1);
-    if (Array.isArray(rows) && rows.length) return !!rows[0].can_view;
-  } catch {
-    /* allow */
-  }
-
-  return true;
+  return false;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

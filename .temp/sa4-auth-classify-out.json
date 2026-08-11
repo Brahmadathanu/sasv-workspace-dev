@@ -1,0 +1,708 @@
+{
+  "fileResults": [
+    {
+      "file": "index.html",
+      "views": [
+        "v_module_badges"
+      ],
+      "dynamicScan": false,
+      "htmls": [],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:product-shelf-life-manager",
+        "module:staff-directory-manager"
+      ]
+    },
+    {
+      "file": "js/log-add.js",
+      "views": [
+        "bottled_stock_on_hand",
+        "fg_bulk_stock"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "add-log-entry.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "requireAuthAndPermission",
+      "targets": [
+        "module:add-log-entry"
+      ]
+    },
+    {
+      "file": "js/log-edit.js",
+      "views": [
+        "fg_bulk_stock",
+        "v_fg_storage_residuals"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "edit-log-entry.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "requireAuthAndPermission",
+      "targets": [
+        "module:edit-log-entry"
+      ]
+    },
+    {
+      "file": "js/manage-pm-bom.js",
+      "views": [
+        "v_product_details",
+        "v_sku_catalog_enriched"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "manage-pm-bom.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:plm-templates"
+      ]
+    },
+    {
+      "file": "js/manage-rm-bom.js",
+      "views": [
+        "v_picker_products"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "manage-rm-bom.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:manage-rm-bom"
+      ]
+    },
+    {
+      "file": "js/manage-sp-bom.js",
+      "views": [
+        "v_picker_sp_owners",
+        "v_stock_item_picker"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "manage-sp-bom.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:manage-sp-bom"
+      ]
+    },
+    {
+      "file": "js/manage-tally-inv-mapping.js",
+      "views": [
+        "v_inv_stock_item_alias_coverage",
+        "v_inv_stock_item_alias_search"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "manage-tally-inv-mapping.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "js/procurement-planning-workbench.js",
+      "views": [
+        "v_mrp_pm_contrib_detail",
+        "v_mrp_rm_conversion_contrib_detail",
+        "v_mrp_rm_overlay_season_monthly_active",
+        "v_mrp_rm_trace_batch",
+        "v_mrp_rm_trace_horizon"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "procurement-planning-workbench.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "js/production-planning-workbench.js",
+      "views": [
+        "bottled_stock_on_hand",
+        "fg_bulk_stock",
+        "v_forecast_production_plan_godown",
+        "v_forecast_production_plan_net_sku",
+        "v_forecast_production_plan_region",
+        "v_forecast_production_plan_sku",
+        "v_product_bulk_consolidated",
+        "v_product_bulk_net_to_make",
+        "v_product_bulk_net_to_make_after_wip",
+        "v_product_bulk_required_monthly",
+        "v_sdv_dim_godown_region",
+        "v_sku_catalog_enriched",
+        "v_wip_batches"
+      ],
+      "dynamicScan": true,
+      "htmls": [
+        "production-planning-workbench.html"
+      ],
+      "authClass": "AUTH ONLY",
+      "reason": "ensureAuth",
+      "targets": []
+    },
+    {
+      "file": "js/sop-dashboard.js",
+      "views": [
+        "v_sop_flat"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "sop-dashboard.html"
+      ],
+      "authClass": "AUTH ONLY",
+      "reason": "getSession+login redirect",
+      "targets": []
+    },
+    {
+      "file": "js/sop-viewer.js",
+      "views": [
+        "v_sop_flat"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "sop-viewer.html"
+      ],
+      "authClass": "AUTH ONLY",
+      "reason": "getSession+login redirect",
+      "targets": []
+    },
+    {
+      "file": "js/supply-batch-plan.js",
+      "views": [
+        "bmr_card_not_initiated",
+        "v_batch_plan_batches_status",
+        "v_batch_plan_lines_with_impact",
+        "v_batch_plan_mapping",
+        "v_batch_plan_mapping_rollup",
+        "v_batch_plan_rollup"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "supply-batch-plan.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "js/supply-overrides.js",
+      "views": [
+        "v_product_details",
+        "v_supply_recon"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "supply-overrides.html"
+      ],
+      "authClass": "AUTH ONLY",
+      "reason": "ensureAuth",
+      "targets": []
+    },
+    {
+      "file": "js/update-log-status.js",
+      "views": [
+        "bottled_stock_on_hand",
+        "fg_bulk_stock"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "update-log-status.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "requireAuthAndPermission",
+      "targets": [
+        "module:update-log-status"
+      ]
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "views": [
+        "v_analysis_result_calculation_summary",
+        "v_analysis_result_entry",
+        "v_analysis_result_observation",
+        "v_coa_signatory_picker"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/analysis-workspace.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:analysis-workspace"
+      ]
+    },
+    {
+      "file": "public/shared/js/bmr-admin-correction.js",
+      "views": [
+        "bmr_card_not_initiated"
+      ],
+      "dynamicScan": false,
+      "htmls": [],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/bmr-card-not-initiated.js",
+      "views": [
+        "bmr_card_not_initiated"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/bmr-card-not-initiated.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/bottled-stock.js",
+      "views": [
+        "bottled_stock_on_hand"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/bottled-stock.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/coa-print.js",
+      "views": [
+        "v_coa_form50_header",
+        "v_coa_form50_lines"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/coa-print.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/coa-register.js",
+      "views": [
+        "v_coa_register",
+        "v_coa_register_versions"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/coa-register.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "views": [
+        "v_control_register_active",
+        "v_control_sample_exempted",
+        "v_control_sample_pending_collection",
+        "v_control_sample_ready_for_removal",
+        "v_control_sample_register",
+        "v_control_sample_sku_option"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/control-sample-register.html"
+      ],
+      "authClass": "AUTH ONLY",
+      "reason": "getSession present (verify gate strength)",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/detailFetchers.js",
+      "views": [
+        "v_mrp_pm_contrib_detail",
+        "v_mrp_rm_trace"
+      ],
+      "dynamicScan": false,
+      "htmls": [],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/executive-mis-dashboard.js",
+      "views": [
+        "mv_mis_executive_summary",
+        "v_mis_finance_outstanding_detail",
+        "v_mis_finance_tab_summary",
+        "v_mis_finished_goods_tab_summary",
+        "v_mis_inventory_tab_summary",
+        "v_mis_production_tab_summary",
+        "v_mis_sales_tab_summary"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/executive-mis-dashboard.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:executive-mis-dashboard"
+      ]
+    },
+    {
+      "file": "public/shared/js/fg-bulk-stock.js",
+      "views": [
+        "fg_bulk_stock"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/fg-bulk-stock.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/fg-transfer-reconciliation.js",
+      "views": [
+        "v_dwl_fg_transfer_event",
+        "v_tally_fg_transfer_normalized"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/fg-transfer-reconciliation.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": [
+        "module:fg-transfer-reconciliation"
+      ]
+    },
+    {
+      "file": "public/shared/js/fill-planner.js",
+      "views": [
+        "v_fill_inputs",
+        "v_sku_mrp_current"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/fill-planner.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/forecast-console.js",
+      "views": [
+        "v_forecast_baseline_effective",
+        "v_forecast_plan_12m",
+        "v_forecast_runs_recent",
+        "v_sdv_dim_godown_region",
+        "v_sku_catalog_enriched"
+      ],
+      "dynamicScan": true,
+      "htmls": [
+        "public/shared/forecast-console.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:forecast-console"
+      ]
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "views": [
+        "v_current_user_staff_context",
+        "v_fg_product_with_group",
+        "v_rm_pm_item_with_group",
+        "v_sample_receipt_fg_batch_picker",
+        "v_sample_receipt_fg_picker",
+        "v_sample_receipt_staff_picker"
+      ],
+      "dynamicScan": true,
+      "htmls": [
+        "public/shared/lab-analysis-entry.html"
+      ],
+      "authClass": "AUTH ONLY",
+      "reason": "getSession present (verify gate strength)",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/lab-analysis-queue.js",
+      "views": [
+        "v_analysis_header",
+        "v_analysis_pending_scrutiny"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/lab-analysis-queue.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:lab-analysis-queue"
+      ]
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "views": [
+        "v_protocol_usage_preview",
+        "v_rm_pm_item_with_group",
+        "v_test_with_default_method"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/lab-protocol-manager.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "views": [
+        "v_fg_product_with_group",
+        "v_pending_spec_change_requests",
+        "v_rm_pm_item_with_group",
+        "v_sample_receipt_fg_picker",
+        "v_spec_change_request_review_counts",
+        "v_spec_change_request_review_queue",
+        "v_spec_lifecycle_history",
+        "v_spec_override_register",
+        "v_spec_profile_detail",
+        "v_test_with_default_method"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/lab-spec-profile-manager.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/log-view.js",
+      "views": [
+        "v_fg_bulk_transfer_history"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/view-logs.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "requireAuthAndPermission",
+      "targets": [
+        "module:view-logs"
+      ]
+    },
+    {
+      "file": "public/shared/js/manage-bmr.js",
+      "views": [
+        "v_bmr_with_map_flag"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/manage-bmr.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:manage-bmr",
+        "module:bmr"
+      ]
+    },
+    {
+      "file": "public/shared/js/module-registry.js",
+      "views": [
+        "v_app_module_registry"
+      ],
+      "dynamicScan": false,
+      "htmls": [],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/mrp-master-data-console.js",
+      "views": [
+        "v_inv_stock_item_with_class",
+        "v_season_calendar"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/mrp-master-data-console.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/mrp-material-board.js",
+      "views": [
+        "v_mrp_material_monthly_stats"
+      ],
+      "dynamicScan": true,
+      "htmls": [
+        "public/shared/mrp-material-board.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/operations-monitor.js",
+      "views": [
+        "v_forecast_overview",
+        "v_forecast_runs_recent",
+        "v_health_last_heartbeat",
+        "v_health_mapping_today",
+        "v_health_snapshot_today",
+        "v_job_activity",
+        "v_job_activity_detailed"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/operations-monitor.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "getSession optional/non-blocking",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/pm-rebuild-dashboard.js",
+      "views": [
+        "v_mrp_plm_issue_monthly_allocated",
+        "v_mrp_plm_issue_monthly_enriched",
+        "v_mrp_plm_planned_vs_issued_overview"
+      ],
+      "dynamicScan": true,
+      "htmls": [
+        "public/shared/pm-rebuild-dashboard.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/procurement-execution-console.js",
+      "views": [
+        "v_inv_stock_item_with_class",
+        "v_stock_current_by_item",
+        "v_stock_item_picker"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/procurement-execution-console.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:procurement-execution-console",
+        "module:${MODULE_ID}"
+      ]
+    },
+    {
+      "file": "public/shared/js/production-execution-queue.js",
+      "views": [
+        "v_batch_risk_reduction_current_month",
+        "v_product_details"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/production-execution-queue.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:production-execution-queue"
+      ]
+    },
+    {
+      "file": "public/shared/js/rm-seasonal-overlay.js",
+      "views": [
+        "v_mrp_rm_overlay_season_monthly_active"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/rm-seasonal-overlay.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/sales-viewer.js",
+      "views": [
+        "v_sdv_freshness",
+        "v_sdv_sales_enriched"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/sales-viewer.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "views": [
+        "v_staff_compensation_monthly_manager"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/staff-directory-manager.html"
+      ],
+      "authClass": "AUTH+MODULE",
+      "reason": "module permission check",
+      "targets": [
+        "module:staff-directory-manager"
+      ]
+    },
+    {
+      "file": "public/shared/js/stock-checker.js",
+      "views": [
+        "v_stock_checker"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/stock-checker.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    },
+    {
+      "file": "public/shared/js/stock-purchase-explorer.js",
+      "views": [
+        "v_item_consumption_monthly_by_item",
+        "v_item_supply_overview",
+        "v_purchases_summary_by_item",
+        "v_stock_current_by_item"
+      ],
+      "dynamicScan": false,
+      "htmls": [
+        "public/shared/stock-purchase-explorer.html"
+      ],
+      "authClass": "PRE-AUTH POSSIBLE",
+      "reason": "no session/permission gate in consumer JS",
+      "targets": []
+    }
+  ],
+  "index": {
+    "hasGetSession": true,
+    "redirectsLogin": true,
+    "moduleBadges": true,
+    "appRegistry": false
+  }
+}

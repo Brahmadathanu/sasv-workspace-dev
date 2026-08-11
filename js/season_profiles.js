@@ -1,6 +1,8 @@
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
 
 const profilesList = document.getElementById("profilesList");
+const homeIcon = document.getElementById("homeIcon");
 const form = document.getElementById("profileForm");
 const labelInput = document.getElementById("profileLabel");
 const kindSelect = document.getElementById("profileKind");
@@ -18,14 +20,14 @@ async function loadProfiles() {
   profilesList.innerHTML = data
     .map(
       (p) => `
-    <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #eee">
-      <div style="flex:1">
+    <div class="sasv-profile-row">
+      <div class="sasv-profile-meta">
         <strong>${p.label}</strong> <small>(${p.entity_kind})</small>
-        <div style="color:#666">${p.notes || ""}</div>
+        <div class="sasv-profile-notes">${p.notes || ""}</div>
       </div>
-      <div>
-        <button data-id="${p.id}" data-action="edit">Edit</button>
-        <button data-id="${p.id}" data-action="del">Delete</button>
+      <div class="sasv-profile-actions">
+        <button type="button" class="btn ghost" data-id="${p.id}" data-action="edit">Edit</button>
+        <button type="button" class="btn danger" data-id="${p.id}" data-action="del">Delete</button>
       </div>
     </div>
   `
@@ -87,5 +89,12 @@ cancelBtn.addEventListener("click", () => {
   editingId = null;
   form.reset();
 });
+
+mountModuleHome(homeIcon);
+if (homeIcon) {
+  homeIcon.onclick = () => {
+    window.location.href = "index.html";
+  };
+}
 
 window.addEventListener("DOMContentLoaded", loadProfiles);

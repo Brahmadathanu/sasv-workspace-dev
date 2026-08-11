@@ -1,5 +1,6 @@
 import { hrSupabase, supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 
 const MODULE_ID = "staff-directory-manager";
 
@@ -295,6 +296,7 @@ async function checkModuleAccess(uid) {
     if (!error && Array.isArray(perms)) {
       const hit = perms.find((r) => r?.target === `module:${MODULE_ID}`);
       if (hit) return !!hit.can_view;
+      return false;
     }
   } catch {
     // Fall through.
@@ -312,23 +314,10 @@ async function checkModuleAccess(uid) {
       return !!canonicalRows[0].can_view;
     }
   } catch {
-    // Fall through.
+    // Fall through — deny.
   }
 
-  try {
-    const { data: rows } = await supabase
-      .from("user_permissions")
-      .select("can_view")
-      .eq("user_id", uid)
-      .eq("module_id", MODULE_ID)
-      .limit(1);
-
-    if (Array.isArray(rows) && rows.length) return !!rows[0].can_view;
-  } catch {
-    // Default allow.
-  }
-
-  return true;
+  return false;
 }
 
 function renderTabControls() {
@@ -383,6 +372,21 @@ function switchTab(tabId) {
 }
 
 function wireEvents() {
+  mountModuleActionIcons({
+    home: homeBtn,
+    refresh: refreshBtn,
+    filter: filterBtn,
+    add: addStaffBtn,
+    close: [
+      filterPanelClose,
+      staffModalClose,
+      compensationModalClose,
+      masterModalClose,
+      confirmModalClose,
+      staffSearchClear,
+    ],
+  });
+
   homeBtn.addEventListener("click", () => {
     if (typeof Platform.goHome === "function") {
       Platform.goHome();

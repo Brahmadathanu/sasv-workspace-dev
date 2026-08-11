@@ -1,0 +1,601 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SASV Workspace — BOM workbench specialization (UI-MOD-2)
+   Scoped to body.sasv-module.sasv-bom so non-BOM shared-ui consumers are
+   unaffected by BOM geometry/chrome. Consumes semantic tokens only.
+═══════════════════════════════════════════════════════════════════════════ */
+
+body.sasv-module.sasv-bom {
+  /* denser workbench than ordinary masters */
+  --sasv-bom-panel-radius: var(--sasv-radius-md);
+  --sasv-bom-selection: var(--sasv-warning);
+  --sasv-bom-selection-strong: var(--sasv-warning);
+}
+
+/* Single-scroll workbench: table viewport scrolls; page does not double-scroll.
+   Intentional density exception: denser than canonical --sasv-module-page-padding. */
+body.sasv-module.sasv-bom.sasv-module--app {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 12px;
+  box-sizing: border-box;
+}
+
+body.sasv-module.sasv-bom > header,
+body.sasv-module.sasv-bom > .page-header,
+body.sasv-module.sasv-bom > .tabs-wrap {
+  flex-shrink: 0;
+}
+
+/* SP/RM: identity panel stays visible; lines panel fills remaining height */
+body.sasv-module.sasv-bom > .panel:not(#linesPanel) {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+body.sasv-module.sasv-bom > #linesPanel,
+body.sasv-module.sasv-bom #tabTemplates.active #linesPanel,
+body.sasv-module.sasv-bom #linesPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+/* PM: active tab panel fills remaining viewport */
+body.sasv-module.sasv-bom > .tab-panel.active {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 10px;
+}
+
+body.sasv-module.sasv-bom > .tab-panel.active > .panel:not(#linesPanel) {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+body.sasv-module.sasv-bom #linesScroll.panel-body,
+body.sasv-module.sasv-bom #linesScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 !important;
+}
+
+body.sasv-module.sasv-bom header .page-header,
+body.sasv-module.sasv-bom > header > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 10px;
+  margin: 0;
+  border-bottom: 1px solid var(--sasv-divider);
+}
+
+body.sasv-module.sasv-bom header h1,
+body.sasv-module.sasv-bom .page-header h1,
+body.sasv-module.sasv-bom .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  font-size: 1.125rem;
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-align: left;
+}
+
+body.sasv-module.sasv-bom header .hint,
+body.sasv-module.sasv-bom .page-sub {
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-regular);
+  line-height: 1.4;
+}
+
+/* Identity / product panel */
+body.sasv-bom .panel {
+  padding: 0;
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-bom-panel-radius);
+  margin-bottom: 14px;
+  box-shadow: var(--sasv-shadow-sm);
+  overflow: hidden;
+}
+
+body.sasv-bom .panel-header {
+  background: var(--sasv-surface-soft);
+  border-bottom: 1px solid var(--sasv-border);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body.sasv-bom .panel-header h3 {
+  margin: 0;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text);
+}
+
+body.sasv-bom .panel-body {
+  padding: 14px 16px 16px;
+}
+
+/* Collapse reserved empty identity-panel body (hidden fields only) */
+body.sasv-bom .panel-body.bom-hidden-fields,
+body.sasv-bom .bom-hidden-fields {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+body.sasv-bom .bom-inline-feedback {
+  display: none;
+  margin: 0;
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--sasv-border);
+  background: var(--sasv-danger-bg);
+}
+
+body.sasv-bom .bom-inline-feedback.is-visible {
+  display: block;
+}
+
+body.sasv-bom .bom-inline-feedback #qaList,
+body.sasv-bom .bom-inline-feedback ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--sasv-text-sm);
+}
+
+/* Compact action icons (~16px glyph in ~32px control) — exclude HOME */
+body.sasv-bom .icon-btn:not(#homeBtn):not(.sasv-home-btn),
+body.sasv-bom .btn.icon-btn:not(#homeBtn):not(.sasv-home-btn) {
+  width: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  min-width: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+body.sasv-bom #homeBtn.icon-btn,
+body.sasv-bom #homeBtn.sasv-home-btn,
+body.sasv-bom button#homeBtn {
+  width: auto;
+  min-width: auto;
+  max-width: none;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  gap: 6px;
+  overflow: visible;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+body.sasv-bom .icon-btn svg,
+body.sasv-bom .btn.icon-btn svg,
+body.sasv-bom .icon-btn .sasv-icon,
+body.sasv-bom .qa-chip .qa-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+body.sasv-bom .icon-btn.small:not(#homeBtn) {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+/* Product / template type-to-select */
+body.sasv-bom .product-heading-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: min(320px, 100%);
+  flex: 1 1 240px;
+}
+
+body.sasv-bom .product-heading-label > .title {
+  display: none;
+}
+
+body.sasv-bom .product-heading-label .sasv-search-select,
+body.sasv-bom .product-heading-label select.sasv-native-select-sr {
+  width: 100%;
+  min-width: 220px;
+}
+
+body.sasv-bom .product-heading-label .sasv-search-select__input {
+  font-weight: var(--sasv-fw-medium);
+  background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+  border-color: var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+}
+
+body.sasv-bom .product-heading-label .sasv-search-select__list {
+  z-index: calc(var(--sasv-z-modal) + 40);
+}
+
+body.sasv-bom .panel-header .product-heading-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: min(320px, 100%);
+  flex: 1 1 240px;
+}
+
+body.sasv-bom .panel-header .product-heading-label .title {
+  display: none;
+}
+
+body.sasv-bom .panel-header .product-heading-label select,
+body.sasv-bom #productPicker,
+body.sasv-bom #tplPicker {
+  /* Hide native select from first paint — searchable UI is the face of the control */
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  appearance: none !important;
+}
+
+body.sasv-bom .panel-header .product-heading-label {
+  position: relative;
+  overflow: visible;
+}
+
+body.sasv-bom .panel-header .hdr-line.hdr-top,
+body.sasv-bom .panel-header {
+  overflow: visible;
+}
+
+body.sasv-bom .hdr-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Component / lines grid */
+body.sasv-bom .grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: var(--sasv-text-sm);
+  background: var(--sasv-surface);
+}
+
+body.sasv-bom .grid th,
+body.sasv-bom .grid td {
+  border: 1px solid var(--sasv-border);
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+body.sasv-bom .grid th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-bom #linesTable thead th {
+  text-align: center;
+}
+
+body.sasv-bom .grid tbody tr:nth-child(even) td {
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-bom .grid tbody tr:hover td {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-bom .grid td input:not([type="checkbox"]):not([type="radio"]),
+body.sasv-bom .grid td select {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 6px 8px;
+  min-height: var(--sasv-control-sm, 32px);
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+}
+
+body.sasv-bom .grid td input:not([type="checkbox"]):not([type="radio"]):focus,
+body.sasv-bom .grid td select:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+/* Optional / boolean checkboxes — compact native control */
+body.sasv-bom .grid td input[type="checkbox"],
+body.sasv-bom input[type="checkbox"].cell,
+body.sasv-bom input[type="checkbox"].opt {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 0 auto;
+  padding: 0;
+  display: block;
+  accent-color: var(--sasv-action-primary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.sasv-bom .grid td input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--sasv-focus-ring);
+  outline-offset: 2px;
+}
+
+body.sasv-bom .grid td[data-col="optional"],
+body.sasv-bom .grid th[data-col="optional"],
+body.sasv-bom .grid td.optional,
+body.sasv-bom .grid th.optional,
+body.sasv-bom .grid td.opt-col,
+body.sasv-bom .grid th.opt-col {
+  width: 72px;
+  text-align: center;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+body.sasv-bom .product-heading-label {
+  position: relative;
+}
+
+body.sasv-bom .product-heading-label .sasv-search-select {
+  min-width: min(320px, 100%);
+}
+
+/* Quantity-ish columns: prefer right alignment when marked */
+body.sasv-bom .grid td.qty-cell,
+body.sasv-bom .grid td.num-cell,
+body.sasv-bom .grid input[type="number"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* View-mode cell selection (BOM workbench) */
+body.sasv-bom .selected {
+  background-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  border-color: var(--sasv-action-primary-hover);
+}
+
+body.sasv-bom td.cell-selected {
+  background: transparent;
+}
+
+body.sasv-bom td.cell-selected.sel-t {
+  border-top: 2px solid var(--sasv-bom-selection);
+}
+body.sasv-bom td.cell-selected.sel-b {
+  border-bottom: 2px solid var(--sasv-bom-selection);
+}
+body.sasv-bom td.cell-selected.sel-l {
+  border-left: 2px solid var(--sasv-bom-selection);
+}
+body.sasv-bom td.cell-selected.sel-r {
+  border-right: 2px solid var(--sasv-bom-selection);
+}
+
+body.sasv-bom td.cell-active.sel-t {
+  border-top: 2px solid var(--sasv-bom-selection-strong);
+}
+body.sasv-bom td.cell-active.sel-b {
+  border-bottom: 2px solid var(--sasv-bom-selection-strong);
+}
+body.sasv-bom td.cell-active.sel-l {
+  border-left: 2px solid var(--sasv-bom-selection-strong);
+}
+body.sasv-bom td.cell-active.sel-r {
+  border-right: 2px solid var(--sasv-bom-selection-strong);
+}
+
+/* Selection pills */
+body.sasv-bom #selectionPills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+body.sasv-bom #selectionPills .erp-pill-chip {
+  margin-bottom: 0;
+  display: inline-flex;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  overflow: hidden;
+  background: var(--sasv-surface);
+}
+
+body.sasv-bom #selectionPills .erp-pill-chip .pill-seg.title {
+  padding: 4px 8px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: var(--sasv-fw-bold);
+  background: var(--sasv-warning);
+  color: var(--sasv-text-on-primary);
+  border-right: 1px solid color-mix(in srgb, var(--sasv-text-on-primary) 30%, transparent);
+}
+
+body.sasv-bom #selectionPills .erp-pill-chip .pill-seg.value {
+  padding: 4px 10px;
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  min-width: 32px;
+  text-align: center;
+}
+
+body.sasv-bom .erp-pills-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+body.sasv-bom .erp-pill-chip {
+  display: inline-flex;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  overflow: hidden;
+  background: var(--sasv-surface);
+}
+
+body.sasv-bom .erp-pill-chip .pill-seg.title {
+  padding: 4px 8px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: var(--sasv-fw-bold);
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary);
+  border-right: 1px solid var(--sasv-border);
+}
+
+body.sasv-bom .erp-pill-chip .pill-seg.value {
+  padding: 4px 10px;
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  color: var(--sasv-text);
+  background: var(--sasv-surface);
+}
+
+body.sasv-bom .erp-pill-chip .pill-seg.value[data-state="empty"] {
+  color: var(--sasv-text-muted);
+}
+
+/* Segmented view/edit */
+body.sasv-bom .seg {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-secondary);
+  font: inherit;
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  cursor: pointer;
+}
+
+body.sasv-bom .seg.active {
+  background: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+}
+
+/* Status / QA chip */
+body.sasv-bom .qa-chip {
+  border: 1px solid var(--sasv-border);
+  background: var(--sasv-surface-soft);
+  border-radius: var(--sasv-radius-pill);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-bom .qa-chip.ok,
+body.sasv-bom .qa-chip.pass {
+  background: var(--sasv-success-bg);
+  border-color: var(--sasv-success-border);
+  color: var(--sasv-success);
+}
+
+body.sasv-bom .qa-chip.warn {
+  background: var(--sasv-warning-bg);
+  border-color: var(--sasv-warning-border);
+  color: var(--sasv-warning);
+}
+
+body.sasv-bom .qa-chip.err,
+body.sasv-bom .qa-chip.fail {
+  background: var(--sasv-danger-bg);
+  border-color: var(--sasv-danger-border);
+  color: var(--sasv-danger);
+}
+
+/* Modal backdrops used by BOM pages */
+body.sasv-bom .modal-backdrop {
+  background: rgba(15, 40, 42, 0.45);
+}
+
+body.sasv-bom .modal,
+body.sasv-bom .modal-card,
+body.sasv-bom .modal-box {
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-lg);
+  box-shadow: var(--sasv-shadow-lg);
+}
+
+/* Screen mask */
+body.sasv-bom .screen-mask {
+  background: color-mix(in srgb, var(--sasv-bg) 70%, transparent);
+}
+
+body.sasv-bom .mask-box {
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  color: var(--sasv-text);
+  box-shadow: var(--sasv-shadow-md);
+}
+
+/* Danger / success text helpers */
+body.sasv-bom .danger {
+  color: var(--sasv-danger);
+}
+body.sasv-bom .success {
+  color: var(--sasv-success);
+}
+body.sasv-bom .hint {
+  color: var(--sasv-text-muted);
+}
+
+@media (max-width: 480px) {
+  body.sasv-bom #selectionPills {
+    display: none;
+  }
+}

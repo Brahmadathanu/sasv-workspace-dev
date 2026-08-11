@@ -1,5 +1,188 @@
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { showToast as sasvShowToast } from "./toast.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
+
+const MODULE_TARGET = "module:forecast-console";
+
+/** Canonical HOME chrome (presentation). Capture-phase HOME navigation unchanged. */
+try {
+  const homeEl = document.getElementById("homeBtn");
+  if (homeEl) mountModuleHome(homeEl);
+  else {
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => mountModuleHome(document.getElementById("homeBtn")),
+      { once: true },
+    );
+  }
+} catch {
+  /* ignore chrome mount failures */
+}
+
+const accessState = {
+  userId: null,
+  canView: false,
+  canEdit: false,
+  loaded: false,
+};
+
+function canAccessModule() {
+  return accessState.canView === true;
+}
+
+function canWriteModule() {
+  return accessState.canView === true && accessState.canEdit === true;
+}
+
+function requireEditAccess() {
+  if (canWriteModule()) return true;
+  showToast("Read-only access — this action requires edit permission.");
+  return false;
+}
+
+async function loadAccessState() {
+  accessState.userId = null;
+  accessState.canView = false;
+  accessState.canEdit = false;
+  accessState.loaded = false;
+
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.user?.id) {
+    throw sessionError || new Error("No active session");
+  }
+
+  accessState.userId = session.user.id;
+  const uid = accessState.userId;
+  let found = null;
+
+  try {
+    const { data: perms, error } = await supabase.rpc("get_user_permissions", {
+      p_user_id: uid,
+    });
+    if (!error && Array.isArray(perms)) {
+      const hit = perms.find((r) => r?.target === MODULE_TARGET);
+      if (hit) found = hit;
+    }
+  } catch {
+    // fall through
+  }
+
+  if (!found) {
+    try {
+      const { data: canonicalRows } = await supabase
+        .from("user_permissions_canonical")
+        .select("can_view, can_edit")
+        .eq("user_id", uid)
+        .eq("target", MODULE_TARGET)
+        .limit(1);
+      if (Array.isArray(canonicalRows) && canonicalRows.length) {
+        found = canonicalRows[0];
+      }
+    } catch {
+      // fall through — fail closed
+    }
+  }
+
+  if (found) {
+    accessState.canView = Boolean(found.can_view);
+    accessState.canEdit = Boolean(found.can_edit);
+  }
+
+  accessState.loaded = true;
+}
+
+function setAccessDenied(message) {
+  const status = document.getElementById("accessStatus");
+  const panel = document.getElementById("mainPanel");
+  if (status) {
+    status.hidden = false;
+    status.textContent = message;
+  }
+  if (panel) panel.hidden = true;
+  const banner = document.getElementById("viewOnlyBanner");
+  if (banner) banner.hidden = true;
+}
+
+function markEditAction(el, reason = "Read-only access") {
+  if (!el) return;
+  el.dataset.editAction = "true";
+  if (!el.dataset.originalTitle) {
+    el.dataset.originalTitle = el.getAttribute("title") || "";
+  }
+  if (!el.dataset.viewOnlyReason) {
+    el.dataset.viewOnlyReason = reason;
+  }
+}
+
+function applyPermissionUi() {
+  const hasAccess = canAccessModule();
+  const canEdit = canWriteModule();
+
+  document.body.classList.toggle("view-only-mode", hasAccess && !canEdit);
+
+  const banner = document.getElementById("viewOnlyBanner");
+  if (banner) banner.hidden = !(hasAccess && !canEdit);
+
+  document.querySelectorAll("[data-edit-action='true']").forEach((el) => {
+    if (
+      !(
+        el instanceof HTMLButtonElement ||
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLSelectElement ||
+        el instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    if (!el.dataset.permissionTracked) {
+      el.dataset.permissionTracked = "true";
+      el.dataset.originalDisabled = String(el.disabled);
+      el.dataset.originalTitle = el.getAttribute("title") || "";
+    }
+
+    if (!canEdit) {
+      el.disabled = true;
+      el.setAttribute("aria-disabled", "true");
+      el.setAttribute("title", el.dataset.viewOnlyReason || "Read-only access");
+      return;
+    }
+
+    const originalDisabled = el.dataset.originalDisabled === "true";
+    el.disabled = originalDisabled;
+    el.setAttribute("aria-disabled", String(el.disabled));
+
+    const originalTitle = el.dataset.originalTitle || "";
+    if (originalTitle) {
+      el.setAttribute("title", originalTitle);
+    } else if (!el.disabled) {
+      el.removeAttribute("title");
+    }
+  });
+}
+
+function markWriteControls() {
+  [
+    "btnApplyOverridesAndDerived",
+    "btnFullRebuild",
+    "dryRun",
+    "btnImportCsv",
+    "csvFile",
+    "btnAddRow",
+    "btnPromoteAll",
+    "btnClearStaging",
+    "btnDeactivateAll",
+    "publishSnapshot",
+    "pubKey",
+    "pubAsOf",
+    "pubNotes",
+  ].forEach((id) => markEditAction(document.getElementById(id)));
+}
 
 // ------------- Helpers
 // --- Additional helpers for forecast job control ---
@@ -35,20 +218,6 @@ function setStatus(html) {
   }
 }
 
-// Minimal RPC wrapper used by the Run Controls
-async function rpcApplyMarketingOverrides(_from = null, _to = null) {
-  // Call server RPC apply_marketing_overrides; demand-overrides expects this name
-  try {
-    const { data, error } = await supabase.rpc("apply_marketing_overrides", {
-      p_from: _from,
-      p_to: _to,
-    });
-    return { data, error };
-  } catch (err) {
-    return { data: null, error: err };
-  }
-}
-
 async function rpcEnqueueForecast(
   jobType,
   asOfDate,
@@ -69,67 +238,9 @@ async function rpcEnqueueForecast(
 }
 
 // ---------- Button handlers ----------
-async function onPrimaryRun() {
-  const dryRun = document.getElementById("dryRun")?.checked ?? false;
-  const asOfRaw = document.getElementById("asOfDate")?.value || "";
-  const today = asOfRaw ? new Date(`${asOfRaw}T00:00:00`) : new Date();
-
-  setStatus(chip("Applying overrides...", "warn"));
-  const { data: ovData, error: ovErr } = await rpcApplyMarketingOverrides(
-    null,
-    null,
-  );
-  if (ovErr) {
-    setStatus(chip("Overrides failed", "err"));
-    console.error("apply_marketing_overrides", ovErr);
-    return;
-  }
-  const [inserted, updated, deactivated] = ovData || [0, 0, 0];
-  const overrideSummary =
-    chip(`+${inserted} overrides`, "ok") +
-    chip(`${updated} updated`, "muted") +
-    chip(`${deactivated} deactivated`, "muted");
-
-  setStatus(overrideSummary + chip("Queueing LLT", "warn"));
-  const { error: lltErr } = await rpcEnqueueForecast(
-    "FORECAST_LLT",
-    fmt(today),
-    dryRun,
-    10,
-  );
-  if (lltErr) {
-    setStatus(chip("LLT queue failed", "err"));
-    console.error("FORECAST_LLT", lltErr);
-    return;
-  }
-
-  setStatus(
-    overrideSummary +
-      chip("LLT queued", "ok") +
-      chip("Queueing seasonal", "warn"),
-  );
-  const { error: seasErr } = await rpcEnqueueForecast(
-    "FORECAST_SEASONAL",
-    fmt(today),
-    dryRun,
-    10,
-  );
-  if (seasErr) {
-    setStatus(chip("Seasonal queue failed", "err"));
-    console.error("FORECAST_SEASONAL", seasErr);
-    return;
-  }
-
-  setStatus(
-    overrideSummary +
-      chip("LLT queued", "ok") +
-      chip("Seasonal queued", "ok") +
-      chip("Monitoring runs", "warn"),
-  );
-}
-
 // Enqueue LLT and Seasonal only (do NOT apply marketing overrides)
 async function onRerunLLTSeasonalOnly() {
+  if (!requireEditAccess()) return;
   const dryRun = document.getElementById("dryRun")?.checked ?? false;
   const asOfRaw = document.getElementById("asOfDate")?.value || "";
   const today = asOfRaw ? new Date(`${asOfRaw}T00:00:00`) : new Date();
@@ -167,10 +278,8 @@ async function onRerunLLTSeasonalOnly() {
   );
 }
 
-// Expose legacy apply+derived runner for external invocation if needed
-window.applyOverridesAndDerived = onPrimaryRun;
-
 async function onFullRebuild() {
+  if (!requireEditAccess()) return;
   const dryRun = document.getElementById("dryRun")?.checked ?? false;
   const asOfRaw = document.getElementById("asOfDate")?.value || "";
   const asOfISO = asOfRaw || fmt(new Date());
@@ -1900,8 +2009,6 @@ function exportOutputs() {
   downloadFile("model_outputs.csv", csv);
 }
 
-// Overrides removed: Load / Save / Delete / Export controls and table
-
 // ------------- Exceptions (next phase: client-side join MVP)
 async function loadExceptions() {
   const status = document.getElementById("exceptionsStatus");
@@ -2374,28 +2481,22 @@ async function loadActiveOverrides() {
       const delta = escapeHtml(r.delta_units ?? "");
       const reason = escapeHtml(r.reason ?? "");
 
-      const deactivateBtn = r.is_active
-        ? `<button class="btn btn-ghost" data-deactivate-id="${r.id}" title="Deactivate" aria-label="Deactivate">
+      const deactivateBtn =
+        canWriteModule() && r.is_active
+          ? `<button class="btn btn-ghost" data-deactivate-id="${r.id}" data-sku-id="${r.sku_id}" data-region-id="${r.region_id}" data-godown-id="${r.godown_id}" data-month-start="${r.month_start}" title="Deactivate" aria-label="Deactivate">
              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                <circle cx="12" cy="12" r="9" />
                <line x1="8" y1="12" x2="16" y2="12" />
              </svg>
            </button>`
-        : `<button class="btn" disabled title="Deactivated" aria-label="Deactivated">
+          : r.is_active
+            ? ""
+            : `<button class="btn" disabled title="Deactivated" aria-label="Deactivated">
              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                <circle cx="12" cy="12" r="9" />
                <line x1="8" y1="12" x2="16" y2="12" />
              </svg>
            </button>`;
-      const deleteBtn = `<button class="btn btn-danger" data-delete-id="${r.id}" title="Delete" aria-label="Delete">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6" />
-              <path d="M14 11v6" />
-              <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-            </svg>
-          </button>`;
 
       tr.innerHTML = `
         <td class="col-item">${item}</td>
@@ -2406,7 +2507,7 @@ async function loadActiveOverrides() {
         <td class="col-center">${escapeHtml(monthLabel)}</td>
         <td class="col-center">${delta}</td>
         <td class="col-center">${reason}</td>
-        <td class="col-actions col-center">${deactivateBtn} ${deleteBtn}</td>
+        <td class="col-actions col-center">${deactivateBtn}</td>
       `;
       tbody.appendChild(tr);
     }
@@ -2468,9 +2569,11 @@ async function listPublishes() {
       <td class="small muted">${r.notes ?? ""}</td>
       <td>
         <button class="btn" data-publish-view="${r.id}">View</button>
-        <button class="btn btn-danger" data-publish-delete="${
-          r.id
-        }">Delete</button>
+        ${
+          canWriteModule()
+            ? `<button class="btn btn-danger" data-publish-delete="${r.id}">Delete</button>`
+            : ""
+        }
       </td>
     `;
     tbody.appendChild(tr);
@@ -2481,6 +2584,7 @@ async function listPublishes() {
     tr.querySelector("[data-publish-delete]")?.addEventListener(
       "click",
       async () => {
+        if (!requireEditAccess()) return;
         const ok = await showConfirmInPage(
           `Delete publish #${r.id}? This will remove its lines as well.`,
           "Confirm Delete",
@@ -2567,18 +2671,8 @@ async function loadStagingOverrides() {
       const delta = escapeHtml(r.delta_units ?? "");
       const note = escapeHtml(r.note ?? "");
 
-      tr.innerHTML = `
-        <td class="nowrap">${r.id}</td>
-        <td class="col-item">${item}</td>
-        <td>${pack}</td>
-        <td>${uom}</td>
-        <td>${region}</td>
-        <td>${godown}</td>
-        <td>${escapeHtml(monthLabel)}</td>
-        <td class="right">${delta}</td>
-        <td class="col-note">${note}</td>
-        <td class="col-actions center">
-          <button class="btn" data-staging-edit-id="${
+      const actionsHtml = canWriteModule()
+        ? `<button class="btn" data-staging-edit-id="${
             r.id
           }" title="Edit" aria-label="Edit">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2607,7 +2701,21 @@ async function loadStagingOverrides() {
               <path d="M14 11v6" />
               <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
             </svg>
-          </button>
+          </button>`
+        : `<span class="muted small">View only</span>`;
+
+      tr.innerHTML = `
+        <td class="nowrap">${r.id}</td>
+        <td class="col-item">${item}</td>
+        <td>${pack}</td>
+        <td>${uom}</td>
+        <td>${region}</td>
+        <td>${godown}</td>
+        <td>${escapeHtml(monthLabel)}</td>
+        <td class="right">${delta}</td>
+        <td class="col-note">${note}</td>
+        <td class="col-actions center">
+          ${actionsHtml}
         </td>
       `;
       tbody.appendChild(tr);
@@ -2628,10 +2736,11 @@ async function loadStagingOverrides() {
 window.loadStagingOverrides = loadStagingOverrides;
 window.loadStaging = loadStagingOverrides;
 
-// staging row actions: delete single staging row
+// staging row actions: delete / promote / edit single staging row
 async function onStagingRowClick(ev) {
   const btn = ev.target.closest && ev.target.closest("button");
   if (!btn) return;
+  if (!requireEditAccess()) return;
   const delId = btn.getAttribute("data-staging-delete-id");
   const promoteId = btn.getAttribute("data-staging-promote-id");
   const promoteMonth = btn.getAttribute("data-staging-month");
@@ -2921,10 +3030,16 @@ async function downloadBaseline(fromISO, toISO, godownId = null) {
   }
 }
 
-// Wire file import for staging CSV
-const csvFileEl = document.getElementById("csvFile");
-if (csvFileEl) {
+// Wire file import for staging CSV (called from wireEvents after permission gate)
+function wireCsvImport() {
+  const csvFileEl = document.getElementById("csvFile");
+  if (!csvFileEl || csvFileEl.dataset.csvWired === "true") return;
+  csvFileEl.dataset.csvWired = "true";
   csvFileEl.addEventListener("change", async (ev) => {
+    if (!requireEditAccess()) {
+      csvFileEl.value = null;
+      return;
+    }
     const f = ev.target.files && ev.target.files[0];
     if (!f) return;
     try {
@@ -2994,51 +3109,48 @@ if (csvFileEl) {
   });
 }
 
-// Row action handler for promoted overrides (deactivate/delete)
+// Row action handler for promoted overrides (deactivate)
 async function onActiveRowClick(ev) {
   const btn = ev.target.closest && ev.target.closest("button");
   if (!btn) return;
-  const delId = btn.getAttribute("data-delete-id");
   const deactId = btn.getAttribute("data-deactivate-id");
-  if (delId) {
-    const ok = await showConfirmInPage(
-      `Delete override #${delId}? This cannot be undone.`,
-      "Confirm Delete",
-    );
-    if (!ok) return;
-    try {
-      const { error } = await supabase
-        .from("forecast_demand_overrides")
-        .delete()
-        .eq("id", Number(delId));
-      if (error) {
-        console.error("delete override failed", error);
-        showModal("Delete failed: " + (error.message || error.code || ""));
-        return;
-      }
-      showToast("Deleted override");
-      if (typeof loadActiveOverrides === "function")
-        await loadActiveOverrides();
-    } catch (e) {
-      console.error(e);
-      showModal("Unexpected error while deleting override.");
-    }
-    return;
-  }
   if (deactId) {
+    if (!requireEditAccess()) return;
     const ok = await showConfirmInPage(
       `Deactivate override #${deactId}? This will mark it inactive.`,
       "Confirm Deactivate",
     );
     if (!ok) return;
     try {
-      const { error } = await supabase
-        .from("forecast_demand_overrides")
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq("id", Number(deactId));
+      const p_sku_id = Number(btn.getAttribute("data-sku-id"));
+      const p_region_id = Number(btn.getAttribute("data-region-id"));
+      const p_godown_id = Number(btn.getAttribute("data-godown-id"));
+      const p_month_start = btn.getAttribute("data-month-start");
+      if (
+        !Number.isFinite(p_sku_id) ||
+        !Number.isFinite(p_region_id) ||
+        !Number.isFinite(p_godown_id) ||
+        !p_month_start
+      ) {
+        showModal("Deactivate failed: missing override keys on row.");
+        return;
+      }
+      const { data, error } = await supabase.rpc(
+        "deactivate_forecast_override",
+        {
+          p_sku_id,
+          p_region_id,
+          p_godown_id,
+          p_month_start,
+        },
+      );
       if (error) {
         console.error("deactivate failed", error);
         showModal("Deactivate failed: " + (error.message || error.code || ""));
+        return;
+      }
+      if (data === false) {
+        showModal("No active override matched for deactivation.");
         return;
       }
       showToast("Override deactivated");
@@ -3048,7 +3160,6 @@ async function onActiveRowClick(ev) {
       console.error(e);
       showModal("Unexpected error while deactivating override.");
     }
-    return;
   }
 }
 
@@ -3375,13 +3486,19 @@ async function showPublishLines(planId) {
   await render();
 }
 
-// ===== Baseline Export/Import (Marketing)
-function showToast(msg) {
+// ===== Toast — adapt to canonical toast.js; preserve showToast(msg) callers
+function showToast(msg, type = "info", duration = 3500) {
+  try {
+    sasvShowToast(msg, type, duration);
+    return;
+  } catch {
+    /* fall through to legacy #toast host */
+  }
   const el = document.getElementById("toast");
-  if (!el) return; // graceful if toast element missing
-  el.textContent = msg;
+  if (!el) return;
+  el.textContent = msg == null ? "" : String(msg);
   el.style.display = "block";
-  setTimeout(() => (el.style.display = "none"), 3500);
+  setTimeout(() => (el.style.display = "none"), duration);
 }
 
 function yyyymmdd(d) {
@@ -3407,6 +3524,8 @@ function wireEvents() {
     const el = document.getElementById(id);
     if (el) el.addEventListener(event, handler);
   }
+
+  wireCsvImport();
 
   function triggerEvents(id, types = ["change"]) {
     const el = document.getElementById(id);
@@ -3783,6 +3902,7 @@ function wireEvents() {
 
   // Wire Promote All and Clear Staging buttons (minimal wiring)
   safeAddEventListener("btnPromoteAll", "click", async () => {
+    if (!requireEditAccess()) return;
     const from = document.getElementById("fromMonth")?.value;
     const to = document.getElementById("toMonth")?.value || from;
     if (!from || !to) {
@@ -3822,6 +3942,7 @@ function wireEvents() {
   });
 
   safeAddEventListener("btnClearStaging", "click", async () => {
+    if (!requireEditAccess()) return;
     const from = document.getElementById("fromMonth")?.value;
     const to = document.getElementById("toMonth")?.value || from;
     const ok = await showConfirmInPage(
@@ -3851,6 +3972,7 @@ function wireEvents() {
 
   // Basic UX handlers for Overrides controls so buttons respond (minimal implementations)
   safeAddEventListener("btnImportCsv", "click", () => {
+    if (!requireEditAccess()) return;
     const fileEl = document.getElementById("csvFile");
     if (fileEl) fileEl.click();
   });
@@ -3993,6 +4115,7 @@ function wireEvents() {
 
   // Minimal handlers for staging/active actions so buttons are responsive
   safeAddEventListener("btnAddRow", "click", async () => {
+    if (!requireEditAccess()) return;
     // Create an in-page Add Row modal for staging overrides
     try {
       let modal = document.getElementById("addStagingModal");
@@ -4112,6 +4235,7 @@ function wireEvents() {
       }
 
       async function onSubmit() {
+        if (!requireEditAccess()) return;
         try {
           const sku = document.getElementById("addRowSku")?.value || null;
           const region = document.getElementById("addRowRegion")?.value || null;
@@ -4168,10 +4292,8 @@ function wireEvents() {
     }
   });
   safeAddEventListener("btnDeactivateAll", "click", async () => {
+    if (!requireEditAccess()) return;
     showModal("Deactivate All not implemented in this console.");
-  });
-  safeAddEventListener("btnDeleteAllActive", "click", async () => {
-    showModal("Delete All (active) not implemented in this console.");
   });
 
   // When boolean filters change, reload outputs immediately
@@ -4271,8 +4393,6 @@ function wireEvents() {
     loadExceptions();
   }
 
-  // Overrides removed: no Load/Save/Delete/Export wiring
-
   // Exceptions (client-side MVP join) - auto-loads on tab activation; no manual Load button
   safeAddEventListener("btnExportExceptions", "click", exportExceptions);
 
@@ -4328,7 +4448,8 @@ function wireEvents() {
     showMissingModal("seasonal"),
   );
 
-  safeAddEventListener("btnPublish", "click", async () => {
+  safeAddEventListener("publishSnapshot", "click", async () => {
+    if (!requireEditAccess()) return;
     try {
       const plan_key = (document.getElementById("pubKey")?.value || "").trim();
       const as_of_date = document.getElementById("pubAsOf")?.value || null;
@@ -4459,6 +4580,24 @@ function wireEvents() {
 
     const user = await ensureAuth();
     if (!user) return;
+
+    try {
+      await loadAccessState();
+    } catch (err) {
+      console.error(err);
+      setAccessDenied("Unable to verify Forecast Console access.");
+      return;
+    }
+
+    if (!canAccessModule()) {
+      setAccessDenied(
+        "You do not have permission to open Forecast Console.",
+      );
+      return;
+    }
+
+    markWriteControls();
+    applyPermissionUi();
 
     setupTabs();
     setDefaultWindow();

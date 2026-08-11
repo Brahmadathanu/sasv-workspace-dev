@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 import { $, toast, confirmDialog } from "./ui-helpers.js";
+import { mountModuleHome } from "./sasv-module-chrome.js";
 
 // Elements
 const treeContainer = $("#treeContainer");
@@ -1467,6 +1468,13 @@ function initPaginatorControls() {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) return (window.location.href = "login.html");
+
+  const homeBtn = document.getElementById("homeBtn");
+  mountModuleHome(homeBtn);
+  homeBtn?.addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
+
   // Initialize paginator controls now that DOM is ready
   initPaginatorControls();
   await loadTaxonomy();

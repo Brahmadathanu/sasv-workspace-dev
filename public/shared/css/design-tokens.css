@@ -1,0 +1,274 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SASV Workspace — design tokens
+   Layers:
+     1) Foundation palette / structure (raw scales, theme-invariant metrics)
+     2) Semantic UI tokens (purpose-based; defaults = sasv-core)
+   Theme profiles (e.g. themes/sasv-core.css) reassign semantic tokens only.
+   Components should consume semantic tokens, not raw scale steps.
+   Operational UI for this gate: light only (no OS dark activation).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ═════════════════════════════════════════════════════════════════════════
+     FOUNDATION — colour scales (do not use directly in components)
+     ═════════════════════════════════════════════════════════════════════════ */
+
+  /* Teal identity / brand scale (harmonized with Core app mark) */
+  --sasv-primary-50: #eef8f6;
+  --sasv-primary-100: #d5efe9;
+  --sasv-primary-200: #a9ddd3;
+  --sasv-primary-300: #6fc4b5;
+  --sasv-primary-400: #3aa897;
+  --sasv-primary-500: #1f8f7e;
+  --sasv-primary-600: #147a6c;
+  --sasv-primary-700: #0f6157;
+  --sasv-primary-800: #0d4d46;
+  --sasv-primary-900: #0a3a35;
+
+  /* Neutral / slate operational surfaces */
+  --sasv-neutral-0: #ffffff;
+  --sasv-neutral-50: #f7fafb;
+  --sasv-neutral-100: #f4f7f8;
+  --sasv-neutral-150: #eef5f4;
+  --sasv-neutral-200: rgba(15, 40, 42, 0.07);
+  --sasv-neutral-300: rgba(15, 40, 42, 0.1);
+  --sasv-neutral-400: rgba(15, 40, 42, 0.16);
+  --sasv-neutral-700: #3d4f52;
+  --sasv-neutral-800: #152528;
+  --sasv-neutral-500: #6b7c80;
+
+  /* Sparse gold family (icon-adjacent) — foundation only */
+  --sasv-gold-soft: #f7f0df;
+  --sasv-gold-border: #e4d4a8;
+  --sasv-gold-text: #7a5c14;
+
+  /* Status palette (independent of brand identity) */
+  --sasv-palette-success: #15803d;
+  --sasv-palette-success-bg: #ecfdf3;
+  --sasv-palette-success-border: #bbf7d0;
+  --sasv-palette-warning: #b45309;
+  --sasv-palette-warning-bg: #fffbeb;
+  --sasv-palette-warning-border: #fcd34d;
+  --sasv-palette-danger: #b91c1c;
+  --sasv-palette-danger-bg: #fef2f2;
+  --sasv-palette-danger-border: #fecaca;
+  --sasv-palette-info: #0369a1;
+  --sasv-palette-info-bg: #f0f9ff;
+  --sasv-palette-info-border: #bae6fd;
+
+  /* Module HOME exit affordance — soft-neutral identity (not warning amber) */
+  --sasv-home-bg: var(--sasv-neutral-100);
+  --sasv-home-border: var(--sasv-neutral-300);
+  --sasv-home-fg: var(--sasv-neutral-700);
+  --sasv-home-bg-hover: var(--sasv-neutral-700);
+  --sasv-home-fg-hover: var(--sasv-neutral-0);
+  /* Legacy aliases kept for older references */
+  --sasv-home-fg-hover-legacy: var(--sasv-home-fg-hover);
+
+  /* Temporary historical blues (compat foundation only — do not use in new UI) */
+  --sasv-compat-blue-005a8d: #005a8d;
+  --sasv-compat-blue-004876: #004876;
+  --sasv-compat-blue-2563eb: #2563eb;
+  --sasv-compat-blue-0a64c8: #0a64c8;
+  --sasv-compat-blue-3b82f6: #3b82f6;
+
+  /* Focus ring raw (theme maps semantic --sasv-focus-ring) */
+  --sasv-focus-ring-raw: rgba(20, 122, 108, 0.35);
+  --sasv-focus-ring-strong-raw: rgba(20, 122, 108, 0.55);
+  --sasv-primary-soft-border-raw: rgba(20, 122, 108, 0.28);
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     FOUNDATION — structure (theme-invariant metrics)
+     ═════════════════════════════════════════════════════════════════════════ */
+
+  /* Inter is bundled locally via sasv-fonts.css; fallbacks for first paint / missing files */
+  --sasv-font-sans: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+  --sasv-font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas,
+    monospace;
+
+  --sasv-text-xs: 0.75rem;
+  --sasv-text-sm: 0.8125rem;
+  --sasv-text-md: 0.875rem;
+  --sasv-text-lg: 1rem;
+  --sasv-text-xl: 1.25rem;
+  --sasv-text-2xl: 1.5rem;
+
+  --sasv-fw-regular: 400;
+  --sasv-fw-medium: 500;
+  --sasv-fw-semibold: 600;
+  --sasv-fw-bold: 700;
+
+  --sasv-lh-tight: 1.2;
+  --sasv-lh-normal: 1.45;
+
+  --sasv-space-1: 4px;
+  --sasv-space-2: 8px;
+  --sasv-space-3: 12px;
+  --sasv-space-4: 16px;
+  --sasv-space-5: 20px;
+  --sasv-space-6: 24px;
+  --sasv-space-8: 32px;
+  --sasv-space-10: 40px;
+
+  /*
+   * Canonical module viewport gutter (body.sasv-module.sasv-module--app).
+   * Desktop / ≤1080 / ≤520 — page sheets may override via the same vars.
+   */
+  --sasv-module-page-padding: var(--sasv-space-5);
+  --sasv-module-page-padding-md: 10px;
+  --sasv-module-page-padding-sm: 6px;
+
+  --sasv-radius-sm: 6px;
+  --sasv-radius-md: 8px;
+  --sasv-radius-lg: 12px;
+  --sasv-radius-xl: 16px;
+  --sasv-radius-pill: 999px;
+
+  --sasv-shadow-sm: 0 1px 2px rgba(15, 40, 42, 0.05);
+  --sasv-shadow-md: 0 4px 14px rgba(15, 40, 42, 0.07);
+  --sasv-shadow-lg: 0 10px 28px rgba(15, 40, 42, 0.1);
+
+  --sasv-control-sm: 32px;
+  --sasv-control-md: 36px;
+  --sasv-control-lg: 40px;
+
+  --sasv-z-base: 1;
+  --sasv-z-sticky: 500;
+  --sasv-z-dropdown: 800;
+  --sasv-z-overlay: 1000;
+  --sasv-z-modal: 1100;
+  --sasv-z-toast: 1200;
+  --sasv-z-command: 1300;
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     SEMANTIC UI — defaults equal sasv-core (no JS / no data-attr required)
+     Theme profiles may override these under html[data-sasv-theme="…"].
+     ═════════════════════════════════════════════════════════════════════════ */
+
+  /* Surfaces */
+  --sasv-bg: var(--sasv-neutral-100);
+  --sasv-bg-accent: var(--sasv-neutral-150);
+  --sasv-surface: var(--sasv-neutral-0);
+  --sasv-surface-soft: var(--sasv-neutral-50);
+  --sasv-surface-elevated: var(--sasv-neutral-0);
+
+  /* Borders / dividers */
+  --sasv-border: var(--sasv-neutral-300);
+  --sasv-border-strong: var(--sasv-neutral-400);
+  --sasv-divider: var(--sasv-neutral-200);
+
+  /* Text */
+  --sasv-text: var(--sasv-neutral-800);
+  --sasv-text-secondary: var(--sasv-neutral-700);
+  --sasv-text-muted: var(--sasv-neutral-500);
+  --sasv-text-on-primary: #ffffff;
+  --sasv-text-on-accent: #ffffff;
+
+  /* Actions */
+  --sasv-action-primary: var(--sasv-primary-600);
+  --sasv-action-primary-hover: var(--sasv-primary-700);
+  --sasv-action-primary-active: var(--sasv-primary-800);
+  --sasv-action-primary-soft: var(--sasv-primary-100);
+  --sasv-action-primary-soft-border: var(--sasv-primary-soft-border-raw);
+  /* Type-to-select fill (lighter than action soft; Stock Checker family) */
+  --sasv-search-select-bg: var(--sasv-primary-50);
+  --sasv-search-select-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-action-secondary: var(--sasv-neutral-50);
+  --sasv-action-secondary-hover: var(--sasv-primary-50);
+
+  --sasv-action-home: var(--sasv-home-fg);
+  --sasv-action-home-hover: var(--sasv-home-bg-hover);
+  --sasv-action-home-bg: var(--sasv-home-bg);
+  --sasv-action-home-border: var(--sasv-home-border);
+  --sasv-action-home-bg-hover: var(--sasv-home-bg-hover);
+  --sasv-action-home-fg-hover: var(--sasv-home-fg-hover);
+
+  /* Links / selection / focus */
+  --sasv-link: var(--sasv-action-primary);
+  --sasv-link-hover: var(--sasv-action-primary-hover);
+  --sasv-selection: var(--sasv-primary-600);
+  --sasv-selection-soft: var(--sasv-primary-100);
+  --sasv-focus-ring: var(--sasv-focus-ring-raw);
+  --sasv-focus-ring-strong: var(--sasv-focus-ring-strong-raw);
+
+  /* Controls */
+  --sasv-control-bg: var(--sasv-surface);
+  --sasv-control-border: var(--sasv-border-strong);
+  --sasv-control-border-hover: var(--sasv-action-primary-soft-border);
+  --sasv-control-border-focus: var(--sasv-action-primary);
+
+  /* Status (semantic, brand-independent) */
+  --sasv-success: var(--sasv-palette-success);
+  --sasv-success-bg: var(--sasv-palette-success-bg);
+  --sasv-success-border: var(--sasv-palette-success-border);
+  --sasv-warning: var(--sasv-palette-warning);
+  --sasv-warning-bg: var(--sasv-palette-warning-bg);
+  --sasv-warning-border: var(--sasv-palette-warning-border);
+  --sasv-danger: var(--sasv-palette-danger);
+  --sasv-danger-bg: var(--sasv-palette-danger-bg);
+  --sasv-danger-border: var(--sasv-palette-danger-border);
+  --sasv-info: var(--sasv-palette-info);
+  --sasv-info-bg: var(--sasv-palette-info-bg);
+  --sasv-info-border: var(--sasv-palette-info-border);
+
+  /*
+   * Section-family accents (Home launcher / future nav chrome).
+   * Themes reassign these; components map via --identity-* locals.
+   */
+  --sasv-section-ops-fg: var(--sasv-primary-600);
+  --sasv-section-ops-bg: var(--sasv-primary-100);
+  --sasv-section-ops-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-section-plan-fg: var(--sasv-primary-700);
+  --sasv-section-plan-bg: var(--sasv-primary-50);
+  --sasv-section-plan-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-section-procure-fg: var(--sasv-palette-info);
+  --sasv-section-procure-bg: var(--sasv-palette-info-bg);
+  --sasv-section-procure-border: var(--sasv-palette-info-border);
+
+  --sasv-section-inventory-fg: var(--sasv-primary-800);
+  --sasv-section-inventory-bg: var(--sasv-neutral-150);
+  --sasv-section-inventory-border: var(--sasv-neutral-400);
+
+  --sasv-section-finance-fg: var(--sasv-neutral-700);
+  --sasv-section-finance-bg: var(--sasv-neutral-50);
+  --sasv-section-finance-border: var(--sasv-neutral-300);
+
+  --sasv-section-quality-fg: var(--sasv-palette-success);
+  --sasv-section-quality-bg: var(--sasv-palette-success-bg);
+  --sasv-section-quality-border: var(--sasv-palette-success-border);
+
+  --sasv-section-report-fg: var(--sasv-primary-800);
+  --sasv-section-report-bg: var(--sasv-primary-50);
+  --sasv-section-report-border: var(--sasv-primary-soft-border-raw);
+
+  --sasv-section-admin-fg: var(--sasv-neutral-500);
+  --sasv-section-admin-bg: var(--sasv-neutral-50);
+  --sasv-section-admin-border: var(--sasv-neutral-300);
+
+  --sasv-section-general-fg: var(--sasv-neutral-700);
+  --sasv-section-general-bg: var(--sasv-neutral-150);
+  --sasv-section-general-border: var(--sasv-neutral-300);
+
+  /* Home personal command dock */
+  --sasv-home-command-bg: var(--sasv-primary-200);
+  --sasv-home-command-fg: var(--sasv-primary-800);
+  --sasv-home-command-border: var(--sasv-primary-soft-border-raw);
+  --sasv-home-command-meta-bg: var(--sasv-primary-700);
+  --sasv-home-command-meta-fg: var(--sasv-text-on-primary);
+  --sasv-home-command-chip-bg: var(--sasv-neutral-0);
+
+  /*
+   * Phase 1/2 shorthand aliases → semantic actions.
+   * Prefer --sasv-action-* in new component work.
+   */
+  --sasv-primary: var(--sasv-action-primary);
+  --sasv-primary-hover: var(--sasv-action-primary-hover);
+  --sasv-primary-active: var(--sasv-action-primary-active);
+  --sasv-primary-soft: var(--sasv-action-primary-soft);
+  --sasv-primary-soft-border: var(--sasv-action-primary-soft-border);
+  --sasv-home: var(--sasv-action-home);
+  --sasv-home-hover: var(--sasv-action-home-hover);
+}

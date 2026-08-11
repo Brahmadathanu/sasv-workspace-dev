@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { $, toast, confirmDialog } from "./ui-helpers.js";
+import { mountModuleActionIcons } from "./sasv-module-chrome.js";
+import { Platform } from "./platform.js";
 
 const table = $("#uomTable tbody");
 const rowCount = $("#rowCount");
@@ -403,8 +405,20 @@ tabUoms.addEventListener("click", showUoms);
 tabDims.addEventListener("click", showDims);
 btnAddDim.addEventListener("click", addDimension);
 
+function goHome() {
+  if (typeof Platform.goHome === "function") {
+    Platform.goHome();
+    return;
+  }
+  window.location.href = "index.html";
+}
+
 // boot
 (async () => {
+  const homeBtn = document.getElementById("homeBtn");
+  mountModuleActionIcons({ home: homeBtn });
+  if (homeBtn) homeBtn.addEventListener("click", goHome);
+
   await initAuth();
   await refresh();
   showUoms();

@@ -137,22 +137,6 @@ async function loadAccessState() {
         found = canonicalRows[0];
       }
     } catch {
-      // fall through
-    }
-  }
-
-  if (!found) {
-    try {
-      const { data: rows } = await supabase
-        .from("user_permissions")
-        .select("can_view, can_edit")
-        .eq("user_id", uid)
-        .eq("module_id", MODULE_ID)
-        .limit(1);
-      if (Array.isArray(rows) && rows.length) {
-        found = rows[0];
-      }
-    } catch {
       // fail closed
     }
   }
@@ -165,12 +149,115 @@ async function loadAccessState() {
   accessState.loaded = true;
 }
 
-// ─── View / RPC name constants (adjust here if DB names differ) ───────────────
-const PR_HEADER_VIEW = "v_proc_pr_header";
-const PR_LINES_ORDERED_VIEW = "v_proc_pr_lines_ordered";
-const INDENT_LINES_ORDERED_VIEW = "v_proc_indent_lines_console_ordered";
+// ─── Governed PEC read transports (no direct SELECT on Procurement views) ────
 const ERP_QTY_DECIMALS = 3;
 const DEFAULT_PAGE_SIZE = 30;
+
+function asRpcRows(data) {
+  return Array.isArray(data) ? data : [];
+}
+
+async function rpcPecPrHeaders() {
+  const { data, error } = await supabase.rpc("proc_pec_pr_headers");
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecPrLines(prId) {
+  const { data, error } = await supabase.rpc("proc_pec_pr_lines", {
+    p_pr_id: Number(prId),
+  });
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecIndentHeaders() {
+  const { data, error } = await supabase.rpc("proc_pec_indent_headers");
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecIndentLines(indentId) {
+  const { data, error } = await supabase.rpc("proc_pec_indent_lines", {
+    p_indent_id: Number(indentId),
+  });
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecPurchaseExcess() {
+  const { data, error } = await supabase.rpc("proc_pec_purchase_excess");
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecExcessAcceptanceAudit() {
+  const { data, error } = await supabase.rpc("proc_pec_excess_acceptance_audit");
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecBuylistMaterialClassOptions() {
+  const { data, error } = await supabase.rpc(
+    "proc_pec_buylist_material_class_options",
+  );
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecBuylistRmScopeOptions() {
+  const { data, error } = await supabase.rpc(
+    "proc_pec_buylist_rm_scope_options",
+  );
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecSourcingDecisions(indentId) {
+  const { data, error } = await supabase.rpc("proc_pec_sourcing_decisions", {
+    p_indent_id: indentId == null ? null : Number(indentId),
+  });
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+async function rpcPecVendorDetails(vendorIds) {
+  const ids = Array.isArray(vendorIds)
+    ? vendorIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    : [];
+  const { data, error } = await supabase.rpc("proc_pec_vendor_details", {
+    p_vendor_ids: ids.length ? ids : null,
+  });
+  if (error) throw error;
+  return asRpcRows(data);
+}
+
+function ilikeContains(haystack, needle) {
+  if (!needle) return true;
+  return String(haystack ?? "")
+    .toLowerCase()
+    .includes(String(needle).toLowerCase());
+}
+
+function compareNumAsc(a, b) {
+  return Number(a || 0) - Number(b || 0);
+}
+
+function compareNumDesc(a, b) {
+  return Number(b || 0) - Number(a || 0);
+}
+
+function compareStrAsc(a, b) {
+  return String(a ?? "").localeCompare(String(b ?? ""));
+}
+
+function slicePage(rows, page, pageSize) {
+  const size = Number(pageSize || DEFAULT_PAGE_SIZE);
+  const start = Number(page || 0) * size;
+  return rows.slice(start, start + size);
+}
 
 let prLineAll = [];
 let prLineFiltered = [];
@@ -1738,22 +1825,16 @@ function updateTabCount(id, n) {
 
 async function refreshAllTabCounts() {
   const [indents, pr, excess] = await Promise.allSettled([
-    supabase
-      .from("v_proc_indent_console")
-      .select("*", { count: "exact" })
-      .limit(1),
-    supabase.from(PR_HEADER_VIEW).select("*", { count: "exact" }).limit(1),
-    supabase
-      .from("v_proc_purchase_excess_console")
-      .select("*", { count: "exact" })
-      .limit(1),
+    rpcPecIndentHeaders(),
+    rpcPecPrHeaders(),
+    rpcPecPurchaseExcess(),
   ]);
   if (indents.status === "fulfilled")
-    updateTabCount("tabCountIndents", indents.value.count ?? 0);
+    updateTabCount("tabCountIndents", indents.value.length);
   if (pr.status === "fulfilled")
-    updateTabCount("tabCountPr", pr.value.count ?? 0);
+    updateTabCount("tabCountPr", pr.value.length);
   if (excess.status === "fulfilled")
-    updateTabCount("tabCountExcess", excess.value.count ?? 0);
+    updateTabCount("tabCountExcess", excess.value.length);
 }
 
 // ─── Jump to Indent (Part C) ─────────────────────────────────────────────────
@@ -1858,21 +1939,22 @@ async function loadActionQueueIndentOptions() {
 
   const current = sel.value || "";
 
-  const { data, error } = await supabase
-    .from("v_proc_indent_console")
-    .select("indent_id, indent_number, status, total_remaining_qty, line_count")
-    .in("status", ["approved", "issued"])
-    .gt("total_remaining_qty", 0)
-    .order("indent_number", { ascending: true });
-
-  if (error) {
+  let data;
+  try {
+    data = await rpcPecIndentHeaders();
+  } catch (error) {
     console.error("Failed to load Action Queue indent options", error);
     return false;
   }
 
+  data = (data || [])
+    .filter((r) => ["approved", "issued"].includes(String(r.status || "")))
+    .filter((r) => Number(r.total_remaining_qty || 0) > 0)
+    .sort((a, b) => compareStrAsc(a.indent_number, b.indent_number));
+
   sel.innerHTML = `<option value="">All Indents</option>`;
 
-  for (const r of data || []) {
+  for (const r of data) {
     const opt = document.createElement("option");
     opt.value = String(r.indent_id);
     opt.textContent =
@@ -3337,13 +3419,16 @@ async function openPrViewModalById(prId) {
     toast("No source PR linked to this indent.", "error");
     return;
   }
-  const { data, error } = await supabase
-    .from(PR_HEADER_VIEW)
-    .select("*")
-    .eq("pr_id", id)
-    .maybeSingle();
-  if (error || !data) {
+  let data;
+  try {
+    const rows = await rpcPecPrHeaders();
+    data = rows.find((r) => Number(r.pr_id) === id) || null;
+  } catch (error) {
     toast(`Unable to open PR: ${error?.message || "PR not found"}`, "error");
+    return;
+  }
+  if (!data) {
+    toast("Unable to open PR: PR not found", "error");
     return;
   }
   openPrViewModal(data);
@@ -3406,21 +3491,18 @@ async function openIndentSourcePrModal() {
   if (hint) hint.textContent = `Indent: ${indent.indent_number}`;
 
   let currentSource = null;
-  if (indent.source_pr_id) {
-    const { data: source } = await supabase
-      .from(PR_HEADER_VIEW)
-      .select("pr_id,pr_number,status,effective_from_date,material_class_id")
-      .eq("pr_id", indent.source_pr_id)
-      .maybeSingle();
-    currentSource = source || null;
-  }
-
-  const { data: recent, error } = await supabase
-    .from(PR_HEADER_VIEW)
-    .select("pr_id,pr_number,status,effective_from_date,material_class_id")
-    .order("pr_id", { ascending: false })
-    .limit(80);
-  if (error) {
+  let recent = [];
+  try {
+    const headers = await rpcPecPrHeaders();
+    if (indent.source_pr_id) {
+      currentSource =
+        headers.find((r) => Number(r.pr_id) === Number(indent.source_pr_id)) ||
+        null;
+    }
+    recent = [...headers]
+      .sort((a, b) => compareNumDesc(a.pr_id, b.pr_id))
+      .slice(0, 80);
+  } catch (error) {
     toast(`Failed to load PR list: ${error.message}`, "error");
     return;
   }
@@ -4148,19 +4230,20 @@ function applyIndentLineFiltersAndRender() {
 
 async function loadIndentLines(indentId) {
   setLoading(true);
-  const { data, error } = await supabase
-    .from(INDENT_LINES_ORDERED_VIEW)
-    .select(
-      "indent_line_id,indent_id,stock_item_id,stock_item_name,stock_item_code,code,material_class_code,material_class_label,uom_id,uom_code,requested_qty,allocated_qty,remaining_qty,resolved_vendor_name,resolved_rate,selected_vendor_name,selected_rate,recommended_vendor_name,recommended_rate,has_selected_vendor,source_pr_id,source_pr_line_id,source_pr_line_sort_no,source_pr_unmapped_sort,indent_line_sort_no,indent_line_sort_key,source_stock_item_code,source_category_label,source_subcategory_label",
-    )
-    .eq("indent_id", indentId)
-    .order("indent_line_sort_no", { ascending: true })
-    .order("indent_line_id", { ascending: true });
-  setLoading(false);
-  if (error) {
+  let data;
+  try {
+    data = await rpcPecIndentLines(indentId);
+    data = [...data].sort((a, b) => {
+      const bySort = compareNumAsc(a.indent_line_sort_no, b.indent_line_sort_no);
+      if (bySort !== 0) return bySort;
+      return compareNumAsc(a.indent_line_id, b.indent_line_id);
+    });
+  } catch (error) {
+    setLoading(false);
     toast(`Failed to load indent lines: ${error.message}`, "error");
     return;
   }
+  setLoading(false);
   state.indentLinesRows = data || [];
   iLineQuery = "";
   iLineFilter = "all";
@@ -4220,25 +4303,24 @@ async function loadIndents() {
   setTabTableLoading("indents", true);
   try {
     const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-    let q = supabase.from("v_proc_indent_console").select("*");
     const status = qs("iStatus").value;
     const cls = qs("iClass").value;
     const search = (qs("iSearch").value || "").trim();
-    if (status) q = q.eq("status", status);
-    if (cls) q = q.eq("material_class_id", Number(cls));
-    if (search) q = q.ilike("indent_number", `%${search}%`);
-    q = q
-      .order("indent_id", { ascending: false })
-      .range(
-        state.indentsPage * pageSize,
-        state.indentsPage * pageSize + pageSize - 1,
-      );
-    const { data, error } = await q;
-    if (error) {
+    let rows;
+    try {
+      rows = await rpcPecIndentHeaders();
+    } catch (error) {
       toast(`Failed to load indents: ${error.message}`, "error");
       return;
     }
-    state.indentsRows = data || [];
+    rows = (rows || []).filter((r) => {
+      if (status && String(r.status || "") !== String(status)) return false;
+      if (cls && Number(r.material_class_id) !== Number(cls)) return false;
+      if (search && !ilikeContains(r.indent_number, search)) return false;
+      return true;
+    });
+    rows.sort((a, b) => compareNumDesc(a.indent_id, b.indent_id));
+    state.indentsRows = slicePage(rows, state.indentsPage, pageSize);
     renderIndents();
   } finally {
     setTabTableLoading("indents", false);
@@ -4418,36 +4500,64 @@ async function getSnapshotRefreshStatus(runId) {
   return Array.isArray(data) ? data[0] : data;
 }
 
-async function processSnapshotRefreshUntilDone(runId, onStatus) {
-  const maxAttempts = 12;
+const SNAPSHOT_REFRESH_POLL_INTERVAL_MS = 15_000;
+const SNAPSHOT_REFRESH_POLL_MAX_MS = 12 * 60 * 1_000;
 
-  for (let i = 0; i < maxAttempts; i += 1) {
-    const { error: processError } = await supabase.rpc(
-      "proc_process_snapshot_refresh_next_stage",
-    );
+function normalizeSnapshotRefreshStatus(statusRow) {
+  return String(statusRow?.status || "")
+    .trim()
+    .toUpperCase();
+}
 
-    if (processError) throw processError;
+/**
+ * Status-only observation of a server-owned snapshot refresh run.
+ * Does not call the stage processor — cron advances stages.
+ * Throws only on status RPC/network failure.
+ */
+async function pollSnapshotRefreshUntilDone(
+  runId,
+  onStatus,
+  initialStatusRow = null,
+) {
+  const startedAt = Date.now();
+  let statusRow = initialStatusRow;
 
-    const statusRow = await getSnapshotRefreshStatus(runId);
+  const emit = (row) => {
+    if (typeof onStatus === "function" && row) onStatus(row);
+  };
 
-    if (typeof onStatus === "function") onStatus(statusRow);
-
-    if (statusRow?.status === "SUCCESS") {
-      return statusRow;
+  if (statusRow) {
+    emit(statusRow);
+    const initial = normalizeSnapshotRefreshStatus(statusRow);
+    if (initial === "SUCCESS") {
+      return { outcome: "SUCCESS", statusRow };
     }
-
-    if (statusRow?.status === "FAILED") {
-      const err = new Error(statusRow?.message || "Snapshot refresh failed.");
-      err.statusRow = statusRow;
-      throw err;
+    if (initial === "FAILED") {
+      return { outcome: "FAILED", statusRow };
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 600));
   }
 
-  throw new Error(
-    "Snapshot refresh is still running. Please check status after a few seconds.",
-  );
+  while (Date.now() - startedAt < SNAPSHOT_REFRESH_POLL_MAX_MS) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, SNAPSHOT_REFRESH_POLL_INTERVAL_MS),
+    );
+
+    statusRow = await getSnapshotRefreshStatus(runId);
+    emit(statusRow);
+
+    const status = normalizeSnapshotRefreshStatus(statusRow);
+    if (status === "SUCCESS") {
+      return { outcome: "SUCCESS", statusRow };
+    }
+    if (status === "FAILED") {
+      return { outcome: "FAILED", statusRow };
+    }
+  }
+
+  return {
+    outcome: "CLIENT_POLL_BOUND",
+    statusRow: statusRow || initialStatusRow || null,
+  };
 }
 
 function showProcSnapshotRefreshOverlay() {
@@ -4607,6 +4717,9 @@ async function refreshProcurementSnapshotsManually() {
   const ok = await confirmSnapshotRefresh();
   if (!ok) return;
 
+  let runStarted = false;
+  let lastKnownStatus = null;
+
   try {
     setProcSnapshotRefreshBusy(true);
 
@@ -4620,53 +4733,127 @@ async function refreshProcurementSnapshotsManually() {
       },
     );
 
-    if (error) throw error;
+    if (error) {
+      const err = new Error(
+        error.message || "Unable to request a procurement snapshot refresh.",
+      );
+      err.code = "REQUEST_FAILED";
+      throw err;
+    }
 
     const requestRow = Array.isArray(data) ? data[0] : data;
     const runId = requestRow?.run_id;
 
     if (!runId) {
-      throw new Error("Refresh request did not return a run_id.");
+      const err = new Error("Refresh request did not return a run_id.");
+      err.code = "REQUEST_FAILED";
+      throw err;
     }
 
-    const initialStatus = await getSnapshotRefreshStatus(runId);
+    runStarted = true;
+
+    let initialStatus;
+    try {
+      initialStatus = await getSnapshotRefreshStatus(runId);
+    } catch (statusErr) {
+      const err = new Error(
+        "Unable to check the refresh status right now. The server refresh may still be continuing.",
+      );
+      err.code = "STATUS_POLL_FAILED";
+      err.cause = statusErr;
+      throw err;
+    }
+
+    lastKnownStatus = initialStatus;
     renderProcSnapshotRefreshStages(initialStatus);
 
-    const statusRow = await processSnapshotRefreshUntilDone(
-      runId,
-      renderProcSnapshotRefreshStages,
-    );
-
-    renderProcSnapshotRefreshStages(statusRow);
-    toast(formatStagedSnapshotRefreshToast(statusRow), "success");
-
-    hideProcSnapshotRefreshOverlay();
-    unlockProcurementUiAfterSnapshotRefresh();
-
-    void reloadTabsAfterSnapshotRefresh(state.tab).catch((reloadErr) => {
-      console.warn(
-        "Snapshot refresh succeeded but post-refresh reload failed",
-        reloadErr,
+    let pollResult;
+    try {
+      pollResult = await pollSnapshotRefreshUntilDone(
+        runId,
+        (row) => {
+          lastKnownStatus = row;
+          renderProcSnapshotRefreshStages(row);
+        },
+        initialStatus,
       );
-      toast(
-        "Snapshots refreshed, but one or more sections could not reload automatically.",
-        "info",
+    } catch (statusErr) {
+      const err = new Error(
+        "Unable to check the refresh status right now. The server refresh may still be continuing.",
       );
-    });
-  } catch (err) {
-    console.error("Staged snapshot refresh failed", err);
-
-    const msg =
-      err?.message ||
-      "Snapshot refresh failed. Check server status and console.";
-
-    // Keep overlay visible so the user can see which stage failed.
-    if (err?.statusRow) {
-      renderProcSnapshotRefreshStages(err.statusRow);
+      err.code = "STATUS_POLL_FAILED";
+      err.cause = statusErr;
+      err.statusRow = lastKnownStatus;
+      throw err;
     }
-    const msgEl = qs("procSnapshotRefreshMessage");
-    if (msgEl) msgEl.textContent = msg;
 
+    const { outcome, statusRow } = pollResult;
+    lastKnownStatus = statusRow || lastKnownStatus;
+
+    if (outcome === "SUCCESS") {
+      renderProcSnapshotRefreshStages(statusRow);
+      toast(formatStagedSnapshotRefreshToast(statusRow), "success");
+      hideProcSnapshotRefreshOverlay();
+
+      void reloadTabsAfterSnapshotRefresh(state.tab).catch((reloadErr) => {
+        console.warn(
+          "Snapshot refresh succeeded but post-refresh reload failed",
+          reloadErr,
+        );
+        toast(
+          "Snapshots refreshed, but one or more sections could not reload automatically.",
+          "info",
+        );
+      });
+      return;
+    }
+
+    if (outcome === "FAILED") {
+      renderProcSnapshotRefreshStages(statusRow);
+      const msg =
+        statusRow?.message ||
+        "Server snapshot refresh run failed. Check the stage details above.";
+      const msgEl = qs("procSnapshotRefreshMessage");
+      if (msgEl) msgEl.textContent = msg;
+      toast(msg, "error");
+      return;
+    }
+
+    // CLIENT_POLL_BOUND — server may still be running; not a failure.
+    if (lastKnownStatus) {
+      renderProcSnapshotRefreshStages(lastKnownStatus);
+    }
+    const continuingMsg =
+      "Refresh is continuing on the server. You can check again later; starting Manual Refresh again will reconnect to the active refresh if it is still running.";
+    const msgEl = qs("procSnapshotRefreshMessage");
+    if (msgEl) msgEl.textContent = continuingMsg;
+    toast(continuingMsg, "info");
+  } catch (err) {
+    console.error("Snapshot refresh observation failed", err);
+
+    if (err?.statusRow || lastKnownStatus) {
+      renderProcSnapshotRefreshStages(err.statusRow || lastKnownStatus);
+    }
+
+    const msgEl = qs("procSnapshotRefreshMessage");
+    let msg;
+
+    if (err?.code === "STATUS_POLL_FAILED") {
+      msg =
+        err.message ||
+        "Unable to check the refresh status right now. The server refresh may still be continuing.";
+    } else if (err?.code === "REQUEST_FAILED") {
+      msg =
+        err.message || "Unable to request a procurement snapshot refresh.";
+    } else if (runStarted) {
+      msg =
+        "Unable to check the refresh status right now. The server refresh may still be continuing.";
+    } else {
+      msg =
+        err?.message || "Unable to request a procurement snapshot refresh.";
+    }
+
+    if (msgEl) msgEl.textContent = msg;
     toast(msg, "error");
   } finally {
     unlockProcurementUiAfterSnapshotRefresh();
@@ -5053,26 +5240,32 @@ function wireGlobalHeaderControls() {
  */
 async function buildIndentRequisitionRows(indentId) {
   // 1. Indent lines
-  const { data: lines, error: lErr } = await supabase
-    .from(INDENT_LINES_ORDERED_VIEW)
-    .select("*")
-    .eq("indent_id", indentId)
-    .order("indent_line_sort_no", { ascending: true })
-    .order("indent_line_id", { ascending: true });
-  if (lErr) throw lErr;
+  let lines;
+  try {
+    lines = await rpcPecIndentLines(indentId);
+    lines = [...lines].sort((a, b) => {
+      const bySort = compareNumAsc(a.indent_line_sort_no, b.indent_line_sort_no);
+      if (bySort !== 0) return bySort;
+      return compareNumAsc(a.indent_line_id, b.indent_line_id);
+    });
+  } catch (lErr) {
+    throw lErr;
+  }
 
   if (!lines || lines.length === 0) return { pdfLines: [], rows: [] };
 
-  // 2. Sourcing decisions
-  const lineIds = lines.map((l) => l.indent_line_id);
+  // 2. Sourcing decisions (indent-scoped)
+  const lineIds = new Set(lines.map((l) => Number(l.indent_line_id)));
   let decisionMap = {};
-  if (lineIds.length) {
-    const { data: decisions, error: dErr } = await supabase
-      .from("proc_indent_line_sourcing_decision")
-      .select("*")
-      .in("indent_line_id", lineIds);
-    if (dErr) throw dErr;
-    (decisions ?? []).forEach((d) => (decisionMap[d.indent_line_id] = d));
+  try {
+    const decisions = await rpcPecSourcingDecisions(indentId);
+    (decisions ?? []).forEach((d) => {
+      const lineId = Number(d.indent_line_id);
+      if (!lineIds.has(lineId)) return;
+      decisionMap[d.indent_line_id] = d;
+    });
+  } catch (dErr) {
+    throw dErr;
   }
 
   // 3. Vendor names
@@ -5085,11 +5278,14 @@ async function buildIndentRequisitionRows(indentId) {
   ];
   let vendorMap = {};
   if (vendorIds.length) {
-    const { data: vendors } = await supabase
-      .from("proc_vendor")
-      .select("vendor_id,display_name")
-      .in("vendor_id", vendorIds);
-    (vendors ?? []).forEach((v) => (vendorMap[v.vendor_id] = v.display_name));
+    try {
+      const vendors = await rpcPecVendorDetails(vendorIds);
+      (vendors ?? []).forEach(
+        (v) => (vendorMap[v.vendor_id] = v.display_name),
+      );
+    } catch {
+      // Soft-fail: optional enrichment must not abort export.
+    }
   }
 
   // 4. Item category labels
@@ -5180,13 +5376,18 @@ async function buildIndentRequisitionRows(indentId) {
 function openExportIndentModal() {
   if (!state.selectedIndent) return;
   const row = state.selectedIndent;
+  const classCode = String(row.material_class_code ?? "")
+    .trim()
+    .toUpperCase();
   qs("expReqNo").value = row.indent_number ?? "";
   qs("expReqType").value =
     row.material_class_label ?? row.material_class_code ?? "All";
   qs("expReqDate").value = new Date().toISOString().slice(0, 10);
   qs("expDeptUnit").value = "SHRO / SASV";
   qs("expLocation").value =
-    "Raw Material Store, Santhigiri Ayurveda Siddha Vaidyasala";
+    classCode === "PM"
+      ? "Packing Material Store, SASV"
+      : "Raw Material Store, SASV";
   qs("expRequestedBy").value = "";
   qs("expContactDetails").value = "";
   const bd = qs("exportIndentModalBackdrop");
@@ -5197,6 +5398,44 @@ function openExportIndentModal() {
 
 function closeExportIndentModal() {
   hideModalBackdrop(qs("exportIndentModalBackdrop"), [qs("btnIExportMenu")]);
+}
+
+/** Soft-fail logo loader for PR PDF (white matte avoids transparent PNG → black). */
+function loadPrPdfLogoAsDataUrl(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const MAX_DIM = 300;
+        const scale = Math.min(
+          1,
+          MAX_DIM / img.naturalWidth,
+          MAX_DIM / img.naturalHeight,
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const c = canvas.getContext("2d");
+        c.fillStyle = "#ffffff";
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        c.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve({
+          dataUrl: canvas.toDataURL("image/jpeg", 0.92),
+          nw: canvas.width,
+          nh: canvas.height,
+        });
+      } catch (e) {
+        console.warn("[PR PDF] Canvas draw failed for logo:", e);
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      console.warn("[PR PDF] Logo not found:", src);
+      resolve(null);
+    };
+    img.src = src;
+  });
 }
 
 async function exportIndentToPdf() {
@@ -5216,6 +5455,9 @@ async function exportIndentToPdf() {
   const reqType = qs("expReqType").value.trim();
   const requestedBy = qs("expRequestedBy").value.trim();
   const contactDetails = qs("expContactDetails").value.trim();
+  const reqNoPart = indentNumber || "-";
+  const reqDatePart = String(reqDate || "").trim() || "-";
+  const reqNoAndDate = `${reqNoPart}  /  ${reqDatePart}`;
 
   const btn = qs("btnExpExportPdf");
   btn.disabled = true;
@@ -5229,6 +5471,10 @@ async function exportIndentToPdf() {
       toast("No lines in this indent. Cannot export.", "error");
       return;
     }
+
+    const logoInfo = await loadPrPdfLogoAsDataUrl(
+      "./assets/santhigiri-logo.png",
+    );
 
     // Generate PDF using jsPDF
     const { jsPDF } = jspdf;
@@ -5254,23 +5500,26 @@ async function exportIndentToPdf() {
       reqType,
       requestedBy,
       contact,
+      reqNoAndDate,
+      logoInfo,
     };
 
     function buildHeaderLayoutEngine(doc, ctx) {
       const margin = ctx.margin;
       const pageW = ctx.pageWidth;
 
-      // Two columns on the page
-      const colGap = 10;
-      const colW = (pageW - margin * 2 - colGap) / 2;
-      const leftX = margin;
-      const rightX = margin + colW + colGap;
+      // Three equal columns for management metadata layout
+      const colGap = 8;
+      const colW = (pageW - margin * 2 - colGap * 2) / 3;
+      const col1X = margin;
+      const col2X = margin + colW + colGap;
+      const col3X = margin + 2 * (colW + colGap);
 
       // Inside each column: label | : | value (tab stop)
-      const labelW = 30;
+      const labelW = 38;
       const colonX = labelW + 2;
       const valueX = colonX + 4;
-      const valueW = colW - valueX;
+      const valueW = Math.max(8, colW - valueX);
 
       const metaFont = 9;
       const metaLH = 5.2;
@@ -5298,40 +5547,58 @@ async function exportIndentToPdf() {
       }
 
       function measureKV(value) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(metaFont);
         const lines = wrap(value, valueW);
         return lines.length * metaLH;
       }
 
-      function drawRow(y, leftLabel, leftVal, rightLabel, rightVal) {
-        const hL = drawKV(leftX, y, leftLabel, leftVal);
-        const hR = rightLabel
-          ? drawKV(rightX, y, rightLabel, rightVal)
-          : metaLH;
-        return y + Math.max(hL, hR) + rowGap;
+      function drawTriple(
+        y,
+        c1Label,
+        c1Val,
+        c2Label,
+        c2Val,
+        c3Label,
+        c3Val,
+      ) {
+        const h1 = drawKV(col1X, y, c1Label, c1Val);
+        const h2 = drawKV(col2X, y, c2Label, c2Val);
+        const h3 = drawKV(col3X, y, c3Label, c3Val);
+        return y + Math.max(h1, h2, h3) + rowGap;
       }
 
-      function drawRightOnlyRow(y, rightLabel, rightVal) {
-        const hR = drawKV(rightX, y, rightLabel, rightVal);
-        return y + hR + rowGap;
-      }
-
-      function measureRow(y, leftVal, rightVal, hasRight) {
-        const hL = measureKV(leftVal);
-        const hR = hasRight ? measureKV(rightVal) : metaLH;
-        return y + Math.max(hL, hR) + rowGap;
-      }
-
-      function measureRightOnlyRow(y, rightVal) {
-        const hR = measureKV(rightVal);
-        return y + hR + rowGap;
+      function measureTriple(y, c1Val, c2Val, c3Val) {
+        const h1 = measureKV(c1Val);
+        const h2 = measureKV(c2Val);
+        const h3 = measureKV(c3Val);
+        return y + Math.max(h1, h2, h3) + rowGap;
       }
 
       function drawTitleBlock(y) {
+        const titleTopY = y;
+
         function centered(text, yPos, font, size) {
           doc.setFont("times", font);
           doc.setFontSize(size);
           const w = doc.getTextWidth(text);
           doc.text(text, (pageW - w) / 2, yPos);
+        }
+
+        // Logo: top-right, flush with table/content right edge
+        if (ctx.logoInfo) {
+          const maxW = 22;
+          const maxH = 15;
+          const aspect = ctx.logoInfo.nw / ctx.logoInfo.nh;
+          let lW = maxW;
+          let lH = lW / aspect;
+          if (lH > maxH) {
+            lH = maxH;
+            lW = lH * aspect;
+          }
+          const logoX = pageW - margin - lW;
+          const logoY = Math.max(margin - 2, titleTopY - 4);
+          doc.addImage(ctx.logoInfo.dataUrl, "JPEG", logoX, logoY, lW, lH);
         }
 
         centered("Gurucharanam Saranam", y, "italic", 11);
@@ -5360,21 +5627,50 @@ async function exportIndentToPdf() {
         return y;
       }
 
+      function sectionTitleBottom(yAfterMeta) {
+        // Horizontal rule → centered section title → tight pad before table
+        const lineY = yAfterMeta + 1;
+        const titleY = lineY + 6.5;
+        return titleY + 3.5;
+      }
+
       function drawHeader(_doc = doc, _ctx = ctx) {
         let y = _ctx.margin;
 
         y = drawTitleBlock(y);
-        y = drawRow(y, "Dept/Unit", _ctx.deptUnit, "Date", _ctx.reqDate);
-        y = drawRow(y, "Location", _ctx.location, "Req No", _ctx.indentNumber);
-        y = drawRow(y, "Type", _ctx.reqType, "Requested By", _ctx.requestedBy);
-        y = drawRightOnlyRow(y, "Contact", _ctx.contact);
+        y = drawTriple(
+          y,
+          "Dept/Unit",
+          _ctx.deptUnit,
+          "Location",
+          _ctx.location,
+          "Req No & Date",
+          _ctx.reqNoAndDate,
+        );
+        y = drawTriple(
+          y,
+          "Requisition Type",
+          _ctx.reqType,
+          "Requested By",
+          _ctx.requestedBy,
+          "Contact",
+          _ctx.contact,
+        );
 
+        const lineY = y + 1;
+        _doc.setDrawColor(0);
+        _doc.setLineWidth(0.15);
+        _doc.line(_ctx.margin, lineY, _ctx.pageWidth - _ctx.margin, lineY);
+
+        const titleY = lineY + 6.5;
         _doc.setFont("helvetica", "bold");
-        _doc.setFontSize(11);
-        _doc.text("MATERIAL DETAILS", _ctx.margin, y + 2);
+        _doc.setFontSize(13);
+        _doc.text("MATERIAL DETAILS", _ctx.pageWidth / 2, titleY, {
+          align: "center",
+        });
 
-        // Keep table close to section heading (no large white gap)
-        return y + 2;
+        // Table starts just under the section title (no large white gap)
+        return titleY + 3.5;
       }
 
       function measureHeader(_doc = doc, _ctx = ctx) {
@@ -5382,13 +5678,15 @@ async function exportIndentToPdf() {
         let y = _ctx.margin;
 
         y = measureTitleBlock(y);
-        y = measureRow(y, _ctx.deptUnit, _ctx.reqDate, true);
-        y = measureRow(y, _ctx.location, _ctx.indentNumber, true);
-        y = measureRow(y, _ctx.reqType, _ctx.requestedBy, true);
-        y = measureRightOnlyRow(y, _ctx.contact);
+        y = measureTriple(
+          y,
+          _ctx.deptUnit,
+          _ctx.location,
+          _ctx.reqNoAndDate,
+        );
+        y = measureTriple(y, _ctx.reqType, _ctx.requestedBy, _ctx.contact);
 
-        // MATERIAL DETAILS + tight gap
-        return y + 2;
+        return sectionTitleBottom(y);
       }
 
       return { drawHeader, measureHeader };
@@ -5595,7 +5893,7 @@ async function exportIndentToPdf() {
     doc.setPage(totalPages);
     const pageHeight = doc.internal.pageSize.getHeight();
     let sigY = doc.lastAutoTable.finalY + 16;
-    if (sigY + 20 > pageHeight - FOOTER_H) {
+    if (sigY + 28 > pageHeight - FOOTER_H) {
       doc.addPage("a4", "landscape");
       sigY = margin + 20;
     }
@@ -5607,14 +5905,19 @@ async function exportIndentToPdf() {
     doc.line(margin + 2 * colWidth + 5, sigY, pageWidth - margin, sigY);
 
     doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(0);
-    doc.text("Prepared By", margin + colWidth / 2, sigY + 4, {
-      align: "center",
-    });
-    doc.text("Verified By", margin + colWidth + colWidth / 2, sigY + 4, {
-      align: "center",
-    });
-    doc.text("Approved By", margin + 2 * colWidth + colWidth / 2, sigY + 4, {
-      align: "center",
+    const sigCenters = [
+      margin + colWidth / 2,
+      margin + colWidth + colWidth / 2,
+      margin + 2 * colWidth + colWidth / 2,
+    ];
+    const sigBlocks = [
+      ["Prepared / Requested By", "Designation"],
+      ["Verified By", "Supervisor / Floor Manager"],
+      ["Approved By", "Unit Head / Manager"],
+    ];
+    sigBlocks.forEach(([title, subtitle], i) => {
+      doc.text(title, sigCenters[i], sigY + 4, { align: "center" });
+      doc.text(subtitle, sigCenters[i], sigY + 8.5, { align: "center" });
     });
 
     // If a new page was added for signatures, re-stamp page numbers with updated total
@@ -5704,18 +6007,18 @@ async function openIndentFromPrModal(options = {}) {
   const { preselectedPrId = null } = options;
   // Load active PRs
   setLoading(true);
-  const { data, error } = await supabase
-    .from(PR_HEADER_VIEW)
-    .select(
-      "pr_id, pr_number, effective_from_date, horizon_start_month, horizon_end_month, material_class_id, material_class_code, material_class_label, material_class_display, rm_scope, rm_scope_label",
-    )
-    .eq("status", "active")
-    .order("pr_number", { ascending: true });
-  setLoading(false);
-  if (error) {
+  let data;
+  try {
+    data = await rpcPecPrHeaders();
+    data = (data || [])
+      .filter((pr) => String(pr.status || "") === "active")
+      .sort((a, b) => compareStrAsc(a.pr_number, b.pr_number));
+  } catch (error) {
+    setLoading(false);
     toast(`Failed to load PRs: ${error.message}`, "error");
     return;
   }
+  setLoading(false);
 
   const pick = qs("ifpPrPick");
   pick.innerHTML = "";
@@ -6495,22 +6798,21 @@ async function loadPrHeaders() {
     const status = qs("prFilterStatus").value;
     const cls = qs("prFilterClass").value;
     const search = (qs("prSearch").value || "").trim();
-    let q = supabase.from(PR_HEADER_VIEW).select("*");
-    if (status) q = q.eq("status", status);
-    if (cls) q = q.eq("material_class_id", Number(cls));
-    if (search) q = q.ilike("pr_number", `%${search}%`);
-    q = q
-      .order("pr_id", { ascending: false })
-      .range(
-        state.prPage * pageSize,
-        state.prPage * pageSize + pageSize - 1,
-      );
-    const { data, error } = await q;
-    if (error) {
+    let rows;
+    try {
+      rows = await rpcPecPrHeaders();
+    } catch (error) {
       toast(`Failed to load PRs: ${error.message}`, "error");
       return;
     }
-    state.prRows = data || [];
+    rows = (rows || []).filter((r) => {
+      if (status && String(r.status || "") !== String(status)) return false;
+      if (cls && Number(r.material_class_id) !== Number(cls)) return false;
+      if (search && !ilikeContains(r.pr_number, search)) return false;
+      return true;
+    });
+    rows.sort((a, b) => compareNumDesc(a.pr_id, b.pr_id));
+    state.prRows = slicePage(rows, state.prPage, pageSize);
     renderPrHeaders();
   } finally {
     setTabTableLoading("pr", false);
@@ -6981,43 +7283,20 @@ function applyPrLineFiltersAndRender() {
 async function loadPrLines(prId) {
   if (!prId) return;
   setLoading(true);
-  const { data, error } = await supabase
-    .from(PR_LINES_ORDERED_VIEW)
-    .select(
-      [
-        "pr_line_id",
-        "pr_id",
-        "stock_item_id",
-        "stock_item_name",
-        "stock_item_code",
-        "material_class_id",
-        "material_class_code",
-        "material_class_label",
-        "uom_id",
-        "uom_code",
-        "system_suggested_qty",
-        "requested_qty",
-        "manual_delta_qty",
-        "manual_reason",
-        "final_requested_qty",
-        "rm_procurement_mode",
-        "stock_item_rm_procurement_mode",
-        "category_label",
-        "subcategory_label",
-        "group_label",
-        "subgroup_label",
-        "line_sort_no",
-        "line_sort_key",
-      ].join(","),
-    )
-    .eq("pr_id", prId)
-    .order("line_sort_no", { ascending: true })
-    .order("pr_line_id", { ascending: true });
-  setLoading(false);
-  if (error) {
+  let data;
+  try {
+    data = await rpcPecPrLines(prId);
+    data = [...data].sort((a, b) => {
+      const bySort = compareNumAsc(a.line_sort_no, b.line_sort_no);
+      if (bySort !== 0) return bySort;
+      return compareNumAsc(a.pr_line_id, b.pr_line_id);
+    });
+  } catch (error) {
+    setLoading(false);
     toast(`Failed to load PR lines: ${error.message}`, "error");
     return;
   }
+  setLoading(false);
   prLineAll = data || [];
   state.prLinesRows = prLineAll;
   resetPrLinesInfiniteScroll(true);
@@ -8062,48 +8341,65 @@ async function loadExcess() {
     const search = (qs("eSearch")?.value || "").trim();
     const filters = state.excessFilters;
     const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-    const from = state.excessPage * pageSize;
-    const to = from + pageSize - 1;
-    let q = supabase
-      .from("v_proc_purchase_excess_console")
-      .select("*", { count: "exact" });
-    if (search) q = q.ilike("stock_item_name", `%${search}%`);
-    if (filters.materialClassId) {
-      q = q.eq("material_class_code", filters.materialClassId);
-    }
-    if (Number(filters.minQty) > 0) {
-      q = q.gte("net_unallocated_qty", Number(filters.minQty));
-    }
-    const dateRange = getExcessDateRange();
-    if (dateRange.from) q = q.gte("voucher_date", dateRange.from);
-    if (dateRange.to) q = q.lte("voucher_date", dateRange.to);
-    if (filters.vendorQ) {
-      q = q.ilike("vendor_display_name", `%${filters.vendorQ}%`);
-    }
-    if (filters.itemQ) {
-      const escapedItemQ = filters.itemQ.replaceAll(",", "\\,");
-      q = q.or(
-        `stock_item_name.ilike.%${escapedItemQ}%,stock_item_code.ilike.%${escapedItemQ}%`,
-      );
-    }
-    if (filters.unmappedOnly) {
-      q = q.is("vendor_display_name", null);
-    }
-    q = q
-      .order("net_unallocated_qty", { ascending: false })
-      .order("voucher_date", { ascending: false })
-      .range(from, to);
-    const { data, error, count } = await q;
-    if (error) {
+    let rows;
+    try {
+      rows = await rpcPecPurchaseExcess();
+    } catch (error) {
       toast(`Failed to load excess purchases: ${error.message}`, "error");
       return;
     }
-    state.excessRows = data || [];
-    state.excessTotalCount = count ?? 0;
+
+    const dateRange = getExcessDateRange();
+    const minQty = Number(filters.minQty) || 0;
+
+    rows = (rows || []).filter((r) => {
+      if (search && !ilikeContains(r.stock_item_name, search)) return false;
+      if (
+        filters.materialClassId &&
+        String(r.material_class_code ?? "") !== String(filters.materialClassId)
+      ) {
+        return false;
+      }
+      if (minQty > 0 && Number(r.net_unallocated_qty || 0) < minQty) {
+        return false;
+      }
+      if (dateRange.from) {
+        const vd = String(r.voucher_date || "");
+        if (!vd || vd < dateRange.from) return false;
+      }
+      if (dateRange.to) {
+        const vd = String(r.voucher_date || "");
+        if (!vd || vd > dateRange.to) return false;
+      }
+      if (filters.vendorQ && !ilikeContains(r.vendor_display_name, filters.vendorQ)) {
+        return false;
+      }
+      if (filters.itemQ) {
+        const itemQ = filters.itemQ;
+        const nameHit = ilikeContains(r.stock_item_name, itemQ);
+        const codeHit = ilikeContains(r.stock_item_code, itemQ);
+        if (!nameHit && !codeHit) return false;
+      }
+      if (filters.unmappedOnly) {
+        if (r.vendor_display_name != null && String(r.vendor_display_name) !== "") {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    rows.sort((a, b) => {
+      const byQty = compareNumDesc(a.net_unallocated_qty, b.net_unallocated_qty);
+      if (byQty !== 0) return byQty;
+      return compareStrAsc(b.voucher_date, a.voucher_date);
+    });
+
+    state.excessTotalCount = rows.length;
     state.excessTotalPages = Math.max(
       1,
       Math.ceil(state.excessTotalCount / pageSize),
     );
+    state.excessRows = slicePage(rows, state.excessPage, pageSize);
     renderExcess();
   } finally {
     setTabTableLoading("excess", false);
@@ -8128,24 +8424,26 @@ function renderExcessAudit() {
 
 async function loadExcessAuditPaged() {
   const pageSize = Number(state.pageSize || DEFAULT_PAGE_SIZE);
-  const from = state.excessAuditPage * pageSize;
-  const to = from + pageSize - 1;
 
-  const { data, error, count } = await supabase
-    .from("v_proc_excess_acceptance_audit_console")
-    .select("*", { count: "exact" })
-    .order("accepted_at", { ascending: false })
-    .range(from, to);
-  if (error) {
+  let rows;
+  try {
+    rows = await rpcPecExcessAcceptanceAudit();
+  } catch (error) {
     toast(`Failed to load acceptance audit: ${error.message}`, "error");
     return;
   }
-  state.excessAuditRows = data || [];
-  state.excessAuditTotalCount = count ?? 0;
+  rows = [...(rows || [])].sort((a, b) =>
+    compareStrAsc(
+      b.accepted_at ?? b.created_at ?? "",
+      a.accepted_at ?? a.created_at ?? "",
+    ),
+  );
+  state.excessAuditTotalCount = rows.length;
   state.excessAuditTotalPages = Math.max(
     1,
     Math.ceil(state.excessAuditTotalCount / pageSize),
   );
+  state.excessAuditRows = slicePage(rows, state.excessAuditPage, pageSize);
   renderExcessAudit();
   qs("eAuditMeta").textContent =
     `${state.excessAuditTotalCount} line${state.excessAuditTotalCount !== 1 ? "s" : ""}`;
@@ -8947,22 +9245,9 @@ async function searchActiveVendors(query, { limit = 30 } = {}) {
     rows = (Array.isArray(data) ? data : [])
       .map(normalizeVendorLookupRow)
       .filter(Boolean);
-  } catch (_) {
+  } catch (error) {
     if (!normalizedQuery) return { rows: [], requestSeq };
-
-    const { data, error } = await supabase
-      .from("proc_vendor")
-      .select("vendor_id,display_name")
-      .eq("is_active", true)
-      .ilike("display_name", `%${normalizedQuery}%`)
-      .order("display_name", { ascending: true })
-      .limit(limit);
-
-    if (error) throw error;
-
-    rows = (Array.isArray(data) ? data : [])
-      .map(normalizeVendorLookupRow)
-      .filter(Boolean);
+    throw error;
   }
 
   const deduped = [];
@@ -9230,25 +9515,17 @@ function renderVendorBuylistTable() {
 }
 
 async function loadVendorBuylistFilterOptions() {
-  const [
-    { data: classRows, error: classError },
-    { data: rmRows, error: rmError },
-  ] = await Promise.all([
-    supabase
-      .from("v_proc_vendorwise_buylist_material_class_options")
-      .select("*")
-      .order("material_class_code", { ascending: true }),
-    supabase
-      .from("v_proc_vendorwise_buylist_rm_scope_options")
-      .select("*")
-      .order("rm_scope_label", { ascending: true }),
+  const [classRows, rmRows] = await Promise.all([
+    rpcPecBuylistMaterialClassOptions(),
+    rpcPecBuylistRmScopeOptions(),
   ]);
 
-  if (classError) throw classError;
-  if (rmError) throw rmError;
-
-  state.vwlMaterialClassOptions = classRows || [];
-  state.vwlRmScopeOptions = rmRows || [];
+  state.vwlMaterialClassOptions = [...(classRows || [])].sort((a, b) =>
+    compareStrAsc(a.material_class_code, b.material_class_code),
+  );
+  state.vwlRmScopeOptions = [...(rmRows || [])].sort((a, b) =>
+    compareStrAsc(a.rm_scope_label, b.rm_scope_label),
+  );
 
   populateVwlMaterialClassFilter();
   populateVwlRmScopeFilter();

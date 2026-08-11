@@ -1,5 +1,6 @@
 // subgroups.js
 import { supabase } from '../public/shared/js/supabaseClient.js';
+import { mountModuleHome } from '../public/shared/js/sasv-module-chrome.js';
 
 const categorySelect    = document.getElementById('categorySelect');
 const subcategorySelect = document.getElementById('subcategorySelect');
@@ -198,6 +199,7 @@ subcategorySelect.addEventListener('change', () => loadGroups(subcategorySelect.
 groupSelect.addEventListener('change', () => renderSubGroups(groupSelect.value));
 
 // Home navigation
+mountModuleHome(homeIcon);
 homeIcon.addEventListener('click', () => window.location.href = 'index.html');
 
 // Initialize

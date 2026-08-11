@@ -306,24 +306,25 @@ async function checkPermissions(userId) {
     if (!error && Array.isArray(perms)) {
       const p = perms.find((r) => r?.target === `module:${MODULE_ID}`);
       if (p) return !!p.can_view;
+      return false;
     }
   } catch {
-    /* fallthrough to table-based check */
+    /* fallthrough to canonical check */
   }
 
   try {
     const { data: rows } = await supabase
-      .from("user_permissions")
+      .from("user_permissions_canonical")
       .select("can_view")
       .eq("user_id", userId)
-      .eq("module_id", MODULE_ID)
+      .eq("target", `module:${MODULE_ID}`)
       .limit(1);
     if (Array.isArray(rows) && rows.length) return !!rows[0].can_view;
   } catch {
-    /* allow access */
+    /* deny */
   }
 
-  return true; // default allow if permission fetch fails
+  return false;
 }
 
 // ── Data loading ──────────────────────────────────────────────────────────────

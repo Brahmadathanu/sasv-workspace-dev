@@ -2,6 +2,8 @@
  * PPM launch resolver, F3 metadata, F4 workspace-only URL, F5 Area-state cleanup,
  * and SC5 relocation smoke checks. Mirrors focused helpers without the browser shell.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const PRICING_POLICY_DEFAULT_AREA = "selling-schemes";
 const PRICING_POLICY_DEFAULT_WORKSPACE = "sku-overview";
@@ -106,6 +108,15 @@ const PRICING_POLICY_WORKSPACES = [
     supportsPeriod: false,
     legacyLensId: "policy-manager",
     nestedViewType: "current-history",
+  },
+  {
+    id: "commercial-sales-assumptions",
+    groupId: "selling-schemes",
+    supportsSearch: true,
+    supportsPeq: false,
+    supportsPeriod: true,
+    legacyLensId: "policy-manager",
+    nestedViewType: null,
   },
 ];
 
@@ -246,6 +257,7 @@ const expectedWorkspaceOrder = [
   "sku-overview",
   "scheme-master",
   "scheme-rule-register",
+  "commercial-sales-assumptions",
 ];
 
 const expectedGroupByWorkspace = {
@@ -258,6 +270,7 @@ const expectedGroupByWorkspace = {
   "sku-overview": "selling-schemes",
   "scheme-master": "selling-schemes",
   "scheme-rule-register": "selling-schemes",
+  "commercial-sales-assumptions": "selling-schemes",
 };
 
 const expectedLegacyByWorkspace = {
@@ -270,6 +283,7 @@ const expectedLegacyByWorkspace = {
   "sku-overview": "policy-manager",
   "scheme-master": "policy-manager",
   "scheme-rule-register": "policy-manager",
+  "commercial-sales-assumptions": "policy-manager",
 };
 
 let metaFailed = 0;
@@ -282,8 +296,8 @@ function metaOk(label, pass, detail = "") {
 }
 
 metaOk(
-  "workspace count is 9",
-  PRICING_POLICY_WORKSPACE_IDS.length === 9,
+  "workspace count is 10",
+  PRICING_POLICY_WORKSPACE_IDS.length === 10,
   String(PRICING_POLICY_WORKSPACE_IDS.length),
 );
 metaOk(
@@ -315,8 +329,17 @@ metaOk(
   PRICING_POLICY_DEFAULT_WORKSPACE === "sku-overview",
 );
 metaOk(
-  "no period-capable workspace",
-  PRICING_POLICY_WORKSPACES.every((w) => !w.supportsPeriod),
+  "sole period-capable workspace is commercial-sales-assumptions",
+  PRICING_POLICY_WORKSPACES.filter((w) => w.supportsPeriod).map((w) => w.id)
+    .join(",") === "commercial-sales-assumptions",
+);
+metaOk(
+  "commercial-sales-assumptions supportsPeriod true",
+  WS_BY_ID.get("commercial-sales-assumptions")?.supportsPeriod === true,
+);
+metaOk(
+  "commercial-sales-assumptions supportsPeq false",
+  WS_BY_ID.get("commercial-sales-assumptions")?.supportsPeq === false,
 );
 
 for (const id of expectedWorkspaceOrder) {
@@ -380,7 +403,7 @@ const expectedNarrowGroupWorkspaces = [
     "approved-for-application",
     "applied-proposal-history",
   ],
-  ["sku-overview", "scheme-master", "scheme-rule-register"],
+  ["sku-overview", "scheme-master", "scheme-rule-register", "commercial-sales-assumptions"],
 ];
 
 metaOk(
@@ -444,6 +467,13 @@ const cases = [
   [
     { lens: "selling-schemes", workspace: "scheme-rule-register" },
     { areaId: "selling-schemes", workspaceId: "scheme-rule-register" },
+  ],
+  [
+    { lens: "selling-schemes", workspace: "commercial-sales-assumptions" },
+    {
+      areaId: "selling-schemes",
+      workspaceId: "commercial-sales-assumptions",
+    },
   ],
   [
     { lens: "mrp-governance" },
@@ -680,7 +710,7 @@ for (const id of expectedWorkspaceOrder) {
   );
   f5Ok(
     `workspace period ${id}`,
-    workspaceSupportsPeriod(id) === false,
+    workspaceSupportsPeriod(id) === (id === "commercial-sales-assumptions"),
   );
   f5Ok(
     `loader lens ${id}`,
@@ -702,6 +732,10 @@ for (const id of [
 for (const id of ["sku-overview", "scheme-master", "scheme-rule-register"]) {
   f5Ok(`Selling PEQ on ${id}`, workspaceSupportsPeq(id) === true);
 }
+f5Ok(
+  "CSA PEQ off",
+  workspaceSupportsPeq("commercial-sales-assumptions") === false,
+);
 
 f5Ok(
   "foreign workspace wins two-arg normalize",
@@ -764,8 +798,21 @@ function getModuleKeyForLensSmoke(lensId) {
     "printable-cost-sheet",
     "cost-comparison",
     "scheme-comparison",
+    "qc-action-queue",
+    "materials-stores-action-queue",
   ];
   if (csrLenses.includes(id)) return "cost-sheet-review";
+  const productionRouteLenses = [
+    "route-readiness",
+    "product-route-assignments",
+    "shared-workload-preview",
+    "route-families",
+    "route-family-route-editor",
+    "product-route-editor",
+    "historical-candidate-review",
+    "effective-route-viewer",
+  ];
+  if (productionRouteLenses.includes(id)) return "production-route-manager";
   return null;
 }
 
@@ -854,6 +901,44 @@ if (getModuleKeyForLensSmoke("scheme-comparison") !== "cost-sheet-review") {
   console.log("OK SC5 module-key scheme-comparison => cost-sheet-review");
 }
 
+if (getModuleKeyForLensSmoke("qc-action-queue") !== "cost-sheet-review") {
+  sc5Failed += 1;
+  console.error("FAIL SC5 module-key qc-action-queue");
+} else {
+  console.log("OK SC5 module-key qc-action-queue => cost-sheet-review");
+}
+
+if (
+  getModuleKeyForLensSmoke("materials-stores-action-queue") !==
+  "cost-sheet-review"
+) {
+  sc5Failed += 1;
+  console.error("FAIL SC5 module-key materials-stores-action-queue");
+} else {
+  console.log(
+    "OK SC5 module-key materials-stores-action-queue => cost-sheet-review",
+  );
+}
+
+const prmLenses = [
+  "route-readiness",
+  "product-route-assignments",
+  "shared-workload-preview",
+  "route-families",
+  "route-family-route-editor",
+  "product-route-editor",
+  "historical-candidate-review",
+  "effective-route-viewer",
+];
+for (const lens of prmLenses) {
+  if (getModuleKeyForLensSmoke(lens) !== "production-route-manager") {
+    sc5Failed += 1;
+    console.error(`FAIL SC5 module-key ${lens} => production-route-manager`);
+  } else {
+    console.log(`OK SC5 module-key ${lens} => production-route-manager`);
+  }
+}
+
 if (getModuleKeyForLensSmoke("sku-mrp-policies") === "cost-sheet-review") {
   sc5Failed += 1;
   console.error("FAIL SC5 module-key sku-mrp-policies must not be CSR");
@@ -861,10 +946,81 @@ if (getModuleKeyForLensSmoke("sku-mrp-policies") === "cost-sheet-review") {
   console.log("OK SC5 module-key non-scheme PPM ownership unchanged");
 }
 
-const totalFailed = failed + metaFailed + f4Failed + f5Failed + sc5Failed;
+const prmSrc = readFileSync(
+  join(process.cwd(), "public/shared/js/costing-suite-production-route.js"),
+  "utf8",
+);
+const helpersSrc = readFileSync(
+  join(process.cwd(), "public/shared/js/costing-suite-production-route-helpers.js"),
+  "utf8",
+);
+const helpersSmokeSrc = readFileSync(
+  join(process.cwd(), "scripts/production-route-helpers-smoke.mjs"),
+  "utf8",
+);
+const editorSrc = readFileSync(
+  join(process.cwd(), "public/shared/js/costing-suite-production-route-editor.js"),
+  "utf8",
+);
+let prmFailed = 0;
+function prmOk(label, pass) {
+  if (pass) console.log("PRM OK", label);
+  else {
+    prmFailed += 1;
+    console.error("PRM FAIL", label);
+  }
+}
+prmOk(
+  "editor-to-readiness keeps only readiness root",
+  prmSrc.includes("clearLensOwnedDom()") &&
+    prmSrc.includes("ensureLensRoot(") &&
+    prmSrc.includes("table.style.display ="),
+);
+prmOk(
+  "Family editor Back link opens Manufacturing Route Families",
+  prmSrc.includes("data-prm-back-families") &&
+    prmSrc.includes("Back to Manufacturing Route Families") &&
+    prmSrc.includes('navigate("route-families"'),
+);
+prmOk(
+  "bare editor lens falls back unless allowEditorWithoutId",
+  /raw\s*===\s*"route-family-route-editor"[\s\S]*?normalizePrmIntegerId\(\s*family_route_id\s*\)\s*==\s*null[\s\S]*?return\s+PRODUCTION_ROUTE_DEFAULT_LENS/.test(
+    helpersSrc,
+  ) &&
+    helpersSrc.includes("allowEditorWithoutId") &&
+    /allowEditorWithoutId\s*===\s*true[\s\S]*?route-family-route-editor/.test(
+      helpersSrc,
+    ),
+);
+prmOk(
+  "no-context family editor load stays on editor lens",
+  prmSrc.includes("allowFamilyEditorWithoutId") &&
+    prmSrc.includes("clearFamilyEditorContext") &&
+    prmSrc.includes('data-prm-open-route-families') &&
+    prmSrc.includes('navigate("route-families")') &&
+    !/lens === "route-family-route-editor"[\s\S]{0,120}navigate\(active,\s*state\.deepLink,\s*true\)/.test(
+      prmSrc,
+    ),
+);
+prmOk(
+  "Family editor deep link remains valid",
+  prmSrc.includes("navigateToFamilyRouteEditor") &&
+    prmSrc.includes('"route-family-route-editor"') &&
+    helpersSmokeSrc.includes("family_route_id: 4") &&
+    helpersSmokeSrc.includes(
+      "valid Family editor deep link family_route_id 4 does not fall back to Route Readiness",
+    ),
+);
+prmOk(
+  "stale callback cannot override active lens",
+  prmSrc.includes("if (state.activeLens !== resolved) return;") &&
+    prmSrc.includes("beginLensTransition(active)"),
+);
+
+const totalFailed = failed + metaFailed + f4Failed + f5Failed + sc5Failed + prmFailed;
 console.log(
   totalFailed
-    ? `FAILED resolver=${failed} metadata/F3=${metaFailed} F4=${f4Failed} F5=${f5Failed} SC5=${sc5Failed}`
-    : `PASSED resolver=${cases.length} metadata/F3=ok F4=ok F5=ok SC5=${sc5Cases.length + redirectParamCases.length + 2}`,
+    ? `FAILED resolver=${failed} metadata/F3=${metaFailed} F4=${f4Failed} F5=${f5Failed} SC5=${sc5Failed} PRM=${prmFailed}`
+    : `PASSED resolver=${cases.length} metadata/F3=ok F4=ok F5=ok SC5=${sc5Cases.length + redirectParamCases.length + 3} PRM=ok`,
 );
 process.exit(totalFailed ? 1 : 0);

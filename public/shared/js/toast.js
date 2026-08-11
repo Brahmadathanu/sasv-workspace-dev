@@ -1,53 +1,138 @@
-// Lightweight in-page toast helper
-export function showToast(message, opts = {}) {
-  const { type = "info", duration = 3000 } = opts;
+/**
+ * SASV Workspace — canonical toast (Phase 3A)
+ *
+ * Preferred:
+ *   import { showToast, toast } from "./toast.js";
+ *   showToast("Saved", { type: "success" });
+ *   showToast("Failed", "error");           // legacy positional type
+ *   showToast("Failed", "error", 4000);     // type + duration
+ *
+ * Styles live in style.css (.sasv-toast*). Icons via ui-icons.js when available.
+ */
 
-  // ensure container
-  let container = document.getElementById("app-toast-container");
+import { svgIcon } from "./ui-icons.js";
+
+const TYPE_MAP = {
+  success: "success",
+  ok: "success",
+  warning: "warning",
+  warn: "warning",
+  danger: "danger",
+  error: "danger",
+  err: "danger",
+  info: "info",
+  neutral: "neutral",
+  default: "neutral",
+};
+
+const TYPE_ICON = {
+  success: "check",
+  warning: "alert-triangle",
+  danger: "alert-triangle",
+  info: "info",
+  neutral: "info",
+};
+
+function normalizeType(type) {
+  const key = String(type || "info").toLowerCase();
+  return TYPE_MAP[key] || "info";
+}
+
+function ensureContainer() {
+  let container = document.getElementById("sasv-toast-container");
+  if (!container) {
+    container = document.getElementById("app-toast-container");
+  }
   if (!container) {
     container = document.createElement("div");
-    container.id = "app-toast-container";
+    container.id = "sasv-toast-container";
+    container.className = "sasv-toast-container";
     container.setAttribute("aria-live", "polite");
-    container.style.position = "fixed";
-    container.style.right = "18px";
-    container.style.bottom = "18px";
-    container.style.zIndex = 99999;
-    container.style.display = "flex";
-    container.style.flexDirection = "column";
-    container.style.gap = "8px";
+    container.setAttribute("aria-relevant", "additions");
     document.body.appendChild(container);
+  } else {
+    container.classList.add("sasv-toast-container");
+  }
+  return container;
+}
+
+function parseArgs(message, optsOrType, maybeDuration) {
+  let type = "info";
+  let duration = 3200;
+  let multiline = false;
+
+  if (typeof optsOrType === "string") {
+    type = optsOrType;
+    if (typeof maybeDuration === "number") duration = maybeDuration;
+  } else if (optsOrType && typeof optsOrType === "object") {
+    type = optsOrType.type ?? optsOrType.kind ?? "info";
+    if (typeof optsOrType.duration === "number") duration = optsOrType.duration;
+    if (typeof optsOrType.timeout === "number") duration = optsOrType.timeout;
+    if (optsOrType.multiline) multiline = true;
+  } else if (typeof optsOrType === "number") {
+    // showToast(msg, 5000) — some callers pass timeout as 2nd arg
+    duration = optsOrType;
   }
 
-  // inject basic styles once
-  if (!document.getElementById("app-toast-styles")) {
-    const s = document.createElement("style");
-    s.id = "app-toast-styles";
-    s.textContent = `
-      .app-toast { padding:10px 14px; border-radius:8px; color:#fff; box-shadow:0 6px 18px rgba(0,0,0,0.12); font-weight:600; max-width:320px; opacity:0; transform:translateY(8px); transition:opacity 240ms ease, transform 240ms ease; }
-      .app-toast.show { opacity:1; transform:translateY(0); }
-      .app-toast.info { background: linear-gradient(90deg,#2b7cff,#1c5bd6); }
-      .app-toast.success { background: linear-gradient(90deg,#16a34a,#0f8b3a); }
-      .app-toast.error { background: linear-gradient(90deg,#ef4444,#c53030); }
-    `;
-    document.head.appendChild(s);
+  return {
+    message: message == null ? "" : String(message),
+    type: normalizeType(type),
+    duration,
+    multiline,
+  };
+}
+
+/**
+ * @param {string} message
+ * @param {string|object|number} [optsOrType]
+ * @param {number} [maybeDuration]
+ */
+export function showToast(message, optsOrType, maybeDuration) {
+  const { message: text, type, duration, multiline } = parseArgs(
+    message,
+    optsOrType,
+    maybeDuration,
+  );
+  if (!text) return;
+
+  const container = ensureContainer();
+  const el = document.createElement("div");
+  el.className = `sasv-toast sasv-toast--${type}${multiline ? " sasv-toast--multiline" : ""}`;
+  el.setAttribute("role", "status");
+
+  const iconName = TYPE_ICON[type] || "info";
+  let iconMarkup = "";
+  try {
+    iconMarkup = `<span class="sasv-toast__icon" aria-hidden="true">${svgIcon(iconName, 16)}</span>`;
+  } catch {
+    iconMarkup = "";
   }
 
-  const t = document.createElement("div");
-  t.className = `app-toast ${type}`;
-  t.textContent = message;
-  container.appendChild(t);
+  el.innerHTML = `${iconMarkup}<span class="sasv-toast__msg"></span>`;
+  const msgEl = el.querySelector(".sasv-toast__msg");
+  if (msgEl) msgEl.textContent = text;
 
-  // trigger entrance
-  requestAnimationFrame(() => t.classList.add("show"));
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("is-show"));
 
   const remove = () => {
-    t.classList.remove("show");
-    setTimeout(() => t.remove(), 260);
+    el.classList.remove("is-show");
+    window.setTimeout(() => el.remove(), 220);
   };
 
-  const to = setTimeout(remove, duration);
-  t.addEventListener("click", () => {
-    clearTimeout(to);
+  const timer = window.setTimeout(remove, Math.max(1200, duration));
+  el.addEventListener("click", () => {
+    window.clearTimeout(timer);
     remove();
   });
+}
+
+/** Compatibility alias used by ui-helpers and some modules */
+export function toast(msg, type = "info", duration) {
+  return showToast(msg, type, duration);
+}
+
+if (typeof window !== "undefined") {
+  window.showToast = showToast;
+  window.sasvToast = showToast;
 }

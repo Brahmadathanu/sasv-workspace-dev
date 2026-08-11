@@ -1,0 +1,520 @@
+/**
+ * UI-MOD-4F — Fill Planner specialization.
+ * Scoped to body.sasv-fill-planner only.
+ * Preserves calculation workflow, datalist product picker, urgent-orders
+ * drawer, metrics/plan tables, and calc_fill_plan contracts.
+ *
+ * Viewport gutter: inherit body.sasv-module.sasv-module--app
+ * (--sasv-module-page-padding 20 / 10 / 6) — do not restate here.
+ */
+
+body.sasv-module.sasv-module--app.sasv-fill-planner {
+  margin: 0;
+  color: var(--sasv-text);
+  background: var(--sasv-bg);
+  font-family: var(--sasv-font-sans);
+  box-sizing: border-box;
+}
+
+/* App-shell: chrome stays; main content scrolls */
+body.sasv-fill-planner > .header-card {
+  flex-shrink: 0;
+}
+
+body.sasv-fill-planner > .fp-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/*
+ * Table-wrap safety:
+ * Fill Planner uses .fp-table-wrap (JS wrapTable). Also neutralize shared
+ * .table-wrap / .table-container / #tableWrap so ordinary wrappers never
+ * collapse under body.sasv-module flex-fill rules.
+ */
+body.sasv-fill-planner .fp-table-wrap,
+body.sasv-fill-planner .table-wrap,
+body.sasv-fill-planner .table-container,
+body.sasv-fill-planner #tableWrap {
+  flex: 0 1 auto;
+  min-height: auto;
+  overflow: auto;
+  max-height: 60vh;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.sasv-fill-planner .fp-table-wrap.has-scroll {
+  box-shadow:
+    inset 1px 0 var(--sasv-border),
+    inset -1px 0 var(--sasv-border);
+}
+
+body.sasv-fill-planner .fp-table-wrap table {
+  margin: 0;
+  min-width: 600px;
+}
+
+/* ── Header / HOME ──────────────────────────────────────────────────────── */
+body.sasv-fill-planner .header-card {
+  padding: 0;
+  margin: 0 0 12px;
+  background: transparent;
+  border: none;
+}
+
+body.sasv-fill-planner .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+}
+
+body.sasv-fill-planner .fp-header-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+body.sasv-fill-planner .page-header h1,
+body.sasv-fill-planner .sasv-module-title {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--sasv-text);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.sasv-fill-planner .page-sub {
+  margin: 4px 0 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+}
+
+body.sasv-fill-planner .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+body.sasv-fill-planner #homeBtn.sasv-home-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  body.sasv-fill-planner .page-sub {
+    display: none;
+  }
+}
+
+/* ── Control bar (Fill-specific geometry) ───────────────────────────────── */
+body.sasv-fill-planner .fp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+body.sasv-fill-planner .fp-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--sasv-text-sm);
+  font-weight: 500;
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-fill-planner .fp-controls label.fp-product-field {
+  flex: 1 1 280px;
+  min-width: 220px;
+  max-width: 420px;
+}
+
+body.sasv-fill-planner .fp-product-field .sasv-search-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Prefer Stock Checker searchable fill over generic control fill */
+body.sasv-fill-planner .sasv-search-select__input {
+  background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+  border: 1px solid
+    var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+  height: var(--sasv-control-md);
+  min-height: var(--sasv-control-md);
+}
+
+body.sasv-fill-planner .sasv-search-select__input:focus {
+  background: var(--sasv-control-bg);
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-fill-planner #fp-bulk {
+  width: 7.5rem;
+  max-width: 100%;
+}
+
+body.sasv-fill-planner #fp-uom {
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+  white-space: nowrap;
+}
+
+/* Freshness chip before HOME (Stock Checker .sc-snapshot grammar) */
+body.sasv-fill-planner #fp-updated.sc-snapshot {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+body.sasv-fill-planner #fp-status-detail {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 9px;
+  padding: 8px 10px;
+  background: var(--sasv-surface-soft, #f8fafc);
+  border: 1px solid var(--sasv-border, #e2e8f0);
+  border-radius: var(--sasv-radius-sm);
+  font-size: var(--sasv-text-xs);
+  font-weight: 400;
+  color: var(--sasv-text-secondary);
+  z-index: 100;
+  box-shadow: var(--sasv-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.06));
+  white-space: normal;
+  min-width: 0;
+  max-width: 420px;
+  width: auto;
+  line-height: 1.4;
+}
+
+/* ── Controls language ──────────────────────────────────────────────────── */
+body.sasv-fill-planner input[type="checkbox"],
+body.sasv-fill-planner input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sasv-action-primary);
+  flex-shrink: 0;
+}
+
+body.sasv-fill-planner
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    .sasv-search-select__input
+  ),
+body.sasv-fill-planner select:not(.sasv-native-select-sr),
+body.sasv-fill-planner textarea {
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-control-bg);
+  color: var(--sasv-text);
+  border-radius: var(--sasv-radius-sm);
+  min-height: var(--sasv-control-md);
+  height: var(--sasv-control-md);
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+}
+
+body.sasv-fill-planner
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    .sasv-search-select__input
+  ):focus,
+body.sasv-fill-planner select:not(.sasv-native-select-sr):focus,
+body.sasv-fill-planner textarea:focus {
+  outline: none;
+  border-color: var(--sasv-control-border-focus);
+  box-shadow: 0 0 0 3px var(--sasv-focus-ring);
+}
+
+body.sasv-fill-planner #fp-bulk,
+body.sasv-fill-planner #fp-emg-table input.emg-qty {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-fill-planner #fp-emg-table input.emg-qty {
+  width: 90%;
+  max-width: 140px;
+  height: var(--sasv-control-sm, 32px);
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px 8px;
+}
+
+/* ── Actions (UI-MOD-3D) ────────────────────────────────────────────────── */
+body.sasv-fill-planner .btn,
+body.sasv-fill-planner button.btn,
+body.sasv-fill-planner #fp-run,
+body.sasv-fill-planner #fp-clear,
+body.sasv-fill-planner #fp-workings-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: var(--sasv-control-md);
+  padding: 8px 14px;
+  border-radius: var(--sasv-radius-sm);
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: none;
+  transform: none;
+}
+
+body.sasv-fill-planner .btn:hover,
+body.sasv-fill-planner button.btn:hover,
+body.sasv-fill-planner #fp-run:hover,
+body.sasv-fill-planner #fp-clear:hover,
+body.sasv-fill-planner #fp-workings-copy:hover {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+  filter: none;
+  transform: none;
+  box-shadow: none;
+}
+
+body.sasv-fill-planner .btn.primary,
+body.sasv-fill-planner #fp-run.btn.primary,
+body.sasv-fill-planner #fp-run {
+  background: var(--sasv-action-primary);
+  color: var(--sasv-text-on-primary);
+  border-color: var(--sasv-action-primary);
+}
+
+body.sasv-fill-planner .btn.primary:hover,
+body.sasv-fill-planner #fp-run.btn.primary:hover,
+body.sasv-fill-planner #fp-run:hover {
+  background: var(--sasv-action-primary-hover);
+  border-color: var(--sasv-action-primary-hover);
+  color: var(--sasv-text-on-primary);
+}
+
+body.sasv-fill-planner .btn.primary:active,
+body.sasv-fill-planner #fp-run:active {
+  background: var(--sasv-action-primary-active, var(--sasv-action-primary-hover));
+  transform: none;
+  box-shadow: none;
+}
+
+body.sasv-fill-planner .btn svg,
+body.sasv-fill-planner button.btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-fill-planner .fp-run-wrap {
+  display: flex;
+  justify-content: flex-start;
+  margin: 12px 0 8px;
+}
+
+/* Icon-only ancillary toggles (JS-injected) */
+body.sasv-fill-planner .fp-small-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sasv-control-sm, 32px);
+  height: var(--sasv-control-sm, 32px);
+  min-width: var(--sasv-control-sm, 32px);
+  min-height: var(--sasv-control-sm, 32px);
+  padding: 4px;
+  margin-left: 6px;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  cursor: pointer;
+  vertical-align: middle;
+  box-sizing: border-box;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+body.sasv-fill-planner .fp-small-toggle:hover {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-fill-planner .fp-small-toggle svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.sasv-fill-planner #fp-copy-summary {
+  background: var(--sasv-success-bg, var(--sasv-surface-soft));
+  border-color: var(--sasv-success-border, var(--sasv-border));
+  color: var(--sasv-success, var(--sasv-text-secondary));
+}
+
+body.sasv-fill-planner #fp-copy-summary:hover {
+  background: var(--sasv-success-bg, var(--sasv-surface));
+}
+
+/* ── Section titles ─────────────────────────────────────────────────────── */
+body.sasv-fill-planner .fp-subtitle,
+body.sasv-fill-planner #fp-metrics-header,
+body.sasv-fill-planner #fp-emg-title,
+body.sasv-fill-planner #fp-title {
+  margin: 12px 0 6px;
+  font-size: var(--sasv-text-sm);
+  font-weight: 600;
+  color: var(--sasv-text-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 4px 0;
+  background: var(--sasv-bg);
+}
+
+body.sasv-fill-planner #fp-metrics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+body.sasv-fill-planner #fp-stock-updated {
+  display: none !important;
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+body.sasv-fill-planner table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 0;
+  font-size: var(--sasv-text-sm);
+  background: var(--sasv-surface);
+}
+
+body.sasv-fill-planner th,
+body.sasv-fill-planner td {
+  border: 1px solid var(--sasv-border);
+  padding: 6px 10px;
+  vertical-align: middle;
+}
+
+body.sasv-fill-planner thead th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-weight: 600;
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-fill-planner tbody tr:hover td {
+  background: var(--sasv-selection-soft, rgba(15, 40, 42, 0.04));
+}
+
+body.sasv-fill-planner #fp-metrics-table td,
+body.sasv-fill-planner #fp-table td,
+body.sasv-fill-planner #fp-emg-table td:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-fill-planner #fp-emg-table th:first-child,
+body.sasv-fill-planner #fp-emg-table td:first-child {
+  text-align: left;
+}
+
+/* ── Inline validation / message host ───────────────────────────────────── */
+body.sasv-fill-planner #msg {
+  margin: 8px 0;
+  font-size: var(--sasv-text-sm);
+  font-weight: 400;
+  color: var(--sasv-danger, #b91c1c);
+  min-height: 1.2em;
+}
+
+/* ── Calculation workings panel ─────────────────────────────────────────── */
+body.sasv-fill-planner #fp-workings {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--sasv-surface);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+}
+
+body.sasv-fill-planner #fp-workings > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--sasv-text-sm);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-fill-planner .fp-workings-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+body.sasv-fill-planner .fp-workings-scroll {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  max-height: 40vh;
+  overflow: auto;
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-fill-planner #fp-workings-body {
+  margin: 0;
+  padding: 12px;
+  font-family: var(--sasv-font-mono);
+  font-size: var(--sasv-text-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--sasv-text);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  body.sasv-fill-planner .fp-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  body.sasv-fill-planner .fp-controls label {
+    width: 100%;
+  }
+
+  body.sasv-fill-planner .fp-controls label > #fp-product-input {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  body.sasv-fill-planner #fp-emg-table input.emg-qty {
+    max-width: none;
+  }
+}

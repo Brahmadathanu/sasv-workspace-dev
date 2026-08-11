@@ -1,8 +1,11 @@
-// js/products.js
+// js/products.js — Gate 5.11V governed Product Master writers
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
+
+const MODULE_TARGET = "module:manage-products";
 
 // DOM refs
-// (global +New removed — use inline controls)
 const homeBtn = document.getElementById("homeBtn");
 const searchInput = document.getElementById("searchInput");
 const productList = document.getElementById("productList");
@@ -35,6 +38,27 @@ const inlineDeleteBtn = document.getElementById("inlineDeleteBtn");
 const newInlineBtn = document.getElementById("newInlineBtn");
 const productCountPill = document.getElementById("productCountPill");
 const clearSearchBtn = document.getElementById("clearSearchBtn");
+const accessStatusEl = document.getElementById("accessStatus");
+const viewOnlyBanner = document.getElementById("viewOnlyBanner");
+const productMasterMain = document.getElementById("productMasterMain");
+
+const governanceModalOverlay = document.getElementById("governanceModalOverlay");
+const governanceModalBox = document.getElementById("governanceModalBox");
+const governanceModalTitle = document.getElementById("governanceModalTitle");
+const governanceModalMessage = document.getElementById("governanceModalMessage");
+const governanceModalIcon = document.getElementById("governanceModalIcon");
+const governanceReason = document.getElementById("governanceReason");
+const governanceApprovalRef = document.getElementById("governanceApprovalRef");
+const governanceReasonError = document.getElementById("governanceReasonError");
+const governanceConfirm = document.getElementById("governanceConfirm");
+const governanceCancel = document.getElementById("governanceCancel");
+
+const accessState = {
+  userId: null,
+  canView: false,
+  canEdit: false,
+  loaded: false,
+};
 
 let allProducts = [];
 let filtered = [];
@@ -43,10 +67,20 @@ let unsaved = false;
 let editing = false;
 let previousSelectedId = null;
 let inNewMode = false;
-let keyboardIndex = -1; // index into `filtered` for highlighted item via keyboard
+let keyboardIndex = -1;
+let writeBusy = false;
+let loadedProductSnapshot = null;
+let classificationsWired = false;
 
-// Convenience: show a short in-app toast
-function showToast(text, timeout = 3000) {
+function canAccessModule() {
+  return Boolean(accessState.canView || accessState.canEdit);
+}
+
+function canWriteModule() {
+  return Boolean(accessState.canEdit);
+}
+
+function showToast(text, timeout = 3500) {
   try {
     if (!toastEl) return alert(text);
     toastEl.textContent = text;
@@ -80,14 +114,112 @@ function hideLoading() {
   }
 }
 
+function setAccessDenied(message) {
+  document.body.classList.add("access-denied");
+  if (accessStatusEl) {
+    accessStatusEl.hidden = false;
+    accessStatusEl.textContent = message;
+  }
+  if (viewOnlyBanner) viewOnlyBanner.hidden = true;
+  if (productMasterMain) productMasterMain.hidden = true;
+}
+
+function normalizeRpcRow(data, operationLabel) {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") {
+    throw new Error(
+      `${operationLabel} did not return a product row. Please try again.`,
+    );
+  }
+  return row;
+}
+
+function requireProductId(row, operationLabel) {
+  const productId = Number(row.product_id);
+  if (!Number.isFinite(productId) || productId <= 0) {
+    throw new Error(
+      `${operationLabel} did not return a valid product_id. Please try again.`,
+    );
+  }
+  return productId;
+}
+
+function surfaceRpcError(error, fallback) {
+  console.error(error);
+  const message =
+    (error && (error.message || error.details || error.hint)) ||
+    fallback ||
+    "The operation failed.";
+  showToast(message, 6000);
+}
+
+function setWriteBusy(busy) {
+  writeBusy = !!busy;
+  applyAccessChrome();
+}
+
+function updateDirtyIcons() {
+  const show = !!editing && !!unsaved && canWriteModule() && !writeBusy;
+  if (saveIconBtn) saveIconBtn.style.display = show ? "inline-block" : "none";
+  if (cancelIconBtn)
+    cancelIconBtn.style.display =
+      !!editing && !!unsaved && canWriteModule() ? "inline-block" : "none";
+}
+
 function setEditing(on) {
-  editing = !!on;
-  // Toggle button appearance
+  if (on && !canWriteModule()) {
+    editing = false;
+    showToast("You do not have permission to edit products.");
+    applyAccessChrome();
+    return;
+  }
+  editing = !!on && canWriteModule();
+  applyAccessChrome();
+}
+
+function applyAccessChrome() {
+  const hasAccess = canAccessModule();
+  const canEdit = canWriteModule();
+
+  document.body.classList.toggle("view-only-mode", hasAccess && !canEdit);
+  if (viewOnlyBanner) viewOnlyBanner.hidden = !(hasAccess && !canEdit);
+
   if (editToggleBtn) {
     editToggleBtn.classList.toggle("active", editing);
-    editToggleBtn.title = editing ? "Disable edit" : "Enable edit";
+    if (!canEdit) {
+      editToggleBtn.disabled = true;
+      editToggleBtn.title = "You do not have edit permission";
+    } else if (!selectedId && !inNewMode) {
+      editToggleBtn.disabled = true;
+      editToggleBtn.title = "Select a product to enable edit";
+    } else if (inNewMode) {
+      editToggleBtn.disabled = true;
+      editToggleBtn.title = "Finish or cancel the new product first";
+    } else {
+      editToggleBtn.disabled = writeBusy;
+      editToggleBtn.title = editing ? "Disable edit" : "Enable edit";
+    }
   }
-  // Explicitly enable/disable known controls so view-mode is enforced
+
+  if (newInlineBtn) {
+    newInlineBtn.disabled = !canEdit || writeBusy;
+    newInlineBtn.title = canEdit
+      ? "New product"
+      : "You do not have permission to create products";
+  }
+
+  if (inlineDeleteBtn) {
+    const showDeactivate = !!selectedId && !inNewMode;
+    inlineDeleteBtn.style.display = showDeactivate ? "inline-block" : "none";
+    inlineDeleteBtn.disabled = !canEdit || writeBusy || !showDeactivate;
+    inlineDeleteBtn.title = canEdit
+      ? "Deactivate product"
+      : "You do not have permission to deactivate products";
+    inlineDeleteBtn.setAttribute("aria-label", "Deactivate product");
+  }
+
+  if (deleteBtn) deleteBtn.disabled = !editing || writeBusy;
+
   const knownControls = [
     itemInput,
     malInput,
@@ -107,46 +239,96 @@ function setEditing(on) {
   knownControls.forEach((c) => {
     if (!c) return;
     try {
-      c.disabled = !editing;
+      c.disabled = !editing || writeBusy;
     } catch (err) {
       console.error(err);
     }
   });
-  // Save/Delete buttons
-  const saveBtn = document.getElementById("saveBtn");
-  if (saveBtn) saveBtn.disabled = !editing;
-  if (deleteBtn) deleteBtn.disabled = !editing;
 
-  // Re-evaluate dependent controls when editing enabled
-  if (uomBaseSelect)
+  if (uomBaseSelect && conversionInput) {
     conversionInput.disabled = !(
       editing &&
-      uomBaseSelect &&
+      !writeBusy &&
       uomBaseSelect.value
     );
-  if (seasonProfileSelect)
+  }
+  if (seasonProfileSelect) {
     seasonProfileSelect.disabled = !(
       editing &&
+      !writeBusy &&
       isSeasonalCheckbox &&
       isSeasonalCheckbox.checked
     );
-  if (leadTimeInput)
+  }
+  if (leadTimeInput) {
     leadTimeInput.disabled = !(
       editing &&
+      !writeBusy &&
       isLltCheckbox &&
       isLltCheckbox.checked
     );
-  // Ensure classification selects reflect editing state without clearing existing values when in view mode
+  }
+
+  const saveBtn = document.getElementById("saveBtn");
+  if (saveBtn) saveBtn.disabled = !editing || writeBusy;
+
   updateClassificationState();
-  // update visibility of inline save/cancel icons
   updateDirtyIcons();
 }
 
-function updateDirtyIcons() {
-  const show = !!editing && !!unsaved;
-  if (saveIconBtn) saveIconBtn.style.display = show ? "inline-block" : "none";
-  if (cancelIconBtn)
-    cancelIconBtn.style.display = show ? "inline-block" : "none";
+async function loadProductMasterAccess() {
+  accessState.userId = null;
+  accessState.canView = false;
+  accessState.canEdit = false;
+  accessState.loaded = false;
+
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.user?.id) {
+    throw sessionError || new Error("No active session");
+  }
+
+  accessState.userId = session.user.id;
+  const uid = accessState.userId;
+  let found = null;
+
+  try {
+    const { data: perms, error } = await supabase.rpc("get_user_permissions", {
+      p_user_id: uid,
+    });
+    if (!error && Array.isArray(perms)) {
+      const hit = perms.find((r) => r?.target === MODULE_TARGET);
+      if (hit) found = hit;
+    }
+  } catch {
+    // fall through
+  }
+
+  if (!found) {
+    try {
+      const { data: canonicalRows } = await supabase
+        .from("user_permissions_canonical")
+        .select("can_view, can_edit")
+        .eq("user_id", uid)
+        .eq("target", MODULE_TARGET)
+        .limit(1);
+      if (Array.isArray(canonicalRows) && canonicalRows.length) {
+        found = canonicalRows[0];
+      }
+    } catch {
+      // fail closed — do not guess legacy module ids
+    }
+  }
+
+  if (found) {
+    accessState.canView = Boolean(found.can_view);
+    accessState.canEdit = Boolean(found.can_edit);
+  }
+
+  accessState.loaded = true;
 }
 
 // ─── prevent focus loss on Ctrl+Digit ─────────────────────
@@ -164,7 +346,7 @@ window.addEventListener(
       if (e.code === "Digit5") itemInput.focus();
     }
   },
-  true
+  true,
 );
 
 // ─── modal helper (enhanced ERP-styled) ────────────────────
@@ -172,29 +354,26 @@ const modalBox = document.getElementById("modalBox");
 const modalTitle = document.getElementById("modalTitle");
 const modalIcon = document.getElementById("modalIcon");
 function showModal(msg, okText = "OK", cancelText = "Cancel", type = null) {
-  // type: 'delete' | 'save' | 'warning' | 'confirm' (optional)
   const inferType = (ok) => {
     if (!ok) return "confirm";
     const o = ok.toLowerCase();
-    if (o.includes("delete")) return "delete";
+    if (o.includes("delete") || o.includes("deactivate")) return "delete";
     if (o.includes("save")) return "save";
     if (o.includes("discard") || o.includes("cancel")) return "warning";
     return "confirm";
   };
   const t = type || inferType(okText);
-  // set classes
   if (modalBox) {
     modalBox.classList.remove(
       "type-delete",
       "type-save",
       "type-warning",
-      "type-confirm"
+      "type-confirm",
     );
     modalBox.classList.add(`type-${t}`);
   }
-  // set title and icon
   const titleMap = {
-    delete: "Confirm Delete",
+    delete: "Confirm",
     save: "Confirm Save",
     warning: "Warning",
     confirm: "Confirm",
@@ -212,10 +391,8 @@ function showModal(msg, okText = "OK", cancelText = "Cancel", type = null) {
   if (modalIcon) modalIcon.innerHTML = svgMap[t] || svgMap.confirm;
 
   return new Promise((res) => {
-    // preserve currently focused element so we can restore focus after closing
     const previouslyFocused = document.activeElement;
     modalMessage.textContent = msg;
-    // set button labels
     if (modalConfirm) {
       modalConfirm.textContent = okText || "OK";
       modalConfirm.className =
@@ -224,12 +401,12 @@ function showModal(msg, okText = "OK", cancelText = "Cancel", type = null) {
     if (modalCancel) {
       modalCancel.textContent = cancelText || "Cancel";
       modalCancel.className = "btn secondary";
+      modalCancel.style.display = cancelText === "" ? "none" : "";
     }
     if (modalOverlay) {
       modalOverlay.classList.add("show");
       modalOverlay.setAttribute("aria-hidden", "false");
     }
-    // try to move focus into the modal for accessibility
     try {
       if (modalConfirm && typeof modalConfirm.focus === "function")
         modalConfirm.focus();
@@ -237,17 +414,15 @@ function showModal(msg, okText = "OK", cancelText = "Cancel", type = null) {
       /* ignore */
     }
     const cleanup = () => {
-      // remove event listeners first
       if (modalConfirm) modalConfirm.removeEventListener("click", onOk);
       if (modalCancel) modalCancel.removeEventListener("click", onCancel);
-      // restore focus to the element that had it before the modal opened
+      document.removeEventListener("keydown", onKey);
       try {
         if (previouslyFocused && typeof previouslyFocused.focus === "function")
           previouslyFocused.focus();
       } catch {
         /* ignore */
       }
-      // only after focus is moved away, hide the overlay to avoid aria-hidden on focused node
       if (modalOverlay) {
         modalOverlay.classList.remove("show");
         modalOverlay.setAttribute("aria-hidden", "true");
@@ -261,9 +436,201 @@ function showModal(msg, okText = "OK", cancelText = "Cancel", type = null) {
       cleanup();
       res(false);
     };
+    const onKey = (ev) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        onCancel();
+      }
+    };
     if (modalConfirm) modalConfirm.addEventListener("click", onOk);
     if (modalCancel) modalCancel.addEventListener("click", onCancel);
+    document.addEventListener("keydown", onKey);
   });
+}
+
+function promptGovernance({
+  title,
+  message,
+  confirmLabel = "Confirm",
+  danger = false,
+} = {}) {
+  return new Promise((resolve) => {
+    if (
+      !governanceModalOverlay ||
+      !governanceReason ||
+      !governanceConfirm ||
+      !governanceCancel
+    ) {
+      resolve(null);
+      return;
+    }
+
+    const previouslyFocused = document.activeElement;
+    if (governanceModalTitle) governanceModalTitle.textContent = title || "Confirm";
+    if (governanceModalMessage) governanceModalMessage.textContent = message || "";
+    if (governanceModalBox) {
+      governanceModalBox.classList.toggle("type-danger", !!danger);
+    }
+    if (governanceModalIcon) {
+      governanceModalIcon.innerHTML = danger
+        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#b42318" stroke-width="1.4" fill="none"/><path d="M12 9v4M12 17h.01" stroke="#b42318" stroke-width="1.6" stroke-linecap="round"/></svg>'
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3h14v18H5z" stroke="#2d8f46" stroke-width="1.6" fill="none"/><path d="M9 11l2 2 4-4" stroke="#2d8f46" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    }
+    governanceReason.value = "";
+    if (governanceApprovalRef) governanceApprovalRef.value = "";
+    if (governanceReasonError) governanceReasonError.textContent = "";
+    governanceConfirm.textContent = confirmLabel || "Confirm";
+    governanceConfirm.className = "btn primary" + (danger ? " danger" : "");
+
+    governanceModalOverlay.classList.add("show");
+    governanceModalOverlay.setAttribute("aria-hidden", "false");
+    try {
+      governanceReason.focus();
+    } catch {
+      /* ignore */
+    }
+
+    const cleanup = () => {
+      governanceConfirm.removeEventListener("click", onOk);
+      governanceCancel.removeEventListener("click", onCancel);
+      document.removeEventListener("keydown", onKey);
+      try {
+        if (previouslyFocused && typeof previouslyFocused.focus === "function")
+          previouslyFocused.focus();
+      } catch {
+        /* ignore */
+      }
+      governanceModalOverlay.classList.remove("show");
+      governanceModalOverlay.setAttribute("aria-hidden", "true");
+    };
+
+    const onOk = () => {
+      const reason = String(governanceReason.value || "").trim();
+      if (!reason) {
+        if (governanceReasonError) {
+          governanceReasonError.textContent = "A business reason is required.";
+        }
+        try {
+          governanceReason.focus();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      const approvalReference = String(
+        governanceApprovalRef?.value || "",
+      ).trim();
+      cleanup();
+      resolve({
+        reason,
+        approvalReference: approvalReference || null,
+      });
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onKey = (ev) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        onCancel();
+      }
+    };
+
+    governanceConfirm.addEventListener("click", onOk);
+    governanceCancel.addEventListener("click", onCancel);
+    document.addEventListener("keydown", onKey);
+  });
+}
+
+function buildProductRpcPayloadFromForm({ reason, approvalReference }) {
+  const newItem = itemInput.value.trim();
+  const newMal = malInput.value.trim();
+  const newStat = statusSelect.value;
+  const newSg = subgroupSelect.value ? Number(subgroupSelect.value) : null;
+  const newPto = isPtoCheckbox ? isPtoCheckbox.checked : false;
+  const newUom = uomBaseSelect ? uomBaseSelect.value || null : null;
+  const newConversion =
+    conversionInput && conversionInput.value !== ""
+      ? Number(conversionInput.value)
+      : null;
+  const newIsSeasonal = isSeasonalCheckbox ? isSeasonalCheckbox.checked : false;
+  const newSeasonProfile =
+    seasonProfileSelect && seasonProfileSelect.value
+      ? Number(seasonProfileSelect.value)
+      : null;
+  const newIsLlt = isLltCheckbox ? isLltCheckbox.checked : false;
+  const newLeadTime =
+    leadTimeInput && leadTimeInput.value !== ""
+      ? parseInt(leadTimeInput.value, 10)
+      : null;
+
+  return {
+    p_item: newItem,
+    p_sub_group_id: newSg,
+    p_malayalam_name: newMal,
+    p_status: newStat,
+    p_uom_base: newUom,
+    p_conversion_to_base: newConversion,
+    p_is_seasonal: newIsSeasonal,
+    p_is_llt: newIsLlt,
+    p_manufacture_lead_time_months: newLeadTime,
+    p_season_profile_id: newSeasonProfile,
+    p_is_pto: newPto,
+    p_reason: reason,
+    p_approval_reference: approvalReference || null,
+  };
+}
+
+function buildProductRpcPayloadFromSnapshot(
+  snapshot,
+  { reason, approvalReference, statusOverride } = {},
+) {
+  return {
+    p_product_id: Number(snapshot.product_id),
+    p_item: snapshot.item,
+    p_sub_group_id: snapshot.sub_group_id,
+    p_malayalam_name: snapshot.malayalam_name,
+    p_status: statusOverride || snapshot.status,
+    p_uom_base: snapshot.uom_base,
+    p_conversion_to_base: snapshot.conversion_to_base,
+    p_is_seasonal: !!snapshot.is_seasonal,
+    p_is_llt: !!snapshot.is_llt,
+    p_manufacture_lead_time_months: snapshot.manufacture_lead_time_months,
+    p_season_profile_id: snapshot.season_profile_id,
+    p_is_pto: !!snapshot.is_pto,
+    p_reason: reason,
+    p_approval_reference: approvalReference || null,
+  };
+}
+
+function captureLoadedSnapshot(prod, productId) {
+  loadedProductSnapshot = {
+    product_id: Number(productId),
+    item: prod.item,
+    malayalam_name: prod.malayalam_name,
+    status: prod.status,
+    sub_group_id: prod.sub_group_id != null ? Number(prod.sub_group_id) : null,
+    is_pto: !!prod.is_pto,
+    uom_base: prod.uom_base || null,
+    conversion_to_base:
+      prod.conversion_to_base === null || prod.conversion_to_base === undefined
+        ? null
+        : Number(prod.conversion_to_base),
+    is_seasonal: !!prod.is_seasonal,
+    season_profile_id:
+      prod.season_profile_id === null || prod.season_profile_id === undefined
+        ? null
+        : Number(prod.season_profile_id),
+    is_llt: !!prod.is_llt,
+    manufacture_lead_time_months:
+      prod.manufacture_lead_time_months === null ||
+      prod.manufacture_lead_time_months === undefined
+        ? null
+        : Number(prod.manufacture_lead_time_months),
+  };
 }
 
 // ─── cascading classification loads ────────────────────────
@@ -277,16 +644,18 @@ async function loadClassifications() {
   categorySelect.innerHTML = '<option value="">-- Select --</option>';
   cats.forEach((c) => categorySelect.add(new Option(c.category_name, c.id)));
 
-  categorySelect.addEventListener("change", () =>
-    loadSubcats(categorySelect.value)
-  );
-  subcategorySelect.addEventListener("change", () =>
-    loadGroups(subcategorySelect.value)
-  );
-  groupSelect.addEventListener("change", () =>
-    loadSubgroups(groupSelect.value)
-  );
-  // set initial enabled/disabled state
+  if (!classificationsWired) {
+    categorySelect.addEventListener("change", () =>
+      loadSubcats(categorySelect.value),
+    );
+    subcategorySelect.addEventListener("change", () =>
+      loadGroups(subcategorySelect.value),
+    );
+    groupSelect.addEventListener("change", () =>
+      loadSubgroups(groupSelect.value),
+    );
+    classificationsWired = true;
+  }
   updateClassificationState();
 }
 
@@ -302,7 +671,7 @@ async function loadSubcats(catId) {
     .order("subcategory_name");
   if (error) return console.error(error);
   data.forEach((s) =>
-    subcategorySelect.add(new Option(s.subcategory_name, s.id))
+    subcategorySelect.add(new Option(s.subcategory_name, s.id)),
   );
   updateClassificationState();
 }
@@ -331,34 +700,29 @@ async function loadSubgroups(gId) {
     .order("sub_group_name");
   if (error) return console.error(error);
   data.forEach((sg) =>
-    subgroupSelect.add(new Option(sg.sub_group_name, sg.id))
+    subgroupSelect.add(new Option(sg.sub_group_name, sg.id)),
   );
   updateClassificationState();
 }
 
 function updateClassificationState() {
-  // Enable selects only when editing AND parent selection exists.
-  // If parent selection exists but editing is false, keep the value but keep the select disabled (view-only).
   const hasCat = !!categorySelect && !!categorySelect.value;
   if (subcategorySelect) {
-    // enable only when editing and parent present
-    subcategorySelect.disabled = !(editing && hasCat);
-    // clear only when parent absent
+    subcategorySelect.disabled = !(editing && !writeBusy && hasCat);
     if (!hasCat) subcategorySelect.value = "";
   }
   const hasSub = !!subcategorySelect && !!subcategorySelect.value;
   if (groupSelect) {
-    groupSelect.disabled = !(editing && hasSub);
+    groupSelect.disabled = !(editing && !writeBusy && hasSub);
     if (!hasSub) groupSelect.value = "";
   }
   const hasGroup = !!groupSelect && !!groupSelect.value;
   if (subgroupSelect) {
-    subgroupSelect.disabled = !(editing && hasGroup);
+    subgroupSelect.disabled = !(editing && !writeBusy && hasGroup);
     if (!hasGroup) subgroupSelect.value = "";
   }
 }
 
-// ─── chunked fetch of *all* products ───────────────────────
 const CHUNK = 1000;
 async function fetchAllProducts() {
   let from = 0;
@@ -380,7 +744,6 @@ async function fetchAllProducts() {
   return all;
 }
 
-// ─── load & render products ────────────────────────────────
 async function loadProducts() {
   allProducts = await fetchAllProducts();
   applyFilter();
@@ -396,18 +759,15 @@ function applyFilter() {
           p.id
         }" aria-selected="${p.id === selectedId ? "true" : "false"}"${
           p.id === selectedId ? ' class="selected"' : ""
-        }>${p.item}</li>`
+        }>${p.item}</li>`,
     )
     .join("");
-  // if we have a keyboardIndex still set, reapply highlight
   const lis = Array.from(productList.querySelectorAll("li"));
   if (keyboardIndex >= 0 && keyboardIndex < lis.length) {
     updateKeyboardHighlight(lis, keyboardIndex);
   } else {
-    // ensure aria-activedescendant cleared when nothing focused
     productList.removeAttribute("aria-activedescendant");
   }
-  // update pill: show "matches / total" when filtering, otherwise show total
   try {
     if (productCountPill) {
       const total = allProducts.length || 0;
@@ -420,7 +780,7 @@ function applyFilter() {
         productCountPill.title = `${filtered.length} matches of ${total} products`;
         productCountPill.setAttribute(
           "aria-label",
-          `${filtered.length} matches of ${total} products`
+          `${filtered.length} matches of ${total} products`,
         );
       }
     }
@@ -429,14 +789,13 @@ function applyFilter() {
   }
 }
 
-// ─── load single detail or reset ──────────────────────────
 async function loadDetails(id) {
   let loaded = false;
   if (unsaved) {
     const ok = await showModal(
       "You have unsaved changes. Discard?",
       "Discard",
-      "Cancel"
+      "Cancel",
     );
     if (!ok) return;
   }
@@ -446,6 +805,7 @@ async function loadDetails(id) {
 
   if (!id) {
     form.reset();
+    loadedProductSnapshot = null;
     if (isPtoCheckbox) isPtoCheckbox.checked = false;
     if (uomBaseSelect) uomBaseSelect.value = "";
     if (conversionInput) conversionInput.value = "";
@@ -453,31 +813,26 @@ async function loadDetails(id) {
     if (seasonProfileSelect) seasonProfileSelect.value = "";
     if (isLltCheckbox) isLltCheckbox.checked = false;
     if (leadTimeInput) leadTimeInput.value = "";
-    if (deleteBtn) deleteBtn.disabled = true;
     unsaved = false;
-    itemInput.focus();
-    // no product selected -> disable edit toggle until a product is chosen
-    if (editToggleBtn) {
-      editToggleBtn.disabled = true;
-      editToggleBtn.title = "Select a product to enable edit";
-    }
-    // hide inline delete when no product selected
-    if (inlineDeleteBtn) inlineDeleteBtn.style.display = "none";
+    applyAccessChrome();
     return true;
   }
-  // show overlay only when we are about to perform network loads
+
   showLoading();
   try {
     const { data: prod, error } = await supabase
       .from("products")
       .select(
-        "item, malayalam_name, status, sub_group_id, is_pto, uom_base, conversion_to_base, is_seasonal, season_profile_id, is_llt, manufacture_lead_time_months"
+        "item, malayalam_name, status, sub_group_id, is_pto, uom_base, conversion_to_base, is_seasonal, season_profile_id, is_llt, manufacture_lead_time_months",
       )
       .eq("id", id)
       .single();
-    if (error) return console.error(error);
+    if (error) {
+      console.error(error);
+      loadedProductSnapshot = null;
+      return false;
+    }
 
-    // fill fields
     itemInput.value = prod.item;
     malInput.value = prod.malayalam_name;
     statusSelect.value = prod.status;
@@ -491,7 +846,6 @@ async function loadDetails(id) {
     if (leadTimeInput)
       leadTimeInput.value = prod.manufacture_lead_time_months ?? "";
 
-    // cascade up to category
     const { data: sg } = await supabase
       .from("sub_groups")
       .select("product_group_id")
@@ -517,274 +871,266 @@ async function loadDetails(id) {
     groupSelect.value = pgId;
     await loadSubgroups(groupSelect.value);
     subgroupSelect.value = prod.sub_group_id;
-    if (deleteBtn) deleteBtn.disabled = false;
+
+    captureLoadedSnapshot(prod, id);
     unsaved = false;
     loaded = true;
-    // show inline delete when a product is loaded
-    if (inlineDeleteBtn) {
-      inlineDeleteBtn.style.display = "inline-block";
-      inlineDeleteBtn.disabled = !window.CAN_EDIT;
-    }
-    // ensure the edit toggle is enabled when a product is loaded and the user can edit
-    if (editToggleBtn) {
-      editToggleBtn.disabled = !window.CAN_EDIT;
-      if (!window.CAN_EDIT)
-        editToggleBtn.title = "You do not have edit permission";
-      else editToggleBtn.title = editing ? "Disable edit" : "Enable edit";
-    }
+    applyAccessChrome();
   } finally {
     hideLoading();
   }
   return loaded;
 }
 
-// ─── save / insert ────────────────────────────────────────
+function buildSaveSummary(fields) {
+  const names = [
+    categorySelect.selectedOptions[0]?.text || "—",
+    subcategorySelect.selectedOptions[0]?.text || "—",
+    groupSelect.selectedOptions[0]?.text || "—",
+    subgroupSelect.selectedOptions[0]?.text || "—",
+  ];
+  return [
+    `Item: ${fields.p_item}`,
+    `Malayalam name: ${fields.p_malayalam_name}`,
+    `Status: ${fields.p_status}`,
+    `PTO: ${fields.p_is_pto ? "Yes" : "No"}`,
+    `UOM Base: ${fields.p_uom_base || "None"}`,
+    `Conversion: ${
+      fields.p_conversion_to_base !== null ? fields.p_conversion_to_base : "—"
+    }`,
+    `Seasonal: ${fields.p_is_seasonal ? "Yes" : "No"}`,
+    `Season Profile: ${
+      fields.p_season_profile_id
+        ? seasonProfileSelect?.selectedOptions?.[0]?.text ||
+          fields.p_season_profile_id
+        : "—"
+    }`,
+    `LLT: ${fields.p_is_llt ? "Yes" : "No"}`,
+    `Lead time (m): ${
+      fields.p_manufacture_lead_time_months !== null
+        ? fields.p_manufacture_lead_time_months
+        : "—"
+    }`,
+    `Category: ${names[0]}`,
+    `Sub-category: ${names[1]}`,
+    `Group: ${names[2]}`,
+    `Sub-group: ${names[3]}`,
+  ].join("\n");
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const newItem = itemInput.value.trim();
-  const newMal = malInput.value.trim();
-  const newStat = statusSelect.value;
-  const newSg = subgroupSelect.value;
-  const newPto = isPtoCheckbox ? isPtoCheckbox.checked : false;
-  const newUom = uomBaseSelect ? uomBaseSelect.value || null : null;
-  const newConversion =
-    conversionInput && conversionInput.value !== ""
-      ? Number(conversionInput.value)
-      : null;
-  const newIsSeasonal = isSeasonalCheckbox ? isSeasonalCheckbox.checked : false;
-  const newSeasonProfile =
-    seasonProfileSelect && seasonProfileSelect.value
-      ? Number(seasonProfileSelect.value)
-      : null;
-  const newIsLlt = isLltCheckbox ? isLltCheckbox.checked : false;
-  const newLeadTime =
-    leadTimeInput && leadTimeInput.value !== ""
-      ? parseInt(leadTimeInput.value, 10)
-      : null;
+  if (!canWriteModule()) {
+    showToast("You do not have permission to save products.");
+    return;
+  }
+  if (writeBusy) return;
 
-  // duplicate check on new
+  const draft = buildProductRpcPayloadFromForm({
+    reason: "__pending__",
+    approvalReference: null,
+  });
+
   if (!selectedId) {
     const dup = allProducts.find(
-      (p) => p.item.toLowerCase() === newItem.toLowerCase()
+      (p) => p.item.toLowerCase() === draft.p_item.toLowerCase(),
     );
     if (dup) {
       const edit = await showModal(
-        `Product "${newItem}" exists. Edit instead?`,
+        `Product "${draft.p_item}" exists. Edit instead?`,
         "Yes",
-        "Cancel"
+        "Cancel",
       );
       if (edit) {
         unsaved = false;
+        inNewMode = false;
         return loadDetails(dup.id);
-      } else {
-        form.reset();
-        unsaved = false;
-        return;
       }
+      form.reset();
+      unsaved = false;
+      applyAccessChrome();
+      return;
     }
   }
 
-  if (!newItem || !newMal || !newStat || !newSg) {
+  if (
+    !draft.p_item ||
+    !draft.p_malayalam_name ||
+    !draft.p_status ||
+    !draft.p_sub_group_id
+  ) {
     return showModal("Please fill in all fields.", "OK", "");
   }
 
-  // conditional validations
   if (
-    newUom &&
-    (newConversion === null || isNaN(newConversion) || newConversion <= 0)
+    draft.p_uom_base &&
+    (draft.p_conversion_to_base === null ||
+      Number.isNaN(draft.p_conversion_to_base) ||
+      draft.p_conversion_to_base <= 0)
   ) {
     return showModal(
       "Please provide a positive Conversion To Base when UOM Base is set.",
       "OK",
-      ""
+      "",
     );
   }
-  if (newIsSeasonal && !newSeasonProfile) {
+  if (draft.p_is_seasonal && !draft.p_season_profile_id) {
     return showModal(
       "Please select a Season Profile when 'Seasonal' is checked.",
       "OK",
-      ""
+      "",
     );
   }
   if (
-    newIsLlt &&
-    (newLeadTime === null || isNaN(newLeadTime) || newLeadTime < 0)
+    draft.p_is_llt &&
+    (draft.p_manufacture_lead_time_months === null ||
+      Number.isNaN(draft.p_manufacture_lead_time_months) ||
+      draft.p_manufacture_lead_time_months < 0)
   ) {
     return showModal(
       "Please provide a non-negative manufacture lead time in months.",
       "OK",
-      ""
+      "",
     );
   }
 
-  // preview
-  const names = [
-    categorySelect.selectedOptions[0].text,
-    subcategorySelect.selectedOptions[0].text,
-    groupSelect.selectedOptions[0].text,
-    subgroupSelect.selectedOptions[0].text,
-  ];
-  const msg = [
-    `Save this product?`,
-    ``,
-    `• Item:           ${newItem}`,
-    `• Malayalam name: ${newMal}`,
-    `• Status:         ${newStat}`,
-    `• PTO:            ${newPto ? "Yes" : "No"}`,
-    `• UOM Base:       ${newUom || "None"}`,
-    `• Conversion:     ${newConversion !== null ? newConversion : "—"}`,
-    `• Seasonal:       ${newIsSeasonal ? "Yes" : "No"}`,
-    `• Season Profile: ${
-      newSeasonProfile
-        ? seasonProfileSelect
-          ? seasonProfileSelect.selectedOptions[0].text
-          : newSeasonProfile
-        : "—"
-    }`,
-    `• LLT:            ${newIsLlt ? "Yes" : "No"}`,
-    `• Lead time (m):  ${newLeadTime !== null ? newLeadTime : "—"}`,
-    `• Category:       ${names[0]}`,
-    `• Sub-category:   ${names[1]}`,
-    `• Group:          ${names[2]}`,
-    `• Sub-group:      ${names[3]}`,
-  ].join("\n");
-  if (!(await showModal(msg, "Save", "Cancel"))) return;
+  const isCreate = !selectedId;
+  const summary = buildSaveSummary(draft);
+  const governance = await promptGovernance({
+    title: isCreate ? "Create product" : "Update product",
+    message: `${isCreate ? "Create" : "Update"} this product?\n\n${summary}`,
+    confirmLabel: isCreate ? "Create" : "Save",
+    danger: false,
+  });
+  if (!governance) return;
 
-  // perform upsert
-  if (selectedId) {
-    const { error } = await supabase
-      .from("products")
-      .update({
-        item: newItem,
-        malayalam_name: newMal,
-        status: newStat,
-        sub_group_id: newSg,
-        is_pto: newPto,
-        uom_base: newUom,
-        conversion_to_base: newConversion,
-        is_seasonal: newIsSeasonal,
-        season_profile_id: newSeasonProfile,
-        is_llt: newIsLlt,
-        manufacture_lead_time_months: newLeadTime,
-      })
-      .eq("id", selectedId);
-    if (error) return console.error(error);
-  } else {
-    const { data: inserted, error } = await supabase
-      .from("products")
-      .insert([
-        {
-          item: newItem,
-          malayalam_name: newMal,
-          status: newStat,
-          sub_group_id: newSg,
-          is_pto: newPto,
-          uom_base: newUom,
-          conversion_to_base: newConversion,
-          is_seasonal: newIsSeasonal,
-          season_profile_id: newSeasonProfile,
-          is_llt: newIsLlt,
-          manufacture_lead_time_months: newLeadTime,
-        },
-      ])
-      .select("id")
-      .single();
-    if (error) return console.error(error);
-    if (inserted && inserted.id) selectedId = inserted.id;
-  }
-
-  // We've persisted changes successfully; clear unsaved so subsequent loads don't prompt
-  unsaved = false;
-
-  // clear filter and reload everything; if we just inserted, open that item
-  searchInput.value = "";
-  await loadProducts();
-  if (selectedId) {
-    await loadDetails(selectedId);
-  } else {
-    await loadDetails(null);
-  }
-
-  // if we were in New-mode, exit it and restore UI state
-  if (inNewMode) {
-    inNewMode = false;
-    previousSelectedId = null;
-    unsaved = false;
-    if (editToggleBtn) editToggleBtn.disabled = !window.CAN_EDIT;
-    setEditing(false);
+  const payload = buildProductRpcPayloadFromForm(governance);
+  setWriteBusy(true);
+  showLoading();
+  try {
+    if (isCreate) {
+      const { data, error } = await supabase.rpc("rpc_create_product", payload);
+      if (error) {
+        surfaceRpcError(error, "Failed to create product.");
+        return;
+      }
+      let row;
+      try {
+        row = normalizeRpcRow(data, "Create product");
+        selectedId = requireProductId(row, "Create product");
+      } catch (normErr) {
+        surfaceRpcError(normErr, "Failed to create product.");
+        return;
+      }
+      showToast("Product created successfully.");
+      searchInput.value = "";
+      await loadProducts();
+      unsaved = false;
+      inNewMode = false;
+      previousSelectedId = null;
+      await loadDetails(selectedId);
+      setEditing(false);
+    } else {
+      const updatePayload = {
+        p_product_id: Number(selectedId),
+        ...payload,
+      };
+      const { data, error } = await supabase.rpc(
+        "rpc_update_product",
+        updatePayload,
+      );
+      if (error) {
+        surfaceRpcError(error, "Failed to update product.");
+        return;
+      }
+      try {
+        normalizeRpcRow(data, "Update product");
+      } catch (normErr) {
+        surfaceRpcError(normErr, "Failed to update product.");
+        return;
+      }
+      showToast("Product updated successfully.");
+      searchInput.value = "";
+      await loadProducts();
+      unsaved = false;
+      await loadDetails(selectedId);
+      setEditing(false);
+    }
+  } catch (err) {
+    surfaceRpcError(err, "Unexpected error while saving the product.");
+  } finally {
+    hideLoading();
+    setWriteBusy(false);
   }
 });
 
-// wire the inline SVG save/cancel buttons
 if (saveIconBtn) {
   saveIconBtn.addEventListener("click", () => {
-    // delegate to the form submit flow (which shows preview modal)
+    if (!canWriteModule()) {
+      showToast("You do not have permission to save products.");
+      return;
+    }
+    if (writeBusy) return;
     try {
       form.requestSubmit();
     } catch {
-      // fallback for older browsers
       const ev = new Event("submit", { cancelable: true });
       form.dispatchEvent(ev);
     }
   });
 }
+
 if (cancelIconBtn) {
   cancelIconBtn.addEventListener("click", async () => {
-    // discard unsaved changes: handle New-mode specially, otherwise reload current product
+    if (writeBusy) return;
     if (!selectedId) {
       if (inNewMode) {
         const ok = await showModal("Discard new product?", "Discard", "Cancel");
         if (!ok) return;
         inNewMode = false;
         unsaved = false;
-        updateDirtyIcons();
         const prev = previousSelectedId;
         previousSelectedId = null;
         if (prev) {
           await loadDetails(prev);
         } else {
           form.reset();
+          loadedProductSnapshot = null;
         }
-        if (editToggleBtn) editToggleBtn.disabled = !window.CAN_EDIT;
+        setEditing(false);
         return;
       }
       form.reset();
       unsaved = false;
-      updateDirtyIcons();
+      applyAccessChrome();
       return;
     }
-    // confirm discard once, then clear unsaved BEFORE reloading details
     const ok = await showModal("Discard changes?", "Discard", "Cancel");
     if (!ok) return;
-    // clear unsaved so loadDetails doesn't prompt again
     unsaved = false;
-    updateDirtyIcons();
     await loadDetails(selectedId);
+    setEditing(false);
   });
 }
 
-// (global footer Delete removed) — use inline delete icon `inlineDeleteBtn` instead.
-
-// (global +New removed) — use the inline New control `newInlineBtn` instead.
-
-// Inline New button (next to Edit) — behaves like global New but keeps track of previous selection
 if (newInlineBtn) {
   newInlineBtn.addEventListener("click", async () => {
-    if (!window.CAN_EDIT) {
+    if (!canWriteModule()) {
       showToast("You do not have permission to create products.");
       return;
     }
+    if (writeBusy) return;
     if (unsaved) {
       const ok = await showModal(
         "You have unsaved changes. Discard and create a new product?",
         "Discard",
-        "Cancel"
+        "Cancel",
       );
       if (!ok) return;
     }
-    // remember current selection so Cancel can restore it
     previousSelectedId = selectedId;
     selectedId = null;
+    loadedProductSnapshot = null;
     inNewMode = true;
     form.reset();
     if (isPtoCheckbox) isPtoCheckbox.checked = false;
@@ -794,83 +1140,108 @@ if (newInlineBtn) {
     if (seasonProfileSelect) seasonProfileSelect.value = "";
     if (isLltCheckbox) isLltCheckbox.checked = false;
     if (leadTimeInput) leadTimeInput.value = "";
-    if (deleteBtn) deleteBtn.disabled = true;
     unsaved = false;
-    // hide/disable the edit toggle while creating new
-    if (editToggleBtn) editToggleBtn.disabled = true;
     setEditing(true);
     if (itemInput) itemInput.focus();
-    updateDirtyIcons();
   });
 }
 
-// Inline delete icon handler (appears when a product is selected)
 if (inlineDeleteBtn) {
   inlineDeleteBtn.addEventListener("click", async () => {
+    if (!canWriteModule()) {
+      showToast("You do not have permission to deactivate products.");
+      return;
+    }
+    if (writeBusy) return;
     if (!selectedId) return;
-    // show confirmation modal; Cancel should restore saved values
-    const ok = await showModal(
-      "Delete this product? This action cannot be undone.",
-      "Delete",
-      "Cancel"
-    );
-    if (!ok) {
-      // restore saved data (clear unsaved first to avoid nested prompts)
+
+    if (unsaved) {
+      await showModal(
+        "Save or cancel your edits before deactivating this product.",
+        "OK",
+        "",
+      );
+      return;
+    }
+
+    if (!loadedProductSnapshot || Number(loadedProductSnapshot.product_id) !== Number(selectedId)) {
+      showToast("Product details are not fully loaded. Reopen the product and try again.");
+      return;
+    }
+
+    if (String(loadedProductSnapshot.status) === "Inactive") {
+      showToast("This product is already inactive.");
+      return;
+    }
+
+    const governance = await promptGovernance({
+      title: "Deactivate product",
+      message: `Deactivate "${loadedProductSnapshot.item}"?\n\nStatus will become Inactive. The product record is retained.`,
+      confirmLabel: "Deactivate",
+      danger: true,
+    });
+    if (!governance) return;
+
+    const payload = buildProductRpcPayloadFromSnapshot(loadedProductSnapshot, {
+      ...governance,
+      statusOverride: "Inactive",
+    });
+
+    setWriteBusy(true);
+    showLoading();
+    try {
+      const { data, error } = await supabase.rpc("rpc_update_product", payload);
+      if (error) {
+        surfaceRpcError(error, "Failed to deactivate product.");
+        return;
+      }
+      try {
+        normalizeRpcRow(data, "Deactivate product");
+      } catch (normErr) {
+        surfaceRpcError(normErr, "Failed to deactivate product.");
+        return;
+      }
+      showToast("Product deactivated successfully.");
+      await loadProducts();
       unsaved = false;
-      updateDirtyIcons();
       await loadDetails(selectedId);
-      return;
+      setEditing(false);
+    } catch (err) {
+      surfaceRpcError(err, "Unexpected error while deactivating the product.");
+    } finally {
+      hideLoading();
+      setWriteBusy(false);
     }
-    // perform deletion
-    const { error } = await supabase
-      .from("products")
-      .delete()
-      .eq("id", selectedId);
-    if (error) {
-      console.error(error);
-      showToast("Failed to delete product");
-      return;
-    }
-    showToast("Product deleted");
-    // reload list and clear details
-    await loadProducts();
-    await loadDetails(null);
   });
 }
 
-// ─── sidebar click & live search ─────────────────────────
 productList.addEventListener("click", async (e) => {
   const li = e.target.closest("li");
   if (li) {
     const id = Number(li.dataset.id);
     const ok = await loadDetails(id);
     if (ok) {
-      // Exit any New-mode state and ensure the edit toggle is available
       inNewMode = false;
       previousSelectedId = null;
-      if (editToggleBtn) editToggleBtn.disabled = !window.CAN_EDIT;
       setEditing(false);
-      // clear keyboard highlight when a real product is loaded
       keyboardIndex = -1;
       Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-        n.classList.remove("focused")
+        n.classList.remove("focused"),
       );
-      // set activedescendant for assistive tech to the clicked option
       if (productList)
         productList.setAttribute("aria-activedescendant", `product-${id}`);
     }
   }
 });
+
 searchInput.addEventListener("input", () => {
-  // clear any prior keyboard highlight when the user types
   keyboardIndex = -1;
   if (productList) {
     Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-      n.classList.remove("focused")
+      n.classList.remove("focused"),
     );
     productList.removeAttribute("aria-activedescendant");
   }
-  // show/hide clear button
   try {
     if (clearSearchBtn) {
       if (searchInput.value && searchInput.value.trim()) {
@@ -887,7 +1258,6 @@ searchInput.addEventListener("input", () => {
   applyFilter();
 });
 
-// clear button behaviour
 if (clearSearchBtn) {
   clearSearchBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -895,11 +1265,10 @@ if (clearSearchBtn) {
       searchInput.value = "";
       clearSearchBtn.classList.remove("visible");
       clearSearchBtn.setAttribute("aria-hidden", "true");
-      // clear keyboard highlight
       keyboardIndex = -1;
       if (productList) {
         Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-          n.classList.remove("focused")
+          n.classList.remove("focused"),
         );
         productList.removeAttribute("aria-activedescendant");
       }
@@ -911,7 +1280,6 @@ if (clearSearchBtn) {
   });
 }
 
-// Keyboard navigation for the filtered list (arrow up/down + Enter)
 searchInput.addEventListener("keydown", (e) => {
   if (!productList) return;
   const lis = Array.from(productList.querySelectorAll("li"));
@@ -934,7 +1302,6 @@ searchInput.addEventListener("keydown", (e) => {
     if (keyboardIndex >= 0 && keyboardIndex < lis.length) {
       e.preventDefault();
       const id = Number(lis[keyboardIndex].dataset.id);
-      // load details for the highlighted item
       loadDetails(id).then((ok) => {
         if (ok) setEditing(false);
       });
@@ -943,16 +1310,14 @@ searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     keyboardIndex = -1;
     Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-      n.classList.remove("focused")
+      n.classList.remove("focused"),
     );
   }
 });
 
 function updateKeyboardHighlight(lis, idx) {
-  // remove prior focused state and aria-selected on non-selected items
   lis.forEach((li) => {
     li.classList.remove("focused");
-    // only unset aria-selected for keyboard navigation; the actual selectedId retains selection
     if (Number(li.dataset.id) !== selectedId)
       li.setAttribute("aria-selected", "false");
   });
@@ -960,26 +1325,13 @@ function updateKeyboardHighlight(lis, idx) {
     const node = lis[idx];
     node.classList.add("focused");
     node.setAttribute("aria-selected", "true");
-    // set activedescendant on the listbox for assistive tech
     if (productList) productList.setAttribute("aria-activedescendant", node.id);
     node.scrollIntoView({ block: "nearest", behavior: "auto" });
-  } else {
-    if (productList) productList.removeAttribute("aria-activedescendant");
+  } else if (productList) {
+    productList.removeAttribute("aria-activedescendant");
   }
 }
 
-// ─── unsaved tracker ─────────────────────────────────────
-[
-  itemInput,
-  malInput,
-  statusSelect,
-  categorySelect,
-  subcategorySelect,
-  groupSelect,
-  subgroupSelect,
-].forEach((el) => el.addEventListener("input", () => (unsaved = true)));
-
-// ensure dirty icon visibility updates when inputs change
 [
   itemInput,
   malInput,
@@ -1007,30 +1359,29 @@ function updateKeyboardHighlight(lis, idx) {
   });
 });
 
-if (isPtoCheckbox)
-  isPtoCheckbox.addEventListener("input", () => (unsaved = true));
 if (uomBaseSelect)
   uomBaseSelect.addEventListener("change", () => {
-    if (conversionInput) conversionInput.disabled = !uomBaseSelect.value;
+    if (conversionInput)
+      conversionInput.disabled = !(editing && uomBaseSelect.value);
     unsaved = true;
+    updateDirtyIcons();
   });
-if (conversionInput)
-  conversionInput.addEventListener("input", () => (unsaved = true));
 if (isSeasonalCheckbox)
   isSeasonalCheckbox.addEventListener("input", () => {
     if (seasonProfileSelect)
-      seasonProfileSelect.disabled = !isSeasonalCheckbox.checked;
+      seasonProfileSelect.disabled = !(
+        editing && isSeasonalCheckbox.checked
+      );
     unsaved = true;
+    updateDirtyIcons();
   });
-if (seasonProfileSelect)
-  seasonProfileSelect.addEventListener("change", () => (unsaved = true));
 if (isLltCheckbox)
   isLltCheckbox.addEventListener("input", () => {
-    if (leadTimeInput) leadTimeInput.disabled = !isLltCheckbox.checked;
+    if (leadTimeInput)
+      leadTimeInput.disabled = !(editing && isLltCheckbox.checked);
     unsaved = true;
+    updateDirtyIcons();
   });
-if (leadTimeInput)
-  leadTimeInput.addEventListener("input", () => (unsaved = true));
 
 async function loadSeasonProfiles() {
   if (!seasonProfileSelect) return;
@@ -1048,7 +1399,7 @@ async function loadSeasonProfiles() {
   });
 }
 
-// ─── HOME nav ────────────────────────────────────────────
+mountModuleHome(homeBtn);
 homeBtn.addEventListener("click", async () => {
   if (
     unsaved &&
@@ -1058,22 +1409,40 @@ homeBtn.addEventListener("click", async () => {
   window.location.href = "index.html";
 });
 
-// ─── initialize ──────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
+  const boot = await bootstrapApp({ loginPage: "login.html" });
+  if (!boot.ok) return;
+
+  try {
+    await loadProductMasterAccess();
+  } catch (err) {
+    console.error(err);
+    setAccessDenied("Unable to verify Product Master access.");
+    return;
+  }
+
+  if (!canAccessModule()) {
+    setAccessDenied("You do not have permission to open Product Master.");
+    return;
+  }
+
+  if (editToggleBtn) {
+    editToggleBtn.addEventListener("click", () => {
+      if (!canWriteModule()) {
+        showToast("You do not have permission to edit products.");
+        return;
+      }
+      if (writeBusy) return;
+      const target = !editing;
+      setEditing(target);
+    });
+  }
+
   await loadClassifications();
   await loadSeasonProfiles();
   await loadProducts();
-  loadDetails(null);
-  // ensure dependent controls reflect current state
-  if (conversionInput)
-    conversionInput.disabled = !(uomBaseSelect && uomBaseSelect.value);
-  if (seasonProfileSelect)
-    seasonProfileSelect.disabled = !(
-      isSeasonalCheckbox && isSeasonalCheckbox.checked
-    );
-  if (leadTimeInput)
-    leadTimeInput.disabled = !(isLltCheckbox && isLltCheckbox.checked);
-  // initialize clear search button visibility
+  await loadDetails(null);
+
   try {
     if (clearSearchBtn) {
       if (searchInput.value && searchInput.value.trim()) {
@@ -1087,107 +1456,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   } catch (e) {
     console.error(e);
   }
-  // determine edit permission from Supabase auth/profile
-  window.CAN_EDIT = false;
-  try {
-    const { data } = await supabase.auth.getUser();
-    const user = data ? data.user : null;
-    if (user) {
-      let role = null;
-      // try `profiles` table first (common pattern)
-      try {
-        const { data: profile, error: pErr } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        if (!pErr && profile && profile.role) role = profile.role;
-      } catch (e) {
-        console.error(e);
-      }
-      // fallback: try `user_roles` table if present
-      if (!role) {
-        try {
-          const { data: ur, error: urErr } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", user.id)
-            .single();
-          if (!urErr && ur && ur.role) role = ur.role;
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      // as a last resort check JWT metadata which some projects use
-      if (!role) {
-        try {
-          const maybeRole =
-            (user.user_metadata && user.user_metadata.role) ||
-            (user.user_metadata &&
-              user.user_metadata.roles &&
-              user.user_metadata.roles[0]) ||
-            (user.app_metadata && user.app_metadata.role) ||
-            (user.app_metadata &&
-              user.app_metadata.roles &&
-              user.app_metadata.roles[0]);
-          if (maybeRole) role = maybeRole;
-        } catch (e) {
-          console.error(e);
-        }
-      }
 
-      // normalize and evaluate role (case-insensitive)
-      const r = role ? String(role).toLowerCase() : null;
-      window.CAN_EDIT =
-        !!r && ["admin", "editor", "product_manager"].includes(r);
-      try {
-        console.debug &&
-          console.debug("products.js: detected role state", {
-            userId: user && user.id,
-            rawRole: role,
-            normalized: r,
-            CAN_EDIT: window.CAN_EDIT,
-          });
-      } catch {
-        /* ignore logging errors */
-      }
-    }
-  } catch (e) {
-    console.error(e);
-    window.CAN_EDIT = false;
-  }
-  // initialize edit toggle and refresh inline controls according to permission
-  if (editToggleBtn) {
-    // disable toggle if no privilege OR when no product selected
-    editToggleBtn.disabled = !window.CAN_EDIT || !selectedId;
-    if (!window.CAN_EDIT) {
-      editToggleBtn.title = "You do not have edit permission";
-    } else if (!selectedId) {
-      editToggleBtn.title = "Select a product to enable edit";
-    }
-    editToggleBtn.addEventListener("click", () => {
-      if (!window.CAN_EDIT) {
-        showToast("You do not have permission to edit products.");
-        return;
-      }
-      // Toggle and immediately enforce editing state. Reapply a couple
-      // times shortly after to avoid races with other async updates.
-      const target = !editing;
-      setEditing(target);
-      setTimeout(() => setEditing(target), 80);
-      setTimeout(() => setEditing(target), 300);
-    });
-  }
-
-  // ensure any inline delete/save controls reflect current permission
-  try {
-    if (inlineDeleteBtn && inlineDeleteBtn.style.display !== "none")
-      inlineDeleteBtn.disabled = !window.CAN_EDIT;
-    const saveBtn = document.getElementById("saveBtn");
-    if (saveBtn) saveBtn.disabled = !window.CAN_EDIT;
-  } catch (e) {
-    console.error(e);
-  }
-  // start in view-only mode
   setEditing(false);
+  applyAccessChrome();
 });
