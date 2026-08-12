@@ -657,25 +657,73 @@ body.sasv-fill-planner #fp-workings-body {
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 600px) {
+@media (max-width: 520px) {
+  /* Touch-friendly control stack: product row 1, bulk + overshoot row 2 */
   body.sasv-fill-planner .fp-controls {
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 6px 4px;
   }
 
-  body.sasv-fill-planner .fp-controls label > #fp-product-input {
+  body.sasv-fill-planner .fp-controls label.fp-product-field {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+  }
+
+  body.sasv-fill-planner .fp-bulk-row {
+    flex: 1 1 100%;
+    width: 100%;
     min-width: 0;
-    flex: 1 1 auto;
+    gap: 12px;
   }
 
-  body.sasv-fill-planner .fp-bulk-row label {
-    width: auto;
-    flex: 0 0 auto;
-    white-space: nowrap;
+  body.sasv-fill-planner .fp-controls label {
+    font-size: var(--sasv-text-md, 0.875rem);
+  }
+
+  body.sasv-fill-planner .sasv-search-select__input {
+    height: 44px;
+    min-height: 44px;
+    font-size: var(--sasv-text-md, 0.875rem);
+  }
+
+  body.sasv-fill-planner
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      .sasv-search-select__input
+    ),
+  body.sasv-fill-planner select:not(.sasv-native-select-sr),
+  body.sasv-fill-planner textarea {
+    min-height: 44px;
+    height: 44px;
+    font-size: var(--sasv-text-md, 0.875rem);
   }
 
   body.sasv-fill-planner #fp-bulk {
-    width: 5.75rem;
+    width: 7rem;
+    min-width: 6rem;
     flex-shrink: 0;
+  }
+
+  body.sasv-fill-planner #fp-uom {
+    font-size: var(--sasv-text-md, 0.875rem);
+  }
+
+  body.sasv-fill-planner input[type="checkbox"],
+  body.sasv-fill-planner input[type="radio"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  body.sasv-fill-planner .fp-run-wrap {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  body.sasv-fill-planner #fp-run {
+    width: 100%;
+    min-height: 44px;
+    font-size: var(--sasv-text-md, 0.875rem);
   }
 }
 
@@ -757,6 +805,36 @@ body.sasv-fill-planner .fp-result-card-mrp {
 
 body.sasv-fill-planner .fp-result-card-k {
   font-weight: 600;
+  color: var(--sasv-text-secondary);
+}
+
+/* Fill Plan narrow cards: primary fill lines vs secondary MOS */
+body.sasv-fill-planner .fp-plan-fill-lines {
+  margin-top: 4px;
+}
+
+body.sasv-fill-planner .fp-plan-fill-line {
+  margin-top: 6px;
+  font-size: var(--sasv-text-md, 0.875rem);
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  color: var(--sasv-text);
+  word-break: break-word;
+}
+
+body.sasv-fill-planner .fp-plan-fill-line:first-child {
+  margin-top: 4px;
+}
+
+body.sasv-fill-planner .fp-result-card-metric.fp-result-card-mos {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-fill-planner .fp-result-card-metric.fp-result-card-mos .fp-result-card-k {
+  font-weight: 500;
   color: var(--sasv-text-secondary);
 }
 

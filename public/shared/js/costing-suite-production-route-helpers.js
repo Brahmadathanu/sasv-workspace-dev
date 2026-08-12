@@ -496,6 +496,7 @@ export const PRM_ACTION_LABELS = Object.freeze({
   "open-product-draft": "Open Product route",
   "open-product": "Open Product route",
   "create-product": "Create Product route",
+  "create-product-draft": "Create DRAFT",
   "open-route-family": "Open mapped Route Family",
   "open-family-route": "Open Route Family route",
   "family-candidate": "Review Route Family evidence",
@@ -1982,6 +1983,131 @@ export function formatPrmSupersedesVersionCopy(header = {}, historyRows = []) {
   return version ? `Version ${version}` : "";
 }
 
+/**
+ * Effective Family Route id from live effective-route payload.
+ * Prefer base_route_family_route_id, then validation.family_route_id.
+ */
+export function resolvePrmEffectiveFamilyRouteId(effective = {}) {
+  const root = effective && typeof effective === "object" ? effective : {};
+  const validation =
+    root.validation && typeof root.validation === "object"
+      ? root.validation
+      : {};
+  return (
+    normalizePrmIntegerId(root.base_route_family_route_id) ??
+    normalizePrmIntegerId(validation.family_route_id) ??
+    normalizePrmIntegerId(root.family_route_id) ??
+    normalizePrmIntegerId(root.route_family_route_id)
+  );
+}
+
+/** Version only when historyRow.id matches the effective Family Route id. */
+export function resolvePrmFamilyRouteVersionFromHistory(
+  familyRouteId,
+  historyRows = [],
+) {
+  const id = normalizePrmIntegerId(familyRouteId);
+  if (id == null) return null;
+  const list = Array.isArray(historyRows) ? historyRows : [];
+  const match = list.find((row) => {
+    const rowId =
+      normalizePrmIntegerId(row?.id) ??
+      normalizePrmIntegerId(row?.family_route_id);
+    return rowId === id;
+  });
+  if (!match) return null;
+  return resolvePrmDisplayedRouteVersion(match);
+}
+
+export function formatPrmFamilyRouteVersionCopy(familyRouteId, historyRows = []) {
+  const version = resolvePrmFamilyRouteVersionFromHistory(
+    familyRouteId,
+    historyRows,
+  );
+  return version ? `Version ${version}` : "";
+}
+
+export const PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED =
+  "A governed Product batch-size reference is required before a Product Route can be created.";
+
+export function normalizePrmBatchSizeReference(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  const stateRaw = normalizePrmCode(r.state || r.status || r.lifecycle_state);
+  const inactive =
+    r.is_active === false ||
+    r.is_active === "false" ||
+    stateRaw === "INACTIVE" ||
+    stateRaw === "SUPERSEDED";
+  return {
+    batch_size_ref_id: normalizePrmIntegerId(r.batch_size_ref_id ?? r.id),
+    product_id: normalizePrmIntegerId(r.product_id),
+    preferred_batch_size: r.preferred_batch_size ?? r.preferred ?? null,
+    min_batch_size: r.min_batch_size ?? r.min ?? null,
+    max_batch_size: r.max_batch_size ?? r.max ?? null,
+    effective_from: normalizePrmAsOfDate(r.effective_from, {
+      fallbackToToday: false,
+    }),
+    effective_to: normalizePrmAsOfDate(r.effective_to, {
+      fallbackToToday: false,
+    }),
+    is_active: !inactive,
+  };
+}
+
+export function isPrmBatchSizeReferenceEffective(ref = {}, asOfDate = null) {
+  const row = normalizePrmBatchSizeReference(ref);
+  if (row.batch_size_ref_id == null || row.is_active === false) return false;
+  const asOf = normalizePrmAsOfDate(asOfDate, { fallbackToToday: false });
+  if (row.effective_from && asOf && row.effective_from > asOf) return false;
+  if (row.effective_to && asOf && row.effective_to < asOf) return false;
+  return true;
+}
+
+/** Valid/effective governed batch-size references. Never treats preferred size as an id. */
+export function selectPrmProductBatchSizeReferences(
+  list = [],
+  { product_id = null, as_of_date = null } = {},
+) {
+  const pid = normalizePrmIntegerId(product_id);
+  const all = coercePrmList(list)
+    .map(normalizePrmBatchSizeReference)
+    .filter((row) => isPrmBatchSizeReferenceEffective(row, as_of_date));
+  if (pid == null) return all;
+  const scoped = all.filter((row) => row.product_id === pid);
+  if (scoped.length) return scoped;
+  return all.filter((row) => row.product_id == null);
+}
+
+export function formatPrmBatchSizeReferenceLabel(ref = {}) {
+  const row = normalizePrmBatchSizeReference(ref);
+  if (row.batch_size_ref_id == null) return "—";
+  if (row.preferred_batch_size == null || row.preferred_batch_size === "") {
+    return `Reference ${row.batch_size_ref_id}`;
+  }
+  return `Reference ${row.batch_size_ref_id} / Preferred Batch ${row.preferred_batch_size}`;
+}
+
+export function resolvePrmRouteFamilyAssignmentSource(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  return (
+    r.route_family_assignment_source ||
+    r.assignment_source ||
+    r.assignment_basis ||
+    null
+  );
+}
+
+export function formatPrmRouteFamilyAssignmentSourceLabel(code) {
+  const upper = normalizePrmCode(code).toUpperCase();
+  if (!upper) return "";
+  if (upper === "PRODUCT_GROUP_FALLBACK") {
+    return "Inherited from Product Group";
+  }
+  if (upper === "PRODUCT_ASSIGNMENT") return "Product-specific";
+  if (upper === "NONE") return "None";
+  return humanizeUnknownPrmCode(upper) || upper;
+}
+
 function normalizePrmRouteValidationErrorCode(raw) {
   if (raw == null) return "";
   if (typeof raw === "string") return normalizePrmCode(raw).toUpperCase();
@@ -2113,6 +2239,579 @@ export function formatPrmDeltaLabel(code) {
   return labelFromPrmMap(code, DELTA_LABELS);
 }
 
+export function resolvePrmDeltaOperation(row = {}) {
+  return normalizePrmCode(
+    row?.operation_type ||
+      row?.delta_operation ||
+      row?.override_operation ||
+      row?.operation,
+  ).toUpperCase();
+}
+
+export function resolvePrmFamilyStepId(step = {}) {
+  return (
+    normalizePrmIntegerId(step?.family_route_step_id) ??
+    normalizePrmIntegerId(step?.route_step_id) ??
+    normalizePrmIntegerId(step?.base_step_id) ??
+    normalizePrmIntegerId(step?.step_id) ??
+    normalizePrmIntegerId(step?.id)
+  );
+}
+
+export function formatPrmDeltaBaseStepLabel(step = {}) {
+  const seq = step?.sequence_no;
+  const name =
+    step?.activity_name ||
+    step?.activity ||
+    step?.step_label ||
+    step?.step_key ||
+    "";
+  const seqPart =
+    seq != null && String(seq).trim() !== "" ? `Seq ${seq}` : "";
+  if (seqPart && name) return `${seqPart} — ${name}`;
+  return seqPart || String(name || resolvePrmFamilyStepId(step) || "");
+}
+
+export function selectPrmBypassEligibleFamilySteps(steps = []) {
+  return coercePrmList(steps).filter((step) => {
+    const raw = step?.allows_skip_with_approval;
+    return raw === true || raw === "true" || raw === "t" || raw === 1 || raw === "1";
+  });
+}
+
+export function normalizePrmProductRouteOverride(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  const operation_type = resolvePrmDeltaOperation(r);
+  const override_id = normalizePrmIntegerId(r.override_id ?? r.id);
+  const base_step_id = normalizePrmIntegerId(r.base_step_id);
+  const override_step_key = String(
+    r.override_step_key || r.step_key || r.target_step_key || "",
+  ).trim();
+  const override_reason = String(
+    r.override_reason || r.note || r.override_note || "",
+  ).trim();
+  return {
+    ...r,
+    override_id,
+    id: override_id ?? r.id ?? null,
+    operation_type: operation_type || null,
+    delta_operation: operation_type || null,
+    base_step_id,
+    override_step_key: override_step_key || null,
+    step_key: override_step_key || r.step_key || null,
+    override_reason: override_reason || null,
+    note: override_reason || r.note || null,
+  };
+}
+
+export function formatPrmDeltaTargetCopy(row = {}, familySteps = []) {
+  const delta = normalizePrmProductRouteOverride(row);
+  const op = delta.operation_type;
+  if (op === "ADD_STEP") {
+    const seq =
+      delta.sequence_no != null ? `Seq ${delta.sequence_no}` : "";
+    const key =
+      delta.override_step_key ||
+      delta.activity_name ||
+      delta.step_key ||
+      "";
+    return [seq, key].filter(Boolean).join(" · ") || "Added step";
+  }
+  const base =
+    coercePrmList(familySteps).find(
+      (step) => resolvePrmFamilyStepId(step) === delta.base_step_id,
+    ) || null;
+  if (base) return formatPrmDeltaBaseStepLabel(base);
+  if (delta.base_step_id != null) return `Family step ${delta.base_step_id}`;
+  return delta.override_step_key || "";
+}
+
+/** Enrich Activity rows with hierarchy names from master-options location catalogues. */
+export function enrichPrmMasterActivities(optionsPayload = {}) {
+  const root =
+    optionsPayload?.activities != null
+      ? optionsPayload
+      : normalizePrmMasterOptions(optionsPayload);
+  const sectionNames = new Map();
+  const subsectionNames = new Map();
+  const areaNames = new Map();
+  for (const row of coercePrmList(root.sections)) {
+    const id = normalizePrmIntegerId(row.section_id ?? row.id);
+    if (id != null) {
+      sectionNames.set(id, row.section_name || row.name || "");
+    }
+  }
+  for (const row of coercePrmList(root.subsections)) {
+    const id = normalizePrmIntegerId(row.subsection_id ?? row.id);
+    if (id != null) {
+      subsectionNames.set(id, row.subsection_name || row.name || "");
+    }
+  }
+  for (const row of coercePrmList(root.areas)) {
+    const id = normalizePrmIntegerId(row.area_id ?? row.id);
+    if (id != null) {
+      areaNames.set(id, row.area_name || row.name || "");
+    }
+  }
+  return coercePrmList(root.activities).map((row) => {
+    const activity_id = normalizePrmIntegerId(row.activity_id ?? row.id);
+    const section_id = normalizePrmIntegerId(row.section_id);
+    const subsection_id = normalizePrmIntegerId(row.subsection_id);
+    const area_id = normalizePrmIntegerId(row.area_id);
+    return {
+      ...row,
+      activity_id,
+      id: activity_id,
+      section_id,
+      subsection_id,
+      area_id,
+      section_name:
+        row.section_name || sectionNames.get(section_id) || null,
+      subsection_name:
+        row.subsection_name || subsectionNames.get(subsection_id) || null,
+      area_name: row.area_name || areaNames.get(area_id) || null,
+    };
+  });
+}
+
+/** Enrich Cost Centre rows with hierarchy and default resource labels. */
+export function enrichPrmMasterCostCentres(optionsPayload = {}) {
+  const root =
+    optionsPayload?.cost_centres != null
+      ? optionsPayload
+      : normalizePrmMasterOptions(optionsPayload);
+  const sectionNames = new Map();
+  const subsectionNames = new Map();
+  const areaNames = new Map();
+  const plantNames = new Map();
+  const resourceLabels = new Map();
+  for (const row of coercePrmList(root.sections)) {
+    const id = normalizePrmIntegerId(row.section_id ?? row.id);
+    if (id != null) sectionNames.set(id, row.section_name || row.name || "");
+  }
+  for (const row of coercePrmList(root.subsections)) {
+    const id = normalizePrmIntegerId(row.subsection_id ?? row.id);
+    if (id != null) {
+      subsectionNames.set(id, row.subsection_name || row.name || "");
+    }
+  }
+  for (const row of coercePrmList(root.areas)) {
+    const id = normalizePrmIntegerId(row.area_id ?? row.id);
+    if (id != null) areaNames.set(id, row.area_name || row.name || "");
+  }
+  for (const row of coercePrmList(root.plants)) {
+    const id = normalizePrmIntegerId(row.plant_id ?? row.id);
+    if (id != null) plantNames.set(id, row.plant_name || row.name || "");
+  }
+  for (const row of coercePrmList(root.resource_classes)) {
+    const code = normalizePrmCode(row.resource_class_code || row.code);
+    if (code) {
+      resourceLabels.set(
+        code,
+        row.resource_class_label || row.label || formatPrmResourceClassLabel(code),
+      );
+    }
+  }
+  return coercePrmList(root.cost_centres).map((row) => {
+    const normalized = normalizePrmCostCentreRow(row);
+    const section_id = normalizePrmIntegerId(
+      normalized.section_id ?? row.section_id,
+    );
+    const subsection_id = normalizePrmIntegerId(
+      normalized.subsection_id ?? row.subsection_id,
+    );
+    const area_id = normalizePrmIntegerId(normalized.area_id ?? row.area_id);
+    const plant_id = normalizePrmIntegerId(normalized.plant_id ?? row.plant_id);
+    const defaultRc = normalizePrmCode(
+      normalized.default_resource_class_code || row.default_resource_class_code,
+    );
+    return {
+      ...normalized,
+      section_id,
+      subsection_id,
+      area_id,
+      plant_id,
+      section_name:
+        normalized.section_name ||
+        row.section_name ||
+        sectionNames.get(section_id) ||
+        null,
+      subsection_name:
+        normalized.subsection_name ||
+        row.subsection_name ||
+        subsectionNames.get(subsection_id) ||
+        null,
+      area_name:
+        normalized.area_name || row.area_name || areaNames.get(area_id) || null,
+      plant_name:
+        normalized.plant_name || row.plant_name || plantNames.get(plant_id) || null,
+      default_resource_class_code: defaultRc || normalized.resource_class || null,
+      default_resource_class_label:
+        resourceLabels.get(defaultRc) ||
+        normalized.resource_class_label ||
+        (defaultRc ? formatPrmResourceClassLabel(defaultRc) : null),
+    };
+  });
+}
+
+export function buildPrmMasterOptionsForStepAuthoring(optionsPayload = {}) {
+  const root = normalizePrmMasterOptions(optionsPayload);
+  return {
+    ...root,
+    activities: enrichPrmMasterActivities(root),
+    cost_centres: enrichPrmMasterCostCentres(root),
+  };
+}
+
+export function extractEnrichedApprovedCostCentres(optionsPayload = {}) {
+  const enriched = buildPrmMasterOptionsForStepAuthoring(optionsPayload);
+  return extractApprovedCostCentres(enriched);
+}
+
+export function formatPrmActivityLocationCopy(activity = {}) {
+  return (
+    formatPrmHierarchyLabel([
+      activity.section_name,
+      activity.subsection_name,
+      activity.area_name,
+    ]) || ""
+  );
+}
+
+export function formatPrmActivityOptionLabel(activity = {}) {
+  const name = activity.activity_name || activity.name || "";
+  const short = activity.short_code || activity.activity_code || "";
+  const location = formatPrmActivityLocationCopy(activity);
+  const primary = [name, short].filter((part) => !isBlankPrmValue(part)).join(" · ");
+  if (!primary) return String(activity.activity_id ?? activity.id ?? "");
+  return location ? `${primary} — ${location}` : primary;
+}
+
+export function formatPrmActivityOptionSearchText(activity = {}) {
+  return [
+    activity.activity_name,
+    activity.short_code,
+    activity.activity_kind,
+    activity.section_name,
+    activity.subsection_name,
+    activity.area_name,
+  ]
+    .filter((part) => !isBlankPrmValue(part))
+    .join(" ");
+}
+
+export function formatPrmCostCentreContextCopy(centre = {}) {
+  return (
+    formatPrmHierarchyLabel([
+      centre.section_name,
+      centre.subsection_name,
+      centre.area_name,
+    ]) || centre.hierarchy ||
+    ""
+  );
+}
+
+export function formatPrmCostCentreOptionLabel(centre = {}) {
+  const name = centre.cost_centre_name || centre.name || "";
+  const code = centre.cost_centre_code || centre.code || "";
+  const location = formatPrmCostCentreContextCopy(centre);
+  const resource =
+    centre.default_resource_class_label ||
+    formatPrmResourceClassLabel(centre.default_resource_class_code) ||
+    "";
+  return [name, code, location, resource]
+    .filter((part) => !isBlankPrmValue(part))
+    .join(" — ");
+}
+
+export function formatPrmCostCentreOptionSearchText(centre = {}) {
+  return [
+    centre.cost_centre_name,
+    centre.cost_centre_code,
+    centre.section_name,
+    centre.subsection_name,
+    centre.area_name,
+    centre.default_resource_class_code,
+    centre.default_resource_class_label,
+  ]
+    .filter((part) => !isBlankPrmValue(part))
+    .join(" ");
+}
+
+export const PRM_ACTIVITY_CC_COMPATIBILITY = Object.freeze({
+  EXACT_CONTEXT: "EXACT_CONTEXT",
+  PARTIAL_CONTEXT: "PARTIAL_CONTEXT",
+  DIFFERENT_CONTEXT: "DIFFERENT_CONTEXT",
+  INCOMPLETE: "INCOMPLETE",
+});
+
+export function classifyPrmActivityCostCentreCompatibility(
+  activity = {},
+  costCentre = {},
+) {
+  const aSection = normalizePrmIntegerId(activity.section_id);
+  const aSub = normalizePrmIntegerId(activity.subsection_id);
+  const aArea = normalizePrmIntegerId(activity.area_id);
+  const cSection = normalizePrmIntegerId(costCentre.section_id);
+  const cSub = normalizePrmIntegerId(costCentre.subsection_id);
+  const cArea = normalizePrmIntegerId(costCentre.area_id);
+  if (
+    aSection == null ||
+    aSub == null ||
+    aArea == null ||
+    cSection == null ||
+    cSub == null ||
+    cArea == null
+  ) {
+    return PRM_ACTIVITY_CC_COMPATIBILITY.INCOMPLETE;
+  }
+  if (aSection === cSection && aSub === cSub && aArea === cArea) {
+    return PRM_ACTIVITY_CC_COMPATIBILITY.EXACT_CONTEXT;
+  }
+  if (aSection === cSection) {
+    return PRM_ACTIVITY_CC_COMPATIBILITY.PARTIAL_CONTEXT;
+  }
+  return PRM_ACTIVITY_CC_COMPATIBILITY.DIFFERENT_CONTEXT;
+}
+
+export function formatPrmActivityCostCentreCompatibilityStatus(classification) {
+  const code = normalizePrmCode(classification).toUpperCase();
+  if (code === PRM_ACTIVITY_CC_COMPATIBILITY.EXACT_CONTEXT) {
+    return "Compatible";
+  }
+  if (
+    code === PRM_ACTIVITY_CC_COMPATIBILITY.PARTIAL_CONTEXT ||
+    code === PRM_ACTIVITY_CC_COMPATIBILITY.DIFFERENT_CONTEXT
+  ) {
+    return "Review physical context";
+  }
+  return "";
+}
+
+export function requiresPrmActivityCostCentreAcknowledgement(classification) {
+  const code = normalizePrmCode(classification).toUpperCase();
+  return (
+    code === PRM_ACTIVITY_CC_COMPATIBILITY.PARTIAL_CONTEXT ||
+    code === PRM_ACTIVITY_CC_COMPATIBILITY.DIFFERENT_CONTEXT
+  );
+}
+
+export function isValidPrmProductDeltaStepKey(key) {
+  const raw = String(key ?? "").trim();
+  if (!raw) return false;
+  return /^[A-Z0-9_]+$/.test(raw);
+}
+
+export function collectPrmProductDeltaStepKeys({
+  overrides = [],
+  familySteps = [],
+  effectiveSteps = [],
+  excludeOverrideId = null,
+} = {}) {
+  const keys = new Set();
+  const add = (value) => {
+    const raw = String(value ?? "").trim();
+    if (raw) keys.add(raw.toUpperCase());
+  };
+  const exclude = normalizePrmIntegerId(excludeOverrideId);
+  for (const row of coercePrmList(overrides)) {
+    const id = normalizePrmIntegerId(row.override_id ?? row.id);
+    if (exclude != null && id === exclude) continue;
+    add(row.override_step_key || row.step_key);
+  }
+  for (const step of [
+    ...coercePrmList(familySteps),
+    ...coercePrmList(effectiveSteps),
+  ]) {
+    add(step.override_step_key || step.step_key || step.effective_step_key);
+  }
+  return keys;
+}
+
+export function suggestPrmProductDeltaStepKey(activity = {}, takenKeys = []) {
+  const taken = takenKeys instanceof Set ? takenKeys : collectPrmProductDeltaStepKeys({
+    overrides: coercePrmList(takenKeys).map((key) => ({
+      override_step_key: key,
+    })),
+  });
+  const base =
+    humanizeUnknownPrmCode(activity.activity_name || activity.name || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_+/g, "_") || "STEP";
+  if (!taken.has(base)) return base;
+  const token = humanizeUnknownPrmCode(activity.subsection_name || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+  if (token) {
+    const withSub = `${base}_${token}`;
+    if (!taken.has(withSub)) return withSub;
+  }
+  let suffix = 2;
+  while (taken.has(`${base}_${suffix}`)) suffix += 1;
+  return `${base}_${suffix}`;
+}
+
+export function resolvePrmPoolScopeDlPohRequirement({
+  costCentre = null,
+  routeStepScope = null,
+} = {}) {
+  const pool = normalizePrmCode(costCentre?.pool_scope).toUpperCase();
+  const scope = normalizePrmCode(routeStepScope).toUpperCase();
+  const excludedCc = pool === PRM_COST_CENTRE_POOL_EXCLUDED;
+  const otherPool = PRM_OTHER_POOL_STEP_SCOPES.includes(scope);
+  if (!excludedCc && !otherPool) return null;
+  return {
+    direct_labour_scope: "EXCLUDE_OTHER_POOL",
+    production_overhead_scope: "EXCLUDE_OTHER_POOL",
+    forced: true,
+  };
+}
+
+export function validatePrmProductDeltaMasterIntegrity(
+  values = {},
+  {
+    options = {},
+    familySteps = [],
+    existingOverrides = [],
+    effectiveSteps = [],
+    excludeOverrideId = null,
+    compatibilityAcknowledged = false,
+  } = {},
+) {
+  const errors = [];
+  const enriched = buildPrmMasterOptionsForStepAuthoring(options);
+  const activities = enriched.activities || [];
+  const centres = extractApprovedCostCentres(enriched);
+  const behaviours = enriched.behaviours || [];
+  const resources = enriched.resource_classes || [];
+  const op = normalizePrmCode(values.operation_type).toUpperCase();
+
+  const findActivity = (id) =>
+    activities.find(
+      (row) => normalizePrmIntegerId(row.activity_id ?? row.id) === id,
+    ) || null;
+  const findCentre = (id) =>
+    centres.find(
+      (row) => normalizePrmIntegerId(row.cost_centre_id ?? row.id) === id,
+    ) || null;
+
+  if (op === "ADD_STEP" || op === "REPLACE_STEP") {
+    const activityId = normalizePrmIntegerId(values.activity_id);
+    const activity = findActivity(activityId);
+    if (!activity) {
+      errors.push("Selected Activity is unavailable. Reload master options.");
+    } else if (
+      normalizePrmIntegerId(values.section_id) !==
+        normalizePrmIntegerId(activity.section_id) ||
+      normalizePrmIntegerId(values.subsection_id) !==
+        normalizePrmIntegerId(activity.subsection_id) ||
+      normalizePrmIntegerId(values.area_id) !==
+        normalizePrmIntegerId(activity.area_id)
+    ) {
+      errors.push(
+        "Activity location no longer matches the selected Activity. Reselect Activity.",
+      );
+    }
+
+    const ccId = normalizePrmIntegerId(values.cost_centre_id);
+    const centre = findCentre(ccId);
+    if (!centre) {
+      errors.push(
+        "Selected Cost Centre is not approved or is unavailable. Choose another centre.",
+      );
+    }
+
+    if (values.override_step_key) {
+      if (!isValidPrmProductDeltaStepKey(values.override_step_key)) {
+        errors.push(
+          "Override step key must use uppercase letters, numbers, and underscores only.",
+        );
+      }
+      const taken = collectPrmProductDeltaStepKeys({
+        overrides: existingOverrides,
+        familySteps,
+        effectiveSteps,
+        excludeOverrideId,
+      });
+      const want = String(values.override_step_key).trim().toUpperCase();
+      if (taken.has(want)) {
+        errors.push("Override step key must be unique within this Product route.");
+      }
+    }
+
+    if (values.plant_id != null) {
+      const plants = filterPrmPlantsByLocation(enriched.plants || [], {
+        section_id: values.section_id,
+        subsection_id: values.subsection_id,
+        area_id: values.area_id,
+      });
+      const plantOk = plants.some(
+        (row) =>
+          normalizePrmIntegerId(row.plant_id ?? row.id) ===
+          normalizePrmIntegerId(values.plant_id),
+      );
+      if (!plantOk) {
+        errors.push("Selected Plant is not valid for the Activity location.");
+      }
+    }
+
+    if (values.behaviour_code) {
+      const ok = coercePrmList(behaviours).some(
+        (row) =>
+          normalizePrmCode(row.behaviour_code || row.code) ===
+          normalizePrmCode(values.behaviour_code),
+      );
+      if (!ok) errors.push("Selected Behaviour is no longer available.");
+    }
+    if (values.resource_class_code) {
+      const ok = coercePrmList(resources).some(
+        (row) =>
+          normalizePrmCode(row.resource_class_code || row.code) ===
+          normalizePrmCode(values.resource_class_code),
+      );
+      if (!ok) errors.push("Selected Resource class is no longer available.");
+    }
+
+    const poolRule = resolvePrmPoolScopeDlPohRequirement({
+      costCentre: centre,
+      routeStepScope: values.route_step_scope,
+    });
+    if (poolRule?.forced) {
+      if (values.direct_labour_scope !== "EXCLUDE_OTHER_POOL") {
+        errors.push(
+          "Excluded Cost Centre or other-pool step scope requires Direct Labour exclusion.",
+        );
+      }
+      if (values.production_overhead_scope !== "EXCLUDE_OTHER_POOL") {
+        errors.push(
+          "Excluded Cost Centre or other-pool step scope requires Production Overhead exclusion.",
+        );
+      }
+    }
+
+    if (activity && centre) {
+      const compatibility = classifyPrmActivityCostCentreCompatibility(
+        activity,
+        centre,
+      );
+      if (
+        requiresPrmActivityCostCentreAcknowledgement(compatibility) &&
+        !compatibilityAcknowledged
+      ) {
+        errors.push(
+          "Confirm that the selected Cost Centre is appropriate for the Activity location.",
+        );
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 export function formatPrmStepSourceLabel(code) {
   return labelFromPrmMap(code, SOURCE_LABELS);
 }
@@ -2213,11 +2912,105 @@ export function isObsoletePrmLens(lensId) {
 /**
  * Fresh launch / stale lens / invalid editor deep-link resolution.
  */
+export function isPrmProductRouteEditorCreateContext({
+  product_id = null,
+  product_route_id = null,
+} = {}) {
+  return (
+    normalizePrmIntegerId(product_id) != null &&
+    normalizePrmIntegerId(product_route_id) == null
+  );
+}
+
+/**
+ * Product Route history row id: product_route_id ?? route_id ?? id.
+ * Display placeholders such as "—" must not be treated as ids.
+ */
+export function resolvePrmProductHistoryRouteId(row = {}) {
+  return (
+    normalizePrmIntegerId(row?.product_route_id) ??
+    normalizePrmIntegerId(row?.route_id) ??
+    normalizePrmIntegerId(row?.id)
+  );
+}
+
+/** Current writable Product Route: DRAFT or REVIEW. Not APPROVED/SUPERSEDED/INACTIVE. */
+export function isPrmCurrentProductRouteStatus(status) {
+  return isPrmRouteWritableStatus(status);
+}
+
+export function selectPrmCurrentProductHistoryRoutes(versions = []) {
+  return coercePrmList(versions).filter((row) =>
+    isPrmCurrentProductRouteStatus(
+      row?.status || row?.route_status || row?.approval_status,
+    ),
+  );
+}
+
+/**
+ * Open vs Create eligibility for Product Summary.
+ * 1. effective.product_route_id (row.product_route_id)
+ * 2. unique current DRAFT / REVIEW from Product history
+ * 3. opening-row draft_product_route_id
+ * Multiple current writable routes: do not guess.
+ */
+export function resolvePrmOpenProductRouteEligibility(
+  row = {},
+  historyVersions = [],
+) {
+  const effectiveId = normalizePrmIntegerId(row?.product_route_id);
+  const rowDraftId = normalizePrmIntegerId(row?.draft_product_route_id);
+  const currentIds = [];
+  const seen = new Set();
+  for (const current of selectPrmCurrentProductHistoryRoutes(historyVersions)) {
+    const id = resolvePrmProductHistoryRouteId(current);
+    if (id == null || seen.has(id)) continue;
+    seen.add(id);
+    currentIds.push(id);
+  }
+  const ambiguous = effectiveId == null && currentIds.length > 1;
+  const historyCurrentId = currentIds.length === 1 ? currentIds[0] : null;
+  return {
+    open_product_route_id: ambiguous
+      ? null
+      : (effectiveId ?? historyCurrentId ?? rowDraftId),
+    current_product_route_ambiguous: ambiguous,
+    current_product_route_ids: currentIds,
+    current_count: currentIds.length,
+  };
+}
+
+/** Base Family Route copy for Product history when the payload supplies it. */
+export function formatPrmProductHistoryBaseFamilyRoute(row = {}) {
+  const name = String(
+    row?.family_route_name ||
+      row?.base_route_family_route_name ||
+      row?.route_family_route_name ||
+      row?.base_family_route_name ||
+      "",
+  ).trim();
+  const versionLabel = String(
+    row?.family_route_version ||
+      row?.base_route_version ||
+      row?.base_family_route_version ||
+      "",
+  ).trim();
+  if (name && versionLabel) return `${name} ${versionLabel}`;
+  if (name) return name;
+  if (versionLabel) return versionLabel;
+  const id =
+    normalizePrmIntegerId(row?.family_route_id) ??
+    normalizePrmIntegerId(row?.base_route_family_route_id) ??
+    normalizePrmIntegerId(row?.base_family_route_id);
+  return id != null ? String(id) : "";
+}
+
 export function resolveProductionRouteLens(
   lensId,
   {
     family_route_id = null,
     product_route_id = null,
+    product_id = null,
     allowEditorWithoutId = false,
   } = {},
 ) {
@@ -2242,15 +3035,17 @@ export function resolveProductionRouteLens(
     }
     if (
       raw === "product-route-editor" &&
-      normalizePrmIntegerId(product_route_id) == null
+      normalizePrmIntegerId(product_route_id) == null &&
+      normalizePrmIntegerId(product_id) == null
     ) {
       return PRODUCTION_ROUTE_DEFAULT_LENS;
     }
   } else if (
     raw === "product-route-editor" &&
-    normalizePrmIntegerId(product_route_id) == null
+    normalizePrmIntegerId(product_route_id) == null &&
+    normalizePrmIntegerId(product_id) == null
   ) {
-    // Product editor still requires an id even when family editor is allowed without one.
+    // Bare Product editor tab still requires a Product or Product route id.
     return PRODUCTION_ROUTE_DEFAULT_LENS;
   }
   return raw;
@@ -3088,7 +3883,11 @@ export function extractResourceClasses(optionsPayload) {
 
 export function getApplicableProductRouteActions(
   row = {},
-  { hasApprovedCostCentres: _hasCc = true } = {},
+  {
+    hasApprovedCostCentres: _hasCc = true,
+    productHistory = [],
+    productHistoryUnavailable = false,
+  } = {},
 ) {
   const readiness = normalizePrmCode(row.readiness_status).toUpperCase();
   const actions = [];
@@ -3115,15 +3914,18 @@ export function getApplicableProductRouteActions(
       label: formatPrmActionLabel("product-history"),
     },
   );
-  const draftId = row.draft_product_route_id || row.product_route_id;
-  if (!isBlankPrmValue(draftId)) {
+  const eligibility = resolvePrmOpenProductRouteEligibility(row, productHistory);
+  if (eligibility.current_product_route_ambiguous) {
+    // History is the chooser. Do not guess Open or Create.
+  } else if (eligibility.open_product_route_id != null) {
     actions.push({
       id: "open-product-draft",
       label: formatPrmActionLabel("open-product-draft"),
-      product_route_id: draftId,
+      product_route_id: eligibility.open_product_route_id,
       mutation: false,
     });
   } else if (
+    !productHistoryUnavailable &&
     readiness !== "BLOCKED_NO_APPROVED_ROUTE_FAMILY_MAPPING" &&
     readiness !== "BLOCKED_NO_APPROVED_ROUTE_FAMILY_ROUTE"
   ) {
@@ -3133,7 +3935,8 @@ export function getApplicableProductRouteActions(
       requiresCostCentre: false,
       disabled: false,
       disabledReason: null,
-      mutation: true,
+      mutation: false,
+      navigateHandoff: true,
     });
   }
   if (!isBlankPrmValue(row.route_family_id)) {
@@ -3737,12 +4540,9 @@ export function buildCollisionSafeSequencePlan(steps = [], orderedIds = []) {
 }
 
 export function filterUntouchedFamilyStepsFromOverrides(overrides = []) {
-  return coercePrmList(overrides).filter((row) => {
-    const op = normalizePrmCode(
-      row.delta_operation || row.override_operation || row.operation,
-    ).toUpperCase();
-    return PRM_DELTA_OPERATIONS.includes(op);
-  });
+  return coercePrmList(overrides)
+    .map(normalizePrmProductRouteOverride)
+    .filter((row) => PRM_DELTA_OPERATIONS.includes(row.operation_type));
 }
 
 export function unresolvedGovernanceLabel(value) {

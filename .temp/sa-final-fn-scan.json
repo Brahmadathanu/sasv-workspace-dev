@@ -1,0 +1,2451 @@
+{
+  "uniqueLiteral": [
+    "admin_recent_permissions",
+    "admin_user_suggest",
+    "admin_users_for_target",
+    "app_get_current_user_context",
+    "app_get_my_permissions",
+    "app_has_permission",
+    "apply_manual_plan_set",
+    "apply_production_batch_override_immediate",
+    "apply_production_overrides",
+    "build_preset_jobs",
+    "calc_fill_plan",
+    "cancel_jobs",
+    "count_forecast_exceptions_summary",
+    "count_forecast_health_mv",
+    "count_publish_lines",
+    "create_pr_from_mrp_plan",
+    "deactivate_forecast_override",
+    "deactivate_production_batch_override",
+    "delete_publish",
+    "enqueue_all_daily_jobs",
+    "enqueue_forecast_job",
+    "enqueue_job",
+    "fetch_missing_relevant",
+    "fn_add_outsourced_analysis_result_line",
+    "fn_approve_analysis_for_coa",
+    "fn_assign_staff_role",
+    "fn_bulk_upsert_item_class_map",
+    "fn_clear_multi_value_analysis_result",
+    "fn_clear_test_default_method",
+    "fn_consumption_monthly_filtered",
+    "fn_consumption_summary_count_filtered",
+    "fn_consumption_summary_filtered",
+    "fn_create_control_register",
+    "fn_create_control_sample_from_analysis_with_register",
+    "fn_create_new_spec_version_from_edits",
+    "fn_create_reference_exception",
+    "fn_deactivate_control_register_mapping",
+    "fn_deactivate_lab_uom",
+    "fn_deactivate_method",
+    "fn_deactivate_product_shelf_life",
+    "fn_deactivate_protocol_category",
+    "fn_deactivate_protocol_test_line",
+    "fn_deactivate_spec_override",
+    "fn_deactivate_staff",
+    "fn_deactivate_staff_category",
+    "fn_deactivate_staff_role_assignment",
+    "fn_deactivate_staff_status",
+    "fn_deactivate_test",
+    "fn_deactivate_unit",
+    "fn_exempt_control_sample_collection",
+    "fn_fg_force_close",
+    "fn_generate_fg_group_spec_profile",
+    "fn_generate_inv_group_spec_profile",
+    "fn_generate_pm_subcategory_spec_profile",
+    "fn_get_active_protocol_category_id_for_pm_subcategory",
+    "fn_get_active_spec_profile_id_for_fg_group",
+    "fn_get_active_spec_profile_id_for_inv_group",
+    "fn_get_active_spec_profile_id_for_pm_subcategory",
+    "fn_get_analysis_spec_locks",
+    "fn_get_lab_uom_picker",
+    "fn_get_product_shelf_life_manager_snapshot",
+    "fn_get_staff_directory_snapshot",
+    "fn_get_test_method_master_snapshot",
+    "fn_get_user_analysis_action_permissions",
+    "fn_get_user_workflow_action_permissions",
+    "fn_get_workflow_access_control_snapshot",
+    "fn_issue_coa",
+    "fn_mark_control_sample_exception_removed",
+    "fn_mark_control_sample_removed",
+    "fn_move_protocol_test_line",
+    "fn_pass_analysis_scrutiny",
+    "fn_preview_effective_fg_spec_for_product",
+    "fn_preview_effective_pm_spec_for_item",
+    "fn_preview_effective_rm_spec_for_item",
+    "fn_purchase_details_filtered",
+    "fn_purchase_summary_filtered",
+    "fn_rebuild_base_spec_from_protocol",
+    "fn_receive_sample_and_create_analysis",
+    "fn_reopen_analysis_after_approval",
+    "fn_reorder_protocol_test_lines",
+    "fn_resolve_current_active_spec_lines",
+    "fn_return_analysis_for_correction",
+    "fn_review_spec_override",
+    "fn_rm_bom_upsert",
+    "fn_rm_rms_stock_filtered",
+    "fn_rm_rms_stock_filtered_count",
+    "fn_save_analysis_result",
+    "fn_save_lab_uom",
+    "fn_save_multi_value_analysis_result",
+    "fn_save_product_shelf_life",
+    "fn_save_protocol_category",
+    "fn_save_protocol_test_line",
+    "fn_save_spec_override_direct",
+    "fn_save_staff",
+    "fn_save_staff_category",
+    "fn_save_staff_compensation_monthly",
+    "fn_save_staff_status",
+    "fn_save_test_master",
+    "fn_save_test_method",
+    "fn_save_unit",
+    "fn_search_reference_sources",
+    "fn_set_active_fg_group_spec_profile_family",
+    "fn_set_active_fg_protocol_for_group_family",
+    "fn_set_active_pm_protocol_for_subcategory_family",
+    "fn_set_active_pm_subcategory_spec_profile_family",
+    "fn_set_active_rm_group_spec_profile_family",
+    "fn_set_active_rm_protocol_for_group_family",
+    "fn_set_staff_role_action",
+    "fn_set_test_default_method",
+    "fn_stock_purchase_value_summary",
+    "fn_submit_analysis_for_scrutiny",
+    "fn_submit_analysis_reference_proposal",
+    "fn_supersede_spec_override",
+    "fn_sync_analysis_results_from_effective_spec",
+    "fn_upsert_outsourced_report_for_result",
+    "fn_upsert_reference_source",
+    "get_admin_audit_logs",
+    "get_inv_classification_hierarchy_json",
+    "get_mis_finance_party_page",
+    "get_mis_finished_goods_sku_page",
+    "get_mis_inventory_item_page",
+    "get_mis_sales_product_page",
+    "get_plan_worklist",
+    "get_publish_lines",
+    "get_stock_items_by_classification",
+    "get_user_permissions",
+    "is_etl_admin",
+    "list_etl_presets",
+    "list_hub_access_by_email",
+    "list_overrides_for_header",
+    "map_batch_to_bmr_by_bn",
+    "mrp_material_overview_page",
+    "mrp_pm_allocation_console",
+    "mrp_pm_issue_lines_save",
+    "mrp_rm_allocation_console",
+    "mrp_rm_issue_lines_save",
+    "nudge_small_residuals",
+    "proc_apply_vendor_to_same_item_lines",
+    "proc_clear_vendor_assignment_for_same_item_lines",
+    "proc_get_snapshot_refresh_status",
+    "proc_indent_accept_excess",
+    "proc_indent_add_line",
+    "proc_indent_clear_vendor_assignment",
+    "proc_indent_close_strict",
+    "proc_indent_close_with_override",
+    "proc_indent_create",
+    "proc_indent_create_from_pr",
+    "proc_indent_delete_draft",
+    "proc_indent_issue",
+    "proc_indent_recommend_and_accept_vendors_step",
+    "proc_indent_recommend_vendor",
+    "proc_indent_resync_from_pr",
+    "proc_indent_set_source_pr",
+    "proc_indent_set_status",
+    "proc_indent_set_vendor_selection",
+    "proc_pec_buylist_material_class_options",
+    "proc_pec_buylist_rm_scope_options",
+    "proc_pec_excess_acceptance_audit",
+    "proc_pec_indent_headers",
+    "proc_pec_indent_lines",
+    "proc_pec_pr_headers",
+    "proc_pec_pr_lines",
+    "proc_pec_purchase_excess",
+    "proc_pec_sourcing_decisions",
+    "proc_pec_vendor_details",
+    "proc_pr_add_line",
+    "proc_pr_create_revision_from_active",
+    "proc_pr_delete_draft",
+    "proc_pr_rebuild_from_mrp",
+    "proc_pr_set_manual_delta",
+    "proc_pr_set_manual_reason",
+    "proc_pr_set_status",
+    "proc_preview_same_item_vendor_action",
+    "proc_procurement_action_queue_paged",
+    "proc_request_snapshot_refresh",
+    "proc_vendor_alias_sync_from_sources",
+    "proc_vendor_create",
+    "proc_vendor_create_and_map_tally_alias",
+    "proc_vendor_directory_paged",
+    "proc_vendor_identity_action_paged",
+    "proc_vendor_item_rate_create",
+    "proc_vendor_item_rate_paged",
+    "proc_vendor_item_rate_update",
+    "proc_vendor_lookup",
+    "proc_vendor_map_tally_alias",
+    "proc_vendor_rate_item_lookup",
+    "proc_vendor_set_active",
+    "proc_vendor_unmapped_alias_count",
+    "proc_vendor_unmapped_alias_queue_paged",
+    "proc_vendor_update",
+    "proc_vendorwise_buylist_filtered",
+    "proc_vendorwise_buylist_split_items",
+    "process_supply_rollup_refresh",
+    "promote_all_staging",
+    "rebuild_batch_plan",
+    "rebuild_batch_plan_unmapped",
+    "recalc_batch_plan_for_product",
+    "refresh_after_rm_allocation",
+    "retry_jobs_by_ids",
+    "revoke_user_access",
+    "rollback_manual_plan_apply",
+    "rpc_admin_correct_bmr_plan_mapping",
+    "rpc_create_daily_work_log_with_packaging",
+    "rpc_create_fg_bulk_internal_transfer",
+    "rpc_create_product",
+    "rpc_debug_runtime_identity",
+    "rpc_fg_bulk_internal_transfer_source_by_identity",
+    "rpc_fg_bulk_internal_transfer_source_page",
+    "rpc_fg_transfer_recon_counts",
+    "rpc_fg_transfer_recon_counts_by_date",
+    "rpc_fg_transfer_recon_fix_suggestions",
+    "rpc_fg_transfer_recon_get_v2",
+    "rpc_fg_transfer_recon_list_enriched",
+    "rpc_fg_transfer_recon_problem_counts",
+    "rpc_fg_transfer_tally_event_list",
+    "rpc_forecast_exceptions",
+    "rpc_get_bmr_admin_correction_history",
+    "rpc_get_rm_items",
+    "rpc_incomplete_pairs",
+    "rpc_overlay_monthly_search",
+    "rpc_plm_map_clear",
+    "rpc_plm_map_set",
+    "rpc_plm_override_counts",
+    "rpc_plm_ovr_delete",
+    "rpc_plm_ovr_list",
+    "rpc_plm_ovr_upsert",
+    "rpc_plm_preview_effective",
+    "rpc_plm_rebuild_all",
+    "rpc_plm_rebuild_skus_for_tpl",
+    "rpc_plm_tpl_delete_line",
+    "rpc_plm_tpl_list_lines",
+    "rpc_plm_tpl_renumber",
+    "rpc_plm_tpl_upsert_header",
+    "rpc_plm_tpl_upsert_line",
+    "rpc_preview_bmr_admin_correction",
+    "rpc_search_bmr_admin_correction_history",
+    "rpc_skus_without_overrides",
+    "rpc_sp_bom_delete_line",
+    "rpc_sp_bom_list_lines",
+    "rpc_sp_bom_renumber",
+    "rpc_sp_bom_upsert_header",
+    "rpc_sp_bom_upsert_line",
+    "rpc_update_daily_work_log_status",
+    "rpc_update_daily_work_log_with_packaging",
+    "rpc_update_product",
+    "sdv_zero_sellers_abs",
+    "seed_manual_plan_set",
+    "set_user_access_by_email_key",
+    "sop_approval_decide",
+    "sop_publish_approved",
+    "sop_sections_resequence",
+    "sop_sections_reset_to_template",
+    "sop_submit_for_review",
+    "stock_checker_query",
+    "unmapped_aggregate",
+    "unmapped_rows"
+  ],
+  "byName": {
+    "get_user_permissions": [
+      {
+        "file": "index.html",
+        "line": 1429,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "js/login.js",
+        "line": 178,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 4543,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "js/manage-rm-bom.js",
+        "line": 1579,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "js/manage-sp-bom.js",
+        "line": 2020,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "js/products.js",
+        "line": 299,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 5220,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/costing-suite-shell.js",
+        "line": 2985,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/executive-mis-dashboard.js",
+        "line": 169,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 64,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/lab-analysis-queue.js",
+        "line": 303,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 152,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/mrpAccess.js",
+        "line": 30,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 117,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/product-shelf-life-manager.js",
+        "line": 114,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/production-execution-queue.js",
+        "line": 735,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 293,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1785,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 210,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 186,
+        "name": "get_user_permissions"
+      },
+      {
+        "file": "public/utilities-hub/js/hub-auth.js",
+        "line": 29,
+        "name": "get_user_permissions"
+      }
+    ],
+    "rpc_create_daily_work_log_with_packaging": [
+      {
+        "file": "js/log-add.js",
+        "line": 1399,
+        "name": "rpc_create_daily_work_log_with_packaging"
+      }
+    ],
+    "rpc_update_daily_work_log_with_packaging": [
+      {
+        "file": "js/log-edit.js",
+        "line": 623,
+        "name": "rpc_update_daily_work_log_with_packaging"
+      }
+    ],
+    "fn_fg_force_close": [
+      {
+        "file": "js/log-edit.js",
+        "line": 966,
+        "name": "fn_fg_force_close"
+      }
+    ],
+    "rpc_debug_runtime_identity": [
+      {
+        "file": "js/log-edit.js",
+        "line": 2634,
+        "name": "rpc_debug_runtime_identity"
+      }
+    ],
+    "rpc_plm_preview_effective": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 828,
+        "name": "rpc_plm_preview_effective"
+      }
+    ],
+    "rpc_plm_ovr_list": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 843,
+        "name": "rpc_plm_ovr_list"
+      }
+    ],
+    "rpc_plm_ovr_upsert": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1034,
+        "name": "rpc_plm_ovr_upsert"
+      }
+    ],
+    "rpc_plm_ovr_delete": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1107,
+        "name": "rpc_plm_ovr_delete"
+      }
+    ],
+    "rpc_plm_map_clear": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1206,
+        "name": "rpc_plm_map_clear"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1257,
+        "name": "rpc_plm_map_clear"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1309,
+        "name": "rpc_plm_map_clear"
+      }
+    ],
+    "rpc_plm_map_set": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1251,
+        "name": "rpc_plm_map_set"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1303,
+        "name": "rpc_plm_map_set"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 2272,
+        "name": "rpc_plm_map_set"
+      }
+    ],
+    "rpc_skus_without_overrides": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1577,
+        "name": "rpc_skus_without_overrides"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1608,
+        "name": "rpc_skus_without_overrides"
+      }
+    ],
+    "rpc_plm_override_counts": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 1884,
+        "name": "rpc_plm_override_counts"
+      }
+    ],
+    "rpc_plm_tpl_list_lines": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 2400,
+        "name": "rpc_plm_tpl_list_lines"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 3744,
+        "name": "rpc_plm_tpl_list_lines"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 4965,
+        "name": "rpc_plm_tpl_list_lines"
+      }
+    ],
+    "rpc_plm_tpl_upsert_header": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 3723,
+        "name": "rpc_plm_tpl_upsert_header"
+      }
+    ],
+    "rpc_plm_tpl_delete_line": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 3761,
+        "name": "rpc_plm_tpl_delete_line"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 4975,
+        "name": "rpc_plm_tpl_delete_line"
+      }
+    ],
+    "rpc_plm_tpl_upsert_line": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 3770,
+        "name": "rpc_plm_tpl_upsert_line"
+      }
+    ],
+    "rpc_plm_tpl_renumber": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 3783,
+        "name": "rpc_plm_tpl_renumber"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 4347,
+        "name": "rpc_plm_tpl_renumber"
+      }
+    ],
+    "rpc_plm_rebuild_skus_for_tpl": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 4386,
+        "name": "rpc_plm_rebuild_skus_for_tpl"
+      }
+    ],
+    "rpc_plm_rebuild_all": [
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 4407,
+        "name": "rpc_plm_rebuild_all"
+      },
+      {
+        "file": "js/manage-pm-bom.js",
+        "line": 4450,
+        "name": "rpc_plm_rebuild_all"
+      }
+    ],
+    "rpc_get_rm_items": [
+      {
+        "file": "js/manage-rm-bom.js",
+        "line": 261,
+        "name": "rpc_get_rm_items"
+      }
+    ],
+    "fn_rm_bom_upsert": [
+      {
+        "file": "js/manage-rm-bom.js",
+        "line": 783,
+        "name": "fn_rm_bom_upsert"
+      }
+    ],
+    "rpc_sp_bom_upsert_header": [
+      {
+        "file": "js/manage-sp-bom.js",
+        "line": 1293,
+        "name": "rpc_sp_bom_upsert_header"
+      }
+    ],
+    "rpc_sp_bom_list_lines": [
+      {
+        "file": "js/manage-sp-bom.js",
+        "line": 1303,
+        "name": "rpc_sp_bom_list_lines"
+      }
+    ],
+    "rpc_sp_bom_delete_line": [
+      {
+        "file": "js/manage-sp-bom.js",
+        "line": 1324,
+        "name": "rpc_sp_bom_delete_line"
+      }
+    ],
+    "rpc_sp_bom_upsert_line": [
+      {
+        "file": "js/manage-sp-bom.js",
+        "line": 1341,
+        "name": "rpc_sp_bom_upsert_line"
+      }
+    ],
+    "rpc_sp_bom_renumber": [
+      {
+        "file": "js/manage-sp-bom.js",
+        "line": 1354,
+        "name": "rpc_sp_bom_renumber"
+      }
+    ],
+    "rpc_overlay_monthly_search": [
+      {
+        "file": "js/procurement-planning-workbench.js",
+        "line": 1249,
+        "name": "rpc_overlay_monthly_search"
+      }
+    ],
+    "rpc_create_product": [
+      {
+        "file": "js/products.js",
+        "line": 1012,
+        "name": "rpc_create_product"
+      }
+    ],
+    "rpc_update_product": [
+      {
+        "file": "js/products.js",
+        "line": 1038,
+        "name": "rpc_update_product"
+      },
+      {
+        "file": "js/products.js",
+        "line": 1193,
+        "name": "rpc_update_product"
+      }
+    ],
+    "sop_submit_for_review": [
+      {
+        "file": "js/sop-editor.js",
+        "line": 835,
+        "name": "sop_submit_for_review"
+      }
+    ],
+    "sop_publish_approved": [
+      {
+        "file": "js/sop-editor.js",
+        "line": 870,
+        "name": "sop_publish_approved"
+      }
+    ],
+    "sop_approval_decide": [
+      {
+        "file": "js/sop-editor.js",
+        "line": 979,
+        "name": "sop_approval_decide"
+      },
+      {
+        "file": "js/sop-editor.js",
+        "line": 1018,
+        "name": "sop_approval_decide"
+      }
+    ],
+    "sop_sections_resequence": [
+      {
+        "file": "js/sop-editor.js",
+        "line": 1387,
+        "name": "sop_sections_resequence"
+      }
+    ],
+    "sop_sections_reset_to_template": [
+      {
+        "file": "js/sop-editor.js",
+        "line": 1731,
+        "name": "sop_sections_reset_to_template"
+      }
+    ],
+    "rebuild_batch_plan": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 559,
+        "name": "rebuild_batch_plan"
+      }
+    ],
+    "recalc_batch_plan_for_product": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 563,
+        "name": "recalc_batch_plan_for_product"
+      }
+    ],
+    "nudge_small_residuals": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 570,
+        "name": "nudge_small_residuals"
+      }
+    ],
+    "map_batch_to_bmr_by_bn": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 1692,
+        "name": "map_batch_to_bmr_by_bn"
+      },
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 1734,
+        "name": "map_batch_to_bmr_by_bn"
+      },
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 1867,
+        "name": "map_batch_to_bmr_by_bn"
+      },
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 3029,
+        "name": "map_batch_to_bmr_by_bn"
+      }
+    ],
+    "rebuild_batch_plan_unmapped": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 2745,
+        "name": "rebuild_batch_plan_unmapped"
+      }
+    ],
+    "list_overrides_for_header": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 3167,
+        "name": "list_overrides_for_header"
+      }
+    ],
+    "apply_production_batch_override_immediate": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 3286,
+        "name": "apply_production_batch_override_immediate"
+      }
+    ],
+    "deactivate_production_batch_override": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 3336,
+        "name": "deactivate_production_batch_override"
+      }
+    ],
+    "get_plan_worklist": [
+      {
+        "file": "js/supply-batch-plan.js",
+        "line": 6624,
+        "name": "get_plan_worklist"
+      }
+    ],
+    "process_supply_rollup_refresh": [
+      {
+        "file": "js/supply-overrides.js",
+        "line": 18,
+        "name": "process_supply_rollup_refresh"
+      }
+    ],
+    "rollback_manual_plan_apply": [
+      {
+        "file": "js/supply-overrides.js",
+        "line": 279,
+        "name": "rollback_manual_plan_apply"
+      },
+      {
+        "file": "js/supply-overrides.js",
+        "line": 2406,
+        "name": "rollback_manual_plan_apply"
+      }
+    ],
+    "seed_manual_plan_set": [
+      {
+        "file": "js/supply-overrides.js",
+        "line": 1073,
+        "name": "seed_manual_plan_set"
+      }
+    ],
+    "apply_manual_plan_set": [
+      {
+        "file": "js/supply-overrides.js",
+        "line": 2417,
+        "name": "apply_manual_plan_set"
+      }
+    ],
+    "apply_production_overrides": [
+      {
+        "file": "js/supply-overrides.js",
+        "line": 2424,
+        "name": "apply_production_overrides"
+      }
+    ],
+    "rpc_fg_bulk_internal_transfer_source_page": [
+      {
+        "file": "js/update-log-status.js",
+        "line": 391,
+        "name": "rpc_fg_bulk_internal_transfer_source_page"
+      },
+      {
+        "file": "public/shared/js/fg-bulk-internal-transfer.js",
+        "line": 148,
+        "name": "rpc_fg_bulk_internal_transfer_source_page"
+      }
+    ],
+    "rpc_update_daily_work_log_status": [
+      {
+        "file": "js/update-log-status.js",
+        "line": 1130,
+        "name": "rpc_update_daily_work_log_status"
+      }
+    ],
+    "fn_get_analysis_spec_locks": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 519,
+        "name": "fn_get_analysis_spec_locks"
+      }
+    ],
+    "fn_get_user_analysis_action_permissions": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 1412,
+        "name": "fn_get_user_analysis_action_permissions"
+      },
+      {
+        "file": "public/shared/js/lab-analysis-queue.js",
+        "line": 394,
+        "name": "fn_get_user_analysis_action_permissions"
+      }
+    ],
+    "fn_sync_analysis_results_from_effective_spec": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 1647,
+        "name": "fn_sync_analysis_results_from_effective_spec"
+      }
+    ],
+    "fn_save_analysis_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 1728,
+        "name": "fn_save_analysis_result"
+      }
+    ],
+    "fn_get_lab_uom_picker": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 2011,
+        "name": "fn_get_lab_uom_picker"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11701,
+        "name": "fn_get_lab_uom_picker"
+      }
+    ],
+    "fn_search_reference_sources": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 2357,
+        "name": "fn_search_reference_sources"
+      }
+    ],
+    "fn_upsert_reference_source": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 2732,
+        "name": "fn_upsert_reference_source"
+      }
+    ],
+    "fn_submit_analysis_reference_proposal": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3053,
+        "name": "fn_submit_analysis_reference_proposal"
+      }
+    ],
+    "fn_create_reference_exception": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3129,
+        "name": "fn_create_reference_exception"
+      }
+    ],
+    "fn_save_multi_value_analysis_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3845,
+        "name": "fn_save_multi_value_analysis_result"
+      }
+    ],
+    "fn_clear_multi_value_analysis_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3935,
+        "name": "fn_clear_multi_value_analysis_result"
+      }
+    ],
+    "fn_add_outsourced_analysis_result_line": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4235,
+        "name": "fn_add_outsourced_analysis_result_line"
+      }
+    ],
+    "fn_upsert_outsourced_report_for_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4251,
+        "name": "fn_upsert_outsourced_report_for_result"
+      }
+    ],
+    "fn_issue_coa": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4513,
+        "name": "fn_issue_coa"
+      }
+    ],
+    "fn_submit_analysis_for_scrutiny": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4571,
+        "name": "fn_submit_analysis_for_scrutiny"
+      }
+    ],
+    "fn_pass_analysis_scrutiny": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4576,
+        "name": "fn_pass_analysis_scrutiny"
+      }
+    ],
+    "fn_approve_analysis_for_coa": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4581,
+        "name": "fn_approve_analysis_for_coa"
+      }
+    ],
+    "fn_return_analysis_for_correction": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4586,
+        "name": "fn_return_analysis_for_correction"
+      }
+    ],
+    "fn_reopen_analysis_after_approval": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4595,
+        "name": "fn_reopen_analysis_after_approval"
+      }
+    ],
+    "app_get_current_user_context": [
+      {
+        "file": "public/shared/js/appAuth.js",
+        "line": 8,
+        "name": "app_get_current_user_context"
+      }
+    ],
+    "app_get_my_permissions": [
+      {
+        "file": "public/shared/js/appAuth.js",
+        "line": 40,
+        "name": "app_get_my_permissions"
+      }
+    ],
+    "app_has_permission": [
+      {
+        "file": "public/shared/js/appAuth.js",
+        "line": 62,
+        "name": "app_has_permission"
+      }
+    ],
+    "rpc_preview_bmr_admin_correction": [
+      {
+        "file": "public/shared/js/bmr-admin-correction.js",
+        "line": 310,
+        "name": "rpc_preview_bmr_admin_correction"
+      }
+    ],
+    "rpc_admin_correct_bmr_plan_mapping": [
+      {
+        "file": "public/shared/js/bmr-admin-correction.js",
+        "line": 321,
+        "name": "rpc_admin_correct_bmr_plan_mapping"
+      }
+    ],
+    "rpc_get_bmr_admin_correction_history": [
+      {
+        "file": "public/shared/js/bmr-admin-correction.js",
+        "line": 365,
+        "name": "rpc_get_bmr_admin_correction_history"
+      }
+    ],
+    "rpc_search_bmr_admin_correction_history": [
+      {
+        "file": "public/shared/js/bmr-admin-correction.js",
+        "line": 638,
+        "name": "rpc_search_bmr_admin_correction_history"
+      }
+    ],
+    "fn_create_control_sample_from_analysis_with_register": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 828,
+        "name": "fn_create_control_sample_from_analysis_with_register"
+      }
+    ],
+    "fn_exempt_control_sample_collection": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 883,
+        "name": "fn_exempt_control_sample_collection"
+      }
+    ],
+    "fn_mark_control_sample_exception_removed": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 946,
+        "name": "fn_mark_control_sample_exception_removed"
+      }
+    ],
+    "fn_mark_control_sample_removed": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 959,
+        "name": "fn_mark_control_sample_removed"
+      }
+    ],
+    "fn_create_control_register": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 1186,
+        "name": "fn_create_control_register"
+      }
+    ],
+    "fn_deactivate_control_register_mapping": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 1232,
+        "name": "fn_deactivate_control_register_mapping"
+      }
+    ],
+    "get_mis_finance_party_page": [
+      {
+        "file": "public/shared/js/executive-mis-dashboard.js",
+        "line": 697,
+        "name": "get_mis_finance_party_page"
+      }
+    ],
+    "get_mis_sales_product_page": [
+      {
+        "file": "public/shared/js/executive-mis-dashboard.js",
+        "line": 940,
+        "name": "get_mis_sales_product_page"
+      }
+    ],
+    "get_mis_inventory_item_page": [
+      {
+        "file": "public/shared/js/executive-mis-dashboard.js",
+        "line": 1201,
+        "name": "get_mis_inventory_item_page"
+      }
+    ],
+    "get_mis_finished_goods_sku_page": [
+      {
+        "file": "public/shared/js/executive-mis-dashboard.js",
+        "line": 1489,
+        "name": "get_mis_finished_goods_sku_page"
+      }
+    ],
+    "rpc_fg_bulk_internal_transfer_source_by_identity": [
+      {
+        "file": "public/shared/js/fg-bulk-internal-transfer.js",
+        "line": 263,
+        "name": "rpc_fg_bulk_internal_transfer_source_by_identity"
+      }
+    ],
+    "rpc_create_fg_bulk_internal_transfer": [
+      {
+        "file": "public/shared/js/fg-bulk-internal-transfer.js",
+        "line": 811,
+        "name": "rpc_create_fg_bulk_internal_transfer"
+      }
+    ],
+    "rpc_fg_transfer_recon_counts": [
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 1194,
+        "name": "rpc_fg_transfer_recon_counts"
+      }
+    ],
+    "rpc_fg_transfer_recon_problem_counts": [
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 1204,
+        "name": "rpc_fg_transfer_recon_problem_counts"
+      }
+    ],
+    "rpc_fg_transfer_recon_counts_by_date": [
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 1217,
+        "name": "rpc_fg_transfer_recon_counts_by_date"
+      }
+    ],
+    "rpc_fg_transfer_recon_list_enriched": [
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 1251,
+        "name": "rpc_fg_transfer_recon_list_enriched"
+      },
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 3414,
+        "name": "rpc_fg_transfer_recon_list_enriched"
+      }
+    ],
+    "rpc_fg_transfer_recon_get_v2": [
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 1291,
+        "name": "rpc_fg_transfer_recon_get_v2"
+      }
+    ],
+    "rpc_fg_transfer_tally_event_list": [
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 1341,
+        "name": "rpc_fg_transfer_tally_event_list"
+      },
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 3451,
+        "name": "rpc_fg_transfer_tally_event_list"
+      }
+    ],
+    "rpc_fg_transfer_recon_fix_suggestions": [
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 1488,
+        "name": "rpc_fg_transfer_recon_fix_suggestions"
+      },
+      {
+        "file": "public/shared/js/fg-transfer-reconciliation.js",
+        "line": 3509,
+        "name": "rpc_fg_transfer_recon_fix_suggestions"
+      }
+    ],
+    "calc_fill_plan": [
+      {
+        "file": "public/shared/js/fill-planner.js",
+        "line": 888,
+        "name": "calc_fill_plan"
+      },
+      {
+        "file": "public/shared/js/fill-planner.js",
+        "line": 947,
+        "name": "calc_fill_plan"
+      }
+    ],
+    "enqueue_forecast_job": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 228,
+        "name": "enqueue_forecast_job"
+      },
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 403,
+        "name": "enqueue_forecast_job"
+      }
+    ],
+    "fetch_missing_relevant": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 532,
+        "name": "fetch_missing_relevant"
+      }
+    ],
+    "count_forecast_health_mv": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 643,
+        "name": "count_forecast_health_mv"
+      },
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 1177,
+        "name": "count_forecast_health_mv"
+      }
+    ],
+    "rpc_incomplete_pairs": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 1202,
+        "name": "rpc_incomplete_pairs"
+      }
+    ],
+    "count_forecast_exceptions_summary": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 1221,
+        "name": "count_forecast_exceptions_summary"
+      }
+    ],
+    "rpc_forecast_exceptions": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 2119,
+        "name": "rpc_forecast_exceptions"
+      },
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 2217,
+        "name": "rpc_forecast_exceptions"
+      }
+    ],
+    "delete_publish": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 2594,
+        "name": "delete_publish"
+      }
+    ],
+    "promote_all_staging": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 2830,
+        "name": "promote_all_staging"
+      },
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 3920,
+        "name": "promote_all_staging"
+      }
+    ],
+    "deactivate_forecast_override": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 3138,
+        "name": "deactivate_forecast_override"
+      }
+    ],
+    "count_publish_lines": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 3238,
+        "name": "count_publish_lines"
+      }
+    ],
+    "get_publish_lines": [
+      {
+        "file": "public/shared/js/forecast-console.js",
+        "line": 3239,
+        "name": "get_publish_lines"
+      }
+    ],
+    "fn_get_user_workflow_action_permissions": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 259,
+        "name": "fn_get_user_workflow_action_permissions"
+      }
+    ],
+    "fn_resolve_current_active_spec_lines": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 917,
+        "name": "fn_resolve_current_active_spec_lines"
+      }
+    ],
+    "fn_get_active_protocol_category_id_for_pm_subcategory": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1295,
+        "name": "fn_get_active_protocol_category_id_for_pm_subcategory"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7852,
+        "name": "fn_get_active_protocol_category_id_for_pm_subcategory"
+      }
+    ],
+    "fn_receive_sample_and_create_analysis": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1814,
+        "name": "fn_receive_sample_and_create_analysis"
+      }
+    ],
+    "fn_save_protocol_category": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 594,
+        "name": "fn_save_protocol_category"
+      }
+    ],
+    "fn_deactivate_protocol_category": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 636,
+        "name": "fn_deactivate_protocol_category"
+      }
+    ],
+    "fn_deactivate_protocol_test_line": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1287,
+        "name": "fn_deactivate_protocol_test_line"
+      }
+    ],
+    "fn_reorder_protocol_test_lines": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1472,
+        "name": "fn_reorder_protocol_test_lines"
+      }
+    ],
+    "fn_move_protocol_test_line": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1507,
+        "name": "fn_move_protocol_test_line"
+      }
+    ],
+    "fn_save_protocol_test_line": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1633,
+        "name": "fn_save_protocol_test_line"
+      }
+    ],
+    "fn_set_active_fg_protocol_for_group_family": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1984,
+        "name": "fn_set_active_fg_protocol_for_group_family"
+      }
+    ],
+    "fn_set_active_rm_protocol_for_group_family": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1993,
+        "name": "fn_set_active_rm_protocol_for_group_family"
+      }
+    ],
+    "fn_set_active_pm_protocol_for_subcategory_family": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 2002,
+        "name": "fn_set_active_pm_protocol_for_subcategory_family"
+      }
+    ],
+    "fn_supersede_spec_override": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4539,
+        "name": "fn_supersede_spec_override"
+      }
+    ],
+    "fn_review_spec_override": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4716,
+        "name": "fn_review_spec_override"
+      }
+    ],
+    "fn_deactivate_spec_override": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4807,
+        "name": "fn_deactivate_spec_override"
+      }
+    ],
+    "fn_get_active_spec_profile_id_for_fg_group": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 6341,
+        "name": "fn_get_active_spec_profile_id_for_fg_group"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8974,
+        "name": "fn_get_active_spec_profile_id_for_fg_group"
+      }
+    ],
+    "fn_generate_fg_group_spec_profile": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7051,
+        "name": "fn_generate_fg_group_spec_profile"
+      }
+    ],
+    "fn_create_new_spec_version_from_edits": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7108,
+        "name": "fn_create_new_spec_version_from_edits"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7633,
+        "name": "fn_create_new_spec_version_from_edits"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8154,
+        "name": "fn_create_new_spec_version_from_edits"
+      }
+    ],
+    "fn_set_active_fg_group_spec_profile_family": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7156,
+        "name": "fn_set_active_fg_group_spec_profile_family"
+      }
+    ],
+    "fn_generate_inv_group_spec_profile": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7601,
+        "name": "fn_generate_inv_group_spec_profile"
+      }
+    ],
+    "fn_set_active_rm_group_spec_profile_family": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7680,
+        "name": "fn_set_active_rm_group_spec_profile_family"
+      }
+    ],
+    "fn_get_active_spec_profile_id_for_pm_subcategory": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7881,
+        "name": "fn_get_active_spec_profile_id_for_pm_subcategory"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8584,
+        "name": "fn_get_active_spec_profile_id_for_pm_subcategory"
+      }
+    ],
+    "fn_generate_pm_subcategory_spec_profile": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8123,
+        "name": "fn_generate_pm_subcategory_spec_profile"
+      }
+    ],
+    "fn_set_active_pm_subcategory_spec_profile_family": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8201,
+        "name": "fn_set_active_pm_subcategory_spec_profile_family"
+      }
+    ],
+    "fn_rebuild_base_spec_from_protocol": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8420,
+        "name": "fn_rebuild_base_spec_from_protocol"
+      }
+    ],
+    "fn_preview_effective_pm_spec_for_item": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8751,
+        "name": "fn_preview_effective_pm_spec_for_item"
+      }
+    ],
+    "fn_get_active_spec_profile_id_for_inv_group": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9211,
+        "name": "fn_get_active_spec_profile_id_for_inv_group"
+      }
+    ],
+    "fn_preview_effective_fg_spec_for_product": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9709,
+        "name": "fn_preview_effective_fg_spec_for_product"
+      }
+    ],
+    "fn_preview_effective_rm_spec_for_item": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9830,
+        "name": "fn_preview_effective_rm_spec_for_item"
+      }
+    ],
+    "fn_save_spec_override_direct": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11563,
+        "name": "fn_save_spec_override_direct"
+      }
+    ],
+    "fn_get_workflow_access_control_snapshot": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 360,
+        "name": "fn_get_workflow_access_control_snapshot"
+      }
+    ],
+    "fn_assign_staff_role": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 1075,
+        "name": "fn_assign_staff_role"
+      }
+    ],
+    "fn_deactivate_staff_role_assignment": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 1108,
+        "name": "fn_deactivate_staff_role_assignment"
+      }
+    ],
+    "fn_set_staff_role_action": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 1141,
+        "name": "fn_set_staff_role_action"
+      }
+    ],
+    "fn_bulk_upsert_item_class_map": [
+      {
+        "file": "public/shared/js/manage-category-map.js",
+        "line": 1248,
+        "name": "fn_bulk_upsert_item_class_map"
+      }
+    ],
+    "get_inv_classification_hierarchy_json": [
+      {
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 268,
+        "name": "get_inv_classification_hierarchy_json"
+      }
+    ],
+    "get_stock_items_by_classification": [
+      {
+        "file": "public/shared/js/manage-stock-items.js",
+        "line": 873,
+        "name": "get_stock_items_by_classification"
+      }
+    ],
+    "mrp_material_overview_page": [
+      {
+        "file": "public/shared/js/mrp-material-board.js",
+        "line": 807,
+        "name": "mrp_material_overview_page"
+      },
+      {
+        "file": "public/shared/js/mrp-material-board.js",
+        "line": 866,
+        "name": "mrp_material_overview_page"
+      }
+    ],
+    "is_etl_admin": [
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 200,
+        "name": "is_etl_admin"
+      }
+    ],
+    "list_etl_presets": [
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 225,
+        "name": "list_etl_presets"
+      }
+    ],
+    "build_preset_jobs": [
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 244,
+        "name": "build_preset_jobs"
+      },
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 251,
+        "name": "build_preset_jobs"
+      }
+    ],
+    "enqueue_all_daily_jobs": [
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 300,
+        "name": "enqueue_all_daily_jobs"
+      }
+    ],
+    "enqueue_job": [
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 379,
+        "name": "enqueue_job"
+      }
+    ],
+    "retry_jobs_by_ids": [
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 669,
+        "name": "retry_jobs_by_ids"
+      }
+    ],
+    "cancel_jobs": [
+      {
+        "file": "public/shared/js/operations-control.js",
+        "line": 693,
+        "name": "cancel_jobs"
+      }
+    ],
+    "mrp_pm_allocation_console": [
+      {
+        "file": "public/shared/js/pm-issue-allocation.js",
+        "line": 696,
+        "name": "mrp_pm_allocation_console"
+      }
+    ],
+    "mrp_pm_issue_lines_save": [
+      {
+        "file": "public/shared/js/pm-issue-allocation.js",
+        "line": 1339,
+        "name": "mrp_pm_issue_lines_save"
+      }
+    ],
+    "proc_pec_pr_headers": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 161,
+        "name": "proc_pec_pr_headers"
+      }
+    ],
+    "proc_pec_pr_lines": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 167,
+        "name": "proc_pec_pr_lines"
+      }
+    ],
+    "proc_pec_indent_headers": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 175,
+        "name": "proc_pec_indent_headers"
+      }
+    ],
+    "proc_pec_indent_lines": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 181,
+        "name": "proc_pec_indent_lines"
+      }
+    ],
+    "proc_pec_purchase_excess": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 189,
+        "name": "proc_pec_purchase_excess"
+      }
+    ],
+    "proc_pec_excess_acceptance_audit": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 195,
+        "name": "proc_pec_excess_acceptance_audit"
+      }
+    ],
+    "proc_pec_buylist_material_class_options": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 201,
+        "name": "proc_pec_buylist_material_class_options"
+      }
+    ],
+    "proc_pec_buylist_rm_scope_options": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 209,
+        "name": "proc_pec_buylist_rm_scope_options"
+      }
+    ],
+    "proc_pec_sourcing_decisions": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 217,
+        "name": "proc_pec_sourcing_decisions"
+      }
+    ],
+    "proc_pec_vendor_details": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 230,
+        "name": "proc_pec_vendor_details"
+      }
+    ],
+    "proc_procurement_action_queue_paged": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 2101,
+        "name": "proc_procurement_action_queue_paged"
+      }
+    ],
+    "proc_indent_recommend_vendor": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 2142,
+        "name": "proc_indent_recommend_vendor"
+      }
+    ],
+    "proc_indent_clear_vendor_assignment": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 2264,
+        "name": "proc_indent_clear_vendor_assignment"
+      }
+    ],
+    "proc_indent_set_vendor_selection": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 2941,
+        "name": "proc_indent_set_vendor_selection"
+      }
+    ],
+    "proc_pr_create_revision_from_active": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 3453,
+        "name": "proc_pr_create_revision_from_active"
+      }
+    ],
+    "proc_indent_set_source_pr": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 3581,
+        "name": "proc_indent_set_source_pr"
+      }
+    ],
+    "proc_indent_resync_from_pr": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 3642,
+        "name": "proc_indent_resync_from_pr"
+      }
+    ],
+    "proc_indent_recommend_and_accept_vendors_step": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 3810,
+        "name": "proc_indent_recommend_and_accept_vendors_step"
+      }
+    ],
+    "proc_indent_set_status": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 4407,
+        "name": "proc_indent_set_status"
+      }
+    ],
+    "proc_indent_issue": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 4413,
+        "name": "proc_indent_issue"
+      }
+    ],
+    "proc_indent_close_strict": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 4417,
+        "name": "proc_indent_close_strict"
+      }
+    ],
+    "proc_indent_close_with_override": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 4426,
+        "name": "proc_indent_close_with_override"
+      }
+    ],
+    "proc_get_snapshot_refresh_status": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 4491,
+        "name": "proc_get_snapshot_refresh_status"
+      }
+    ],
+    "proc_request_snapshot_refresh": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 4729,
+        "name": "proc_request_snapshot_refresh"
+      }
+    ],
+    "proc_indent_delete_draft": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 5074,
+        "name": "proc_indent_delete_draft"
+      }
+    ],
+    "proc_indent_create": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 5978,
+        "name": "proc_indent_create"
+      }
+    ],
+    "proc_indent_create_from_pr": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 6060,
+        "name": "proc_indent_create_from_pr"
+      }
+    ],
+    "proc_indent_add_line": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 6733,
+        "name": "proc_indent_add_line"
+      }
+    ],
+    "proc_pr_set_manual_delta": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 7003,
+        "name": "proc_pr_set_manual_delta"
+      },
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 7030,
+        "name": "proc_pr_set_manual_delta"
+      }
+    ],
+    "proc_pr_set_manual_reason": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 7021,
+        "name": "proc_pr_set_manual_reason"
+      }
+    ],
+    "proc_pr_rebuild_from_mrp": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 7342,
+        "name": "proc_pr_rebuild_from_mrp"
+      }
+    ],
+    "create_pr_from_mrp_plan": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 7791,
+        "name": "create_pr_from_mrp_plan"
+      }
+    ],
+    "proc_pr_add_line": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 7880,
+        "name": "proc_pr_add_line"
+      }
+    ],
+    "proc_pr_set_status": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 7955,
+        "name": "proc_pr_set_status"
+      }
+    ],
+    "proc_pr_delete_draft": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 8108,
+        "name": "proc_pr_delete_draft"
+      }
+    ],
+    "proc_indent_accept_excess": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 8562,
+        "name": "proc_indent_accept_excess"
+      }
+    ],
+    "proc_vendor_lookup": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 9236,
+        "name": "proc_vendor_lookup"
+      },
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 968,
+        "name": "proc_vendor_lookup"
+      },
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1173,
+        "name": "proc_vendor_lookup"
+      }
+    ],
+    "proc_vendorwise_buylist_split_items": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 10201,
+        "name": "proc_vendorwise_buylist_split_items"
+      }
+    ],
+    "proc_preview_same_item_vendor_action": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 10401,
+        "name": "proc_preview_same_item_vendor_action"
+      }
+    ],
+    "proc_apply_vendor_to_same_item_lines": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 10526,
+        "name": "proc_apply_vendor_to_same_item_lines"
+      }
+    ],
+    "proc_clear_vendor_assignment_for_same_item_lines": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 10605,
+        "name": "proc_clear_vendor_assignment_for_same_item_lines"
+      }
+    ],
+    "proc_vendorwise_buylist_filtered": [
+      {
+        "file": "public/shared/js/procurement-execution-console.js",
+        "line": 10654,
+        "name": "proc_vendorwise_buylist_filtered"
+      }
+    ],
+    "fn_get_product_shelf_life_manager_snapshot": [
+      {
+        "file": "public/shared/js/product-shelf-life-manager.js",
+        "line": 304,
+        "name": "fn_get_product_shelf_life_manager_snapshot"
+      }
+    ],
+    "fn_save_product_shelf_life": [
+      {
+        "file": "public/shared/js/product-shelf-life-manager.js",
+        "line": 756,
+        "name": "fn_save_product_shelf_life"
+      }
+    ],
+    "fn_deactivate_product_shelf_life": [
+      {
+        "file": "public/shared/js/product-shelf-life-manager.js",
+        "line": 803,
+        "name": "fn_deactivate_product_shelf_life"
+      }
+    ],
+    "mrp_rm_allocation_console": [
+      {
+        "file": "public/shared/js/rm-issue-allocation.js",
+        "line": 138,
+        "name": "mrp_rm_allocation_console"
+      },
+      {
+        "file": "public/shared/js/rm-issue-allocation.js",
+        "line": 1123,
+        "name": "mrp_rm_allocation_console"
+      }
+    ],
+    "refresh_after_rm_allocation": [
+      {
+        "file": "public/shared/js/rm-issue-allocation.js",
+        "line": 1855,
+        "name": "refresh_after_rm_allocation"
+      }
+    ],
+    "mrp_rm_issue_lines_save": [
+      {
+        "file": "public/shared/js/rm-issue-allocation.js",
+        "line": 1949,
+        "name": "mrp_rm_issue_lines_save"
+      }
+    ],
+    "sdv_zero_sellers_abs": [
+      {
+        "file": "public/shared/js/sales-viewer.js",
+        "line": 772,
+        "name": "sdv_zero_sellers_abs"
+      }
+    ],
+    "fn_get_staff_directory_snapshot": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 599,
+        "name": "fn_get_staff_directory_snapshot"
+      }
+    ],
+    "fn_save_staff_compensation_monthly": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1223,
+        "name": "fn_save_staff_compensation_monthly"
+      }
+    ],
+    "fn_save_staff": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1514,
+        "name": "fn_save_staff"
+      }
+    ],
+    "fn_deactivate_staff": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1546,
+        "name": "fn_deactivate_staff"
+      }
+    ],
+    "fn_save_staff_category": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1733,
+        "name": "fn_save_staff_category"
+      }
+    ],
+    "fn_save_staff_status": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1788,
+        "name": "fn_save_staff_status"
+      }
+    ],
+    "fn_save_unit": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1831,
+        "name": "fn_save_unit"
+      }
+    ],
+    "fn_deactivate_staff_category": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1874,
+        "name": "fn_deactivate_staff_category"
+      }
+    ],
+    "fn_deactivate_staff_status": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1878,
+        "name": "fn_deactivate_staff_status"
+      }
+    ],
+    "fn_deactivate_unit": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1882,
+        "name": "fn_deactivate_unit"
+      }
+    ],
+    "stock_checker_query": [
+      {
+        "file": "public/shared/js/stock-checker.js",
+        "line": 2485,
+        "name": "stock_checker_query"
+      },
+      {
+        "file": "public/shared/js/stock-checker.js",
+        "line": 5579,
+        "name": "stock_checker_query"
+      },
+      {
+        "file": "public/shared/js/stock-checker.js",
+        "line": 5989,
+        "name": "stock_checker_query"
+      }
+    ],
+    "unmapped_aggregate": [
+      {
+        "file": "public/shared/js/stock-checker.js",
+        "line": 2537,
+        "name": "unmapped_aggregate"
+      }
+    ],
+    "unmapped_rows": [
+      {
+        "file": "public/shared/js/stock-checker.js",
+        "line": 2564,
+        "name": "unmapped_rows"
+      },
+      {
+        "file": "public/shared/js/stock-checker.js",
+        "line": 2793,
+        "name": "unmapped_rows"
+      }
+    ],
+    "fn_stock_purchase_value_summary": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 278,
+        "name": "fn_stock_purchase_value_summary"
+      }
+    ],
+    "fn_purchase_summary_filtered": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 1273,
+        "name": "fn_purchase_summary_filtered"
+      }
+    ],
+    "fn_purchase_details_filtered": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 1326,
+        "name": "fn_purchase_details_filtered"
+      }
+    ],
+    "fn_consumption_monthly_filtered": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 1341,
+        "name": "fn_consumption_monthly_filtered"
+      }
+    ],
+    "fn_consumption_summary_filtered": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 1369,
+        "name": "fn_consumption_summary_filtered"
+      }
+    ],
+    "fn_consumption_summary_count_filtered": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 1407,
+        "name": "fn_consumption_summary_count_filtered"
+      }
+    ],
+    "fn_rm_rms_stock_filtered": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 1770,
+        "name": "fn_rm_rms_stock_filtered"
+      },
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 2448,
+        "name": "fn_rm_rms_stock_filtered"
+      }
+    ],
+    "fn_rm_rms_stock_filtered_count": [
+      {
+        "file": "public/shared/js/stock-purchase-explorer.js",
+        "line": 2453,
+        "name": "fn_rm_rms_stock_filtered_count"
+      }
+    ],
+    "fn_get_test_method_master_snapshot": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 401,
+        "name": "fn_get_test_method_master_snapshot"
+      }
+    ],
+    "fn_save_test_master": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1188,
+        "name": "fn_save_test_master"
+      }
+    ],
+    "fn_set_test_default_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1209,
+        "name": "fn_set_test_default_method"
+      },
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1593,
+        "name": "fn_set_test_default_method"
+      }
+    ],
+    "fn_clear_test_default_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1220,
+        "name": "fn_clear_test_default_method"
+      },
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1645,
+        "name": "fn_clear_test_default_method"
+      }
+    ],
+    "fn_deactivate_test": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1255,
+        "name": "fn_deactivate_test"
+      }
+    ],
+    "fn_save_test_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1341,
+        "name": "fn_save_test_method"
+      }
+    ],
+    "fn_deactivate_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1372,
+        "name": "fn_deactivate_method"
+      }
+    ],
+    "fn_save_lab_uom": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1462,
+        "name": "fn_save_lab_uom"
+      }
+    ],
+    "fn_deactivate_lab_uom": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1493,
+        "name": "fn_deactivate_lab_uom"
+      }
+    ],
+    "proc_vendor_unmapped_alias_count": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 752,
+        "name": "proc_vendor_unmapped_alias_count"
+      }
+    ],
+    "proc_vendor_unmapped_alias_queue_paged": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 785,
+        "name": "proc_vendor_unmapped_alias_queue_paged"
+      }
+    ],
+    "proc_vendor_alias_sync_from_sources": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 913,
+        "name": "proc_vendor_alias_sync_from_sources"
+      }
+    ],
+    "proc_vendor_create_and_map_tally_alias": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1019,
+        "name": "proc_vendor_create_and_map_tally_alias"
+      }
+    ],
+    "proc_vendor_map_tally_alias": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1106,
+        "name": "proc_vendor_map_tally_alias"
+      }
+    ],
+    "proc_vendor_directory_paged": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1132,
+        "name": "proc_vendor_directory_paged"
+      }
+    ],
+    "proc_vendor_identity_action_paged": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1365,
+        "name": "proc_vendor_identity_action_paged"
+      }
+    ],
+    "proc_vendor_update": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1499,
+        "name": "proc_vendor_update"
+      }
+    ],
+    "proc_vendor_create": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1504,
+        "name": "proc_vendor_create"
+      }
+    ],
+    "proc_vendor_set_active": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1607,
+        "name": "proc_vendor_set_active"
+      }
+    ],
+    "proc_vendor_item_rate_paged": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1650,
+        "name": "proc_vendor_item_rate_paged"
+      }
+    ],
+    "proc_vendor_rate_item_lookup": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 1891,
+        "name": "proc_vendor_rate_item_lookup"
+      }
+    ],
+    "proc_vendor_item_rate_update": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 2056,
+        "name": "proc_vendor_item_rate_update"
+      }
+    ],
+    "proc_vendor_item_rate_create": [
+      {
+        "file": "public/shared/js/vendor-master.js",
+        "line": 2072,
+        "name": "proc_vendor_item_rate_create"
+      }
+    ],
+    "admin_user_suggest": [
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 51,
+        "name": "admin_user_suggest"
+      }
+    ],
+    "admin_recent_permissions": [
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 340,
+        "name": "admin_recent_permissions"
+      }
+    ],
+    "get_admin_audit_logs": [
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 407,
+        "name": "get_admin_audit_logs"
+      }
+    ],
+    "admin_users_for_target": [
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 476,
+        "name": "admin_users_for_target"
+      }
+    ],
+    "set_user_access_by_email_key": [
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 792,
+        "name": "set_user_access_by_email_key"
+      },
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 898,
+        "name": "set_user_access_by_email_key"
+      }
+    ],
+    "revoke_user_access": [
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 821,
+        "name": "revoke_user_access"
+      },
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 1010,
+        "name": "revoke_user_access"
+      }
+    ],
+    "list_hub_access_by_email": [
+      {
+        "file": "public/utilities-hub/js/admin.js",
+        "line": 946,
+        "name": "list_hub_access_by_email"
+      }
+    ]
+  },
+  "dyn": [
+    {
+      "file": "js/procurement-planning-workbench.js",
+      "line": 39,
+      "expr": "fnName"
+    },
+    {
+      "file": "js/supply-batch-plan.js",
+      "line": 4305,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/costing-suite-shell.js",
+      "line": 2010,
+      "expr": "name"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 2067,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6093,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/pm-issue-allocation.js",
+      "line": 138,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/pm-issue-allocation.js",
+      "line": 173,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/pm-rebuild-dashboard.js",
+      "line": 40,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/rm-issue-allocation.js",
+      "line": 349,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/rm-issue-allocation.js",
+      "line": 380,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/rm-issue-allocation.js",
+      "line": 421,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/rm-rebuild-dashboard.js",
+      "line": 42,
+      "expr": "rpcName"
+    },
+    {
+      "file": "public/shared/js/rm-seasonal-overlay.js",
+      "line": 16,
+      "expr": "rpcName"
+    }
+  ]
+}

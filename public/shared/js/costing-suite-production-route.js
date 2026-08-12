@@ -43,6 +43,16 @@ import {
   formatPrmAssignmentStatusLabel,
   formatPrmCommercialHierarchyLabel,
   formatPrmDayMonthYearLabel,
+  formatPrmFamilyRouteVersionCopy,
+  formatPrmRouteFamilyAssignmentSourceLabel,
+  resolvePrmEffectiveFamilyRouteId,
+  resolvePrmRouteFamilyAssignmentSource,
+  isPrmProductRouteEditorCreateContext,
+  resolvePrmProductHistoryRouteId,
+  resolvePrmOpenProductRouteEligibility,
+  formatPrmProductHistoryBaseFamilyRoute,
+  selectPrmProductBatchSizeReferences,
+  PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED,
   formatPrmDlScopeSummary,
   formatPrmFoundationStatusLabel,
   formatPrmPohScopeSummary,
@@ -180,6 +190,7 @@ import {
   normalizeProductRouteFamilyAssignmentPayload,
   normalizeReadinessPayload,
   normalizeRouteHistory,
+  normalizeProductRouteHistory,
   resolveRouteFamilyRouteStateFromHistory,
 } from "./costing-suite-production-route-rpc.js";
 import { createProductionRouteEditorController } from "./costing-suite-production-route-editor.js";
@@ -451,6 +462,8 @@ export function createProductionRouteController(deps = {}) {
     batchSizeReferences: [],
     costCentreBlocker: true,
     selectedProductId: null,
+    productRouteCreateHandoff: null,
+    productRouteReentryChooser: null,
     selectedProductRouteId: null,
     selectedRouteFamilyId: null,
     selectedFamilyRouteId: null,
@@ -964,6 +977,23 @@ export function createProductionRouteController(deps = {}) {
     return state.familyHistory;
   }
 
+  async function loadProductHistory(productId) {
+    const pid = normalizePrmIntegerId(productId);
+    if (pid == null) return { ok: false, versions: [] };
+    const response = await invoke(
+      RPC.productHistory,
+      buildProductRouteHistoryArgs({ product_id: pid }),
+      "Unable to load Product route history.",
+    );
+    if (!response.ok) {
+      state.productHistory = [];
+      return { ok: false, versions: [], error: response.error };
+    }
+    const history = normalizeProductRouteHistory(response.data);
+    state.productHistory = history.versions || [];
+    return { ok: true, versions: state.productHistory };
+  }
+
   async function loadEffective(productId, asOf = null) {
     const response = await invoke(
       RPC.effective,
@@ -1014,6 +1044,7 @@ export function createProductionRouteController(deps = {}) {
     const resolved = resolveProductionRouteLens(lens, {
       family_route_id: deepLink.family_route_id,
       product_route_id: deepLink.product_route_id,
+      product_id: deepLink.product_id,
     });
     if (typeof syncShellLens === "function") {
       syncShellLens(resolved);
@@ -1332,8 +1363,12 @@ export function createProductionRouteController(deps = {}) {
     windowEl?.classList?.remove(
       "cp-prm-modal-window--wide",
       "cp-prm-modal-window--workload-summary",
+      "cp-prm-modal-window--product-summary",
     );
-    modal?.classList?.remove("cp-prm-modal-overlay--workload-summary");
+    modal?.classList?.remove(
+      "cp-prm-modal-overlay--workload-summary",
+      "cp-prm-modal-overlay--product-summary",
+    );
     state.workloadExplainPayload = null;
     state.workloadExplainProductId = null;
     state.workloadExplainInflight = null;
@@ -1370,6 +1405,18 @@ export function createProductionRouteController(deps = {}) {
       !!enabled,
     );
     modal.classList.toggle("cp-prm-modal-overlay--workload-summary", !!enabled);
+  }
+
+  function setProductSummaryWideModal(enabled) {
+    const modal = document.getElementById("detailsModal");
+    const windowEl = modal?.querySelector?.(".modal-window");
+    if (!windowEl) return;
+    windowEl.classList.toggle("cp-prm-modal-window--wide", !!enabled);
+    windowEl.classList.toggle(
+      "cp-prm-modal-window--product-summary",
+      !!enabled,
+    );
+    modal.classList.toggle("cp-prm-modal-overlay--product-summary", !!enabled);
   }
 
   function applyModalContent({
@@ -1636,24 +1683,125 @@ export function createProductionRouteController(deps = {}) {
     </table></div>`;
   }
 
+  function productSummaryMetaCell(label, valueHtml, extras = {}) {
+    const full = extras.full ? " cp-prm-product-summary-meta-cell--full" : "";
+    const field = extras.field
+      ? ` data-prm-summary-field="${text(extras.field)}"`
+      : "";
+    const title = extras.title ? ` title="${text(extras.title)}"` : "";
+    return `<div class="cp-prm-product-summary-meta-cell${full}"${field}${title}><div class="cp-field-label">${text(label)}</div><div class="cp-prm-product-summary-meta-value">${valueHtml}</div></div>`;
+  }
+
+  function mergeProductSummaryCanonicalRow(identityRow = {}, effective = {}) {
+    const familyRouteId = resolvePrmEffectiveFamilyRouteId(effective);
+    return {
+      ...identityRow,
+      readiness_status:
+        effective?.readiness_status ||
+        effective?.route_readiness_status ||
+        null,
+      route_source:
+        effective?.route_source || effective?.validation?.route_source || null,
+      route_family_id:
+        effective?.route_family_id ?? identityRow?.route_family_id ?? null,
+      family_route_id: familyRouteId,
+      base_route_family_route_id:
+        effective?.base_route_family_route_id ?? familyRouteId,
+      product_route_id: effective?.product_route_id ?? null,
+      route_validation: effective?.validation ?? null,
+    };
+  }
+
+  function buildProductSummarySnapshotHtml(
+    identityRow = {},
+    effective = {},
+    historyRows = [],
+  ) {
+    const familyRouteId = resolvePrmEffectiveFamilyRouteId(effective);
+    const versionCopy = formatPrmFamilyRouteVersionCopy(
+      familyRouteId,
+      historyRows,
+    );
+    const productRouteId = normalizePrmIntegerId(effective?.product_route_id);
+    const routeSourceRaw =
+      effective?.route_source || effective?.validation?.route_source || "";
+    const routeSourceLabel =
+      humanizeUnknownPrmCode(routeSourceRaw) || routeSourceRaw || "—";
+    const assignmentRaw = resolvePrmRouteFamilyAssignmentSource(identityRow);
+    const assignmentLabel =
+      formatPrmRouteFamilyAssignmentSourceLabel(assignmentRaw) || "—";
+    const readiness =
+      effective?.readiness_status || effective?.route_readiness_status;
+    const familyName =
+      identityRow.route_family_name || identityRow.route_family_code || "—";
+    const uom = identityRow.base_uom || identityRow.product_base_uom;
+    return `<div class="cp-prm-product-summary-meta" data-prm-product-snapshot>
+      ${productSummaryMetaCell("Product", `<span class="cp-cell-primary">${text(identityRow.product_name)}</span>`, { field: "product" })}
+      ${productSummaryMetaCell("Product Group", text(formatPrmProductGroupHierarchyLabel(identityRow) || identityRow.product_group_name), { field: "product-group" })}
+      ${productSummaryMetaCell("Base UOM", text(uom), { field: "base-uom" })}
+      ${productSummaryMetaCell("Preferred Batch Size", text(identityRow.preferred_batch_size), { field: "preferred-batch-size" })}
+      ${productSummaryMetaCell("Route Family", text(familyName), {
+        field: "route-family",
+        title:
+          identityRow.route_family_id != null
+            ? `Route family ${identityRow.route_family_id}`
+            : "",
+      })}
+      ${productSummaryMetaCell("Assignment Source", text(assignmentLabel), {
+        field: "assignment-source",
+        title: String(assignmentRaw || ""),
+      })}
+      ${productSummaryMetaCell("Effective Route Source", text(routeSourceLabel), {
+        field: "route-source",
+        title: String(routeSourceRaw || ""),
+      })}
+      ${productSummaryMetaCell(
+        "Family Route / Version",
+        text(versionCopy || (familyRouteId != null ? String(familyRouteId) : "—")),
+        {
+          field: "family-route",
+          title: familyRouteId != null ? `Family route ${familyRouteId}` : "",
+        },
+      )}
+      ${productSummaryMetaCell(
+        "Product Route / Version",
+        text(productRouteId == null ? "None" : productRouteId),
+        { field: "product-route" },
+      )}
+      ${productSummaryMetaCell("Readiness", chip(readiness), {
+        field: "readiness",
+      })}
+      ${productSummaryMetaCell(
+        "Validation",
+        routeValidationDetailHtml(effective?.validation),
+        { field: "validation" },
+      )}
+      ${productSummaryMetaCell("Commercial hierarchy", text(hierarchy(identityRow)), {
+        field: "hierarchy",
+        full: true,
+      })}
+    </div>`;
+  }
+
   function buildEffectiveRoutePanelHtml(effective) {
     if (!effective) {
       return `<p class="cp-muted-text">No effective route returned.</p>`;
     }
     const steps = coercePrmList(effective.steps || effective.effective_steps);
-    const routeSourceRaw = effective.route_source || "";
+    const routeSourceRaw =
+      effective.route_source || effective.validation?.route_source || "";
     const routeSourceLabel =
       humanizeUnknownPrmCode(routeSourceRaw) || routeSourceRaw || "—";
+    const familyRouteId = resolvePrmEffectiveFamilyRouteId(effective);
     const metaCell = (label, valueHtml, { title = "" } = {}) =>
       `<div class="cp-prm-workload-effective-meta-cell"${
         title ? ` title="${text(title, title)}"` : ""
       }><div class="cp-field-label">${text(label)}</div><div class="cp-prm-workload-effective-meta-value">${valueHtml}</div></div>`;
     return `<div class="cp-prm-workload-effective-meta" data-prm-effective-meta>
       ${metaCell("Route Family ID", text(effective.route_family_id))}
-      ${metaCell(
-        "Family Route ID",
-        text(effective.family_route_id || effective.route_family_route_id),
-      )}
+      ${metaCell("Family Route ID", text(familyRouteId), {
+        title: familyRouteId != null ? `Family route ${familyRouteId}` : "",
+      })}
       ${metaCell("Product Route ID", text(effective.product_route_id))}
       ${metaCell("Route Source", text(routeSourceLabel), {
         title: String(routeSourceRaw || ""),
@@ -1662,19 +1810,7 @@ export function createProductionRouteController(deps = {}) {
         "Readiness",
         chip(effective.readiness_status || effective.route_readiness_status),
       )}
-      ${metaCell(
-        "Validation",
-        text(
-          formatPrmValidationLabel(
-            effective.validation_status ||
-              effective.route_validation ||
-              effective.is_valid,
-          ) ||
-            effective.validation_status ||
-            effective.route_validation ||
-            effective.is_valid,
-        ),
-      )}
+      ${metaCell("Validation", routeValidationDetailHtml(effective.validation))}
     </div>
     <h4 class="cp-section-title">Ordered steps</h4>
     ${buildEffectiveStepsTableHtml(steps)}`;
@@ -1825,10 +1961,12 @@ export function createProductionRouteController(deps = {}) {
   function navigate(lens, params = {}, replace = false) {
     const familyRouteId = normalizePrmIntegerId(params.family_route_id);
     const productRouteId = normalizePrmIntegerId(params.product_route_id);
+    const productId = normalizePrmIntegerId(params.product_id);
     const routeFamilyId = normalizePrmIntegerId(params.route_family_id);
     const resolved = resolveProductionRouteLens(lens, {
       family_route_id: familyRouteId,
       product_route_id: productRouteId,
+      product_id: productId,
     });
     const nextParams = { ...params };
     if (familyRouteId != null) nextParams.family_route_id = familyRouteId;
@@ -1871,10 +2009,19 @@ export function createProductionRouteController(deps = {}) {
         state.selectedProductId = null;
       } else if (resolved === "product-route-editor") {
         state.selectedProductRouteId = productRouteId;
+        state.selectedProductId = productId;
         state.selectedFamilyRouteId = null;
-      } else {
+        if (!isPrmProductRouteEditorCreateContext({
+          product_id: productId,
+          product_route_id: productRouteId,
+        })) {
+          state.productRouteCreateHandoff = null;
+        }
+        } else {
         state.selectedFamilyRouteId = null;
         state.selectedProductRouteId = null;
+        state.productRouteCreateHandoff = null;
+        state.productRouteReentryChooser = null;
       }
       // Keep shell CURRENT_LENS / pills aligned with soft navigation.
       if (typeof syncShellLens === "function") {
@@ -1970,22 +2117,128 @@ export function createProductionRouteController(deps = {}) {
           const href = action.href || "";
           return `<button type="button" class="icon-btn" data-prm-summary-action="${text(action.id)}" data-prm-mapping-id="${text(mappingId)}" data-prm-handoff-href="${text(href)}" ${action.disabled || !href ? "disabled" : ""}>${text(label)}</button>`;
         }
-        return `<button type="button" class="icon-btn" data-prm-summary-action="${text(action.id)}" data-prm-mapping-id="${text(mappingId)}" ${action.disabled ? "disabled" : ""}>${text(label)}</button>`;
+        const productRouteId = normalizePrmIntegerId(action.product_route_id);
+        const productRouteAttr =
+          productRouteId != null
+            ? ` data-prm-product-route-id="${productRouteId}"`
+            : "";
+        return `<button type="button" class="icon-btn" data-prm-summary-action="${text(action.id)}" data-prm-mapping-id="${text(mappingId)}"${productRouteAttr} ${action.disabled ? "disabled" : ""}>${text(label)}</button>`;
       })
       .join("")}</div>`;
   }
 
-  async function fillProductSummaryEffectiveHost(root, productId) {
-    const host = root?.querySelector?.("[data-prm-effective-host]");
-    if (!host) return;
-    host.innerHTML = `<div class="cost-sheet-explain-loading">Loading effective route…</div>`;
+  async function fillProductSummaryEffectiveHost(root, identityRow = {}) {
+    const row =
+      identityRow && typeof identityRow === "object"
+        ? identityRow
+        : { product_id: identityRow };
+    const snapshotHost = root?.querySelector?.("[data-prm-product-snapshot-host]");
+    const stepsHost = root?.querySelector?.("[data-prm-effective-host]");
+    const actionsHost = root?.querySelector?.("[data-prm-product-actions-host]");
+    const candidateHost = root?.querySelector?.("[data-prm-candidate-section-host]");
+    const productId = normalizePrmIntegerId(row.product_id);
+    if (snapshotHost) {
+      snapshotHost.innerHTML = `<div class="cost-sheet-explain-loading">Loading live route…</div>`;
+    }
+    if (stepsHost) {
+      stepsHost.innerHTML = `<div class="cost-sheet-explain-loading">Loading effective route…</div>`;
+    }
+    if (productId == null) {
+      if (snapshotHost) {
+        snapshotHost.innerHTML = `<p class="cp-muted-text">Product ID is required.</p>`;
+      }
+      if (stepsHost) {
+        stepsHost.innerHTML = `<p class="cp-muted-text">Unable to load effective route.</p>`;
+      }
+      return;
+    }
     const result = await loadEffective(productId);
     if (!root.isConnected) return;
     if (!result?.ok) {
-      host.innerHTML = `<p class="cp-muted-text">Unable to load effective route.</p>`;
+      if (snapshotHost) {
+        snapshotHost.innerHTML = `<p class="cp-muted-text">Unable to load live route.</p>`;
+      }
+      if (stepsHost) {
+        stepsHost.innerHTML = `<p class="cp-muted-text">Unable to load effective route.</p>`;
+      }
       return;
     }
-    host.innerHTML = buildEffectiveRoutePanelHtml(result.data);
+    const effective = result.data || {};
+    const familyRouteId = resolvePrmEffectiveFamilyRouteId(effective);
+    const routeFamilyId = normalizePrmIntegerId(
+      effective.route_family_id ?? row.route_family_id,
+    );
+    let historyRows = [];
+    if (familyRouteId != null && routeFamilyId != null) {
+      const cached =
+        String(state.selectedRouteFamilyId) === String(routeFamilyId)
+          ? state.familyHistory || []
+          : [];
+      if (formatPrmFamilyRouteVersionCopy(familyRouteId, cached)) {
+        historyRows = cached;
+      } else {
+        historyRows = (await loadFamilyHistory(routeFamilyId)) || [];
+        if (!root.isConnected) return;
+      }
+    }
+    const canonicalRow = mergeProductSummaryCanonicalRow(row, effective);
+    const effectiveProductRouteId = normalizePrmIntegerId(
+      canonicalRow.product_route_id,
+    );
+    let productHistoryRows = [];
+    let productHistoryUnavailable = false;
+    if (effectiveProductRouteId == null) {
+      const historyResult = await loadProductHistory(productId);
+      if (!root.isConnected) return;
+      productHistoryUnavailable = historyResult.ok !== true;
+      productHistoryRows = historyResult.versions || [];
+    }
+    const eligibility = resolvePrmOpenProductRouteEligibility(
+      canonicalRow,
+      productHistoryRows,
+    );
+    if (eligibility.open_product_route_id != null) {
+      canonicalRow.draft_product_route_id = eligibility.open_product_route_id;
+      state.selectedProductRouteId = eligibility.open_product_route_id;
+    }
+    if (snapshotHost) {
+      snapshotHost.innerHTML = buildProductSummarySnapshotHtml(
+        row,
+        effective,
+        historyRows,
+      );
+      if (stepsHost) {
+        stepsHost.innerHTML = buildEffectiveStepsTableHtml(
+          coercePrmList(effective.steps || effective.effective_steps),
+        );
+      }
+    } else if (stepsHost) {
+      stepsHost.innerHTML = buildEffectiveRoutePanelHtml(effective);
+    }
+    const canonicalReadiness = normalizePrmCode(
+      canonicalRow.readiness_status,
+    ).toUpperCase();
+    if (candidateHost) {
+      candidateHost.innerHTML = isRouteBlockedReadiness(canonicalReadiness)
+        ? `<section class="cp-detail-section" data-prm-candidate-section>
+          <h3 class="cp-section-title">Route candidate evidence</h3>
+          <p class="cp-muted-text">${text(PRM_CANDIDATE_ADVISORY_LABEL)}</p>
+          <div class="cp-prm-actions">
+            <button type="button" class="icon-btn" data-prm-load-product-candidate>Preview advisory candidate</button>
+          </div>
+          <div data-prm-candidate-host></div>
+        </section>`
+        : "";
+    }
+    if (actionsHost) {
+      actionsHost.innerHTML = actionsHtml(
+        getApplicableProductRouteActions(canonicalRow, {
+          hasApprovedCostCentres: !state.costCentreBlocker,
+          productHistory: productHistoryRows,
+          productHistoryUnavailable,
+        }),
+      );
+    }
   }
 
   function resolveWorkloadActivityLabel(step) {
@@ -2749,7 +3002,7 @@ export function createProductionRouteController(deps = {}) {
       await fillProductSummaryAssignmentHost(summaryRoot, refreshed, {
         focusAssignmentId,
       });
-      await fillProductSummaryEffectiveHost(summaryRoot, productId);
+      await fillProductSummaryEffectiveHost(summaryRoot, refreshed);
     }
     return refreshed;
   }
@@ -2833,6 +3086,26 @@ export function createProductionRouteController(deps = {}) {
     </li>`;
   }
 
+  function buildProductAssignmentFallbackHtml(row = {}) {
+    const assignmentRaw = resolvePrmRouteFamilyAssignmentSource(row);
+    const assignmentLabel =
+      formatPrmRouteFamilyAssignmentSourceLabel(assignmentRaw) || "None";
+    const familyName =
+      row.route_family_name || row.route_family_code || "—";
+    return `<div class="cp-prm-product-summary-meta" data-prm-assignment-fallback>
+      ${productSummaryMetaCell("Product-specific assignment", text("None"), {
+        field: "product-assignment",
+      })}
+      ${productSummaryMetaCell("Effective assignment", text(assignmentLabel), {
+        field: "effective-assignment",
+        title: String(assignmentRaw || ""),
+      })}
+      ${productSummaryMetaCell("Route Family", text(familyName), {
+        field: "assignment-route-family",
+      })}
+    </div>`;
+  }
+
   function buildProductAssignmentsPanelHtml(payload, row) {
     const rows = payload?.rows || [];
     const canCreate =
@@ -2864,7 +3137,7 @@ export function createProductionRouteController(deps = {}) {
         ? `<ul class="cp-prm-assignment-list">${rows
             .map((item) => buildProductAssignmentRowHtml(item))
             .join("")}</ul>`
-        : `<p class="cp-muted-text">No Product Route Family assignments for this Product.</p>`
+        : buildProductAssignmentFallbackHtml(row)
     }`;
   }
 
@@ -3251,7 +3524,8 @@ export function createProductionRouteController(deps = {}) {
   ) {
     state.selectedProductId = row.product_id;
     state.selectedProductRouteId =
-      row.draft_product_route_id || row.product_route_id || null;
+      normalizePrmIntegerId(row.draft_product_route_id) ??
+      normalizePrmIntegerId(row.product_route_id);
     const resolvedContext =
       sourceContext ||
       (state.activeLens === "product-route-assignments"
@@ -3271,161 +3545,35 @@ export function createProductionRouteController(deps = {}) {
     }
     const focusId = normalizePrmIntegerId(focusAssignmentId);
     state.focusAssignmentId = focusId;
-    const readiness = normalizePrmCode(row.readiness_status).toUpperCase();
-    const fromAssignmentRegister = resolvedContext === "ASSIGNMENT_REGISTER";
     const fromWorkloadPreview = resolvedContext === "WORKLOAD_PREVIEW";
-    const actions = getApplicableProductRouteActions(row, {
-      hasApprovedCostCentres: !state.costCentreBlocker,
-    });
-    const missingMapping =
-      !fromAssignmentRegister &&
-      readiness === "BLOCKED_NO_APPROVED_ROUTE_FAMILY_MAPPING";
-    const quantityReview =
-      !fromAssignmentRegister &&
-      readiness === "REVIEW_REQUIRED_MONTHLY_QUANTITY_DRIVER";
-    const missingBatch =
-      !fromAssignmentRegister &&
-      readiness === "BLOCKED_NO_EFFECTIVE_PREFERRED_BATCH_SIZE";
-    const showCandidate =
-      !fromAssignmentRegister && isRouteBlockedReadiness(readiness);
-    const blockingReason =
-      row.readiness_note ||
-      row.blocking_reason ||
-      row.blocker_reason ||
-      row.block_reason ||
-      null;
-    const monthlyFields = [
-      ["Monthly Product quantity", row.monthly_product_quantity ?? row.monthly_quantity],
-      ["Monthly-driver status", row.monthly_driver_status],
-      ["Actual SKU count", row.actual_sku_count],
-      ["Assumption SKU count", row.assumption_sku_count],
-      ["Default SKU count", row.default_sku_count],
-      ["Monthly driver source", row.monthly_driver_source],
-      ["Quantity assumption source", row.quantity_assumption_source],
-    ].filter(([, value]) => !isBlankPrmValue(value));
-    const batchFields = [
-      ["Preferred batch size", row.preferred_batch_size],
-      ["Raw batch requirement", row.raw_batch_requirement],
-      ["Standard batch count", row.standard_batch_count],
-    ].filter(([, value]) => !isBlankPrmValue(value));
+    const asOfLabel = formatPrmDayMonthYearLabel(getAsOfDate()) || getAsOfDate();
 
     openModal(
       {
         title: row.product_name || `Product ${row.product_id}`,
         subtitle: "Product Route Summary",
-        html: `<div class="cp-prm-summary" data-prm-product-summary>
+        html: `<div class="cp-prm-summary cp-prm-product-summary" data-prm-product-summary>
+        <p class="cp-muted-text cp-prm-product-summary-asof" data-prm-as-of-cue>As of ${text(asOfLabel)}</p>
         <section class="cp-detail-section">
-          <h3 class="cp-section-title">Product</h3>
-          <div class="cp-detail-grid cp-detail-grid--2col">
-            <div><div class="cp-field-label">Product</div><div class="cp-cell-primary">${text(row.product_name)}</div></div>
-            <div><div class="cp-field-label">Product ID</div><div>${text(row.product_id)}</div></div>
-            <div class="cp-detail-span-full"><div class="cp-field-label">Commercial hierarchy</div><div>${text(hierarchy(row))}</div></div>
-            <div class="cp-detail-span-full"><div class="cp-field-label">Product Group</div><div>${text(
-              formatPrmProductGroupHierarchyLabel(row) ||
-                row.product_group_name ||
-                hierarchy(row),
-            )}</div></div>
-            ${
-              !isBlankPrmValue(row.base_uom)
-                ? `<div><div class="cp-field-label">Base UOM</div><div>${text(row.base_uom)}</div></div>`
-                : ""
-            }
-            <div><div class="cp-field-label">Readiness</div><div>${chip(row.readiness_status)}</div></div>
-            <div class="cp-detail-span-full"><div class="cp-field-label">Readiness note</div><div>${text(blockingReason)}</div></div>
-            ${
-              !isBlankPrmValue(row.readiness_errors)
-                ? `<div class="cp-detail-span-full"><div class="cp-field-label">Readiness errors</div><div>${text(
-                    Array.isArray(row.readiness_errors)
-                      ? row.readiness_errors.join("; ")
-                      : row.readiness_errors,
-                  )}</div></div>`
-                : ""
-            }
-            <div><div class="cp-field-label">Route Family</div><div>${text(
-              row.route_family_name ||
-                row.route_family_code ||
-                (missingMapping ? "Route Family not assigned" : "—"),
-            )}</div></div>
-            <div><div class="cp-field-label">Assignment source</div><div>${text(row.assignment_source || row.assignment_basis)}</div></div>
-            <div><div class="cp-field-label">Effective route source</div><div>${text(row.route_source || row.effective_route_source)}</div></div>
-            <div><div class="cp-field-label">Route validation</div><div>${routeValidationDetailHtml(row.route_validation)}</div></div>
-            <div><div class="cp-field-label">Step count</div><div>${text(row.step_count)}</div></div>
-            <div><div class="cp-field-label">Preferred batch size</div><div>${text(row.preferred_batch_size)}</div></div>
-            <div><div class="cp-field-label">Family route / version</div><div>${text(row.family_route_name || row.family_route_version)}</div></div>
-            <div><div class="cp-field-label">Product route / version</div><div>${text(row.product_route_name || row.product_route_version)}</div></div>
-          </div>
-        </section>
-        ${
-          quantityReview
-            ? `<section class="cp-detail-section">
-          <h3 class="cp-section-title">Quantity review</h3>
-          <p class="cp-prm-form-notice">Assumption/default quantity governance is outside this correction. Fields below are shown only when returned by the exact-run readiness RPC.</p>
-          ${
-            monthlyFields.length
-              ? `<div class="cp-detail-grid cp-detail-grid--2col">${monthlyFields
-                  .map(
-                    ([label, value]) =>
-                      `<div><div class="cp-field-label">${text(label)}</div><div>${text(value)}</div></div>`,
-                  )
-                  .join("")}</div>`
-              : `<p class="cp-muted-text">No monthly quantity fields on this readiness row.</p>`
-          }
-        </section>`
-            : ""
-        }
-        ${
-          missingBatch
-            ? `<section class="cp-detail-section">
-          <h3 class="cp-section-title">Preferred batch size</h3>
-          <p class="cp-prm-form-notice">Preferred batch size is missing for this Product. Open Supply Batch Plan to create the preferred reference. Production Route Manager does not mutate preferred batch size.</p>
-          ${
-            batchFields.length
-              ? `<div class="cp-detail-grid cp-detail-grid--2col">${batchFields
-                  .map(
-                    ([label, value]) =>
-                      `<div><div class="cp-field-label">${text(label)}</div><div>${text(value)}</div></div>`,
-                  )
-                  .join("")}</div>`
-              : `<p class="cp-muted-text">No batch-size evidence fields on this readiness row.</p>`
-          }
-        </section>`
-            : ""
-        }
-        ${
-          missingMapping
-            ? `<p class="cp-prm-form-notice">This Product has no approved Route Family mapping. Use advisory candidate evidence and, with edit permission, a governed assignment draft — not automatic assignment.</p>`
-            : ""
-        }
-        <section class="cp-detail-section">
-          <h3 class="cp-section-title">Product Route Family Assignment</h3>
-          <div data-prm-assignment-host>Loading assignments…</div>
+          <h3 class="cp-section-title">Product / Route Snapshot</h3>
+          <div data-prm-product-snapshot-host>Loading live route…</div>
         </section>
         <section class="cp-detail-section">
-          <h3 class="cp-section-title">Effective route</h3>
+          <h3 class="cp-section-title">Ordered steps</h3>
           <div data-prm-effective-host>Loading effective route…</div>
         </section>
-        ${
-          fromWorkloadPreview
-            ? `<div data-prm-workload-host>Loading workload foundation…</div>`
-            : ""
-        }
-        ${
-          showCandidate
-            ? `<section class="cp-detail-section">
-          <h3 class="cp-section-title">Route candidate evidence</h3>
-          <p class="cp-muted-text">${text(PRM_CANDIDATE_ADVISORY_LABEL)}</p>
-          <div class="cp-prm-actions">
-            <button type="button" class="icon-btn" data-prm-load-product-candidate>Preview advisory candidate</button>
-          </div>
-          <div data-prm-candidate-host></div>
-        </section>`
-            : ""
-        }
         <section class="cp-detail-section">
-          <h3 class="cp-section-title">Actions</h3>${actionsHtml(actions)}
+          <h3 class="cp-section-title">Route Family Assignment</h3>
+          <div data-prm-assignment-host>Loading assignments…</div>
+        </section>
+        <div data-prm-candidate-section-host></div>
+        <section class="cp-detail-section">
+          <h3 class="cp-section-title">Actions</h3>
+          <div data-prm-product-actions-host></div>
         </section>
       </div>`,
         bind: (host) => {
+          setProductSummaryWideModal(true);
           bindSummaryActions(host, "product", row);
           bindProductAssignmentActions(host, row);
           onModal(host, "click", (event) => {
@@ -3436,11 +3584,12 @@ export function createProductionRouteController(deps = {}) {
           void fillProductSummaryAssignmentHost(host, row, {
             focusAssignmentId: focusId,
           });
-          void fillProductSummaryEffectiveHost(host, row.product_id);
+          void fillProductSummaryEffectiveHost(host, row);
           if (fromWorkloadPreview) {
             void fillProductSummaryWorkloadHost(host, row.product_id);
           }
         },
+        cleanup: () => setProductSummaryWideModal(false),
       },
       {
         fromStackRestore,
@@ -3613,6 +3762,9 @@ export function createProductionRouteController(deps = {}) {
       const mappingId = normalizePrmIntegerId(
         button.getAttribute("data-prm-mapping-id"),
       );
+      const buttonProductRouteId = normalizePrmIntegerId(
+        button.getAttribute("data-prm-product-route-id"),
+      );
       const selectedMapping =
         (mappingId != null &&
           coercePrmList(row.mappings)
@@ -3622,11 +3774,15 @@ export function createProductionRouteController(deps = {}) {
                 String(mapping.id ?? mapping.mapping_id) === String(mappingId),
             )) ||
         null;
-      await runSummaryAction(
-        actionId,
-        mode,
-        selectedMapping ? { ...row, selectedMapping, mapping_id: mappingId } : row,
-      );
+      const actionRow = {
+        ...(selectedMapping
+          ? { ...row, selectedMapping, mapping_id: mappingId }
+          : row),
+        ...(buttonProductRouteId != null
+          ? { draft_product_route_id: buttonProductRouteId }
+          : {}),
+      };
+      await runSummaryAction(actionId, mode, actionRow);
     });
   }
 
@@ -3683,14 +3839,15 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     if (action === "product-history") {
-      const response = await invoke(
-        RPC.productHistory,
-        buildProductRouteHistoryArgs({ product_id: productId }),
-        "Unable to load Product route history.",
+      const historyResult = await loadProductHistory(productId);
+      if (!historyResult.ok) return;
+      openHistoryModal(
+        "Product route history",
+        historyResult.versions,
+        "product",
+        null,
+        normalizePrmIntegerId(productId),
       );
-      if (!response.ok) return;
-      state.productHistory = normalizeRouteHistory(response.data).versions || [];
-      openHistoryModal("Product route history", state.productHistory, "product");
       return;
     }
     if (action.includes("history") && mode === "family") {
@@ -3703,10 +3860,36 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     if (action.includes("open-product")) {
+      const productIdNorm = normalizePrmIntegerId(productId);
+      if (productIdNorm == null) {
+        showToast?.("Product is required to open the Product route.", "warning");
+        return;
+      }
+      let routeId =
+        normalizePrmIntegerId(row.draft_product_route_id) ??
+        normalizePrmIntegerId(row.product_route_id) ??
+        normalizePrmIntegerId(state.selectedProductRouteId);
+      if (routeId == null) {
+        const eligibility = resolvePrmOpenProductRouteEligibility(
+          row,
+          state.productHistory,
+        );
+        if (eligibility.current_product_route_ambiguous) {
+          showToast?.(
+            "Multiple current Product routes exist. Open one from history.",
+            "warning",
+          );
+          return;
+        }
+        routeId = eligibility.open_product_route_id;
+      }
+      if (routeId == null) {
+        showToast?.("No current Product route is available to open.", "warning");
+        return;
+      }
       navigate("product-route-editor", {
-        product_id: productId,
-        product_route_id:
-          row.draft_product_route_id || row.product_route_id,
+        product_id: productIdNorm,
+        product_route_id: routeId,
       });
       return;
     }
@@ -3718,14 +3901,15 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     if (action.includes("create-product")) {
-      await createProductDraftFromRow(row);
+      await openProductRouteCreateFromRow(row);
       return;
     }
     if (action.includes("open-family-route")) {
       const familyRouteId =
         row.draft_family_route_id ||
         row.approved_family_route_id ||
-        row.family_route_id;
+        row.family_route_id ||
+        resolvePrmEffectiveFamilyRouteId(state.effective);
       if (!normalizePrmIntegerId(familyRouteId)) {
         showToast?.("Family route ID is required to open the editor.", "warning");
         return;
@@ -5173,42 +5357,420 @@ export function createProductionRouteController(deps = {}) {
     );
   }
 
-  async function createProductDraftFromRow(row) {
-    if (!canEdit()) return;
-    const baseId =
-      row.base_route_family_route_id ||
-      row.approved_family_route_id ||
-      null;
-    if (!normalizePrmIntegerId(baseId)) {
-      showToast?.("An approved family route is required.", "warning");
-      return;
+  async function hydrateProductRouteCreateHandoff(productId) {
+    const pid = normalizePrmIntegerId(productId);
+    if (pid == null) return null;
+    let handoff = state.productRouteCreateHandoff;
+    if (
+      handoff &&
+      normalizePrmIntegerId(handoff.product_id) === pid &&
+      normalizePrmIntegerId(handoff.base_route_family_route_id) != null
+    ) {
+      return handoff;
     }
-    const refs = state.batchSizeReferences;
-    let batchRefId =
-      refs.length === 1
-        ? refs[0].batch_size_ref_id ?? refs[0].id
-        : window.prompt("Batch-size reference ID:", "");
-    if (!normalizePrmIntegerId(batchRefId)) return;
-    const result = await editor.createProductDraft({
-      product_id: row.product_id,
+    let effective = state.effective;
+    if (normalizePrmIntegerId(effective?.product_id) !== pid) {
+      const loaded = await loadEffective(pid);
+      effective = loaded?.ok ? loaded.data : null;
+    }
+    const baseId = resolvePrmEffectiveFamilyRouteId(effective);
+    const routeFamilyId = normalizePrmIntegerId(
+      effective?.route_family_id ?? handoff?.route_family_id,
+    );
+    let familyRouteName = handoff?.family_route_name || "";
+    let familyRouteVersion = handoff?.family_route_version || "";
+    if (baseId != null && routeFamilyId != null && !familyRouteVersion) {
+      const history = (await loadFamilyHistory(routeFamilyId)) || [];
+      familyRouteVersion = formatPrmFamilyRouteVersionCopy(baseId, history);
+      const match = history.find(
+        (row) =>
+          (normalizePrmIntegerId(row?.id) ??
+            normalizePrmIntegerId(row?.family_route_id)) === baseId,
+      );
+      familyRouteName =
+        match?.route_name ||
+        match?.family_route_name ||
+        familyRouteName;
+    }
+    const productRow =
+      (state.products || []).find(
+        (item) =>
+          normalizePrmIntegerId(item.product_id ?? item.id) === pid,
+      ) || {};
+    const familyRow =
+      (state.routeFamilies || []).find(
+        (item) =>
+          normalizePrmIntegerId(item.route_family_id ?? item.id) ===
+          routeFamilyId,
+      ) || {};
+    handoff = {
+      product_id: pid,
+      product_name:
+        handoff?.product_name ||
+        effective?.product_name ||
+        productRow.product_name ||
+        productRow.name ||
+        "",
+      route_family_id: routeFamilyId,
+      route_family_name:
+        handoff?.route_family_name ||
+        effective?.route_family_name ||
+        familyRow.route_family_name ||
+        familyRow.family_name ||
+        "",
       base_route_family_route_id: baseId,
-      batch_size_ref_id: batchRefId,
-    });
-    if (result.ok) {
-      navigate("product-route-editor", {
-        product_id: row.product_id,
-        product_route_id: result.product_route_id,
-      });
-    }
+      family_route_name: familyRouteName,
+      family_route_version: familyRouteVersion,
+      as_of_date: getAsOfDate(),
+    };
+    state.productRouteCreateHandoff = handoff;
+    return handoff;
   }
 
-  function openHistoryModal(title, versions, mode, routeFamilyId = null) {
+  async function openProductRouteCreateFromRow(row = {}) {
+    if (!canEdit()) {
+      showToast?.("Edit permission required.", "warning");
+      return;
+    }
+    const productId = normalizePrmIntegerId(row.product_id);
+    if (productId == null) {
+      showToast?.("Product is required.", "warning");
+      return;
+    }
+    let effective = state.effective;
+    if (normalizePrmIntegerId(effective?.product_id) !== productId) {
+      const loaded = await loadEffective(productId);
+      if (!loaded?.ok) {
+        showToast?.(
+          "Unable to load the live Product route. A Product Route was not created.",
+          "warning",
+        );
+        return;
+      }
+      effective = loaded.data;
+    }
+    const liveProductRouteId = normalizePrmIntegerId(effective?.product_route_id);
+    if (liveProductRouteId != null) {
+      showToast?.("A Product route already exists for this Product.", "info");
+      state.productRouteCreateHandoff = null;
+      navigate("product-route-editor", {
+        product_id: productId,
+        product_route_id: liveProductRouteId,
+      });
+      return;
+    }
+    const existingHistory = await loadProductHistory(productId);
+    const existingEligibility = resolvePrmOpenProductRouteEligibility(
+      { product_id: productId, product_route_id: liveProductRouteId },
+      existingHistory.versions || [],
+    );
+    if (existingEligibility.current_product_route_ambiguous) {
+      showToast?.(
+        "Multiple current Product routes exist. Open one from history.",
+        "warning",
+      );
+      state.productRouteCreateHandoff = null;
+      openHistoryModal(
+        "Product route history",
+        existingHistory.versions || [],
+        "product",
+        null,
+        productId,
+      );
+      return;
+    }
+    if (existingEligibility.open_product_route_id != null) {
+      showToast?.("A Product route already exists for this Product.", "info");
+      state.productRouteCreateHandoff = null;
+      navigate("product-route-editor", {
+        product_id: productId,
+        product_route_id: existingEligibility.open_product_route_id,
+      });
+      return;
+    }
+    const baseId = resolvePrmEffectiveFamilyRouteId(effective);
+    if (baseId == null) {
+      showToast?.("An approved Family Route is required.", "warning");
+      return;
+    }
+    const readiness = normalizePrmCode(
+      effective?.readiness_status || effective?.route_readiness_status,
+    ).toUpperCase();
+    if (
+      readiness === "BLOCKED_NO_APPROVED_ROUTE_FAMILY_MAPPING" ||
+      readiness === "BLOCKED_NO_APPROVED_ROUTE_FAMILY_ROUTE"
+    ) {
+      showToast?.(
+        "This Product is not eligible to create a Product route from the current live route.",
+        "warning",
+      );
+      return;
+    }
+    const routeFamilyId = normalizePrmIntegerId(
+      effective?.route_family_id ?? row.route_family_id,
+    );
+    let familyRouteName = "";
+    let familyRouteVersion = "";
+    if (routeFamilyId != null) {
+      const history = (await loadFamilyHistory(routeFamilyId)) || [];
+      familyRouteVersion = formatPrmFamilyRouteVersionCopy(baseId, history);
+      const match = history.find(
+        (item) =>
+          (normalizePrmIntegerId(item?.id) ??
+            normalizePrmIntegerId(item?.family_route_id)) === baseId,
+      );
+      familyRouteName =
+        match?.route_name || match?.family_route_name || "";
+    }
+    state.productRouteCreateHandoff = {
+      product_id: productId,
+      product_name: row.product_name || effective?.product_name || "",
+      route_family_id: routeFamilyId,
+      route_family_name:
+        row.route_family_name || effective?.route_family_name || "",
+      base_route_family_route_id: baseId,
+      family_route_name: familyRouteName,
+      family_route_version: familyRouteVersion,
+      as_of_date: getAsOfDate(),
+    };
+    navigate("product-route-editor", { product_id: productId });
+  }
+
+  async function submitProductRouteCreateDraft(button, host) {
+    if (!canEdit()) {
+      showToast?.("Edit permission required.", "warning");
+      return;
+    }
+    const handoff = state.productRouteCreateHandoff || {};
+    const productId = normalizePrmIntegerId(
+      handoff.product_id ?? state.selectedProductId,
+    );
+    if (productId == null) {
+      showToast?.("Product is required.", "warning");
+      return;
+    }
+    const baseId = normalizePrmIntegerId(handoff.base_route_family_route_id);
+    if (baseId == null) {
+      showToast?.("An approved Family Route is required.", "warning");
+      return;
+    }
+    const liveProductRouteId = normalizePrmIntegerId(
+      state.effective?.product_route_id,
+    );
+    if (
+      liveProductRouteId != null &&
+      normalizePrmIntegerId(state.effective?.product_id) === productId
+    ) {
+      showToast?.("A Product route already exists for this Product.", "info");
+      state.productRouteCreateHandoff = null;
+      navigate("product-route-editor", {
+        product_id: productId,
+        product_route_id: liveProductRouteId,
+      }, true);
+      return;
+    }
+    const refs = selectPrmProductBatchSizeReferences(state.batchSizeReferences, {
+      product_id: productId,
+      as_of_date: handoff.as_of_date || getAsOfDate(),
+    });
+    if (!refs.length) {
+      showToast?.(PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED, "warning");
+      return;
+    }
+    const selected = normalizePrmIntegerId(
+      host?.querySelector?.("[data-prm-create-batch-ref]")?.value,
+    );
+    if (selected == null) {
+      showToast?.(
+        refs.length > 1
+          ? "Select a governed Product batch-size reference."
+          : PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED,
+        "warning",
+      );
+      return;
+    }
+    const allowed = refs.some(
+      (ref) => normalizePrmIntegerId(ref.batch_size_ref_id) === selected,
+    );
+    if (!allowed) {
+      showToast?.(PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED, "warning");
+      return;
+    }
+    await withMutation(button, async () => {
+      const result = await editor.createProductDraft({
+        product_id: productId,
+        base_route_family_route_id: baseId,
+        batch_size_ref_id: selected,
+        effective_from: handoff.as_of_date || getAsOfDate(),
+        source_type: "MANUAL",
+        evidence_status: "MANUAL_COMPLETE",
+      });
+      if (!result?.ok) return result;
+      const createdId = normalizePrmIntegerId(result.product_route_id);
+      if (createdId == null) {
+        showToast?.(
+          "Created Product route ID was missing from the server response.",
+          "error",
+        );
+        return { ok: false, error: "missing_product_route_id" };
+      }
+      state.productRouteCreateHandoff = null;
+      state.selectedProductRouteId = createdId;
+      navigate(
+        "product-route-editor",
+        {
+          product_id: productId,
+          product_route_id: createdId,
+        },
+        true,
+      );
+      return result;
+    });
+  }
+
+  function openProductHistoryRoute(version = {}, productId = null) {
+    const routeId = resolvePrmProductHistoryRouteId(version);
+    if (routeId == null) {
+      showToast?.(
+        "This history row does not have a valid Product route ID.",
+        "warning",
+      );
+      return false;
+    }
+    const rowProductId = normalizePrmIntegerId(version.product_id);
+    const contextProductId =
+      normalizePrmIntegerId(productId) ??
+      normalizePrmIntegerId(state.selectedProductId);
+    if (
+      rowProductId != null &&
+      contextProductId != null &&
+      rowProductId !== contextProductId
+    ) {
+      showToast?.(
+        "This history row belongs to a different Product.",
+        "warning",
+      );
+      return false;
+    }
+    const navProductId = rowProductId ?? contextProductId;
+    if (navProductId == null) {
+      showToast?.("Product is required to open the Product route.", "warning");
+      return false;
+    }
+    navigate("product-route-editor", {
+      product_id: navProductId,
+      product_route_id: routeId,
+    });
+    return true;
+  }
+
+  function buildProductHistoryTableHtml(versions = [], productId = null) {
+    const rows = (versions || [])
+      .map((version, index) => {
+        const routeId = resolvePrmProductHistoryRouteId(version);
+        const openAttr =
+          routeId != null
+            ? `data-prm-history-open="${routeId}"`
+            : `data-prm-history-invalid="1"`;
+        const status =
+          formatPrmRouteStatusLabel(
+            canonicalPrmRouteStatus(version.status) || version.status,
+          ) || version.status;
+        const source =
+          formatPrmRouteSourceTypeLabel(version.source_type || version.source) ||
+          version.source_type ||
+          version.source ||
+          "";
+        const evidence =
+          formatPrmRouteEvidenceStatusLabel(version.evidence_status) ||
+          version.evidence_status ||
+          "";
+        const baseFamily = formatPrmProductHistoryBaseFamilyRoute(version);
+        const openDisabled = routeId == null ? "disabled" : "";
+        const rowProductId =
+          normalizePrmIntegerId(version.product_id) ??
+          normalizePrmIntegerId(productId);
+        const productAttr =
+          rowProductId != null
+            ? `data-prm-history-product-id="${rowProductId}"`
+            : "";
+        return `<tr class="cp-prm-row" tabindex="0" data-prm-history-row="${index}" ${productAttr} ${openAttr}>
+          <td>${text(version.version_label || version.version || version.route_version || routeId)}</td>
+          <td>${text(status)}</td>
+          <td>${text(version.effective_from)}</td>
+          <td>${text(version.effective_to)}</td>
+          <td>${text(baseFamily)}</td>
+          <td title="${text(version.source_type || version.source)}">${text(source)}</td>
+          <td title="${text(version.evidence_status)}">${text(evidence)}</td>
+          <td>${text(version.approval_reference)}</td>
+          <td class="cp-prm-history-open"><button type="button" class="icon-btn" data-prm-history-open-btn ${openAttr} ${openDisabled}>Open</button></td>
+        </tr>`;
+      })
+      .join("");
+    return `<div class="cp-prm-step-table-wrap"><table class="cp-prm-step-table" data-prm-history-table data-prm-product-history>
+        <thead><tr><th>Version</th><th>Status</th><th>Effective From</th><th>Effective To</th><th>Base Family Route</th><th>Source</th><th>Evidence</th><th>Approval Reference</th><th>Open</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="9"><div class="status">No history returned.</div></td></tr>`}</tbody>
+      </table></div>`;
+  }
+
+  function bindProductHistoryOpen(
+    host,
+    versions = [],
+    productId = null,
+    { modal = true } = {},
+  ) {
+    const bind = modal ? onModal : on;
+    const openFromTarget = (target) => {
+      const rowEl = target?.closest?.("[data-prm-history-row]");
+      if (!rowEl || !host.contains(rowEl)) return false;
+      const index = Number(rowEl.getAttribute("data-prm-history-row"));
+      const version =
+        Number.isInteger(index) && index >= 0 ? versions[index] : null;
+      const fallbackId = normalizePrmIntegerId(
+        rowEl.getAttribute("data-prm-history-open"),
+      );
+      return openProductHistoryRoute(
+        version || { product_route_id: fallbackId },
+        productId,
+      );
+    };
+    bind(host, "click", (event) => {
+      const hit = event.target.closest(
+        "[data-prm-history-open-btn], [data-prm-history-row]",
+      );
+      if (!hit || !host.contains(hit)) return;
+      openFromTarget(hit);
+    });
+    bind(host, "keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const row = event.target.closest?.("[data-prm-history-row]");
+      if (!row || !host.contains(row)) return;
+      if (event.target.closest?.("[data-prm-history-open-btn]")) return;
+      event.preventDefault();
+      openFromTarget(row);
+    });
+  }
+
+  function openHistoryModal(
+    title,
+    versions,
+    mode,
+    routeFamilyId = null,
+    productId = null,
+  ) {
+    if (mode === "product") {
+      openModal({
+        title,
+        subtitle:
+          "Select a version to open in the editor (historical versions are read-only).",
+        html: buildProductHistoryTableHtml(versions, productId),
+        bind: (host) => bindProductHistoryOpen(host, versions || [], productId),
+      });
+      return;
+    }
     const rows = (versions || [])
       .map((version) => {
-        const id =
-          mode === "family"
-            ? version.family_route_id
-            : version.product_route_id;
+        const id = version.family_route_id;
         return `<tr class="cp-prm-row" tabindex="0" data-prm-history-open="${text(id)}">
           <td>${text(version.version_label || version.version || id)}</td>
           <td>${text(formatPrmRouteStatusLabel(canonicalPrmRouteStatus(version.status) || version.status) || version.status)}</td>
@@ -5231,22 +5793,18 @@ export function createProductionRouteController(deps = {}) {
         const openVersion = (button) => {
           const id = button.getAttribute("data-prm-history-open");
           if (!id) return;
-          if (mode === "family") {
-            navigateToFamilyRouteEditor({
-              route_family_id: routeFamilyId,
-              family_route_id: id,
-              replace: false,
-            });
-            return;
-          }
-          navigate("product-route-editor", { product_route_id: id });
+          navigateToFamilyRouteEditor({
+            route_family_id: routeFamilyId,
+            family_route_id: id,
+            replace: false,
+          });
         };
-        on(host, "click", (event) => {
+        onModal(host, "click", (event) => {
           const row = event.target.closest("[data-prm-history-open]");
           if (!row) return;
           openVersion(row);
         });
-        on(host, "keydown", (event) => {
+        onModal(host, "keydown", (event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           const row = event.target.closest?.("[data-prm-history-open]");
           if (!row) return;
@@ -7182,12 +7740,68 @@ export function createProductionRouteController(deps = {}) {
       host.summary.innerHTML = "";
     }
     const lensRoot = ensureLensRoot(mode === "family" ? "route-family-route-editor" : "product-route-editor");
+    const chooser =
+      mode === "product" && state.productRouteReentryChooser
+        ? state.productRouteReentryChooser
+        : null;
+    const createMode =
+      mode === "product" &&
+      !chooser &&
+      !!state.productRouteCreateHandoff &&
+      isPrmProductRouteEditorCreateContext({
+        product_id: state.selectedProductId,
+        product_route_id: state.selectedProductRouteId,
+      });
+    if (chooser) {
+      const chooserProductId = normalizePrmIntegerId(chooser.product_id);
+      lensRoot.innerHTML = `<div class="cp-prm-editor" data-prm-editor="product-history-chooser">
+        <p class="cp-muted-text">Select a Product route version to open. Historical versions are read-only. Current Draft and Review routes are not inferred automatically when more than one exists.</p>
+        ${buildProductHistoryTableHtml(chooser.versions || [], chooserProductId)}
+      </div>`;
+      bindProductHistoryOpen(
+        lensRoot,
+        chooser.versions || [],
+        chooserProductId,
+        { modal: false },
+      );
+      return;
+    }
+    const createOptions = createMode ? buildProductRouteCreateRenderOptions() : {};
     editor.renderEditor(lensRoot, mode, {
       costCentreBlocked: state.costCentreBlocker,
-      emptyMessage: PRM_EMPTY_STATES.familyEditor,
+      emptyMessage:
+        mode === "product"
+          ? PRM_EMPTY_STATES.productEditor
+          : PRM_EMPTY_STATES.familyEditor,
       emptySupporting: PRM_EMPTY_STATES.familyEditorSupporting,
+      createMode,
+      ...createOptions,
     });
     bindEditor(lensRoot, mode);
+  }
+
+  function buildProductRouteCreateRenderOptions() {
+    const handoff = state.productRouteCreateHandoff || {};
+    const productId = normalizePrmIntegerId(
+      handoff.product_id ?? state.selectedProductId,
+    );
+    const refs = selectPrmProductBatchSizeReferences(state.batchSizeReferences, {
+      product_id: productId,
+      as_of_date: handoff.as_of_date || getAsOfDate(),
+    });
+    const selectedBatchSizeRefId =
+      refs.length === 1
+        ? normalizePrmIntegerId(refs[0].batch_size_ref_id)
+        : null;
+    return {
+      createContext: handoff,
+      batchSizeReferences: refs,
+      selectedBatchSizeRefId,
+      canCreateDraft: canEdit() && refs.length > 0,
+      pbsHandoff: buildPrmPreferredBatchSizeHandoffAction({
+        product_id: productId,
+      }),
+    };
   }
 
   function openFamilyRouteOverviewModal() {
@@ -7361,8 +7975,125 @@ export function createProductionRouteController(deps = {}) {
     });
   }
 
+  async function openProductDeltaModal(overrideId = null) {
+    if (!canEdit()) {
+      showToast?.("Edit permission required.", "warning");
+      return;
+    }
+    const detail = editor.getProductState?.()?.detail || {};
+    if (!editor.isEditable?.(detail)) {
+      showToast?.("Product route is read-only.", "warning");
+      return;
+    }
+    const productRouteId = normalizePrmIntegerId(
+      state.selectedProductRouteId ??
+        detail.product_route_id ??
+        detail.route_id ??
+        detail.id,
+    );
+    if (productRouteId == null) {
+      showToast?.("Product route ID is required.", "warning");
+      return;
+    }
+    const catalogues = await requireMasterOptionsForStepAuthoring();
+    if (!catalogues.ok) return;
+    const existing =
+      overrideId != null
+        ? editor.findProductOverrideById?.(overrideId)
+        : null;
+    if (overrideId != null && !existing) {
+      showToast?.("Product delta was not found.", "warning");
+      return;
+    }
+    openModal({
+      title: existing ? "Edit Product delta" : "Add Product delta",
+      subtitle: "Governed Product difference. Saved only when you confirm.",
+      html:
+        editor.buildProductDeltaFormHtml?.(existing) ||
+        `<div class="status">Product delta form unavailable.</div>`,
+      bind: (modalHost) => {
+        editor.bindProductDeltaForm?.(modalHost, existing);
+        onModal(modalHost, "click", async (event) => {
+          const cancel = event.target.closest("[data-prm-product-delta-cancel]");
+          if (cancel) {
+            closeModal({ restorePrevious: false });
+            return;
+          }
+          const save = event.target.closest("[data-prm-product-delta-save]");
+          if (!save) return;
+          await withMutation(save, async () => {
+            const values = editor.readProductDeltaFormValues?.(modalHost);
+            const checked = editor.validateProductDeltaForm?.(
+              values,
+              modalHost,
+              existing
+                ? normalizePrmIntegerId(existing.override_id ?? existing.id)
+                : null,
+            ) || {
+              ok: false,
+              errors: ["Unable to validate the Product delta."],
+            };
+            if (!checked.ok) {
+              showToast?.(checked.errors?.[0] || "Complete the required fields.", "warning");
+              return { ok: false, reason: "invalid_form" };
+            }
+            const result = await editor.saveProductOverride(
+              {
+                override_id: existing
+                  ? normalizePrmIntegerId(existing.override_id ?? existing.id)
+                  : null,
+                override: values,
+              },
+              { costCentreBlocked: state.costCentreBlocker },
+            );
+            if (result?.ok && state.selectedProductRouteId) {
+              closeModal({ restorePrevious: false });
+              await editor.loadProductDetail(state.selectedProductRouteId);
+              render();
+            }
+            return result;
+          });
+        });
+      },
+    });
+  }
+
   function bindEditor(host, mode) {
     on(host, "click", async (event) => {
+      if (mode === "product") {
+        const createDraft = event.target.closest(
+          "[data-prm-action='create-product-draft']",
+        );
+        if (createDraft) {
+          await submitProductRouteCreateDraft(createDraft, host);
+          return;
+        }
+        const pbsBtn = event.target.closest(
+          "[data-prm-action='preferred-batch-size']",
+        );
+        if (pbsBtn) {
+          const href =
+            pbsBtn.getAttribute("data-prm-handoff-href") ||
+            buildPrmPreferredBatchSizeHandoffAction({
+              product_id: state.selectedProductId,
+            }).href;
+          if (!href) {
+            showToast?.(
+              "Product ID required for Supply Batch Plan handoff.",
+              "warning",
+            );
+            return;
+          }
+          const opened = window.open(href, "_blank", "noopener,noreferrer");
+          if (!opened) {
+            showToast?.(
+              "Unable to open Supply Batch Plan in a new window. Allow pop-ups for this site, then try again.",
+              "warning",
+            );
+          }
+          return;
+        }
+      }
       if (mode === "family") {
         const openFamilies = event.target.closest("[data-prm-open-route-families]");
         if (openFamilies) {
@@ -7572,40 +8303,28 @@ export function createProductionRouteController(deps = {}) {
         return;
       }
       if (action === "add-product-delta") {
-        const catalogues = await requireMasterOptionsForStepAuthoring();
-        if (!catalogues.ok) return;
-        const operation = window.prompt("Delta operation:", "ADD_STEP");
-        const stepKey = operation
-          ? window.prompt("Target or new step key:", "")
-          : null;
-        if (operation) {
-          await editor.saveProductOverride(
-            {
-              override: {
-                delta_operation: operation,
-                step_key: stepKey,
-                target_step_key: stepKey,
-              },
-            },
-            { costCentreBlocked: state.costCentreBlocker },
-          );
-          if (state.selectedProductRouteId) {
-            await editor.loadProductDetail(state.selectedProductRouteId);
-          }
-          render();
-        }
+        await openProductDeltaModal(null);
+        return;
+      }
+      const deltaEdit = event.target.closest("[data-prm-delta-edit]");
+      if (deltaEdit) {
+        await openProductDeltaModal(
+          deltaEdit.getAttribute("data-prm-delta-edit"),
+        );
         return;
       }
       const deltaDelete = event.target.closest("[data-prm-delta-delete]");
       if (deltaDelete) {
-        await editor.deleteProductOverride({
-          product_route_override_id:
-            deltaDelete.getAttribute("data-prm-delta-delete"),
+        await withMutation(deltaDelete, async () => {
+          const result = await editor.deleteProductOverride({
+            override_id: deltaDelete.getAttribute("data-prm-delta-delete"),
+          });
+          if (result?.ok && mode === "product" && state.selectedProductRouteId) {
+            await editor.loadProductDetail(state.selectedProductRouteId);
+            render();
+          }
+          return result;
         });
-        if (mode === "product" && state.selectedProductRouteId) {
-          await editor.loadProductDetail(state.selectedProductRouteId);
-        }
-        render();
       }
     });
     if (mode === "family") {
@@ -7761,6 +8480,7 @@ export function createProductionRouteController(deps = {}) {
     let active = resolveProductionRouteLens(requestedLens, {
       family_route_id: deepLink.family_route_id,
       product_route_id: deepLink.product_route_id,
+      product_id: deepLink.product_id,
       allowEditorWithoutId: allowFamilyEditorWithoutId,
     });
     if (
@@ -7881,14 +8601,90 @@ export function createProductionRouteController(deps = {}) {
       return result;
     }
     if (active === "product-route-editor") {
-      state.selectedProductRouteId = deepLink.product_route_id;
-      state.selectedProductId = deepLink.product_id || null;
-      const [result] = await Promise.all([
-        editor.loadProductDetail(deepLink.product_route_id),
-        ensureMasterOptions(),
-      ]);
-      if (token !== lensRenderGeneration || state.activeLens !== active) return { ok: false, stale: true };
-      return result;
+      const productRouteId = normalizePrmIntegerId(deepLink.product_route_id);
+      const productId = normalizePrmIntegerId(deepLink.product_id);
+      state.selectedProductRouteId = productRouteId;
+      state.selectedProductId = productId;
+      if (productRouteId != null) {
+        state.productRouteCreateHandoff = null;
+        state.productRouteReentryChooser = null;
+        const [result] = await Promise.all([
+          editor.loadProductDetail(productRouteId),
+          ensureMasterOptions(),
+        ]);
+        if (token !== lensRenderGeneration || state.activeLens !== active) {
+          return { ok: false, stale: true };
+        }
+        return result;
+      }
+      if (
+        isPrmProductRouteEditorCreateContext({
+          product_id: productId,
+          product_route_id: productRouteId,
+        })
+      ) {
+        const historyResult = await loadProductHistory(productId);
+        if (token !== lensRenderGeneration || state.activeLens !== active) {
+          return { ok: false, stale: true };
+        }
+        const eligibility = resolvePrmOpenProductRouteEligibility(
+          { product_id: productId },
+          historyResult.versions || [],
+        );
+        const historyRows = historyResult.versions || [];
+        if (
+          eligibility.current_product_route_ambiguous ||
+          (eligibility.open_product_route_id == null && historyRows.length > 0)
+        ) {
+          state.productRouteCreateHandoff = null;
+          state.productRouteReentryChooser = {
+            product_id: productId,
+            versions: historyRows,
+          };
+          editor.clearProductEditorContext?.();
+          await ensureMasterOptions();
+          if (token !== lensRenderGeneration || state.activeLens !== active) {
+            return { ok: false, stale: true };
+          }
+          return { ok: true, chooser: true };
+        }
+        if (eligibility.open_product_route_id != null) {
+          const openId = eligibility.open_product_route_id;
+          state.productRouteCreateHandoff = null;
+          state.productRouteReentryChooser = null;
+          state.selectedProductRouteId = openId;
+          applyPrmDeepLinkToUrl(
+            "product-route-editor",
+            { product_id: productId, product_route_id: openId },
+            true,
+          );
+          state.deepLink = applyDeepLinkFromUrl();
+          const [result] = await Promise.all([
+            editor.loadProductDetail(openId),
+            ensureMasterOptions(),
+          ]);
+          if (token !== lensRenderGeneration || state.activeLens !== active) {
+            return { ok: false, stale: true };
+          }
+          return result;
+        }
+        state.productRouteReentryChooser = null;
+        editor.clearProductEditorContext?.();
+        await loadMasterOptions({ product_id: productId });
+        if (token !== lensRenderGeneration || state.activeLens !== active) {
+          return { ok: false, stale: true };
+        }
+        await hydrateProductRouteCreateHandoff(productId);
+        return { ok: true, create: true };
+      }
+      state.productRouteCreateHandoff = null;
+      state.productRouteReentryChooser = null;
+      editor.clearProductEditorContext?.();
+      await ensureMasterOptions();
+      if (token !== lensRenderGeneration || state.activeLens !== active) {
+        return { ok: false, stale: true };
+      }
+      return { ok: true, empty: true };
     }
     if (active === "historical-candidate-review") {
       const result = await ensureMasterOptions();
@@ -8474,6 +9270,8 @@ export function createProductionRouteController(deps = {}) {
   function onLensExit() {
     unbind();
     hideSpecialHosts();
+    state.productRouteCreateHandoff = null;
+    state.productRouteReentryChooser = null;
     // Do not leave a PRM-owned modal open across lens switches.
     if (prmOwnsDetailsModal) {
       closeModal({ restorePrevious: false });

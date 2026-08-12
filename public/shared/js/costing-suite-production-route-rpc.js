@@ -256,7 +256,8 @@ export const PRM_RPC_ARG_KEYS = Object.freeze({
     "p_override",
   ]),
   rpc_delete_product_route_override: Object.freeze([
-    "p_product_route_override_id",
+    "p_product_route_id",
+    "p_override_id",
   ]),
   rpc_validate_product_route: Object.freeze(["p_product_route_id"]),
   rpc_submit_product_route_for_review: Object.freeze(["p_product_route_id"]),
@@ -1352,14 +1353,20 @@ export function buildUpsertProductOverrideArgs({
 }
 
 export function buildDeleteProductOverrideArgs({
-  product_route_override_id = null,
+  product_route_id = null,
+  override_id = null,
 } = {}) {
   return finalize(
     "rpc_delete_product_route_override",
     buildPrmRpcParams({
-      p_product_route_override_id: {
+      p_product_route_id: {
         kind: "int",
-        value: product_route_override_id,
+        value: product_route_id,
+        required: true,
+      },
+      p_override_id: {
+        kind: "int",
+        value: override_id,
         required: true,
       },
     }),
@@ -1733,8 +1740,14 @@ export function normalizeReadinessRow(row = {}) {
     product_route_version:
       r.product_route_version ?? r.approved_product_route_version ?? null,
     base_route_family_route_id: r.base_route_family_route_id ?? null,
-    assignment_source: r.assignment_source ?? r.assignment_basis ?? null,
-    assignment_basis: r.assignment_basis ?? null,
+    assignment_source:
+      r.assignment_source ??
+      r.route_family_assignment_source ??
+      r.assignment_basis ??
+      null,
+    assignment_basis: r.assignment_basis ?? r.route_family_assignment_basis ?? null,
+    route_family_assignment_source:
+      r.route_family_assignment_source ?? r.assignment_source ?? null,
     route_source:
       r.route_source ?? r.effective_route_source ?? null,
     route_status: r.route_status ?? r.family_route_status ?? null,
@@ -1846,8 +1859,21 @@ export function normalizeProductRouteDetail(payload) {
 
 export function normalizeEffectiveRoute(payload) {
   const root = normalizePrmRpcPayload(payload) || payload || {};
+  const validation =
+    root.validation && typeof root.validation === "object"
+      ? root.validation
+      : null;
+  const familyRouteId =
+    normalizePrmIntegerId(root.base_route_family_route_id) ??
+    normalizePrmIntegerId(validation?.family_route_id) ??
+    normalizePrmIntegerId(root.family_route_id) ??
+    normalizePrmIntegerId(root.route_family_route_id);
   return {
     ...root,
+    validation: validation ?? root.validation ?? null,
+    base_route_family_route_id:
+      root.base_route_family_route_id ?? familyRouteId,
+    family_route_id: root.family_route_id ?? familyRouteId,
     steps: coercePrmList(root.steps || root.effective_steps),
   };
 }
@@ -1858,6 +1884,23 @@ export function normalizeRouteHistory(payload) {
     root.versions || root.history || root.routes || root,
   );
   return { versions, raw: root };
+}
+
+/** Product history only: alias product_route_id from product_route_id ?? route_id ?? id. */
+export function aliasProductRouteHistoryRow(row = {}) {
+  const product_route_id =
+    normalizePrmIntegerId(row?.product_route_id) ??
+    normalizePrmIntegerId(row?.route_id) ??
+    normalizePrmIntegerId(row?.id);
+  return { ...row, product_route_id };
+}
+
+export function normalizeProductRouteHistory(payload) {
+  const base = normalizeRouteHistory(payload);
+  return {
+    ...base,
+    versions: coercePrmList(base.versions).map(aliasProductRouteHistoryRow),
+  };
 }
 
 export function resolveRouteFamilyRouteStateFromHistory(versions = []) {
@@ -2120,28 +2163,55 @@ export function buildFamilyStepJson(fields = {}) {
   return step;
 }
 
+const PRM_LIVE_OVERRIDE_KEYS = Object.freeze([
+  "operation_type",
+  "base_step_id",
+  "override_step_key",
+  "sequence_no",
+  "activity_id",
+  "cost_centre_id",
+  "section_id",
+  "subsection_id",
+  "area_id",
+  "plant_id",
+  "behaviour_code",
+  "resource_class_code",
+  "route_step_scope",
+  "expected_occurrence_count",
+  "standard_cycle_count",
+  "is_mandatory",
+  "allows_repeat",
+  "allows_skip_with_approval",
+  "production_overhead_scope",
+  "direct_labour_scope",
+  "override_reason",
+]);
+
 export function buildOverrideJson(fields = {}) {
+  const src = fields && typeof fields === "object" ? fields : {};
+  const operation_type = normalizePrmCode(
+    src.operation_type || src.delta_operation || src.override_operation,
+  ).toUpperCase();
+  const mapped = {
+    ...src,
+    operation_type: operation_type || null,
+    override_step_key:
+      src.override_step_key || src.step_key || src.target_step_key || null,
+    override_reason: src.override_reason || src.note || src.override_note || null,
+    behaviour_code: src.behaviour_code || src.behaviour || null,
+    resource_class_code: src.resource_class_code || src.resource_class || null,
+    base_step_id:
+      operation_type === "ADD_STEP"
+        ? null
+        : src.base_step_id ?? null,
+  };
   const override = {};
-  const keys = [
-    "delta_operation",
-    "override_operation",
-    "target_step_key",
-    "step_key",
-    "sequence_no",
-    "activity_id",
-    "cost_centre_id",
-    "behaviour",
-    "resource_class",
-    "location",
-    "area",
-    "plant",
-    "note",
-    "override_note",
-  ];
-  for (const key of keys) {
-    if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
-    if (fields[key] === undefined) continue;
-    override[key] = fields[key];
+  for (const key of PRM_LIVE_OVERRIDE_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(mapped, key) && key !== "base_step_id") {
+      continue;
+    }
+    if (mapped[key] === undefined) continue;
+    override[key] = mapped[key];
   }
   return override;
 }

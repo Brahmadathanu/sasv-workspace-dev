@@ -9,10 +9,13 @@ import {
   PRM_OTHER_POOL_STEP_SCOPES,
   PRM_PRODUCTION_OVERHEAD_SCOPES,
   PRM_ROUTE_STEP_SCOPES,
+  buildPrmMasterOptionsForStepAuthoring,
   coercePrmList,
   filterPrmPlantsByLocation,
-  formatPrmCostCentrePoolScopeLabel,
-  formatPrmCostCentreTypeLabel,
+  formatPrmActivityOptionLabel,
+  formatPrmActivityOptionSearchText,
+  formatPrmCostCentreOptionLabel,
+  formatPrmCostCentreOptionSearchText,
   formatPrmDirectLabourScopeLabel,
   formatPrmPlantMachineryStatusLabel,
   formatPrmProductionOverheadScopeLabel,
@@ -126,11 +129,15 @@ function activityOptionsHtml(activities, selectedId) {
   for (const row of coercePrmList(activities)) {
     const id = normalizePrmIntegerId(row.activity_id ?? row.id);
     if (id == null) continue;
-    const name = row.activity_name || row.name || id;
-    const short = row.short_code || row.activity_code || "";
-    const kind = row.activity_kind || row.kind || "";
-    const label = [name, short, kind].filter((p) => !isBlankPrmValue(p)).join(" · ");
-    opts.push(optionHtml(id, label, selectedId, String(id)));
+    const label = formatPrmActivityOptionLabel(row);
+    const title = [
+      label,
+      formatPrmActivityOptionSearchText(row),
+      `Activity ${id}`,
+    ]
+      .filter((part) => !isBlankPrmValue(part))
+      .join(" · ");
+    opts.push(optionHtml(id, label, selectedId, title));
   }
   return opts.join("");
 }
@@ -140,20 +147,15 @@ function costCentreOptionsHtml(centres, selectedId) {
   for (const row of coercePrmList(centres)) {
     const id = normalizePrmIntegerId(row.cost_centre_id ?? row.id);
     if (id == null) continue;
-    const name = row.cost_centre_name || row.name || id;
-    const code = row.cost_centre_code || row.code || "";
-    const type =
-      row.type_label || formatPrmCostCentreTypeLabel(row.cost_centre_type || row.type);
-    const pool =
-      row.pool_scope_label ||
-      formatPrmCostCentrePoolScopeLabel(row.pool_scope);
-    const resource = row.resource_class_label || row.default_resource_class_code || "";
-    const label = [code, name, type, pool, resource]
-      .filter((p) => !isBlankPrmValue(p))
+    const label = formatPrmCostCentreOptionLabel(row);
+    const title = [
+      label,
+      formatPrmCostCentreOptionSearchText(row),
+      `Cost Centre ${id}`,
+    ]
+      .filter((part) => !isBlankPrmValue(part))
       .join(" · ");
-    opts.push(
-      optionHtml(id, label, selectedId, normalizePrmCode(row.pool_scope)),
-    );
+    opts.push(optionHtml(id, label, selectedId, title));
   }
   return opts.join("");
 }
@@ -220,12 +222,13 @@ export function buildFamilyStepFormHtml({
   sequenceSuggestion = 10,
   stepKeySuggestion = "",
 } = {}) {
+  const enriched = buildPrmMasterOptionsForStepAuthoring(options);
   const seed = step ? normalizePrmFamilyRouteStep(step) : {};
-  const activities = options.activities || [];
-  const centres = options.cost_centres || options.production_cost_centres || [];
-  const behaviours = options.behaviours || [];
-  const resources = options.resource_classes || [];
-  const plants = filterPrmPlantsByLocation(options.plants || [], {
+  const activities = enriched.activities || [];
+  const centres = enriched.cost_centres || [];
+  const behaviours = enriched.behaviours || [];
+  const resources = enriched.resource_classes || [];
+  const plants = filterPrmPlantsByLocation(enriched.plants || [], {
     section_id: seed.section_id,
     subsection_id: seed.subsection_id,
     area_id: seed.area_id,

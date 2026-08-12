@@ -1,0 +1,5355 @@
+{
+  "fromHits": [
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 502,
+      "fn": "loadAnalysisData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_analysis_result_entry",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 1758,
+      "fn": "refreshSingleRow",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_analysis_result_entry",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 3317,
+      "fn": "loadMultiValueObservations",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_analysis_result_observation",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 3327,
+      "fn": "loadMultiValueSummary",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_analysis_result_calculation_summary",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4001,
+      "fn": "loadOutsourcedTestPicker",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4033,
+      "fn": "loadMethodsForOutsourcedTest",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_default_method_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4047,
+      "fn": "loadMethodsForOutsourcedTest",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_method",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4057,
+      "fn": "loadMethodsForOutsourcedTest",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_method",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4294,
+      "fn": "loadCoaSignatories",
+      "client": "supabase",
+      "schema": "lab",
+      "name": "v_coa_signatory_picker",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4334,
+      "fn": "loadStatusHistory",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "analysis_status_history",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 5170,
+      "fn": "openIssuedCoaForAnalysis",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "coa_issue",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4295,
+      "fn": "loadCoaSignatories",
+      "client": "schema()",
+      "schema": "lab",
+      "name": "v_coa_signatory_picker",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/coa-print.js",
+      "line": 199,
+      "fn": "loadHeader",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_coa_form50_header",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/coa-print.js",
+      "line": 217,
+      "fn": "loadLines",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_coa_form50_lines",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/coa-register.js",
+      "line": 148,
+      "fn": "loadRegisterRows",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_coa_register",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/coa-register.js",
+      "line": 153,
+      "fn": "loadRegisterRows",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_coa_register_versions",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 349,
+      "fn": "loadAllData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_control_sample_pending_collection",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 350,
+      "fn": "loadAllData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_control_sample_register",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 351,
+      "fn": "loadAllData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_control_sample_ready_for_removal",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 352,
+      "fn": "loadAllData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_control_register_active",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 356,
+      "fn": "loadAllData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_control_sample_sku_option",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 361,
+      "fn": "loadAllData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_control_sample_exempted",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 344,
+      "fn": "loadPickers",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_sample_receipt_staff_picker",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 429,
+      "fn": "loadCurrentUserStaffContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_current_user_staff_context",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 978,
+      "fn": "checkFgReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_fg_product_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1011,
+      "fn": "checkFgReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_product_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1030,
+      "fn": "checkFgReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1135,
+      "fn": "checkInventoryReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1157,
+      "fn": "checkInventoryReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_inv_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1174,
+      "fn": "checkInventoryReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1187,
+      "fn": "checkInventoryReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile_inv_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1272,
+      "fn": "checkPmReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1311,
+      "fn": "checkPmReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1451,
+      "fn": "populateFgBatchDropdown",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_sample_receipt_fg_batch_picker",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 305,
+      "fn": "loadAllPaged",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "DYNAMIC(table)",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": true
+    },
+    {
+      "file": "public/shared/js/lab-analysis-queue.js",
+      "line": 337,
+      "fn": "loadQueue",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_analysis_header",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-queue.js",
+      "line": 338,
+      "fn": "loadQueue",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_analysis_pending_scrutiny",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-queue.js",
+      "line": 760,
+      "fn": "openIssuedCoaForAnalysis",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "coa_issue",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-analysis-queue.js",
+      "line": 932,
+      "fn": "renderStatusHistory",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "analysis_status_history",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 455,
+      "fn": "loadProtocolList",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 956,
+      "fn": "populateTlProtocolSelect",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 992,
+      "fn": "loadTlMasterData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_test_with_default_method",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 998,
+      "fn": "loadTlMasterData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1084,
+      "fn": "loadTlLines",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_test",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1704,
+      "fn": "populateFmProtocolSelect",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1762,
+      "fn": "loadFmFamilies",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1783,
+      "fn": "loadFmFamilies",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1831,
+      "fn": "loadFmMappings",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_product_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1839,
+      "fn": "loadFmMappings",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_inv_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1848,
+      "fn": "loadFmMappings",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_pm_subcategory_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 2039,
+      "fn": "checkProtocolHasTestLines",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_test",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 2103,
+      "fn": "populateUpProtocolSelect",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 2162,
+      "fn": "loadUsagePreview",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_protocol_usage_preview",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 999,
+      "fn": "loadReviewQueueCounts",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_change_request_review_counts",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 1019,
+      "fn": "loadReviewQueue",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_change_request_review_queue",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 1693,
+      "fn": "loadChangeHistory",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_lifecycle_history",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 1699,
+      "fn": "loadChangeHistory",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_lifecycle_history",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 3312,
+      "fn": "loadOverrideRegister",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_override_register",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 4401,
+      "fn": "openSupersedeAppliedOverrideModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 4870,
+      "fn": "loadPendingSpecChangeRequests",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_pending_spec_change_requests",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6309,
+      "fn": "bsLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_product_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6330,
+      "fn": "bsLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6361,
+      "fn": "bsLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6886,
+      "fn": "bsLoadSpecLines",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_profile_detail",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7082,
+      "fn": "bsGenerateSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7184,
+      "fn": "bsSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7225,
+      "fn": "loadRmGroups",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7320,
+      "fn": "rmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category_inv_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7342,
+      "fn": "rmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7353,
+      "fn": "rmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile_inv_group_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7375,
+      "fn": "rmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7434,
+      "fn": "rmLoadSpecLines",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_profile_detail",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7711,
+      "fn": "rmSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7757,
+      "fn": "loadPmGroups",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7870,
+      "fn": "pmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "protocol_category",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7900,
+      "fn": "pmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7958,
+      "fn": "pmLoadSpecLines",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_spec_profile_detail",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8232,
+      "fn": "pmSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_profile",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8503,
+      "fn": "loadPmItems",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8553,
+      "fn": "onPmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8618,
+      "fn": "onPmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_override",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8658,
+      "fn": "onPmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8664,
+      "fn": "onPmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_method",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8670,
+      "fn": "onPmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "lab_uom",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8873,
+      "fn": "loadFgProducts",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_sample_receipt_fg_picker",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8943,
+      "fn": "onOvProductChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_fg_product_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9009,
+      "fn": "onOvProductChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_override",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9046,
+      "fn": "onOvProductChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9052,
+      "fn": "onOvProductChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_method",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9058,
+      "fn": "onOvProductChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "lab_uom",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9127,
+      "fn": "loadRmItems",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9179,
+      "fn": "onRmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_rm_pm_item_with_group",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9247,
+      "fn": "onRmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_override",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9287,
+      "fn": "onRmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9293,
+      "fn": "onRmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_method",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9299,
+      "fn": "onRmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "lab_uom",
+      "ops": [],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 10045,
+      "fn": "ensureTestMasterCacheWithUom",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 10839,
+      "fn": "loadOverrideBaseTestIds",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_line",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 11076,
+      "fn": "openOverrideModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_master",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 11335,
+      "fn": "resolveOverrideMethodIdForSave",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "spec_line",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 11350,
+      "fn": "resolveOverrideMethodIdForSave",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "v_test_with_default_method",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 11363,
+      "fn": "resolveOverrideMethodIdForSave",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "test_default_method_map",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 4871,
+      "fn": "loadPendingSpecChangeRequests",
+      "client": "schema()",
+      "schema": "lab",
+      "name": "v_pending_spec_change_requests",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 616,
+      "fn": "loadCompensationRows",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "v_staff_compensation_monthly_manager",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": false
+    }
+  ],
+  "rpcHits": [
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 519,
+      "fn": "loadAnalysisLocks",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_analysis_spec_locks"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 1412,
+      "fn": "fetchAnalysisPermissions",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_user_analysis_action_permissions"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 1647,
+      "fn": "syncFromCurrentSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_sync_analysis_results_from_effective_spec"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 1728,
+      "fn": "saveResult",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_analysis_result"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 2011,
+      "fn": "ensureRefToleranceUomPicker",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_lab_uom_picker"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 2357,
+      "fn": "searchReferenceSources",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_search_reference_sources"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 2732,
+      "fn": "resolveReferenceSourceId",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_upsert_reference_source"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 3053,
+      "fn": "saveReference",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_submit_analysis_reference_proposal"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 3129,
+      "fn": "grantException",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_create_reference_exception"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 3845,
+      "fn": "saveMultiValueResult",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_multi_value_analysis_result"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 3935,
+      "fn": "proceedMultiValueClearConfirmed",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_clear_multi_value_analysis_result"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4235,
+      "fn": "saveOutsourcedSource",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_add_outsourced_analysis_result_line"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4251,
+      "fn": "saveOutsourcedSource",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_upsert_outsourced_report_for_result"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4513,
+      "fn": "proceedIssueCoa",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_issue_coa"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4571,
+      "fn": "function\r\n  if (",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_submit_analysis_for_scrutiny"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4576,
+      "fn": "function\r\n  if (",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_pass_analysis_scrutiny"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4581,
+      "fn": "function\r\n  if (",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_approve_analysis_for_coa"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4586,
+      "fn": "function\r\n  if (",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_return_analysis_for_correction"
+    },
+    {
+      "file": "public/shared/js/analysis-workspace.js",
+      "line": 4595,
+      "fn": "function\r\n  if (",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_reopen_analysis_after_approval"
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 828,
+      "fn": "submitCollection",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_create_control_sample_from_analysis_with_register"
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 883,
+      "fn": "submitExemption",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_exempt_control_sample_collection"
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 946,
+      "fn": "submitRemoval",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_mark_control_sample_exception_removed"
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 959,
+      "fn": "submitRemoval",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_mark_control_sample_removed"
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 1186,
+      "fn": "submitNewRegister",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_create_control_register"
+    },
+    {
+      "file": "public/shared/js/control-sample-register.js",
+      "line": 1232,
+      "fn": "submitDeactivate",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_control_register_mapping"
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 259,
+      "fn": "loadReceiveSamplePermission",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_user_workflow_action_permissions"
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 917,
+      "fn": "previewCurrentActiveSpecForAnalysis",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_resolve_current_active_spec_lines"
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1295,
+      "fn": "checkPmReadiness",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_active_protocol_category_id_for_pm_subcategory"
+    },
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 1814,
+      "fn": "startAnalysis",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_receive_sample_and_create_analysis"
+    },
+    {
+      "file": "public/shared/js/lab-analysis-queue.js",
+      "line": 394,
+      "fn": "loadQueueActionPermissions",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_user_analysis_action_permissions"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 594,
+      "fn": "saveProtocol",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_protocol_category"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 636,
+      "fn": "deactivateProtocol",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_protocol_category"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1287,
+      "fn": "renderTlTable",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_protocol_test_line"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1472,
+      "fn": "reorderTlByDragDrop",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_reorder_protocol_test_lines"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1507,
+      "fn": "moveTlLine",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_move_protocol_test_line"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1633,
+      "fn": "saveTlLines",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_protocol_test_line"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1984,
+      "fn": "saveFmMapping",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_active_fg_protocol_for_group_family"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 1993,
+      "fn": "saveFmMapping",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_active_rm_protocol_for_group_family"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 2002,
+      "fn": "saveFmMapping",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_active_pm_protocol_for_subcategory_family"
+    },
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 2067,
+      "fn": "toggleFmMapping",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "DYNAMIC(rpcName)"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 4539,
+      "fn": "confirmAppliedOverrideSupersede",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_supersede_spec_override"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 4716,
+      "fn": "submitAppliedOverrideReview",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_review_spec_override"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 4807,
+      "fn": "confirmAppliedOverrideDeactivation",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_spec_override"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6341,
+      "fn": "bsLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_active_spec_profile_id_for_fg_group"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7051,
+      "fn": "bsGenerateSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_generate_fg_group_spec_profile"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7108,
+      "fn": "bsSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_create_new_spec_version_from_edits"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7156,
+      "fn": "bsSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_active_fg_group_spec_profile_family"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7601,
+      "fn": "rmGenerateSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_generate_inv_group_spec_profile"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7633,
+      "fn": "rmSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_create_new_spec_version_from_edits"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7680,
+      "fn": "rmSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_active_rm_group_spec_profile_family"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7852,
+      "fn": "pmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_active_protocol_category_id_for_pm_subcategory"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 7881,
+      "fn": "pmLoadGroupContext",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_active_spec_profile_id_for_pm_subcategory"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8123,
+      "fn": "pmGenerateSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_generate_pm_subcategory_spec_profile"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8154,
+      "fn": "pmSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_create_new_spec_version_from_edits"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8201,
+      "fn": "pmSaveSpec",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_active_pm_subcategory_spec_profile_family"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8420,
+      "fn": "executeRebuild",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_rebuild_base_spec_from_protocol"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8584,
+      "fn": "onPmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_active_spec_profile_id_for_pm_subcategory"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8751,
+      "fn": "onPmEffectivePreviewItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_preview_effective_pm_spec_for_item"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 8974,
+      "fn": "onOvProductChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_active_spec_profile_id_for_fg_group"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9211,
+      "fn": "onRmOverrideItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_active_spec_profile_id_for_inv_group"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9709,
+      "fn": "onEpProductChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_preview_effective_fg_spec_for_product"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 9830,
+      "fn": "onRmEffectivePreviewItemChange",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_preview_effective_rm_spec_for_item"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 11563,
+      "fn": "saveOverrideModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_spec_override_direct"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 11701,
+      "fn": "loadLabUoms",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_lab_uom_picker"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6093,
+      "fn": "submitSpecRequestReview",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "DYNAMIC(rpcName)"
+    },
+    {
+      "file": "public/shared/js/lab-workflow-access-control.js",
+      "line": 360,
+      "fn": "loadWorkflowAccessSnapshot",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_workflow_access_control_snapshot"
+    },
+    {
+      "file": "public/shared/js/lab-workflow-access-control.js",
+      "line": 1075,
+      "fn": "assignRoleFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_assign_staff_role"
+    },
+    {
+      "file": "public/shared/js/lab-workflow-access-control.js",
+      "line": 1108,
+      "fn": "deactivateRoleAssignmentFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_staff_role_assignment"
+    },
+    {
+      "file": "public/shared/js/lab-workflow-access-control.js",
+      "line": 1141,
+      "fn": "setRoleAction",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_staff_role_action"
+    },
+    {
+      "file": "public/shared/js/product-shelf-life-manager.js",
+      "line": 304,
+      "fn": "loadSnapshot",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_product_shelf_life_manager_snapshot"
+    },
+    {
+      "file": "public/shared/js/product-shelf-life-manager.js",
+      "line": 756,
+      "fn": "saveShelfLifeFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_product_shelf_life"
+    },
+    {
+      "file": "public/shared/js/product-shelf-life-manager.js",
+      "line": 803,
+      "fn": "deactivateCurrentShelfLifeFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_product_shelf_life"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 599,
+      "fn": "loadSnapshot",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_get_staff_directory_snapshot"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1223,
+      "fn": "saveCompensationFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_save_staff_compensation_monthly"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1514,
+      "fn": "saveStaffFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_save_staff"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1546,
+      "fn": "deactivateStaffFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_deactivate_staff"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1733,
+      "fn": "saveMasterFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_save_staff_category"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1788,
+      "fn": "saveMasterFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_save_staff_status"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1831,
+      "fn": "saveMasterFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_save_unit"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1874,
+      "fn": "deactivateMasterFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_deactivate_staff_category"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1878,
+      "fn": "deactivateMasterFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_deactivate_staff_status"
+    },
+    {
+      "file": "public/shared/js/staff-directory-manager.js",
+      "line": 1882,
+      "fn": "deactivateMasterFromModal",
+      "client": "hrSupabase",
+      "schema": "hr",
+      "name": "fn_deactivate_unit"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 401,
+      "fn": "loadAllData",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_get_test_method_master_snapshot"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1188,
+      "fn": "saveTestFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_test_master"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1209,
+      "fn": "saveTestFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_test_default_method"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1220,
+      "fn": "saveTestFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_clear_test_default_method"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1255,
+      "fn": "deactivateTestFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_test"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1341,
+      "fn": "saveMethodFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_test_method"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1372,
+      "fn": "deactivateMethodFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_method"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1462,
+      "fn": "saveUomFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_save_lab_uom"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1493,
+      "fn": "deactivateUomFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_deactivate_lab_uom"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1593,
+      "fn": "saveMappingFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_set_test_default_method"
+    },
+    {
+      "file": "public/shared/js/test-method-master.js",
+      "line": 1645,
+      "fn": "clearMappingFromModal",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "fn_clear_test_default_method"
+    }
+  ],
+  "byRelation": {
+    "hr.v_staff_compensation_monthly_manager": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 616,
+        "fn": "loadCompensationRows",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "v_staff_compensation_monthly_manager",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.DYNAMIC(table)": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 305,
+        "fn": "loadAllPaged",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "DYNAMIC(table)",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": true
+      }
+    ],
+    "lab.analysis_status_history": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4334,
+        "fn": "loadStatusHistory",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "analysis_status_history",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-analysis-queue.js",
+        "line": 932,
+        "fn": "renderStatusHistory",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "analysis_status_history",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.coa_issue": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 5170,
+        "fn": "openIssuedCoaForAnalysis",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "coa_issue",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-analysis-queue.js",
+        "line": 760,
+        "fn": "openIssuedCoaForAnalysis",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "coa_issue",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.lab_uom": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8670,
+        "fn": "onPmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "lab_uom",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9058,
+        "fn": "onOvProductChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "lab_uom",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9299,
+        "fn": "onRmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "lab_uom",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.protocol_category": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1030,
+        "fn": "checkFgReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1174,
+        "fn": "checkInventoryReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1311,
+        "fn": "checkPmReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 455,
+        "fn": "loadProtocolList",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 956,
+        "fn": "populateTlProtocolSelect",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1704,
+        "fn": "populateFmProtocolSelect",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 2103,
+        "fn": "populateUpProtocolSelect",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 6330,
+        "fn": "bsLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7342,
+        "fn": "rmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7870,
+        "fn": "pmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.protocol_category_inv_group_map": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1157,
+        "fn": "checkInventoryReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_inv_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1839,
+        "fn": "loadFmMappings",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_inv_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7320,
+        "fn": "rmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_inv_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.protocol_category_pm_subcategory_map": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1848,
+        "fn": "loadFmMappings",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_pm_subcategory_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.protocol_category_product_group_map": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1011,
+        "fn": "checkFgReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_product_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1831,
+        "fn": "loadFmMappings",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_product_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 6309,
+        "fn": "bsLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_product_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.protocol_category_test": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1084,
+        "fn": "loadTlLines",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_test",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 2039,
+        "fn": "checkProtocolHasTestLines",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "protocol_category_test",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.spec_line": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 10839,
+        "fn": "loadOverrideBaseTestIds",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_line",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11335,
+        "fn": "resolveOverrideMethodIdForSave",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_line",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.spec_override": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8618,
+        "fn": "onPmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_override",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9009,
+        "fn": "onOvProductChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_override",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9247,
+        "fn": "onRmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_override",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.spec_profile": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 6361,
+        "fn": "bsLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7082,
+        "fn": "bsGenerateSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7184,
+        "fn": "bsSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7375,
+        "fn": "rmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7711,
+        "fn": "rmSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7900,
+        "fn": "pmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8232,
+        "fn": "pmSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.spec_profile_inv_group_map": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1187,
+        "fn": "checkInventoryReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile_inv_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7353,
+        "fn": "rmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "spec_profile_inv_group_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.test_default_method_map": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4033,
+        "fn": "loadMethodsForOutsourcedTest",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_default_method_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11363,
+        "fn": "resolveOverrideMethodIdForSave",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_default_method_map",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.test_master": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4001,
+        "fn": "loadOutsourcedTestPicker",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 998,
+        "fn": "loadTlMasterData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4401,
+        "fn": "openSupersedeAppliedOverrideModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8658,
+        "fn": "onPmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9046,
+        "fn": "onOvProductChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9287,
+        "fn": "onRmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 10045,
+        "fn": "ensureTestMasterCacheWithUom",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11076,
+        "fn": "openOverrideModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_master",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.test_method": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4047,
+        "fn": "loadMethodsForOutsourcedTest",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_method",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4057,
+        "fn": "loadMethodsForOutsourcedTest",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_method",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8664,
+        "fn": "onPmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_method",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9052,
+        "fn": "onOvProductChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_method",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9293,
+        "fn": "onRmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "test_method",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.v_analysis_header": [
+      {
+        "file": "public/shared/js/lab-analysis-queue.js",
+        "line": 337,
+        "fn": "loadQueue",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_analysis_header",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_analysis_pending_scrutiny": [
+      {
+        "file": "public/shared/js/lab-analysis-queue.js",
+        "line": 338,
+        "fn": "loadQueue",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_analysis_pending_scrutiny",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_analysis_result_calculation_summary": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3327,
+        "fn": "loadMultiValueSummary",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_analysis_result_calculation_summary",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_analysis_result_entry": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 502,
+        "fn": "loadAnalysisData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_analysis_result_entry",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 1758,
+        "fn": "refreshSingleRow",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_analysis_result_entry",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_analysis_result_observation": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3317,
+        "fn": "loadMultiValueObservations",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_analysis_result_observation",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_coa_form50_header": [
+      {
+        "file": "public/shared/js/coa-print.js",
+        "line": 199,
+        "fn": "loadHeader",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_coa_form50_header",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_coa_form50_lines": [
+      {
+        "file": "public/shared/js/coa-print.js",
+        "line": 217,
+        "fn": "loadLines",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_coa_form50_lines",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_coa_register": [
+      {
+        "file": "public/shared/js/coa-register.js",
+        "line": 148,
+        "fn": "loadRegisterRows",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_coa_register",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.v_coa_register_versions": [
+      {
+        "file": "public/shared/js/coa-register.js",
+        "line": 153,
+        "fn": "loadRegisterRows",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_coa_register_versions",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.v_coa_signatory_picker": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4294,
+        "fn": "loadCoaSignatories",
+        "client": "supabase",
+        "schema": "lab",
+        "name": "v_coa_signatory_picker",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4295,
+        "fn": "loadCoaSignatories",
+        "client": "schema()",
+        "schema": "lab",
+        "name": "v_coa_signatory_picker",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.v_control_register_active": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 352,
+        "fn": "loadAllData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_control_register_active",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.v_control_sample_exempted": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 361,
+        "fn": "loadAllData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_control_sample_exempted",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.v_control_sample_pending_collection": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 349,
+        "fn": "loadAllData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_control_sample_pending_collection",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_control_sample_ready_for_removal": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 351,
+        "fn": "loadAllData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_control_sample_ready_for_removal",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_control_sample_register": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 350,
+        "fn": "loadAllData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_control_sample_register",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_control_sample_sku_option": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 356,
+        "fn": "loadAllData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_control_sample_sku_option",
+        "ops": [],
+        "dynamic": false
+      }
+    ],
+    "lab.v_current_user_staff_context": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 429,
+        "fn": "loadCurrentUserStaffContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_current_user_staff_context",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_fg_product_with_group": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 978,
+        "fn": "checkFgReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_fg_product_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8943,
+        "fn": "onOvProductChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_fg_product_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_pending_spec_change_requests": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4870,
+        "fn": "loadPendingSpecChangeRequests",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_pending_spec_change_requests",
+        "ops": [],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4871,
+        "fn": "loadPendingSpecChangeRequests",
+        "client": "schema()",
+        "schema": "lab",
+        "name": "v_pending_spec_change_requests",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_protocol_usage_preview": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 2162,
+        "fn": "loadUsagePreview",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_protocol_usage_preview",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_rm_pm_item_with_group": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1135,
+        "fn": "checkInventoryReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1272,
+        "fn": "checkPmReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1762,
+        "fn": "loadFmFamilies",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1783,
+        "fn": "loadFmFamilies",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7225,
+        "fn": "loadRmGroups",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7757,
+        "fn": "loadPmGroups",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8503,
+        "fn": "loadPmItems",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8553,
+        "fn": "onPmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9127,
+        "fn": "loadRmItems",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9179,
+        "fn": "onRmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_rm_pm_item_with_group",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_sample_receipt_fg_batch_picker": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1451,
+        "fn": "populateFgBatchDropdown",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_sample_receipt_fg_batch_picker",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_sample_receipt_fg_picker": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8873,
+        "fn": "loadFgProducts",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_sample_receipt_fg_picker",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_sample_receipt_staff_picker": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 344,
+        "fn": "loadPickers",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_sample_receipt_staff_picker",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_spec_change_request_review_counts": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 999,
+        "fn": "loadReviewQueueCounts",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_change_request_review_counts",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_spec_change_request_review_queue": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 1019,
+        "fn": "loadReviewQueue",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_change_request_review_queue",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_spec_lifecycle_history": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 1693,
+        "fn": "loadChangeHistory",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_lifecycle_history",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 1699,
+        "fn": "loadChangeHistory",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_lifecycle_history",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_spec_override_register": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 3312,
+        "fn": "loadOverrideRegister",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_override_register",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_spec_profile_detail": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 6886,
+        "fn": "bsLoadSpecLines",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_profile_detail",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7434,
+        "fn": "rmLoadSpecLines",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_profile_detail",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7958,
+        "fn": "pmLoadSpecLines",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_spec_profile_detail",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ],
+    "lab.v_test_with_default_method": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 992,
+        "fn": "loadTlMasterData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_test_with_default_method",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11350,
+        "fn": "resolveOverrideMethodIdForSave",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "v_test_with_default_method",
+        "ops": [
+          "SELECT"
+        ],
+        "dynamic": false
+      }
+    ]
+  },
+  "byRpc": {
+    "hr.fn_deactivate_staff": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1546,
+        "fn": "deactivateStaffFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_deactivate_staff"
+      }
+    ],
+    "hr.fn_deactivate_staff_category": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1874,
+        "fn": "deactivateMasterFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_deactivate_staff_category"
+      }
+    ],
+    "hr.fn_deactivate_staff_status": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1878,
+        "fn": "deactivateMasterFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_deactivate_staff_status"
+      }
+    ],
+    "hr.fn_deactivate_unit": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1882,
+        "fn": "deactivateMasterFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_deactivate_unit"
+      }
+    ],
+    "hr.fn_get_staff_directory_snapshot": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 599,
+        "fn": "loadSnapshot",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_get_staff_directory_snapshot"
+      }
+    ],
+    "hr.fn_save_staff": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1514,
+        "fn": "saveStaffFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_save_staff"
+      }
+    ],
+    "hr.fn_save_staff_category": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1733,
+        "fn": "saveMasterFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_save_staff_category"
+      }
+    ],
+    "hr.fn_save_staff_compensation_monthly": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1223,
+        "fn": "saveCompensationFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_save_staff_compensation_monthly"
+      }
+    ],
+    "hr.fn_save_staff_status": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1788,
+        "fn": "saveMasterFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_save_staff_status"
+      }
+    ],
+    "hr.fn_save_unit": [
+      {
+        "file": "public/shared/js/staff-directory-manager.js",
+        "line": 1831,
+        "fn": "saveMasterFromModal",
+        "client": "hrSupabase",
+        "schema": "hr",
+        "name": "fn_save_unit"
+      }
+    ],
+    "lab.DYNAMIC(rpcName)": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 2067,
+        "fn": "toggleFmMapping",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "DYNAMIC(rpcName)"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 6093,
+        "fn": "submitSpecRequestReview",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "DYNAMIC(rpcName)"
+      }
+    ],
+    "lab.fn_add_outsourced_analysis_result_line": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4235,
+        "fn": "saveOutsourcedSource",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_add_outsourced_analysis_result_line"
+      }
+    ],
+    "lab.fn_approve_analysis_for_coa": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4581,
+        "fn": "function\r\n  if (",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_approve_analysis_for_coa"
+      }
+    ],
+    "lab.fn_assign_staff_role": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 1075,
+        "fn": "assignRoleFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_assign_staff_role"
+      }
+    ],
+    "lab.fn_clear_multi_value_analysis_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3935,
+        "fn": "proceedMultiValueClearConfirmed",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_clear_multi_value_analysis_result"
+      }
+    ],
+    "lab.fn_clear_test_default_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1220,
+        "fn": "saveTestFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_clear_test_default_method"
+      },
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1645,
+        "fn": "clearMappingFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_clear_test_default_method"
+      }
+    ],
+    "lab.fn_create_control_register": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 1186,
+        "fn": "submitNewRegister",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_create_control_register"
+      }
+    ],
+    "lab.fn_create_control_sample_from_analysis_with_register": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 828,
+        "fn": "submitCollection",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_create_control_sample_from_analysis_with_register"
+      }
+    ],
+    "lab.fn_create_new_spec_version_from_edits": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7108,
+        "fn": "bsSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_create_new_spec_version_from_edits"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7633,
+        "fn": "rmSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_create_new_spec_version_from_edits"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8154,
+        "fn": "pmSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_create_new_spec_version_from_edits"
+      }
+    ],
+    "lab.fn_create_reference_exception": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3129,
+        "fn": "grantException",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_create_reference_exception"
+      }
+    ],
+    "lab.fn_deactivate_control_register_mapping": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 1232,
+        "fn": "submitDeactivate",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_control_register_mapping"
+      }
+    ],
+    "lab.fn_deactivate_lab_uom": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1493,
+        "fn": "deactivateUomFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_lab_uom"
+      }
+    ],
+    "lab.fn_deactivate_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1372,
+        "fn": "deactivateMethodFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_method"
+      }
+    ],
+    "lab.fn_deactivate_product_shelf_life": [
+      {
+        "file": "public/shared/js/product-shelf-life-manager.js",
+        "line": 803,
+        "fn": "deactivateCurrentShelfLifeFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_product_shelf_life"
+      }
+    ],
+    "lab.fn_deactivate_protocol_category": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 636,
+        "fn": "deactivateProtocol",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_protocol_category"
+      }
+    ],
+    "lab.fn_deactivate_protocol_test_line": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1287,
+        "fn": "renderTlTable",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_protocol_test_line"
+      }
+    ],
+    "lab.fn_deactivate_spec_override": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4807,
+        "fn": "confirmAppliedOverrideDeactivation",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_spec_override"
+      }
+    ],
+    "lab.fn_deactivate_staff_role_assignment": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 1108,
+        "fn": "deactivateRoleAssignmentFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_staff_role_assignment"
+      }
+    ],
+    "lab.fn_deactivate_test": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1255,
+        "fn": "deactivateTestFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_deactivate_test"
+      }
+    ],
+    "lab.fn_exempt_control_sample_collection": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 883,
+        "fn": "submitExemption",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_exempt_control_sample_collection"
+      }
+    ],
+    "lab.fn_generate_fg_group_spec_profile": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7051,
+        "fn": "bsGenerateSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_generate_fg_group_spec_profile"
+      }
+    ],
+    "lab.fn_generate_inv_group_spec_profile": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7601,
+        "fn": "rmGenerateSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_generate_inv_group_spec_profile"
+      }
+    ],
+    "lab.fn_generate_pm_subcategory_spec_profile": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8123,
+        "fn": "pmGenerateSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_generate_pm_subcategory_spec_profile"
+      }
+    ],
+    "lab.fn_get_active_protocol_category_id_for_pm_subcategory": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1295,
+        "fn": "checkPmReadiness",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_active_protocol_category_id_for_pm_subcategory"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7852,
+        "fn": "pmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_active_protocol_category_id_for_pm_subcategory"
+      }
+    ],
+    "lab.fn_get_active_spec_profile_id_for_fg_group": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 6341,
+        "fn": "bsLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_active_spec_profile_id_for_fg_group"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8974,
+        "fn": "onOvProductChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_active_spec_profile_id_for_fg_group"
+      }
+    ],
+    "lab.fn_get_active_spec_profile_id_for_inv_group": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9211,
+        "fn": "onRmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_active_spec_profile_id_for_inv_group"
+      }
+    ],
+    "lab.fn_get_active_spec_profile_id_for_pm_subcategory": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7881,
+        "fn": "pmLoadGroupContext",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_active_spec_profile_id_for_pm_subcategory"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8584,
+        "fn": "onPmOverrideItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_active_spec_profile_id_for_pm_subcategory"
+      }
+    ],
+    "lab.fn_get_analysis_spec_locks": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 519,
+        "fn": "loadAnalysisLocks",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_analysis_spec_locks"
+      }
+    ],
+    "lab.fn_get_lab_uom_picker": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 2011,
+        "fn": "ensureRefToleranceUomPicker",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_lab_uom_picker"
+      },
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11701,
+        "fn": "loadLabUoms",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_lab_uom_picker"
+      }
+    ],
+    "lab.fn_get_product_shelf_life_manager_snapshot": [
+      {
+        "file": "public/shared/js/product-shelf-life-manager.js",
+        "line": 304,
+        "fn": "loadSnapshot",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_product_shelf_life_manager_snapshot"
+      }
+    ],
+    "lab.fn_get_test_method_master_snapshot": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 401,
+        "fn": "loadAllData",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_test_method_master_snapshot"
+      }
+    ],
+    "lab.fn_get_user_analysis_action_permissions": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 1412,
+        "fn": "fetchAnalysisPermissions",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_user_analysis_action_permissions"
+      },
+      {
+        "file": "public/shared/js/lab-analysis-queue.js",
+        "line": 394,
+        "fn": "loadQueueActionPermissions",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_user_analysis_action_permissions"
+      }
+    ],
+    "lab.fn_get_user_workflow_action_permissions": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 259,
+        "fn": "loadReceiveSamplePermission",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_user_workflow_action_permissions"
+      }
+    ],
+    "lab.fn_get_workflow_access_control_snapshot": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 360,
+        "fn": "loadWorkflowAccessSnapshot",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_get_workflow_access_control_snapshot"
+      }
+    ],
+    "lab.fn_issue_coa": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4513,
+        "fn": "proceedIssueCoa",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_issue_coa"
+      }
+    ],
+    "lab.fn_mark_control_sample_exception_removed": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 946,
+        "fn": "submitRemoval",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_mark_control_sample_exception_removed"
+      }
+    ],
+    "lab.fn_mark_control_sample_removed": [
+      {
+        "file": "public/shared/js/control-sample-register.js",
+        "line": 959,
+        "fn": "submitRemoval",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_mark_control_sample_removed"
+      }
+    ],
+    "lab.fn_move_protocol_test_line": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1507,
+        "fn": "moveTlLine",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_move_protocol_test_line"
+      }
+    ],
+    "lab.fn_pass_analysis_scrutiny": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4576,
+        "fn": "function\r\n  if (",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_pass_analysis_scrutiny"
+      }
+    ],
+    "lab.fn_preview_effective_fg_spec_for_product": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9709,
+        "fn": "onEpProductChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_preview_effective_fg_spec_for_product"
+      }
+    ],
+    "lab.fn_preview_effective_pm_spec_for_item": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8751,
+        "fn": "onPmEffectivePreviewItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_preview_effective_pm_spec_for_item"
+      }
+    ],
+    "lab.fn_preview_effective_rm_spec_for_item": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 9830,
+        "fn": "onRmEffectivePreviewItemChange",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_preview_effective_rm_spec_for_item"
+      }
+    ],
+    "lab.fn_rebuild_base_spec_from_protocol": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8420,
+        "fn": "executeRebuild",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_rebuild_base_spec_from_protocol"
+      }
+    ],
+    "lab.fn_receive_sample_and_create_analysis": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 1814,
+        "fn": "startAnalysis",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_receive_sample_and_create_analysis"
+      }
+    ],
+    "lab.fn_reopen_analysis_after_approval": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4595,
+        "fn": "function\r\n  if (",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_reopen_analysis_after_approval"
+      }
+    ],
+    "lab.fn_reorder_protocol_test_lines": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1472,
+        "fn": "reorderTlByDragDrop",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_reorder_protocol_test_lines"
+      }
+    ],
+    "lab.fn_resolve_current_active_spec_lines": [
+      {
+        "file": "public/shared/js/lab-analysis-entry.js",
+        "line": 917,
+        "fn": "previewCurrentActiveSpecForAnalysis",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_resolve_current_active_spec_lines"
+      }
+    ],
+    "lab.fn_return_analysis_for_correction": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4586,
+        "fn": "function\r\n  if (",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_return_analysis_for_correction"
+      }
+    ],
+    "lab.fn_review_spec_override": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4716,
+        "fn": "submitAppliedOverrideReview",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_review_spec_override"
+      }
+    ],
+    "lab.fn_save_analysis_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 1728,
+        "fn": "saveResult",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_analysis_result"
+      }
+    ],
+    "lab.fn_save_lab_uom": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1462,
+        "fn": "saveUomFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_lab_uom"
+      }
+    ],
+    "lab.fn_save_multi_value_analysis_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3845,
+        "fn": "saveMultiValueResult",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_multi_value_analysis_result"
+      }
+    ],
+    "lab.fn_save_product_shelf_life": [
+      {
+        "file": "public/shared/js/product-shelf-life-manager.js",
+        "line": 756,
+        "fn": "saveShelfLifeFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_product_shelf_life"
+      }
+    ],
+    "lab.fn_save_protocol_category": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 594,
+        "fn": "saveProtocol",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_protocol_category"
+      }
+    ],
+    "lab.fn_save_protocol_test_line": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1633,
+        "fn": "saveTlLines",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_protocol_test_line"
+      }
+    ],
+    "lab.fn_save_spec_override_direct": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 11563,
+        "fn": "saveOverrideModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_spec_override_direct"
+      }
+    ],
+    "lab.fn_save_test_master": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1188,
+        "fn": "saveTestFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_test_master"
+      }
+    ],
+    "lab.fn_save_test_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1341,
+        "fn": "saveMethodFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_save_test_method"
+      }
+    ],
+    "lab.fn_search_reference_sources": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 2357,
+        "fn": "searchReferenceSources",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_search_reference_sources"
+      }
+    ],
+    "lab.fn_set_active_fg_group_spec_profile_family": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7156,
+        "fn": "bsSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_active_fg_group_spec_profile_family"
+      }
+    ],
+    "lab.fn_set_active_fg_protocol_for_group_family": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1984,
+        "fn": "saveFmMapping",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_active_fg_protocol_for_group_family"
+      }
+    ],
+    "lab.fn_set_active_pm_protocol_for_subcategory_family": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 2002,
+        "fn": "saveFmMapping",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_active_pm_protocol_for_subcategory_family"
+      }
+    ],
+    "lab.fn_set_active_pm_subcategory_spec_profile_family": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 8201,
+        "fn": "pmSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_active_pm_subcategory_spec_profile_family"
+      }
+    ],
+    "lab.fn_set_active_rm_group_spec_profile_family": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 7680,
+        "fn": "rmSaveSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_active_rm_group_spec_profile_family"
+      }
+    ],
+    "lab.fn_set_active_rm_protocol_for_group_family": [
+      {
+        "file": "public/shared/js/lab-protocol-manager.js",
+        "line": 1993,
+        "fn": "saveFmMapping",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_active_rm_protocol_for_group_family"
+      }
+    ],
+    "lab.fn_set_staff_role_action": [
+      {
+        "file": "public/shared/js/lab-workflow-access-control.js",
+        "line": 1141,
+        "fn": "setRoleAction",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_staff_role_action"
+      }
+    ],
+    "lab.fn_set_test_default_method": [
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1209,
+        "fn": "saveTestFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_test_default_method"
+      },
+      {
+        "file": "public/shared/js/test-method-master.js",
+        "line": 1593,
+        "fn": "saveMappingFromModal",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_set_test_default_method"
+      }
+    ],
+    "lab.fn_submit_analysis_for_scrutiny": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4571,
+        "fn": "function\r\n  if (",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_submit_analysis_for_scrutiny"
+      }
+    ],
+    "lab.fn_submit_analysis_reference_proposal": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 3053,
+        "fn": "saveReference",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_submit_analysis_reference_proposal"
+      }
+    ],
+    "lab.fn_supersede_spec_override": [
+      {
+        "file": "public/shared/js/lab-spec-profile-manager.js",
+        "line": 4539,
+        "fn": "confirmAppliedOverrideSupersede",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_supersede_spec_override"
+      }
+    ],
+    "lab.fn_sync_analysis_results_from_effective_spec": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 1647,
+        "fn": "syncFromCurrentSpec",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_sync_analysis_results_from_effective_spec"
+      }
+    ],
+    "lab.fn_upsert_outsourced_report_for_result": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 4251,
+        "fn": "saveOutsourcedSource",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_upsert_outsourced_report_for_result"
+      }
+    ],
+    "lab.fn_upsert_reference_source": [
+      {
+        "file": "public/shared/js/analysis-workspace.js",
+        "line": 2732,
+        "fn": "resolveReferenceSourceId",
+        "client": "labSupabase",
+        "schema": "lab",
+        "name": "fn_upsert_reference_source"
+      }
+    ]
+  },
+  "uniqueRelations": [
+    "hr.v_staff_compensation_monthly_manager",
+    "lab.analysis_status_history",
+    "lab.coa_issue",
+    "lab.lab_uom",
+    "lab.protocol_category",
+    "lab.protocol_category_inv_group_map",
+    "lab.protocol_category_pm_subcategory_map",
+    "lab.protocol_category_product_group_map",
+    "lab.protocol_category_test",
+    "lab.spec_line",
+    "lab.spec_override",
+    "lab.spec_profile",
+    "lab.spec_profile_inv_group_map",
+    "lab.test_default_method_map",
+    "lab.test_master",
+    "lab.test_method",
+    "lab.v_analysis_header",
+    "lab.v_analysis_pending_scrutiny",
+    "lab.v_analysis_result_calculation_summary",
+    "lab.v_analysis_result_entry",
+    "lab.v_analysis_result_observation",
+    "lab.v_coa_form50_header",
+    "lab.v_coa_form50_lines",
+    "lab.v_coa_register",
+    "lab.v_coa_register_versions",
+    "lab.v_coa_signatory_picker",
+    "lab.v_control_register_active",
+    "lab.v_control_sample_exempted",
+    "lab.v_control_sample_pending_collection",
+    "lab.v_control_sample_ready_for_removal",
+    "lab.v_control_sample_register",
+    "lab.v_control_sample_sku_option",
+    "lab.v_current_user_staff_context",
+    "lab.v_fg_product_with_group",
+    "lab.v_pending_spec_change_requests",
+    "lab.v_protocol_usage_preview",
+    "lab.v_rm_pm_item_with_group",
+    "lab.v_sample_receipt_fg_batch_picker",
+    "lab.v_sample_receipt_fg_picker",
+    "lab.v_sample_receipt_staff_picker",
+    "lab.v_spec_change_request_review_counts",
+    "lab.v_spec_change_request_review_queue",
+    "lab.v_spec_lifecycle_history",
+    "lab.v_spec_override_register",
+    "lab.v_spec_profile_detail",
+    "lab.v_test_with_default_method"
+  ],
+  "uniqueRpcs": [
+    "hr.fn_deactivate_staff",
+    "hr.fn_deactivate_staff_category",
+    "hr.fn_deactivate_staff_status",
+    "hr.fn_deactivate_unit",
+    "hr.fn_get_staff_directory_snapshot",
+    "hr.fn_save_staff",
+    "hr.fn_save_staff_category",
+    "hr.fn_save_staff_compensation_monthly",
+    "hr.fn_save_staff_status",
+    "hr.fn_save_unit",
+    "lab.fn_add_outsourced_analysis_result_line",
+    "lab.fn_approve_analysis_for_coa",
+    "lab.fn_assign_staff_role",
+    "lab.fn_clear_multi_value_analysis_result",
+    "lab.fn_clear_test_default_method",
+    "lab.fn_create_control_register",
+    "lab.fn_create_control_sample_from_analysis_with_register",
+    "lab.fn_create_new_spec_version_from_edits",
+    "lab.fn_create_reference_exception",
+    "lab.fn_deactivate_control_register_mapping",
+    "lab.fn_deactivate_lab_uom",
+    "lab.fn_deactivate_method",
+    "lab.fn_deactivate_product_shelf_life",
+    "lab.fn_deactivate_protocol_category",
+    "lab.fn_deactivate_protocol_test_line",
+    "lab.fn_deactivate_spec_override",
+    "lab.fn_deactivate_staff_role_assignment",
+    "lab.fn_deactivate_test",
+    "lab.fn_exempt_control_sample_collection",
+    "lab.fn_generate_fg_group_spec_profile",
+    "lab.fn_generate_inv_group_spec_profile",
+    "lab.fn_generate_pm_subcategory_spec_profile",
+    "lab.fn_get_active_protocol_category_id_for_pm_subcategory",
+    "lab.fn_get_active_spec_profile_id_for_fg_group",
+    "lab.fn_get_active_spec_profile_id_for_inv_group",
+    "lab.fn_get_active_spec_profile_id_for_pm_subcategory",
+    "lab.fn_get_analysis_spec_locks",
+    "lab.fn_get_lab_uom_picker",
+    "lab.fn_get_product_shelf_life_manager_snapshot",
+    "lab.fn_get_test_method_master_snapshot",
+    "lab.fn_get_user_analysis_action_permissions",
+    "lab.fn_get_user_workflow_action_permissions",
+    "lab.fn_get_workflow_access_control_snapshot",
+    "lab.fn_issue_coa",
+    "lab.fn_mark_control_sample_exception_removed",
+    "lab.fn_mark_control_sample_removed",
+    "lab.fn_move_protocol_test_line",
+    "lab.fn_pass_analysis_scrutiny",
+    "lab.fn_preview_effective_fg_spec_for_product",
+    "lab.fn_preview_effective_pm_spec_for_item",
+    "lab.fn_preview_effective_rm_spec_for_item",
+    "lab.fn_rebuild_base_spec_from_protocol",
+    "lab.fn_receive_sample_and_create_analysis",
+    "lab.fn_reopen_analysis_after_approval",
+    "lab.fn_reorder_protocol_test_lines",
+    "lab.fn_resolve_current_active_spec_lines",
+    "lab.fn_return_analysis_for_correction",
+    "lab.fn_review_spec_override",
+    "lab.fn_save_analysis_result",
+    "lab.fn_save_lab_uom",
+    "lab.fn_save_multi_value_analysis_result",
+    "lab.fn_save_product_shelf_life",
+    "lab.fn_save_protocol_category",
+    "lab.fn_save_protocol_test_line",
+    "lab.fn_save_spec_override_direct",
+    "lab.fn_save_test_master",
+    "lab.fn_save_test_method",
+    "lab.fn_search_reference_sources",
+    "lab.fn_set_active_fg_group_spec_profile_family",
+    "lab.fn_set_active_fg_protocol_for_group_family",
+    "lab.fn_set_active_pm_protocol_for_subcategory_family",
+    "lab.fn_set_active_pm_subcategory_spec_profile_family",
+    "lab.fn_set_active_rm_group_spec_profile_family",
+    "lab.fn_set_active_rm_protocol_for_group_family",
+    "lab.fn_set_staff_role_action",
+    "lab.fn_set_test_default_method",
+    "lab.fn_submit_analysis_for_scrutiny",
+    "lab.fn_submit_analysis_reference_proposal",
+    "lab.fn_supersede_spec_override",
+    "lab.fn_sync_analysis_results_from_effective_spec",
+    "lab.fn_upsert_outsourced_report_for_result",
+    "lab.fn_upsert_reference_source"
+  ],
+  "dynamicFrom": [
+    {
+      "file": "public/shared/js/lab-analysis-entry.js",
+      "line": 305,
+      "fn": "loadAllPaged",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "DYNAMIC(table)",
+      "ops": [
+        "SELECT"
+      ],
+      "dynamic": true
+    }
+  ],
+  "dynamicRpc": [
+    {
+      "file": "public/shared/js/lab-protocol-manager.js",
+      "line": 2067,
+      "fn": "toggleFmMapping",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "DYNAMIC(rpcName)"
+    },
+    {
+      "file": "public/shared/js/lab-spec-profile-manager.js",
+      "line": 6093,
+      "fn": "submitSpecRequestReview",
+      "client": "labSupabase",
+      "schema": "lab",
+      "name": "DYNAMIC(rpcName)"
+    }
+  ],
+  "specialRefs": {
+    "staff": {
+      "count": 13,
+      "files": [
+        "public/shared/js/lab-workflow-access-control.js",
+        "public/shared/js/staff-directory-manager.js",
+        "public/shared/staff-directory-manager.html"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-workflow-access-control.js",
+          "line": 829
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 111
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 138
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 231
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 436
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 447
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 759
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 807
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 850
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 925
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 938
+        },
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 1915
+        }
+      ]
+    },
+    "staff_category": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "staff_status": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "unit": {
+      "count": 1,
+      "files": [
+        "public/shared/js/staff-directory-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 1979
+        }
+      ]
+    },
+    "analysis_record": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "analysis_status_history": {
+      "count": 2,
+      "files": [
+        "public/shared/js/analysis-workspace.js",
+        "public/shared/js/lab-analysis-queue.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 4335
+        },
+        {
+          "file": "public/shared/js/lab-analysis-queue.js",
+          "line": 933
+        }
+      ]
+    },
+    "analysis_result": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "analysis_result_observation": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "analysis_result_calculation_summary": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "analysis_reference_exception": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "analysis_register_counter": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "coa_counter": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "coa_issue": {
+      "count": 2,
+      "files": [
+        "public/shared/js/analysis-workspace.js",
+        "public/shared/js/lab-analysis-queue.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 5171
+        },
+        {
+          "file": "public/shared/js/lab-analysis-queue.js",
+          "line": 761
+        }
+      ]
+    },
+    "coa_issue_line": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "control_register": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "control_sample": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "outsourced_report": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "product_shelf_life": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "protocol_category": {
+      "count": 10,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js",
+        "public/shared/js/lab-protocol-manager.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1031
+        },
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1175
+        },
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1312
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 456
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 957
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 1705
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 2104
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 6331
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7343
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7871
+        }
+      ]
+    },
+    "protocol_category_inv_group_map": {
+      "count": 3,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js",
+        "public/shared/js/lab-protocol-manager.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1158
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 1840
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7321
+        }
+      ]
+    },
+    "protocol_category_product_group_map": {
+      "count": 3,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js",
+        "public/shared/js/lab-protocol-manager.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1012
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 1832
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 6310
+        }
+      ]
+    },
+    "protocol_category_test": {
+      "count": 2,
+      "files": [
+        "public/shared/js/lab-protocol-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 1085
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 2040
+        }
+      ]
+    },
+    "protocol_subject_map": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "reference_source_master": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "rm_lot_counter": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "spec_line": {
+      "count": 2,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 10840
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 11336
+        }
+      ]
+    },
+    "spec_override": {
+      "count": 3,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8619
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9010
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9248
+        }
+      ]
+    },
+    "spec_override_audit": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "spec_profile": {
+      "count": 7,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 6362
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7083
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7185
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7376
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7712
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7901
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8233
+        }
+      ]
+    },
+    "spec_profile_inv_group_map": {
+      "count": 2,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1188
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7354
+        }
+      ]
+    },
+    "staff_role": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "staff_role_action_map": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "staff_role_map": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "system_config": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "test_master": {
+      "count": 8,
+      "files": [
+        "public/shared/js/analysis-workspace.js",
+        "public/shared/js/lab-protocol-manager.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 4002
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 999
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 4402
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8659
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9047
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9288
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 10046
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 11077
+        }
+      ]
+    },
+    "test_method": {
+      "count": 5,
+      "files": [
+        "public/shared/js/analysis-workspace.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 4048
+        },
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 4058
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8665
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9053
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9294
+        }
+      ]
+    },
+    "workflow_action_master": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "protocol_category_pm_subcategory_map": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-protocol-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 1849
+        }
+      ]
+    },
+    "v_current_user_staff_context": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 430
+        }
+      ]
+    },
+    "v_analysis_header": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-analysis-queue.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-queue.js",
+          "line": 337
+        }
+      ]
+    },
+    "v_analysis_pending_scrutiny": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-analysis-queue.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-queue.js",
+          "line": 338
+        }
+      ]
+    },
+    "v_analysis_ready_for_coa": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_analysis_result_entry": {
+      "count": 2,
+      "files": [
+        "public/shared/js/analysis-workspace.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 503
+        },
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 1759
+        }
+      ]
+    },
+    "v_analysis_result_observation": {
+      "count": 1,
+      "files": [
+        "public/shared/js/analysis-workspace.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 3318
+        }
+      ]
+    },
+    "v_analysis_result_calculation_summary": {
+      "count": 1,
+      "files": [
+        "public/shared/js/analysis-workspace.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 3328
+        }
+      ]
+    },
+    "v_outsourced_report": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_print_header": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_print_lines": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_print_lines_issued": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_issue_line_detail": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_register": {
+      "count": 1,
+      "files": [
+        "public/shared/js/coa-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/coa-register.js",
+          "line": 149
+        }
+      ]
+    },
+    "v_coa_register_versions": {
+      "count": 1,
+      "files": [
+        "public/shared/js/coa-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/coa-register.js",
+          "line": 154
+        }
+      ]
+    },
+    "v_coa_render_header": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_render_lines": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_full_render": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_coa_form50_header": {
+      "count": 1,
+      "files": [
+        "public/shared/js/coa-print.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/coa-print.js",
+          "line": 200
+        }
+      ]
+    },
+    "v_coa_form50_lines": {
+      "count": 1,
+      "files": [
+        "public/shared/js/coa-print.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/coa-print.js",
+          "line": 218
+        }
+      ]
+    },
+    "v_coa_signatory_picker": {
+      "count": 1,
+      "files": [
+        "public/shared/js/analysis-workspace.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/analysis-workspace.js",
+          "line": 4296
+        }
+      ]
+    },
+    "v_control_register_active": {
+      "count": 1,
+      "files": [
+        "public/shared/js/control-sample-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/control-sample-register.js",
+          "line": 353
+        }
+      ]
+    },
+    "v_control_register_master": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_control_sample_register": {
+      "count": 1,
+      "files": [
+        "public/shared/js/control-sample-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/control-sample-register.js",
+          "line": 350
+        }
+      ]
+    },
+    "v_control_sample_pending_collection": {
+      "count": 1,
+      "files": [
+        "public/shared/js/control-sample-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/control-sample-register.js",
+          "line": 349
+        }
+      ]
+    },
+    "v_control_sample_ready_for_removal": {
+      "count": 1,
+      "files": [
+        "public/shared/js/control-sample-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/control-sample-register.js",
+          "line": 351
+        }
+      ]
+    },
+    "v_control_sample_exempted": {
+      "count": 1,
+      "files": [
+        "public/shared/js/control-sample-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/control-sample-register.js",
+          "line": 362
+        }
+      ]
+    },
+    "v_control_sample_sku_option": {
+      "count": 1,
+      "files": [
+        "public/shared/js/control-sample-register.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/control-sample-register.js",
+          "line": 357
+        }
+      ]
+    },
+    "v_sample_receipt_fg_batch_picker": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1452
+        }
+      ]
+    },
+    "v_sample_receipt_fg_picker": {
+      "count": 2,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 408
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8874
+        }
+      ]
+    },
+    "v_sample_receipt_rm_picker": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_sample_receipt_staff_picker": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 345
+        }
+      ]
+    },
+    "v_spec_profile_detail": {
+      "count": 3,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 6887
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7435
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7959
+        }
+      ]
+    },
+    "v_spec_override_register": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 3313
+        }
+      ]
+    },
+    "v_spec_lifecycle_history": {
+      "count": 2,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 1694
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 1700
+        }
+      ]
+    },
+    "v_spec_change_request_history": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_pending_spec_change_requests": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 4872
+        }
+      ]
+    },
+    "v_spec_change_request_review_queue": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 1020
+        }
+      ]
+    },
+    "v_spec_change_request_review_counts": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 1000
+        }
+      ]
+    },
+    "v_protocol_subject_map": {
+      "count": 0,
+      "files": [],
+      "hits": []
+    },
+    "v_protocol_usage_preview": {
+      "count": 1,
+      "files": [
+        "public/shared/js/lab-protocol-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 2163
+        }
+      ]
+    },
+    "v_test_with_default_method": {
+      "count": 2,
+      "files": [
+        "public/shared/js/lab-protocol-manager.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 993
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 11351
+        }
+      ]
+    },
+    "v_rm_pm_item_with_group": {
+      "count": 11,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js",
+        "public/shared/js/lab-protocol-manager.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 417
+        },
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1136
+        },
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 1273
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 1763
+        },
+        {
+          "file": "public/shared/js/lab-protocol-manager.js",
+          "line": 1784
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7226
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 7758
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8504
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8554
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9128
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 9180
+        }
+      ]
+    },
+    "v_fg_product_with_group": {
+      "count": 2,
+      "files": [
+        "public/shared/js/lab-analysis-entry.js",
+        "public/shared/js/lab-spec-profile-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/lab-analysis-entry.js",
+          "line": 979
+        },
+        {
+          "file": "public/shared/js/lab-spec-profile-manager.js",
+          "line": 8944
+        }
+      ]
+    },
+    "v_staff_compensation_monthly_manager": {
+      "count": 1,
+      "files": [
+        "public/shared/js/staff-directory-manager.js"
+      ],
+      "hits": [
+        {
+          "file": "public/shared/js/staff-directory-manager.js",
+          "line": 617
+        }
+      ]
+    }
+  }
+}

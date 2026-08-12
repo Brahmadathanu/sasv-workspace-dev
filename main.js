@@ -17,30 +17,51 @@ const {
   BrowserWindow,
   ipcMain,
   dialog,
-  nativeImage,
   Menu,
 } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
-/** Windows/Linux window chrome; same asset as electron-builder `win.icon`. */
-const APP_ICON_PATH = path.join(
-  __dirname,
-  "public/shared/assets/branding/derived/favicon.ico",
+/** Same file as electron-builder `build.win.icon`. Do not duplicate. */
+const CANONICAL_WIN_ICON_REL = path.join(
+  "public",
+  "shared",
+  "assets",
+  "branding",
+  "derived",
+  "favicon.ico",
 );
+
+function resolveCanonicalAppIconPath() {
+  const candidates = [path.resolve(__dirname, CANONICAL_WIN_ICON_REL)];
+  if (app.isPackaged) {
+    candidates.push(
+      path.resolve(process.resourcesPath, CANONICAL_WIN_ICON_REL),
+      path.resolve(process.resourcesPath, "app.asar", CANONICAL_WIN_ICON_REL),
+      path.resolve(
+        process.resourcesPath,
+        "app.asar.unpacked",
+        CANONICAL_WIN_ICON_REL,
+      ),
+    );
+  }
+  for (const candidate of candidates) {
+    try {
+      if (candidate && fs.existsSync(candidate)) return candidate;
+    } catch {
+      // keep searching
+    }
+  }
+  return candidates[0];
+}
 
 if (process.platform === "win32") {
   app.setAppUserModelId("com.brahmadathanu.sasvworkspace");
 }
 
-function appIconForWindows() {
-  if (process.platform !== "win32") return APP_ICON_PATH;
-  const img = nativeImage.createFromPath(APP_ICON_PATH);
-  return img.isEmpty() ? APP_ICON_PATH : img;
-}
-
-const APP_ICON = appIconForWindows();
+/** Absolute .ico path for BrowserWindow (Windows taskbar needs the file, not NativeImage). */
+const APP_ICON = resolveCanonicalAppIconPath();
 const express = require("express");
-const fs = require("fs");
 const htmlToDocx = require("html-to-docx");
 const {
   Document,

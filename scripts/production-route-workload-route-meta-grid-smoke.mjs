@@ -52,7 +52,8 @@ assert(
 );
 assert(
   panelFn.includes("Validation") &&
-    panelFn.includes("formatPrmValidationLabel"),
+    panelFn.includes("routeValidationDetailHtml") &&
+    panelFn.includes("effective.validation"),
   "7 Validation preserved",
 );
 assert(

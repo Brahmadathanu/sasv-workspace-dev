@@ -11,9 +11,14 @@ import {
   buildPostExtractionEvidenceGapNotice,
   extractValidationIssues,
   filterUntouchedFamilyStepsFromOverrides,
+  formatPrmActionLabel,
+  formatPrmBatchSizeReferenceLabel,
+  formatPrmDayMonthYearLabel,
   formatPrmDeltaLabel,
+  formatPrmDeltaTargetCopy,
   formatPrmEffectiveFromDisplay,
   formatPrmEffectiveToDisplay,
+  PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED,
   formatPrmRouteEvidenceStatusLabel,
   formatPrmRouteSourceTypeLabel,
   formatPrmRouteStatusLabel,
@@ -34,6 +39,7 @@ import {
   normalizePrmIntegerId,
   canonicalPrmRouteStatus,
   sortPrmFamilyRouteSteps,
+  normalizePrmProductRouteOverride,
 } from "./costing-suite-production-route-helpers.js";
 import {
   buildApproveRouteFamilyRouteArgs,
@@ -75,6 +81,12 @@ import {
   readFamilyStepFormValues,
   suggestPrmFamilyStepKey,
 } from "./costing-suite-production-route-step-form.js";
+import {
+  bindProductDeltaForm,
+  buildProductDeltaFormHtml,
+  readProductDeltaFormValues,
+  validatePrmProductDeltaForm,
+} from "./costing-suite-production-route-delta-form.js";
 
 const RPC = Object.freeze({
   familyDetail: "rpc_get_route_family_route_detail",
@@ -366,6 +378,10 @@ export function createProductionRouteEditorController(deps = {}) {
     product_id = null,
     base_route_family_route_id = null,
     batch_size_ref_id = null,
+    effective_from = null,
+    source_type = null,
+    evidence_status = null,
+    route_note = null,
     evidence_source = null,
     evidence_reference = null,
     evidence_note = null,
@@ -377,6 +393,10 @@ export function createProductionRouteEditorController(deps = {}) {
         product_id,
         base_route_family_route_id,
         batch_size_ref_id,
+        effective_from,
+        source_type,
+        evidence_status,
+        route_note,
         evidence_source,
         evidence_reference,
         evidence_note,
@@ -495,7 +515,9 @@ export function createProductionRouteEditorController(deps = {}) {
       return { ok: false, reason: "untouched_family_step" };
     }
     const operation = normalizePrmCode(
-      clean[0].delta_operation || clean[0].override_operation,
+      clean[0].operation_type ||
+        clean[0].delta_operation ||
+        clean[0].override_operation,
     ).toUpperCase();
     if (operation && !PRM_DELTA_OPERATIONS.includes(operation)) {
       showToast?.("Unsupported Product delta operation.", "warning");
@@ -516,12 +538,26 @@ export function createProductionRouteEditorController(deps = {}) {
   }
 
   async function deleteProductOverride({
+    override_id = null,
     product_route_override_id = null,
   } = {}) {
     if (!editable(productState.detail)) return readOnly("product");
+    const id = normalizePrmIntegerId(override_id ?? product_route_override_id);
+    const routeId = normalizePrmIntegerId(productId());
+    if (routeId == null) {
+      showToast?.("Product route ID is required.", "warning");
+      return { ok: false, reason: "missing_product_route_id" };
+    }
+    if (id == null) {
+      showToast?.("Product delta ID is required.", "warning");
+      return { ok: false, reason: "missing_override_id" };
+    }
     const response = await invoke(
       RPC.productDeltaDelete,
-      buildDeleteProductOverrideArgs({ product_route_override_id }),
+      buildDeleteProductOverrideArgs({
+        product_route_id: routeId,
+        override_id: id,
+      }),
       "Unable to delete Product delta.",
     );
     if (response.ok) markValidationStale("product");
@@ -725,6 +761,17 @@ export function createProductionRouteEditorController(deps = {}) {
     );
   }
 
+  function findProductOverrideById(overrideId) {
+    const want = normalizePrmIntegerId(overrideId);
+    if (want == null) return null;
+    return (
+      (productState.overrides || []).find(
+        (row) =>
+          normalizePrmIntegerId(row.override_id ?? row.id) === want,
+      ) || null
+    );
+  }
+
   function stepRow(step, options = {}) {
     const interactive = Boolean(options.interactive);
     const normalized = sortPrmFamilyRouteSteps([step])[0] || step;
@@ -906,6 +953,99 @@ export function createProductionRouteEditorController(deps = {}) {
     familyState.loading = false;
   }
 
+  function clearProductEditorContext() {
+    productState.detail = null;
+    productState.familySkeleton = [];
+    productState.overrides = [];
+    productState.effective = [];
+    productState.validation = null;
+    productState.validationFresh = false;
+    productState.error = null;
+    productState.loading = false;
+  }
+
+  function productCreateHtml(options = {}) {
+    const ctx = options.createContext && typeof options.createContext === "object"
+      ? options.createContext
+      : {};
+    const refs = Array.isArray(options.batchSizeReferences)
+      ? options.batchSizeReferences
+      : [];
+    const selectedId = normalizePrmIntegerId(options.selectedBatchSizeRefId);
+    const asOfLabel =
+      formatPrmDayMonthYearLabel(ctx.as_of_date) || ctx.as_of_date || "—";
+    const versionCopy = ctx.family_route_version || "";
+    const baseRouteName =
+      ctx.family_route_name ||
+      (ctx.base_route_family_route_id != null
+        ? `Family route ${ctx.base_route_family_route_id}`
+        : "—");
+    const canCreate = options.canCreateDraft === true && refs.length > 0;
+    const pbs = options.pbsHandoff && typeof options.pbsHandoff === "object"
+      ? options.pbsHandoff
+      : {};
+    const requireChoice = refs.length > 1;
+    const optionsHtml = [
+      requireChoice
+        ? `<option value="">Select batch-size reference</option>`
+        : "",
+      ...refs.map((ref) => {
+        const id = normalizePrmIntegerId(ref.batch_size_ref_id);
+        if (id == null) return "";
+        const selected =
+          selectedId != null && id === selectedId ? " selected" : "";
+        return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(
+          formatPrmBatchSizeReferenceLabel(ref),
+        )}</option>`;
+      }),
+    ]
+      .filter(Boolean)
+      .join("");
+    const metaCell = (label, valueHtml, field) =>
+      `<div class="cp-prm-product-summary-meta-cell" data-prm-create-field="${escapeHtml(field)}"><div class="cp-field-label">${text(label)}</div><div class="cp-prm-product-summary-meta-value">${valueHtml}</div></div>`;
+    return `<div class="cp-prm-editor" data-prm-editor="product" data-prm-product-editor-create="true">
+      <div class="cp-prm-product-editor-create">
+        <p class="cp-cell-primary">Create Product route DRAFT</p>
+        <p class="cp-muted-text">No Product Route is created until you press Create DRAFT.</p>
+        <div class="cp-prm-product-summary-meta" data-prm-product-create-snapshot>
+          ${metaCell("Product", `<span class="cp-cell-primary">${text(ctx.product_name)}</span>`, "product")}
+          ${metaCell("Route Family", text(ctx.route_family_name || ctx.route_family_id), "route-family")}
+          ${metaCell(
+            "Base Family Route",
+            `${text(baseRouteName)}${versionCopy ? ` · ${text(versionCopy)}` : ""}`,
+            "family-route",
+          )}
+          ${metaCell("As of", text(asOfLabel), "as-of")}
+        </div>
+        <label class="cp-prm-form-field cp-prm-form-field--full" for="prmProductCreateBatchRef">
+          <span class="cp-field-label">Batch Size Reference</span>
+          <select id="prmProductCreateBatchRef" name="prmProductCreateBatchRef" data-prm-create-batch-ref ${
+            refs.length ? "" : "disabled"
+          }>${optionsHtml || `<option value="">No governed reference</option>`}</select>
+        </label>
+        ${
+          refs.length
+            ? ""
+            : `<p class="cp-prm-form-notice" data-prm-create-batch-required>${text(
+                PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED,
+              )}</p>`
+        }
+        <div class="cp-prm-actions">
+          <button type="button" class="icon-btn icon-btn-primary" data-prm-action="create-product-draft" ${
+            canCreate ? "" : "disabled"
+          }>${text(formatPrmActionLabel("create-product-draft"))}</button>
+          ${
+            pbs.href
+              ? `<button type="button" class="icon-btn" data-prm-action="preferred-batch-size" data-prm-handoff-href="${escapeHtml(
+                  pbs.href,
+                )}">${text(pbs.label || formatPrmActionLabel("preferred-batch-size"))}</button>`
+              : ""
+          }
+        </div>
+      </div>
+    </div>`;
+  }
+
   function familyHtml(options = {}) {
     if (familyState.loading) return `<div class="cost-sheet-explain-loading">Loading family route…</div>`;
     const header = familyState.detail;
@@ -985,18 +1125,26 @@ export function createProductionRouteEditorController(deps = {}) {
   }
 
   function deltaRow(delta) {
-    const id = delta.override_id ?? delta.id ?? "";
-    const operation = delta.delta_operation || delta.override_operation;
+    const normalized = normalizePrmProductRouteOverride(delta);
+    const id = normalized.override_id ?? "";
+    const operation = normalized.operation_type;
+    const writable = editable(productState.detail);
+    const actions = writable
+      ? `<button type="button" class="icon-btn" data-prm-delta-edit="${escapeHtml(id)}">Edit</button> <button type="button" class="icon-btn" data-prm-delta-delete="${escapeHtml(id)}">Remove</button>`
+      : "—";
     return `<tr>
       <td>${text(formatPrmDeltaLabel(operation) || operation)}</td>
-      <td>${text(delta.target_step_key || delta.step_key)}</td>
-      <td>${text(delta.note || delta.override_note)}</td>
-      <td>${editable(productState.detail) ? `<button class="icon-btn" data-prm-delta-delete="${escapeHtml(id)}">Remove</button>` : "—"}</td>
+      <td>${text(formatPrmDeltaTargetCopy(normalized, productState.familySkeleton))}</td>
+      <td>${text(normalized.override_reason)}</td>
+      <td>${actions}</td>
     </tr>`;
   }
 
   function productHtml(options = {}) {
     if (productState.loading) return `<div class="cost-sheet-explain-loading">Loading Product route…</div>`;
+    if (options.createMode === true && !productState.detail) {
+      return productCreateHtml(options);
+    }
     const header = productState.detail;
     if (!header) return `<div class="status">${text(options.emptyMessage || "Open a Product route.")}</div>`;
     const writable = editable(header);
@@ -1021,7 +1169,7 @@ export function createProductionRouteEditorController(deps = {}) {
       </section>
       <section class="cp-detail-section"><h3 class="cp-section-title">B. Product deltas</h3>
         <p class="cp-muted-text">Only explicit Product differences are stored.</p>
-        <table class="cp-prm-step-table"><thead><tr><th>Operation</th><th>Target / step</th><th>Note</th><th>Actions</th></tr></thead>
+        <table class="cp-prm-step-table"><thead><tr><th>Operation</th><th>Target / Step</th><th>Reason</th><th>Actions</th></tr></thead>
         <tbody>${productState.overrides.map(deltaRow).join("") || `<tr><td colspan="4"><div class="status">No Product deltas.</div></td></tr>`}</tbody></table>
       </section>
       <section class="cp-detail-section"><h3 class="cp-section-title">C. Resolved effective route</h3>
@@ -1041,6 +1189,7 @@ export function createProductionRouteEditorController(deps = {}) {
     getFamilyState: () => familyState,
     getProductState: () => productState,
     clearFamilyEditorContext,
+    clearProductEditorContext,
     loadFamilyDetail,
     loadProductDetail,
     createFamilyDraft,
@@ -1065,6 +1214,41 @@ export function createProductionRouteEditorController(deps = {}) {
     markProductValidationStale: () => markValidationStale("product"),
     clearFamilyStepExpansion() {},
     findFamilyStepById,
+    findProductOverrideById,
+    buildProductDeltaFormHtml: (delta, extras = {}) =>
+      buildProductDeltaFormHtml({
+        delta,
+        options: getOptions?.() || {},
+        familySteps: productState.familySkeleton || [],
+        ...extras,
+      }),
+    bindProductDeltaForm: (host, delta = null) =>
+      bindProductDeltaForm(
+        host,
+        getOptions?.() || {},
+        productState.familySkeleton || [],
+        "prmProductDelta",
+        {
+          existingOverrides: productState.overrides || [],
+          effectiveSteps: productState.effective || [],
+          excludeOverrideId:
+            delta != null
+              ? normalizePrmIntegerId(delta.override_id ?? delta.id)
+              : null,
+          seed: delta ? normalizePrmProductRouteOverride(delta) : null,
+        },
+      ),
+    readProductDeltaFormValues,
+    validateProductDeltaForm: (values, host = null, excludeOverrideId = null) =>
+      validatePrmProductDeltaForm(values, {
+        familySteps: productState.familySkeleton || [],
+        options: getOptions?.() || {},
+        existingOverrides: productState.overrides || [],
+        effectiveSteps: productState.effective || [],
+        excludeOverrideId,
+        compatibilityAcknowledged:
+          host?._prmDeltaFormContext?.compatibilityAcknowledged?.() ?? false,
+      }),
     buildFamilyStepDetailHtml,
     buildFamilyRouteOverviewHtml,
     bindFamilyStepFormCascade: (host) =>

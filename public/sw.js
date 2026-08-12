@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v272"; // Fill Planner cards, drawers, manifest path
+const CACHE_NAME = "hub-cache-v278"; // Product-delta master selection guardrails
 
 const PRECACHE = [
   // Hub shell

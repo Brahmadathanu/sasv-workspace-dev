@@ -33,6 +33,9 @@ import {
   buildApproveProductRouteFamilyAssignmentArgs,
   buildInactivateProductRouteFamilyAssignmentArgs,
   buildCloneRouteFamilyRouteDraftArgs,
+  buildDeleteProductOverrideArgs,
+  buildOverrideJson,
+  buildUpsertProductOverrideArgs,
   enforceExactPrmRpcKeys,
   normalizePreviewRouteFamilyRouteSteps,
   normalizeReadinessPayload,
@@ -92,7 +95,7 @@ const expected = {
   rpc_create_product_route_draft: ["p_product_id", "p_base_route_family_route_id", "p_batch_size_ref_id", "p_effective_from", "p_source_type", "p_evidence_status", "p_route_note", "p_supersedes_route_id"],
   rpc_update_product_route_draft: ["p_product_route_id", "p_patch"],
   rpc_upsert_product_route_override: ["p_product_route_id", "p_override_id", "p_override"],
-  rpc_delete_product_route_override: ["p_product_route_override_id"],
+  rpc_delete_product_route_override: ["p_product_route_id", "p_override_id"],
   rpc_validate_product_route: ["p_product_route_id"],
   rpc_submit_product_route_for_review: ["p_product_route_id"],
   rpc_approve_product_route: ["p_product_route_id", "p_approval_reference"],
@@ -664,6 +667,70 @@ assert(
     "preview payload normalized",
   );
 }
+
+const liveOverride = buildOverrideJson({
+  operation_type: "ADD_STEP",
+  override_step_key: "added-step",
+  sequence_no: 99,
+  activity_id: 1,
+  cost_centre_id: 2,
+  override_reason: "Product-specific added step",
+  delta_operation: "ADD_STEP",
+  step_key: "stale",
+  target_step_key: "stale",
+  note: "stale note",
+});
+assert(
+  liveOverride.operation_type === "ADD_STEP" &&
+    liveOverride.base_step_id === null &&
+    liveOverride.override_step_key === "added-step" &&
+    liveOverride.override_reason === "Product-specific added step" &&
+    !Object.prototype.hasOwnProperty.call(liveOverride, "delta_operation") &&
+    !Object.prototype.hasOwnProperty.call(liveOverride, "step_key") &&
+    !Object.prototype.hasOwnProperty.call(liveOverride, "target_step_key") &&
+    !Object.prototype.hasOwnProperty.call(liveOverride, "note"),
+  "upsert override JSON uses live keys and omits stale aliases",
+);
+const aliasOverride = buildOverrideJson({
+  delta_operation: "BYPASS_STEP",
+  base_step_id: 51,
+  note: "Skip pulverization for this Product",
+});
+assert(
+  aliasOverride.operation_type === "BYPASS_STEP" &&
+    aliasOverride.base_step_id === 51 &&
+    aliasOverride.override_reason === "Skip pulverization for this Product" &&
+    !Object.prototype.hasOwnProperty.call(aliasOverride, "delta_operation") &&
+    !Object.prototype.hasOwnProperty.call(aliasOverride, "note"),
+  "stale alias inputs map into live override keys",
+);
+const upsertBuilt = buildUpsertProductOverrideArgs({
+  product_route_id: 47,
+  override_id: 12,
+  override: liveOverride,
+});
+assert(
+  upsertBuilt.ok &&
+    upsertBuilt.params.p_product_route_id === 47 &&
+    upsertBuilt.params.p_override_id === 12 &&
+    upsertBuilt.params.p_override.operation_type === "ADD_STEP",
+  "upsert adapter passes p_product_route_id, p_override_id, p_override",
+);
+const deleteBuilt = buildDeleteProductOverrideArgs({
+  product_route_id: 47,
+  override_id: 12,
+});
+assert(
+  deleteBuilt.ok &&
+    deleteBuilt.params.p_product_route_id === 47 &&
+    deleteBuilt.params.p_override_id === 12 &&
+    !("p_product_route_override_id" in deleteBuilt.params),
+  "delete adapter uses live p_product_route_id + p_override_id",
+);
+assert(
+  !buildDeleteProductOverrideArgs({ override_id: 12 }).ok,
+  "delete adapter requires p_product_route_id",
+);
 
 if (failed) {
   console.error(`production-route-rpc-adapter-smoke: ${failed} failure(s)`);

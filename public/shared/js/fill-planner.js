@@ -331,8 +331,11 @@ function renderPlanCards(byRegion, cols, achievedByRegion) {
       const skuLines = cols
         .map((c) => {
           const row = skuRows[c.id];
-          const qty = row ? row.units_to_fill : "—";
-          return `<div class="fp-result-card-metric"><span class="fp-result-card-k">${escapeHtml(c.label)}:</span> ${qty}</div>`;
+          const qty =
+            row && row.units_to_fill != null && row.units_to_fill !== ""
+              ? row.units_to_fill
+              : 0;
+          return `<div class="fp-plan-fill-line">${escapeHtml(c.label)} x ${qty} Nos</div>`;
         })
         .join("");
       const targetMos =
@@ -343,9 +346,9 @@ function renderPlanCards(byRegion, cols, achievedByRegion) {
           : "—";
       return `<article class="fp-result-card fp-result-card--static${alt}">
     <div class="fp-result-card-line1"><span class="fp-result-card-name">${escapeHtml(region)}</span></div>
-    ${skuLines}
-    <div class="fp-result-card-metric fp-result-card-metric--rule"><span class="fp-result-card-k">Target MOS:</span> ${targetMos}</div>
-    <div class="fp-result-card-metric"><span class="fp-result-card-k">Achieved MOS:</span> ${achievedMos}</div>
+    <div class="fp-plan-fill-lines">${skuLines}</div>
+    <div class="fp-result-card-metric fp-result-card-metric--rule fp-result-card-mos"><span class="fp-result-card-k">Target MOS:</span> ${targetMos}</div>
+    <div class="fp-result-card-metric fp-result-card-mos"><span class="fp-result-card-k">Achieved MOS:</span> ${achievedMos}</div>
   </article>`;
     })
     .join("");
