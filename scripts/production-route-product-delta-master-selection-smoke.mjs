@@ -457,8 +457,8 @@ assert(
   "40 existing delta-authoring smoke remains wired",
 );
 assert(
-  swSrc.includes("hub-cache-v277") && !swSrc.includes("hub-cache-v278"),
-  "41 SW bumped to v277 after smokes",
+  swSrc.includes("hub-cache-v318") && !swSrc.includes("hub-cache-v319"),
+  "41 SW bumped to v318 after smokes",
 );
 
 assert(isValidPrmProductDeltaStepKey("POWDER_BLENDING"), "step key charset valid");

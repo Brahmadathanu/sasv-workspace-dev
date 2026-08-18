@@ -1,5 +1,6 @@
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
 import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
@@ -145,16 +146,167 @@ let PENDING_DELETE_LINE_INDEX = null;
 // Combobox-specific state removed (not used with native selects)
 
 // Permissions
-const MODULE_ID = "plm-templates";
-const MAP_MODULE_ID = "plm-sku-map";
+const MODULE_ID = "pm-templates";
 let PERM_CAN_VIEW = false;
 let PERM_CAN_EDIT = false;
-let MAP_PERM_CAN_VIEW = false;
-let MAP_PERM_CAN_EDIT = false;
 let MAP_INIT_DONE = false;
 let MAP_MAPPED_SKUS = new Set();
 // Overrides edit-mode global so tab switcher can reset it
 let OVR_EDIT_MODE = false;
+
+function publicErrorMessage(err) {
+  const msg = err?.message || String(err || "Unknown error");
+  return String(msg).replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, "[redacted]");
+}
+
+function setPageStatus(message, kind = "error") {
+  const host = el("bomPageStatus");
+  if (!host) {
+    console.error(message);
+    return;
+  }
+  host.hidden = false;
+  host.className = `bom-page-status is-${kind}`;
+  host.setAttribute("role", "alert");
+  host.textContent = message;
+}
+
+function clearPageStatus() {
+  const host = el("bomPageStatus");
+  if (!host) return;
+  host.hidden = true;
+  host.textContent = "";
+  host.className = "bom-page-status";
+}
+
+async function resolveModuleAccess() {
+  const boot = await bootstrapApp({ loginPage: "login.html" });
+  if (!boot.ok) {
+    if (boot.reason === "no-session") return { ok: false, reason: "no-session" };
+    console.error("PM Templates bootstrap failed", boot.error || boot.reason);
+    return { ok: false, reason: "verify-failed" };
+  }
+  const userId = boot.session?.user?.id;
+  if (!userId) {
+    console.error("PM Templates bootstrap: session missing user id");
+    return { ok: false, reason: "verify-failed" };
+  }
+  try {
+    const { data: perms, error: permsErr } = await supabase.rpc(
+      "get_user_permissions",
+      { p_user_id: userId }
+    );
+    if (permsErr || !Array.isArray(perms)) {
+      console.error(
+        "Permission load failed (RPC)",
+        permsErr || "unexpected non-array result"
+      );
+      return { ok: false, reason: "verify-failed" };
+    }
+    const tPerm = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
+    PERM_CAN_VIEW = !!(tPerm && tPerm.can_view);
+    PERM_CAN_EDIT = !!(tPerm && tPerm.can_edit);
+    if (!PERM_CAN_VIEW) return { ok: false, reason: "denied" };
+    return { ok: true };
+  } catch (pErr) {
+    console.error("Permission load failed (RPC)", pErr);
+    return { ok: false, reason: "verify-failed" };
+  }
+}
+
+let SKU_CATALOGUE = [];
+let SKU_CATALOGUE_LOADED = false;
+let SKU_CATALOGUE_PROMISE = null;
+
+function fillSkuSelect(selectEl, rows) {
+  if (!selectEl) return;
+  const prev = selectEl.value;
+  selectEl.innerHTML = [
+    "<option value=''>— select SKU —</option>",
+    ...(rows || []).map(
+      (r) =>
+        `<option value="${r.sku_id}">${escapeHtml(
+          String(r.sku_label || "")
+        )}</option>`
+    ),
+  ].join("");
+  if (prev && Array.from(selectEl.options).some((o) => o.value === prev)) {
+    selectEl.value = prev;
+  } else {
+    selectEl.value = "";
+  }
+}
+
+const PM_SKU_SEARCH_OPTS = {
+  placeholder: "Search or select a SKU…",
+  allowEmptyOption: true,
+  showAllWhenEmpty: true,
+};
+
+const PM_TPL_SEARCH_OPTS = {
+  placeholder: "Search or select a template…",
+  allowEmptyOption: true,
+  showAllWhenEmpty: true,
+};
+
+function ensurePmSearchableSelect(selectEl, opts, failMessage) {
+  if (!selectEl) return;
+  try {
+    if (selectEl._sasvSearch) syncSearchableSelect(selectEl);
+    else enhanceSearchableSelect(selectEl, opts);
+  } catch (err) {
+    console.error(failMessage, err);
+    setPageStatus(failMessage, "error");
+  }
+}
+
+function populateOvrPreviewSkuPickers(rows) {
+  fillSkuSelect(el("ovr_skuPicker"), rows);
+  fillSkuSelect(el("ovr_previewSkuPicker"), rows);
+  ensurePmSearchableSelect(
+    el("ovr_skuPicker"),
+    PM_SKU_SEARCH_OPTS,
+    "Failed to initialize SKU selector."
+  );
+  ensurePmSearchableSelect(
+    el("ovr_previewSkuPicker"),
+    PM_SKU_SEARCH_OPTS,
+    "Failed to initialize SKU selector."
+  );
+}
+
+async function ensureSkuCatalogueLoaded() {
+  if (!PERM_CAN_VIEW) return SKU_CATALOGUE;
+  if (SKU_CATALOGUE_LOADED) return SKU_CATALOGUE;
+  if (SKU_CATALOGUE_PROMISE) return SKU_CATALOGUE_PROMISE;
+  SKU_CATALOGUE_PROMISE = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from("v_sku_catalog_enriched")
+        .select("sku_id, sku_label")
+        .order("sku_label", { ascending: true });
+      if (error) throw error;
+      SKU_CATALOGUE = data || [];
+      SKU_CATALOGUE_LOADED = true;
+      return SKU_CATALOGUE;
+    } catch (err) {
+      SKU_CATALOGUE_PROMISE = null;
+      console.error("Failed to load SKU catalogue", err);
+      setPageStatus(
+        `Failed to load SKU catalogue: ${publicErrorMessage(err)}`,
+        "error"
+      );
+      throw err;
+    }
+  })();
+  return SKU_CATALOGUE_PROMISE;
+}
+
+const ovrCtl = {
+  loadOverridesForSku: async () => {},
+  refreshPreview: async () => {},
+  setEditMode: () => {},
+};
 
 // Data caches
 let UOMS = [];
@@ -341,6 +493,7 @@ async function loadTemplates() {
     enhanceSearchableSelect(tplPicker, {
       placeholder: "Search or select a template…",
       allowEmptyOption: true,
+      showAllWhenEmpty: true,
     });
   }
 }
@@ -671,27 +824,31 @@ function applyMapMode() {
   const previewSkuPicker = el("ovr_previewSkuPicker");
   const ovrViewBtn = el("ovr_viewBtn");
   const ovrEditBtn = el("ovr_editBtn");
-  let OVR_PERM_CAN_EDIT = true;
 
   let OVERRIDES = [];
   let ENSURED_STOCK_IDS = new Set();
 
   function applyOverridesMode() {
+    if (!PERM_CAN_EDIT) OVR_EDIT_MODE = false;
     if (tabPanelOverrides) {
       if (OVR_EDIT_MODE) tabPanelOverrides.classList.remove("view-mode");
       else tabPanelOverrides.classList.add("view-mode");
     }
     if (ovrViewBtn) ovrViewBtn.classList.toggle("active", !OVR_EDIT_MODE);
-    if (ovrEditBtn) ovrEditBtn.classList.toggle("active", OVR_EDIT_MODE);
+    if (ovrEditBtn) {
+      ovrEditBtn.classList.toggle("active", OVR_EDIT_MODE);
+      ovrEditBtn.disabled = !PERM_CAN_EDIT;
+    }
     renderOverrides();
   }
 
-  // expose a small setter so outer code (tab switcher) can reset overrides mode
+  function setOvrViewMode(v) {
+    OVR_EDIT_MODE = !!v && PERM_CAN_EDIT;
+    applyOverridesMode();
+  }
+
   try {
-    window.setOvrEditMode = (v) => {
-      OVR_EDIT_MODE = !!v;
-      applyOverridesMode();
-    };
+    window.setOvrEditMode = setOvrViewMode;
   } catch {
     /* non-browser or restricted environment */
   }
@@ -828,7 +985,14 @@ function applyMapMode() {
     const { data, error } = await supabase.rpc("rpc_plm_preview_effective", {
       p_sku_id: id,
     });
-    if (error) return setStatus(`Preview failed: ${error.message}`, "error");
+    if (error) {
+      console.error("Failed to load preview", error);
+      setPageStatus(
+        `Failed to load preview: ${publicErrorMessage(error)}`,
+        "error"
+      );
+      return;
+    }
     renderPreview(data || []);
   }
 
@@ -844,7 +1008,11 @@ function applyMapMode() {
       p_sku_id: skuId,
     });
     if (error) {
-      setStatus(`Load overrides failed: ${error.message}`, "error");
+      console.error("Failed to load overrides", error);
+      setPageStatus(
+        `Failed to load overrides: ${publicErrorMessage(error)}`,
+        "error"
+      );
       OVERRIDES = [];
     } else {
       OVERRIDES = (data || []).map((r) => ({
@@ -960,7 +1128,7 @@ function applyMapMode() {
           )}' /></td>\n          <td class='actions-col'>\n            <div class='row-actions'>\n              <button class='icon-btn small' data-act='save-row' data-i='${i}' title='Save' aria-label='Save' disabled>\n                <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>\n              </button>\n              <button class='icon-btn small' data-act='del' data-i='${i}' title='Delete' aria-label='Delete'>\n                <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'/><path d='M10 11v6'/><path d='M14 11v6'/></svg>\n              </button>\n            </div>\n          </td>\n        </tr>`;
         })
         .join("");
-      if (OVR_PERM_CAN_EDIT) {
+      if (PERM_CAN_EDIT) {
         const colCount = 8;
         const tr = document.createElement("tr");
         tr.innerHTML = `<td colspan="${colCount}" style="text-align:center; padding:10px;">\n        <button class="icon-btn small" data-act="addEnd" title="Add row" aria-label="Add row">\n          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>\n        </button>\n        <span class="hint" style="margin-left:6px; color:#64748b; font-size:12px;">Add new row</span>\n      </td>`;
@@ -1010,7 +1178,7 @@ function applyMapMode() {
   async function ovrSaveRow(i) {
     const r = OVERRIDES?.[i];
     if (!r) return;
-    if (!OVR_PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
+    if (!PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
     const skuId = parseInt(skuPicker?.value, 10);
     if (!skuId) return setStatus("Select a SKU.", "error");
     const ok = await openConfirm("Save changes to this override?");
@@ -1098,6 +1266,7 @@ function applyMapMode() {
       return;
     }
     if (act === "del") {
+      if (!PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
       const tr = btn.closest("tr[data-i]");
       const i = parseInt(tr.dataset.i, 10);
       const row = OVERRIDES[i];
@@ -1115,6 +1284,7 @@ function applyMapMode() {
       return;
     }
     if (act === "addEnd") {
+      if (!PERM_CAN_EDIT) return;
       OVERRIDES.push(blankOverride());
       renderOverrides();
       await refreshPreview();
@@ -1125,6 +1295,7 @@ function applyMapMode() {
   // top-level buttons
   if (addOverrideBtn)
     addOverrideBtn.addEventListener("click", () => {
+      if (!PERM_CAN_EDIT) return;
       OVERRIDES.push(blankOverride());
       renderOverrides();
     });
@@ -1137,56 +1308,21 @@ function applyMapMode() {
     });
   if (ovrEditBtn)
     ovrEditBtn.addEventListener("click", () => {
+      if (!PERM_CAN_EDIT) return;
       OVR_EDIT_MODE = true;
       applyOverridesMode();
     });
 
-  async function loadSkus() {
-    try {
-      const { data, error } = await supabase
-        .from("v_sku_catalog_enriched")
-        .select("sku_id, sku_label")
-        .order("sku_label", { ascending: true });
-      if (error) throw error;
-      const rows = data || [];
-      if (skuPicker)
-        skuPicker.innerHTML = [
-          "<option value=''>— select SKU —</option>",
-          ...rows.map(
-            (r) =>
-              `<option value='${r.sku_id}'>${escapeHtml(r.sku_label)}</option>`
-          ),
-        ].join("");
-      if (previewSkuPicker)
-        previewSkuPicker.innerHTML = [
-          "<option value=''>— select SKU —</option>",
-          ...rows.map(
-            (r) =>
-              `<option value='${r.sku_id}'>${escapeHtml(r.sku_label)}</option>`
-          ),
-        ].join("");
-    } catch (err) {
-      console.warn("loadSkus failed", err);
-    }
-  }
+  skuPicker?.addEventListener("change", () => {
+    loadOverridesForSku();
+  });
+  previewSkuPicker?.addEventListener("change", () => {
+    refreshPreview(parseInt(previewSkuPicker.value, 10));
+  });
 
-  // init
-  (async function initOverrides() {
-    try {
-      await loadPlmItems(); // ensure STOCK_ITEMS present
-      await loadUoms();
-      await loadSkus();
-      await loadOverridesForSku();
-      OVR_EDIT_MODE = false;
-      applyOverridesMode();
-      skuPicker?.addEventListener("change", loadOverridesForSku);
-      previewSkuPicker?.addEventListener("change", () =>
-        refreshPreview(parseInt(previewSkuPicker.value, 10))
-      );
-    } catch (e) {
-      console.error("initOverrides failed", e);
-    }
-  })();
+  ovrCtl.loadOverridesForSku = loadOverridesForSku;
+  ovrCtl.refreshPreview = refreshPreview;
+  ovrCtl.setEditMode = setOvrViewMode;
 })();
 
 // Delegated action handlers for mapping rows
@@ -1199,7 +1335,7 @@ mapMappedBody?.addEventListener("click", async (ev) => {
   if (!row) return;
   const skuId = Number(row.sku_id);
   if (act === "del") {
-    if (!MAP_PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
+    if (!PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
     try {
       const ok = await mapOpenConfirm("Delete this mapping?");
       if (!ok) return;
@@ -1229,7 +1365,7 @@ mapMappedBody?.addEventListener("click", async (ev) => {
 
 // Save all inline edits made in edit mode
 async function mapSaveAll() {
-  if (!MAP_PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
+  if (!PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
   const changes = [];
   (MAP_ROWS || []).forEach((r, i) => {
     const tr = mapMappedBody.querySelector(`tr[data-i='${i}']`);
@@ -1291,7 +1427,7 @@ function mapCancelEdits() {
 async function mapSaveRow(i) {
   const r = MAP_ROWS?.[i];
   if (!r) return;
-  if (!MAP_PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
+  if (!PERM_CAN_EDIT) return setStatus("No permission to edit.", "error");
   const tr = mapMappedBody.querySelector(`tr[data-i='${i}']`);
   if (!tr) return;
   const sel = tr.querySelector("select.map-tpl-select");
@@ -1330,7 +1466,7 @@ async function mapSaveRow(i) {
 // mapCancelRow removed — per-row Cancel button was removed from the UI.
 
 function applyMappingPermissions() {
-  const disable = !MAP_PERM_CAN_EDIT;
+  const disable = !PERM_CAN_EDIT;
   if (mapNewBtn) mapNewBtn.disabled = disable;
   if (mapEditBtn) mapEditBtn.disabled = disable;
   if (mapSaveBtn) mapSaveBtn.disabled = disable;
@@ -1342,7 +1478,7 @@ function applyMappingPermissions() {
 // --- Unmapped SKUs pills and modal helpers ---
 let MAP_LAST_UNMAPPED = [];
 let PREVIEW_LAST_NO_OVR = [];
-let PREVIEW_INIT_DONE = false;
+let PREVIEW_UI_BOUND = false;
 
 // Return a list of unmapped SKUs (objects with sku_id and sku_label).
 // Uses pagination to avoid Supabase 1000-row limits and prefers cached mapped set when available.
@@ -1901,12 +2037,18 @@ async function previewUpdatePills() {
     }
   } catch (e) {
     console.error("previewUpdatePills failed", e);
+    setPageStatus(
+      `Failed to load override summary: ${publicErrorMessage(e)}`,
+      "error"
+    );
+    throw e;
   }
 }
 
 async function initPreviewTab() {
-  if (PREVIEW_INIT_DONE) return;
-  try {
+  if (!PREVIEW_UI_BOUND) {
+    PREVIEW_UI_BOUND = true;
+    try {
     // wire buttons and modal handlers
     const previewNoOvrBtn = el("previewNoOvrBtn");
     const previewNoOvrModalEl = el("previewNoOvrModal");
@@ -2066,12 +2208,24 @@ async function initPreviewTab() {
     previewNoOvrModalEl?.addEventListener("click", (e) => {
       if (e.target === previewNoOvrModalEl) closePreviewNoOvrModal();
     });
-    // initial counts
-    await previewUpdatePills();
-    PREVIEW_INIT_DONE = true;
-  } catch (e) {
-    console.error("initPreviewTab failed", e);
+    } catch (e) {
+      console.error("initPreviewTab UI bind failed", e);
+    }
   }
+  try {
+    const rows = await ensureSkuCatalogueLoaded();
+    populateOvrPreviewSkuPickers(rows);
+    clearPageStatus();
+  } catch {
+    return;
+  }
+  try {
+    await previewUpdatePills();
+  } catch {
+    /* persistent status already set */
+  }
+  const skuId = parseInt(el("ovr_previewSkuPicker")?.value, 10);
+  if (skuId) await ovrCtl.refreshPreview(skuId);
 }
 
 function populateMapUnmappedList(list) {
@@ -2200,7 +2354,7 @@ async function initMappingTab() {
     }
 
     const openMapNewModal = async () => {
-      if (!MAP_PERM_CAN_EDIT)
+      if (!PERM_CAN_EDIT)
         return setStatus("No permission to edit.", "error");
       if (!mapNewModal) return;
       // Populate SKU with only unmapped SKUs, with placeholder
@@ -2263,7 +2417,7 @@ async function initMappingTab() {
       if (e.target === mapNewModal) closeMapNewModal();
     });
     mapNewCreateBtn?.addEventListener("click", async () => {
-      if (!MAP_PERM_CAN_EDIT)
+      if (!PERM_CAN_EDIT)
         return setStatus("No permission to edit.", "error");
       const skuId = parseInt(mapNewSkuPicker?.value || "", 10);
       const tplId = parseInt(mapNewTplPicker?.value || "", 10);
@@ -2314,7 +2468,7 @@ async function initMappingTab() {
       applyMapMode();
     });
     mapEditBtn?.addEventListener("click", () => {
-      if (!MAP_PERM_CAN_EDIT)
+      if (!PERM_CAN_EDIT)
         return setStatus("No permission to edit.", "error");
       // Show ERP-style loading mask immediately to avoid perceived lag
       showMask("Preparing edit view…");
@@ -3830,6 +3984,13 @@ tplPicker.addEventListener("change", async () => {
   showMask("Loading…");
   try {
     await refreshTemplate();
+    clearPageStatus();
+  } catch (err) {
+    console.error(err);
+    setPageStatus(
+      `Failed to load PM template data: ${publicErrorMessage(err)}`,
+      "error"
+    );
   } finally {
     hideMask();
   }
@@ -4397,6 +4558,7 @@ rebuildTplBtn?.addEventListener("click", async () => {
 });
 
 dryRunBtn?.addEventListener("click", async () => {
+  if (!PERM_CAN_EDIT) return setStatus("No permission to rebuild.", "error");
   // Use batching for dry run to avoid ambiguous RPC overload and long runs
   const batchSize = 200;
   const results = [];
@@ -4492,10 +4654,20 @@ rebuildAllBtn?.addEventListener("click", async () => {
   }
 });
 
-// When a template is selected in Rebuild tab, load SKUs mapped to it
-rebuildTplPicker?.addEventListener("change", async () => {
-  const tplId = parseInt(rebuildTplPicker?.value || "", 10);
-  if (!tplId) {
+function applyRebuildPermissions() {
+  const disable = !PERM_CAN_EDIT;
+  if (rebuildTplBtn) rebuildTplBtn.disabled = disable;
+  if (dryRunBtn) dryRunBtn.disabled = disable;
+  if (rebuildAllBtn) rebuildAllBtn.disabled = disable;
+  if (rebuildMenuBtn) {
+    rebuildMenuBtn.disabled = disable;
+    rebuildMenuBtn.title = disable ? "No permission to rebuild" : "";
+  }
+}
+
+async function loadMappedSkusForRebuild(tplId) {
+  const id = parseInt(tplId, 10);
+  if (!id) {
     renderRebuildDryRun([]);
     return;
   }
@@ -4503,12 +4675,15 @@ rebuildTplPicker?.addEventListener("change", async () => {
     const { data: maps, error: mapErr } = await supabase
       .from("plm_sku_pack_map")
       .select("sku_id")
-      .eq("tpl_id", tplId);
+      .eq("tpl_id", id);
     if (mapErr) throw mapErr;
     const skuIds = Array.from(
       new Set((maps || []).map((m) => Number(m.sku_id)).filter(Boolean))
     );
-    if (!skuIds.length) return renderRebuildDryRun([]);
+    if (!skuIds.length) {
+      renderRebuildDryRun([]);
+      return;
+    }
     const { data: skuRows, error: skuErr } = await supabase
       .from("v_sku_catalog_enriched")
       .select("sku_id, sku_label")
@@ -4517,64 +4692,98 @@ rebuildTplPicker?.addEventListener("change", async () => {
     const skuMap = new Map(
       (skuRows || []).map((s) => [Number(s.sku_id), s.sku_label])
     );
-    const tplCode =
-      (TEMPLATES || []).find((t) => Number(t.tpl_id) === Number(tplId))
+    const code =
+      (TEMPLATES || []).find((t) => Number(t.tpl_id) === Number(id))
         ?.tpl_code || "";
     const rows = skuIds.map((sid) => ({
       sku_id: sid,
       sku_label: skuMap.get(sid) || sid,
-      tpl_code: tplCode,
+      tpl_code: code,
       status: "mapped",
     }));
     renderRebuildDryRun(rows);
+    clearPageStatus();
   } catch (err) {
     console.error(err);
-    setStatus(`Load mapped SKUs failed: ${err.message}`, "error");
+    setPageStatus(
+      `Failed to load mapped SKUs: ${publicErrorMessage(err)}`,
+      "error"
+    );
   }
+}
+
+async function activateOverridesTab() {
+  ovrCtl.setEditMode(false);
+  try {
+    const rows = await ensureSkuCatalogueLoaded();
+    populateOvrPreviewSkuPickers(rows);
+    clearPageStatus();
+  } catch {
+    return;
+  }
+  await ovrCtl.loadOverridesForSku();
+}
+
+async function activateRebuildTab() {
+  applyRebuildPermissions();
+  ensurePmSearchableSelect(
+    rebuildTplPicker,
+    PM_TPL_SEARCH_OPTS,
+    "Failed to initialize template selector."
+  );
+  const tplId = parseInt(rebuildTplPicker?.value || "", 10);
+  if (tplId) await loadMappedSkusForRebuild(tplId);
+}
+
+// When a template is selected in Rebuild tab, load SKUs mapped to it
+rebuildTplPicker?.addEventListener("change", () => {
+  const tplId = parseInt(rebuildTplPicker?.value || "", 10);
+  void loadMappedSkusForRebuild(tplId);
 });
 
 (async function init() {
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return (window.location.href = "login.html");
-    try {
-      const { data: perms, error: permsErr } = await supabase.rpc(
-        "get_user_permissions",
-        { p_user_id: session.user.id }
-      );
-      if (!permsErr && Array.isArray(perms)) {
-        const tPerm = perms.find(
-          (r) => r && r.target === `module:${MODULE_ID}`
-        );
-        if (tPerm) {
-          PERM_CAN_VIEW = !!tPerm.can_view;
-          PERM_CAN_EDIT = !!tPerm.can_edit;
-        }
-        const mPerm = perms.find(
-          (r) => r && r.target === `module:${MAP_MODULE_ID}`
-        );
-        if (mPerm) {
-          MAP_PERM_CAN_VIEW = !!mPerm.can_view;
-          MAP_PERM_CAN_EDIT = !!mPerm.can_edit;
-        }
-      } else {
-        console.warn(
-          "Permission load failed (RPC)",
-          permsErr || "unexpected non-array result",
-        );
-      }
-    } catch (pErr) {
-      console.warn("Permission load failed (RPC)", pErr);
+  mountModuleActionIcons({
+    home: homeBtn,
+    refresh: el("reloadBtn"),
+    download: el("exportBtn"),
+  });
+  homeBtn?.addEventListener("click", () =>
+    window.Platform && typeof window.Platform.goHome === "function"
+      ? window.Platform.goHome()
+      : (window.location.href = "index.html")
+  );
+
+  const access = await resolveModuleAccess();
+  if (access.reason === "no-session") return;
+  if (!access.ok) {
+    if (!PERM_CAN_EDIT) document.body.classList.add("no-edit");
+    else document.body.classList.remove("no-edit");
+    if (!PERM_CAN_VIEW && tabBtnMapping) {
+      tabBtnMapping.disabled = true;
+      tabBtnMapping.title = "No permission";
     }
-    if (!PERM_CAN_VIEW) {
-      setStatus("You do not have permission to view this module.", "error");
+    setPageStatus(
+      access.reason === "denied"
+        ? "You do not have permission to view this module."
+        : "Unable to verify module permission.",
+      "error"
+    );
+    return;
+  }
+
+  try {
+    try {
+      await loadUoms();
+      await loadPlmItems();
+      await loadTemplates();
+    } catch (err) {
+      console.error(err);
+      setPageStatus(
+        `Failed to load PM template data: ${publicErrorMessage(err)}`,
+        "error"
+      );
       return;
     }
-    await loadUoms();
-    await loadPlmItems();
-    await loadTemplates();
     // Populate rebuild tab template picker (if present)
     if (rebuildTplPicker && Array.isArray(TEMPLATES)) {
       rebuildTplPicker.innerHTML = [
@@ -4584,31 +4793,62 @@ rebuildTplPicker?.addEventListener("change", async () => {
             `<option value='${t.tpl_id}'>${escapeHtml(t.tpl_code)}</option>`
         ),
       ].join("");
+      rebuildTplPicker.value = "";
+      ensurePmSearchableSelect(
+        rebuildTplPicker,
+        PM_TPL_SEARCH_OPTS,
+        "Failed to initialize template selector."
+      );
     }
-    // Wire the compact Rebuild menu (single button with dropdown)
+    // Wire the compact Rebuild menu (fixed, so it is not clipped by panel overflow)
     if (rebuildMenuBtn && rebuildMenu) {
+      const closeRebuildMenu = () => {
+        rebuildMenu.style.display = "none";
+        rebuildMenu.style.position = "";
+        rebuildMenu.style.top = "";
+        rebuildMenu.style.left = "";
+        rebuildMenu.style.right = "";
+        rebuildMenuBtn.setAttribute("aria-expanded", "false");
+      };
+      const positionRebuildMenu = () => {
+        if (rebuildMenu.style.display !== "block") return;
+        rebuildMenu.style.position = "fixed";
+        rebuildMenu.style.right = "auto";
+        rebuildMenu.style.zIndex = "30000";
+        const rect = rebuildMenuBtn.getBoundingClientRect();
+        const menuW = rebuildMenu.offsetWidth || 160;
+        const menuH = rebuildMenu.offsetHeight || 120;
+        let left = rect.right - menuW;
+        let top = rect.bottom + 6;
+        if (left + menuW > window.innerWidth - 8)
+          left = window.innerWidth - menuW - 8;
+        if (left < 8) left = 8;
+        if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 8;
+        if (top < 8) top = 8;
+        rebuildMenu.style.top = `${top}px`;
+        rebuildMenu.style.left = `${left}px`;
+      };
       rebuildMenuBtn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         const isOpen = rebuildMenu.style.display === "block";
-        rebuildMenu.style.display = isOpen ? "none" : "block";
-      });
-      // close when clicking outside
-      document.addEventListener("click", () => {
-        if (rebuildMenu && rebuildMenu.style.display === "block")
-          rebuildMenu.style.display = "none";
-      });
-      // prevent clicks inside menu from closing immediately
-      rebuildMenu.addEventListener("click", (ev) => ev.stopPropagation());
-      // close on Escape
-      document.addEventListener("keydown", (ev) => {
-        if (
-          ev.key === "Escape" &&
-          rebuildMenu &&
-          rebuildMenu.style.display === "block"
-        ) {
-          rebuildMenu.style.display = "none";
+        if (isOpen) {
+          closeRebuildMenu();
+          return;
         }
+        rebuildMenu.style.display = "block";
+        rebuildMenuBtn.setAttribute("aria-expanded", "true");
+        positionRebuildMenu();
       });
+      document.addEventListener("click", () => {
+        if (rebuildMenu.style.display === "block") closeRebuildMenu();
+      });
+      rebuildMenu.addEventListener("click", (ev) => ev.stopPropagation());
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape" && rebuildMenu.style.display === "block")
+          closeRebuildMenu();
+      });
+      window.addEventListener("resize", positionRebuildMenu);
+      window.addEventListener("scroll", positionRebuildMenu, { passive: true });
     }
     // Start empty — load template only after user searches and selects
     CURRENT_TPL_ID = null;
@@ -4636,16 +4876,13 @@ rebuildTplPicker?.addEventListener("change", async () => {
     // Permission-based global class like RM-BOM
     if (!PERM_CAN_EDIT) document.body.classList.add("no-edit");
     else document.body.classList.remove("no-edit");
-    homeBtn?.addEventListener("click", () =>
-      window.Platform && typeof window.Platform.goHome === "function"
-        ? window.Platform.goHome()
-        : (window.location.href = "index.html")
-    );
-    mountModuleActionIcons({
-      home: homeBtn,
-      refresh: el("reloadBtn"),
-      download: el("exportBtn"),
-    });
+    applyRebuildPermissions();
+    ovrCtl.setEditMode(false);
+    if (!TEMPLATES.length) {
+      setPageStatus("No PM templates available.", "error");
+    } else {
+      clearPageStatus();
+    }
     // Kebab menu interactions (simple fixed-positioning like RM-BOM)
     const moreMenuBtn = document.getElementById("moreMenuBtn");
     const moreMenu = document.getElementById("moreMenu");
@@ -5114,7 +5351,7 @@ rebuildTplPicker?.addEventListener("change", async () => {
         tabPanelRebuild.setAttribute("aria-hidden", String(!isRebuild));
       }
       if (isMapping) {
-        if (!MAP_PERM_CAN_VIEW) {
+        if (!PERM_CAN_VIEW) {
           setStatus("You do not have permission to view Mapping.", "error");
           return;
         }
@@ -5124,20 +5361,39 @@ rebuildTplPicker?.addEventListener("change", async () => {
         initMappingTab();
       }
       if (isPreview) {
-        initPreviewTab();
+        if (!PERM_CAN_VIEW) {
+          setPageStatus(
+            "You do not have permission to view Preview.",
+            "error"
+          );
+          return;
+        }
+        void initPreviewTab();
       }
       // reset template/lines edit mode when templates tab is activated
       if (isTemplates) {
         LINES_EDIT_MODE = false;
         applyLinesMode();
       }
-      // reset overrides to view mode when overrides tab is activated
       if (isOverrides) {
-        if (window && typeof window.setOvrEditMode === "function") {
-          window.setOvrEditMode(false);
-        } else {
-          OVR_EDIT_MODE = false;
+        if (!PERM_CAN_VIEW) {
+          setPageStatus(
+            "You do not have permission to view Overrides.",
+            "error"
+          );
+          return;
         }
+        void activateOverridesTab();
+      }
+      if (isRebuild) {
+        if (!PERM_CAN_VIEW) {
+          setPageStatus(
+            "You do not have permission to view Rebuild.",
+            "error"
+          );
+          return;
+        }
+        void activateRebuildTab();
       }
     }
     tabBtnTemplates?.addEventListener("click", () => activateTab("templates"));
@@ -5198,12 +5454,12 @@ rebuildTplPicker?.addEventListener("change", async () => {
         }
       });
     });
-    if (!MAP_PERM_CAN_VIEW && tabBtnMapping) {
+    if (!PERM_CAN_VIEW && tabBtnMapping) {
       tabBtnMapping.disabled = true;
       tabBtnMapping.title = "No permission";
     }
   } catch (err) {
     console.error(err);
-    setStatus(`Init error: ${err.message}`, "error");
+    setPageStatus(`Init error: ${publicErrorMessage(err)}`, "error");
   }
 })();

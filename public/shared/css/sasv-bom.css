@@ -27,8 +27,24 @@ body.sasv-module.sasv-bom.sasv-module--app {
 
 body.sasv-module.sasv-bom > header,
 body.sasv-module.sasv-bom > .page-header,
-body.sasv-module.sasv-bom > .tabs-wrap {
+body.sasv-module.sasv-bom > .tabs-wrap,
+body.sasv-module.sasv-bom > #bomPageStatus {
   flex-shrink: 0;
+}
+
+.bom-page-status {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sasv-danger-border, #f1c0c0);
+  border-radius: var(--sasv-bom-panel-radius, 8px);
+  background: var(--sasv-danger-soft, #fdecec);
+  color: var(--sasv-danger, #b42318);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.bom-page-status[hidden] {
+  display: none !important;
 }
 
 /* SP/RM: identity panel stays visible; lines panel fills remaining height */
@@ -384,6 +400,26 @@ body.sasv-bom .product-heading-label {
 
 body.sasv-bom .product-heading-label .sasv-search-select {
   min-width: min(320px, 100%);
+}
+
+body.sasv-bom #tabOverrides .panel-header .hdr-line,
+body.sasv-bom #tabRebuild .panel-header .hdr-line {
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-bom #tabOverrides .panel-header .product-heading-label,
+body.sasv-bom #tabRebuild .panel-header .product-heading-label {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+body.sasv-bom #tabOverrides .panel-header .sasv-search-select,
+body.sasv-bom #tabRebuild .panel-header .sasv-search-select {
+  width: 100%;
+  min-width: 0;
 }
 
 /* Quantity-ish columns: prefer right alignment when marked */

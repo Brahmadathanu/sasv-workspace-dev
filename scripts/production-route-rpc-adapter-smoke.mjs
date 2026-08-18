@@ -34,6 +34,7 @@ import {
   buildInactivateProductRouteFamilyAssignmentArgs,
   buildCloneRouteFamilyRouteDraftArgs,
   buildDeleteProductOverrideArgs,
+  buildDeleteRouteFamilyRouteStepArgs,
   buildOverrideJson,
   buildUpsertProductOverrideArgs,
   enforceExactPrmRpcKeys,
@@ -84,10 +85,17 @@ const expected = {
   rpc_map_product_group_to_route_family: ["p_route_family_id", "p_product_group_id", "p_effective_from", "p_mapping_basis", "p_mapping_note"],
   rpc_approve_route_family_mapping: ["p_mapping_id", "p_approval_reference", "p_effective_from"],
   rpc_update_route_family_mapping_draft: ["p_mapping_id", "p_patch"],
+  rpc_get_production_route_manager_subgroup_mappings: ["p_status", "p_search", "p_route_family_id", "p_product_group_id", "p_product_subgroup_id", "p_limit", "p_offset"],
+  rpc_map_product_subgroup_to_route_family: ["p_route_family_id", "p_product_subgroup_id", "p_effective_from", "p_mapping_basis", "p_mapping_note"],
+  rpc_update_product_subgroup_route_family_mapping_draft: ["p_mapping_id", "p_patch"],
+  rpc_submit_product_subgroup_route_family_mapping_for_review: ["p_mapping_id"],
+  rpc_approve_product_subgroup_route_family_mapping: ["p_mapping_id", "p_approval_reference", "p_effective_from"],
+  rpc_inactivate_product_subgroup_route_family_mapping: ["p_mapping_id", "p_effective_to", "p_inactivation_reason"],
+  rpc_get_archived_production_route_architecture: ["p_search", "p_entity_type", "p_limit", "p_offset"],
   rpc_create_route_family_route_draft: ["p_route_family_id", "p_route_name", "p_effective_from", "p_source_type", "p_evidence_status", "p_route_note", "p_supersedes_route_id"],
   rpc_clone_route_family_route_draft: ["p_source_family_route_id", "p_effective_from", "p_route_name", "p_route_note"],
   rpc_upsert_route_family_route_step: ["p_family_route_id", "p_step_id", "p_step"],
-  rpc_delete_route_family_route_step: ["p_family_route_step_id"],
+  rpc_delete_route_family_route_step: ["p_family_route_id", "p_step_id"],
   rpc_validate_route_family_route: ["p_family_route_id"],
   rpc_submit_route_family_route_for_review: ["p_family_route_id"],
   rpc_approve_route_family_route: ["p_family_route_id", "p_approval_reference"],
@@ -104,11 +112,17 @@ const expected = {
   rpc_submit_product_route_family_assignment_for_review: ["p_assignment_id"],
   rpc_approve_product_route_family_assignment: ["p_assignment_id", "p_approval_reference", "p_effective_from"],
   rpc_inactivate_product_route_family_assignment: ["p_assignment_id", "p_effective_to"],
+  rpc_correct_product_route_family_assignment_effective_from: [
+    "p_assignment_id",
+    "p_corrected_effective_from",
+    "p_correction_reason",
+    "p_correction_reference",
+  ],
   rpc_cancel_product_route_family_assignment: ["p_assignment_id", "p_cancellation_reason"],
 };
 
-assert(PRODUCTION_ROUTE_RPC_NAMES.length === 54, "exactly 54 RPCs");
-assert(Object.keys(PRM_RPC_ARG_KEYS).length === 54, "key map covers 54 RPCs");
+assert(PRODUCTION_ROUTE_RPC_NAMES.length === 62, "exactly 62 RPCs");
+assert(Object.keys(PRM_RPC_ARG_KEYS).length === 62, "key map covers 62 RPCs");
 assert(
   PRODUCTION_ROUTE_RPC_NAMES.includes(
     "rpc_get_production_route_manager_exact_run_readiness",
@@ -131,6 +145,7 @@ const unlocked = [
   "rpc_submit_product_route_family_assignment_for_review",
   "rpc_approve_product_route_family_assignment",
   "rpc_inactivate_product_route_family_assignment",
+  "rpc_correct_product_route_family_assignment_effective_from",
   "rpc_cancel_product_route_family_assignment",
   "rpc_get_production_route_manager_product_assignments",
   "rpc_get_production_route_manager_workload_preview",
@@ -730,6 +745,50 @@ assert(
 assert(
   !buildDeleteProductOverrideArgs({ override_id: 12 }).ok,
   "delete adapter requires p_product_route_id",
+);
+
+const familyStepDelete = buildDeleteRouteFamilyRouteStepArgs({
+  family_route_id: 20,
+  step_id: 155,
+});
+assert(
+  familyStepDelete.ok &&
+    JSON.stringify(familyStepDelete.params) ===
+      JSON.stringify({ p_family_route_id: 20, p_step_id: 155 }) &&
+    !("p_family_route_step_id" in familyStepDelete.params) &&
+    !("p_route_step_id" in familyStepDelete.params) &&
+    !("route_id" in familyStepDelete.params) &&
+    !("step_id" in familyStepDelete.params),
+  "family step delete emits exact p_family_route_id + p_step_id",
+);
+assert(
+  !buildDeleteRouteFamilyRouteStepArgs({ step_id: 155 }).ok,
+  "family step delete requires family_route_id",
+);
+assert(
+  !buildDeleteRouteFamilyRouteStepArgs({ family_route_id: 20 }).ok,
+  "family step delete requires step_id",
+);
+assert(
+  !buildDeleteRouteFamilyRouteStepArgs({
+    family_route_id: 0,
+    step_id: 155,
+  }).ok,
+  "family step delete rejects non-positive family_route_id",
+);
+assert(
+  !buildDeleteRouteFamilyRouteStepArgs({
+    family_route_id: 20,
+    step_id: -1,
+  }).ok,
+  "family step delete rejects non-positive step_id",
+);
+assert(
+  !buildDeleteRouteFamilyRouteStepArgs({
+    family_route_id: "20.5",
+    step_id: 155,
+  }).ok,
+  "family step delete rejects non-integer family_route_id",
 );
 
 if (failed) {

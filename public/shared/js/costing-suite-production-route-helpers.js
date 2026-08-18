@@ -15,6 +15,7 @@ export const PRODUCTION_ROUTE_PERMISSION_TARGET =
 export const PRODUCTION_ROUTE_LENS_IDS = Object.freeze([
   "route-readiness",
   "product-route-assignments",
+  "product-subgroup-mappings",
   "shared-workload-preview",
   "route-families",
   "route-family-mapping-review",
@@ -24,6 +25,7 @@ export const PRODUCTION_ROUTE_LENS_IDS = Object.freeze([
   "product-route-editor",
   "historical-candidate-review",
   "effective-route-viewer",
+  "archived-routes",
 ]);
 
 export const PRODUCTION_ROUTE_DEFAULT_LENS = "route-readiness";
@@ -33,7 +35,7 @@ export const OBSOLETE_PRM_LENS_IDS = Object.freeze([
   "product-group-route-editor",
 ]);
 
-/** Exact guarded public RPC inventory (53). */
+/** Exact guarded public RPC inventory (61). */
 export const PRODUCTION_ROUTE_RPC_NAMES = Object.freeze([
   // General as-of-date route-maintenance readiness (not Costing exact-run queue).
   "rpc_get_production_route_manager_readiness",
@@ -76,6 +78,15 @@ export const PRODUCTION_ROUTE_RPC_NAMES = Object.freeze([
   "rpc_map_product_group_to_route_family",
   "rpc_approve_route_family_mapping",
   "rpc_update_route_family_mapping_draft",
+  // Gate 11Y.10I.2C.3F.1C — Product Subgroup → Route Family mappings.
+  "rpc_get_production_route_manager_subgroup_mappings",
+  "rpc_map_product_subgroup_to_route_family",
+  "rpc_update_product_subgroup_route_family_mapping_draft",
+  "rpc_submit_product_subgroup_route_family_mapping_for_review",
+  "rpc_approve_product_subgroup_route_family_mapping",
+  "rpc_inactivate_product_subgroup_route_family_mapping",
+  // Gate 11Y.10I.2C.3F.1C — read-only archived architecture.
+  "rpc_get_archived_production_route_architecture",
   "rpc_create_route_family_route_draft",
   "rpc_clone_route_family_route_draft",
   "rpc_upsert_route_family_route_step",
@@ -97,6 +108,7 @@ export const PRODUCTION_ROUTE_RPC_NAMES = Object.freeze([
   "rpc_approve_product_route_family_assignment",
   "rpc_inactivate_product_route_family_assignment",
   "rpc_cancel_product_route_family_assignment",
+  "rpc_correct_product_route_family_assignment_effective_from",
 ]);
 
 /** Full analytical foundation — not the Workload Preview list/detail path. */
@@ -428,6 +440,7 @@ const DELTA_LABELS = Object.freeze({
 
 const SOURCE_LABELS = Object.freeze({
   ROUTE_FAMILY: "Manufacturing Route Family",
+  ROUTE_FAMILY_INHERITED: "Inherited Family step",
   PRODUCT_OVERRIDE: "Product override",
   PRODUCT_ADDED_STEP: "Product-added step",
   ROUTE_FAMILY_ONLY: "Route Family only",
@@ -501,8 +514,9 @@ export const PRM_ACTION_LABELS = Object.freeze({
   "open-family-route": "Open Route Family route",
   "family-candidate": "Review Route Family evidence",
   "family-history": "View route history",
-  "create-family-route": "Create Route Family route draft",
+  "create-family-route": "Create Family Route Draft",
   "create-family-version": "Create new route version",
+  "open-approved-family-route": "Open current approved route",
   "approve-route-family": "Approve Route Family",
   "approve-family": "Approve Route Family",
   "map-product-group": "Map Product Group",
@@ -516,6 +530,7 @@ export const PRM_ACTION_LABELS = Object.freeze({
   "approve-assignment": "Approve assignment",
   "cancel-assignment": "Cancel assignment",
   "inactivate-assignment": "Inactivate assignment",
+  "correct-assignment-effective-from": "Correct effective date",
   "use-candidate-in-draft": "Use this candidate in draft form",
   "preferred-batch-size": "Open in Supply Batch Plan",
 });
@@ -524,22 +539,44 @@ export const PRM_EMPTY_STATES = Object.freeze({
   routeFamilies:
     "No Manufacturing Route Families have been created.\n\nStart by reviewing historical evidence or create a Route Family manually.",
   familyEditor:
-    "Select a Route Family to manage its manufacturing route.",
+    "Select an existing Family Route or create a new Draft.",
   familyEditorSupporting:
-    "Route Family Routes are governed from Manufacturing Route Families.",
+    "Choose a governed Route Family, open an existing route, or create a new Draft.",
   productEditor:
-    "Open a Product from Route Readiness to review or define its process route.",
+    "No Product Route selected.\n\nOpen a Product from Route Readiness / Product Summary to create or edit a Product-specific route.",
   effectiveViewer:
-    "Open a Product from Route Readiness or select a Product to view its approved route.",
+    "Search or select a Product to view its effective manufacturing route.",
+  subgroupMappings:
+    "No Product Subgroup mappings yet.\n\nCreate a Draft to map a Product Subgroup to a Manufacturing Route Family.",
+  archivedRoutes: "No archived route architecture.",
   noGroups: "No Product Groups are available from master options.",
   noReadiness: "No readiness rows for the current filters.",
+});
+
+export const PRM_ARCHIVED_ENTITY_TYPES = Object.freeze([
+  "",
+  "ROUTE_FAMILY",
+  "FAMILY_ROUTE",
+  "PRODUCT_GROUP_MAPPING",
+  "PRODUCT_SUBGROUP_MAPPING",
+  "PRODUCT_MAPPING",
+  "PRODUCT_ROUTE",
+]);
+
+export const PRM_ARCHIVED_ENTITY_TYPE_LABELS = Object.freeze({
+  ROUTE_FAMILY: "Route Family",
+  FAMILY_ROUTE: "Family Route",
+  PRODUCT_GROUP_MAPPING: "Product Group Mapping",
+  PRODUCT_SUBGROUP_MAPPING: "Product Subgroup Mapping",
+  PRODUCT_MAPPING: "Product Mapping",
+  PRODUCT_ROUTE: "Product Route",
 });
 
 export const PRM_FAMILY_WORKFLOW_STEPS = Object.freeze([
   { id: "family_created", label: "Family created" },
   { id: "family_approved", label: "Family approved" },
-  { id: "groups_mapped", label: "Product Groups mapped" },
-  { id: "mappings_approved", label: "Mappings approved" },
+  { id: "groups_mapped", label: "Assignments defined" },
+  { id: "mappings_approved", label: "Assignments approved" },
   { id: "family_route_defined", label: "Family route defined" },
   { id: "product_routes_defined", label: "Product routes defined" },
 ]);
@@ -1268,8 +1305,24 @@ export function normalizePrmWorkloadPreviewPayload(payload) {
   };
 }
 
-export function normalizePrmWorkloadDetailStep(step = {}, index = 0) {
+export function normalizePrmWorkloadDetailStep(
+  step = {},
+  index = 0,
+  resourceClassContext = {},
+) {
   const s = step && typeof step === "object" ? step : {};
+  const resource_class_code = normalizePrmCode(
+    s.resource_class_code || s.resource_class || s.resource_class_name,
+  );
+  const resource_class = resolvePrmResourceClassDisplayLabel(
+    resource_class_code,
+    {
+      catalogue: resourceClassContext.catalogue,
+      catalogueIndex: resourceClassContext.catalogueIndex,
+      rowLabel:
+        s.resource_class_name || s.resource_class_label || s.resource_class,
+    },
+  );
   return {
     ...s,
     sequence_no: s.sequence_no ?? s.sequence ?? index + 1,
@@ -1279,11 +1332,8 @@ export function normalizePrmWorkloadDetailStep(step = {}, index = 0) {
     cost_centre_name:
       s.cost_centre_name || s.cost_centre || s.cost_centre_code || null,
     behaviour: s.behaviour_name || s.behaviour || s.behaviour_code || null,
-    resource_class:
-      s.resource_class_name ||
-      s.resource_class ||
-      s.resource_class_code ||
-      null,
+    resource_class_code,
+    resource_class,
     expected_occurrences:
       s.expected_occurrences ?? s.expected_occurrence_count ?? null,
     standard_cycles: s.standard_cycles ?? s.standard_cycle_count ?? null,
@@ -1296,7 +1346,10 @@ export function normalizePrmWorkloadDetailStep(step = {}, index = 0) {
   };
 }
 
-export function normalizePrmWorkloadDetailPayload(payload) {
+export function normalizePrmWorkloadDetailPayload(
+  payload,
+  resourceClassContext = {},
+) {
   const root = normalizePrmRpcPayload(payload) || payload || {};
   const product =
     root.product && typeof root.product === "object" ? root.product : root;
@@ -1305,7 +1358,9 @@ export function normalizePrmWorkloadDetailPayload(payload) {
       root.route_steps ||
       root.effective_steps ||
       root.workload_steps,
-  ).map(normalizePrmWorkloadDetailStep);
+  ).map((step, index) =>
+    normalizePrmWorkloadDetailStep(step, index, resourceClassContext),
+  );
   const skuEvidence = coercePrmList(
     root.sku_quantity_evidence ||
       root.sku_evidence ||
@@ -2027,6 +2082,36 @@ export function formatPrmFamilyRouteVersionCopy(familyRouteId, historyRows = [])
   return version ? `Version ${version}` : "";
 }
 
+/** Version only when history row id / product_route_id matches effective product_route_id. */
+export function resolvePrmProductRouteVersionFromHistory(
+  productRouteId,
+  historyRows = [],
+) {
+  const id = normalizePrmIntegerId(productRouteId);
+  if (id == null) return null;
+  const list = Array.isArray(historyRows) ? historyRows : [];
+  const match = list.find((row) => {
+    const rowId =
+      normalizePrmIntegerId(row?.id) ??
+      normalizePrmIntegerId(row?.product_route_id) ??
+      normalizePrmIntegerId(row?.route_id);
+    return rowId === id;
+  });
+  if (!match) return null;
+  return resolvePrmDisplayedRouteVersion(match);
+}
+
+export function formatPrmProductRouteVersionCopy(
+  productRouteId,
+  historyRows = [],
+) {
+  const version = resolvePrmProductRouteVersionFromHistory(
+    productRouteId,
+    historyRows,
+  );
+  return version ? `Version ${version}` : "";
+}
+
 export const PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED =
   "A governed Product batch-size reference is required before a Product Route can be created.";
 
@@ -2100,12 +2185,33 @@ export function resolvePrmRouteFamilyAssignmentSource(row = {}) {
 export function formatPrmRouteFamilyAssignmentSourceLabel(code) {
   const upper = normalizePrmCode(code).toUpperCase();
   if (!upper) return "";
+  if (upper === "PRODUCT_ASSIGNMENT") return "Product-specific assignment";
+  if (upper === "PRODUCT_SUBGROUP_FALLBACK") {
+    return "Inherited from Product Subgroup";
+  }
   if (upper === "PRODUCT_GROUP_FALLBACK") {
     return "Inherited from Product Group";
   }
-  if (upper === "PRODUCT_ASSIGNMENT") return "Product-specific";
-  if (upper === "NONE") return "None";
+  if (upper === "NONE") return "No approved assignment";
   return humanizeUnknownPrmCode(upper) || upper;
+}
+
+/** Precedence explainability — commercial hierarchy is unchanged. */
+export function formatPrmRouteAssignmentSourceExplain(code) {
+  const upper = normalizePrmCode(code).toUpperCase();
+  if (upper === "PRODUCT_ASSIGNMENT") {
+    return "Product-specific assignment overrides Product Subgroup and Product Group defaults. Commercial hierarchy is unchanged.";
+  }
+  if (upper === "PRODUCT_SUBGROUP_FALLBACK") {
+    return "Route Family is inherited from the Product Subgroup mapping.";
+  }
+  if (upper === "PRODUCT_GROUP_FALLBACK") {
+    return "Route Family is inherited from the Product Group mapping.";
+  }
+  if (upper === "NONE") {
+    return "No approved Product, Product Subgroup, or Product Group assignment.";
+  }
+  return "";
 }
 
 function normalizePrmRouteValidationErrorCode(raw) {
@@ -2404,11 +2510,14 @@ export function enrichPrmMasterCostCentres(optionsPayload = {}) {
     if (id != null) plantNames.set(id, row.plant_name || row.name || "");
   }
   for (const row of coercePrmList(root.resource_classes)) {
-    const code = normalizePrmCode(row.resource_class_code || row.code);
-    if (code) {
+    const normalized = normalizePrmResourceClassCatalogueRow(row);
+    if (
+      normalized.resource_class_code &&
+      !isBlankPrmValue(normalized.resource_class_label)
+    ) {
       resourceLabels.set(
-        code,
-        row.resource_class_label || row.label || formatPrmResourceClassLabel(code),
+        normalized.resource_class_code,
+        normalized.resource_class_label,
       );
     }
   }
@@ -2448,18 +2557,22 @@ export function enrichPrmMasterCostCentres(optionsPayload = {}) {
       default_resource_class_code: defaultRc || normalized.resource_class || null,
       default_resource_class_label:
         resourceLabels.get(defaultRc) ||
-        normalized.resource_class_label ||
-        (defaultRc ? formatPrmResourceClassLabel(defaultRc) : null),
+        resolvePrmResourceClassDisplayLabel(defaultRc, {
+          catalogueIndex: resourceLabels,
+          rowLabel: normalized.resource_class_label,
+        }) ||
+        null,
     };
   });
 }
 
 export function buildPrmMasterOptionsForStepAuthoring(optionsPayload = {}) {
   const root = normalizePrmMasterOptions(optionsPayload);
+  const enrichedRoot = enrichPrmMasterResourceClasses(root);
   return {
-    ...root,
-    activities: enrichPrmMasterActivities(root),
-    cost_centres: enrichPrmMasterCostCentres(root),
+    ...enrichedRoot,
+    activities: enrichPrmMasterActivities(enrichedRoot),
+    cost_centres: enrichPrmMasterCostCentres(enrichedRoot),
   };
 }
 
@@ -2485,6 +2598,12 @@ export function formatPrmActivityOptionLabel(activity = {}) {
   const primary = [name, short].filter((part) => !isBlankPrmValue(part)).join(" · ");
   if (!primary) return String(activity.activity_id ?? activity.id ?? "");
   return location ? `${primary} — ${location}` : primary;
+}
+
+export function formatPrmActivityOptionPrimary(activity = {}) {
+  const name = activity.activity_name || activity.name || "";
+  const short = activity.short_code || activity.activity_code || "";
+  return [name, short].filter((part) => !isBlankPrmValue(part)).join(" · ");
 }
 
 export function formatPrmActivityOptionSearchText(activity = {}) {
@@ -2517,11 +2636,29 @@ export function formatPrmCostCentreOptionLabel(centre = {}) {
   const location = formatPrmCostCentreContextCopy(centre);
   const resource =
     centre.default_resource_class_label ||
-    formatPrmResourceClassLabel(centre.default_resource_class_code) ||
+    resolvePrmResourceClassDisplayLabel(centre.default_resource_class_code, {
+      rowLabel: centre.resource_class_label,
+    }) ||
     "";
   return [name, code, location, resource]
     .filter((part) => !isBlankPrmValue(part))
     .join(" — ");
+}
+
+export function formatPrmCostCentreOptionPrimary(centre = {}) {
+  return centre.cost_centre_name || centre.name || centre.cost_centre_code || "";
+}
+
+export function formatPrmCostCentreOptionSecondary(centre = {}) {
+  const location = formatPrmCostCentreContextCopy(centre);
+  const resource =
+    centre.default_resource_class_label ||
+    resolvePrmResourceClassDisplayLabel(centre.default_resource_class_code, {
+      rowLabel: centre.resource_class_label,
+    }) ||
+    "";
+  const resourceLine = resource ? `Default resource: ${resource}` : "";
+  return [location, resourceLine].filter((part) => !isBlankPrmValue(part)).join(" · ");
 }
 
 export function formatPrmCostCentreOptionSearchText(centre = {}) {
@@ -2602,6 +2739,18 @@ export function isValidPrmProductDeltaStepKey(key) {
   return /^[A-Z0-9_]+$/.test(raw);
 }
 
+export function canonicalizePrmProductDeltaStepKey(
+  raw,
+  { trimEdges = false } = {},
+) {
+  let value = String(raw ?? "").toUpperCase();
+  value = value.replace(/[\s-]+/g, "_");
+  value = value.replace(/[^A-Z0-9_]+/g, "");
+  value = value.replace(/_+/g, "_");
+  if (trimEdges) value = value.replace(/^_+|_+$/g, "");
+  return value;
+}
+
 export function collectPrmProductDeltaStepKeys({
   overrides = [],
   familySteps = [],
@@ -2613,17 +2762,45 @@ export function collectPrmProductDeltaStepKeys({
     const raw = String(value ?? "").trim();
     if (raw) keys.add(raw.toUpperCase());
   };
+  const stepKeyOf = (row = {}) =>
+    row.override_step_key || row.step_key || row.effective_step_key || "";
+  const overrideIdOf = (row = {}) =>
+    normalizePrmIntegerId(
+      row.override_id ??
+        row.product_route_override_id ??
+        row.product_override_id ??
+        row.source_override_id ??
+        row.id,
+    );
   const exclude = normalizePrmIntegerId(excludeOverrideId);
+  let excludedKey = "";
   for (const row of coercePrmList(overrides)) {
-    const id = normalizePrmIntegerId(row.override_id ?? row.id);
-    if (exclude != null && id === exclude) continue;
-    add(row.override_step_key || row.step_key);
+    const id = overrideIdOf(row);
+    if (exclude != null && id === exclude) {
+      excludedKey = String(stepKeyOf(row) || "").trim().toUpperCase();
+      continue;
+    }
+    add(stepKeyOf(row));
   }
-  for (const step of [
-    ...coercePrmList(familySteps),
-    ...coercePrmList(effectiveSteps),
-  ]) {
-    add(step.override_step_key || step.step_key || step.effective_step_key);
+  for (const step of coercePrmList(familySteps)) {
+    add(stepKeyOf(step));
+  }
+  for (const step of coercePrmList(effectiveSteps)) {
+    const stepOverrideId = overrideIdOf(step);
+    // Edit mode: the composed effective route still carries this override's key.
+    // Excluding only the override row is not enough — skip that effective row too.
+    if (exclude != null && stepOverrideId === exclude) continue;
+    if (
+      exclude != null &&
+      excludedKey &&
+      stepOverrideId == null &&
+      String(stepKeyOf(step) || "")
+        .trim()
+        .toUpperCase() === excludedKey
+    ) {
+      continue;
+    }
+    add(stepKeyOf(step));
   }
   return keys;
 }
@@ -2635,17 +2812,15 @@ export function suggestPrmProductDeltaStepKey(activity = {}, takenKeys = []) {
     })),
   });
   const base =
-    humanizeUnknownPrmCode(activity.activity_name || activity.name || "")
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .replace(/_+/g, "_") || "STEP";
+    canonicalizePrmProductDeltaStepKey(
+      activity.activity_name || activity.name || "",
+      { trimEdges: true },
+    ) || "STEP";
   if (!taken.has(base)) return base;
-  const token = humanizeUnknownPrmCode(activity.subsection_name || "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/_+/g, "_");
+  const token = canonicalizePrmProductDeltaStepKey(
+    activity.subsection_name || "",
+    { trimEdges: true },
+  );
   if (token) {
     const withSub = `${base}_${token}`;
     if (!taken.has(withSub)) return withSub;
@@ -2653,6 +2828,113 @@ export function suggestPrmProductDeltaStepKey(activity = {}, takenKeys = []) {
   let suffix = 2;
   while (taken.has(`${base}_${suffix}`)) suffix += 1;
   return `${base}_${suffix}`;
+}
+
+export const isValidPrmFamilyRouteStepKey = isValidPrmProductDeltaStepKey;
+
+export const canonicalizePrmFamilyRouteStepKey = canonicalizePrmProductDeltaStepKey;
+
+/** Governed Activity name tokens → stable Family Route step keys. */
+export const PRM_FAMILY_ROUTE_ACTIVITY_STEP_KEY_BY_TOKEN = Object.freeze({
+  RM_DISPENSATION: "RM_ISSUE",
+  DISINTEGRATION: "DISINTEGRATION",
+  PULVERIZATION: "PULVERIZATION",
+  SIEVING: "SIEVING",
+  FINISHED_GOODS_QUALITY_ASSESSMENT: "QC_ASSESSMENT",
+  TRANSFER_TO_FG_STORE: "FG_TRANSFER",
+});
+
+export function resolvePrmFamilyRouteActivityStepKeyBase(activity = {}) {
+  const nameRaw = String(
+    activity.activity_name || activity.name || activity.label || "",
+  ).trim();
+  if (!nameRaw) return "";
+  const token = canonicalizePrmFamilyRouteStepKey(nameRaw, { trimEdges: true });
+  if (token && PRM_FAMILY_ROUTE_ACTIVITY_STEP_KEY_BY_TOKEN[token]) {
+    return PRM_FAMILY_ROUTE_ACTIVITY_STEP_KEY_BY_TOKEN[token];
+  }
+  const upper = nameRaw.toUpperCase();
+  if (upper.includes("RM") && upper.includes("DISPENS")) return "RM_ISSUE";
+  if (
+    upper.includes("QUALITY") &&
+    (upper.includes("ASSESS") || upper.includes("QC"))
+  ) {
+    return "QC_ASSESSMENT";
+  }
+  if (
+    upper.includes("TRANSFER") &&
+    (upper.includes("FG") || upper.includes("FINISHED GOODS"))
+  ) {
+    return "FG_TRANSFER";
+  }
+  if (upper.includes("DISINTEGRATION")) return "DISINTEGRATION";
+  if (upper.includes("PULVERIZATION") || upper.includes("PULVERISATION")) {
+    return "PULVERIZATION";
+  }
+  if (upper.includes("SIEVING") || upper.includes("SIEVE")) return "SIEVING";
+  return token;
+}
+
+export function collectPrmFamilyRouteStepKeys({
+  steps = [],
+  excludeStepId = null,
+} = {}) {
+  const keys = new Set();
+  const exclude = normalizePrmIntegerId(excludeStepId);
+  for (const step of coercePrmList(steps)) {
+    const id = normalizePrmIntegerId(
+      step.family_route_step_id ?? step.route_step_id ?? step.step_id ?? step.id,
+    );
+    if (exclude != null && id === exclude) continue;
+    const raw = String(step.step_key || "").trim();
+    if (raw) keys.add(raw.toUpperCase());
+  }
+  return keys;
+}
+
+export function suggestPrmFamilyRouteStepKey(activity = {}, takenKeys = []) {
+  const taken =
+    takenKeys instanceof Set
+      ? takenKeys
+      : collectPrmFamilyRouteStepKeys({ steps: coercePrmList(takenKeys) });
+  const base = resolvePrmFamilyRouteActivityStepKeyBase(activity);
+  if (!base) return "";
+  if (!taken.has(base)) return base;
+  const codeToken = canonicalizePrmFamilyRouteStepKey(
+    activity.activity_code || activity.short_code || "",
+    { trimEdges: true },
+  );
+  if (codeToken && codeToken !== base) {
+    const withCode = `${base}_${codeToken}`;
+    if (!taken.has(withCode)) return withCode;
+  }
+  const areaToken = canonicalizePrmFamilyRouteStepKey(
+    activity.area_name || activity.subsection_name || "",
+    { trimEdges: true },
+  );
+  if (areaToken && areaToken !== base) {
+    const withArea = `${base}_${areaToken}`;
+    if (!taken.has(withArea)) return withArea;
+  }
+  let suffix = 2;
+  while (taken.has(`${base}_${suffix}`)) suffix += 1;
+  return `${base}_${suffix}`;
+}
+
+export function validatePrmFamilyRouteStepKey(key) {
+  const canonical = canonicalizePrmFamilyRouteStepKey(key, { trimEdges: true });
+  if (!canonical) {
+    return { ok: false, error: "Step key is required.", canonical: "" };
+  }
+  if (!isValidPrmFamilyRouteStepKey(canonical)) {
+    return {
+      ok: false,
+      error:
+        "Step key must use uppercase letters, numbers, and underscores only.",
+      canonical,
+    };
+  }
+  return { ok: true, canonical };
 }
 
 export function resolvePrmPoolScopeDlPohRequirement({
@@ -2726,6 +3008,10 @@ export function validatePrmProductDeltaMasterIntegrity(
     }
 
     if (values.override_step_key) {
+      values.override_step_key = canonicalizePrmProductDeltaStepKey(
+        values.override_step_key,
+        { trimEdges: true },
+      );
       if (!isValidPrmProductDeltaStepKey(values.override_step_key)) {
         errors.push(
           "Override step key must use uppercase letters, numbers, and underscores only.",
@@ -2812,6 +3098,228 @@ export function validatePrmProductDeltaMasterIntegrity(
   return { ok: errors.length === 0, errors };
 }
 
+/** Operator-facing location field — never raw catalogue ids. */
+export function formatPrmActivityLocationFieldLabel(value) {
+  if (value == null || value === "") return "—";
+  return String(value);
+}
+
+export function validatePrmActivityLocationCatalogueIntegrity(
+  activity = {},
+  catalogues = {},
+) {
+  const errors = [];
+  const activityId = normalizePrmIntegerId(activity.activity_id ?? activity.id);
+  if (activityId == null) {
+    return { ok: false, errors: ["Activity is required."], activity: null };
+  }
+  const enriched = buildPrmMasterOptionsForStepAuthoring(catalogues);
+  const full =
+    coercePrmList(enriched.activities).find(
+      (row) => normalizePrmIntegerId(row.activity_id ?? row.id) === activityId,
+    ) ||
+    enrichPrmMasterActivities({ ...enriched, activities: [activity] })[0] ||
+    null;
+  if (!full) {
+    return {
+      ok: false,
+      errors: ["Selected Activity is unavailable. Reload master options."],
+      activity: null,
+    };
+  }
+  const sectionId = normalizePrmIntegerId(full.section_id);
+  const subsectionId = normalizePrmIntegerId(full.subsection_id);
+  const areaId = normalizePrmIntegerId(full.area_id);
+  if (sectionId != null && isBlankPrmValue(full.section_name)) {
+    errors.push(
+      "Activity section location could not be resolved from master catalogues.",
+    );
+  }
+  if (subsectionId != null && isBlankPrmValue(full.subsection_name)) {
+    errors.push(
+      "Activity subsection location could not be resolved from master catalogues.",
+    );
+  }
+  if (areaId != null && full.area_name == null) {
+    errors.push(
+      "Activity area location could not be resolved from master catalogues.",
+    );
+  }
+  return { ok: errors.length === 0, errors, activity: full };
+}
+
+export function validatePrmFamilyStepMasterIntegrity(
+  values = {},
+  {
+    options = {},
+    existingSteps = [],
+    excludeStepId = null,
+    isPersistedStep = false,
+  } = {},
+) {
+  const errors = [];
+  const enriched = buildPrmMasterOptionsForStepAuthoring(options);
+  const activities = enriched.activities || [];
+  const centres = extractApprovedCostCentres(enriched);
+  const behaviours = enriched.behaviours || [];
+  const resources = enriched.resource_classes || [];
+
+  const findActivity = (id) =>
+    activities.find(
+      (row) => normalizePrmIntegerId(row.activity_id ?? row.id) === id,
+    ) || null;
+  const findCentre = (id) =>
+    centres.find(
+      (row) => normalizePrmIntegerId(row.cost_centre_id ?? row.id) === id,
+    ) || null;
+
+  const activityId = normalizePrmIntegerId(values.activity_id);
+  if (!activityId) {
+    errors.push("Activity is required.");
+  }
+  const activityRow = findActivity(activityId);
+  const locationCheck = validatePrmActivityLocationCatalogueIntegrity(
+    activityRow || { activity_id: activityId },
+    enriched,
+  );
+  if (!activityRow) {
+    errors.push("Selected Activity is unavailable. Reload master options.");
+  } else if (!locationCheck.ok) {
+    errors.push(...locationCheck.errors);
+  } else if (
+    normalizePrmIntegerId(values.section_id) !==
+      normalizePrmIntegerId(activityRow.section_id) ||
+    normalizePrmIntegerId(values.subsection_id) !==
+      normalizePrmIntegerId(activityRow.subsection_id) ||
+    normalizePrmIntegerId(values.area_id) !==
+      normalizePrmIntegerId(activityRow.area_id)
+  ) {
+    errors.push(
+      "Activity location no longer matches the selected Activity. Reselect Activity.",
+    );
+  }
+
+  const ccId = normalizePrmIntegerId(values.cost_centre_id);
+  if (!ccId) {
+    errors.push("Cost Centre is required.");
+  }
+  const centre = findCentre(ccId);
+  if (!centre) {
+    errors.push(
+      "Selected Cost Centre is not approved or is unavailable. Choose another centre.",
+    );
+  }
+
+  const stepKeyCheck = validatePrmFamilyRouteStepKey(values.step_key);
+  if (!stepKeyCheck.ok) {
+    errors.push(stepKeyCheck.error);
+  } else {
+    values.step_key = stepKeyCheck.canonical;
+    const taken = collectPrmFamilyRouteStepKeys({
+      steps: existingSteps,
+      excludeStepId,
+    });
+    const want = String(values.step_key || "").trim().toUpperCase();
+    if (want && taken.has(want)) {
+      errors.push("Step key must be unique within this route version.");
+    }
+  }
+
+  if (values.sequence_no == null || values.sequence_no <= 0) {
+    errors.push("Sequence must be a positive number.");
+  }
+  if (
+    values.expected_occurrence_count == null ||
+    values.expected_occurrence_count <= 0
+  ) {
+    errors.push("Expected occurrence count must be greater than 0.");
+  }
+  if (values.standard_cycle_count == null || values.standard_cycle_count <= 0) {
+    errors.push("Standard cycle count must be greater than 0.");
+  }
+
+  if (!values.behaviour_code) {
+    errors.push("Behaviour is required.");
+  } else {
+    const behaviourOk = coercePrmList(behaviours).some(
+      (row) =>
+        normalizePrmCode(row.behaviour_code || row.code) ===
+        normalizePrmCode(values.behaviour_code),
+    );
+    if (!behaviourOk) {
+      errors.push("Selected Behaviour is no longer available.");
+    }
+  }
+
+  if (!values.resource_class_code) {
+    errors.push("Resource class is required.");
+  } else {
+    const resourceOk = coercePrmList(resources).some(
+      (row) =>
+        normalizePrmCode(row.resource_class_code || row.code) ===
+        normalizePrmCode(values.resource_class_code),
+    );
+    if (!resourceOk) {
+      errors.push("Selected Resource class is no longer available.");
+    }
+  }
+
+  if (!values.route_step_scope) {
+    errors.push("Route step scope is required.");
+  } else if (!PRM_ROUTE_STEP_SCOPES.includes(values.route_step_scope)) {
+    errors.push("Selected Route step scope is no longer available.");
+  }
+
+  if (!values.direct_labour_scope) {
+    errors.push("Direct Labour scope is required.");
+  } else if (!PRM_DIRECT_LABOUR_SCOPES.includes(values.direct_labour_scope)) {
+    errors.push("Selected Direct Labour scope is no longer available.");
+  }
+
+  if (!values.production_overhead_scope) {
+    errors.push("Production Overhead scope is required.");
+  } else if (
+    !PRM_PRODUCTION_OVERHEAD_SCOPES.includes(values.production_overhead_scope)
+  ) {
+    errors.push("Selected Production Overhead scope is no longer available.");
+  }
+
+  const poolRule = resolvePrmPoolScopeDlPohRequirement({
+    costCentre: centre,
+    routeStepScope: values.route_step_scope,
+  });
+  if (poolRule?.forced) {
+    if (values.direct_labour_scope !== "EXCLUDE_OTHER_POOL") {
+      errors.push(
+        "Excluded Cost Centre or other-pool step scope requires Direct Labour exclusion.",
+      );
+    }
+    if (values.production_overhead_scope !== "EXCLUDE_OTHER_POOL") {
+      errors.push(
+        "Excluded Cost Centre or other-pool step scope requires Production Overhead exclusion.",
+      );
+    }
+  }
+
+  if (values.plant_id != null && activityRow) {
+    const plants = filterPrmPlantsByLocation(enriched.plants || [], {
+      section_id: values.section_id,
+      subsection_id: values.subsection_id,
+      area_id: values.area_id,
+    });
+    const plantOk = plants.some(
+      (row) =>
+        normalizePrmIntegerId(row.plant_id ?? row.id) ===
+        normalizePrmIntegerId(values.plant_id),
+    );
+    if (!plantOk) {
+      errors.push("Selected Plant is not valid for the Activity location.");
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 export function formatPrmStepSourceLabel(code) {
   return labelFromPrmMap(code, SOURCE_LABELS);
 }
@@ -2891,6 +3399,285 @@ export function buildPrmProductGroupMappingOptions(groups = []) {
       };
     })
     .filter(Boolean);
+}
+
+/**
+ * Build governed Product Subgroup mapping selector options from master-options.
+ * Primary: Subgroup name. Secondary: hierarchy / Product Group. Ids are search metadata only.
+ */
+export function buildPrmProductSubgroupMappingOptions(subgroups = []) {
+  return coercePrmList(subgroups)
+    .map((row) => {
+      const product_subgroup_id = normalizePrmIntegerId(
+        row.product_subgroup_id ?? row.subgroup_id ?? row.id,
+      );
+      if (product_subgroup_id == null) return null;
+      const name =
+        row.product_subgroup_name ||
+        row.subgroup_name ||
+        row.name ||
+        `Product Subgroup ${product_subgroup_id}`;
+      const groupName = row.product_group_name || "";
+      const hierarchy =
+        row.hierarchy_label ||
+        formatPrmProductGroupHierarchyLabel(row) ||
+        [row.category_name, row.subcategory_name, groupName, name]
+          .filter((part) => !isBlankPrmValue(part))
+          .join(" › ");
+      const secondary = hierarchy && hierarchy !== name ? hierarchy : groupName;
+      const search = [name, groupName, hierarchy, String(product_subgroup_id)]
+        .filter(Boolean)
+        .join(" ");
+      return {
+        product_subgroup_id,
+        product_group_id: normalizePrmIntegerId(row.product_group_id),
+        label: name,
+        secondary,
+        search,
+      };
+    })
+    .filter(Boolean);
+}
+
+export function buildPrmSubgroupMappingsArgs({
+  status = null,
+  search = null,
+  route_family_id = null,
+  product_group_id = null,
+  product_subgroup_id = null,
+  limit = 50,
+  offset = 0,
+} = {}) {
+  const params = {
+    p_limit: Math.max(1, Math.min(Number(limit) || 50, 200)),
+    p_offset: Math.max(0, Number(offset) || 0),
+  };
+  const q = isBlankPrmValue(search) ? "" : String(search).trim();
+  if (q) params.p_search = q;
+  const st = isBlankPrmValue(status) ? "" : String(status).trim();
+  if (st) params.p_status = st;
+  const familyId = normalizePrmIntegerId(route_family_id);
+  if (familyId != null) params.p_route_family_id = familyId;
+  const groupId = normalizePrmIntegerId(product_group_id);
+  if (groupId != null) params.p_product_group_id = groupId;
+  const subgroupId = normalizePrmIntegerId(product_subgroup_id);
+  if (subgroupId != null) params.p_product_subgroup_id = subgroupId;
+  return { ok: true, params, errors: [] };
+}
+
+export function normalizePrmProductSubgroupMapping(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  const id = normalizePrmIntegerId(
+    r.mapping_id ?? r.id ?? r.product_subgroup_route_family_mapping_id,
+  );
+  return {
+    ...r,
+    mapping_id: id,
+    id,
+    status: normalizePrmCode(r.status || r.mapping_status).toUpperCase() || null,
+    mapping_status: r.mapping_status || r.status || null,
+    route_family_id: normalizePrmIntegerId(r.route_family_id),
+    route_family_code: r.route_family_code ?? null,
+    route_family_name: r.route_family_name ?? null,
+    product_subgroup_id: normalizePrmIntegerId(
+      r.product_subgroup_id ?? r.subgroup_id,
+    ),
+    product_subgroup_name:
+      r.product_subgroup_name || r.subgroup_name || r.name || null,
+    product_group_id: normalizePrmIntegerId(r.product_group_id),
+    product_group_name: r.product_group_name ?? null,
+    sub_category_id: normalizePrmIntegerId(r.sub_category_id),
+    subcategory_name: r.subcategory_name ?? r.sub_category_name ?? null,
+    category_id: normalizePrmIntegerId(r.category_id),
+    category_name: r.category_name ?? null,
+    hierarchy_label: r.hierarchy_label ?? null,
+    mapping_basis: r.mapping_basis ?? null,
+    mapping_note: r.mapping_note ?? null,
+    effective_from: r.effective_from ?? null,
+    effective_to: r.effective_to ?? null,
+    approval_reference: r.approval_reference ?? null,
+    approved_by: r.approved_by ?? null,
+    approved_at: r.approved_at ?? null,
+    supersedes_mapping_id: normalizePrmIntegerId(r.supersedes_mapping_id),
+    lifecycle_actions: normalizePrmAssignmentLifecycleActions(
+      r.lifecycle_actions,
+    ),
+    definition_read_only: Boolean(r.definition_read_only),
+  };
+}
+
+export function normalizePrmSubgroupMappingsPayload(payload) {
+  const root = normalizePrmRpcPayload(payload) || payload || {};
+  const rows = coercePrmList(
+    root.rows || root.mappings || root.items || root.data || root,
+  ).map(normalizePrmProductSubgroupMapping);
+  const total =
+    root.total_count ??
+    root.total ??
+    root.count ??
+    (Array.isArray(root.rows) || Array.isArray(root.mappings)
+      ? rows.length
+      : null);
+  return {
+    rows,
+    total_count: total == null ? rows.length : Number(total) || 0,
+    status_counts: normalizePrmStatusCounts(
+      root.status_counts || root.counts || {},
+    ),
+    raw: root,
+  };
+}
+
+export function findPrmApprovedSubgroupMapping(
+  mappings = [],
+  productSubgroupId,
+) {
+  const sid = normalizePrmIntegerId(productSubgroupId);
+  if (sid == null) return null;
+  return (
+    coercePrmList(mappings).find((row) => {
+      const mapped = normalizePrmProductSubgroupMapping(row);
+      return (
+        mapped.product_subgroup_id === sid &&
+        normalizePrmCode(mapped.status).toUpperCase() === "APPROVED"
+      );
+    }) || null
+  );
+}
+
+export function findPrmWritableSubgroupMapping(
+  mappings = [],
+  productSubgroupId,
+) {
+  const sid = normalizePrmIntegerId(productSubgroupId);
+  if (sid == null) return null;
+  return (
+    coercePrmList(mappings).find((row) => {
+      const mapped = normalizePrmProductSubgroupMapping(row);
+      const status = normalizePrmCode(mapped.status).toUpperCase();
+      return (
+        mapped.product_subgroup_id === sid &&
+        (status === "DRAFT" || status === "IN_REVIEW")
+      );
+    }) || null
+  );
+}
+
+export function buildPrmArchivedRoutesArgs({
+  search = null,
+  entity_type = null,
+  limit = 50,
+  offset = 0,
+} = {}) {
+  const params = {
+    p_limit: Math.max(1, Math.min(Number(limit) || 50, 200)),
+    p_offset: Math.max(0, Number(offset) || 0),
+  };
+  const q = isBlankPrmValue(search) ? "" : String(search).trim();
+  if (q) params.p_search = q;
+  const entity = normalizePrmCode(entity_type).toUpperCase();
+  if (entity && PRM_ARCHIVED_ENTITY_TYPES.includes(entity)) {
+    params.p_entity_type = entity;
+  }
+  return { ok: true, params, errors: [] };
+}
+
+export function formatPrmArchivedEntityTypeLabel(code) {
+  const upper = normalizePrmCode(code).toUpperCase();
+  if (!upper) return "Archived";
+  if (Object.prototype.hasOwnProperty.call(PRM_ARCHIVED_ENTITY_TYPE_LABELS, upper)) {
+    return PRM_ARCHIVED_ENTITY_TYPE_LABELS[upper];
+  }
+  return humanizeUnknownPrmCode(upper) || upper;
+}
+
+export function normalizePrmArchivedRouteRow(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  const entityType = normalizePrmCode(
+    r.entity_type || r.archived_entity_type || r.type,
+  ).toUpperCase();
+  return {
+    ...r,
+    entity_type: entityType || null,
+    entity_id: normalizePrmIntegerId(
+      r.entity_id ?? r.id ?? r.archived_entity_id,
+    ),
+    name:
+      r.name ||
+      r.entity_name ||
+      r.route_family_name ||
+      r.route_name ||
+      r.product_name ||
+      r.product_subgroup_name ||
+      r.product_group_name ||
+      null,
+    code: r.code || r.route_family_code || r.entity_code || null,
+    parent_name:
+      r.parent_name ||
+      r.route_family_name ||
+      r.parent_route_family_name ||
+      r.base_family_route_name ||
+      null,
+    route_family_id: normalizePrmIntegerId(r.route_family_id),
+    route_family_name: r.route_family_name ?? null,
+    original_status: normalizePrmCode(
+      r.original_status || r.status || r.lifecycle_status,
+    ).toUpperCase() || null,
+    status: normalizePrmCode(r.status || r.original_status).toUpperCase() || null,
+    effective_from: r.effective_from ?? null,
+    effective_to: r.effective_to ?? null,
+    approval_reference: r.approval_reference ?? null,
+    approved_at: r.approved_at ?? null,
+    archived_at: r.archived_at ?? null,
+    archived_by: r.archived_by ?? null,
+    archive_reason: r.archive_reason ?? null,
+    route_version: r.route_version ?? r.version_label ?? r.version ?? null,
+    source_type: r.source_type ?? null,
+    family_route_step_count:
+      r.family_route_step_count ?? r.step_count ?? r.steps_count ?? null,
+    product_route_override_count:
+      r.product_route_override_count ?? r.override_count ?? null,
+    product_id: normalizePrmIntegerId(r.product_id),
+    product_name: r.product_name ?? null,
+    product_group_id: normalizePrmIntegerId(r.product_group_id),
+    product_group_name: r.product_group_name ?? null,
+    product_subgroup_id: normalizePrmIntegerId(r.product_subgroup_id),
+    product_subgroup_name: r.product_subgroup_name ?? null,
+    family_route_id: normalizePrmIntegerId(
+      r.family_route_id ?? r.base_route_family_route_id,
+    ),
+    product_route_id: normalizePrmIntegerId(r.product_route_id),
+    mapping_id: normalizePrmIntegerId(r.mapping_id),
+    mapping_basis: r.mapping_basis ?? null,
+    read_only: true,
+  };
+}
+
+export function normalizePrmArchivedRoutesPayload(payload) {
+  const root = normalizePrmRpcPayload(payload) || payload || {};
+  const rows = coercePrmList(
+    root.rows || root.items || root.archived || root.data || root,
+  ).map(normalizePrmArchivedRouteRow);
+  const total =
+    root.total_count ??
+    root.total ??
+    root.count ??
+    (Array.isArray(root.rows) || Array.isArray(root.items)
+      ? rows.length
+      : null);
+  return {
+    rows,
+    total_count: total == null ? rows.length : Number(total) || 0,
+    raw: root,
+  };
+}
+
+export function formatPrmArchivedEffectivePeriod(row = {}) {
+  const from = row.effective_from || "";
+  const to = isBlankPrmValue(row.effective_to) ? "Current" : row.effective_to;
+  if (!from && isBlankPrmValue(row.effective_to)) return "";
+  if (!from) return String(to);
+  return `${from} → ${to}`;
 }
 
 export function classifyPrmUiNotice(kind) {
@@ -3018,11 +3805,11 @@ export function resolveProductionRouteLens(
   if (!raw || isObsoletePrmLens(raw) || !isProductionRouteLens(raw)) {
     return PRODUCTION_ROUTE_DEFAULT_LENS;
   }
-  // Intentional no-context Route Family Route Editor entry (tab click).
-  // Malformed deep links without this flag still fall back to readiness.
+  // Intentional no-context Family / Product Route Editor entry (tab click).
+  // Malformed deep links without this flag still fall back to readiness for Family.
   if (
     allowEditorWithoutId === true &&
-    raw === "route-family-route-editor"
+    (raw === "route-family-route-editor" || raw === "product-route-editor")
   ) {
     return raw;
   }
@@ -3040,13 +3827,6 @@ export function resolveProductionRouteLens(
     ) {
       return PRODUCTION_ROUTE_DEFAULT_LENS;
     }
-  } else if (
-    raw === "product-route-editor" &&
-    normalizePrmIntegerId(product_route_id) == null &&
-    normalizePrmIntegerId(product_id) == null
-  ) {
-    // Bare Product editor tab still requires a Product or Product route id.
-    return PRODUCTION_ROUTE_DEFAULT_LENS;
   }
   return raw;
 }
@@ -3303,6 +4083,74 @@ export function formatPrmResourceClassLabel(code) {
   return humanizeUnknownPrmCode(upper) || upper;
 }
 
+export function normalizePrmResourceClassCatalogueRow(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  const resource_class_code =
+    normalizePrmCode(r.resource_class_code || r.code).toUpperCase() || null;
+  const governedLabel = firstNonBlankPrmText(
+    r.resource_class_label,
+    r.label,
+  );
+  const resource_class_label = isBlankPrmValue(governedLabel)
+    ? null
+    : String(governedLabel);
+  return {
+    ...r,
+    resource_class_code,
+    resource_class_label,
+    resolved: !!resource_class_code && resource_class_label != null,
+  };
+}
+
+export function buildPrmResourceClassLabelIndex(catalogue = []) {
+  const index = new Map();
+  for (const row of coercePrmList(catalogue)) {
+    const normalized = normalizePrmResourceClassCatalogueRow(row);
+    if (
+      normalized.resource_class_code &&
+      !isBlankPrmValue(normalized.resource_class_label)
+    ) {
+      index.set(normalized.resource_class_code, normalized.resource_class_label);
+    }
+  }
+  return index;
+}
+
+export function resolvePrmResourceClassDisplayLabel(
+  code,
+  { catalogue = null, catalogueIndex = null, rowLabel = null } = {},
+) {
+  const upper = normalizePrmCode(code).toUpperCase();
+  if (!upper) return "—";
+  const index =
+    catalogueIndex ||
+    (catalogue ? buildPrmResourceClassLabelIndex(catalogue) : null);
+  if (index?.has(upper)) return index.get(upper);
+  if (!isBlankPrmValue(rowLabel)) return String(rowLabel);
+  return formatPrmResourceClassLabel(upper);
+}
+
+export function enrichPrmMasterResourceClasses(root = {}) {
+  const resource_classes = coercePrmList(root.resource_classes).map((row) => {
+    const normalized = normalizePrmResourceClassCatalogueRow(row);
+    const displayLabel = resolvePrmResourceClassDisplayLabel(
+      normalized.resource_class_code,
+      { rowLabel: normalized.resource_class_label },
+    );
+    return {
+      ...row,
+      resource_class_code: normalized.resource_class_code,
+      code: normalized.resource_class_code,
+      resource_class_label: normalized.resource_class_label || displayLabel,
+      label: normalized.resource_class_label || displayLabel,
+    };
+  });
+  return {
+    ...root,
+    resource_classes,
+  };
+}
+
 function isPlaceholderHierarchyPart(value) {
   const text = normalizePrmCode(value);
   if (!text) return true;
@@ -3331,7 +4179,7 @@ export function formatPrmRouteStepLabel(stepKey, fallback = "") {
   return STEP_LABELS[upper] || humanizeUnknownPrmCode(upper) || fallback || upper;
 }
 
-export function normalizePrmCostCentreRow(row = {}) {
+export function normalizePrmCostCentreRow(row = {}, resourceClassContext = {}) {
   const r = row && typeof row === "object" ? row : {};
   const id = normalizePrmIntegerId(r.cost_centre_id ?? r.id);
   const pool_scope = normalizePrmCode(
@@ -3359,8 +4207,11 @@ export function normalizePrmCostCentreRow(row = {}) {
     pool_scope,
     pool_scope_label: formatPrmCostCentrePoolScopeLabel(pool_scope),
     resource_class,
-    resource_class_label:
-      r.resource_class_label || formatPrmResourceClassLabel(resource_class),
+    resource_class_label: resolvePrmResourceClassDisplayLabel(resource_class, {
+      catalogue: resourceClassContext.catalogue,
+      catalogueIndex: resourceClassContext.catalogueIndex,
+      rowLabel: r.resource_class_label,
+    }),
     hierarchy,
     status: normalizePrmCode(
       r.status || r.approval_status || r.cost_centre_status,
@@ -3496,6 +4347,45 @@ export function isPrmMasterOptionsReady(optionsStatus) {
   return String(optionsStatus || "").toLowerCase() === "ready";
 }
 
+/**
+ * Request-scope only. catalogueScope "unscoped" forces null IDs and does not
+ * read leftover Product / Product Group / Route Family UI or deep-link state.
+ */
+export function resolvePrmMasterOptionsRequestScope(filters = {}, context = {}) {
+  if (filters?.catalogueScope === "unscoped") {
+    return {
+      product_id: null,
+      product_group_id: null,
+      route_family_id: null,
+    };
+  }
+  return {
+    product_id:
+      filters.product_id ??
+      context.selectedProductId ??
+      context.deepLink?.product_id ??
+      null,
+    product_group_id:
+      filters.product_group_id ??
+      context.product_group_id ??
+      context.deepLink?.product_group_id ??
+      null,
+    route_family_id:
+      filters.route_family_id ??
+      context.route_family_id ??
+      context.deepLink?.route_family_id ??
+      null,
+  };
+}
+
+/** Last-started master-options generation wins at state commit. */
+export function shouldAcceptPrmMasterOptionsGeneration(
+  requestGeneration,
+  currentGeneration,
+) {
+  return Number(requestGeneration) === Number(currentGeneration);
+}
+
 export function normalizePrmMappingBasis(value) {
   const upper = normalizePrmCode(value).toUpperCase();
   if (!upper) return null;
@@ -3557,9 +4447,115 @@ export function buildPrmFamilyApprovalReferenceTemplate(
   familyCode,
   dateInput = null,
 ) {
+  const built = buildPrmRouteFamilyApprovalReference({
+    routeFamilyCode: familyCode,
+    approvalDate: dateInput,
+  });
+  if (built.ok) return built.reference;
   const code = sanitizePrmApprovalReferenceToken(familyCode, "FAMILY");
   const ymd = formatPrmApprovalReferenceDate(dateInput);
   return `PRM-RF-${code}-APP-${ymd}`;
+}
+
+export const PRM_ROUTE_FAMILY_APPROVAL_REFERENCE_RE =
+  /^PRM-RF-[A-Z][A-Z0-9_]*-APP-[0-9]{8}$/;
+
+export const PRM_ROUTE_FAMILY_APPROVAL_REFERENCE_HELPER_TEXT =
+  "Generated from Route Family identity and approval date.";
+
+/**
+ * Canonical Route Family approval reference.
+ * APP date is the approval-event local/business date (getPrmLocalIsoDate),
+ * not effective_from and not the PRM as-of filter.
+ */
+export function resolvePrmRouteFamilyApprovalIdentity({ detail = {} } = {}) {
+  const raw = normalizePrmCode(
+    detail?.route_family_code ?? detail?.family_code ?? detail?.code ?? "",
+  );
+  const routeFamilyCode = raw ? raw.toUpperCase() : "";
+  if (!routeFamilyCode) {
+    return {
+      ok: false,
+      reason: "missing_route_family_code",
+      error: "Route Family code is required to generate the approval reference.",
+    };
+  }
+  if (!/^[A-Z][A-Z0-9_]*$/.test(routeFamilyCode)) {
+    return {
+      ok: false,
+      reason: "invalid_route_family_code",
+      error: "Route Family code is invalid for the approval reference.",
+    };
+  }
+  return { ok: true, routeFamilyCode };
+}
+
+export function buildPrmRouteFamilyApprovalReference({
+  routeFamilyCode = null,
+  approvalDate = null,
+} = {}) {
+  const identity = resolvePrmRouteFamilyApprovalIdentity({
+    detail: { route_family_code: routeFamilyCode },
+  });
+  if (!identity.ok) return identity;
+  const iso = isBlankPrmValue(approvalDate)
+    ? getPrmLocalIsoDate()
+    : normalizePrmAsOfDate(approvalDate, { fallbackToToday: false });
+  if (!iso) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const approvalYmd = iso.replace(/-/g, "");
+  if (!/^[0-9]{8}$/.test(approvalYmd)) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const reference = `PRM-RF-${identity.routeFamilyCode}-APP-${approvalYmd}`;
+  return {
+    ok: true,
+    reference,
+    routeFamilyCode: identity.routeFamilyCode,
+    approvalYmd,
+  };
+}
+
+export function validatePrmRouteFamilyApprovalReference(
+  reference,
+  { routeFamilyCode = null, approvalDate = null } = {},
+) {
+  const expected = buildPrmRouteFamilyApprovalReference({
+    routeFamilyCode,
+    approvalDate,
+  });
+  if (!expected.ok) return expected;
+  const raw = String(reference ?? "").trim();
+  if (!PRM_ROUTE_FAMILY_APPROVAL_REFERENCE_RE.test(raw)) {
+    return {
+      ok: false,
+      reason: "invalid_format",
+      error: "Approval reference is not the canonical Route Family format.",
+    };
+  }
+  if (raw !== expected.reference) {
+    return {
+      ok: false,
+      reason: "reference_mismatch",
+      error:
+        "Approval reference does not match the canonical Route Family reference.",
+    };
+  }
+  return {
+    ok: true,
+    reference: expected.reference,
+    routeFamilyCode: expected.routeFamilyCode,
+    approvalYmd: expected.approvalYmd,
+  };
 }
 
 export function buildPrmMappingApprovalReferenceTemplate(
@@ -3574,6 +4570,411 @@ export function buildPrmMappingApprovalReferenceTemplate(
   return `PRM-MAP-${code}-${pgToken}-APP-${ymd}`;
 }
 
+export const PRM_PRODUCT_SUBGROUP_MAPPING_APPROVAL_REFERENCE_RE =
+  /^PRM-MAP-[A-Z][A-Z0-9_]*-SG[1-9][0-9]*-APP-[0-9]{8}$/;
+
+export const PRM_PRODUCT_SUBGROUP_MAPPING_APPROVAL_REFERENCE_HELPER_TEXT =
+  "Generated from Route Family identity, Product Subgroup identity, and approval date.";
+
+/**
+ * Canonical Product Subgroup → Route Family mapping approval identity.
+ * Uses SG<product_subgroup_id>, never PG (Product Group) or mapping id.
+ */
+export function resolvePrmProductSubgroupMappingApprovalIdentity({
+  routeFamilyCode = null,
+  productSubgroupId = null,
+  mapping = null,
+  routeFamily = null,
+} = {}) {
+  const rawCode = normalizePrmCode(
+    routeFamilyCode ??
+      routeFamily?.route_family_code ??
+      routeFamily?.family_code ??
+      mapping?.route_family_code ??
+      "",
+  );
+  const code = rawCode ? rawCode.toUpperCase() : "";
+  if (!code) {
+    return {
+      ok: false,
+      reason: "missing_route_family_code",
+      error: "Route Family code is required to generate the approval reference.",
+    };
+  }
+  if (!/^[A-Z][A-Z0-9_]*$/.test(code)) {
+    return {
+      ok: false,
+      reason: "invalid_route_family_code",
+      error: "Route Family code is invalid for the approval reference.",
+    };
+  }
+  const subgroupId = normalizePrmIntegerId(
+    productSubgroupId ??
+      mapping?.product_subgroup_id ??
+      mapping?.subgroup_id,
+  );
+  if (subgroupId == null) {
+    return {
+      ok: false,
+      reason: "missing_product_subgroup_id",
+      error:
+        "Product Subgroup id is required to generate the approval reference.",
+    };
+  }
+  return {
+    ok: true,
+    routeFamilyCode: code,
+    productSubgroupId: subgroupId,
+  };
+}
+
+/**
+ * Canonical Product Subgroup mapping approval reference.
+ * Pattern: PRM-MAP-<ROUTE_FAMILY_CODE>-SG<PRODUCT_SUBGROUP_ID>-APP-YYYYMMDD
+ * APP date is the approval-event local/business date (getPrmLocalIsoDate),
+ * not effective_from and not the PRM as-of filter.
+ */
+export function buildPrmProductSubgroupMappingApprovalReference({
+  routeFamilyCode = null,
+  productSubgroupId = null,
+  approvalDate = null,
+} = {}) {
+  const identity = resolvePrmProductSubgroupMappingApprovalIdentity({
+    routeFamilyCode,
+    productSubgroupId,
+  });
+  if (!identity.ok) return identity;
+  const iso = isBlankPrmValue(approvalDate)
+    ? getPrmLocalIsoDate()
+    : normalizePrmAsOfDate(approvalDate, { fallbackToToday: false });
+  if (!iso) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const approvalYmd = iso.replace(/-/g, "");
+  if (!/^[0-9]{8}$/.test(approvalYmd)) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const reference = `PRM-MAP-${identity.routeFamilyCode}-SG${identity.productSubgroupId}-APP-${approvalYmd}`;
+  return {
+    ok: true,
+    reference,
+    routeFamilyCode: identity.routeFamilyCode,
+    productSubgroupId: identity.productSubgroupId,
+    approvalYmd,
+  };
+}
+
+export function validatePrmProductSubgroupMappingApprovalReference(
+  reference,
+  {
+    routeFamilyCode = null,
+    productSubgroupId = null,
+    approvalDate = null,
+  } = {},
+) {
+  const expected = buildPrmProductSubgroupMappingApprovalReference({
+    routeFamilyCode,
+    productSubgroupId,
+    approvalDate,
+  });
+  if (!expected.ok) return expected;
+  const raw = String(reference ?? "").trim();
+  if (!PRM_PRODUCT_SUBGROUP_MAPPING_APPROVAL_REFERENCE_RE.test(raw)) {
+    return {
+      ok: false,
+      reason: "invalid_format",
+      error:
+        "Approval reference is not the canonical Product Subgroup mapping format.",
+    };
+  }
+  if (raw !== expected.reference) {
+    return {
+      ok: false,
+      reason: "reference_mismatch",
+      error:
+        "Approval reference does not match the canonical Product Subgroup mapping reference.",
+    };
+  }
+  if (/-PG[1-9][0-9]*-APP-/.test(raw)) {
+    return {
+      ok: false,
+      reason: "product_group_token",
+      error:
+        "Product Subgroup mapping approval reference must use SG, not PG.",
+    };
+  }
+  return {
+    ok: true,
+    reference: expected.reference,
+    routeFamilyCode: expected.routeFamilyCode,
+    productSubgroupId: expected.productSubgroupId,
+    approvalYmd: expected.approvalYmd,
+  };
+}
+
+export const PRM_PRODUCT_ROUTE_FAMILY_ASSIGNMENT_APPROVAL_REFERENCE_RE =
+  /^PRM-PRFA-[A-Z][A-Z0-9_]*-P[1-9][0-9]*-APP-[0-9]{8}$/;
+
+export const PRM_PRODUCT_ROUTE_FAMILY_ASSIGNMENT_APPROVAL_REFERENCE_HELPER_TEXT =
+  "Generated from Route Family identity, Product identity, and approval-event date.";
+
+/**
+ * Canonical Product → Route Family assignment approval identity.
+ * Uses P{product_id}, never PG (Product Group) or mapping id.
+ */
+export function resolvePrmProductRouteFamilyAssignmentApprovalIdentity({
+  routeFamilyCode = null,
+  familyCode = null,
+  productId = null,
+  assignment = null,
+  routeFamily = null,
+  product = null,
+} = {}) {
+  const rawCode = normalizePrmCode(
+    routeFamilyCode ??
+      familyCode ??
+      routeFamily?.route_family_code ??
+      routeFamily?.family_code ??
+      assignment?.route_family_code ??
+      "",
+  );
+  const code = rawCode ? rawCode.toUpperCase() : "";
+  if (!code) {
+    return {
+      ok: false,
+      reason: "missing_route_family_code",
+      error: "Route Family code is required to generate the approval reference.",
+    };
+  }
+  if (!/^[A-Z][A-Z0-9_]*$/.test(code)) {
+    return {
+      ok: false,
+      reason: "invalid_route_family_code",
+      error: "Route Family code is invalid for the approval reference.",
+    };
+  }
+  const pid = normalizePrmIntegerId(
+    productId ??
+      product?.product_id ??
+      product?.id ??
+      assignment?.product_id,
+  );
+  if (pid == null) {
+    return {
+      ok: false,
+      reason: "missing_product_id",
+      error: "Product ID is required to generate the approval reference.",
+    };
+  }
+  return {
+    ok: true,
+    routeFamilyCode: code,
+    productId: pid,
+  };
+}
+
+/**
+ * Canonical Product Route Family Assignment approval reference.
+ * Pattern: PRM-PRFA-<ROUTE_FAMILY_CODE>-P<PRODUCT_ID>-APP-YYYYMMDD
+ * APP date is the approval-event local/business date (getPrmLocalIsoDate),
+ * not effective_from and not assignment creation date.
+ */
+export function buildPrmProductRouteFamilyAssignmentApprovalReference({
+  routeFamilyCode = null,
+  familyCode = null,
+  productId = null,
+  approvalDate = null,
+} = {}) {
+  const identity = resolvePrmProductRouteFamilyAssignmentApprovalIdentity({
+    routeFamilyCode: routeFamilyCode ?? familyCode,
+    productId,
+  });
+  if (!identity.ok) return identity;
+  const iso = isBlankPrmValue(approvalDate)
+    ? getPrmLocalIsoDate()
+    : normalizePrmAsOfDate(approvalDate, { fallbackToToday: false });
+  if (!iso) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const approvalYmd = iso.replace(/-/g, "");
+  if (!/^[0-9]{8}$/.test(approvalYmd)) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const reference = `PRM-PRFA-${identity.routeFamilyCode}-P${identity.productId}-APP-${approvalYmd}`;
+  return {
+    ok: true,
+    reference,
+    routeFamilyCode: identity.routeFamilyCode,
+    productId: identity.productId,
+    approvalYmd,
+  };
+}
+
+export function validatePrmProductRouteFamilyAssignmentApprovalReference(
+  reference,
+  {
+    routeFamilyCode = null,
+    familyCode = null,
+    productId = null,
+    approvalDate = null,
+  } = {},
+) {
+  const expected = buildPrmProductRouteFamilyAssignmentApprovalReference({
+    routeFamilyCode: routeFamilyCode ?? familyCode,
+    productId,
+    approvalDate,
+  });
+  if (!expected.ok) return expected;
+  const raw = String(reference ?? "").trim();
+  if (!PRM_PRODUCT_ROUTE_FAMILY_ASSIGNMENT_APPROVAL_REFERENCE_RE.test(raw)) {
+    return {
+      ok: false,
+      reason: "invalid_format",
+      error:
+        "Approval reference is not the canonical Product Route Family Assignment format.",
+    };
+  }
+  if (raw !== expected.reference) {
+    return {
+      ok: false,
+      reason: "reference_mismatch",
+      error:
+        "Approval reference does not match the canonical Product Route Family Assignment reference.",
+    };
+  }
+  if (/-PG[1-9][0-9]*-APP-/.test(raw)) {
+    return {
+      ok: false,
+      reason: "product_group_token",
+      error:
+        "Product Route Family Assignment approval reference must use P{product_id}, not PG.",
+    };
+  }
+  return {
+    ok: true,
+    reference: expected.reference,
+    routeFamilyCode: expected.routeFamilyCode,
+    productId: expected.productId,
+    approvalYmd: expected.approvalYmd,
+  };
+}
+
+/**
+ * Pre-create Product Assignment eligibility from product-scoped assignment
+ * payload. Server lifecycle_actions remain authoritative for CREATE_* /
+ * supersession. Client only classifies for UX messaging.
+ */
+export function resolvePrmProductAssignmentCreateEligibility({
+  payload = null,
+  canEdit = false,
+} = {}) {
+  if (!canEdit) {
+    return {
+      mode: "permission_denied",
+      canCreate: false,
+      message: "Edit permission required.",
+      writableAssignment: null,
+      approvedAssignment: null,
+    };
+  }
+  const root = payload && typeof payload === "object" ? payload : {};
+  const rows = coercePrmList(root.rows).map((row) =>
+    normalizePrmProductAssignmentRow(row),
+  );
+  const rootActions = normalizePrmAssignmentLifecycleActions(
+    root.lifecycle_actions,
+  );
+  const serverAllowsCreate =
+    rootActions.length === 0 ||
+    assignmentLifecycleIncludes(rootActions, "CREATE_DRAFT") ||
+    assignmentLifecycleIncludes(rootActions, "CREATE_ASSIGNMENT_DRAFT");
+  const writableAssignment =
+    rows.find((row) => {
+      const status = normalizePrmCode(row.status).toUpperCase();
+      return status === "DRAFT" || status === "IN_REVIEW";
+    }) || null;
+  const approvedAssignment =
+    rows.find((row) => normalizePrmCode(row.status).toUpperCase() === "APPROVED") ||
+    null;
+
+  if (writableAssignment) {
+    const status = normalizePrmCode(writableAssignment.status).toUpperCase();
+    return {
+      mode: status === "IN_REVIEW" ? "writable_in_review" : "writable_draft",
+      canCreate: false,
+      message:
+        status === "IN_REVIEW"
+          ? "This Product already has an assignment In review. Open or cancel that assignment before creating another draft."
+          : "This Product already has a Draft assignment. Open or cancel that draft before creating another.",
+      writableAssignment,
+      approvedAssignment,
+      serverAllowsCreate,
+    };
+  }
+
+  if (approvedAssignment) {
+    return {
+      mode: "approved_replacement",
+      canCreate: serverAllowsCreate,
+      message: serverAllowsCreate
+        ? "An approved Product assignment already exists. Approving this new assignment from the selected Effective From date will supersede the current assignment."
+        : "An approved Product assignment already exists, and create is not available for this Product under the current lifecycle.",
+      writableAssignment: null,
+      approvedAssignment,
+      serverAllowsCreate,
+    };
+  }
+
+  if (!serverAllowsCreate) {
+    return {
+      mode: "create_blocked",
+      canCreate: false,
+      message:
+        "Create assignment draft is not available for this Product under the current lifecycle.",
+      writableAssignment: null,
+      approvedAssignment: null,
+      serverAllowsCreate,
+    };
+  }
+
+  if (rows.length === 0) {
+    return {
+      mode: "first_draft",
+      canCreate: true,
+      message:
+        "No existing Product assignment. A new DRAFT assignment can be created.",
+      writableAssignment: null,
+      approvedAssignment: null,
+      serverAllowsCreate,
+    };
+  }
+
+  return {
+    mode: "ordinary_create",
+    canCreate: true,
+    message: "",
+    writableAssignment: null,
+    approvedAssignment: null,
+    serverAllowsCreate,
+  };
+}
+
 export function buildPrmFamilyRouteApprovalReferenceTemplate(
   familyCode,
   version,
@@ -3586,6 +4987,409 @@ export function buildPrmFamilyRouteApprovalReferenceTemplate(
   ).replace(/^V/i, "");
   const ymd = formatPrmApprovalReferenceDate(dateInput);
   return `PRM-RFR-${code}-V${versionToken}-APP-${ymd}`;
+}
+
+export const PRM_FAMILY_ROUTE_APPROVAL_REFERENCE_RE =
+  /^PRM-RFR-[A-Z][A-Z0-9_]*-V[1-9][0-9]*-APP-[0-9]{8}$/;
+
+export const PRM_FAMILY_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT =
+  "Generated from Route Family identity, route version, and approval date.";
+
+/**
+ * Canonical Family Route approval reference.
+ * APP date is the approval-event local/business date (getPrmLocalIsoDate),
+ * not effective_from and not the PRM as-of filter.
+ */
+export function resolvePrmFamilyRouteApprovalIdentity({
+  detail = {},
+  routeFamilyCode = null,
+} = {}) {
+  const raw = normalizePrmCode(
+    detail?.route_family_code ??
+      detail?.family_code ??
+      routeFamilyCode ??
+      "",
+  );
+  const code = raw ? raw.toUpperCase() : "";
+  if (!code) {
+    return {
+      ok: false,
+      reason: "missing_route_family_code",
+      error: "Route Family code is required to generate the approval reference.",
+    };
+  }
+  if (!/^[A-Z][A-Z0-9_]*$/.test(code)) {
+    return {
+      ok: false,
+      reason: "invalid_route_family_code",
+      error: "Route Family code is invalid for the approval reference.",
+    };
+  }
+  const routeVersion = normalizePrmIntegerId(
+    detail?.route_version ?? detail?.version_no ?? detail?.version,
+  );
+  if (routeVersion == null) {
+    return {
+      ok: false,
+      reason: "missing_route_version",
+      error: "Family Route version is required to generate the approval reference.",
+    };
+  }
+  return { ok: true, routeFamilyCode: code, routeVersion };
+}
+
+export function buildPrmFamilyRouteApprovalReference({
+  routeFamilyCode = null,
+  routeVersion = null,
+  approvalDate = null,
+} = {}) {
+  const identity = resolvePrmFamilyRouteApprovalIdentity({
+    detail: {
+      route_family_code: routeFamilyCode,
+      route_version: routeVersion,
+    },
+  });
+  if (!identity.ok) return identity;
+  const iso = isBlankPrmValue(approvalDate)
+    ? getPrmLocalIsoDate()
+    : normalizePrmAsOfDate(approvalDate, { fallbackToToday: false });
+  if (!iso) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const approvalYmd = iso.replace(/-/g, "");
+  if (!/^[0-9]{8}$/.test(approvalYmd)) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const reference = `PRM-RFR-${identity.routeFamilyCode}-V${identity.routeVersion}-APP-${approvalYmd}`;
+  if (!PRM_FAMILY_ROUTE_APPROVAL_REFERENCE_RE.test(reference)) {
+    return {
+      ok: false,
+      reason: "invalid_generation",
+      error: "Generated Family Route approval reference is not canonical.",
+    };
+  }
+  return {
+    ok: true,
+    reference,
+    routeFamilyCode: identity.routeFamilyCode,
+    routeVersion: identity.routeVersion,
+    approvalYmd,
+  };
+}
+
+export function validatePrmFamilyRouteApprovalReference(
+  reference,
+  { routeFamilyCode = null, routeVersion = null, approvalDate = null } = {},
+) {
+  const expected = buildPrmFamilyRouteApprovalReference({
+    routeFamilyCode,
+    routeVersion,
+    approvalDate,
+  });
+  if (!expected.ok) return expected;
+  const raw = String(reference ?? "").trim();
+  if (!PRM_FAMILY_ROUTE_APPROVAL_REFERENCE_RE.test(raw)) {
+    return {
+      ok: false,
+      reason: "invalid_format",
+      error: "Approval reference is not the canonical Family Route format.",
+    };
+  }
+  if (raw !== expected.reference) {
+    return {
+      ok: false,
+      reason: "reference_mismatch",
+      error:
+        "Approval reference does not match the canonical Family Route reference.",
+    };
+  }
+  return {
+    ok: true,
+    reference: expected.reference,
+    routeFamilyCode: expected.routeFamilyCode,
+    routeVersion: expected.routeVersion,
+    approvalYmd: expected.approvalYmd,
+  };
+}
+
+export const PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_RE =
+  /^PRM-PR-[1-9][0-9]*-V[1-9][0-9]*-APP-[0-9]{8}$/;
+
+export const PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT =
+  "Generated from Product Route identity and approval date.";
+
+/**
+ * Canonical Product Route approval reference.
+ * APP date is the approval-event local/business date (getPrmLocalIsoDate),
+ * not effective_from and not the PRM as-of filter.
+ * Residual: UTC vs local midnight can disagree near 00:00; server is unchanged in this gate.
+ */
+export function parsePrmProductRouteApprovalReference(value) {
+  const raw = String(value ?? "").trim();
+  const match = raw.match(
+    /^PRM-PR-([1-9][0-9]*)-V([1-9][0-9]*)-APP-([0-9]{8})$/,
+  );
+  if (!match) return null;
+  return {
+    productId: Number(match[1]),
+    routeVersion: Number(match[2]),
+    approvalYmd: match[3],
+  };
+}
+
+export function resolvePrmProductRouteApprovalIdentity({
+  detail = {},
+  selectedProductId = null,
+} = {}) {
+  const productId = normalizePrmIntegerId(detail?.product_id);
+  if (productId == null) {
+    return {
+      ok: false,
+      reason: "missing_product_id",
+      error: "Product ID is required to generate the approval reference.",
+    };
+  }
+  const selected = normalizePrmIntegerId(selectedProductId);
+  if (selected != null && selected !== productId) {
+    return {
+      ok: false,
+      reason: "product_id_mismatch",
+      error: "Selected Product does not match this Product Route.",
+    };
+  }
+  const routeVersion = normalizePrmIntegerId(detail?.route_version);
+  if (routeVersion == null) {
+    return {
+      ok: false,
+      reason: "missing_route_version",
+      error: "Product Route version is required to generate the approval reference.",
+    };
+  }
+  return { ok: true, productId, routeVersion };
+}
+
+export function buildPrmProductRouteApprovalReference({
+  productId = null,
+  routeVersion = null,
+  approvalDate = null,
+} = {}) {
+  const pid = normalizePrmIntegerId(productId);
+  if (pid == null) {
+    return {
+      ok: false,
+      reason: "missing_product_id",
+      error: "Product ID is required to generate the approval reference.",
+    };
+  }
+  const version = normalizePrmIntegerId(routeVersion);
+  if (version == null) {
+    return {
+      ok: false,
+      reason: "missing_route_version",
+      error: "Product Route version is required to generate the approval reference.",
+    };
+  }
+  const iso = isBlankPrmValue(approvalDate)
+    ? getPrmLocalIsoDate()
+    : normalizePrmAsOfDate(approvalDate, { fallbackToToday: false });
+  if (!iso) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const approvalYmd = iso.replace(/-/g, "");
+  if (!/^[0-9]{8}$/.test(approvalYmd)) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const reference = `PRM-PR-${pid}-V${version}-APP-${approvalYmd}`;
+  return {
+    ok: true,
+    reference,
+    productId: pid,
+    routeVersion: version,
+    approvalYmd,
+  };
+}
+
+export function validatePrmProductRouteApprovalReference(
+  reference,
+  { productId = null, routeVersion = null, approvalDate = null } = {},
+) {
+  const expected = buildPrmProductRouteApprovalReference({
+    productId,
+    routeVersion,
+    approvalDate,
+  });
+  if (!expected.ok) return expected;
+  const raw = String(reference ?? "").trim();
+  if (!PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_RE.test(raw)) {
+    return {
+      ok: false,
+      reason: "invalid_format",
+      error: "Approval reference is not the canonical Product Route format.",
+    };
+  }
+  const parsed = parsePrmProductRouteApprovalReference(raw);
+  if (!parsed) {
+    return {
+      ok: false,
+      reason: "invalid_format",
+      error: "Approval reference is not the canonical Product Route format.",
+    };
+  }
+  if (parsed.productId !== expected.productId) {
+    return {
+      ok: false,
+      reason: "product_id_mismatch",
+      error: "Approval reference Product ID does not match this Product Route.",
+    };
+  }
+  if (parsed.routeVersion !== expected.routeVersion) {
+    return {
+      ok: false,
+      reason: "route_version_mismatch",
+      error: "Approval reference version does not match this Product Route.",
+    };
+  }
+  if (parsed.approvalYmd !== expected.approvalYmd) {
+    return {
+      ok: false,
+      reason: "approval_date_mismatch",
+      error: "Approval reference date does not match the approval event date.",
+    };
+  }
+  if (raw !== expected.reference) {
+    return {
+      ok: false,
+      reason: "reference_mismatch",
+      error: "Approval reference does not match the canonical Product Route reference.",
+    };
+  }
+  return {
+    ok: true,
+    reference: expected.reference,
+    productId: expected.productId,
+    routeVersion: expected.routeVersion,
+    approvalYmd: expected.approvalYmd,
+  };
+}
+
+export const PRM_PRODUCTION_COST_CENTRE_APPROVAL_REFERENCE_RE =
+  /^PRM-CC-[A-Z][A-Z0-9_]*-APP-[0-9]{8}$/;
+
+export const PRM_PRODUCTION_COST_CENTRE_APPROVAL_REFERENCE_HELPER_TEXT =
+  "Generated from Cost Centre identity and approval date.";
+
+/**
+ * Canonical Production Cost Centre approval reference.
+ * APP date is the approval-event local/business date (getPrmLocalIsoDate),
+ * not effective_from and not Cost Centre id/name.
+ */
+export function resolvePrmProductionCostCentreApprovalIdentity({
+  detail = {},
+} = {}) {
+  const raw = normalizePrmCode(
+    detail?.cost_centre_code ?? detail?.code ?? "",
+  );
+  const costCentreCode = raw ? raw.toUpperCase() : "";
+  if (!costCentreCode) {
+    return {
+      ok: false,
+      reason: "missing_cost_centre_code",
+      error: "Cost Centre code is required to generate the approval reference.",
+    };
+  }
+  if (!/^[A-Z][A-Z0-9_]*$/.test(costCentreCode)) {
+    return {
+      ok: false,
+      reason: "invalid_cost_centre_code",
+      error: "Cost Centre code is invalid for the approval reference.",
+    };
+  }
+  return { ok: true, costCentreCode };
+}
+
+export function buildPrmProductionCostCentreApprovalReference({
+  costCentreCode = null,
+  approvalDate = null,
+} = {}) {
+  const identity = resolvePrmProductionCostCentreApprovalIdentity({
+    detail: { cost_centre_code: costCentreCode },
+  });
+  if (!identity.ok) return identity;
+  const iso = isBlankPrmValue(approvalDate)
+    ? getPrmLocalIsoDate()
+    : normalizePrmAsOfDate(approvalDate, { fallbackToToday: false });
+  if (!iso) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const approvalYmd = iso.replace(/-/g, "");
+  if (!/^[0-9]{8}$/.test(approvalYmd)) {
+    return {
+      ok: false,
+      reason: "invalid_approval_date",
+      error: "Approval date is required to generate the approval reference.",
+    };
+  }
+  const reference = `PRM-CC-${identity.costCentreCode}-APP-${approvalYmd}`;
+  return {
+    ok: true,
+    reference,
+    costCentreCode: identity.costCentreCode,
+    approvalYmd,
+  };
+}
+
+export function validatePrmProductionCostCentreApprovalReference(
+  reference,
+  { costCentreCode = null, approvalDate = null } = {},
+) {
+  const expected = buildPrmProductionCostCentreApprovalReference({
+    costCentreCode,
+    approvalDate,
+  });
+  if (!expected.ok) return expected;
+  const raw = String(reference ?? "").trim();
+  if (!PRM_PRODUCTION_COST_CENTRE_APPROVAL_REFERENCE_RE.test(raw)) {
+    return {
+      ok: false,
+      reason: "invalid_format",
+      error:
+        "Approval reference is not the canonical Production Cost Centre format.",
+    };
+  }
+  if (raw !== expected.reference) {
+    return {
+      ok: false,
+      reason: "reference_mismatch",
+      error:
+        "Approval reference does not match the canonical Production Cost Centre reference.",
+    };
+  }
+  return {
+    ok: true,
+    reference: expected.reference,
+    costCentreCode: expected.costCentreCode,
+    approvalYmd: expected.approvalYmd,
+  };
 }
 
 /** Pure Escape/modal stack helpers for PRM detailsModal workflows. */
@@ -3628,21 +5432,42 @@ export function clearPrmActiveRowClass(root, className = PRM_ACTIVE_ROW_CLASS) {
 
 export function normalizePrmMasterOptions(payload) {
   const root = normalizePrmRpcPayload(payload) || payload || {};
+  const products = coercePrmList(root.products).map((row) => {
+    const r = row && typeof row === "object" ? row : {};
+    return {
+      ...r,
+      product_id: normalizePrmIntegerId(r.product_id ?? r.id),
+      product_subgroup_id: normalizePrmIntegerId(
+        r.product_subgroup_id ?? r.subgroup_id,
+      ),
+      product_subgroup_name:
+        r.product_subgroup_name || r.subgroup_name || null,
+    };
+  });
   return {
     product_groups: coercePrmList(root.product_groups),
-    products: coercePrmList(root.products),
+    product_subgroups: coercePrmList(
+      root.product_subgroups || root.subgroups,
+    ),
+    products,
     product: root.product && typeof root.product === "object" ? root.product : null,
     product_group:
       root.product_group && typeof root.product_group === "object"
         ? root.product_group
         : null,
-    route_families: coercePrmList(root.route_families),
+    route_families: coercePrmList(root.route_families).map(
+      normalizePrmRouteFamilyMasterRow,
+    ),
     route_family_mappings: coercePrmList(root.route_family_mappings).map(
       normalizePrmRouteFamilyMapping,
     ),
+    route_family_subgroup_mappings: coercePrmList(
+      root.route_family_subgroup_mappings ||
+        root.product_subgroup_route_family_mappings,
+    ).map(normalizePrmProductSubgroupMapping),
     approved_route_family_routes: coercePrmList(
       root.approved_route_family_routes,
-    ),
+    ).map(normalizePrmApprovedFamilyRouteMasterRow),
     batch_size_references: coercePrmList(root.batch_size_references),
     behaviours: coercePrmList(root.behaviours),
     resource_classes: coercePrmList(root.resource_classes),
@@ -4074,23 +5899,117 @@ export function getApplicableRouteFamilyActions(
  * Family route defined is complete only when an approved Family route exists;
  * a draft/open route keeps that step current (not complete).
  */
+export function isPrmDefinedRouteFamilyAssignmentStatus(status) {
+  const s = normalizePrmCode(status).toUpperCase();
+  return s === "DRAFT" || s === "IN_REVIEW" || s === "APPROVED";
+}
+
+export function filterPrmRouteFamilyGroupMappings(mappings = [], routeFamilyId = null) {
+  const fid = normalizePrmIntegerId(routeFamilyId);
+  if (fid == null) return [];
+  return coercePrmList(mappings)
+    .map(normalizePrmRouteFamilyMapping)
+    .filter((mapping) => mapping.route_family_id === fid);
+}
+
+export function filterPrmRouteFamilySubgroupMappings(
+  mappings = [],
+  routeFamilyId = null,
+) {
+  const fid = normalizePrmIntegerId(routeFamilyId);
+  if (fid == null) return [];
+  return coercePrmList(mappings)
+    .map(normalizePrmProductSubgroupMapping)
+    .filter((mapping) => mapping.route_family_id === fid);
+}
+
+export function filterPrmRouteFamilyProductAssignments(
+  assignments = [],
+  routeFamilyId = null,
+) {
+  const fid = normalizePrmIntegerId(routeFamilyId);
+  if (fid == null) return [];
+  return coercePrmList(assignments)
+    .map(normalizePrmProductAssignmentRow)
+    .filter((assignment) => assignment.route_family_id === fid);
+}
+
+export function summarizePrmRouteFamilyAssignments({
+  groupMappings = [],
+  subgroupMappings = [],
+  productAssignments = [],
+} = {}) {
+  const groups = coercePrmList(groupMappings).map(normalizePrmRouteFamilyMapping);
+  const subgroups = coercePrmList(subgroupMappings).map(
+    normalizePrmProductSubgroupMapping,
+  );
+  const products = coercePrmList(productAssignments).map(
+    normalizePrmProductAssignmentRow,
+  );
+  const hasDefinedAssignment =
+    groups.some((m) =>
+      isPrmDefinedRouteFamilyAssignmentStatus(m.status || m.mapping_status),
+    ) ||
+    subgroups.some((m) =>
+      isPrmDefinedRouteFamilyAssignmentStatus(m.status || m.mapping_status),
+    ) ||
+    products.some((a) =>
+      isPrmDefinedRouteFamilyAssignmentStatus(a.status || a.assignment_status),
+    );
+  const hasApprovedAssignment =
+    groups.some(
+      (m) =>
+        normalizePrmCode(m.status || m.mapping_status).toUpperCase() ===
+        "APPROVED",
+    ) ||
+    subgroups.some(
+      (m) =>
+        normalizePrmCode(m.status || m.mapping_status).toUpperCase() ===
+        "APPROVED",
+    ) ||
+    products.some(
+      (a) =>
+        normalizePrmCode(a.status || a.assignment_status).toUpperCase() ===
+        "APPROVED",
+    );
+  const hasPendingAssignment =
+    groups.some((m) =>
+      isPrmPendingMappingStatus(m.status || m.mapping_status),
+    ) ||
+    subgroups.some((m) =>
+      isPrmPendingMappingStatus(m.status || m.mapping_status),
+    ) ||
+    products.some((a) =>
+      isPrmPendingMappingStatus(a.status || a.assignment_status),
+    );
+  return {
+    groupMappings: groups,
+    subgroupMappings: subgroups,
+    productAssignments: products,
+    hasDefinedAssignment,
+    hasApprovedAssignment,
+    hasPendingAssignment,
+    assignmentsApproved: hasApprovedAssignment && !hasPendingAssignment,
+    counts: {
+      subgroups: subgroups.length,
+      groups: groups.length,
+      products: products.length,
+    },
+  };
+}
+
 export function getRouteFamilyWorkflowSteps(row = {}) {
   const status = normalizePrmCode(row.status || row.approval_status).toUpperCase();
   const familyApproved = status === "APPROVED";
-  const mappings = coercePrmList(row.mappings).map(normalizePrmRouteFamilyMapping);
-  const hasMappedGroup = mappings.some((m) => {
-    const s = normalizePrmCode(m.status || m.mapping_status).toUpperCase();
-    return s === "DRAFT" || s === "IN_REVIEW" || s === "APPROVED";
+  const assignmentSummary = summarizePrmRouteFamilyAssignments({
+    groupMappings: row.mappings,
+    subgroupMappings: row.subgroup_mappings,
+    productAssignments: row.product_assignments,
   });
-  const hasApprovedMapping = mappings.some((m) => {
-    const s = normalizePrmCode(m.status || m.mapping_status).toUpperCase();
-    return s === "APPROVED";
-  });
+  const hasMappedGroup = assignmentSummary.hasDefinedAssignment;
+  const mappingsApproved = assignmentSummary.assignmentsApproved;
   const hasPendingMapping =
-    mappings.some((m) =>
-      isPrmPendingMappingStatus(m.status || m.mapping_status),
-    ) || !!row.has_pending_mapping;
-  const mappingsApproved = hasApprovedMapping && !hasPendingMapping;
+    assignmentSummary.hasPendingAssignment || !!row.has_pending_mapping;
   const familyRouteApproved = !isBlankPrmValue(row.approved_family_route_id);
   const productRoutesDefined = !!row.product_routes_defined;
 
@@ -4120,8 +6039,8 @@ export function getRouteFamilyNextActionLabel(row = {}) {
   const current = steps.find((s) => s.state === "current");
   if (!current) return "Workflow complete";
   if (current.id === "family_approved") return "Approve Route Family";
-  if (current.id === "groups_mapped") return "Map Product Group";
-  if (current.id === "mappings_approved") return "Approve mapping";
+  if (current.id === "groups_mapped") return "Define assignment";
+  if (current.id === "mappings_approved") return "Approve assignment";
   if (current.id === "family_route_defined") {
     if (
       !isBlankPrmValue(row.draft_family_route_id) ||
@@ -4130,12 +6049,519 @@ export function getRouteFamilyNextActionLabel(row = {}) {
     ) {
       return "Complete and approve Family route";
     }
-    return "Create Route Family route draft";
+    return "Create Family Route Draft";
   }
   if (current.id === "product_routes_defined") {
     return "Define Product route differences";
   }
   return current.label;
+}
+
+export const PRM_ROUTE_FAMILY_DETAILS_UNAVAILABLE =
+  "Route Family details unavailable";
+
+function firstNonBlankPrmText(...values) {
+  for (const value of values) {
+    if (isBlankPrmValue(value)) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function formatPrmCompactVersionToken(version) {
+  const raw = String(version ?? "").trim();
+  if (!raw) return "";
+  const stripped = raw.replace(/^v/i, "").trim();
+  return stripped ? `V${stripped}` : "";
+}
+
+/** Alias-safe Route Family master row. Numeric id is never the business name. */
+export function normalizePrmRouteFamilyMasterRow(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  const route_family_id = normalizePrmIntegerId(
+    r.route_family_id ?? r.family_id ?? r.id,
+  );
+  const route_family_code =
+    firstNonBlankPrmText(r.route_family_code, r.family_code, r.code) || null;
+  const route_family_name =
+    firstNonBlankPrmText(r.route_family_name, r.family_name, r.name) || null;
+  const status =
+    normalizePrmCode(
+      r.status || r.family_status || r.route_family_status || r.approval_status,
+    ).toUpperCase() || null;
+  const is_active = r.is_active !== false && r.active !== false;
+  return {
+    ...r,
+    route_family_id,
+    id: route_family_id,
+    route_family_code,
+    family_code: r.family_code || route_family_code,
+    route_family_name,
+    family_name: r.family_name || route_family_name,
+    status,
+    is_active,
+  };
+}
+
+export function findPrmRouteFamilyMasterById(families = [], routeFamilyId) {
+  const fid = normalizePrmIntegerId(routeFamilyId);
+  if (fid == null) return null;
+  return (
+    coercePrmList(families)
+      .map(normalizePrmRouteFamilyMasterRow)
+      .find((row) => row.route_family_id === fid) || null
+  );
+}
+
+export function isPrmRouteFamilyInactiveForMapping(family = {}) {
+  const row = normalizePrmRouteFamilyMasterRow(family);
+  if (!row.is_active) return true;
+  const status = normalizePrmCode(row.status).toUpperCase();
+  if (status === "INACTIVE") return true;
+  return isPrmRouteFamilyArchived(row);
+}
+
+/**
+ * Operator-facing Route Family identity from the governed master.
+ * Never uses "Route Family <id>" as the primary label.
+ */
+export function resolvePrmRouteFamilyMasterIdentity(family = {}) {
+  const row = normalizePrmRouteFamilyMasterRow(family);
+  const id = row.route_family_id;
+  const name = row.route_family_name || "";
+  const code = row.route_family_code || "";
+  const status = row.status || "";
+  const statusLabel = formatPrmRouteStatusLabel(status) || "";
+  const resolved = Boolean(name || code);
+  const primaryLabel = resolved
+    ? name || code
+    : PRM_ROUTE_FAMILY_DETAILS_UNAVAILABLE;
+  const compactLabel = resolved
+    ? code && name && code !== name
+      ? `${code} — ${name}`
+      : name || code
+    : PRM_ROUTE_FAMILY_DETAILS_UNAVAILABLE;
+  const secondaryParts = [];
+  if (code && code !== primaryLabel) secondaryParts.push(code);
+  if (statusLabel) secondaryParts.push(statusLabel);
+  else if (status) secondaryParts.push(status);
+  const title = id != null ? `Route family ${id}` : "";
+  const search = [
+    name,
+    code,
+    status,
+    statusLabel,
+    compactLabel,
+    resolved ? "" : PRM_ROUTE_FAMILY_DETAILS_UNAVAILABLE,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    route_family_id: id,
+    route_family_name: name || null,
+    route_family_code: code || null,
+    status: status || null,
+    statusLabel: statusLabel || null,
+    resolved,
+    is_active: row.is_active,
+    primaryLabel,
+    compactLabel,
+    secondaryLabel: secondaryParts.join(" · "),
+    title,
+    search,
+    genericIdLabel: id != null ? `Route Family ${id}` : "",
+  };
+}
+
+export function formatPrmRouteFamilyPrimaryLabel(family = {}) {
+  return resolvePrmRouteFamilyMasterIdentity(family).primaryLabel;
+}
+
+export function formatPrmRouteFamilySelectorLabel(family = {}) {
+  const identity = resolvePrmRouteFamilyMasterIdentity(family);
+  return identity.resolved ? identity.compactLabel : "";
+}
+
+export function buildPrmRouteFamilyMappingSelectOptions(families = []) {
+  return coercePrmList(families)
+    .map((row) => {
+      const identity = resolvePrmRouteFamilyMasterIdentity(row);
+      if (identity.route_family_id == null) return null;
+      return {
+        route_family_id: identity.route_family_id,
+        label: identity.compactLabel,
+        primary: identity.primaryLabel,
+        secondary: identity.secondaryLabel,
+        search: identity.search,
+        title: identity.title,
+        resolved: identity.resolved,
+        route_family_code: identity.route_family_code,
+        route_family_name: identity.route_family_name,
+        status: identity.status,
+      };
+    })
+    .filter(Boolean);
+}
+
+export function normalizePrmApprovedFamilyRouteMasterRow(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  const family_route_id = normalizePrmIntegerId(
+    r.family_route_id ??
+      r.route_family_route_id ??
+      r.approved_family_route_id ??
+      r.id,
+  );
+  const route_version = resolvePrmDisplayedRouteVersion(r);
+  const route_name =
+    firstNonBlankPrmText(
+      r.route_name,
+      r.family_route_name,
+      r.route_family_route_name,
+      r.name,
+    ) || null;
+  const route_code =
+    firstNonBlankPrmText(r.route_code, r.family_route_code, r.code) || null;
+  return {
+    ...r,
+    family_route_id,
+    id: family_route_id,
+    route_family_id: normalizePrmIntegerId(r.route_family_id),
+    route_name,
+    family_route_name: r.family_route_name || route_name,
+    route_code,
+    route_version,
+    version_label:
+      r.version_label || (route_version != null ? String(route_version) : null),
+    status: normalizePrmCode(r.status || r.route_status).toUpperCase() || null,
+  };
+}
+
+export function resolvePrmApprovedFamilyRouteForFamily(
+  family = {},
+  approvedRoutes = [],
+) {
+  const row = normalizePrmRouteFamilyMasterRow(family);
+  const fid = row.route_family_id;
+  const list = coercePrmList(approvedRoutes).map(
+    normalizePrmApprovedFamilyRouteMasterRow,
+  );
+  const approvedFromFamily = list.find((item) => {
+    if (fid != null && item.route_family_id === fid) {
+      const status = normalizePrmCode(item.status).toUpperCase();
+      return !status || status === "APPROVED";
+    }
+    return false;
+  });
+  if (approvedFromFamily?.route_name || approvedFromFamily?.route_code) {
+    return approvedFromFamily;
+  }
+  const approvedId = normalizePrmIntegerId(
+    row.approved_family_route_id ?? row.approved_route_id,
+  );
+  if (approvedId != null) {
+    const byId = list.find((item) => item.family_route_id === approvedId);
+    if (byId?.route_name || byId?.route_code) return byId;
+    const nestedName = firstNonBlankPrmText(
+      row.approved_family_route_name,
+      row.approved_route_name,
+    );
+    if (nestedName) {
+      return normalizePrmApprovedFamilyRouteMasterRow({
+        family_route_id: approvedId,
+        route_family_id: fid,
+        route_name: nestedName,
+        route_version:
+          row.approved_route_version ?? row.approved_family_route_version,
+        status: "APPROVED",
+      });
+    }
+  }
+  return approvedFromFamily || null;
+}
+
+export function formatPrmApprovedFamilyRouteContextLabel(route = {}) {
+  const row = normalizePrmApprovedFamilyRouteMasterRow(route);
+  const name = firstNonBlankPrmText(row.route_name, row.route_code);
+  if (!name) return "";
+  const version = formatPrmCompactVersionToken(row.route_version);
+  return version ? `${name} · ${version}` : name;
+}
+
+function isPrmProductSubgroupInactiveForMapping(row = {}) {
+  const r = row && typeof row === "object" ? row : {};
+  if (r.is_active === false || r.active === false) return true;
+  const status = normalizePrmCode(r.status).toUpperCase();
+  return status === "INACTIVE" || status === "ARCHIVED";
+}
+
+function findPrmProductSubgroupMasterById(subgroups = [], productSubgroupId) {
+  const sid = normalizePrmIntegerId(productSubgroupId);
+  if (sid == null) return null;
+  return (
+    coercePrmList(subgroups).find((row) => {
+      const id = normalizePrmIntegerId(
+        row.product_subgroup_id ?? row.subgroup_id ?? row.id,
+      );
+      return id === sid;
+    }) || null
+  );
+}
+
+/**
+ * Create-time revalidation against current master options.
+ * Does not substitute another Route Family. Server uniqueness remains authoritative.
+ */
+export function validatePrmSubgroupMappingCreateSelection({
+  product_subgroup_id = null,
+  route_family_id = null,
+  productSubgroups = [],
+  routeFamilies = [],
+  mappings = [],
+  approvedFamilyRoutes = [],
+} = {}) {
+  const reasons = [];
+  const sid = normalizePrmIntegerId(product_subgroup_id);
+  const fid = normalizePrmIntegerId(route_family_id);
+  const subgroup = findPrmProductSubgroupMasterById(productSubgroups, sid);
+  if (sid == null) {
+    reasons.push({
+      code: "missing_product_subgroup",
+      message: "Product Subgroup is required.",
+      blocksCreate: true,
+    });
+  } else if (!subgroup) {
+    reasons.push({
+      code: "product_subgroup_missing",
+      message:
+        "Selected Product Subgroup is no longer available in the governed master.",
+      blocksCreate: true,
+    });
+  } else if (isPrmProductSubgroupInactiveForMapping(subgroup)) {
+    reasons.push({
+      code: "product_subgroup_inactive",
+      message: "Selected Product Subgroup is inactive.",
+      blocksCreate: true,
+    });
+  }
+
+  const family = findPrmRouteFamilyMasterById(routeFamilies, fid);
+  const identity = family
+    ? resolvePrmRouteFamilyMasterIdentity(family)
+    : fid != null
+      ? resolvePrmRouteFamilyMasterIdentity({ route_family_id: fid })
+      : resolvePrmRouteFamilyMasterIdentity({});
+  let approvedRoute = null;
+  if (fid == null) {
+    reasons.push({
+      code: "missing_route_family",
+      message: "Route Family is required.",
+      blocksCreate: true,
+    });
+  } else if (!family) {
+    reasons.push({
+      code: "stale_route_family",
+      message:
+        "Selected Route Family is no longer available in the governed master. Mapping cannot be created.",
+      blocksCreate: true,
+    });
+  } else if (identity.route_family_id !== fid) {
+    reasons.push({
+      code: "stale_route_family",
+      message:
+        "Selected Route Family no longer matches the governed master. Mapping cannot be created.",
+      blocksCreate: true,
+    });
+  } else if (!identity.resolved) {
+    reasons.push({
+      code: "route_family_unresolved",
+      message: PRM_ROUTE_FAMILY_DETAILS_UNAVAILABLE,
+      blocksCreate: true,
+    });
+  } else if (isPrmRouteFamilyInactiveForMapping(family)) {
+    reasons.push({
+      code: "route_family_inactive",
+      message: "Selected Route Family is inactive.",
+      blocksCreate: true,
+    });
+  } else if (!isPrmRouteFamilyApprovedForGovernance(family)) {
+    reasons.push({
+      code: "route_family_unapproved",
+      message:
+        "Selected Route Family is not APPROVED. Mapping cannot be created.",
+      blocksCreate: true,
+    });
+  } else {
+    approvedRoute = resolvePrmApprovedFamilyRouteForFamily(
+      family,
+      approvedFamilyRoutes,
+    );
+    const catalogue = coercePrmList(approvedFamilyRoutes);
+    const catalogueHasRows = catalogue.length > 0;
+    const explicitNone =
+      Object.prototype.hasOwnProperty.call(family, "approved_family_route_id") &&
+      family.approved_family_route_id == null;
+    const approvedLabel = approvedRoute
+      ? formatPrmApprovedFamilyRouteContextLabel(approvedRoute)
+      : "";
+    if (!approvedLabel && (catalogueHasRows || explicitNone)) {
+      reasons.push({
+        code: "no_approved_family_route",
+        message:
+          "This Route Family has no approved Family Route. Mapping cannot be created until an approved Family Route exists.",
+        blocksCreate: true,
+      });
+    }
+  }
+
+  const writable = sid != null ? findPrmWritableSubgroupMapping(mappings, sid) : null;
+  if (writable) {
+    reasons.push({
+      code: "writable_exists",
+      message:
+        "A replacement mapping already exists. Open the existing mapping.",
+      blocksCreate: true,
+      mapping_id: writable.mapping_id,
+    });
+  }
+  const approvedMapping =
+    sid != null ? findPrmApprovedSubgroupMapping(mappings, sid) : null;
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    product_subgroup_id: sid,
+    route_family_id: fid,
+    subgroup,
+    family,
+    identity,
+    approvedRoute,
+    writable,
+    approvedMapping,
+    requiresApprovedReplacement: Boolean(approvedMapping) && !writable,
+  };
+}
+
+export function isPrmRouteFamilyArchived(family = {}) {
+  if (!isBlankPrmValue(family.archived_at)) return true;
+  const status = normalizePrmCode(
+    family.status ||
+      family.family_status ||
+      family.route_family_status ||
+      family.approval_status,
+  ).toUpperCase();
+  return status === "ARCHIVED";
+}
+
+export function isPrmRouteFamilyApprovedForGovernance(family = {}) {
+  const status = normalizePrmCode(
+    family.status ||
+      family.family_status ||
+      family.route_family_status ||
+      family.approval_status,
+  ).toUpperCase();
+  return status === "APPROVED";
+}
+
+export function isPrmRouteFamilyEffectiveForAsOf(family = {}, asOfDate = null) {
+  const asOf = normalizePrmAsOfDate(asOfDate, { fallbackToToday: false });
+  const from = normalizePrmAsOfDate(family.effective_from, {
+    fallbackToToday: false,
+  });
+  const to = normalizePrmAsOfDate(family.effective_to, { fallbackToToday: false });
+  if (from && asOf && from > asOf) return false;
+  if (to && asOf && to < asOf) return false;
+  return true;
+}
+
+/** Master-options Route Families eligible for governed Family Route Draft creation. */
+export function isPrmRouteFamilyEligibleForFamilyRouteCreate(
+  family = {},
+  asOfDate = null,
+) {
+  if (!family || typeof family !== "object") return false;
+  if (isPrmRouteFamilyArchived(family)) return false;
+  if (!isPrmRouteFamilyApprovedForGovernance(family)) return false;
+  return isPrmRouteFamilyEffectiveForAsOf(family, asOfDate);
+}
+
+export function selectPrmRouteFamiliesForFamilyRouteCreate(
+  families = [],
+  asOfDate = null,
+) {
+  return coercePrmList(families).filter((row) =>
+    isPrmRouteFamilyEligibleForFamilyRouteCreate(row, asOfDate),
+  );
+}
+
+export function resolvePrmFamilyRouteCreateEligibility(routeState = {}) {
+  const approvedId = normalizePrmIntegerId(routeState.approved_family_route_id);
+  const openWritableId = normalizePrmIntegerId(routeState.draft_family_route_id);
+  const writableVersion = coercePrmList(routeState.versions).find((version) =>
+    isPrmRouteWritableStatus(
+      version?.status || version?.route_status || version?.approval_status,
+    ),
+  );
+  const writableRouteId =
+    openWritableId ??
+    normalizePrmIntegerId(
+      writableVersion?.family_route_id ??
+        writableVersion?.route_id ??
+        writableVersion?.id,
+    );
+
+  if (writableRouteId != null) {
+    return {
+      ok: true,
+      mode: "writable_exists",
+      writableRouteId,
+      approvedRouteId: approvedId,
+      canCreateFirstDraft: false,
+      canCreateSuccessor: false,
+      approvedRouteLabel: approvedId != null ? String(approvedId) : "None",
+      message: "An editable Family Route version already exists.",
+    };
+  }
+
+  if (approvedId != null) {
+    const approvedVersion =
+      routeState.approved ||
+      coercePrmList(routeState.versions).find(
+        (version) =>
+          normalizePrmIntegerId(
+            version?.family_route_id ?? version?.route_id ?? version?.id,
+          ) === approvedId,
+      ) ||
+      null;
+    const approvedLabel =
+      approvedVersion?.route_name ||
+      approvedVersion?.version_label ||
+      approvedVersion?.version ||
+      String(approvedId);
+    return {
+      ok: true,
+      mode: "approved_successor",
+      writableRouteId: null,
+      approvedRouteId: approvedId,
+      canCreateFirstDraft: false,
+      canCreateSuccessor: true,
+      approvedRouteLabel: approvedLabel,
+      message: "An approved Family Route already exists.",
+      successorNotice:
+        "Creating another Family Route will create a governed successor/new version.",
+    };
+  }
+
+  return {
+    ok: true,
+    mode: "first_draft",
+    writableRouteId: null,
+    approvedRouteId: null,
+    canCreateFirstDraft: true,
+    canCreateSuccessor: false,
+    approvedRouteLabel: "None",
+    message: null,
+  };
 }
 
 /** Deep-link params for Family Route Editor — never includes product ids. */
@@ -4173,6 +6599,203 @@ export function resolveFamilyRouteCreateNavigation(
     product_route_id: null,
     product_id: null,
   };
+}
+
+/**
+ * Resolve Family Route Editor load identity.
+ * Request deep-link wins when present; otherwise the committed navigation
+ * deep-link. Does not fall back to unrelated selected ids.
+ */
+export function resolvePrmFamilyRouteEditorLoadId({
+  requestDeepLink = {},
+  committedDeepLink = {},
+} = {}) {
+  return (
+    normalizePrmIntegerId(requestDeepLink?.family_route_id) ??
+    normalizePrmIntegerId(committedDeepLink?.family_route_id) ??
+    null
+  );
+}
+
+/**
+ * Empty-context refresh may rewrite family-only URL only when no Family Route
+ * is open or being opened, and the request generation is still current.
+ */
+export function shouldApplyPrmFamilyRouteEmptyContextRefresh({
+  selectedFamilyRouteId = null,
+  deepLinkFamilyRouteId = null,
+  requestGeneration = 0,
+  currentGeneration = 0,
+} = {}) {
+  if (Number(requestGeneration) !== Number(currentGeneration)) return false;
+  if (normalizePrmIntegerId(selectedFamilyRouteId) != null) return false;
+  if (normalizePrmIntegerId(deepLinkFamilyRouteId) != null) return false;
+  return true;
+}
+
+/**
+ * Family Route editor detail loads may overlap; only the current generation may
+ * commit detail/steps/validation into editor state.
+ */
+export function shouldAcceptPrmFamilyRouteDetailGeneration({
+  requestGeneration = 0,
+  currentGeneration = 0,
+} = {}) {
+  return Number(requestGeneration) === Number(currentGeneration);
+}
+
+/**
+ * Unified PRM visible-paint generation. A stale/superseded load must not paint,
+ * hide, or tear down a newer accepted lens.
+ * Null/empty request generation means "paint the current accepted generation".
+ */
+export function shouldAcceptPrmPaintGeneration({
+  requestGeneration = null,
+  currentGeneration = 0,
+} = {}) {
+  if (requestGeneration == null || requestGeneration === "") return true;
+  return Number(requestGeneration) === Number(currentGeneration);
+}
+
+export function shouldApplyPrmLensTransitionTeardown({
+  requestGeneration = 0,
+  currentGeneration = 0,
+} = {}) {
+  return shouldAcceptPrmPaintGeneration({
+    requestGeneration,
+    currentGeneration,
+  });
+}
+
+export function applyPrmTableWrapVisible(tableWrap) {
+  if (!tableWrap?.classList) return { ok: false, reason: "missing_table_wrap" };
+  tableWrap.classList.remove("hidden");
+  tableWrap.classList.add("tw-visible");
+  if (tableWrap.style) tableWrap.style.display = "";
+  return { ok: true };
+}
+
+/**
+ * Pure final visible-paint step. Must not load, invoke RPCs, or mutate business
+ * state. Callers pass already-accepted state via render/getRowCount.
+ */
+export function applyPrmAcceptedPaint({
+  tableWrap = null,
+  requestGeneration = null,
+  currentGeneration = 0,
+  render = null,
+  getRowCount = null,
+  setRowCount = null,
+} = {}) {
+  if (
+    !shouldAcceptPrmPaintGeneration({
+      requestGeneration,
+      currentGeneration,
+    })
+  ) {
+    return { ok: false, stale: true };
+  }
+  applyPrmTableWrapVisible(tableWrap);
+  if (typeof render === "function") render();
+  if (typeof setRowCount === "function") {
+    const count =
+      typeof getRowCount === "function" ? Number(getRowCount() || 0) : 0;
+    setRowCount(count);
+  }
+  return { ok: true, stale: false };
+}
+
+/**
+ * Family Route editor lifecycle action-state. Derived from status + validation
+ * currentness. Not a local "Validate was clicked" boolean.
+ *
+ * If route-detail hydration omits a validation blob after a successful
+ * validate RPC, callers keep that RPC result as current until
+ * markValidationStale() on a validation-relevant mutation.
+ */
+export function resolvePrmFamilyRouteLifecycleActions({
+  status = "",
+  canEdit = false,
+  validation = null,
+  validationFresh = false,
+} = {}) {
+  const statusUpper = normalizePrmCode(status).toUpperCase();
+  const statusCanonical = canonicalPrmRouteStatus(statusUpper) || statusUpper;
+  const writable = Boolean(canEdit) && isPrmRouteWritableStatus(statusUpper);
+  const review = isPrmRouteReviewStatus(statusUpper);
+  const draft = statusUpper === "DRAFT";
+  const validCurrent =
+    validationFresh === true && isValidationSuccessful(validation);
+
+  const validateVisible = Boolean(canEdit) && draft && writable;
+  const submitVisible = writable && draft;
+  const approveVisible = Boolean(canEdit) && review;
+
+  return {
+    status: statusCanonical,
+    validateVisible,
+    validateEnabled: validateVisible && !validCurrent,
+    validateLabel: validateVisible && validCurrent ? "Validated" : "Validate",
+    submitVisible,
+    submitEnabled: submitVisible && validCurrent,
+    approveVisible,
+    canMutateSteps: writable && (draft || review),
+    canClone: Boolean(canEdit) && isPrmRouteCloneableStatus(statusUpper),
+    readOnly: isPrmRouteReadOnlyStatus(statusUpper),
+  };
+}
+
+/**
+ * Product Route editor lifecycle. Submit matches server
+ * rpc_submit_product_route_for_review (DRAFT only). Validate/deltas remain
+ * available while the route is writable (DRAFT or review).
+ */
+export function resolvePrmProductRouteLifecycleActions({
+  status = "",
+  canEdit = false,
+  validation = null,
+  validationFresh = false,
+} = {}) {
+  const statusUpper = normalizePrmCode(status).toUpperCase();
+  const statusCanonical = canonicalPrmRouteStatus(statusUpper) || statusUpper;
+  const writable = Boolean(canEdit) && isPrmRouteWritableStatus(statusUpper);
+  const review = isPrmRouteReviewStatus(statusUpper);
+  const draft = statusUpper === "DRAFT";
+  const validCurrent =
+    validationFresh === true && isValidationSuccessful(validation);
+
+  return {
+    status: statusCanonical,
+    validateVisible: Boolean(canEdit) && writable,
+    validateEnabled: Boolean(canEdit) && writable,
+    validateLabel: validCurrent ? "Validated" : "Validate",
+    submitVisible: writable && draft,
+    submitEnabled: writable && draft && validCurrent,
+    approveVisible: Boolean(canEdit) && review,
+    canAddDelta: writable,
+    canMutateDeltas: writable,
+    readOnly: isPrmRouteReadOnlyStatus(statusUpper),
+  };
+}
+
+/**
+ * Resolve the exact family_route_id for the currently open Family Route editor.
+ * Does not infer by route name, family, version, or latest route.
+ */
+export function resolvePrmFamilyRouteEditorRouteId({
+  selectedFamilyRouteId = null,
+  deepLink = {},
+  detail = null,
+} = {}) {
+  return (
+    normalizePrmIntegerId(selectedFamilyRouteId) ??
+    normalizePrmIntegerId(deepLink?.family_route_id) ??
+    normalizePrmIntegerId(detail?.family_route_id) ??
+    normalizePrmIntegerId(detail?.route_family_route_id) ??
+    normalizePrmIntegerId(detail?.route_id) ??
+    normalizePrmIntegerId(detail?.id) ??
+    null
+  );
 }
 
 export function isCanonicalFamilyRouteEditorNav(nav = {}) {
@@ -4303,7 +6926,7 @@ export function isPrmOtherPoolStepScope(code) {
   );
 }
 
-export function normalizePrmFamilyRouteStep(row = {}) {
+export function normalizePrmFamilyRouteStep(row = {}, resourceClassContext = {}) {
   const r = row && typeof row === "object" ? row : {};
   const id = normalizePrmIntegerId(
     r.id ?? r.family_route_step_id ?? r.route_step_id ?? r.step_id,
@@ -4352,8 +6975,11 @@ export function normalizePrmFamilyRouteStep(row = {}) {
     behaviour_code,
     behaviour_label: r.behaviour_label || formatPrmBehaviourLabel(behaviour_code),
     resource_class_code,
-    resource_class_label:
-      r.resource_class_label || formatPrmResourceClassLabel(resource_class_code),
+    resource_class_label: resolvePrmResourceClassDisplayLabel(resource_class_code, {
+      catalogue: resourceClassContext.catalogue,
+      catalogueIndex: resourceClassContext.catalogueIndex,
+      rowLabel: r.resource_class_label || r.resource_class_name,
+    }),
     route_step_scope,
     route_step_scope_label:
       r.route_step_scope_label || formatPrmRouteStepScopeLabel(route_step_scope),
@@ -4391,9 +7017,9 @@ export function normalizePrmFamilyRouteStep(row = {}) {
   };
 }
 
-export function sortPrmFamilyRouteSteps(steps = []) {
+export function sortPrmFamilyRouteSteps(steps = [], resourceClassContext = {}) {
   return coercePrmList(steps)
-    .map(normalizePrmFamilyRouteStep)
+    .map((step) => normalizePrmFamilyRouteStep(step, resourceClassContext))
     .sort((a, b) => {
       const sa = a.sequence_no == null ? Number.POSITIVE_INFINITY : a.sequence_no;
       const sb = b.sequence_no == null ? Number.POSITIVE_INFINITY : b.sequence_no;
@@ -4416,6 +7042,224 @@ function classifyPrmRouteStepBucket(step = {}) {
     return "other_boundary";
   }
   return "production";
+}
+
+export const PRM_FAMILY_ROUTE_CREATE_PROVENANCE_MODES = Object.freeze({
+  MANUAL_FIRST_DRAFT: "manual_first_draft",
+  MANUAL_SUCCESSOR: "manual_successor",
+  HISTORICAL_HANDOFF: "historical_handoff",
+});
+
+export const PRM_FAMILY_ROUTE_CREATE_SOURCE_HELPER =
+  "Manual — directly governed from confirmed manufacturing process knowledge.";
+
+export const PRM_FAMILY_ROUTE_CREATE_EVIDENCE_HELPER =
+  "Manual complete — the manually defined route is sufficiently specified for governance review. This does not mean the route is approved.";
+
+/** Reserved for future explicit historical handoff — not enabled in current UI. */
+export function resolvePrmFamilyRouteCreateProvenanceContext({
+  supersedesRouteId = null,
+  historicalHandoff = false,
+} = {}) {
+  if (historicalHandoff === true) {
+    return {
+      ok: true,
+      mode: PRM_FAMILY_ROUTE_CREATE_PROVENANCE_MODES.HISTORICAL_HANDOFF,
+      enabled: false,
+      source_type: null,
+      evidence_status: null,
+      readonly: true,
+    };
+  }
+  const successor = normalizePrmIntegerId(supersedesRouteId) != null;
+  return {
+    ok: true,
+    mode: successor
+      ? PRM_FAMILY_ROUTE_CREATE_PROVENANCE_MODES.MANUAL_SUCCESSOR
+      : PRM_FAMILY_ROUTE_CREATE_PROVENANCE_MODES.MANUAL_FIRST_DRAFT,
+    enabled: true,
+    source_type: "MANUAL",
+    evidence_status: "MANUAL_COMPLETE",
+    readonly: true,
+  };
+}
+
+export function validatePrmFamilyRouteCreateProvenance(
+  provenanceContext = {},
+  { source_type = null, evidence_status = null } = {},
+) {
+  if (provenanceContext.enabled === false) {
+    return {
+      ok: false,
+      error: "Historical candidate create is not available.",
+    };
+  }
+  const source = normalizePrmCode(source_type).toUpperCase();
+  const evidence = normalizePrmCode(evidence_status).toUpperCase();
+  if (source === "COPIED_VERSION") {
+    return {
+      ok: false,
+      error:
+        "Copied version provenance is not available in create. Use Clone as New Version.",
+    };
+  }
+  if (source === "HISTORICAL_CANDIDATE") {
+    return {
+      ok: false,
+      error:
+        "Historical candidate provenance requires an explicit supported handoff.",
+    };
+  }
+  if (source !== "MANUAL" || evidence !== "MANUAL_COMPLETE") {
+    return {
+      ok: false,
+      error:
+        "Family Route create requires Manual source and Manual complete evidence.",
+    };
+  }
+  return {
+    ok: true,
+    source_type: "MANUAL",
+    evidence_status: "MANUAL_COMPLETE",
+  };
+}
+
+export const PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION = Object.freeze({
+  NOT_VALIDATED: "NOT_VALIDATED",
+  INCOMPLETE: "INCOMPLETE",
+  INVALID: "INVALID",
+  VALID: "VALID",
+  STALE: "STALE",
+});
+
+export function isPrmFamilyRouteStructurallyIncomplete(counts = {}) {
+  const stepCount = Number(counts.step_count) || 0;
+  const rm = Number(counts.rm_boundary_count) || 0;
+  const production = Number(counts.production_process_count) || 0;
+  const fg = Number(counts.fg_boundary_count) || 0;
+  if (stepCount === 0) return true;
+  return rm < 1 || production < 1 || fg < 1;
+}
+
+function buildPrmFamilyRouteValidationMetricLabels(summary, presentationMode) {
+  const stepCount = summary.step_count;
+  const rm = summary.rm_boundary_count;
+  const production = summary.production_process_count;
+  const fg = summary.fg_boundary_count;
+  const issueCount = summary.issues.length;
+
+  if (presentationMode === PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INCOMPLETE) {
+    return {
+      valid: "Route incomplete — steps required",
+      steps: `${stepCount} steps`,
+      rm: rm < 1 ? "RM boundary missing" : `${rm} RM boundary`,
+      production:
+        production < 1
+          ? "Production steps missing"
+          : `${production} Production steps`,
+      fg: fg < 1 ? "FG boundary missing" : `${fg} FG boundary`,
+      errors: null,
+      showErrors: false,
+    };
+  }
+
+  const validLabel =
+    presentationMode === PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.VALID
+      ? "Route valid"
+      : "Route invalid";
+
+  return {
+    valid: validLabel,
+    steps: `${stepCount} steps`,
+    rm: `${rm} RM boundary`,
+    production: `${production} Production steps`,
+    fg: `${fg} FG boundary`,
+    errors: issueCount
+      ? `${issueCount} error${issueCount === 1 ? "" : "s"}`
+      : "0 errors",
+    showErrors: true,
+  };
+}
+
+export function classifyPrmFamilyRouteValidationPresentation(
+  validationPayload = null,
+  steps = [],
+) {
+  if (validationPayload == null || validationPayload === "") {
+    return {
+      mode: PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.NOT_VALIDATED,
+    };
+  }
+
+  const root = normalizePrmRpcPayload(validationPayload) || validationPayload || {};
+  const issues = extractValidationIssues(root);
+  const valid = isValidationSuccessful(root);
+  const ordered = sortPrmFamilyRouteSteps(steps);
+  const fromPayloadSteps =
+    root.step_count ??
+    root.total_steps ??
+    root.steps_count ??
+    ordered.length;
+  const rmFromPayload = root.rm_boundary_count;
+  const prodFromPayload =
+    root.production_step_count ?? root.production_process_count;
+  const fgFromPayload = root.fg_boundary_count;
+
+  let rm = Number(rmFromPayload);
+  let production = Number(prodFromPayload);
+  let fg = Number(fgFromPayload);
+  if (!Number.isFinite(rm) || !Number.isFinite(production) || !Number.isFinite(fg)) {
+    rm = 0;
+    production = 0;
+    fg = 0;
+    for (const step of ordered) {
+      const bucket = classifyPrmRouteStepBucket(step);
+      if (bucket === "rm") rm += 1;
+      else if (bucket === "fg") fg += 1;
+      else if (bucket === "production") production += 1;
+    }
+  }
+
+  const counts = {
+    step_count: Number(fromPayloadSteps) || ordered.length,
+    rm_boundary_count: rm,
+    production_process_count: production,
+    fg_boundary_count: fg,
+  };
+
+  if (issues.length > 0) {
+    return {
+      mode: PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INVALID,
+      ...counts,
+      issues,
+      valid: false,
+    };
+  }
+
+  if (valid) {
+    return {
+      mode: PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.VALID,
+      ...counts,
+      issues,
+      valid: true,
+    };
+  }
+
+  if (isPrmFamilyRouteStructurallyIncomplete(counts)) {
+    return {
+      mode: PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INCOMPLETE,
+      ...counts,
+      issues,
+      valid: false,
+    };
+  }
+
+  return {
+    mode: PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INVALID,
+    ...counts,
+    issues,
+    valid: false,
+  };
 }
 
 export function buildPrmFamilyRouteValidationSummary(
@@ -4451,25 +7295,47 @@ export function buildPrmFamilyRouteValidationSummary(
     }
   }
 
+  const step_count = Number(fromPayloadSteps) || ordered.length;
+  const presentation = classifyPrmFamilyRouteValidationPresentation(root, ordered);
+  const presentationMode =
+    presentation.mode === PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.NOT_VALIDATED
+      ? valid
+        ? PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.VALID
+        : issues.length > 0
+          ? PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INVALID
+          : isPrmFamilyRouteStructurallyIncomplete({
+              step_count,
+              rm_boundary_count: rm,
+              production_process_count: production,
+              fg_boundary_count: fg,
+            })
+            ? PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INCOMPLETE
+            : PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INVALID
+      : presentation.mode;
+
+  const metricBase = {
+    step_count,
+    rm_boundary_count: rm,
+    production_process_count: production,
+    fg_boundary_count: fg,
+    issues,
+  };
+  const labels = buildPrmFamilyRouteValidationMetricLabels(
+    metricBase,
+    presentationMode,
+  );
+
   return {
     valid,
     stale: false,
-    step_count: Number(fromPayloadSteps) || ordered.length,
+    presentationMode,
+    step_count,
     rm_boundary_count: rm,
     production_process_count: production,
     fg_boundary_count: fg,
     issues,
     has_errors: issues.length > 0,
-    labels: {
-      valid: valid ? "Route valid" : "Route invalid",
-      steps: `${Number(fromPayloadSteps) || ordered.length} steps`,
-      rm: `${rm} RM boundary`,
-      production: `${production} Production steps`,
-      fg: `${fg} FG boundary`,
-      errors: issues.length
-        ? `${issues.length} error${issues.length === 1 ? "" : "s"}`
-        : "0 errors",
-    },
+    labels,
   };
 }
 
@@ -4670,9 +7536,11 @@ export function buildPrmRpcParams(fields = {}) {
     const raw = spec.value;
 
     if (kind === "date") {
-      const date = normalizePrmAsOfDate(raw, {
-        fallbackToToday: required || spec.fallbackToToday === true,
-      });
+      // Explicit fallbackToToday:false must win even when required (no silent today).
+      const fallbackToToday =
+        spec.fallbackToToday === true ||
+        (required && spec.fallbackToToday !== false);
+      const date = normalizePrmAsOfDate(raw, { fallbackToToday });
       if (date == null) {
         if (required) errors.push(`${key} requires a valid YYYY-MM-DD date`);
         continue;
@@ -5485,13 +8353,19 @@ export function formatPrmCostCentreValidationLabel(validation) {
   return "Invalid";
 }
 
-export function normalizePrmProductionCostCentreRow(row = {}) {
+export function normalizePrmProductionCostCentreRow(
+  row = {},
+  resourceClassContext = {},
+) {
   const r = row && typeof row === "object" ? row : {};
-  const base = normalizePrmCostCentreRow(r);
+  const base = normalizePrmCostCentreRow(r, resourceClassContext);
   const validation = normalizePrmCostCentreValidation(r.validation);
   const type = normalizePrmCode(
     r.cost_centre_type || r.type || base.type,
   ).toUpperCase();
+  const defaultCode = normalizePrmCode(
+    r.default_resource_class_code || r.resource_class || base.resource_class,
+  ).toUpperCase() || null;
   return {
     ...base,
     cost_centre_id: normalizePrmIntegerId(
@@ -5510,15 +8384,23 @@ export function normalizePrmProductionCostCentreRow(row = {}) {
     subsection_name: r.subsection_name ?? null,
     area_name: r.area_name ?? null,
     plant_name: r.plant_name ?? null,
-    default_resource_class_code: normalizePrmCode(
-      r.default_resource_class_code || r.resource_class || base.resource_class,
-    ).toUpperCase() || null,
-    resource_class_label:
-      r.resource_class_label ||
-      base.resource_class_label ||
-      formatPrmResourceClassLabel(
-        r.default_resource_class_code || r.resource_class,
-      ),
+    default_resource_class_code: defaultCode,
+    resource_class_label: resolvePrmResourceClassDisplayLabel(defaultCode, {
+      catalogue: resourceClassContext.catalogue,
+      catalogueIndex: resourceClassContext.catalogueIndex,
+      rowLabel: r.resource_class_label || base.resource_class_label,
+    }),
+    default_resource_class_label: resolvePrmResourceClassDisplayLabel(
+      defaultCode,
+      {
+        catalogue: resourceClassContext.catalogue,
+        catalogueIndex: resourceClassContext.catalogueIndex,
+        rowLabel:
+          r.default_resource_class_label ||
+          r.resource_class_label ||
+          base.resource_class_label,
+      },
+    ),
     pool_scope: base.pool_scope,
     pool_scope_label: formatPrmCostCentrePoolScopeLabel(base.pool_scope),
     status: normalizePrmCode(
@@ -5536,10 +8418,13 @@ export function normalizePrmProductionCostCentreRow(row = {}) {
   };
 }
 
-export function normalizePrmProductionCostCentresPayload(raw) {
+export function normalizePrmProductionCostCentresPayload(
+  raw,
+  resourceClassContext = {},
+) {
   const payload = normalizePrmRpcPayload(raw) || raw || {};
-  const centres = coercePrmList(payload.cost_centres).map(
-    normalizePrmProductionCostCentreRow,
+  const centres = coercePrmList(payload.cost_centres).map((row) =>
+    normalizePrmProductionCostCentreRow(row, resourceClassContext),
   );
   return {
     as_of_date: payload.as_of_date ?? null,
@@ -5548,14 +8433,20 @@ export function normalizePrmProductionCostCentresPayload(raw) {
   };
 }
 
-export function normalizePrmProductionCostCentreDetailPayload(raw) {
+export function normalizePrmProductionCostCentreDetailPayload(
+  raw,
+  resourceClassContext = {},
+) {
   const payload = normalizePrmRpcPayload(raw) || raw || {};
   const centreRaw =
     payload.cost_centre && typeof payload.cost_centre === "object"
       ? payload.cost_centre
       : payload;
   return {
-    cost_centre: normalizePrmProductionCostCentreRow(centreRaw),
+    cost_centre: normalizePrmProductionCostCentreRow(
+      centreRaw,
+      resourceClassContext,
+    ),
   };
 }
 

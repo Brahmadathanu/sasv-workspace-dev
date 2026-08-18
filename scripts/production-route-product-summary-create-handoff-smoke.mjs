@@ -155,8 +155,8 @@ assert(
   "11 Summary closes",
 );
 assert(
-  openFn.includes('navigate("product-route-editor", { product_id: productId })'),
-  "12 Product Route Editor opens",
+  openFn.includes('await navigate("product-route-editor", { product_id: productId })'),
+  "12 Product Route Editor opens (awaited soft navigate)",
 );
 assert(
   isPrmProductRouteEditorCreateContext({
@@ -165,8 +165,11 @@ assert(
   }) === true &&
     resolveProductionRouteLens("product-route-editor", { product_id: 139 }) ===
       "product-route-editor" &&
+    resolveProductionRouteLens("product-route-editor", {
+      allowEditorWithoutId: true,
+    }) === "product-route-editor" &&
     resolveProductionRouteLens("product-route-editor") === "route-readiness",
-  "13 create mode works without product_route_id",
+  "13 create mode works without product_route_id; bare deep-link still guarded",
 );
 assert(
   loadFn.includes("clearProductEditorContext") &&
@@ -246,8 +249,10 @@ assert(
 assert(
   submitFn.includes("editor.createProductDraft") &&
     submitFn.includes("rpc_create_product_route_draft") === false &&
-    createDraftFn.includes("RPC.createProductDraft"),
-  "25 explicit Create DRAFT calls existing create RPC",
+    createDraftFn.includes("RPC.createProductDraft") &&
+    /source_type:\s*PRM_PRODUCT_ROUTE_SOURCES\[0\]/.test(submitFn) &&
+    !/source_type:\s*"MANUAL"/.test(submitFn),
+  "25 explicit Create DRAFT calls existing create RPC with ROUTE_FAMILY_ONLY",
 );
 assert(
   !openFn.includes("editor.createProductDraft") &&
@@ -320,8 +325,8 @@ assert(
   "36 no server changes",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v274"/.test(swSrc),
-  "37 SW bumped exactly once after smokes (hub-cache-v274)",
+  /CACHE_NAME = "hub-cache-v318"/.test(swSrc),
+  "37 SW bumped exactly once after smokes (hub-cache-v318)",
 );
 
 if (failed) {

@@ -1,5 +1,6 @@
 /* eslint-env browser */
 import { supabase } from "../public/shared/js/supabaseClient.js";
+import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
 import {
   mountModuleActionIcons,
   enhanceSearchableSelect,
@@ -52,6 +53,67 @@ let LINES_EDIT_MODE = false; // default View mode
 const MODULE_ID = "manage-rm-bom";
 let PERM_CAN_VIEW = false;
 let PERM_CAN_EDIT = false;
+
+function publicErrorMessage(err) {
+  const msg = err?.message || String(err || "Unknown error");
+  return String(msg).replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, "[redacted]");
+}
+
+function setPageStatus(message, kind = "error") {
+  const host = el("bomPageStatus");
+  if (!host) {
+    console.error(message);
+    return;
+  }
+  host.hidden = false;
+  host.className = `bom-page-status is-${kind}`;
+  host.setAttribute("role", "alert");
+  host.textContent = message;
+}
+
+function clearPageStatus() {
+  const host = el("bomPageStatus");
+  if (!host) return;
+  host.hidden = true;
+  host.textContent = "";
+  host.className = "bom-page-status";
+}
+
+async function resolveModuleAccess() {
+  const boot = await bootstrapApp({ loginPage: "login.html" });
+  if (!boot.ok) {
+    if (boot.reason === "no-session") return { ok: false, reason: "no-session" };
+    console.error("RM BOM bootstrap failed", boot.error || boot.reason);
+    return { ok: false, reason: "verify-failed" };
+  }
+  const userId = boot.session?.user?.id;
+  if (!userId) {
+    console.error("RM BOM bootstrap: session missing user id");
+    return { ok: false, reason: "verify-failed" };
+  }
+  try {
+    const { data: perms, error: permsErr } = await supabase.rpc(
+      "get_user_permissions",
+      { p_user_id: userId }
+    );
+    if (permsErr || !Array.isArray(perms)) {
+      console.error(
+        "Permission load failed (RPC)",
+        permsErr || "unexpected non-array result"
+      );
+      return { ok: false, reason: "verify-failed" };
+    }
+    const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
+    PERM_CAN_VIEW = !!(p && p.can_view);
+    PERM_CAN_EDIT = !!(p && p.can_edit);
+    if (!PERM_CAN_VIEW) return { ok: false, reason: "denied" };
+    return { ok: true };
+  } catch (pErr) {
+    console.error("Permission load failed (RPC)", pErr);
+    return { ok: false, reason: "verify-failed" };
+  }
+}
+
 // Horizontal scroll sync and back-to-top
 const linesScroll = document.getElementById("linesScroll");
 const linesHScrollTop = document.getElementById("linesHScrollTop");
@@ -249,6 +311,7 @@ async function loadProducts() {
     enhanceSearchableSelect(productPicker, {
       placeholder: "Search or select a product…",
       allowEmptyOption: true,
+      showAllWhenEmpty: true,
     });
   }
 }
@@ -824,6 +887,10 @@ productPicker.addEventListener("change", async () => {
   showMask("Loading…");
   try {
     await loadBom(CURRENT_PRODUCT_ID);
+    clearPageStatus();
+  } catch (err) {
+    console.error(err);
+    setPageStatus(`Failed to load BOM: ${publicErrorMessage(err)}`, "error");
   } finally {
     hideMask();
   }
@@ -939,6 +1006,10 @@ reloadBtn.addEventListener("click", async () => {
     showMask("Refreshing…");
     try {
       await loadBom(CURRENT_PRODUCT_ID);
+      clearPageStatus();
+    } catch (err) {
+      console.error(err);
+      setPageStatus(`Failed to load BOM: ${publicErrorMessage(err)}`, "error");
     } finally {
       hideMask();
     }
@@ -1569,41 +1640,51 @@ if (insertPopover)
     });
   }
 
+  const access = await resolveModuleAccess();
+  if (access.reason === "no-session") return;
+  if (!access.ok) {
+    applyPermissionUi();
+    setPageStatus(
+      access.reason === "denied"
+        ? "You do not have permission to view this module."
+        : "Unable to verify module permission.",
+      "error"
+    );
+    return;
+  }
+
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return (window.location.href = "login.html");
-    // Load permissions for this module (prefer canonical RPC)
     try {
-      const { data: perms, error: permsErr } = await supabase.rpc(
-        "get_user_permissions",
-        { p_user_id: session.user.id }
+      await loadUoms();
+    } catch (err) {
+      console.error(err);
+      setPageStatus(
+        `Failed to load UOM list: ${publicErrorMessage(err)}`,
+        "error"
       );
-      if (!permsErr && Array.isArray(perms)) {
-        const p = perms.find((r) => r && r.target === `module:${MODULE_ID}`);
-        if (p) {
-          PERM_CAN_VIEW = !!p.can_view;
-          PERM_CAN_EDIT = !!p.can_edit;
-        }
-      } else {
-        console.warn(
-          "Permission load failed (RPC)",
-          permsErr || "unexpected non-array result",
-        );
-      }
-    } catch (pErr) {
-      console.warn("Permission load failed (RPC)", pErr);
-    }
-    if (!PERM_CAN_VIEW) {
-      setStatus("You do not have permission to view this module.", "error");
       return;
     }
-    await loadUoms();
-    await loadProducts();
-    await loadRmItems();
-    // Backfill codes if any missing (some RPC versions might not return code)
-    await ensureRmItemCodes();
+    try {
+      await loadProducts();
+    } catch (err) {
+      console.error(err);
+      setPageStatus(
+        `Failed to load product picker: ${publicErrorMessage(err)}`,
+        "error"
+      );
+      return;
+    }
+    try {
+      await loadRmItems();
+      await ensureRmItemCodes();
+    } catch (err) {
+      console.error(err);
+      setPageStatus(
+        `Failed to load RM item data: ${publicErrorMessage(err)}`,
+        "error"
+      );
+      return;
+    }
     // Start empty — load BOM only after user searches and selects a product
     CURRENT_PRODUCT_ID = null;
     CURRENT_HEADER = null;
@@ -1614,12 +1695,14 @@ if (insertPopover)
     if (editHeaderBtn) editHeaderBtn.disabled = true;
     if (deleteBtn) deleteBtn.disabled = true;
     if (!PRODUCTS.length) {
-      setStatus("No products available.", "error");
+      setPageStatus("No products available.", "error");
+    } else {
+      clearPageStatus();
     }
     applyPermissionUi();
   } catch (err) {
     console.error(err);
-    setStatus(`Init error: ${err.message}`, "error");
+    setPageStatus(`Init error: ${publicErrorMessage(err)}`, "error");
   }
 })();
 

@@ -94,6 +94,7 @@ export const COSTING_ROUTE_CONFIG = {
     allowedLensIds: [
       "route-readiness",
       "product-route-assignments",
+      "product-subgroup-mappings",
       "shared-workload-preview",
       "route-families",
       "route-family-mapping-review",
@@ -103,6 +104,7 @@ export const COSTING_ROUTE_CONFIG = {
       "product-route-editor",
       "historical-candidate-review",
       "effective-route-viewer",
+      "archived-routes",
     ],
   },
 };

@@ -228,7 +228,7 @@ assert(
 );
 const existingDetailBranch =
   loadFn.match(
-    /if \(productRouteId != null\) \{[\s\S]*?return result;\s*\}/,
+    /if \(productRouteId != null\) \{[\s\S]*?return finalizePrmLoad\(token, active, result\);\s*\}/,
   )?.[0] || "";
 assert(
   !historyFn.includes("rpc_create_product_route_draft") &&
@@ -304,17 +304,19 @@ assert(
       product_route_id: null,
     }) === true &&
     loadFn.includes("hydrateProductRouteCreateHandoff") &&
-    openCreateFn.includes('navigate("product-route-editor", { product_id: productId })'),
+    openCreateFn.includes('await navigate("product-route-editor", { product_id: productId })'),
   "28 explicit create-mode workflow remains unchanged for Products with no route",
 );
 assert(
-  resolveProductionRouteLens("product-route-editor") === "route-readiness" &&
-    loadFn.includes("return { ok: true, empty: true }") &&
+  resolveProductionRouteLens("product-route-editor", {
+    allowEditorWithoutId: true,
+  }) === "product-route-editor" &&
+    loadFn.includes("{ ok: true, empty: true }") &&
     !isPrmProductRouteEditorCreateContext({
       product_id: null,
       product_route_id: null,
     }),
-  "29 bare Product Route Editor remains safe",
+  "29 bare Product Route Editor stays on editor with empty state",
 );
 assert(
   resolveProductionRouteLens("product-route-editor", {
@@ -358,8 +360,8 @@ assert(
   "34 no server changes",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v276"/.test(swSrc),
-  "35 SW bumped exactly once after smokes (hub-cache-v276)",
+  /CACHE_NAME = "hub-cache-v318"/.test(swSrc),
+  "35 SW bumped exactly once after smokes (hub-cache-v318)",
 );
 
 assert(

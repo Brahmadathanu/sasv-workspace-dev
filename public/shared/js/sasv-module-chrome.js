@@ -60,17 +60,37 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+const liveSearchableSelectApis = new Set();
+
 function optionLabel(opt) {
   return (opt?.textContent || '').trim();
 }
 
 function readOptions(selectEl) {
-  return Array.from(selectEl.options || []).map((opt) => ({
-    value: String(opt.value),
-    label: optionLabel(opt),
-    disabled: !!opt.disabled,
-    empty: opt.value === '',
-  }));
+  return Array.from(selectEl.options || []).map((opt) => {
+    const label = optionLabel(opt);
+    const primary = String(opt.dataset?.primary || '').trim();
+    const secondary = String(opt.dataset?.secondary || '').trim();
+    const search = [
+      label,
+      primary,
+      secondary,
+      opt.getAttribute('title') || '',
+      opt.dataset?.search || '',
+      String(opt.value ?? ''),
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return {
+      value: String(opt.value),
+      label,
+      primary: primary || label,
+      secondary,
+      search,
+      disabled: !!opt.disabled,
+      empty: opt.value === '',
+    };
+  });
 }
 
 function destroySearchUi(selectEl) {
@@ -103,13 +123,20 @@ function debounce(fn, wait = 220) {
  * - typing opens a restrained list underneath that narrows with debounce
  * - ArrowUp/Down + Enter to select; Escape closes
  * - clearing the input clears the native select value
+ * - showAllWhenEmpty: click or Enter on an empty/committed field opens the
+ *   full catalogue; Tab-focus does not. Empty catalogue does not auto-select.
  * Dropdown is portaled to document.body so panel overflow:hidden cannot clip it.
  * @param {HTMLSelectElement|null} selectEl
  * @param {{
  *   placeholder?: string,
  *   allowEmptyOption?: boolean,
  *   debounceMs?: number,
- *   clearSelectedOnBackspace?: boolean
+ *   clearSelectedOnBackspace?: boolean,
+ *   openOnFocus?: boolean,
+ *   showAllWhenEmpty?: boolean,
+ *   preserveQueryOnBlur?: boolean,
+ *   portalLayer?: "default"|"modal",
+ *   resultCap?: number
  * }} [opts]
  * @returns {object|null}
  */
@@ -131,6 +158,14 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
   const debounceMs =
     typeof opts.debounceMs === 'number' ? opts.debounceMs : 220;
   const clearSelectedOnBackspace = opts.clearSelectedOnBackspace === true;
+  const openOnFocus = opts.openOnFocus === true;
+  const showAllWhenEmpty = opts.showAllWhenEmpty === true;
+  const preserveQueryOnBlur = opts.preserveQueryOnBlur === true;
+  const portalLayer = opts.portalLayer === 'modal' ? 'modal' : 'default';
+  const resultCap =
+    typeof opts.resultCap === 'number' && opts.resultCap > 0
+      ? opts.resultCap
+      : null;
 
   selectEl.classList.add('sasv-native-select-sr');
   selectEl.setAttribute('aria-hidden', 'true');
@@ -182,7 +217,10 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
 
   // Portal list to body so overflow:hidden ancestors cannot clip it
   list = document.createElement('div');
-  list.className = 'sasv-search-select__list ac-list sasv-search-select__list--portal';
+  list.className =
+    portalLayer === 'modal'
+      ? 'sasv-search-select__list ac-list sasv-search-select__list--portal sasv-search-select__list--portal-modal'
+      : 'sasv-search-select__list ac-list sasv-search-select__list--portal';
   list.setAttribute('role', 'listbox');
   list.hidden = true;
   document.body.appendChild(list);
@@ -191,9 +229,12 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
   let filtered = [];
   let activeIndex = -1;
   let lastQuery = '';
+  let destroyed = false;
 
   function selectableOptions() {
-    return options.filter((o) => !(o.empty && !allowEmpty));
+    return options.filter(
+      (o) => !o.disabled && !o.empty && (allowEmpty || !o.empty),
+    );
   }
 
   function selectedLabel() {
@@ -205,6 +246,26 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
 
   function syncInputFromSelect() {
     input.value = selectedLabel();
+  }
+
+  function dropdownZIndex() {
+    if (portalLayer === 'modal') {
+      const modalZ = Number.parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          '--sasv-z-modal'
+        ),
+        10
+      );
+      if (Number.isFinite(modalZ)) return String(modalZ + 50);
+    }
+    return String(
+      Number.parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          '--sasv-z-dropdown'
+        ),
+        10
+      ) || 1200
+    );
   }
 
   function positionList() {
@@ -221,14 +282,7 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
     list.style.top = `${top}px`;
     list.style.width = `${Math.min(width, window.innerWidth - 16)}px`;
     list.style.right = 'auto';
-    list.style.zIndex = String(
-      Number.parseInt(
-        getComputedStyle(document.documentElement).getPropertyValue(
-          '--sasv-z-dropdown'
-        ),
-        10
-      ) || 1200
-    );
+    list.style.zIndex = dropdownZIndex();
   }
 
   function clearList() {
@@ -238,6 +292,16 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
     input.setAttribute('aria-expanded', 'false');
   }
 
+  function isListOpen() {
+    return !list.hidden;
+  }
+
+  function closeList({ restoreCommitted = false } = {}) {
+    if (restoreCommitted) syncInputFromSelect();
+    lastQuery = restoreCommitted ? '' : lastQuery;
+    clearList();
+  }
+
   function scrollActiveIntoView() {
     const el = list.querySelector(`[data-idx="${activeIndex}"]`);
     if (!el) return;
@@ -245,6 +309,24 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
     const r = el.getBoundingClientRect();
     if (r.top < pr.top) list.scrollTop -= pr.top - r.top + 6;
     else if (r.bottom > pr.bottom) list.scrollTop += r.bottom - pr.bottom + 6;
+  }
+
+  function itemHtml(o, idx) {
+    const sel = idx === activeIndex;
+    const secondary = o.secondary;
+    const primary = o.primary || o.label || '(blank)';
+    const body = secondary
+      ? `<span class="sasv-search-select__item-primary">${escapeHtml(
+          primary
+        )}</span><span class="sasv-search-select__item-secondary">${escapeHtml(
+          secondary
+        )}</span>`
+      : escapeHtml(o.label || '(blank)');
+    return `<div class="ac-item${sel ? ' is-active' : ''}${
+      secondary ? ' ac-item--two-line' : ''
+    }" role="option" data-value="${escapeHtml(
+      o.value
+    )}" data-idx="${idx}" aria-selected="${sel}">${body}</div>`;
   }
 
   function renderList() {
@@ -264,16 +346,7 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
       positionList();
       return;
     }
-    list.innerHTML = filtered
-      .map((o, idx) => {
-        const sel = idx === activeIndex;
-        return `<div class="ac-item${sel ? ' is-active' : ''}" role="option" data-value="${escapeHtml(
-          o.value
-        )}" data-idx="${idx}" aria-selected="${sel}">${escapeHtml(
-          o.label || '(blank)'
-        )}</div>`;
-      })
-      .join('');
+    list.innerHTML = filtered.map((o, idx) => itemHtml(o, idx)).join('');
     list.hidden = false;
     input.setAttribute('aria-expanded', 'true');
     positionList();
@@ -283,18 +356,34 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
   function applyFilter(term) {
     const q = String(term || '').trim();
     lastQuery = q;
+    const pool = selectableOptions();
     if (!q) {
+      if (showAllWhenEmpty) {
+        filtered = resultCap ? pool.slice(0, resultCap) : pool;
+        if (!filtered.length) {
+          clearList();
+          return;
+        }
+        const current = String(selectEl.value ?? '');
+        const currentIdx = current
+          ? filtered.findIndex((o) => o.value === current)
+          : -1;
+        activeIndex = currentIdx;
+        renderList();
+        return;
+      }
       filtered = [];
       clearList();
       return;
     }
     const ql = q.toLowerCase();
-    filtered = selectableOptions().filter(
+    let hits = pool.filter(
       (o) =>
-        !o.empty &&
-        (o.label.toLowerCase().includes(ql) ||
-          o.value.toLowerCase().includes(ql))
+        (o.search || o.label).toLowerCase().includes(ql) ||
+        o.value.toLowerCase().includes(ql)
     );
+    if (resultCap) hits = hits.slice(0, resultCap);
+    filtered = hits;
     activeIndex = filtered.length ? 0 : -1;
     renderList();
   }
@@ -324,10 +413,23 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
     commitValue(value, { silent: false });
   }
 
-  input.addEventListener('focus', () => {
+  function openCatalogueFromInput() {
     const typed = String(input.value || '').trim();
     const sel = selectedLabel();
     if (typed && typed !== sel) applyFilter(typed);
+    else if (openOnFocus || showAllWhenEmpty) applyFilter('');
+  }
+
+  function canBrowseCatalogue() {
+    return openOnFocus || showAllWhenEmpty;
+  }
+
+  input.addEventListener('focus', () => {
+    if (openOnFocus) openCatalogueFromInput();
+  });
+
+  input.addEventListener('click', () => {
+    if (list.hidden && showAllWhenEmpty) openCatalogueFromInput();
   });
 
   input.addEventListener('input', () => {
@@ -357,12 +459,7 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
     if (ev.key === 'ArrowDown') {
       ev.preventDefault();
       if (list.hidden) {
-        const term =
-          input.value.trim() === selectedLabel()
-            ? ''
-            : String(input.value || '');
-        if (term.trim()) applyFilter(term);
-        else return;
+        openCatalogueFromInput();
       }
       if (!filtered.length) return;
       activeIndex = Math.min(filtered.length - 1, activeIndex + 1);
@@ -373,14 +470,22 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
       activeIndex = Math.max(0, activeIndex - 1);
       renderList();
     } else if (ev.key === 'Enter') {
-      if (!list.hidden && activeIndex >= 0 && filtered[activeIndex]) {
+      if (list.hidden) {
+        if (canBrowseCatalogue()) {
+          ev.preventDefault();
+          openCatalogueFromInput();
+        }
+        return;
+      }
+      if (activeIndex >= 0 && filtered[activeIndex]) {
         ev.preventDefault();
         onPick(filtered[activeIndex].value);
+      } else {
+        ev.preventDefault();
       }
     } else if (ev.key === 'Escape') {
       ev.preventDefault();
-      syncInputFromSelect();
-      clearList();
+      closeList({ restoreCommitted: true });
     }
   });
 
@@ -396,19 +501,25 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
 
   input.addEventListener('blur', () => {
     setTimeout(() => {
+      if (destroyed) return;
       if (
         wrap.contains(document.activeElement) ||
         list.contains(document.activeElement)
       ) {
         return;
       }
-      const typed = String(input.value || '').trim().toLowerCase();
-      if (typed) {
+      const typed = String(input.value || '').trim();
+      const sel = selectedLabel();
+      if (typed && typed.toLowerCase() !== sel.toLowerCase()) {
         const exact = selectableOptions().find(
-          (o) => !o.empty && o.label.toLowerCase() === typed
+          (o) => !o.empty && o.label.toLowerCase() === typed.toLowerCase()
         );
         if (exact) {
           commitValue(exact.value, { silent: false });
+          return;
+        }
+        if (preserveQueryOnBlur) {
+          clearList();
           return;
         }
       }
@@ -432,13 +543,20 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
   const api = {
     refreshOptions() {
       options = readOptions(selectEl);
-      syncInputFromSelect();
+      if (!preserveQueryOnBlur) syncInputFromSelect();
       clearList();
     },
     setValue(value, silent = true) {
       commitValue(value, { silent });
     },
+    isOpen() {
+      return isListOpen();
+    },
+    closeList,
     destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      liveSearchableSelectApis.delete(api);
       document.removeEventListener('mousedown', onDocPointer, true);
       window.removeEventListener('resize', onReposition);
       window.removeEventListener('scroll', onReposition, true);
@@ -453,13 +571,15 @@ export function enhanceSearchableSelect(selectEl, opts = {}) {
         const fresh = input.cloneNode(true);
         input.replaceWith(fresh);
       }
-      selectEl.classList.add('sasv-native-select-sr');
-      selectEl.setAttribute('aria-hidden', 'true');
-      selectEl.tabIndex = -1;
+      selectEl.classList.remove('sasv-native-select-sr');
+      selectEl.removeAttribute('aria-hidden');
+      selectEl.removeAttribute('tabindex');
+      delete selectEl._sasvSearch;
     },
   };
 
   selectEl._sasvSearch = api;
+  liveSearchableSelectApis.add(api);
   return api;
 }
 
@@ -490,4 +610,32 @@ export function setSearchableSelectValue(selectEl, value, silent = true) {
     return;
   }
   selectEl.value = v;
+}
+
+/** Destroy searchable UI for one native select. */
+export function destroySearchableSelect(selectEl) {
+  destroySearchUi(selectEl);
+}
+
+/** Destroy searchable UIs for every enhanced select under root. */
+export function destroySearchableSelectsIn(root) {
+  if (!root?.querySelectorAll) return;
+  for (const el of root.querySelectorAll('select')) {
+    destroySearchUi(el);
+  }
+}
+
+/**
+ * Close any open searchable lists. Returns true if at least one list was open.
+ * Used so Escape can dismiss the list before a modal.
+ */
+export function closeOpenSearchableSelectLists() {
+  let closed = false;
+  for (const api of liveSearchableSelectApis) {
+    if (api?.isOpen?.()) {
+      api.closeList?.({ restoreCommitted: true });
+      closed = true;
+    }
+  }
+  return closed;
 }

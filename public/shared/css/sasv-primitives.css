@@ -685,6 +685,11 @@ textarea.filter-input {
   z-index: var(--sasv-z-dropdown);
 }
 
+/* Modal-scoped portal: above #detailsModal overlay, below toasts */
+.sasv-search-select__list--portal-modal.ac-list {
+  z-index: calc(var(--sasv-z-modal) + 50);
+}
+
 /* Items must not require .sasv-search-select ancestor (portal lives on body) */
 .sasv-search-select__list .ac-item,
 .sasv-search-select .ac-item,
@@ -712,6 +717,26 @@ textarea.filter-input {
   color: var(--sasv-text-muted);
   cursor: default;
   background: transparent;
+}
+
+.sasv-search-select__list .ac-item--two-line,
+.sasv-search-select .ac-item--two-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.sasv-search-select__item-primary {
+  display: block;
+  font-weight: var(--sasv-fw-medium, 500);
+}
+
+.sasv-search-select__item-secondary {
+  display: block;
+  font-size: var(--sasv-text-xs, 12px);
+  color: var(--sasv-text-muted);
+  line-height: 1.3;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

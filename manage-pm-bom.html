@@ -1152,6 +1152,7 @@
       </div>
       <div id="statusToastContainer"></div>
     </header>
+    <div id="bomPageStatus" class="bom-page-status" role="alert" hidden></div>
 
     <!-- Tabs navigation (ERP style) -->
     <div class="tabs-wrap">
@@ -1242,7 +1243,10 @@
     >
       <section class="panel">
         <div class="panel-header">
-          <div style="display: flex; gap: 10px; align-items: center">
+          <div
+            class="hdr-line hdr-top"
+            style="display: flex; align-items: center; gap: 12px; width: 100%"
+          >
             <label class="product-heading-label">
               <span class="title">SKU</span>
               <select id="ovr_skuPicker"></select>
@@ -1510,25 +1514,25 @@
     >
       <section class="panel">
         <div class="panel-header">
-          <div style="display: flex; gap: 10px; align-items: center">
+          <div
+            class="hdr-line hdr-top"
+            style="display: flex; align-items: center; gap: 12px; width: 100%"
+          >
             <label class="product-heading-label">
               <span class="title">Template</span>
               <select id="rebuildTplPicker"></select>
             </label>
-          </div>
-          <div style="position: relative; display: inline-block">
+          <div style="position: relative; display: inline-block; flex: 0 0 auto">
             <button id="rebuildMenuBtn" class="btn primary">Actions ▾</button>
             <div
               id="rebuildMenu"
               style="
                 display: none;
-                position: absolute;
-                right: 0;
-                top: 100%;
+                position: fixed;
                 background: white;
                 border: 1px solid #ddd;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                z-index: 40;
+                z-index: 30000;
               "
             >
               <div
@@ -1545,6 +1549,7 @@
                 </button>
               </div>
             </div>
+          </div>
           </div>
         </div>
         <div class="panel-body">

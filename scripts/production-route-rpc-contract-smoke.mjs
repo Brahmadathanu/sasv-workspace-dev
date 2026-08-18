@@ -32,7 +32,7 @@ const htmlSrc = read("public/shared/production-route-manager.html");
 const builderSrc = read("scripts/build-production-route-manager-html.mjs");
 const typesSrc = read("public/shared/js/types/supabase.ts");
 
-assert(PRODUCTION_ROUTE_RPC_NAMES.length === 54, "exactly 54 live RPCs");
+assert(PRODUCTION_ROUTE_RPC_NAMES.length === 62, "exactly 62 live RPCs");
 assert(
   PRODUCTION_ROUTE_RPC_NAMES.includes(
     "rpc_get_production_route_manager_exact_run_readiness",
@@ -146,6 +146,12 @@ assert(
     allowEditorWithoutId: true,
   }) === "route-family-route-editor",
   "intentional no-context family editor entry stays on editor lens",
+);
+assert(
+  resolveProductionRouteLens("product-route-editor", {
+    allowEditorWithoutId: true,
+  }) === "product-route-editor",
+  "intentional no-context product editor entry stays on editor lens",
 );
 assert(
   resolveProductionRouteLens(undefined) === "route-readiness",
@@ -356,8 +362,11 @@ assert(
 assert(
   mainSrc.includes("withMutation") &&
     mainSrc.includes("mutationInFlight") &&
-    mainSrc.includes("Post-create Family summary/history failed"),
-  "duplicate submits blocked and post-create summary failure is contextual",
+    mainSrc.includes("refreshRouteFamiliesAfterMutation") &&
+    mainSrc.includes(
+      "Route Family created, but the register could not be refreshed.",
+    ),
+  "duplicate submits blocked and post-create register refresh is contextual",
 );
 assert(
   mainSrc.includes("openApproveMappingModal") &&
@@ -425,6 +434,10 @@ assert(
     mainSrc.includes(
       'inactivateAssignment: "rpc_inactivate_product_route_family_assignment"',
     ) &&
+    mainSrc.includes("correctAssignmentEffectiveFrom:") &&
+    mainSrc.includes(
+      '"rpc_correct_product_route_family_assignment_effective_from"',
+    ) &&
     mainSrc.includes(
       'createAssignmentDraft: "rpc_create_product_route_family_assignment_draft"',
     ) &&
@@ -457,7 +470,10 @@ assert(
     mainSrc.includes("syncPrmAsOfDateChrome") &&
     mainSrc.includes("status_counts_baseline") &&
     mainSrc.includes("selectPrmPrimaryReadinessFilterStatuses") &&
-    mainSrc.includes("Do not fall back to general") &&
+    mainSrc.includes("RPC.generalReadiness") &&
+    mainSrc.includes("buildReadinessRpcArgs") &&
+    mainSrc.includes("readinessAsOfContextHtml") &&
+    mainSrc.includes("clearReadinessFilters") &&
     mainSrc.includes("cp-prm-badge-ok") &&
     mainSrc.includes("cp-prm-badge-warn") &&
     mainSrc.includes("cp-prm-badge-danger") &&
@@ -494,8 +510,10 @@ assert(
 assert(
   !mainSrc.includes("RPC.readiness") &&
     mainSrc.includes("generalReadiness:") &&
-    !mainSrc.includes("invoke(\n      RPC.generalReadiness"),
-  "general readiness retained in map but never invoked as Costing fallback",
+    /await invoke\(\r?\n\s*RPC\.generalReadiness/.test(mainSrc) &&
+    /async function loadReadiness[\s\S]*?RPC\.generalReadiness/.test(mainSrc) &&
+    !/async function loadReadiness[\s\S]*?RPC\.exactRunReadiness/.test(mainSrc),
+  "Route Readiness invokes general readiness; exact-run not used for that lens",
 );
 assert(
   htmlSrc.includes("cp-prm-badge-danger") &&

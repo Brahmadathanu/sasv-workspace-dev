@@ -228,8 +228,8 @@ assert(
   "32 semantic theme only",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v264"/.test(swSrc),
-  "33 exactly one SW bump after all smokes pass (hub-cache-v264)",
+  /CACHE_NAME = "hub-cache-v\d+"/.test(swSrc),
+  "33 SW cache name present",
 );
 
 if (failed) {

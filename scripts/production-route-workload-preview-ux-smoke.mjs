@@ -190,8 +190,10 @@ assert(
 );
 assert(
   PRM_EXACT_RUN_CONTEXT.refresh_run_id === 80 &&
-    /RPC\.exactRunReadiness[\s\S]{0,220}PRM_EXACT_RUN_CONTEXT/.test(mainSrc),
-  "37 Route Readiness Run80 preserved",
+    mainSrc.includes("exactRunReadiness:") &&
+    /async function loadReadiness[\s\S]*?RPC\.generalReadiness/.test(mainSrc) &&
+    !/async function loadReadiness[\s\S]*?RPC\.exactRunReadiness/.test(mainSrc),
+  "37 Route Readiness uses general readiness; Run80 exact-run map retained",
 );
 assert(
   /showPager[\s\S]{0,180}shared-workload-preview/.test(shellSrc) === false ||
@@ -276,8 +278,8 @@ assert(
   "58 semantic theme only",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v269"/.test(swSrc),
-  "59 exactly one SW bump after all smokes pass (hub-cache-v269)",
+  /CACHE_NAME = "hub-cache-v315"/.test(swSrc),
+  "59 exactly one SW bump after all smokes pass (hub-cache-v315)",
 );
 
 assert(

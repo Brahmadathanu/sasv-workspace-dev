@@ -20,9 +20,31 @@ import {
   PRM_READINESS_STATUSES,
   buildFamilyRouteEditorNavParams,
   buildPrmFamilyApprovalReferenceTemplate,
-  buildPrmFamilyRouteApprovalReferenceTemplate,
-  buildPrmFocusRestoreOptions,
+  buildPrmFamilyRouteApprovalReference,
+  buildPrmProductRouteApprovalReference,
+  buildPrmProductRouteFamilyAssignmentApprovalReference,
+  buildPrmRouteFamilyApprovalReference,
+  buildPrmResourceClassLabelIndex,
+  resolvePrmResourceClassDisplayLabel,
   buildPrmMappingApprovalReferenceTemplate,
+  getPrmLocalIsoDate,
+  PRM_FAMILY_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT,
+  PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT,
+  PRM_PRODUCT_ROUTE_FAMILY_ASSIGNMENT_APPROVAL_REFERENCE_HELPER_TEXT,
+  PRM_ROUTE_FAMILY_APPROVAL_REFERENCE_HELPER_TEXT,
+  resolvePrmFamilyRouteApprovalIdentity,
+  resolvePrmProductRouteApprovalIdentity,
+  resolvePrmProductRouteFamilyAssignmentApprovalIdentity,
+  resolvePrmProductAssignmentCreateEligibility,
+  resolvePrmRouteFamilyApprovalIdentity,
+  validatePrmFamilyRouteApprovalReference,
+  validatePrmProductRouteApprovalReference,
+  validatePrmProductRouteFamilyAssignmentApprovalReference,
+  validatePrmRouteFamilyApprovalReference,
+  filterPrmRouteFamilyGroupMappings,
+  filterPrmRouteFamilySubgroupMappings,
+  filterPrmRouteFamilyProductAssignments,
+  summarizePrmRouteFamilyAssignments,
   buildPrmMappingBasisOptionsHtml,
   buildPrmProductGroupMappingOptions,
   clampPrmPagination,
@@ -44,15 +66,19 @@ import {
   formatPrmCommercialHierarchyLabel,
   formatPrmDayMonthYearLabel,
   formatPrmFamilyRouteVersionCopy,
+  formatPrmProductRouteVersionCopy,
   formatPrmRouteFamilyAssignmentSourceLabel,
+  formatPrmRouteAssignmentSourceExplain,
   resolvePrmEffectiveFamilyRouteId,
   resolvePrmRouteFamilyAssignmentSource,
   isPrmProductRouteEditorCreateContext,
   resolvePrmProductHistoryRouteId,
+  resolvePrmProductRouteVersionFromHistory,
   resolvePrmOpenProductRouteEligibility,
   formatPrmProductHistoryBaseFamilyRoute,
   selectPrmProductBatchSizeReferences,
   PRM_PRODUCT_ROUTE_CREATE_BATCH_REQUIRED,
+  PRM_PRODUCT_ROUTE_SOURCES,
   formatPrmDlScopeSummary,
   formatPrmFoundationStatusLabel,
   formatPrmPohScopeSummary,
@@ -85,6 +111,7 @@ import {
   formatPrmRouteValidationSummary,
   formatPrmRpcError,
   formatPrmWorkloadSummaryLine,
+  buildPrmFocusRestoreOptions,
   getPrmRouteValidationTone,
   listPrmRouteValidationErrors,
   formatPrmStepSourceLabel,
@@ -103,6 +130,14 @@ import {
   isMeaningfulPrmCancellationReason,
   isPendingRouteFamilyMapping,
   isPrmMasterOptionsReady,
+  resolvePrmMasterOptionsRequestScope,
+  shouldAcceptPrmMasterOptionsGeneration,
+  shouldAcceptPrmPaintGeneration,
+  shouldApplyPrmLensTransitionTeardown,
+  applyPrmTableWrapVisible,
+  resolvePrmFamilyRouteEditorLoadId,
+  resolvePrmFamilyRouteEditorRouteId,
+  shouldApplyPrmFamilyRouteEmptyContextRefresh,
   normalizePrmAssignmentLifecycleActions,
   isPrmPendingMappingStatus,
   isProductionRouteLens,
@@ -124,7 +159,9 @@ import {
   normalizePrmIntegerId,
   normalizePrmMappingBasis,
   normalizePrmMasterOptions,
+  normalizePrmProductAssignmentRow,
   normalizePrmProductAssignmentsPayload,
+  normalizePrmProductSubgroupMapping,
   normalizePrmRouteFamilyMapping,
   normalizePrmRpcPayload,
   pageToPrmOffset,
@@ -155,8 +192,17 @@ import {
   readPrmEditMappingFormValues,
   readPrmMapProductGroupFormValues,
   resolveDefaultPrmMappingBasis,
+  resolvePrmFamilyRouteCreateEligibility,
+  formatPrmRouteFamilySelectorLabel,
+  selectPrmRouteFamiliesForFamilyRouteCreate,
+  isPrmRouteFamilyEligibleForFamilyRouteCreate,
   resolveFamilyRouteCreateNavigation,
   resolveProductionRouteLens,
+  resolvePrmFamilyRouteCreateProvenanceContext,
+  validatePrmFamilyRouteCreateProvenance,
+  canonicalizePrmFamilyRouteStepKey,
+  PRM_FAMILY_ROUTE_CREATE_SOURCE_HELPER,
+  PRM_FAMILY_ROUTE_CREATE_EVIDENCE_HELPER,
   selectPrmReadinessColumns,
   summarizePrmCostCentreSetup,
   resolvePrmCostCentreSetupChip,
@@ -166,6 +212,7 @@ import {
   buildApproveRouteFamilyArgs,
   buildApproveRouteFamilyMappingArgs,
   buildCancelProductRouteFamilyAssignmentArgs,
+  buildCorrectProductRouteFamilyAssignmentEffectiveFromArgs,
   buildCreateProductRouteFamilyAssignmentDraftArgs,
   buildCreateRouteFamilyArgs,
   buildEffectiveRouteArgs,
@@ -176,6 +223,7 @@ import {
   buildProductCandidateRpcArgs,
   buildProductRouteHistoryArgs,
   buildExactRunReadinessRpcArgs,
+  buildReadinessRpcArgs,
   buildMappingReviewCandidatesRpcArgs,
   buildFoundationReviewRpcArgs,
   buildRouteFamilyRouteHistoryArgs,
@@ -196,6 +244,12 @@ import {
 import { createProductionRouteEditorController } from "./costing-suite-production-route-editor.js";
 import { createProductionRouteCandidatesController } from "./costing-suite-production-route-candidates.js";
 import { createProductionCostCentresController } from "./costing-suite-production-route-cost-centres.js";
+import { createPrmSubgroupArchiveController } from "./costing-suite-production-route-subgroup-archive.js";
+import {
+  closeOpenSearchableSelectLists,
+  destroySearchableSelectsIn,
+  enhanceSearchableSelect,
+} from "./sasv-module-chrome.js";
 
 export {
   PRODUCTION_ROUTE_DEFAULT_LENS,
@@ -230,6 +284,8 @@ const RPC = Object.freeze({
   approveAssignment: "rpc_approve_product_route_family_assignment",
   cancelAssignment: "rpc_cancel_product_route_family_assignment",
   inactivateAssignment: "rpc_inactivate_product_route_family_assignment",
+  correctAssignmentEffectiveFrom:
+    "rpc_correct_product_route_family_assignment_effective_from",
   productCandidate: "rpc_preview_product_process_route_candidate",
   workloadPreview: "rpc_get_production_route_manager_workload_preview",
   workloadDetail: "rpc_get_production_route_manager_workload_detail",
@@ -248,6 +304,7 @@ const RPC = Object.freeze({
 /** Step fields for effective-route table — render only keys present on steps. */
 const PRM_EFFECTIVE_STEP_FIELD_DEFS = Object.freeze([
   { key: "sequence_no", label: "Seq", alts: ["sequence"] },
+  { key: "step_key", label: "Step", alts: ["effective_step_key"] },
   { key: "activity", label: "Activity", alts: ["activity_name"] },
   { key: "activity_kind", label: "Activity kind", alts: ["activity_type"] },
   {
@@ -286,12 +343,12 @@ const PRM_EFFECTIVE_STEP_FIELD_DEFS = Object.freeze([
   },
   {
     key: "direct_labour_scope",
-    label: "Direct Labour scope",
+    label: "DL",
     alts: ["dl_scope"],
   },
   {
     key: "production_overhead_scope",
-    label: "Production Overhead scope",
+    label: "POH",
     alts: ["poh_scope"],
   },
   {
@@ -360,6 +417,8 @@ export function createProductionRouteController(deps = {}) {
     getCurrentLens = () => PRODUCTION_ROUTE_DEFAULT_LENS,
     navigateToCostingRoute = null,
     syncShellLens = null,
+    beginPrmSoftNavLock = null,
+    endPrmSoftNavLock = null,
     afterPrmNavigate = null,
   } = deps;
 
@@ -381,16 +440,20 @@ export function createProductionRouteController(deps = {}) {
   let lastProductCandidatePayload = null;
   let prmPopstateBound = false;
   let lensRenderGeneration = 0;
+  let familyRouteOpenGeneration = 0;
   let activeLensRequestController = null;
   const modalStack = createPrmModalStack();
   const PRM_DEEP_LINK_KEYS = Object.freeze([
     "product_id",
     "product_group_id",
+    "product_subgroup_id",
     "route_family_id",
     "family_route_id",
     "product_route_id",
+    "mapping_id",
     "as_of_date",
     "candidate_kind",
+    "entity_type",
   ]);
   let state = {
     activeLens: PRODUCTION_ROUTE_DEFAULT_LENS,
@@ -455,9 +518,11 @@ export function createProductionRouteController(deps = {}) {
     optionsStatus: "uninitialized",
     optionsError: null,
     productGroups: [],
+    productSubgroups: [],
     products: [],
     routeFamilies: [],
     routeFamilyMappings: [],
+    routeFamilySubgroupMappings: [],
     approvedFamilyRoutes: [],
     batchSizeReferences: [],
     costCentreBlocker: true,
@@ -467,9 +532,20 @@ export function createProductionRouteController(deps = {}) {
     selectedProductRouteId: null,
     selectedRouteFamilyId: null,
     selectedFamilyRouteId: null,
+    familyRouteCreateFamilyId: null,
+    familyRouteCreateEligibility: null,
     familyHistory: [],
     productHistory: [],
     effective: null,
+    effectiveViewer: {
+      productId: null,
+      source: null,
+      payload: null,
+      status: "empty",
+      error: null,
+      productHistory: [],
+      familyHistory: [],
+    },
     deepLink: {},
     preselectProductGroupId: null,
     pendingMapFromEvidence: false,
@@ -486,6 +562,22 @@ export function createProductionRouteController(deps = {}) {
     costCentreStatusFilter: "",
     costCentrePoolFilter: "",
     costCentreDetail: null,
+    // Gate 11Y.10I.2C.3F.1C — Subgroup Mappings
+    subgroup_mapping_status: "",
+    product_subgroup_id: "",
+    subgroupMappingRows: [],
+    subgroupMappingTotalCount: 0,
+    subgroup_mapping_status_counts: {},
+    subgroupMappingLoadError: null,
+    subgroupMappingLoading: false,
+    subgroupMappingGeneration: 0,
+    // Gate 11Y.10I.2C.3F.1C — Archived Routes
+    archived_entity_type: "",
+    archivedRouteRows: [],
+    archivedRouteTotalCount: 0,
+    archivedRouteLoadError: null,
+    archivedRouteLoading: false,
+    archivedRouteGeneration: 0,
     loading: false,
     error: null,
     permissionDenied: false,
@@ -535,10 +627,12 @@ export function createProductionRouteController(deps = {}) {
     popoverDismissHandlers = [];
   }
 
+  /** Page/register handlers only — modal listeners belong to closeModal / applyModalContent. */
   function unbind() {
-    unbindModalHandlers();
     unbindPopoverDismiss();
-    detachPrmEscapeCapture();
+    if (!prmOwnsDetailsModal) {
+      detachPrmEscapeCapture();
+    }
     for (const item of handlers) {
       item.el?.removeEventListener?.(item.type, item.fn, item.options);
     }
@@ -562,6 +656,9 @@ export function createProductionRouteController(deps = {}) {
     document
       .getElementById("mainTable")
       ?.removeAttribute("data-prm-workload-table");
+    document
+      .getElementById("mainTable")
+      ?.removeAttribute("data-prm-subgroup-mappings-table");
   }
 
   function ensureLensRoot(lensId) {
@@ -576,6 +673,7 @@ export function createProductionRouteController(deps = {}) {
 
   function beginLensTransition(nextLens) {
     lensRenderGeneration += 1;
+    const token = lensRenderGeneration;
     if (activeLensRequestController) {
       try {
         activeLensRequestController.abort();
@@ -584,10 +682,54 @@ export function createProductionRouteController(deps = {}) {
       }
     }
     activeLensRequestController = new AbortController();
-    editor.clearFamilyStepExpansion?.();
-    clearActiveRowHighlight();
-    clearLensOwnedDom();
-    return lensRenderGeneration;
+    if (
+      shouldApplyPrmLensTransitionTeardown({
+        requestGeneration: token,
+        currentGeneration: lensRenderGeneration,
+      })
+    ) {
+      editor.bumpFamilyRouteDetailGeneration?.();
+      editor.clearFamilyStepExpansion?.();
+      clearActiveRowHighlight();
+      clearLensOwnedDom();
+      // Register lenses paint into mainTable; editor/viewer lenses hide it.
+      // Clear immediately so a stale/competing paint cannot leave Route Readiness
+      // rows visible after modal close during soft-nav.
+      if (
+        nextLens === "route-family-route-editor" ||
+        nextLens === "product-route-editor" ||
+        nextLens === "historical-candidate-review" ||
+        nextLens === "effective-route-viewer"
+      ) {
+        const table = document.getElementById("mainTable");
+        if (table) table.style.display = "none";
+        const host = hosts();
+        if (host.tableHead) host.tableHead.innerHTML = "";
+        if (host.tableBody) host.tableBody.innerHTML = "";
+      }
+    }
+    return token;
+  }
+
+  function acceptPrmPaintGeneration(generation) {
+    return shouldAcceptPrmPaintGeneration({
+      requestGeneration: generation,
+      currentGeneration: lensRenderGeneration,
+    });
+  }
+
+  function paintAcceptedPrmLens({ generation } = {}) {
+    const token =
+      generation != null ? Number(generation) : lensRenderGeneration;
+    if (!acceptPrmPaintGeneration(token)) {
+      return { ok: false, stale: true };
+    }
+    if (typeof afterPrmNavigate === "function") {
+      return afterPrmNavigate({ generation: token }) || { ok: true };
+    }
+    applyPrmTableWrapVisible(hosts().tableWrap);
+    render({ paintGeneration: token });
+    return { ok: true };
   }
 
   function getAsOfDate() {
@@ -650,7 +792,9 @@ export function createProductionRouteController(deps = {}) {
     }
   }
 
+  let masterOptionsGeneration = 0;
   let masterOptionsInflight = null;
+  let masterOptionsInflightGeneration = 0;
 
   function syncCostCentreBlockerFromOptions() {
     if (!isPrmMasterOptionsReady(state.optionsStatus)) {
@@ -660,57 +804,95 @@ export function createProductionRouteController(deps = {}) {
     state.costCentreBlocker = !hasApprovedCostCentres(state.options);
   }
 
+  function commitMasterOptionsPayload(payload, generation) {
+    if (
+      !shouldAcceptPrmMasterOptionsGeneration(
+        generation,
+        masterOptionsGeneration,
+      )
+    ) {
+      return { ok: true, stale: true, generation, data: state.options };
+    }
+    state.options = payload;
+    state.optionsStatus = "ready";
+    state.optionsError = null;
+    state.productGroups = payload.product_groups || [];
+    state.productSubgroups = payload.product_subgroups || [];
+    state.products = payload.products || [];
+    state.routeFamilies = payload.route_families || [];
+    state.routeFamilyMappings = payload.route_family_mappings || [];
+    state.routeFamilySubgroupMappings =
+      payload.route_family_subgroup_mappings || [];
+    state.approvedFamilyRoutes = payload.approved_route_family_routes || [];
+    state.batchSizeReferences = payload.batch_size_references || [];
+    if (state.activeLens === "route-families") {
+      state.total_count = (state.routeFamilies || []).length;
+    }
+    syncCostCentreBlockerFromOptions();
+    renderSetupChip();
+    return { ok: true, data: payload, generation, stale: false };
+  }
+
   async function loadMasterOptions(filters = {}) {
+    const generation = ++masterOptionsGeneration;
+    const scope = resolvePrmMasterOptionsRequestScope(filters, {
+      selectedProductId: state.selectedProductId,
+      product_group_id: state.product_group_id,
+      route_family_id: state.route_family_id,
+      deepLink: state.deepLink || {},
+    });
     state.optionsStatus = "loading";
     state.optionsError = null;
     syncCostCentreBlockerFromOptions();
     renderSetupChip();
-    const response = await invoke(
-      RPC.options,
-      buildMasterOptionsRpcArgs({
-        as_of_date: getAsOfDate(),
-        product_id:
-          filters.product_id ??
-          state.selectedProductId ??
-          state.deepLink.product_id ??
-          null,
-        product_group_id:
-          filters.product_group_id ??
-          state.product_group_id ??
-          state.deepLink.product_group_id ??
-          null,
-        route_family_id:
-          filters.route_family_id ??
-          state.route_family_id ??
-          state.deepLink.route_family_id ??
-          null,
-      }),
-      "Unable to load route master options.",
-    );
-    if (!response.ok) {
-      state.optionsStatus = "error";
-      state.optionsError =
-        response.error?.message ||
-        "Unable to load route master options.";
-      syncCostCentreBlockerFromOptions();
-      renderSetupChip();
-      return response;
-    }
-    state.options = normalizePrmMasterOptions(
-      normalizePrmRpcPayload(response.data) || response.data,
-    );
-    state.optionsStatus = "ready";
-    state.optionsError = null;
-    state.productGroups = state.options.product_groups || [];
-    state.products = state.options.products || [];
-    state.routeFamilies = state.options.route_families || [];
-    state.routeFamilyMappings = state.options.route_family_mappings || [];
-    state.approvedFamilyRoutes =
-      state.options.approved_route_family_routes || [];
-    state.batchSizeReferences = state.options.batch_size_references || [];
-    syncCostCentreBlockerFromOptions();
-    renderSetupChip();
-    return { ok: true, data: state.options };
+    const run = (async () => {
+      const response = await invoke(
+        RPC.options,
+        buildMasterOptionsRpcArgs({
+          as_of_date: getAsOfDate(),
+          product_id: scope.product_id,
+          product_group_id: scope.product_group_id,
+          route_family_id: scope.route_family_id,
+        }),
+        "Unable to load route master options.",
+      );
+      if (
+        !shouldAcceptPrmMasterOptionsGeneration(
+          generation,
+          masterOptionsGeneration,
+        )
+      ) {
+        return { ok: true, stale: true, generation, data: state.options };
+      }
+      if (!response.ok) {
+        if (
+          !shouldAcceptPrmMasterOptionsGeneration(
+            generation,
+            masterOptionsGeneration,
+          )
+        ) {
+          return { ok: true, stale: true, generation, data: state.options };
+        }
+        state.optionsStatus = "error";
+        state.optionsError =
+          response.error?.message ||
+          "Unable to load route master options.";
+        syncCostCentreBlockerFromOptions();
+        renderSetupChip();
+        return response;
+      }
+      const payload = normalizePrmMasterOptions(
+        normalizePrmRpcPayload(response.data) || response.data,
+      );
+      return commitMasterOptionsPayload(payload, generation);
+    })();
+    masterOptionsInflightGeneration = generation;
+    masterOptionsInflight = run.finally(() => {
+      if (masterOptionsInflightGeneration === generation) {
+        masterOptionsInflight = null;
+      }
+    });
+    return run;
   }
 
   async function ensureMasterOptions(filters = {}) {
@@ -720,10 +902,7 @@ export function createProductionRouteController(deps = {}) {
     if (masterOptionsInflight) {
       return masterOptionsInflight;
     }
-    masterOptionsInflight = loadMasterOptions(filters).finally(() => {
-      masterOptionsInflight = null;
-    });
-    return masterOptionsInflight;
+    return loadMasterOptions(filters);
   }
 
   async function requireMasterOptionsForStepAuthoring() {
@@ -773,11 +952,9 @@ export function createProductionRouteController(deps = {}) {
       !state.product_group_id &&
       !state.route_family_id;
     const response = await invoke(
-      RPC.exactRunReadiness,
-      buildExactRunReadinessRpcArgs({
-        period_start: PRM_EXACT_RUN_CONTEXT.period_start,
-        valuation_date: PRM_EXACT_RUN_CONTEXT.valuation_date,
-        refresh_run_id: PRM_EXACT_RUN_CONTEXT.refresh_run_id,
+      RPC.generalReadiness,
+      buildReadinessRpcArgs({
+        as_of_date: getAsOfDate(),
         search: state.search,
         readiness_status: state.readiness_status || null,
         product_group_id: state.product_group_id || null,
@@ -785,19 +962,17 @@ export function createProductionRouteController(deps = {}) {
         limit: state.limit,
         offset: state.offset,
       }),
-      "Unable to load exact-run Costing Readiness Queue.",
+      "Unable to load Route Readiness.",
     );
     if (current !== generation) return { ok: false, stale: true };
     state.loading = false;
     if (!response.ok) {
-      // Do not fall back to general as-of readiness (637-product queue).
       state.readinessRows = [];
       state.total_count = 0;
       state.readinessLoadError =
-        response.error?.message ||
-        "Exact-run Costing Readiness failed to load. The general readiness RPC was not used.";
+        response.error?.message || "Route Readiness failed to load.";
       showToast?.(state.readinessLoadError, "error");
-      return { ok: false, error: response.error, exactRunFailed: true };
+      return { ok: false, error: response.error };
     }
     const normalized = normalizeReadinessPayload(response.data);
     const page = clampPrmPagination({
@@ -854,8 +1029,27 @@ export function createProductionRouteController(deps = {}) {
 
   async function loadRouteFamilies() {
     state.loading = true;
-    const result = await ensureMasterOptions();
+    const result = await loadMasterOptions({ catalogueScope: "unscoped" });
     state.loading = false;
+    return result;
+  }
+
+  async function refreshRouteFamiliesAfterMutation({
+    refreshFailureMessage = "Route Family updated, but the register could not be refreshed.",
+  } = {}) {
+    const result = await loadMasterOptions({ catalogueScope: "unscoped" });
+    if (result?.stale && isPrmMasterOptionsReady(state.optionsStatus)) {
+      if (state.activeLens === "route-families") {
+        paintAcceptedPrmLens();
+      }
+      return { ok: true, data: state.options, stale: true };
+    }
+    if (state.activeLens === "route-families") {
+      paintAcceptedPrmLens();
+    }
+    if (!result?.ok) {
+      showToast?.(refreshFailureMessage, "warning", 5200);
+    }
     return result;
   }
 
@@ -1009,6 +1203,229 @@ export function createProductionRouteController(deps = {}) {
     return { ok: true, data: state.effective };
   }
 
+  function createEmptyEffectiveViewer() {
+    return {
+      productId: null,
+      source: null,
+      payload: null,
+      status: "empty",
+      error: null,
+      productHistory: [],
+      familyHistory: [],
+    };
+  }
+
+  function resetEffectiveViewer() {
+    state.effectiveViewer = createEmptyEffectiveViewer();
+  }
+
+  function findEffectiveViewerProductRow(productId) {
+    const id = normalizePrmIntegerId(productId);
+    if (id == null) return {};
+    return (
+      (state.products || []).find(
+        (item) => normalizePrmIntegerId(item.product_id ?? item.id) === id,
+      ) || {}
+    );
+  }
+
+  function findEffectiveViewerRouteFamilyRow(familyId) {
+    const id = normalizePrmIntegerId(familyId);
+    if (id == null) return {};
+    return (
+      (state.routeFamilies || []).find(
+        (item) => normalizePrmIntegerId(item.route_family_id ?? item.id) === id,
+      ) || {}
+    );
+  }
+
+  async function loadEffectiveViewerProduct(productId, source = "user-select") {
+    const pid = normalizePrmIntegerId(productId);
+    if (pid == null) {
+      resetEffectiveViewer();
+      return { ok: false };
+    }
+    state.effectiveViewer = {
+      ...createEmptyEffectiveViewer(),
+      productId: pid,
+      source,
+      status: "loading",
+    };
+    const response = await invoke(
+      RPC.effective,
+      buildEffectiveRouteArgs({
+        product_id: pid,
+        as_of_date: getAsOfDate(),
+      }),
+      "Unable to load effective Product route.",
+    );
+    if (state.activeLens !== "effective-route-viewer") {
+      return { ok: false, stale: true };
+    }
+    if (!response.ok) {
+      state.effectiveViewer = {
+        productId: pid,
+        source,
+        payload: null,
+        status: "error",
+        error:
+          response.error ||
+          response.errors?.join("; ") ||
+          "Unable to load effective Product route.",
+        productHistory: [],
+        familyHistory: [],
+      };
+      return response;
+    }
+    const payload = normalizeEffectiveRoute(response.data);
+    const routeFamilyId = normalizePrmIntegerId(payload?.route_family_id);
+    const familyRouteId = resolvePrmEffectiveFamilyRouteId(payload);
+    let productHistory = [];
+    let familyHistory = [];
+    const productHistoryResult = await loadProductHistory(pid);
+    if (productHistoryResult.ok) {
+      productHistory = productHistoryResult.versions || [];
+    }
+    if (routeFamilyId != null && familyRouteId != null) {
+      familyHistory = (await loadFamilyHistory(routeFamilyId)) || [];
+    }
+    if (state.activeLens !== "effective-route-viewer") {
+      return { ok: false, stale: true };
+    }
+    state.effectiveViewer = {
+      productId: pid,
+      source,
+      payload,
+      status: "ready",
+      error: null,
+      productHistory,
+      familyHistory,
+    };
+    return { ok: true, data: payload };
+  }
+
+  function buildEffectiveViewerProductOptionsHtml(selectedId) {
+    const selected = normalizePrmIntegerId(selectedId);
+    const opts = ['<option value="">Search or select Product</option>'];
+    for (const product of coercePrmList(state.products)) {
+      const id = normalizePrmIntegerId(product.product_id ?? product.id);
+      if (id == null) continue;
+      const name = product.product_name || product.name || `Product ${id}`;
+      const group =
+        product.product_group_name ||
+        formatPrmProductGroupHierarchyLabel(product) ||
+        "";
+      const search = [name, group, String(id)].filter(Boolean).join(" ");
+      const title = group ? `${name} · ${group}` : name;
+      opts.push(
+        `<option value="${escapeHtml(id)}" data-primary="${escapeHtml(name)}" data-secondary="${escapeHtml(group)}" data-search="${escapeHtml(search)}" title="${escapeHtml(title)}"${selected === id ? " selected" : ""}>${escapeHtml(name)}</option>`,
+      );
+    }
+    return opts.join("");
+  }
+
+  function viewerPlainText(value) {
+    return isBlankPrmValue(value) ? "" : escapeHtml(value);
+  }
+
+  function formatEffectiveViewerRouteSourceSuffix(routeSource, productRouteId) {
+    const upper = normalizePrmCode(routeSource).toUpperCase();
+    const pid = normalizePrmIntegerId(productRouteId);
+    if (upper === "ROUTE_FAMILY_ONLY" || (pid == null && upper.includes("FAMILY"))) {
+      return humanizeUnknownPrmCode(routeSource) || "Route Family only";
+    }
+    if (pid != null) {
+      const human = humanizeUnknownPrmCode(routeSource);
+      if (human && !/^product route$/i.test(human)) return human;
+      return "Product-specific";
+    }
+    return humanizeUnknownPrmCode(routeSource) || "";
+  }
+
+  function buildEffectiveViewerHeaderHtml(viewer = {}) {
+    const payload = viewer.payload || {};
+    const productRow = findEffectiveViewerProductRow(viewer.productId);
+    const productName =
+      productRow.product_name ||
+      productRow.name ||
+      (viewer.productId != null ? `Product ${viewer.productId}` : "");
+    const routeFamilyId = normalizePrmIntegerId(payload.route_family_id);
+    const familyRow = findEffectiveViewerRouteFamilyRow(routeFamilyId);
+    const familyName =
+      familyRow.route_family_name ||
+      familyRow.name ||
+      familyRow.route_family_code ||
+      "";
+    const productRouteId = normalizePrmIntegerId(payload.product_route_id);
+    const productVersionCopy = formatPrmProductRouteVersionCopy(
+      productRouteId,
+      viewer.productHistory || [],
+    );
+    const familyRouteId = resolvePrmEffectiveFamilyRouteId(payload);
+    const familyVersionCopy = formatPrmFamilyRouteVersionCopy(
+      familyRouteId,
+      viewer.familyHistory || [],
+    );
+    const routeSourceRaw =
+      payload.route_source || payload.validation?.route_source || "";
+    const routeSourceSuffix = formatEffectiveViewerRouteSourceSuffix(
+      routeSourceRaw,
+      productRouteId,
+    );
+    const readiness =
+      payload.readiness_status || payload.route_readiness_status || "";
+    const validationSummary = formatPrmRouteValidationSummary(payload.validation);
+    const lines = [];
+    if (productName) {
+      lines.push(
+        `<div class="cp-cell-primary">${viewerPlainText(productName)}</div>`,
+      );
+    }
+    const productLine = [];
+    if (productRouteId != null) {
+      productLine.push(
+        productVersionCopy
+          ? `Product Route ${productVersionCopy}`
+          : `Product Route ${productRouteId}`,
+      );
+    }
+    if (routeSourceSuffix) productLine.push(routeSourceSuffix);
+    if (productLine.length) {
+      lines.push(
+        `<div class="cp-muted-text">${viewerPlainText(productLine.join(" · "))}</div>`,
+      );
+    }
+    const familyLine = [];
+    if (familyName) familyLine.push(familyName);
+    if (familyVersionCopy) familyLine.push(`Family Route ${familyVersionCopy}`);
+    if (familyLine.length) {
+      const familyTitle =
+        routeFamilyId != null ? `Route family ${routeFamilyId}` : "";
+      lines.push(
+        `<div class="cp-muted-text"${familyTitle ? ` title="${viewerPlainText(familyTitle)}"` : ""}>${viewerPlainText(familyLine.join(" · "))}</div>`,
+      );
+    }
+    const statusParts = [];
+    if (readiness) {
+      statusParts.push(formatPrmReadinessLabel(readiness) || readiness);
+    }
+    if (validationSummary && validationSummary !== "—") {
+      statusParts.push(validationSummary);
+    }
+    if (statusParts.length) {
+      lines.push(
+        `<div class="cp-prm-effective-viewer-status">${statusParts.map((part) => `<span>${viewerPlainText(part)}</span>`).join(" · ")}</div>`,
+      );
+    }
+    const validationErrors = listPrmRouteValidationErrors(payload.validation);
+    const errorBlock = validationErrors.length
+      ? `<ul class="cp-prm-validation-issues">${validationErrors
+          .map((item) => `<li>${viewerPlainText(item)}</li>`)
+          .join("")}</ul>`
+      : "";
+    return `<header class="cp-prm-editor-header cp-prm-effective-viewer-header">${lines.join("")}${errorBlock}</header>`;
+  }
+
   function bindInputModalityTracking() {
     if (prmInputModalityBound || typeof document === "undefined") return;
     prmInputModalityBound = true;
@@ -1050,10 +1467,9 @@ export function createProductionRouteController(deps = {}) {
       syncShellLens(resolved);
     }
     void (async () => {
-      await load({ lens: resolved, deepLink });
-      if (state.activeLens !== resolved) return;
-      if (typeof afterPrmNavigate === "function") afterPrmNavigate();
-      else render();
+      const result = await load({ lens: resolved, deepLink });
+      if (result?.stale === true || state.activeLens !== resolved) return;
+      paintAcceptedPrmLens({ generation: result?.generation });
     })();
   }
 
@@ -1103,19 +1519,34 @@ export function createProductionRouteController(deps = {}) {
     if (!centres.length) {
       return `<tr><td colspan="4"><div class="status">None listed.</div></td></tr>`;
     }
+    const resourceCtx = prmResourceClassDisplayContext();
     return centres
-      .map(
-        (centre) => `<tr class="cp-prm-cost-centre-row">
+      .map((centre) => {
+        const resourceLabel = resolvePrmResourceClassDisplayLabel(
+          centre.default_resource_class_code ||
+            centre.resource_class ||
+            centre.resource_class_code,
+          {
+            ...resourceCtx,
+            rowLabel: centre.resource_class_label,
+          },
+        );
+        return `<tr class="cp-prm-cost-centre-row">
         <td class="cp-prm-cc-code">${text(centre.code)}</td>
         <td><div class="cp-cell-primary">${text(centre.name || centre.code)}</div>${
           centre.type
             ? `<div class="cp-muted-text">${text(centre.type)}</div>`
             : ""
         }</td>
-        <td>${text(centre.resource_class_label)}</td>
+        <td title="${text(
+          centre.default_resource_class_code ||
+            centre.resource_class ||
+            centre.resource_class_code,
+          "",
+        )}">${text(resourceLabel)}</td>
         <td>${text(centre.hierarchy || "—")}</td>
-      </tr>`,
-      )
+      </tr>`;
+      })
       .join("");
   }
 
@@ -1258,6 +1689,14 @@ export function createProductionRouteController(deps = {}) {
     prmEscapeCapture = (event) => {
       if (event.key !== "Escape") return;
       if (!prmOwnsDetailsModal) return;
+      if (closeOpenSearchableSelectLists()) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") {
+          event.stopImmediatePropagation();
+        }
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       if (typeof event.stopImmediatePropagation === "function") {
@@ -1348,6 +1787,10 @@ export function createProductionRouteController(deps = {}) {
     modalParent = null;
     prmOwnsDetailsModal = false;
     clearWorkloadProductModalChrome(modal);
+    const focused = document.activeElement;
+    if (focused && modal.contains(focused) && typeof focused.blur === "function") {
+      focused.blur();
+    }
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
     const content = document.getElementById("drawerContent");
@@ -1433,6 +1876,7 @@ export function createProductionRouteController(deps = {}) {
     const content = document.getElementById("drawerContent");
     if (!modal || !content) return;
     unbindModalHandlers();
+    destroySearchableSelectsIn(content);
     if (titleEl) titleEl.textContent = title || "Details";
     if (subtitleEl) subtitleEl.textContent = subtitle;
     if (tabs) tabs.innerHTML = "";
@@ -1561,9 +2005,38 @@ export function createProductionRouteController(deps = {}) {
     hosts,
     bindRows,
     on,
-    onMutated: () => {
-      render();
+    onRegisterRefreshed: () => {
+      if (state.activeLens === "production-cost-centres") {
+        paintAcceptedPrmLens();
+      }
     },
+  });
+
+  const subgroupArchive = createPrmSubgroupArchiveController({
+    state,
+    invoke,
+    governed,
+    canView,
+    canEdit,
+    showToast,
+    openModal,
+    closeModal,
+    isDetailsModalOpen,
+    formShell,
+    formField,
+    onModal,
+    withMutation,
+    chip,
+    getAsOfDate,
+    ensureMasterOptions,
+    onRegisterRefreshed: () => {
+      if (state.activeLens === "product-subgroup-mappings") {
+        paintAcceptedPrmLens();
+      }
+    },
+    hosts,
+    on,
+    buildEffectiveStepsTableHtml,
   });
 
   function openCandidateReviewModal(review) {
@@ -1634,6 +2107,26 @@ export function createProductionRouteController(deps = {}) {
     return `<span class="cp-prm-badge${toneClass}" title="${text(title)}">${text(label)}</span>`;
   }
 
+  function prmResourceClassDisplayContext() {
+    const catalogue = state.options?.resource_classes || [];
+    return {
+      catalogue,
+      catalogueIndex: buildPrmResourceClassLabelIndex(catalogue),
+    };
+  }
+
+  function resolvePrmResourceClassCellLabel(step = {}, rawValue = null) {
+    const code = normalizePrmCode(
+      step.resource_class_code ||
+        step.resource_class ||
+        rawValue,
+    );
+    return resolvePrmResourceClassDisplayLabel(code, {
+      ...prmResourceClassDisplayContext(),
+      rowLabel: rawValue,
+    });
+  }
+
   function stepFieldValue(step = {}, def) {
     if (!def) return null;
     if (!isBlankPrmValue(step[def.key])) return step[def.key];
@@ -1650,10 +2143,18 @@ export function createProductionRouteController(deps = {}) {
     );
   }
 
-  function formatEffectiveStepCell(def, value) {
+  function formatEffectiveStepCell(def, value, step = {}) {
     if (isBlankPrmValue(value)) return "—";
     if (def.key === "step_source") {
       return formatPrmStepSourceLabel(value) || value;
+    }
+    if (
+      def.key === "resource_class_name" ||
+      (def.alts || []).some((alt) =>
+        ["resource_class", "resource_class_code"].includes(alt),
+      )
+    ) {
+      return resolvePrmResourceClassCellLabel(step, value);
     }
     return value;
   }
@@ -1675,7 +2176,7 @@ export function createProductionRouteController(deps = {}) {
             `<tr>${cols
               .map(
                 (col) =>
-                  `<td>${text(formatEffectiveStepCell(col, stepFieldValue(step, col)))}</td>`,
+                  `<td>${text(formatEffectiveStepCell(col, stepFieldValue(step, col), step))}</td>`,
               )
               .join("")}</tr>`,
         )
@@ -1749,7 +2250,12 @@ export function createProductionRouteController(deps = {}) {
       })}
       ${productSummaryMetaCell("Assignment Source", text(assignmentLabel), {
         field: "assignment-source",
-        title: String(assignmentRaw || ""),
+        title: [
+          String(assignmentRaw || ""),
+          formatPrmRouteAssignmentSourceExplain(assignmentRaw),
+        ]
+          .filter(Boolean)
+          .join(" — "),
       })}
       ${productSummaryMetaCell("Effective Route Source", text(routeSourceLabel), {
         field: "route-source",
@@ -1910,19 +2416,25 @@ export function createProductionRouteController(deps = {}) {
     )}</p>`;
   }
 
+  function readinessAsOfContextHtml() {
+    const asOf =
+      formatPrmDayMonthYearLabel(getAsOfDate()) || getAsOfDate() || "—";
+    return `<p class="cp-muted-text cp-prm-readiness-asof" data-prm-readiness-asof>${text(
+      `Effective manufacturing-route readiness as of ${asOf}`,
+    )}</p>`;
+  }
+
   function syncPrmAsOfDateChrome() {
     const wrap = document.getElementById("prmAsOfDateWrap");
     const input = document.getElementById("prmAsOfDate");
     if (!wrap || !input) return;
-    const exactRunLens =
-      state.activeLens === "route-readiness" ||
-      state.activeLens === "shared-workload-preview";
+    const workloadExactRunLens = state.activeLens === "shared-workload-preview";
     const exactRunTitle =
-      state.activeLens === "shared-workload-preview"
-        ? "Workload Preview uses fixed Run 82 context (period 2026-08-01 · valued 2026-08-07)."
-        : "Costing Readiness uses fixed exact-run context (Run 80 · Jul 2026). This date applies to other PRM lenses.";
+      "Workload Preview uses fixed Run 82 context (period 2026-08-01 · valued 2026-08-07).";
+    const readinessTitle =
+      "Route Readiness uses the selected effective/as-of date for manufacturing-route DQ discovery.";
     const defaultTitle = "Route as-of date (not Costing period)";
-    if (exactRunLens) {
+    if (workloadExactRunLens) {
       input.disabled = true;
       input.setAttribute("aria-disabled", "true");
       wrap.title = exactRunTitle;
@@ -1931,8 +2443,10 @@ export function createProductionRouteController(deps = {}) {
     } else {
       input.disabled = false;
       input.removeAttribute("aria-disabled");
-      wrap.title = defaultTitle;
-      input.title = defaultTitle;
+      wrap.title =
+        state.activeLens === "route-readiness" ? readinessTitle : defaultTitle;
+      input.title =
+        state.activeLens === "route-readiness" ? readinessTitle : defaultTitle;
       wrap.classList.remove("cp-prm-asof-disabled");
     }
   }
@@ -1952,6 +2466,11 @@ export function createProductionRouteController(deps = {}) {
     if (resolvedLens === "product-route-editor") {
       url.searchParams.delete("family_route_id");
     }
+    if (resolvedLens === "effective-route-viewer") {
+      if (params.product_id == null || params.product_id === "") {
+        url.searchParams.delete("product_id");
+      }
+    }
     const href = url.toString();
     if (replace) window.history.replaceState({}, "", href);
     else window.history.pushState({}, "", href);
@@ -1963,10 +2482,16 @@ export function createProductionRouteController(deps = {}) {
     const productRouteId = normalizePrmIntegerId(params.product_route_id);
     const productId = normalizePrmIntegerId(params.product_id);
     const routeFamilyId = normalizePrmIntegerId(params.route_family_id);
+    const requestedLens = String(lens || "").trim();
+    const allowEditorWithoutId =
+      (requestedLens === "route-family-route-editor" &&
+        familyRouteId == null) ||
+      requestedLens === "product-route-editor";
     const resolved = resolveProductionRouteLens(lens, {
       family_route_id: familyRouteId,
       product_route_id: productRouteId,
       product_id: productId,
+      allowEditorWithoutId,
     });
     const nextParams = { ...params };
     if (familyRouteId != null) nextParams.family_route_id = familyRouteId;
@@ -1983,6 +2508,39 @@ export function createProductionRouteController(deps = {}) {
     }
     if (resolved === "product-route-editor") {
       delete nextParams.family_route_id;
+    }
+    if (resolved === "effective-route-viewer") {
+      if (productId == null) {
+        delete nextParams.product_id;
+        resetEffectiveViewer();
+      }
+    }
+    if (
+      resolved === "product-subgroup-mappings" ||
+      resolved === "archived-routes"
+    ) {
+      delete nextParams.family_route_id;
+      delete nextParams.product_route_id;
+      delete nextParams.product_id;
+      state.selectedFamilyRouteId = null;
+      state.selectedProductRouteId = null;
+      state.productRouteCreateHandoff = null;
+      state.productRouteReentryChooser = null;
+    }
+    if (resolved === "product-subgroup-mappings") {
+      const subgroupId = normalizePrmIntegerId(params.product_subgroup_id);
+      if (subgroupId != null) nextParams.product_subgroup_id = subgroupId;
+      else delete nextParams.product_subgroup_id;
+      delete nextParams.entity_type;
+    }
+    if (resolved === "archived-routes") {
+      delete nextParams.product_subgroup_id;
+      delete nextParams.mapping_id;
+      if (params.entity_type) {
+        nextParams.entity_type = normalizePrmCode(params.entity_type).toUpperCase();
+      } else {
+        delete nextParams.entity_type;
+      }
     }
     if (resolved === "route-families" && routeFamilyId != null) {
       pendingOpenRouteFamilyId = routeFamilyId;
@@ -2007,33 +2565,80 @@ export function createProductionRouteController(deps = {}) {
         state.selectedFamilyRouteId = familyRouteId;
         state.selectedProductRouteId = null;
         state.selectedProductId = null;
+        if (routeFamilyId != null) {
+          state.selectedRouteFamilyId = routeFamilyId;
+          state.familyRouteCreateFamilyId = routeFamilyId;
+        } else if (familyRouteId == null) {
+          state.selectedFamilyRouteId = null;
+        }
       } else if (resolved === "product-route-editor") {
         state.selectedProductRouteId = productRouteId;
         state.selectedProductId = productId;
         state.selectedFamilyRouteId = null;
-        if (!isPrmProductRouteEditorCreateContext({
-          product_id: productId,
-          product_route_id: productRouteId,
-        })) {
+        // Create context (product_id, no product_route_id): preserve handoff.
+        if (
+          !isPrmProductRouteEditorCreateContext({
+            product_id: productId,
+            product_route_id: productRouteId,
+          })
+        ) {
           state.productRouteCreateHandoff = null;
         }
-        } else {
+      } else {
         state.selectedFamilyRouteId = null;
         state.selectedProductRouteId = null;
         state.productRouteCreateHandoff = null;
         state.productRouteReentryChooser = null;
       }
+      // Soft-nav owns load/paint; block competing switchLens/loadRowsForLens.
+      if (typeof beginPrmSoftNavLock === "function") {
+        beginPrmSoftNavLock(resolved);
+      }
       // Keep shell CURRENT_LENS / pills aligned with soft navigation.
       if (typeof syncShellLens === "function") {
         syncShellLens(resolved);
       }
-      void (async () => {
-        await load({ lens: resolved, deepLink: state.deepLink });
-        if (state.activeLens !== resolved) return;
-        if (typeof afterPrmNavigate === "function") afterPrmNavigate();
-        else render();
+      const loadPromise = (async () => {
+        try {
+          let result = await load({
+            lens: resolved,
+            deepLink: state.deepLink,
+          });
+          // One retry when a competing generation raced the soft-nav load.
+          if (
+            (result?.stale === true || state.activeLens !== resolved) &&
+            typeof applyDeepLinkFromUrl === "function"
+          ) {
+            state.deepLink = applyDeepLinkFromUrl();
+            result = await load({
+              lens: resolved,
+              deepLink: state.deepLink,
+            });
+          }
+          if (result?.stale === true || state.activeLens !== resolved) {
+            showToast?.(
+              "Could not open the selected view. Use the lens tabs if the editor did not appear.",
+              "warning",
+              5200,
+            );
+            return { ok: false, stale: true };
+          }
+          // Re-assert shell chrome immediately before paint so readiness cannot win.
+          if (typeof syncShellLens === "function") {
+            syncShellLens(resolved);
+          }
+          paintAcceptedPrmLens({ generation: result?.generation });
+          if (typeof syncShellLens === "function") {
+            syncShellLens(resolved);
+          }
+          return result;
+        } finally {
+          if (typeof endPrmSoftNavLock === "function") {
+            endPrmSoftNavLock();
+          }
+        }
       })();
-      return;
+      return loadPromise;
     }
 
     if (typeof navigateToCostingRoute === "function") {
@@ -2052,12 +2657,18 @@ export function createProductionRouteController(deps = {}) {
     }
     if (resolved === "route-family-route-editor") {
       url.searchParams.delete("product_route_id");
+      url.searchParams.delete("product_id");
+    }
+    if (resolved === "effective-route-viewer") {
+      if (params.product_id == null || params.product_id === "") {
+        url.searchParams.delete("product_id");
+      }
     }
     if (replace) window.location.replace(url.toString());
     else window.location.href = url.toString();
   }
 
-  function navigateToFamilyRouteEditor({
+  async function navigateToFamilyRouteEditor({
     route_family_id = null,
     family_route_id = null,
     replace = false,
@@ -2074,15 +2685,25 @@ export function createProductionRouteController(deps = {}) {
         "Created Family route ID was missing from the server response.",
         "error",
       );
-      return false;
+      return { ok: false, reason: "missing_family_route_id" };
     }
+    familyRouteOpenGeneration += 1;
     modalParent = null;
     closeModal({ restorePrevious: false });
     state.selectedFamilyRouteId = params.family_route_id;
     state.selectedProductRouteId = null;
     state.selectedProductId = null;
+    if (params.route_family_id != null) {
+      state.selectedRouteFamilyId = params.route_family_id;
+      state.familyRouteCreateFamilyId = params.route_family_id;
+    }
+    state.deepLink = {
+      ...(state.deepLink || {}),
+      route_family_id: params.route_family_id,
+      family_route_id: params.family_route_id,
+    };
     // Canonical Family editor deep link: never carry Product route ids.
-    navigate(
+    const navResult = navigate(
       "route-family-route-editor",
       {
         route_family_id: params.route_family_id,
@@ -2090,7 +2711,58 @@ export function createProductionRouteController(deps = {}) {
       },
       replace,
     );
-    return true;
+    if (navResult && typeof navResult.then === "function") {
+      return navResult;
+    }
+    return { ok: true, family_route_id: params.family_route_id };
+  }
+
+  async function openCreatedFamilyRoute({
+    route_family_id = null,
+    family_route_id = null,
+  } = {}) {
+    const familyRouteId = normalizePrmIntegerId(family_route_id);
+    const routeFamilyId = normalizePrmIntegerId(route_family_id);
+    if (familyRouteId == null) {
+      showToast?.(
+        "Created Family route ID was missing from the server response.",
+        "error",
+      );
+      return { ok: false, reason: "missing_family_route_id" };
+    }
+    const result = await navigateToFamilyRouteEditor({
+      route_family_id: routeFamilyId,
+      family_route_id: familyRouteId,
+      replace: true,
+    });
+    const detail = editor.getFamilyState?.()?.detail || {};
+    const openedId =
+      normalizePrmIntegerId(detail.family_route_id) ??
+      normalizePrmIntegerId(detail.route_family_route_id) ??
+      normalizePrmIntegerId(detail.id);
+    const opened =
+      result?.ok !== false &&
+      result?.empty !== true &&
+      openedId === familyRouteId;
+    if (!opened) {
+      showToast?.(
+        "Family Route created, but the new Draft could not be opened.",
+        "warning",
+        5200,
+      );
+      return {
+        ok: false,
+        created: true,
+        opened: false,
+        family_route_id: familyRouteId,
+      };
+    }
+    return {
+      ok: true,
+      created: true,
+      opened: true,
+      family_route_id: familyRouteId,
+    };
   }
 
   function actionsHtml(actions = []) {
@@ -2351,7 +3023,7 @@ export function createProductionRouteController(deps = {}) {
             <td>${text(resolveWorkloadActivityLabel(step))}</td>
             <td>${text(resolveWorkloadCostCentreLabel(step))}</td>
             <td>${text(step.behaviour)}</td>
-            <td>${text(step.resource_class)}</td>
+            <td title="${text(step.resource_class_code || step.resource_class, "")}">${text(step.resource_class)}</td>
             <td>${text(step.expected_occurrences)}</td>
             <td>${text(step.standard_cycles)}</td>
             <td>${text(step.direct_labour_scope)}</td>
@@ -2539,7 +3211,10 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     host.innerHTML = buildWorkloadFoundationHtml(
-      normalizePrmWorkloadDetailPayload(response.data),
+      normalizePrmWorkloadDetailPayload(
+        response.data,
+        prmResourceClassDisplayContext(),
+      ),
     );
   }
 
@@ -2606,6 +3281,53 @@ export function createProductionRouteController(deps = {}) {
     };
   }
 
+  /**
+   * Modal eligibility probe — same RPC/builder/normalizer as register reads,
+   * without paintError / register status side effects.
+   */
+  async function loadProductScopedAssignmentsForEligibility(productId) {
+    const pid = normalizePrmIntegerId(productId);
+    if (pid == null) {
+      return { ok: false, error: "Product ID is required." };
+    }
+    const built = buildProductAssignmentsRpcArgs({
+      product_id: pid,
+      limit: 100,
+      offset: 0,
+    });
+    if (!built?.ok) {
+      return {
+        ok: false,
+        error:
+          (built?.errors || []).filter(Boolean).join("; ") ||
+          "Unable to load Product Route Family assignments.",
+      };
+    }
+    const { data, error } = await costingRpc(RPC.productAssignments, built.params);
+    if (error) {
+      const formatted =
+        formatPrmRpcError(RPC.productAssignments, built.params, error) ||
+        error.message ||
+        "";
+      const safeDetail = String(formatted || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 280);
+      return {
+        ok: false,
+        error:
+          safeDetail || "Unable to load Product Route Family assignments.",
+      };
+    }
+    const normalized = normalizePrmProductAssignmentsPayload(data);
+    const rows = Array.isArray(normalized?.rows) ? normalized.rows : [];
+    return {
+      ok: true,
+      data: normalized,
+      empty: rows.length === 0,
+    };
+  }
+
   function applyAssignmentStatusCounts(incoming, { isUnfiltered, pageTotal } = {}) {
     const counts =
       incoming && typeof incoming === "object" ? { ...incoming } : {};
@@ -2658,11 +3380,19 @@ export function createProductionRouteController(deps = {}) {
       state.offset = 0;
     }
     if (search != null) state.search = String(search || "").trim();
+    // Hydrate catalogues only when not ready — never force a reload for register truth.
     if (!isPrmMasterOptionsReady(state.optionsStatus) || !state.options) {
       const options = await ensureMasterOptions();
+      if (current !== state.assignmentGeneration) {
+        return { ok: false, stale: true, generation: current };
+      }
       if (!options.ok) {
         state.assignmentLoading = false;
-        return options;
+        return {
+          ok: false,
+          error: options.error || options.errors,
+          generation: current,
+        };
       }
     }
     const focusProductId = normalizePrmIntegerId(state.assignmentFocusProductId);
@@ -2687,19 +3417,24 @@ export function createProductionRouteController(deps = {}) {
       "Unable to load Product Route Family assignments.",
     );
     if (current !== state.assignmentGeneration) {
-      return { ok: false, stale: true };
+      return { ok: false, stale: true, generation: current };
     }
     state.assignmentLoading = false;
     if (!response.ok) {
-      state.assignmentRows = [];
-      state.assignmentTotalCount = 0;
+      // Preserve last accepted register rows/count — do not wipe on failed reread.
       state.assignmentLoadError =
         response.error?.message ||
         "Product Assignments failed to load.";
-      showToast?.(state.assignmentLoadError, "error");
-      return { ok: false, error: response.error };
+      return {
+        ok: false,
+        error: response.error,
+        generation: current,
+      };
     }
     const normalized = normalizePrmProductAssignmentsPayload(response.data);
+    if (current !== state.assignmentGeneration) {
+      return { ok: false, stale: true, generation: current };
+    }
     const page = clampPrmPagination({
       offset: state.offset,
       limit: state.limit,
@@ -2723,7 +3458,44 @@ export function createProductionRouteController(deps = {}) {
       if (baselineSum > 0) state.assignmentTotalBaseline = baselineSum;
     }
     rebuildAssignmentPeqOptions();
-    return { ok: true, total_count: state.assignmentTotalCount };
+    return {
+      ok: true,
+      total_count: state.assignmentTotalCount,
+      generation: current,
+      rows: state.assignmentRows,
+    };
+  }
+
+  /**
+   * Authoritative Product Assignments register refresh after mutation.
+   * No master-options reload. Paint only after accepted commit.
+   */
+  async function refreshProductAssignmentsAfterMutation({
+    refreshFailureMessage = "Product Assignment updated, but the register could not be refreshed.",
+    resetOffset = false,
+  } = {}) {
+    if (state.activeLens !== "product-route-assignments") {
+      return { ok: false, skipped: true, reason: "lens" };
+    }
+    const result = await loadProductAssignments({ resetOffset });
+    if (result?.stale === true) {
+      return result;
+    }
+    if (!result?.ok) {
+      if (refreshFailureMessage) {
+        showToast?.(refreshFailureMessage, "warning", 5200);
+      }
+      return {
+        ok: false,
+        error: result?.error,
+        refreshFailed: true,
+        generation: result?.generation,
+      };
+    }
+    if (state.activeLens === "product-route-assignments") {
+      paintAcceptedPrmLens();
+    }
+    return result;
   }
 
   function applyWorkloadStatusCounts(payload, { isUnfiltered }) {
@@ -2975,19 +3747,20 @@ export function createProductionRouteController(deps = {}) {
     const focusAssignmentId =
       normalizePrmIntegerId(opts.focusAssignmentId) ??
       state.focusAssignmentId;
-    state.optionsStatus = "loading";
-    state.optionsError = null;
-    syncCostCentreBlockerFromOptions();
-    renderSetupChip();
-    await loadMasterOptions().catch(() => null);
+    const openSummaryAfter = opts.openProductSummary !== false;
+    const refreshFailureMessage =
+      opts.refreshFailureMessage ||
+      "Product Assignment updated, but the register could not be refreshed.";
     if (state.activeLens === "product-route-assignments") {
-      await loadProductAssignments({ resetOffset: false });
-      if (state.activeLens === "product-route-assignments") {
-        renderAssignments();
-      }
+      await refreshProductAssignmentsAfterMutation({
+        refreshFailureMessage,
+        resetOffset: opts.resetOffset === true,
+      });
     } else {
       await loadReadiness({ resetOffset: false });
-      if (state.activeLens === "route-readiness") renderReadiness();
+      if (state.activeLens === "route-readiness") {
+        paintAcceptedPrmLens();
+      }
     }
     const refreshed =
       (state.activeLens === "product-route-assignments"
@@ -3003,8 +3776,77 @@ export function createProductionRouteController(deps = {}) {
         focusAssignmentId,
       });
       await fillProductSummaryEffectiveHost(summaryRoot, refreshed);
+    } else if (
+      openSummaryAfter &&
+      state.activeLens !== "product-route-assignments" &&
+      refreshed
+    ) {
+      openProductSummary(refreshed, { focusAssignmentId });
     }
     return refreshed;
+  }
+
+  function buildAssignmentRouteFamilyOptionsHtml({
+    selectedFamilyId = null,
+  } = {}) {
+    return listApprovedRouteFamiliesForAssignment()
+      .map((family) => {
+        const id = family.route_family_id ?? family.id;
+        const code = family.route_family_code || family.family_code || "";
+        const name =
+          family.route_family_name ||
+          family.family_name ||
+          code ||
+          `Family ${id}`;
+        const label = code ? `${code} — ${name}` : name;
+        const selected =
+          selectedFamilyId != null && String(id) === String(selectedFamilyId);
+        return option(id, label, selected);
+      })
+      .join("");
+  }
+
+  function buildAssignmentProductOptionsHtml({
+    selectedProductId = null,
+  } = {}) {
+    return coercePrmList(state.products)
+      .map((product) => {
+        const id = normalizePrmIntegerId(product.product_id ?? product.id);
+        if (id == null) return "";
+        const name = product.product_name || product.name || `Product ${id}`;
+        return option(id, name, selectedProductId != null && String(id) === String(selectedProductId));
+      })
+      .filter(Boolean)
+      .join("");
+  }
+
+  async function evaluateProductAssignmentCreateEligibility(productId) {
+    const result = await loadProductScopedAssignmentsForEligibility(productId);
+    if (!result?.ok) {
+      const detail = String(result?.error || "").trim();
+      const generic = "Unable to load Product Route Family assignments.";
+      return {
+        ok: false,
+        empty: false,
+        eligibility: resolvePrmProductAssignmentCreateEligibility({
+          payload: null,
+          canEdit: canEdit(),
+        }),
+        payload: null,
+        error: generic,
+        errorDetail:
+          detail && detail !== generic ? detail : null,
+      };
+    }
+    return {
+      ok: true,
+      empty: result.empty === true,
+      eligibility: resolvePrmProductAssignmentCreateEligibility({
+        payload: result.data,
+        canEdit: canEdit(),
+      }),
+      payload: result.data,
+    };
   }
 
   function buildAssignmentRowActionsHtml(assignment) {
@@ -3037,6 +3879,9 @@ export function createProductionRouteController(deps = {}) {
       status === "APPROVED"
     ) {
       buttons.push("inactivate-assignment");
+    }
+    if (status === "APPROVED") {
+      buttons.push("correct-assignment-effective-from");
     }
     if (!buttons.length) return "";
     return `<div class="cp-prm-actions">${buttons
@@ -3230,6 +4075,8 @@ export function createProductionRouteController(deps = {}) {
         openCancelAssignmentModal(assignment, row);
       } else if (action === "inactivate-assignment") {
         openInactivateAssignmentModal(assignment, row);
+      } else if (action === "correct-assignment-effective-from") {
+        openCorrectAssignmentEffectiveFromModal(assignment, row);
       }
     });
   }
@@ -3613,7 +4460,7 @@ export function createProductionRouteController(deps = {}) {
 
   function mappingsSectionHtml(mappings = []) {
     if (!mappings.length) {
-      return `<p class="cp-muted-text">No Product Groups are mapped yet.</p>`;
+      return `<p class="cp-muted-text">No Product Groups mapped yet.</p>`;
     }
     return `<ul class="cp-prm-mapping-list">${mappings
       .map((raw) => {
@@ -3624,7 +4471,7 @@ export function createProductionRouteController(deps = {}) {
         return `<li data-prm-mapping-id="${text(mappingId)}">
           <div class="cp-cell-primary">${text(formatPrmProductGroupHierarchyLabel(mapping) || hierarchy(mapping))}</div>
           <div>${chip(status)} · Effective ${text(mapping.effective_from)}</div>
-          <div class="cp-muted-text">Basis: ${text(mapping.mapping_basis)} · Note: ${text(mapping.mapping_note)}</div>
+          <div class="cp-muted-text">Product Group · Basis: ${text(mapping.mapping_basis)} · Note: ${text(mapping.mapping_note)}</div>
           <div class="cp-muted-text">Approval reference: ${text(mapping.approval_reference)}</div>
           ${
             pending
@@ -3639,23 +4486,100 @@ export function createProductionRouteController(deps = {}) {
       .join("")}</ul>`;
   }
 
+  function subgroupMappingsSectionHtml(mappings = []) {
+    if (!mappings.length) {
+      return `<p class="cp-muted-text">No Product Subgroups mapped yet.</p>`;
+    }
+    return `<ul class="cp-prm-mapping-list">${mappings
+      .map((raw) => {
+        const mapping = normalizePrmProductSubgroupMapping(raw);
+        const label =
+          mapping.hierarchy_label ||
+          mapping.product_subgroup_name ||
+          `Product Subgroup ${mapping.product_subgroup_id ?? ""}`;
+        return `<li data-prm-subgroup-mapping-id="${text(mapping.mapping_id)}">
+          <div class="cp-cell-primary">${text(label)}</div>
+          <div>${chip(mapping.status || mapping.mapping_status)} · Effective ${text(mapping.effective_from)}</div>
+          <div class="cp-muted-text">Product Subgroup · Basis: ${text(mapping.mapping_basis)} · Note: ${text(mapping.mapping_note)}</div>
+          <div class="cp-muted-text">Approval reference: ${text(mapping.approval_reference)}</div>
+        </li>`;
+      })
+      .join("")}</ul>`;
+  }
+
+  function productAssignmentsSectionHtml(assignments = []) {
+    if (!assignments.length) {
+      return `<p class="cp-muted-text">No direct Product assignments yet.</p>`;
+    }
+    return `<ul class="cp-prm-mapping-list">${assignments
+      .map((raw) => {
+        const assignment = normalizePrmProductAssignmentRow(raw);
+        const label =
+          formatPrmAssignmentProductLabel(assignment) ||
+          assignment.product_name ||
+          `Product ${assignment.product_id ?? ""}`;
+        return `<li data-prm-product-assignment-id="${text(assignment.assignment_id)}">
+          <div class="cp-cell-primary">${text(label)}</div>
+          <div>${chip(assignment.status)} · Effective ${text(assignment.effective_from)}</div>
+          <div class="cp-muted-text">${text(formatPrmRouteFamilyAssignmentSourceLabel("PRODUCT_ASSIGNMENT"))} · Basis: ${text(assignment.assignment_basis)} · Note: ${text(assignment.assignment_note)}</div>
+          <div class="cp-muted-text">Approval reference: ${text(assignment.approval_reference)}</div>
+        </li>`;
+      })
+      .join("")}</ul>`;
+  }
+
+  function familyAssignmentsSummaryHtml(summary = {}) {
+    const counts = summary.counts || { subgroups: 0, groups: 0, products: 0 };
+    return `<p class="cp-muted-text cp-prm-assignment-summary-counts">${text(
+      counts.subgroups,
+    )} Product Subgroups · ${text(counts.groups)} Product Groups · ${text(
+      counts.products,
+    )} direct Products</p>
+    <section class="cp-detail-section cp-prm-assignment-detail">
+      <h4 class="cp-section-subtitle">Mapped Product Subgroups</h4>
+      ${subgroupMappingsSectionHtml(summary.subgroupMappings || [])}
+    </section>
+    <section class="cp-detail-section cp-prm-assignment-detail">
+      <h4 class="cp-section-subtitle">Mapped Product Groups</h4>
+      ${mappingsSectionHtml(summary.groupMappings || [])}
+    </section>
+    <section class="cp-detail-section cp-prm-assignment-detail">
+      <h4 class="cp-section-subtitle">Direct Product Assignments</h4>
+      ${productAssignmentsSectionHtml(summary.productAssignments || [])}
+    </section>`;
+  }
+
   async function openFamilySummary(row, { fromStackRestore = false } = {}) {
     const routeFamilyId = row.route_family_id ?? row.id;
     state.selectedRouteFamilyId = routeFamilyId;
+    await ensureMasterOptions();
     await loadFamilyHistory(routeFamilyId);
     const routeState = resolveRouteFamilyRouteStateFromHistory(
       state.familyHistory,
     );
-    const mappings = state.routeFamilyMappings
-      .filter(
-        (mapping) =>
-          String(mapping.route_family_id) === String(routeFamilyId),
-      )
-      .map(normalizePrmRouteFamilyMapping);
+    const groupMappings = filterPrmRouteFamilyGroupMappings(
+      state.routeFamilyMappings,
+      routeFamilyId,
+    );
+    const subgroupMappings = filterPrmRouteFamilySubgroupMappings(
+      state.routeFamilySubgroupMappings,
+      routeFamilyId,
+    );
+    const productAssignments = filterPrmRouteFamilyProductAssignments(
+      state.assignmentRows || [],
+      routeFamilyId,
+    );
+    const assignmentSummary = summarizePrmRouteFamilyAssignments({
+      groupMappings,
+      subgroupMappings,
+      productAssignments,
+    });
     const enriched = {
       ...row,
       ...routeState,
-      mappings,
+      mappings: groupMappings,
+      subgroup_mappings: subgroupMappings,
+      product_assignments: productAssignments,
       status: row.status || row.approval_status || "DRAFT",
     };
     const actions = getApplicableRouteFamilyActions(enriched, {
@@ -3685,7 +4609,7 @@ export function createProductionRouteController(deps = {}) {
           <h3 class="cp-section-title">Workflow</h3>${workflowHtml(enriched)}
         </section>
         <section class="cp-detail-section">
-          <h3 class="cp-section-title">Mapped Product Groups</h3>${mappingsSectionHtml(mappings)}
+          <h3 class="cp-section-title">Assignments</h3>${familyAssignmentsSummaryHtml(assignmentSummary)}
         </section>
         <section class="cp-detail-section">
           <h3 class="cp-section-title">Actions</h3>${actionsHtml(actions)}
@@ -3700,7 +4624,7 @@ export function createProductionRouteController(deps = {}) {
               editBtn.getAttribute("data-prm-edit-mapping-id"),
             );
             const selectedMapping =
-              mappings.find(
+              groupMappings.find(
                 (mapping) =>
                   String(mapping.id ?? mapping.mapping_id) === String(mappingId),
               ) || null;
@@ -3819,7 +4743,15 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     if (action === "effective" || action === "view-effective-route") {
-      navigate("effective-route-viewer", { product_id: productId });
+      const effectiveProductId = normalizePrmIntegerId(productId);
+      if (effectiveProductId == null) {
+        showToast?.(
+          "Product is required to view the effective route.",
+          "warning",
+        );
+        return;
+      }
+      navigate("effective-route-viewer", { product_id: effectiveProductId });
       return;
     }
     if (action.includes("candidate") || action.includes("evidence")) {
@@ -3884,7 +4816,7 @@ export function createProductionRouteController(deps = {}) {
         routeId = eligibility.open_product_route_id;
       }
       if (routeId == null) {
-        showToast?.("No current Product route is available to open.", "warning");
+        await openProductRouteCreateFromRow(row);
         return;
       }
       navigate("product-route-editor", {
@@ -3923,11 +4855,13 @@ export function createProductionRouteController(deps = {}) {
     }
     if (action.includes("create-family-route") || action.includes("create-family-version")) {
       modalParent = { type: "family-summary", row };
-      await openCreateFamilyRouteDraftModal(routeFamilyId, {
-        supersedes_route_id: action.includes("create-family-version")
+      await openCreateFamilyRouteDraftModal({
+        routeFamilyId,
+        supersedesRouteId: action.includes("create-family-version")
           ? row.approved_family_route_id
           : null,
         nested: true,
+        source: "summary",
       });
       return;
     }
@@ -4038,150 +4972,437 @@ export function createProductionRouteController(deps = {}) {
     );
   }
 
-  function openCreateAssignmentDraftModal(row, prefill = {}) {
+  function openCreateAssignmentDraftModal(row = null, prefill = {}) {
     if (!canEdit()) {
       showToast?.("Edit permission required.", "warning");
       return;
     }
-    const productId = normalizePrmIntegerId(row.product_id);
-    if (productId == null) {
+    const registerLaunch = row == null || normalizePrmIntegerId(row.product_id) == null;
+    const lockedProductId = registerLaunch
+      ? null
+      : normalizePrmIntegerId(row.product_id);
+    if (!registerLaunch && lockedProductId == null) {
       showToast?.("Product ID is required.", "warning");
       return;
     }
-    const prefillFamilyId = normalizePrmIntegerId(prefill.route_family_id);
-    const basisDefault =
-      normalizePrmMappingBasis(prefill.assignment_basis) || "MANUAL";
-    const families = listApprovedRouteFamiliesForAssignment();
-    const familyOptions = families
-      .map((family) => {
-        const id = family.route_family_id ?? family.id;
-        const label =
-          family.route_family_name ||
-          family.family_name ||
-          family.route_family_code ||
-          `Family ${id}`;
-        const selected =
-          prefillFamilyId != null
-            ? String(id) === String(prefillFamilyId)
-            : String(id) === String(row.route_family_id);
-        return option(id, label, selected);
-      })
-      .join("");
-    const defaultFrom =
-      getAsOfDate() || PRM_EXACT_RUN_CONTEXT.period_start || "";
-    const candidateNotice = prefill.fromCandidate
-      ? "Prefilled from advisory candidate evidence (HISTORICAL_REVIEW). Confirm all fields before creating the draft."
-      : "";
-    openModal(
-      {
-        title: "Create Route Family assignment draft",
-        subtitle: "Draft only — further review and approval remain governed",
-        html: formShell({
-          notice:
-            (candidateNotice
-              ? `${candidateNotice} `
-              : "") +
-            "Creates a Product → Route Family assignment draft only. It will not submit or approve automatically.",
-          sectionTitle: "Assignment draft",
-          fieldsHtml: [
-            formField({
-              id: "prmAssignProduct",
-              label: "Product",
-              value: row.product_name
-                ? `${row.product_name} (${productId})`
-                : String(productId),
-              full: true,
-            }),
-            formField({
-              id: "prmAssignRouteFamily",
-              label: "Route Family",
-              type: "select",
-              required: true,
-              optionsHtml: `<option value="">Select approved Route Family</option>${familyOptions}`,
-            }),
-            formField({
-              id: "prmAssignEffectiveFrom",
-              label: "Effective from",
-              type: "date",
-              value: defaultFrom,
-            }),
-            formField({
-              id: "prmAssignBasis",
-              label: "Assignment basis",
-              type: "select",
-              optionsHtml: buildPrmAssignmentBasisOptionsHtml(basisDefault),
-            }),
-            formField({
-              id: "prmAssignNote",
-              label: "Assignment note",
-              type: "textarea",
-              full: true,
-              placeholder: "Optional note",
-            }),
-          ].join(""),
-          actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-assignment-draft-submit>Create assignment draft</button>`,
-        }),
-        bind: (host) => {
-          const productInput = host.querySelector("#prmAssignProduct");
-          if (productInput) {
-            productInput.readOnly = true;
-            productInput.setAttribute("aria-readonly", "true");
-          }
-          onModal(host, "click", async (event) => {
-            const submit = event.target.closest(
+    void (async () => {
+      if (!isPrmMasterOptionsReady(state.optionsStatus) || !state.options) {
+        const options = await ensureMasterOptions();
+        if (!options?.ok) {
+          showToast?.(
+            "Unable to load Product and Route Family options.",
+            "warning",
+          );
+          return;
+        }
+      }
+      const prefillFamilyId = normalizePrmIntegerId(prefill.route_family_id);
+      const basisDefault =
+        normalizePrmMappingBasis(prefill.assignment_basis) || "MANUAL";
+      const registerBasisLocked =
+        registerLaunch && !prefill.fromCandidate;
+      const defaultFrom =
+        getAsOfDate() || PRM_EXACT_RUN_CONTEXT.period_start || "";
+      const candidateNotice = prefill.fromCandidate
+        ? "Prefilled from advisory candidate evidence (HISTORICAL_REVIEW). Confirm all fields before creating the draft."
+        : "";
+      const selectedFamilyId =
+        prefillFamilyId ??
+        normalizePrmIntegerId(row?.route_family_id) ??
+        null;
+      const familyOptions = buildAssignmentRouteFamilyOptionsHtml({
+        selectedFamilyId,
+      });
+      const productField = registerLaunch
+        ? formField({
+            id: "prmAssignProduct",
+            label: "Product",
+            type: "select",
+            required: true,
+            full: true,
+            optionsHtml: `<option value="">Search or select Product</option>${buildAssignmentProductOptionsHtml()}`,
+          })
+        : formField({
+            id: "prmAssignProduct",
+            label: "Product",
+            value: row.product_name
+              ? `${row.product_name} (${lockedProductId})`
+              : String(lockedProductId),
+            full: true,
+            readonly: true,
+          });
+      const basisField = registerBasisLocked
+        ? formField({
+            id: "prmAssignBasis",
+            label: "Assignment basis",
+            value: "MANUAL",
+            readonly: true,
+            hint: "Ordinary register creation uses MANUAL. Historical candidate review may prefill HISTORICAL_REVIEW.",
+          })
+        : formField({
+            id: "prmAssignBasis",
+            label: "Assignment basis",
+            type: "select",
+            optionsHtml: buildPrmAssignmentBasisOptionsHtml(basisDefault),
+          });
+      openModal(
+        {
+          title: "Create Product Assignment",
+          subtitle: "Draft only — further review and approval remain governed",
+          html: formShell({
+            notice:
+              (candidateNotice ? `${candidateNotice} ` : "") +
+              "Creates a Product → Route Family assignment draft only. It will not submit or approve automatically.",
+            sectionTitle: "Assignment draft",
+            fieldsHtml: [
+              productField,
+              formField({
+                id: "prmAssignRouteFamily",
+                label: "Route Family",
+                type: "select",
+                required: true,
+                optionsHtml: `<option value="">Select approved Route Family</option>${familyOptions}`,
+              }),
+              formField({
+                id: "prmAssignEffectiveFrom",
+                label: "Effective from",
+                type: "date",
+                value: defaultFrom,
+                hint: "Business applicability date. Separate from the approval-event date.",
+              }),
+              basisField,
+              formField({
+                id: "prmAssignNote",
+                label: "Assignment note",
+                type: "textarea",
+                full: true,
+                placeholder: "Optional note",
+              }),
+              `<div class="cp-prm-form-field cp-prm-form-field--full" data-prm-assignment-eligibility-host>
+                <p class="cp-muted-text">Select a Product to review assignment eligibility.</p>
+              </div>`,
+            ].join(""),
+            actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-assignment-draft-submit>Create assignment draft</button>`,
+          }),
+          bind: (host) => {
+            let eligibilityState = {
+              mode: "pending",
+              canCreate: false,
+              message: "Select a Product to review assignment eligibility.",
+              writableAssignment: null,
+              approvedAssignment: null,
+            };
+            let eligibilityLoading = false;
+            let eligibilityReady = false;
+            let eligibilityErrorDetail = null;
+            const eligibilityHost = host.querySelector(
+              "[data-prm-assignment-eligibility-host]",
+            );
+            const submitBtn = host.querySelector(
               "[data-prm-assignment-draft-submit]",
             );
-            if (!submit) return;
-            await withMutation(submit, async () => {
-              const routeFamilyId = normalizePrmIntegerId(
-                host.querySelector("#prmAssignRouteFamily")?.value,
+            const productSelect = host.querySelector("#prmAssignProduct");
+            const familySelect = host.querySelector("#prmAssignRouteFamily");
+            const effectiveInput = host.querySelector("#prmAssignEffectiveFrom");
+            const basisSelect = host.querySelector("#prmAssignBasis");
+            if (registerLaunch && productSelect?.tagName === "SELECT") {
+              enhanceSearchableSelect(productSelect, {
+                placeholder: "Search or select Product",
+                allowEmptyOption: true,
+                openOnFocus: true,
+                showAllWhenEmpty: true,
+                clearSelectedOnBackspace: true,
+                portalLayer: "modal",
+              });
+            } else if (productSelect && productSelect.tagName !== "SELECT") {
+              productSelect.readOnly = true;
+              productSelect.setAttribute("aria-readonly", "true");
+            }
+            if (familySelect) {
+              enhanceSearchableSelect(familySelect, {
+                placeholder: "Search or select Route Family",
+                allowEmptyOption: true,
+                openOnFocus: true,
+                showAllWhenEmpty: true,
+                clearSelectedOnBackspace: true,
+                portalLayer: "modal",
+              });
+            }
+            const resolveModalProductId = () =>
+              registerLaunch
+                ? normalizePrmIntegerId(productSelect?.value)
+                : lockedProductId;
+            const resolveModalFamilyId = () =>
+              normalizePrmIntegerId(familySelect?.value);
+            const resolveModalEffectiveFrom = () =>
+              String(effectiveInput?.value || "").trim();
+            const resolveModalBasis = () => {
+              if (registerBasisLocked) return "MANUAL";
+              return (
+                normalizePrmMappingBasis(basisSelect?.value) || "MANUAL"
               );
-              if (routeFamilyId == null) {
-                showToast?.("Select an approved Route Family.", "warning");
+            };
+            const syncCreateSubmitEnabled = () => {
+              if (!submitBtn) return;
+              const productOk = resolveModalProductId() != null;
+              const familyOk = resolveModalFamilyId() != null;
+              const effectiveOk = Boolean(resolveModalEffectiveFrom());
+              const basisOk = Boolean(resolveModalBasis());
+              const eligible =
+                eligibilityReady &&
+                !eligibilityLoading &&
+                eligibilityState.canCreate === true &&
+                eligibilityState.mode !== "load_failed";
+              submitBtn.disabled = !(
+                canEdit() &&
+                productOk &&
+                familyOk &&
+                effectiveOk &&
+                basisOk &&
+                eligible
+              );
+            };
+            const paintEligibility = () => {
+              if (!eligibilityHost) return;
+              const message = eligibilityState.message || "";
+              const writableId = normalizePrmIntegerId(
+                eligibilityState.writableAssignment?.assignment_id,
+              );
+              const openExisting =
+                writableId != null
+                  ? `<button type="button" class="text-link" data-prm-open-existing-assignment="${writableId}">Open existing assignment</button>`
+                  : "";
+              if (eligibilityState.mode === "load_failed") {
+                const detail =
+                  eligibilityErrorDetail &&
+                  eligibilityErrorDetail !== message
+                    ? `<p class="cp-muted-text">${text(eligibilityErrorDetail)}</p>`
+                    : "";
+                eligibilityHost.innerHTML = `<p class="cp-prm-form-notice">${text(
+                  message ||
+                    "Unable to load Product Route Family assignments.",
+                )}</p>${detail}`;
+              } else if (!message) {
+                eligibilityHost.innerHTML =
+                  '<p class="cp-muted-text">Ready to create a Product Assignment draft.</p>';
+              } else {
+                eligibilityHost.innerHTML = `<p class="cp-prm-form-notice">${text(message)}${
+                  openExisting ? ` ${openExisting}` : ""
+                }</p>`;
+              }
+              syncCreateSubmitEnabled();
+            };
+            const refreshEligibilityForProduct = async (productId) => {
+              if (productId == null) {
+                eligibilityLoading = false;
+                eligibilityReady = false;
+                eligibilityErrorDetail = null;
+                eligibilityState = {
+                  mode: "pending",
+                  canCreate: false,
+                  message: "Select a Product to review assignment eligibility.",
+                  writableAssignment: null,
+                  approvedAssignment: null,
+                };
+                paintEligibility();
                 return;
               }
-              const assignmentBasis =
-                normalizePrmMappingBasis(
-                  host.querySelector("#prmAssignBasis")?.value,
-                ) || "MANUAL";
-              const response = await governed(
-                RPC.createAssignmentDraft,
-                buildCreateProductRouteFamilyAssignmentDraftArgs({
-                  product_id: productId,
-                  route_family_id: routeFamilyId,
-                  effective_from:
-                    host.querySelector("#prmAssignEffectiveFrom")?.value ||
-                    null,
-                  assignment_basis: assignmentBasis,
-                  assignment_note:
-                    host.querySelector("#prmAssignNote")?.value || null,
-                }),
-                "Unable to create Product Route Family assignment draft.",
+              eligibilityLoading = true;
+              eligibilityReady = false;
+              eligibilityErrorDetail = null;
+              if (submitBtn) submitBtn.disabled = true;
+              if (eligibilityHost) {
+                eligibilityHost.innerHTML =
+                  '<p class="cp-muted-text">Checking Product assignment eligibility…</p>';
+              }
+              const checked = await evaluateProductAssignmentCreateEligibility(
+                productId,
               );
-              if (!response.ok) return;
-              const normalized = normalizeProductRouteFamilyAssignmentPayload(
-                response.data,
-              );
-              const assignmentId = normalized.assignment_id;
-              const status = normalized.status || "DRAFT";
-              showToast?.(
-                `Assignment draft ${assignmentId ?? "—"} created (${formatPrmAssignmentStatusLabel(status)}). Further review and approval remain governed — nothing was submitted or approved.`,
-                "success",
-                9000,
-              );
-              await refreshAfterAssignmentMutation(productId, row);
-              closeModal({ restorePrevious: false });
-              const refreshed =
-                state.readinessRows.find(
-                  (item) => String(item.product_id) === String(productId),
-                ) || row;
-              openProductSummary(refreshed);
+              eligibilityLoading = false;
+              if (!checked.ok) {
+                eligibilityReady = false;
+                eligibilityErrorDetail = checked.errorDetail || null;
+                eligibilityState = {
+                  mode: "load_failed",
+                  canCreate: false,
+                  message:
+                    checked.error ||
+                    "Unable to load Product Route Family assignments.",
+                  writableAssignment: null,
+                  approvedAssignment: null,
+                };
+                paintEligibility();
+                return;
+              }
+              eligibilityReady = true;
+              eligibilityErrorDetail = null;
+              eligibilityState = checked.eligibility;
+              paintEligibility();
+            };
+            onModal(host, "change", (event) => {
+              if (
+                event.target === familySelect ||
+                event.target === effectiveInput ||
+                event.target === basisSelect
+              ) {
+                syncCreateSubmitEnabled();
+              }
             });
-          });
+            onModal(host, "input", (event) => {
+              if (event.target === effectiveInput) {
+                syncCreateSubmitEnabled();
+              }
+            });
+            if (registerLaunch && productSelect) {
+              onModal(host, "change", (event) => {
+                if (event.target !== productSelect) return;
+                void refreshEligibilityForProduct(
+                  normalizePrmIntegerId(productSelect.value),
+                );
+              });
+              void refreshEligibilityForProduct(null);
+            } else {
+              void refreshEligibilityForProduct(lockedProductId);
+            }
+            onModal(host, "click", async (event) => {
+              const openExisting = event.target.closest(
+                "[data-prm-open-existing-assignment]",
+              );
+              if (openExisting) {
+                const productId = resolveModalProductId();
+                const assignmentId = normalizePrmIntegerId(
+                  openExisting.getAttribute("data-prm-open-existing-assignment"),
+                );
+                if (productId == null) return;
+                const handoffRow =
+                  row && normalizePrmIntegerId(row.product_id) === productId
+                    ? row
+                    : {
+                        product_id: productId,
+                        product_name:
+                          coercePrmList(state.products).find(
+                            (item) =>
+                              String(item.product_id ?? item.id) ===
+                              String(productId),
+                          )?.product_name || null,
+                      };
+                closeModal({ restorePrevious: false });
+                openProductSummary(handoffRow, {
+                  focusAssignmentId: assignmentId,
+                });
+                return;
+              }
+              const submit = event.target.closest(
+                "[data-prm-assignment-draft-submit]",
+              );
+              if (!submit) return;
+              await withMutation(submit, async () => {
+                const productId = resolveModalProductId();
+                if (productId == null) {
+                  showToast?.("Select a Product.", "warning");
+                  return { ok: false };
+                }
+                const checked =
+                  await evaluateProductAssignmentCreateEligibility(productId);
+                if (!checked.ok) {
+                  eligibilityReady = false;
+                  eligibilityErrorDetail = checked.errorDetail || null;
+                  eligibilityState = {
+                    mode: "load_failed",
+                    canCreate: false,
+                    message:
+                      checked.error ||
+                      "Unable to load Product Route Family assignments.",
+                    writableAssignment: null,
+                    approvedAssignment: null,
+                  };
+                  paintEligibility();
+                  showToast?.(
+                    checked.errorDetail ||
+                      checked.error ||
+                      "Unable to load Product Route Family assignments.",
+                    "warning",
+                  );
+                  return { ok: false };
+                }
+                eligibilityReady = true;
+                eligibilityErrorDetail = null;
+                eligibilityState = checked.eligibility;
+                paintEligibility();
+                if (!eligibilityState.canCreate) {
+                  showToast?.(
+                    eligibilityState.message ||
+                      "Create assignment draft is not available for this Product.",
+                    "warning",
+                  );
+                  return { ok: false, reason: eligibilityState.mode };
+                }
+                const routeFamilyId = resolveModalFamilyId();
+                if (routeFamilyId == null) {
+                  showToast?.("Select an approved Route Family.", "warning");
+                  return { ok: false };
+                }
+                const effectiveFrom = resolveModalEffectiveFrom();
+                if (!effectiveFrom) {
+                  showToast?.("Enter Effective from.", "warning");
+                  return { ok: false };
+                }
+                const assignmentBasis = resolveModalBasis();
+                if (!assignmentBasis) {
+                  showToast?.("Select an assignment basis.", "warning");
+                  return { ok: false };
+                }
+                const noteRaw =
+                  host.querySelector("#prmAssignNote")?.value || null;
+                const response = await governed(
+                  RPC.createAssignmentDraft,
+                  buildCreateProductRouteFamilyAssignmentDraftArgs({
+                    product_id: productId,
+                    route_family_id: routeFamilyId,
+                    effective_from: effectiveFrom,
+                    assignment_basis: assignmentBasis,
+                    assignment_note: noteRaw,
+                  }),
+                  "Unable to create Product Route Family assignment draft.",
+                );
+                if (!response.ok) return response;
+                const normalized = normalizeProductRouteFamilyAssignmentPayload(
+                  response.data,
+                );
+                const assignmentId = normalized.assignment_id;
+                const status = normalized.status || "DRAFT";
+                showToast?.(
+                  `Assignment draft ${assignmentId ?? "—"} created (${formatPrmAssignmentStatusLabel(status)}). Further review and approval remain governed — nothing was submitted or approved.`,
+                  "success",
+                  9000,
+                );
+                closeModal({ restorePrevious: false });
+                const handoffRow =
+                  row && normalizePrmIntegerId(row.product_id) === productId
+                    ? row
+                    : {
+                        product_id: productId,
+                        product_name:
+                          coercePrmList(state.products).find(
+                            (item) =>
+                              String(item.product_id ?? item.id) ===
+                              String(productId),
+                          )?.product_name || null,
+                      };
+                await refreshAfterAssignmentMutation(productId, handoffRow, {
+                  focusAssignmentId: assignmentId,
+                  openProductSummary: !registerLaunch,
+                  refreshFailureMessage:
+                    "Product Assignment created, but the register could not be refreshed.",
+                });
+                return response;
+              });
+            });
+          },
         },
-      },
-      { nested: isDetailsModalOpen() },
-    );
+        { nested: isDetailsModalOpen() },
+      );
+    })();
   }
 
   function openSubmitAssignmentModal(assignment, row) {
@@ -4271,7 +5492,10 @@ export function createProductionRouteController(deps = {}) {
               );
               if (!response.ok) return;
               showToast?.("Assignment submitted for review.", "success", 4200);
-              await refreshAfterAssignmentMutation(row.product_id, row);
+              await refreshAfterAssignmentMutation(row.product_id, row, {
+                refreshFailureMessage:
+                  "Product Assignment submitted for review, but the register could not be refreshed.",
+              });
               closeModal({ restorePrevious: false });
             });
           });
@@ -4295,40 +5519,64 @@ export function createProductionRouteController(deps = {}) {
       showToast?.("Approve is not available for this assignment.", "warning");
       return;
     }
+    const productId = normalizePrmIntegerId(
+      assignment.product_id ?? row?.product_id,
+    );
     const familyCode =
       assignment.route_family_code ||
+      listApprovedRouteFamiliesForAssignment().find(
+        (family) =>
+          String(family.route_family_id ?? family.id) ===
+          String(assignment.route_family_id),
+      )?.route_family_code ||
       assignment.route_family_name ||
-      assignment.route_family_id;
-    const suggested = buildPrmMappingApprovalReferenceTemplate(
-      familyCode,
-      row.product_group_id,
-      assignment.effective_from || getAsOfDate(),
-    ).replace(/^PRM-MAP-/, "PRM-PRFA-");
+      "";
+    const identity = resolvePrmProductRouteFamilyAssignmentApprovalIdentity({
+      routeFamilyCode: familyCode,
+      productId,
+      assignment,
+      product: row,
+    });
+    if (!identity.ok) {
+      showToast?.(identity.error, "warning");
+      return;
+    }
+    const suggested = buildPrmProductRouteFamilyAssignmentApprovalReference({
+      routeFamilyCode: identity.routeFamilyCode,
+      productId: identity.productId,
+      approvalDate: getPrmLocalIsoDate(),
+    });
+    if (!suggested.ok) {
+      showToast?.(suggested.error, "warning");
+      return;
+    }
     const effectiveDefault =
       assignment.effective_from ||
       PRM_EXACT_RUN_CONTEXT.period_start ||
       getAsOfDate();
     openModal(
       {
-        title: "Approve assignment",
+        title: "Approve Product Route Family Assignment",
         subtitle: "Governed approval — does not trigger costing refresh",
         html: formShell({
           notice:
-            "Approval may change the effective manufacturing route when the date becomes effective. It may affect future DL/POH workload and Product costing readiness. It does not trigger a costing refresh, invoke Stage 03, or retroactively alter stored run-80 costing outputs. The live run-80 readiness projection may change when resolved as of 22 Jul 2026.",
+            "Approval may change the effective manufacturing route when the date becomes effective. Approving a replacement assignment from a later Effective From date supersedes the current approved assignment on the server. It may affect future DL/POH workload and Product costing readiness. It does not trigger a costing refresh, invoke Stage 03, or retroactively alter stored run-80 costing outputs. The live run-80 readiness projection may change when resolved as of 22 Jul 2026.",
           sectionTitle: "Approval",
           fieldsHtml: [
             formField({
               id: "prmApproveAssignId",
               label: "Assignment ID",
               value: String(assignmentId),
+              readonly: true,
             }),
             formField({
               id: "prmApproveAssignProduct",
               label: "Product",
               value: row.product_name
-                ? `${row.product_name} (${row.product_id})`
-                : String(row.product_id),
+                ? `${row.product_name} (${productId})`
+                : String(productId),
               full: true,
+              readonly: true,
             }),
             formField({
               id: "prmApproveAssignFamily",
@@ -4337,14 +5585,16 @@ export function createProductionRouteController(deps = {}) {
                 assignment.route_family_name ||
                 assignment.route_family_code ||
                 assignment.route_family_id,
+              readonly: true,
             }),
             formField({
               id: "prmApproveAssignRef",
               label: "Approval reference",
               required: true,
               full: true,
-              value: suggested,
-              hint: PRM_APPROVAL_REFERENCE_HELPER_TEXT,
+              value: suggested.reference,
+              readonly: true,
+              hint: PRM_PRODUCT_ROUTE_FAMILY_ASSIGNMENT_APPROVAL_REFERENCE_HELPER_TEXT,
             }),
             formField({
               id: "prmApproveAssignEffective",
@@ -4352,33 +5602,52 @@ export function createProductionRouteController(deps = {}) {
               type: "date",
               value: effectiveDefault,
               required: true,
+              hint: "Business applicability date. Separate from the approval-event date used in the reference.",
             }),
           ].join(""),
           actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-approve-assignment-confirm>Approve assignment</button>`,
         }),
         bind: (host) => {
-          host.querySelector("#prmApproveAssignRef")?.focus();
+          const refInput = host.querySelector("#prmApproveAssignRef");
+          if (refInput) {
+            refInput.readOnly = true;
+            refInput.setAttribute("aria-readonly", "true");
+          }
           onModal(host, "click", async (event) => {
             const submit = event.target.closest(
               "[data-prm-approve-assignment-confirm]",
             );
             if (!submit) return;
             await withMutation(submit, async () => {
-              const reference = host
-                .querySelector("#prmApproveAssignRef")
-                ?.value?.trim();
-              if (!isMeaningfulPrmApprovalReference(reference)) {
-                showToast?.(
-                  "Enter a meaningful approval reference. Placeholders such as — or N/A are not allowed.",
-                  "warning",
-                );
-                return { ok: false };
+              const recomputed =
+                buildPrmProductRouteFamilyAssignmentApprovalReference({
+                  routeFamilyCode: identity.routeFamilyCode,
+                  productId: identity.productId,
+                  approvalDate: getPrmLocalIsoDate(),
+                });
+              if (!recomputed.ok) {
+                showToast?.(recomputed.error, "warning");
+                return { ok: false, reason: recomputed.reason };
               }
+              const checked =
+                validatePrmProductRouteFamilyAssignmentApprovalReference(
+                  recomputed.reference,
+                  {
+                    routeFamilyCode: identity.routeFamilyCode,
+                    productId: identity.productId,
+                    approvalDate: getPrmLocalIsoDate(),
+                  },
+                );
+              if (!checked.ok) {
+                showToast?.(checked.error, "warning");
+                return { ok: false, reason: checked.reason };
+              }
+              if (refInput) refInput.value = checked.reference;
               const response = await governed(
                 RPC.approveAssignment,
                 buildApproveProductRouteFamilyAssignmentArgs({
                   assignment_id: assignmentId,
-                  approval_reference: reference,
+                  approval_reference: checked.reference,
                   effective_from:
                     host.querySelector("#prmApproveAssignEffective")
                       ?.value || effectiveDefault,
@@ -4387,7 +5656,11 @@ export function createProductionRouteController(deps = {}) {
               );
               if (!response.ok) return response;
               showToast?.("Assignment approved.", "success", 4200);
-              await refreshAfterAssignmentMutation(row.product_id, row);
+              await refreshAfterAssignmentMutation(productId, row, {
+                openProductSummary: false,
+                refreshFailureMessage:
+                  "Product Assignment approved, but the register could not be refreshed.",
+              });
               closeModal({ restorePrevious: false });
               return response;
             });
@@ -4465,7 +5738,10 @@ export function createProductionRouteController(deps = {}) {
               );
               if (!response.ok) return response;
               showToast?.("Assignment cancelled.", "success", 4200);
-              await refreshAfterAssignmentMutation(row.product_id, row);
+              await refreshAfterAssignmentMutation(row.product_id, row, {
+                refreshFailureMessage:
+                  "Product Assignment cancelled, but the register could not be refreshed.",
+              });
               closeModal({ restorePrevious: false });
               return response;
             });
@@ -4538,8 +5814,160 @@ export function createProductionRouteController(deps = {}) {
               );
               if (!response.ok) return response;
               showToast?.("Assignment inactivated.", "success", 4200);
-              await refreshAfterAssignmentMutation(row.product_id, row);
+              await refreshAfterAssignmentMutation(row.product_id, row, {
+                refreshFailureMessage:
+                  "Product Assignment inactivated, but the register could not be refreshed.",
+              });
               closeModal({ restorePrevious: false });
+              return response;
+            });
+          });
+        },
+      },
+      { nested: isDetailsModalOpen() },
+    );
+  }
+
+  function openCorrectAssignmentEffectiveFromModal(assignment, row) {
+    if (!canEdit()) {
+      showToast?.("Edit permission required.", "warning");
+      return;
+    }
+    const assignmentId = normalizePrmIntegerId(assignment.assignment_id);
+    if (!assignmentId || assignment.status !== "APPROVED") {
+      showToast?.(
+        "Effective-date correction is only available for APPROVED assignments.",
+        "warning",
+      );
+      return;
+    }
+    const productId = normalizePrmIntegerId(
+      assignment.product_id ?? row?.product_id,
+    );
+    const currentEffectiveFrom = assignment.effective_from || "";
+    const productLabel = row?.product_name
+      ? `${row.product_name} (${productId ?? row.product_id ?? "—"})`
+      : String(productId ?? assignment.product_id ?? "—");
+    const familyLabel =
+      assignment.route_family_name ||
+      assignment.route_family_code ||
+      assignment.route_family_id ||
+      "—";
+    openModal(
+      {
+        title: "Correct effective date",
+        subtitle: "Administrative correction — assignment remains APPROVED",
+        html: formShell({
+          notice:
+            "Corrects an erroneous approved applicability date only. Does not create a replacement, supersede or inactivate this assignment, change Product or Route Family, alter the original approval reference, or trigger costing refresh / Stage 03.",
+          sectionTitle: "Correction",
+          fieldsHtml: [
+            formField({
+              id: "prmCorrectAssignId",
+              label: "Assignment ID",
+              value: String(assignmentId),
+              readonly: true,
+            }),
+            formField({
+              id: "prmCorrectAssignProduct",
+              label: "Product",
+              value: productLabel,
+              full: true,
+              readonly: true,
+            }),
+            formField({
+              id: "prmCorrectAssignFamily",
+              label: "Route Family",
+              value: String(familyLabel),
+              readonly: true,
+            }),
+            formField({
+              id: "prmCorrectAssignCurrentFrom",
+              label: "Current Effective From",
+              value: currentEffectiveFrom || "—",
+              readonly: true,
+            }),
+            formField({
+              id: "prmCorrectAssignEffectiveFrom",
+              label: "Corrected Effective From",
+              type: "date",
+              value: currentEffectiveFrom,
+              required: true,
+            }),
+            formField({
+              id: "prmCorrectAssignReason",
+              label: "Correction Reason",
+              type: "textarea",
+              full: true,
+              required: true,
+              placeholder: "Why this approved date is being corrected",
+            }),
+            formField({
+              id: "prmCorrectAssignReference",
+              label: "Correction Reference",
+              full: true,
+              required: true,
+              placeholder: "Audit / correction reference",
+            }),
+          ].join(""),
+          actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-correct-assignment-effective-confirm>Apply correction</button>`,
+        }),
+        bind: (host) => {
+          onModal(host, "click", async (event) => {
+            const submit = event.target.closest(
+              "[data-prm-correct-assignment-effective-confirm]",
+            );
+            if (!submit) return;
+            await withMutation(submit, async () => {
+              const correctedFrom = String(
+                host.querySelector("#prmCorrectAssignEffectiveFrom")?.value ||
+                  "",
+              ).trim();
+              if (!correctedFrom) {
+                showToast?.("Enter Corrected Effective From.", "warning");
+                return { ok: false };
+              }
+              const reason =
+                host.querySelector("#prmCorrectAssignReason")?.value || "";
+              const reference =
+                host.querySelector("#prmCorrectAssignReference")?.value || "";
+              if (!isMeaningfulPrmCancellationReason(reason)) {
+                showToast?.(
+                  "Enter a meaningful correction reason. Placeholders such as — or N/A are not allowed.",
+                  "warning",
+                );
+                return { ok: false };
+              }
+              if (!isMeaningfulPrmApprovalReference(reference)) {
+                showToast?.(
+                  "Enter a meaningful correction reference. Placeholders such as — or N/A are not allowed.",
+                  "warning",
+                );
+                return { ok: false };
+              }
+              const response = await governed(
+                RPC.correctAssignmentEffectiveFrom,
+                buildCorrectProductRouteFamilyAssignmentEffectiveFromArgs({
+                  assignment_id: assignmentId,
+                  corrected_effective_from: correctedFrom,
+                  correction_reason: reason,
+                  correction_reference: reference,
+                }),
+                "Unable to correct assignment effective from.",
+              );
+              if (!response.ok) return response;
+              showToast?.("Assignment effective date corrected.", "success", 4200);
+              closeModal({ restorePrevious: false });
+              await refreshAfterAssignmentMutation(
+                productId ?? row?.product_id,
+                row,
+                {
+                  focusAssignmentId: assignmentId,
+                  openProductSummary: false,
+                  refreshFailureMessage:
+                    "Effective from corrected, but the register could not be refreshed.",
+                },
+              );
               return response;
             });
           });
@@ -4621,16 +6049,34 @@ export function createProductionRouteController(deps = {}) {
           );
           if (!submit) return;
           await withMutation(submit, async () => {
-            const code = host.querySelector("#prmFamilyCode")?.value?.trim();
+            const code = String(
+              host.querySelector("#prmFamilyCode")?.value || "",
+            )
+              .trim()
+              .toUpperCase();
             const name = host.querySelector("#prmFamilyName")?.value?.trim();
             const effectiveFrom =
-              host.querySelector("#prmFamilyEffectiveFrom")?.value ||
-              getAsOfDate();
+              host.querySelector("#prmFamilyEffectiveFrom")?.value || "";
             const description =
               host.querySelector("#prmFamilyDescription")?.value?.trim() ||
               null;
-            if (!code || !name) {
-              showToast?.("Family code and name are required.", "warning");
+            if (!code) {
+              showToast?.("Family code is required.", "warning");
+              return { ok: false };
+            }
+            if (!/^[A-Z][A-Z0-9_]*$/.test(code)) {
+              showToast?.(
+                "Family code must be uppercase letters, numbers, and underscores, starting with a letter.",
+                "warning",
+              );
+              return { ok: false };
+            }
+            if (!name) {
+              showToast?.("Family name is required.", "warning");
+              return { ok: false };
+            }
+            if (!effectiveFrom) {
+              showToast?.("Effective from is required.", "warning");
               return { ok: false };
             }
             const response = await governed(
@@ -4650,32 +6096,23 @@ export function createProductionRouteController(deps = {}) {
               "success",
               4200,
             );
-            try {
-              await loadRouteFamilies();
-              render();
-              const created =
-                state.routeFamilies.find(
-                  (family) =>
-                    String(family.route_family_id ?? family.id) === String(id),
-                ) || {
-                  route_family_id: id,
-                  route_family_code: code,
-                  route_family_name: name,
-                  description,
-                  effective_from: effectiveFrom,
-                  status: "DRAFT",
-                };
+            closeModal({ restorePrevious: false });
+            const refresh = await refreshRouteFamiliesAfterMutation({
+              refreshFailureMessage:
+                "Route Family created, but the register could not be refreshed.",
+            });
+            if (!refresh?.ok) return response;
+            const created = (state.routeFamilies || []).find(
+              (family) =>
+                String(family.route_family_id ?? family.id) === String(id),
+            );
+            if (created) {
               await openFamilySummary(created, { fromStackRestore: false });
-            } catch (error) {
-              console.error(
-                "Post-create Family summary/history failed after successful create:",
-                error,
-              );
+            } else if (id != null) {
               showToast?.(
-                "Manufacturing Route Family was created, but the summary could not be refreshed. Reload the Families lens and open KASHAYAM_REGULAR (or the new Family) to continue — do not recreate it.",
+                "Route Family created, but the new Family could not be located in the register.",
                 "warning",
-                9000,
-                true,
+                7200,
               );
             }
             return response;
@@ -4687,20 +6124,23 @@ export function createProductionRouteController(deps = {}) {
 
   async function openApproveFamilyModal(row, { nested = false } = {}) {
     const routeFamilyId = row.route_family_id ?? row.id;
-    const familyCode =
-      row.route_family_code || row.family_code || routeFamilyId;
-    const suggested = buildPrmFamilyApprovalReferenceTemplate(
-      familyCode,
-      getAsOfDate(),
-    );
+    const identity = resolvePrmRouteFamilyApprovalIdentity({ detail: row });
+    if (!identity.ok) {
+      showToast?.(identity.error, "warning");
+      return;
+    }
+    const generated = buildPrmRouteFamilyApprovalReference({
+      routeFamilyCode: identity.routeFamilyCode,
+      approvalDate: getPrmLocalIsoDate(),
+    });
+    if (!generated.ok) {
+      showToast?.(generated.error, "warning");
+      return;
+    }
     openModal(
       {
         title: "Approve Route Family",
-        subtitle:
-          row.route_family_name ||
-          row.family_name ||
-          row.route_family_code ||
-          "",
+        subtitle: "Canonical approval reference",
         html: formShell({
           notice:
             "After approval, Map Product Group becomes the next governed action.",
@@ -4711,41 +6151,54 @@ export function createProductionRouteController(deps = {}) {
               label: "Approval reference",
               required: true,
               full: true,
-              value: suggested,
-              hint: PRM_APPROVAL_REFERENCE_HELPER_TEXT,
-            }),
-            formField({
-              id: "prmApproveFamilyEffective",
-              label: "Effective from",
-              type: "date",
-              value: row.effective_from || getAsOfDate(),
+              readonly: true,
+              value: generated.reference,
+              hint: PRM_ROUTE_FAMILY_APPROVAL_REFERENCE_HELPER_TEXT,
             }),
           ].join(""),
           actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-approve-family-submit>Approve Route Family</button>`,
         }),
         bind: (host) => {
-          host.querySelector("#prmApproveFamilyRef")?.focus();
+          host
+            .querySelector("[data-prm-approve-family-submit]")
+            ?.focus();
           onModal(host, "click", async (event) => {
             const submit = event.target.closest(
               "[data-prm-approve-family-submit]",
             );
             if (!submit) return;
             await withMutation(submit, async () => {
-              const reference = host
-                .querySelector("#prmApproveFamilyRef")
-                ?.value?.trim();
-              if (!isMeaningfulPrmApprovalReference(reference)) {
-                showToast?.(
-                  "Enter a meaningful approval reference. Placeholders such as — or N/A are not allowed.",
-                  "warning",
-                );
-                return { ok: false };
+              const currentIdentity = resolvePrmRouteFamilyApprovalIdentity({
+                detail: row,
+              });
+              if (!currentIdentity.ok) {
+                showToast?.(currentIdentity.error, "warning");
+                return { ok: false, reason: currentIdentity.reason };
+              }
+              const recomputed = buildPrmRouteFamilyApprovalReference({
+                routeFamilyCode: currentIdentity.routeFamilyCode,
+                approvalDate: getPrmLocalIsoDate(),
+              });
+              if (!recomputed.ok) {
+                showToast?.(recomputed.error, "warning");
+                return { ok: false, reason: recomputed.reason };
+              }
+              const checked = validatePrmRouteFamilyApprovalReference(
+                recomputed.reference,
+                {
+                  routeFamilyCode: currentIdentity.routeFamilyCode,
+                  approvalDate: getPrmLocalIsoDate(),
+                },
+              );
+              if (!checked.ok) {
+                showToast?.(checked.error, "warning");
+                return { ok: false, reason: checked.reason };
               }
               const response = await governed(
                 RPC.approveFamily,
                 buildApproveRouteFamilyArgs({
                   route_family_id: routeFamilyId,
-                  approval_reference: reference,
+                  approval_reference: recomputed.reference,
                 }),
                 "Unable to approve Manufacturing Route Family.",
               );
@@ -4755,7 +6208,23 @@ export function createProductionRouteController(deps = {}) {
                 "success",
                 4200,
               );
-              await reloadFamilySummary(routeFamilyId);
+              closeModal({ restorePrevious: false });
+              const refresh = await refreshRouteFamiliesAfterMutation({
+                refreshFailureMessage:
+                  "Route Family approved, but the register could not be refreshed.",
+              });
+              if (refresh?.ok) {
+                const approved = (state.routeFamilies || []).find(
+                  (family) =>
+                    String(family.route_family_id ?? family.id) ===
+                    String(routeFamilyId),
+                );
+                if (approved) {
+                  await openFamilySummary(approved, {
+                    fromStackRestore: false,
+                  });
+                }
+              }
               return response;
             });
           });
@@ -5102,37 +6571,337 @@ export function createProductionRouteController(deps = {}) {
     );
   }
 
-  async function openCreateFamilyRouteDraftModal(
-    routeFamilyId,
-    { supersedes_route_id = null, nested = false } = {},
-  ) {
+  function findRouteFamilyById(routeFamilyId) {
+    const fid = normalizePrmIntegerId(routeFamilyId);
+    if (fid == null) return null;
+    return (
+      (state.routeFamilies || []).find(
+        (row) => normalizePrmIntegerId(row.route_family_id ?? row.id) === fid,
+      ) || null
+    );
+  }
+
+  function buildPrmRouteFamilySelectOptionsHtml(families = [], selectedId = null) {
+    const asOf = getAsOfDate();
+    const eligible = selectPrmRouteFamiliesForFamilyRouteCreate(families, asOf);
+    const selected = normalizePrmIntegerId(selectedId);
+    const options = [`<option value="">Select Route Family</option>`];
+    for (const family of eligible) {
+      const id = normalizePrmIntegerId(family.route_family_id ?? family.id);
+      if (id == null) continue;
+      options.push(
+        `<option value="${text(id)}" ${
+          selected === id ? "selected" : ""
+        }>${text(formatPrmRouteFamilySelectorLabel(family))}</option>`,
+      );
+    }
+    return options.join("");
+  }
+
+  function buildFamilyRouteCreateContextNoticeHtml(eligibility, familyLabel = "") {
+    if (!eligibility?.ok) return "";
+    const approvedLine = `<div><span class="cp-field-label">Current approved Family Route</span> <span data-prm-approved-family-route-label>${text(
+      eligibility.approvedRouteLabel || "None",
+    )}</span></div>`;
+    if (eligibility.mode === "writable_exists") {
+      return `<p class="cp-muted-text">${text(eligibility.message)}</p>${approvedLine}`;
+    }
+    if (eligibility.mode === "approved_successor") {
+      return `<p class="cp-muted-text">${text(eligibility.message)} ${text(
+        eligibility.successorNotice || "",
+      )}</p>${approvedLine}`;
+    }
+    return `<div class="cp-detail-grid cp-detail-grid--2col">
+      <div><span class="cp-field-label">Route Family</span><div>${text(
+        familyLabel,
+      )}</div></div>
+      ${approvedLine}
+    </div>`;
+  }
+
+  async function resolveFamilyRouteCreateContext(routeFamilyId) {
+    const fid = normalizePrmIntegerId(routeFamilyId);
+    if (fid == null) {
+      return { ok: false, reason: "missing_route_family_id" };
+    }
+    const family = findRouteFamilyById(fid);
+    if (
+      family &&
+      !isPrmRouteFamilyEligibleForFamilyRouteCreate(family, getAsOfDate())
+    ) {
+      return {
+        ok: false,
+        reason: "ineligible_route_family",
+        error: "Selected Route Family is not approved for Family Route creation.",
+      };
+    }
+    const versions = await loadFamilyHistory(fid);
+    const routeState = resolveRouteFamilyRouteStateFromHistory(versions);
+    const eligibility = resolvePrmFamilyRouteCreateEligibility(routeState);
+    return {
+      ok: true,
+      routeFamilyId: fid,
+      family,
+      routeState,
+      eligibility,
+    };
+  }
+
+  function applyFamilyRouteCreateModalUi(host, ctx, { successorMode = false } = {}) {
+    const eligibility = ctx?.eligibility;
+    const formSection = host.querySelector("[data-prm-family-create-form]");
+    const contextHost = host.querySelector("[data-prm-family-create-context]");
+    const submitBtn = host.querySelector("[data-prm-family-route-draft-submit]");
+    const successorBtn = host.querySelector(
+      "[data-prm-family-create-successor-start]",
+    );
+    const openExistingBtn = host.querySelector(
+      "[data-prm-family-create-open-existing]",
+    );
+    if (contextHost) {
+      contextHost.innerHTML = buildFamilyRouteCreateContextNoticeHtml(
+        eligibility,
+        formatPrmRouteFamilySelectorLabel(ctx?.family || {}),
+      );
+    }
+    const writable = eligibility?.mode === "writable_exists";
+    const approvedSuccessor =
+      eligibility?.mode === "approved_successor" && !successorMode;
+    const showForm =
+      eligibility?.mode === "first_draft" ||
+      (eligibility?.mode === "approved_successor" && successorMode);
+    if (formSection) {
+      formSection.classList.toggle("hidden", !showForm);
+    }
+    if (submitBtn) {
+      submitBtn.disabled = !showForm;
+      submitBtn.classList.toggle("hidden", !showForm);
+    }
+    if (successorBtn) {
+      successorBtn.classList.toggle(
+        "hidden",
+        !(eligibility?.mode === "approved_successor" && !successorMode),
+      );
+      if (eligibility?.mode === "approved_successor" && !successorMode) {
+        successorBtn.setAttribute(
+          "data-prm-approved-family-route-id",
+          String(eligibility.approvedRouteId),
+        );
+      }
+    }
+    if (openExistingBtn) {
+      openExistingBtn.classList.toggle("hidden", !writable);
+      if (writable) {
+        openExistingBtn.setAttribute(
+          "data-prm-family-route-id",
+          String(eligibility.writableRouteId),
+        );
+      }
+    }
+  }
+
+  async function refreshFamilyRouteEmptyContext(host) {
+    const requestGeneration = familyRouteOpenGeneration;
+    if (
+      !shouldApplyPrmFamilyRouteEmptyContextRefresh({
+        selectedFamilyRouteId: state.selectedFamilyRouteId,
+        deepLinkFamilyRouteId: state.deepLink?.family_route_id,
+        requestGeneration,
+        currentGeneration: familyRouteOpenGeneration,
+      })
+    ) {
+      return;
+    }
+    const selectEl = host.querySelector("[data-prm-family-empty-select]");
+    const contextHost = host.querySelector("[data-prm-family-empty-context]");
+    const createBtn = host.querySelector("[data-prm-create-family-route-draft]");
+    const openBtn = host.querySelector("[data-prm-open-existing-family-route]");
+    const openApprovedBtn = host.querySelector(
+      "[data-prm-open-approved-family-route]",
+    );
+    const successorBtn = host.querySelector(
+      "[data-prm-create-family-route-successor]",
+    );
+    const familyId =
+      normalizePrmIntegerId(selectEl?.value) ??
+      normalizePrmIntegerId(state.familyRouteCreateFamilyId) ??
+      normalizePrmIntegerId(state.deepLink.route_family_id);
+    state.familyRouteCreateFamilyId = familyId;
+    if (familyId != null) {
+      if (
+        !shouldApplyPrmFamilyRouteEmptyContextRefresh({
+          selectedFamilyRouteId: state.selectedFamilyRouteId,
+          deepLinkFamilyRouteId: state.deepLink?.family_route_id,
+          requestGeneration,
+          currentGeneration: familyRouteOpenGeneration,
+        })
+      ) {
+        return;
+      }
+      state.familyRouteCreateFamilyId = familyId;
+      state.selectedRouteFamilyId = familyId;
+      state.deepLink = {
+        ...state.deepLink,
+        route_family_id: familyId,
+      };
+      delete state.deepLink.family_route_id;
+      applyPrmDeepLinkToUrl("route-family-route-editor", state.deepLink, true);
+    }
+    if (!contextHost) return;
+    if (familyId == null) {
+      contextHost.innerHTML =
+        '<p class="cp-muted-text">Select a Route Family to review route status.</p>';
+      createBtn?.classList.remove("hidden");
+      openBtn?.classList.add("hidden");
+      openApprovedBtn?.classList.add("hidden");
+      successorBtn?.classList.add("hidden");
+      state.familyRouteCreateEligibility = null;
+      return;
+    }
+    contextHost.innerHTML =
+      '<p class="cp-muted-text">Loading Route Family route status…</p>';
+    const ctx = await resolveFamilyRouteCreateContext(familyId);
+    if (
+      !shouldApplyPrmFamilyRouteEmptyContextRefresh({
+        selectedFamilyRouteId: state.selectedFamilyRouteId,
+        deepLinkFamilyRouteId: state.deepLink?.family_route_id,
+        requestGeneration,
+        currentGeneration: familyRouteOpenGeneration,
+      })
+    ) {
+      return;
+    }
+    if (!ctx.ok) {
+      contextHost.innerHTML = `<p class="cp-muted-text">${text(
+        ctx.error || "Unable to resolve Route Family route status.",
+      )}</p>`;
+      return;
+    }
+    state.familyRouteCreateEligibility = ctx.eligibility;
+    contextHost.innerHTML = buildFamilyRouteCreateContextNoticeHtml(
+      ctx.eligibility,
+      formatPrmRouteFamilySelectorLabel(ctx.family || {}),
+    );
+    const writable = ctx.eligibility.mode === "writable_exists";
+    const approvedSuccessor = ctx.eligibility.mode === "approved_successor";
+    const firstDraft = ctx.eligibility.mode === "first_draft";
+    createBtn?.classList.toggle("hidden", !firstDraft);
+    createBtn?.classList.toggle("icon-btn-primary", firstDraft);
+    openBtn?.classList.toggle("hidden", !writable);
+    openBtn?.classList.toggle("icon-btn-primary", writable);
+    openApprovedBtn?.classList.toggle("hidden", !approvedSuccessor);
+    openApprovedBtn?.classList.toggle("icon-btn-primary", approvedSuccessor);
+    successorBtn?.classList.toggle("hidden", !approvedSuccessor);
+    successorBtn?.classList.remove("icon-btn-primary");
+    if (writable) {
+      openBtn?.setAttribute(
+        "data-prm-family-route-id",
+        String(ctx.eligibility.writableRouteId),
+      );
+    }
+    if (approvedSuccessor) {
+      openApprovedBtn?.setAttribute(
+        "data-prm-family-route-id",
+        String(ctx.eligibility.approvedRouteId),
+      );
+      successorBtn?.setAttribute(
+        "data-prm-approved-family-route-id",
+        String(ctx.eligibility.approvedRouteId),
+      );
+    }
+  }
+
+  function buildFamilyRouteEmptyRenderOptions() {
+    const selectedId =
+      normalizePrmIntegerId(state.familyRouteCreateFamilyId) ??
+      normalizePrmIntegerId(state.deepLink.route_family_id);
+    const eligibility = state.familyRouteCreateEligibility;
+    return {
+      canCreateFamilyRoute: canEdit(),
+      familySelectorOptionsHtml: buildPrmRouteFamilySelectOptionsHtml(
+        state.routeFamilies,
+        selectedId,
+      ),
+      familyCreateContextHtml: eligibility
+        ? buildFamilyRouteCreateContextNoticeHtml(
+            eligibility,
+            formatPrmRouteFamilySelectorLabel(
+              findRouteFamilyById(selectedId) || {},
+            ),
+          )
+        : selectedId
+          ? "Loading Route Family route status…"
+          : "Select a Route Family to review route status.",
+    };
+  }
+
+  async function openCreateFamilyRouteDraftModal({
+    routeFamilyId = null,
+    supersedesRouteId = null,
+    nested = false,
+    source = null,
+  } = {}) {
     if (!canEdit()) {
       showToast?.("Edit permission required.", "warning");
       return;
     }
-    const family =
-      (state.routeFamilies || []).find(
-        (row) =>
-          String(row.route_family_id ?? row.id) === String(routeFamilyId),
-      ) || {};
-    const familyLabel =
-      family.route_family_name ||
-      family.family_name ||
-      family.route_family_code ||
-      family.family_code ||
-      routeFamilyId;
-    const sourceOptions = [
-      `<option value="MANUAL" selected>${text(formatPrmRouteSourceTypeLabel("MANUAL"))}</option>`,
-      `<option value="HISTORICAL_CANDIDATE">${text(formatPrmRouteSourceTypeLabel("HISTORICAL_CANDIDATE"))}</option>`,
-      `<option value="COPIED_VERSION" title="Prefer Clone as New Version for successors">${text(formatPrmRouteSourceTypeLabel("COPIED_VERSION"))}</option>`,
-    ].join("");
-    const evidenceOptions = PRM_ROUTE_EVIDENCE_STATUSES.map((code) => {
-      const selected = code === "MANUAL_COMPLETE" ? " selected" : "";
-      return `<option value="${text(code)}"${selected}>${text(formatPrmRouteEvidenceStatusLabel(code))}</option>`;
-    }).join("");
+    await ensureMasterOptions();
+    const lockedFamilyId =
+      normalizePrmIntegerId(routeFamilyId) ??
+      normalizePrmIntegerId(state.familyRouteCreateFamilyId) ??
+      normalizePrmIntegerId(state.deepLink.route_family_id);
+    const explicitSuccessorId = normalizePrmIntegerId(supersedesRouteId);
+    const successorMode = explicitSuccessorId != null;
+    const asOf = getAsOfDate();
+    const buildProvenanceFieldsHtml = () => {
+      const provenance = resolvePrmFamilyRouteCreateProvenanceContext({
+        supersedesRouteId: successorMode ? explicitSuccessorId : null,
+      });
+      return [
+        formField({
+          id: "prmFamilyRouteSource",
+          label: "Source type",
+          value: formatPrmRouteSourceTypeLabel(provenance.source_type),
+          readonly: true,
+          disabled: true,
+          hint: PRM_FAMILY_ROUTE_CREATE_SOURCE_HELPER,
+        }),
+        formField({
+          id: "prmFamilyRouteEvidence",
+          label: "Evidence status",
+          value: formatPrmRouteEvidenceStatusLabel(provenance.evidence_status),
+          readonly: true,
+          disabled: true,
+          hint: PRM_FAMILY_ROUTE_CREATE_EVIDENCE_HELPER,
+        }),
+      ].join("");
+    };
+    const familyLocked = lockedFamilyId != null;
+    const familyFieldHtml = familyLocked
+      ? formField({
+          id: "prmFamilyRouteFamily",
+          label: "Route Family",
+          value: formatPrmRouteFamilySelectorLabel(
+            findRouteFamilyById(lockedFamilyId) || {},
+          ),
+          full: true,
+          readonly: true,
+          disabled: true,
+        })
+      : formField({
+          id: "prmFamilyRouteFamilySelect",
+          label: "Route Family",
+          type: "select",
+          required: true,
+          full: true,
+          optionsHtml: buildPrmRouteFamilySelectOptionsHtml(
+            state.routeFamilies,
+            lockedFamilyId,
+          ),
+        });
     openModal(
       {
-        title: "Create Route Family route draft",
+        title: "Create Family Route Draft",
         subtitle:
           "Creates a DRAFT route header only. Governed steps are added in the editor.",
         html: formShell({
@@ -5140,63 +6909,176 @@ export function createProductionRouteController(deps = {}) {
             "Available even when Production cost centres are not yet approved. Steps requiring a cost centre remain unresolved until setup is complete. Approval later requires complete evidence status (Manual complete or Historical complete). Historical evidence remains advisory — it does not auto-approve.",
           sectionTitle: "Route header",
           fieldsHtml: [
-            formField({
-              id: "prmFamilyRouteFamily",
-              label: "Route Family",
-              value: familyLabel,
-              full: true,
-              readonly: true,
-              disabled: true,
-            }),
-            formField({
-              id: "prmFamilyRouteName",
-              label: "Route name",
-              required: true,
-              full: true,
-              placeholder: "e.g. Classical liquid route v1",
-            }),
-            formField({
-              id: "prmFamilyRouteEffective",
-              label: "Effective from",
-              type: "date",
-              value: getAsOfDate(),
-              required: true,
-            }),
-            formField({
-              id: "prmFamilyRouteSource",
-              label: "Source type",
-              type: "select",
-              required: true,
-              optionsHtml: sourceOptions,
-              hint: "Use Manual for a brand-new route. Prefer Clone as New Version instead of Copied version.",
-            }),
-            formField({
-              id: "prmFamilyRouteEvidence",
-              label: "Evidence status",
-              type: "select",
-              required: true,
-              optionsHtml: evidenceOptions,
-              hint: "Server approval requires a complete evidence status.",
-            }),
-            formField({
-              id: "prmFamilyRouteNote",
-              label: "Route note",
-              type: "textarea",
-              rows: 2,
-              full: true,
-              placeholder: "Optional route header note",
-            }),
+            familyFieldHtml,
+            `<div data-prm-family-create-context class="cp-detail-span-full"></div>`,
+            `<div data-prm-family-create-form class="cp-detail-span-full">
+              ${[
+                formField({
+                  id: "prmFamilyRouteName",
+                  label: "Route name",
+                  required: true,
+                  full: true,
+                  placeholder: "e.g. Dry Fine Powder — No-Wash Manufacturing Route",
+                }),
+                formField({
+                  id: "prmFamilyRouteEffective",
+                  label: "Effective from",
+                  type: "date",
+                  value: asOf,
+                  required: true,
+                }),
+                buildProvenanceFieldsHtml(),
+                formField({
+                  id: "prmFamilyRouteNote",
+                  label: "Route note",
+                  type: "textarea",
+                  rows: 2,
+                  full: true,
+                  placeholder: "Optional route header note",
+                }),
+              ].join("")}
+            </div>`,
           ].join(""),
-          actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-family-route-draft-submit>Create route draft</button>`,
+          actionsHtml: `<button type="button" class="icon-btn hidden" data-prm-family-create-open-existing>Open existing route</button>
+            <button type="button" class="icon-btn hidden" data-prm-family-create-successor-start>Create new route version</button>
+            <button type="button" class="icon-btn icon-btn-primary hidden" data-prm-family-route-draft-submit>Create DRAFT</button>`,
         }),
         bind: (host) => {
-          host.querySelector("#prmFamilyRouteName")?.focus();
+          let modalSuccessorMode = successorMode;
+          let modalApprovedRouteId = explicitSuccessorId;
+          const familySelect = host.querySelector("#prmFamilyRouteFamilySelect");
+          if (familySelect) {
+            enhanceSearchableSelect(familySelect, {
+              placeholder: "Search or select Route Family",
+              allowEmptyOption: true,
+              openOnFocus: true,
+              showAllWhenEmpty: true,
+              clearSelectedOnBackspace: true,
+              portalLayer: "modal",
+            });
+          }
+          const syncContext = async () => {
+            const selectedFamilyId =
+              lockedFamilyId ??
+              normalizePrmIntegerId(familySelect?.value) ??
+              null;
+            if (selectedFamilyId == null) {
+              host.querySelector("[data-prm-family-create-context]").innerHTML =
+                '<p class="cp-muted-text">Select a Route Family to review route status.</p>';
+              applyFamilyRouteCreateModalUi(host, null);
+              return;
+            }
+            const ctx = await resolveFamilyRouteCreateContext(selectedFamilyId);
+            if (!ctx.ok) {
+              showToast?.(
+                ctx.error || "Unable to resolve Route Family route status.",
+                "warning",
+              );
+              return;
+            }
+            if (
+              ctx.eligibility.mode === "approved_successor" &&
+              !modalSuccessorMode
+            ) {
+              modalApprovedRouteId = ctx.eligibility.approvedRouteId;
+            }
+            applyFamilyRouteCreateModalUi(host, ctx, {
+              successorMode: modalSuccessorMode,
+            });
+          };
+          void syncContext();
+          if (familySelect) {
+            onModal(host, "change", (event) => {
+              if (event.target !== familySelect) return;
+              modalSuccessorMode = false;
+              modalApprovedRouteId = null;
+              void syncContext();
+            });
+          }
           onModal(host, "click", async (event) => {
+            const openExisting = event.target.closest(
+              "[data-prm-family-create-open-existing]",
+            );
+            if (openExisting) {
+              const routeId = normalizePrmIntegerId(
+                openExisting.getAttribute("data-prm-family-route-id"),
+              );
+              const familyId =
+                lockedFamilyId ??
+                normalizePrmIntegerId(familySelect?.value) ??
+                null;
+              if (routeId == null || familyId == null) return;
+              closeModal({ restorePrevious: false });
+              navigateToFamilyRouteEditor({
+                route_family_id: familyId,
+                family_route_id: routeId,
+                replace: true,
+              });
+              return;
+            }
+            const startSuccessor = event.target.closest(
+              "[data-prm-family-create-successor-start]",
+            );
+            if (startSuccessor) {
+              modalSuccessorMode = true;
+              modalApprovedRouteId =
+                normalizePrmIntegerId(
+                  startSuccessor.getAttribute("data-prm-approved-family-route-id"),
+                ) ?? modalApprovedRouteId;
+              void syncContext();
+              return;
+            }
             const submit = event.target.closest(
               "[data-prm-family-route-draft-submit]",
             );
             if (!submit) return;
             await withMutation(submit, async () => {
+              const selectedFamilyId =
+                lockedFamilyId ??
+                normalizePrmIntegerId(familySelect?.value) ??
+                null;
+              if (selectedFamilyId == null) {
+                showToast?.("Route Family is required.", "warning");
+                return { ok: false };
+              }
+              const ctx = await resolveFamilyRouteCreateContext(selectedFamilyId);
+              if (!ctx.ok) {
+                showToast?.(
+                  ctx.error || "Unable to resolve Route Family route status.",
+                  "warning",
+                );
+                return { ok: false };
+              }
+              if (ctx.eligibility.mode === "writable_exists") {
+                showToast?.(ctx.eligibility.message, "warning");
+                return { ok: false, reason: "writable_exists" };
+              }
+              const useSuccessor =
+                modalSuccessorMode && modalApprovedRouteId != null;
+              if (
+                ctx.eligibility.mode === "approved_successor" &&
+                !useSuccessor
+              ) {
+                showToast?.(
+                  "An approved Family Route already exists. Use Create new route version.",
+                  "warning",
+                );
+                return { ok: false, reason: "approved_successor_required" };
+              }
+              const provenanceContext = resolvePrmFamilyRouteCreateProvenanceContext({
+                supersedesRouteId: useSuccessor ? modalApprovedRouteId : null,
+              });
+              const provenanceCheck = validatePrmFamilyRouteCreateProvenance(
+                provenanceContext,
+                {
+                  source_type: provenanceContext.source_type,
+                  evidence_status: provenanceContext.evidence_status,
+                },
+              );
+              if (!provenanceCheck.ok) {
+                showToast?.(provenanceCheck.error, "warning");
+                return { ok: false, reason: "invalid_provenance" };
+              }
               const routeName = host
                 .querySelector("#prmFamilyRouteName")
                 ?.value?.trim();
@@ -5205,22 +7087,16 @@ export function createProductionRouteController(deps = {}) {
                 return { ok: false };
               }
               const result = await editor.createFamilyDraft({
-                route_family_id: routeFamilyId,
+                route_family_id: selectedFamilyId,
                 route_name: routeName,
                 effective_from:
-                  host.querySelector("#prmFamilyRouteEffective")?.value ||
-                  getAsOfDate(),
-                source_type:
-                  host.querySelector("#prmFamilyRouteSource")?.value?.trim() ||
-                  "MANUAL",
-                evidence_status:
-                  host
-                    .querySelector("#prmFamilyRouteEvidence")
-                    ?.value?.trim() || "MANUAL_COMPLETE",
+                  host.querySelector("#prmFamilyRouteEffective")?.value || asOf,
+                source_type: provenanceCheck.source_type,
+                evidence_status: provenanceCheck.evidence_status,
                 route_note:
                   host.querySelector("#prmFamilyRouteNote")?.value?.trim() ||
                   null,
-                supersedes_route_id,
+                supersedes_route_id: useSuccessor ? modalApprovedRouteId : null,
               });
               if (!result.ok) return result;
               const familyRouteIdNorm = normalizePrmIntegerId(
@@ -5233,14 +7109,15 @@ export function createProductionRouteController(deps = {}) {
                 );
                 return { ok: false, error: "missing_family_route_id" };
               }
-              navigateToFamilyRouteEditor({
-                route_family_id: routeFamilyId,
+              showToast?.("Family Route Draft created.", "success", 4200);
+              await openCreatedFamilyRoute({
+                route_family_id: selectedFamilyId,
                 family_route_id: familyRouteIdNorm,
-                replace: true,
               });
               return result;
             });
           });
+          host.querySelector("#prmFamilyRouteName")?.focus();
         },
       },
       { nested },
@@ -5453,7 +7330,7 @@ export function createProductionRouteController(deps = {}) {
     if (liveProductRouteId != null) {
       showToast?.("A Product route already exists for this Product.", "info");
       state.productRouteCreateHandoff = null;
-      navigate("product-route-editor", {
+      await navigate("product-route-editor", {
         product_id: productId,
         product_route_id: liveProductRouteId,
       });
@@ -5482,7 +7359,7 @@ export function createProductionRouteController(deps = {}) {
     if (existingEligibility.open_product_route_id != null) {
       showToast?.("A Product route already exists for this Product.", "info");
       state.productRouteCreateHandoff = null;
-      navigate("product-route-editor", {
+      await navigate("product-route-editor", {
         product_id: productId,
         product_route_id: existingEligibility.open_product_route_id,
       });
@@ -5533,7 +7410,7 @@ export function createProductionRouteController(deps = {}) {
       family_route_version: familyRouteVersion,
       as_of_date: getAsOfDate(),
     };
-    navigate("product-route-editor", { product_id: productId });
+    await navigate("product-route-editor", { product_id: productId });
   }
 
   async function submitProductRouteCreateDraft(button, host) {
@@ -5602,7 +7479,7 @@ export function createProductionRouteController(deps = {}) {
         base_route_family_route_id: baseId,
         batch_size_ref_id: selected,
         effective_from: handoff.as_of_date || getAsOfDate(),
-        source_type: "MANUAL",
+        source_type: PRM_PRODUCT_ROUTE_SOURCES[0] || "ROUTE_FAMILY_ONLY",
         evidence_status: "MANUAL_COMPLETE",
       });
       if (!result?.ok) return result;
@@ -5820,6 +7697,13 @@ export function createProductionRouteController(deps = {}) {
     return `<tr>${cols.map((col) => `<th>${text(col.label)}</th>`).join("")}</tr>`;
   }
 
+  function assignmentRegisterToolbarHtml() {
+    const createBtn = canEdit()
+      ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-create-product-assignment>Create Product Assignment</button>`
+      : "";
+    return `<div class="cp-prm-actions cp-prm-assignment-register-toolbar">${createBtn}</div>`;
+  }
+
   function assignmentRegisterSummaryHtml() {
     const total =
       state.assignmentTotalBaseline != null
@@ -5840,7 +7724,7 @@ export function createProductionRouteController(deps = {}) {
         ? ` · Focused Product: ${productName}`
         : ` · Focused Product ID: ${focusId}`;
     }
-    return `<p class="cp-muted-text cp-prm-assignment-register" data-prm-assignment-register>${text(
+    return `${assignmentRegisterToolbarHtml()}<p class="cp-muted-text cp-prm-assignment-register" data-prm-assignment-register>${text(
       `Assignment lifecycle register · ${total ?? 0} records · ${statusLabel}${focusCue}`,
     )}</p>`;
   }
@@ -6081,6 +7965,17 @@ export function createProductionRouteController(deps = {}) {
     return text(null);
   }
 
+  function bindAssignmentRegisterChrome(host) {
+    if (host.summary?.classList) {
+      host.summary.classList.add("is-visible");
+    }
+    on(host.summary, "click", (event) => {
+      if (event.target.closest("[data-prm-create-product-assignment]")) {
+        openCreateAssignmentDraftModal(null);
+      }
+    });
+  }
+
   function renderAssignments() {
     const host = hosts();
     host.tableWrap?.classList.remove("hidden");
@@ -6122,6 +8017,7 @@ export function createProductionRouteController(deps = {}) {
     if (state.permissionDenied) {
       host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="status">Permission denied.</div></td></tr>`;
       host.summary.innerHTML = assignmentRegisterSummaryHtml();
+      bindAssignmentRegisterChrome(host);
       return;
     }
     if (state.assignmentLoadError) {
@@ -6129,11 +8025,13 @@ export function createProductionRouteController(deps = {}) {
         state.assignmentLoadError,
       )}</div></td></tr>`;
       host.summary.innerHTML = assignmentRegisterSummaryHtml();
+      bindAssignmentRegisterChrome(host);
       return;
     }
     if (state.assignmentLoading && !state.assignmentRows.length) {
       host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="cost-sheet-explain-loading">Loading Product Assignments…</div></td></tr>`;
       host.summary.innerHTML = assignmentRegisterSummaryHtml();
+      bindAssignmentRegisterChrome(host);
       return;
     }
     if (!state.assignmentRows.length) {
@@ -6146,6 +8044,7 @@ export function createProductionRouteController(deps = {}) {
         emptyMsg,
       )}</div></td></tr>`;
       host.summary.innerHTML = assignmentRegisterSummaryHtml();
+      bindAssignmentRegisterChrome(host);
       return;
     }
     const focusId = normalizePrmIntegerId(state.assignmentFocusProductId);
@@ -6165,6 +8064,7 @@ export function createProductionRouteController(deps = {}) {
       .join("");
     host.summary.innerHTML = assignmentRegisterSummaryHtml();
     bindRows();
+    bindAssignmentRegisterChrome(host);
   }
 
   function renderReadiness() {
@@ -6178,22 +8078,22 @@ export function createProductionRouteController(deps = {}) {
     if (host.tableHead) host.tableHead.innerHTML = readinessHeader();
     if (state.permissionDenied) {
       host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="status">Permission denied.</div></td></tr>`;
-      host.summary.innerHTML = exactRunContextHtml();
+      host.summary.innerHTML = readinessAsOfContextHtml();
       return;
     }
     if (state.readinessLoadError) {
       host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="status">${text(state.readinessLoadError)}</div></td></tr>`;
-      host.summary.innerHTML = exactRunContextHtml();
+      host.summary.innerHTML = readinessAsOfContextHtml();
       return;
     }
     if (state.loading && !state.readinessRows.length) {
-      host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="cost-sheet-explain-loading">Loading exact-run Costing Readiness…</div></td></tr>`;
-      host.summary.innerHTML = exactRunContextHtml();
+      host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="cost-sheet-explain-loading">Loading Route Readiness…</div></td></tr>`;
+      host.summary.innerHTML = readinessAsOfContextHtml();
       return;
     }
     if (!state.readinessRows.length) {
       host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="status">No readiness rows for the current filters.</div></td></tr>`;
-      host.summary.innerHTML = exactRunContextHtml();
+      host.summary.innerHTML = readinessAsOfContextHtml();
       return;
     }
     host.tableBody.innerHTML = state.readinessRows
@@ -6205,7 +8105,7 @@ export function createProductionRouteController(deps = {}) {
         </tr>`,
       )
       .join("");
-    host.summary.innerHTML = `${exactRunContextHtml()}<div class="cp-prm-cards">${state.readinessRows
+    host.summary.innerHTML = `${readinessAsOfContextHtml()}<div class="cp-prm-cards">${state.readinessRows
       .map(
         (row, index) => `<article class="cp-prm-card cp-prm-row" tabindex="0" data-prm-product-row="${index}">
           <div class="cp-cell-primary">${text(row.product_name)}</div>
@@ -6797,19 +8697,36 @@ export function createProductionRouteController(deps = {}) {
     const table = document.getElementById("mainTable");
     if (table) table.style.display = "";
     clearLensOwnedDom();
+    if (host.summary) {
+      host.summary.classList.remove(
+        "cp-prm-mapping-review-summary-host",
+        "cp-prm-foundation-review-summary-host",
+        "cp-prm-cost-centres-summary-host",
+      );
+      host.summary.classList.add(
+        "is-visible",
+        "cp-prm-route-families-summary-host",
+      );
+    }
     host.tableHead.innerHTML = `<tr><th>Manufacturing Route Family</th><th>Code</th><th>Status</th><th>Mapped hierarchy</th><th>Approved family route</th></tr>`;
-    const editDisabled = canEdit() ? "" : "disabled";
-    const toolbar = `<div class="cp-prm-actions">
-      <button type="button" class="icon-btn icon-btn-primary" data-prm-create-route-family ${editDisabled}>Create Manufacturing Route Family</button>
+    const createBtn = canEdit()
+      ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-create-route-family>Create Route Family</button>`
+      : "";
+    const toolbar = `<div class="cp-prm-actions cp-prm-route-families-toolbar">
       <button type="button" class="icon-btn" data-prm-open-mapping-review>Open Mapping Review</button>
       <button type="button" class="icon-btn" data-prm-review-pre-mapping>Review pre-mapping evidence</button>
+      ${createBtn}
     </div>`;
     if (!state.routeFamilies.length) {
       host.tableBody.innerHTML = `<tr><td colspan="5"><div class="status">
         <p>${text(PRM_EMPTY_STATES.routeFamilies).replace(/\n/g, "<br>")}</p>
         <div class="cp-prm-actions" style="margin-top:12px">
           <button type="button" class="icon-btn" data-prm-empty-review-evidence>Review historical evidence</button>
-          <button type="button" class="icon-btn icon-btn-primary" data-prm-create-route-family ${editDisabled}>Create Manufacturing Route Family</button>
+          ${
+            canEdit()
+              ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-create-route-family>Create Route Family</button>`
+              : ""
+          }
         </div>
       </div></td></tr>`;
       host.summary.innerHTML = toolbar;
@@ -6863,6 +8780,17 @@ export function createProductionRouteController(deps = {}) {
     bindToolbar(host.summary);
     bindToolbar(host.tableBody);
     bindRows();
+    syncFamiliesRegisterCount();
+  }
+
+  function syncFamiliesRegisterCount() {
+    const n = Array.isArray(state.routeFamilies) ? state.routeFamilies.length : 0;
+    state.total_count = n;
+    if (state.activeLens !== "route-families") return;
+    const el = document.getElementById("peqRowCount");
+    if (!el) return;
+    el.style.display = "";
+    el.textContent = `${n.toLocaleString("en-IN")} row${n === 1 ? "" : "s"}`;
   }
 
   function workloadExplainStripItem(
@@ -7403,7 +9331,12 @@ export function createProductionRouteController(deps = {}) {
               <td title="${text(scopeTitle, scopeTitle)}">${text(formatPrmWorkloadExplainNumber(step.scope_factor))}</td>
               <td>${text(step.behaviour_code)}</td>
               <td title="${text(behaviourTitle, behaviourTitle)}">${text(formatPrmWorkloadExplainNumber(step.behaviour_factor))}</td>
-              <td>${text(step.resource_class_code || "—")}</td>
+              <td title="${text(step.resource_class_code || "", "")}">${text(
+                resolvePrmResourceClassDisplayLabel(step.resource_class_code, {
+                  ...prmResourceClassDisplayContext(),
+                  rowLabel: step.resource_class_label,
+                }),
+              )}</td>
               <td title="${text(resourceTitle, resourceTitle)}">${text(formatPrmWorkloadExplainNumber(step.resource_factor))}</td>
               <td>${text(formatPrmWorkloadExplainNumber(step.expected_occurrence_count))}</td>
               <td>${text(formatPrmWorkloadExplainNumber(step.standard_cycle_count))}</td>
@@ -7767,6 +9700,11 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     const createOptions = createMode ? buildProductRouteCreateRenderOptions() : {};
+    const familyEmpty =
+      mode === "family" && !editor.getFamilyState?.()?.detail;
+    const familyEmptyOptions = familyEmpty
+      ? buildFamilyRouteEmptyRenderOptions()
+      : {};
     editor.renderEditor(lensRoot, mode, {
       costCentreBlocked: state.costCentreBlocker,
       emptyMessage:
@@ -7776,7 +9714,21 @@ export function createProductionRouteController(deps = {}) {
       emptySupporting: PRM_EMPTY_STATES.familyEditorSupporting,
       createMode,
       ...createOptions,
+      ...familyEmptyOptions,
     });
+    if (familyEmpty) {
+      const selectEl = lensRoot.querySelector("[data-prm-family-empty-select]");
+      if (selectEl) {
+        enhanceSearchableSelect(selectEl, {
+          placeholder: "Search or select Route Family",
+          allowEmptyOption: true,
+          openOnFocus: true,
+          showAllWhenEmpty: true,
+          clearSelectedOnBackspace: true,
+        });
+      }
+      void refreshFamilyRouteEmptyContext(lensRoot);
+    }
     bindEditor(lensRoot, mode);
   }
 
@@ -7811,6 +9763,102 @@ export function createProductionRouteController(deps = {}) {
       html: editor.buildFamilyRouteOverviewHtml?.() ||
         `<div class="status">Route overview unavailable.</div>`,
     });
+  }
+
+  function paintFamilyRouteEditor() {
+    editor.readyFamilyDetailForPaint?.();
+    paintAcceptedPrmLens();
+  }
+
+  function familyStateHasStepId(stepId) {
+    const want = normalizePrmIntegerId(stepId);
+    if (want == null) return true;
+    const steps = editor.getFamilyState?.()?.steps || [];
+    return steps.some(
+      (step) =>
+        normalizePrmIntegerId(
+          step?.family_route_step_id ??
+            step?.route_step_id ??
+            step?.step_id ??
+            step?.id,
+        ) === want,
+    );
+  }
+
+  async function refreshFamilyRouteEditorAfterStepMutation({
+    successMessage = "Route step saved.",
+    refreshFailureMessage = "Route step saved, but the Family Route could not be refreshed.",
+    expectedStepId = null,
+  } = {}) {
+    const familyRouteId = resolvePrmFamilyRouteEditorRouteId({
+      selectedFamilyRouteId: state.selectedFamilyRouteId,
+      deepLink: state.deepLink,
+      detail: editor.getFamilyState?.()?.detail,
+    });
+    if (familyRouteId == null) {
+      showToast?.(successMessage, "success", 4200);
+      closeModal({ restorePrevious: false });
+      showToast?.(refreshFailureMessage, "warning", 5200);
+      paintFamilyRouteEditor();
+      return { ok: false, reason: "missing_family_route_id" };
+    }
+    showToast?.(successMessage, "success", 4200);
+    closeModal({ restorePrevious: false });
+    const expectedId = normalizePrmIntegerId(expectedStepId);
+    const attempts = expectedId != null ? 3 : 1;
+    let result = null;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const generation = editor.bumpFamilyRouteDetailGeneration?.();
+      result = await editor.loadFamilyDetail(familyRouteId, {
+        preserveValidationStale: true,
+        generation,
+        includeSecondary: false,
+      });
+      if (result?.ok && familyStateHasStepId(expectedId)) break;
+      if (result?.stale === true) break;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 80 * (attempt + 1)));
+      }
+    }
+    if (!result?.ok) {
+      showToast?.(refreshFailureMessage, "warning", 5200);
+    }
+    paintFamilyRouteEditor();
+    return result;
+  }
+
+  async function refreshFamilyRouteEditorAfterLifecycleMutation({
+    successMessage = "Family Route updated.",
+    refreshFailureMessage = "Family Route updated, but the editor could not be refreshed.",
+    preserveValidationStale = false,
+    retainCurrentValidationIfOmitted = false,
+  } = {}) {
+    const familyRouteId = resolvePrmFamilyRouteEditorRouteId({
+      selectedFamilyRouteId: state.selectedFamilyRouteId,
+      deepLink: state.deepLink,
+      detail: editor.getFamilyState?.()?.detail,
+    });
+    if (familyRouteId == null) {
+      showToast?.(successMessage, "success", 4200);
+      closeModal({ restorePrevious: false });
+      showToast?.(refreshFailureMessage, "warning", 5200);
+      paintFamilyRouteEditor();
+      return { ok: false, reason: "missing_family_route_id" };
+    }
+    showToast?.(successMessage, "success", 4200);
+    closeModal({ restorePrevious: false });
+    const generation = editor.bumpFamilyRouteDetailGeneration?.();
+    const result = await editor.loadFamilyDetail(familyRouteId, {
+      preserveValidationStale,
+      retainCurrentValidationIfOmitted,
+      generation,
+      includeSecondary: false,
+    });
+    if (!result?.ok) {
+      showToast?.(refreshFailureMessage, "warning", 5200);
+    }
+    paintFamilyRouteEditor();
+    return result;
   }
 
   async function openFamilyStepModal(stepId, returnFocus = null, createOptions = null) {
@@ -7864,56 +9912,42 @@ export function createProductionRouteController(deps = {}) {
         }) || `<div class="status">Step details unavailable.</div>`,
       bind: (modalHost) => {
         if (formAllowEdit) {
-          editor.bindFamilyStepFormCascade?.(modalHost);
+          editor.bindFamilyStepFormCascade?.(modalHost, {
+            seed: step,
+            excludeStepId:
+              step?.family_route_step_id ??
+              step?.route_step_id ??
+              step?.step_id ??
+              step?.id ??
+              null,
+          });
         }
         onModal(modalHost, "click", async (event) => {
           const stepSave = event.target.closest("[data-prm-family-step-save]");
           if (stepSave) {
             await withMutation(stepSave, async () => {
               const values = editor.readFamilyStepFormValues?.(modalHost);
-              if (!values?.step_key) {
-                showToast?.("Step key is required.", "warning");
-                return { ok: false };
-              }
-              if (values.sequence_no == null || values.sequence_no <= 0) {
-                showToast?.("Sequence must be a positive number.", "warning");
-                return { ok: false };
-              }
-              if (
-                values.expected_occurrence_count == null ||
-                values.expected_occurrence_count <= 0
-              ) {
-                showToast?.(
-                  "Expected occurrence count must be greater than 0.",
-                  "warning",
-                );
-                return { ok: false };
-              }
-              if (
-                values.standard_cycle_count == null ||
-                values.standard_cycle_count <= 0
-              ) {
-                showToast?.(
-                  "Standard cycle count must be greater than 0.",
-                  "warning",
-                );
-                return { ok: false };
-              }
               const excludeId =
                 step?.family_route_step_id ??
                 step?.route_step_id ??
                 step?.step_id ??
                 step?.id ??
                 null;
-              if (
-                editor.findDuplicateFamilyStepKey?.(values.step_key, excludeId)
-              ) {
+              const integrity = editor.validateFamilyStepForm?.(values, {
+                excludeStepId: excludeId,
+                isPersistedStep: excludeId != null,
+              });
+              if (!integrity?.ok) {
                 showToast?.(
-                  "Step key must be unique within this route version.",
+                  integrity.errors?.[0] || "Step validation failed.",
                   "warning",
                 );
                 return { ok: false };
               }
+              values.step_key = canonicalizePrmFamilyRouteStepKey(
+                values.step_key,
+                { trimEdges: true },
+              );
               const result = await editor.saveFamilyStep(
                 {
                   step_id: excludeId,
@@ -7921,10 +9955,17 @@ export function createProductionRouteController(deps = {}) {
                 },
                 { costCentreBlocked: state.costCentreBlocker },
               );
-              if (result?.ok && state.selectedFamilyRouteId) {
-                closeModal({ restorePrevious: false });
-                await editor.loadFamilyDetail(state.selectedFamilyRouteId);
-                render();
+              if (result?.ok) {
+                const saved = normalizePrmRpcPayload(result.data) || result.data || {};
+                await refreshFamilyRouteEditorAfterStepMutation({
+                  successMessage: "Route step saved.",
+                  refreshFailureMessage:
+                    "Route step saved, but the Family Route could not be refreshed.",
+                  expectedStepId:
+                    saved.step_id ??
+                    saved.family_route_step_id ??
+                    excludeId,
+                });
               }
               return result;
             });
@@ -7936,10 +9977,12 @@ export function createProductionRouteController(deps = {}) {
             const result = await editor.deleteFamilyStep({
               family_route_step_id: stepDelete.getAttribute("data-prm-step-delete"),
             });
-            if (result?.ok && state.selectedFamilyRouteId) {
-              closeModal({ restorePrevious: false });
-              await editor.loadFamilyDetail(state.selectedFamilyRouteId);
-              render();
+            if (result?.ok) {
+              await refreshFamilyRouteEditorAfterStepMutation({
+                successMessage: "Route step removed.",
+                refreshFailureMessage:
+                  "Route step removed, but the Family Route could not be refreshed.",
+              });
             }
             return result;
           });
@@ -8048,12 +10091,18 @@ export function createProductionRouteController(deps = {}) {
             );
             if (result?.ok && state.selectedProductRouteId) {
               closeModal({ restorePrevious: false });
-              await editor.loadProductDetail(state.selectedProductRouteId);
-              render();
+              await editor.loadProductDetail(state.selectedProductRouteId, {
+                preserveValidationStale: true,
+              });
+              paintAcceptedPrmLens();
             }
             return result;
           });
         });
+      },
+      cleanup: () => {
+        const content = document.getElementById("drawerContent");
+        destroySearchableSelectsIn(content);
       },
     });
   }
@@ -8095,9 +10144,57 @@ export function createProductionRouteController(deps = {}) {
         }
       }
       if (mode === "family") {
-        const openFamilies = event.target.closest("[data-prm-open-route-families]");
-        if (openFamilies) {
-          navigate("route-families");
+        const createDraft = event.target.closest(
+          "[data-prm-create-family-route-draft]",
+        );
+        if (createDraft) {
+          if (!canEdit()) {
+            showToast?.("Edit permission required.", "warning");
+            return;
+          }
+          await openCreateFamilyRouteDraftModal({
+            routeFamilyId:
+              normalizePrmIntegerId(state.familyRouteCreateFamilyId) ??
+              normalizePrmIntegerId(state.deepLink.route_family_id),
+            source: "editor",
+          });
+          return;
+        }
+        const openRoute = event.target.closest(
+          "[data-prm-open-existing-family-route], [data-prm-open-approved-family-route]",
+        );
+        if (openRoute) {
+          const routeId = normalizePrmIntegerId(
+            openRoute.getAttribute("data-prm-family-route-id"),
+          );
+          const familyId =
+            normalizePrmIntegerId(state.familyRouteCreateFamilyId) ??
+            normalizePrmIntegerId(state.deepLink.route_family_id);
+          if (routeId == null || familyId == null) return;
+          navigateToFamilyRouteEditor({
+            route_family_id: familyId,
+            family_route_id: routeId,
+            replace: true,
+          });
+          return;
+        }
+        const startSuccessor = event.target.closest(
+          "[data-prm-create-family-route-successor]",
+        );
+        if (startSuccessor) {
+          if (!canEdit()) {
+            showToast?.("Edit permission required.", "warning");
+            return;
+          }
+          await openCreateFamilyRouteDraftModal({
+            routeFamilyId:
+              normalizePrmIntegerId(state.familyRouteCreateFamilyId) ??
+              normalizePrmIntegerId(state.deepLink.route_family_id),
+            supersedesRouteId: normalizePrmIntegerId(
+              startSuccessor.getAttribute("data-prm-approved-family-route-id"),
+            ),
+            source: "editor",
+          });
           return;
         }
         const overviewTrigger = event.target.closest("[data-prm-route-overview]");
@@ -8148,8 +10245,58 @@ export function createProductionRouteController(deps = {}) {
         return;
       }
       if (action === `validate-${mode}`) {
-        await editor[mode === "family" ? "validateFamily" : "validateProduct"]();
-        render();
+        if (mode === "family") {
+          const familyButton = event.target.closest(
+            '[data-prm-action="validate-family"]',
+          );
+          await withMutation(familyButton, async () => {
+            const originalLabel = familyButton?.textContent;
+            if (familyButton) familyButton.textContent = "Validating…";
+            try {
+              const result = await editor.validateFamily();
+              if (result?.rpcFailed || result?.error) {
+                return result;
+              }
+              await refreshFamilyRouteEditorAfterLifecycleMutation({
+                successMessage: result?.ok
+                  ? "Validation passed"
+                  : "Validation failed",
+                refreshFailureMessage:
+                  "Family Route validated, but the editor could not be refreshed.",
+                preserveValidationStale: false,
+                retainCurrentValidationIfOmitted: true,
+              });
+              return result;
+            } finally {
+              if (familyButton && originalLabel) {
+                familyButton.textContent = originalLabel;
+              }
+            }
+          });
+          return;
+        }
+        const button = event.target.closest(
+          '[data-prm-action="validate-product"]',
+        );
+        await withMutation(button, async () => {
+          const originalLabel = button?.textContent;
+          if (button) button.textContent = "Validating…";
+          try {
+            const result = await editor.validateProduct();
+            if (result?.rpcFailed || result?.error) {
+              return result;
+            }
+            if (result?.ok) {
+              showToast?.("Validation passed", "success");
+            } else {
+              showToast?.("Validation failed", "warning");
+            }
+            paintAcceptedPrmLens();
+            return result;
+          } finally {
+            if (button && originalLabel) button.textContent = originalLabel;
+          }
+        });
         return;
       }
       if (action === `submit-${mode}`) {
@@ -8171,100 +10318,51 @@ export function createProductionRouteController(deps = {}) {
             );
             if (!proceed) return;
           }
+          const result = await editor.submitFamily();
+          if (result?.ok) {
+            await refreshFamilyRouteEditorAfterLifecycleMutation({
+              successMessage: "Family Route submitted for review.",
+              refreshFailureMessage:
+                "Family Route submitted for review, but the editor could not be refreshed.",
+              preserveValidationStale: false,
+            });
+          }
+          return;
         }
-        await editor[mode === "family" ? "submitFamily" : "submitProduct"]();
-        if (mode === "family" && state.selectedFamilyRouteId) {
-          await editor.loadFamilyDetail(state.selectedFamilyRouteId);
+        const productDetail = editor.getProductState?.()?.detail || {};
+        const productStatus = String(
+          productDetail.status ||
+            productDetail.route_status ||
+            productDetail.approval_status ||
+            "",
+        )
+          .trim()
+          .toUpperCase();
+        if (productStatus !== "DRAFT") {
+          showToast?.(
+            productStatus
+              ? `Submit for review is available for DRAFT routes only (current: ${formatPrmRouteStatusLabel(productStatus) || productStatus}).`
+              : "Submit for review is available for DRAFT routes only.",
+            "warning",
+          );
+          return;
         }
-        if (mode === "product" && state.selectedProductRouteId) {
+        const submitted = await editor.submitProduct();
+        if (submitted?.ok && state.selectedProductRouteId) {
           await editor.loadProductDetail(state.selectedProductRouteId);
+          paintAcceptedPrmLens();
+        } else if (state.selectedProductRouteId) {
+          await editor.loadProductDetail(state.selectedProductRouteId);
+          paintAcceptedPrmLens();
         }
-        render();
         return;
       }
       if (action === `approve-${mode}`) {
-        const editorState =
-          mode === "family" ? editor.getFamilyState?.() : editor.getProductState?.();
-        const detail = editorState?.detail || {};
-        const familyCode =
-          detail.route_family_code ||
-          detail.family_code ||
-          state.routeFamilies.find(
-            (family) =>
-              String(family.route_family_id ?? family.id) ===
-              String(state.selectedRouteFamilyId),
-          )?.route_family_code ||
-          "FAMILY";
-        const version =
-          detail.version_label ||
-          detail.route_version ||
-          detail.version_no ||
-          "1";
-        const suggested = buildPrmFamilyRouteApprovalReferenceTemplate(
-          familyCode,
-          version,
-          getAsOfDate(),
-        );
-        openModal({
-          title: `Approve ${mode === "family" ? "Route Family" : "Product"} route`,
-          subtitle: "Editable approval reference",
-          html: formShell({
-            sectionTitle: "Approval",
-            fieldsHtml: [
-              formField({
-                id: "prmApproveRouteRef",
-                label: "Approval reference",
-                required: true,
-                full: true,
-                value: suggested,
-                hint: PRM_APPROVAL_REFERENCE_HELPER_TEXT,
-              }),
-            ].join(""),
-            actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-approve-route-submit>Approve</button>`,
-          }),
-          bind: (approveHost) => {
-            approveHost.querySelector("#prmApproveRouteRef")?.focus();
-            onModal(approveHost, "click", async (event) => {
-              const submit = event.target.closest(
-                "[data-prm-approve-route-submit]",
-              );
-              if (!submit) return;
-              await withMutation(submit, async () => {
-                const reference = approveHost
-                  .querySelector("#prmApproveRouteRef")
-                  ?.value?.trim();
-                if (!isMeaningfulPrmApprovalReference(reference)) {
-                  showToast?.(
-                    "Enter a meaningful approval reference. Placeholders such as — or N/A are not allowed.",
-                    "warning",
-                  );
-                  return { ok: false };
-                }
-                const result = await editor[
-                  mode === "family" ? "approveFamily" : "approveProduct"
-                ](reference, { costCentreBlocked: state.costCentreBlocker });
-                if (result.ok) {
-                  closeModal({ restorePrevious: false });
-                  if (mode === "family" && state.selectedFamilyRouteId) {
-                    await editor.loadFamilyDetail(state.selectedFamilyRouteId);
-                    const refreshed = editor.getFamilyState?.()?.detail || {};
-                    const routeFamilyId =
-                      normalizePrmIntegerId(refreshed.route_family_id) ??
-                      normalizePrmIntegerId(state.selectedRouteFamilyId);
-                    if (routeFamilyId != null) {
-                      await loadFamilyHistory(routeFamilyId);
-                    }
-                  }
-                  if (mode === "product" && state.selectedProductRouteId) {
-                    await editor.loadProductDetail(state.selectedProductRouteId);
-                  }
-                  render();
-                }
-                return result;
-              });
-            });
-          },
-        });
+        if (mode === "product") {
+          openApproveProductRouteModal();
+          return;
+        }
+        openApproveFamilyRouteModal();
         return;
       }
       if (action === `supersede-${mode}`) {
@@ -8281,7 +10379,7 @@ export function createProductionRouteController(deps = {}) {
           if (state.selectedProductRouteId) {
             await editor.loadProductDetail(state.selectedProductRouteId);
           }
-          render();
+          paintAcceptedPrmLens();
         }
         return;
       }
@@ -8293,13 +10391,16 @@ export function createProductionRouteController(deps = {}) {
         const orderedStepIds = [...host.querySelectorAll("[data-prm-step-row]")].map(
           (row) => row.getAttribute("data-prm-step-row"),
         );
-        await editor.applyFamilyStepOrder(orderedStepIds, {
+        const result = await editor.applyFamilyStepOrder(orderedStepIds, {
           costCentreBlocked: state.costCentreBlocker,
         });
-        if (state.selectedFamilyRouteId) {
-          await editor.loadFamilyDetail(state.selectedFamilyRouteId);
+        if (result?.ok) {
+          await refreshFamilyRouteEditorAfterStepMutation({
+            successMessage: "Route step order saved.",
+            refreshFailureMessage:
+              "Route step order saved, but the Family Route could not be refreshed.",
+          });
         }
-        render();
         return;
       }
       if (action === "add-product-delta") {
@@ -8320,14 +10421,23 @@ export function createProductionRouteController(deps = {}) {
             override_id: deltaDelete.getAttribute("data-prm-delta-delete"),
           });
           if (result?.ok && mode === "product" && state.selectedProductRouteId) {
-            await editor.loadProductDetail(state.selectedProductRouteId);
-            render();
+            await editor.loadProductDetail(state.selectedProductRouteId, {
+              preserveValidationStale: true,
+            });
+            paintAcceptedPrmLens();
           }
           return result;
         });
       }
     });
     if (mode === "family") {
+      const emptySelect = host.querySelector("[data-prm-family-empty-select]");
+      if (emptySelect) {
+        on(host, "change", (event) => {
+          if (event.target !== emptySelect) return;
+          void refreshFamilyRouteEmptyContext(host);
+        });
+      }
       on(host, "keydown", (event) => {
         const stepRow = event.target.closest?.("[data-prm-step-row]");
         if (!stepRow || !host.contains(stepRow)) return;
@@ -8339,6 +10449,215 @@ export function createProductionRouteController(deps = {}) {
         );
       });
     }
+  }
+
+  function resolveFamilyRouteApprovalLookupCode(detail = {}) {
+    const fromDetail = detail.route_family_code || detail.family_code || "";
+    if (String(fromDetail).trim()) return fromDetail;
+    const familyId =
+      normalizePrmIntegerId(detail.route_family_id) ??
+      normalizePrmIntegerId(state.selectedRouteFamilyId);
+    if (familyId == null) return "";
+    return (
+      state.routeFamilies.find(
+        (family) =>
+          normalizePrmIntegerId(family.route_family_id ?? family.id) === familyId,
+      )?.route_family_code || ""
+    );
+  }
+
+  function openApproveFamilyRouteModal() {
+    const detail = editor.getFamilyState?.()?.detail || {};
+    const identity = resolvePrmFamilyRouteApprovalIdentity({
+      detail,
+      routeFamilyCode: resolveFamilyRouteApprovalLookupCode(detail),
+    });
+    if (!identity.ok) {
+      showToast?.(identity.error, "warning");
+      return;
+    }
+    const generated = buildPrmFamilyRouteApprovalReference({
+      routeFamilyCode: identity.routeFamilyCode,
+      routeVersion: identity.routeVersion,
+      approvalDate: getPrmLocalIsoDate(),
+    });
+    if (!generated.ok) {
+      showToast?.(generated.error, "warning");
+      return;
+    }
+    openModal({
+      title: "Approve Route Family route",
+      subtitle: "Canonical approval reference",
+      html: formShell({
+        sectionTitle: "Approval",
+        fieldsHtml: [
+          formField({
+            id: "prmApproveRouteRef",
+            label: "Approval reference",
+            required: true,
+            full: true,
+            readonly: true,
+            value: generated.reference,
+            hint: PRM_FAMILY_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT,
+          }),
+        ].join(""),
+        actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-approve-route-submit>Approve</button>`,
+      }),
+      bind: (approveHost) => {
+        approveHost.querySelector("[data-prm-approve-route-submit]")?.focus();
+        onModal(approveHost, "click", async (event) => {
+          const submit = event.target.closest(
+            "[data-prm-approve-route-submit]",
+          );
+          if (!submit) return;
+          await withMutation(submit, async () => {
+            const currentDetail = editor.getFamilyState?.()?.detail || {};
+            const currentIdentity = resolvePrmFamilyRouteApprovalIdentity({
+              detail: currentDetail,
+              routeFamilyCode: resolveFamilyRouteApprovalLookupCode(currentDetail),
+            });
+            if (!currentIdentity.ok) {
+              showToast?.(currentIdentity.error, "warning");
+              return { ok: false, reason: currentIdentity.reason };
+            }
+            const recomputed = buildPrmFamilyRouteApprovalReference({
+              routeFamilyCode: currentIdentity.routeFamilyCode,
+              routeVersion: currentIdentity.routeVersion,
+              approvalDate: getPrmLocalIsoDate(),
+            });
+            if (!recomputed.ok) {
+              showToast?.(recomputed.error, "warning");
+              return { ok: false, reason: recomputed.reason };
+            }
+            const checked = validatePrmFamilyRouteApprovalReference(
+              recomputed.reference,
+              {
+                routeFamilyCode: currentIdentity.routeFamilyCode,
+                routeVersion: currentIdentity.routeVersion,
+                approvalDate: getPrmLocalIsoDate(),
+              },
+            );
+            if (!checked.ok) {
+              showToast?.(checked.error, "warning");
+              return { ok: false, reason: checked.reason };
+            }
+            const result = await editor.approveFamily(checked.reference, {
+              costCentreBlocked: state.costCentreBlocker,
+            });
+            if (result.ok) {
+              const refresh = await refreshFamilyRouteEditorAfterLifecycleMutation({
+                successMessage: "Family Route approved.",
+                refreshFailureMessage:
+                  "Family Route approved, but the editor could not be refreshed.",
+                preserveValidationStale: false,
+              });
+              if (refresh?.ok) {
+                const refreshed = editor.getFamilyState?.()?.detail || {};
+                const routeFamilyId =
+                  normalizePrmIntegerId(refreshed.route_family_id) ??
+                  normalizePrmIntegerId(state.selectedRouteFamilyId);
+                if (routeFamilyId != null) {
+                  await loadFamilyHistory(routeFamilyId);
+                }
+              }
+            }
+            return result;
+          });
+        });
+      },
+    });
+  }
+
+  function openApproveProductRouteModal() {
+    const detail = editor.getProductState?.()?.detail || {};
+    const identity = resolvePrmProductRouteApprovalIdentity({
+      detail,
+      selectedProductId: state.selectedProductId,
+    });
+    if (!identity.ok) {
+      showToast?.(identity.error, "warning");
+      return;
+    }
+    const generated = buildPrmProductRouteApprovalReference({
+      productId: identity.productId,
+      routeVersion: identity.routeVersion,
+      approvalDate: getPrmLocalIsoDate(),
+    });
+    if (!generated.ok) {
+      showToast?.(generated.error, "warning");
+      return;
+    }
+    openModal({
+      title: "Approve Product route",
+      subtitle: "Canonical approval reference",
+      html: formShell({
+        sectionTitle: "Approval",
+        fieldsHtml: [
+          formField({
+            id: "prmApproveRouteRef",
+            label: "Approval reference",
+            required: true,
+            full: true,
+            readonly: true,
+            value: generated.reference,
+            hint: PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT,
+          }),
+        ].join(""),
+        actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-approve-route-submit>Approve</button>`,
+      }),
+      bind: (approveHost) => {
+        approveHost.querySelector("[data-prm-approve-route-submit]")?.focus();
+        onModal(approveHost, "click", async (event) => {
+          const submit = event.target.closest(
+            "[data-prm-approve-route-submit]",
+          );
+          if (!submit) return;
+          await withMutation(submit, async () => {
+            const currentDetail = editor.getProductState?.()?.detail || {};
+            const currentIdentity = resolvePrmProductRouteApprovalIdentity({
+              detail: currentDetail,
+              selectedProductId: state.selectedProductId,
+            });
+            if (!currentIdentity.ok) {
+              showToast?.(currentIdentity.error, "warning");
+              return { ok: false, reason: currentIdentity.reason };
+            }
+            const recomputed = buildPrmProductRouteApprovalReference({
+              productId: currentIdentity.productId,
+              routeVersion: currentIdentity.routeVersion,
+              approvalDate: getPrmLocalIsoDate(),
+            });
+            if (!recomputed.ok) {
+              showToast?.(recomputed.error, "warning");
+              return { ok: false, reason: recomputed.reason };
+            }
+            const checked = validatePrmProductRouteApprovalReference(
+              recomputed.reference,
+              {
+                productId: currentIdentity.productId,
+                routeVersion: currentIdentity.routeVersion,
+                approvalDate: getPrmLocalIsoDate(),
+              },
+            );
+            if (!checked.ok) {
+              showToast?.(checked.error, "warning");
+              return { ok: false, reason: checked.reason };
+            }
+            const result = await editor.approveProduct(checked.reference, {
+              costCentreBlocked: state.costCentreBlocker,
+            });
+            if (result.ok) {
+              closeModal({ restorePrevious: false });
+              if (state.selectedProductRouteId) {
+                await editor.loadProductDetail(state.selectedProductRouteId);
+              }
+              paintAcceptedPrmLens();
+            }
+            return result;
+          });
+        });
+      },
+    });
   }
 
   function option(value, label, selected = false) {
@@ -8404,7 +10723,7 @@ export function createProductionRouteController(deps = {}) {
           as_of_date: getAsOfDate(),
         });
       }
-      render();
+      paintAcceptedPrmLens();
     });
     on(host.candidates, "click", async (event) => {
       const use = event.target.closest("[data-prm-use-candidate]");
@@ -8440,32 +10759,87 @@ export function createProductionRouteController(deps = {}) {
     if (table) table.style.display = "none";
     host.tableHead.innerHTML = "";
     host.tableBody.innerHTML = "";
+    destroySearchableSelectsIn(host.summary);
     const lensRoot = ensureLensRoot("effective-route-viewer");
-    host.summary.innerHTML = `<div class="cp-prm-actions"><label>Product<select id="prmEffectiveProduct" class="cp-period-select"><option value="">Select Product</option>${state.products.map((product) => option(product.product_id ?? product.id, product.product_name || product.name, String(state.selectedProductId) === String(product.product_id ?? product.id))).join("")}</select></label><button class="icon-btn icon-btn-primary" data-prm-load-effective>View approved process route</button></div>`;
-    on(host.summary, "click", async (event) => {
-      if (!event.target.closest("[data-prm-load-effective]")) return;
-      const productId = document.getElementById("prmEffectiveProduct")?.value;
-      if (normalizePrmIntegerId(productId)) {
-        await loadEffective(productId);
-        render();
-      }
-    });
-    if (!state.effective) {
-      lensRoot.innerHTML = `<div class="status">Select a Product to view its approved route.</div>`;
+    const viewer = state.effectiveViewer || createEmptyEffectiveViewer();
+    const selectorProductId = viewer.productId;
+    host.summary.innerHTML = `<div class="cp-prm-actions cp-prm-effective-viewer-toolbar">
+      <label class="cp-field-label" for="prmEffectiveProduct">Select Product</label>
+      <select id="prmEffectiveProduct" class="cp-period-select" aria-label="Search or select Product">
+        ${buildEffectiveViewerProductOptionsHtml(selectorProductId)}
+      </select>
+    </div>`;
+    host.summary.classList.add("is-visible");
+    const selectEl = document.getElementById("prmEffectiveProduct");
+    if (selectEl) {
+      enhanceSearchableSelect(selectEl, {
+        placeholder: "Search or select Product",
+        allowEmptyOption: true,
+        openOnFocus: true,
+        showAllWhenEmpty: true,
+        clearSelectedOnBackspace: true,
+      });
+      on(selectEl, "change", async () => {
+        const pid = normalizePrmIntegerId(selectEl.value);
+        if (pid == null) {
+          resetEffectiveViewer();
+          paintAcceptedPrmLens();
+          return;
+        }
+        await loadEffectiveViewerProduct(pid, "user-select");
+        if (state.activeLens !== "effective-route-viewer") return;
+        paintAcceptedPrmLens();
+      });
+    }
+    if (viewer.status === "loading") {
+      lensRoot.innerHTML = `<div class="status">Loading effective route…</div>`;
       return;
     }
-    const steps = coercePrmList(
-      state.effective.steps || state.effective.effective_steps,
-    );
+    if (!viewer.productId || viewer.status === "empty") {
+      lensRoot.innerHTML = `<div class="status cp-prm-empty-state">${escapeHtml(PRM_EMPTY_STATES.effectiveViewer)}</div>`;
+      return;
+    }
+    if (viewer.status === "error") {
+      const productRow = findEffectiveViewerProductRow(viewer.productId);
+      const productName =
+        productRow.product_name ||
+        productRow.name ||
+        (viewer.productId != null ? `Product ${viewer.productId}` : "");
+      lensRoot.innerHTML = `<div class="cp-prm-effective">
+        ${productName ? `<div class="cp-cell-primary">${viewerPlainText(productName)}</div>` : ""}
+        <div class="status cp-prm-badge-danger">${viewerPlainText(viewer.error || "Unable to load effective route.")}</div>
+      </div>`;
+      return;
+    }
+    const payload = viewer.payload;
+    if (!payload) {
+      lensRoot.innerHTML = `<div class="status cp-prm-empty-state">${escapeHtml(PRM_EMPTY_STATES.effectiveViewer)}</div>`;
+      return;
+    }
+    const steps = coercePrmList(payload.steps || payload.effective_steps);
     lensRoot.innerHTML = `<div class="cp-prm-effective">
-      <header class="cp-prm-editor-header"><div class="cp-cell-primary">${text(state.effective.product_name)}</div><div>Manufacturing Route Family ${text(state.effective.route_family_name || state.effective.route_family_id)}</div></header>
-      <table class="cp-prm-step-table"><thead><tr><th>Seq</th><th>Step</th><th>Activity</th><th>Source</th></tr></thead>
-      <tbody>${steps.map((step) => `<tr><td>${text(step.sequence_no)}</td><td>${text(step.step_key)}</td><td>${text(step.activity || step.activity_name)}</td><td>${text(formatPrmStepSourceLabel(step.step_source || step.source))}</td></tr>`).join("") || `<tr><td colspan="4">No effective steps.</td></tr>`}</tbody></table>
+      ${buildEffectiveViewerHeaderHtml(viewer)}
+      ${buildEffectiveStepsTableHtml(steps)}
     </div>`;
   }
 
-  function hideSpecialHosts() {
+  function hideSpecialHosts(generation = null) {
+    if (
+      !shouldApplyPrmLensTransitionTeardown({
+        requestGeneration: generation == null ? lensRenderGeneration : generation,
+        currentGeneration: lensRenderGeneration,
+      })
+    ) {
+      return;
+    }
     clearLensOwnedDom();
+  }
+
+  function finalizePrmLoad(token, active, result = {}) {
+    if (token !== lensRenderGeneration || state.activeLens !== active) {
+      return { ok: false, stale: true, generation: token };
+    }
+    return { ...result, generation: token, stale: false };
   }
 
   async function load({ lens, deepLink = {}, resetOffset = false, search } = {}) {
@@ -8474,20 +10848,19 @@ export function createProductionRouteController(deps = {}) {
     if (deepLink.as_of_date) state.as_of_date = deepLink.as_of_date;
     const requestedLens =
       lens || getCurrentLens() || PRODUCTION_ROUTE_DEFAULT_LENS;
-    // Intentional Route Family Route Editor tab entry may omit family_route_id.
-    const allowFamilyEditorWithoutId =
-      String(requestedLens || "").trim() === "route-family-route-editor";
+    // Intentional Family / Product Route Editor tab entry may omit route ids.
+    const allowEditorWithoutId =
+      String(requestedLens || "").trim() === "route-family-route-editor" ||
+      String(requestedLens || "").trim() === "product-route-editor";
     let active = resolveProductionRouteLens(requestedLens, {
       family_route_id: deepLink.family_route_id,
       product_route_id: deepLink.product_route_id,
       product_id: deepLink.product_id,
-      allowEditorWithoutId: allowFamilyEditorWithoutId,
+      allowEditorWithoutId,
     });
     if (
       active === PRODUCTION_ROUTE_DEFAULT_LENS &&
-      (lens === "product-route-editor" ||
-        lens === "product-group-routes" ||
-        lens === "product-group-route-editor")
+      (lens === "product-group-routes" || lens === "product-group-route-editor")
     ) {
       state.deepLink = {
         as_of_date: deepLink.as_of_date || null,
@@ -8499,11 +10872,10 @@ export function createProductionRouteController(deps = {}) {
     }
     state.activeLens = active;
     const token = beginLensTransition(active);
-    hideSpecialHosts();
+    hideSpecialHosts(token);
     if (active === "route-readiness") {
       const result = await loadReadiness({ resetOffset, search });
-      if (token !== lensRenderGeneration || state.activeLens !== active) return { ok: false, stale: true };
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "product-route-assignments") {
       if (deepLink.product_group_id) {
@@ -8518,10 +10890,7 @@ export function createProductionRouteController(deps = {}) {
         state.selectedProductId = focusPid;
       }
       const result = await loadProductAssignments({ resetOffset, search });
-      if (token !== lensRenderGeneration || state.activeLens !== active) {
-        return { ok: false, stale: true };
-      }
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "shared-workload-preview") {
       if (deepLink.product_group_id) {
@@ -8534,10 +10903,7 @@ export function createProductionRouteController(deps = {}) {
         state.product_id = String(deepLink.product_id);
       }
       const result = await loadWorkloadPreview({ resetOffset, search });
-      if (token !== lensRenderGeneration || state.activeLens !== active) {
-        return { ok: false, stale: true };
-      }
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "route-families") {
       if (deepLink.product_group_id) {
@@ -8546,7 +10912,8 @@ export function createProductionRouteController(deps = {}) {
         );
       }
       const result = await loadRouteFamilies();
-      if (token !== lensRenderGeneration || state.activeLens !== active) return { ok: false, stale: true };
+      const accepted = finalizePrmLoad(token, active, result);
+      if (accepted.stale) return accepted;
       // Open Family summary only from an explicit one-shot intent (navigate or
       // Families-only deep link). Do not reopen from leftover editor URL params.
       const openFamilyId = normalizePrmIntegerId(pendingOpenRouteFamilyId);
@@ -8555,50 +10922,57 @@ export function createProductionRouteController(deps = {}) {
         const family = await findFamilyRow(openFamilyId);
         await openFamilySummary(family);
       }
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "route-family-mapping-review") {
       const result = await loadMappingReview({ search });
-      if (token !== lensRenderGeneration || state.activeLens !== active) {
-        return { ok: false, stale: true };
-      }
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "route-family-foundation-review") {
       const result = await loadFoundationReview({ resetOffset, search });
-      if (token !== lensRenderGeneration || state.activeLens !== active) {
-        return { ok: false, stale: true };
-      }
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "production-cost-centres") {
       await ensureMasterOptions();
-      if (!costCentres) return { ok: false };
+      const afterOptions = finalizePrmLoad(token, active, { ok: true });
+      if (afterOptions.stale) return afterOptions;
+      if (!costCentres) return { ok: false, generation: token };
       costCentres.paintLoading?.();
       const result = await costCentres.load({ search });
-      if (token !== lensRenderGeneration || state.activeLens !== active) {
-        return { ok: false, stale: true };
-      }
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "route-family-route-editor") {
-      const familyRouteId = normalizePrmIntegerId(deepLink.family_route_id);
+      const familyRouteId = resolvePrmFamilyRouteEditorLoadId({
+        requestDeepLink: deepLink,
+        committedDeepLink: state.deepLink,
+      });
       state.selectedFamilyRouteId = familyRouteId;
       const optionsPromise = ensureMasterOptions();
       if (familyRouteId == null) {
         editor.clearFamilyEditorContext?.();
-        await optionsPromise;
-        if (token !== lensRenderGeneration || state.activeLens !== active) {
-          return { ok: false, stale: true };
+        const routeFamilyId = normalizePrmIntegerId(
+          deepLink.route_family_id ?? state.deepLink?.route_family_id,
+        );
+        state.familyRouteCreateFamilyId = routeFamilyId;
+        if (routeFamilyId != null) {
+          state.selectedRouteFamilyId = routeFamilyId;
+        } else {
+          state.familyRouteCreateEligibility = null;
         }
-        return { ok: true, empty: true };
+        await optionsPromise;
+        return finalizePrmLoad(token, active, { ok: true, empty: true });
       }
+      familyRouteOpenGeneration += 1;
+      state.deepLink = {
+        ...(state.deepLink || {}),
+        ...(deepLink || {}),
+        family_route_id: familyRouteId,
+      };
       const [result] = await Promise.all([
         editor.loadFamilyDetail(familyRouteId),
         optionsPromise,
       ]);
-      if (token !== lensRenderGeneration || state.activeLens !== active) return { ok: false, stale: true };
-      return result;
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "product-route-editor") {
       const productRouteId = normalizePrmIntegerId(deepLink.product_route_id);
@@ -8612,10 +10986,7 @@ export function createProductionRouteController(deps = {}) {
           editor.loadProductDetail(productRouteId),
           ensureMasterOptions(),
         ]);
-        if (token !== lensRenderGeneration || state.activeLens !== active) {
-          return { ok: false, stale: true };
-        }
-        return result;
+        return finalizePrmLoad(token, active, result);
       }
       if (
         isPrmProductRouteEditorCreateContext({
@@ -8624,9 +10995,8 @@ export function createProductionRouteController(deps = {}) {
         })
       ) {
         const historyResult = await loadProductHistory(productId);
-        if (token !== lensRenderGeneration || state.activeLens !== active) {
-          return { ok: false, stale: true };
-        }
+        const historyAccepted = finalizePrmLoad(token, active, historyResult);
+        if (historyAccepted.stale) return historyAccepted;
         const eligibility = resolvePrmOpenProductRouteEligibility(
           { product_id: productId },
           historyResult.versions || [],
@@ -8643,10 +11013,7 @@ export function createProductionRouteController(deps = {}) {
           };
           editor.clearProductEditorContext?.();
           await ensureMasterOptions();
-          if (token !== lensRenderGeneration || state.activeLens !== active) {
-            return { ok: false, stale: true };
-          }
-          return { ok: true, chooser: true };
+          return finalizePrmLoad(token, active, { ok: true, chooser: true });
         }
         if (eligibility.open_product_route_id != null) {
           const openId = eligibility.open_product_route_id;
@@ -8663,41 +11030,72 @@ export function createProductionRouteController(deps = {}) {
             editor.loadProductDetail(openId),
             ensureMasterOptions(),
           ]);
-          if (token !== lensRenderGeneration || state.activeLens !== active) {
-            return { ok: false, stale: true };
-          }
-          return result;
+          return finalizePrmLoad(token, active, result);
         }
         state.productRouteReentryChooser = null;
         editor.clearProductEditorContext?.();
         await loadMasterOptions({ product_id: productId });
-        if (token !== lensRenderGeneration || state.activeLens !== active) {
-          return { ok: false, stale: true };
-        }
+        const afterMasters = finalizePrmLoad(token, active, { ok: true });
+        if (afterMasters.stale) return afterMasters;
         await hydrateProductRouteCreateHandoff(productId);
-        return { ok: true, create: true };
+        return finalizePrmLoad(token, active, { ok: true, create: true });
       }
       state.productRouteCreateHandoff = null;
       state.productRouteReentryChooser = null;
       editor.clearProductEditorContext?.();
       await ensureMasterOptions();
-      if (token !== lensRenderGeneration || state.activeLens !== active) {
-        return { ok: false, stale: true };
-      }
-      return { ok: true, empty: true };
+      return finalizePrmLoad(token, active, { ok: true, empty: true });
     }
     if (active === "historical-candidate-review") {
       const result = await ensureMasterOptions();
+      const acceptedCandidates = finalizePrmLoad(token, active, result);
+      if (acceptedCandidates.stale) return acceptedCandidates;
       state.selectedRouteFamilyId = deepLink.route_family_id || null;
       state.selectedProductId = deepLink.product_id || null;
-      return result;
+      return acceptedCandidates;
     }
     if (active === "effective-route-viewer") {
       const result = await ensureMasterOptions();
-      if (!result.ok || !deepLink.product_id) return result;
-      return loadEffective(deepLink.product_id);
+      const afterOptions = finalizePrmLoad(token, active, result);
+      if (afterOptions.stale) return afterOptions;
+      if (!result.ok) return afterOptions;
+      const productId = normalizePrmIntegerId(deepLink.product_id);
+      if (productId == null) {
+        resetEffectiveViewer();
+        return finalizePrmLoad(token, active, result);
+      }
+      await loadEffectiveViewerProduct(productId, "deep-link");
+      return finalizePrmLoad(token, active, { ok: true });
     }
-    return { ok: false };
+    if (active === "product-subgroup-mappings") {
+      if (deepLink.product_group_id) {
+        state.product_group_id = String(deepLink.product_group_id);
+      }
+      if (deepLink.route_family_id) {
+        state.route_family_id = String(deepLink.route_family_id);
+      }
+      if (deepLink.product_subgroup_id) {
+        state.product_subgroup_id = String(deepLink.product_subgroup_id);
+      }
+      const result = await subgroupArchive.loadSubgroupMappings({
+        resetOffset,
+        search,
+      });
+      return finalizePrmLoad(token, active, result);
+    }
+    if (active === "archived-routes") {
+      if (deepLink.entity_type) {
+        state.archived_entity_type = normalizePrmCode(
+          deepLink.entity_type,
+        ).toUpperCase();
+      }
+      const result = await subgroupArchive.loadArchivedRoutes({
+        resetOffset,
+        search,
+      });
+      return finalizePrmLoad(token, active, result);
+    }
+    return { ok: false, generation: token };
   }
 
   async function reloadCurrentLens() {
@@ -8718,7 +11116,15 @@ export function createProductionRouteController(deps = {}) {
     el.style.display = "none";
   }
 
-  function render() {
+  function render(options = {}) {
+    const paintGeneration = options.paintGeneration;
+    if (
+      !acceptPrmPaintGeneration(
+        paintGeneration == null ? lensRenderGeneration : paintGeneration,
+      )
+    ) {
+      return;
+    }
     unbind();
     renderSetupChip();
     hideSpecialHosts();
@@ -8728,18 +11134,39 @@ export function createProductionRouteController(deps = {}) {
         "cp-prm-cost-centres-chrome-active",
         state.activeLens === "production-cost-centres",
       );
-    // Mapping Review / Foundation Review require #workbenchSummary.is-visible.
-    if (
-      state.activeLens !== "route-family-mapping-review" &&
-      state.activeLens !== "route-family-foundation-review" &&
-      state.activeLens !== "production-cost-centres"
-    ) {
-      hosts().summary?.classList?.remove(
-        "is-visible",
-        "cp-prm-mapping-review-summary-host",
-        "cp-prm-foundation-review-summary-host",
-        "cp-prm-cost-centres-summary-host",
+    document
+      .querySelector(".main .table-card, .table-card")
+      ?.classList.toggle(
+        "cp-prm-route-families-chrome-active",
+        state.activeLens === "route-families",
       );
+    const summaryHost = hosts().summary;
+    const familiesActive = state.activeLens === "route-families";
+    const mappingActive = state.activeLens === "route-family-mapping-review";
+    const foundationActive =
+      state.activeLens === "route-family-foundation-review";
+    const costCentresActive = state.activeLens === "production-cost-centres";
+    if (summaryHost?.classList) {
+      if (
+        !familiesActive &&
+        !mappingActive &&
+        !foundationActive &&
+        !costCentresActive
+      ) {
+        summaryHost.classList.remove("is-visible");
+      }
+      if (!mappingActive) {
+        summaryHost.classList.remove("cp-prm-mapping-review-summary-host");
+      }
+      if (!foundationActive) {
+        summaryHost.classList.remove("cp-prm-foundation-review-summary-host");
+      }
+      if (!costCentresActive) {
+        summaryHost.classList.remove("cp-prm-cost-centres-summary-host");
+      }
+      if (!familiesActive) {
+        summaryHost.classList.remove("cp-prm-route-families-summary-host");
+      }
     }
     if (state.activeLens === "route-readiness") renderReadiness();
     else if (state.activeLens === "product-route-assignments") {
@@ -8762,18 +11189,23 @@ export function createProductionRouteController(deps = {}) {
     else if (state.activeLens === "product-route-editor") renderEditorLens("product");
     else if (state.activeLens === "historical-candidate-review") renderCandidates();
     else if (state.activeLens === "effective-route-viewer") renderEffective();
+    else if (state.activeLens === "product-subgroup-mappings") {
+      subgroupArchive.renderSubgroupMappings();
+    } else if (state.activeLens === "archived-routes") {
+      subgroupArchive.renderArchivedRoutes();
+    }
     syncPrmAsOfDateChrome();
     syncPrmFilterDrawerSections();
     clearPrmDormantStatus();
     const asOf = document.getElementById("prmAsOfDate");
     on(asOf, "change", async () => {
-      if (state.activeLens === "route-readiness") return;
       if (state.activeLens === "shared-workload-preview") return;
       // Assignment list itself does not depend on as-of date.
       if (state.activeLens === "product-route-assignments") return;
       state.as_of_date = asOf.value;
-      await reloadCurrentLens();
-      render();
+      const result = await reloadCurrentLens();
+      if (result?.stale === true) return;
+      paintAcceptedPrmLens({ generation: result?.generation });
     });
   }
 
@@ -8801,6 +11233,27 @@ export function createProductionRouteController(deps = {}) {
     return loadProductAssignments({ resetOffset: true });
   }
 
+  async function setSubgroupMappingStatus(code) {
+    state.subgroup_mapping_status = normalizePrmCode(code);
+    return subgroupArchive.loadSubgroupMappings({ resetOffset: true });
+  }
+
+  async function setProductSubgroupFilter(id) {
+    state.product_subgroup_id = id == null ? "" : String(id);
+    if (state.activeLens === "product-subgroup-mappings") {
+      return subgroupArchive.loadSubgroupMappings({ resetOffset: true });
+    }
+    return { ok: true };
+  }
+
+  async function setArchivedEntityType(code) {
+    state.archived_entity_type = normalizePrmCode(code).toUpperCase();
+    if (state.activeLens === "archived-routes") {
+      return subgroupArchive.loadArchivedRoutes({ resetOffset: true });
+    }
+    return { ok: true };
+  }
+
   async function setFoundationStatus(code) {
     state.foundation_status = normalizePrmCode(code);
     return loadWorkloadPreview({ resetOffset: true });
@@ -8826,6 +11279,9 @@ export function createProductionRouteController(deps = {}) {
     if (state.activeLens === "product-route-assignments") {
       return loadProductAssignments({ resetOffset: true });
     }
+    if (state.activeLens === "product-subgroup-mappings") {
+      return subgroupArchive.loadSubgroupMappings({ resetOffset: true });
+    }
     if (state.activeLens === "shared-workload-preview") {
       return loadWorkloadPreview({ resetOffset: true });
     }
@@ -8837,10 +11293,34 @@ export function createProductionRouteController(deps = {}) {
     if (state.activeLens === "product-route-assignments") {
       return loadProductAssignments({ resetOffset: true });
     }
+    if (state.activeLens === "product-subgroup-mappings") {
+      return subgroupArchive.loadSubgroupMappings({ resetOffset: true });
+    }
     if (state.activeLens === "shared-workload-preview") {
       return loadWorkloadPreview({ resetOffset: true });
     }
     return loadReadiness({ resetOffset: true });
+  }
+
+  async function clearSubgroupFilters() {
+    state.subgroup_mapping_status = "";
+    state.search = "";
+    state.product_group_id = "";
+    state.route_family_id = "";
+    state.product_subgroup_id = "";
+    return subgroupArchive.loadSubgroupMappings({
+      resetOffset: true,
+      search: "",
+    });
+  }
+
+  async function clearArchivedFilters() {
+    state.archived_entity_type = "";
+    state.search = "";
+    return subgroupArchive.loadArchivedRoutes({
+      resetOffset: true,
+      search: "",
+    });
   }
 
   async function clearAssignmentFilters() {
@@ -8856,6 +11336,14 @@ export function createProductionRouteController(deps = {}) {
       applyPrmDeepLinkToUrl("product-route-assignments", nextDeepLink, true);
     }
     return loadProductAssignments({ resetOffset: true, search: "" });
+  }
+
+  async function clearReadinessFilters() {
+    state.readiness_status = "";
+    state.search = "";
+    state.product_group_id = "";
+    state.route_family_id = "";
+    return loadReadiness({ resetOffset: true, search: "" });
   }
 
   async function clearWorkloadFilters() {
@@ -8888,6 +11376,12 @@ export function createProductionRouteController(deps = {}) {
     const assignmentsSection = document.querySelector(
       '#peqFilterDrawer [data-peq-section="prm-assignments"]',
     );
+    const subgroupSection = document.querySelector(
+      '#peqFilterDrawer [data-peq-section="prm-subgroup"]',
+    );
+    const archivedSection = document.querySelector(
+      '#peqFilterDrawer [data-peq-section="prm-archived"]',
+    );
     const workloadSection = document.querySelector(
       '#peqFilterDrawer [data-peq-section="prm-workload"]',
     );
@@ -8901,11 +11395,16 @@ export function createProductionRouteController(deps = {}) {
       '#peqFilterDrawer [data-peq-section="prm-cost-centres"]',
     );
     const assignmentsActive = state.activeLens === "product-route-assignments";
+    const subgroupActive = state.activeLens === "product-subgroup-mappings";
+    const archivedActive = state.activeLens === "archived-routes";
     const readinessActive = state.activeLens === "route-readiness";
     const workloadActive = state.activeLens === "shared-workload-preview";
     const costCentresActive = state.activeLens === "production-cost-centres";
     const showSharedFilters =
-      assignmentsActive || readinessActive || workloadActive;
+      assignmentsActive ||
+      readinessActive ||
+      workloadActive ||
+      subgroupActive;
     if (readinessSection) {
       readinessSection.hidden = !readinessActive;
       readinessSection.style.display = readinessActive ? "" : "none";
@@ -8913,6 +11412,14 @@ export function createProductionRouteController(deps = {}) {
     if (assignmentsSection) {
       assignmentsSection.hidden = !assignmentsActive;
       assignmentsSection.style.display = assignmentsActive ? "" : "none";
+    }
+    if (subgroupSection) {
+      subgroupSection.hidden = !subgroupActive;
+      subgroupSection.style.display = subgroupActive ? "" : "none";
+    }
+    if (archivedSection) {
+      archivedSection.hidden = !archivedActive;
+      archivedSection.style.display = archivedActive ? "" : "none";
     }
     if (workloadSection) {
       workloadSection.hidden = !workloadActive;
@@ -8932,6 +11439,65 @@ export function createProductionRouteController(deps = {}) {
     }
     if (costCentresActive) {
       costCentres?.syncDrawerFilters?.();
+    }
+    if (subgroupActive) {
+      rebuildSubgroupPeqOptions();
+    }
+  }
+
+  function rebuildSubgroupPeqOptions() {
+    const statusList = document.getElementById("prmSubgroupStatusChecklist");
+    if (statusList) {
+      const counts = state.subgroup_mapping_status_counts || {};
+      const activeStatus = normalizePrmCode(
+        state.subgroup_mapping_status,
+      ).toUpperCase();
+      const statuses = [
+        "",
+        "DRAFT",
+        "IN_REVIEW",
+        "APPROVED",
+        "SUPERSEDED",
+        "INACTIVE",
+      ];
+      statusList.innerHTML = statuses
+        .map((code) => {
+          const label = code
+            ? formatPrmAssignmentStatusLabel(code) || code
+            : "All";
+          const count = code ? counts[code] : state.subgroupMappingTotalCount;
+          const checked =
+            (code && activeStatus === code) || (!code && !activeStatus)
+              ? "checked"
+              : "";
+          return `<li><label><input type="radio" name="prmSubgroupStatus" data-prm-subgroup-status="${text(code)}" ${checked}> ${text(label)}${
+            count != null && Number.isFinite(Number(count))
+              ? ` <span class="cp-muted-text">(${text(count)})</span>`
+              : ""
+          }</label></li>`;
+        })
+        .join("");
+    }
+    const subgroupSelect = document.getElementById("prmSubgroupFilterSelect");
+    if (subgroupSelect) {
+      const selected = normalizePrmIntegerId(state.product_subgroup_id);
+      const opts = coercePrmList(state.productSubgroups);
+      subgroupSelect.innerHTML = `<option value="">All Product Subgroups</option>${opts
+        .map((row) => {
+          const id = normalizePrmIntegerId(
+            row.product_subgroup_id ?? row.subgroup_id ?? row.id,
+          );
+          if (id == null) return "";
+          const name =
+            row.product_subgroup_name ||
+            row.subgroup_name ||
+            row.name ||
+            `Subgroup ${id}`;
+          return `<option value="${text(id)}" ${
+            selected === id ? "selected" : ""
+          }>${text(name)}</option>`;
+        })
+        .join("")}`;
     }
   }
 
@@ -9234,11 +11800,14 @@ export function createProductionRouteController(deps = {}) {
     for (const key of [
       "product_id",
       "product_group_id",
+      "product_subgroup_id",
       "route_family_id",
       "family_route_id",
       "product_route_id",
+      "mapping_id",
       "as_of_date",
       "candidate_kind",
+      "entity_type",
     ]) {
       const value = query.get(key);
       if (value) deepLink[key] = value;
@@ -9260,6 +11829,11 @@ export function createProductionRouteController(deps = {}) {
 
   function destroy() {
     disposed = true;
+    if (prmOwnsDetailsModal) {
+      closeModal({ restorePrevious: false });
+    } else {
+      unbindModalHandlers();
+    }
     unbind();
     if (prmPopstateBound && typeof window !== "undefined") {
       window.removeEventListener("popstate", onPrmPopState);
@@ -9282,26 +11856,40 @@ export function createProductionRouteController(deps = {}) {
     load,
     reloadCurrentLens,
     render,
+    paintAcceptedPrmLens,
+    getPaintGeneration: () => lensRenderGeneration,
     syncPageFromShell,
     getPage: () => state.page,
     getTotalCount: () =>
       state.activeLens === "product-route-assignments"
         ? state.assignmentTotalCount
+        : state.activeLens === "product-subgroup-mappings"
+          ? state.subgroupMappingTotalCount
+          : state.activeLens === "archived-routes"
+            ? state.archivedRouteTotalCount
         : state.activeLens === "shared-workload-preview"
           ? state.workloadTotalCount
           : state.activeLens === "route-family-foundation-review"
             ? state.foundationTotalCount
             : state.activeLens === "production-cost-centres"
               ? costCentres?.getTotalCount?.() || 0
+              : state.activeLens === "route-families"
+                ? (state.routeFamilies || []).length
               : state.total_count,
     getReadinessStatus: () => state.readiness_status,
     getAssignmentStatus: () => state.assignment_status,
+    getSubgroupMappingStatus: () => state.subgroup_mapping_status,
+    getProductSubgroupFilter: () => state.product_subgroup_id,
+    getArchivedEntityType: () => state.archived_entity_type,
     getFoundationStatus: () => state.foundation_status,
     getQuantityDriverStatus: () => state.quantity_driver_status,
     getDlScopeFilter: () => state.dl_scope_filter,
     getPohScopeFilter: () => state.poh_scope_filter,
     setReadinessStatus,
     setAssignmentStatus,
+    setSubgroupMappingStatus,
+    setProductSubgroupFilter,
+    setArchivedEntityType,
     setFoundationStatus,
     setQuantityDriverStatus,
     setDlScopeFilter,
@@ -9309,6 +11897,9 @@ export function createProductionRouteController(deps = {}) {
     setProductGroupFilter,
     setRouteFamilyFilter,
     clearAssignmentFilters,
+    clearReadinessFilters,
+    clearSubgroupFilters,
+    clearArchivedFilters,
     clearWorkloadFilters,
     clearCostCentreFilters,
     getProductGroupFilter: () => state.product_group_id,
@@ -9317,9 +11908,11 @@ export function createProductionRouteController(deps = {}) {
       costCentres?.getState?.()?.statusFilter || "",
     getCostCentrePoolFilter: () => costCentres?.getState?.()?.poolFilter || "",
     getProductGroups: () => state.productGroups,
+    getProductSubgroups: () => state.productSubgroups,
     getRouteFamilies: () => state.routeFamilies,
     rebuildReadinessPeqOptions,
     rebuildAssignmentPeqOptions,
+    rebuildSubgroupPeqOptions,
     rebuildWorkloadPeqOptions,
     rebuildCostCentrePeqOptions,
     syncPrmFilterDrawerSections,
@@ -9329,14 +11922,16 @@ export function createProductionRouteController(deps = {}) {
     ensureMasterOptions,
     editor,
     candidates,
-    onLensLoadStart() {},
+    onLensLoadStart() {
+      state.optionsStatus = "uninitialized";
+    },
     onLensExit,
     handleEscapeKey,
     closeModal,
     destroy,
     getState: () => state,
     buildExactRunReadinessRpcArgs,
-    buildReadinessRpcArgs: buildExactRunReadinessRpcArgs,
+    buildReadinessRpcArgs,
     PRODUCTION_ROUTE_RPC_NAMES,
   };
 }

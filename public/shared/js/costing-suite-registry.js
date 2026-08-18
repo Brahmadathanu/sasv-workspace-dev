@@ -44,6 +44,7 @@ export const COSTING_SUITE_MODULES = [
     lensIds: [
       "route-readiness",
       "product-route-assignments",
+      "product-subgroup-mappings",
       "shared-workload-preview",
       "route-families",
       "route-family-mapping-review",
@@ -53,6 +54,7 @@ export const COSTING_SUITE_MODULES = [
       "product-route-editor",
       "historical-candidate-review",
       "effective-route-viewer",
+      "archived-routes",
     ],
   },
 ];
@@ -208,6 +210,14 @@ export const LENS_REGISTRY = {
     description:
       "Cross-Product Product-to-Route-Family assignment lifecycle register.",
   },
+  "product-subgroup-mappings": {
+    id: "product-subgroup-mappings",
+    label: "Subgroup Mappings",
+    suiteId: "production-route",
+    periodScoped: false,
+    description:
+      "Governed Product Subgroup to Manufacturing Route Family mapping lifecycle.",
+  },
   "shared-workload-preview": {
     id: "shared-workload-preview",
     label: "Workload Preview",
@@ -277,7 +287,16 @@ export const LENS_REGISTRY = {
     label: "Effective Route Viewer",
     suiteId: "production-route",
     periodScoped: false,
-    description: "Resolved effective Product-to-Process route with source badges.",
+    description:
+      "Read-only effective Product manufacturing route for a selected Product.",
+  },
+  "archived-routes": {
+    id: "archived-routes",
+    label: "Archived Routes",
+    suiteId: "production-route",
+    periodScoped: false,
+    description:
+      "Read-only historical Manufacturing Route architecture after archival retirement.",
   },
 };
 

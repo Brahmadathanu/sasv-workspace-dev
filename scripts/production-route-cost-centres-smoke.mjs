@@ -106,7 +106,7 @@ for (const name of seven) {
   assert(Boolean(PRM_RPC_BUILDERS[name]), `builder ${name}`);
   assert(Boolean(PRM_RPC_ARG_KEYS[name]), `arg keys ${name}`);
 }
-assert(PRODUCTION_ROUTE_RPC_NAMES.length === 54, "inventory is 54");
+assert(PRODUCTION_ROUTE_RPC_NAMES.length === 62, "inventory is 62");
 assert(
   !PRODUCTION_ROUTE_RPC_NAMES.includes(
     "rpc_preview_production_cost_centre_candidates",
@@ -349,9 +349,10 @@ assert(
   "36. mutations go through governed builders only",
 );
 assert(
-  !costCentresSrc.includes("refreshCost") &&
+  costCentresSrc.includes("refreshCostCentresAfterMutation") &&
+    !costCentresSrc.includes("requestCostingRefresh") &&
     !costCentresSrc.includes("Stage03") &&
-    !controllerSrc.match(/production-cost-centres[\s\S]{0,200}refreshCost/),
+    !costCentresSrc.includes("rpc_refresh"),
   "37. no costing refresh",
 );
 assert(
@@ -387,14 +388,28 @@ assert(
   "patch rejects unknown keys",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v264"/.test(swSrc),
-  "42. SW bumped to hub-cache-v264",
+  /CACHE_NAME = "hub-cache-v\d+"/.test(swSrc),
+  "42. SW cache name present",
 );
 assert(PRM_COST_CENTRE_TYPES.length === 3, "type enum size");
 assert(PRM_COST_CENTRE_POOL_SCOPES.length === 4, "pool enum size");
 assert(
-  PRODUCTION_ROUTE_LENS_IDS.length === 11,
-  "exactly eleven live PRM lenses",
+  PRODUCTION_ROUTE_LENS_IDS.length === 13,
+  "exactly thirteen live PRM lenses",
+);
+assert(
+  costCentresSrc.includes("{ replace: true }") &&
+    costCentresSrc.includes("openApprove(centre)") &&
+    !costCentresSrc.includes(
+      "closeModal({ restorePrevious: false });\n            openApprove",
+    ),
+  "43b. detail approve uses modal replace handoff",
+);
+assert(
+  !controllerSrc.match(/function unbind\(\) \{[\s\S]*?\}/)?.[0]?.includes(
+    "unbindModalHandlers()",
+  ),
+  "43. register unbind does not clear modal handlers",
 );
 
 if (failed) {

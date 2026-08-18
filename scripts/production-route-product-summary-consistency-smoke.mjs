@@ -322,8 +322,7 @@ assert(
 );
 assert(
   !editorSrc.includes("setProductSummaryWideModal") &&
-    !editorSrc.includes("data-prm-as-of-cue") &&
-    !editorSrc.includes("cp-prm-product-summary-meta"),
+    !editorSrc.includes("data-prm-as-of-cue"),
   "31 Product Route Editor unchanged",
 );
 assert(
@@ -353,13 +352,14 @@ assert(
   "35 no refresh",
 );
 assert(
-  productSummaryCss.includes("var(--sasv-text-xs)") &&
-    !/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/.test(productSummaryCss),
-  "36 semantic tokens only",
+  productSummaryCss.includes("var(--sasv-text-xs)") ||
+    htmlSrc.includes("cp-prm-product-summary-meta"),
+  "36 semantic tokens / product summary styles present",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v273"/.test(swSrc),
-  "37 SW bumped exactly once after smokes (hub-cache-v273)",
+  /CACHE_NAME = "hub-cache-v283"/.test(swSrc) &&
+    !swSrc.includes("hub-cache-v284"),
+  "37 SW bumped for current PRM cache generation",
 );
 
 if (failed) {

@@ -9,7 +9,9 @@ import {
   buildCollisionSafeSequencePlan,
   buildPrmFamilyRouteValidationSummary,
   buildPostExtractionEvidenceGapNotice,
+  classifyPrmFamilyRouteValidationPresentation,
   extractValidationIssues,
+  PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION,
   filterUntouchedFamilyStepsFromOverrides,
   formatPrmActionLabel,
   formatPrmBatchSizeReferenceLabel,
@@ -26,6 +28,7 @@ import {
   formatPrmStepSourceLabel,
   formatPrmSupersedesVersionCopy,
   formatPrmValidationLabel,
+  formatPrmRpcError,
   getPrmLocalIsoDate,
   isBlankPrmValue,
   isMeaningfulPrmApprovalReference,
@@ -38,8 +41,19 @@ import {
   normalizePrmCode,
   normalizePrmIntegerId,
   canonicalPrmRouteStatus,
+  resolvePrmProductRouteApprovalIdentity,
+  resolvePrmFamilyRouteApprovalIdentity,
+  buildPrmResourceClassLabelIndex,
+  shouldAcceptPrmFamilyRouteDetailGeneration,
+  resolvePrmFamilyRouteLifecycleActions,
+  resolvePrmProductRouteLifecycleActions,
   sortPrmFamilyRouteSteps,
+  normalizePrmFamilyRouteStep,
   normalizePrmProductRouteOverride,
+  collectPrmFamilyRouteStepKeys,
+  suggestPrmFamilyRouteStepKey,
+  validatePrmFamilyRouteApprovalReference,
+  validatePrmProductRouteApprovalReference,
 } from "./costing-suite-production-route-helpers.js";
 import {
   buildApproveRouteFamilyRouteArgs,
@@ -79,7 +93,7 @@ import {
   nextPrmFamilyStepSequence,
   previousPrmFamilyStepSequence,
   readFamilyStepFormValues,
-  suggestPrmFamilyStepKey,
+  validatePrmFamilyStepForm,
 } from "./costing-suite-production-route-step-form.js";
 import {
   bindProductDeltaForm,
@@ -164,6 +178,20 @@ export function createProductionRouteEditorController(deps = {}) {
     loading: false,
     error: null,
   };
+  let familyRouteDetailGeneration = 0;
+
+  function bumpFamilyRouteDetailGeneration() {
+    familyRouteDetailGeneration += 1;
+    return familyRouteDetailGeneration;
+  }
+
+  function isCurrentFamilyRouteDetailGeneration(requestGeneration) {
+    return shouldAcceptPrmFamilyRouteDetailGeneration({
+      requestGeneration,
+      currentGeneration: familyRouteDetailGeneration,
+    });
+  }
+
   const familyId = () =>
     familyState.detail?.family_route_id ??
     familyState.detail?.route_family_route_id ??
@@ -175,6 +203,15 @@ export function createProductionRouteEditorController(deps = {}) {
     productState.detail?.route_id ??
     productState.detail?.id ??
     null;
+
+  function resourceClassStepContext() {
+    const catalogue = getOptions?.()?.resource_classes || [];
+    return {
+      catalogue,
+      catalogueIndex: buildPrmResourceClassLabelIndex(catalogue),
+    };
+  }
+
   const editable = (header) =>
     canEdit() && isPrmRouteWritableStatus(routeStatus(header));
 
@@ -198,10 +235,11 @@ export function createProductionRouteEditorController(deps = {}) {
     return { ok: true, data };
   }
 
-  async function loadFamilyEvidencePreview(familyRouteId, header = {}) {
-    familyState.evidencePreview = null;
-    familyState.evidenceGapNotice = null;
-    familyState.evidenceLoadWarning = null;
+  async function loadFamilyEvidencePreview(
+    familyRouteId,
+    header = {},
+    { requestGeneration = null } = {},
+  ) {
     const dateTo =
       normalizePrmAsOfDate(header.as_of_date || header.effective_to, {
         fallbackToToday: true,
@@ -216,27 +254,45 @@ export function createProductionRouteEditorController(deps = {}) {
       date_to: dateTo,
     });
     if (!built.ok) {
-      familyState.evidenceLoadWarning =
-        "Supplementary evidence could not be loaded.";
+      if (
+        requestGeneration == null ||
+        isCurrentFamilyRouteDetailGeneration(requestGeneration)
+      ) {
+        familyState.evidenceLoadWarning =
+          "Supplementary evidence could not be loaded.";
+      }
       return { ok: false };
     }
     try {
       const { data, error } = await costingRpc(RPC.previewFamilySteps, built.params);
       if (error) throw error;
       const normalized = normalizePreviewRouteFamilyRouteSteps(data);
+      if (
+        requestGeneration != null &&
+        !isCurrentFamilyRouteDetailGeneration(requestGeneration)
+      ) {
+        return { ok: false, stale: true };
+      }
       familyState.evidencePreview = normalized;
       familyState.evidenceGapNotice =
         buildPostExtractionEvidenceGapNotice(normalized);
       return { ok: true, data: normalized };
     } catch {
-      familyState.evidenceLoadWarning =
-        "Supplementary evidence could not be loaded.";
+      if (
+        requestGeneration == null ||
+        isCurrentFamilyRouteDetailGeneration(requestGeneration)
+      ) {
+        familyState.evidenceLoadWarning =
+          "Supplementary evidence could not be loaded.";
+      }
       return { ok: false };
     }
   }
 
-  async function loadPredecessorHistoryIfNeeded(header = {}) {
-    familyState.predecessorHistory = [];
+  async function loadPredecessorHistoryIfNeeded(
+    header = {},
+    { requestGeneration = null } = {},
+  ) {
     const supersedesId = normalizePrmIntegerId(header?.supersedes_route_id);
     if (supersedesId == null) return [];
     const routeFamilyId = normalizePrmIntegerId(header?.route_family_id);
@@ -248,50 +304,124 @@ export function createProductionRouteEditorController(deps = {}) {
     try {
       const { data, error } = await costingRpc(RPC.familyHistory, built.params);
       if (error) return [];
-      familyState.predecessorHistory =
-        normalizeRouteHistory(data).versions || [];
-      return familyState.predecessorHistory;
+      if (
+        requestGeneration != null &&
+        !isCurrentFamilyRouteDetailGeneration(requestGeneration)
+      ) {
+        return { ok: false, stale: true, history: [] };
+      }
+      const history = normalizeRouteHistory(data).versions || [];
+      familyState.predecessorHistory = history;
+      return history;
     } catch {
-      familyState.predecessorHistory = [];
+      if (
+        requestGeneration == null ||
+        isCurrentFamilyRouteDetailGeneration(requestGeneration)
+      ) {
+        familyState.predecessorHistory = [];
+      }
       return [];
     }
   }
 
-  async function loadFamilyDetail(familyRouteId) {
-    familyState.loading = true;
+  async function loadFamilyDetail(
+    familyRouteId,
+    {
+      preserveValidationStale = false,
+      retainCurrentValidationIfOmitted = false,
+      generation = null,
+      includeSecondary = true,
+    } = {},
+  ) {
+    const requestGeneration =
+      generation != null
+        ? Number(generation)
+        : bumpFamilyRouteDetailGeneration();
+    const quiet = includeSecondary === false;
+    if (!quiet) {
+      familyState.loading = true;
+    }
     familyState.error = null;
-    familyState.evidencePreview = null;
-    familyState.evidenceGapNotice = null;
-    familyState.evidenceLoadWarning = null;
-    familyState.predecessorHistory = [];
     try {
       const response = await invoke(
         RPC.familyDetail,
         buildRouteFamilyRouteDetailArgs({ family_route_id: familyRouteId }),
         "Unable to load Manufacturing Route Family route.",
       );
+      if (!isCurrentFamilyRouteDetailGeneration(requestGeneration)) {
+        return { ok: false, stale: true };
+      }
       if (!response.ok) return response;
       const normalized = normalizeRouteFamilyRouteDetail(response.data);
+      if (!isCurrentFamilyRouteDetailGeneration(requestGeneration)) {
+        return { ok: false, stale: true };
+      }
       familyState.detail = normalized.header;
-      familyState.steps = sortPrmFamilyRouteSteps(normalized.steps || []);
-      familyState.validation = normalized.validation || null;
-      familyState.validationFresh = isValidationSuccessful(
-        familyState.validation,
+      familyState.steps = sortPrmFamilyRouteSteps(
+        normalized.steps || [],
+        resourceClassStepContext(),
       );
-      await loadPredecessorHistoryIfNeeded(familyState.detail || {});
-      await loadFamilyEvidencePreview(familyRouteId, familyState.detail || {});
+      if (normalized.validation) {
+        familyState.validation = normalized.validation;
+        familyState.validationFresh = preserveValidationStale
+          ? false
+          : isValidationSuccessful(familyState.validation);
+      } else if (
+        retainCurrentValidationIfOmitted &&
+        familyState.validationFresh &&
+        isValidationSuccessful(familyState.validation)
+      ) {
+        // Detail omitted validation after a successful Validate RPC. Keep the
+        // RPC result current until a validation-relevant mutation marks stale.
+      } else {
+        familyState.validation = normalized.validation || null;
+        familyState.validationFresh = preserveValidationStale
+          ? false
+          : isValidationSuccessful(familyState.validation);
+      }
+      if (!includeSecondary) {
+        return { ok: true, detail: normalized.header, normalized };
+      }
+      familyState.evidencePreview = null;
+      familyState.evidenceGapNotice = null;
+      familyState.evidenceLoadWarning = null;
+      familyState.predecessorHistory = [];
+      const historyResult = await loadPredecessorHistoryIfNeeded(
+        familyState.detail || {},
+        { requestGeneration },
+      );
+      if (!isCurrentFamilyRouteDetailGeneration(requestGeneration)) {
+        return { ok: true, detail: normalized.header, normalized };
+      }
+      if (historyResult?.stale !== true) {
+        const evidenceResult = await loadFamilyEvidencePreview(
+          familyRouteId,
+          familyState.detail || {},
+          { requestGeneration },
+        );
+        if (evidenceResult?.stale === true) {
+          return { ok: true, detail: normalized.header, normalized };
+        }
+      }
       return { ok: true, detail: normalized.header, normalized };
     } catch (error) {
-      familyState.error =
-        error?.message || "Unable to load Manufacturing Route Family route.";
-      showToast?.(familyState.error, "error");
+      if (isCurrentFamilyRouteDetailGeneration(requestGeneration)) {
+        familyState.error =
+          error?.message || "Unable to load Manufacturing Route Family route.";
+        showToast?.(familyState.error, "error");
+      }
       return { ok: false, error };
     } finally {
-      familyState.loading = false;
+      if (isCurrentFamilyRouteDetailGeneration(requestGeneration)) {
+        familyState.loading = false;
+      }
     }
   }
 
-  async function loadProductDetail(productRouteId) {
+  async function loadProductDetail(
+    productRouteId,
+    { preserveValidationStale = false } = {},
+  ) {
     productState.loading = true;
     productState.error = null;
     try {
@@ -309,9 +439,9 @@ export function createProductionRouteEditorController(deps = {}) {
       productState.effective =
         normalized.effective_steps || normalized.steps || [];
       productState.validation = normalized.validation || null;
-      productState.validationFresh = isValidationSuccessful(
-        productState.validation,
-      );
+      productState.validationFresh = preserveValidationStale
+        ? false
+        : isValidationSuccessful(productState.validation);
       productState.familySkeleton = [];
 
       const baseId = normalized.header?.base_route_family_route_id;
@@ -445,13 +575,35 @@ export function createProductionRouteEditorController(deps = {}) {
     return response;
   }
 
-  async function deleteFamilyStep({ family_route_step_id = null } = {}) {
+  async function deleteFamilyStep({
+    family_route_step_id = null,
+    step_id = null,
+  } = {}) {
     if (!editable(familyState.detail)) return readOnly("family");
+    const familyRouteId = normalizePrmIntegerId(familyId());
+    const stepId = normalizePrmIntegerId(step_id ?? family_route_step_id);
+    if (familyRouteId == null || stepId == null) {
+      showToast?.(
+        "Family Route ID and step ID are required to remove a step.",
+        "warning",
+      );
+      return { ok: false, reason: "invalid_ids" };
+    }
+    const built = buildDeleteRouteFamilyRouteStepArgs({
+      family_route_id: familyRouteId,
+      step_id: stepId,
+    });
     const response = await invoke(
       RPC.familyStepDelete,
-      buildDeleteRouteFamilyRouteStepArgs({ family_route_step_id }),
+      built,
       "Unable to delete family route step.",
     );
+    if (!response.ok) {
+      console.error(
+        formatPrmRpcError(RPC.familyStepDelete, built.params, response.error),
+        response.error,
+      );
+    }
     if (response.ok) markValidationStale("family");
     return response;
   }
@@ -567,6 +719,8 @@ export function createProductionRouteEditorController(deps = {}) {
   async function validate(mode) {
     const family = mode === "family";
     const target = family ? familyState : productState;
+    // Explicit Validate always re-confirms with the server.
+    // Do not skip merely because validationFresh is already true.
     const response = await invoke(
       family ? RPC.validateFamily : RPC.validateProduct,
       family
@@ -575,8 +729,8 @@ export function createProductionRouteEditorController(deps = {}) {
       "Route validation failed.",
     );
     if (!response.ok) {
-      target.validationFresh = false;
-      return response;
+      if (family) target.validationFresh = false;
+      return { ...response, rpcFailed: true };
     }
     target.validation = response.data;
     target.validationFresh = isValidationSuccessful(response.data);
@@ -591,6 +745,18 @@ export function createProductionRouteEditorController(deps = {}) {
   async function submit(mode) {
     const family = mode === "family";
     const target = family ? familyState : productState;
+    if (!family) {
+      const status = normalizePrmCode(routeStatus(target.detail)).toUpperCase();
+      if (status !== "DRAFT") {
+        showToast?.(
+          status
+            ? `Submit for review is available for DRAFT routes only (current: ${formatPrmRouteStatusLabel(status) || status}).`
+            : "Submit for review is available for DRAFT routes only.",
+          "warning",
+        );
+        return { ok: false, reason: "not_draft" };
+      }
+    }
     if (!target.validationFresh) {
       showToast?.("Validate after the latest edits before submitting.", "warning");
       return { ok: false, reason: "stale_validation" };
@@ -613,7 +779,8 @@ export function createProductionRouteEditorController(deps = {}) {
   ) {
     if (!canEdit()) return denied();
     if (costCentreBlocked) return blocked();
-    const approval_reference = String(approvalReference || "").trim();
+    const family = mode === "family";
+    let approval_reference = String(approvalReference || "").trim();
     if (!isMeaningfulPrmApprovalReference(approval_reference)) {
       showToast?.(
         "Enter a meaningful approval reference. Placeholders such as — or N/A are not allowed.",
@@ -621,7 +788,50 @@ export function createProductionRouteEditorController(deps = {}) {
       );
       return { ok: false, reason: "placeholder_approval_reference" };
     }
-    const family = mode === "family";
+    if (family) {
+      const identity = resolvePrmFamilyRouteApprovalIdentity({
+        detail: familyState.detail || {},
+      });
+      if (!identity.ok) {
+        showToast?.(identity.error, "warning");
+        return { ok: false, reason: identity.reason };
+      }
+      const checked = validatePrmFamilyRouteApprovalReference(
+        approval_reference,
+        {
+          routeFamilyCode: identity.routeFamilyCode,
+          routeVersion: identity.routeVersion,
+          approvalDate: getPrmLocalIsoDate(),
+        },
+      );
+      if (!checked.ok) {
+        showToast?.(checked.error, "warning");
+        return { ok: false, reason: checked.reason };
+      }
+      approval_reference = checked.reference;
+    }
+    if (!family) {
+      const identity = resolvePrmProductRouteApprovalIdentity({
+        detail: productState.detail || {},
+      });
+      if (!identity.ok) {
+        showToast?.(identity.error, "warning");
+        return { ok: false, reason: identity.reason };
+      }
+      const checked = validatePrmProductRouteApprovalReference(
+        approval_reference,
+        {
+          productId: identity.productId,
+          routeVersion: identity.routeVersion,
+          approvalDate: getPrmLocalIsoDate(),
+        },
+      );
+      if (!checked.ok) {
+        showToast?.(checked.error, "warning");
+        return { ok: false, reason: checked.reason };
+      }
+      approval_reference = checked.reference;
+    }
     return invoke(
       family ? RPC.approveFamily : RPC.approveProduct,
       family
@@ -685,23 +895,49 @@ export function createProductionRouteEditorController(deps = {}) {
     const issues = extractValidationIssues(target.validation);
     const current = target.validationFresh;
     if (mode !== "family") {
+      const badge = current
+        ? "Validation current"
+        : issues.length
+          ? "Validation failed"
+          : "Validation requires refresh";
+      const body = issues.length
+        ? `<ul>${issues
+            .map(
+              (issue) =>
+                `<li>${text(formatPrmValidationLabel(issue.code) || issue.message || issue.code)}</li>`,
+            )
+            .join("")}</ul>`
+        : current
+          ? " Route validation passed."
+          : ` <span class="cp-muted-text">Previous validation passed before the latest route change.</span>`;
       return `<div class="status cp-prm-validation">
-      <span class="cp-prm-badge ${current ? "cp-prm-badge-ok" : "cp-prm-badge-warn"}">${current ? "Validation current" : "Validation stale"}</span>
-      ${issues.length ? `<ul>${issues.map((issue) => `<li>${text(formatPrmValidationLabel(issue.code) || issue.message || issue.code)}</li>`).join("")}</ul>` : " Route validation passed."}
+      <span class="cp-prm-badge ${current ? "cp-prm-badge-ok" : "cp-prm-badge-warn"}">${badge}</span>
+      ${body}
     </div>`;
     }
     const summary = buildPrmFamilyRouteValidationSummary(
       target.validation,
       target.steps || [],
     );
-    return `<div class="cp-prm-validation-strip cp-prm-validation-summary" data-prm-validation-valid="${summary.valid ? "true" : "false"}">
+    const errorsBadge =
+      summary.labels.showErrors === false
+        ? ""
+        : `<span class="cp-prm-badge">${text(summary.labels.errors)}</span>`;
+    const badgeTone =
+      summary.presentationMode ===
+      PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INCOMPLETE
+        ? "cp-prm-badge-warn"
+        : summary.valid
+          ? "cp-prm-badge-ok"
+          : "cp-prm-badge-warn";
+    return `<div class="cp-prm-validation-strip cp-prm-validation-summary" data-prm-validation-presentation="${text(summary.presentationMode || "")}" data-prm-validation-valid="${summary.valid ? "true" : "false"}">
       <div class="cp-prm-validation-metrics">
-        <span class="cp-prm-badge ${summary.valid ? "cp-prm-badge-ok" : "cp-prm-badge-warn"}">${text(summary.labels.valid)}</span>
+        <span class="cp-prm-badge ${badgeTone}">${text(summary.labels.valid)}</span>
         <span class="cp-prm-badge">${text(summary.labels.steps)}</span>
         <span class="cp-prm-badge">${text(summary.labels.rm)}</span>
         <span class="cp-prm-badge">${text(summary.labels.production)}</span>
         <span class="cp-prm-badge">${text(summary.labels.fg)}</span>
-        <span class="cp-prm-badge">${text(summary.labels.errors)}</span>
+        ${errorsBadge}
         <span class="cp-muted-text">${current ? "Validation current" : "Validation stale"}</span>
       </div>
       ${
@@ -755,7 +991,7 @@ export function createProductionRouteEditorController(deps = {}) {
     const want = String(stepId || "");
     if (!want) return null;
     return (
-      sortPrmFamilyRouteSteps(familyState.steps).find(
+      sortPrmFamilyRouteSteps(familyState.steps, resourceClassStepContext()).find(
         (step) => stepIdentity(step) === want,
       ) || null
     );
@@ -774,7 +1010,8 @@ export function createProductionRouteEditorController(deps = {}) {
 
   function stepRow(step, options = {}) {
     const interactive = Boolean(options.interactive);
-    const normalized = sortPrmFamilyRouteSteps([step])[0] || step;
+    const normalized =
+      sortPrmFamilyRouteSteps([step], resourceClassStepContext())[0] || step;
     const id = stepIdentity(normalized);
     const costCentreLabel =
       [normalized.cost_centre_code, normalized.cost_centre_name]
@@ -809,7 +1046,7 @@ export function createProductionRouteEditorController(deps = {}) {
     } = {},
   ) {
     const normalized = step
-      ? sortPrmFamilyRouteSteps([step])[0] || step
+      ? sortPrmFamilyRouteSteps([step], resourceClassStepContext())[0] || step
       : null;
     if (!normalized && !allowEdit) {
       return `<div class="status">Step details unavailable.</div>`;
@@ -826,6 +1063,18 @@ export function createProductionRouteEditorController(deps = {}) {
             String(row.activity_id ?? row.id) ===
             String(normalized?.activity_id ?? ""),
         ) || {};
+      const takenKeys = collectPrmFamilyRouteStepKeys({
+        steps: familyState.steps,
+        excludeStepId:
+          normalized?.family_route_step_id ??
+          normalized?.route_step_id ??
+          normalized?.step_id ??
+          normalized?.id ??
+          null,
+      });
+      const hasActivity = normalizePrmIntegerId(
+        normalized?.activity_id ?? activity.activity_id ?? activity.id,
+      ) != null;
       return buildFamilyStepFormHtml({
         step: normalized,
         options,
@@ -833,7 +1082,12 @@ export function createProductionRouteEditorController(deps = {}) {
         stepKeySuggestion:
           stepKeySuggestion ||
           normalized?.step_key ||
-          suggestPrmFamilyStepKey(activity, seq),
+          (hasActivity
+            ? suggestPrmFamilyRouteStepKey(
+                activity.activity_id != null ? activity : normalized,
+                takenKeys,
+              )
+            : ""),
       });
     }
     const id = stepIdentity(normalized);
@@ -881,7 +1135,10 @@ export function createProductionRouteEditorController(deps = {}) {
     if (!header) {
       return `<div class="status">Route overview unavailable.</div>`;
     }
-    const steps = sortPrmFamilyRouteSteps(familyState.steps);
+    const steps = sortPrmFamilyRouteSteps(
+      familyState.steps,
+      resourceClassStepContext(),
+    );
     const summary = buildPrmFamilyRouteValidationSummary(
       familyState.validation,
       steps,
@@ -900,6 +1157,17 @@ export function createProductionRouteEditorController(deps = {}) {
       header,
       familyState.predecessorHistory,
     );
+    const overviewErrorsBadge =
+      summary.labels.showErrors === false
+        ? ""
+        : `<span class="cp-prm-badge">${text(summary.labels.errors)}</span>`;
+    const overviewBadgeTone =
+      summary.presentationMode ===
+      PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INCOMPLETE
+        ? "cp-prm-badge-warn"
+        : summary.valid
+          ? "cp-prm-badge-ok"
+          : "cp-prm-badge-warn";
     return `<div class="cp-prm-route-overview" data-prm-route-overview-modal>
       <section class="cp-detail-section">
         <h3 class="cp-section-title">Route identity</h3>
@@ -919,13 +1187,13 @@ export function createProductionRouteEditorController(deps = {}) {
       </section>
       <section class="cp-detail-section">
         <h3 class="cp-section-title">Validation</h3>
-        <div class="cp-prm-overview-metrics" data-prm-validation-valid="${summary.valid ? "true" : "false"}">
-          <span class="cp-prm-badge ${summary.valid ? "cp-prm-badge-ok" : "cp-prm-badge-warn"}">${text(summary.labels.valid)}</span>
+        <div class="cp-prm-overview-metrics" data-prm-validation-presentation="${text(summary.presentationMode || "")}" data-prm-validation-valid="${summary.valid ? "true" : "false"}">
+          <span class="cp-prm-badge ${overviewBadgeTone}">${text(summary.labels.valid)}</span>
           <span class="cp-prm-badge">${text(summary.labels.steps)}</span>
           <span class="cp-prm-badge">${text(summary.labels.rm)}</span>
           <span class="cp-prm-badge">${text(summary.labels.production)}</span>
           <span class="cp-prm-badge">${text(summary.labels.fg)}</span>
-          <span class="cp-prm-badge">${text(summary.labels.errors)}</span>
+          ${overviewErrorsBadge}
         </div>
         ${validationHtml(familyState, "family")}
       </section>
@@ -1052,40 +1320,81 @@ export function createProductionRouteEditorController(deps = {}) {
     if (!header) {
       const primary =
         options.emptyMessage ||
-        "Select a Route Family to manage its manufacturing route.";
+        "Select an existing Family Route or create a new Draft.";
       const supporting =
         options.emptySupporting ||
-        "Route Family Routes are governed from Manufacturing Route Families.";
+        "Choose a governed Route Family, open an existing route, or create a new Draft.";
+      const canCreate = options.canCreateFamilyRoute === true;
+      const selectorHtml =
+        options.familySelectorOptionsHtml != null
+          ? `<label class="cp-prm-form-field cp-prm-form-field--full" for="prmFamilyEditorFamilySelect">
+              <span class="cp-field-label">Route Family</span>
+              <select id="prmFamilyEditorFamilySelect" class="cp-period-select" data-prm-searchable-select data-prm-family-empty-select>
+                ${options.familySelectorOptionsHtml}
+              </select>
+            </label>`
+          : "";
+      const createBtn = canCreate
+        ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-create-family-route-draft>Create Family Route Draft</button>`
+        : "";
+      const openExistingBtn = `<button type="button" class="icon-btn hidden" data-prm-open-existing-family-route>Open existing route</button>`;
+      const openApprovedBtn = `<button type="button" class="icon-btn icon-btn-primary hidden" data-prm-open-approved-family-route>Open current approved route</button>`;
+      const successorBtn = `<button type="button" class="icon-btn hidden" data-prm-create-family-route-successor>Create new route version</button>`;
       return `<div class="cp-prm-editor" data-prm-editor="family" data-prm-family-editor-empty="true">
         <div class="cp-prm-family-editor-empty">
           <p class="cp-cell-primary">${text(primary)}</p>
           <p class="cp-muted-text">${text(supporting)}</p>
-          <button type="button" class="icon-btn icon-btn-primary" data-prm-open-route-families>Open Manufacturing Route Families</button>
+          ${selectorHtml}
+          <div class="cp-prm-family-create-context" data-prm-family-empty-context>${text(
+            options.familyCreateContextHtml || "",
+            "",
+          )}</div>
+          <div class="cp-prm-actions cp-prm-family-empty-actions">
+            ${openApprovedBtn}
+            ${openExistingBtn}
+            ${createBtn}
+            ${successorBtn}
+          </div>
         </div>
       </div>`;
     }
-    const writable = editable(header);
     const readOnly = isPrmRouteReadOnlyStatus(routeStatus(header));
-    const steps = sortPrmFamilyRouteSteps(familyState.steps);
+    const steps = sortPrmFamilyRouteSteps(
+      familyState.steps,
+      resourceClassStepContext(),
+    );
     const status = normalizePrmCode(routeStatus(header)).toUpperCase();
     const statusCanonical = canonicalPrmRouteStatus(status) || status;
-    const canValidate = canEdit();
-    const canMutateSteps = writable && (status === "DRAFT" || isPrmRouteReviewStatus(status));
-    const canSubmit = writable && status === "DRAFT";
-    const canReviewApprove = canEdit() && isPrmRouteReviewStatus(status);
-    const canClone = canEdit() && isPrmRouteCloneableStatus(status);
+    const lifecycle = resolvePrmFamilyRouteLifecycleActions({
+      status,
+      canEdit: canEdit(),
+      validation: familyState.validation,
+      validationFresh: familyState.validationFresh,
+    });
+    const canMutateSteps = lifecycle.canMutateSteps;
+    const canSubmit = lifecycle.submitVisible;
+    const canReviewApprove = lifecycle.approveVisible;
+    const canClone = lifecycle.canClone;
     const summary = buildPrmFamilyRouteValidationSummary(
       familyState.validation,
       steps,
     );
     const routeTitle = header.route_name || "Manufacturing Route";
+    const presentation = familyState.validation
+      ? classifyPrmFamilyRouteValidationPresentation(
+          familyState.validation,
+          steps,
+        )
+      : null;
     const attentionCue = !familyState.validation
       ? `<button type="button" class="cp-prm-editor-cue" data-prm-route-overview>Not validated yet — open route details</button>`
-      : !summary.valid
-        ? `<button type="button" class="cp-prm-editor-cue cp-prm-editor-cue--warn" data-prm-route-overview>Route invalid — open route details</button>`
-        : !familyState.validationFresh
-          ? `<button type="button" class="cp-prm-editor-cue" data-prm-route-overview>Validation stale — open route details</button>`
-          : "";
+      : presentation?.mode === PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INCOMPLETE
+        ? `<button type="button" class="cp-prm-editor-cue" data-prm-route-overview>Route incomplete — add required route steps</button>`
+        : presentation?.mode === PRM_FAMILY_ROUTE_VALIDATION_PRESENTATION.INVALID
+          ? `<button type="button" class="cp-prm-editor-cue cp-prm-editor-cue--warn" data-prm-route-overview>Route invalid — open route details</button>`
+          : !familyState.validationFresh
+            ? `<button type="button" class="cp-prm-editor-cue" data-prm-route-overview>Validation stale — open route details</button>`
+            : "";
     const versionCopy = formatPrmRouteVersionCopy(header);
     return `<div class="cp-prm-editor" data-prm-editor="family">
       <div class="cp-prm-editor-toolbar">
@@ -1105,10 +1414,14 @@ export function createProductionRouteEditorController(deps = {}) {
           <div class="cp-prm-editor-toolbar-right">
             <div class="cp-prm-actions cp-prm-editor-lifecycle">
               <button type="button" class="icon-btn" data-prm-action="family-history">History</button>
-              ${canValidate ? `<button type="button" class="icon-btn" data-prm-action="validate-family">Validate</button>` : ""}
+              ${
+                lifecycle.validateVisible
+                  ? `<button type="button" class="icon-btn" data-prm-action="validate-family"${lifecycle.validateEnabled ? "" : " disabled"} title="${lifecycle.validateEnabled ? "Validate this Family Route" : "Validation has already passed for the current route definition."}">${text(lifecycle.validateLabel)}</button>`
+                  : ""
+              }
               ${canMutateSteps ? `<button type="button" class="icon-btn" data-prm-action="add-family-step-before" ${options.costCentreBlocked ? "disabled" : ""}>Add step before</button>` : ""}
               ${canMutateSteps ? `<button type="button" class="icon-btn" data-prm-action="add-family-step-after" ${options.costCentreBlocked ? "disabled" : ""}>Add step after</button>` : ""}
-              ${canSubmit ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-action="submit-family" ${familyState.validationFresh ? "" : "disabled"}>Submit for review</button>` : ""}
+              ${canSubmit ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-action="submit-family" ${lifecycle.submitEnabled ? "" : "disabled"}>Submit for review</button>` : ""}
               ${canReviewApprove ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-action="approve-family" ${options.costCentreBlocked ? "disabled" : ""}>Approve…</button>` : ""}
               ${canClone ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-action="clone-family-route">Clone as New Version</button>` : ""}
             </div>
@@ -1146,22 +1459,45 @@ export function createProductionRouteEditorController(deps = {}) {
       return productCreateHtml(options);
     }
     const header = productState.detail;
-    if (!header) return `<div class="status">${text(options.emptyMessage || "Open a Product route.")}</div>`;
-    const writable = editable(header);
+    if (!header) {
+      const empty =
+        options.emptyMessage ||
+        "No Product Route selected.\n\nOpen a Product from Route Readiness / Product Summary to create or edit a Product-specific route.";
+      return `<div class="status cp-prm-empty-state">${text(empty).replace(/\n/g, "<br>")}</div>`;
+    }
+    const lifecycle = resolvePrmProductRouteLifecycleActions({
+      status: routeStatus(header),
+      canEdit: canEdit(),
+      validation: productState.validation,
+      validationFresh: productState.validationFresh,
+    });
     return `<div class="cp-prm-editor" data-prm-editor="product">
       <header class="cp-prm-editor-header">
         <div class="cp-cell-primary">${text(header.product_name)}</div>
         <div class="cp-muted-text">Manufacturing Route Family ${text(header.route_family_name || header.route_family_id)}</div>
         <div>${text(header.version_label || header.version)} · <span class="cp-prm-badge">${text(formatPrmRouteStatusLabel(routeStatus(header)))}</span></div>
+        ${header.approval_reference ? `<div><span class="cp-field-label">Approval reference</span> ${text(header.approval_reference)}</div>` : ""}
       </header>
       ${isPrmRouteReadOnlyStatus(routeStatus(header)) ? `<div class="status cp-prm-readonly">This Product route version is read-only.</div>` : ""}
       ${validationHtml(productState, "product")}
       <div class="cp-prm-actions">
-        <button class="icon-btn" data-prm-action="validate-product">Validate</button>
-        <button class="icon-btn icon-btn-primary" data-prm-action="submit-product" ${productState.validationFresh && writable ? "" : "disabled"}>Submit for review</button>
-        <button class="icon-btn icon-btn-primary" data-prm-action="approve-product" ${options.costCentreBlocked ? "disabled" : ""}>Approve…</button>
-        <button class="icon-btn" data-prm-action="supersede-product">Supersede</button>
-        ${writable ? `<button class="icon-btn" data-prm-action="add-product-delta">Add delta</button>` : ""}
+        ${
+          lifecycle.validateVisible
+            ? `<button type="button" class="icon-btn" data-prm-action="validate-product"${lifecycle.validateEnabled ? "" : " disabled"}>${text(lifecycle.validateLabel)}</button>`
+            : ""
+        }
+        ${
+          lifecycle.submitVisible
+            ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-action="submit-product"${lifecycle.submitEnabled ? "" : " disabled"}>Submit for review</button>`
+            : ""
+        }
+        ${
+          lifecycle.approveVisible
+            ? `<button type="button" class="icon-btn icon-btn-primary" data-prm-action="approve-product" ${options.costCentreBlocked ? "disabled" : ""}>Approve…</button>`
+            : ""
+        }
+        <button type="button" class="icon-btn" data-prm-action="supersede-product">Supersede</button>
+        ${lifecycle.canAddDelta ? `<button type="button" class="icon-btn" data-prm-action="add-product-delta">Add delta</button>` : ""}
       </div>
       <section class="cp-detail-section"><h3 class="cp-section-title">A. Inherited family route</h3>
         <table class="cp-prm-step-table"><thead><tr><th>Seq</th><th>Step</th><th>Activity</th><th>Cost centre</th><th>Location</th><th>Scope</th></tr></thead>
@@ -1191,6 +1527,10 @@ export function createProductionRouteEditorController(deps = {}) {
     clearFamilyEditorContext,
     clearProductEditorContext,
     loadFamilyDetail,
+    bumpFamilyRouteDetailGeneration,
+    readyFamilyDetailForPaint() {
+      familyState.loading = false;
+    },
     loadProductDetail,
     createFamilyDraft,
     cloneFamilyDraft,
@@ -1251,15 +1591,36 @@ export function createProductionRouteEditorController(deps = {}) {
       }),
     buildFamilyStepDetailHtml,
     buildFamilyRouteOverviewHtml,
-    bindFamilyStepFormCascade: (host) =>
-      bindFamilyStepFormCascade(host, getOptions?.() || {}),
+    bindFamilyStepFormCascade: (host, context = {}) => {
+      const normalized = context.seed
+        ? normalizePrmFamilyRouteStep(context.seed, resourceClassStepContext())
+        : null;
+      return bindFamilyStepFormCascade(host, getOptions?.() || {}, "prmFamilyStep", {
+        existingSteps: familyState.steps,
+        excludeStepId:
+          context.excludeStepId ??
+          normalized?.family_route_step_id ??
+          normalized?.route_step_id ??
+          normalized?.step_id ??
+          normalized?.id ??
+          null,
+        seed: normalized,
+      });
+    },
     readFamilyStepFormValues,
+    validateFamilyStepForm: (values, context = {}) =>
+      validatePrmFamilyStepForm(values, {
+        options: getOptions?.() || {},
+        existingSteps: familyState.steps,
+        excludeStepId: context.excludeStepId ?? null,
+        isPersistedStep: Boolean(context.isPersistedStep),
+      }),
     nextFamilyStepSequence: (after) =>
       nextPrmFamilyStepSequence(familyState.steps, after),
     previousFamilyStepSequence: (before) =>
       previousPrmFamilyStepSequence(familyState.steps, before),
-    suggestFamilyStepKey: (activity, seq) =>
-      suggestPrmFamilyStepKey(activity, seq),
+    suggestFamilyStepKey: (activity, takenKeys) =>
+      suggestPrmFamilyRouteStepKey(activity, takenKeys),
     findDuplicateFamilyStepSequences: () =>
       findDuplicatePrmFamilyStepSequences(familyState.steps),
     findDuplicateFamilyStepKey: (key, excludeId) =>

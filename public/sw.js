@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v278"; // Product-delta master selection guardrails
+const CACHE_NAME = "hub-cache-v323"; // PRM modal close blur before aria-hidden
 
 const PRECACHE = [
   // Hub shell
@@ -83,6 +83,30 @@ self.addEventListener("fetch", (event) => {
     url.pathname === "/utilities-hub/js/admin.js"
   ) {
     event.respondWith(fetch(req));
+    return;
+  }
+
+  // PRM editor scripts must not stay cache-first — step-table paint depends on
+  // the current post-mutation refresh path.
+  if (
+    /costing-suite-production-route/.test(url.pathname) ||
+    /costing-suite-shell\.js$/.test(url.pathname)
+  ) {
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await fetch(req, { cache: "no-store" });
+          if (fresh && fresh.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(req, fresh.clone());
+          }
+          return fresh;
+        } catch {
+          const hit = await caches.match(req);
+          return hit || fetch(req);
+        }
+      })(),
+    );
     return;
   }
 

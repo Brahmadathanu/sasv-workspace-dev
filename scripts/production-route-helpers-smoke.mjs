@@ -22,6 +22,17 @@ import {
   buildFamilyRouteEditorNavParams,
   buildPrmFamilyApprovalReferenceTemplate,
   buildPrmFamilyRouteApprovalReferenceTemplate,
+  buildPrmProductRouteApprovalReference,
+  buildPrmProductRouteFamilyAssignmentApprovalReference,
+  parsePrmProductRouteApprovalReference,
+  resolvePrmProductRouteApprovalIdentity,
+  resolvePrmProductAssignmentCreateEligibility,
+  resolvePrmProductRouteFamilyAssignmentApprovalIdentity,
+  validatePrmProductRouteApprovalReference,
+  validatePrmProductRouteFamilyAssignmentApprovalReference,
+  PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT,
+  PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_RE,
+  PRM_PRODUCT_ROUTE_FAMILY_ASSIGNMENT_APPROVAL_REFERENCE_RE,
   buildPrmFamilyRouteValidationSummary,
   formatPrmHierarchyLabel,
   formatPrmRouteStepLabel,
@@ -100,6 +111,15 @@ import {
   readPrmMapProductGroupFormValues,
   resolveDefaultPrmMappingBasis,
   resolveFamilyRouteCreateNavigation,
+  resolvePrmFamilyRouteEditorLoadId,
+  resolvePrmFamilyRouteEditorRouteId,
+  shouldApplyPrmFamilyRouteEmptyContextRefresh,
+  shouldAcceptPrmFamilyRouteDetailGeneration,
+  shouldAcceptPrmPaintGeneration,
+  shouldApplyPrmLensTransitionTeardown,
+  applyPrmAcceptedPaint,
+  applyPrmTableWrapVisible,
+  resolvePrmFamilyRouteLifecycleActions,
   resolveProductionRouteLens,
   shouldRestorePrmModalLayer,
   shouldShowPrmRowFocusRing,
@@ -107,6 +127,8 @@ import {
   summarizePrmCostCentreSetup,
   resolvePrmCostCentreSetupChip,
   isPrmMasterOptionsReady,
+  resolvePrmMasterOptionsRequestScope,
+  shouldAcceptPrmMasterOptionsGeneration,
 } from "../public/shared/js/costing-suite-production-route-helpers.js";
 import {
   buildApproveRouteFamilyArgs,
@@ -140,9 +162,9 @@ const htmlSrc = readFileSync(
   "utf8",
 );
 
-assert(PRODUCTION_ROUTE_RPC_NAMES.length === 54, "exactly 54 RPCs");
+assert(PRODUCTION_ROUTE_RPC_NAMES.length === 62, "exactly 62 RPCs");
 assert(
-  new Set(PRODUCTION_ROUTE_RPC_NAMES).size === 54,
+  new Set(PRODUCTION_ROUTE_RPC_NAMES).size === 62,
   "RPC inventory has unique names",
 );
 assert(
@@ -183,12 +205,14 @@ assert(
   "obsolete RPC reject-list has zero live coexistence",
 );
 assert(
-  PRODUCTION_ROUTE_LENS_IDS.length === 11 &&
+  PRODUCTION_ROUTE_LENS_IDS.length === 13 &&
     PRODUCTION_ROUTE_LENS_IDS.every(isProductionRouteLens) &&
     PRODUCTION_ROUTE_LENS_IDS[0] === "route-readiness" &&
     PRODUCTION_ROUTE_LENS_IDS[1] === "product-route-assignments" &&
-    PRODUCTION_ROUTE_LENS_IDS[2] === "shared-workload-preview",
-  "exactly eleven live PRM lenses with Workload Preview after Product Assignments",
+    PRODUCTION_ROUTE_LENS_IDS[2] === "product-subgroup-mappings" &&
+    PRODUCTION_ROUTE_LENS_IDS[3] === "shared-workload-preview" &&
+    PRODUCTION_ROUTE_LENS_IDS.includes("archived-routes"),
+  "exactly thirteen live PRM lenses with Subgroup Mappings and Archived Routes",
 );
 assert(
   PRODUCTION_ROUTE_LENS_IDS.includes("route-families") &&
@@ -409,6 +433,64 @@ assert(
     !isMeaningfulPrmCancellationReason("N/A"),
   "assignment lifecycle helpers and cancellation reason validation",
 );
+const prfaRef = buildPrmProductRouteFamilyAssignmentApprovalReference({
+  familyCode: "DRY_FINE_POWDER_WASH_DRY_POST_BLEND",
+  productId: 117,
+  approvalDate: "2026-08-14",
+});
+assert(
+  prfaRef.ok &&
+    prfaRef.reference ===
+      "PRM-PRFA-DRY_FINE_POWDER_WASH_DRY_POST_BLEND-P117-APP-20260814" &&
+    PRM_PRODUCT_ROUTE_FAMILY_ASSIGNMENT_APPROVAL_REFERENCE_RE.test(
+      prfaRef.reference,
+    ) &&
+    validatePrmProductRouteFamilyAssignmentApprovalReference(prfaRef.reference, {
+      familyCode: "DRY_FINE_POWDER_WASH_DRY_POST_BLEND",
+      productId: 117,
+      approvalDate: "2026-08-14",
+    }).ok &&
+    resolvePrmProductRouteFamilyAssignmentApprovalIdentity({
+      familyCode: "DRY_FINE_POWDER_WASH_DRY_POST_BLEND",
+      productId: 117,
+    }).ok,
+  "PRFA approval reference uses family code + product id + approval-event date",
+);
+assert(
+  resolvePrmProductAssignmentCreateEligibility({
+    canEdit: true,
+    payload: {
+      rows: [{ assignment_id: 1, status: "DRAFT" }],
+      lifecycle_actions: ["CREATE_ASSIGNMENT_DRAFT"],
+    },
+  }).canCreate === false &&
+    resolvePrmProductAssignmentCreateEligibility({
+      canEdit: true,
+      payload: {
+        rows: [{ assignment_id: 2, status: "APPROVED" }],
+        lifecycle_actions: ["CREATE_ASSIGNMENT_DRAFT"],
+      },
+    }).mode === "approved_replacement",
+  "product assignment create eligibility blocks writable and warns on approved",
+);
+const firstDraftElig = resolvePrmProductAssignmentCreateEligibility({
+  canEdit: true,
+  payload: { rows: [], total_count: 0, lifecycle_actions: [] },
+});
+assert(
+  firstDraftElig.mode === "first_draft" &&
+    firstDraftElig.canCreate === true &&
+    firstDraftElig.message.includes("No existing Product assignment") &&
+    resolvePrmProductAssignmentCreateEligibility({
+      canEdit: true,
+      payload: {
+        rows: [],
+        total_count: 0,
+        lifecycle_actions: ["VIEW_ONLY"],
+      },
+    }).canCreate === false,
+  "zero-row product assignment eligibility is first_draft without row CREATE action",
+);
 assert(
   extractCandidateRouteFamilyId({ route_family_id: 4 }) === 4 &&
     extractCandidateRouteFamilyId({ summary: { route_family_id: 7 } }) === 7 &&
@@ -439,8 +521,8 @@ assert(
     mainSrc.includes("workloadGeneration") &&
     mainSrc.includes("workloadDetailGeneration") &&
     mainSrc.includes("PRM_WORKLOAD_BATCH_LABELS") &&
-    mainSrc.includes("Raw batch requirement") &&
-    mainSrc.includes("Rounded standard batches") &&
+    mainSrc.includes("Raw Batch Requirement") &&
+    PRM_WORKLOAD_BATCH_LABELS.rounded === "Rounded standard batches" &&
     mainSrc.includes("data-prm-workload-host") &&
     mainSrc.includes("fillProductSummaryWorkloadHost") &&
     !mainSrc.includes("rpc_preview_shared_standard_batch_route_foundation") &&
@@ -814,29 +896,40 @@ assert(
   "future server statuses appear automatically when counted",
 );
 assert(
-  mainSrc.includes("rpc_get_production_route_manager_exact_run_readiness") &&
+  mainSrc.includes("rpc_get_production_route_manager_readiness") &&
+    mainSrc.includes("buildReadinessRpcArgs") &&
+    mainSrc.includes("RPC.generalReadiness") &&
+    /await invoke\(\r?\n\s*RPC\.generalReadiness/.test(mainSrc) &&
+    /async function loadReadiness[\s\S]*?RPC\.generalReadiness[\s\S]*?buildReadinessRpcArgs/.test(
+      mainSrc,
+    ) &&
+    !/async function loadReadiness[\s\S]*?RPC\.exactRunReadiness/.test(mainSrc) &&
+    mainSrc.includes("rpc_get_production_route_manager_exact_run_readiness") &&
     mainSrc.includes("buildExactRunReadinessRpcArgs") &&
-    mainSrc.includes("RPC.exactRunReadiness") &&
-    mainSrc.includes("Do not fall back to general") &&
-    !mainSrc.includes("invoke(\n      RPC.generalReadiness") &&
-    !mainSrc.includes("RPC.readiness"),
-  "Costing Readiness uses exact-run RPC with no general fallback",
+    mainSrc.includes("exactRunReadiness:"),
+  "Route Readiness uses general readiness RPC; exact-run retained elsewhere",
 );
 assert(
   mainSrc.includes("status_counts_baseline") &&
     mainSrc.includes("selectPrmPrimaryReadinessFilterStatuses") &&
     mainSrc.includes("exact_run_total") &&
-    mainSrc.includes("readinessLoadError"),
-  "status_counts chips and exact-run error handling wired",
+    mainSrc.includes("readinessLoadError") &&
+    mainSrc.includes("clearReadinessFilters"),
+  "status_counts chips and readiness clear-filters wired",
 );
 assert(
   mainSrc.includes("formatPrmRouteValidationSummary") &&
     mainSrc.includes("formatPrmExactRunContextCue") &&
+    mainSrc.includes("readinessAsOfContextHtml") &&
     mainSrc.includes("syncPrmAsOfDateChrome") &&
     !mainSrc.includes("[Object Object]") &&
     mainSrc.includes('state.activeLens === "route-readiness"') &&
-    mainSrc.includes("cp-prm-asof-disabled"),
-  "route validation formatter and exact-run date chrome wired",
+    mainSrc.includes('state.activeLens === "shared-workload-preview"') &&
+    mainSrc.includes("cp-prm-asof-disabled") &&
+    !mainSrc.includes(
+      "Costing Readiness uses fixed exact-run context (Run 80",
+    ),
+  "route validation formatter and as-of date chrome wired",
 );
 
 const options = buildPrmMasterOptionsArgs({
@@ -1050,6 +1143,40 @@ assert(
   "isPrmMasterOptionsReady gates on ready only",
 );
 assert(
+  resolvePrmMasterOptionsRequestScope(
+    { catalogueScope: "unscoped" },
+    {
+      selectedProductId: 139,
+      product_group_id: 7,
+      route_family_id: 10,
+      deepLink: {
+        product_id: 139,
+        product_group_id: 7,
+        route_family_id: 10,
+      },
+    },
+  ).product_id === null &&
+    resolvePrmMasterOptionsRequestScope(
+      { catalogueScope: "unscoped" },
+      {
+        selectedProductId: 139,
+        product_group_id: 7,
+        route_family_id: 10,
+        deepLink: { route_family_id: 10 },
+      },
+    ).product_group_id === null &&
+    resolvePrmMasterOptionsRequestScope(
+      { catalogueScope: "unscoped" },
+      { route_family_id: 10, deepLink: { route_family_id: 10 } },
+    ).route_family_id === null,
+  "unscoped master-options catalogue does not inherit leftover IDs",
+);
+assert(
+  shouldAcceptPrmMasterOptionsGeneration(2, 2) === true &&
+    shouldAcceptPrmMasterOptionsGeneration(1, 2) === false,
+  "only the current master-options generation may commit",
+);
+assert(
   htmlSrc.includes("cp-prm-setup-chip") &&
     mainSrc.includes('navigate("production-cost-centres")') &&
     mainSrc.includes("data-prm-setup") &&
@@ -1144,6 +1271,57 @@ assert(
     "2026-08-03",
   ) === "PRM-RFR-KASHAYAM_REGULAR-V1-APP-20260803",
   "family route approval reference template generated correctly",
+);
+assert(
+  buildPrmProductRouteApprovalReference({
+    productId: 139,
+    routeVersion: 1,
+    approvalDate: "2026-08-12",
+  }).reference === "PRM-PR-139-V1-APP-20260812",
+  "product route approval reference generated canonically",
+);
+assert(
+  !buildPrmProductRouteApprovalReference({
+    productId: null,
+    routeVersion: 1,
+    approvalDate: "2026-08-12",
+  }).ok &&
+    !buildPrmProductRouteApprovalReference({
+      productId: 139,
+      routeVersion: null,
+      approvalDate: "2026-08-12",
+    }).ok,
+  "product approval reference requires product id and version",
+);
+assert(
+  validatePrmProductRouteApprovalReference("PRM-PR-139-V1-APP-20260812", {
+    productId: 139,
+    routeVersion: 1,
+    approvalDate: "2026-08-12",
+  }).ok &&
+    !validatePrmProductRouteApprovalReference(
+      "PRM-RFR-FAMILY-V1-APP-20260812",
+      { productId: 139, routeVersion: 1, approvalDate: "2026-08-12" },
+    ).ok &&
+    !validatePrmProductRouteApprovalReference("PRM-PR-47-V1-APP-20260812", {
+      productId: 139,
+      routeVersion: 1,
+      approvalDate: "2026-08-12",
+    }).ok,
+  "product approval reference identity is validated",
+);
+assert(
+  PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_RE.test("PRM-PR-139-V1-APP-20260812") &&
+    parsePrmProductRouteApprovalReference("PRM-PR-139-V1-APP-20260812")
+      .productId === 139 &&
+    resolvePrmProductRouteApprovalIdentity({
+      detail: { product_id: 139, route_version: 1 },
+      selectedProductId: 139,
+    }).ok &&
+    PRM_PRODUCT_ROUTE_APPROVAL_REFERENCE_HELPER_TEXT.includes(
+      "Product Route identity",
+    ),
+  "product approval reference helpers parse and resolve identity",
 );
 assert(
   PRM_APPROVAL_REFERENCE_HELPER_TEXT.includes("suggested reference may be edited"),
@@ -1462,6 +1640,170 @@ assert(
     }) === 4,
     "extractCreatedFamilyRouteId prefers family_route_id over route_family_id",
   );
+  assert(
+    resolvePrmFamilyRouteEditorLoadId({
+      requestDeepLink: {},
+      committedDeepLink: { family_route_id: 12, route_family_id: 11 },
+    }) === 12 &&
+      resolvePrmFamilyRouteEditorLoadId({
+        requestDeepLink: { family_route_id: 12 },
+        committedDeepLink: {},
+      }) === 12 &&
+      resolvePrmFamilyRouteEditorLoadId({
+        requestDeepLink: {},
+        committedDeepLink: { route_family_id: 11 },
+      }) == null,
+    "family editor load id uses committed family_route_id, not family master id",
+  );
+  assert(
+    shouldApplyPrmFamilyRouteEmptyContextRefresh({
+      selectedFamilyRouteId: 12,
+      deepLinkFamilyRouteId: 12,
+      requestGeneration: 1,
+      currentGeneration: 1,
+    }) === false &&
+      shouldApplyPrmFamilyRouteEmptyContextRefresh({
+        selectedFamilyRouteId: null,
+        deepLinkFamilyRouteId: null,
+        requestGeneration: 1,
+        currentGeneration: 1,
+      }) === true &&
+      shouldApplyPrmFamilyRouteEmptyContextRefresh({
+        selectedFamilyRouteId: null,
+        deepLinkFamilyRouteId: null,
+        requestGeneration: 1,
+        currentGeneration: 2,
+      }) === false,
+    "empty-context refresh is blocked when a Family Route is open or stale",
+  );
+  assert(
+    resolvePrmFamilyRouteEditorRouteId({
+      selectedFamilyRouteId: 12,
+      deepLink: { family_route_id: 12 },
+      detail: { family_route_id: 12 },
+    }) === 12 &&
+      resolvePrmFamilyRouteEditorRouteId({
+        selectedFamilyRouteId: null,
+        deepLink: { family_route_id: 12 },
+        detail: null,
+      }) === 12 &&
+      resolvePrmFamilyRouteEditorRouteId({
+        selectedFamilyRouteId: null,
+        deepLink: {},
+        detail: { family_route_id: 12 },
+      }) === 12,
+    "family editor route id resolves exact open route without name inference",
+  );
+  assert(
+    shouldAcceptPrmFamilyRouteDetailGeneration({
+      requestGeneration: 3,
+      currentGeneration: 3,
+    }) === true &&
+      shouldAcceptPrmFamilyRouteDetailGeneration({
+        requestGeneration: 2,
+        currentGeneration: 3,
+      }) === false,
+    "family route detail generation accepts only current request",
+  );
+  assert(
+    shouldAcceptPrmPaintGeneration({
+      requestGeneration: 4,
+      currentGeneration: 4,
+    }) === true &&
+      shouldAcceptPrmPaintGeneration({
+        requestGeneration: 3,
+        currentGeneration: 4,
+      }) === false &&
+      shouldAcceptPrmPaintGeneration({
+        requestGeneration: null,
+        currentGeneration: 4,
+      }) === true &&
+      shouldApplyPrmLensTransitionTeardown({
+        requestGeneration: 1,
+        currentGeneration: 2,
+      }) === false,
+    "PRM paint generation accepts only current request and blocks stale teardown",
+  );
+  const wrap = { classList: { add() {}, remove() {}, _added: [] } };
+  wrap.classList.add = (name) => {
+    wrap.classList._added.push(name);
+  };
+  wrap.classList.remove = () => {};
+  let painted = 0;
+  let loaded = 0;
+  const paintResult = applyPrmAcceptedPaint({
+    tableWrap: wrap,
+    requestGeneration: 2,
+    currentGeneration: 2,
+    render: () => {
+      painted += 1;
+    },
+    getRowCount: () => {
+      loaded += 1;
+      return 7;
+    },
+    setRowCount: (count) => {
+      wrap.count = count;
+    },
+  });
+  const stalePaint = applyPrmAcceptedPaint({
+    tableWrap: wrap,
+    requestGeneration: 1,
+    currentGeneration: 2,
+    render: () => {
+      painted += 1;
+    },
+  });
+  assert(
+    paintResult?.ok === true &&
+      painted === 1 &&
+      wrap.count === 7 &&
+      wrap.classList._added.includes("tw-visible") &&
+      stalePaint?.stale === true &&
+      painted === 1,
+    "accepted paint is visible, generation-guarded, and does not load",
+  );
+  const draftUnvalidated = resolvePrmFamilyRouteLifecycleActions({
+    status: "DRAFT",
+    canEdit: true,
+    validation: null,
+    validationFresh: false,
+  });
+  const draftValidated = resolvePrmFamilyRouteLifecycleActions({
+    status: "DRAFT",
+    canEdit: true,
+    validation: { ok: true, is_valid: true },
+    validationFresh: true,
+  });
+  const reviewActions = resolvePrmFamilyRouteLifecycleActions({
+    status: "REVIEW_REQUIRED",
+    canEdit: true,
+    validation: { ok: true, is_valid: true },
+    validationFresh: true,
+  });
+  const approvedActions = resolvePrmFamilyRouteLifecycleActions({
+    status: "APPROVED",
+    canEdit: true,
+    validation: { ok: true, is_valid: true },
+    validationFresh: true,
+  });
+  assert(
+    draftUnvalidated.validateEnabled === true &&
+      draftUnvalidated.validateLabel === "Validate" &&
+      draftUnvalidated.submitEnabled === false &&
+      draftValidated.validateEnabled === false &&
+      draftValidated.validateLabel === "Validated" &&
+      draftValidated.submitEnabled === true &&
+      reviewActions.validateVisible === false &&
+      reviewActions.submitVisible === false &&
+      reviewActions.approveVisible === true &&
+      approvedActions.validateVisible === false &&
+      approvedActions.submitVisible === false &&
+      approvedActions.approveVisible === false &&
+      approvedActions.canClone === true &&
+      approvedActions.readOnly === true,
+    "Family Route lifecycle actions derive from status and validation currentness",
+  );
 }
 
 assert(
@@ -1475,6 +1817,13 @@ assert(
   "keyboard-restored focus retains subtle focus-visible treatment",
 );
 
+assert(
+  mainSrc.includes("refreshFamilyRouteEditorAfterStepMutation") &&
+    mainSrc.includes("refreshFamilyRouteEditorAfterLifecycleMutation") &&
+    mainSrc.includes("bumpFamilyRouteDetailGeneration") &&
+    mainSrc.includes("resolvePrmFamilyRouteEditorRouteId"),
+  "family route step and lifecycle post-mutation refresh share generation + canonical route id",
+);
 assert(
   mainSrc.includes("navigateToFamilyRouteEditor") &&
     mainSrc.includes("resolveFamilyRouteCreateNavigation") &&
@@ -1606,8 +1955,10 @@ const stepFormSrc = readFileSync(
   "utf8",
 );
 assert(
-  editorSrc.includes("canValidate") &&
-    /canValidate \?[\s\S]*data-prm-action="validate-family"/.test(editorSrc) &&
+  editorSrc.includes("resolvePrmFamilyRouteLifecycleActions") &&
+    /lifecycle\.validateVisible[\s\S]*data-prm-action="validate-family"/.test(
+      editorSrc,
+    ) &&
     editorSrc.includes("canMutateSteps") &&
     editorSrc.includes("canSubmit") &&
     /canMutateSteps \?[\s\S]*add-family-step-after[\s\S]*canSubmit \?[\s\S]*submit-family/.test(

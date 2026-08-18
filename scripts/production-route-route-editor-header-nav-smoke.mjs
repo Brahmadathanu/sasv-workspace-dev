@@ -130,7 +130,9 @@ assert(
   /active === "route-family-route-editor"[\s\S]*?familyRouteId == null[\s\S]*?clearFamilyEditorContext/.test(
     mainSrc,
   ) &&
-    /familyRouteId == null[\s\S]*?return \{ ok: true, empty: true \}/.test(mainSrc),
+    /familyRouteId == null[\s\S]*?(return \{ ok: true, empty: true \}|finalizePrmLoad\(token, active, \{ ok: true, empty: true \}\))/.test(
+      mainSrc,
+    ),
   "15 no-context load does not load family detail",
 );
 assert(
@@ -140,31 +142,25 @@ assert(
   "16 stale family detail cleared",
 );
 assert(
-  helpersSrc.includes(
-    "Select a Route Family to manage its manufacturing route.",
-  ) &&
-    familyHtml.includes(
-      "Select a Route Family to manage its manufacturing route.",
-    ),
+  helpersSrc.includes("Select an existing Family Route or create a new Draft.") &&
+    familyHtml.includes("Select an existing Family Route or create a new Draft."),
   "17 empty-state primary copy present",
 );
 assert(
   helpersSrc.includes(
-    "Route Family Routes are governed from Manufacturing Route Families.",
+    "Choose a governed Route Family, open an existing route, or create a new Draft.",
   ) &&
     familyHtml.includes(
-      "Route Family Routes are governed from Manufacturing Route Families.",
+      "Choose a governed Route Family, open an existing route, or create a new Draft.",
     ),
   "18 supporting copy present",
 );
 assert(
-  familyHtml.includes("data-prm-open-route-families") &&
-    familyHtml.includes("Open Manufacturing Route Families") &&
-    mainSrc.includes("[data-prm-open-route-families]") &&
-    /data-prm-open-route-families[\s\S]{0,120}navigate\("route-families"\)/.test(
-      mainSrc,
-    ),
-  "19 CTA navigates route-families",
+  familyHtml.includes("data-prm-create-family-route-draft") &&
+    familyHtml.includes("Create Family Route Draft") &&
+    mainSrc.includes("[data-prm-create-family-route-draft]") &&
+    mainSrc.includes("openCreateFamilyRouteDraftModal({"),
+  "19 empty-state create CTA opens canonical draft modal",
 );
 assert(
   /familyRouteId == null[\s\S]*?loadFamilyDetail\(familyRouteId\)/.test(mainSrc) ||
@@ -175,7 +171,7 @@ assert(
 );
 assert(
   mainSrc.includes("function navigateToFamilyRouteEditor") &&
-    /if \(!params\?\.family_route_id\)[\s\S]*?return false/.test(mainSrc),
+    /if \(!params\?\.family_route_id\)[\s\S]*?return \{ ok: false/.test(mainSrc),
   "21 navigateToFamilyRouteEditor unchanged",
 );
 assert(

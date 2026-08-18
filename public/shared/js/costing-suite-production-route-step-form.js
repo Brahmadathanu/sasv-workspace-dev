@@ -1,5 +1,5 @@
 /**
- * Family route step form helpers — Gate 11Y.10I.2C.2A.
+ * Family route step form helpers — Gate 11Y.10I.2C.2A / 11Y.10I.2C.3F.2B.2C.0A.
  * Activity-locked location; governed Cost Centre / Behaviour / Resource / scopes.
  */
 
@@ -12,20 +12,32 @@ import {
   buildPrmMasterOptionsForStepAuthoring,
   coercePrmList,
   filterPrmPlantsByLocation,
+  formatPrmActivityLocationCopy,
+  formatPrmActivityLocationFieldLabel,
   formatPrmActivityOptionLabel,
+  formatPrmActivityOptionPrimary,
   formatPrmActivityOptionSearchText,
   formatPrmCostCentreOptionLabel,
+  formatPrmCostCentreOptionPrimary,
   formatPrmCostCentreOptionSearchText,
+  formatPrmCostCentreOptionSecondary,
   formatPrmDirectLabourScopeLabel,
   formatPrmPlantMachineryStatusLabel,
   formatPrmProductionOverheadScopeLabel,
+  resolvePrmResourceClassDisplayLabel,
   formatPrmRouteStepScopeLabel,
   isBlankPrmValue,
   isPrmOtherPoolStepScope,
   normalizePrmCode,
   normalizePrmIntegerId,
   normalizePrmFamilyRouteStep,
+  canonicalizePrmFamilyRouteStepKey,
+  collectPrmFamilyRouteStepKeys,
+  suggestPrmFamilyRouteStepKey,
+  validatePrmFamilyStepMasterIntegrity,
+  resolvePrmPoolScopeDlPohRequirement,
 } from "./costing-suite-production-route-helpers.js";
+import { enhanceSearchableSelect } from "./sasv-module-chrome.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -39,19 +51,26 @@ function text(value, fallback = "—") {
   return isBlankPrmValue(value) ? fallback : escapeHtml(value);
 }
 
-function optionHtml(value, label, selected, title = "") {
+function optionHtml(value, label, selected, title = "", extra = {}) {
   const sel = String(selected ?? "") === String(value ?? "") ? " selected" : "";
   const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
-  return `<option value="${escapeHtml(value)}"${titleAttr}${sel}>${escapeHtml(label)}</option>`;
+  const primary = extra.primary
+    ? ` data-primary="${escapeHtml(extra.primary)}"`
+    : "";
+  const secondary = extra.secondary
+    ? ` data-secondary="${escapeHtml(extra.secondary)}"`
+    : "";
+  const search = extra.search
+    ? ` data-search="${escapeHtml(extra.search)}"`
+    : "";
+  return `<option value="${escapeHtml(value)}"${titleAttr}${primary}${secondary}${search}${sel}>${escapeHtml(label)}</option>`;
 }
 
-export function suggestPrmFamilyStepKey(activity = {}, sequenceNo = 10) {
-  const short =
-    normalizePrmCode(activity.short_code || activity.activity_code || "").toLowerCase() ||
-    "step";
-  const seq = Number(sequenceNo);
-  const pad = Number.isFinite(seq) ? String(Math.max(1, seq)).padStart(2, "0") : "01";
-  return `${short}_${pad}`;
+export function suggestPrmFamilyStepKey(activity = {}, takenKeys = []) {
+  if (typeof takenKeys === "number") {
+    return suggestPrmFamilyRouteStepKey(activity, new Set());
+  }
+  return suggestPrmFamilyRouteStepKey(activity, takenKeys);
 }
 
 export function nextPrmFamilyStepSequence(steps = [], afterSequence = null) {
@@ -124,20 +143,25 @@ export function findDuplicatePrmFamilyStepKeys(steps = [], candidateKey = null, 
   });
 }
 
+export function validatePrmFamilyStepForm(values = {}, context = {}) {
+  return validatePrmFamilyStepMasterIntegrity(values, context);
+}
+
 function activityOptionsHtml(activities, selectedId) {
   const opts = ['<option value="">— Select activity —</option>'];
   for (const row of coercePrmList(activities)) {
     const id = normalizePrmIntegerId(row.activity_id ?? row.id);
     if (id == null) continue;
     const label = formatPrmActivityOptionLabel(row);
-    const title = [
-      label,
-      formatPrmActivityOptionSearchText(row),
-      `Activity ${id}`,
-    ]
+    const primary = formatPrmActivityOptionPrimary(row);
+    const secondary = formatPrmActivityLocationCopy(row);
+    const search = formatPrmActivityOptionSearchText(row);
+    const title = [label, search, `Activity ${id}`]
       .filter((part) => !isBlankPrmValue(part))
       .join(" · ");
-    opts.push(optionHtml(id, label, selectedId, title));
+    opts.push(
+      optionHtml(id, label, selectedId, title, { primary, secondary, search }),
+    );
   }
   return opts.join("");
 }
@@ -148,14 +172,36 @@ function costCentreOptionsHtml(centres, selectedId) {
     const id = normalizePrmIntegerId(row.cost_centre_id ?? row.id);
     if (id == null) continue;
     const label = formatPrmCostCentreOptionLabel(row);
-    const title = [
-      label,
-      formatPrmCostCentreOptionSearchText(row),
-      `Cost Centre ${id}`,
-    ]
+    const primary = formatPrmCostCentreOptionPrimary(row);
+    const secondary = formatPrmCostCentreOptionSecondary(row);
+    const search = formatPrmCostCentreOptionSearchText(row);
+    const title = [label, search, `Cost Centre ${id}`]
       .filter((part) => !isBlankPrmValue(part))
       .join(" · ");
-    opts.push(optionHtml(id, label, selectedId, title));
+    opts.push(
+      optionHtml(id, label, selectedId, title, { primary, secondary, search }),
+    );
+  }
+  return opts.join("");
+}
+
+function resourceClassOptionsHtml(rows, selected) {
+  const opts = ['<option value="">— Select —</option>'];
+  for (const row of coercePrmList(rows)) {
+    const code = normalizePrmCode(
+      row?.resource_class_code || row?.code,
+    ).toUpperCase();
+    if (!code) continue;
+    const label = resolvePrmResourceClassDisplayLabel(code, {
+      catalogue: rows,
+      rowLabel: row?.resource_class_label || row?.label,
+    });
+    opts.push(
+      optionHtml(code, label, selected, code, {
+        secondary: code,
+        search: `${label} ${code}`,
+      }),
+    );
   }
   return opts.join("");
 }
@@ -215,6 +261,20 @@ function lockedLocationHtml(prefix, sectionName, subsectionName, areaName) {
     </div>`;
 }
 
+function resolveActivityLocationNames(activity = {}, seed = {}) {
+  return {
+    sectionName: formatPrmActivityLocationFieldLabel(
+      seed.section_name || activity.section_name,
+    ),
+    subsectionName: formatPrmActivityLocationFieldLabel(
+      seed.subsection_name || activity.subsection_name,
+    ),
+    areaName: formatPrmActivityLocationFieldLabel(
+      seed.area_name ?? activity.area_name,
+    ),
+  };
+}
+
 export function buildFamilyStepFormHtml({
   step = null,
   options = {},
@@ -223,16 +283,16 @@ export function buildFamilyStepFormHtml({
   stepKeySuggestion = "",
 } = {}) {
   const enriched = buildPrmMasterOptionsForStepAuthoring(options);
-  const seed = step ? normalizePrmFamilyRouteStep(step) : {};
+  const resourceClassContext = {
+    catalogue: enriched.resource_classes || [],
+  };
+  const seed = step
+    ? normalizePrmFamilyRouteStep(step, resourceClassContext)
+    : {};
   const activities = enriched.activities || [];
   const centres = enriched.cost_centres || [];
   const behaviours = enriched.behaviours || [];
   const resources = enriched.resource_classes || [];
-  const plants = filterPrmPlantsByLocation(enriched.plants || [], {
-    section_id: seed.section_id,
-    subsection_id: seed.subsection_id,
-    area_id: seed.area_id,
-  });
   const activityId = seed.activity_id;
   const activity =
     coercePrmList(activities).find(
@@ -241,16 +301,26 @@ export function buildFamilyStepFormHtml({
   const sectionId = seed.section_id ?? activity.section_id;
   const subsectionId = seed.subsection_id ?? activity.subsection_id;
   const areaId = seed.area_id ?? activity.area_id;
-  const sectionName =
-    seed.section_name || activity.section_name || (sectionId != null ? String(sectionId) : "");
-  const subsectionName =
-    seed.subsection_name ||
-    activity.subsection_name ||
-    (subsectionId != null ? String(subsectionId) : "");
-  const areaName =
-    seed.area_name || activity.area_name || (areaId != null ? String(areaId) : "");
+  const { sectionName, subsectionName, areaName } = resolveActivityLocationNames(
+    activity,
+    seed,
+  );
+  const plants = filterPrmPlantsByLocation(enriched.plants || [], {
+    section_id: sectionId,
+    subsection_id: subsectionId,
+    area_id: areaId,
+  });
   const seq = seed.sequence_no ?? sequenceSuggestion;
-  const stepKey = seed.step_key || stepKeySuggestion || "";
+  const hasActivity = normalizePrmIntegerId(activityId) != null;
+  const stepKey = seed.step_key || (hasActivity ? stepKeySuggestion : "") || "";
+  const stepKeyPlaceholder = hasActivity ? "" : "Select Activity first";
+  const isPersistedStep =
+    normalizePrmIntegerId(
+      seed.family_route_step_id ??
+        seed.route_step_id ??
+        seed.step_id ??
+        seed.id,
+    ) != null;
   const otherPool = isPrmOtherPoolStepScope(seed.route_step_scope);
   const centre =
     coercePrmList(centres).find(
@@ -261,6 +331,10 @@ export function buildFamilyStepFormHtml({
   const excludedCc =
     normalizePrmCode(centre.pool_scope).toUpperCase() ===
     PRM_COST_CENTRE_POOL_EXCLUDED;
+  const centreDefaultRc = normalizePrmCode(centre.default_resource_class_code);
+  const resourceSelected =
+    seed.resource_class_code || centreDefaultRc || "";
+  const activityContext = formatPrmActivityLocationCopy(activity);
   const exclusionNotice =
     otherPool || excludedCc
       ? `<p class="cp-prm-form-notice" data-prm-other-pool-notice>This route step remains operationally visible but its cost is owned by another pool. Direct Labour and Production Overhead scopes are set to Excluded.</p>`
@@ -274,19 +348,24 @@ export function buildFamilyStepFormHtml({
     <section class="cp-detail-section">
       <h3 class="cp-section-title">Identity</h3>
       <div class="cp-detail-grid cp-detail-grid--2col">
+        <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Activity</span>
+          <select id="${prefix}Activity" class="cp-period-select" data-prm-searchable-select required>${activityOptionsHtml(activities, activityId)}</select>
+          <div class="cp-prm-master-context" data-prm-activity-context ${activityContext ? "" : "hidden"}>
+            <span class="cp-field-label">Selected Activity context</span>
+            <span class="cp-muted-text" data-prm-activity-context-copy>${text(activityContext)}</span>
+          </div>
+        </div>
+        <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Cost Centre</span>
+          <select id="${prefix}CostCentre" class="cp-period-select" data-prm-searchable-select required>${costCentreOptionsHtml(centres, seed.cost_centre_id)}</select>
+        </div>
         <div class="cp-prm-form-field"><span class="cp-field-label">Step key</span>
-          <input id="${prefix}Key" value="${escapeHtml(stepKey)}" required />
-          <span class="cp-muted-text">Unique within this route version.</span>
+          <input id="${prefix}Key" data-prm-family-step-key value="${escapeHtml(stepKey)}" placeholder="${escapeHtml(stepKeyPlaceholder)}" readonly required />
+          <span class="cp-muted-text">Generated from Activity. Unique semantic identity within this route version.</span>
+          <span class="cp-muted-text" data-prm-family-step-key-notice ${isPersistedStep ? "" : "hidden"}>Step identity remains unchanged for this saved route step.</span>
         </div>
         <div class="cp-prm-form-field"><span class="cp-field-label">Sequence</span>
           <input id="${prefix}Seq" type="number" min="1" step="1" value="${escapeHtml(seq)}" required />
           <span class="cp-muted-text">Suggested spacing: 10, 20, 30…</span>
-        </div>
-        <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Activity</span>
-          <select id="${prefix}Activity" class="cp-period-select" required>${activityOptionsHtml(activities, activityId)}</select>
-        </div>
-        <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Cost Centre</span>
-          <select id="${prefix}CostCentre" class="cp-period-select" required>${costCentreOptionsHtml(centres, seed.cost_centre_id)}</select>
         </div>
       </div>
     </section>
@@ -306,7 +385,8 @@ export function buildFamilyStepFormHtml({
           <select id="${prefix}Behaviour" class="cp-period-select" required>${codeOptionsHtml(behaviours, "behaviour_code", "behaviour_label", seed.behaviour_code)}</select>
         </div>
         <div class="cp-prm-form-field"><span class="cp-field-label">Resource class</span>
-          <select id="${prefix}Resource" class="cp-period-select" required>${codeOptionsHtml(resources, "resource_class_code", "resource_class_label", seed.resource_class_code)}</select>
+          <select id="${prefix}Resource" class="cp-period-select" required>${resourceClassOptionsHtml(resources, resourceSelected)}</select>
+          <span class="cp-muted-text" data-prm-resource-default-hint hidden></span>
         </div>
         <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Route step scope</span>
           <select id="${prefix}Scope" class="cp-period-select" required>${enumOptionsHtml(PRM_ROUTE_STEP_SCOPES, seed.route_step_scope, formatPrmRouteStepScopeLabel)}</select>
@@ -364,7 +444,10 @@ export function readFamilyStepFormValues(host, prefix = "prmFamilyStep") {
   };
   const intOrNull = (sel) => normalizePrmIntegerId(host.querySelector(sel)?.value);
   return {
-    step_key: String(host.querySelector(`#${prefix}Key`)?.value || "").trim(),
+    step_key: canonicalizePrmFamilyRouteStepKey(
+      host.querySelector(`#${prefix}Key`)?.value || "",
+      { trimEdges: true },
+    ),
     sequence_no: num(`#${prefix}Seq`),
     activity_id: intOrNull(`#${prefix}Activity`),
     cost_centre_id: intOrNull(`#${prefix}CostCentre`),
@@ -394,13 +477,25 @@ export function readFamilyStepFormValues(host, prefix = "prmFamilyStep") {
   };
 }
 
-export function bindFamilyStepFormCascade(host, options = {}, prefix = "prmFamilyStep") {
+export function bindFamilyStepFormCascade(
+  host,
+  options = {},
+  prefix = "prmFamilyStep",
+  extras = {},
+) {
+  const enriched = buildPrmMasterOptionsForStepAuthoring(options);
   const activityEl = host.querySelector(`#${prefix}Activity`);
   const plantEl = host.querySelector(`#${prefix}Plant`);
   const scopeEl = host.querySelector(`#${prefix}Scope`);
   const ccEl = host.querySelector(`#${prefix}CostCentre`);
+  const resourceEl = host.querySelector(`#${prefix}Resource`);
+  const resourceHint = host.querySelector("[data-prm-resource-default-hint]");
   const dlEl = host.querySelector(`#${prefix}DlScope`);
   const pohEl = host.querySelector(`#${prefix}PohScope`);
+  const keyEl = host.querySelector(`#${prefix}Key`);
+  const keyNotice = host.querySelector("[data-prm-family-step-key-notice]");
+  const activityContextWrap = host.querySelector("[data-prm-activity-context]");
+  const activityContextCopy = host.querySelector("[data-prm-activity-context-copy]");
   const sectionIdEl = host.querySelector(`#${prefix}SectionId`);
   const subsectionIdEl = host.querySelector(`#${prefix}SubsectionId`);
   const areaIdEl = host.querySelector(`#${prefix}AreaId`);
@@ -408,59 +503,149 @@ export function bindFamilyStepFormCascade(host, options = {}, prefix = "prmFamil
   const subsectionNameEl = host.querySelector(`#${prefix}SubsectionName`);
   const areaNameEl = host.querySelector(`#${prefix}AreaName`);
   const notice = host.querySelector("[data-prm-other-pool-notice]");
+  const seed = extras.seed && typeof extras.seed === "object" ? extras.seed : null;
+  const persistedStepId = normalizePrmIntegerId(
+    seed?.family_route_step_id ??
+      seed?.route_step_id ??
+      seed?.step_id ??
+      seed?.id,
+  );
+  const isPersistedStep = persistedStepId != null;
+  const fieldState = {
+    step_key: {
+      mode: isPersistedStep && seed?.step_key ? "persisted" : "empty",
+    },
+    resource_class_code: {
+      mode: "empty",
+      lastAuto: "",
+    },
+    direct_labour_scope: {
+      mode: "empty",
+    },
+    production_overhead_scope: {
+      mode: "empty",
+    },
+  };
+  const takenKeys = () =>
+    collectPrmFamilyRouteStepKeys({
+      steps: extras.existingSteps || [],
+      excludeStepId: extras.excludeStepId ?? null,
+    });
 
-  const applyExclusions = (force) => {
-    if (!force) return;
-    if (dlEl) dlEl.value = "EXCLUDE_OTHER_POOL";
-    if (pohEl) pohEl.value = "EXCLUDE_OTHER_POOL";
-    if (notice) notice.hidden = false;
-    else {
-      const form = host.querySelector("[data-prm-family-step-form]");
-      if (form && !form.querySelector("[data-prm-other-pool-notice]")) {
-        form.insertAdjacentHTML(
-          "afterbegin",
-          `<p class="cp-prm-form-notice" data-prm-other-pool-notice>This route step remains operationally visible but its cost is owned by another pool. Direct Labour and Production Overhead scopes are set to Excluded.</p>`,
-        );
-      }
+  const findActivity = (id) =>
+    coercePrmList(enriched.activities).find(
+      (row) => normalizePrmIntegerId(row.activity_id ?? row.id) === id,
+    ) || null;
+  const findCentre = (id) =>
+    coercePrmList(enriched.cost_centres).find(
+      (row) => normalizePrmIntegerId(row.cost_centre_id ?? row.id) === id,
+    ) || null;
+
+  const applyStepKeySuggestion = (activity) => {
+    if (!keyEl) return;
+    if (fieldState.step_key.mode === "persisted") return;
+    if (!activity || normalizePrmIntegerId(activity.activity_id ?? activity.id) == null) {
+      keyEl.value = "";
+      keyEl.placeholder = "Select Activity first";
+      fieldState.step_key.mode = "empty";
+      return;
+    }
+    const suggested = suggestPrmFamilyRouteStepKey(activity, takenKeys());
+    keyEl.value = suggested;
+    keyEl.placeholder = "";
+    fieldState.step_key.mode = suggested ? "suggested" : "empty";
+  };
+
+  const refreshActivityContext = (activity) => {
+    const context = formatPrmActivityLocationCopy(activity || {});
+    if (activityContextCopy) {
+      activityContextCopy.textContent = context || "";
+    }
+    if (activityContextWrap) {
+      activityContextWrap.hidden = !context;
+    }
+  };
+
+  const refreshResourceDefaultHint = (centre) => {
+    if (!resourceEl || !resourceHint) return;
+    const defaultCode = normalizePrmCode(centre?.default_resource_class_code);
+    const defaultLabel = resolvePrmResourceClassDisplayLabel(defaultCode, {
+      catalogue: enriched.resource_classes || [],
+      rowLabel: centre?.default_resource_class_label,
+    });
+    if (!defaultCode) {
+      resourceHint.hidden = true;
+      resourceHint.textContent = "";
+      return;
+    }
+    const current = normalizePrmCode(resourceEl.value);
+    if (
+      fieldState.resource_class_code.mode === "user" &&
+      current &&
+      current !== defaultCode
+    ) {
+      resourceHint.hidden = false;
+      resourceHint.textContent = `Selected Cost Centre default: ${defaultLabel || defaultCode}`;
+      return;
+    }
+    if (fieldState.resource_class_code.mode !== "user") {
+      resourceEl.value = defaultCode;
+      fieldState.resource_class_code.mode = "cc_default";
+      fieldState.resource_class_code.lastAuto = defaultCode;
+      resourceHint.hidden = false;
+      resourceHint.textContent = "Default from selected Cost Centre";
+    } else {
+      resourceHint.hidden = true;
     }
   };
 
   const refreshExclusion = () => {
     const scope = normalizePrmCode(scopeEl?.value).toUpperCase();
     const ccId = normalizePrmIntegerId(ccEl?.value);
-    const centre = coercePrmList(
-      options.cost_centres || options.production_cost_centres,
-    ).find((row) => normalizePrmIntegerId(row.cost_centre_id ?? row.id) === ccId);
-    const excluded =
-      normalizePrmCode(centre?.pool_scope).toUpperCase() ===
-      PRM_COST_CENTRE_POOL_EXCLUDED;
-    const other = PRM_OTHER_POOL_STEP_SCOPES.includes(scope);
-    applyExclusions(other || excluded);
-    if (!other && !excluded && notice) notice.hidden = true;
+    const centre = findCentre(ccId);
+    const poolRule = resolvePrmPoolScopeDlPohRequirement({
+      costCentre: centre,
+      routeStepScope: scope,
+    });
+    const force = Boolean(poolRule?.forced);
+    if (force) {
+      if (dlEl) {
+        dlEl.value = "EXCLUDE_OTHER_POOL";
+        dlEl.disabled = true;
+      }
+      if (pohEl) {
+        pohEl.value = "EXCLUDE_OTHER_POOL";
+        pohEl.disabled = true;
+      }
+      if (notice) notice.hidden = false;
+      else {
+        const form = host.querySelector("[data-prm-family-step-form]");
+        if (form && !form.querySelector("[data-prm-other-pool-notice]")) {
+          form.insertAdjacentHTML(
+            "afterbegin",
+            `<p class="cp-prm-form-notice" data-prm-other-pool-notice>This route step remains operationally visible but its cost is owned by another pool. Direct Labour and Production Overhead scopes are set to Excluded.</p>`,
+          );
+        }
+      }
+      return;
+    }
+    if (dlEl) dlEl.disabled = false;
+    if (pohEl) pohEl.disabled = false;
+    if (notice) notice.hidden = true;
   };
 
-  activityEl?.addEventListener("change", () => {
-    const id = normalizePrmIntegerId(activityEl.value);
-    const activity = coercePrmList(options.activities).find(
-      (row) => normalizePrmIntegerId(row.activity_id ?? row.id) === id,
-    );
+  const applyActivityLocation = (activity) => {
     const sectionId = normalizePrmIntegerId(activity?.section_id);
     const subsectionId = normalizePrmIntegerId(activity?.subsection_id);
     const areaId = normalizePrmIntegerId(activity?.area_id);
     if (sectionIdEl) sectionIdEl.value = sectionId ?? "";
     if (subsectionIdEl) subsectionIdEl.value = subsectionId ?? "";
     if (areaIdEl) areaIdEl.value = areaId ?? "";
-    if (sectionNameEl) {
-      sectionNameEl.value = activity?.section_name || (sectionId != null ? String(sectionId) : "");
-    }
-    if (subsectionNameEl) {
-      subsectionNameEl.value =
-        activity?.subsection_name || (subsectionId != null ? String(subsectionId) : "");
-    }
-    if (areaNameEl) {
-      areaNameEl.value = activity?.area_name || (areaId != null ? String(areaId) : "");
-    }
-    const plants = filterPrmPlantsByLocation(options.plants || [], {
+    const names = resolveActivityLocationNames(activity || {});
+    if (sectionNameEl) sectionNameEl.value = names.sectionName;
+    if (subsectionNameEl) subsectionNameEl.value = names.subsectionName;
+    if (areaNameEl) areaNameEl.value = names.areaName;
+    const plants = filterPrmPlantsByLocation(enriched.plants || [], {
       section_id: sectionId,
       subsection_id: subsectionId,
       area_id: areaId,
@@ -473,9 +658,77 @@ export function bindFamilyStepFormCascade(host, options = {}, prefix = "prmFamil
       plantEl.innerHTML = plantOptionsHtml(plants, still ? keep : null);
       if (!still) plantEl.value = "";
     }
+    refreshActivityContext(activity);
+  };
+
+  const searchableOpts = {
+    placeholder: "Search or select…",
+    allowEmptyOption: true,
+    openOnFocus: true,
+    showAllWhenEmpty: true,
+    preserveQueryOnBlur: true,
+    portalLayer: "modal",
+  };
+  const enhanceIfNeeded = (el) => {
+    if (!el || el._sasvSearch) return;
+    if (!el.options || el.options.length <= 1) return;
+    enhanceSearchableSelect(el, searchableOpts);
+  };
+
+  activityEl?.addEventListener("change", () => {
+    const activity = findActivity(normalizePrmIntegerId(activityEl.value));
+    applyActivityLocation(activity);
+    if (fieldState.step_key.mode === "persisted") {
+      if (keyNotice) keyNotice.hidden = false;
+    } else {
+      applyStepKeySuggestion(activity);
+      if (keyNotice) keyNotice.hidden = true;
+    }
+  });
+
+  ccEl?.addEventListener("change", () => {
+    const centre = findCentre(normalizePrmIntegerId(ccEl.value));
+    refreshResourceDefaultHint(centre);
+    refreshExclusion();
+  });
+
+  resourceEl?.addEventListener("change", () => {
+    const centre = findCentre(normalizePrmIntegerId(ccEl?.value));
+    const defaultCode = normalizePrmCode(centre?.default_resource_class_code);
+    const current = normalizePrmCode(resourceEl.value);
+    fieldState.resource_class_code.mode =
+      defaultCode && current === defaultCode ? "cc_default" : "user";
+    refreshResourceDefaultHint(centre);
   });
 
   scopeEl?.addEventListener("change", refreshExclusion);
-  ccEl?.addEventListener("change", refreshExclusion);
+
+  enhanceIfNeeded(activityEl);
+  enhanceIfNeeded(ccEl);
+
+  if (seed?.resource_class_code) {
+    const centre = findCentre(normalizePrmIntegerId(seed.cost_centre_id));
+    const defaultCode = normalizePrmCode(centre?.default_resource_class_code);
+    fieldState.resource_class_code.mode =
+      normalizePrmCode(seed.resource_class_code) === defaultCode
+        ? "cc_default"
+        : "user";
+  }
+
+  if (isPersistedStep && seed?.step_key && keyEl) {
+    keyEl.value = seed.step_key;
+    fieldState.step_key.mode = "persisted";
+  } else if (activityEl?.value) {
+    const activity = findActivity(normalizePrmIntegerId(activityEl.value));
+    if (activity && fieldState.step_key.mode !== "persisted") {
+      applyStepKeySuggestion(activity);
+    }
+  }
+
+  const initialCentre = findCentre(normalizePrmIntegerId(ccEl?.value));
+  refreshResourceDefaultHint(initialCentre);
   refreshExclusion();
+  if (activityEl?.value) {
+    applyActivityLocation(findActivity(normalizePrmIntegerId(activityEl.value)));
+  }
 }

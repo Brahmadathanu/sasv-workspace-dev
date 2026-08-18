@@ -1,5 +1,5 @@
 /**
- * Production Route Manager — strict 54-RPC contract adapter.
+ * Production Route Manager — strict 61-RPC contract adapter.
  * Manufacturing Route Family architecture. No arbitrary payloads.
  */
 
@@ -9,6 +9,8 @@ import {
   buildPrmDeltaCandidateArgs,
   buildPrmMasterOptionsArgs,
   buildPrmProductAssignmentsArgs,
+  buildPrmSubgroupMappingsArgs,
+  buildPrmArchivedRoutesArgs,
   buildPrmProductCandidateArgs,
   buildPrmReadinessArgs,
   buildPrmExactRunReadinessArgs,
@@ -37,6 +39,10 @@ import {
   normalizePrmMappingBasis,
   normalizePrmProductAssignmentRow,
   normalizePrmProductAssignmentsPayload,
+  normalizePrmProductSubgroupMapping,
+  normalizePrmSubgroupMappingsPayload,
+  normalizePrmArchivedRouteRow,
+  normalizePrmArchivedRoutesPayload,
   normalizePrmRouteFamilyMapping,
   normalizePrmRpcPayload,
   normalizePrmStatusCounts,
@@ -201,6 +207,45 @@ export const PRM_RPC_ARG_KEYS = Object.freeze({
     "p_mapping_id",
     "p_patch",
   ]),
+  rpc_get_production_route_manager_subgroup_mappings: Object.freeze([
+    "p_status",
+    "p_search",
+    "p_route_family_id",
+    "p_product_group_id",
+    "p_product_subgroup_id",
+    "p_limit",
+    "p_offset",
+  ]),
+  rpc_map_product_subgroup_to_route_family: Object.freeze([
+    "p_route_family_id",
+    "p_product_subgroup_id",
+    "p_effective_from",
+    "p_mapping_basis",
+    "p_mapping_note",
+  ]),
+  rpc_update_product_subgroup_route_family_mapping_draft: Object.freeze([
+    "p_mapping_id",
+    "p_patch",
+  ]),
+  rpc_submit_product_subgroup_route_family_mapping_for_review: Object.freeze([
+    "p_mapping_id",
+  ]),
+  rpc_approve_product_subgroup_route_family_mapping: Object.freeze([
+    "p_mapping_id",
+    "p_approval_reference",
+    "p_effective_from",
+  ]),
+  rpc_inactivate_product_subgroup_route_family_mapping: Object.freeze([
+    "p_mapping_id",
+    "p_effective_to",
+    "p_inactivation_reason",
+  ]),
+  rpc_get_archived_production_route_architecture: Object.freeze([
+    "p_search",
+    "p_entity_type",
+    "p_limit",
+    "p_offset",
+  ]),
   rpc_create_route_family_route_draft: Object.freeze([
     "p_route_family_id",
     "p_route_name",
@@ -222,7 +267,8 @@ export const PRM_RPC_ARG_KEYS = Object.freeze({
     "p_step",
   ]),
   rpc_delete_route_family_route_step: Object.freeze([
-    "p_family_route_step_id",
+    "p_family_route_id",
+    "p_step_id",
   ]),
   rpc_validate_route_family_route: Object.freeze(["p_family_route_id"]),
   rpc_submit_route_family_route_for_review: Object.freeze([
@@ -287,6 +333,12 @@ export const PRM_RPC_ARG_KEYS = Object.freeze({
   rpc_inactivate_product_route_family_assignment: Object.freeze([
     "p_assignment_id",
     "p_effective_to",
+  ]),
+  rpc_correct_product_route_family_assignment_effective_from: Object.freeze([
+    "p_assignment_id",
+    "p_corrected_effective_from",
+    "p_correction_reason",
+    "p_correction_reference",
   ]),
   rpc_get_production_route_manager_product_assignments: Object.freeze([
     "p_status",
@@ -1006,6 +1058,179 @@ export function buildUpdateRouteFamilyMappingDraftArgs({
   );
 }
 
+export function buildSubgroupMappingsRpcArgs(input = {}) {
+  return finalize(
+    "rpc_get_production_route_manager_subgroup_mappings",
+    buildPrmSubgroupMappingsArgs(input),
+  );
+}
+
+export function buildMapProductSubgroupToRouteFamilyArgs({
+  route_family_id = null,
+  product_subgroup_id = null,
+  effective_from = null,
+  mapping_basis = null,
+  mapping_note = null,
+} = {}) {
+  const basis = normalizePrmMappingBasis(mapping_basis);
+  if (!basis) {
+    return {
+      ok: false,
+      params: {},
+      errors: [
+        "p_mapping_basis must be MANUAL, HISTORICAL_REVIEW, or MIGRATED",
+      ],
+      extraKeys: [],
+    };
+  }
+  const noteRaw = isBlankPrmValue(mapping_note)
+    ? null
+    : String(mapping_note).trim();
+  const note =
+    !noteRaw ||
+    noteRaw === "—" ||
+    noteRaw === "-" ||
+    noteRaw === "–" ||
+    noteRaw === "−"
+      ? null
+      : noteRaw;
+  return finalize(
+    "rpc_map_product_subgroup_to_route_family",
+    buildPrmRpcParams({
+      p_route_family_id: {
+        kind: "int",
+        value: route_family_id,
+        required: true,
+      },
+      p_product_subgroup_id: {
+        kind: "int",
+        value: product_subgroup_id,
+        required: true,
+      },
+      p_effective_from: {
+        kind: "date",
+        value: effective_from,
+        required: false,
+        fallbackToToday: true,
+      },
+      p_mapping_basis: { kind: "string", value: basis, required: true },
+      p_mapping_note: { kind: "string", value: note },
+    }),
+  );
+}
+
+export function buildUpdateProductSubgroupMappingDraftArgs({
+  mapping_id = null,
+  patch = null,
+  ...rest
+} = {}) {
+  const builtPatch =
+    patch && typeof patch === "object" && !Array.isArray(patch)
+      ? buildRouteFamilyMappingDraftPatch({ patch })
+      : buildRouteFamilyMappingDraftPatch(rest);
+  if (!builtPatch.ok) {
+    return {
+      ok: false,
+      params: {},
+      errors: builtPatch.errors,
+      extraKeys: [],
+    };
+  }
+  return finalize(
+    "rpc_update_product_subgroup_route_family_mapping_draft",
+    buildPrmRpcParams({
+      p_mapping_id: {
+        kind: "int",
+        value: mapping_id,
+        required: true,
+      },
+      p_patch: { kind: "json", value: builtPatch.patch, required: true },
+    }),
+  );
+}
+
+export function buildSubmitProductSubgroupMappingArgs({
+  mapping_id = null,
+} = {}) {
+  return finalize(
+    "rpc_submit_product_subgroup_route_family_mapping_for_review",
+    buildPrmRpcParams({
+      p_mapping_id: {
+        kind: "int",
+        value: mapping_id,
+        required: true,
+      },
+    }),
+  );
+}
+
+export function buildApproveProductSubgroupMappingArgs({
+  mapping_id = null,
+  approval_reference = null,
+  effective_from = null,
+} = {}) {
+  const rejected = rejectInvalidApprovalReference(
+    "rpc_approve_product_subgroup_route_family_mapping",
+    approval_reference,
+  );
+  if (rejected) return rejected;
+  return finalize(
+    "rpc_approve_product_subgroup_route_family_mapping",
+    buildPrmRpcParams({
+      p_mapping_id: {
+        kind: "int",
+        value: mapping_id,
+        required: true,
+      },
+      p_approval_reference: {
+        kind: "string",
+        value: approval_reference,
+        required: true,
+      },
+      p_effective_from: {
+        kind: "date",
+        value: effective_from,
+        required: false,
+        fallbackToToday: true,
+      },
+    }),
+  );
+}
+
+export function buildInactivateProductSubgroupMappingArgs({
+  mapping_id = null,
+  effective_to = null,
+  inactivation_reason = null,
+} = {}) {
+  const reasonRaw = isBlankPrmValue(inactivation_reason)
+    ? null
+    : String(inactivation_reason).trim();
+  return finalize(
+    "rpc_inactivate_product_subgroup_route_family_mapping",
+    buildPrmRpcParams({
+      p_mapping_id: {
+        kind: "int",
+        value: mapping_id,
+        required: true,
+      },
+      p_effective_to: {
+        kind: "date",
+        value: effective_to,
+        required: false,
+        fallbackToToday: true,
+      },
+      p_inactivation_reason: { kind: "string", value: reasonRaw },
+    }),
+  );
+}
+
+export function buildArchivedRoutesRpcArgs(input = {}) {
+  return finalize(
+    "rpc_get_archived_production_route_architecture",
+    buildPrmArchivedRoutesArgs(input),
+  );
+}
+
 export function buildCreateRouteFamilyRouteDraftArgs({
   route_family_id = null,
   route_name = null,
@@ -1118,14 +1343,20 @@ export function buildUpsertRouteFamilyRouteStepArgs({
 }
 
 export function buildDeleteRouteFamilyRouteStepArgs({
-  family_route_step_id = null,
+  family_route_id = null,
+  step_id = null,
 } = {}) {
   return finalize(
     "rpc_delete_route_family_route_step",
     buildPrmRpcParams({
-      p_family_route_step_id: {
+      p_family_route_id: {
         kind: "int",
-        value: family_route_step_id,
+        value: family_route_id,
+        required: true,
+      },
+      p_step_id: {
+        kind: "int",
+        value: step_id,
         required: true,
       },
     }),
@@ -1577,6 +1808,66 @@ export function buildInactivateProductRouteFamilyAssignmentArgs({
   );
 }
 
+export function buildCorrectProductRouteFamilyAssignmentEffectiveFromArgs({
+  assignment_id = null,
+  corrected_effective_from = null,
+  correction_reason = null,
+  correction_reference = null,
+  p_assignment_id = null,
+  p_corrected_effective_from = null,
+  p_correction_reason = null,
+  p_correction_reference = null,
+} = {}) {
+  const reason = correction_reason ?? p_correction_reason;
+  const reference = correction_reference ?? p_correction_reference;
+  if (!isMeaningfulPrmCancellationReason(reason)) {
+    return {
+      ok: false,
+      params: {},
+      errors: [
+        "Enter a meaningful correction reason. Placeholders such as — or N/A are not allowed.",
+      ],
+      extraKeys: [],
+    };
+  }
+  if (!isMeaningfulPrmApprovalReference(reference)) {
+    return {
+      ok: false,
+      params: {},
+      errors: [
+        "Enter a meaningful correction reference. Placeholders such as — or N/A are not allowed.",
+      ],
+      extraKeys: [],
+    };
+  }
+  return finalize(
+    "rpc_correct_product_route_family_assignment_effective_from",
+    buildPrmRpcParams({
+      p_assignment_id: {
+        kind: "int",
+        value: assignment_id ?? p_assignment_id,
+        required: true,
+      },
+      p_corrected_effective_from: {
+        kind: "date",
+        value: corrected_effective_from ?? p_corrected_effective_from,
+        required: true,
+        fallbackToToday: false,
+      },
+      p_correction_reason: {
+        kind: "string",
+        value: String(reason).trim(),
+        required: true,
+      },
+      p_correction_reference: {
+        kind: "string",
+        value: String(reference).trim(),
+        required: true,
+      },
+    }),
+  );
+}
+
 export function buildProductAssignmentsRpcArgs(input = {}) {
   return finalize(
     "rpc_get_production_route_manager_product_assignments",
@@ -1679,6 +1970,18 @@ export const PRM_RPC_BUILDERS = Object.freeze({
   rpc_map_product_group_to_route_family: buildMapProductGroupToRouteFamilyArgs,
   rpc_approve_route_family_mapping: buildApproveRouteFamilyMappingArgs,
   rpc_update_route_family_mapping_draft: buildUpdateRouteFamilyMappingDraftArgs,
+  rpc_get_production_route_manager_subgroup_mappings: buildSubgroupMappingsRpcArgs,
+  rpc_map_product_subgroup_to_route_family:
+    buildMapProductSubgroupToRouteFamilyArgs,
+  rpc_update_product_subgroup_route_family_mapping_draft:
+    buildUpdateProductSubgroupMappingDraftArgs,
+  rpc_submit_product_subgroup_route_family_mapping_for_review:
+    buildSubmitProductSubgroupMappingArgs,
+  rpc_approve_product_subgroup_route_family_mapping:
+    buildApproveProductSubgroupMappingArgs,
+  rpc_inactivate_product_subgroup_route_family_mapping:
+    buildInactivateProductSubgroupMappingArgs,
+  rpc_get_archived_production_route_architecture: buildArchivedRoutesRpcArgs,
   rpc_create_route_family_route_draft: buildCreateRouteFamilyRouteDraftArgs,
   rpc_clone_route_family_route_draft: buildCloneRouteFamilyRouteDraftArgs,
   rpc_upsert_route_family_route_step: buildUpsertRouteFamilyRouteStepArgs,
@@ -1703,6 +2006,8 @@ export const PRM_RPC_BUILDERS = Object.freeze({
     buildApproveProductRouteFamilyAssignmentArgs,
   rpc_inactivate_product_route_family_assignment:
     buildInactivateProductRouteFamilyAssignmentArgs,
+  rpc_correct_product_route_family_assignment_effective_from:
+    buildCorrectProductRouteFamilyAssignmentEffectiveFromArgs,
   rpc_cancel_product_route_family_assignment:
     buildCancelProductRouteFamilyAssignmentArgs,
 });

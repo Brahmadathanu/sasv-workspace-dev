@@ -41614,6 +41614,15 @@ export type Database = {
         Args: { p_assignment_id: number; p_cancellation_reason: string }
         Returns: Json
       }
+      rpc_correct_product_route_family_assignment_effective_from: {
+        Args: {
+          p_assignment_id: number
+          p_corrected_effective_from: string
+          p_correction_reason: string
+          p_correction_reference: string
+        }
+        Returns: Json
+      }
       rpc_cancel_scheduled_product_mrp_derivation_policy: {
         Args: {
           p_cancellation_approval_reference?: string

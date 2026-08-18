@@ -9,6 +9,8 @@ import {
   PRM_COST_CENTRE_ROUTE_USE_NOTE,
   PRM_COST_CENTRE_STATUSES,
   PRM_COST_CENTRE_TYPES,
+  PRM_PRODUCTION_COST_CENTRE_APPROVAL_REFERENCE_HELPER_TEXT,
+  buildPrmProductionCostCentreApprovalReference,
   coercePrmList,
   filterPrmAreasBySectionSubsection,
   filterPrmPlantsByLocation,
@@ -16,15 +18,19 @@ import {
   formatPrmCostCentrePoolScopeLabel,
   formatPrmCostCentreTypeLabel,
   formatPrmCostCentreValidationLabel,
-  formatPrmResourceClassLabel,
+  buildPrmResourceClassLabelIndex,
+  resolvePrmResourceClassDisplayLabel,
   formatPrmRpcError,
   getPrmCostCentreLocationRequirements,
+  getPrmLocalIsoDate,
   isBlankPrmValue,
   normalizePrmCode,
   normalizePrmCostCentreValidation,
   normalizePrmIntegerId,
   normalizePrmProductionCostCentreDetailPayload,
   normalizePrmProductionCostCentresPayload,
+  resolvePrmProductionCostCentreApprovalIdentity,
+  validatePrmProductionCostCentreApprovalReference,
 } from "./costing-suite-production-route-helpers.js";
 import {
   buildApproveProductionCostCentreRpcArgs,
@@ -78,6 +84,7 @@ export function createProductionCostCentresController(deps = {}) {
     hosts,
     bindRows,
     on,
+    onRegisterRefreshed,
   } = deps;
 
   const state = {
@@ -135,8 +142,11 @@ export function createProductionCostCentresController(deps = {}) {
       if (statusEl) state.statusFilter = statusEl.value || "";
       if (poolEl) state.poolFilter = poolEl.value || "";
       paintLoading();
-      await load({ search: getSearch() });
-      deps.onMutated?.();
+      await refreshCostCentresAfterMutation({
+        refreshMasterOptions: false,
+        refreshFailureMessage:
+          "Cost Centres could not be refreshed with the current filters.",
+      });
     });
   }
 
@@ -145,8 +155,11 @@ export function createProductionCostCentresController(deps = {}) {
     state.poolFilter = "";
     syncDrawerFilters();
     paintLoading();
-    const result = await load({ search: "" });
-    deps.onMutated?.();
+    const result = await refreshCostCentresAfterMutation({
+      refreshMasterOptions: false,
+      refreshFailureMessage:
+        "Cost Centres could not be refreshed after clearing filters.",
+    });
     return result;
   }
 
@@ -172,6 +185,34 @@ export function createProductionCostCentresController(deps = {}) {
     }
   }
 
+  function resourceClassDisplayContext() {
+    const catalogue = coercePrmList(getOptions()?.resource_classes);
+    return {
+      catalogue,
+      catalogueIndex: buildPrmResourceClassLabelIndex(catalogue),
+    };
+  }
+
+  function enrichCostCentreResourceLabels(rows = []) {
+    const ctx = resourceClassDisplayContext();
+    return coercePrmList(rows).map((row) => {
+      const code = normalizePrmCode(
+        row.default_resource_class_code ||
+          row.resource_class ||
+          row.resource_class_code,
+      );
+      const label = resolvePrmResourceClassDisplayLabel(code, {
+        ...ctx,
+        rowLabel: row.resource_class_label || row.default_resource_class_label,
+      });
+      return {
+        ...row,
+        resource_class_label: label,
+        default_resource_class_label: label,
+      };
+    });
+  }
+
   function resourceOptionsHtml(selected = "") {
     const rows = coercePrmList(getOptions()?.resource_classes);
     return ["<option value=\"\">— Select —</option>"]
@@ -181,14 +222,13 @@ export function createProductionCostCentresController(deps = {}) {
             row.code || row.resource_class_code,
           ).toUpperCase();
           if (!code) return "";
-          const label =
-            row.label ||
-            row.resource_class_label ||
-            formatPrmResourceClassLabel(code) ||
-            code;
+          const label = resolvePrmResourceClassDisplayLabel(code, {
+            catalogue: rows,
+            rowLabel: row.label || row.resource_class_label,
+          });
           const sel =
             code === String(selected || "").toUpperCase() ? " selected" : "";
-          return `<option value="${text(code)}"${sel}>${text(label)}</option>`;
+          return `<option value="${text(code)}" title="${text(code)}"${sel}>${text(label)}</option>`;
         }),
       )
       .filter(Boolean)
@@ -455,11 +495,6 @@ export function createProductionCostCentresController(deps = {}) {
     );
   }
 
-  async function refreshOptions() {
-    if (typeof loadMasterOptions === "function") {
-      await loadMasterOptions();
-    }
-  }
 
   async function load({ search = getSearch() } = {}) {
     state.loadError = null;
@@ -483,10 +518,35 @@ export function createProductionCostCentresController(deps = {}) {
       state.rows = [];
       return response;
     }
-    const payload = normalizePrmProductionCostCentresPayload(response.data);
+    const payload = normalizePrmProductionCostCentresPayload(
+      response.data,
+      resourceClassDisplayContext(),
+    );
     state.payload = payload;
-    state.rows = payload.cost_centres || [];
+    state.rows = enrichCostCentreResourceLabels(payload.cost_centres || []);
     return { ok: true, data: payload };
+  }
+
+  async function refreshCostCentresAfterMutation({
+    refreshFailureMessage = "Cost Centre register could not be refreshed.",
+    refreshMasterOptions = true,
+  } = {}) {
+    if (refreshMasterOptions && typeof loadMasterOptions === "function") {
+      try {
+        await loadMasterOptions();
+      } catch {
+        /* master-options sync must not block authoritative register re-read */
+      }
+    }
+    const result = await load({ search: getSearch() });
+    state.detail = null;
+    if (isActiveLens()) {
+      onRegisterRefreshed?.();
+    }
+    if (!result?.ok) {
+      showToast?.(refreshFailureMessage, "warning", 5200);
+    }
+    return result;
   }
 
   function openCreate() {
@@ -521,10 +581,11 @@ export function createProductionCostCentresController(deps = {}) {
             );
             if (!response.ok) return response;
             showToast?.("Cost Centre DRAFT created.", "success");
-            await refreshOptions();
-            await load({ search: getSearch() });
             closeModal({ restorePrevious: false });
-            deps.onMutated?.();
+            await refreshCostCentresAfterMutation({
+              refreshFailureMessage:
+                "Cost Centre created, but the register could not be refreshed.",
+            });
             return { ok: true };
           });
         });
@@ -554,7 +615,8 @@ export function createProductionCostCentresController(deps = {}) {
       effective_from: centre.effective_from,
       description: centre.description,
     };
-    openModal({
+    openModal(
+      {
       title: "Edit Cost Centre DRAFT",
       subtitle: centre.cost_centre_code || centre.code || "",
       html: costCentreFormShell({
@@ -614,16 +676,19 @@ export function createProductionCostCentresController(deps = {}) {
             );
             if (!response.ok) return response;
             showToast?.("Cost Centre DRAFT updated.", "success");
-            await refreshOptions();
-            await load({ search: getSearch() });
             closeModal({ restorePrevious: false });
+            await refreshCostCentresAfterMutation({
+              refreshFailureMessage:
+                "Cost Centre updated, but the register could not be refreshed.",
+            });
             await openDetail({ cost_centre_id: centre.cost_centre_id });
-            deps.onMutated?.();
             return { ok: true };
           });
         });
       },
-    });
+    },
+      { replace: true },
+    );
   }
 
   function openApprove(centre) {
@@ -631,19 +696,36 @@ export function createProductionCostCentresController(deps = {}) {
       showToast?.("Edit permission required.", "warning");
       return;
     }
-    openModal({
-      title: "Approve Cost Centre",
-      subtitle: centre.cost_centre_code || centre.code || "",
+    const identity = resolvePrmProductionCostCentreApprovalIdentity({
+      detail: centre,
+    });
+    if (!identity.ok) {
+      showToast?.(identity.error, "warning");
+      return;
+    }
+    const generated = buildPrmProductionCostCentreApprovalReference({
+      costCentreCode: identity.costCentreCode,
+      approvalDate: getPrmLocalIsoDate(),
+    });
+    if (!generated.ok) {
+      showToast?.(generated.error, "warning");
+      return;
+    }
+    openModal(
+      {
+      title: "Approve Production Cost Centre",
+      subtitle: "Canonical approval reference",
       html: costCentreFormShell({
-        notice:
-          "Approval requires a meaningful reference. Placeholders are rejected.",
         sectionTitle: "Approval",
         fieldsHtml: [
           formField({
             id: "prmCcApproveRef",
             label: "Approval reference",
             required: true,
-            hint: PRM_APPROVAL_REFERENCE_HELPER_TEXT,
+            full: true,
+            readonly: true,
+            value: generated.reference,
+            hint: PRM_PRODUCTION_COST_CENTRE_APPROVAL_REFERENCE_HELPER_TEXT,
           }),
           formField({
             id: "prmCcApproveEffective",
@@ -656,19 +738,47 @@ export function createProductionCostCentresController(deps = {}) {
         actionsHtml: `<button type="button" class="icon-btn icon-btn-primary" data-prm-approve-cost-centre-submit>Approve</button>`,
       }),
       bind: (host) => {
-        host.querySelector("#prmCcApproveRef")?.focus();
+        host
+          .querySelector("[data-prm-approve-cost-centre-submit]")
+          ?.focus();
         onModal(host, "click", async (event) => {
           const submit = event.target.closest(
             "[data-prm-approve-cost-centre-submit]",
           );
           if (!submit) return;
           await withMutation(submit, async () => {
+            const currentIdentity =
+              resolvePrmProductionCostCentreApprovalIdentity({
+                detail: centre,
+              });
+            if (!currentIdentity.ok) {
+              showToast?.(currentIdentity.error, "warning");
+              return { ok: false, reason: currentIdentity.reason };
+            }
+            const recomputed = buildPrmProductionCostCentreApprovalReference({
+              costCentreCode: currentIdentity.costCentreCode,
+              approvalDate: getPrmLocalIsoDate(),
+            });
+            if (!recomputed.ok) {
+              showToast?.(recomputed.error, "warning");
+              return { ok: false, reason: recomputed.reason };
+            }
+            const checked = validatePrmProductionCostCentreApprovalReference(
+              recomputed.reference,
+              {
+                costCentreCode: currentIdentity.costCentreCode,
+                approvalDate: getPrmLocalIsoDate(),
+              },
+            );
+            if (!checked.ok) {
+              showToast?.(checked.error, "warning");
+              return { ok: false, reason: checked.reason };
+            }
             const response = await governed(
               RPC.approve,
               buildApproveProductionCostCentreRpcArgs({
                 cost_centre_id: centre.cost_centre_id,
-                approval_reference: host.querySelector("#prmCcApproveRef")
-                  ?.value,
+                approval_reference: recomputed.reference,
                 effective_from:
                   host.querySelector("#prmCcApproveEffective")?.value || null,
               }),
@@ -676,15 +786,18 @@ export function createProductionCostCentresController(deps = {}) {
             );
             if (!response.ok) return response;
             showToast?.("Cost Centre approved.", "success");
-            await refreshOptions();
-            await load({ search: getSearch() });
             closeModal({ restorePrevious: false });
-            deps.onMutated?.();
+            await refreshCostCentresAfterMutation({
+              refreshFailureMessage:
+                "Cost Centre approved, but the register could not be refreshed.",
+            });
             return { ok: true };
           });
         });
       },
-    });
+    },
+      { replace: true },
+    );
   }
 
   function openInactivate(centre) {
@@ -692,7 +805,8 @@ export function createProductionCostCentresController(deps = {}) {
       showToast?.("Edit permission required.", "warning");
       return;
     }
-    openModal({
+    openModal(
+      {
       title: "Inactivate Cost Centre",
       subtitle: centre.cost_centre_code || centre.code || "",
       html: costCentreFormShell({
@@ -737,18 +851,21 @@ export function createProductionCostCentresController(deps = {}) {
             );
             if (!response.ok) return response;
             showToast?.("Cost Centre inactivated.", "success");
-            await refreshOptions();
-            await load({ search: getSearch() });
             closeModal({ restorePrevious: false });
-            deps.onMutated?.();
+            await refreshCostCentresAfterMutation({
+              refreshFailureMessage:
+                "Cost Centre inactivated, but the register could not be refreshed.",
+            });
             return { ok: true };
           });
         });
       },
-    });
+    },
+      { replace: true },
+    );
   }
 
-  async function openDetail(row) {
+  async function openDetail(row, { replace = false } = {}) {
     if (!row) return;
     let centre = row;
     const id = normalizePrmIntegerId(row.cost_centre_id);
@@ -759,8 +876,10 @@ export function createProductionCostCentresController(deps = {}) {
         "Unable to load Cost Centre detail.",
       );
       if (detail.ok) {
-        centre = normalizePrmProductionCostCentreDetailPayload(detail.data)
-          .cost_centre;
+        centre = normalizePrmProductionCostCentreDetailPayload(
+          detail.data,
+          resourceClassDisplayContext(),
+        ).cost_centre;
         state.detail = centre;
       }
     }
@@ -786,7 +905,8 @@ export function createProductionCostCentresController(deps = {}) {
         `<button type="button" class="icon-btn" data-prm-cc-inactivate>Inactivate</button>`,
       );
     }
-    openModal({
+    openModal(
+      {
       title: centre.cost_centre_name || centre.name || "Cost Centre",
       subtitle: centre.cost_centre_code || centre.code || "",
       html: `<div class="cp-prm-summary cp-prm-cost-centre-modal" data-prm-cost-centre-detail>
@@ -885,22 +1005,45 @@ export function createProductionCostCentresController(deps = {}) {
       bind: (host) => {
         onModal(host, "click", async (event) => {
           if (event.target.closest("[data-prm-cc-edit]")) {
-            closeModal({ restorePrevious: false });
+            event.stopPropagation();
             openEditDraft(centre);
             return;
           }
           if (event.target.closest("[data-prm-cc-approve]")) {
-            closeModal({ restorePrevious: false });
+            event.stopPropagation();
+            if (!canEdit()) {
+              showToast?.("Edit permission required.", "warning");
+              return;
+            }
+            const approveStatus = normalizePrmCode(centre.status).toUpperCase();
+            if (approveStatus !== "DRAFT") {
+              showToast?.(
+                "Only DRAFT Cost Centres can be approved.",
+                "warning",
+              );
+              return;
+            }
+            const approveValidation = normalizePrmCostCentreValidation(
+              centre.validation,
+            );
+            if (!approveValidation.valid) {
+              showToast?.(
+                "Validate the Cost Centre before approval.",
+                "warning",
+              );
+              return;
+            }
             openApprove(centre);
             return;
           }
           if (event.target.closest("[data-prm-cc-inactivate]")) {
-            closeModal({ restorePrevious: false });
+            event.stopPropagation();
             openInactivate(centre);
             return;
           }
           const validateBtn = event.target.closest("[data-prm-cc-validate]");
           if (!validateBtn) return;
+          event.stopPropagation();
           await withMutation(validateBtn, async () => {
             const response = await governed(
               RPC.validate,
@@ -917,13 +1060,19 @@ export function createProductionCostCentresController(deps = {}) {
                 : `Invalid: ${(v.errors || []).join("; ") || "see server errors"}`,
               v.valid ? "success" : "warning",
             );
-            closeModal({ restorePrevious: false });
-            await openDetail({ ...centre, validation: v });
+            await refreshCostCentresAfterMutation({
+              refreshMasterOptions: false,
+              refreshFailureMessage:
+                "Cost Centre validated, but the register could not be refreshed.",
+            });
+            await openDetail({ cost_centre_id: centre.cost_centre_id }, { replace: true });
             return { ok: true };
           });
         });
       },
-    });
+    },
+      { replace },
+    );
   }
 
   function render() {

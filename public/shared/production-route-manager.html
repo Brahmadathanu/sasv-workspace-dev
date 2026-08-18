@@ -1206,12 +1206,14 @@
           max-height: none;
         }
         .modal-overlay.cp-prm-modal-overlay--workload-summary,
-        .modal-overlay.cp-prm-modal-overlay--product-summary {
+        .modal-overlay.cp-prm-modal-overlay--product-summary,
+        .modal-overlay.cp-prm-modal-overlay--subgroup-detail {
           padding: 0;
           align-items: stretch;
         }
         .modal-window.cp-prm-modal-window--workload-summary,
-        .modal-window.cp-prm-modal-window--product-summary {
+        .modal-window.cp-prm-modal-window--product-summary,
+        .modal-window.cp-prm-modal-window--subgroup-detail {
           width: 100vw;
           height: 100dvh;
           max-width: none;
@@ -1219,23 +1221,27 @@
           border-radius: 0;
         }
         .modal-window.cp-prm-modal-window--workload-summary .modal-header,
-        .modal-window.cp-prm-modal-window--product-summary .modal-header {
+        .modal-window.cp-prm-modal-window--product-summary .modal-header,
+        .modal-window.cp-prm-modal-window--subgroup-detail .modal-header {
           padding: 8px 10px;
           align-items: center;
           gap: 8px;
         }
         .modal-window.cp-prm-modal-window--workload-summary .cp-modal-title,
-        .modal-window.cp-prm-modal-window--product-summary .cp-modal-title {
+        .modal-window.cp-prm-modal-window--product-summary .cp-modal-title,
+        .modal-window.cp-prm-modal-window--subgroup-detail .cp-modal-title {
           font-size: 0.95rem;
           line-height: 1.25;
         }
         .modal-window.cp-prm-modal-window--workload-summary .peq-modal-subtitle,
-        .modal-window.cp-prm-modal-window--product-summary .peq-modal-subtitle {
+        .modal-window.cp-prm-modal-window--product-summary .peq-modal-subtitle,
+        .modal-window.cp-prm-modal-window--subgroup-detail .peq-modal-subtitle {
           font-size: 0.78rem;
           line-height: 1.3;
         }
         .modal-window.cp-prm-modal-window--workload-summary .modal-close-btn,
-        .modal-window.cp-prm-modal-window--product-summary .modal-close-btn {
+        .modal-window.cp-prm-modal-window--product-summary .modal-close-btn,
+        .modal-window.cp-prm-modal-window--subgroup-detail .modal-close-btn {
           flex: 0 0 auto;
         }
         .modal-window.cp-prm-modal-window--workload-summary .modal-content,
@@ -1664,6 +1670,10 @@
         gap: 8px;
         margin-top: 8px;
         font-size: var(--sasv-text-sm, 13px);
+      }
+      .cp-prm-product-delta-form .sasv-search-select {
+        min-width: 0;
+        max-width: 100%;
       }
       @media (max-width: 760px) {
         .cp-prm-compat-grid {
@@ -2098,7 +2108,7 @@
       }
       .cp-prm-field-hint {
         display: block;
-        margin-top: 2px;
+        margin-top: var(--sasv-space-1, 4px);
         font-size: 11.5px;
         line-height: 1.35;
         color: var(--muted, #6b7280);
@@ -2204,6 +2214,14 @@
         font-size: 12.5px;
         line-height: 1.45;
       }
+      [data-prm-subgroup-family-context]:empty {
+        display: none;
+      }
+      [data-prm-subgroup-family-context] {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
       [data-theme="dark"] .cp-prm-form-notice {
         border-color: var(--sasv-action-primary-soft-border);
         background: var(--sasv-action-primary-soft);
@@ -2212,8 +2230,12 @@
       .cp-prm-form-field {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--sasv-space-1, 4px);
         min-width: 0;
+      }
+      .cp-prm-form .cp-detail-grid--2col {
+        row-gap: var(--sasv-space-3, 12px);
+        column-gap: var(--sasv-space-4, 16px);
       }
       .cp-prm-form-field .cp-field-label {
         font-size: 12px;
@@ -2455,6 +2477,57 @@
       .cp-prm-cost-centres-toolbar [data-prm-create-cost-centre] {
         margin-left: auto;
       }
+      .table-card.cp-prm-route-families-chrome-active > .cp-prm-chrome-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: var(--sasv-space-2, 8px);
+        row-gap: var(--sasv-space-2, 8px);
+        width: 100%;
+        margin: 0 0 var(--sasv-space-3, 12px);
+      }
+      .cp-prm-route-families-chrome-active #prmSetupBanner:not(.hidden) {
+        display: inline-flex;
+        flex: 0 1 auto;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--sasv-space-2, 8px);
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        max-width: 100%;
+      }
+      .cp-prm-route-families-chrome-active
+        #workbenchSummary.cp-prm-route-families-summary-host {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        max-width: 100%;
+      }
+      .cp-workbench-summary.cp-prm-route-families-summary-host {
+        margin: 0;
+        padding: 0;
+        border-radius: 0;
+        width: auto;
+        max-width: 100%;
+      }
+      .cp-prm-route-families-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--sasv-space-2, 8px) var(--sasv-space-3, 12px);
+        width: 100%;
+        margin: 0;
+      }
+      .cp-prm-route-families-toolbar [data-prm-create-route-family] {
+        margin-left: auto;
+      }
       .cp-prm-cost-centre-manager-row {
         cursor: pointer;
       }
@@ -2487,6 +2560,53 @@
       }
       .cp-prm-cost-centre-modal .cp-field-label {
         margin-bottom: var(--sasv-space-2, 8px);
+      }
+      /* Gate 11Y.10I.2C.3F.2B.3E — Subgroup Mapping compact register + detail */
+      #mainTable[data-prm-subgroup-mappings-table] {
+        min-width: 0;
+        width: 100%;
+        table-layout: auto;
+      }
+      #mainTable[data-prm-subgroup-mappings-table] th,
+      #mainTable[data-prm-subgroup-mappings-table] td {
+        vertical-align: top;
+        word-break: break-word;
+      }
+      #mainTable[data-prm-subgroup-mappings-table] th:nth-child(1),
+      #mainTable[data-prm-subgroup-mappings-table] td:nth-child(1) {
+        min-width: 9rem;
+        width: 22%;
+      }
+      #mainTable[data-prm-subgroup-mappings-table] th:nth-child(3),
+      #mainTable[data-prm-subgroup-mappings-table] td:nth-child(3) {
+        min-width: 9rem;
+        width: 24%;
+      }
+      #mainTable[data-prm-subgroup-mappings-table] th:nth-child(4),
+      #mainTable[data-prm-subgroup-mappings-table] td:nth-child(4) {
+        white-space: nowrap;
+        width: 1%;
+      }
+      .modal-window.cp-prm-modal-window--subgroup-detail {
+        width: min(94vw, 980px);
+        max-height: 90vh;
+      }
+      .cp-prm-subgroup-detail.cp-prm-summary {
+        gap: var(--sasv-space-4, 16px);
+      }
+      .cp-prm-subgroup-detail .cp-detail-section {
+        margin: 0;
+        padding-block: var(--sasv-space-2, 8px);
+      }
+      .cp-prm-subgroup-detail .cp-detail-grid {
+        gap: var(--sasv-space-2, 8px) var(--sasv-space-4, 16px);
+      }
+      .cp-prm-subgroup-detail .cp-field-label {
+        margin-bottom: var(--sasv-space-1, 4px);
+      }
+      .cp-prm-subgroup-detail [data-prm-subgroup-detail-actions] {
+        flex-wrap: wrap;
+        gap: var(--sasv-space-2, 8px);
       }
       .cp-prm-foundation-review-meta {
         display: flex;
@@ -2546,6 +2666,27 @@
         display: grid;
         gap: 4px;
         margin-bottom: 6px;
+      }
+      body[data-costing-module-key="production-route-manager"][data-costing-lens="effective-route-viewer"] [data-prm-lens-root="effective-route-viewer"] .cp-prm-effective {
+        min-width: 0;
+        max-width: 100%;
+      }
+      body[data-costing-module-key="production-route-manager"][data-costing-lens="effective-route-viewer"] [data-prm-lens-root="effective-route-viewer"] .cp-prm-step-table-wrap {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .cp-prm-effective-viewer-toolbar {
+        display: grid;
+        gap: 6px;
+        align-items: start;
+      }
+      .cp-prm-effective-viewer-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        font-size: 12.5px;
+        color: var(--muted, var(--sasv-text-muted));
       }
       .cp-prm-step-table-wrap {
         overflow-x: auto;
@@ -2755,6 +2896,39 @@
                 <option value="">Select status…</option>
               </select>
             </label>
+          </div>
+          <div class="peq-filter-section" data-peq-section="prm-subgroup" hidden>
+            <div class="peq-filter-section-title">Subgroup mapping status</div>
+            <ul class="peq-filter-checklist" id="prmSubgroupStatusChecklist">
+              <li>
+                <label
+                  ><input
+                    type="radio"
+                    name="prmSubgroupStatus"
+                    data-prm-subgroup-status=""
+                    value=""
+                    checked
+                  />
+                  All</label
+                >
+              </li>
+            </ul>
+            <label class="cp-prm-field" style="display:block;margin-top:8px" for="prmSubgroupFilterSelect">
+              <span class="peq-filter-section-title">Product Subgroup</span>
+              <select
+                id="prmSubgroupFilterSelect"
+                class="cp-period-select"
+                aria-label="Filter by Product Subgroup"
+              >
+                <option value="">All Product Subgroups</option>
+              </select>
+            </label>
+          </div>
+          <div class="peq-filter-section" data-peq-section="prm-archived" hidden>
+            <div class="peq-filter-section-title">Archived entity type</div>
+            <p class="cp-muted-text" style="margin:4px 0 0">
+              Use the Entity type control in the Archived Routes toolbar. Search uses the shared search field.
+            </p>
           </div>
           <div class="peq-filter-section" data-peq-section="prm-workload" hidden>
             <div class="peq-filter-section-title">Foundation status</div>

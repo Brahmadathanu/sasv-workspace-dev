@@ -18,6 +18,7 @@ const {
   ipcMain,
   dialog,
   Menu,
+  shell,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -55,12 +56,102 @@ function resolveCanonicalAppIconPath() {
   return candidates[0];
 }
 
+const PACKAGED_APP_USER_MODEL_ID = "com.brahmadathanu.sasvworkspace";
+const DEV_APP_USER_MODEL_ID = "com.brahmadathanu.sasvworkspace.dev";
+
 if (process.platform === "win32") {
-  app.setAppUserModelId("com.brahmadathanu.sasvworkspace");
+  app.setAppUserModelId(
+    app.isPackaged ? PACKAGED_APP_USER_MODEL_ID : DEV_APP_USER_MODEL_ID,
+  );
 }
 
 /** Absolute .ico path for BrowserWindow (Windows taskbar needs the file, not NativeImage). */
 const APP_ICON = resolveCanonicalAppIconPath();
+
+function normalizeShortcutPath(value) {
+  const raw = String(value || "")
+    .trim()
+    .replace(/^"(.*)"$/, "$1");
+  return path.normalize(raw).toLowerCase();
+}
+
+function devStartMenuShortcutPath() {
+  return path.join(
+    app.getPath("appData"),
+    "Microsoft",
+    "Windows",
+    "Start Menu",
+    "Programs",
+    "SASV Workspace Dev.lnk",
+  );
+}
+
+function devStartMenuShortcutSpec() {
+  const appRoot = path.resolve(__dirname);
+  return {
+    target: process.execPath,
+    args: appRoot,
+    cwd: appRoot,
+    icon: APP_ICON,
+    iconIndex: 0,
+    appUserModelId: DEV_APP_USER_MODEL_ID,
+    description: "SASV Workspace Development",
+  };
+}
+
+function devStartMenuShortcutMatches(existing, desired) {
+  return (
+    normalizeShortcutPath(existing.target) ===
+      normalizeShortcutPath(desired.target) &&
+    normalizeShortcutPath(existing.args) ===
+      normalizeShortcutPath(desired.args) &&
+    normalizeShortcutPath(existing.cwd) === normalizeShortcutPath(desired.cwd) &&
+    normalizeShortcutPath(existing.icon) === normalizeShortcutPath(desired.icon) &&
+    Number(existing.iconIndex ?? 0) === Number(desired.iconIndex ?? 0) &&
+    String(existing.appUserModelId || "") ===
+      String(desired.appUserModelId || "") &&
+    String(existing.description || "") === String(desired.description || "")
+  );
+}
+
+function ensureDevStartMenuShortcut() {
+  if (process.platform !== "win32" || app.isPackaged) return;
+
+  const shortcutPath = devStartMenuShortcutPath();
+  const desired = devStartMenuShortcutSpec();
+
+  try {
+    if (fs.existsSync(shortcutPath)) {
+      const existing = shell.readShortcutLink(shortcutPath);
+      if (devStartMenuShortcutMatches(existing, desired)) return;
+      shell.writeShortcutLink(shortcutPath, "update", desired);
+      return;
+    }
+    shell.writeShortcutLink(shortcutPath, "create", desired);
+  } catch (e) {
+    console.warn("[dev] Start Menu shortcut setup failed:", e && e.message);
+  }
+}
+
+function applyWindowsDevWindowIdentity(win) {
+  if (process.platform !== "win32" || app.isPackaged || !win || win.isDestroyed()) {
+    return;
+  }
+  if (typeof win.setAppDetails !== "function") return;
+
+  const appRoot = path.resolve(__dirname);
+  try {
+    win.setAppDetails({
+      appId: DEV_APP_USER_MODEL_ID,
+      appIconPath: APP_ICON,
+      relaunchCommand: `${process.execPath} ${appRoot}`,
+      relaunchDisplayName: "SASV Workspace Development",
+    });
+  } catch (e) {
+    console.warn("[dev] setAppDetails failed:", e && e.message);
+  }
+}
+
 const express = require("express");
 const htmlToDocx = require("html-to-docx");
 const {
@@ -238,6 +329,7 @@ function createWindow() {
       webSecurity: false, // Disable web security to allow CORS in desktop app
     },
   });
+  applyWindowsDevWindowIdentity(mainWindow);
   mainWindow.loadURL("http://localhost:3000/login.html");
   mainWindow.webContents.on("did-finish-load", () => {
     try {
@@ -274,6 +366,7 @@ ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
     const targetUrl = /^https?:|^file:/i.test(absUrl)
       ? absUrl
       : new URL(absUrl, "http://localhost:3000/").toString();
+    applyWindowsDevWindowIdentity(child);
     child.loadURL(targetUrl);
   } catch (err) {
     console.error("open-module-url failed:", err);
@@ -334,6 +427,7 @@ ipcMain.handle("auth:hasPermission", (_evt, moduleName, action) => {
 
 // ---------------- App lifecycle ----------------
 app.whenReady().then(() => {
+  ensureDevStartMenuShortcut();
   createWindow();
   try {
     autoUpdater.autoDownload = true;

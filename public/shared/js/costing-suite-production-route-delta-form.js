@@ -19,21 +19,25 @@ import {
   formatPrmActivityCostCentreCompatibilityStatus,
   formatPrmActivityLocationCopy,
   formatPrmActivityOptionLabel,
+  formatPrmActivityOptionPrimary,
   formatPrmActivityOptionSearchText,
   formatPrmCostCentreContextCopy,
   formatPrmCostCentreOptionLabel,
+  formatPrmCostCentreOptionPrimary,
+  formatPrmCostCentreOptionSecondary,
   formatPrmCostCentreOptionSearchText,
   formatPrmDeltaBaseStepLabel,
   formatPrmDeltaLabel,
   formatPrmDirectLabourScopeLabel,
   formatPrmPlantMachineryStatusLabel,
   formatPrmProductionOverheadScopeLabel,
-  formatPrmResourceClassLabel,
+  resolvePrmResourceClassDisplayLabel,
   formatPrmRouteStepScopeLabel,
   isBlankPrmValue,
   isMeaningfulPrmApprovalReference,
   isPrmOtherPoolStepScope,
   isValidPrmProductDeltaStepKey,
+  canonicalizePrmProductDeltaStepKey,
   normalizePrmCode,
   normalizePrmIntegerId,
   normalizePrmProductRouteOverride,
@@ -47,7 +51,9 @@ import {
 } from "./costing-suite-production-route-helpers.js";
 import { nextPrmFamilyStepSequence } from "./costing-suite-production-route-step-form.js";
 import {
+  destroySearchableSelectsIn,
   enhanceSearchableSelect,
+  syncSearchableSelect,
 } from "./sasv-module-chrome.js";
 
 function escapeHtml(value) {
@@ -62,10 +68,19 @@ function text(value, fallback = "—") {
   return isBlankPrmValue(value) ? fallback : escapeHtml(value);
 }
 
-function optionHtml(value, label, selected, title = "") {
+function optionHtml(value, label, selected, title = "", extra = {}) {
   const sel = String(selected ?? "") === String(value ?? "") ? " selected" : "";
   const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
-  return `<option value="${escapeHtml(value)}"${titleAttr}${sel}>${escapeHtml(label)}</option>`;
+  const primary = extra.primary
+    ? ` data-primary="${escapeHtml(extra.primary)}"`
+    : "";
+  const secondary = extra.secondary
+    ? ` data-secondary="${escapeHtml(extra.secondary)}"`
+    : "";
+  const search = extra.search
+    ? ` data-search="${escapeHtml(extra.search)}"`
+    : "";
+  return `<option value="${escapeHtml(value)}"${titleAttr}${primary}${secondary}${search}${sel}>${escapeHtml(label)}</option>`;
 }
 
 function activityOptionsHtml(activities, selectedId) {
@@ -74,14 +89,15 @@ function activityOptionsHtml(activities, selectedId) {
     const id = normalizePrmIntegerId(row.activity_id ?? row.id);
     if (id == null) continue;
     const label = formatPrmActivityOptionLabel(row);
-    const title = [
-      label,
-      formatPrmActivityOptionSearchText(row),
-      `Activity ${id}`,
-    ]
+    const primary = formatPrmActivityOptionPrimary(row);
+    const secondary = formatPrmActivityLocationCopy(row);
+    const search = formatPrmActivityOptionSearchText(row);
+    const title = [label, search, `Activity ${id}`]
       .filter((part) => !isBlankPrmValue(part))
       .join(" · ");
-    opts.push(optionHtml(id, label, selectedId, title));
+    opts.push(
+      optionHtml(id, label, selectedId, title, { primary, secondary, search }),
+    );
   }
   return opts.join("");
 }
@@ -92,14 +108,36 @@ function costCentreOptionsHtml(centres, selectedId) {
     const id = normalizePrmIntegerId(row.cost_centre_id ?? row.id);
     if (id == null) continue;
     const label = formatPrmCostCentreOptionLabel(row);
-    const title = [
-      label,
-      formatPrmCostCentreOptionSearchText(row),
-      `Cost Centre ${id}`,
-    ]
+    const primary = formatPrmCostCentreOptionPrimary(row);
+    const secondary = formatPrmCostCentreOptionSecondary(row);
+    const search = formatPrmCostCentreOptionSearchText(row);
+    const title = [label, search, `Cost Centre ${id}`]
       .filter((part) => !isBlankPrmValue(part))
       .join(" · ");
-    opts.push(optionHtml(id, label, selectedId, title));
+    opts.push(
+      optionHtml(id, label, selectedId, title, { primary, secondary, search }),
+    );
+  }
+  return opts.join("");
+}
+
+function resourceClassOptionsHtml(rows, selected) {
+  const opts = ['<option value="">— Select —</option>'];
+  for (const row of coercePrmList(rows)) {
+    const code = normalizePrmCode(
+      row?.resource_class_code || row?.code,
+    ).toUpperCase();
+    if (!code) continue;
+    const label = resolvePrmResourceClassDisplayLabel(code, {
+      catalogue: rows,
+      rowLabel: row?.resource_class_label || row?.label,
+    });
+    opts.push(
+      optionHtml(code, label, selected, code, {
+        secondary: code,
+        search: `${label} ${code}`,
+      }),
+    );
   }
   return opts.join("");
 }
@@ -258,16 +296,24 @@ export function buildProductDeltaFormHtml({
   const overrideId = normalizePrmIntegerId(seed.override_id);
   const activityContext = formatPrmActivityLocationCopy(activity);
   const centreContext = formatPrmCostCentreContextCopy(centre);
-  const centreDefaultRc =
-    centre.default_resource_class_label ||
-    formatPrmResourceClassLabel(centre.default_resource_class_code) ||
-    "";
+  const centreDefaultRc = resolvePrmResourceClassDisplayLabel(
+    centre.default_resource_class_code,
+    {
+      catalogue: resources,
+      rowLabel: centre.default_resource_class_label,
+    },
+  );
   const exclusionNotice =
     otherPool || excludedCc
       ? `<p class="cp-prm-form-notice" data-prm-other-pool-notice>This route step remains operationally visible but its cost is owned by another pool. Direct Labour and Production Overhead scopes are set to Excluded.</p>`
       : `<p class="cp-prm-form-notice" data-prm-other-pool-notice hidden></p>`;
+  const catalogueMissing = !activities.length || !centres.length;
+  const catalogueNotice = catalogueMissing
+    ? `<p class="cp-prm-form-notice" data-prm-catalogue-error>Catalogue options are unavailable. Reload master options before adding a Product delta.</p>`
+    : "";
 
   return `<div class="cp-prm-summary cp-prm-form cp-prm-family-step-form cp-prm-product-delta-form" data-prm-product-delta-form data-prm-delta-override-id="${overrideId != null ? overrideId : ""}">
+    ${catalogueNotice}
     ${exclusionNotice}
     <input type="hidden" id="${prefix}SectionId" value="${text(sectionId, "")}" />
     <input type="hidden" id="${prefix}SubsectionId" value="${text(subsectionId, "")}" />
@@ -357,7 +403,7 @@ export function buildProductDeltaFormHtml({
             <select id="${prefix}Behaviour" class="cp-period-select">${codeOptionsHtml(behaviours, "behaviour_code", "behaviour_label", seed.behaviour_code)}</select>
           </div>
           <div class="cp-prm-form-field"><span class="cp-field-label">Resource class</span>
-            <select id="${prefix}Resource" class="cp-period-select">${codeOptionsHtml(resources, "resource_class_code", "resource_class_label", seed.resource_class_code)}</select>
+            <select id="${prefix}Resource" class="cp-period-select">${resourceClassOptionsHtml(resources, seed.resource_class_code)}</select>
             <span class="cp-muted-text" data-prm-resource-default-hint hidden></span>
           </div>
           <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Route step scope</span>
@@ -409,7 +455,7 @@ export function buildProductDeltaFormHtml({
             <select id="${prefix}AlterBehaviour" class="cp-period-select">${codeOptionsHtml(behaviours, "behaviour_code", "behaviour_label", seed.behaviour_code)}</select>
           </div>
           <div class="cp-prm-form-field"><span class="cp-field-label">Resource class</span>
-            <select id="${prefix}AlterResource" class="cp-period-select">${codeOptionsHtml(resources, "resource_class_code", "resource_class_label", seed.resource_class_code)}</select>
+            <select id="${prefix}AlterResource" class="cp-period-select">${resourceClassOptionsHtml(resources, seed.resource_class_code)}</select>
           </div>
         </div>
       </section>`,
@@ -457,7 +503,7 @@ export function buildProductDeltaFormHtml({
       </div>
     </section>
     <div class="cp-prm-form-actions">
-      <button type="button" class="icon-btn icon-btn-primary" data-prm-product-delta-save>${overrideId != null ? "Save delta" : "Add delta"}</button>
+      <button type="button" class="icon-btn icon-btn-primary" data-prm-product-delta-save${catalogueMissing ? " disabled" : ""}>${overrideId != null ? "Save delta" : "Add delta"}</button>
       <button type="button" class="icon-btn" data-prm-product-delta-cancel>Cancel</button>
     </div>
   </div>`;
@@ -477,7 +523,10 @@ function intOrNull(host, sel) {
 function readStepAuthoringFields(host, prefix) {
   return {
     override_step_key:
-      String(host.querySelector(`#${prefix}Key`)?.value || "").trim() || null,
+      canonicalizePrmProductDeltaStepKey(
+        host.querySelector(`#${prefix}Key`)?.value,
+        { trimEdges: true },
+      ) || null,
     sequence_no: num(host, `#${prefix}Seq`),
     activity_id: intOrNull(host, `#${prefix}Activity`),
     cost_centre_id: intOrNull(host, `#${prefix}CostCentre`),
@@ -615,6 +664,10 @@ export function validatePrmProductDeltaForm(
     if (values.base_step_id != null) {
       errors.push("Add step must not target an existing Family step.");
     }
+    values.override_step_key = canonicalizePrmProductDeltaStepKey(
+      values.override_step_key,
+      { trimEdges: true },
+    );
     if (!values.override_step_key) errors.push("Override step key is required.");
     else if (!isValidPrmProductDeltaStepKey(values.override_step_key)) {
       errors.push(
@@ -661,6 +714,10 @@ export function validatePrmProductDeltaForm(
     }
   }
   if (op === "REPLACE_STEP") {
+    values.override_step_key = canonicalizePrmProductDeltaStepKey(
+      values.override_step_key,
+      { trimEdges: true },
+    );
     if (!values.override_step_key) errors.push("Override step key is required.");
     else if (!isValidPrmProductDeltaStepKey(values.override_step_key)) {
       errors.push(
@@ -906,10 +963,10 @@ export function bindProductDeltaForm(
   const refreshResourceDefaultHint = (centre) => {
     if (!resourceEl || !resourceHint) return;
     const defaultCode = normalizePrmCode(centre?.default_resource_class_code);
-    const defaultLabel =
-      centre?.default_resource_class_label ||
-      formatPrmResourceClassLabel(defaultCode) ||
-      "";
+    const defaultLabel = resolvePrmResourceClassDisplayLabel(defaultCode, {
+      catalogue: enriched.resource_classes || [],
+      rowLabel: centre?.default_resource_class_label,
+    });
     if (!defaultCode) {
       resourceHint.hidden = true;
       resourceHint.textContent = "";
@@ -971,10 +1028,13 @@ export function bindProductDeltaForm(
     const copy = host.querySelector("[data-prm-cost-centre-context-copy]");
     const defaultRc = host.querySelector("[data-prm-cost-centre-default-rc]");
     const context = formatPrmCostCentreContextCopy(centre || {});
-    const rcLabel =
-      centre?.default_resource_class_label ||
-      formatPrmResourceClassLabel(centre?.default_resource_class_code) ||
-      "";
+    const rcLabel = resolvePrmResourceClassDisplayLabel(
+      centre?.default_resource_class_code,
+      {
+        catalogue: enriched.resource_classes || [],
+        rowLabel: centre?.default_resource_class_label,
+      },
+    );
     if (copy) copy.textContent = context || "";
     if (defaultRc) {
       defaultRc.hidden = !rcLabel;
@@ -1055,6 +1115,20 @@ export function bindProductDeltaForm(
     }
   };
 
+  const searchableOpts = {
+    placeholder: "Search or select…",
+    allowEmptyOption: true,
+    openOnFocus: true,
+    showAllWhenEmpty: true,
+    preserveQueryOnBlur: true,
+    portalLayer: "modal",
+  };
+  const enhanceIfNeeded = (el) => {
+    if (!el || el._sasvSearch) return;
+    if (!el.options || el.options.length <= 1) return;
+    enhanceSearchableSelect(el, searchableOpts);
+  };
+
   const applyOperation = () => {
     const op = normalizePrmCode(operationEl?.value).toUpperCase();
     const showAdd = op === "ADD_STEP" || op === "REPLACE_STEP";
@@ -1075,6 +1149,10 @@ export function bindProductDeltaForm(
         : coercePrmList(familySteps);
       const still = allowed.some((step) => resolvePrmFamilyStepId(step) === keep);
       if (!still) baseEl.value = "";
+    }
+    if (op === "ALTER_LOCATION") {
+      enhanceIfNeeded(locationActivityEl);
+      syncSearchableSelect(locationActivityEl);
     }
   };
 
@@ -1122,8 +1200,19 @@ export function bindProductDeltaForm(
   });
   scopeEl?.addEventListener("change", refreshExclusion);
   keyEl?.addEventListener("input", () => {
+    applyCanonicalStepKeyInput(keyEl, { trimEdges: false });
     fieldState.override_step_key.mode = "user";
     if (keySuggestion) keySuggestion.hidden = true;
+  });
+  keyEl?.addEventListener("paste", () => {
+    requestAnimationFrame(() => {
+      applyCanonicalStepKeyInput(keyEl, { trimEdges: false });
+      fieldState.override_step_key.mode = "user";
+      if (keySuggestion) keySuggestion.hidden = true;
+    });
+  });
+  keyEl?.addEventListener("blur", () => {
+    applyCanonicalStepKeyInput(keyEl, { trimEdges: true, markUser: false });
   });
   resourceEl?.addEventListener("change", () => {
     const centre = findCentre(normalizePrmIntegerId(ccEl?.value));
@@ -1183,11 +1272,10 @@ export function bindProductDeltaForm(
   if (ccEl?.value) onCostCentreChange();
   refreshExclusion();
 
-  for (const el of host.querySelectorAll("[data-prm-searchable-select]")) {
-    enhanceSearchableSelect(el, {
-      placeholder: "Search or select…",
-      allowEmptyOption: true,
-    });
+  enhanceIfNeeded(activityEl);
+  enhanceIfNeeded(ccEl);
+  if (normalizePrmCode(operationEl?.value).toUpperCase() === "ALTER_LOCATION") {
+    enhanceIfNeeded(locationActivityEl);
   }
 
   host._prmDeltaFormContext = {
@@ -1197,5 +1285,30 @@ export function bindProductDeltaForm(
     effectiveSteps,
     excludeOverrideId,
     compatibilityAcknowledged: () => Boolean(compatAck?.checked),
+    destroySearchable: () => destroySearchableSelectsIn(host),
   };
+}
+
+function applyCanonicalStepKeyInput(el, { trimEdges = false, markUser = true } = {}) {
+  if (!el) return;
+  const start = Number(el.selectionStart);
+  const before = canonicalizePrmProductDeltaStepKey(
+    String(el.value || "").slice(0, Number.isFinite(start) ? start : 0),
+    { trimEdges: false },
+  );
+  const next = canonicalizePrmProductDeltaStepKey(el.value, { trimEdges });
+  if (el.value !== next) {
+    el.value = next;
+    const pos = Math.min(before.length, next.length);
+    try {
+      el.setSelectionRange(pos, pos);
+    } catch {
+      /* ignore */
+    }
+  }
+  void markUser;
+}
+
+export function destroyProductDeltaSearchableSelects(host) {
+  destroySearchableSelectsIn(host);
 }

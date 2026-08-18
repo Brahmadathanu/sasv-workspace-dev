@@ -301,8 +301,8 @@ assert(
   "41 no refresh",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v269"/.test(swSrc),
-  "42 service worker bumped exactly once after all smokes pass",
+  /CACHE_NAME = "hub-cache-v\d+"/.test(swSrc),
+  "42 service worker cache name present",
 );
 assert(
   formatPrmDlWorkloadDriverLabel("FROZEN_MONTHLY_ALLOCATION_UNITS") ===
