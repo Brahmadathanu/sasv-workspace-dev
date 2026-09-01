@@ -717,6 +717,7 @@ export function createProductionRouteEditorController(deps = {}) {
   }
 
   async function validate(mode) {
+    if (!canEdit()) return denied();
     const family = mode === "family";
     const target = family ? familyState : productState;
     // Explicit Validate always re-confirms with the server.
@@ -743,6 +744,7 @@ export function createProductionRouteEditorController(deps = {}) {
   }
 
   async function submit(mode) {
+    if (!canEdit()) return denied();
     const family = mode === "family";
     const target = family ? familyState : productState;
     if (!family) {

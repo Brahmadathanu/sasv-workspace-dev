@@ -54,6 +54,10 @@ const validateFn =
   editorSrc.match(
     /async function validate\(mode\) \{[\s\S]*?\n  async function submit/,
   )?.[0] || "";
+const submitFn =
+  editorSrc.match(
+    /async function submit\(mode\) \{[\s\S]*?\n  async function approve/,
+  )?.[0] || "";
 const loadProductFn =
   editorSrc.match(
     /async function loadProductDetail\([\s\S]*?\n  async function createFamilyDraft/,
@@ -64,6 +68,10 @@ const bindEditorFn =
 const validateBindFn =
   mainSrc.match(
     /if \(action === `validate-\$\{mode\}`\) \{[\s\S]*?\n      if \(action === `submit-\$\{mode\}`\)/,
+  )?.[0] || "";
+const submitBindFn =
+  mainSrc.match(
+    /if \(action === `submit-\$\{mode\}`\) \{[\s\S]*?\n      if \(action === `approve-\$\{mode\}`\)/,
   )?.[0] || "";
 const familyValidateBind =
   validateBindFn.match(
@@ -148,6 +156,32 @@ assert(
     validateFn.includes("RPC.validateProduct") &&
     !/if\s*\(\s*(target|productState)\.validationFresh/.test(validateFn),
   "5 explicit click always calls validator",
+);
+assert(
+  validateFn.includes("if (!canEdit()) return denied();") &&
+    validateFn.indexOf("if (!canEdit()) return denied();") <
+      validateFn.indexOf("RPC.validateProduct"),
+  "5a validate(mode) checks canEdit before RPC",
+);
+assert(
+  submitFn.includes("if (!canEdit()) return denied();") &&
+    submitFn.indexOf("if (!canEdit()) return denied();") <
+      submitFn.indexOf("RPC.submitProduct"),
+  "5b submit(mode) checks canEdit before RPC",
+);
+assert(
+  validateBindFn.includes("if (!canEdit())") &&
+    validateBindFn.includes('showToast?.("Edit permission required.", "warning")') &&
+    validateBindFn.indexOf("if (!canEdit())") <
+      validateBindFn.indexOf("editor.validateProduct()"),
+  "5c product Validate handler denies view-only callers",
+);
+assert(
+  submitBindFn.includes("if (!canEdit())") &&
+    submitBindFn.includes('showToast?.("Edit permission required.", "warning")') &&
+    submitBindFn.indexOf("if (!canEdit())") <
+      submitBindFn.indexOf("editor.submitProduct()"),
+  "5d product Submit handler denies view-only callers",
 );
 assert(
   validateFn.includes("Do not skip merely because validationFresh is already true") &&

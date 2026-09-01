@@ -84,11 +84,38 @@ assert(
   "compact toolbar with route overview modal and attention cue",
 );
 assert(
-  editorSrc.includes("canValidate") &&
-    /canValidate \?[\s\S]*data-prm-action="validate-family"/.test(editorSrc) &&
+  editorSrc.includes("resolvePrmFamilyRouteLifecycleActions") &&
+    editorSrc.includes("lifecycle.validateVisible") &&
+    /lifecycle\.validateVisible[\s\S]*data-prm-action="validate-family"/.test(
+      editorSrc,
+    ) &&
     !editorSrc.includes('summary.valid ? "Route valid"') &&
     !editorSrc.includes('summary.step_count, "0")} steps'),
-  "Validate is edit-gated; Route valid and step count stay out of toolbar",
+  "Validate visibility is lifecycle-gated; Route valid and step count stay out of toolbar",
+);
+assert(
+  /async function validate\(mode\) \{[\s\S]*?if \(!canEdit\(\)\) return denied\(\);/.test(
+    editorSrc,
+  ) &&
+    /async function submit\(mode\) \{[\s\S]*?if \(!canEdit\(\)\) return denied\(\);/.test(
+      editorSrc,
+    ),
+  "Validate and Submit controller actions require canEdit before RPC",
+);
+const validateBindFn =
+  mainSrc.match(
+    /if \(action === `validate-\$\{mode\}`\) \{[\s\S]*?\n      if \(action === `submit-\$\{mode\}`\)/,
+  )?.[0] || "";
+const submitBindFn =
+  mainSrc.match(
+    /if \(action === `submit-\$\{mode\}`\) \{[\s\S]*?\n      if \(action === `approve-\$\{mode\}`\)/,
+  )?.[0] || "";
+assert(
+  validateBindFn.includes("if (!canEdit())") &&
+    validateBindFn.includes('showToast?.("Edit permission required.", "warning")') &&
+    submitBindFn.includes("if (!canEdit())") &&
+    submitBindFn.includes('showToast?.("Edit permission required.", "warning")'),
+  "Validate and Submit bindEditor handlers deny view-only callers",
 );
 assert(
   !editorSrc.includes(

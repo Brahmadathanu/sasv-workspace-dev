@@ -26,6 +26,10 @@ const productHtmlFn =
 const submitFn =
   editorSrc.match(/async function submit\(mode\) \{[\s\S]*?\n  async function approve/)?.[0] ||
   "";
+const submitBindFn =
+  mainSrc.match(
+    /if \(action === `submit-\$\{mode\}`\) \{[\s\S]*?\n      if \(action === `approve-\$\{mode\}`\)/,
+  )?.[0] || "";
 const navigateFn =
   mainSrc.match(
     /function navigate\(lens, params = \{\}, replace = false\) \{[\s\S]*?\n  async function navigateToFamilyRouteEditor/,
@@ -77,6 +81,19 @@ assert(
   submitFn.includes('if (status !== "DRAFT")') &&
     mainSrc.includes("Submit for review is available for DRAFT routes only"),
   "4 client guards block Submit when not DRAFT",
+);
+assert(
+  submitFn.includes("if (!canEdit()) return denied();") &&
+    submitFn.indexOf("if (!canEdit()) return denied();") <
+      submitFn.indexOf('if (status !== "DRAFT")') &&
+    submitFn.indexOf("if (!canEdit()) return denied();") <
+      submitFn.indexOf("if (!target.validationFresh)"),
+  "4a submit(mode) checks canEdit before status and stale-validation gates",
+);
+assert(
+  submitBindFn.includes("if (!canEdit())") &&
+    submitBindFn.includes('showToast?.("Edit permission required.", "warning")'),
+  "4b Submit bindEditor handler denies view-only callers",
 );
 assert(
   navigateFn.includes("Could not open the selected view") &&
