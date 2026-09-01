@@ -47,6 +47,14 @@ const submitFn =
   mainSrc.match(
     /if \(action === `submit-\$\{mode\}`\) \{[\s\S]*?\n      if \(action === `approve-\$\{mode\}`\)/,
   )?.[0] || "";
+const editorValidateFn =
+  editorSrc.match(
+    /async function validate\(mode\) \{[\s\S]*?\n  async function submit/,
+  )?.[0] || "";
+const editorSubmitFn =
+  editorSrc.match(
+    /async function submit\(mode\) \{[\s\S]*?\n  async function approve/,
+  )?.[0] || "";
 const approveFn =
   mainSrc.match(
     /function openApproveFamilyRouteModal\([\s\S]*?\n  function openApproveProductRouteModal/,
@@ -337,6 +345,32 @@ assert(
     familyHtmlFn.includes("validate-family") &&
     familyHtmlFn.includes("lifecycle.validateVisible"),
   "24 Validate existing approved-state behavior unchanged",
+);
+assert(
+  editorValidateFn.includes("if (!canEdit()) return denied();") &&
+    editorValidateFn.indexOf("if (!canEdit()) return denied();") <
+      editorValidateFn.indexOf("RPC.validateFamily"),
+  "24a validate(mode) checks canEdit before RPC",
+);
+assert(
+  editorSubmitFn.includes("if (!canEdit()) return denied();") &&
+    editorSubmitFn.indexOf("if (!canEdit()) return denied();") <
+      editorSubmitFn.indexOf("RPC.submitFamily") &&
+    editorSubmitFn.indexOf("if (!canEdit()) return denied();") <
+      editorSubmitFn.indexOf('if (status !== "DRAFT")'),
+  "24b submit(mode) checks canEdit before status and RPC",
+);
+assert(
+  validateFn.includes("if (!canEdit())") &&
+    validateFn.includes('showToast?.("Edit permission required.", "warning")') &&
+    submitFn.includes("if (!canEdit())") &&
+    submitFn.includes('showToast?.("Edit permission required.", "warning")'),
+  "24c Validate and Submit bindEditor handlers deny view-only callers",
+);
+assert(
+  editorSubmitFn.includes("if (!target.validationFresh)") &&
+    editorSubmitFn.includes("Validate after the latest edits before submitting."),
+  "24d stale-validation gate unchanged for editable submit",
 );
 assert(
   lifecycleFn.includes("includeSecondary: false") &&

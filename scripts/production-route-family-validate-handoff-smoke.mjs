@@ -165,6 +165,25 @@ assert(
   "5 explicit Validate always invokes RPC",
 );
 assert(
+  validateFn.includes("if (!canEdit()) return denied();") &&
+    validateFn.indexOf("if (!canEdit()) return denied();") <
+      validateFn.indexOf("RPC.validateFamily"),
+  "5a validate(mode) checks canEdit before RPC",
+);
+assert(
+  submitFn.includes("if (!canEdit()) return denied();") &&
+    submitFn.indexOf("if (!canEdit()) return denied();") <
+      submitFn.indexOf("RPC.submitFamily"),
+  "5b submit(mode) checks canEdit before RPC",
+);
+assert(
+  validateBindFn.includes("if (!canEdit())") &&
+    validateBindFn.includes('showToast?.("Edit permission required.", "warning")') &&
+    validateBindFn.indexOf("if (!canEdit())") <
+      validateBindFn.indexOf("editor.validateFamily()"),
+  "5c family Validate handler denies view-only callers",
+);
+assert(
   familyIdFn.includes("familyState.detail?.family_route_id") &&
     familyIdFn.indexOf("detail?.family_route_id") <
       familyIdFn.indexOf("route_family_route_id") &&

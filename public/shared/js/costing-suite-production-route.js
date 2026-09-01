@@ -10245,6 +10245,10 @@ export function createProductionRouteController(deps = {}) {
         return;
       }
       if (action === `validate-${mode}`) {
+        if (!canEdit()) {
+          showToast?.("Edit permission required.", "warning");
+          return;
+        }
         if (mode === "family") {
           const familyButton = event.target.closest(
             '[data-prm-action="validate-family"]',
@@ -10300,6 +10304,10 @@ export function createProductionRouteController(deps = {}) {
         return;
       }
       if (action === `submit-${mode}`) {
+        if (!canEdit()) {
+          showToast?.("Edit permission required.", "warning");
+          return;
+        }
         if (mode === "family") {
           const detail = editor.getFamilyState?.()?.detail || {};
           const status = String(
