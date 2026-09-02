@@ -42,6 +42,7 @@ const requiredRpcs = [
   "rpc_eaushadhi_verify_product",
   "rpc_eaushadhi_source_issue_context",
   "rpc_eaushadhi_resolve_source_issue",
+  "rpc_eaushadhi_correct_working_source_line",
 ];
 
 for (const name of requiredRpcs) {
@@ -95,6 +96,17 @@ assert(apiSrc.includes("p_confirm_current_identity:"), "source resolve uses p_co
 assert(apiSrc.includes("p_expected_resolution_id:"), "source resolve uses p_expected_resolution_id");
 assert(apiSrc.includes("p_part_used_term_id:"), "source resolve uses p_part_used_term_id");
 assert(apiSrc.includes("p_resolution_notes:"), "source resolve uses p_resolution_notes");
+assert(apiSrc.includes("p_raw_ingredient_name:"), "source correct uses p_raw_ingredient_name");
+assert(apiSrc.includes("p_raw_scientific_name:"), "source correct uses p_raw_scientific_name");
+assert(apiSrc.includes("p_raw_part_used:"), "source correct uses p_raw_part_used");
+assert(apiSrc.includes("p_raw_quantity_text:"), "source correct uses p_raw_quantity_text");
+assert(apiSrc.includes("p_raw_quantity_value:"), "source correct uses p_raw_quantity_value");
+assert(apiSrc.includes("p_raw_unit_text:"), "source correct uses p_raw_unit_text");
+assert(apiSrc.includes("p_correction_reason:"), "source correct uses p_correction_reason");
+assert(controlSrc.includes("Save progress"), "composition save progress wording");
+assert(controlSrc.includes("Verify line"), "composition verify line wording");
+assert(controlSrc.includes("data-source-correct"), "correct source action exists");
+assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");
 assert(
   !/[·…←→↑↓—]/.test(controlSrc + htmlSrc) && !/Â·|â€/.test(controlSrc + htmlSrc),
   "module-authored UI literals avoid mojibake-prone punctuation",
