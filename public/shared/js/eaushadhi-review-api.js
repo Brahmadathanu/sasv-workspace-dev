@@ -265,6 +265,30 @@ export async function resolveSourceIssue({
   );
 }
 
+export async function correctWorkingSourceLine({
+  sourceCompositionLineId,
+  rawIngredientName,
+  rawScientificName = null,
+  rawPartUsed = null,
+  rawQuantityText = null,
+  rawQuantityValue = null,
+  rawUnitText = null,
+  correctionReason,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_correct_working_source_line", {
+      p_source_composition_line_id: Number(sourceCompositionLineId),
+      p_raw_ingredient_name: rawIngredientName,
+      p_raw_scientific_name: rawScientificName,
+      p_raw_part_used: rawPartUsed,
+      p_raw_quantity_text: rawQuantityText,
+      p_raw_quantity_value: rawQuantityValue,
+      p_raw_unit_text: rawUnitText,
+      p_correction_reason: correctionReason,
+    }),
+  );
+}
+
 export async function loadSessionCatalogs() {
   const [
     typeOptions,

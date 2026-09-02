@@ -16,7 +16,9 @@ import {
   actionsDraftFromRows,
   canPromoteFormulation,
   canVerifyProductWorkflow,
+  canCorrectWorkingSourceLine,
   canSubmitSourceResolution,
+  canSubmitWorkingSourceCorrection,
   compositionFiltersAreActive,
   compositionIsComplete,
   detailsDraftFromReview,
@@ -47,6 +49,7 @@ import {
   normalizeReviewStatus,
   openErrorOrBlockerCount,
   optionId,
+  parseOptionalNumericQuantity,
   portalFieldSpecs,
   promoteUnavailableReason,
   provenanceLabel,
@@ -60,6 +63,9 @@ import {
   shouldAppendQueueChunk,
   sourceFieldDisplay,
   suggestionBasisSummary,
+  syncWorkingSourceQuantityDraft,
+  workingSourceChanges,
+  workingSourceDraftFromRow,
   SUGGESTION_FIELD_KEYS,
   toInt,
   verifyProductUnavailableReason,
@@ -69,6 +75,7 @@ import {
 import {
   EaushadhiRpcError,
   fetchProductQueue,
+  correctWorkingSourceLine,
   fetchSourceIssueContext,
   loadProductWorkspace,
   loadSessionCatalogs,
@@ -144,6 +151,13 @@ const state = {
     confirmIdentity: false,
     confirmPartUsed: false,
     notes: "",
+    trigger: null,
+  },
+  sourceCorrect: {
+    open: false,
+    lineId: null,
+    before: null,
+    draft: null,
     trigger: null,
   },
 };
@@ -781,23 +795,31 @@ function renderComposition() {
       ]);
       const notesId = `line-${id}-reviewNotes`;
       const canResolve = lineHasResolvableSourceIssue(state.issues, id);
+      const canCorrect = canCorrectWorkingSourceLine({
+        reviewStatus: row.review_status,
+        approvedFormulationPresent: state.evidence?.approved_formulation_present,
+      });
       const resolved = state.resolvedSourceByLine.get(String(id));
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}" data-line-id="${escapeHtml(id)}">
-        <div class="line-head">
-          <span class="line-no">${escapeHtml(displayText(row.source_row_no))}</span>
-          <span class="line-title">${nameHtml}</span>
-          <span class="line-qty">${escapeHtml(qty || "-")}</span>
-          ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
-          ${
-            topSev
-              ? chip(
-                  severityRank(topSev.severity) >= 2 ? "danger" : "warning",
-                  severityLabel(topSev.severity),
-                )
-              : ""
-          }
+        <div class="working-source-block">
+          <span class="working-source-label">Working source</span>
+          <div class="line-head">
+            <span class="line-no">${escapeHtml(displayText(row.source_row_no))}</span>
+            <span class="line-title">${nameHtml}</span>
+            <span class="line-qty">${escapeHtml(qty || "-")}</span>
+            ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
+            ${
+              topSev
+                ? chip(
+                    severityRank(topSev.severity) >= 2 ? "danger" : "warning",
+                    severityLabel(topSev.severity),
+                  )
+                : ""
+            }
+          </div>
+          <div class="line-sub">Part used: ${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</div>
+          <p class="muted-note working-source-audit">Imported source retained for audit</p>
         </div>
-        <div class="line-sub">Source part: ${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</div>
         ${
           resolved
             ? `<div class="line-resolution">Governed resolution: ${joinHtmlParts([
@@ -806,16 +828,22 @@ function renderComposition() {
               ])}</div>`
             : ""
         }
+        <span class="portal-mapping-label">Portal mapping</span>
         <div class="portal-fields">${fields}</div>
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
           <input id="${escapeHtml(notesId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes" />
-          <button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}">Save</button>
-          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" ${
+          <button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}" title="Save the current portal mapping without confirming it as correct.">Save progress</button>
+          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" title="${
             lineHasBlockerOrError(state.issues, id)
-              ? 'title="This line has BLOCKER or ERROR issues"'
+              ? "This line has BLOCKER or ERROR issues"
+              : "Confirm the reviewed portal mapping as correct."
+          }">Verify line</button>
+          ${
+            canCorrect
+              ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
               : ""
-          }>Verify</button>
+          }
         </div>
         ${
           lineIssues.length
@@ -834,14 +862,224 @@ function renderComposition() {
   applyPermissionUi();
 }
 
-function sourceResolveFocusables() {
-  const root = $("sourceResolveDialog");
+function modalFocusables(dialogId) {
+  const root = $(dialogId);
   if (!root) return [];
   return Array.from(
     root.querySelectorAll(
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
   ).filter((el) => !el.hidden && el.offsetParent !== null);
+}
+
+function trapModalTab(event, dialogId) {
+  if (event.key !== "Tab") return;
+  const items = modalFocusables(dialogId);
+  if (!items.length) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function sourceCorrectChanges() {
+  return workingSourceChanges(state.sourceCorrect.before, state.sourceCorrect.draft);
+}
+
+function syncSourceCorrectConfirm() {
+  const btn = $("sourceCorrectConfirm");
+  if (!btn) return;
+  const draft = state.sourceCorrect.draft || {};
+  const ok = canSubmitWorkingSourceCorrection({
+    ingredientName: draft.raw_ingredient_name,
+    correctionReason: draft.correction_reason,
+    numericQuantity: draft.raw_quantity_value,
+    hasChanges: sourceCorrectChanges().length > 0,
+  });
+  btn.disabled = !ok || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = ok ? "false" : "true";
+}
+
+function renderSourceCorrectPreview() {
+  const changes = sourceCorrectChanges();
+  if (!changes.length) {
+    return `<p id="srcCorrectPreviewHost" class="muted-note">No working-source fields have changed yet.</p>`;
+  }
+  return `<section id="srcCorrectPreviewHost" class="ea-source-preview" aria-labelledby="srcCorrectPreviewTitle">
+    <h3 id="srcCorrectPreviewTitle">Changes to apply</h3>
+    ${changes
+      .map(
+        (change) => `<div class="ea-change-row">
+          <strong>${escapeHtml(change.label)}</strong><br />
+          Before: ${escapeHtml(change.before)}<br />
+          After: ${escapeHtml(change.after)}
+        </div>`,
+      )
+      .join("")}
+  </section>`;
+}
+
+function renderSourceCorrectBody() {
+  const host = $("sourceCorrectBody");
+  const draft = state.sourceCorrect.draft;
+  if (!host || !draft) return;
+  const numericDisplay =
+    draft.raw_quantity_value == null || draft.raw_quantity_value === ""
+      ? ""
+      : String(draft.raw_quantity_value);
+  host.innerHTML = `
+    <p id="sourceCorrectIntro" class="muted-note">These values are the current working source. The original imported row remains retained for provenance. After line/formulation approval, corrections require versioning.</p>
+    <div class="form-field">
+      <label for="srcCorrectIngredient">Ingredient name</label>
+      <input id="srcCorrectIngredient" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_ingredient_name)}" required />
+    </div>
+    <div class="form-field">
+      <label for="srcCorrectScientific">Scientific name</label>
+      <input id="srcCorrectScientific" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_scientific_name)}" />
+    </div>
+    <div class="form-field">
+      <label for="srcCorrectPart">Part Used</label>
+      <input id="srcCorrectPart" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_part_used)}" />
+      <p class="muted-note">Source wording only. This is not the portal Part Used list.</p>
+    </div>
+    <div class="form-field">
+      <label for="srcCorrectQtyText">Quantity text</label>
+      <input id="srcCorrectQtyText" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_quantity_text)}" />
+    </div>
+    <div class="form-field">
+      <label for="srcCorrectQtyNum">Numeric quantity</label>
+      <input id="srcCorrectQtyNum" type="text" inputmode="decimal" data-edit-action="true" value="${escapeHtml(numericDisplay)}" />
+    </div>
+    <div class="form-field">
+      <label for="srcCorrectUnit">Unit</label>
+      <input id="srcCorrectUnit" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_unit_text)}" />
+    </div>
+    <p class="muted-note">Quantity text preserves the licensed/source wording. Numeric quantity is used only where a numeric value is applicable.</p>
+    <div class="form-field">
+      <label for="srcCorrectReason">Correction reason</label>
+      <textarea id="srcCorrectReason" rows="2" data-edit-action="true" required>${escapeHtml(draft.correction_reason || "")}</textarea>
+    </div>
+    ${renderSourceCorrectPreview()}`;
+  syncSourceCorrectConfirm();
+  applyPermissionUi();
+}
+
+function closeSourceCorrect() {
+  const trigger = state.sourceCorrect.trigger;
+  state.sourceCorrect = {
+    open: false,
+    lineId: null,
+    before: null,
+    draft: null,
+    trigger: null,
+  };
+  const backdrop = $("sourceCorrectBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  if (trigger && typeof trigger.focus === "function") trigger.focus();
+}
+
+function openSourceCorrect(lineId, trigger) {
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+  if (!row) return;
+  if (
+    !canCorrectWorkingSourceLine({
+      reviewStatus: row.review_status,
+      approvedFormulationPresent: state.evidence?.approved_formulation_present,
+    })
+  ) {
+    return;
+  }
+  if (state.sourceResolve.open) closeSourceResolve();
+  const draft = workingSourceDraftFromRow(row);
+  state.sourceCorrect.trigger = trigger || document.getElementById(`btn-correct-${lineId}`);
+  state.sourceCorrect.lineId = lineId;
+  state.sourceCorrect.before = { ...draft };
+  state.sourceCorrect.draft = draft;
+  const backdrop = $("sourceCorrectBackdrop");
+  if (backdrop) backdrop.hidden = false;
+  state.sourceCorrect.open = true;
+  renderSourceCorrectBody();
+  $("sourceCorrectDialog")?.focus();
+  requestAnimationFrame(() => {
+    $("srcCorrectIngredient")?.focus();
+  });
+}
+
+function updateSourceCorrectPreview() {
+  const host = $("srcCorrectPreviewHost");
+  if (!host) return;
+  const temp = document.createElement("div");
+  temp.innerHTML = renderSourceCorrectPreview();
+  const next = temp.firstElementChild;
+  if (next) host.replaceWith(next);
+  syncSourceCorrectConfirm();
+  applyPermissionUi();
+}
+
+function patchSourceCorrectDraft(field, value) {
+  if (!state.sourceCorrect.draft) return;
+  state.sourceCorrect.draft = {
+    ...state.sourceCorrect.draft,
+    [field]: value,
+  };
+  if (
+    field === "raw_quantity_text" ||
+    field === "raw_quantity_value" ||
+    field === "raw_unit_text"
+  ) {
+    const beforeText = state.sourceCorrect.draft.raw_quantity_text;
+    state.sourceCorrect.draft = syncWorkingSourceQuantityDraft(state.sourceCorrect.draft, field);
+    const qtyText = $("srcCorrectQtyText");
+    if (qtyText && state.sourceCorrect.draft.raw_quantity_text !== beforeText) {
+      qtyText.value = state.sourceCorrect.draft.raw_quantity_text;
+    }
+  }
+  updateSourceCorrectPreview();
+}
+
+async function submitSourceCorrect() {
+  const draft = state.sourceCorrect.draft;
+  const lineId = state.sourceCorrect.lineId;
+  if (!draft || !lineId) return;
+  const changes = sourceCorrectChanges();
+  if (
+    !canSubmitWorkingSourceCorrection({
+      ingredientName: draft.raw_ingredient_name,
+      correctionReason: draft.correction_reason,
+      numericQuantity: draft.raw_quantity_value,
+      hasChanges: changes.length > 0,
+    })
+  ) {
+    return;
+  }
+  const numeric = parseOptionalNumericQuantity(draft.raw_quantity_value);
+  await runMutation(async () => {
+    await correctWorkingSourceLine({
+      sourceCompositionLineId: lineId,
+      rawIngredientName: safeText(draft.raw_ingredient_name),
+      rawScientificName: safeText(draft.raw_scientific_name) || null,
+      rawPartUsed: safeText(draft.raw_part_used) || null,
+      rawQuantityText: safeText(draft.raw_quantity_text) || null,
+      rawQuantityValue: numeric,
+      rawUnitText: safeText(draft.raw_unit_text) || null,
+      correctionReason: safeText(draft.correction_reason),
+    });
+    state.resolvedSourceByLine.delete(String(lineId));
+    state.lineDrafts.delete(optionId(lineId));
+    closeSourceCorrect();
+    showToast("Working source corrected. The line has been returned to review.", "success");
+    await reloadSelected({
+      preserveDrafts: true,
+      restoreComposition: true,
+      focusLineId: lineId,
+      focusControl: "correct",
+    });
+  });
 }
 
 function syncSourceResolveConfirm() {
@@ -927,6 +1165,10 @@ function closeSourceResolve() {
 
 async function openSourceResolve(lineId, trigger) {
   if (!lineHasResolvableSourceIssue(state.issues, lineId)) return;
+  if (state.sourceCorrect.open) {
+    state.sourceCorrect.trigger = null;
+    closeSourceCorrect();
+  }
   state.sourceResolve.trigger = trigger || document.getElementById(`btn-resolve-${lineId}`);
   state.sourceResolve.lineId = lineId;
   state.sourceResolve.confirmIdentity = false;
@@ -974,7 +1216,12 @@ async function submitSourceResolve() {
     });
     showToast("Source issue resolved using governed canonical evidence.", "success");
     closeSourceResolve();
-    await reloadSelected({ preserveDrafts: true, restoreComposition: true, focusLineId: lineId });
+    await reloadSelected({
+      preserveDrafts: true,
+      restoreComposition: true,
+      focusLineId: lineId,
+      focusControl: "resolve",
+    });
   });
 }
 
@@ -1331,6 +1578,7 @@ async function reloadSelected({
   preserveDrafts = false,
   restoreComposition = false,
   focusLineId = null,
+  focusControl = null,
 } = {}) {
   if (!state.selectedProductId) return;
   const scroll = restoreComposition ? $("workspaceScroll")?.scrollTop : null;
@@ -1346,13 +1594,22 @@ async function reloadSelected({
       if (scroll != null && $("workspaceScroll")) {
         $("workspaceScroll").scrollTop = scroll;
       }
+      const correctBtn = focusLineId
+        ? document.getElementById(`btn-correct-${focusLineId}`)
+        : null;
       const resolveBtn = focusLineId
         ? document.getElementById(`btn-resolve-${focusLineId}`)
         : null;
       const card = focusLineId
         ? document.querySelector(`.line-card[data-line-id="${focusLineId}"]`)
         : null;
-      (resolveBtn || card?.querySelector("select") || card)?.focus?.();
+      const preferred =
+        focusControl === "correct"
+          ? correctBtn
+          : focusControl === "resolve"
+            ? resolveBtn
+            : resolveBtn || correctBtn;
+      (preferred || card?.querySelector("select") || card)?.focus?.();
     });
   }
 }
@@ -1816,9 +2073,11 @@ function wireEvents() {
     const save = event.target.closest("[data-line-save]");
     const verify = event.target.closest("[data-line-verify]");
     const resolve = event.target.closest("[data-source-resolve]");
+    const correct = event.target.closest("[data-source-correct]");
     if (save) submitLine(save.dataset.lineSave, false);
     if (verify) submitLine(verify.dataset.lineVerify, true);
     if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
+    if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {
@@ -1910,6 +2169,24 @@ function wireEvents() {
     }
   });
 
+  $("sourceCorrectClose")?.addEventListener("click", closeSourceCorrect);
+  $("sourceCorrectCancel")?.addEventListener("click", closeSourceCorrect);
+  $("sourceCorrectConfirm")?.addEventListener("click", submitSourceCorrect);
+  $("sourceCorrectBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "sourceCorrectBackdrop") closeSourceCorrect();
+  });
+  $("sourceCorrectBody")?.addEventListener("input", (event) => {
+    const id = event.target.id;
+    const value = event.target.value;
+    if (id === "srcCorrectIngredient") patchSourceCorrectDraft("raw_ingredient_name", value);
+    if (id === "srcCorrectScientific") patchSourceCorrectDraft("raw_scientific_name", value);
+    if (id === "srcCorrectPart") patchSourceCorrectDraft("raw_part_used", value);
+    if (id === "srcCorrectQtyText") patchSourceCorrectDraft("raw_quantity_text", value);
+    if (id === "srcCorrectQtyNum") patchSourceCorrectDraft("raw_quantity_value", value);
+    if (id === "srcCorrectUnit") patchSourceCorrectDraft("raw_unit_text", value);
+    if (id === "srcCorrectReason") patchSourceCorrectDraft("correction_reason", value);
+  });
+
   document.addEventListener("keydown", (event) => {
     if (state.sourceResolve.open) {
       if (event.key === "Escape") {
@@ -1917,19 +2194,16 @@ function wireEvents() {
         closeSourceResolve();
         return;
       }
-      if (event.key === "Tab") {
-        const items = sourceResolveFocusables();
-        if (!items.length) return;
-        const first = items[0];
-        const last = items[items.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
+      trapModalTab(event, "sourceResolveDialog");
+      return;
+    }
+    if (state.sourceCorrect.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSourceCorrect();
+        return;
       }
+      trapModalTab(event, "sourceCorrectDialog");
       return;
     }
     if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey) {

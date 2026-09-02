@@ -293,6 +293,164 @@ export function canSubmitSourceResolution({
   return confirmIdentity === true || confirmPartUsed === true;
 }
 
+export function parseOptionalNumericQuantity(value) {
+  if (value == null || value === "") return null;
+  const text = safeText(value);
+  if (!text) return null;
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function isNonstandardQuantityText(value) {
+  const text = safeText(value);
+  if (!text) return false;
+  if (/q\.?\s*s\.?/i.test(text)) return true;
+  if (/%/.test(text)) return true;
+  if (/\bup\s+to\b/i.test(text)) return true;
+  return false;
+}
+
+export function proposeQuantityText(numericValue, unitText) {
+  const numeric = parseOptionalNumericQuantity(numericValue);
+  if (numeric == null || numeric < 0) return "";
+  const nText = safeText(numericValue);
+  const unit = safeText(unitText);
+  return unit ? `${nText} ${unit}` : nText;
+}
+
+export function quantityTextLooksDerived(quantityText, numericValue, unitText) {
+  const text = safeText(quantityText);
+  if (!text) return true;
+  if (isNonstandardQuantityText(text)) return false;
+  const proposed = proposeQuantityText(numericValue, unitText);
+  if (proposed && text === proposed) return true;
+  const nText = safeText(numericValue);
+  return Boolean(nText) && text === nText;
+}
+
+export function shouldSyncQuantityText({
+  quantityText,
+  numericValue,
+  unitText,
+  lastAutoText = "",
+} = {}) {
+  const proposed = proposeQuantityText(numericValue, unitText);
+  if (!proposed) return false;
+  if (isNonstandardQuantityText(quantityText)) return false;
+  const current = safeText(quantityText);
+  if (!current) return true;
+  if (lastAutoText && current === safeText(lastAutoText)) return true;
+  return quantityTextLooksDerived(current, numericValue, unitText);
+}
+
+export function syncWorkingSourceQuantityDraft(draft, editedField) {
+  const next = { ...(draft || {}) };
+  const proposed = proposeQuantityText(next.raw_quantity_value, next.raw_unit_text);
+  if (editedField === "raw_quantity_text") {
+    if (proposed && safeText(next.raw_quantity_text) === proposed) {
+      next.lastAutoQuantityText = proposed;
+    }
+    return next;
+  }
+  if (editedField === "raw_quantity_value" || editedField === "raw_unit_text") {
+    if (
+      shouldSyncQuantityText({
+        quantityText: next.raw_quantity_text,
+        numericValue: next.raw_quantity_value,
+        unitText: next.raw_unit_text,
+        lastAutoText: next.lastAutoQuantityText,
+      })
+    ) {
+      next.raw_quantity_text = proposed;
+      next.lastAutoQuantityText = proposed;
+    }
+  }
+  return next;
+}
+
+export function workingSourceSnapshotFromRow(row) {
+  const source = row || {};
+  const numeric = parseOptionalNumericQuantity(source.raw_quantity_value);
+  return {
+    raw_ingredient_name: safeText(source.raw_ingredient_name),
+    raw_scientific_name: safeText(source.raw_scientific_name),
+    raw_part_used: safeText(source.raw_part_used),
+    raw_quantity_text: safeText(source.raw_quantity_text),
+    raw_quantity_value: numeric,
+    raw_unit_text: safeText(source.raw_unit_text),
+  };
+}
+
+export function workingSourceDraftFromRow(row) {
+  const snap = workingSourceSnapshotFromRow(row);
+  const proposed = proposeQuantityText(snap.raw_quantity_value, snap.raw_unit_text);
+  return {
+    ...snap,
+    correction_reason: "",
+    lastAutoQuantityText:
+      proposed && snap.raw_quantity_text === proposed ? proposed : "",
+  };
+}
+
+export function workingSourceChanges(before, after) {
+  const changes = [];
+  const nameFields = [
+    ["raw_ingredient_name", "Ingredient"],
+    ["raw_scientific_name", "Scientific name"],
+    ["raw_part_used", "Part Used"],
+  ];
+  for (const [key, label] of nameFields) {
+    const prev = safeText(before?.[key]);
+    const next = safeText(after?.[key]);
+    if (prev !== next) {
+      changes.push({ key, label, before: prev || "-", after: next || "-" });
+    }
+  }
+  const prevQty =
+    formatRawQuantityDisplay(before?.raw_quantity_text, before?.raw_unit_text) || "-";
+  const nextQty =
+    formatRawQuantityDisplay(after?.raw_quantity_text, after?.raw_unit_text) || "-";
+  const prevNum = parseOptionalNumericQuantity(before?.raw_quantity_value);
+  const nextNum = parseOptionalNumericQuantity(after?.raw_quantity_value);
+  if (prevQty !== nextQty) {
+    changes.push({ key: "quantity", label: "Quantity", before: prevQty, after: nextQty });
+  } else if (prevNum !== nextNum) {
+    changes.push({
+      key: "raw_quantity_value",
+      label: "Numeric quantity",
+      before: prevNum == null ? "-" : String(prevNum),
+      after: nextNum == null ? "-" : String(nextNum),
+    });
+  }
+  return changes;
+}
+
+export function canCorrectWorkingSourceLine({
+  reviewStatus,
+  approvedFormulationPresent,
+} = {}) {
+  if (approvedFormulationPresent === true) return false;
+  return normalizeReviewStatus(reviewStatus) !== "VERIFIED";
+}
+
+export function canSubmitWorkingSourceCorrection({
+  ingredientName,
+  correctionReason,
+  numericQuantity,
+  hasChanges,
+} = {}) {
+  if (!safeText(ingredientName)) return false;
+  if (!safeText(correctionReason)) return false;
+  if (hasChanges === false) return false;
+  const rawNum = numericQuantity;
+  if (rawNum != null && safeText(rawNum) !== "") {
+    const parsed = parseOptionalNumericQuantity(rawNum);
+    if (parsed == null || parsed < 0) return false;
+  }
+  return true;
+}
+
 export function suggestionFieldMode(suggestionBasis, fieldKey) {
   const basis = parseSuggestionBasis(suggestionBasis);
   if (!basis || !fieldKey) return "";

@@ -19,6 +19,7 @@ import {
   formatRawQuantityDisplay,
   formatShowingCount,
   formatVerifiedTotal,
+  isNonstandardQuantityText,
   issuesForLine,
   lineDirty,
   lineDraftFromRow,
@@ -28,20 +29,27 @@ import {
   lineHasResolvableSourceIssue,
   lineSelectionsComplete,
   canSubmitSourceResolution,
+  canSubmitWorkingSourceCorrection,
+  canCorrectWorkingSourceLine,
   matchesQueueFilter,
   mergePreservedLineDraft,
   nextQueueRenderCount,
   nextRequiredAction,
   nextRovingIndex,
   openErrorOrBlockerCount,
+  parseOptionalNumericQuantity,
   provenanceLabel,
+  proposeQuantityText,
   queueKpis,
   resetQueueRenderCount,
   resolveFieldProvenance,
   shouldAppendQueueChunk,
+  shouldSyncQuantityText,
   snapshotQueueView,
   suggestionFieldMode,
+  syncWorkingSourceQuantityDraft,
   visibleQueueRows,
+  workingSourceChanges,
 } from "../public/shared/js/eaushadhi-review-helpers.js";
 
 let failed = 0;
@@ -451,6 +459,64 @@ assert(
     20,
   ) === false,
   "unrelated issue codes do not show source resolve",
+);
+
+assert(parseOptionalNumericQuantity("q.s.") == null, "no numeric parsing for q.s.");
+assert(parseOptionalNumericQuantity("200") === 200, "bare numeric quantity parses");
+assert(parseOptionalNumericQuantity("200 mg") == null, "quantity-with-unit is not parsed as numeric");
+assert(isNonstandardQuantityText("q.s.") === true, "q.s. is nonstandard quantity text");
+assert(isNonstandardQuantityText("up to 100%") === true, "licensed range text is nonstandard");
+assert(proposeQuantityText(200, "mg") === "200 mg", "simple numeric plus unit proposes display text");
+assert(
+  shouldSyncQuantityText({
+    quantityText: "",
+    numericValue: 200,
+    unitText: "mg",
+  }) === true,
+  "blank quantity text may sync from numeric and unit",
+);
+assert(
+  shouldSyncQuantityText({
+    quantityText: "q.s.",
+    numericValue: 200,
+    unitText: "mg",
+  }) === false,
+  "q.s. quantity text is not overwritten",
+);
+assert(
+  syncWorkingSourceQuantityDraft(
+    { raw_quantity_text: "100 mg", raw_quantity_value: 200, raw_unit_text: "mg", lastAutoQuantityText: "100 mg" },
+    "raw_quantity_value",
+  ).raw_quantity_text === "200 mg",
+  "previously auto-derived quantity text updates with numeric edits",
+);
+assert(
+  workingSourceChanges(
+    { raw_ingredient_name: "X", raw_scientific_name: "A", raw_part_used: "Seed", raw_quantity_text: "100 mg", raw_quantity_value: 100, raw_unit_text: "mg" },
+    { raw_ingredient_name: "Y", raw_scientific_name: "A", raw_part_used: "Seed", raw_quantity_text: "200 mg", raw_quantity_value: 200, raw_unit_text: "mg" },
+  ).map((item) => item.key).join(",") === "raw_ingredient_name,quantity",
+  "preview reports only changed working-source fields",
+);
+assert(
+  canCorrectWorkingSourceLine({ reviewStatus: "VERIFIED", approvedFormulationPresent: false }) === false,
+  "verified lines are not directly correctable",
+);
+assert(
+  canSubmitWorkingSourceCorrection({
+    ingredientName: "Jatikka",
+    correctionReason: "Wrong quantity in working source",
+    numericQuantity: 200,
+    hasChanges: true,
+  }) === true,
+  "source correction requires ingredient, reason, and a change",
+);
+assert(
+  canSubmitWorkingSourceCorrection({
+    ingredientName: "Jatikka",
+    correctionReason: "Wrong quantity",
+    hasChanges: false,
+  }) === false,
+  "source correction is blocked when nothing changed",
 );
 
 if (failed) {
