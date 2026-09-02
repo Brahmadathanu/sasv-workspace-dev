@@ -16,6 +16,7 @@ import {
   filterCompositionLines,
   filterQueueRows,
   formatIssueDetails,
+  formatRawQuantityDisplay,
   formatShowingCount,
   formatVerifiedTotal,
   issuesForLine,
@@ -24,7 +25,9 @@ import {
   lineHasBlockerOrError,
   lineHasDefaultSuggestion,
   lineHasLiveIssue,
+  lineHasResolvableSourceIssue,
   lineSelectionsComplete,
+  canSubmitSourceResolution,
   matchesQueueFilter,
   mergePreservedLineDraft,
   nextQueueRenderCount,
@@ -422,6 +425,33 @@ assert(
   "validation error class",
 );
 assert(classifyRpcError({ message: "Failed to fetch" }).kind === ERROR_KIND.NETWORK, "network error class");
+
+assert(formatRawQuantityDisplay("100 mg", "mg") === "100 mg", "quantity already includes unit");
+assert(formatRawQuantityDisplay("1.07 g", "g") === "1.07 g", "decimal quantity already includes unit");
+assert(formatRawQuantityDisplay("100", "mg") === "100 mg", "numeric quantity plus separate unit");
+assert(formatRawQuantityDisplay("q.s.", null) === "q.s.", "quantity without unit");
+assert(
+  canSubmitSourceResolution({ confirmIdentity: false, confirmPartUsed: false }) === false,
+  "source resolve requires an explicit confirmation",
+);
+assert(
+  canSubmitSourceResolution({ confirmIdentity: true, confirmPartUsed: false }) === true,
+  "identity confirmation is enough",
+);
+assert(
+  lineHasResolvableSourceIssue(
+    [{ source_composition_line_id: 20, issue_code: "SOURCE_SCIENTIFIC_IDENTITY_MISSING", status: "OPEN" }],
+    20,
+  ) === true,
+  "scientific identity missing is resolvable",
+);
+assert(
+  lineHasResolvableSourceIssue(
+    [{ source_composition_line_id: 20, issue_code: "PORTAL_OPTION_MISSING", status: "OPEN" }],
+    20,
+  ) === false,
+  "unrelated issue codes do not show source resolve",
+);
 
 if (failed) {
   console.error(`\n${failed} helper smoke assertion(s) failed`);

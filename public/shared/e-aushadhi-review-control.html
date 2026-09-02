@@ -26,7 +26,7 @@
       Read-only access. You can inspect records, but save, verify, and promote actions are disabled.
     </div>
     <div id="staleBanner" hidden>
-      Server data was reloaded after a version conflict. Your unsaved edits were kept — review them before saving again.
+      Server data was reloaded after a version conflict. Your unsaved edits were kept - review them before saving again.
     </div>
     <div id="statusArea" role="status" aria-live="polite" hidden></div>
 
@@ -44,7 +44,7 @@
               <input
                 id="queueSearch"
                 type="search"
-                placeholder="Search product, system, class, dosage form…"
+                placeholder="Search product, system, class, dosage form..."
                 aria-label="Search products"
               />
               <button id="queueSearchClear" class="input-clear-btn ea-clear-btn" type="button" aria-label="Clear search" hidden>
@@ -56,7 +56,7 @@
             <span id="queueRowCount" class="muted-note showing-count" aria-live="polite"></span>
           </div>
 
-          <p id="queueKeyboardHint" class="keyboard-hint">Keyboard: / search · ↑↓ products · Enter open</p>
+          <p id="queueKeyboardHint" class="keyboard-hint">Keyboard: / search, Up/Down products, Enter open</p>
 
           <div id="reviewLenses" class="review-nav" role="tablist" aria-label="Review lens"></div>
           <div class="secondary-lenses">
@@ -109,7 +109,7 @@
             <button type="button" class="workflow-step" role="tab" id="wf-tab-evidence" data-tab="evidence" aria-controls="tab-evidence" aria-selected="false">Evidence</button>
             <button type="button" class="workflow-step" role="tab" id="wf-tab-readiness" data-tab="readiness" aria-controls="tab-readiness" aria-selected="false">Readiness</button>
           </div>
-          <p id="productKeyboardHint" class="keyboard-hint">Keyboard: ←→ workflow stages · Tab fields</p>
+          <p id="productKeyboardHint" class="keyboard-hint">Keyboard: Left/Right workflow stages, Tab fields</p>
           <div id="compositionFilters" class="composition-filters" hidden>
             <div class="search-card compact-search">
               <div class="search-wrap input-with-icon">
@@ -117,7 +117,7 @@
                   <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
                   <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
                 </svg>
-                <input id="compositionSearch" type="search" placeholder="Search ingredient, scientific name, part…" aria-label="Search ingredients" />
+                <input id="compositionSearch" type="search" placeholder="Search ingredient, scientific name, part..." aria-label="Search ingredients" />
                 <button id="compositionSearchClear" class="input-clear-btn ea-clear-btn" type="button" aria-label="Clear search" hidden>
                   <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
                     <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
@@ -152,5 +152,34 @@
     </div>
 
     <script type="module" src="js/eaushadhi-review-control.js"></script>
+    <div id="sourceResolveBackdrop" class="sasv-modal-backdrop ea-source-resolve" hidden>
+      <div
+        id="sourceResolveDialog"
+        class="sasv-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sourceResolveTitle"
+        tabindex="-1"
+      >
+        <div class="sasv-modal__header">
+          <h2 id="sourceResolveTitle" class="sasv-modal__title">Resolve source issue</h2>
+          <button type="button" id="sourceResolveClose" class="sasv-modal__close" aria-label="Cancel">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="sourceResolveBody" class="sasv-modal__body"></div>
+        <div class="sasv-modal__footer">
+          <button type="button" id="sourceResolveCancel" class="icon-btn with-label">Cancel</button>
+          <button type="button" id="sourceResolveConfirm" class="icon-btn with-label primary" data-edit-action="true">
+            Confirm governed correction
+          </button>
+        </div>
+        <p class="muted-note ea-source-resolve-note">
+          This confirms a governed source resolution. It does not verify portal mapping for the line.
+        </p>
+      </div>
+    </div>
   </body>
 </html>

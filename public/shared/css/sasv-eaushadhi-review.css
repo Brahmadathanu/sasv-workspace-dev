@@ -902,3 +902,55 @@ body.sasv-eaushadhi-review .visually-hidden {
   white-space: nowrap;
   border: 0;
 }
+
+body.sasv-eaushadhi-review .line-resolution {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .source-resolve-btn {
+  margin-top: 6px;
+}
+
+body.sasv-eaushadhi-review .ea-source-block,
+body.sasv-eaushadhi-review .ea-governed-block {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review .ea-source-block {
+  border-left: 3px solid var(--sasv-text-muted);
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-eaushadhi-review .ea-governed-block {
+  border-left: 3px solid var(--sasv-action-primary);
+}
+
+body.sasv-eaushadhi-review .ea-source-resolve[hidden] {
+  display: none !important;
+}
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px 4px;
+}
+
+body.sasv-eaushadhi-review .ea-source-resolve-note {
+  padding: 0 12px 10px;
+}
+
+body.sasv-eaushadhi-review .ea-confirm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+body.sasv-eaushadhi-review .ea-confirm-row input {
+  margin-top: 2px;
+}
