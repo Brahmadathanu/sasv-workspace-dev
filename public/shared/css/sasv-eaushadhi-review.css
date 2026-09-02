@@ -641,6 +641,51 @@ body.sasv-eaushadhi-review .line-card.has-error {
   border-color: var(--sasv-danger-border);
 }
 
+body.sasv-eaushadhi-review .line-card.is-verified,
+body.sasv-eaushadhi-review .section-card.is-verified {
+  background: var(--sasv-surface-soft);
+  border-left: 3px solid var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .composition-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+body.sasv-eaushadhi-review .ea-autosave {
+  font-size: 11px;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .ea-autosave.is-failed,
+body.sasv-eaushadhi-review .ea-autosave.is-stale {
+  color: var(--sasv-danger);
+  font-weight: 600;
+}
+
+body.sasv-eaushadhi-review .ea-lock-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .ea-reopen-btn {
+  font-weight: 500;
+}
+
+body.sasv-eaushadhi-review .ea-copy-meta {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
 body.sasv-eaushadhi-review .line-head {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
