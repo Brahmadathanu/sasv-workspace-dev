@@ -798,6 +798,11 @@
             String(row?.moduleKey || "").toLowerCase() ===
             "staff-directory-manager",
         );
+        const hasEaushadhiReview = rows.some(
+          (row) =>
+            String(row?.moduleKey || "").toLowerCase() ===
+            "e-aushadhi-automation",
+        );
 
         const sections = Array.isArray(sectionRows) ? sectionRows : [];
 
@@ -862,6 +867,36 @@
             sortOrder: 9997,
             minNavMode: "view",
             routePath: "public/shared/staff-directory-manager.html",
+            clientKey: "electron",
+          });
+        }
+
+        if (!hasEaushadhiReview) {
+          const qcSection =
+            sections.find((section) =>
+              /qa|qc|quality|regulatory/i.test(
+                `${section?.label || ""} ${section?.key || ""}`,
+              ),
+            ) ||
+            sections.find((section) =>
+              /product|reference|master/i.test(
+                `${section?.label || ""} ${section?.key || ""}`,
+              ),
+            ) ||
+            null;
+
+          rows.push({
+            moduleKey: "e-aushadhi-automation",
+            targetKey: "module:e-aushadhi-automation",
+            label: "e-Aushadhi Review & Control",
+            description:
+              "Review, verify, and ready licensed-product data for later e-Aushadhi portal entry.",
+            sectionKey: qcSection?.key || "qa-qc",
+            sectionLabel:
+              qcSection?.label || "Quality Assurance & Quality Control",
+            sortOrder: 9996,
+            minNavMode: "view",
+            routePath: "public/shared/e-aushadhi-review-control.html",
             clientKey: "electron",
           });
         }

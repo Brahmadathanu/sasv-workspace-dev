@@ -1,0 +1,388 @@
+/* e-Aushadhi Review & Control — module layout only */
+
+body.sasv-module.sasv-eaushadhi-review {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 16px 20px 12px;
+}
+
+body.sasv-eaushadhi-review .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+body.sasv-eaushadhi-review .page-header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+body.sasv-eaushadhi-review .page-sub {
+  color: var(--sasv-text-muted);
+  font-size: 0.88rem;
+  margin-top: 3px;
+}
+
+body.sasv-eaushadhi-review .header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review #statusArea,
+body.sasv-eaushadhi-review #accessStatus,
+body.sasv-eaushadhi-review #viewOnlyBanner,
+body.sasv-eaushadhi-review #staleBanner {
+  flex-shrink: 0;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--sasv-radius-md);
+  font-size: 13px;
+}
+
+body.sasv-eaushadhi-review #statusArea[data-type="error"],
+body.sasv-eaushadhi-review #accessStatus {
+  background: var(--sasv-danger-bg);
+  border: 1px solid var(--sasv-danger-border);
+  color: var(--sasv-danger);
+}
+
+body.sasv-eaushadhi-review #viewOnlyBanner,
+body.sasv-eaushadhi-review #staleBanner {
+  background: var(--sasv-warning-bg);
+  border: 1px solid var(--sasv-warning-border);
+  color: var(--sasv-warning);
+}
+
+body.sasv-eaushadhi-review .kpi-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 10px 0 8px;
+  flex-shrink: 0;
+}
+
+body.sasv-eaushadhi-review .kpi {
+  min-width: 110px;
+  padding: 8px 10px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+body.sasv-eaushadhi-review .kpi-label {
+  display: block;
+  font-size: 11px;
+  color: var(--sasv-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+body.sasv-eaushadhi-review .kpi-value {
+  font-size: 1.15rem;
+  font-weight: var(--sasv-fw-bold);
+}
+
+body.sasv-eaushadhi-review .search-card {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review .search-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+body.sasv-eaushadhi-review .lens-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+body.sasv-eaushadhi-review .lens-pill {
+  border: 1px solid var(--sasv-control-border);
+  background: var(--sasv-surface);
+  color: var(--sasv-text-muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .lens-pill[aria-pressed="true"] {
+  border-color: var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary);
+}
+
+body.sasv-eaushadhi-review #queuePanel,
+body.sasv-eaushadhi-review #workspacePanel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.sasv-eaushadhi-review .table-card {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+body.sasv-eaushadhi-review table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1100px;
+}
+
+body.sasv-eaushadhi-review table.data-table th,
+body.sasv-eaushadhi-review table.data-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  text-align: left;
+  font-size: 12.5px;
+  vertical-align: top;
+}
+
+body.sasv-eaushadhi-review table.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--sasv-surface-soft);
+  z-index: 1;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review tbody tr.queue-row {
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review tbody tr.queue-row:hover,
+body.sasv-eaushadhi-review tbody tr.queue-row.is-active {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .workspace-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review .workspace-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  padding: 6px;
+  border: 1px solid var(--sasv-border);
+  border-radius: 10px;
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .workspace-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sasv-text-muted);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review .workspace-tab[aria-selected="true"] {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border);
+  color: var(--sasv-text);
+}
+
+body.sasv-eaushadhi-review .tab-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+body.sasv-eaushadhi-review .meta-grid,
+body.sasv-eaushadhi-review .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+body.sasv-eaushadhi-review .meta-item,
+body.sasv-eaushadhi-review .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.sasv-eaushadhi-review .meta-label,
+body.sasv-eaushadhi-review .form-field label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--sasv-text-muted);
+  font-weight: 600;
+}
+
+body.sasv-eaushadhi-review .meta-value {
+  font-size: 13px;
+}
+
+body.sasv-eaushadhi-review .form-span-2 {
+  grid-column: 1 / -1;
+}
+
+body.sasv-eaushadhi-review .section-card {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+body.sasv-eaushadhi-review .section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+body.sasv-eaushadhi-review .action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+body.sasv-eaushadhi-review .issue-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sasv-divider);
+  font-size: 12.5px;
+}
+
+body.sasv-eaushadhi-review .sev-text {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+body.sasv-eaushadhi-review .line-card {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--sasv-surface);
+}
+
+body.sasv-eaushadhi-review .line-card.has-blocker {
+  border-color: var(--sasv-danger-border);
+  box-shadow: 0 0 0 1px var(--sasv-danger-border);
+}
+
+body.sasv-eaushadhi-review .line-card.has-error {
+  border-color: var(--sasv-danger-border);
+}
+
+body.sasv-eaushadhi-review .line-source {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+body.sasv-eaushadhi-review .source-label {
+  display: block;
+  color: var(--sasv-text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+body.sasv-eaushadhi-review .portal-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+body.sasv-eaushadhi-review .prov-chip {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+body.sasv-eaushadhi-review .readiness-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sasv-divider);
+  font-size: 13px;
+}
+
+body.sasv-eaushadhi-review .empty-state {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .muted-note {
+  font-size: 12px;
+  color: var(--sasv-text-muted);
+  margin: 6px 0;
+}
+
+body.sasv-eaushadhi-review .action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.sasv-eaushadhi-review .action-item {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .action-item input,
+body.sasv-eaushadhi-review .action-item select {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  body.sasv-module.sasv-eaushadhi-review {
+    padding: 8px;
+  }
+  body.sasv-eaushadhi-review .page-sub {
+    display: none;
+  }
+  body.sasv-eaushadhi-review .issue-row {
+    grid-template-columns: 1fr;
+  }
+}

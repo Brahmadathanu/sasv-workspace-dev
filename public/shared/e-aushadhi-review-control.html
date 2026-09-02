@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en" data-sasv-theme="sasv-core">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SASV WORKSPACE | e-Aushadhi Review &amp; Control</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/sasv-eaushadhi-review.css" />
+  </head>
+  <body class="sasv-module sasv-module--app sasv-eaushadhi-review" data-theme="system">
+    <div class="page-header">
+      <div>
+        <h1>e-Aushadhi Review &amp; Control</h1>
+        <div class="page-sub">
+          Review, verify, and ready licensed-product data. Portal entry is not part of this module.
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="refreshBtn" type="button" class="icon-btn" title="Refresh" aria-label="Refresh"></button>
+        <button id="homeBtn" type="button" class="icon-btn" title="HOME" aria-label="HOME"></button>
+      </div>
+    </div>
+
+    <div id="accessStatus" hidden role="alert"></div>
+    <div id="viewOnlyBanner" hidden>
+      Read-only access. You can inspect records, but save, verify, and promote actions are disabled.
+    </div>
+    <div id="staleBanner" hidden>
+      Server data was reloaded after a version conflict. Your unsaved edits were kept — review them before saving again.
+    </div>
+    <div id="statusArea" role="status" aria-live="polite" hidden></div>
+
+    <div id="mainPanel">
+      <section id="queuePanel">
+        <div class="kpi-strip" aria-label="Queue summary">
+          <div class="kpi"><span class="kpi-label">Products</span><span id="kpiProducts" class="kpi-value">0</span></div>
+          <div class="kpi"><span class="kpi-label">Pending</span><span id="kpiPending" class="kpi-value">0</span></div>
+          <div class="kpi"><span class="kpi-label">In Review</span><span id="kpiInReview" class="kpi-value">0</span></div>
+          <div class="kpi"><span class="kpi-label">Verified</span><span id="kpiVerified" class="kpi-value">0</span></div>
+          <div class="kpi"><span class="kpi-label">Blocked</span><span id="kpiBlocked" class="kpi-value">0</span></div>
+          <div class="kpi"><span class="kpi-label">Ready</span><span id="kpiReady" class="kpi-value">0</span></div>
+        </div>
+
+        <div class="search-card">
+          <div class="search-wrap input-with-icon">
+            <input id="queueSearch" type="search" placeholder="Search product name, system, class…" aria-label="Search products" />
+            <button id="queueSearchClear" class="input-clear-btn" type="button" title="Clear search" aria-label="Clear search"></button>
+          </div>
+          <span id="queueRowCount" class="muted-note"></span>
+        </div>
+
+        <div id="queueFilters" class="lens-pills" role="tablist" aria-label="Queue filters"></div>
+
+        <div class="table-card" id="queueTableWrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>System</th>
+                <th>Medicine Class</th>
+                <th>Dosage Form</th>
+                <th>Subtype</th>
+                <th>Product Review</th>
+                <th>Composition</th>
+                <th>Blockers</th>
+                <th>Portal issues</th>
+                <th>Ready</th>
+                <th>Entry status</th>
+              </tr>
+            </thead>
+            <tbody id="queueTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="workspacePanel" hidden>
+        <div class="workspace-header">
+          <div>
+            <h2 id="workspaceTitle">Product</h2>
+            <div id="workspaceSub" class="page-sub"></div>
+          </div>
+          <div class="header-actions">
+            <button id="backToQueueBtn" type="button" class="icon-btn with-label">Back to Queue</button>
+          </div>
+        </div>
+
+        <div id="workspaceTabs" class="workspace-tabs" role="tablist">
+          <button type="button" class="workspace-tab" data-tab="overview" aria-selected="true">Overview</button>
+          <button type="button" class="workspace-tab" data-tab="details">Product Details</button>
+          <button type="button" class="workspace-tab" data-tab="composition">Composition</button>
+          <button type="button" class="workspace-tab" data-tab="actions">Pharmacological Action</button>
+          <button type="button" class="workspace-tab" data-tab="evidence">Evidence</button>
+          <button type="button" class="workspace-tab" data-tab="readiness">Readiness</button>
+        </div>
+
+        <div id="tab-overview" class="tab-panel" data-tab-panel="overview"></div>
+        <div id="tab-details" class="tab-panel" data-tab-panel="details" hidden></div>
+        <div id="tab-composition" class="tab-panel" data-tab-panel="composition" hidden></div>
+        <div id="tab-actions" class="tab-panel" data-tab-panel="actions" hidden></div>
+        <div id="tab-evidence" class="tab-panel" data-tab-panel="evidence" hidden></div>
+        <div id="tab-readiness" class="tab-panel" data-tab-panel="readiness" hidden></div>
+      </section>
+    </div>
+
+    <script type="module" src="js/eaushadhi-review-control.js"></script>
+  </body>
+</html>
