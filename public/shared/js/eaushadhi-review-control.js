@@ -3,13 +3,18 @@ import { Platform } from "./platform.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 import { showToast } from "./toast.js";
 import {
+  CLASS_LENSES,
   ERROR_KIND,
-  QUEUE_FILTERS,
+  QUEUE_RENDER_CHUNK,
+  REVIEW_LENSES,
+  SYSTEM_LENSES,
+  WORKFLOW_STAGES,
   WORKSPACE_TABS,
   actionsDirty,
   actionsDraftFromRows,
   canPromoteFormulation,
   canVerifyProductWorkflow,
+  compositionIsComplete,
   detailsDraftFromReview,
   detailsDirty,
   displayText,
@@ -17,6 +22,7 @@ import {
   findQueueRow,
   filterQueueRows,
   formatIssueDetails,
+  formatShowingCount,
   formatVerifiedTotal,
   idsEqual,
   issuesForLine,
@@ -25,6 +31,8 @@ import {
   lineHasBlockerOrError,
   lineSelectionsComplete,
   mergePreservedLineDraft,
+  nextQueueRenderCount,
+  nextRequiredAction,
   normalizeEntryStatus,
   normalizeReviewStatus,
   openErrorOrBlockerCount,
@@ -32,13 +40,17 @@ import {
   portalFieldSpecs,
   provenanceLabel,
   queueKpis,
+  resetQueueRenderCount,
   resolveFieldProvenance,
   reviewStatusChipClass,
   safeText,
   severityLabel,
   severityRank,
+  shouldAppendQueueChunk,
   SUGGESTION_FIELD_KEYS,
   toInt,
+  visibleQueueRows,
+  workflowStageComplete,
 } from "./eaushadhi-review-helpers.js";
 import {
   EaushadhiRpcError,
@@ -64,8 +76,14 @@ const access = {
 
 const state = {
   queue: [],
-  filterId: "all",
-  search: "",
+  queueView: {
+    search: "",
+    reviewLens: "all",
+    systemLens: "all",
+    classLens: "all",
+    renderedCount: QUEUE_RENDER_CHUNK,
+    scrollTop: 0,
+  },
   catalogs: {
     portalOptions: {
       INGREDIENT_TYPE: [],
@@ -109,6 +127,15 @@ function escapeHtml(value) {
 
 function canWrite() {
   return access.canEdit === true;
+}
+
+function setAppMode(mode) {
+  document.body.classList.toggle("ea-mode-queue", mode === "queue");
+  document.body.classList.toggle("ea-mode-product", mode === "product");
+}
+
+function isProductMode() {
+  return document.body.classList.contains("ea-mode-product");
 }
 
 function setStatus(message, type = "info") {
@@ -177,12 +204,6 @@ function confirmLeaveDirty() {
   return window.confirm("You have unsaved review edits. Discard them?");
 }
 
-function parseBoolSelect(value) {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return null;
-}
-
 function chip(statusClass, label) {
   return `<span class="status-chip ${escapeHtml(statusClass)}">${escapeHtml(label)}</span>`;
 }
@@ -192,68 +213,163 @@ function provenanceChipHtml(lineId, draftKey, provenance) {
   return `<span class="prov-chip" data-provenance="${escapeHtml(code)}" data-prov-for="${escapeHtml(lineId)}-${escapeHtml(draftKey)}">${escapeHtml(provenanceLabel(code))}</span>`;
 }
 
-function presentChip(flag, yesLabel = "Present", noLabel = "Not present") {
-  return flag
-    ? chip("success", yesLabel)
-    : chip("neutral", noLabel);
+function filteredQueue() {
+  return filterQueueRows(state.queue, {
+    search: state.queueView.search,
+    reviewLens: state.queueView.reviewLens,
+    systemLens: state.queueView.systemLens,
+    classLens: state.queueView.classLens,
+  });
 }
 
-function renderFilters() {
-  const host = $("queueFilters");
-  if (!host) return;
-  host.innerHTML = QUEUE_FILTERS.map(
-    (item) =>
-      `<button type="button" class="lens-pill" data-filter="${escapeHtml(item.id)}" aria-pressed="${
-        state.filterId === item.id ? "true" : "false"
-      }">${escapeHtml(item.label)}</button>`,
-  ).join("");
+function saveQueueScroll() {
+  const wrap = $("queueTableWrap");
+  if (wrap) state.queueView.scrollTop = wrap.scrollTop;
+}
+
+function restoreQueueScroll() {
+  const wrap = $("queueTableWrap");
+  if (!wrap) return;
+  wrap.scrollTop = state.queueView.scrollTop;
+}
+
+function resetQueueChunkAndScroll() {
+  const filtered = filteredQueue();
+  state.queueView.renderedCount = resetQueueRenderCount(filtered.length);
+  state.queueView.scrollTop = 0;
+  const wrap = $("queueTableWrap");
+  if (wrap) wrap.scrollTop = 0;
+}
+
+function syncSearchClear() {
+  const clear = $("queueSearchClear");
+  if (clear) clear.hidden = !safeText(state.queueView.search);
 }
 
 function renderKpis() {
+  const host = $("kpiStrip");
+  if (!host) return;
   const kpis = queueKpis(state.queue);
-  $("kpiProducts").textContent = String(kpis.products);
-  $("kpiPending").textContent = String(kpis.pending);
-  $("kpiInReview").textContent = String(kpis.inReview);
-  $("kpiVerified").textContent = String(kpis.verified);
-  $("kpiBlocked").textContent = String(kpis.blocked);
-  $("kpiReady").textContent = String(kpis.ready);
-}
-
-function renderQueue() {
-  const tbody = $("queueTbody");
-  if (!tbody) return;
-  const rows = filterQueueRows(state.queue, {
-    filterId: state.filterId,
-    search: state.search,
-  });
-  const count = $("queueRowCount");
-  if (count) count.textContent = `${rows.length} shown`;
-  if (!state.queue.length) {
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state">No products in the e-Aushadhi review queue.</div></td></tr>`;
-    return;
-  }
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state">No products match the current search or filter.</div></td></tr>`;
-    return;
-  }
-  tbody.innerHTML = rows
-    .map((row) => {
-      const ready = row.is_ready_for_entry === true;
-      return `<tr class="queue-row${idsEqual(row.product_id, state.selectedProductId) ? " is-active" : ""}" data-product-id="${escapeHtml(row.product_id)}">
-        <td>${escapeHtml(displayText(row.product_name))}</td>
-        <td>${escapeHtml(displayText(row.system_label))}</td>
-        <td>${escapeHtml(displayText(row.medicine_class_label))}</td>
-        <td>${escapeHtml(displayText(row.dosage_form_label))}</td>
-        <td>${escapeHtml(displayText(row.subtype_label))}</td>
-        <td>${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}</td>
-        <td>${escapeHtml(formatVerifiedTotal(row.verified_lines, row.composition_lines))}</td>
-        <td>${escapeHtml(String(toInt(row.open_blockers)))}</td>
-        <td>${escapeHtml(String(toInt(row.open_portal_issues)))}</td>
-        <td>${ready ? chip("success", "READY") : chip("neutral", "Not ready")}</td>
-        <td>${chip(entryStatusChipClass(row.entry_status), normalizeEntryStatus(row.entry_status))}</td>
-      </tr>`;
+  const items = [
+    ["all", "products", "Products", kpis.products, "is-products"],
+    ["pending", "pending", "Pending", kpis.pending, "is-pending"],
+    ["in_review", "in_review", "In Review", kpis.inReview, "is-in-review"],
+    ["verified", "verified", "Verified", kpis.verified, "is-verified"],
+    ["blocked", "blocked", "Blocked", kpis.blocked, "is-blocked"],
+    ["ready", "ready", "Ready", kpis.ready, "is-ready"],
+  ];
+  host.innerHTML = items
+    .map(([lens, key, label, value, tone]) => {
+      const active = state.queueView.reviewLens === lens;
+      return `<button type="button" class="kpi ${tone}${active ? " is-active" : ""}" data-review-lens="${escapeHtml(lens)}" data-kpi="${escapeHtml(key)}" aria-pressed="${active ? "true" : "false"}">
+        <span class="kpi-label">${escapeHtml(label)}</span>
+        <span class="kpi-value">${escapeHtml(String(value))}</span>
+      </button>`;
     })
     .join("");
+}
+
+function renderLensGroup(hostId, items, current, attr) {
+  const host = $(hostId);
+  if (!host) return;
+  host.innerHTML = items
+    .map(
+      (item) =>
+        `<button type="button" class="${hostId === "reviewLenses" ? "review-lens" : "lens-pill"}" data-${attr}="${escapeHtml(item.id)}" aria-pressed="${
+          current === item.id ? "true" : "false"
+        }">${escapeHtml(item.label)}</button>`,
+    )
+    .join("");
+}
+
+function renderLenses() {
+  renderLensGroup("reviewLenses", REVIEW_LENSES, state.queueView.reviewLens, "review-lens");
+  renderLensGroup("systemLenses", SYSTEM_LENSES, state.queueView.systemLens, "system-lens");
+  renderLensGroup("classLenses", CLASS_LENSES, state.queueView.classLens, "class-lens");
+}
+
+function queueRowHtml(row) {
+  const ready = row.is_ready_for_entry === true;
+  const blockers = toInt(row.open_blockers);
+  const portal = toInt(row.open_portal_issues);
+  const issues =
+    blockers || portal
+      ? `B ${blockers} · P ${portal}`
+      : "None";
+  return `<tr class="queue-row" data-product-id="${escapeHtml(row.product_id)}">
+    <td class="cell-product">${escapeHtml(displayText(row.product_name))}</td>
+    <td><div class="cell-stack"><span class="primary">${escapeHtml(displayText(row.system_label))}</span><span class="secondary">${escapeHtml(displayText(row.medicine_class_label))}</span></div></td>
+    <td><div class="cell-stack"><span class="primary">${escapeHtml(displayText(row.dosage_form_label))}</span><span class="secondary">${escapeHtml(displayText(row.subtype_label))}</span></div></td>
+    <td>${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}</td>
+    <td class="num-cell">${escapeHtml(formatVerifiedTotal(row.verified_lines, row.composition_lines))}</td>
+    <td class="num-cell">${escapeHtml(issues)}</td>
+    <td>${ready ? chip("success", "READY") : chip("neutral", "Not ready")}</td>
+    <td>${chip(entryStatusChipClass(row.entry_status), normalizeEntryStatus(row.entry_status))}</td>
+  </tr>`;
+}
+
+function updateShowingCount(shown, total) {
+  const count = $("queueRowCount");
+  if (count) count.textContent = formatShowingCount(shown, total);
+}
+
+function paintQueueBody(rows, emptyMessage) {
+  const tbody = $("queueTbody");
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">${escapeHtml(emptyMessage)}</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(queueRowHtml).join("");
+}
+
+function renderQueue({ resetChunk = false, restoreScroll = false } = {}) {
+  const filtered = filteredQueue();
+  if (resetChunk) resetQueueChunkAndScroll();
+  if (state.queueView.renderedCount <= 0 && filtered.length) {
+    state.queueView.renderedCount = resetQueueRenderCount(filtered.length);
+  }
+  if (state.queueView.renderedCount > filtered.length) {
+    state.queueView.renderedCount = filtered.length;
+  }
+  const visible = visibleQueueRows(filtered, state.queueView.renderedCount);
+  updateShowingCount(visible.length, filtered.length);
+  if (!state.queue.length) {
+    paintQueueBody([], "No products in the e-Aushadhi review queue.");
+  } else if (!filtered.length) {
+    paintQueueBody([], "No products match the current search or filter.");
+  } else {
+    paintQueueBody(visible, "");
+  }
+  if (restoreScroll) {
+    requestAnimationFrame(() => restoreQueueScroll());
+  }
+}
+
+function appendQueueChunk() {
+  if (isProductMode()) return;
+  const wrap = $("queueTableWrap");
+  const tbody = $("queueTbody");
+  if (!wrap || !tbody) return;
+  const filtered = filteredQueue();
+  if (state.queueView.renderedCount >= filtered.length) return;
+  if (
+    !shouldAppendQueueChunk({
+      scrollTop: wrap.scrollTop,
+      clientHeight: wrap.clientHeight,
+      scrollHeight: wrap.scrollHeight,
+    })
+  ) {
+    return;
+  }
+  const next = nextQueueRenderCount(state.queueView.renderedCount, filtered.length);
+  const extra = filtered.slice(state.queueView.renderedCount, next);
+  if (!extra.length) return;
+  const empty = tbody.querySelector(".empty-state");
+  if (empty) tbody.innerHTML = "";
+  tbody.insertAdjacentHTML("beforeend", extra.map(queueRowHtml).join(""));
+  state.queueView.renderedCount = next;
+  updateShowingCount(Math.min(next, filtered.length), filtered.length);
 }
 
 function optionHtml(options, selectedId, extra = []) {
@@ -281,7 +397,7 @@ function optionHtml(options, selectedId, extra = []) {
 function renderIssues(issues, emptyText) {
   const list = Array.isArray(issues) ? issues : [];
   if (!list.length) {
-    return `<div class="muted-note">${escapeHtml(emptyText)}</div>`;
+    return emptyText ? `<div class="muted-note">${escapeHtml(emptyText)}</div>` : "";
   }
   return list
     .slice()
@@ -296,12 +412,7 @@ function renderIssues(issues, emptyText) {
         )}</div>
         <div>
           <strong>${escapeHtml(displayText(issue.issue_code))}</strong>
-          <div class="muted-note">${escapeHtml(displayText(issue.status))} ${
-            issue.source_composition_line_id
-              ? `· source line ${escapeHtml(issue.source_composition_line_id)}`
-              : ""
-          }</div>
-          ${details ? `<div>${escapeHtml(details)}</div>` : ""}
+          ${details ? `<div class="muted-note">${escapeHtml(details)}</div>` : ""}
         </div>
         <div class="muted-note">${escapeHtml(String(issue.created_at || "").slice(0, 19))}</div>
       </div>`;
@@ -309,39 +420,135 @@ function renderIssues(issues, emptyText) {
     .join("");
 }
 
+function stageCtx() {
+  return {
+    queueRow: state.queueRow || {},
+    evidence: state.evidence || {},
+    review: state.review || {},
+  };
+}
+
+function renderWorkflowNav() {
+  const host = $("workspaceTabs");
+  if (!host) return;
+  const ctx = stageCtx();
+  host.innerHTML = WORKFLOW_STAGES.map((stage) => {
+    const selected = state.tab === stage.id;
+    const complete = workflowStageComplete(stage.id, ctx);
+    return `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" data-tab="${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}">
+      <span class="step-no">${escapeHtml(String(stage.step))}</span>
+      <span>${escapeHtml(stage.label)}</span>
+    </button>`;
+  }).join("");
+}
+
+function renderProductHeader() {
+  const row = state.queueRow || {};
+  const review = state.review || {};
+  const evidence = state.evidence || {};
+  $("workspaceTitle").textContent = displayText(
+    review.product_name || row.product_name,
+    "Product",
+  );
+  const meta = [
+    displayText(row.system_label, ""),
+    displayText(row.medicine_class_label, ""),
+    [displayText(row.dosage_form_label, ""), displayText(row.subtype_label, "")]
+      .filter((part) => part && part !== "—")
+      .join(" / "),
+  ]
+    .filter((part) => part && part !== "—")
+    .join(" · ");
+  $("workspaceMeta").textContent = meta;
+  const badges = $("workspaceBadges");
+  if (badges) {
+    badges.innerHTML = [
+      chip(
+        reviewStatusChipClass(review.review_status || row.review_status),
+        displayText(review.review_status || row.review_status, "PENDING"),
+      ),
+      `<span class="status-chip neutral">Composition ${escapeHtml(
+        formatVerifiedTotal(
+          row.verified_lines ?? evidence.composition_lines_verified,
+          row.composition_lines ?? evidence.composition_lines_total,
+        ),
+      )}</span>`,
+      row.is_ready_for_entry === true
+        ? chip("success", "READY")
+        : chip("neutral", "Not ready"),
+    ].join("");
+  }
+}
+
+function boolSegment(key, label, value) {
+  const current = value === true ? "true" : value === false ? "false" : "";
+  return `<div class="form-field">
+    <label>${escapeHtml(label)}</label>
+    <div class="seg-control" data-bool-key="${escapeHtml(key)}">
+      <button type="button" data-edit-action="true" data-bool-value="true" aria-pressed="${current === "true"}">Yes</button>
+      <button type="button" data-edit-action="true" data-bool-value="false" aria-pressed="${current === "false"}">No</button>
+      <button type="button" data-edit-action="true" data-bool-value="" aria-pressed="${current === ""}">Not reviewed</button>
+    </div>
+  </div>`;
+}
+
+function parseBoolButton(value) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
+}
+
 function renderOverview() {
   const host = $("tab-overview");
   const row = state.queueRow || {};
   const review = state.review || {};
   const evidence = state.evidence || {};
+  const ctx = stageCtx();
+  const next = nextRequiredAction({
+    reviewStatus: review.review_status || row.review_status,
+    queueRow: row,
+    evidence,
+    pharmacologicalActionPresent: evidence.pharmacological_action_present,
+  });
+  const progress = [
+    ["Product Details", "details"],
+    ["Composition", "composition"],
+    ["Pharmacological Action", "actions"],
+    ["Evidence", "evidence"],
+    ["Readiness", "readiness"],
+  ];
   host.innerHTML = `
     <div class="section-card">
-      <h3 class="section-title">Canonical product</h3>
+      <h3 class="section-title">What is this product?</h3>
       <div class="meta-grid">
         <div class="meta-item"><span class="meta-label">Product Name</span><span class="meta-value">${escapeHtml(displayText(review.product_name || row.product_name))}</span></div>
-        <div class="meta-item"><span class="meta-label">System</span><span class="meta-value">${escapeHtml(displayText(review.system_label || row.system_label))}</span></div>
-        <div class="meta-item"><span class="meta-label">Medicine Class</span><span class="meta-value">${escapeHtml(displayText(review.medicine_class_label || row.medicine_class_label))}</span></div>
-        <div class="meta-item"><span class="meta-label">Dosage Form</span><span class="meta-value">${escapeHtml(displayText(review.dosage_form_label || row.dosage_form_label))}</span></div>
-        <div class="meta-item"><span class="meta-label">Product Subtype</span><span class="meta-value">${escapeHtml(displayText(review.subtype_label || row.subtype_label))}</span></div>
+        <div class="meta-item"><span class="meta-label">System</span><span class="meta-value">${escapeHtml(displayText(row.system_label))}</span></div>
+        <div class="meta-item"><span class="meta-label">Medicine Class</span><span class="meta-value">${escapeHtml(displayText(row.medicine_class_label))}</span></div>
+        <div class="meta-item"><span class="meta-label">Dosage / Subtype</span><span class="meta-value">${escapeHtml(displayText(row.dosage_form_label))} / ${escapeHtml(displayText(row.subtype_label))}</span></div>
       </div>
     </div>
     <div class="section-card">
-      <h3 class="section-title">Review and readiness</h3>
-      <div class="meta-grid">
-        <div class="meta-item"><span class="meta-label">Product Review</span><span>${chip(reviewStatusChipClass(review.review_status || row.review_status), displayText(review.review_status || row.review_status, "PENDING"))}</span></div>
-        <div class="meta-item"><span class="meta-label">Composition</span><span class="meta-value">${escapeHtml(formatVerifiedTotal(row.verified_lines ?? evidence.composition_lines_verified, row.composition_lines ?? evidence.composition_lines_total))}</span></div>
-        <div class="meta-item"><span class="meta-label">Open blockers</span><span class="meta-value">${escapeHtml(String(toInt(row.open_blockers)))}</span></div>
-        <div class="meta-item"><span class="meta-label">Portal issues</span><span class="meta-value">${escapeHtml(String(toInt(row.open_portal_issues)))}</span></div>
-        <div class="meta-item"><span class="meta-label">Approved Product Copy</span>${presentChip(evidence.approved_product_copy_present)}</div>
-        <div class="meta-item"><span class="meta-label">Approved Formulation</span>${presentChip(evidence.approved_formulation_present)}</div>
-        <div class="meta-item"><span class="meta-label">Pharmacological Action</span>${presentChip(evidence.pharmacological_action_present)}</div>
-        <div class="meta-item"><span class="meta-label">READY FOR E-AUSHADHI</span>${row.is_ready_for_entry === true ? chip("success", "READY") : chip("neutral", "Not ready")}</div>
-        <div class="meta-item"><span class="meta-label">Portal entry status</span>${chip(entryStatusChipClass(row.entry_status), normalizeEntryStatus(row.entry_status))} <span class="muted-note">Display only</span></div>
+      <h3 class="section-title">Review Progress</h3>
+      <div class="progress-list">
+        ${progress
+          .map(
+            ([label, id]) =>
+              `<div class="progress-row"><span>${escapeHtml(label)}</span>${
+                workflowStageComplete(id, ctx)
+                  ? chip("success", "Complete")
+                  : chip("neutral", "Incomplete")
+              }</div>`,
+          )
+          .join("")}
       </div>
     </div>
     <div class="section-card">
-      <h3 class="section-title">Live reconciliation issues</h3>
-      ${renderIssues(state.issues, "No open or in-review issues for this product.")}
+      <h3 class="section-title">Next required action</h3>
+      <div class="next-action">${escapeHtml(next.label)}</div>
+    </div>
+    <div class="section-card">
+      <h3 class="section-title">Attention required</h3>
+      ${renderIssues(state.issues, "No open issues for this product.")}
     </div>`;
 }
 
@@ -354,42 +561,37 @@ function renderDetails() {
     : "";
   host.innerHTML = `
     <div class="section-card">
-      <h3 class="section-title">Product details review</h3>
-      <p class="muted-note">Suggested values may be prefilled. Verification is always an explicit action. Current status: ${escapeHtml(displayText(review.review_status, "PENDING"))}.</p>
+      <h3 class="section-title">Regulatory purpose</h3>
+      <div class="form-field">
+        <label for="fldPurpose">Permission Purpose</label>
+        <select id="fldPurpose" data-edit-action="true">${optionHtml(state.catalogs.permissionPurposeOptions, draft.permissionPurposeTermId)}</select>
+        <span class="muted-note">${escapeHtml(suggested)}</span>
+      </div>
+    </div>
+    <div class="section-card">
+      <h3 class="section-title">Product description</h3>
+      <div class="form-field">
+        <label for="fldTitle">Composition Title</label>
+        <input id="fldTitle" data-edit-action="true" value="${escapeHtml(draft.compositionTitle || "")}" />
+      </div>
+      <div class="form-field">
+        <label for="fldDiseases">Diseases / Conditions</label>
+        <textarea id="fldDiseases" rows="3" data-edit-action="true">${escapeHtml(draft.diseasesConditions || "")}</textarea>
+      </div>
+    </div>
+    <div class="section-card">
+      <h3 class="section-title">Controlled declarations</h3>
+      <p class="muted-note">Null remains Not reviewed. These controls never default to No.</p>
       <div class="form-grid">
-        <div class="form-field">
-          <label for="fldPurpose">Permission Purpose</label>
-          <select id="fldPurpose" data-edit-action="true">${optionHtml(state.catalogs.permissionPurposeOptions, draft.permissionPurposeTermId)}</select>
-          <span class="muted-note">${escapeHtml(suggested)}</span>
-        </div>
-        <div class="form-field form-span-2">
-          <label for="fldTitle">Composition Title</label>
-          <input id="fldTitle" data-edit-action="true" value="${escapeHtml(draft.compositionTitle || "")}" />
-        </div>
-        <div class="form-field form-span-2">
-          <label for="fldDiseases">Diseases / Conditions</label>
-          <textarea id="fldDiseases" rows="3" data-edit-action="true">${escapeHtml(draft.diseasesConditions || "")}</textarea>
-        </div>
-        ${[
-          ["fldBhang", "Contains Bhang", draft.containsBhang],
-          ["fldOpium", "Contains Opium", draft.containsOpium],
-          ["fldNarcotic", "Contains Other Narcotic", draft.containsOtherNarcotic],
-          ["fldSchedule", "Contains Schedule E1", draft.containsScheduleE1],
-          ["fldAlcohol", "Contains Self-generated Alcohol", draft.containsSelfGeneratedAlcohol],
-        ]
-          .map(
-            ([id, label, value]) => `<div class="form-field"><label for="${id}">${label}</label>
-              <select id="${id}" data-edit-action="true">
-                <option value=""${value == null ? " selected" : ""}>Select…</option>
-                <option value="true"${value === true ? " selected" : ""}>Yes</option>
-                <option value="false"${value === false ? " selected" : ""}>No</option>
-              </select></div>`,
-          )
-          .join("")}
-        <div class="form-field form-span-2">
-          <label for="fldReviewNotes">Review notes</label>
-          <textarea id="fldReviewNotes" rows="2" data-edit-action="true">${escapeHtml(draft.reviewNotes || "")}</textarea>
-        </div>
+        ${boolSegment("containsBhang", "Bhang", draft.containsBhang)}
+        ${boolSegment("containsOpium", "Opium", draft.containsOpium)}
+        ${boolSegment("containsOtherNarcotic", "Other Narcotic", draft.containsOtherNarcotic)}
+        ${boolSegment("containsScheduleE1", "Schedule E1", draft.containsScheduleE1)}
+        ${boolSegment("containsSelfGeneratedAlcohol", "Self-generated Alcohol", draft.containsSelfGeneratedAlcohol)}
+      </div>
+      <div class="form-field" style="margin-top:10px">
+        <label for="fldReviewNotes">Review notes</label>
+        <textarea id="fldReviewNotes" rows="2" data-edit-action="true">${escapeHtml(draft.reviewNotes || "")}</textarea>
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnSaveDetails" data-edit-action="true">Save as In Review</button>
@@ -406,6 +608,12 @@ function renderComposition() {
     return;
   }
   const specs = portalFieldSpecs();
+  const labels = {
+    INGREDIENT_TYPE: "Ingredient Type",
+    INGREDIENT_FORM: "Ingredient Form",
+    PART_USED: "Part Used",
+    MEASUREMENT_UNIT: "Unit",
+  };
   host.innerHTML = state.lines
     .map((row) => {
       const id = optionId(row.source_composition_line_id);
@@ -413,6 +621,9 @@ function renderComposition() {
       const lineIssues = issuesForLine(state.issues, id);
       const hasBlocker = lineIssues.some((issue) => severityRank(issue.severity) >= 3);
       const hasError = lineIssues.some((issue) => severityRank(issue.severity) === 2);
+      const topSev = lineIssues
+        .slice()
+        .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
       const fields = specs
         .map((spec) => {
           const selectedNow = draft[spec.draftKey];
@@ -423,8 +634,8 @@ function renderComposition() {
             suggestionBasis: row.suggestion_basis,
             fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
           });
-          return `<div class="form-field">
-            <label>${escapeHtml(spec.domain.replace(/_/g, " "))}</label>
+          return `<div class="portal-field form-field">
+            <label>${escapeHtml(labels[spec.domain] || spec.domain)}</label>
             <select data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}">
               ${optionHtml(state.catalogs.portalOptions[spec.domain], selectedNow)}
             </select>
@@ -432,43 +643,43 @@ function renderComposition() {
           </div>`;
         })
         .join("");
-      const issueMarks = lineIssues
-        .map((issue) => severityLabel(issue.severity))
-        .filter((value, index, all) => all.indexOf(value) === index)
-        .map((sev) =>
-          chip(sev === "WARNING" ? "warning" : "danger", sev),
-        )
+      const qty = [displayText(row.raw_quantity_text, ""), displayText(row.raw_unit_text, "")]
+        .filter((part) => part && part !== "—")
         .join(" ");
+      const names = [displayText(row.raw_ingredient_name), displayText(row.raw_scientific_name)]
+        .filter((part) => part && part !== "—")
+        .join(" · ");
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="line-head">
-          <span>Row ${escapeHtml(displayText(row.source_row_no))} · ${escapeHtml(displayText(row.raw_ingredient_name))}</span>
+          <span class="line-no">${escapeHtml(displayText(row.source_row_no))}</span>
+          <span class="line-title">${escapeHtml(names)}</span>
+          <span class="line-qty">${escapeHtml(qty || "—")}</span>
           ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
-          ${issueMarks}
+          ${
+            topSev
+              ? chip(
+                  severityRank(topSev.severity) >= 2 ? "danger" : "warning",
+                  severityLabel(topSev.severity),
+                )
+              : ""
+          }
         </div>
-        <p class="line-band-label">Source evidence (read-only)</p>
-        <div class="line-source">
-          <div><span class="source-label">Scientific name</span>${escapeHtml(displayText(row.raw_scientific_name))}</div>
-          <div><span class="source-label">Raw part used</span>${escapeHtml(displayText(row.raw_part_used))}</div>
-          <div><span class="source-label">Raw quantity</span>${escapeHtml(displayText(row.raw_quantity_text))}</div>
-          <div><span class="source-label">Raw unit</span>${escapeHtml(displayText(row.raw_unit_text))}</div>
-        </div>
-        <p class="line-band-label">Portal mapping (review)</p>
+        <div class="line-sub">Source part: ${escapeHtml(displayText(row.raw_part_used))}</div>
         <div class="portal-fields">${fields}</div>
-        <div class="form-field line-notes">
-          <label>Line notes</label>
-          <input data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" />
+        <div class="line-notes-row">
+          <input data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" />
+          <button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}">Save</button>
+          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" ${
+            lineHasBlockerOrError(state.issues, id)
+              ? 'title="This line has BLOCKER or ERROR issues"'
+              : ""
+          }>Verify</button>
         </div>
         ${
           lineIssues.length
-            ? `<div class="line-issues"><div class="line-band-label">Line issues</div>${renderIssues(lineIssues, "")}</div>`
+            ? `<div class="line-issues">${renderIssues(lineIssues, "")}</div>`
             : ""
         }
-        <div class="action-row">
-          <button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}">Save as In Review</button>
-          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" ${
-            lineHasBlockerOrError(state.issues, id) ? 'title="This line has BLOCKER or ERROR issues"' : ""
-          }>Verify Line</button>
-        </div>
       </article>`;
     })
     .join("");
@@ -478,12 +689,16 @@ function renderComposition() {
 function renderActions() {
   const host = $("tab-actions");
   const vocab = state.catalogs.pharmacologicalActionOptions || [];
-  const rows = state.actionsDraft.length ? state.actionsDraft : [""];
+  const rows = state.actionsDraft;
+  const empty = !rows.length;
+  const showReorder = rows.length > 1;
   host.innerHTML = `
     <div class="section-card">
       <h3 class="section-title">Pharmacological action</h3>
-      <p class="muted-note">Choose existing verified wording or type approved wording exactly. The module does not invent therapeutic claims.</p>
-      <div class="action-list" id="actionList">
+      ${
+        empty
+          ? `<div class="empty-state">No pharmacological action reviewed yet.</div>`
+          : `<div class="action-list" id="actionList">
         ${rows
           .map((text, index) => {
             const match = vocab.find(
@@ -502,16 +717,21 @@ function renderActions() {
                   )
                   .join("")}
               </select>
-              <input data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Approved pharmacological action wording" />
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" title="Move up">↑</button>
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" title="Move down">↓</button>
+              <input data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording" />
+              ${
+                showReorder
+                  ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" title="Move up">↑</button>
+              <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" title="Move down">↓</button>`
+                  : ""
+              }
               <button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" title="Remove">×</button>
             </div>`;
           })
           .join("")}
-      </div>
+      </div>`
+      }
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add action</button>
+        <button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add Action</button>
         <button type="button" class="icon-btn with-label" id="btnSaveActions" data-edit-action="true">Save as In Review</button>
         <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true">Verify Actions</button>
       </div>
@@ -519,22 +739,59 @@ function renderActions() {
   applyPermissionUi();
 }
 
+function evidenceCard(title, met, pendingCopy) {
+  return `<div class="evidence-card ${met ? "is-met" : "is-pending"}">
+    <div>
+      <strong>${escapeHtml(title)}</strong>
+      ${!met && pendingCopy ? `<div class="muted-note">${escapeHtml(pendingCopy)}</div>` : ""}
+    </div>
+    ${met ? chip("success", "Present") : chip("neutral", "Pending")}
+  </div>`;
+}
+
 function renderEvidence() {
   const host = $("tab-evidence");
   const evidence = state.evidence || {};
   const row = state.queueRow || {};
+  const blocking = toInt(evidence.blocking_issue_count ?? row.open_blockers);
   host.innerHTML = `
     <div class="section-card">
       <h3 class="section-title">Evidence status</h3>
-      <div class="meta-grid">
-        <div class="meta-item"><span class="meta-label">Approved Product Copy</span>${presentChip(evidence.approved_product_copy_present)}</div>
-        <div class="meta-item"><span class="meta-label">Approved Formulation</span>${presentChip(evidence.approved_formulation_present)}</div>
-        <div class="meta-item"><span class="meta-label">Pharmacological Action</span>${presentChip(evidence.pharmacological_action_present)}</div>
-        <div class="meta-item"><span class="meta-label">Composition verified</span><span class="meta-value">${escapeHtml(formatVerifiedTotal(evidence.composition_lines_verified ?? row.verified_lines, evidence.composition_lines_total ?? row.composition_lines))}</span></div>
-        <div class="meta-item"><span class="meta-label">Blocking issues</span><span class="meta-value">${escapeHtml(String(toInt(evidence.blocking_issue_count ?? row.open_blockers)))}</span></div>
+      <div class="evidence-list">
+        ${evidenceCard(
+          "Approved Product Copy",
+          evidence.approved_product_copy_present === true,
+          "Upload setup pending. Dedicated copy storage is not enabled yet.",
+        )}
+        ${evidenceCard(
+          "Approved Formulation",
+          evidence.approved_formulation_present === true,
+          "Promote a verified formulation when eligible.",
+        )}
+        ${evidenceCard(
+          "Pharmacological Action",
+          evidence.pharmacological_action_present === true,
+        )}
+        ${evidenceCard(
+          "Composition verification",
+          compositionIsComplete(row, evidence),
+          formatVerifiedTotal(
+            evidence.composition_lines_verified ?? row.verified_lines,
+            evidence.composition_lines_total ?? row.composition_lines,
+          ),
+        )}
+        <div class="evidence-card ${blocking ? "is-pending" : "is-met"}">
+          <div><strong>Blocking issues</strong></div>
+          ${blocking ? chip("danger", String(blocking)) : chip("success", "None")}
+        </div>
       </div>
-      <p class="muted-note">Approved Product Copy upload and registration are unavailable until the dedicated storage backend is enabled. This module does not upload to other buckets or accept a manual storage path.</p>
     </div>`;
+}
+
+function gateStatus(met, blocked) {
+  if (blocked) return { label: "Blocked", cls: "danger" };
+  if (met) return { label: "Met", cls: "success" };
+  return { label: "Pending", cls: "neutral" };
 }
 
 function renderReadiness() {
@@ -562,42 +819,58 @@ function renderReadiness() {
     openBlockers: row.open_blockers,
     workflowRowVersion: row.workflow_row_version,
   });
-  const items = [
-    ["Product Details VERIFIED", normalizeReviewStatus(review.review_status) === "VERIFIED"],
-    ["Pharmacological Action present", evidence.pharmacological_action_present === true],
-    ["Composition complete", row.composition_review_complete === true],
-    ["Blocking issues clear", toInt(row.open_blockers) === 0 && issueCount === 0],
-    ["Approved Product Copy present", evidence.approved_product_copy_present === true],
-    ["Approved Formulation present", evidence.approved_formulation_present === true],
-    ["Server READY FOR E-AUSHADHI", row.is_ready_for_entry === true],
+  const blockersClear = toInt(row.open_blockers) === 0 && issueCount === 0;
+  const gates = [
+    ["Product Details", normalizeReviewStatus(review.review_status) === "VERIFIED", false],
+    ["Pharmacological Action", evidence.pharmacological_action_present === true, false],
+    ["Composition", compositionIsComplete(row, evidence), false],
+    ["Blocking issues", blockersClear, !blockersClear],
+    ["Approved Product Copy", evidence.approved_product_copy_present === true, false],
+    ["Approved Formulation", evidence.approved_formulation_present === true, false],
   ];
+  const ready = row.is_ready_for_entry === true;
+  const showPromote = evidence.approved_formulation_present !== true;
+  const showVerify = ready !== true;
   host.innerHTML = `
     <div class="section-card">
-      <h3 class="section-title">Readiness checklist</h3>
-      <p class="muted-note">READY is the server queue flag. Verifying a form does not by itself mark a product ready for e-Aushadhi, and it does not mean portal entry has started.</p>
-      ${items
-        .map(
-          ([label, ok]) =>
-            `<div class="readiness-item"><span>${escapeHtml(label)}</span>${ok ? chip("success", "Met") : chip("neutral", "Not met")}</div>`,
-        )
-        .join("")}
-      <div class="form-field" style="margin-top:12px">
+      <div class="readiness-banner ${ready ? "is-ready" : "is-not-ready"}">${
+        ready ? "READY FOR E-AUSHADHI" : "NOT READY"
+      }</div>
+      <div class="readiness-compact">
+        ${gates
+          .map(([label, met, blocked]) => {
+            const status = gateStatus(met, blocked);
+            return `<div class="readiness-chip"><span>${escapeHtml(label)}</span>${chip(status.cls, status.label)}</div>`;
+          })
+          .join("")}
+      </div>
+      ${
+        showPromote
+          ? `<div class="form-field" style="margin-top:12px">
         <label for="fldPromoteNotes">Promotion notes</label>
         <textarea id="fldPromoteNotes" rows="2" data-edit-action="true">${escapeHtml(state.promoteNotes)}</textarea>
       </div>
-      <div class="form-field">
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label primary" id="btnPromote" data-edit-action="true" ${
+          promoteOk ? "" : 'data-force-disabled="true" title="Promotion prerequisites are not met"'
+        }>Promote Verified Formulation</button>
+      </div>`
+          : ""
+      }
+      ${
+        showVerify
+          ? `<div class="form-field" style="margin-top:12px">
         <label for="fldVerifyNotes">Internal product verification notes</label>
         <textarea id="fldVerifyNotes" rows="2" data-edit-action="true">${escapeHtml(state.verifyNotes)}</textarea>
       </div>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label primary" id="btnPromote" data-edit-action="true" ${
-          promoteOk ? "" : 'data-force-disabled="true"'
-        }>Promote Verified Formulation</button>
         <button type="button" class="icon-btn with-label" id="btnVerifyProduct" data-edit-action="true" ${
-          verifyOk ? "" : 'data-force-disabled="true"'
+          verifyOk ? "" : 'data-force-disabled="true" title="Internal verification prerequisites are not met"'
         }>Verify Product internally</button>
-      </div>
-      <p class="muted-note">These actions prepare internal records only. They do not enter, verify, or submit the Government portal.</p>
+      </div>`
+          : ""
+      }
+      <p class="muted-note">These actions prepare internal records only. They do not enter or submit the Government portal.</p>
       <p class="muted-note">Portal entry statuses (${escapeHtml(normalizeEntryStatus(row.entry_status))}) are display-only in this module.</p>
     </div>`;
   applyPermissionUi();
@@ -608,20 +881,13 @@ function renderActiveTab() {
   document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
     panel.hidden = panel.dataset.tabPanel !== tab;
   });
-  document.querySelectorAll(".workspace-tab").forEach((btn) => {
-    btn.setAttribute("aria-selected", String(btn.dataset.tab === tab));
-  });
+  renderWorkflowNav();
   if (tab === "overview") renderOverview();
   else if (tab === "details") renderDetails();
   else if (tab === "composition") renderComposition();
   else if (tab === "actions") renderActions();
   else if (tab === "evidence") renderEvidence();
   else if (tab === "readiness") renderReadiness();
-}
-
-function showWorkspace(show) {
-  $("queuePanel").hidden = show;
-  $("workspacePanel").hidden = !show;
 }
 
 function syncDetailsDraftFromForm() {
@@ -631,11 +897,6 @@ function syncDetailsDraftFromForm() {
     permissionPurposeTermId: optionId($("fldPurpose")?.value),
     compositionTitle: $("fldTitle")?.value ?? "",
     diseasesConditions: $("fldDiseases")?.value ?? "",
-    containsBhang: parseBoolSelect($("fldBhang")?.value),
-    containsOpium: parseBoolSelect($("fldOpium")?.value),
-    containsOtherNarcotic: parseBoolSelect($("fldNarcotic")?.value),
-    containsScheduleE1: parseBoolSelect($("fldSchedule")?.value),
-    containsSelfGeneratedAlcohol: parseBoolSelect($("fldAlcohol")?.value),
     reviewNotes: $("fldReviewNotes")?.value ?? "",
   };
 }
@@ -688,7 +949,9 @@ async function refreshQueue({ silent = false } = {}) {
     state.queueRow = findQueueRow(state.queue, state.selectedProductId);
   }
   renderKpis();
-  renderQueue();
+  renderLenses();
+  if (!isProductMode()) renderQueue();
+  if (isProductMode()) renderProductHeader();
   if (!silent) setStatus("");
 }
 
@@ -696,6 +959,7 @@ async function openProduct(productId) {
   if (state.selectedProductId && !idsEqual(state.selectedProductId, productId)) {
     if (!confirmLeaveDirty()) return;
   }
+  saveQueueScroll();
   const gen = ++state.loadGen;
   state.busy = true;
   setStatus("Loading product review workspace…");
@@ -707,19 +971,9 @@ async function openProduct(productId) {
     state.tab = "overview";
     state.preservedAfterStale = false;
     applyWorkspacePayload(payload, { preserveDrafts: false });
-    $("workspaceTitle").textContent = displayText(
-      payload.review?.product_name || state.queueRow?.product_name,
-      "Product",
-    );
-    $("workspaceSub").textContent = [
-      displayText(state.queueRow?.system_label, ""),
-      displayText(state.queueRow?.medicine_class_label, ""),
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    showWorkspace(true);
+    setAppMode("product");
+    renderProductHeader();
     renderActiveTab();
-    renderQueue();
     setStatus("");
   } catch (err) {
     toastError(err);
@@ -737,6 +991,7 @@ async function reloadSelected({ preserveDrafts = false } = {}) {
   if (gen !== state.loadGen) return;
   await refreshQueue({ silent: true });
   applyWorkspacePayload(payload, { preserveDrafts });
+  renderProductHeader();
   renderActiveTab();
 }
 
@@ -752,8 +1007,13 @@ function backToQueue() {
   state.lineDrafts = new Map();
   state.preservedAfterStale = false;
   $("staleBanner").hidden = true;
-  showWorkspace(false);
-  renderQueue();
+  setAppMode("queue");
+  renderKpis();
+  renderLenses();
+  syncSearchClear();
+  const search = $("queueSearch");
+  if (search) search.value = state.queueView.search;
+  renderQueue({ restoreScroll: true });
 }
 
 async function handleStale(err) {
@@ -880,6 +1140,12 @@ async function submitVerifyProduct() {
   });
 }
 
+function applyQueueFilterChange() {
+  renderKpis();
+  renderLenses();
+  renderQueue({ resetChunk: true });
+}
+
 function wireEvents() {
   mountModuleActionIcons({
     home: $("homeBtn"),
@@ -903,22 +1169,49 @@ function wireEvents() {
     const value = event.target.value || "";
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      state.search = value;
-      renderQueue();
+      state.queueView.search = value;
+      syncSearchClear();
+      applyQueueFilterChange();
     }, 180);
   });
   $("queueSearchClear")?.addEventListener("click", () => {
     $("queueSearch").value = "";
-    state.search = "";
-    renderQueue();
+    state.queueView.search = "";
+    syncSearchClear();
+    applyQueueFilterChange();
   });
-  $("queueFilters")?.addEventListener("click", (event) => {
-    const btn = event.target.closest("[data-filter]");
+  $("kpiStrip")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-review-lens]");
     if (!btn) return;
-    state.filterId = btn.dataset.filter;
-    renderFilters();
-    renderQueue();
+    state.queueView.reviewLens = btn.dataset.reviewLens || "all";
+    applyQueueFilterChange();
   });
+  $("reviewLenses")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-review-lens]");
+    if (!btn) return;
+    state.queueView.reviewLens = btn.dataset.reviewLens || "all";
+    applyQueueFilterChange();
+  });
+  $("systemLenses")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-system-lens]");
+    if (!btn) return;
+    state.queueView.systemLens = btn.dataset.systemLens || "all";
+    applyQueueFilterChange();
+  });
+  $("classLenses")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-class-lens]");
+    if (!btn) return;
+    state.queueView.classLens = btn.dataset.classLens || "all";
+    applyQueueFilterChange();
+  });
+  $("queueTableWrap")?.addEventListener(
+    "scroll",
+    () => {
+      state.queueView.scrollTop = $("queueTableWrap")?.scrollTop || 0;
+      appendQueueChunk();
+    },
+    { passive: true },
+  );
   $("queueTbody")?.addEventListener("click", (event) => {
     const row = event.target.closest("[data-product-id]");
     if (!row) return;
@@ -937,6 +1230,17 @@ function wireEvents() {
   $("tab-details")?.addEventListener("click", (event) => {
     if (event.target.id === "btnSaveDetails") submitDetails(false);
     if (event.target.id === "btnVerifyDetails") submitDetails(true);
+    const boolBtn = event.target.closest("[data-bool-value]");
+    if (boolBtn && state.detailsDraft) {
+      const group = boolBtn.closest("[data-bool-key]");
+      const key = group?.dataset.boolKey;
+      if (key) {
+        state.detailsDraft[key] = parseBoolButton(boolBtn.dataset.boolValue);
+        group.querySelectorAll("[data-bool-value]").forEach((el) => {
+          el.setAttribute("aria-pressed", String(el === boolBtn));
+        });
+      }
+    }
   });
   $("tab-details")?.addEventListener("input", () => {
     if (state.tab === "details") syncDetailsDraftFromForm();
@@ -956,9 +1260,7 @@ function wireEvents() {
     const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
     const spec = portalFieldSpecs().find((item) => item.draftKey === key);
     if (row && spec) {
-      const chipEl = document.querySelector(
-        `[data-prov-for="${lineId}-${key}"]`,
-      );
+      const chipEl = document.querySelector(`[data-prov-for="${lineId}-${key}"]`);
       if (chipEl) {
         const next = resolveFieldProvenance({
           reviewStatus: row.review_status,
@@ -1023,7 +1325,6 @@ function wireEvents() {
     if (remove) {
       const i = Number(remove.dataset.actionRemove);
       state.actionsDraft = state.actionsDraft.filter((_, idx) => idx !== i);
-      if (!state.actionsDraft.length) state.actionsDraft = [""];
       renderActions();
     }
   });
@@ -1086,16 +1387,16 @@ async function loadAccessState() {
     console.error("[eaushadhi] get_user_permissions failed", error || perms);
     return;
   }
-  const hit = perms.find(
-    (row) => row?.target === "module:e-aushadhi-automation",
-  );
+  const hit = perms.find((row) => row?.target === "module:e-aushadhi-automation");
   access.canView = hit?.can_view === true;
   access.canEdit = hit?.can_edit === true;
   access.loaded = true;
 }
 
 async function initPage() {
-  renderFilters();
+  setAppMode("queue");
+  renderLenses();
+  renderKpis();
   wireEvents();
   try {
     await loadAccessState();
@@ -1121,7 +1422,8 @@ async function initPage() {
     state.queue = queueRows;
     state.catalogs = catalogs;
     renderKpis();
-    renderQueue();
+    renderLenses();
+    renderQueue({ resetChunk: true });
     setStatus("");
   } catch (err) {
     console.error("[eaushadhi] initial load failed", err);

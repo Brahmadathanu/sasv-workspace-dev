@@ -103,6 +103,11 @@ assert(controlSrc.includes("can_view === true"), "fail-closed strict can_view");
 assert(htmlSrc.includes("id=\"workspaceTabs\""), "workspace tabs exist");
 assert(htmlSrc.includes("Composition"), "composition tab copy");
 assert(htmlSrc.includes("Readiness"), "readiness tab copy");
+assert(htmlSrc.includes("ea-mode-queue"), "queue mode class is present");
+assert(controlSrc.includes("ea-mode-product"), "product mode is applied in controller");
+assert(controlSrc.includes("QUEUE_RENDER_CHUNK"), "progressive queue chunk is used");
+assert(controlSrc.includes("renderedCount"), "queue view keeps renderedCount");
+assert(helpersSrc.includes("nextRequiredAction"), "next required action helper exists");
 assert(controlSrc.includes("data-provenance"), "composition provenance is labelled in markup");
 assert(
   !/hasEaushadhiReview/.test(indexSrc),
