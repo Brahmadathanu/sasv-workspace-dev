@@ -1,9 +1,11 @@
-import { supabase } from "./supabaseClient.js";
+﻿import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 import { showToast } from "./toast.js";
 import {
   CLASS_LENSES,
+  COMPOSITION_ATTENTION_FILTERS,
+  COMPOSITION_REVIEW_LENSES,
   ERROR_KIND,
   QUEUE_RENDER_CHUNK,
   REVIEW_LENSES,
@@ -14,17 +16,20 @@ import {
   actionsDraftFromRows,
   canPromoteFormulation,
   canVerifyProductWorkflow,
+  compositionFiltersAreActive,
   compositionIsComplete,
   detailsDraftFromReview,
   detailsDirty,
   displayText,
   entryStatusChipClass,
+  filterCompositionLines,
   findQueueRow,
   filterQueueRows,
   formatIssueDetails,
   formatShowingCount,
   formatVerifiedTotal,
   idsEqual,
+  isEditableKeyboardTarget,
   issuesForLine,
   lineDirty,
   lineDraftFromRow,
@@ -33,11 +38,13 @@ import {
   mergePreservedLineDraft,
   nextQueueRenderCount,
   nextRequiredAction,
+  nextRovingIndex,
   normalizeEntryStatus,
   normalizeReviewStatus,
   openErrorOrBlockerCount,
   optionId,
   portalFieldSpecs,
+  promoteUnavailableReason,
   provenanceLabel,
   queueKpis,
   resetQueueRenderCount,
@@ -49,6 +56,7 @@ import {
   shouldAppendQueueChunk,
   SUGGESTION_FIELD_KEYS,
   toInt,
+  verifyProductUnavailableReason,
   visibleQueueRows,
   workflowStageComplete,
 } from "./eaushadhi-review-helpers.js";
@@ -83,6 +91,13 @@ const state = {
     classLens: "all",
     renderedCount: QUEUE_RENDER_CHUNK,
     scrollTop: 0,
+    focusedProductId: null,
+    openedProductId: null,
+  },
+  compositionView: {
+    search: "",
+    reviewLens: "all",
+    attention: "all",
   },
   catalogs: {
     portalOptions: {
@@ -116,6 +131,7 @@ const state = {
 };
 
 let searchTimer = null;
+let compositionSearchTimer = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -261,7 +277,7 @@ function renderKpis() {
   host.innerHTML = items
     .map(([lens, key, label, value, tone]) => {
       const active = state.queueView.reviewLens === lens;
-      return `<button type="button" class="kpi ${tone}${active ? " is-active" : ""}" data-review-lens="${escapeHtml(lens)}" data-kpi="${escapeHtml(key)}" aria-pressed="${active ? "true" : "false"}">
+      return `<button type="button" class="kpi ${tone}${active ? " is-active" : ""}" data-review-lens="${escapeHtml(lens)}" data-kpi="${escapeHtml(key)}" aria-pressed="${active ? "true" : "false"}" tabindex="-1">
         <span class="kpi-label">${escapeHtml(label)}</span>
         <span class="kpi-value">${escapeHtml(String(value))}</span>
       </button>`;
@@ -269,23 +285,53 @@ function renderKpis() {
     .join("");
 }
 
-function renderLensGroup(hostId, items, current, attr) {
+function renderLensGroup(hostId, items, current, attr, { role = "radio" } = {}) {
   const host = $(hostId);
   if (!host) return;
+  const className = hostId === "reviewLenses" ? "review-lens" : "lens-pill";
   host.innerHTML = items
-    .map(
-      (item) =>
-        `<button type="button" class="${hostId === "reviewLenses" ? "review-lens" : "lens-pill"}" data-${attr}="${escapeHtml(item.id)}" aria-pressed="${
-          current === item.id ? "true" : "false"
-        }">${escapeHtml(item.label)}</button>`,
-    )
+    .map((item) => {
+      const selected = current === item.id;
+      const selectedAttrs =
+        role === "tab"
+          ? `role="tab" aria-selected="${selected ? "true" : "false"}"`
+          : `role="radio" aria-checked="${selected ? "true" : "false"}"`;
+      return `<button type="button" class="${className}" data-${attr}="${escapeHtml(item.id)}" ${selectedAttrs} tabindex="${selected ? "0" : "-1"}">${escapeHtml(item.label)}</button>`;
+    })
     .join("");
 }
 
 function renderLenses() {
-  renderLensGroup("reviewLenses", REVIEW_LENSES, state.queueView.reviewLens, "review-lens");
+  renderLensGroup("reviewLenses", REVIEW_LENSES, state.queueView.reviewLens, "review-lens", {
+    role: "tab",
+  });
   renderLensGroup("systemLenses", SYSTEM_LENSES, state.queueView.systemLens, "system-lens");
   renderLensGroup("classLenses", CLASS_LENSES, state.queueView.classLens, "class-lens");
+}
+
+function renderCompositionFilterLenses() {
+  renderLensGroup(
+    "compositionReviewLenses",
+    COMPOSITION_REVIEW_LENSES,
+    state.compositionView.reviewLens,
+    "comp-review-lens",
+  );
+  renderLensGroup(
+    "compositionAttentionLenses",
+    COMPOSITION_ATTENTION_FILTERS,
+    state.compositionView.attention,
+    "comp-attention-lens",
+  );
+  const clear = $("compositionSearchClear");
+  if (clear) clear.hidden = !safeText(state.compositionView.search);
+  const search = $("compositionSearch");
+  if (search && search.value !== state.compositionView.search) {
+    search.value = state.compositionView.search;
+  }
+  const barClear = $("btnClearCompositionFiltersBar");
+  if (barClear) {
+    barClear.hidden = !compositionFiltersAreActive(state.compositionView);
+  }
 }
 
 function queueRowHtml(row) {
@@ -294,9 +340,9 @@ function queueRowHtml(row) {
   const portal = toInt(row.open_portal_issues);
   const issues =
     blockers || portal
-      ? `B ${blockers} · P ${portal}`
+      ? `B ${blockers} Â· P ${portal}`
       : "None";
-  return `<tr class="queue-row" data-product-id="${escapeHtml(row.product_id)}">
+  return `<tr class="queue-row" data-product-id="${escapeHtml(row.product_id)}" tabindex="-1">
     <td class="cell-product">${escapeHtml(displayText(row.product_name))}</td>
     <td><div class="cell-stack"><span class="primary">${escapeHtml(displayText(row.system_label))}</span><span class="secondary">${escapeHtml(displayText(row.medicine_class_label))}</span></div></td>
     <td><div class="cell-stack"><span class="primary">${escapeHtml(displayText(row.dosage_form_label))}</span><span class="secondary">${escapeHtml(displayText(row.subtype_label))}</span></div></td>
@@ -306,6 +352,51 @@ function queueRowHtml(row) {
     <td>${ready ? chip("success", "READY") : chip("neutral", "Not ready")}</td>
     <td>${chip(entryStatusChipClass(row.entry_status), normalizeEntryStatus(row.entry_status))}</td>
   </tr>`;
+}
+
+function visibleQueueRowEls() {
+  return Array.from(document.querySelectorAll("#queueTbody tr.queue-row[data-product-id]"));
+}
+
+function applyQueueRowRoving() {
+  const rows = visibleQueueRowEls();
+  if (!rows.length) return;
+  const wanted = String(state.queueView.focusedProductId || "");
+  const active =
+    rows.find((row) => String(row.dataset.productId) === wanted) || rows[0];
+  rows.forEach((row) => {
+    const on = row === active;
+    row.tabIndex = on ? 0 : -1;
+    row.classList.toggle("is-focused", on);
+  });
+  state.queueView.focusedProductId = active.dataset.productId;
+  return active;
+}
+
+function focusQueueRow(productId, { scroll = true } = {}) {
+  if (productId != null) state.queueView.focusedProductId = productId;
+  const active = applyQueueRowRoving();
+  if (!active) return null;
+  active.focus();
+  if (scroll) active.scrollIntoView({ block: "nearest" });
+  return active;
+}
+
+function handleRovingKey(event, host, { wrap = true, autoActivate = true, onActivate } = {}) {
+  const key = event.key;
+  if (!["ArrowLeft", "ArrowRight", "Home", "End", "Enter", " "].includes(key)) return;
+  if (isEditableKeyboardTarget(event.target)) return;
+  const items = Array.from(host.querySelectorAll("button"));
+  const current = items.indexOf(event.target.closest("button"));
+  if (current < 0) return;
+  event.preventDefault();
+  if (key === "Enter" || key === " ") {
+    onActivate?.(items[current]);
+    return;
+  }
+  const next = nextRovingIndex(current, items.length, key, { wrap });
+  items[next]?.focus();
+  if (autoActivate) onActivate?.(items[next]);
 }
 
 function updateShowingCount(shown, total) {
@@ -341,41 +432,45 @@ function renderQueue({ resetChunk = false, restoreScroll = false } = {}) {
   } else {
     paintQueueBody(visible, "");
   }
+  applyQueueRowRoving();
   if (restoreScroll) {
     requestAnimationFrame(() => restoreQueueScroll());
   }
 }
 
-function appendQueueChunk() {
-  if (isProductMode()) return;
+function appendQueueChunk({ force = false } = {}) {
+  if (isProductMode()) return false;
   const wrap = $("queueTableWrap");
   const tbody = $("queueTbody");
-  if (!wrap || !tbody) return;
+  if (!wrap || !tbody) return false;
   const filtered = filteredQueue();
-  if (state.queueView.renderedCount >= filtered.length) return;
+  if (state.queueView.renderedCount >= filtered.length) return false;
   if (
+    !force &&
     !shouldAppendQueueChunk({
       scrollTop: wrap.scrollTop,
       clientHeight: wrap.clientHeight,
       scrollHeight: wrap.scrollHeight,
     })
   ) {
-    return;
+    return false;
   }
   const next = nextQueueRenderCount(state.queueView.renderedCount, filtered.length);
   const extra = filtered.slice(state.queueView.renderedCount, next);
-  if (!extra.length) return;
+  if (!extra.length) return false;
   const empty = tbody.querySelector(".empty-state");
   if (empty) tbody.innerHTML = "";
   tbody.insertAdjacentHTML("beforeend", extra.map(queueRowHtml).join(""));
   state.queueView.renderedCount = next;
   updateShowingCount(Math.min(next, filtered.length), filtered.length);
+  applyQueueRowRoving();
+  return true;
 }
 
 function optionHtml(options, selectedId, extra = []) {
   const seen = new Set();
   const list = [...extra, ...(Array.isArray(options) ? options : [])];
-  const parts = ['<option value="">Select…</option>'];
+  const parts = ['<option value="">Selectâ€¦</option>'];
   for (const opt of list) {
     const id = optionId(opt?.portal_option_id ?? opt?.term_id ?? opt?.id);
     if (!id || seen.has(id)) continue;
@@ -435,7 +530,7 @@ function renderWorkflowNav() {
   host.innerHTML = WORKFLOW_STAGES.map((stage) => {
     const selected = state.tab === stage.id;
     const complete = workflowStageComplete(stage.id, ctx);
-    return `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" data-tab="${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}">
+    return `<button type="button" class="workflow-step${complete ? " is-complete" : ""}" role="tab" id="wf-tab-${escapeHtml(stage.id)}" data-tab="${escapeHtml(stage.id)}" aria-controls="tab-${escapeHtml(stage.id)}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}">
       <span class="step-no">${escapeHtml(String(stage.step))}</span>
       <span>${escapeHtml(stage.label)}</span>
     </button>`;
@@ -454,11 +549,11 @@ function renderProductHeader() {
     displayText(row.system_label, ""),
     displayText(row.medicine_class_label, ""),
     [displayText(row.dosage_form_label, ""), displayText(row.subtype_label, "")]
-      .filter((part) => part && part !== "—")
+      .filter((part) => part && part !== "â€”")
       .join(" / "),
   ]
-    .filter((part) => part && part !== "—")
-    .join(" · ");
+    .filter((part) => part && part !== "â€”")
+    .join(" Â· ");
   $("workspaceMeta").textContent = meta;
   const badges = $("workspaceBadges");
   if (badges) {
@@ -482,12 +577,21 @@ function renderProductHeader() {
 
 function boolSegment(key, label, value) {
   const current = value === true ? "true" : value === false ? "false" : "";
+  const groupId = `decl-${key}-label`;
+  const options = [
+    ["true", "Yes"],
+    ["false", "No"],
+    ["", "Not reviewed"],
+  ];
   return `<div class="form-field">
-    <label>${escapeHtml(label)}</label>
-    <div class="seg-control" data-bool-key="${escapeHtml(key)}">
-      <button type="button" data-edit-action="true" data-bool-value="true" aria-pressed="${current === "true"}">Yes</button>
-      <button type="button" data-edit-action="true" data-bool-value="false" aria-pressed="${current === "false"}">No</button>
-      <button type="button" data-edit-action="true" data-bool-value="" aria-pressed="${current === ""}">Not reviewed</button>
+    <span class="meta-label" id="${escapeHtml(groupId)}">${escapeHtml(label)}</span>
+    <div class="seg-control" role="radiogroup" aria-labelledby="${escapeHtml(groupId)}" data-bool-key="${escapeHtml(key)}">
+      ${options
+        .map(
+          ([val, text]) =>
+            `<button type="button" data-edit-action="true" role="radio" data-bool-value="${escapeHtml(val)}" aria-checked="${current === val ? "true" : "false"}" tabindex="${current === val ? "0" : "-1"}">${escapeHtml(text)}</button>`,
+        )
+        .join("")}
     </div>
   </div>`;
 }
@@ -583,11 +687,11 @@ function renderDetails() {
       <h3 class="section-title">Controlled declarations</h3>
       <p class="muted-note">Null remains Not reviewed. These controls never default to No.</p>
       <div class="form-grid">
-        ${boolSegment("containsBhang", "Bhang", draft.containsBhang)}
-        ${boolSegment("containsOpium", "Opium", draft.containsOpium)}
-        ${boolSegment("containsOtherNarcotic", "Other Narcotic", draft.containsOtherNarcotic)}
-        ${boolSegment("containsScheduleE1", "Schedule E1", draft.containsScheduleE1)}
-        ${boolSegment("containsSelfGeneratedAlcohol", "Self-generated Alcohol", draft.containsSelfGeneratedAlcohol)}
+        ${boolSegment("containsBhang", "Contains Bhang", draft.containsBhang)}
+        ${boolSegment("containsOpium", "Contains Opium", draft.containsOpium)}
+        ${boolSegment("containsOtherNarcotic", "Contains Other Narcotic", draft.containsOtherNarcotic)}
+        ${boolSegment("containsScheduleE1", "Contains Schedule E1", draft.containsScheduleE1)}
+        ${boolSegment("containsSelfGeneratedAlcohol", "Contains Self-generated Alcohol", draft.containsSelfGeneratedAlcohol)}
       </div>
       <div class="form-field" style="margin-top:10px">
         <label for="fldReviewNotes">Review notes</label>
@@ -603,8 +707,18 @@ function renderDetails() {
 
 function renderComposition() {
   const host = $("tab-composition");
+  const filtered = filterCompositionLines(state.lines, state.issues, state.compositionView);
+  const count = $("compositionRowCount");
+  if (count) count.textContent = formatShowingCount(filtered.length, state.lines.length);
   if (!state.lines.length) {
     host.innerHTML = `<div class="section-card empty-state">No composition lines returned for this product.</div>`;
+    return;
+  }
+  if (!filtered.length) {
+    host.innerHTML = `<div class="section-card empty-state">
+      <p>No ingredient lines match the current composition filters.</p>
+      <button type="button" class="icon-btn with-label" id="btnClearCompositionFilters">Clear filters</button>
+    </div>`;
     return;
   }
   const specs = portalFieldSpecs();
@@ -614,7 +728,7 @@ function renderComposition() {
     PART_USED: "Part Used",
     MEASUREMENT_UNIT: "Unit",
   };
-  host.innerHTML = state.lines
+  host.innerHTML = filtered
     .map((row) => {
       const id = optionId(row.source_composition_line_id);
       const draft = state.lineDrafts.get(id) || lineDraftFromRow(row);
@@ -627,6 +741,7 @@ function renderComposition() {
       const fields = specs
         .map((spec) => {
           const selectedNow = draft[spec.draftKey];
+          const fieldId = `line-${id}-${spec.draftKey}`;
           const provenance = resolveFieldProvenance({
             reviewStatus: row.review_status,
             selectedId: selectedNow,
@@ -635,8 +750,8 @@ function renderComposition() {
             fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
           });
           return `<div class="portal-field form-field">
-            <label>${escapeHtml(labels[spec.domain] || spec.domain)}</label>
-            <select data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}">
+            <label for="${escapeHtml(fieldId)}">${escapeHtml(labels[spec.domain] || spec.domain)}</label>
+            <select id="${escapeHtml(fieldId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}">
               ${optionHtml(state.catalogs.portalOptions[spec.domain], selectedNow)}
             </select>
             ${provenanceChipHtml(id, spec.draftKey, provenance)}
@@ -644,16 +759,17 @@ function renderComposition() {
         })
         .join("");
       const qty = [displayText(row.raw_quantity_text, ""), displayText(row.raw_unit_text, "")]
-        .filter((part) => part && part !== "—")
+        .filter((part) => part && part !== "â€”")
         .join(" ");
       const names = [displayText(row.raw_ingredient_name), displayText(row.raw_scientific_name)]
-        .filter((part) => part && part !== "—")
-        .join(" · ");
+        .filter((part) => part && part !== "â€”")
+        .join(" Â· ");
+      const notesId = `line-${id}-reviewNotes`;
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="line-head">
           <span class="line-no">${escapeHtml(displayText(row.source_row_no))}</span>
           <span class="line-title">${escapeHtml(names)}</span>
-          <span class="line-qty">${escapeHtml(qty || "—")}</span>
+          <span class="line-qty">${escapeHtml(qty || "â€”")}</span>
           ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
           ${
             topSev
@@ -667,7 +783,8 @@ function renderComposition() {
         <div class="line-sub">Source part: ${escapeHtml(displayText(row.raw_part_used))}</div>
         <div class="portal-fields">${fields}</div>
         <div class="line-notes-row">
-          <input data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" />
+          <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
+          <input id="${escapeHtml(notesId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes" />
           <button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}">Save</button>
           <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" ${
             lineHasBlockerOrError(state.issues, id)
@@ -720,11 +837,11 @@ function renderActions() {
               <input data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording" />
               ${
                 showReorder
-                  ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" title="Move up">↑</button>
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" title="Move down">↓</button>`
+                  ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" aria-label="Move action up" title="Move action up">â†‘</button>
+              <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" aria-label="Move action down" title="Move action down">â†“</button>`
                   : ""
               }
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" title="Remove">×</button>
+              <button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove action" title="Remove action">Ã—</button>
             </div>`;
           })
           .join("")}
@@ -831,6 +948,27 @@ function renderReadiness() {
   const ready = row.is_ready_for_entry === true;
   const showPromote = evidence.approved_formulation_present !== true;
   const showVerify = ready !== true;
+  const promoteArgs = {
+    canEdit: canWrite(),
+    productReviewStatus: review.review_status,
+    compositionReviewComplete: row.composition_review_complete,
+    verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
+    compositionLines: row.composition_lines ?? evidence.composition_lines_total,
+    openBlockers: row.open_blockers,
+    errorOrBlockerIssueCount: issueCount,
+    approvedFormulationPresent: evidence.approved_formulation_present,
+    workflowRowVersion: row.workflow_row_version,
+  };
+  const verifyArgs = {
+    canEdit: canWrite(),
+    compositionReviewComplete: row.composition_review_complete,
+    verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
+    compositionLines: row.composition_lines ?? evidence.composition_lines_total,
+    openBlockers: row.open_blockers,
+    workflowRowVersion: row.workflow_row_version,
+  };
+  const promoteReason = promoteUnavailableReason(promoteArgs);
+  const verifyReason = verifyProductUnavailableReason(verifyArgs);
   host.innerHTML = `
     <div class="section-card">
       <div class="readiness-banner ${ready ? "is-ready" : "is-not-ready"}">${
@@ -852,9 +990,10 @@ function renderReadiness() {
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label primary" id="btnPromote" data-edit-action="true" ${
-          promoteOk ? "" : 'data-force-disabled="true" title="Promotion prerequisites are not met"'
+          promoteOk ? "" : `data-force-disabled="true" title="${escapeHtml(promoteReason)}"`
         }>Promote Verified Formulation</button>
-      </div>`
+      </div>
+      ${promoteOk ? "" : `<p class="disabled-reason">${escapeHtml(promoteReason)}</p>`}`
           : ""
       }
       ${
@@ -865,9 +1004,10 @@ function renderReadiness() {
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnVerifyProduct" data-edit-action="true" ${
-          verifyOk ? "" : 'data-force-disabled="true" title="Internal verification prerequisites are not met"'
+          verifyOk ? "" : `data-force-disabled="true" title="${escapeHtml(verifyReason)}"`
         }>Verify Product internally</button>
-      </div>`
+      </div>
+      ${verifyOk ? "" : `<p class="disabled-reason">${escapeHtml(verifyReason)}</p>`}`
           : ""
       }
       <p class="muted-note">These actions prepare internal records only. They do not enter or submit the Government portal.</p>
@@ -882,12 +1022,37 @@ function renderActiveTab() {
     panel.hidden = panel.dataset.tabPanel !== tab;
   });
   renderWorkflowNav();
+  const filters = $("compositionFilters");
+  if (filters) filters.hidden = tab !== "composition";
+  if (tab === "composition") renderCompositionFilterLenses();
   if (tab === "overview") renderOverview();
   else if (tab === "details") renderDetails();
   else if (tab === "composition") renderComposition();
   else if (tab === "actions") renderActions();
   else if (tab === "evidence") renderEvidence();
   else if (tab === "readiness") renderReadiness();
+}
+
+function selectWorkflowTab(next, { focusTab = false } = {}) {
+  if (!WORKSPACE_TABS.includes(next)) return;
+  if (state.tab === "details") syncDetailsDraftFromForm();
+  state.tab = next;
+  renderActiveTab();
+  if (focusTab) {
+    $("workspaceTabs")?.querySelector(`[data-tab="${next}"]`)?.focus();
+  }
+}
+
+function applyCompositionFilterChange() {
+  renderCompositionFilterLenses();
+  renderComposition();
+  const scroll = $("workspaceScroll");
+  if (scroll) scroll.scrollTop = 0;
+}
+
+function clearCompositionFilters() {
+  state.compositionView = { search: "", reviewLens: "all", attention: "all" };
+  applyCompositionFilterChange();
 }
 
 function syncDetailsDraftFromForm() {
@@ -960,9 +1125,12 @@ async function openProduct(productId) {
     if (!confirmLeaveDirty()) return;
   }
   saveQueueScroll();
+  state.queueView.focusedProductId = productId;
+  state.queueView.openedProductId = productId;
+  state.compositionView = { search: "", reviewLens: "all", attention: "all" };
   const gen = ++state.loadGen;
   state.busy = true;
-  setStatus("Loading product review workspace…");
+  setStatus("Loading product review workspaceâ€¦");
   try {
     const payload = await loadProductWorkspace(productId);
     if (gen !== state.loadGen) return;
@@ -1014,6 +1182,15 @@ function backToQueue() {
   const search = $("queueSearch");
   if (search) search.value = state.queueView.search;
   renderQueue({ restoreScroll: true });
+  requestAnimationFrame(() => {
+    restoreQueueScroll();
+    const wanted = state.queueView.openedProductId || state.queueView.focusedProductId;
+    const rows = visibleQueueRowEls();
+    const exists = rows.some((row) => String(row.dataset.productId) === String(wanted));
+    if (exists) focusQueueRow(wanted);
+    else if (rows[0]) focusQueueRow(rows[0].dataset.productId);
+    else $("queueSearch")?.focus();
+  });
 }
 
 async function handleStale(err) {
@@ -1094,6 +1271,13 @@ async function submitLine(lineId, verify) {
     });
     showToast(verify ? "Line verified." : "Line saved.", "success");
     await reloadSelected({ preserveDrafts: true });
+    const notes = document.getElementById(`line-${lineId}-reviewNotes`);
+    if (notes) notes.focus();
+    else {
+      document
+        .querySelector(`.line-card[data-line-id="${lineId}"] select`)
+        ?.focus();
+    }
   });
 }
 
@@ -1150,7 +1334,6 @@ function wireEvents() {
   mountModuleActionIcons({
     home: $("homeBtn"),
     refresh: $("refreshBtn"),
-    search: $("queueSearchClear"),
   });
   $("homeBtn")?.addEventListener("click", () => {
     if (!confirmLeaveDirty()) return;
@@ -1174,11 +1357,26 @@ function wireEvents() {
       applyQueueFilterChange();
     }, 180);
   });
+  $("queueSearch")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    if (safeText(state.queueView.search)) {
+      $("queueSearch").value = "";
+      state.queueView.search = "";
+      syncSearchClear();
+      applyQueueFilterChange();
+      return;
+    }
+    $("queueSearch").blur();
+    const firstLens = $("reviewLenses")?.querySelector('button[tabindex="0"]');
+    (firstLens || visibleQueueRowEls()[0] || $("refreshBtn"))?.focus();
+  });
   $("queueSearchClear")?.addEventListener("click", () => {
     $("queueSearch").value = "";
     state.queueView.search = "";
     syncSearchClear();
     applyQueueFilterChange();
+    $("queueSearch")?.focus();
   });
   $("kpiStrip")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-review-lens]");
@@ -1192,17 +1390,44 @@ function wireEvents() {
     state.queueView.reviewLens = btn.dataset.reviewLens || "all";
     applyQueueFilterChange();
   });
+  $("reviewLenses")?.addEventListener("keydown", (event) => {
+    handleRovingKey(event, $("reviewLenses"), {
+      onActivate: (btn) => {
+        state.queueView.reviewLens = btn.dataset.reviewLens || "all";
+        applyQueueFilterChange();
+        $("reviewLenses")?.querySelector(`[data-review-lens="${state.queueView.reviewLens}"]`)?.focus();
+      },
+    });
+  });
   $("systemLenses")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-system-lens]");
     if (!btn) return;
     state.queueView.systemLens = btn.dataset.systemLens || "all";
     applyQueueFilterChange();
   });
+  $("systemLenses")?.addEventListener("keydown", (event) => {
+    handleRovingKey(event, $("systemLenses"), {
+      onActivate: (btn) => {
+        state.queueView.systemLens = btn.dataset.systemLens || "all";
+        applyQueueFilterChange();
+        $("systemLenses")?.querySelector(`[data-system-lens="${state.queueView.systemLens}"]`)?.focus();
+      },
+    });
+  });
   $("classLenses")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-class-lens]");
     if (!btn) return;
     state.queueView.classLens = btn.dataset.classLens || "all";
     applyQueueFilterChange();
+  });
+  $("classLenses")?.addEventListener("keydown", (event) => {
+    handleRovingKey(event, $("classLenses"), {
+      onActivate: (btn) => {
+        state.queueView.classLens = btn.dataset.classLens || "all";
+        applyQueueFilterChange();
+        $("classLenses")?.querySelector(`[data-class-lens="${state.queueView.classLens}"]`)?.focus();
+      },
+    });
   });
   $("queueTableWrap")?.addEventListener(
     "scroll",
@@ -1217,14 +1442,104 @@ function wireEvents() {
     if (!row) return;
     openProduct(row.dataset.productId);
   });
+  $("queueTbody")?.addEventListener("keydown", (event) => {
+    if (isEditableKeyboardTarget(event.target)) return;
+    const row = event.target.closest("tr.queue-row[data-product-id]");
+    if (!row) return;
+    const rows = visibleQueueRowEls();
+    const current = rows.indexOf(row);
+    if (current < 0) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      openProduct(row.dataset.productId);
+      return;
+    }
+    if (event.key === " ") {
+      event.preventDefault();
+      focusQueueRow(row.dataset.productId);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      if (rows[0]) focusQueueRow(rows[0].dataset.productId);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      appendQueueChunk({ force: true });
+      const nextRows = visibleQueueRowEls();
+      const last = nextRows[nextRows.length - 1];
+      if (last) focusQueueRow(last.dataset.productId);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = nextRovingIndex(current, rows.length, event.key, { wrap: false });
+      if (rows[next]) focusQueueRow(rows[next].dataset.productId);
+    }
+  });
   $("workspaceTabs")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-tab]");
     if (!btn) return;
-    const next = btn.dataset.tab;
-    if (!WORKSPACE_TABS.includes(next)) return;
-    if (state.tab === "details") syncDetailsDraftFromForm();
-    state.tab = next;
-    renderActiveTab();
+    selectWorkflowTab(btn.dataset.tab);
+  });
+  $("workspaceTabs")?.addEventListener("keydown", (event) => {
+    handleRovingKey(event, $("workspaceTabs"), {
+      onActivate: (btn) => selectWorkflowTab(btn.dataset.tab, { focusTab: true }),
+    });
+  });
+
+  $("compositionSearch")?.addEventListener("input", (event) => {
+    const value = event.target.value || "";
+    clearTimeout(compositionSearchTimer);
+    compositionSearchTimer = setTimeout(() => {
+      state.compositionView.search = value;
+      applyCompositionFilterChange();
+    }, 180);
+  });
+  $("compositionSearchClear")?.addEventListener("click", () => {
+    $("compositionSearch").value = "";
+    state.compositionView.search = "";
+    applyCompositionFilterChange();
+    $("compositionSearch")?.focus();
+  });
+  $("btnClearCompositionFiltersBar")?.addEventListener("click", () => {
+    clearCompositionFilters();
+    $("compositionSearch")?.focus();
+  });
+  $("compositionReviewLenses")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-comp-review-lens]");
+    if (!btn) return;
+    state.compositionView.reviewLens = btn.dataset.compReviewLens || "all";
+    applyCompositionFilterChange();
+  });
+  $("compositionReviewLenses")?.addEventListener("keydown", (event) => {
+    handleRovingKey(event, $("compositionReviewLenses"), {
+      onActivate: (btn) => {
+        state.compositionView.reviewLens = btn.dataset.compReviewLens || "all";
+        applyCompositionFilterChange();
+        $("compositionReviewLenses")
+          ?.querySelector(`[data-comp-review-lens="${state.compositionView.reviewLens}"]`)
+          ?.focus();
+      },
+    });
+  });
+  $("compositionAttentionLenses")?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-comp-attention-lens]");
+    if (!btn) return;
+    state.compositionView.attention = btn.dataset.compAttentionLens || "all";
+    applyCompositionFilterChange();
+  });
+  $("compositionAttentionLenses")?.addEventListener("keydown", (event) => {
+    handleRovingKey(event, $("compositionAttentionLenses"), {
+      onActivate: (btn) => {
+        state.compositionView.attention = btn.dataset.compAttentionLens || "all";
+        applyCompositionFilterChange();
+        $("compositionAttentionLenses")
+          ?.querySelector(`[data-comp-attention-lens="${state.compositionView.attention}"]`)
+          ?.focus();
+      },
+    });
   });
 
   $("tab-details")?.addEventListener("click", (event) => {
@@ -1237,10 +1552,29 @@ function wireEvents() {
       if (key) {
         state.detailsDraft[key] = parseBoolButton(boolBtn.dataset.boolValue);
         group.querySelectorAll("[data-bool-value]").forEach((el) => {
-          el.setAttribute("aria-pressed", String(el === boolBtn));
+          const on = el === boolBtn;
+          el.setAttribute("aria-checked", String(on));
+          el.tabIndex = on ? 0 : -1;
         });
       }
     }
+  });
+  $("tab-details")?.addEventListener("keydown", (event) => {
+    const group = event.target.closest("[data-bool-key][role='radiogroup']");
+    if (!group) return;
+    handleRovingKey(event, group, {
+      onActivate: (btn) => {
+        const key = group.dataset.boolKey;
+        if (!key || !state.detailsDraft) return;
+        state.detailsDraft[key] = parseBoolButton(btn.dataset.boolValue);
+        group.querySelectorAll("[data-bool-value]").forEach((el) => {
+          const on = el === btn;
+          el.setAttribute("aria-checked", String(on));
+          el.tabIndex = on ? 0 : -1;
+        });
+        btn.focus();
+      },
+    });
   });
   $("tab-details")?.addEventListener("input", () => {
     if (state.tab === "details") syncDetailsDraftFromForm();
@@ -1281,6 +1615,10 @@ function wireEvents() {
     if (draft) draft.reviewNotes = el.value;
   });
   $("tab-composition")?.addEventListener("click", (event) => {
+    if (event.target.id === "btnClearCompositionFilters") {
+      clearCompositionFilters();
+      return;
+    }
     const save = event.target.closest("[data-line-save]");
     const verify = event.target.closest("[data-line-verify]");
     if (save) submitLine(save.dataset.lineSave, false);
@@ -1354,6 +1692,22 @@ function wireEvents() {
     if (event.target.id === "fldVerifyNotes") state.verifyNotes = event.target.value;
   });
 
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (isProductMode() || isEditableKeyboardTarget(event.target)) return;
+      event.preventDefault();
+      $("queueSearch")?.focus();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      if (!isProductMode() || state.tab !== "composition") return;
+      const card = event.target.closest?.(".line-card");
+      if (!card?.dataset.lineId) return;
+      event.preventDefault();
+      submitLine(card.dataset.lineId, false);
+    }
+  });
+
   window.addEventListener("beforeunload", (event) => {
     if (!workspaceIsDirty()) return;
     event.preventDefault();
@@ -1413,7 +1767,7 @@ async function initPage() {
     return;
   }
   applyPermissionUi();
-  setStatus("Loading product queue…");
+  setStatus("Loading product queueâ€¦");
   try {
     const [queueRows, catalogs] = await Promise.all([
       fetchProductQueue(),
