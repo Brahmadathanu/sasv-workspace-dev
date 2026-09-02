@@ -187,6 +187,11 @@ function chip(statusClass, label) {
   return `<span class="status-chip ${escapeHtml(statusClass)}">${escapeHtml(label)}</span>`;
 }
 
+function provenanceChipHtml(lineId, draftKey, provenance) {
+  const code = provenance || "no_suggestion";
+  return `<span class="prov-chip" data-provenance="${escapeHtml(code)}" data-prov-for="${escapeHtml(lineId)}-${escapeHtml(draftKey)}">${escapeHtml(provenanceLabel(code))}</span>`;
+}
+
 function presentChip(flag, yesLabel = "Present", noLabel = "Not present") {
   return flag
     ? chip("success", yesLabel)
@@ -423,28 +428,39 @@ function renderComposition() {
             <select data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}">
               ${optionHtml(state.catalogs.portalOptions[spec.domain], selectedNow)}
             </select>
-            <span class="prov-chip" data-prov-for="${escapeHtml(id)}-${escapeHtml(spec.draftKey)}">${escapeHtml(provenanceLabel(provenance))}</span>
+            ${provenanceChipHtml(id, spec.draftKey, provenance)}
           </div>`;
         })
         .join("");
+      const issueMarks = lineIssues
+        .map((issue) => severityLabel(issue.severity))
+        .filter((value, index, all) => all.indexOf(value) === index)
+        .map((sev) =>
+          chip(sev === "WARNING" ? "warning" : "danger", sev),
+        )
+        .join(" ");
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}" data-line-id="${escapeHtml(id)}">
+        <div class="line-head">
+          <span>Row ${escapeHtml(displayText(row.source_row_no))} · ${escapeHtml(displayText(row.raw_ingredient_name))}</span>
+          ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
+          ${issueMarks}
+        </div>
+        <p class="line-band-label">Source evidence (read-only)</p>
         <div class="line-source">
-          <div><span class="source-label">Source row</span>${escapeHtml(displayText(row.source_row_no))}</div>
-          <div><span class="source-label">Source ingredient</span>${escapeHtml(displayText(row.raw_ingredient_name))}</div>
           <div><span class="source-label">Scientific name</span>${escapeHtml(displayText(row.raw_scientific_name))}</div>
           <div><span class="source-label">Raw part used</span>${escapeHtml(displayText(row.raw_part_used))}</div>
           <div><span class="source-label">Raw quantity</span>${escapeHtml(displayText(row.raw_quantity_text))}</div>
           <div><span class="source-label">Raw unit</span>${escapeHtml(displayText(row.raw_unit_text))}</div>
-          <div><span class="source-label">Line review</span>${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}</div>
         </div>
+        <p class="line-band-label">Portal mapping (review)</p>
         <div class="portal-fields">${fields}</div>
-        <div class="form-field" style="margin-top:8px">
+        <div class="form-field line-notes">
           <label>Line notes</label>
           <input data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" />
         </div>
         ${
           lineIssues.length
-            ? `<div class="section-title" style="margin-top:8px">Line issues</div>${renderIssues(lineIssues, "")}`
+            ? `<div class="line-issues"><div class="line-band-label">Line issues</div>${renderIssues(lineIssues, "")}</div>`
             : ""
         }
         <div class="action-row">
@@ -570,7 +586,7 @@ function renderReadiness() {
         <textarea id="fldPromoteNotes" rows="2" data-edit-action="true">${escapeHtml(state.promoteNotes)}</textarea>
       </div>
       <div class="form-field">
-        <label for="fldVerifyNotes">Product verification notes</label>
+        <label for="fldVerifyNotes">Internal product verification notes</label>
         <textarea id="fldVerifyNotes" rows="2" data-edit-action="true">${escapeHtml(state.verifyNotes)}</textarea>
       </div>
       <div class="action-row">
@@ -579,8 +595,9 @@ function renderReadiness() {
         }>Promote Verified Formulation</button>
         <button type="button" class="icon-btn with-label" id="btnVerifyProduct" data-edit-action="true" ${
           verifyOk ? "" : 'data-force-disabled="true"'
-        }>Verify Product</button>
+        }>Verify Product internally</button>
       </div>
+      <p class="muted-note">These actions prepare internal records only. They do not enter, verify, or submit the Government portal.</p>
       <p class="muted-note">Portal entry statuses (${escapeHtml(normalizeEntryStatus(row.entry_status))}) are display-only in this module.</p>
     </div>`;
   applyPermissionUi();
@@ -943,15 +960,15 @@ function wireEvents() {
         `[data-prov-for="${lineId}-${key}"]`,
       );
       if (chipEl) {
-        chipEl.textContent = provenanceLabel(
-          resolveFieldProvenance({
-            reviewStatus: row.review_status,
-            selectedId: draft[key],
-            suggestedId: row[spec.suggestedKey],
-            suggestionBasis: row.suggestion_basis,
-            fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
-          }),
-        );
+        const next = resolveFieldProvenance({
+          reviewStatus: row.review_status,
+          selectedId: draft[key],
+          suggestedId: row[spec.suggestedKey],
+          suggestionBasis: row.suggestion_basis,
+          fieldKey: SUGGESTION_FIELD_KEYS[spec.domain],
+        });
+        chipEl.dataset.provenance = next;
+        chipEl.textContent = provenanceLabel(next);
       }
     }
   });

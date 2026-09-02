@@ -103,13 +103,18 @@ assert(controlSrc.includes("can_view === true"), "fail-closed strict can_view");
 assert(htmlSrc.includes("id=\"workspaceTabs\""), "workspace tabs exist");
 assert(htmlSrc.includes("Composition"), "composition tab copy");
 assert(htmlSrc.includes("Readiness"), "readiness tab copy");
+assert(controlSrc.includes("data-provenance"), "composition provenance is labelled in markup");
 assert(
-  indexSrc.includes('moduleKey: "e-aushadhi-automation"'),
-  "electron fallback registers the module",
+  !/hasEaushadhiReview/.test(indexSrc),
+  "e-Aushadhi Electron local fallback removed",
 );
 assert(
-  indexSrc.includes("public/shared/e-aushadhi-review-control.html"),
-  "electron fallback route path",
+  indexSrc.includes("hasProductShelfLife"),
+  "Product Shelf Life fallback remains",
+);
+assert(
+  indexSrc.includes("hasStaffDirectory"),
+  "Staff Directory fallback remains",
 );
 
 if (failed) {
