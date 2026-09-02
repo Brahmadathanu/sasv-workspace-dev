@@ -5,6 +5,7 @@
 import { supabase } from "./supabaseClient.js";
 import {
   classifyRpcError,
+  EVIDENCE_BUCKET,
   optionId,
   PORTAL_DOMAINS,
 } from "./eaushadhi-review-helpers.js";
@@ -289,6 +290,106 @@ export async function correctWorkingSourceLine({
   );
 }
 
+export async function reopenLineReview({
+  sourceCompositionLineId,
+  expectedRowVersion,
+  reason,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_reopen_line_review", {
+      p_source_composition_line_id: Number(sourceCompositionLineId),
+      p_expected_row_version: Number(expectedRowVersion),
+      p_reason: reason,
+    }),
+  );
+}
+
+export async function reopenProductReview({
+  productId,
+  expectedRowVersion,
+  reason,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_reopen_product_review", {
+      p_product_id: Number(productId),
+      p_expected_row_version: Number(expectedRowVersion),
+      p_reason: reason,
+    }),
+  );
+}
+
+export async function reopenProductActions({
+  productId,
+  expectedWorkflowRowVersion,
+  reason,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_reopen_product_actions", {
+      p_product_id: Number(productId),
+      p_expected_workflow_row_version: Number(expectedWorkflowRowVersion),
+      p_reason: reason,
+    }),
+  );
+}
+
+export async function fetchApprovedProductCopy(productId) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_approved_product_copy_get", {
+      p_product_id: Number(productId),
+    }),
+  );
+}
+
+export async function registerApprovedProductCopy({
+  productId,
+  storageBucket,
+  storagePath,
+  originalFileName,
+  mimeType,
+  fileSizeBytes,
+  contentSha256 = null,
+  mappingNotes = null,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_register_approved_product_copy", {
+      p_product_id: Number(productId),
+      p_storage_bucket: storageBucket,
+      p_storage_path: storagePath,
+      p_original_file_name: originalFileName,
+      p_mime_type: mimeType,
+      p_file_size_bytes: Number(fileSizeBytes),
+      p_content_sha256: contentSha256,
+      p_mapping_notes: mappingNotes,
+    }),
+  );
+}
+
+export async function uploadApprovedProductCopyObject(path, file, contentType) {
+  const { data, error } = await supabase.storage
+    .from(EVIDENCE_BUCKET)
+    .upload(path, file, {
+      contentType,
+      upsert: false,
+    });
+  throwIfRpcError("storage.upload", error);
+  return data;
+}
+
+export async function removeApprovedProductCopyObject(path) {
+  const { error } = await supabase.storage.from(EVIDENCE_BUCKET).remove([path]);
+  if (error) {
+    console.error("[eaushadhi] storage.remove failed", error);
+  }
+}
+
+export async function signedApprovedProductCopyUrl(path, expiresIn = 60) {
+  const { data, error } = await supabase.storage
+    .from(EVIDENCE_BUCKET)
+    .createSignedUrl(path, expiresIn);
+  throwIfRpcError("storage.createSignedUrl", error);
+  return data?.signedUrl || "";
+}
+
 export async function loadSessionCatalogs() {
   const [
     typeOptions,
@@ -319,12 +420,13 @@ export async function loadSessionCatalogs() {
 
 export async function loadProductWorkspace(productId) {
   const id = Number(optionId(productId));
-  const [review, lines, actions, evidence, issues] = await Promise.all([
+  const [review, lines, actions, evidence, issues, copy] = await Promise.all([
     fetchProductReview(id),
     fetchReviewQueue(id),
     fetchProductActions(id),
     fetchEvidenceStatus(id),
     fetchProductIssues(id),
+    fetchApprovedProductCopy(id).catch(() => null),
   ]);
-  return { review, lines, actions, evidence, issues };
+  return { review, lines, actions, evidence, issues, copy };
 }

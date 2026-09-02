@@ -2,12 +2,19 @@
  * e-Aushadhi Review & Control — helper smoke.
  */
 import {
+  AUTOSAVE_DEBOUNCE_MS,
   PROVENANCE,
   QUEUE_FILTERS,
   QUEUE_RENDER_CHUNK,
   actionsDirty,
+  buildApprovedProductCopyPath,
   canPromoteFormulation,
   canVerifyProductWorkflow,
+  canCorrectWorkingSourceLine,
+  canEditReviewedSection,
+  canReopenReviewedSection,
+  canSubmitSourceResolution,
+  canSubmitWorkingSourceCorrection,
   classifyRpcError,
   detailsDraftFromReview,
   detailsDirty,
@@ -20,6 +27,7 @@ import {
   formatShowingCount,
   formatVerifiedTotal,
   isNonstandardQuantityText,
+  isVerifiedStatus,
   issuesForLine,
   lineDirty,
   lineDraftFromRow,
@@ -28,9 +36,6 @@ import {
   lineHasLiveIssue,
   lineHasResolvableSourceIssue,
   lineSelectionsComplete,
-  canSubmitSourceResolution,
-  canSubmitWorkingSourceCorrection,
-  canCorrectWorkingSourceLine,
   matchesQueueFilter,
   mergePreservedLineDraft,
   nextQueueRenderCount,
@@ -47,7 +52,9 @@ import {
   shouldSyncQuantityText,
   snapshotQueueView,
   suggestionFieldMode,
+  summarizeVerifyReviewedLines,
   syncWorkingSourceQuantityDraft,
+  validateEvidenceFile,
   visibleQueueRows,
   workingSourceChanges,
 } from "../public/shared/js/eaushadhi-review-helpers.js";
@@ -517,6 +524,60 @@ assert(
     hasChanges: false,
   }) === false,
   "source correction is blocked when nothing changed",
+);
+
+assert(AUTOSAVE_DEBOUNCE_MS >= 700 && AUTOSAVE_DEBOUNCE_MS <= 1000, "autosave debounce is 700-1000ms");
+assert(isVerifiedStatus("VERIFIED") === true, "verified status helper");
+assert(canEditReviewedSection("VERIFIED") === false, "verified rows are not editable");
+assert(
+  canReopenReviewedSection({ reviewStatus: "VERIFIED", canEdit: true }) === true,
+  "reopen is available on verified rows",
+);
+assert(
+  canReopenReviewedSection({ reviewStatus: "IN_REVIEW", canEdit: true }) === false,
+  "reopen is not used for in-review rows",
+);
+
+const completeDraft = {
+  ingredientTypeOptionId: 1,
+  ingredientFormOptionId: 2,
+  partUsedOptionId: 3,
+  measurementOptionId: 4,
+};
+const verifySummary = summarizeVerifyReviewedLines(
+  [
+    { source_composition_line_id: 1, review_status: "IN_REVIEW" },
+    { source_composition_line_id: 2, review_status: "PENDING" },
+    { source_composition_line_id: 3, review_status: "IN_REVIEW" },
+    { source_composition_line_id: 4, review_status: "IN_REVIEW" },
+    { source_composition_line_id: 5, review_status: "VERIFIED" },
+  ],
+  new Map([
+    ["1", completeDraft],
+    ["3", completeDraft],
+    ["4", { ingredientTypeOptionId: 1 }],
+  ]),
+  [{ source_composition_line_id: 3, severity: "ERROR", status: "OPEN" }],
+);
+assert(verifySummary.eligible.join(",") === "1", "only complete in-review lines are eligible");
+assert(verifySummary.pending === 1, "PENDING excluded from verify reviewed");
+assert(verifySummary.blocking === 1, "ERROR/BLOCKER excluded from verify reviewed");
+assert(verifySummary.incomplete === 1, "incomplete mapping excluded from verify reviewed");
+assert(
+  validateEvidenceFile({ type: "application/pdf", size: 1024 }).ok === true,
+  "pdf evidence file is accepted",
+);
+assert(
+  validateEvidenceFile({ type: "application/pdf", size: 21 * 1024 * 1024 }).ok === false,
+  "oversize evidence file is rejected",
+);
+assert(
+  validateEvidenceFile({ type: "text/plain", size: 10 }).ok === false,
+  "disallowed evidence mime is rejected",
+);
+assert(
+  buildApprovedProductCopyPath(183, "label.pdf", "abc") === "approved-product-copy/183/abc-label.pdf",
+  "safe approved copy storage path",
 );
 
 if (failed) {

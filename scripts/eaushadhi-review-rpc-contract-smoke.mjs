@@ -43,6 +43,11 @@ const requiredRpcs = [
   "rpc_eaushadhi_source_issue_context",
   "rpc_eaushadhi_resolve_source_issue",
   "rpc_eaushadhi_correct_working_source_line",
+  "rpc_eaushadhi_reopen_line_review",
+  "rpc_eaushadhi_reopen_product_review",
+  "rpc_eaushadhi_reopen_product_actions",
+  "rpc_eaushadhi_approved_product_copy_get",
+  "rpc_eaushadhi_register_approved_product_copy",
 ];
 
 for (const name of requiredRpcs) {
@@ -103,9 +108,25 @@ assert(apiSrc.includes("p_raw_quantity_text:"), "source correct uses p_raw_quant
 assert(apiSrc.includes("p_raw_quantity_value:"), "source correct uses p_raw_quantity_value");
 assert(apiSrc.includes("p_raw_unit_text:"), "source correct uses p_raw_unit_text");
 assert(apiSrc.includes("p_correction_reason:"), "source correct uses p_correction_reason");
-assert(controlSrc.includes("Save progress"), "composition save progress wording");
+assert(apiSrc.includes("p_reason:"), "reopen RPCs use p_reason");
+assert(apiSrc.includes("p_storage_bucket:"), "copy register uses p_storage_bucket");
+assert(apiSrc.includes("p_storage_path:"), "copy register uses p_storage_path");
+assert(apiSrc.includes("p_original_file_name:"), "copy register uses p_original_file_name");
+assert(apiSrc.includes("p_mime_type:"), "copy register uses p_mime_type");
+assert(apiSrc.includes("p_file_size_bytes:"), "copy register uses p_file_size_bytes");
+assert(apiSrc.includes("p_content_sha256:"), "copy register uses p_content_sha256");
+assert(helpersSrc.includes("eaushadhi-evidence"), "private evidence bucket is used");
+assert(helpersSrc.includes("approved-product-copy/"), "approved copy path prefix is used");
 assert(controlSrc.includes("Verify line"), "composition verify line wording");
 assert(controlSrc.includes("data-source-correct"), "correct source action exists");
+assert(!/Save progress/.test(controlSrc + htmlSrc), "routine save progress button removed");
+assert(!/Save as In Review/.test(controlSrc + htmlSrc), "routine save as in review buttons removed");
+assert(
+  controlSrc.includes("Verify reviewed lines") || htmlSrc.includes("Verify reviewed lines"),
+  "verify reviewed lines action exists",
+);
+assert(controlSrc.includes("registerApprovedProductCopy"), "copy registration is called after upload");
+assert(controlSrc.includes("createSignedUrl") || apiSrc.includes("createSignedUrl"), "private copy open uses signed URL");
 assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");
 assert(
   !/[·…←→↑↓—]/.test(controlSrc + htmlSrc) && !/Â·|â€/.test(controlSrc + htmlSrc),
@@ -126,7 +147,7 @@ assert(helpersSrc.includes("filterCompositionLines"), "composition filter helper
 assert(controlSrc.includes("nextRovingIndex"), "roving keyboard helper is used");
 assert(controlSrc.includes("role=\"tab\""), "workflow stages are tabs");
 assert(!/verify all|bulkVerify|bulk_verify|verifyAll/i.test(combined), "no bulk verify");
-assert(!/rpc_eaushadhi_register_approved_product_copy/.test(controlSrc), "v1 does not call copy registration");
+assert(apiSrc.includes("rpc_eaushadhi_register_approved_product_copy"), "approved copy registration RPC is retained");
 assert(!/p_product_id:\s*null/.test(apiSrc), "review queue is never called with null product id");
 
 assert(controlSrc.includes("module:e-aushadhi-automation"), "canonical permission target");

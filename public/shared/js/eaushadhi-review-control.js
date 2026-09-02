@@ -3,9 +3,11 @@ import { Platform } from "./platform.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 import { showToast } from "./toast.js";
 import {
+  AUTOSAVE_DEBOUNCE_MS,
   CLASS_LENSES,
   COMPOSITION_ATTENTION_FILTERS,
   COMPOSITION_REVIEW_LENSES,
+  EVIDENCE_BUCKET,
   ERROR_KIND,
   QUEUE_RENDER_CHUNK,
   REVIEW_LENSES,
@@ -14,9 +16,13 @@ import {
   WORKSPACE_TABS,
   actionsDirty,
   actionsDraftFromRows,
+  autosaveStateLabel,
+  buildApprovedProductCopyPath,
   canPromoteFormulation,
   canVerifyProductWorkflow,
   canCorrectWorkingSourceLine,
+  canEditReviewedSection,
+  canReopenReviewedSection,
   canSubmitSourceResolution,
   canSubmitWorkingSourceCorrection,
   compositionFiltersAreActive,
@@ -28,12 +34,15 @@ import {
   filterCompositionLines,
   findQueueRow,
   filterQueueRows,
+  flushDebounced,
+  formatFileSize,
   formatIssueDetails,
   formatRawQuantityDisplay,
   formatShowingCount,
   formatVerifiedTotal,
   idsEqual,
   isEditableKeyboardTarget,
+  isVerifiedStatus,
   issuesForLine,
   joinHtmlParts,
   lineDirty,
@@ -58,12 +67,16 @@ import {
   resolveFieldProvenance,
   reviewStatusChipClass,
   safeText,
+  scheduleDebounced,
   severityLabel,
   severityRank,
   shouldAppendQueueChunk,
   sourceFieldDisplay,
   suggestionBasisSummary,
+  summarizeVerifyReviewedLines,
   syncWorkingSourceQuantityDraft,
+  validateEvidenceFile,
+  workingActionReviewStatus,
   workingSourceChanges,
   workingSourceDraftFromRow,
   SUGGESTION_FIELD_KEYS,
@@ -80,10 +93,17 @@ import {
   loadProductWorkspace,
   loadSessionCatalogs,
   promoteVerifiedFormulation,
+  registerApprovedProductCopy,
+  removeApprovedProductCopyObject,
+  reopenLineReview,
+  reopenProductActions,
+  reopenProductReview,
   resolveSourceIssue,
   saveLineReview,
   saveProductActions,
   saveProductReview,
+  signedApprovedProductCopyUrl,
+  uploadApprovedProductCopyObject,
   verifyProduct,
 } from "./eaushadhi-review-api.js";
 
@@ -160,10 +180,34 @@ const state = {
     draft: null,
     trigger: null,
   },
+  reopen: {
+    open: false,
+    kind: null,
+    lineId: null,
+    reason: "",
+    trigger: null,
+  },
+  verifyReviewed: { open: false },
+  lineSaveStatus: new Map(),
+  detailsSaveStatus: "",
+  actionsSaveStatus: "",
+  actionsReviewStatus: "PENDING",
+  copy: null,
+  copyPick: null,
 };
 
 let searchTimer = null;
 let compositionSearchTimer = null;
+const autosaveTimers = new Map();
+const lineInflight = new Set();
+const lineQueued = new Set();
+const lineHalted = new Set();
+let detailsInflight = false;
+let detailsQueued = false;
+let detailsHalted = false;
+let actionsInflight = false;
+let actionsQueued = false;
+let actionsHalted = false;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -244,7 +288,32 @@ function workspaceIsDirty() {
   for (const [id, draft] of state.lineDrafts.entries()) {
     if (lineDirty(draft, state.lineBaselines.get(id))) return true;
   }
+  if (autosaveTimers.size) return true;
   return false;
+}
+
+function lockNoteHtml() {
+  return `<span class="ea-lock-note"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><rect x="4" y="7" width="8" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><path d="M6 7V5a2 2 0 0 1 4 0v2" fill="none" stroke="currentColor" stroke-width="1.4"></path></svg> Verified - reopen to edit</span>`;
+}
+
+function autosaveHtml(status, id) {
+  const label = autosaveStateLabel(status);
+  if (!label) return `<span class="ea-autosave" ${id ? `id="${escapeHtml(id)}"` : ""} hidden></span>`;
+  const live = status === "failed" || status === "stale" ? ' aria-live="polite"' : "";
+  const cls =
+    status === "failed" || status === "stale" ? "ea-autosave is-failed" : "ea-autosave";
+  return `<span class="${cls}" ${id ? `id="${escapeHtml(id)}"` : ""} ${live}>${escapeHtml(label)}</span>`;
+}
+
+function patchAutosaveEl(id, status) {
+  const el = $(id);
+  if (!el) return;
+  const label = autosaveStateLabel(status);
+  el.hidden = !label;
+  el.textContent = label;
+  el.classList.toggle("is-failed", status === "failed" || status === "stale");
+  if (status === "failed" || status === "stale") el.setAttribute("aria-live", "polite");
+  else el.removeAttribute("aria-live");
 }
 
 function confirmLeaveDirty() {
@@ -690,32 +759,35 @@ function renderDetails() {
   const host = $("tab-details");
   const draft = state.detailsDraft || detailsDraftFromReview(state.review);
   const review = state.review || {};
+  const locked = isVerifiedStatus(review.review_status);
   const suggested = review.suggested_permission_purpose_label
     ? `Suggested: ${review.suggested_permission_purpose_label}`
     : "";
+  const disable = locked ? " disabled" : "";
   host.innerHTML = `
-    <div class="section-card">
+    <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Regulatory purpose</h3>
+      ${locked ? lockNoteHtml() : ""}
       <div class="form-field">
         <label for="fldPurpose">Permission Purpose</label>
-        <select id="fldPurpose" data-edit-action="true">${optionHtml(state.catalogs.permissionPurposeOptions, draft.permissionPurposeTermId)}</select>
+        <select id="fldPurpose" data-edit-action="true"${disable}>${optionHtml(state.catalogs.permissionPurposeOptions, draft.permissionPurposeTermId)}</select>
         <span class="muted-note">${escapeHtml(suggested)}</span>
       </div>
     </div>
-    <div class="section-card">
+    <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Product description</h3>
       <div class="form-field">
         <label for="fldTitle">Composition Title</label>
-        <input id="fldTitle" data-edit-action="true" value="${escapeHtml(draft.compositionTitle || "")}" />
+        <input id="fldTitle" data-edit-action="true" value="${escapeHtml(draft.compositionTitle || "")}"${disable} />
       </div>
       <div class="form-field">
         <label for="fldDiseases">Diseases / Conditions</label>
-        <textarea id="fldDiseases" rows="3" data-edit-action="true">${escapeHtml(draft.diseasesConditions || "")}</textarea>
+        <textarea id="fldDiseases" rows="3" data-edit-action="true"${disable}>${escapeHtml(draft.diseasesConditions || "")}</textarea>
       </div>
     </div>
-    <div class="section-card">
+    <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Controlled declarations</h3>
-      <p class="muted-note">Null remains Not reviewed. These controls never default to No.</p>
+      <p class="muted-note">Null remains Not reviewed. These controls never default to No. Changes save automatically. Verify when the section is correct.</p>
       <div class="form-grid">
         ${boolSegment("containsBhang", "Contains Bhang", draft.containsBhang)}
         ${boolSegment("containsOpium", "Contains Opium", draft.containsOpium)}
@@ -725,13 +797,28 @@ function renderDetails() {
       </div>
       <div class="form-field" style="margin-top:10px">
         <label for="fldReviewNotes">Review notes</label>
-        <textarea id="fldReviewNotes" rows="2" data-edit-action="true">${escapeHtml(draft.reviewNotes || "")}</textarea>
+        <textarea id="fldReviewNotes" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
       </div>
+      ${autosaveHtml(state.detailsSaveStatus, "detailsAutosave")}
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnSaveDetails" data-edit-action="true">Save as In Review</button>
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true">Verify Product Details</button>
+        ${
+          locked
+            ? `${chip("success", "Verified")}
+        ${
+          canReopenReviewedSection({ reviewStatus: review.review_status, canEdit: canWrite() })
+            ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenDetails" data-edit-action="true">Reopen Product Details</button>`
+            : ""
+        }`
+            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true">Verify Product Details</button>`
+        }
       </div>
     </div>`;
+  if (locked) {
+    host.querySelectorAll("[data-bool-value]").forEach((el) => {
+      el.disabled = true;
+      el.dataset.forceDisabled = "true";
+    });
+  }
   applyPermissionUi();
 }
 
@@ -768,6 +855,7 @@ function renderComposition() {
       const topSev = lineIssues
         .slice()
         .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
+      const locked = isVerifiedStatus(row.review_status);
       const fields = specs
         .map((spec) => {
           const selectedNow = draft[spec.draftKey];
@@ -781,7 +869,7 @@ function renderComposition() {
           });
           return `<div class="portal-field form-field">
             <label for="${escapeHtml(fieldId)}">${escapeHtml(labels[spec.domain] || spec.domain)}</label>
-            <select id="${escapeHtml(fieldId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}">
+            <select id="${escapeHtml(fieldId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}"${locked ? " disabled" : ""}>
               ${optionHtml(state.catalogs.portalOptions[spec.domain], selectedNow)}
             </select>
             ${provenanceChipHtml(id, spec.draftKey, provenance)}
@@ -794,13 +882,14 @@ function renderComposition() {
         escapeHtml(safeText(row.raw_scientific_name)),
       ]);
       const notesId = `line-${id}-reviewNotes`;
-      const canResolve = lineHasResolvableSourceIssue(state.issues, id);
+      const canResolve = !locked && lineHasResolvableSourceIssue(state.issues, id);
       const canCorrect = canCorrectWorkingSourceLine({
         reviewStatus: row.review_status,
         approvedFormulationPresent: state.evidence?.approved_formulation_present,
       });
       const resolved = state.resolvedSourceByLine.get(String(id));
-      return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}" data-line-id="${escapeHtml(id)}">
+      const saveStatus = state.lineSaveStatus.get(String(id)) || "";
+      return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="working-source-block">
           <span class="working-source-label">Working source</span>
           <div class="line-head">
@@ -832,17 +921,26 @@ function renderComposition() {
         <div class="portal-fields">${fields}</div>
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
-          <input id="${escapeHtml(notesId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes" />
-          <button type="button" class="icon-btn with-label" data-edit-action="true" data-line-save="${escapeHtml(id)}" title="Save the current portal mapping without confirming it as correct.">Save progress</button>
-          <button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" title="${
-            lineHasBlockerOrError(state.issues, id)
-              ? "This line has BLOCKER or ERROR issues"
-              : "Confirm the reviewed portal mapping as correct."
-          }">Verify line</button>
+          <input id="${escapeHtml(notesId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${locked ? " disabled" : ""} />
+          ${autosaveHtml(saveStatus, `line-save-${id}`)}
+          ${
+            locked
+              ? `${chip("success", "Verified")} ${lockNoteHtml()}
+          ${
+            canReopenReviewedSection({ reviewStatus: row.review_status, canEdit: canWrite() })
+              ? `<button type="button" class="icon-btn with-label ea-reopen-btn" data-edit-action="true" id="btn-reopen-${escapeHtml(id)}" data-line-reopen="${escapeHtml(id)}">Reopen for correction</button>`
+              : ""
+          }`
+              : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" title="${
+                  lineHasBlockerOrError(state.issues, id)
+                    ? "This line has BLOCKER or ERROR issues"
+                    : "Confirm the reviewed portal mapping as correct."
+                }">Verify line</button>
           ${
             canCorrect
               ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
               : ""
+          }`
           }
         </div>
         ${
@@ -1231,9 +1329,13 @@ function renderActions() {
   const rows = state.actionsDraft;
   const empty = !rows.length;
   const showReorder = rows.length > 1;
+  const locked = isVerifiedStatus(state.actionsReviewStatus);
+  const disable = locked ? " disabled" : "";
   host.innerHTML = `
-    <div class="section-card">
+    <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Pharmacological action</h3>
+      ${locked ? lockNoteHtml() : `<p class="muted-note">Changes save automatically. Verify when the section is correct.</p>`}
+      ${autosaveHtml(state.actionsSaveStatus, "actionsAutosave")}
       ${
         empty
           ? `<div class="empty-state">No pharmacological action reviewed yet.</div>`
@@ -1245,7 +1347,7 @@ function renderActions() {
                 safeText(item.label).toLowerCase() === safeText(text).toLowerCase(),
             );
             return `<div class="action-item" data-action-index="${index}">
-              <select data-edit-action="true" data-action-vocab="${index}">
+              <select data-edit-action="true" data-action-vocab="${index}"${disable}>
                 <option value="">Use typed wording</option>
                 ${vocab
                   .map(
@@ -1256,23 +1358,38 @@ function renderActions() {
                   )
                   .join("")}
               </select>
-              <input data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording" />
+              <input data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording"${disable} />
               ${
-                showReorder
+                showReorder && !locked
                   ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" aria-label="Move action up" title="Move action up">Up</button>
               <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" aria-label="Move action down" title="Move action down">Down</button>`
                   : ""
               }
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove action" title="Remove action">Remove</button>
+              ${
+                locked
+                  ? ""
+                  : `<button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove action" title="Remove action">Remove</button>`
+              }
             </div>`;
           })
           .join("")}
       </div>`
       }
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add Action</button>
-        <button type="button" class="icon-btn with-label" id="btnSaveActions" data-edit-action="true">Save as In Review</button>
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true">Verify Actions</button>
+        ${
+          locked
+            ? `${chip("success", "Verified")}
+        ${
+          canReopenReviewedSection({
+            reviewStatus: state.actionsReviewStatus,
+            canEdit: canWrite(),
+          })
+            ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenActions" data-edit-action="true">Reopen Actions</button>`
+            : ""
+        }`
+            : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add Action</button>
+        <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true">Verify Actions</button>`
+        }
       </div>
     </div>`;
   applyPermissionUi();
@@ -1293,14 +1410,55 @@ function renderEvidence() {
   const evidence = state.evidence || {};
   const row = state.queueRow || {};
   const blocking = toInt(evidence.blocking_issue_count ?? row.open_blockers);
+  const copy = state.copy;
+  const pick = state.copyPick;
+  const hasCopy = Boolean(copy?.storage_path) || evidence.approved_product_copy_present === true;
   host.innerHTML = `
+    <div class="section-card">
+      <h3 class="section-title">Approved Product Copy</h3>
+      ${hasCopy && copy ? `
+        <div class="ea-copy-meta">
+          <div><strong>${escapeHtml(displayText(copy.original_file_name))}</strong></div>
+          <div class="muted-note">${escapeHtml(displayText(copy.mime_type))} / ${escapeHtml(formatFileSize(copy.file_size_bytes))}</div>
+          <div class="muted-note">${escapeHtml(copy.created_at ? String(copy.created_at).slice(0, 10) : "-")}</div>
+        </div>
+        <div class="action-row">
+          <button type="button" class="icon-btn with-label" id="btnOpenCopy">Open copy</button>
+          <button type="button" class="icon-btn with-label" id="btnReplaceCopy" data-edit-action="true">Replace copy</button>
+        </div>
+      ` : `
+        ${chip("neutral", "Pending")}
+        <p class="muted-note">Accepted: PDF / JPG / PNG. Max 20 MB.</p>
+      `}
+      ${
+        !hasCopy || pick
+          ? `<div class="form-field" style="margin-top:10px">
+        <label for="fldCopyFile">Choose file</label>
+        <input id="fldCopyFile" type="file" accept="application/pdf,image/jpeg,image/png" data-edit-action="true" />
+      </div>`
+          : ""
+      }
+      ${
+        pick?.file
+          ? `<div class="ea-copy-meta">
+          <div>${escapeHtml(pick.file.name)}</div>
+          <div class="muted-note">${escapeHtml(pick.file.type || "-")} / ${escapeHtml(formatFileSize(pick.file.size))}</div>
+        </div>
+        <div class="action-row">
+          <button type="button" class="icon-btn with-label primary" id="btnUploadCopy" data-edit-action="true">Upload copy</button>
+          <button type="button" class="icon-btn with-label" id="btnCancelCopy">Cancel</button>
+        </div>`
+          : ""
+      }
+      ${pick?.error ? `<p class="muted-note ea-autosave is-failed" aria-live="polite">${escapeHtml(pick.error)}</p>` : ""}
+    </div>
     <div class="section-card">
       <h3 class="section-title">Evidence status</h3>
       <div class="evidence-list">
         ${evidenceCard(
           "Approved Product Copy",
-          evidence.approved_product_copy_present === true,
-          "Upload setup pending. Dedicated copy storage is not enabled yet.",
+          hasCopy,
+          "Upload a licensed product copy to complete this evidence item.",
         )}
         ${evidenceCard(
           "Approved Formulation",
@@ -1325,6 +1483,7 @@ function renderEvidence() {
         </div>
       </div>
     </div>`;
+  applyPermissionUi();
 }
 
 function gateStatus(met, blocked) {
@@ -1457,7 +1616,12 @@ function renderActiveTab() {
 
 function selectWorkflowTab(next, { focusTab = false } = {}) {
   if (!WORKSPACE_TABS.includes(next)) return;
-  if (state.tab === "details") syncDetailsDraftFromForm();
+  if (state.tab === "details") {
+    syncDetailsDraftFromForm();
+    void flushDetailsAutosave();
+  }
+  if (state.tab === "composition") void flushAllLineAutosaves();
+  if (state.tab === "actions") void flushActionsAutosave();
   state.tab = next;
   renderActiveTab();
   if (focusTab) {
@@ -1494,6 +1658,17 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.actions = payload.actions || [];
   state.evidence = payload.evidence;
   state.issues = payload.issues || [];
+  state.copy = payload.copy || null;
+  state.actionsReviewStatus = workingActionReviewStatus(state.actions);
+  if (!preserveDrafts) {
+    state.lineSaveStatus = new Map();
+    state.detailsSaveStatus = "";
+    state.actionsSaveStatus = "";
+    state.copyPick = null;
+    lineHalted.clear();
+    detailsHalted = false;
+    actionsHalted = false;
+  }
   const freshDetails = detailsDraftFromReview(state.review);
   if (preserveDrafts && state.detailsDraft && detailsDirty(state.detailsDraft, state.detailsBaseline)) {
     state.detailsDraft = { ...state.detailsDraft, rowVersion: freshDetails.rowVersion };
@@ -1545,6 +1720,9 @@ async function refreshQueue({ silent = false } = {}) {
 async function openProduct(productId) {
   if (state.selectedProductId && !idsEqual(state.selectedProductId, productId)) {
     if (!confirmLeaveDirty()) return;
+    await flushDetailsAutosave();
+    await flushAllLineAutosaves();
+    await flushActionsAutosave();
   }
   saveQueueScroll();
   state.queueView.focusedProductId = productId;
@@ -1614,8 +1792,11 @@ async function reloadSelected({
   }
 }
 
-function backToQueue() {
+async function backToQueue() {
   if (!confirmLeaveDirty()) return;
+  await flushDetailsAutosave();
+  await flushAllLineAutosaves();
+  await flushActionsAutosave();
   state.selectedProductId = null;
   state.queueRow = null;
   state.review = null;
@@ -1681,25 +1862,260 @@ async function runMutation(fn) {
 
 async function submitDetails(verify) {
   syncDetailsDraftFromForm();
-  const draft = state.detailsDraft;
+  if (!verify) {
+    await persistDetails(false);
+    return;
+  }
   await runMutation(async () => {
-    await saveProductReview({
-      productId: state.selectedProductId,
-      expectedRowVersion: draft.rowVersion,
-      permissionPurposeTermId: draft.permissionPurposeTermId,
-      compositionTitle: safeText(draft.compositionTitle) || null,
-      diseasesConditionsText: safeText(draft.diseasesConditions) || null,
-      containsBhang: draft.containsBhang,
-      containsOpium: draft.containsOpium,
-      containsOtherNarcotic: draft.containsOtherNarcotic,
-      containsScheduleE1: draft.containsScheduleE1,
-      containsSelfGeneratedAlcohol: draft.containsSelfGeneratedAlcohol,
-      reviewNotes: safeText(draft.reviewNotes) || null,
-      verify,
-    });
-    showToast(verify ? "Product details verified." : "Product details saved.", "success");
+    await persistDetails(true);
+    showToast("Product details verified.", "success");
     await reloadSelected();
   });
+}
+
+function linePayload(draft, verify) {
+  return {
+    sourceCompositionLineId: draft.sourceCompositionLineId,
+    expectedRowVersion: draft.rowVersion,
+    ingredientTypeOptionId: draft.ingredientTypeOptionId,
+    ingredientFormOptionId: draft.ingredientFormOptionId,
+    partUsedOptionId: draft.partUsedOptionId,
+    measurementOptionId: draft.measurementOptionId,
+    verify,
+    reviewNotes: safeText(draft.reviewNotes) || null,
+  };
+}
+
+async function persistLine(lineId, verify) {
+  const id = String(lineId);
+  if (lineHalted.has(id) && !verify) return null;
+  const draft = state.lineDrafts.get(id);
+  if (!draft) return null;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+  if (!verify && row && isVerifiedStatus(row.review_status)) return null;
+  state.lineSaveStatus.set(id, "saving");
+  patchAutosaveEl(`line-save-${id}`, "saving");
+  const result = await saveLineReview(linePayload(draft, verify));
+  if (result?.row_version != null) draft.rowVersion = result.row_version;
+  state.lineBaselines.set(id, { ...draft });
+  if (row && result?.review_status) row.review_status = result.review_status;
+  state.lineSaveStatus.set(id, "saved");
+  patchAutosaveEl(`line-save-${id}`, "saved");
+  const chipHost = document.querySelector(`.line-card[data-line-id="${id}"] .line-head`);
+  if (chipHost && result?.review_status) {
+    const chips = chipHost.querySelectorAll(".status-chip");
+    if (chips[0]) {
+      chips[0].className = `status-chip ${reviewStatusChipClass(result.review_status)}`;
+      chips[0].textContent = displayText(result.review_status, "PENDING");
+    }
+  }
+  return result;
+}
+
+async function autosaveLine(lineId) {
+  const id = String(lineId);
+  if (lineHalted.has(id) || !canWrite()) return;
+  if (lineInflight.has(id)) {
+    lineQueued.add(id);
+    return;
+  }
+  lineInflight.add(id);
+  try {
+    await persistLine(id, false);
+  } catch (err) {
+    handleAutosaveError(err, "line", id);
+  } finally {
+    lineInflight.delete(id);
+    if (lineQueued.has(id)) {
+      lineQueued.delete(id);
+      void autosaveLine(id);
+    }
+  }
+}
+
+function queueLineAutosave(lineId, immediate) {
+  const id = String(lineId);
+  if (immediate) {
+    flushDebounced(autosaveTimers, `line:${id}`);
+    void autosaveLine(id);
+    return;
+  }
+  scheduleDebounced(autosaveTimers, `line:${id}`, AUTOSAVE_DEBOUNCE_MS, () => {
+    void autosaveLine(id);
+  });
+}
+
+async function flushAllLineAutosaves() {
+  const keys = [...autosaveTimers.keys()].filter((key) => String(key).startsWith("line:"));
+  for (const key of keys) {
+    const id = String(key).slice(5);
+    if (flushDebounced(autosaveTimers, key)) await autosaveLine(id);
+  }
+}
+
+async function persistDetails(verify) {
+  const draft = state.detailsDraft;
+  if (!draft) return null;
+  if (!verify && detailsHalted) return null;
+  if (!verify && isVerifiedStatus(state.review?.review_status)) return null;
+  state.detailsSaveStatus = "saving";
+  patchAutosaveEl("detailsAutosave", "saving");
+  const result = await saveProductReview({
+    productId: state.selectedProductId,
+    expectedRowVersion: draft.rowVersion,
+    permissionPurposeTermId: draft.permissionPurposeTermId,
+    compositionTitle: safeText(draft.compositionTitle) || null,
+    diseasesConditionsText: safeText(draft.diseasesConditions) || null,
+    containsBhang: draft.containsBhang,
+    containsOpium: draft.containsOpium,
+    containsOtherNarcotic: draft.containsOtherNarcotic,
+    containsScheduleE1: draft.containsScheduleE1,
+    containsSelfGeneratedAlcohol: draft.containsSelfGeneratedAlcohol,
+    reviewNotes: safeText(draft.reviewNotes) || null,
+    verify,
+  });
+  if (result?.row_version != null && state.detailsDraft) {
+    state.detailsDraft.rowVersion = result.row_version;
+  }
+  state.detailsBaseline = { ...state.detailsDraft };
+  if (result?.review_status && state.review) state.review.review_status = result.review_status;
+  state.detailsSaveStatus = "saved";
+  patchAutosaveEl("detailsAutosave", "saved");
+  return result;
+}
+
+async function autosaveDetails() {
+  if (detailsHalted || !canWrite()) return;
+  if (detailsInflight) {
+    detailsQueued = true;
+    return;
+  }
+  detailsInflight = true;
+  try {
+    await persistDetails(false);
+  } catch (err) {
+    handleAutosaveError(err, "details");
+  } finally {
+    detailsInflight = false;
+    if (detailsQueued) {
+      detailsQueued = false;
+      void autosaveDetails();
+    }
+  }
+}
+
+function queueDetailsAutosave(immediate) {
+  if (immediate) {
+    flushDebounced(autosaveTimers, "details");
+    void autosaveDetails();
+    return;
+  }
+  scheduleDebounced(autosaveTimers, "details", AUTOSAVE_DEBOUNCE_MS, () => {
+    void autosaveDetails();
+  });
+}
+
+async function flushDetailsAutosave() {
+  if (flushDebounced(autosaveTimers, "details")) await autosaveDetails();
+}
+
+async function persistActions(verify) {
+  if (!verify && actionsHalted) return null;
+  if (!verify && isVerifiedStatus(state.actionsReviewStatus)) return null;
+  const actions = state.actionsDraft.map((item) => safeText(item)).filter(Boolean);
+  state.actionsSaveStatus = "saving";
+  patchAutosaveEl("actionsAutosave", "saving");
+  const result = await saveProductActions({
+    productId: state.selectedProductId,
+    expectedWorkflowRowVersion: state.queueRow?.workflow_row_version,
+    actions,
+    verify,
+  });
+  if (result?.workflow_row_version != null && state.queueRow) {
+    state.queueRow.workflow_row_version = result.workflow_row_version;
+  }
+  if (result?.review_status) state.actionsReviewStatus = result.review_status;
+  state.actionsBaseline = [...state.actionsDraft];
+  state.actionsSaveStatus = "saved";
+  patchAutosaveEl("actionsAutosave", "saved");
+  return result;
+}
+
+async function autosaveActions() {
+  if (actionsHalted || !canWrite()) return;
+  if (actionsInflight) {
+    actionsQueued = true;
+    return;
+  }
+  actionsInflight = true;
+  try {
+    await persistActions(false);
+  } catch (err) {
+    handleAutosaveError(err, "actions");
+  } finally {
+    actionsInflight = false;
+    if (actionsQueued) {
+      actionsQueued = false;
+      void autosaveActions();
+    }
+  }
+}
+
+function queueActionsAutosave(immediate) {
+  if (immediate) {
+    flushDebounced(autosaveTimers, "actions");
+    void autosaveActions();
+    return;
+  }
+  scheduleDebounced(autosaveTimers, "actions", AUTOSAVE_DEBOUNCE_MS, () => {
+    void autosaveActions();
+  });
+}
+
+async function flushActionsAutosave() {
+  if (flushDebounced(autosaveTimers, "actions")) await autosaveActions();
+}
+
+function handleAutosaveError(err, scope, lineId) {
+  console.error("[eaushadhi] autosave failed", err);
+  const kind = err instanceof EaushadhiRpcError ? err.kind : "";
+  const message =
+    err instanceof EaushadhiRpcError ? err.message : err?.message || "Save failed";
+  if (kind === ERROR_KIND.STALE) {
+    if (scope === "line") {
+      lineHalted.add(String(lineId));
+      state.lineSaveStatus.set(String(lineId), "stale");
+      patchAutosaveEl(`line-save-${lineId}`, "stale");
+    } else if (scope === "details") {
+      detailsHalted = true;
+      state.detailsSaveStatus = "stale";
+      patchAutosaveEl("detailsAutosave", "stale");
+    } else {
+      actionsHalted = true;
+      state.actionsSaveStatus = "stale";
+      patchAutosaveEl("actionsAutosave", "stale");
+    }
+    showToast("Server data changed - refresh/review required", "error", 6400);
+    return;
+  }
+  if (scope === "line") {
+    state.lineSaveStatus.set(String(lineId), "failed");
+    patchAutosaveEl(`line-save-${lineId}`, "failed");
+  } else if (scope === "details") {
+    state.detailsSaveStatus = "failed";
+    patchAutosaveEl("detailsAutosave", "failed");
+  } else {
+    state.actionsSaveStatus = "failed";
+    patchAutosaveEl("actionsAutosave", "failed");
+  }
+  showToast(message, "error", 5200);
+}
+
+async function waitLineIdle(lineId) {
+  const id = String(lineId);
+  while (lineInflight.has(id)) {
+    await new Promise((resolve) => setTimeout(resolve, 40));
+  }
 }
 
 async function submitLine(lineId, verify) {
@@ -1709,42 +2125,27 @@ async function submitLine(lineId, verify) {
     showToast("All four portal dropdowns are required before verifying a line.", "error");
     return;
   }
+  flushDebounced(autosaveTimers, `line:${lineId}`);
+  await waitLineIdle(lineId);
+  if (!verify) {
+    await autosaveLine(lineId);
+    return;
+  }
   await runMutation(async () => {
-    await saveLineReview({
-      sourceCompositionLineId: draft.sourceCompositionLineId,
-      expectedRowVersion: draft.rowVersion,
-      ingredientTypeOptionId: draft.ingredientTypeOptionId,
-      ingredientFormOptionId: draft.ingredientFormOptionId,
-      partUsedOptionId: draft.partUsedOptionId,
-      measurementOptionId: draft.measurementOptionId,
-      verify,
-      reviewNotes: safeText(draft.reviewNotes) || null,
-    });
-    showToast(verify ? "Line verified." : "Line saved.", "success");
-    await reloadSelected({ preserveDrafts: true });
-    const notes = document.getElementById(`line-${lineId}-reviewNotes`);
-    if (notes) notes.focus();
-    else {
-      document
-        .querySelector(`.line-card[data-line-id="${lineId}"] select`)
-        ?.focus();
-    }
+    await persistLine(lineId, true);
+    showToast("Line verified.", "success");
+    await reloadSelected({ preserveDrafts: true, restoreComposition: true, focusLineId: lineId });
   });
 }
 
 async function submitActions(verify) {
-  const actions = state.actionsDraft.map((item) => safeText(item)).filter(Boolean);
+  if (!verify) {
+    await persistActions(false);
+    return;
+  }
   await runMutation(async () => {
-    const result = await saveProductActions({
-      productId: state.selectedProductId,
-      expectedWorkflowRowVersion: state.queueRow?.workflow_row_version,
-      actions,
-      verify,
-    });
-    if (result?.workflow_row_version != null && state.queueRow) {
-      state.queueRow.workflow_row_version = result.workflow_row_version;
-    }
-    showToast(verify ? "Pharmacological actions verified." : "Pharmacological actions saved.", "success");
+    await persistActions(true);
+    showToast("Pharmacological actions verified.", "success");
     await reloadSelected();
   });
 }
@@ -1775,6 +2176,250 @@ async function submitVerifyProduct() {
   });
 }
 
+function reopenCopy(kind) {
+  if (kind === "line") {
+    return {
+      title: "Reopen for correction",
+      body: "This ingredient has already been verified. Reopening it will return the line to In Review.",
+      confirm: "Reopen line",
+    };
+  }
+  if (kind === "details") {
+    return {
+      title: "Reopen Product Details",
+      body: "Product Details have already been verified. Reopening will return the section to In Review.",
+      confirm: "Reopen Product Details",
+    };
+  }
+  return {
+    title: "Reopen Actions",
+    body: "Pharmacological actions have already been verified. Reopening will return the section to In Review.",
+    confirm: "Reopen Actions",
+  };
+}
+
+function renderReopenBody() {
+  const host = $("reopenBody");
+  if (!host) return;
+  const copy = reopenCopy(state.reopen.kind);
+  $("reopenTitle").textContent = copy.title;
+  $("reopenConfirm").textContent = copy.confirm;
+  host.innerHTML = `
+    <p class="muted-note">${escapeHtml(copy.body)}</p>
+    <div class="form-field">
+      <label for="fldReopenReason">Reason for reopening</label>
+      <textarea id="fldReopenReason" rows="3" data-edit-action="true" required>${escapeHtml(state.reopen.reason || "")}</textarea>
+    </div>`;
+  const btn = $("reopenConfirm");
+  const ok = Boolean(safeText(state.reopen.reason));
+  if (btn) {
+    btn.disabled = !ok || !canWrite();
+    btn.dataset.forceDisabled = ok ? "false" : "true";
+  }
+  applyPermissionUi();
+}
+
+function closeReopen() {
+  const trigger = state.reopen.trigger;
+  state.reopen = { open: false, kind: null, lineId: null, reason: "", trigger: null };
+  const backdrop = $("reopenBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  if (trigger && typeof trigger.focus === "function") trigger.focus();
+}
+
+function openReopen(kind, trigger, lineId = null) {
+  state.reopen = {
+    open: true,
+    kind,
+    lineId,
+    reason: "",
+    trigger: trigger || null,
+  };
+  const backdrop = $("reopenBackdrop");
+  if (backdrop) backdrop.hidden = false;
+  renderReopenBody();
+  $("reopenDialog")?.focus();
+  requestAnimationFrame(() => $("fldReopenReason")?.focus());
+}
+
+async function submitReopen() {
+  const reason = safeText(state.reopen.reason);
+  if (!reason) return;
+  const kind = state.reopen.kind;
+  const lineId = state.reopen.lineId;
+  await runMutation(async () => {
+    if (kind === "line") {
+      const draft = state.lineDrafts.get(String(lineId));
+      await reopenLineReview({
+        sourceCompositionLineId: lineId,
+        expectedRowVersion: draft?.rowVersion,
+        reason,
+      });
+    } else if (kind === "details") {
+      await reopenProductReview({
+        productId: state.selectedProductId,
+        expectedRowVersion: state.detailsDraft?.rowVersion,
+        reason,
+      });
+    } else {
+      await reopenProductActions({
+        productId: state.selectedProductId,
+        expectedWorkflowRowVersion: state.queueRow?.workflow_row_version,
+        reason,
+      });
+    }
+    closeReopen();
+    showToast("Section reopened for correction.", "success");
+    await reloadSelected({
+      restoreComposition: kind === "line",
+      focusLineId: kind === "line" ? lineId : null,
+      focusControl: kind === "line" ? "correct" : null,
+    });
+    if (kind === "line") {
+      document.getElementById(`btn-reopen-${lineId}`)?.blur();
+      document.querySelector(`.line-card[data-line-id="${lineId}"] select`)?.focus();
+    }
+  });
+}
+
+function renderVerifyReviewedBody() {
+  const host = $("verifyReviewedBody");
+  if (!host) return;
+  const summary = summarizeVerifyReviewedLines(state.lines, state.lineDrafts, state.issues);
+  const eligible = summary.eligible.length;
+  host.innerHTML = `
+    <p><strong>Eligible: ${eligible}</strong></p>
+    <p class="muted-note">Skipped:</p>
+    <ul>
+      <li>Pending: ${summary.pending}</li>
+      <li>Blocking/error issue: ${summary.blocking}</li>
+      <li>Incomplete mapping: ${summary.incomplete}</li>
+    </ul>`;
+  const btn = $("verifyReviewedConfirm");
+  if (btn) {
+    btn.textContent = `Verify ${eligible} reviewed lines`;
+    btn.disabled = eligible < 1 || !canWrite();
+    btn.dataset.forceDisabled = eligible < 1 ? "true" : "false";
+  }
+  applyPermissionUi();
+}
+
+function closeVerifyReviewed() {
+  state.verifyReviewed.open = false;
+  const backdrop = $("verifyReviewedBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  $("btnVerifyReviewedLines")?.focus();
+}
+
+function openVerifyReviewed() {
+  state.verifyReviewed.open = true;
+  const backdrop = $("verifyReviewedBackdrop");
+  if (backdrop) backdrop.hidden = false;
+  renderVerifyReviewedBody();
+  $("verifyReviewedDialog")?.focus();
+}
+
+async function submitVerifyReviewed() {
+  const summary = summarizeVerifyReviewedLines(state.lines, state.lineDrafts, state.issues);
+  const ids = summary.eligible.slice();
+  closeVerifyReviewed();
+  let verified = 0;
+  let failed = 0;
+  for (const id of ids) {
+    try {
+      flushDebounced(autosaveTimers, `line:${id}`);
+      await waitLineIdle(id);
+      const draft = state.lineDrafts.get(String(id));
+      if (!draft || !lineSelectionsComplete(draft)) {
+        failed += 1;
+        continue;
+      }
+      await persistLine(id, true);
+      verified += 1;
+    } catch (err) {
+      failed += 1;
+      console.error("[eaushadhi] verify reviewed line failed", err);
+    }
+  }
+  showToast(
+    failed ? `Verified ${verified}. Failed ${failed}.` : `Verified ${verified} reviewed lines.`,
+    failed ? "warning" : "success",
+    5200,
+  );
+  await reloadSelected({ restoreComposition: true });
+}
+
+async function hashFileSha256(file) {
+  if (!file || !globalThis.crypto?.subtle) return null;
+  const buf = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function pickCopyFile(file) {
+  const check = validateEvidenceFile(file);
+  if (!check.ok) {
+    state.copyPick = { file: null, error: check.error };
+  } else {
+    state.copyPick = { file, error: "" };
+  }
+  renderEvidence();
+}
+
+async function uploadSelectedCopy() {
+  const file = state.copyPick?.file;
+  const check = validateEvidenceFile(file);
+  if (!check.ok) {
+    state.copyPick = { file, error: check.error };
+    renderEvidence();
+    return;
+  }
+  const token =
+    globalThis.crypto?.randomUUID?.() ||
+    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const path = buildApprovedProductCopyPath(state.selectedProductId, file.name, token);
+  if (!path) {
+    showToast("Cannot build a storage path for this product.", "error");
+    return;
+  }
+  await runMutation(async () => {
+    await uploadApprovedProductCopyObject(path, file, file.type);
+    try {
+      const sha = await hashFileSha256(file);
+      await registerApprovedProductCopy({
+        productId: state.selectedProductId,
+        storageBucket: EVIDENCE_BUCKET,
+        storagePath: path,
+        originalFileName: file.name,
+        mimeType: file.type,
+        fileSizeBytes: file.size,
+        contentSha256: sha,
+        mappingNotes: null,
+      });
+    } catch (err) {
+      await removeApprovedProductCopyObject(path);
+      throw err;
+    }
+    state.copyPick = null;
+    showToast("Approved Product Copy registered.", "success");
+    await reloadSelected();
+  });
+}
+
+async function openCurrentCopy() {
+  const path = state.copy?.storage_path;
+  if (!path) return;
+  try {
+    const url = await signedApprovedProductCopyUrl(path, 60);
+    if (!url) throw new Error("Could not open copy.");
+    window.open(url, "_blank", "noopener");
+  } catch (err) {
+    toastError(err);
+  }
+}
+
 function applyQueueFilterChange() {
   renderKpis();
   renderLenses();
@@ -1786,8 +2431,11 @@ function wireEvents() {
     home: $("homeBtn"),
     refresh: $("refreshBtn"),
   });
-  $("homeBtn")?.addEventListener("click", () => {
+  $("homeBtn")?.addEventListener("click", async () => {
     if (!confirmLeaveDirty()) return;
+    await flushDetailsAutosave();
+    await flushAllLineAutosaves();
+    await flushActionsAutosave();
     Platform.goHome();
   });
   $("refreshBtn")?.addEventListener("click", async () => {
@@ -1994,10 +2642,10 @@ function wireEvents() {
   });
 
   $("tab-details")?.addEventListener("click", (event) => {
-    if (event.target.id === "btnSaveDetails") submitDetails(false);
     if (event.target.id === "btnVerifyDetails") submitDetails(true);
+    if (event.target.id === "btnReopenDetails") openReopen("details", event.target);
     const boolBtn = event.target.closest("[data-bool-value]");
-    if (boolBtn && state.detailsDraft) {
+    if (boolBtn && state.detailsDraft && canEditReviewedSection(state.review?.review_status)) {
       const group = boolBtn.closest("[data-bool-key]");
       const key = group?.dataset.boolKey;
       if (key) {
@@ -2007,6 +2655,7 @@ function wireEvents() {
           el.setAttribute("aria-checked", String(on));
           el.tabIndex = on ? 0 : -1;
         });
+        queueDetailsAutosave(true);
       }
     }
   });
@@ -2017,6 +2666,7 @@ function wireEvents() {
       onActivate: (btn) => {
         const key = group.dataset.boolKey;
         if (!key || !state.detailsDraft) return;
+        if (!canEditReviewedSection(state.review?.review_status)) return;
         state.detailsDraft[key] = parseBoolButton(btn.dataset.boolValue);
         group.querySelectorAll("[data-bool-value]").forEach((el) => {
           const on = el === btn;
@@ -2024,15 +2674,29 @@ function wireEvents() {
           el.tabIndex = on ? 0 : -1;
         });
         btn.focus();
+        queueDetailsAutosave(true);
       },
     });
   });
-  $("tab-details")?.addEventListener("input", () => {
-    if (state.tab === "details") syncDetailsDraftFromForm();
+  $("tab-details")?.addEventListener("input", (event) => {
+    if (state.tab !== "details") return;
+    syncDetailsDraftFromForm();
+    if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {
+      queueDetailsAutosave(false);
+    }
   });
-  $("tab-details")?.addEventListener("change", () => {
-    if (state.tab === "details") syncDetailsDraftFromForm();
+  $("tab-details")?.addEventListener("change", (event) => {
+    if (state.tab !== "details") return;
+    syncDetailsDraftFromForm();
+    if (event.target.id === "fldPurpose") queueDetailsAutosave(true);
   });
+  $("tab-details")?.addEventListener("focusout", (event) => {
+    if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {
+      void flushDetailsAutosave();
+    }
+  });
+
+  $("btnVerifyReviewedLines")?.addEventListener("click", openVerifyReviewed);
 
   $("tab-composition")?.addEventListener("change", (event) => {
     const el = event.target;
@@ -2058,40 +2722,49 @@ function wireEvents() {
         chipEl.textContent = provenanceLabel(next);
       }
     }
+    if (key !== "reviewNotes") queueLineAutosave(lineId, true);
   });
   $("tab-composition")?.addEventListener("input", (event) => {
     const el = event.target;
     if (el.dataset.draftKey !== "reviewNotes") return;
     const draft = state.lineDrafts.get(String(el.dataset.lineId));
     if (draft) draft.reviewNotes = el.value;
+    queueLineAutosave(el.dataset.lineId, false);
+  });
+  $("tab-composition")?.addEventListener("focusout", (event) => {
+    const el = event.target;
+    if (el.dataset.draftKey !== "reviewNotes") return;
+    flushDebounced(autosaveTimers, `line:${el.dataset.lineId}`);
+    void autosaveLine(el.dataset.lineId);
   });
   $("tab-composition")?.addEventListener("click", (event) => {
     if (event.target.id === "btnClearCompositionFilters") {
       clearCompositionFilters();
       return;
     }
-    const save = event.target.closest("[data-line-save]");
     const verify = event.target.closest("[data-line-verify]");
     const resolve = event.target.closest("[data-source-resolve]");
     const correct = event.target.closest("[data-source-correct]");
-    if (save) submitLine(save.dataset.lineSave, false);
+    const reopen = event.target.closest("[data-line-reopen]");
     if (verify) submitLine(verify.dataset.lineVerify, true);
     if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
     if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
+    if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {
     if (event.target.id === "btnAddAction") {
       state.actionsDraft = [...state.actionsDraft, ""];
       renderActions();
-      return;
-    }
-    if (event.target.id === "btnSaveActions") {
-      submitActions(false);
+      queueActionsAutosave(true);
       return;
     }
     if (event.target.id === "btnVerifyActions") {
       submitActions(true);
+      return;
+    }
+    if (event.target.id === "btnReopenActions") {
+      openReopen("actions", event.target);
       return;
     }
     const up = event.target.closest("[data-action-up]");
@@ -2104,6 +2777,7 @@ function wireEvents() {
         [next[i - 1], next[i]] = [next[i], next[i - 1]];
         state.actionsDraft = next;
         renderActions();
+        queueActionsAutosave(true);
       }
     }
     if (down) {
@@ -2113,12 +2787,14 @@ function wireEvents() {
         [next[i + 1], next[i]] = [next[i], next[i + 1]];
         state.actionsDraft = next;
         renderActions();
+        queueActionsAutosave(true);
       }
     }
     if (remove) {
       const i = Number(remove.dataset.actionRemove);
       state.actionsDraft = state.actionsDraft.filter((_, idx) => idx !== i);
       renderActions();
+      queueActionsAutosave(true);
     }
   });
   $("tab-actions")?.addEventListener("input", (event) => {
@@ -2126,6 +2802,7 @@ function wireEvents() {
     if (el.dataset.actionText == null) return;
     const i = Number(el.dataset.actionText);
     state.actionsDraft[i] = el.value;
+    queueActionsAutosave(false);
   });
   $("tab-actions")?.addEventListener("change", (event) => {
     const el = event.target;
@@ -2135,6 +2812,29 @@ function wireEvents() {
       state.actionsDraft[i] = el.value;
       const input = document.querySelector(`[data-action-text="${i}"]`);
       if (input) input.value = el.value;
+      queueActionsAutosave(true);
+    }
+  });
+  $("tab-actions")?.addEventListener("focusout", (event) => {
+    if (event.target.dataset.actionText == null) return;
+    void flushActionsAutosave();
+  });
+
+  $("tab-evidence")?.addEventListener("change", (event) => {
+    if (event.target.id !== "fldCopyFile") return;
+    pickCopyFile(event.target.files?.[0] || null);
+  });
+  $("tab-evidence")?.addEventListener("click", (event) => {
+    if (event.target.id === "btnUploadCopy") void uploadSelectedCopy();
+    if (event.target.id === "btnCancelCopy") {
+      state.copyPick = null;
+      renderEvidence();
+    }
+    if (event.target.id === "btnOpenCopy") void openCurrentCopy();
+    if (event.target.id === "btnReplaceCopy") {
+      state.copyPick = { file: null, error: "" };
+      renderEvidence();
+      requestAnimationFrame(() => $("fldCopyFile")?.click());
     }
   });
 
@@ -2187,6 +2887,30 @@ function wireEvents() {
     if (id === "srcCorrectReason") patchSourceCorrectDraft("correction_reason", value);
   });
 
+  $("reopenClose")?.addEventListener("click", closeReopen);
+  $("reopenCancel")?.addEventListener("click", closeReopen);
+  $("reopenConfirm")?.addEventListener("click", submitReopen);
+  $("reopenBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "reopenBackdrop") closeReopen();
+  });
+  $("reopenBody")?.addEventListener("input", (event) => {
+    if (event.target.id !== "fldReopenReason") return;
+    state.reopen.reason = event.target.value || "";
+    const btn = $("reopenConfirm");
+    const ok = Boolean(safeText(state.reopen.reason));
+    if (btn) {
+      btn.disabled = !ok || !canWrite() || state.busy;
+      btn.dataset.forceDisabled = ok ? "false" : "true";
+    }
+  });
+
+  $("verifyReviewedClose")?.addEventListener("click", closeVerifyReviewed);
+  $("verifyReviewedCancel")?.addEventListener("click", closeVerifyReviewed);
+  $("verifyReviewedConfirm")?.addEventListener("click", submitVerifyReviewed);
+  $("verifyReviewedBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "verifyReviewedBackdrop") closeVerifyReviewed();
+  });
+
   document.addEventListener("keydown", (event) => {
     if (state.sourceResolve.open) {
       if (event.key === "Escape") {
@@ -2206,18 +2930,28 @@ function wireEvents() {
       trapModalTab(event, "sourceCorrectDialog");
       return;
     }
+    if (state.reopen.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeReopen();
+        return;
+      }
+      trapModalTab(event, "reopenDialog");
+      return;
+    }
+    if (state.verifyReviewed.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeVerifyReviewed();
+        return;
+      }
+      trapModalTab(event, "verifyReviewedDialog");
+      return;
+    }
     if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey) {
       if (isProductMode() || isEditableKeyboardTarget(event.target)) return;
       event.preventDefault();
       $("queueSearch")?.focus();
-      return;
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-      if (!isProductMode() || state.tab !== "composition") return;
-      const card = event.target.closest?.(".line-card");
-      if (!card?.dataset.lineId) return;
-      event.preventDefault();
-      submitLine(card.dataset.lineId, false);
     }
   });
 

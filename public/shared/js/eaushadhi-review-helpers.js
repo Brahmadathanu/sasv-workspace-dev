@@ -33,6 +33,14 @@ export const WORKFLOW_STAGES = Object.freeze([
 
 export const QUEUE_RENDER_CHUNK = 40;
 export const QUEUE_SCROLL_THRESHOLD_PX = 100;
+export const AUTOSAVE_DEBOUNCE_MS = 800;
+export const EVIDENCE_BUCKET = "eaushadhi-evidence";
+export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
+export const EVIDENCE_ALLOWED_MIME = Object.freeze([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+]);
 
 export const REVIEW_LENSES = Object.freeze([
   { id: "all", label: "All" },
@@ -113,6 +121,7 @@ export const SUGGESTION_FIELD_KEYS = Object.freeze({
 export const ERROR_KIND = Object.freeze({
   AUTHORIZATION: "authorization",
   STALE: "stale",
+  LOCKED: "locked",
   VALIDATION: "validation",
   BLOCKER: "blocker",
   NETWORK: "network",
@@ -449,6 +458,125 @@ export function canSubmitWorkingSourceCorrection({
     if (parsed == null || parsed < 0) return false;
   }
   return true;
+}
+
+export function isVerifiedStatus(value) {
+  return normalizeReviewStatus(value) === "VERIFIED";
+}
+
+export function canEditReviewedSection(reviewStatus) {
+  return !isVerifiedStatus(reviewStatus);
+}
+
+export function canReopenReviewedSection({ reviewStatus, canEdit } = {}) {
+  return canEdit === true && isVerifiedStatus(reviewStatus);
+}
+
+export function workingActionReviewStatus(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) return "PENDING";
+  const statuses = list.map((row) => normalizeReviewStatus(row?.review_status));
+  if (statuses.every((status) => status === "VERIFIED")) return "VERIFIED";
+  if (statuses.some((status) => status === "IN_REVIEW" || status === "VERIFIED")) {
+    return "IN_REVIEW";
+  }
+  return "PENDING";
+}
+
+export function classifyVerifyReviewedLine(row, draft, issues) {
+  const status = normalizeReviewStatus(row?.review_status);
+  if (status === "VERIFIED") return "verified";
+  if (status !== "IN_REVIEW") return "pending";
+  if (lineHasBlockerOrError(issues, row?.source_composition_line_id)) return "blocking";
+  if (!lineSelectionsComplete(draft || lineDraftFromRow(row))) return "incomplete";
+  return "eligible";
+}
+
+export function summarizeVerifyReviewedLines(lines, drafts, issues) {
+  const summary = {
+    eligible: [],
+    pending: 0,
+    blocking: 0,
+    incomplete: 0,
+    verified: 0,
+  };
+  for (const row of Array.isArray(lines) ? lines : []) {
+    const id = optionId(row?.source_composition_line_id);
+    const draft = drafts instanceof Map ? drafts.get(id) : null;
+    const kind = classifyVerifyReviewedLine(row, draft, issues);
+    if (kind === "eligible") summary.eligible.push(id);
+    else if (kind === "pending") summary.pending += 1;
+    else if (kind === "blocking") summary.blocking += 1;
+    else if (kind === "incomplete") summary.incomplete += 1;
+    else if (kind === "verified") summary.verified += 1;
+  }
+  return summary;
+}
+
+export function autosaveStateLabel(status) {
+  if (status === "saving") return "Saving...";
+  if (status === "saved") return "Saved";
+  if (status === "failed") return "Save failed";
+  if (status === "stale") return "Server data changed - refresh/review required";
+  if (status === "locked") return "Verified - reopen to edit";
+  return "";
+}
+
+export function scheduleDebounced(timerMap, key, delayMs, fn) {
+  const map = timerMap instanceof Map ? timerMap : new Map();
+  const existing = map.get(key);
+  if (existing) clearTimeout(existing);
+  const handle = setTimeout(() => {
+    map.delete(key);
+    fn();
+  }, delayMs);
+  map.set(key, handle);
+  return map;
+}
+
+export function flushDebounced(timerMap, key) {
+  const map = timerMap instanceof Map ? timerMap : new Map();
+  const existing = map.get(key);
+  if (!existing) return false;
+  clearTimeout(existing);
+  map.delete(key);
+  return true;
+}
+
+export function validateEvidenceFile(file) {
+  if (!file) return { ok: false, error: "Choose a file first." };
+  const mime = safeText(file.type).toLowerCase();
+  if (!EVIDENCE_ALLOWED_MIME.includes(mime)) {
+    return { ok: false, error: "Accepted files: PDF, JPG, or PNG." };
+  }
+  if (toInt(file.size) <= 0) return { ok: false, error: "File is empty." };
+  if (toInt(file.size) > EVIDENCE_MAX_BYTES) {
+    return { ok: false, error: "File must be 20 MB or smaller." };
+  }
+  return { ok: true, error: "" };
+}
+
+export function sanitizeEvidenceFileName(name) {
+  const cleaned = safeText(name)
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  return cleaned || "copy";
+}
+
+export function buildApprovedProductCopyPath(productId, originalName, uniqueToken) {
+  const id = Number(optionId(productId));
+  if (!Number.isInteger(id) || id <= 0) return "";
+  const token = safeText(uniqueToken) || `u${Date.now()}`;
+  return `approved-product-copy/${id}/${token}-${sanitizeEvidenceFileName(originalName)}`;
+}
+
+export function formatFileSize(bytes) {
+  const n = toInt(bytes);
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round((n / 1024) * 10) / 10} KB`;
+  return `${Math.round((n / (1024 * 1024)) * 10) / 10} MB`;
 }
 
 export function suggestionFieldMode(suggestionBasis, fieldKey) {
@@ -1103,8 +1231,21 @@ export function classifyRpcError(error) {
   ) {
     return {
       kind: ERROR_KIND.STALE,
+      userMessage: "Server data changed - refresh/review required",
+      retryable: false,
+    };
+  }
+
+  if (
+    /verified .* locked|reopen it for correction before editing|reopen .* before editing/.test(
+      combined,
+    )
+  ) {
+    return {
+      kind: ERROR_KIND.LOCKED,
       userMessage:
-        "This record changed since you loaded it. Your edits were kept. Review the reloaded server values, then save again.",
+        message ||
+        "Verified ingredient line is locked. Reopen it for correction before editing.",
       retryable: false,
     };
   }
