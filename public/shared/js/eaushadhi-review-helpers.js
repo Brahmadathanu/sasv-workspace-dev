@@ -55,6 +55,19 @@ export const CLASS_LENSES = Object.freeze([
   { id: "proprietary", label: "Proprietary" },
 ]);
 
+export const COMPOSITION_REVIEW_LENSES = Object.freeze([
+  { id: "all", label: "All" },
+  { id: "pending", label: "Pending" },
+  { id: "in_review", label: "In Review" },
+  { id: "verified", label: "Verified" },
+]);
+
+export const COMPOSITION_ATTENTION_FILTERS = Object.freeze([
+  { id: "all", label: "All" },
+  { id: "issues", label: "Issues" },
+  { id: "default_suggestions", label: "Default suggestions" },
+]);
+
 export const QUEUE_FILTERS = Object.freeze([
   ...REVIEW_LENSES.map((item) =>
     item.id === "pending" ? { ...item, label: "Pending Review" } : item,
@@ -473,6 +486,119 @@ export function workflowStageComplete(stageId, ctx = {}) {
   }
   if (stageId === "readiness") return row.is_ready_for_entry === true;
   return false;
+}
+
+export function isEditableKeyboardTarget(el) {
+  if (!el || el === document.body) return false;
+  const node = el.nodeType === 1 ? el : el.parentElement;
+  if (!node) return false;
+  if (node.isContentEditable) return true;
+  const tag = safeText(node.tagName).toUpperCase();
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "OPTION") {
+    return true;
+  }
+  return Boolean(node.closest?.("input, select, textarea, [contenteditable='true']"));
+}
+
+export function nextRovingIndex(current, length, key, { wrap = true } = {}) {
+  const len = Math.max(0, toInt(length));
+  if (len <= 0) return 0;
+  let index = toInt(current);
+  if (index < 0) index = 0;
+  if (index >= len) index = len - 1;
+  if (key === "Home") return 0;
+  if (key === "End") return len - 1;
+  if (key === "ArrowRight" || key === "ArrowDown") {
+    if (index + 1 >= len) return wrap ? 0 : len - 1;
+    return index + 1;
+  }
+  if (key === "ArrowLeft" || key === "ArrowUp") {
+    if (index - 1 < 0) return wrap ? len - 1 : 0;
+    return index - 1;
+  }
+  return index;
+}
+
+export function matchesCompositionSearch(row, query) {
+  const q = safeText(query).toLowerCase();
+  if (!q) return true;
+  const hay = [
+    row?.raw_ingredient_name,
+    row?.raw_scientific_name,
+    row?.raw_part_used,
+    row?.source_row_no,
+    row?.source_composition_line_id,
+  ]
+    .map((part) => safeText(part).toLowerCase())
+    .join(" ");
+  return hay.includes(q);
+}
+
+export function lineHasLiveIssue(issues, sourceCompositionLineId) {
+  return issuesForLine(issues, sourceCompositionLineId).some((issue) => {
+    const status = safeText(issue?.status).toUpperCase();
+    if (status && status !== "OPEN" && status !== "IN_REVIEW") return false;
+    return severityRank(issue?.severity) >= 1;
+  });
+}
+
+export function lineHasDefaultSuggestion(row) {
+  return portalFieldSpecs().some((spec) => {
+    const fieldKey = SUGGESTION_FIELD_KEYS[spec.domain];
+    return suggestionFieldMode(row?.suggestion_basis, fieldKey) === DUMMY_REVIEW_DEFAULT;
+  });
+}
+
+export function matchesCompositionReviewLens(row, lensId) {
+  const id = safeText(lensId) || "all";
+  if (id === "all") return true;
+  const review = normalizeReviewStatus(row?.review_status);
+  if (id === "pending") return review === "PENDING" || review === "";
+  if (id === "in_review") return review === "IN_REVIEW";
+  if (id === "verified") return review === "VERIFIED";
+  return true;
+}
+
+export function filterCompositionLines(
+  lines,
+  issues,
+  { search = "", reviewLens = "all", attention = "all" } = {},
+) {
+  const list = Array.isArray(lines) ? lines : [];
+  return list.filter((row) => {
+    if (!matchesCompositionSearch(row, search)) return false;
+    if (!matchesCompositionReviewLens(row, reviewLens)) return false;
+    const id = optionId(row?.source_composition_line_id);
+    if (attention === "issues" && !lineHasLiveIssue(issues, id)) return false;
+    if (attention === "default_suggestions" && !lineHasDefaultSuggestion(row)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export function compositionFiltersAreActive({ search, reviewLens, attention } = {}) {
+  return Boolean(
+    safeText(search) ||
+      (safeText(reviewLens) && reviewLens !== "all") ||
+      (safeText(attention) && attention !== "all"),
+  );
+}
+
+export function promoteUnavailableReason(args = {}) {
+  if (canPromoteFormulation(args)) return "";
+  if (args.canEdit !== true) {
+    return "Promote is unavailable with read-only access.";
+  }
+  return "Promote becomes available after Product Details and all composition lines are verified and blocking issues are cleared.";
+}
+
+export function verifyProductUnavailableReason(args = {}) {
+  if (canVerifyProductWorkflow(args)) return "";
+  if (args.canEdit !== true) {
+    return "Internal verification is unavailable with read-only access.";
+  }
+  return "Verify Product internally becomes available after composition is complete and blocking issues are cleared.";
 }
 
 export function queueKpis(rows) {

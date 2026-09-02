@@ -13,6 +13,7 @@ import {
   detailsDirty,
   ERROR_KIND,
   effectiveOptionId,
+  filterCompositionLines,
   filterQueueRows,
   formatIssueDetails,
   formatShowingCount,
@@ -21,11 +22,14 @@ import {
   lineDirty,
   lineDraftFromRow,
   lineHasBlockerOrError,
+  lineHasDefaultSuggestion,
+  lineHasLiveIssue,
   lineSelectionsComplete,
   matchesQueueFilter,
   mergePreservedLineDraft,
   nextQueueRenderCount,
   nextRequiredAction,
+  nextRovingIndex,
   openErrorOrBlockerCount,
   provenanceLabel,
   queueKpis,
@@ -246,6 +250,63 @@ assert(
     },
   }).label === "Next: Promote verified formulation when eligible",
   "next action: promote",
+);
+
+assert(nextRovingIndex(0, 6, "ArrowRight") === 1, "roving next");
+assert(nextRovingIndex(5, 6, "ArrowRight", { wrap: true }) === 0, "roving wrap");
+assert(nextRovingIndex(5, 6, "ArrowRight", { wrap: false }) === 5, "roving clamp");
+assert(nextRovingIndex(2, 6, "Home") === 0, "roving home");
+assert(nextRovingIndex(2, 6, "End") === 5, "roving end");
+
+const dummyLine = {
+  source_composition_line_id: 10,
+  raw_ingredient_name: "Asvagandha",
+  raw_scientific_name: "Withania somnifera",
+  raw_part_used: "Tuberous Root",
+  source_row_no: 12,
+  review_status: "PENDING",
+  suggestion_basis: dummyBasis,
+};
+const verifiedLine = {
+  source_composition_line_id: 11,
+  raw_ingredient_name: "Guggulu",
+  raw_scientific_name: "Commiphora",
+  raw_part_used: "Resin",
+  source_row_no: 13,
+  review_status: "VERIFIED",
+  suggestion_basis: exactBasis,
+};
+const liveIssues = [
+  { source_composition_line_id: 10, severity: "ERROR", status: "OPEN" },
+];
+assert(lineHasDefaultSuggestion(dummyLine) === true, "dummy suggestion_basis is default suggestion");
+assert(lineHasDefaultSuggestion(verifiedLine) === false, "historical mapping is not default suggestion");
+assert(lineHasLiveIssue(liveIssues, 10) === true, "open error counts as issue");
+assert(
+  filterCompositionLines([dummyLine, verifiedLine], liveIssues, { search: "withania" }).length === 1,
+  "composition search scientific name",
+);
+assert(
+  filterCompositionLines([dummyLine, verifiedLine], liveIssues, { reviewLens: "verified" }).length === 1,
+  "composition review lens",
+);
+assert(
+  filterCompositionLines([dummyLine, verifiedLine], liveIssues, { attention: "issues" }).length === 1,
+  "composition issues attention",
+);
+assert(
+  filterCompositionLines([dummyLine, verifiedLine], liveIssues, {
+    search: "asvagandha",
+    reviewLens: "verified",
+    attention: "issues",
+  }).length === 0,
+  "combined composition filters can match none",
+);
+assert(
+  filterCompositionLines([dummyLine, verifiedLine], liveIssues, {
+    attention: "default_suggestions",
+  }).length === 1,
+  "default suggestion attention filter",
 );
 
 const issues = [

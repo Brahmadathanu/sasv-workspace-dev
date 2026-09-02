@@ -21,6 +21,7 @@ const apiSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-api.js
 const helpersSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-helpers.js"), "utf8");
 const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
 const htmlSrc = readFileSync(join(root, "public/shared/e-aushadhi-review-control.html"), "utf8");
+const cssSrc = readFileSync(join(root, "public/shared/css/sasv-eaushadhi-review.css"), "utf8");
 const indexSrc = readFileSync(join(root, "index.html"), "utf8");
 const combined = `${apiSrc}\n${helpersSrc}\n${controlSrc}\n${htmlSrc}`;
 
@@ -93,6 +94,13 @@ assert(!/\.from\(\s*["']regulatory/i.test(combined), "no direct regulatory table
 assert(!/playwright/i.test(combined), "no Playwright");
 assert(!/captcha/i.test(combined), "no CAPTCHA automation");
 assert(!/sop-attachments|tally-raw/.test(combined), "no SOP/tally bucket reuse");
+assert(htmlSrc.includes("ea-icon-search"), "inline SVG search icon exists");
+assert(htmlSrc.includes('stroke="currentColor"'), "search SVG uses currentColor");
+assert(htmlSrc.includes('aria-label="Clear search"'), "clear search is labelled");
+assert(!/mask:\s*url\(/.test(cssSrc), "no CSS mask search icon");
+assert(helpersSrc.includes("filterCompositionLines"), "composition filter helper exists");
+assert(controlSrc.includes("nextRovingIndex"), "roving keyboard helper is used");
+assert(controlSrc.includes("role=\"tab\""), "workflow stages are tabs");
 assert(!/verify all|bulkVerify|bulk_verify|verifyAll/i.test(combined), "no bulk verify");
 assert(!/rpc_eaushadhi_register_approved_product_copy/.test(controlSrc), "v1 does not call copy registration");
 assert(!/p_product_id:\s*null/.test(apiSrc), "review queue is never called with null product id");
