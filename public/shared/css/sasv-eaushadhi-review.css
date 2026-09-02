@@ -1,4 +1,4 @@
-/* e-Aushadhi Review & Control — module layout only */
+/* e-Aushadhi Review & Control — exclusive modes + bounded shell */
 
 body.sasv-module.sasv-eaushadhi-review {
   display: flex;
@@ -6,7 +6,7 @@ body.sasv-module.sasv-eaushadhi-review {
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
-  padding: 16px 20px 12px;
+  padding: 12px 16px 10px;
 }
 
 body.sasv-eaushadhi-review .page-header {
@@ -19,13 +19,13 @@ body.sasv-eaushadhi-review .page-header {
 
 body.sasv-eaushadhi-review .page-header h1 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.08rem;
 }
 
 body.sasv-eaushadhi-review .page-sub {
   color: var(--sasv-text-muted);
-  font-size: 0.88rem;
-  margin-top: 3px;
+  font-size: 0.82rem;
+  margin-top: 2px;
 }
 
 body.sasv-eaushadhi-review .header-actions {
@@ -46,9 +46,15 @@ body.sasv-eaushadhi-review .icon-btn.with-label {
 }
 
 body.sasv-eaushadhi-review .icon-btn.with-label.primary {
-  background: var(--sasv-action-primary-soft);
+  background: var(--sasv-action-primary);
   border-color: var(--sasv-action-primary);
-  color: var(--sasv-action-primary);
+  color: var(--sasv-surface, #fff);
+}
+
+body.sasv-eaushadhi-review .icon-btn.with-label:disabled,
+body.sasv-eaushadhi-review button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 body.sasv-eaushadhi-review #statusArea,
@@ -57,7 +63,7 @@ body.sasv-eaushadhi-review #viewOnlyBanner,
 body.sasv-eaushadhi-review #staleBanner {
   flex-shrink: 0;
   margin: 8px 0 0;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-radius: var(--sasv-radius-md);
   font-size: 13px;
 }
@@ -76,41 +82,131 @@ body.sasv-eaushadhi-review #staleBanner {
   color: var(--sasv-warning);
 }
 
-body.sasv-eaushadhi-review .kpi-strip {
+body.sasv-eaushadhi-review #mainPanel {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  margin: 10px 0 8px;
+  flex-direction: column;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+/* Mutually exclusive application modes — do not rely on [hidden] vs display:flex */
+body.sasv-eaushadhi-review.ea-mode-queue #queuePanel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review.ea-mode-queue #workspacePanel {
+  display: none !important;
+}
+
+body.sasv-eaushadhi-review.ea-mode-product #workspacePanel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review.ea-mode-product #queuePanel {
+  display: none !important;
+}
+
+body.sasv-eaushadhi-review .queue-controls,
+body.sasv-eaushadhi-review .product-controls {
   flex-shrink: 0;
 }
 
-body.sasv-eaushadhi-review .kpi {
-  min-width: 110px;
-  padding: 8px 10px;
+body.sasv-eaushadhi-review .kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 8px;
+  overflow: visible;
+}
+
+body.sasv-eaushadhi-review.sasv-module .kpi {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px 5px 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   border: 1px solid var(--sasv-border);
-  border-radius: var(--sasv-radius-md);
+  border-left-width: 3px;
+  border-radius: var(--sasv-radius-sm);
   background: var(--sasv-surface);
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
+  text-align: left;
 }
 
-body.sasv-eaushadhi-review .kpi-label {
-  display: block;
-  font-size: 11px;
-  color: var(--sasv-text-muted);
+body.sasv-eaushadhi-review .kpi .kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: var(--sasv-text-muted);
+  line-height: 1.15;
 }
 
-body.sasv-eaushadhi-review .kpi-value {
-  font-size: 1.15rem;
+body.sasv-eaushadhi-review .kpi .kpi-value {
+  font-size: 13px;
   font-weight: var(--sasv-fw-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+body.sasv-eaushadhi-review .kpi.is-products {
+  border-left-color: var(--sasv-action-primary);
+}
+
+body.sasv-eaushadhi-review .kpi.is-pending {
+  border-left-color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .kpi.is-in-review {
+  border-left-color: var(--sasv-warning);
+}
+
+body.sasv-eaushadhi-review .kpi.is-verified {
+  border-left-color: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .kpi.is-blocked {
+  border-left-color: var(--sasv-danger);
+}
+
+body.sasv-eaushadhi-review .kpi.is-ready {
+  border-left-color: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .kpi.is-active {
+  background: var(--sasv-action-primary-soft);
+  border-color: var(--sasv-action-primary-soft-border);
+}
+
+body.sasv-eaushadhi-review .kpi:hover {
+  border-color: var(--sasv-action-primary-soft-border);
 }
 
 body.sasv-eaushadhi-review .search-card {
   display: flex;
-  gap: 8px;
   align-items: center;
-  flex-shrink: 0;
+  gap: 10px;
   margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
 }
 
 body.sasv-eaushadhi-review .search-wrap {
@@ -119,12 +215,92 @@ body.sasv-eaushadhi-review .search-wrap {
   position: relative;
 }
 
-body.sasv-eaushadhi-review .lens-pills {
+body.sasv-eaushadhi-review .search-wrap input[type="search"] {
+  width: 100%;
+  height: 34px;
+  padding: 0 34px 0 34px;
+  border: 1px solid var(--sasv-search-select-border, var(--sasv-action-primary-soft-border));
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-search-select-bg, var(--sasv-primary-50));
+  color: var(--sasv-text);
+}
+
+body.sasv-eaushadhi-review .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.55;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M11.5 10.4 14.8 13.7 13.7 14.8 10.4 11.5A5.5 5.5 0 1 1 11.5 10.4ZM6.5 10.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+body.sasv-eaushadhi-review .showing-count {
+  white-space: nowrap;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+body.sasv-eaushadhi-review .review-nav {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 6px;
+  padding: 3px;
+  border: 1px solid var(--sasv-border);
+  border-radius: 10px;
+  background: var(--sasv-surface-soft);
+  overflow-x: auto;
+}
+
+body.sasv-eaushadhi-review .review-nav button {
+  flex: 1 1 auto;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sasv-text-muted);
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review .review-nav button[aria-pressed="true"] {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border);
+  color: var(--sasv-text);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+}
+
+body.sasv-eaushadhi-review .secondary-lenses {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px 18px;
   margin-bottom: 8px;
-  flex-shrink: 0;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .lens-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.sasv-eaushadhi-review .lens-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .lens-pills.compact {
+  display: flex;
+  gap: 4px;
 }
 
 body.sasv-eaushadhi-review .lens-pill {
@@ -132,8 +308,8 @@ body.sasv-eaushadhi-review .lens-pill {
   background: var(--sasv-surface);
   color: var(--sasv-text-muted);
   border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 3px 9px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -142,14 +318,6 @@ body.sasv-eaushadhi-review .lens-pill[aria-pressed="true"] {
   border-color: var(--sasv-action-primary);
   background: var(--sasv-action-primary-soft);
   color: var(--sasv-action-primary);
-}
-
-body.sasv-eaushadhi-review #queuePanel,
-body.sasv-eaushadhi-review #workspacePanel {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 body.sasv-eaushadhi-review .table-card {
@@ -164,21 +332,16 @@ body.sasv-eaushadhi-review .table-card {
 body.sasv-eaushadhi-review table.data-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1100px;
+  min-width: 860px;
 }
 
 body.sasv-eaushadhi-review table.data-table th,
 body.sasv-eaushadhi-review table.data-table td {
-  padding: 6px 8px;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--sasv-divider);
   text-align: left;
   font-size: 12.5px;
   vertical-align: top;
-}
-
-body.sasv-eaushadhi-review table.data-table td:first-child {
-  min-width: 160px;
-  font-weight: 600;
 }
 
 body.sasv-eaushadhi-review table.data-table thead th {
@@ -186,67 +349,138 @@ body.sasv-eaushadhi-review table.data-table thead th {
   top: 0;
   background: var(--sasv-surface-soft);
   z-index: 1;
-  font-size: 11px;
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .cell-product {
+  font-weight: 700;
+  color: var(--sasv-text);
+  min-width: 160px;
+}
+
+body.sasv-eaushadhi-review .cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.25;
+}
+
+body.sasv-eaushadhi-review .cell-stack .primary {
+  font-weight: 600;
+}
+
+body.sasv-eaushadhi-review .cell-stack .secondary {
+  font-size: 11.5px;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .num-cell {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 body.sasv-eaushadhi-review tbody tr.queue-row {
   cursor: pointer;
 }
 
-body.sasv-eaushadhi-review tbody tr.queue-row:hover,
-body.sasv-eaushadhi-review tbody tr.queue-row.is-active {
+body.sasv-eaushadhi-review tbody tr.queue-row:hover {
   background: var(--sasv-action-primary-soft);
 }
 
-body.sasv-eaushadhi-review .workspace-header {
+body.sasv-eaushadhi-review .product-header {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
   align-items: flex-start;
-  flex-shrink: 0;
+  gap: 12px;
   margin-bottom: 8px;
 }
 
-body.sasv-eaushadhi-review .workspace-tabs {
+body.sasv-eaushadhi-review .product-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .product-identity h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+body.sasv-eaushadhi-review .product-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-eaushadhi-review .product-badges {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+body.sasv-eaushadhi-review .workflow-nav {
+  display: flex;
+  gap: 2px;
   overflow-x: auto;
-  flex-shrink: 0;
   margin-bottom: 8px;
-  padding: 6px;
+  padding: 3px;
   border: 1px solid var(--sasv-border);
   border-radius: 10px;
-  background: var(--sasv-action-primary-soft);
-  position: sticky;
-  top: 0;
-  z-index: 2;
+  background: var(--sasv-surface-soft);
 }
 
-body.sasv-eaushadhi-review .workspace-tab {
+body.sasv-eaushadhi-review .workflow-step {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--sasv-text-muted);
   font-weight: 700;
-  font-size: 13px;
-  padding: 7px 12px;
+  font-size: 12px;
+  padding: 7px 8px;
   border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
 }
 
-body.sasv-eaushadhi-review .workspace-tab[aria-selected="true"] {
+body.sasv-eaushadhi-review .workflow-step .step-no {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--sasv-border);
+  color: var(--sasv-text);
+  font-size: 10px;
+}
+
+body.sasv-eaushadhi-review .workflow-step[aria-selected="true"] {
   background: var(--sasv-surface);
   border-color: var(--sasv-border);
   color: var(--sasv-text);
 }
 
-body.sasv-eaushadhi-review .tab-panel {
+body.sasv-eaushadhi-review .workflow-step.is-complete .step-no {
+  background: var(--sasv-success-bg);
+  color: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .workspace-scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+body.sasv-eaushadhi-review .tab-panel {
+  min-height: 0;
 }
 
 body.sasv-eaushadhi-review .meta-grid,
@@ -284,14 +518,57 @@ body.sasv-eaushadhi-review .section-card {
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-md);
   background: var(--sasv-surface);
-  padding: 12px;
-  margin-bottom: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
 }
 
 body.sasv-eaushadhi-review .section-title {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 700;
+}
+
+body.sasv-eaushadhi-review .next-action {
+  border-left: 3px solid var(--sasv-action-primary);
+  padding: 8px 10px;
+  background: var(--sasv-action-primary-soft);
+  border-radius: var(--sasv-radius-sm);
+  font-weight: 700;
+}
+
+body.sasv-eaushadhi-review .progress-list {
+  display: grid;
+  gap: 4px;
+}
+
+body.sasv-eaushadhi-review .progress-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  padding: 3px 0;
+}
+
+body.sasv-eaushadhi-review .seg-control {
+  display: inline-flex;
+  border: 1px solid var(--sasv-control-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review .seg-control button {
+  border: 0;
+  background: var(--sasv-surface);
+  color: var(--sasv-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .seg-control button[aria-pressed="true"] {
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary);
 }
 
 body.sasv-eaushadhi-review .action-row {
@@ -305,7 +582,7 @@ body.sasv-eaushadhi-review .issue-row {
   display: grid;
   grid-template-columns: 90px 1fr auto;
   gap: 8px;
-  padding: 8px 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--sasv-divider);
   font-size: 12.5px;
 }
@@ -319,14 +596,13 @@ body.sasv-eaushadhi-review .sev-text {
 body.sasv-eaushadhi-review .line-card {
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-md);
-  padding: 8px 10px;
+  padding: 6px 8px 8px;
   margin-bottom: 6px;
   background: var(--sasv-surface);
 }
 
 body.sasv-eaushadhi-review .line-card.has-blocker {
   border-color: var(--sasv-danger-border);
-  box-shadow: 0 0 0 1px var(--sasv-danger-border);
 }
 
 body.sasv-eaushadhi-review .line-card.has-error {
@@ -335,52 +611,62 @@ body.sasv-eaushadhi-review .line-card.has-error {
 }
 
 body.sasv-eaushadhi-review .line-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  margin-bottom: 6px;
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-body.sasv-eaushadhi-review .line-band-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--sasv-text-muted);
-  margin: 0 0 4px;
-}
-
-body.sasv-eaushadhi-review .line-source {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 4px 8px;
-  margin-bottom: 8px;
-  padding: 6px 8px;
-  font-size: 12px;
-  background: var(--sasv-surface-soft);
-  border: 1px solid var(--sasv-divider);
-  border-radius: var(--sasv-radius-sm);
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12.5px;
 }
 
-body.sasv-eaushadhi-review .source-label {
-  display: block;
+body.sasv-eaushadhi-review .line-no {
+  font-variant-numeric: tabular-nums;
   color: var(--sasv-text-muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-weight: 700;
+}
+
+body.sasv-eaushadhi-review .line-title {
+  font-weight: 700;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .line-qty {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+body.sasv-eaushadhi-review .line-sub {
+  grid-column: 2 / -1;
+  font-size: 11.5px;
+  color: var(--sasv-text-muted);
+  margin: 1px 0 6px 0;
 }
 
 body.sasv-eaushadhi-review .portal-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px 8px;
 }
 
-body.sasv-eaushadhi-review .line-notes {
+body.sasv-eaushadhi-review .portal-field label {
+  font-size: 10px;
+}
+
+body.sasv-eaushadhi-review .portal-field select {
+  width: 100%;
+  font-weight: 600;
+}
+
+body.sasv-eaushadhi-review .line-notes-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
   margin-top: 6px;
+}
+
+body.sasv-eaushadhi-review .line-notes-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 body.sasv-eaushadhi-review .line-issues {
@@ -389,20 +675,21 @@ body.sasv-eaushadhi-review .line-issues {
 
 body.sasv-eaushadhi-review .prov-chip {
   display: inline-block;
-  margin-top: 3px;
-  padding: 1px 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  margin-top: 2px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   border: 1px solid var(--sasv-control-border);
-  border-radius: 999px;
-  background: var(--sasv-surface);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--sasv-text-muted);
 }
 
 body.sasv-eaushadhi-review .prov-chip[data-provenance="verified"] {
-  text-decoration: underline;
   border-style: solid;
-  border-width: 2px;
+  border-width: 1px;
+  color: var(--sasv-success);
 }
 
 body.sasv-eaushadhi-review .prov-chip[data-provenance="default_suggestion"] {
@@ -418,18 +705,62 @@ body.sasv-eaushadhi-review .prov-chip[data-provenance="manually_changed"] {
   border-style: dotted;
 }
 
-body.sasv-eaushadhi-review .prov-chip[data-provenance="no_suggestion"] {
-  font-weight: 600;
-  opacity: 0.8;
+body.sasv-eaushadhi-review .evidence-list {
+  display: grid;
+  gap: 6px;
 }
 
-body.sasv-eaushadhi-review .readiness-item {
+body.sasv-eaushadhi-review .evidence-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  border-left-width: 3px;
+}
+
+body.sasv-eaushadhi-review .evidence-card.is-met {
+  border-left-color: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .evidence-card.is-pending {
+  border-left-color: var(--sasv-warning);
+}
+
+body.sasv-eaushadhi-review .readiness-banner {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 8px 10px;
+  border-radius: var(--sasv-radius-sm);
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review .readiness-banner.is-ready {
+  background: var(--sasv-success-bg);
+  color: var(--sasv-success);
+}
+
+body.sasv-eaushadhi-review .readiness-banner.is-not-ready {
+  background: var(--sasv-warning-bg);
+  color: var(--sasv-warning);
+}
+
+body.sasv-eaushadhi-review .readiness-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+body.sasv-eaushadhi-review .readiness-chip {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--sasv-divider);
-  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  font-size: 12.5px;
 }
 
 body.sasv-eaushadhi-review .empty-state {
@@ -461,6 +792,18 @@ body.sasv-eaushadhi-review .action-item select {
   flex: 1;
 }
 
+@media (max-width: 980px) {
+  body.sasv-eaushadhi-review .kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  body.sasv-eaushadhi-review .portal-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  body.sasv-eaushadhi-review .line-head {
+    grid-template-columns: auto 1fr auto;
+  }
+}
+
 @media (max-width: 720px) {
   body.sasv-module.sasv-eaushadhi-review {
     padding: 8px;
@@ -468,7 +811,16 @@ body.sasv-eaushadhi-review .action-item select {
   body.sasv-eaushadhi-review .page-sub {
     display: none;
   }
+  body.sasv-eaushadhi-review .kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   body.sasv-eaushadhi-review .issue-row {
     grid-template-columns: 1fr;
+  }
+  body.sasv-eaushadhi-review .portal-fields {
+    grid-template-columns: 1fr;
+  }
+  body.sasv-eaushadhi-review .product-header {
+    flex-wrap: wrap;
   }
 }

@@ -22,18 +22,55 @@ export const WORKSPACE_TABS = Object.freeze([
   "readiness",
 ]);
 
-export const QUEUE_FILTERS = Object.freeze([
+export const WORKFLOW_STAGES = Object.freeze([
+  { id: "overview", step: 1, label: "Overview" },
+  { id: "details", step: 2, label: "Product Details" },
+  { id: "composition", step: 3, label: "Composition" },
+  { id: "actions", step: 4, label: "Pharmacological Action" },
+  { id: "evidence", step: 5, label: "Evidence" },
+  { id: "readiness", step: 6, label: "Readiness" },
+]);
+
+export const QUEUE_RENDER_CHUNK = 40;
+export const QUEUE_SCROLL_THRESHOLD_PX = 100;
+
+export const REVIEW_LENSES = Object.freeze([
   { id: "all", label: "All" },
-  { id: "pending", label: "Pending Review" },
+  { id: "pending", label: "Pending" },
   { id: "in_review", label: "In Review" },
   { id: "verified", label: "Verified" },
   { id: "blocked", label: "Blocked" },
-  { id: "ready", label: "Ready for e-Aushadhi" },
+  { id: "ready", label: "Ready" },
+]);
+
+export const SYSTEM_LENSES = Object.freeze([
+  { id: "all", label: "All" },
   { id: "ayurveda", label: "Ayurveda" },
   { id: "siddha", label: "Siddha" },
+]);
+
+export const CLASS_LENSES = Object.freeze([
+  { id: "all", label: "All" },
   { id: "classical", label: "Classical" },
   { id: "proprietary", label: "Proprietary" },
 ]);
+
+export const QUEUE_FILTERS = Object.freeze([
+  ...REVIEW_LENSES.map((item) =>
+    item.id === "pending" ? { ...item, label: "Pending Review" } : item,
+  ),
+  ...SYSTEM_LENSES.filter((item) => item.id !== "all"),
+  ...CLASS_LENSES.filter((item) => item.id !== "all"),
+]);
+
+export const KPI_LENS_MAP = Object.freeze({
+  products: "all",
+  pending: "pending",
+  in_review: "in_review",
+  verified: "verified",
+  blocked: "blocked",
+  ready: "ready",
+});
 
 export const PROVENANCE = Object.freeze({
   VERIFIED: "verified",
@@ -222,29 +259,220 @@ export function matchesSearch(row, query) {
   return hay.includes(q);
 }
 
-export function matchesQueueFilter(row, filterId) {
-  const id = safeText(filterId) || "all";
+export function matchesReviewLens(row, lensId) {
+  const id = safeText(lensId) || "all";
   if (id === "all") return true;
   const review = normalizeReviewStatus(row?.review_status);
-  const system = safeText(row?.system_label).toLowerCase();
-  const medicineClass = safeText(row?.medicine_class_label).toLowerCase();
   if (id === "pending") return review === "PENDING" || review === "";
   if (id === "in_review") return review === "IN_REVIEW";
   if (id === "verified") return review === "VERIFIED";
   if (id === "blocked") return toInt(row?.open_blockers) > 0;
   if (id === "ready") return row?.is_ready_for_entry === true;
+  return true;
+}
+
+export function matchesSystemLens(row, lensId) {
+  const id = safeText(lensId) || "all";
+  if (id === "all") return true;
+  const system = safeText(row?.system_label).toLowerCase();
   if (id === "ayurveda") return /\bayurveda\b/.test(system);
   if (id === "siddha") return /\bsiddha\b/.test(system);
+  return true;
+}
+
+export function matchesClassLens(row, lensId) {
+  const id = safeText(lensId) || "all";
+  if (id === "all") return true;
+  const medicineClass = safeText(row?.medicine_class_label).toLowerCase();
   if (id === "classical") return /\bclassical\b/.test(medicineClass);
   if (id === "proprietary") return /\bproprietary\b/.test(medicineClass);
   return true;
 }
 
-export function filterQueueRows(rows, { filterId = "all", search = "" } = {}) {
+export function matchesQueueFilter(row, filterId) {
+  const id = safeText(filterId) || "all";
+  if (id === "all") return true;
+  if (["pending", "in_review", "verified", "blocked", "ready"].includes(id)) {
+    return matchesReviewLens(row, id);
+  }
+  if (id === "ayurveda" || id === "siddha") return matchesSystemLens(row, id);
+  if (id === "classical" || id === "proprietary") return matchesClassLens(row, id);
+  return true;
+}
+
+export function filterQueueRows(
+  rows,
+  {
+    filterId,
+    search = "",
+    reviewLens = "all",
+    systemLens = "all",
+    classLens = "all",
+  } = {},
+) {
   const list = Array.isArray(rows) ? rows : [];
+  let review = reviewLens;
+  let system = systemLens;
+  let klass = classLens;
+  const legacy = safeText(filterId);
+  if (legacy && legacy !== "all") {
+    if (["pending", "in_review", "verified", "blocked", "ready"].includes(legacy)) {
+      review = legacy;
+    } else if (legacy === "ayurveda" || legacy === "siddha") {
+      system = legacy;
+    } else if (legacy === "classical" || legacy === "proprietary") {
+      klass = legacy;
+    }
+  }
   return list.filter(
-    (row) => matchesQueueFilter(row, filterId) && matchesSearch(row, search),
+    (row) =>
+      matchesReviewLens(row, review) &&
+      matchesSystemLens(row, system) &&
+      matchesClassLens(row, klass) &&
+      matchesSearch(row, search),
   );
+}
+
+export function nextQueueRenderCount(
+  currentCount,
+  filteredTotal,
+  chunk = QUEUE_RENDER_CHUNK,
+) {
+  const total = Math.max(0, toInt(filteredTotal));
+  const current = Math.max(0, toInt(currentCount));
+  const size = Math.max(1, toInt(chunk, QUEUE_RENDER_CHUNK));
+  if (total === 0) return 0;
+  if (current <= 0) return Math.min(size, total);
+  return Math.min(total, current + size);
+}
+
+export function visibleQueueRows(rows, renderedCount) {
+  const list = Array.isArray(rows) ? rows : [];
+  const count = Math.max(0, toInt(renderedCount));
+  return list.slice(0, count);
+}
+
+export function resetQueueRenderCount(filteredTotal, chunk = QUEUE_RENDER_CHUNK) {
+  const total = Math.max(0, toInt(filteredTotal));
+  const size = Math.max(1, toInt(chunk, QUEUE_RENDER_CHUNK));
+  return Math.min(size, total);
+}
+
+export function shouldAppendQueueChunk({
+  scrollTop = 0,
+  clientHeight = 0,
+  scrollHeight = 0,
+  threshold = QUEUE_SCROLL_THRESHOLD_PX,
+} = {}) {
+  return (
+    toInt(scrollTop) + toInt(clientHeight) >=
+    toInt(scrollHeight) - Math.max(0, toInt(threshold))
+  );
+}
+
+export function formatShowingCount(shown, total) {
+  return `Showing ${toInt(shown)} of ${toInt(total)}`;
+}
+
+export function snapshotQueueView(view) {
+  return {
+    search: safeText(view?.search),
+    reviewLens: safeText(view?.reviewLens) || "all",
+    systemLens: safeText(view?.systemLens) || "all",
+    classLens: safeText(view?.classLens) || "all",
+    renderedCount: toInt(view?.renderedCount),
+    scrollTop: toInt(view?.scrollTop),
+  };
+}
+
+export function compositionIsComplete(row, evidence) {
+  if (row?.composition_review_complete === true) return true;
+  const total = toInt(row?.composition_lines ?? evidence?.composition_lines_total);
+  const verified = toInt(
+    row?.verified_lines ?? evidence?.composition_lines_verified,
+  );
+  return total > 0 && verified === total;
+}
+
+export function nextRequiredAction({
+  reviewStatus,
+  queueRow,
+  evidence,
+  pharmacologicalActionPresent,
+} = {}) {
+  const row = queueRow || {};
+  const ev = evidence || {};
+  if (normalizeReviewStatus(reviewStatus || row.review_status) !== "VERIFIED") {
+    return {
+      code: "details",
+      tab: "details",
+      label: "Next: Review Product Details",
+    };
+  }
+  if (!compositionIsComplete(row, ev)) {
+    return {
+      code: "composition",
+      tab: "composition",
+      label: "Next: Review Composition",
+    };
+  }
+  const actionPresent =
+    pharmacologicalActionPresent === true ||
+    ev.pharmacological_action_present === true;
+  if (!actionPresent) {
+    return {
+      code: "actions",
+      tab: "actions",
+      label: "Next: Review Pharmacological Action",
+    };
+  }
+  if (ev.approved_product_copy_present !== true) {
+    return {
+      code: "copy",
+      tab: "evidence",
+      label: "Next: Approved Product Copy pending",
+    };
+  }
+  if (ev.approved_formulation_present !== true) {
+    return {
+      code: "promote",
+      tab: "readiness",
+      label: "Next: Promote verified formulation when eligible",
+    };
+  }
+  if (row.is_ready_for_entry === true) {
+    return {
+      code: "ready",
+      tab: "readiness",
+      label: "Ready for e-Aushadhi",
+    };
+  }
+  return {
+    code: "verify",
+    tab: "readiness",
+    label: "Next: Verify Product internally",
+  };
+}
+
+export function workflowStageComplete(stageId, ctx = {}) {
+  const row = ctx.queueRow || {};
+  const ev = ctx.evidence || {};
+  const review = ctx.review || {};
+  if (stageId === "overview") return true;
+  if (stageId === "details") {
+    return normalizeReviewStatus(review.review_status) === "VERIFIED";
+  }
+  if (stageId === "composition") return compositionIsComplete(row, ev);
+  if (stageId === "actions") return ev.pharmacological_action_present === true;
+  if (stageId === "evidence") {
+    return (
+      ev.approved_product_copy_present === true &&
+      ev.approved_formulation_present === true &&
+      ev.pharmacological_action_present === true
+    );
+  }
+  if (stageId === "readiness") return row.is_ready_for_entry === true;
+  return false;
 }
 
 export function queueKpis(rows) {
