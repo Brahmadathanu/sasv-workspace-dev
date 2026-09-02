@@ -16,6 +16,7 @@ import {
   actionsDraftFromRows,
   canPromoteFormulation,
   canVerifyProductWorkflow,
+  canSubmitSourceResolution,
   compositionFiltersAreActive,
   compositionIsComplete,
   detailsDraftFromReview,
@@ -26,14 +27,17 @@ import {
   findQueueRow,
   filterQueueRows,
   formatIssueDetails,
+  formatRawQuantityDisplay,
   formatShowingCount,
   formatVerifiedTotal,
   idsEqual,
   isEditableKeyboardTarget,
   issuesForLine,
+  joinHtmlParts,
   lineDirty,
   lineDraftFromRow,
   lineHasBlockerOrError,
+  lineHasResolvableSourceIssue,
   lineSelectionsComplete,
   mergePreservedLineDraft,
   nextQueueRenderCount,
@@ -54,6 +58,8 @@ import {
   severityLabel,
   severityRank,
   shouldAppendQueueChunk,
+  sourceFieldDisplay,
+  suggestionBasisSummary,
   SUGGESTION_FIELD_KEYS,
   toInt,
   verifyProductUnavailableReason,
@@ -63,9 +69,11 @@ import {
 import {
   EaushadhiRpcError,
   fetchProductQueue,
+  fetchSourceIssueContext,
   loadProductWorkspace,
   loadSessionCatalogs,
   promoteVerifiedFormulation,
+  resolveSourceIssue,
   saveLineReview,
   saveProductActions,
   saveProductReview,
@@ -128,6 +136,16 @@ const state = {
   loadGen: 0,
   busy: false,
   preservedAfterStale: false,
+  resolvedSourceByLine: new Map(),
+  sourceResolve: {
+    open: false,
+    lineId: null,
+    context: null,
+    confirmIdentity: false,
+    confirmPartUsed: false,
+    notes: "",
+    trigger: null,
+  },
 };
 
 let searchTimer = null;
@@ -340,7 +358,7 @@ function queueRowHtml(row) {
   const portal = toInt(row.open_portal_issues);
   const issues =
     blockers || portal
-      ? `B ${blockers} Â· P ${portal}`
+      ? `B ${blockers} / P ${portal}`
       : "None";
   return `<tr class="queue-row" data-product-id="${escapeHtml(row.product_id)}" tabindex="-1">
     <td class="cell-product">${escapeHtml(displayText(row.product_name))}</td>
@@ -470,7 +488,7 @@ function appendQueueChunk({ force = false } = {}) {
 function optionHtml(options, selectedId, extra = []) {
   const seen = new Set();
   const list = [...extra, ...(Array.isArray(options) ? options : [])];
-  const parts = ['<option value="">Selectâ€¦</option>'];
+  const parts = ['<option value="">Select...</option>'];
   for (const opt of list) {
     const id = optionId(opt?.portal_option_id ?? opt?.term_id ?? opt?.id);
     if (!id || seen.has(id)) continue;
@@ -546,14 +564,12 @@ function renderProductHeader() {
     "Product",
   );
   const meta = [
-    displayText(row.system_label, ""),
-    displayText(row.medicine_class_label, ""),
-    [displayText(row.dosage_form_label, ""), displayText(row.subtype_label, "")]
-      .filter((part) => part && part !== "â€”")
-      .join(" / "),
+    safeText(row.system_label),
+    safeText(row.medicine_class_label),
+    [safeText(row.dosage_form_label), safeText(row.subtype_label)].filter(Boolean).join(" / "),
   ]
-    .filter((part) => part && part !== "â€”")
-    .join(" Â· ");
+    .filter(Boolean)
+    .join(" / ");
   $("workspaceMeta").textContent = meta;
   const badges = $("workspaceBadges");
   if (badges) {
@@ -758,18 +774,19 @@ function renderComposition() {
           </div>`;
         })
         .join("");
-      const qty = [displayText(row.raw_quantity_text, ""), displayText(row.raw_unit_text, "")]
-        .filter((part) => part && part !== "â€”")
-        .join(" ");
-      const names = [displayText(row.raw_ingredient_name), displayText(row.raw_scientific_name)]
-        .filter((part) => part && part !== "â€”")
-        .join(" Â· ");
+      const qty = formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text);
+      const nameHtml = joinHtmlParts([
+        escapeHtml(sourceFieldDisplay(row.raw_ingredient_name)),
+        escapeHtml(safeText(row.raw_scientific_name)),
+      ]);
       const notesId = `line-${id}-reviewNotes`;
+      const canResolve = lineHasResolvableSourceIssue(state.issues, id);
+      const resolved = state.resolvedSourceByLine.get(String(id));
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="line-head">
           <span class="line-no">${escapeHtml(displayText(row.source_row_no))}</span>
-          <span class="line-title">${escapeHtml(names)}</span>
-          <span class="line-qty">${escapeHtml(qty || "â€”")}</span>
+          <span class="line-title">${nameHtml}</span>
+          <span class="line-qty">${escapeHtml(qty || "-")}</span>
           ${chip(reviewStatusChipClass(row.review_status), displayText(row.review_status, "PENDING"))}
           ${
             topSev
@@ -780,7 +797,15 @@ function renderComposition() {
               : ""
           }
         </div>
-        <div class="line-sub">Source part: ${escapeHtml(displayText(row.raw_part_used))}</div>
+        <div class="line-sub">Source part: ${escapeHtml(sourceFieldDisplay(row.raw_part_used))}</div>
+        ${
+          resolved
+            ? `<div class="line-resolution">Governed resolution: ${joinHtmlParts([
+                escapeHtml(resolved.identity),
+                escapeHtml(resolved.part),
+              ])}</div>`
+            : ""
+        }
         <div class="portal-fields">${fields}</div>
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
@@ -794,13 +819,163 @@ function renderComposition() {
         </div>
         ${
           lineIssues.length
-            ? `<div class="line-issues">${renderIssues(lineIssues, "")}</div>`
+            ? `<div class="line-issues">${renderIssues(lineIssues, "")}
+              ${
+                canResolve
+                  ? `<button type="button" class="icon-btn with-label source-resolve-btn" data-edit-action="true" id="btn-resolve-${escapeHtml(id)}" data-source-resolve="${escapeHtml(id)}">Resolve source issue</button>`
+                  : ""
+              }
+            </div>`
             : ""
         }
       </article>`;
     })
     .join("");
   applyPermissionUi();
+}
+
+function sourceResolveFocusables() {
+  const root = $("sourceResolveDialog");
+  if (!root) return [];
+  return Array.from(
+    root.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => !el.hidden && el.offsetParent !== null);
+}
+
+function syncSourceResolveConfirm() {
+  const btn = $("sourceResolveConfirm");
+  if (!btn) return;
+  const ok = canSubmitSourceResolution({
+    confirmIdentity: state.sourceResolve.confirmIdentity,
+    confirmPartUsed: state.sourceResolve.confirmPartUsed,
+  });
+  btn.disabled = !ok || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = ok ? "false" : "true";
+}
+
+function renderSourceResolveBody() {
+  const host = $("sourceResolveBody");
+  const ctx = state.sourceResolve.context || {};
+  const identity =
+    displayText(ctx.canonical_scientific_name, "") ||
+    displayText(ctx.canonical_ingredient_name, "");
+  const partLabel = displayText(ctx.suggested_part_used_label, "");
+  const basis = suggestionBasisSummary(ctx.suggestion_basis);
+  const hasPart = Boolean(optionId(ctx.suggested_part_used_term_id));
+  if (!host) return;
+  host.innerHTML = `
+    <section class="ea-source-block" aria-labelledby="srcEvidenceTitle">
+      <h3 id="srcEvidenceTitle" class="section-title">Source evidence</h3>
+      <p class="muted-note">Read-only source values. Canonical values are not substituted here.</p>
+      <div class="meta-grid">
+        <div class="meta-item"><span class="meta-label">Ingredient</span><span class="meta-value">${escapeHtml(sourceFieldDisplay(ctx.raw_ingredient_name))}</span></div>
+        <div class="meta-item"><span class="meta-label">Scientific Name</span><span class="meta-value">${escapeHtml(sourceFieldDisplay(ctx.raw_scientific_name))}</span></div>
+        <div class="meta-item"><span class="meta-label">Part Used</span><span class="meta-value">${escapeHtml(sourceFieldDisplay(ctx.raw_part_used))}</span></div>
+        <div class="meta-item"><span class="meta-label">Source row</span><span class="meta-value">${escapeHtml(displayText(ctx.source_row_no))}</span></div>
+      </div>
+    </section>
+    <section class="ea-governed-block" aria-labelledby="srcGovernedTitle">
+      <h3 id="srcGovernedTitle" class="section-title">Governed canonical proposal</h3>
+      <div class="meta-grid">
+        <div class="meta-item"><span class="meta-label">Canonical identity</span><span class="meta-value">${escapeHtml(displayText(ctx.canonical_ingredient_name))}</span></div>
+        <div class="meta-item"><span class="meta-label">Canonical scientific name</span><span class="meta-value">${escapeHtml(displayText(ctx.canonical_scientific_name))}</span></div>
+        <div class="meta-item"><span class="meta-label">Suggested Part Used</span><span class="meta-value">${escapeHtml(hasPart ? partLabel : "No governed part suggestion")}</span></div>
+      </div>
+      ${basis ? `<p class="muted-note">${escapeHtml(basis)}</p>` : ""}
+      ${
+        identity
+          ? `<label class="ea-confirm-row">
+              <input id="srcConfirmIdentity" type="checkbox" data-edit-action="true" ${state.sourceResolve.confirmIdentity ? "checked" : ""} />
+              <span>Confirm canonical identity: ${escapeHtml(identity)}</span>
+            </label>`
+          : `<p class="muted-note">No governed canonical identity is available to confirm.</p>`
+      }
+      ${
+        hasPart
+          ? `<label class="ea-confirm-row">
+              <input id="srcConfirmPart" type="checkbox" data-edit-action="true" ${state.sourceResolve.confirmPartUsed ? "checked" : ""} />
+              <span>Confirm Part Used: ${escapeHtml(partLabel)}</span>
+            </label>`
+          : `<p class="muted-note">Part Used can remain unresolved until a governed suggestion is available.</p>`
+      }
+      <div class="form-field">
+        <label for="srcResolutionNotes">Resolution notes</label>
+        <textarea id="srcResolutionNotes" rows="2" data-edit-action="true">${escapeHtml(state.sourceResolve.notes)}</textarea>
+      </div>
+    </section>`;
+  syncSourceResolveConfirm();
+  applyPermissionUi();
+}
+
+function closeSourceResolve() {
+  const trigger = state.sourceResolve.trigger;
+  state.sourceResolve = {
+    open: false,
+    lineId: null,
+    context: null,
+    confirmIdentity: false,
+    confirmPartUsed: false,
+    notes: "",
+    trigger: null,
+  };
+  const backdrop = $("sourceResolveBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  if (trigger && typeof trigger.focus === "function") trigger.focus();
+}
+
+async function openSourceResolve(lineId, trigger) {
+  if (!lineHasResolvableSourceIssue(state.issues, lineId)) return;
+  state.sourceResolve.trigger = trigger || document.getElementById(`btn-resolve-${lineId}`);
+  state.sourceResolve.lineId = lineId;
+  state.sourceResolve.confirmIdentity = false;
+  state.sourceResolve.confirmPartUsed = false;
+  state.sourceResolve.notes = "";
+  const backdrop = $("sourceResolveBackdrop");
+  const body = $("sourceResolveBody");
+  if (body) body.innerHTML = `<p class="muted-note">Loading governed source context...</p>`;
+  if (backdrop) backdrop.hidden = false;
+  state.sourceResolve.open = true;
+  $("sourceResolveDialog")?.focus();
+  try {
+    const context = await fetchSourceIssueContext(lineId);
+    if (!state.sourceResolve.open || !idsEqual(state.sourceResolve.lineId, lineId)) return;
+    state.sourceResolve.context = context;
+    renderSourceResolveBody();
+    const first = $("srcConfirmIdentity") || $("srcConfirmPart") || $("srcResolutionNotes") || $("sourceResolveCancel");
+    first?.focus();
+  } catch (err) {
+    toastError(err);
+    closeSourceResolve();
+  }
+}
+
+async function submitSourceResolve() {
+  const ctx = state.sourceResolve.context || {};
+  const confirmIdentity = state.sourceResolve.confirmIdentity === true;
+  const confirmPartUsed = state.sourceResolve.confirmPartUsed === true;
+  if (!canSubmitSourceResolution({ confirmIdentity, confirmPartUsed })) {
+    showToast("Confirm the canonical identity and/or Part Used before saving.", "error");
+    return;
+  }
+  const lineId = state.sourceResolve.lineId;
+  await runMutation(async () => {
+    await resolveSourceIssue({
+      sourceCompositionLineId: lineId,
+      expectedResolutionId: ctx.current_resolution_id,
+      confirmCurrentIdentity: confirmIdentity,
+      partUsedTermId: confirmPartUsed ? ctx.suggested_part_used_term_id : null,
+      resolutionNotes: safeText(state.sourceResolve.notes) || null,
+    });
+    state.resolvedSourceByLine.set(String(lineId), {
+      identity: safeText(ctx.canonical_scientific_name) || safeText(ctx.canonical_ingredient_name),
+      part: confirmPartUsed ? safeText(ctx.suggested_part_used_label) : "",
+    });
+    showToast("Source issue resolved using governed canonical evidence.", "success");
+    closeSourceResolve();
+    await reloadSelected({ preserveDrafts: true, restoreComposition: true, focusLineId: lineId });
+  });
 }
 
 function renderActions() {
@@ -837,11 +1012,11 @@ function renderActions() {
               <input data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording" />
               ${
                 showReorder
-                  ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" aria-label="Move action up" title="Move action up">â†‘</button>
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" aria-label="Move action down" title="Move action down">â†“</button>`
+                  ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" aria-label="Move action up" title="Move action up">Up</button>
+              <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" aria-label="Move action down" title="Move action down">Down</button>`
                   : ""
               }
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove action" title="Remove action">Ã—</button>
+              <button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove action" title="Remove action">Remove</button>
             </div>`;
           })
           .join("")}
@@ -1130,7 +1305,7 @@ async function openProduct(productId) {
   state.compositionView = { search: "", reviewLens: "all", attention: "all" };
   const gen = ++state.loadGen;
   state.busy = true;
-  setStatus("Loading product review workspaceâ€¦");
+  setStatus("Loading product review workspace...");
   try {
     const payload = await loadProductWorkspace(productId);
     if (gen !== state.loadGen) return;
@@ -1152,8 +1327,13 @@ async function openProduct(productId) {
   }
 }
 
-async function reloadSelected({ preserveDrafts = false } = {}) {
+async function reloadSelected({
+  preserveDrafts = false,
+  restoreComposition = false,
+  focusLineId = null,
+} = {}) {
   if (!state.selectedProductId) return;
+  const scroll = restoreComposition ? $("workspaceScroll")?.scrollTop : null;
   const gen = ++state.loadGen;
   const payload = await loadProductWorkspace(state.selectedProductId);
   if (gen !== state.loadGen) return;
@@ -1161,6 +1341,20 @@ async function reloadSelected({ preserveDrafts = false } = {}) {
   applyWorkspacePayload(payload, { preserveDrafts });
   renderProductHeader();
   renderActiveTab();
+  if (restoreComposition && state.tab === "composition") {
+    requestAnimationFrame(() => {
+      if (scroll != null && $("workspaceScroll")) {
+        $("workspaceScroll").scrollTop = scroll;
+      }
+      const resolveBtn = focusLineId
+        ? document.getElementById(`btn-resolve-${focusLineId}`)
+        : null;
+      const card = focusLineId
+        ? document.querySelector(`.line-card[data-line-id="${focusLineId}"]`)
+        : null;
+      (resolveBtn || card?.querySelector("select") || card)?.focus?.();
+    });
+  }
 }
 
 function backToQueue() {
@@ -1621,8 +1815,10 @@ function wireEvents() {
     }
     const save = event.target.closest("[data-line-save]");
     const verify = event.target.closest("[data-line-verify]");
+    const resolve = event.target.closest("[data-source-resolve]");
     if (save) submitLine(save.dataset.lineSave, false);
     if (verify) submitLine(verify.dataset.lineVerify, true);
+    if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {
@@ -1692,7 +1888,50 @@ function wireEvents() {
     if (event.target.id === "fldVerifyNotes") state.verifyNotes = event.target.value;
   });
 
+  $("sourceResolveClose")?.addEventListener("click", closeSourceResolve);
+  $("sourceResolveCancel")?.addEventListener("click", closeSourceResolve);
+  $("sourceResolveConfirm")?.addEventListener("click", submitSourceResolve);
+  $("sourceResolveBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "sourceResolveBackdrop") closeSourceResolve();
+  });
+  $("sourceResolveBody")?.addEventListener("change", (event) => {
+    if (event.target.id === "srcConfirmIdentity") {
+      state.sourceResolve.confirmIdentity = event.target.checked === true;
+      syncSourceResolveConfirm();
+    }
+    if (event.target.id === "srcConfirmPart") {
+      state.sourceResolve.confirmPartUsed = event.target.checked === true;
+      syncSourceResolveConfirm();
+    }
+  });
+  $("sourceResolveBody")?.addEventListener("input", (event) => {
+    if (event.target.id === "srcResolutionNotes") {
+      state.sourceResolve.notes = event.target.value || "";
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
+    if (state.sourceResolve.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSourceResolve();
+        return;
+      }
+      if (event.key === "Tab") {
+        const items = sourceResolveFocusables();
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+      return;
+    }
     if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey) {
       if (isProductMode() || isEditableKeyboardTarget(event.target)) return;
       event.preventDefault();
@@ -1767,7 +2006,7 @@ async function initPage() {
     return;
   }
   applyPermissionUi();
-  setStatus("Loading product queueâ€¦");
+  setStatus("Loading product queue...");
   try {
     const [queueRows, catalogs] = await Promise.all([
       fetchProductQueue(),

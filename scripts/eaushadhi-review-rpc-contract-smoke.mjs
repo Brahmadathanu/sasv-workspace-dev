@@ -40,6 +40,8 @@ const requiredRpcs = [
   "rpc_eaushadhi_product_issues",
   "rpc_eaushadhi_promote_verified_formulation",
   "rpc_eaushadhi_verify_product",
+  "rpc_eaushadhi_source_issue_context",
+  "rpc_eaushadhi_resolve_source_issue",
 ];
 
 for (const name of requiredRpcs) {
@@ -89,6 +91,16 @@ assert(apiSrc.includes("p_expected_workflow_row_version:"), "actions/promote use
 assert(apiSrc.includes("p_actions:"), "actions save uses p_actions");
 assert(apiSrc.includes("p_approval_notes:"), "promote uses p_approval_notes");
 assert(apiSrc.includes("p_notes:"), "verify product uses p_notes");
+assert(apiSrc.includes("p_confirm_current_identity:"), "source resolve uses p_confirm_current_identity");
+assert(apiSrc.includes("p_expected_resolution_id:"), "source resolve uses p_expected_resolution_id");
+assert(apiSrc.includes("p_part_used_term_id:"), "source resolve uses p_part_used_term_id");
+assert(apiSrc.includes("p_resolution_notes:"), "source resolve uses p_resolution_notes");
+assert(
+  !/[·…←→↑↓—]/.test(controlSrc + htmlSrc) && !/Â·|â€/.test(controlSrc + htmlSrc),
+  "module-authored UI literals avoid mojibake-prone punctuation",
+);
+assert(controlSrc.includes("data-source-resolve"), "resolve source issue action exists");
+assert(!/resolveAll|resolve all issues|auto.?resolve/i.test(controlSrc), "no bulk/auto source resolve");
 
 assert(!/\.from\(\s*["']regulatory/i.test(combined), "no direct regulatory table access");
 assert(!/playwright/i.test(combined), "no Playwright");

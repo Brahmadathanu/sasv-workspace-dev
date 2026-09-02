@@ -155,9 +155,43 @@ export function safeText(value) {
   return String(value).trim();
 }
 
-export function displayText(value, empty = "—") {
+export function displayText(value, empty = "-") {
   const text = safeText(value);
   return text || empty;
+}
+
+export const UI_HTML_SEP = " &middot; ";
+
+export function joinHtmlParts(parts) {
+  return (Array.isArray(parts) ? parts : [])
+    .map((part) => safeText(part))
+    .filter((part) => part && part !== "-")
+    .join(UI_HTML_SEP);
+}
+
+export function sourceFieldDisplay(value) {
+  const text = safeText(value);
+  return text || "Not provided in source";
+}
+
+export function formatRawQuantityDisplay(quantityText, unitText) {
+  const qty = safeText(quantityText);
+  const unit = safeText(unitText);
+  if (!qty) return unit;
+  if (!unit) return qty;
+  const qtyLower = qty.toLowerCase();
+  const unitLower = unit.toLowerCase();
+  if (qtyLower === unitLower) return qty;
+  const escaped = unitLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tokenSuffix = new RegExp(`(?:^|[\\s])${escaped}$`, "i");
+  if (tokenSuffix.test(qty)) return qty;
+  if (
+    qtyLower.endsWith(unitLower) &&
+    /\d/.test(qtyLower.slice(0, Math.max(0, qtyLower.length - unitLower.length)))
+  ) {
+    return qty;
+  }
+  return `${qty} ${unit}`;
 }
 
 export function optionId(value) {
@@ -207,6 +241,56 @@ export function parseSuggestionBasis(raw) {
     }
   }
   return null;
+}
+
+export const SOURCE_RESOLVABLE_ISSUE_CODES = Object.freeze([
+  "SOURCE_SCIENTIFIC_IDENTITY_MISSING",
+  "SOURCE_PART_USED_MISSING",
+]);
+
+export function suggestionBasisSummary(raw) {
+  const basis = parseSuggestionBasis(raw);
+  if (!basis) {
+    const text = safeText(raw);
+    if (!text || text.startsWith("{") || text.startsWith("[")) return "";
+    return text;
+  }
+  const candidates = [
+    basis.summary,
+    basis.evidence_summary,
+    basis.evidence_label,
+    basis.basis_label,
+    basis.display,
+    typeof basis.basis === "string" ? basis.basis : "",
+  ];
+  for (const candidate of candidates) {
+    const text = safeText(candidate);
+    if (!text) continue;
+    if (/_id$/i.test(text) || /^\d+$/.test(text)) continue;
+    if (/^[A-Z0-9_]+$/.test(text) && text.includes("_")) {
+      return text.toLowerCase().replace(/_/g, " ");
+    }
+    return text;
+  }
+  return "";
+}
+
+export function isResolvableSourceIssue(issue) {
+  const code = safeText(issue?.issue_code).toUpperCase();
+  const status = safeText(issue?.status).toUpperCase();
+  if (status && status !== "OPEN" && status !== "IN_REVIEW") return false;
+  return SOURCE_RESOLVABLE_ISSUE_CODES.includes(code);
+}
+
+export function lineHasResolvableSourceIssue(issues, sourceCompositionLineId) {
+  return issuesForLine(issues, sourceCompositionLineId).some(isResolvableSourceIssue);
+}
+
+export function canSubmitSourceResolution({
+  confirmIdentity = false,
+  confirmPartUsed = false,
+} = {}) {
+  return confirmIdentity === true || confirmPartUsed === true;
 }
 
 export function suggestionFieldMode(suggestionBasis, fieldKey) {
@@ -694,7 +778,7 @@ export function formatIssueDetails(detailsJson) {
       parts.push(`${key}: ${safeText(details[key])}`);
     }
   }
-  if (parts.length) return parts.join(" · ");
+  if (parts.length) return parts.join(" / ");
   try {
     return JSON.stringify(details);
   } catch {

@@ -233,6 +233,38 @@ export async function verifyProduct({
   );
 }
 
+export async function fetchSourceIssueContext(sourceCompositionLineId) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_source_issue_context", {
+      p_source_composition_line_id: Number(sourceCompositionLineId),
+    }),
+  );
+}
+
+export async function resolveSourceIssue({
+  sourceCompositionLineId,
+  expectedResolutionId,
+  confirmCurrentIdentity = false,
+  partUsedTermId = null,
+  resolutionNotes = null,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_resolve_source_issue", {
+      p_source_composition_line_id: Number(sourceCompositionLineId),
+      p_expected_resolution_id:
+        expectedResolutionId == null || expectedResolutionId === ""
+          ? null
+          : Number(expectedResolutionId),
+      p_confirm_current_identity: confirmCurrentIdentity === true,
+      p_part_used_term_id:
+        partUsedTermId == null || partUsedTermId === ""
+          ? null
+          : Number(partUsedTermId),
+      p_resolution_notes: resolutionNotes,
+    }),
+  );
+}
+
 export async function loadSessionCatalogs() {
   const [
     typeOptions,
