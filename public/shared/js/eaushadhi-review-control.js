@@ -14,6 +14,7 @@ import {
   SYSTEM_LENSES,
   WORKFLOW_STAGES,
   WORKSPACE_TABS,
+  actionSetVerifyPendingCopy,
   actionsDirty,
   actionsDraftFromRows,
   autosaveStateLabel,
@@ -25,6 +26,9 @@ import {
   canReopenReviewedSection,
   canSubmitSourceResolution,
   canSubmitWorkingSourceCorrection,
+  canVerifyActionSet,
+  canVerifyCompositionLine,
+  canVerifyProductDetails,
   classifyRpcError,
   compositionFiltersAreActive,
   compositionIsComplete,
@@ -48,9 +52,9 @@ import {
   joinHtmlParts,
   lineDirty,
   lineDraftFromRow,
-  lineHasBlockerOrError,
   lineHasResolvableSourceIssue,
   lineSelectionsComplete,
+  lineVerifyPendingCopy,
   mergePreservedLineDraft,
   nextQueueRenderCount,
   nextRequiredAction,
@@ -61,6 +65,7 @@ import {
   optionId,
   parseOptionalNumericQuantity,
   portalFieldSpecs,
+  productDetailsVerifyPendingCopy,
   promoteUnavailableReason,
   provenanceLabel,
   queueKpis,
@@ -84,6 +89,8 @@ import {
   SUGGESTION_FIELD_KEYS,
   toInt,
   verifyProductUnavailableReason,
+  verifyReviewedConfirmLabel,
+  verifyReviewedEmptyGuidance,
   visibleQueueRows,
   workflowStageComplete,
 } from "./eaushadhi-review-helpers.js";
@@ -275,6 +282,79 @@ function applyPermissionUi() {
   });
 }
 
+function setHintEl(id, text) {
+  const el = $(id);
+  if (!el) return;
+  const value = safeText(text);
+  el.hidden = !value;
+  el.textContent = value;
+}
+
+function syncDetailsVerifyUi() {
+  const btn = $("btnVerifyDetails");
+  if (!btn) return;
+  const ok = canVerifyProductDetails(state.detailsDraft, {
+    canEdit: canWrite(),
+    saveStatus: state.detailsSaveStatus,
+  });
+  const reason = productDetailsVerifyPendingCopy(state.detailsDraft, {
+    saveStatus: state.detailsSaveStatus,
+  });
+  btn.disabled = !ok || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = ok ? "false" : "true";
+  if (reason) btn.title = reason;
+  else btn.removeAttribute("title");
+  setHintEl("detailsVerifyHint", reason);
+}
+
+function syncActionsVerifyUi() {
+  const btn = $("btnVerifyActions");
+  if (!btn) return;
+  const ok = canVerifyActionSet({
+    actions: state.actionsDraft,
+    reviewStatus: state.actionsReviewStatus,
+    saveStatus: state.actionsSaveStatus,
+    canEdit: canWrite(),
+  });
+  const reason = actionSetVerifyPendingCopy({
+    actions: state.actionsDraft,
+    reviewStatus: state.actionsReviewStatus,
+    saveStatus: state.actionsSaveStatus,
+  });
+  btn.disabled = !ok || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = ok ? "false" : "true";
+  if (reason) btn.title = reason;
+  else btn.removeAttribute("title");
+  setHintEl("actionsVerifyHint", reason);
+}
+
+function syncLineVerifyUi(lineId) {
+  const id = String(lineId);
+  const btn = document.querySelector(`[data-line-verify="${id}"]`);
+  if (!btn) return;
+  const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, id));
+  const draft = state.lineDrafts.get(id);
+  const saveStatus = state.lineSaveStatus.get(id) || "";
+  const ok = canVerifyCompositionLine({
+    draft,
+    issues: state.issues,
+    lineId: id,
+    reviewStatus: row?.review_status,
+    saveStatus,
+    canEdit: canWrite(),
+  });
+  const reason = lineVerifyPendingCopy({
+    draft,
+    issues: state.issues,
+    lineId: id,
+    reviewStatus: row?.review_status,
+    saveStatus,
+  });
+  btn.disabled = !ok || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = ok ? "false" : "true";
+  btn.title = reason || "Confirm the reviewed portal mapping as correct.";
+}
+
 function toastError(err) {
   showToast(userMessageForError(err) || "Something went wrong.", "error", 5200);
 }
@@ -312,6 +392,9 @@ function patchAutosaveEl(id, status) {
   el.classList.toggle("is-failed", status === "failed" || status === "stale");
   if (status === "failed" || status === "stale") el.setAttribute("aria-live", "polite");
   else el.removeAttribute("aria-live");
+  if (id === "detailsAutosave") syncDetailsVerifyUi();
+  if (id === "actionsAutosave") syncActionsVerifyUi();
+  if (String(id).startsWith("line-save-")) syncLineVerifyUi(String(id).slice("line-save-".length));
 }
 
 function confirmLeaveDirty() {
@@ -762,6 +845,13 @@ function renderDetails() {
     ? `Suggested: ${review.suggested_permission_purpose_label}`
     : "";
   const disable = locked ? " disabled" : "";
+  const detailsVerifyOk = canVerifyProductDetails(draft, {
+    canEdit: canWrite(),
+    saveStatus: state.detailsSaveStatus,
+  });
+  const detailsVerifyHint = productDetailsVerifyPendingCopy(draft, {
+    saveStatus: state.detailsSaveStatus,
+  });
   host.innerHTML = `
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Regulatory purpose</h3>
@@ -807,9 +897,16 @@ function renderDetails() {
             ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenDetails" data-edit-action="true">Reopen Product Details</button>`
             : ""
         }`
-            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true">Verify Product Details</button>`
+            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true"${
+                detailsVerifyOk ? "" : " data-force-disabled=\"true\""
+              }${detailsVerifyHint ? ` title="${escapeHtml(detailsVerifyHint)}"` : ""}>Verify Product Details</button>`
         }
       </div>
+      ${
+        locked
+          ? ""
+          : `<p class="disabled-reason" id="detailsVerifyHint"${detailsVerifyHint ? "" : " hidden"}>${escapeHtml(detailsVerifyHint)}</p>`
+      }
     </div>`;
   if (locked) {
     host.querySelectorAll("[data-bool-value]").forEach((el) => {
@@ -885,6 +982,21 @@ function renderComposition() {
         reviewStatus: row.review_status,
         approvedFormulationPresent: state.evidence?.approved_formulation_present,
       });
+      const lineVerifyHint = lineVerifyPendingCopy({
+        draft,
+        issues: state.issues,
+        lineId: id,
+        reviewStatus: row.review_status,
+        saveStatus,
+      });
+      const lineVerifyOk = canVerifyCompositionLine({
+        draft,
+        issues: state.issues,
+        lineId: id,
+        reviewStatus: row.review_status,
+        saveStatus,
+        canEdit: canWrite(),
+      });
       const resolved = state.resolvedSourceByLine.get(String(id));
       const saveStatus = state.lineSaveStatus.get(String(id)) || "";
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
@@ -929,11 +1041,9 @@ function renderComposition() {
               ? `<button type="button" class="icon-btn with-label ea-reopen-btn" data-edit-action="true" id="btn-reopen-${escapeHtml(id)}" data-line-reopen="${escapeHtml(id)}">Reopen for correction</button>`
               : ""
           }`
-              : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}" title="${
-                  lineHasBlockerOrError(state.issues, id)
-                    ? "This line has BLOCKER or ERROR issues"
-                    : "Confirm the reviewed portal mapping as correct."
-                }">Verify line</button>
+              : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
+                  lineVerifyOk ? "" : " data-force-disabled=\"true\""
+                } title="${escapeHtml(lineVerifyHint || "Confirm the reviewed portal mapping as correct.")}">Verify line</button>
           ${
             canCorrect
               ? `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-correct-${escapeHtml(id)}" data-source-correct="${escapeHtml(id)}" title="Edit the current working source before approval.">Correct source</button>`
@@ -1352,6 +1462,17 @@ function renderActions() {
   const showReorder = rows.length > 1;
   const locked = isVerifiedStatus(state.actionsReviewStatus);
   const disable = locked ? " disabled" : "";
+  const actionsVerifyOk = canVerifyActionSet({
+    actions: rows,
+    reviewStatus: state.actionsReviewStatus,
+    saveStatus: state.actionsSaveStatus,
+    canEdit: canWrite(),
+  });
+  const actionsVerifyHint = actionSetVerifyPendingCopy({
+    actions: rows,
+    reviewStatus: state.actionsReviewStatus,
+    saveStatus: state.actionsSaveStatus,
+  });
   host.innerHTML = `
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Pharmacological action</h3>
@@ -1409,9 +1530,16 @@ function renderActions() {
             : ""
         }`
             : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add Action</button>
-        <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true">Verify Actions</button>`
+        <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true"${
+          actionsVerifyOk ? "" : " data-force-disabled=\"true\""
+        }${actionsVerifyHint ? ` title="${escapeHtml(actionsVerifyHint)}"` : ""}>Verify Actions</button>`
         }
       </div>
+      ${
+        locked
+          ? ""
+          : `<p class="disabled-reason" id="actionsVerifyHint"${actionsVerifyHint ? "" : " hidden"}>${escapeHtml(actionsVerifyHint)}</p>`
+      }
     </div>`;
   applyPermissionUi();
 }
@@ -1671,6 +1799,7 @@ function syncDetailsDraftFromForm() {
     diseasesConditions: $("fldDiseases")?.value ?? "",
     reviewNotes: $("fldReviewNotes")?.value ?? "",
   };
+  syncDetailsVerifyUi();
 }
 
 function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
@@ -1883,6 +2012,20 @@ async function runMutation(fn) {
 
 async function submitDetails(verify) {
   syncDetailsDraftFromForm();
+  if (verify) {
+    const reason = productDetailsVerifyPendingCopy(state.detailsDraft, {
+      saveStatus: state.detailsSaveStatus,
+    });
+    if (
+      !canVerifyProductDetails(state.detailsDraft, {
+        canEdit: canWrite(),
+        saveStatus: state.detailsSaveStatus,
+      })
+    ) {
+      showToast(reason || "Product Details are not ready to verify.", "error");
+      return;
+    }
+  }
   if (!verify) {
     await persistDetails(false);
     return;
@@ -2144,9 +2287,29 @@ async function waitLineIdle(lineId) {
 async function submitLine(lineId, verify) {
   const draft = state.lineDrafts.get(String(lineId));
   if (!draft) return;
-  if (verify && !lineSelectionsComplete(draft)) {
-    showToast("All four portal dropdowns are required before verifying a line.", "error");
-    return;
+  if (verify) {
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+    const saveStatus = state.lineSaveStatus.get(String(lineId)) || "";
+    const reason = lineVerifyPendingCopy({
+      draft,
+      issues: state.issues,
+      lineId,
+      reviewStatus: row?.review_status,
+      saveStatus,
+    });
+    if (
+      !canVerifyCompositionLine({
+        draft,
+        issues: state.issues,
+        lineId,
+        reviewStatus: row?.review_status,
+        saveStatus,
+        canEdit: canWrite(),
+      })
+    ) {
+      showToast(reason || "This line is not ready to verify.", "error");
+      return;
+    }
   }
   flushDebounced(autosaveTimers, `line:${lineId}`);
   await waitLineIdle(lineId);
@@ -2162,6 +2325,24 @@ async function submitLine(lineId, verify) {
 }
 
 async function submitActions(verify) {
+  if (verify) {
+    const reason = actionSetVerifyPendingCopy({
+      actions: state.actionsDraft,
+      reviewStatus: state.actionsReviewStatus,
+      saveStatus: state.actionsSaveStatus,
+    });
+    if (
+      !canVerifyActionSet({
+        actions: state.actionsDraft,
+        reviewStatus: state.actionsReviewStatus,
+        saveStatus: state.actionsSaveStatus,
+        canEdit: canWrite(),
+      })
+    ) {
+      showToast(reason || "Pharmacological actions are not ready to verify.", "error");
+      return;
+    }
+  }
   if (!verify) {
     await persistActions(false);
     return;
@@ -2310,6 +2491,7 @@ function renderVerifyReviewedBody() {
   if (!host) return;
   const summary = summarizeVerifyReviewedLines(state.lines, state.lineDrafts, state.issues);
   const eligible = summary.eligible.length;
+  const guidance = verifyReviewedEmptyGuidance(eligible);
   host.innerHTML = `
     <p><strong>Eligible: ${eligible}</strong></p>
     <p class="muted-note">Skipped:</p>
@@ -2317,12 +2499,14 @@ function renderVerifyReviewedBody() {
       <li>Pending: ${summary.pending}</li>
       <li>Blocking/error issue: ${summary.blocking}</li>
       <li>Incomplete mapping: ${summary.incomplete}</li>
-    </ul>`;
+    </ul>
+    ${guidance ? `<p class="disabled-reason">${escapeHtml(guidance)}</p>` : ""}`;
   const btn = $("verifyReviewedConfirm");
   if (btn) {
-    btn.textContent = `Verify ${eligible} reviewed lines`;
-    btn.disabled = eligible < 1 || !canWrite();
-    btn.dataset.forceDisabled = eligible < 1 ? "true" : "false";
+    btn.textContent = verifyReviewedConfirmLabel(eligible);
+    const ok = eligible > 0 && canWrite();
+    btn.disabled = !ok || state.busy;
+    btn.dataset.forceDisabled = ok ? "false" : "true";
   }
   applyPermissionUi();
 }
@@ -2345,6 +2529,10 @@ function openVerifyReviewed() {
 async function submitVerifyReviewed() {
   const summary = summarizeVerifyReviewedLines(state.lines, state.lineDrafts, state.issues);
   const ids = summary.eligible.slice();
+  if (!ids.length) {
+    showToast(verifyReviewedEmptyGuidance(0), "error");
+    return;
+  }
   closeVerifyReviewed();
   let verified = 0;
   let failed = 0;
@@ -2678,6 +2866,7 @@ function wireEvents() {
           el.setAttribute("aria-checked", String(on));
           el.tabIndex = on ? 0 : -1;
         });
+        syncDetailsVerifyUi();
         queueDetailsAutosave(true);
       }
     }
@@ -2697,6 +2886,7 @@ function wireEvents() {
           el.tabIndex = on ? 0 : -1;
         });
         btn.focus();
+        syncDetailsVerifyUi();
         queueDetailsAutosave(true);
       },
     });
@@ -2746,6 +2936,7 @@ function wireEvents() {
       }
     }
     if (key !== "reviewNotes") queueLineAutosave(lineId, true);
+    syncLineVerifyUi(lineId);
   });
   $("tab-composition")?.addEventListener("input", (event) => {
     const el = event.target;
@@ -2825,6 +3016,7 @@ function wireEvents() {
     if (el.dataset.actionText == null) return;
     const i = Number(el.dataset.actionText);
     state.actionsDraft[i] = el.value;
+    syncActionsVerifyUi();
     queueActionsAutosave(false);
   });
   $("tab-actions")?.addEventListener("change", (event) => {
@@ -2835,6 +3027,7 @@ function wireEvents() {
       state.actionsDraft[i] = el.value;
       const input = document.querySelector(`[data-action-text="${i}"]`);
       if (input) input.value = el.value;
+      syncActionsVerifyUi();
       queueActionsAutosave(true);
     }
   });
