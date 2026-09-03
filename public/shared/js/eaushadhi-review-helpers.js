@@ -1287,13 +1287,27 @@ export function classifyRpcError(error) {
 
   return {
     kind: ERROR_KIND.SERVER,
-    userMessage: message || "The server could not complete this action.",
+    userMessage: looksLikeRawDatabaseError(message)
+      ? "The server could not complete this action. Refresh and retry."
+      : message || "The server could not complete this action.",
     retryable: false,
   };
 }
 
+export function looksLikeRawDatabaseError(message) {
+  const text = safeText(message);
+  if (!text) return false;
+  return /pgrst|sqlstate|postgres|plpgsql|relation ["']|function .* is not unique|could not choose|ambiguous function|42725|42p01|42703|column .* does not exist|operator does not exist|\bhint:|\bdetail:/i.test(
+    text,
+  );
+}
+
 export function userMessageForError(error) {
-  return classifyRpcError(error).userMessage;
+  const classified = classifyRpcError(error);
+  if (looksLikeRawDatabaseError(classified.userMessage)) {
+    return "The server could not complete this action. Refresh and retry.";
+  }
+  return classified.userMessage;
 }
 
 export function mergePreservedLineDraft(serverRow, localDraft) {

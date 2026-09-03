@@ -150,6 +150,23 @@ assert(!/verify all|bulkVerify|bulk_verify|verifyAll/i.test(combined), "no bulk 
 assert(apiSrc.includes("rpc_eaushadhi_register_approved_product_copy"), "approved copy registration RPC is retained");
 assert(!/p_product_id:\s*null/.test(apiSrc), "review queue is never called with null product id");
 
+assert(htmlSrc.includes("sasv-modal sasv-modal--lg"), "correct source uses canonical large modal");
+assert(!/sourceCorrectDialog[\s\S]{0,80}style=/i.test(htmlSrc), "correct source has no inline modal width");
+assert(
+  !/--ea-modal-width|max-width:\s*520px|max-width:\s*480px/.test(cssSrc),
+  "no obsolete e-Aushadhi custom modal width",
+);
+assert(cssSrc.includes("--sasv-text-sm"), "module CSS consumes --sasv-text-sm");
+assert(cssSrc.includes("--sasv-text-xs"), "module CSS consumes --sasv-text-xs");
+assert(cssSrc.includes("--sasv-text-lg"), "module CSS consumes --sasv-text-lg");
+assert(cssSrc.includes("--sasv-font-sans"), "module CSS consumes --sasv-font-sans");
+assert(cssSrc.includes("--sasv-control-md"), "module CSS consumes --sasv-control-md");
+assert(cssSrc.includes("ea-identity-grid"), "correct source identity grid exists");
+assert(cssSrc.includes("ea-quantity-grid"), "correct source quantity grid exists");
+assert(controlSrc.includes("ea-callout"), "correct source intro uses callout");
+assert(controlSrc.includes('srcCorrectIngredient")?.focus'), "source correct focuses first field");
+assert(controlSrc.includes("userMessageForError"), "autosave uses public error messages");
+
 assert(controlSrc.includes("module:e-aushadhi-automation"), "canonical permission target");
 assert(controlSrc.includes("get_user_permissions"), "canonical permission RPC");
 assert(controlSrc.includes("can_view === true"), "fail-closed strict can_view");
