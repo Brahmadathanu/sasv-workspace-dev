@@ -125,6 +125,11 @@ assert(
   controlSrc.includes("Verify reviewed lines") || htmlSrc.includes("Verify reviewed lines"),
   "verify reviewed lines action exists",
 );
+assert(controlSrc.includes("verifyReviewedConfirmLabel"), "verify reviewed confirm label helper is used");
+assert(controlSrc.includes("canVerifyProductDetails"), "product details verify eligibility is used");
+assert(controlSrc.includes("canVerifyCompositionLine"), "line verify eligibility is used");
+assert(controlSrc.includes("canVerifyActionSet"), "actions verify eligibility is used");
+assert(!/Verify \$\{eligible\} reviewed lines/.test(controlSrc), "zero-count verify label is not interpolated directly");
 assert(controlSrc.includes("registerApprovedProductCopy"), "copy registration is called after upload");
 assert(controlSrc.includes("createSignedUrl") || apiSrc.includes("createSignedUrl"), "private copy open uses signed URL");
 assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");

@@ -1161,6 +1161,131 @@ export function lineSelectionsComplete(draft) {
   );
 }
 
+function joinListWithAnd(items) {
+  const list = (Array.isArray(items) ? items : []).map((item) => safeText(item)).filter(Boolean);
+  if (!list.length) return "";
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+}
+
+export const PRODUCT_DETAILS_DECLARATION_FIELDS = Object.freeze([
+  { key: "containsBhang", label: "Contains Bhang" },
+  { key: "containsOpium", label: "Contains Opium" },
+  { key: "containsOtherNarcotic", label: "Contains Other Narcotic" },
+  { key: "containsScheduleE1", label: "Contains Schedule E1" },
+  { key: "containsSelfGeneratedAlcohol", label: "Contains Self-generated Alcohol" },
+]);
+
+export function productDetailsVerifyGaps(draft) {
+  const fields = [];
+  if (!optionId(draft?.permissionPurposeTermId)) fields.push("Permission Purpose");
+  if (!safeText(draft?.compositionTitle)) fields.push("Composition Title");
+  if (!safeText(draft?.diseasesConditions)) fields.push("Diseases / Conditions");
+  const declarations = PRODUCT_DETAILS_DECLARATION_FIELDS.filter(
+    (item) => draft?.[item.key] == null,
+  );
+  return {
+    fields,
+    declarations: declarations.map((item) => item.label),
+    ok: fields.length === 0 && declarations.length === 0,
+  };
+}
+
+export function productDetailsVerifyPendingCopy(draft, { saveStatus } = {}) {
+  if (saveStatus === "stale") return "Server data changed - refresh/review required";
+  if (saveStatus === "failed") return "Save failed. Refresh and retry before verifying.";
+  const gaps = productDetailsVerifyGaps(draft);
+  if (gaps.ok) return "";
+  const parts = [...gaps.fields];
+  if (gaps.declarations.length === 1) {
+    parts.push(`${gaps.declarations[0]} requires review`);
+  } else if (gaps.declarations.length > 1) {
+    parts.push(`${gaps.declarations.length} declarations require review`);
+  }
+  return `Verification pending: ${joinListWithAnd(parts)}.`;
+}
+
+export function canVerifyProductDetails(draft, { canEdit = true, saveStatus } = {}) {
+  if (canEdit === false) return false;
+  if (saveStatus === "failed" || saveStatus === "stale") return false;
+  return productDetailsVerifyGaps(draft).ok === true;
+}
+
+export function lineMappingGaps(draft) {
+  const missing = [];
+  if (!optionId(draft?.ingredientTypeOptionId)) missing.push("Ingredient Type");
+  if (!optionId(draft?.ingredientFormOptionId)) missing.push("Ingredient Form");
+  if (!optionId(draft?.partUsedOptionId)) missing.push("Part Used");
+  if (!optionId(draft?.measurementOptionId)) missing.push("Measurement Unit");
+  return missing;
+}
+
+export function lineVerifyPendingCopy({
+  draft,
+  issues,
+  lineId,
+  reviewStatus,
+  saveStatus,
+} = {}) {
+  if (isVerifiedStatus(reviewStatus)) return "This line is already verified.";
+  if (saveStatus === "stale") return "Server data changed - refresh/review required";
+  if (saveStatus === "failed") return "Save failed. Refresh and retry before verifying.";
+  if (lineHasBlockerOrError(issues, lineId)) {
+    return "This line has an open ERROR or BLOCKER issue.";
+  }
+  const missing = lineMappingGaps(draft);
+  if (missing.length) {
+    return `${joinListWithAnd(missing)} ${missing.length === 1 ? "is" : "are"} required.`;
+  }
+  return "";
+}
+
+export function canVerifyCompositionLine({
+  draft,
+  issues,
+  lineId,
+  reviewStatus,
+  saveStatus,
+  canEdit = true,
+} = {}) {
+  if (canEdit === false) return false;
+  return !lineVerifyPendingCopy({ draft, issues, lineId, reviewStatus, saveStatus });
+}
+
+export function actionSetVerifyPendingCopy({ actions, reviewStatus, saveStatus } = {}) {
+  if (isVerifiedStatus(reviewStatus)) return "Pharmacological actions are already verified.";
+  if (saveStatus === "stale") return "Server data changed - refresh/review required";
+  if (saveStatus === "failed") return "Save failed. Refresh and retry before verifying.";
+  const list = Array.isArray(actions) ? actions : [];
+  if (!list.length) return "Add at least one pharmacological action before verifying.";
+  if (list.some((item) => !safeText(item))) {
+    return "Every action needs approved wording before verifying.";
+  }
+  return "";
+}
+
+export function canVerifyActionSet({
+  actions,
+  reviewStatus,
+  saveStatus,
+  canEdit = true,
+} = {}) {
+  if (canEdit === false) return false;
+  return !actionSetVerifyPendingCopy({ actions, reviewStatus, saveStatus });
+}
+
+export function verifyReviewedConfirmLabel(eligibleCount) {
+  const count = toInt(eligibleCount);
+  if (count < 1) return "No lines eligible";
+  return `Verify ${count} reviewed lines`;
+}
+
+export function verifyReviewedEmptyGuidance(eligibleCount) {
+  if (toInt(eligibleCount) > 0) return "";
+  return "No ingredient lines are eligible yet. Review or change a Pending line first; autosave will move it to In Review.";
+}
+
 export function canPromoteFormulation({
   canEdit,
   productReviewStatus,

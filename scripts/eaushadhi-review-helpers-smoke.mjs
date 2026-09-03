@@ -9,6 +9,9 @@ import {
   actionsDirty,
   buildApprovedProductCopyPath,
   canPromoteFormulation,
+  canVerifyActionSet,
+  canVerifyCompositionLine,
+  canVerifyProductDetails,
   canVerifyProductWorkflow,
   canCorrectWorkingSourceLine,
   canEditReviewedSection,
@@ -43,6 +46,7 @@ import {
   nextRovingIndex,
   openErrorOrBlockerCount,
   parseOptionalNumericQuantity,
+  productDetailsVerifyPendingCopy,
   provenanceLabel,
   proposeQuantityText,
   queueKpis,
@@ -55,6 +59,8 @@ import {
   summarizeVerifyReviewedLines,
   syncWorkingSourceQuantityDraft,
   validateEvidenceFile,
+  verifyReviewedConfirmLabel,
+  verifyReviewedEmptyGuidance,
   visibleQueueRows,
   workingSourceChanges,
 } from "../public/shared/js/eaushadhi-review-helpers.js";
@@ -577,6 +583,127 @@ assert(verifySummary.eligible.join(",") === "1", "only complete in-review lines 
 assert(verifySummary.pending === 1, "PENDING excluded from verify reviewed");
 assert(verifySummary.blocking === 1, "ERROR/BLOCKER excluded from verify reviewed");
 assert(verifySummary.incomplete === 1, "incomplete mapping excluded from verify reviewed");
+assert(verifyReviewedConfirmLabel(0) === "No lines eligible", "zero eligible uses non-actionable confirm label");
+assert(
+  verifyReviewedEmptyGuidance(0).includes("No ingredient lines are eligible yet"),
+  "zero eligible shows pending-line guidance",
+);
+assert(verifyReviewedConfirmLabel(2) === "Verify 2 reviewed lines", "positive eligible keeps count in confirm label");
+
+const completeDetails = {
+  permissionPurposeTermId: 9,
+  compositionTitle: "Asvagandhadi Lehyam",
+  diseasesConditions: "General debility",
+  containsBhang: false,
+  containsOpium: false,
+  containsOtherNarcotic: false,
+  containsScheduleE1: false,
+  containsSelfGeneratedAlcohol: false,
+};
+assert(canVerifyProductDetails(completeDetails) === true, "complete product details can verify");
+assert(
+  canVerifyProductDetails({
+    ...completeDetails,
+    permissionPurposeTermId: null,
+    diseasesConditions: "",
+    containsBhang: null,
+    containsOpium: null,
+    containsOtherNarcotic: null,
+    containsScheduleE1: null,
+    containsSelfGeneratedAlcohol: null,
+  }) === false,
+  "incomplete product details cannot verify",
+);
+assert(
+  productDetailsVerifyPendingCopy({
+    ...completeDetails,
+    permissionPurposeTermId: null,
+    diseasesConditions: "",
+    containsBhang: null,
+    containsOpium: null,
+    containsOtherNarcotic: null,
+    containsScheduleE1: null,
+    containsSelfGeneratedAlcohol: null,
+  }) ===
+    "Verification pending: Permission Purpose, Diseases / Conditions and 5 declarations require review.",
+  "product details helper lists missing required inputs",
+);
+
+assert(
+  canVerifyCompositionLine({
+    draft: completeDraft,
+    issues: [],
+    lineId: 1,
+    reviewStatus: "IN_REVIEW",
+  }) === true,
+  "completed mapping is eligible to verify",
+);
+assert(
+  canVerifyCompositionLine({
+    draft: lineDraftFromRow({
+      source_composition_line_id: 8,
+      suggested_ingredient_type_option_id: 1,
+      suggested_ingredient_form_option_id: 2,
+      suggested_part_used_option_id: 3,
+      suggested_measurement_option_id: 4,
+    }),
+    issues: [],
+    lineId: 8,
+    reviewStatus: "IN_REVIEW",
+  }) === true,
+  "default suggestions remain eligible for explicit verify",
+);
+assert(
+  canVerifyCompositionLine({
+    draft: { ingredientTypeOptionId: 1 },
+    issues: [],
+    lineId: 9,
+    reviewStatus: "IN_REVIEW",
+  }) === false,
+  "incomplete mapping is not eligible",
+);
+assert(
+  canVerifyCompositionLine({
+    draft: completeDraft,
+    issues: [{ source_composition_line_id: 10, severity: "ERROR", status: "OPEN" }],
+    lineId: 10,
+    reviewStatus: "IN_REVIEW",
+  }) === false,
+  "open ERROR excludes line verify",
+);
+assert(
+  canVerifyCompositionLine({
+    draft: completeDraft,
+    issues: [{ source_composition_line_id: 11, severity: "BLOCKER", status: "OPEN" }],
+    lineId: 11,
+    reviewStatus: "IN_REVIEW",
+  }) === false,
+  "open BLOCKER excludes line verify",
+);
+assert(
+  canVerifyCompositionLine({
+    draft: completeDraft,
+    issues: [],
+    lineId: 12,
+    reviewStatus: "IN_REVIEW",
+    saveStatus: "failed",
+  }) === false,
+  "failed autosave excludes line verify",
+);
+assert(canVerifyActionSet({ actions: ["Rasayana"], reviewStatus: "IN_REVIEW" }) === true, "valid action set can verify");
+assert(canVerifyActionSet({ actions: [], reviewStatus: "IN_REVIEW" }) === false, "empty action set cannot verify");
+assert(
+  canVerifyActionSet({ actions: ["Rasayana", ""], reviewStatus: "IN_REVIEW" }) === false,
+  "blank action wording cannot verify",
+);
+assert(
+  canVerifyActionSet({ actions: ["Rasayana"], reviewStatus: "VERIFIED" }) === false,
+  "verified action set cannot verify again",
+);
+assert(
+  canVerifyActionSet({ actions: ["Rasayana"], reviewStatus: "IN_REVIEW", saveStatus: "stale" }) === false,
+  "stale action autosave cannot verify",
+);
 assert(
   validateEvidenceFile({ type: "application/pdf", size: 1024 }).ok === true,
   "pdf evidence file is accepted",
