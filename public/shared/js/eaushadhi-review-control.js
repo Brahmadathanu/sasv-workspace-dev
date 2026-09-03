@@ -25,6 +25,7 @@ import {
   canReopenReviewedSection,
   canSubmitSourceResolution,
   canSubmitWorkingSourceCorrection,
+  classifyRpcError,
   compositionFiltersAreActive,
   compositionIsComplete,
   detailsDraftFromReview,
@@ -75,6 +76,7 @@ import {
   suggestionBasisSummary,
   summarizeVerifyReviewedLines,
   syncWorkingSourceQuantityDraft,
+  userMessageForError,
   validateEvidenceFile,
   workingActionReviewStatus,
   workingSourceChanges,
@@ -274,11 +276,7 @@ function applyPermissionUi() {
 }
 
 function toastError(err) {
-  const message =
-    err instanceof EaushadhiRpcError
-      ? err.message
-      : err?.message || "Something went wrong.";
-  showToast(message, "error", 5200);
+  showToast(userMessageForError(err) || "Something went wrong.", "error", 5200);
 }
 
 function workspaceIsDirty() {
@@ -770,7 +768,7 @@ function renderDetails() {
       ${locked ? lockNoteHtml() : ""}
       <div class="form-field">
         <label for="fldPurpose">Permission Purpose</label>
-        <select id="fldPurpose" data-edit-action="true"${disable}>${optionHtml(state.catalogs.permissionPurposeOptions, draft.permissionPurposeTermId)}</select>
+        <select id="fldPurpose" class="sasv-control" data-edit-action="true"${disable}>${optionHtml(state.catalogs.permissionPurposeOptions, draft.permissionPurposeTermId)}</select>
         <span class="muted-note">${escapeHtml(suggested)}</span>
       </div>
     </div>
@@ -778,11 +776,11 @@ function renderDetails() {
       <h3 class="section-title">Product description</h3>
       <div class="form-field">
         <label for="fldTitle">Composition Title</label>
-        <input id="fldTitle" data-edit-action="true" value="${escapeHtml(draft.compositionTitle || "")}"${disable} />
+        <input id="fldTitle" class="sasv-control" data-edit-action="true" value="${escapeHtml(draft.compositionTitle || "")}"${disable} />
       </div>
       <div class="form-field">
         <label for="fldDiseases">Diseases / Conditions</label>
-        <textarea id="fldDiseases" rows="3" data-edit-action="true"${disable}>${escapeHtml(draft.diseasesConditions || "")}</textarea>
+        <textarea id="fldDiseases" class="sasv-control" rows="3" data-edit-action="true"${disable}>${escapeHtml(draft.diseasesConditions || "")}</textarea>
       </div>
     </div>
     <div class="section-card${locked ? " is-verified" : ""}">
@@ -797,7 +795,7 @@ function renderDetails() {
       </div>
       <div class="form-field" style="margin-top:10px">
         <label for="fldReviewNotes">Review notes</label>
-        <textarea id="fldReviewNotes" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
+        <textarea id="fldReviewNotes" class="sasv-control" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
       </div>
       ${autosaveHtml(state.detailsSaveStatus, "detailsAutosave")}
       <div class="action-row">
@@ -869,7 +867,7 @@ function renderComposition() {
           });
           return `<div class="portal-field form-field">
             <label for="${escapeHtml(fieldId)}">${escapeHtml(labels[spec.domain] || spec.domain)}</label>
-            <select id="${escapeHtml(fieldId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}"${locked ? " disabled" : ""}>
+            <select id="${escapeHtml(fieldId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}"${locked ? " disabled" : ""}>
               ${optionHtml(state.catalogs.portalOptions[spec.domain], selectedNow)}
             </select>
             ${provenanceChipHtml(id, spec.draftKey, provenance)}
@@ -877,10 +875,10 @@ function renderComposition() {
         })
         .join("");
       const qty = formatRawQuantityDisplay(row.raw_quantity_text, row.raw_unit_text);
-      const nameHtml = joinHtmlParts([
-        escapeHtml(sourceFieldDisplay(row.raw_ingredient_name)),
-        escapeHtml(safeText(row.raw_scientific_name)),
-      ]);
+      const scientific = escapeHtml(safeText(row.raw_scientific_name));
+      const nameHtml = scientific
+        ? `<span class="line-ingredient">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span><span class="line-scientific">${scientific}</span>`
+        : `<span class="line-ingredient">${escapeHtml(sourceFieldDisplay(row.raw_ingredient_name))}</span>`;
       const notesId = `line-${id}-reviewNotes`;
       const canResolve = !locked && lineHasResolvableSourceIssue(state.issues, id);
       const canCorrect = canCorrectWorkingSourceLine({
@@ -921,7 +919,7 @@ function renderComposition() {
         <div class="portal-fields">${fields}</div>
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
-          <input id="${escapeHtml(notesId)}" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${locked ? " disabled" : ""} />
+          <input id="${escapeHtml(notesId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${locked ? " disabled" : ""} />
           ${autosaveHtml(saveStatus, `line-save-${id}`)}
           ${
             locked
@@ -1010,15 +1008,25 @@ function renderSourceCorrectPreview() {
   }
   return `<section id="srcCorrectPreviewHost" class="ea-source-preview" aria-labelledby="srcCorrectPreviewTitle">
     <h3 id="srcCorrectPreviewTitle">Changes to apply</h3>
+    <div class="ea-change-list">
     ${changes
       .map(
-        (change) => `<div class="ea-change-row">
-          <strong>${escapeHtml(change.label)}</strong><br />
-          Before: ${escapeHtml(change.before)}<br />
-          After: ${escapeHtml(change.after)}
+        (change) => `<div class="ea-change-item">
+          <p class="ea-change-field">${escapeHtml(change.label)}</p>
+          <dl>
+            <div class="ea-change-pair">
+              <dt>Before</dt>
+              <dd>${escapeHtml(change.before)}</dd>
+            </div>
+            <div class="ea-change-pair">
+              <dt>After</dt>
+              <dd class="is-after">${escapeHtml(change.after)}</dd>
+            </div>
+          </dl>
         </div>`,
       )
       .join("")}
+    </div>
   </section>`;
 }
 
@@ -1031,37 +1039,50 @@ function renderSourceCorrectBody() {
       ? ""
       : String(draft.raw_quantity_value);
   host.innerHTML = `
-    <p id="sourceCorrectIntro" class="muted-note">These values are the current working source. The original imported row remains retained for provenance. After line/formulation approval, corrections require versioning.</p>
-    <div class="form-field">
-      <label for="srcCorrectIngredient">Ingredient name</label>
-      <input id="srcCorrectIngredient" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_ingredient_name)}" required />
-    </div>
-    <div class="form-field">
-      <label for="srcCorrectScientific">Scientific name</label>
-      <input id="srcCorrectScientific" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_scientific_name)}" />
-    </div>
-    <div class="form-field">
-      <label for="srcCorrectPart">Part Used</label>
-      <input id="srcCorrectPart" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_part_used)}" />
-      <p class="muted-note">Source wording only. This is not the portal Part Used list.</p>
-    </div>
-    <div class="form-field">
-      <label for="srcCorrectQtyText">Quantity text</label>
-      <input id="srcCorrectQtyText" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_quantity_text)}" />
-    </div>
-    <div class="form-field">
-      <label for="srcCorrectQtyNum">Numeric quantity</label>
-      <input id="srcCorrectQtyNum" type="text" inputmode="decimal" data-edit-action="true" value="${escapeHtml(numericDisplay)}" />
-    </div>
-    <div class="form-field">
-      <label for="srcCorrectUnit">Unit</label>
-      <input id="srcCorrectUnit" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_unit_text)}" />
-    </div>
-    <p class="muted-note">Quantity text preserves the licensed/source wording. Numeric quantity is used only where a numeric value is applicable.</p>
-    <div class="form-field">
-      <label for="srcCorrectReason">Correction reason</label>
-      <textarea id="srcCorrectReason" rows="2" data-edit-action="true" required>${escapeHtml(draft.correction_reason || "")}</textarea>
-    </div>
+    <p id="sourceCorrectIntro" class="ea-callout">These values are the current working source. The original imported row remains retained for provenance. After line/formulation approval, corrections require versioning.</p>
+    <section class="ea-form-group" aria-labelledby="srcIdentityTitle">
+      <h3 id="srcIdentityTitle" class="section-title">Source identity</h3>
+      <div class="ea-identity-grid">
+        <div class="form-field">
+          <label for="srcCorrectIngredient">Ingredient name</label>
+          <input id="srcCorrectIngredient" class="sasv-control" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_ingredient_name)}" required />
+        </div>
+        <div class="form-field">
+          <label for="srcCorrectScientific">Scientific name</label>
+          <input id="srcCorrectScientific" class="sasv-control" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_scientific_name)}" />
+        </div>
+        <div class="form-field ea-span-2">
+          <label for="srcCorrectPart">Part Used / source wording</label>
+          <input id="srcCorrectPart" class="sasv-control" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_part_used)}" />
+          <p class="muted-note">Source wording only. This is not the portal Part Used list.</p>
+        </div>
+      </div>
+    </section>
+    <section class="ea-form-group" aria-labelledby="srcQtyTitle">
+      <h3 id="srcQtyTitle" class="section-title">Quantity</h3>
+      <div class="ea-quantity-grid">
+        <div class="form-field">
+          <label for="srcCorrectQtyText">Quantity text</label>
+          <input id="srcCorrectQtyText" class="sasv-control" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_quantity_text)}" />
+        </div>
+        <div class="form-field">
+          <label for="srcCorrectQtyNum">Numeric quantity</label>
+          <input id="srcCorrectQtyNum" class="sasv-control" type="text" inputmode="decimal" data-edit-action="true" value="${escapeHtml(numericDisplay)}" />
+        </div>
+        <div class="form-field">
+          <label for="srcCorrectUnit">Unit</label>
+          <input id="srcCorrectUnit" class="sasv-control" type="text" data-edit-action="true" value="${escapeHtml(draft.raw_unit_text)}" />
+        </div>
+      </div>
+      <p class="muted-note">Quantity text preserves licensed/source wording. Numeric quantity is only used where applicable. No unit conversion is performed.</p>
+    </section>
+    <section class="ea-form-group" aria-labelledby="srcCorrectionTitle">
+      <h3 id="srcCorrectionTitle" class="section-title">Correction</h3>
+      <div class="form-field">
+        <label for="srcCorrectReason">Correction reason</label>
+        <textarea id="srcCorrectReason" class="sasv-control" rows="4" data-edit-action="true" required>${escapeHtml(draft.correction_reason || "")}</textarea>
+      </div>
+    </section>
     ${renderSourceCorrectPreview()}`;
   syncSourceCorrectConfirm();
   applyPermissionUi();
@@ -1238,7 +1259,7 @@ function renderSourceResolveBody() {
       }
       <div class="form-field">
         <label for="srcResolutionNotes">Resolution notes</label>
-        <textarea id="srcResolutionNotes" rows="2" data-edit-action="true">${escapeHtml(state.sourceResolve.notes)}</textarea>
+        <textarea id="srcResolutionNotes" class="sasv-control" rows="3" data-edit-action="true">${escapeHtml(state.sourceResolve.notes)}</textarea>
       </div>
     </section>`;
   syncSourceResolveConfirm();
@@ -1358,7 +1379,7 @@ function renderActions() {
                   )
                   .join("")}
               </select>
-              <input data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording"${disable} />
+              <input class="sasv-control" data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording"${disable} />
               ${
                 showReorder && !locked
                   ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" aria-label="Move action up" title="Move action up">Up</button>
@@ -1567,7 +1588,7 @@ function renderReadiness() {
         showPromote
           ? `<div class="form-field" style="margin-top:12px">
         <label for="fldPromoteNotes">Promotion notes</label>
-        <textarea id="fldPromoteNotes" rows="2" data-edit-action="true">${escapeHtml(state.promoteNotes)}</textarea>
+        <textarea id="fldPromoteNotes" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(state.promoteNotes)}</textarea>
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label primary" id="btnPromote" data-edit-action="true" ${
@@ -1581,7 +1602,7 @@ function renderReadiness() {
         showVerify
           ? `<div class="form-field" style="margin-top:12px">
         <label for="fldVerifyNotes">Internal product verification notes</label>
-        <textarea id="fldVerifyNotes" rows="2" data-edit-action="true">${escapeHtml(state.verifyNotes)}</textarea>
+        <textarea id="fldVerifyNotes" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(state.verifyNotes)}</textarea>
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnVerifyProduct" data-edit-action="true" ${
@@ -2078,9 +2099,11 @@ async function flushActionsAutosave() {
 
 function handleAutosaveError(err, scope, lineId) {
   console.error("[eaushadhi] autosave failed", err);
-  const kind = err instanceof EaushadhiRpcError ? err.kind : "";
-  const message =
-    err instanceof EaushadhiRpcError ? err.message : err?.message || "Save failed";
+  const kind = err instanceof EaushadhiRpcError ? err.kind : classifyRpcError(err).kind;
+  const publicMessage = userMessageForError(err);
+  const message = /^save failed/i.test(publicMessage)
+    ? publicMessage
+    : `Save failed. ${publicMessage}`;
   if (kind === ERROR_KIND.STALE) {
     if (scope === "line") {
       lineHalted.add(String(lineId));
@@ -2208,7 +2231,7 @@ function renderReopenBody() {
     <p class="muted-note">${escapeHtml(copy.body)}</p>
     <div class="form-field">
       <label for="fldReopenReason">Reason for reopening</label>
-      <textarea id="fldReopenReason" rows="3" data-edit-action="true" required>${escapeHtml(state.reopen.reason || "")}</textarea>
+      <textarea id="fldReopenReason" class="sasv-control" rows="3" data-edit-action="true" required>${escapeHtml(state.reopen.reason || "")}</textarea>
     </div>`;
   const btn = $("reopenConfirm");
   const ok = Boolean(safeText(state.reopen.reason));

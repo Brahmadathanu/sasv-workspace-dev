@@ -440,6 +440,20 @@ assert(
   "validation error class",
 );
 assert(classifyRpcError({ message: "Failed to fetch" }).kind === ERROR_KIND.NETWORK, "network error class");
+assert(
+  !/could not choose a best candidate function/i.test(
+    classifyRpcError({
+      message: "Could not choose a best candidate function between: public.rpc_eaushadhi_save_line_review",
+    }).userMessage,
+  ),
+  "raw postgres ambiguity is not shown as the user message",
+);
+assert(
+  classifyRpcError({
+    message: "Could not choose a best candidate function between: public.rpc_eaushadhi_save_line_review",
+  }).userMessage.includes("server could not complete"),
+  "raw database errors map to a generic server message",
+);
 
 assert(formatRawQuantityDisplay("100 mg", "mg") === "100 mg", "quantity already includes unit");
 assert(formatRawQuantityDisplay("1.07 g", "g") === "1.07 g", "decimal quantity already includes unit");
