@@ -124,9 +124,11 @@ import {
   verifyProduct,
 } from "./eaushadhi-review-api.js";
 import {
+  captureWorkerPortalContract,
   connectWorkerBrowser,
   getWorkerStatus,
   onWorkerStatus,
+  openWorkerCaptureFolder,
   runWorkerFoundationCheck,
   stopWorkerBrowser,
   workerApiAvailable,
@@ -187,6 +189,7 @@ const state = {
   verifyNotes: "",
   workerStatus: null,
   workerFoundationResult: null,
+  workerCaptureResult: null,
   loadGen: 0,
   busy: false,
   preservedAfterStale: false,
@@ -1675,6 +1678,152 @@ function workerStatusLabel(status) {
   return status?.label || "Disconnected";
 }
 
+function toolbarWorkerStatusText() {
+  if (!workerApiAvailable()) return "Unavailable";
+  return workerStatusLabel(state.workerStatus);
+}
+
+function isConnectPrimaryState(workerState) {
+  return !workerState || workerState === "IDLE" || workerState === "FAILED";
+}
+
+function workerStatusTone(workerState, available) {
+  if (!available || !workerState || workerState === "IDLE") return "neutral";
+  if (workerState === "AUTH_REQUIRED") return "warning";
+  if (workerState === "READY") return "success";
+  if (workerState === "FAILED") return "danger";
+  return "neutral";
+}
+
+let workerMenuOpen = false;
+let lastWorkerToolbarKey = "";
+
+function closeWorkerMenu({ restoreFocus = false } = {}) {
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  workerMenuOpen = false;
+  if (menu) menu.hidden = true;
+  if (more) more.setAttribute("aria-expanded", "false");
+  if (restoreFocus) more?.focus();
+}
+
+function positionWorkerMenu() {
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  if (!menu || !more || menu.hidden) return;
+  const rect = more.getBoundingClientRect();
+  menu.style.top = `${Math.round(rect.bottom + 4)}px`;
+  menu.style.right = `${Math.round(Math.max(8, window.innerWidth - rect.right))}px`;
+  menu.style.left = "auto";
+}
+
+function openWorkerMenu() {
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  if (!menu || !more) return;
+  workerMenuOpen = true;
+  menu.hidden = false;
+  more.setAttribute("aria-expanded", "true");
+  positionWorkerMenu();
+}
+
+function toggleWorkerMenu() {
+  if (workerMenuOpen) closeWorkerMenu();
+  else openWorkerMenu();
+}
+
+function setMenuActionDisabled(el, disabled) {
+  setForceDisabled(el, disabled);
+  if (!el) return;
+  if (disabled) el.setAttribute("aria-disabled", "true");
+  else el.removeAttribute("aria-disabled");
+}
+
+function placeWorkerStop(connectPrimary) {
+  const stop = $("btnWorkerStop");
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  const connect = $("btnWorkerConnect");
+  if (!stop || !menu || !more || !connect) return;
+  connect.hidden = !connectPrimary;
+  if (connectPrimary) {
+    menu.insertBefore(stop, menu.firstChild);
+    stop.hidden = false;
+    stop.setAttribute("role", "menuitem");
+    stop.classList.add("ea-worker-menuitem");
+    stop.classList.remove("with-label");
+    stop.textContent = "Stop Browser";
+  } else {
+    more.parentNode.insertBefore(stop, more);
+    stop.hidden = false;
+    stop.removeAttribute("role");
+    stop.classList.remove("ea-worker-menuitem");
+    stop.classList.add("with-label");
+    stop.textContent = "Stop";
+  }
+}
+
+function captureToolbarTitle() {
+  const outcome = state.workerCaptureResult?.ok === true ? state.workerCaptureResult.auth_outcome : "";
+  if (outcome) return `Capture Portal Contract (last: ${outcome})`;
+  return "Capture Portal Contract";
+}
+
+function setForceDisabled(el, disabled) {
+  if (!el) return;
+  if (disabled) el.dataset.forceDisabled = "true";
+  else delete el.dataset.forceDisabled;
+}
+
+function syncWorkerToolbarUi() {
+  const available = workerApiAvailable();
+  const status = state.workerStatus;
+  const busy = state.busy;
+  const workerState = status?.state;
+  const connectPrimary = isConnectPrimaryState(workerState);
+  const connectDisabled =
+    !available ||
+    busy ||
+    (workerState && workerState !== "IDLE" && workerState !== "FAILED");
+  const stopDisabled = !available || busy || !workerState || workerState === "IDLE";
+  const captureEnabled =
+    available && !busy && (workerState === "AUTH_REQUIRED" || workerState === "READY");
+  const folderDisabled = !available || busy || state.workerCaptureResult?.ok !== true;
+  const toolbarKey = `${available ? "electron" : "pwa"}:${workerState || "none"}`;
+  if (toolbarKey !== lastWorkerToolbarKey) closeWorkerMenu();
+  lastWorkerToolbarKey = toolbarKey;
+  placeWorkerStop(connectPrimary);
+  const statusEl = $("workerBrowserStatus");
+  if (statusEl) statusEl.textContent = toolbarWorkerStatusText();
+  const chip = $("eaWorkerStatusChip");
+  if (chip) {
+    const tone = workerStatusTone(workerState, available);
+    chip.className = `sasv-chip chip ${tone} ea-worker-status-chip`;
+  }
+  setMenuActionDisabled($("btnWorkerConnect"), connectDisabled);
+  setMenuActionDisabled($("btnWorkerStop"), stopDisabled);
+  setMenuActionDisabled($("btnWorkerCapture"), !captureEnabled);
+  setMenuActionDisabled($("btnWorkerOpenCapture"), folderDisabled);
+  const captureBtn = $("btnWorkerCapture");
+  if (captureBtn) {
+    const title = captureToolbarTitle();
+    captureBtn.title = title;
+    captureBtn.setAttribute("aria-label", title);
+  }
+  applyPermissionUi();
+  ["btnWorkerConnect", "btnWorkerStop", "btnWorkerCapture", "btnWorkerOpenCapture"].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.disabled) el.setAttribute("aria-disabled", "true");
+    else el.removeAttribute("aria-disabled");
+  });
+  if (workerMenuOpen) positionWorkerMenu();
+}
+
+function refreshReadinessIfActive() {
+  if (state.tab === "readiness" && state.selectedProductId) renderReadiness();
+}
+
 function workerFoundationSummary(result) {
   if (!result) return "No foundation check has been run for this product.";
   const reasons = Array.isArray(result.preflight?.reasons)
@@ -1693,34 +1842,17 @@ function workerFoundationSummary(result) {
 
 function renderWorkerFoundationCard() {
   const available = workerApiAvailable();
-  const status = state.workerStatus;
   const busy = state.busy;
-  const connectDisabled =
-    !available ||
-    busy ||
-    (status?.state && status.state !== "IDLE" && status.state !== "FAILED");
-  const stopDisabled = !available || busy || !status?.state || status.state === "IDLE";
   const checkDisabled = !available || busy || !state.selectedProductId;
-  if (!available) {
-    return `
-      <div class="section-card worker-foundation-card">
-        <h3>Browser worker</h3>
-        <p class="muted-note">The dedicated e-Aushadhi browser worker is available only in the SASV Electron app. PWA cannot launch Edge.</p>
-        <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
-      </div>`;
-  }
+  const browserLine = available
+    ? `Browser session: ${workerStatusLabel(state.workerStatus)}. Connect, capture, and folder controls are in the page header.`
+    : "Browser session: Unavailable. The dedicated e-Aushadhi browser worker is available only in the SASV Electron app. PWA cannot launch Edge.";
   return `
     <div class="section-card worker-foundation-card">
-      <h3>Browser worker</h3>
+      <h3>Product execution check</h3>
       <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
-      <div class="readiness-chip"><span>Browser worker status</span><strong id="workerBrowserStatus">${escapeHtml(workerStatusLabel(status))}</strong></div>
+      <p class="muted-note" id="workerReadinessBrowserContext">${escapeHtml(browserLine)}</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerConnect" data-edit-action="true" ${
-          connectDisabled ? `data-force-disabled="true"` : ""
-        }>Connect Browser</button>
-        <button type="button" class="icon-btn with-label" id="btnWorkerStop" data-edit-action="true" ${
-          stopDisabled ? `data-force-disabled="true"` : ""
-        }>Stop Browser</button>
         <button type="button" class="icon-btn with-label" id="btnWorkerFoundation" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Foundation Check</button>
@@ -1732,7 +1864,7 @@ function renderWorkerFoundationCard() {
 async function submitWorkerConnect() {
   if (!canWrite() || state.busy) return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const result = await connectWorkerBrowser();
     if (result?.state) state.workerStatus = result;
@@ -1741,27 +1873,29 @@ async function submitWorkerConnect() {
     }
   } finally {
     state.busy = false;
-    renderReadiness();
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   }
 }
 
 async function submitWorkerStop() {
   if (state.busy) return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const result = await stopWorkerBrowser();
     if (result?.state) state.workerStatus = result;
   } finally {
     state.busy = false;
-    renderReadiness();
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   }
 }
 
 async function submitWorkerFoundationCheck() {
   if (!canWrite() || state.busy || !state.selectedProductId) return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const {
       data: { session },
@@ -1778,7 +1912,58 @@ async function submitWorkerFoundationCheck() {
     showToast(userMessageForError(error), "error");
   } finally {
     state.busy = false;
+    syncWorkerToolbarUi();
     renderReadiness();
+  }
+}
+
+async function sessionAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token;
+}
+
+async function submitWorkerCapture() {
+  if (!canWrite() || state.busy) return;
+  const status = state.workerStatus?.state;
+  if (status !== "AUTH_REQUIRED" && status !== "READY") return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await captureWorkerPortalContract(token);
+    state.workerCaptureResult = result;
+    if (result?.ok === false) {
+      showToast(result.message || "Portal contract capture failed", "error");
+    } else {
+      showToast("Portal contract capture saved locally.", "success");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
+  }
+}
+
+async function submitWorkerOpenCapture() {
+  if (!canWrite() || state.busy) return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await openWorkerCaptureFolder(token);
+    if (result?.ok === false) {
+      showToast(result.message || "Could not open the capture folder", "error");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   }
 }
 
@@ -2026,6 +2211,9 @@ async function openProduct(productId) {
   try {
     const payload = await loadProductWorkspace(productId);
     if (gen !== state.loadGen) return;
+    if (!idsEqual(state.selectedProductId, productId)) {
+      state.workerFoundationResult = null;
+    }
     state.selectedProductId = Number(productId);
     state.queueRow = findQueueRow(state.queue, productId);
     state.tab = "overview";
@@ -2040,7 +2228,7 @@ async function openProduct(productId) {
     setStatus(err.message || "Failed to load product.", "error");
   } finally {
     state.busy = false;
-    applyPermissionUi();
+    syncWorkerToolbarUi();
   }
 }
 
@@ -2090,6 +2278,7 @@ async function backToQueue() {
   await flushAllLineAutosaves();
   await flushActionsAutosave();
   state.selectedProductId = null;
+  state.workerFoundationResult = null;
   state.queueRow = null;
   state.review = null;
   state.lines = [];
@@ -2786,11 +2975,47 @@ function wireEvents() {
   });
   onWorkerStatus((status) => {
     state.workerStatus = status;
-    const el = $("workerBrowserStatus");
-    if (el) el.textContent = workerStatusLabel(status);
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   });
   void getWorkerStatus().then((status) => {
     if (status?.state) state.workerStatus = status;
+    syncWorkerToolbarUi();
+  });
+  $("eaWorkerToolbar")?.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target) return;
+    if (target.closest("#btnWorkerMore")) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleWorkerMenu();
+      return;
+    }
+    const action = target.closest("button");
+    if (!action || action.disabled || action.getAttribute("aria-disabled") === "true") return;
+    const id = action.id;
+    if (id === "btnWorkerConnect" || id === "btnWorkerStop" || id === "btnWorkerCapture" || id === "btnWorkerOpenCapture") {
+      closeWorkerMenu();
+    }
+    if (id === "btnWorkerConnect") void submitWorkerConnect();
+    if (id === "btnWorkerStop") void submitWorkerStop();
+    if (id === "btnWorkerCapture") void submitWorkerCapture();
+    if (id === "btnWorkerOpenCapture") void submitWorkerOpenCapture();
+  });
+  document.addEventListener("click", (event) => {
+    if (!workerMenuOpen) return;
+    const toolbar = $("eaWorkerToolbar");
+    const node = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (toolbar && node && toolbar.contains(node)) return;
+    closeWorkerMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !workerMenuOpen) return;
+    event.preventDefault();
+    closeWorkerMenu({ restoreFocus: true });
+  });
+  window.addEventListener("resize", () => {
+    if (workerMenuOpen) positionWorkerMenu();
   });
   $("homeBtn")?.addEventListener("click", async () => {
     if (!confirmLeaveDirty()) return;
@@ -3210,8 +3435,6 @@ function wireEvents() {
   $("tab-readiness")?.addEventListener("click", (event) => {
     if (event.target.id === "btnPromote") submitPromote();
     if (event.target.id === "btnVerifyProduct") submitVerifyProduct();
-    if (event.target.id === "btnWorkerConnect") submitWorkerConnect();
-    if (event.target.id === "btnWorkerStop") submitWorkerStop();
     if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
@@ -3386,6 +3609,7 @@ async function initPage() {
     return;
   }
   applyPermissionUi();
+  syncWorkerToolbarUi();
   setStatus("Loading product queue...");
   try {
     const [queueRows, catalogs] = await Promise.all([

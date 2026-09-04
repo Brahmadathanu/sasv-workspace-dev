@@ -1,6 +1,7 @@
 /* eslint-env node */
 
 const { randomUUID } = require("crypto");
+const path = require("path");
 const { STATES, createWorkerState, statusLabel } = require("./state");
 const { ERROR_KINDS, WorkerError, workerError, classifyServerError } = require("./errors");
 const { writeDiagnostic } = require("./diagnostics");
@@ -13,8 +14,16 @@ const { attachContextOriginGuard, assertAllowedUrl } = require("./origin-guard")
 const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
+const { captureOpenPages } = require("./capture");
+const { capturesRoot, isPathInsideRoot } = require("./capture/persist");
 
-function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}) {
+function createEaushadhiWorker({
+  getUserDataPath,
+  onStatus,
+  launchBrowser,
+  callRpc,
+  requireContract: requireContractFn,
+} = {}) {
   const machine = createWorkerState();
   let context = null;
   let phase = null;
@@ -24,6 +33,10 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
   let stopRequested = false;
   let containingOrigin = false;
   let detachContextGuard = null;
+  let lastCaptureDir = null;
+  const rpcCall = typeof callRpc === "function" ? callRpc : callWorkerRpc;
+  const requireSection =
+    typeof requireContractFn === "function" ? requireContractFn : requireContract;
 
   function emit() {
     const snapshot = getStatus();
@@ -123,7 +136,7 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
     phase = "connect";
     emit();
     try {
-      requireContract("origins");
+      requireSection("origins");
       const contract = loadPortalContract();
       const userDataDir = dedicatedProfileDir(getUserDataPath());
       const launcher = typeof launchBrowser === "function" ? launchBrowser : launchDedicatedEdge;
@@ -138,7 +151,7 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
       await page.goto(contract.baseUrl, { waitUntil: "domcontentloaded" });
       assertAllowedUrl(page.url(), contract);
       try {
-        requireContract("authProbe");
+        requireSection("authProbe");
         machine.transition(STATES.READY);
       } catch (error) {
         if (error?.kind !== ERROR_KINDS.CONTRACT_INCOMPLETE) throw error;
@@ -229,7 +242,7 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
     try {
       const result = await loadFoundationSnapshot({
         productId: id,
-        callRpc: (name, args) => callWorkerRpc(accessToken, name, args),
+        callRpc: (name, args) => rpcCall(accessToken, name, args),
       });
       result.runId = runId;
 
@@ -267,11 +280,147 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
     }
   }
 
+  async function requireViewPermission(accessToken) {
+    try {
+      await rpcCall(accessToken, "rpc_eaushadhi_require_permission", { p_edit: false });
+    } catch (error) {
+      throw error instanceof WorkerError ? error : classifyServerError(error);
+    }
+  }
+
+  async function capturePortalContract(rawAccessToken) {
+    const accessToken = validateAccessToken(rawAccessToken);
+    await requireViewPermission(accessToken);
+    const previous = machine.get();
+    if (!context) {
+      throw workerError(
+        ERROR_KINDS.CRASH,
+        "Connect the dedicated browser before capturing the portal contract.",
+      );
+    }
+    if (previous === STATES.STOPPING) {
+      throw workerError(ERROR_KINDS.CANCELLED, "Browser worker is stopping.");
+    }
+    if (previous !== STATES.AUTH_REQUIRED && previous !== STATES.READY) {
+      throw workerError(
+        ERROR_KINDS.CRASH,
+        "Portal contract capture requires an active dedicated browser session.",
+      );
+    }
+    machine.transition(STATES.RUNNING);
+    const previousProductId = productId;
+    productId = null;
+    phase = "contract-capture";
+    emit();
+
+    const restoreState = () => {
+      if (stopRequested) return;
+      if (machine.get() !== STATES.RUNNING) return;
+      if (previous === STATES.READY) machine.transition(STATES.READY);
+      else if (previous === STATES.AUTH_REQUIRED) machine.transition(STATES.AUTH_REQUIRED);
+      else if (context) machine.transition(STATES.AUTH_REQUIRED);
+      else machine.transition(STATES.IDLE);
+    };
+
+    try {
+      const contract = loadPortalContract();
+      const result = await captureOpenPages({
+        context,
+        contract,
+        userDataPath: getUserDataPath(),
+        workerStateBefore: previous,
+      });
+      if (machine.get() === STATES.FAILED) {
+        productId = previousProductId;
+        emit();
+        throw workerError(
+          lastErrorKind || ERROR_KINDS.DISALLOWED_ORIGIN,
+          lastErrorMessage || "Dedicated browser origin containment failed.",
+        );
+      }
+      lastCaptureDir = result.captureDir;
+      lastErrorKind = null;
+      lastErrorMessage = null;
+      log({
+        phase: "contract-capture",
+        errorKind: null,
+        error: result.summary.auth_outcome,
+      });
+      restoreState();
+      productId = previousProductId;
+      emit();
+      return result.summary;
+    } catch (error) {
+      productId = previousProductId;
+      if (machine.get() === STATES.FAILED) {
+        emit();
+        throw error instanceof WorkerError
+          ? error.kind === ERROR_KINDS.DISALLOWED_ORIGIN
+            ? error
+            : workerError(
+                lastErrorKind || ERROR_KINDS.DISALLOWED_ORIGIN,
+                lastErrorMessage || "Dedicated browser origin containment failed.",
+              )
+          : workerError(
+              lastErrorKind || ERROR_KINDS.DISALLOWED_ORIGIN,
+              lastErrorMessage || "Dedicated browser origin containment failed.",
+            );
+      }
+      if (error?.kind === ERROR_KINDS.DISALLOWED_ORIGIN) {
+        await failClosed(error, error.details?.url);
+        emit();
+        throw error;
+      }
+      const wrapped =
+        error instanceof WorkerError ? error : workerError(ERROR_KINDS.CRASH, "Portal contract capture failed.");
+      setError(wrapped);
+      log({
+        phase: "contract-capture",
+        errorKind: wrapped.kind,
+        error: wrapped.message,
+      });
+      try {
+        restoreState();
+      } catch {
+        if (machine.get() !== STATES.FAILED && machine.get() !== STATES.STOPPING) {
+          machine.reset();
+        }
+      }
+      emit();
+      throw wrapped;
+    }
+  }
+
+  async function openLastCaptureFolder(rawAccessToken, { openPath } = {}) {
+    const accessToken = validateAccessToken(rawAccessToken);
+    await requireViewPermission(accessToken);
+    if (!lastCaptureDir) {
+      throw workerError(ERROR_KINDS.CRASH, "No portal contract capture is available to open.");
+    }
+    const root = capturesRoot(getUserDataPath());
+    if (!isPathInsideRoot(lastCaptureDir, root)) {
+      lastCaptureDir = null;
+      throw workerError(ERROR_KINDS.CRASH, "The capture folder is not inside the governed capture root.");
+    }
+    if (typeof openPath === "function") {
+      const opened = await openPath(lastCaptureDir);
+      if (typeof opened === "string" && opened.trim()) {
+        throw workerError(ERROR_KINDS.CRASH, "The capture folder could not be opened.");
+      }
+    }
+    return {
+      ok: true,
+      folder_name: path.basename(lastCaptureDir),
+    };
+  }
+
   return {
     getStatus,
     connect,
     stop,
     runFoundationCheck,
+    capturePortalContract,
+    openLastCaptureFolder,
   };
 }
 

@@ -374,7 +374,7 @@ ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
   }
 });
 
-registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow });
+registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell });
 
 ipcMain.handle("get-app-version", () => app.getVersion());
 ipcMain.handle("updater:get-state", () => lastUpdateState);

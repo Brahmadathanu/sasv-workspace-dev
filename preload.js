@@ -46,6 +46,10 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
+  capturePortalContract: (accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
+  openCaptureFolder: (accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:open-capture-folder", { accessToken }),
   onStatus: (cb) => {
     const handler = (_evt, payload) => cb && cb(payload);
     ipcRenderer.on("eaushadhi-worker:status", handler);

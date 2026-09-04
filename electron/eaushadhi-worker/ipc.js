@@ -14,6 +14,8 @@ const CHANNELS = Object.freeze({
   CONNECT: "eaushadhi-worker:connect",
   STOP: "eaushadhi-worker:stop",
   FOUNDATION_CHECK: "eaushadhi-worker:foundation-check",
+  CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
+  OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
 });
 
 function errorPayload(error) {
@@ -40,7 +42,7 @@ function withRendererGuard(handler) {
   };
 }
 
-function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow }) {
+function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
   const worker = createEaushadhiWorker({
     getUserDataPath: () => app.getPath("userData"),
     onStatus: (status) => {
@@ -76,6 +78,24 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow }) {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
       return worker.runFoundationCheck(productId, accessToken);
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.CAPTURE_CONTRACT,
+    withRendererGuard(async (_event, payload) => {
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.capturePortalContract(accessToken);
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.OPEN_CAPTURE_FOLDER,
+    withRendererGuard(async (_event, payload) => {
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.openLastCaptureFolder(accessToken, {
+        openPath: typeof shell?.openPath === "function" ? (dir) => shell.openPath(dir) : undefined,
+      });
     }),
   );
 

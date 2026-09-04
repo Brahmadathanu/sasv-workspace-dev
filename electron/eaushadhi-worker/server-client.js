@@ -42,8 +42,15 @@ async function callWorkerRpc(accessToken, name, args) {
   }
 }
 
+async function requireWorkerViewPermission(accessToken) {
+  return callWorkerRpc(accessToken, "rpc_eaushadhi_require_permission", {
+    p_edit: false,
+  });
+}
+
 module.exports = {
   SUPABASE_URL,
   createUserScopedClient,
   callWorkerRpc,
+  requireWorkerViewPermission,
 };

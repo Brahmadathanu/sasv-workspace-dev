@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head><title>e-Aushadhi Login</title></head>
+  <body>
+    <form id="loginForm" method="post" action="/Account/Login">
+      <label for="userName">User ID</label>
+      <input id="userName" name="userName" type="text" value="should-not-capture" />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" value="secret-password" />
+      <label for="otp">OTP</label>
+      <input id="otp" name="otp" type="text" value="123456" />
+      <label for="captcha">CAPTCHA</label>
+      <input id="captcha" name="captcha" type="text" value="abcde" />
+      <input type="hidden" id="csrf" name="__RequestVerificationToken" value="hidden-csrf-token" />
+      <button type="submit" id="btnLogin">Login</button>
+    </form>
+  </body>
+</html>

@@ -27,8 +27,85 @@ body.sasv-eaushadhi-review .page-sub {
 
 body.sasv-eaushadhi-review .header-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--sasv-space-2);
   align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+body.sasv-eaushadhi-review .ea-worker-toolbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sasv-space-2);
+  padding-right: var(--sasv-space-2);
+  margin-right: 2px;
+  border-right: 1px solid var(--sasv-border);
+}
+
+body.sasv-eaushadhi-review .ea-worker-status-chip {
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+body.sasv-eaushadhi-review .ea-worker-status-chip::before {
+  content: "";
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+body.sasv-eaushadhi-review #btnWorkerMore {
+  letter-spacing: 0.08em;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .ea-worker-menu {
+  position: fixed;
+  z-index: var(--sasv-z-dropdown);
+  min-width: 14.5rem;
+  padding: 4px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+  box-shadow: var(--sasv-shadow-md, 0 8px 24px rgb(15 23 42 / 12%));
+}
+
+body.sasv-eaushadhi-review .ea-worker-menu[hidden] {
+  display: none;
+}
+
+body.sasv-eaushadhi-review .ea-worker-menuitem {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--sasv-radius-sm);
+  background: transparent;
+  color: var(--sasv-text);
+  font-family: var(--sasv-font-sans);
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-medium);
+  line-height: var(--sasv-lh-tight);
+  text-align: left;
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .ea-worker-menuitem:hover:not(:disabled) {
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-eaushadhi-review .ea-worker-menuitem:disabled,
+body.sasv-eaushadhi-review .ea-worker-menuitem[aria-disabled="true"] {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 body.sasv-eaushadhi-review .icon-btn.with-label {
@@ -973,8 +1050,16 @@ body.sasv-eaushadhi-review .action-vocab-item {
     padding-block: var(--sasv-module-page-padding-sm);
     padding-inline: var(--sasv-module-page-padding-sm);
   }
+  body.sasv-eaushadhi-review .page-header {
+    flex-wrap: wrap;
+  }
   body.sasv-eaushadhi-review .page-sub {
     display: none;
+  }
+  body.sasv-eaushadhi-review .ea-worker-toolbar {
+    border-right: none;
+    padding-right: 0;
+    margin-right: 0;
   }
   body.sasv-eaushadhi-review .kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
