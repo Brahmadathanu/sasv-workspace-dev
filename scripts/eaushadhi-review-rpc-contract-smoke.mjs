@@ -215,8 +215,13 @@ assert(
   "Staff Directory fallback remains",
 );
 assert(controlSrc.includes("btnWorkerFoundation"), "Readiness has Foundation Check");
+assert(controlSrc.includes("btnWorkerCapture"), "Readiness has Capture Portal Contract");
+assert(controlSrc.includes("btnWorkerOpenCapture"), "Readiness has Open Capture Folder");
+assert(!/screenshot/i.test(controlSrc), "Review UI does not request screenshots");
 assert(controlSrc.includes("Internal verification is not portal entry"), "internal vs portal copy");
 assert(workerClientSrc.includes("runFoundationCheck"), "worker client exposes foundation check");
+assert(workerClientSrc.includes("capturePortalContract"), "worker client exposes portal contract capture");
+assert(workerClientSrc.includes("openCaptureFolder"), "worker client exposes open capture folder");
 assert(!/run_begin|mark_entered|mark_portal_verified|mark_submitted/i.test(apiSrc + controlSrc + workerClientSrc), "no lifecycle write wrappers");
 assert(!/\bsubmit\b/i.test(workerClientSrc), "worker client has no Submit");
 

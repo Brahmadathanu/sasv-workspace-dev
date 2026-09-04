@@ -23,6 +23,8 @@ function assert(cond, msg) {
 const distCandidates = [
   process.env.EAUSHADHI_PACK_DIST,
   "dist-eaushadhi-origin-proof",
+  "dist-eaushadhi-capture-proof2",
+  "dist-eaushadhi-capture-proof",
   "dist-eaushadhi-hardening-proof",
   "dist-eaushadhi-worker-proof",
   "dist",
@@ -55,6 +57,11 @@ assert(
   "unpacked origin-guard listens for BrowserContext page lifecycle",
 );
 assert(existsSync(rendererGuardLoose), "renderer-guard is unpacked");
+const captureLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/index.js");
+assert(existsSync(captureLoose), "capture package is unpacked");
+const captureSrc = readFileSync(captureLoose, "utf8");
+assert(captureSrc.includes("captureOpenPages"), "unpacked capture inspects already-open pages");
+assert(!/\.goto\s*\(/.test(captureSrc), "unpacked capture does not call goto");
 
 const playwrightLoose = join(asarUnpacked, "node_modules/playwright-core/package.json");
 assert(existsSync(playwrightLoose), "playwright-core is unpacked for driver resolution");

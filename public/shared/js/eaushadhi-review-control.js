@@ -124,9 +124,11 @@ import {
   verifyProduct,
 } from "./eaushadhi-review-api.js";
 import {
+  captureWorkerPortalContract,
   connectWorkerBrowser,
   getWorkerStatus,
   onWorkerStatus,
+  openWorkerCaptureFolder,
   runWorkerFoundationCheck,
   stopWorkerBrowser,
   workerApiAvailable,
@@ -187,6 +189,7 @@ const state = {
   verifyNotes: "",
   workerStatus: null,
   workerFoundationResult: null,
+  workerCaptureResult: null,
   loadGen: 0,
   busy: false,
   preservedAfterStale: false,
@@ -1691,6 +1694,31 @@ function workerFoundationSummary(result) {
   ].join(" ");
 }
 
+function workerCaptureSummary(result) {
+  if (!result) return "No portal contract capture has been saved on this session.";
+  if (result.ok === false) {
+    return result.message || "Portal contract capture failed.";
+  }
+  const warnings = Array.isArray(result.warnings) ? result.warnings.length : 0;
+  const structure = result.fingerprints?.structure_sha256
+    ? result.fingerprints.structure_sha256.slice(0, 12)
+    : "n/a";
+  const options = result.fingerprints?.option_sets_sha256
+    ? result.fingerprints.option_sets_sha256.slice(0, 12)
+    : "n/a";
+  return [
+    "Capture completed.",
+    `Auth evidence: ${result.auth_outcome || "n/a"}`,
+    `Pages inspected: ${result.pages_inspected ?? "n/a"}`,
+    `Native selects: ${result.native_selects ?? "n/a"}`,
+    `Options: ${result.option_count ?? "n/a"}`,
+    `Warnings: ${warnings}`,
+    `Structure fingerprint: ${structure}`,
+    `Option fingerprint: ${options}`,
+    "Read-only local evidence only. This does not fill the portal or change workflow status.",
+  ].join(" ");
+}
+
 function renderWorkerFoundationCard() {
   const available = workerApiAvailable();
   const status = state.workerStatus;
@@ -1701,6 +1729,11 @@ function renderWorkerFoundationCard() {
     (status?.state && status.state !== "IDLE" && status.state !== "FAILED");
   const stopDisabled = !available || busy || !status?.state || status.state === "IDLE";
   const checkDisabled = !available || busy || !state.selectedProductId;
+  const captureEnabled =
+    available &&
+    !busy &&
+    (status?.state === "AUTH_REQUIRED" || status?.state === "READY");
+  const folderDisabled = !available || busy || state.workerCaptureResult?.ok !== true;
   if (!available) {
     return `
       <div class="section-card worker-foundation-card">
@@ -1713,6 +1746,7 @@ function renderWorkerFoundationCard() {
     <div class="section-card worker-foundation-card">
       <h3>Browser worker</h3>
       <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
+      <p class="muted-note">Login and portal navigation happen in the dedicated Edge window. Capture inspects already-open pages only.</p>
       <div class="readiness-chip"><span>Browser worker status</span><strong id="workerBrowserStatus">${escapeHtml(workerStatusLabel(status))}</strong></div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnWorkerConnect" data-edit-action="true" ${
@@ -1724,8 +1758,15 @@ function renderWorkerFoundationCard() {
         <button type="button" class="icon-btn with-label" id="btnWorkerFoundation" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Foundation Check</button>
+        <button type="button" class="icon-btn with-label" id="btnWorkerCapture" data-edit-action="true" ${
+          captureEnabled ? "" : `data-force-disabled="true"`
+        }>Capture Portal Contract</button>
+        <button type="button" class="icon-btn with-label" id="btnWorkerOpenCapture" data-edit-action="true" ${
+          folderDisabled ? `data-force-disabled="true"` : ""
+        }>Open Capture Folder</button>
       </div>
       <p class="muted-note" id="workerFoundationResult">${escapeHtml(workerFoundationSummary(state.workerFoundationResult))}</p>
+      <p class="muted-note" id="workerCaptureResult">${escapeHtml(workerCaptureSummary(state.workerCaptureResult))}</p>
     </div>`;
 }
 
@@ -1773,6 +1814,54 @@ async function submitWorkerFoundationCheck() {
       showToast(result.message || "Foundation check stopped as designed.", "info");
     } else if (result?.ok === false) {
       showToast(result.message || "Foundation check failed", "error");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    renderReadiness();
+  }
+}
+
+async function sessionAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token;
+}
+
+async function submitWorkerCapture() {
+  if (!canWrite() || state.busy) return;
+  const status = state.workerStatus?.state;
+  if (status !== "AUTH_REQUIRED" && status !== "READY") return;
+  state.busy = true;
+  applyPermissionUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await captureWorkerPortalContract(token);
+    state.workerCaptureResult = result;
+    if (result?.ok === false) {
+      showToast(result.message || "Portal contract capture failed", "error");
+    } else {
+      showToast("Portal contract capture saved locally.", "success");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    renderReadiness();
+  }
+}
+
+async function submitWorkerOpenCapture() {
+  if (!canWrite() || state.busy) return;
+  state.busy = true;
+  applyPermissionUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await openWorkerCaptureFolder(token);
+    if (result?.ok === false) {
+      showToast(result.message || "Could not open the capture folder", "error");
     }
   } catch (error) {
     showToast(userMessageForError(error), "error");
@@ -3213,6 +3302,8 @@ function wireEvents() {
     if (event.target.id === "btnWorkerConnect") submitWorkerConnect();
     if (event.target.id === "btnWorkerStop") submitWorkerStop();
     if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
+    if (event.target.id === "btnWorkerCapture") submitWorkerCapture();
+    if (event.target.id === "btnWorkerOpenCapture") submitWorkerOpenCapture();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
     if (event.target.id === "fldPromoteNotes") state.promoteNotes = event.target.value;

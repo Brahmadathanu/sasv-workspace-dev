@@ -36,6 +36,16 @@ export async function runWorkerFoundationCheck(productId, accessToken) {
   return window.eaushadhiWorkerAPI.runFoundationCheck(productId, accessToken);
 }
 
+export async function captureWorkerPortalContract(accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.capturePortalContract(accessToken);
+}
+
+export async function openWorkerCaptureFolder(accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.openCaptureFolder(accessToken);
+}
+
 export function onWorkerStatus(callback) {
   if (!workerApiAvailable() || typeof window.eaushadhiWorkerAPI.onStatus !== "function") {
     return () => {};

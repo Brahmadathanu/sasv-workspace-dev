@@ -11,6 +11,8 @@ dist/
 dist-eaushadhi-worker-proof/
 dist-eaushadhi-hardening-proof/
 dist-eaushadhi-origin-proof/
+dist-eaushadhi-capture-proof/
+dist-eaushadhi-capture-proof2/
 *.exe
 *.zip
 

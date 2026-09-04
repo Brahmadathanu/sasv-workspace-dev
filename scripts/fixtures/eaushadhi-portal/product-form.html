@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Add / Update Product</title></head>
+  <body>
+    <a id="lnkLogout" href="/Account/Logout">Sign out</a>
+    <form id="productForm" method="post" action="/Product/SaveProduct?x=1">
+      <label for="txtSearch">Product Name Search</label>
+      <input id="txtSearch" name="productSearch" type="text" value="should-not-capture-search" />
+      <button type="button" id="btnSearch">Search</button>
+      <table id="searchResults">
+        <thead>
+          <tr><th>Product Id</th><th>Product Name</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>12</td><td>Demo Oil</td><td><a id="lnkEdit" href="/Product/Edit/12">Edit</a></td></tr>
+        </tbody>
+      </table>
+
+      <label for="ddlPurpose">Permission Purpose</label>
+      <select id="ddlPurpose" name="permissionPurpose">
+        <option value="">Select</option>
+        <option value="11" selected>For sale</option>
+      </select>
+
+      <label for="ddlClass">Medicine Class</label>
+      <select id="ddlClass" name="medicineClass">
+        <option value="1">Classical</option>
+      </select>
+
+      <label for="ddlForm">Dosage Form</label>
+      <select id="ddlForm" name="dosageForm">
+        <option value="8">Taila</option>
+      </select>
+
+      <label for="ddlSubtype">Product Subtype</label>
+      <select id="ddlSubtype" name="productSubtype">
+        <option value="3">Oil</option>
+      </select>
+
+      <label for="txtTitle">Composition Title</label>
+      <input id="txtTitle" name="compositionTitle" type="text" value="should-not-capture-title" />
+
+      <label for="txtDiseases">Diseases and Conditions</label>
+      <textarea id="txtDiseases" name="diseases">should-not-capture-diseases</textarea>
+
+      <label for="chkRestricted">Restricted-substance declaration</label>
+      <input id="chkRestricted" name="restrictedDeclaration" type="checkbox" />
+
+      <label for="ddlActions">Pharmacological Actions</label>
+      <select id="ddlActions" name="pharmacologicalActions" class="select2-hidden-accessible" multiple data-select2-id="actions">
+        <option value="101">Deepana</option>
+        <option value="102" selected>Pachana</option>
+        <option value="103">Rasayana</option>
+      </select>
+      <span class="select2 select2-container"></span>
+      <ul class="select2-results__options">
+        <li id="select2-ddlActions-result-abcd-999" class="select2-results__option">Ignore generated id</li>
+      </ul>
+
+      <label for="ddlReference">Reference</label>
+      <select id="ddlReference" name="reference" class="select2-hidden-accessible" data-select2-id="reference">
+        <option value="">Select</option>
+      </select>
+      <span class="select2 select2-container"></span>
+
+      <section id="compositionSection">
+        <table id="compositionTable">
+          <thead>
+            <tr>
+              <th>Row</th>
+              <th>Ingredient Name</th>
+              <th>Scientific Name</th>
+              <th>Ingredient Type</th>
+              <th>Ingredient Form</th>
+              <th>Part Used</th>
+              <th>Quantity</th>
+              <th>Measurement Unit</th>
+              <th>Reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><input id="txtIng1" name="ingredientName" type="text" value="should-not-capture-ing" /></td>
+              <td><input id="txtSci1" name="scientificName" type="text" /></td>
+              <td>
+                <select id="ddlType1" name="ingredientType">
+                  <option value="21">Dravya</option>
+                </select>
+              </td>
+              <td>
+                <select id="ddlForm1" name="ingredientForm">
+                  <option value="25">Swarasa</option>
+                </select>
+              </td>
+              <td>
+                <select id="ddlPart1" name="partUsed">
+                  <option value="49">Leaf</option>
+                </select>
+              </td>
+              <td><input id="txtQty1" name="quantity" type="text" /></td>
+              <td>
+                <select id="ddlUnit1" name="measurementUnit">
+                  <option value="9">ML</option>
+                  <option value="1">MG</option>
+                </select>
+              </td>
+              <td><select id="ddlRef1" name="lineReference"><option value="">Select</option></select></td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="button" id="btnAddRow">Add row</button>
+        <button type="button" id="btnDeleteRow">Delete row</button>
+      </section>
+
+      <input type="hidden" name="__RequestVerificationToken" value="csrf-must-not-appear" />
+      <button type="submit" id="btnSave" name="save">Save</button>
+      <button type="submit" id="btnUpdate" name="update">Update</button>
+      <button type="submit" id="btnSubmit" name="submit">Submit</button>
+    </form>
+    <iframe src="https://example.com/embed?token=iframe-secret#frag"></iframe>
+  </body>
+</html>
