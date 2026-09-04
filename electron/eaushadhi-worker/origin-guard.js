@@ -2,6 +2,8 @@
 
 const { ERROR_KINDS, workerError } = require("./errors");
 
+const guardedPages = new WeakSet();
+
 function originFromUrl(urlValue) {
   let parsed;
   try {
@@ -45,6 +47,8 @@ function assertAllowedUrl(urlValue, contract) {
 
 function attachMainFrameOriginGuard(page, { contract, onDisallowed }) {
   if (!page || typeof page.on !== "function") return () => {};
+  if (guardedPages.has(page)) return () => {};
+  guardedPages.add(page);
   const handler = (frame) => {
     if (typeof page.mainFrame === "function" && frame !== page.mainFrame()) {
       return;
@@ -64,6 +68,38 @@ function attachMainFrameOriginGuard(page, { contract, onDisallowed }) {
   page.on("framenavigated", handler);
   return () => {
     if (typeof page.off === "function") page.off("framenavigated", handler);
+    guardedPages.delete(page);
+  };
+}
+
+function attachContextOriginGuard(context, { contract, onDisallowed }) {
+  if (!context) return () => {};
+  const detachByPage = new Map();
+
+  const guardPage = (page) => {
+    if (!page || detachByPage.has(page)) return;
+    detachByPage.set(
+      page,
+      attachMainFrameOriginGuard(page, { contract, onDisallowed }),
+    );
+  };
+
+  const existing = typeof context.pages === "function" ? context.pages() : [];
+  for (const page of existing) guardPage(page);
+
+  const onPage = (page) => guardPage(page);
+  if (typeof context.on === "function") context.on("page", onPage);
+
+  return () => {
+    if (typeof context.off === "function") context.off("page", onPage);
+    for (const detach of detachByPage.values()) {
+      try {
+        detach();
+      } catch {
+        // ignore
+      }
+    }
+    detachByPage.clear();
   };
 }
 
@@ -72,4 +108,5 @@ module.exports = {
   shouldEnforceMainFrameUrl,
   assertAllowedUrl,
   attachMainFrameOriginGuard,
+  attachContextOriginGuard,
 };

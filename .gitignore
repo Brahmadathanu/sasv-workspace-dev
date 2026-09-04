@@ -10,6 +10,7 @@ yarn-error.log*
 dist/
 dist-eaushadhi-worker-proof/
 dist-eaushadhi-hardening-proof/
+dist-eaushadhi-origin-proof/
 *.exe
 *.zip
 

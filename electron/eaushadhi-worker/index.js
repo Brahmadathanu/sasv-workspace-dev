@@ -9,7 +9,7 @@ const {
   requireContract,
 } = require("./contracts/portal-contract");
 const { launchDedicatedEdge, dedicatedProfileDir } = require("./browser");
-const { attachMainFrameOriginGuard, assertAllowedUrl } = require("./origin-guard");
+const { attachContextOriginGuard, assertAllowedUrl } = require("./origin-guard");
 const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
@@ -23,6 +23,7 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
   let lastErrorMessage = null;
   let stopRequested = false;
   let containingOrigin = false;
+  let detachContextGuard = null;
 
   function emit() {
     const snapshot = getStatus();
@@ -60,6 +61,14 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
   }
 
   async function closeBrowser() {
+    if (detachContextGuard) {
+      try {
+        detachContextGuard();
+      } catch {
+        // ignore
+      }
+      detachContextGuard = null;
+    }
     if (!context) return;
     const current = context;
     context = null;
@@ -119,13 +128,13 @@ function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}
       const userDataDir = dedicatedProfileDir(getUserDataPath());
       const launcher = typeof launchBrowser === "function" ? launchBrowser : launchDedicatedEdge;
       context = await launcher(userDataDir);
-      const page = context.pages()[0] || (await context.newPage());
-      attachMainFrameOriginGuard(page, {
+      detachContextGuard = attachContextOriginGuard(context, {
         contract,
         onDisallowed: (error, url) => {
           void failClosed(error, url);
         },
       });
+      const page = context.pages()[0] || (await context.newPage());
       await page.goto(contract.baseUrl, { waitUntil: "domcontentloaded" });
       assertAllowedUrl(page.url(), contract);
       try {

@@ -22,6 +22,7 @@ function assert(cond, msg) {
 
 const distCandidates = [
   process.env.EAUSHADHI_PACK_DIST,
+  "dist-eaushadhi-origin-proof",
   "dist-eaushadhi-hardening-proof",
   "dist-eaushadhi-worker-proof",
   "dist",
@@ -44,6 +45,15 @@ assert(existsSync(workerLoose), "worker runtime is unpacked beside asar");
 const originGuardLoose = join(asarUnpacked, "electron/eaushadhi-worker/origin-guard.js");
 const rendererGuardLoose = join(asarUnpacked, "electron/eaushadhi-worker/renderer-guard.js");
 assert(existsSync(originGuardLoose), "origin-guard is unpacked");
+const originGuardSrc = readFileSync(originGuardLoose, "utf8");
+assert(
+  originGuardSrc.includes("attachContextOriginGuard"),
+  "unpacked origin-guard attaches to every current and future context page",
+);
+assert(
+  originGuardSrc.includes('context.on("page"'),
+  "unpacked origin-guard listens for BrowserContext page lifecycle",
+);
 assert(existsSync(rendererGuardLoose), "renderer-guard is unpacked");
 
 const playwrightLoose = join(asarUnpacked, "node_modules/playwright-core/package.json");

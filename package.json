@@ -38,6 +38,8 @@
       "!.agents/**",
       "!coverage/**",
       "!.temp/**",
+      "!dist/**",
+      "!dist-eaushadhi-*/**",
       "!readme.md",
       "!LAB_WORKFLOW_ACCESS_CONTROL_README.md"
     ],
