@@ -22,6 +22,7 @@ function assert(cond, msg) {
 
 const distCandidates = [
   process.env.EAUSHADHI_PACK_DIST,
+  "dist-eaushadhi-capture-harden-proof",
   "dist-eaushadhi-origin-proof",
   "dist-eaushadhi-capture-proof2",
   "dist-eaushadhi-capture-proof",
@@ -61,6 +62,8 @@ const captureLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/index
 assert(existsSync(captureLoose), "capture package is unpacked");
 const captureSrc = readFileSync(captureLoose, "utf8");
 assert(captureSrc.includes("captureOpenPages"), "unpacked capture inspects already-open pages");
+assert(captureSrc.includes("assertAllowedUrl"), "unpacked capture fail-closes on foreign HTTP(S) pages");
+assert(!captureSrc.includes('reason: "disallowed_origin"'), "unpacked capture does not skip foreign pages");
 assert(!/\.goto\s*\(/.test(captureSrc), "unpacked capture does not call goto");
 
 const playwrightLoose = join(asarUnpacked, "node_modules/playwright-core/package.json");

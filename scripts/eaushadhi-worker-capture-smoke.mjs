@@ -5,7 +5,7 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import os from "node:os";
 
 const require = createRequire(import.meta.url);
@@ -36,20 +36,49 @@ const authHtml = readFileSync(join(fixtureDir, "authenticated.html"), "utf8");
 const ambiguousHtml = readFileSync(join(fixtureDir, "ambiguous.html"), "utf8");
 const productHtml = readFileSync(join(fixtureDir, "product-form.html"), "utf8");
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitFor(predicate, timeoutMs = 1500) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (predicate()) return;
+    await wait(15);
+  }
+  throw new Error("Timed out waiting for worker condition.");
+}
+
 function createMockPage(startUrl = "about:blank") {
   let currentUrl = startUrl;
   let document = parseHtml("<html></html>");
   const extraFrames = [];
-  const mainFrame = { url: () => currentUrl };
+  const listeners = {};
+  let heldEvaluate = null;
+  const mainFrame = {
+    url() {
+      return currentUrl;
+    },
+  };
   const page = {
     url: () => currentUrl,
     mainFrame: () => mainFrame,
     frames: () => [mainFrame, ...extraFrames],
-    on() {},
-    off() {},
+    on(name, fn) {
+      listeners[name] = listeners[name] || [];
+      listeners[name].push(fn);
+    },
+    off(name, fn) {
+      listeners[name] = (listeners[name] || []).filter((handler) => handler !== fn);
+    },
     async goto(next) {
       currentUrl = next;
+      for (const handler of listeners.framenavigated || []) handler(mainFrame);
       return null;
+    },
+    async navigateMainFrame(next) {
+      currentUrl = next;
+      for (const handler of listeners.framenavigated || []) handler(mainFrame);
     },
     setHtml(html, url) {
       document = parseHtml(html);
@@ -58,7 +87,18 @@ function createMockPage(startUrl = "about:blank") {
     addChildFrame(url) {
       extraFrames.push({ url: () => url });
     },
+    holdNextEvaluate() {
+      heldEvaluate = {};
+      heldEvaluate.promise = new Promise((resolve, reject) => {
+        heldEvaluate.resolve = resolve;
+        heldEvaluate.reject = reject;
+      });
+    },
+    rejectHeldEvaluate(error) {
+      if (heldEvaluate?.reject) heldEvaluate.reject(error);
+    },
     async evaluate(fn) {
+      if (heldEvaluate) return heldEvaluate.promise;
       const prevDoc = global.document;
       const prevLoc = global.location;
       const prevCss = global.CSS;
@@ -82,21 +122,45 @@ function createMockPage(startUrl = "about:blank") {
 }
 
 function createMockContext() {
-  const first = createMockPage("about:blank");
-  const pages = [first];
-  return {
-    context: {
-      pages: () => [...pages],
-      on() {},
-      off() {},
-      async newPage() {
-        const page = createMockPage("about:blank");
-        pages.push(page);
-        return page;
-      },
-      async close() {},
+  const pages = [];
+  const listeners = {};
+  let closed = false;
+  const context = {
+    pages() {
+      return [...pages];
     },
+    on(name, fn) {
+      listeners[name] = listeners[name] || [];
+      listeners[name].push(fn);
+    },
+    off(name, fn) {
+      listeners[name] = (listeners[name] || []).filter((handler) => handler !== fn);
+    },
+    async newPage() {
+      return openPage("about:blank");
+    },
+    async close() {
+      closed = true;
+    },
+  };
+
+  function openPage(url) {
+    const page = createMockPage(url);
+    pages.push(page);
+    for (const handler of listeners.page || []) handler(page);
+    return page;
+  }
+
+  const first = createMockPage("about:blank");
+  pages.push(first);
+  return {
+    context,
     page: first,
+    pages,
+    isClosed: () => closed,
+    addPage(url) {
+      return openPage(url);
+    },
   };
 }
 
@@ -261,6 +325,57 @@ assert(
   isPathInsideRoot(join(capturesRoot(productTmp), "..", "secrets"), capturesRoot(productTmp)) === false,
   "24: path traversal is not inside capture root",
 );
+let openFailKind = null;
+try {
+  await product.worker.openLastCaptureFolder(TOKEN, {
+    openPath: async () => "The system cannot open the specified path.",
+  });
+} catch (error) {
+  openFailKind = error.kind;
+}
+assert(openFailKind === ERROR_KINDS.CRASH, "shell.openPath error string is not reported as success");
+
+const raceTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-race-"));
+const race = makeWorker(raceTmp);
+await race.worker.connect();
+race.mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/Home/Dashboard");
+race.mock.page.holdNextEvaluate();
+const raceCapture = race.worker.capturePortalContract(TOKEN);
+await waitFor(() => race.worker.getStatus().state === STATES.RUNNING);
+await race.mock.page.navigateMainFrame("https://example.com/escape?secret=test#fragment");
+await waitFor(() => race.worker.getStatus().state === STATES.FAILED);
+race.mock.page.rejectHeldEvaluate(new Error("Target closed"));
+let raceKind = null;
+try {
+  await raceCapture;
+} catch (error) {
+  raceKind = error.kind;
+}
+assert(race.worker.getStatus().state === STATES.FAILED, "race: worker remains FAILED");
+assert(race.worker.getStatus().state !== STATES.IDLE, "race: not IDLE");
+assert(race.worker.getStatus().state !== STATES.AUTH_REQUIRED, "race: not AUTH_REQUIRED");
+assert(race.worker.getStatus().state !== STATES.READY, "race: not READY");
+assert(race.worker.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "race: DISALLOWED_ORIGIN remains");
+assert(raceKind === ERROR_KINDS.DISALLOWED_ORIGIN, "race: capture rejects as DISALLOWED_ORIGIN");
+assert(race.mock.isClosed() === true, "race: dedicated context closed");
+assert(existsSync(join(raceTmp, "eaushadhi-contract-captures")) === false, "race: no capture.json persisted");
+
+const foreignTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-foreign-"));
+const foreign = makeWorker(foreignTmp);
+await foreign.worker.connect();
+foreign.mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/Home/Dashboard");
+foreign.mock.addPage("https://example.com/other?secret=test#fragment");
+let foreignKind = null;
+try {
+  await foreign.worker.capturePortalContract(TOKEN);
+} catch (error) {
+  foreignKind = error.kind;
+}
+assert(foreignKind === ERROR_KINDS.DISALLOWED_ORIGIN, "enumeration: DISALLOWED_ORIGIN");
+assert(foreign.worker.getStatus().state === STATES.FAILED, "enumeration: worker FAILED");
+assert(foreign.worker.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "enumeration: lastErrorKind DISALLOWED_ORIGIN");
+assert(foreign.mock.isClosed() === true, "enumeration: context closed");
+assert(existsSync(join(foreignTmp, "eaushadhi-contract-captures")) === false, "enumeration: no capture.json persisted");
 
 const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
 assert(ipcSrc.includes(CHANNELS.CAPTURE_CONTRACT), "capture IPC channel exists");

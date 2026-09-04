@@ -5,13 +5,13 @@ const { extractPortalPage } = require("./extract-in-page");
 const { collectPageSignals, classifyAuth, AUTH_OUTCOMES } = require("./auth-signals");
 const {
   safePathFromUrl,
-  safeOriginFromUrl,
   childFrameOrigins,
   redactCapture,
 } = require("./sensitive");
 const { fingerprintsFor } = require("./fingerprint");
 const { writeCaptureJson } = require("./persist");
-const { originFromUrl } = require("../origin-guard");
+const { ERROR_KINDS } = require("../errors");
+const { shouldEnforceMainFrameUrl, assertAllowedUrl } = require("../origin-guard");
 
 const CAPTURE_SCHEMA_VERSION = 1;
 const ALLOWED_ORIGIN = "https://www.e-aushadhi.gov.in";
@@ -35,11 +35,6 @@ const BINDINGS = [
   { key: "reference", re: /\breference\b/i },
   { key: "pharmacological_actions", re: /pharmacological|therapeutic\s*action|actions?/i },
 ];
-
-function allowedOriginSet(contract) {
-  const origins = Array.isArray(contract?.allowedOrigins) ? contract.allowedOrigins : [ALLOWED_ORIGIN];
-  return new Set(origins.map((value) => String(value).replace(/\/+$/, "")));
-}
 
 function isSkippableUrl(urlValue) {
   const raw = String(urlValue || "").trim();
@@ -237,25 +232,17 @@ function pageUrl(page) {
   return "";
 }
 
-async function inspectPage(page, allowed) {
+async function inspectPage(page, contract) {
   const url = pageUrl(page);
-  if (isSkippableUrl(url)) return null;
+  if (isSkippableUrl(url) || !shouldEnforceMainFrameUrl(url)) return null;
   let origin;
   try {
-    origin = originFromUrl(url);
-  } catch {
-    return {
-      skipped: true,
-      reason: "invalid_url",
-      origin: safeOriginFromUrl(url),
-    };
-  }
-  if (!allowed.has(origin)) {
-    return {
-      skipped: true,
-      reason: "disallowed_origin",
-      origin: safeOriginFromUrl(url),
-    };
+    origin = assertAllowedUrl(url, contract);
+  } catch (error) {
+    if (error?.kind === ERROR_KINDS.DISALLOWED_ORIGIN) {
+      error.details = { ...(error.details || {}), url };
+    }
+    throw error;
   }
   if (typeof page.evaluate !== "function") {
     throw new Error("Capture page is missing evaluate.");
@@ -311,21 +298,13 @@ function flattenSelects(pages) {
 }
 
 async function captureOpenPages({ context, contract, userDataPath, workerStateBefore }) {
-  const allowed = allowedOriginSet(contract);
   const pages = typeof context.pages === "function" ? context.pages() : [];
   const inspected = [];
   const skipped = [];
   const warnings = [];
   for (const page of pages) {
-    const result = await inspectPage(page, allowed);
+    const result = await inspectPage(page, contract);
     if (!result) continue;
-    if (result.skipped) {
-      skipped.push(result);
-      if (result.reason === "disallowed_origin") {
-        warnings.push("A page was skipped because it is not the approved e-Aushadhi origin.");
-      }
-      continue;
-    }
     inspected.push(result);
   }
 

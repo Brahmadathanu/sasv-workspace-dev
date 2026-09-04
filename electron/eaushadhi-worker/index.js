@@ -315,6 +315,7 @@ function createEaushadhiWorker({
 
     const restoreState = () => {
       if (stopRequested) return;
+      if (machine.get() !== STATES.RUNNING) return;
       if (previous === STATES.READY) machine.transition(STATES.READY);
       else if (previous === STATES.AUTH_REQUIRED) machine.transition(STATES.AUTH_REQUIRED);
       else if (context) machine.transition(STATES.AUTH_REQUIRED);
@@ -329,6 +330,14 @@ function createEaushadhiWorker({
         userDataPath: getUserDataPath(),
         workerStateBefore: previous,
       });
+      if (machine.get() === STATES.FAILED) {
+        productId = previousProductId;
+        emit();
+        throw workerError(
+          lastErrorKind || ERROR_KINDS.DISALLOWED_ORIGIN,
+          lastErrorMessage || "Dedicated browser origin containment failed.",
+        );
+      }
       lastCaptureDir = result.captureDir;
       lastErrorKind = null;
       lastErrorMessage = null;
@@ -342,6 +351,26 @@ function createEaushadhiWorker({
       emit();
       return result.summary;
     } catch (error) {
+      productId = previousProductId;
+      if (machine.get() === STATES.FAILED) {
+        emit();
+        throw error instanceof WorkerError
+          ? error.kind === ERROR_KINDS.DISALLOWED_ORIGIN
+            ? error
+            : workerError(
+                lastErrorKind || ERROR_KINDS.DISALLOWED_ORIGIN,
+                lastErrorMessage || "Dedicated browser origin containment failed.",
+              )
+          : workerError(
+              lastErrorKind || ERROR_KINDS.DISALLOWED_ORIGIN,
+              lastErrorMessage || "Dedicated browser origin containment failed.",
+            );
+      }
+      if (error?.kind === ERROR_KINDS.DISALLOWED_ORIGIN) {
+        await failClosed(error, error.details?.url);
+        emit();
+        throw error;
+      }
       const wrapped =
         error instanceof WorkerError ? error : workerError(ERROR_KINDS.CRASH, "Portal contract capture failed.");
       setError(wrapped);
@@ -353,9 +382,10 @@ function createEaushadhiWorker({
       try {
         restoreState();
       } catch {
-        machine.reset();
+        if (machine.get() !== STATES.FAILED && machine.get() !== STATES.STOPPING) {
+          machine.reset();
+        }
       }
-      productId = previousProductId;
       emit();
       throw wrapped;
     }
@@ -373,7 +403,10 @@ function createEaushadhiWorker({
       throw workerError(ERROR_KINDS.CRASH, "The capture folder is not inside the governed capture root.");
     }
     if (typeof openPath === "function") {
-      await openPath(lastCaptureDir);
+      const opened = await openPath(lastCaptureDir);
+      if (typeof opened === "string" && opened.trim()) {
+        throw workerError(ERROR_KINDS.CRASH, "The capture folder could not be opened.");
+      }
     }
     return {
       ok: true,
