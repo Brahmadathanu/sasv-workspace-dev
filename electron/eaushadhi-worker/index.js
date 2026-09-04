@@ -7,14 +7,14 @@ const { writeDiagnostic } = require("./diagnostics");
 const {
   loadPortalContract,
   requireContract,
-  assertAllowedUrl,
 } = require("./contracts/portal-contract");
 const { launchDedicatedEdge, dedicatedProfileDir } = require("./browser");
+const { attachMainFrameOriginGuard, assertAllowedUrl } = require("./origin-guard");
 const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 
-function createEaushadhiWorker({ getUserDataPath, onStatus } = {}) {
+function createEaushadhiWorker({ getUserDataPath, onStatus, launchBrowser } = {}) {
   const machine = createWorkerState();
   let context = null;
   let phase = null;
@@ -22,6 +22,7 @@ function createEaushadhiWorker({ getUserDataPath, onStatus } = {}) {
   let lastErrorKind = null;
   let lastErrorMessage = null;
   let stopRequested = false;
+  let containingOrigin = false;
 
   function emit() {
     const snapshot = getStatus();
@@ -69,10 +70,39 @@ function createEaushadhiWorker({ getUserDataPath, onStatus } = {}) {
     }
   }
 
+  async function failClosed(error, url) {
+    if (containingOrigin) return;
+    containingOrigin = true;
+    setError(error);
+    log({
+      phase: "origin-guard",
+      url,
+      errorKind: error?.kind || ERROR_KINDS.DISALLOWED_ORIGIN,
+      error: error?.message,
+    });
+    await closeBrowser();
+    const current = machine.get();
+    if (current !== STATES.FAILED) {
+      try {
+        machine.transition(STATES.FAILED);
+      } catch {
+        try {
+          if (current !== STATES.STOPPING) machine.transition(STATES.STOPPING);
+          machine.transition(STATES.FAILED);
+        } catch {
+          machine.reset();
+          machine.transition(STATES.FAILED);
+        }
+      }
+    }
+    emit();
+  }
+
   async function connect() {
     lastErrorKind = null;
     lastErrorMessage = null;
     stopRequested = false;
+    containingOrigin = false;
     if (machine.get() === STATES.FAILED) machine.reset();
     if (machine.get() !== STATES.IDLE) {
       throw workerError(
@@ -87,20 +117,14 @@ function createEaushadhiWorker({ getUserDataPath, onStatus } = {}) {
       requireContract("origins");
       const contract = loadPortalContract();
       const userDataDir = dedicatedProfileDir(getUserDataPath());
-      context = await launchDedicatedEdge(userDataDir);
+      const launcher = typeof launchBrowser === "function" ? launchBrowser : launchDedicatedEdge;
+      context = await launcher(userDataDir);
       const page = context.pages()[0] || (await context.newPage());
-      page.on("framenavigated", (frame) => {
-        if (frame !== page.mainFrame()) return;
-        try {
-          assertAllowedUrl(frame.url(), contract);
-        } catch (error) {
-          log({
-            phase: "origin-guard",
-            url: frame.url(),
-            errorKind: error.kind,
-            error: error.message,
-          });
-        }
+      attachMainFrameOriginGuard(page, {
+        contract,
+        onDisallowed: (error, url) => {
+          void failClosed(error, url);
+        },
       });
       await page.goto(contract.baseUrl, { waitUntil: "domcontentloaded" });
       assertAllowedUrl(page.url(), contract);

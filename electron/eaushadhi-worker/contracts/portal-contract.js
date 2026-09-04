@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ERROR_KINDS, workerError } = require("../errors");
+const { assertAllowedUrl } = require("../origin-guard");
 
 function loadPortalContract(contractPath) {
   const filePath =
@@ -16,30 +17,6 @@ function allowedOriginSet(contract) {
     ? contract.allowedOrigins
     : [];
   return new Set(origins.map((value) => String(value).replace(/\/+$/, "")));
-}
-
-function originFromUrl(urlValue) {
-  let parsed;
-  try {
-    parsed = new URL(String(urlValue || ""));
-  } catch {
-    throw workerError(
-      ERROR_KINDS.CONTRACT_INCOMPLETE,
-      "URL is not allowed for the e-Aushadhi worker.",
-    );
-  }
-  return `${parsed.protocol}//${parsed.host}`;
-}
-
-function assertAllowedUrl(urlValue, contract = loadPortalContract()) {
-  const origin = originFromUrl(urlValue);
-  if (!allowedOriginSet(contract).has(origin)) {
-    throw workerError(
-      ERROR_KINDS.CONTRACT_INCOMPLETE,
-      "Navigation outside the e-Aushadhi origin is blocked.",
-    );
-  }
-  return origin;
 }
 
 function isSectionComplete(contract, section) {

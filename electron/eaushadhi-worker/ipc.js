@@ -3,6 +3,10 @@
 const { createEaushadhiWorker } = require("./index");
 const { WorkerError, ERROR_KINDS, workerError } = require("./errors");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
+const {
+  assertAllowedEaushadhiRenderer,
+  windowIsEaushadhiReview,
+} = require("./renderer-guard");
 
 const CHANNELS = Object.freeze({
   STATUS: "eaushadhi-worker:status",
@@ -21,12 +25,27 @@ function errorPayload(error) {
   };
 }
 
+function withRendererGuard(handler) {
+  return async (event, payload) => {
+    try {
+      assertAllowedEaushadhiRenderer(event);
+      return await handler(event, payload);
+    } catch (error) {
+      return errorPayload(
+        error instanceof WorkerError
+          ? error
+          : workerError(ERROR_KINDS.CRASH, "Worker IPC failed."),
+      );
+    }
+  };
+}
+
 function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow }) {
   const worker = createEaushadhiWorker({
     getUserDataPath: () => app.getPath("userData"),
     onStatus: (status) => {
       for (const win of BrowserWindow.getAllWindows()) {
-        if (win.isDestroyed()) continue;
+        if (!windowIsEaushadhiReview(win)) continue;
         try {
           win.webContents.send(CHANNELS.STATUS, publicStatus(status));
         } catch {
@@ -36,35 +55,29 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow }) {
     },
   });
 
-  ipcMain.handle(CHANNELS.GET_STATUS, () => worker.getStatus());
+  ipcMain.handle(
+    CHANNELS.GET_STATUS,
+    withRendererGuard(async () => worker.getStatus()),
+  );
 
-  ipcMain.handle(CHANNELS.CONNECT, async () => {
-    try {
-      return await worker.connect();
-    } catch (error) {
-      return errorPayload(error instanceof WorkerError ? error : workerError(ERROR_KINDS.CRASH, "Connect failed."));
-    }
-  });
+  ipcMain.handle(
+    CHANNELS.CONNECT,
+    withRendererGuard(async () => worker.connect()),
+  );
 
-  ipcMain.handle(CHANNELS.STOP, async () => {
-    try {
-      return await worker.stop();
-    } catch (error) {
-      return errorPayload(error instanceof WorkerError ? error : workerError(ERROR_KINDS.CRASH, "Stop failed."));
-    }
-  });
+  ipcMain.handle(
+    CHANNELS.STOP,
+    withRendererGuard(async () => worker.stop()),
+  );
 
-  ipcMain.handle(CHANNELS.FOUNDATION_CHECK, async (_event, payload) => {
-    try {
+  ipcMain.handle(
+    CHANNELS.FOUNDATION_CHECK,
+    withRendererGuard(async (_event, payload) => {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
-      return await worker.runFoundationCheck(productId, accessToken);
-    } catch (error) {
-      return errorPayload(
-        error instanceof WorkerError ? error : workerError(ERROR_KINDS.CRASH, "Foundation check failed."),
-      );
-    }
-  });
+      return worker.runFoundationCheck(productId, accessToken);
+    }),
+  );
 
   return worker;
 }

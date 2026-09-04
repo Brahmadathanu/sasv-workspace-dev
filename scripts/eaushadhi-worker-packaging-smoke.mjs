@@ -20,11 +20,15 @@ function assert(cond, msg) {
   }
 }
 
-const dist = process.env.EAUSHADHI_PACK_DIST
-  ? join(root, process.env.EAUSHADHI_PACK_DIST)
-  : existsSync(join(root, "dist-eaushadhi-worker-proof"))
-    ? join(root, "dist-eaushadhi-worker-proof")
-    : join(root, "dist");
+const distCandidates = [
+  process.env.EAUSHADHI_PACK_DIST,
+  "dist-eaushadhi-hardening-proof",
+  "dist-eaushadhi-worker-proof",
+  "dist",
+].filter(Boolean);
+const dist = distCandidates
+  .map((name) => join(root, name))
+  .find((dir) => existsSync(dir));
 assert(existsSync(dist), "dist/ exists after electron-builder --dir");
 
 const unpackedName = readdirSync(dist).find((name) => name.includes("unpacked"));
@@ -37,6 +41,10 @@ const asarUnpacked = join(resources, "app.asar.unpacked");
 
 const workerLoose = join(asarUnpacked, "electron/eaushadhi-worker/index.js");
 assert(existsSync(workerLoose), "worker runtime is unpacked beside asar");
+const originGuardLoose = join(asarUnpacked, "electron/eaushadhi-worker/origin-guard.js");
+const rendererGuardLoose = join(asarUnpacked, "electron/eaushadhi-worker/renderer-guard.js");
+assert(existsSync(originGuardLoose), "origin-guard is unpacked");
+assert(existsSync(rendererGuardLoose), "renderer-guard is unpacked");
 
 const playwrightLoose = join(asarUnpacked, "node_modules/playwright-core/package.json");
 assert(existsSync(playwrightLoose), "playwright-core is unpacked for driver resolution");

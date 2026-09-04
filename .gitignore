@@ -9,6 +9,7 @@ yarn-error.log*
 # build output
 dist/
 dist-eaushadhi-worker-proof/
+dist-eaushadhi-hardening-proof/
 *.exe
 *.zip
 

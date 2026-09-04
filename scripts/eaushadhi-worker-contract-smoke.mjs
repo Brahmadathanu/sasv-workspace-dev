@@ -53,7 +53,8 @@ try {
 } catch (error) {
   blocked = error;
 }
-assert(!!blocked, "foreign origin is blocked");
+assert(blocked?.kind === "DISALLOWED_ORIGIN", "foreign origin is DISALLOWED_ORIGIN");
+assert(blocked?.kind !== "CONTRACT_INCOMPLETE", "origin escape is not CONTRACT_INCOMPLETE");
 
 if (failed) {
   console.error(`\n${failed} contract assertion(s) failed`);
