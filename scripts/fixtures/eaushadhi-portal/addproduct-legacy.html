@@ -9,6 +9,25 @@
     <a id="lnkUpdateProfile" href="/admin/updateprofile">Update Profile</a>
     <form id="productForm" method="post" action="/admin/addproductforlegacy">
       <input type="hidden" id="actiontype" name="actiontype" value="must-not-capture" />
+      <label for="categoryId">Category</label>
+      <select id="categoryId" name="categoryId" class="select2-hidden-accessible" data-select2-id="categoryId">
+        <option value="-1">--Select--</option>
+      </select>
+      <span class="select2 select2-container"></span>
+      <label for="subTypeId">Sub Type</label>
+      <select id="subTypeId" name="subTypeId" class="select2-hidden-accessible" data-select2-id="subTypeId">
+        <option value="-1">--Select--</option>
+      </select>
+      <span class="select2 select2-container"></span>
+      <label for="countryApplicable">Country Applicable</label>
+      <select id="countryApplicable" name="countryApplicable" class="select2-hidden-accessible" data-select2-id="countryApplicable">
+        <option value="0">--Select Option--</option>
+      </select>
+      <span class="select2 select2-container"></span>
+      <label for="type">Type</label>
+      <select id="type" name="type">
+        <option value="-1">Ayurveda Classical</option>
+      </select>
       <label for="permissionPurpose">Permission Purpose</label>
       <select id="permissionPurpose" name="permissionPurpose">
         <option value="11">For sale</option>

@@ -22,6 +22,7 @@ function assert(cond, msg) {
 
 const distCandidates = [
   process.env.EAUSHADHI_PACK_DIST,
+  "dist-eaushadhi-placeholder-proof",
   "dist-eaushadhi-live-evidence-proof",
   "dist-eaushadhi-capture-harden-proof",
   "dist-eaushadhi-origin-proof",
@@ -67,7 +68,8 @@ assert(captureSrc.includes("assertAllowedUrl"), "unpacked capture fail-closes on
 assert(!captureSrc.includes('reason: "disallowed_origin"'), "unpacked capture does not skip foreign pages");
 assert(!/\.goto\s*\(/.test(captureSrc), "unpacked capture does not call goto");
 assert(captureSrc.includes("indications"), "unpacked capture recognizes indications as pharmacological candidate");
-assert(!captureSrc.includes("|actions?"), "unpacked capture does not use generic actions? binding");
+assert(captureSrc.includes("PLACEHOLDER_SENTINELS"), "unpacked capture uses sentinel placeholder values");
+assert(captureSrc.includes('"-1"'), "unpacked capture recognizes -1 placeholder sentinels");
 
 const authSignalsLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/auth-signals.js");
 assert(existsSync(authSignalsLoose), "auth-signals is unpacked");

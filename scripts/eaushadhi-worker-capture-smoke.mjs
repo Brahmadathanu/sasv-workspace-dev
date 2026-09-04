@@ -17,6 +17,7 @@ const { STATES } = require(join(root, "electron/eaushadhi-worker/state.js"));
 const { ERROR_KINDS, workerError } = require(join(root, "electron/eaushadhi-worker/errors.js"));
 const { requireContract } = require(join(root, "electron/eaushadhi-worker/contracts/portal-contract.js"));
 const { fingerprintsFor } = require(join(root, "electron/eaushadhi-worker/capture/fingerprint.js"));
+const { isPlaceholderOption } = require(join(root, "electron/eaushadhi-worker/capture/index.js"));
 const { isPathInsideRoot, capturesRoot } = require(join(root, "electron/eaushadhi-worker/capture/persist.js"));
 const { CHANNELS } = require(join(root, "electron/eaushadhi-worker/ipc.js"));
 
@@ -31,6 +32,14 @@ function assert(cond, msg) {
 }
 
 const TOKEN = "a".repeat(24);
+assert(isPlaceholderOption({ value: "-1", label: "--Select--" }), "-1/--Select-- is a placeholder");
+assert(isPlaceholderOption({ value: "-1", label: "--Select Option--" }), "-1/--Select Option-- is a placeholder");
+assert(isPlaceholderOption({ value: "0", label: "Select" }), "value=0 with Select remains a placeholder");
+assert(isPlaceholderOption({ value: "", label: "Choose Option" }), "empty value with Choose Option is a placeholder");
+assert(
+  !isPlaceholderOption({ value: "-1", label: "Ayurveda Classical" }),
+  "genuine -1 domain label is not a placeholder",
+);
 const loginHtml = readFileSync(join(fixtureDir, "login.html"), "utf8");
 const authHtml = readFileSync(join(fixtureDir, "authenticated.html"), "utf8");
 const ambiguousHtml = readFileSync(join(fixtureDir, "ambiguous.html"), "utf8");
@@ -284,6 +293,25 @@ assert(
 );
 assert(!JSON.stringify(legacyJson).includes("select2-indications-result-abcd-999"), "Select2 LI ids are not used as option values");
 assert(legacyJson.pages[0].path === "/admin/addproductforlegacy", "legacy add-product path is recorded");
+const categoryVocab = (legacyJson.vocabularies || []).find((item) => item.select_id === "categoryId");
+assert(categoryVocab, "#categoryId is captured");
+assert(categoryVocab.select2_linked === true, "#categoryId is Select2-backed");
+assert(categoryVocab.options.some((opt) => opt.value === "-1" && opt.label === "--Select--"), "#categoryId placeholder option remains in evidence");
+assert(categoryVocab.unresolved_async === true, "#categoryId placeholder-only is unresolved_async");
+assert(categoryVocab.option_source === "unresolved-async", "#categoryId option_source is unresolved-async");
+const subtypeVocab = (legacyJson.vocabularies || []).find((item) => item.select_id === "subTypeId");
+assert(subtypeVocab, "#subTypeId is captured");
+assert(subtypeVocab.select2_linked === true, "#subTypeId is Select2-backed");
+assert(subtypeVocab.options.some((opt) => opt.value === "-1" && opt.label === "--Select--"), "#subTypeId placeholder option remains in evidence");
+assert(subtypeVocab.unresolved_async === true, "#subTypeId placeholder-only is unresolved_async");
+assert(subtypeVocab.option_source === "unresolved-async", "#subTypeId option_source is unresolved-async");
+const typeVocab = (legacyJson.vocabularies || []).find((item) => item.select_id === "type");
+assert(typeVocab?.options.some((opt) => opt.value === "-1" && opt.label === "Ayurveda Classical"), "genuine -1 domain value remains captured");
+assert(typeVocab.unresolved_async !== true, "genuine -1 value is not treated as placeholder-only unresolved");
+const countryVocab = (legacyJson.vocabularies || []).find((item) => item.select_id === "countryApplicable");
+assert(countryVocab?.options.some((opt) => opt.value === "0" && opt.label === "--Select Option--"), "value=0 placeholder option remains in evidence");
+assert(countryVocab.unresolved_async === true, "value=0 placeholder-only Select2 is unresolved_async");
+assert(indications.unresolved_async === false, "populated #indications remains resolved");
 
 const productTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-product-"));
 const product = makeWorker(productTmp);

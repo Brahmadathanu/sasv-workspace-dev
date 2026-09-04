@@ -78,12 +78,15 @@ function vocabKey(select) {
   return select.id || select.name || "unnamed-select";
 }
 
+const PLACEHOLDER_SENTINELS = new Set(["", "0", "-1"]);
+const PLACEHOLDER_LABEL =
+  /^(?:--\s*)?(?:select(?:\s+option)?|choose(?:\s+option)?)(?:\s*--)?$/i;
+
 function isPlaceholderOption(opt) {
-  const value = String(opt?.value || "").trim();
-  const label = String(opt?.label || "").trim().toLowerCase();
-  if (!value) return true;
-  if (value === "0" && /select|choose|--/.test(label)) return true;
-  return false;
+  const value = String(opt?.value ?? "").trim();
+  const label = String(opt?.label || "").replace(/\s+/g, " ").trim();
+  if (!PLACEHOLDER_SENTINELS.has(value)) return false;
+  return PLACEHOLDER_LABEL.test(label);
 }
 
 function buildVocabularies(selects) {
@@ -435,5 +438,6 @@ module.exports = {
   AUTH_OUTCOMES,
   captureOpenPages,
   buildVocabularies,
+  isPlaceholderOption,
   classifyAuth,
 };
