@@ -1683,6 +1683,86 @@ function toolbarWorkerStatusText() {
   return workerStatusLabel(state.workerStatus);
 }
 
+function isConnectPrimaryState(workerState) {
+  return !workerState || workerState === "IDLE" || workerState === "FAILED";
+}
+
+function workerStatusTone(workerState, available) {
+  if (!available || !workerState || workerState === "IDLE") return "neutral";
+  if (workerState === "AUTH_REQUIRED") return "warning";
+  if (workerState === "READY") return "success";
+  if (workerState === "FAILED") return "danger";
+  return "neutral";
+}
+
+let workerMenuOpen = false;
+let lastWorkerToolbarKey = "";
+
+function closeWorkerMenu({ restoreFocus = false } = {}) {
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  workerMenuOpen = false;
+  if (menu) menu.hidden = true;
+  if (more) more.setAttribute("aria-expanded", "false");
+  if (restoreFocus) more?.focus();
+}
+
+function positionWorkerMenu() {
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  if (!menu || !more || menu.hidden) return;
+  const rect = more.getBoundingClientRect();
+  menu.style.top = `${Math.round(rect.bottom + 4)}px`;
+  menu.style.right = `${Math.round(Math.max(8, window.innerWidth - rect.right))}px`;
+  menu.style.left = "auto";
+}
+
+function openWorkerMenu() {
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  if (!menu || !more) return;
+  workerMenuOpen = true;
+  menu.hidden = false;
+  more.setAttribute("aria-expanded", "true");
+  positionWorkerMenu();
+}
+
+function toggleWorkerMenu() {
+  if (workerMenuOpen) closeWorkerMenu();
+  else openWorkerMenu();
+}
+
+function setMenuActionDisabled(el, disabled) {
+  setForceDisabled(el, disabled);
+  if (!el) return;
+  if (disabled) el.setAttribute("aria-disabled", "true");
+  else el.removeAttribute("aria-disabled");
+}
+
+function placeWorkerStop(connectPrimary) {
+  const stop = $("btnWorkerStop");
+  const menu = $("eaWorkerMenu");
+  const more = $("btnWorkerMore");
+  const connect = $("btnWorkerConnect");
+  if (!stop || !menu || !more || !connect) return;
+  connect.hidden = !connectPrimary;
+  if (connectPrimary) {
+    menu.insertBefore(stop, menu.firstChild);
+    stop.hidden = false;
+    stop.setAttribute("role", "menuitem");
+    stop.classList.add("ea-worker-menuitem");
+    stop.classList.remove("with-label");
+    stop.textContent = "Stop Browser";
+  } else {
+    more.parentNode.insertBefore(stop, more);
+    stop.hidden = false;
+    stop.removeAttribute("role");
+    stop.classList.remove("ea-worker-menuitem");
+    stop.classList.add("with-label");
+    stop.textContent = "Stop";
+  }
+}
+
 function captureToolbarTitle() {
   const outcome = state.workerCaptureResult?.ok === true ? state.workerCaptureResult.auth_outcome : "";
   if (outcome) return `Capture Portal Contract (last: ${outcome})`;
@@ -1699,22 +1779,31 @@ function syncWorkerToolbarUi() {
   const available = workerApiAvailable();
   const status = state.workerStatus;
   const busy = state.busy;
+  const workerState = status?.state;
+  const connectPrimary = isConnectPrimaryState(workerState);
   const connectDisabled =
     !available ||
     busy ||
-    (status?.state && status.state !== "IDLE" && status.state !== "FAILED");
-  const stopDisabled = !available || busy || !status?.state || status.state === "IDLE";
+    (workerState && workerState !== "IDLE" && workerState !== "FAILED");
+  const stopDisabled = !available || busy || !workerState || workerState === "IDLE";
   const captureEnabled =
-    available &&
-    !busy &&
-    (status?.state === "AUTH_REQUIRED" || status?.state === "READY");
+    available && !busy && (workerState === "AUTH_REQUIRED" || workerState === "READY");
   const folderDisabled = !available || busy || state.workerCaptureResult?.ok !== true;
+  const toolbarKey = `${available ? "electron" : "pwa"}:${workerState || "none"}`;
+  if (toolbarKey !== lastWorkerToolbarKey) closeWorkerMenu();
+  lastWorkerToolbarKey = toolbarKey;
+  placeWorkerStop(connectPrimary);
   const statusEl = $("workerBrowserStatus");
   if (statusEl) statusEl.textContent = toolbarWorkerStatusText();
-  setForceDisabled($("btnWorkerConnect"), connectDisabled);
-  setForceDisabled($("btnWorkerStop"), stopDisabled);
-  setForceDisabled($("btnWorkerCapture"), !captureEnabled);
-  setForceDisabled($("btnWorkerOpenCapture"), folderDisabled);
+  const chip = $("eaWorkerStatusChip");
+  if (chip) {
+    const tone = workerStatusTone(workerState, available);
+    chip.className = `sasv-chip chip ${tone} ea-worker-status-chip`;
+  }
+  setMenuActionDisabled($("btnWorkerConnect"), connectDisabled);
+  setMenuActionDisabled($("btnWorkerStop"), stopDisabled);
+  setMenuActionDisabled($("btnWorkerCapture"), !captureEnabled);
+  setMenuActionDisabled($("btnWorkerOpenCapture"), folderDisabled);
   const captureBtn = $("btnWorkerCapture");
   if (captureBtn) {
     const title = captureToolbarTitle();
@@ -1722,6 +1811,13 @@ function syncWorkerToolbarUi() {
     captureBtn.setAttribute("aria-label", title);
   }
   applyPermissionUi();
+  ["btnWorkerConnect", "btnWorkerStop", "btnWorkerCapture", "btnWorkerOpenCapture"].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.disabled) el.setAttribute("aria-disabled", "true");
+    else el.removeAttribute("aria-disabled");
+  });
+  if (workerMenuOpen) positionWorkerMenu();
 }
 
 function refreshReadinessIfActive() {
@@ -2887,11 +2983,39 @@ function wireEvents() {
     syncWorkerToolbarUi();
   });
   $("eaWorkerToolbar")?.addEventListener("click", (event) => {
-    const id = event.target?.id;
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target) return;
+    if (target.closest("#btnWorkerMore")) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleWorkerMenu();
+      return;
+    }
+    const action = target.closest("button");
+    if (!action || action.disabled || action.getAttribute("aria-disabled") === "true") return;
+    const id = action.id;
+    if (id === "btnWorkerConnect" || id === "btnWorkerStop" || id === "btnWorkerCapture" || id === "btnWorkerOpenCapture") {
+      closeWorkerMenu();
+    }
     if (id === "btnWorkerConnect") void submitWorkerConnect();
     if (id === "btnWorkerStop") void submitWorkerStop();
     if (id === "btnWorkerCapture") void submitWorkerCapture();
     if (id === "btnWorkerOpenCapture") void submitWorkerOpenCapture();
+  });
+  document.addEventListener("click", (event) => {
+    if (!workerMenuOpen) return;
+    const toolbar = $("eaWorkerToolbar");
+    const node = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (toolbar && node && toolbar.contains(node)) return;
+    closeWorkerMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !workerMenuOpen) return;
+    event.preventDefault();
+    closeWorkerMenu({ restoreFocus: true });
+  });
+  window.addEventListener("resize", () => {
+    if (workerMenuOpen) positionWorkerMenu();
   });
   $("homeBtn")?.addEventListener("click", async () => {
     if (!confirmLeaveDirty()) return;

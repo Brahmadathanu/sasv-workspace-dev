@@ -222,8 +222,30 @@ assert((htmlSrc.match(/id="btnWorkerStop"/g) || []).length === 1, "exactly one S
 assert((htmlSrc.match(/id="btnWorkerCapture"/g) || []).length === 1, "exactly one Capture button");
 assert((htmlSrc.match(/id="btnWorkerOpenCapture"/g) || []).length === 1, "exactly one Open Capture Folder button");
 assert((htmlSrc.match(/id="workerBrowserStatus"/g) || []).length === 1, "exactly one worker status node");
+assert((htmlSrc.match(/id="btnWorkerMore"/g) || []).length === 1, "exactly one More button");
+assert((htmlSrc.match(/id="eaWorkerMenu"/g) || []).length === 1, "exactly one worker overflow menu");
+assert(!htmlSrc.includes("<span>Worker</span>"), "status is not the old two-column Worker chip");
+assert(htmlSrc.includes("Browser:"), "status copy is compact Browser: label");
+assert(!controlSrc.includes("Auth required"), "header does not invent Auth required");
+assert(htmlSrc.includes('aria-haspopup="menu"'), "More exposes aria-haspopup=menu");
+assert(htmlSrc.includes('aria-controls="eaWorkerMenu"'), "More points at the worker menu");
+assert(htmlSrc.includes('aria-expanded="false"'), "More starts collapsed");
+assert(htmlSrc.includes('role="menu"'), "overflow uses role=menu");
+assert(htmlSrc.includes('role="menuitem"'), "overflow actions use menuitem semantics");
+assert(
+  htmlSrc.indexOf('id="eaWorkerMenu"') < htmlSrc.indexOf('id="btnWorkerCapture"') &&
+    htmlSrc.indexOf('id="btnWorkerCapture"') < htmlSrc.indexOf('id="refreshBtn"'),
+  "Capture and Folder live in overflow before Refresh",
+);
+assert(controlSrc.includes("isConnectPrimaryState"), "Connect vs Stop visibility is state-dependent");
+assert(controlSrc.includes('"FAILED"'), "FAILED keeps Connect as the primary header action");
+assert(controlSrc.includes("placeWorkerStop(connectPrimary)"), "Stop is a single node moved between header and overflow");
+assert(controlSrc.includes('event.key !== "Escape"') || controlSrc.includes('event.key === "Escape"'), "Escape closes the overflow menu");
+assert(controlSrc.includes("toolbar.contains"), "outside click closes the overflow menu");
+assert(controlSrc.includes('restoreFocus: true'), "Escape returns focus to More");
 assert((htmlSrc.match(/id="btnWorkerFoundation"/g) || []).length === 0, "Foundation Check is not in static header HTML");
 assert(htmlSrc.indexOf('id="eaWorkerToolbar"') < htmlSrc.indexOf('id="refreshBtn"'), "worker toolbar is left of Refresh");
+assert(htmlSrc.indexOf('id="eaWorkerMenu"') < htmlSrc.indexOf('id="refreshBtn"'), "worker menu is left of Refresh");
 assert(htmlSrc.indexOf('id="refreshBtn"') < htmlSrc.indexOf('id="homeBtn"'), "Refresh remains before HOME");
 assert(htmlSrc.includes('data-edit-action="true"'), "header worker controls keep data-edit-action");
 assert(

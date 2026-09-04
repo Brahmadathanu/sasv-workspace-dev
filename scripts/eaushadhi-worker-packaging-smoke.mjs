@@ -22,6 +22,7 @@ function assert(cond, msg) {
 
 const distCandidates = [
   process.env.EAUSHADHI_PACK_DIST,
+  "dist-eaushadhi-header-erp-proof",
   "dist-eaushadhi-toolbar-proof",
   "dist-eaushadhi-placeholder-proof",
   "dist-eaushadhi-live-evidence-proof",
@@ -110,7 +111,9 @@ if (existsSync(asarPath)) {
         const asarKey = listed.find((item) => String(item).replace(/\\/g, "/").endsWith("public/shared/e-aushadhi-review-control.html"));
         const reviewHtml = asar.extractFile(asarPath, asarKey.replace(/^[\\/]/, "")).toString("utf8");
         assert(reviewHtml.includes('id="eaWorkerToolbar"'), "packaged Review HTML has worker toolbar");
+        assert(reviewHtml.includes('id="eaWorkerMenu"'), "packaged Review HTML has worker overflow menu");
         assert(reviewHtml.indexOf('id="eaWorkerToolbar"') < reviewHtml.indexOf('id="refreshBtn"'), "packaged worker toolbar is left of Refresh");
+        assert(reviewHtml.indexOf('id="eaWorkerMenu"') < reviewHtml.indexOf('id="refreshBtn"'), "packaged worker menu is left of Refresh");
       }
     } catch (error) {
       console.warn("preload extract skipped:", error.message);
