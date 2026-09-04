@@ -33,7 +33,17 @@ const BINDINGS = [
   { key: "quantity", re: /\bqty\b|quantity/i },
   { key: "measurement_unit", re: /measurement|unit/i },
   { key: "reference", re: /\breference\b/i },
-  { key: "pharmacological_actions", re: /pharmacological|therapeutic\s*action|actions?/i },
+  {
+    key: "pharmacological_actions",
+    test(control) {
+      const id = String(control?.id || "");
+      const name = String(control?.name || "");
+      const label = String(control?.label || "");
+      if (/^indications$/i.test(id) || /^indications$/i.test(name)) return true;
+      const hay = `${label} ${id} ${name}`;
+      return /pharmacological/i.test(hay) || /therapeutic\s+actions?/i.test(hay);
+    },
+  },
 ];
 
 function isSkippableUrl(urlValue) {
@@ -47,9 +57,15 @@ function isSkippableUrl(urlValue) {
 }
 
 function candidateBinding(control) {
-  const hay = `${control.label || ""} ${control.id || ""} ${control.name || ""} ${control.text || ""}`;
   for (const spec of BINDINGS) {
-    if (spec.re.test(hay)) {
+    if (typeof spec.test === "function") {
+      if (spec.test(control)) {
+        return { key: spec.key, verification_status: "unverified" };
+      }
+      continue;
+    }
+    const hay = `${control.label || ""} ${control.id || ""} ${control.name || ""} ${control.text || ""}`;
+    if (spec.re && spec.re.test(hay)) {
       return { key: spec.key, verification_status: "unverified" };
     }
   }
@@ -286,7 +302,7 @@ function flattenSelects(pages) {
   for (const page of pages) {
     for (const vocab of page.vocabularies || []) {
       vocabularies.push({ ...vocab, page_path: page.path });
-      if (vocab.control_key === "pharmacological_actions" || vocab.multiple) {
+      if (vocab.control_key === "pharmacological_actions") {
         pharmacological.push({ ...vocab, page_path: page.path });
       }
       if (vocab.control_key === "reference") {
@@ -391,8 +407,7 @@ async function captureOpenPages({ context, contract, userDataPath, workerStateBe
     },
   };
 
-  const withPrints = { ...draft, fingerprints: fingerprintsFor(draft) };
-  const persisted = redactCapture(withPrints);
+  const persisted = redactCapture(draft);
   persisted.fingerprints = fingerprintsFor(persisted);
   const captureDir = writeCaptureJson(userDataPath, captureId, persisted);
 

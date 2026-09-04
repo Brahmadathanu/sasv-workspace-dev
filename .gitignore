@@ -14,6 +14,7 @@ dist-eaushadhi-origin-proof/
 dist-eaushadhi-capture-proof/
 dist-eaushadhi-capture-proof2/
 dist-eaushadhi-capture-harden-proof/
+dist-eaushadhi-live-evidence-proof/
 *.exe
 *.zip
 

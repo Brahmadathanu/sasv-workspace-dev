@@ -35,6 +35,7 @@ const loginHtml = readFileSync(join(fixtureDir, "login.html"), "utf8");
 const authHtml = readFileSync(join(fixtureDir, "authenticated.html"), "utf8");
 const ambiguousHtml = readFileSync(join(fixtureDir, "ambiguous.html"), "utf8");
 const productHtml = readFileSync(join(fixtureDir, "product-form.html"), "utf8");
+const legacyHtml = readFileSync(join(fixtureDir, "addproduct-legacy.html"), "utf8");
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -252,9 +253,37 @@ assert(unprovenResult.auth_outcome === "AUTH_UNPROVEN", "3: ambiguous page is AU
 const authTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-auth-"));
 const authed = makeWorker(authTmp);
 await authed.worker.connect();
-authed.mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/Home/Dashboard");
+authed.mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/admin/custom_dashboard1");
 const authResult = await authed.worker.capturePortalContract(TOKEN);
 assert(authResult.auth_outcome === "AUTHENTICATED_CANDIDATE", "2: authenticated fixture is AUTHENTICATED_CANDIDATE");
+assert(authResult.auth_outcome !== "AUTH_REQUIRED", "Change Password nav is not AUTH_REQUIRED");
+
+const legacyTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-legacy-"));
+const legacy = makeWorker(legacyTmp);
+await legacy.worker.connect();
+legacy.mock.page.setHtml(legacyHtml, "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
+const legacyResult = await legacy.worker.capturePortalContract(TOKEN);
+assert(legacyResult.auth_outcome === "AUTHENTICATED_CANDIDATE", "legacy authenticated page is AUTHENTICATED_CANDIDATE");
+const legacyJson = readCapture(legacyTmp);
+assert(!JSON.stringify(legacyJson).includes("SYNTH_LICENSE_USER_999"), "synthetic profile identifier is absent");
+assert(legacyJson.pages[0].buttons.some((btn) => btn.id === "profile" && btn.text == null), "profile chrome keeps id and drops display text");
+assert(
+  legacyJson.pages[0].anchors.some((anchor) => anchor.label === "Update Profile" || anchor.text === "Update Profile"),
+  "generic Update Profile navigation label is retained",
+);
+const actionType = (legacyJson.pages[0].inputs || []).find((item) => item.id === "actiontype");
+assert(actionType, "hidden actiontype is captured structurally");
+assert(actionType.candidate_binding?.key !== "pharmacological_actions", "hidden #actiontype is not pharmacological_actions");
+const indications = (legacyJson.pharmacological_actions || []).find((item) => item.select_id === "indications");
+assert(indications, "select#indications is candidate pharmacological_actions");
+assert(indications.multiple === true, "indications is multiple");
+assert(indications.select2_linked === true, "indications Select2 linkage is recorded");
+assert(
+  indications.options.some((opt) => opt.value === "101" && opt.label === "Deepana"),
+  "native indications option values remain captured",
+);
+assert(!JSON.stringify(legacyJson).includes("select2-indications-result-abcd-999"), "Select2 LI ids are not used as option values");
+assert(legacyJson.pages[0].path === "/admin/addproductforlegacy", "legacy add-product path is recorded");
 
 const productTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-product-"));
 const product = makeWorker(productTmp);
@@ -415,9 +444,21 @@ assert(ready.worker.getStatus().state === STATES.READY, "23: capture from READY 
 const contractJson = JSON.parse(
   readFileSync(join(root, "electron/eaushadhi-worker/contracts/portal-contract.json"), "utf8"),
 );
+assert(contractJson.completeness.origins === true, "origins completeness unchanged");
 assert(contractJson.completeness.authProbe === false, "authProbe completeness unchanged");
-assert(contractJson.authProbe === null, "authProbe remains null");
+assert(contractJson.completeness.productLookup === false, "productLookup completeness unchanged");
+assert(contractJson.completeness.productDetails === false, "productDetails completeness unchanged");
+assert(contractJson.completeness.pharmacologicalActions === false, "pharmacologicalActions completeness unchanged");
+assert(contractJson.completeness.composition === false, "composition completeness unchanged");
 assert(contractJson.completeness.saveUpdate === false, "saveUpdate completeness unchanged");
+assert(contractJson.completeness.reread === false, "reread completeness unchanged");
+assert(contractJson.authProbe === null, "authProbe remains null");
+assert(contractJson.productLookup === null, "productLookup remains null");
+assert(contractJson.productDetails === null, "productDetails remains null");
+assert(contractJson.pharmacologicalActions === null, "pharmacologicalActions remains null");
+assert(contractJson.composition === null, "composition remains null");
+assert(contractJson.saveUpdate === null, "saveUpdate remains null");
+assert(contractJson.reread === null, "reread remains null");
 
 if (failed) {
   console.error(`\n${failed} capture assertion(s) failed`);

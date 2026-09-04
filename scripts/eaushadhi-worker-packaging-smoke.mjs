@@ -22,6 +22,7 @@ function assert(cond, msg) {
 
 const distCandidates = [
   process.env.EAUSHADHI_PACK_DIST,
+  "dist-eaushadhi-live-evidence-proof",
   "dist-eaushadhi-capture-harden-proof",
   "dist-eaushadhi-origin-proof",
   "dist-eaushadhi-capture-proof2",
@@ -65,6 +66,20 @@ assert(captureSrc.includes("captureOpenPages"), "unpacked capture inspects alrea
 assert(captureSrc.includes("assertAllowedUrl"), "unpacked capture fail-closes on foreign HTTP(S) pages");
 assert(!captureSrc.includes('reason: "disallowed_origin"'), "unpacked capture does not skip foreign pages");
 assert(!/\.goto\s*\(/.test(captureSrc), "unpacked capture does not call goto");
+assert(captureSrc.includes("indications"), "unpacked capture recognizes indications as pharmacological candidate");
+assert(!captureSrc.includes("|actions?"), "unpacked capture does not use generic actions? binding");
+
+const authSignalsLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/auth-signals.js");
+assert(existsSync(authSignalsLoose), "auth-signals is unpacked");
+const authSignalsSrc = readFileSync(authSignalsLoose, "utf8");
+assert(authSignalsSrc.includes("PASSWORD_TYPE"), "auth-signals uses password input type");
+assert(authSignalsSrc.includes("ENTRY_TAGS"), "auth-signals limits negatives to entry controls");
+assert(authSignalsSrc.includes("logoutform"), "auth-signals treats logoutForm as authenticated evidence");
+
+const sensitiveLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/sensitive.js");
+assert(existsSync(sensitiveLoose), "sensitive redaction is unpacked");
+const sensitiveSrc = readFileSync(sensitiveLoose, "utf8");
+assert(sensitiveSrc.includes("omitted_account_display_text"), "account display text is redacted before persist");
 
 const playwrightLoose = join(asarUnpacked, "node_modules/playwright-core/package.json");
 assert(existsSync(playwrightLoose), "playwright-core is unpacked for driver resolution");

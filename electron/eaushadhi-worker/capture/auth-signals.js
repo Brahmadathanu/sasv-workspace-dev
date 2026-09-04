@@ -6,43 +6,51 @@ const AUTH_OUTCOMES = Object.freeze({
   AUTH_UNPROVEN: "AUTH_UNPROVEN",
 });
 
-const SECRET_TYPE = /^(password|hidden)$/i;
-const NEGATIVE =
+const ENTRY_TAGS = new Set(["input", "textarea"]);
+const PASSWORD_TYPE = /^password$/i;
+const CREDENTIAL_FIELD =
   /\b(password|passwd|otp|one[-\s]?time|captcha|loginid|login-id|userid|user-id)\b/i;
-const LOGIN_LANDMARK = /\b(login|sign[-\s]?in|authenticate)\b/i;
-const POSITIVE =
-  /\b(log\s*out|sign\s*out|signout|logoff|log\s*off|dashboard|my\s*account|change\s*password)\b/i;
+const POSITIVE_LOGOUT = /\b(log\s*out|sign\s*out|signout|logoff|log\s*off)\b/i;
+const POSITIVE_DASHBOARD = /\bdashboard\b/i;
 
 function blob(parts) {
   return parts.filter(Boolean).join(" ");
 }
 
+function isEntryControl(control) {
+  const tag = String(control?.tag || "").toLowerCase();
+  return ENTRY_TAGS.has(tag);
+}
+
 function isNegativeControl(control) {
+  if (!isEntryControl(control)) return false;
+  if (PASSWORD_TYPE.test(String(control?.type || ""))) return true;
   const hay = blob([
-    control?.type,
     control?.id,
     control?.name,
     control?.label,
     control?.placeholder,
-    control?.role,
-    control?.text,
+    control?.type,
   ]);
-  if (String(control?.type || "").toLowerCase() === "password") return true;
-  if (NEGATIVE.test(hay)) return true;
-  if (LOGIN_LANDMARK.test(hay) && SECRET_TYPE.test(String(control?.type || ""))) return true;
-  return false;
+  return CREDENTIAL_FIELD.test(hay);
 }
 
 function isPositiveControl(control) {
+  const id = String(control?.id || "");
+  const href = String(control?.href_path || "");
+  if (/^logoutform$/i.test(id)) return true;
+  if (href === "/logout" || /\/logout$/i.test(href)) return true;
+  if (/custom_dashboard/i.test(href)) return true;
   const hay = blob([
     control?.id,
     control?.name,
     control?.label,
     control?.text,
     control?.href_path,
-    control?.role,
   ]);
-  return POSITIVE.test(hay);
+  if (POSITIVE_LOGOUT.test(hay)) return true;
+  if (POSITIVE_DASHBOARD.test(hay) || POSITIVE_DASHBOARD.test(href)) return true;
+  return false;
 }
 
 function collectPageSignals(extracted) {
@@ -94,8 +102,8 @@ function classifyAuth(pages) {
     warnings,
     proposed_auth_probe: {
       verification_status: "unverified",
-      negative_signal_kinds: ["password_input", "otp_or_captcha_labelled_control", "login_landmark"],
-      positive_signal_kinds: ["logout_or_signout", "dashboard_or_account_landmark"],
+      negative_signal_kinds: ["password_input", "otp_or_captcha_entry_control"],
+      positive_signal_kinds: ["logout_control", "dashboard_landmark"],
     },
   };
 }

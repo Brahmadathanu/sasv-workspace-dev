@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Add Product For Legacy</title></head>
+  <body>
+    <a id="logoutForm" href="/logout">Logout</a>
+    <a href="/admin/custom_dashboard1">Dashboard</a>
+    <a href="/admin/changepassword">Change Password</a>
+    <button type="button" id="profile">SYNTH_LICENSE_USER_999</button>
+    <a id="lnkUpdateProfile" href="/admin/updateprofile">Update Profile</a>
+    <form id="productForm" method="post" action="/admin/addproductforlegacy">
+      <input type="hidden" id="actiontype" name="actiontype" value="must-not-capture" />
+      <label for="permissionPurpose">Permission Purpose</label>
+      <select id="permissionPurpose" name="permissionPurpose">
+        <option value="11">For sale</option>
+      </select>
+      <label for="indications">Pharmacological Actions</label>
+      <select id="indications" name="indications" class="select2-hidden-accessible" multiple data-select2-id="indications">
+        <option value="101">Deepana</option>
+        <option value="102" selected>Pachana</option>
+      </select>
+      <span class="select2 select2-container"></span>
+      <ul class="select2-results__options">
+        <li id="select2-indications-result-abcd-999" class="select2-results__option">Ignore generated id</li>
+      </ul>
+      <label for="compositionTitle">Composition Title</label>
+      <input id="compositionTitle" name="compositionTitle" type="text" />
+      <label for="disease">Diseases and Conditions</label>
+      <textarea id="disease" name="disease"></textarea>
+      <button type="submit" id="save_btn">Save</button>
+      <button type="submit" id="save_rbtn">Save</button>
+    </form>
+  </body>
+</html>

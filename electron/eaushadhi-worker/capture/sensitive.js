@@ -63,13 +63,45 @@ function stripForbiddenKeys(value, path, dropped) {
   return out;
 }
 
+const GENERIC_PROFILE_NAV = /^(view|update|change)\s+profiles?$/i;
+
+function isAccountIdentityChrome(control) {
+  const id = String(control?.id || "").trim().toLowerCase();
+  const name = String(control?.name || "").trim().toLowerCase();
+  return id === "profile" || name === "profile";
+}
+
+function redactIdentityChrome(value, dropped) {
+  if (Array.isArray(value)) {
+    return value.map((item) => redactIdentityChrome(item, dropped));
+  }
+  if (!value || typeof value !== "object") return value;
+  const identity = isAccountIdentityChrome(value);
+  const out = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (identity && (key === "text" || key === "label")) {
+      const raw = String(child || "").trim();
+      if (raw && !GENERIC_PROFILE_NAV.test(raw)) {
+        dropped.push(key);
+        out[key] = null;
+        continue;
+      }
+    }
+    out[key] = redactIdentityChrome(child, dropped);
+  }
+  return out;
+}
+
 function redactCapture(record) {
   const dropped = [];
-  const redacted = stripForbiddenKeys(record, "", dropped);
+  const identityDropped = [];
+  const withoutIdentity = redactIdentityChrome(record, identityDropped);
+  const redacted = stripForbiddenKeys(withoutIdentity, "", dropped);
   redacted.redaction = {
     omitted_input_values: true,
     omitted_query_and_hash: true,
     omitted_html_dumps: true,
+    omitted_account_display_text: identityDropped.length > 0,
     omitted_keys: dropped,
   };
   return redacted;
