@@ -22,6 +22,7 @@ const {
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { registerEaushadhiWorkerIpc } = require("./electron/eaushadhi-worker/ipc");
 
 /** Same file as electron-builder `build.win.icon`. Do not duplicate. */
 const CANONICAL_WIN_ICON_REL = path.join(
@@ -372,6 +373,8 @@ ipcMain.on("open-module-url", (event, { absUrl, opts = {} }) => {
     console.error("open-module-url failed:", err);
   }
 });
+
+registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow });
 
 ipcMain.handle("get-app-version", () => app.getVersion());
 ipcMain.handle("updater:get-state", () => lastUpdateState);

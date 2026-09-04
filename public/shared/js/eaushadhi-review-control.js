@@ -123,6 +123,14 @@ import {
   uploadApprovedProductCopyObject,
   verifyProduct,
 } from "./eaushadhi-review-api.js";
+import {
+  connectWorkerBrowser,
+  getWorkerStatus,
+  onWorkerStatus,
+  runWorkerFoundationCheck,
+  stopWorkerBrowser,
+  workerApiAvailable,
+} from "./eaushadhi-review-worker-client.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -177,6 +185,8 @@ const state = {
   actionsBaseline: [],
   promoteNotes: "",
   verifyNotes: "",
+  workerStatus: null,
+  workerFoundationResult: null,
   loadGen: 0,
   busy: false,
   preservedAfterStale: false,
@@ -1661,6 +1671,117 @@ function gateStatus(met, blocked) {
   return { label: "Pending", cls: "neutral" };
 }
 
+function workerStatusLabel(status) {
+  return status?.label || "Disconnected";
+}
+
+function workerFoundationSummary(result) {
+  if (!result) return "No foundation check has been run for this product.";
+  const reasons = Array.isArray(result.preflight?.reasons)
+    ? result.preflight.reasons
+    : [];
+  const reasonText = reasons.length ? reasons.join("; ") : "None";
+  return [
+    `Result: ${result.errorKind || "OK"}`,
+    `Preflight eligible: ${result.preflight?.eligible === true ? "yes" : "no"}`,
+    `Reasons: ${reasonText}`,
+    `Payload hash: ${result.payloadHash || "n/a"}`,
+    `Entry status unchanged: ${result.entryStatus || "n/a"}`,
+    "This check does not fill the portal, Save, or change ENTERED / PORTAL_VERIFIED / SUBMITTED.",
+  ].join(" ");
+}
+
+function renderWorkerFoundationCard() {
+  const available = workerApiAvailable();
+  const status = state.workerStatus;
+  const busy = state.busy;
+  const connectDisabled =
+    !available ||
+    busy ||
+    (status?.state && status.state !== "IDLE" && status.state !== "FAILED");
+  const stopDisabled = !available || busy || !status?.state || status.state === "IDLE";
+  const checkDisabled = !available || busy || !state.selectedProductId;
+  if (!available) {
+    return `
+      <div class="section-card worker-foundation-card">
+        <h3>Browser worker</h3>
+        <p class="muted-note">The dedicated e-Aushadhi browser worker is available only in the SASV Electron app. PWA cannot launch Edge.</p>
+        <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
+      </div>`;
+  }
+  return `
+    <div class="section-card worker-foundation-card">
+      <h3>Browser worker</h3>
+      <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
+      <div class="readiness-chip"><span>Browser worker status</span><strong id="workerBrowserStatus">${escapeHtml(workerStatusLabel(status))}</strong></div>
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label" id="btnWorkerConnect" data-edit-action="true" ${
+          connectDisabled ? `data-force-disabled="true"` : ""
+        }>Connect Browser</button>
+        <button type="button" class="icon-btn with-label" id="btnWorkerStop" data-edit-action="true" ${
+          stopDisabled ? `data-force-disabled="true"` : ""
+        }>Stop Browser</button>
+        <button type="button" class="icon-btn with-label" id="btnWorkerFoundation" data-edit-action="true" ${
+          checkDisabled ? `data-force-disabled="true"` : ""
+        }>Foundation Check</button>
+      </div>
+      <p class="muted-note" id="workerFoundationResult">${escapeHtml(workerFoundationSummary(state.workerFoundationResult))}</p>
+    </div>`;
+}
+
+async function submitWorkerConnect() {
+  if (!canWrite() || state.busy) return;
+  state.busy = true;
+  applyPermissionUi();
+  try {
+    const result = await connectWorkerBrowser();
+    if (result?.state) state.workerStatus = result;
+    if (result?.ok === false) {
+      showToast(result.message || "Connect failed", "error");
+    }
+  } finally {
+    state.busy = false;
+    renderReadiness();
+  }
+}
+
+async function submitWorkerStop() {
+  if (state.busy) return;
+  state.busy = true;
+  applyPermissionUi();
+  try {
+    const result = await stopWorkerBrowser();
+    if (result?.state) state.workerStatus = result;
+  } finally {
+    state.busy = false;
+    renderReadiness();
+  }
+}
+
+async function submitWorkerFoundationCheck() {
+  if (!canWrite() || state.busy || !state.selectedProductId) return;
+  state.busy = true;
+  applyPermissionUi();
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const result = await runWorkerFoundationCheck(state.selectedProductId, token);
+    state.workerFoundationResult = result;
+    if (result?.errorKind === "CONTRACT_INCOMPLETE" || result?.errorKind === "PREFLIGHT_DENIED") {
+      showToast(result.message || "Foundation check stopped as designed.", "info");
+    } else if (result?.ok === false) {
+      showToast(result.message || "Foundation check failed", "error");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    renderReadiness();
+  }
+}
+
 function renderReadiness() {
   const host = $("tab-readiness");
   const row = state.queueRow || {};
@@ -1762,7 +1883,8 @@ function renderReadiness() {
       }
       <p class="muted-note">These actions prepare internal records only. They do not enter or submit the Government portal.</p>
       <p class="muted-note">Portal entry statuses (${escapeHtml(normalizeEntryStatus(row.entry_status))}) are display-only in this module.</p>
-    </div>`;
+    </div>
+    ${renderWorkerFoundationCard()}`;
   applyPermissionUi();
 }
 
@@ -2662,6 +2784,14 @@ function wireEvents() {
     home: $("homeBtn"),
     refresh: $("refreshBtn"),
   });
+  onWorkerStatus((status) => {
+    state.workerStatus = status;
+    const el = $("workerBrowserStatus");
+    if (el) el.textContent = workerStatusLabel(status);
+  });
+  void getWorkerStatus().then((status) => {
+    if (status?.state) state.workerStatus = status;
+  });
   $("homeBtn")?.addEventListener("click", async () => {
     if (!confirmLeaveDirty()) return;
     await flushDetailsAutosave();
@@ -3080,6 +3210,9 @@ function wireEvents() {
   $("tab-readiness")?.addEventListener("click", (event) => {
     if (event.target.id === "btnPromote") submitPromote();
     if (event.target.id === "btnVerifyProduct") submitVerifyProduct();
+    if (event.target.id === "btnWorkerConnect") submitWorkerConnect();
+    if (event.target.id === "btnWorkerStop") submitWorkerStop();
+    if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
     if (event.target.id === "fldPromoteNotes") state.promoteNotes = event.target.value;

@@ -418,6 +418,47 @@ export async function loadSessionCatalogs() {
   };
 }
 
+export async function fetchWorkerPreflight(productId) {
+  const id = Number(optionId(productId));
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new EaushadhiRpcError(
+      "rpc_eaushadhi_worker_preflight",
+      new Error("p_product_id is required"),
+      classifyRpcError({ message: "p_product_id is required" }),
+    );
+  }
+  return asFirst(
+    await callRpc("rpc_eaushadhi_worker_preflight", {
+      p_product_id: id,
+    }),
+  );
+}
+
+export async function fetchWorkerPayload(productId, expectedWorkflowRowVersion) {
+  const id = Number(optionId(productId));
+  const version = Number(expectedWorkflowRowVersion);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new EaushadhiRpcError(
+      "rpc_eaushadhi_worker_payload_get",
+      new Error("p_product_id is required"),
+      classifyRpcError({ message: "p_product_id is required" }),
+    );
+  }
+  if (!Number.isInteger(version)) {
+    throw new EaushadhiRpcError(
+      "rpc_eaushadhi_worker_payload_get",
+      new Error("p_expected_workflow_row_version is required"),
+      classifyRpcError({ message: "p_expected_workflow_row_version is required" }),
+    );
+  }
+  return asFirst(
+    await callRpc("rpc_eaushadhi_worker_payload_get", {
+      p_product_id: id,
+      p_expected_workflow_row_version: version,
+    }),
+  );
+}
+
 export async function loadProductWorkspace(productId) {
   const id = Number(optionId(productId));
   const [review, lines, actions, evidence, issues, copy] = await Promise.all([

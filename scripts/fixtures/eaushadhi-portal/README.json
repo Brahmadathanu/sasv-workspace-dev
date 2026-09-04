@@ -1,0 +1,4 @@
+{
+  "portal": "https://www.e-aushadhi.gov.in/",
+  "note": "Fixtures only. Not a captured selector contract. Automated tests must not call the live portal."
+}

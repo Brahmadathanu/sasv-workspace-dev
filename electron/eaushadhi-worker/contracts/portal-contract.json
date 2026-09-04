@@ -1,0 +1,22 @@
+{
+  "portalCode": "e-aushadhi",
+  "baseUrl": "https://www.e-aushadhi.gov.in/",
+  "allowedOrigins": ["https://www.e-aushadhi.gov.in"],
+  "completeness": {
+    "origins": true,
+    "authProbe": false,
+    "productLookup": false,
+    "productDetails": false,
+    "pharmacologicalActions": false,
+    "composition": false,
+    "saveUpdate": false,
+    "reread": false
+  },
+  "authProbe": null,
+  "productLookup": null,
+  "productDetails": null,
+  "pharmacologicalActions": null,
+  "composition": null,
+  "saveUpdate": null,
+  "reread": null
+}
