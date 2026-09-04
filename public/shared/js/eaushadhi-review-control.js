@@ -17,6 +17,7 @@ import {
   actionSetVerifyPendingCopy,
   actionsDirty,
   actionsDraftFromRows,
+  applyCombinedRestrictedDeclaration,
   autosaveStateLabel,
   buildApprovedProductCopyPath,
   canPromoteFormulation,
@@ -30,8 +31,13 @@ import {
   canVerifyCompositionLine,
   canVerifyProductDetails,
   classifyRpcError,
+  combinedRestrictedDeclarationState,
+  COMBINED_RESTRICTED_DECLARATION_LABEL,
+  COMBINED_RESTRICTED_YES_UNAVAILABLE_COPY,
   compositionFiltersAreActive,
   compositionIsComplete,
+  customActionDraftRows,
+  composeActionsDraft,
   detailsDraftFromReview,
   detailsDirty,
   displayText,
@@ -49,6 +55,7 @@ import {
   isEditableKeyboardTarget,
   isVerifiedStatus,
   issuesForLine,
+  isVocabActionLabel,
   joinHtmlParts,
   lineDirty,
   lineDraftFromRow,
@@ -87,6 +94,7 @@ import {
   workingSourceChanges,
   workingSourceDraftFromRow,
   SUGGESTION_FIELD_KEYS,
+  toggleVocabActionDraft,
   toInt,
   verifyProductUnavailableReason,
   verifyReviewedConfirmLabel,
@@ -755,24 +763,35 @@ function renderProductHeader() {
   }
 }
 
-function boolSegment(key, label, value) {
-  const current = value === true ? "true" : value === false ? "false" : "";
-  const groupId = `decl-${key}-label`;
+function combinedDeclarationControl(draft) {
+  const current = combinedRestrictedDeclarationState(draft);
+  const value = current === "yes" ? "true" : current === "no" ? "false" : "";
+  const yesUnavailable = current !== "yes";
+  const groupId = "decl-combined-restricted-label";
   const options = [
-    ["true", "Yes"],
-    ["false", "No"],
-    ["", "Not reviewed"],
+    ["true", "Yes", yesUnavailable],
+    ["false", "No", false],
+    ["", "Not reviewed", false],
   ];
   return `<div class="form-field">
-    <span class="meta-label" id="${escapeHtml(groupId)}">${escapeHtml(label)}</span>
-    <div class="seg-control" role="radiogroup" aria-labelledby="${escapeHtml(groupId)}" data-bool-key="${escapeHtml(key)}">
+    <span class="meta-label" id="${escapeHtml(groupId)}">${escapeHtml(COMBINED_RESTRICTED_DECLARATION_LABEL)}</span>
+    <div class="seg-control" role="radiogroup" aria-labelledby="${escapeHtml(groupId)}" data-bool-key="combinedRestricted">
       ${options
         .map(
-          ([val, text]) =>
-            `<button type="button" data-edit-action="true" role="radio" data-bool-value="${escapeHtml(val)}" aria-checked="${current === val ? "true" : "false"}" tabindex="${current === val ? "0" : "-1"}">${escapeHtml(text)}</button>`,
+          ([val, text, blocked]) =>
+            `<button type="button" data-edit-action="true" role="radio" data-bool-value="${escapeHtml(val)}" aria-checked="${current === (val === "true" ? "yes" : val === "false" ? "no" : "unreviewed") ? "true" : "false"}" tabindex="${value === val ? "0" : "-1"}"${
+              blocked
+                ? ` disabled data-force-disabled="true" title="${escapeHtml(COMBINED_RESTRICTED_YES_UNAVAILABLE_COPY)}"`
+                : ""
+            }>${escapeHtml(text)}</button>`,
         )
         .join("")}
     </div>
+    ${
+      yesUnavailable
+        ? `<p class="muted-note">${escapeHtml(COMBINED_RESTRICTED_YES_UNAVAILABLE_COPY)}</p>`
+        : `<p class="muted-note">At least one stored restricted-ingredient declaration is Yes. Choose No only when all five underlying declarations are confirmed No.</p>`
+    }
   </div>`;
 }
 
@@ -780,6 +799,12 @@ function parseBoolButton(value) {
   if (value === "true") return true;
   if (value === "false") return false;
   return null;
+}
+
+function applyDeclarationChoice(value) {
+  if (!state.detailsDraft) return;
+  if (value === true) return;
+  state.detailsDraft = applyCombinedRestrictedDeclaration(state.detailsDraft, value);
 }
 
 function renderOverview() {
@@ -875,14 +900,8 @@ function renderDetails() {
     </div>
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Controlled declarations</h3>
-      <p class="muted-note">Null remains Not reviewed. These controls never default to No. Changes save automatically. Verify when the section is correct.</p>
-      <div class="form-grid">
-        ${boolSegment("containsBhang", "Contains Bhang", draft.containsBhang)}
-        ${boolSegment("containsOpium", "Contains Opium", draft.containsOpium)}
-        ${boolSegment("containsOtherNarcotic", "Contains Other Narcotic", draft.containsOtherNarcotic)}
-        ${boolSegment("containsScheduleE1", "Contains Schedule E1", draft.containsScheduleE1)}
-        ${boolSegment("containsSelfGeneratedAlcohol", "Contains Self-generated Alcohol", draft.containsSelfGeneratedAlcohol)}
-      </div>
+      <p class="muted-note">SASV in-scope products are recorded as No. Null remains Not reviewed and never defaults to No. Changes save automatically. Verify when the section is correct.</p>
+      ${combinedDeclarationControl(draft)}
       <div class="form-field" style="margin-top:10px">
         <label for="fldReviewNotes">Review notes</label>
         <textarea id="fldReviewNotes" class="sasv-control" rows="2" data-edit-action="true"${disable}>${escapeHtml(draft.reviewNotes || "")}</textarea>
@@ -982,6 +1001,7 @@ function renderComposition() {
         reviewStatus: row.review_status,
         approvedFormulationPresent: state.evidence?.approved_formulation_present,
       });
+      const saveStatus = state.lineSaveStatus.get(String(id)) || "";
       const lineVerifyHint = lineVerifyPendingCopy({
         draft,
         issues: state.issues,
@@ -998,7 +1018,6 @@ function renderComposition() {
         canEdit: canWrite(),
       });
       const resolved = state.resolvedSourceByLine.get(String(id));
-      const saveStatus = state.lineSaveStatus.get(String(id)) || "";
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="working-source-block">
           <span class="working-source-label">Working source</span>
@@ -1458,8 +1477,12 @@ function renderActions() {
   const host = $("tab-actions");
   const vocab = state.catalogs.pharmacologicalActionOptions || [];
   const rows = state.actionsDraft;
-  const empty = !rows.length;
-  const showReorder = rows.length > 1;
+  const customRows = customActionDraftRows(rows, vocab);
+  const selectedVocab = new Set(
+    (Array.isArray(rows) ? rows : [])
+      .map((item) => safeText(item).toLowerCase())
+      .filter(Boolean),
+  );
   const locked = isVerifiedStatus(state.actionsReviewStatus);
   const disable = locked ? " disabled" : "";
   const actionsVerifyOk = canVerifyActionSet({
@@ -1476,46 +1499,43 @@ function renderActions() {
   host.innerHTML = `
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Pharmacological action</h3>
-      ${locked ? lockNoteHtml() : `<p class="muted-note">Changes save automatically. Verify when the section is correct.</p>`}
+      ${locked ? lockNoteHtml() : `<p class="muted-note">Select every applicable action from the server vocabulary. Additional exact wording can be added. Changes save automatically. Verify when the complete set is correct.</p>`}
       ${autosaveHtml(state.actionsSaveStatus, "actionsAutosave")}
       ${
-        empty
-          ? `<div class="empty-state">No pharmacological action reviewed yet.</div>`
-          : `<div class="action-list" id="actionList">
-        ${rows
+        vocab.length
+          ? `<div class="action-vocab-list" role="group" aria-label="Pharmacological action vocabulary">
+        ${vocab
+          .map((item, index) => {
+            const label = safeText(item?.label);
+            if (!label) return "";
+            const id = `action-vocab-${index}`;
+            const checked = selectedVocab.has(label.toLowerCase());
+            return `<label class="action-vocab-item" for="${escapeHtml(id)}">
+              <input id="${escapeHtml(id)}" type="checkbox" data-edit-action="true" data-action-vocab-toggle="${escapeHtml(label)}"${checked ? " checked" : ""}${disable} />
+              <span>${escapeHtml(label)}</span>
+            </label>`;
+          })
+          .join("")}
+      </div>`
+          : `<div class="empty-state">No pharmacological action vocabulary was returned by the server.</div>`
+      }
+      ${
+        customRows.length
+          ? `<div class="action-list" id="actionList">
+        ${customRows
           .map((text, index) => {
-            const match = vocab.find(
-              (item) =>
-                safeText(item.label).toLowerCase() === safeText(text).toLowerCase(),
-            );
             return `<div class="action-item" data-action-index="${index}">
-              <select data-edit-action="true" data-action-vocab="${index}"${disable}>
-                <option value="">Use typed wording</option>
-                ${vocab
-                  .map(
-                    (item) =>
-                      `<option value="${escapeHtml(item.label)}"${
-                        match && idsEqual(item.term_id, match.term_id) ? " selected" : ""
-                      }>${escapeHtml(item.label)}</option>`,
-                  )
-                  .join("")}
-              </select>
               <input class="sasv-control" data-edit-action="true" data-action-text="${index}" value="${escapeHtml(text)}" placeholder="Enter exact approved wording"${disable} />
-              ${
-                showReorder && !locked
-                  ? `<button type="button" class="icon-btn" data-edit-action="true" data-action-up="${index}" aria-label="Move action up" title="Move action up">Up</button>
-              <button type="button" class="icon-btn" data-edit-action="true" data-action-down="${index}" aria-label="Move action down" title="Move action down">Down</button>`
-                  : ""
-              }
               ${
                 locked
                   ? ""
-                  : `<button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove action" title="Remove action">Remove</button>`
+                  : `<button type="button" class="icon-btn" data-edit-action="true" data-action-remove="${index}" aria-label="Remove custom action" title="Remove custom action">Remove</button>`
               }
             </div>`;
           })
           .join("")}
       </div>`
+          : ""
       }
       <div class="action-row">
         ${
@@ -1529,7 +1549,7 @@ function renderActions() {
             ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenActions" data-edit-action="true">Reopen Actions</button>`
             : ""
         }`
-            : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add Action</button>
+            : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add custom action</button>
         <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true"${
           actionsVerifyOk ? "" : " data-force-disabled=\"true\""
         }${actionsVerifyHint ? ` title="${escapeHtml(actionsVerifyHint)}"` : ""}>Verify Actions</button>`
@@ -2859,6 +2879,13 @@ function wireEvents() {
     if (boolBtn && state.detailsDraft && canEditReviewedSection(state.review?.review_status)) {
       const group = boolBtn.closest("[data-bool-key]");
       const key = group?.dataset.boolKey;
+      if (key === "combinedRestricted") {
+        applyDeclarationChoice(parseBoolButton(boolBtn.dataset.boolValue));
+        syncDetailsVerifyUi();
+        queueDetailsAutosave(true);
+        renderDetails();
+        return;
+      }
       if (key) {
         state.detailsDraft[key] = parseBoolButton(boolBtn.dataset.boolValue);
         group.querySelectorAll("[data-bool-value]").forEach((el) => {
@@ -2879,6 +2906,14 @@ function wireEvents() {
         const key = group.dataset.boolKey;
         if (!key || !state.detailsDraft) return;
         if (!canEditReviewedSection(state.review?.review_status)) return;
+        if (key === "combinedRestricted") {
+          applyDeclarationChoice(parseBoolButton(btn.dataset.boolValue));
+          btn.focus();
+          syncDetailsVerifyUi();
+          queueDetailsAutosave(true);
+          renderDetails();
+          return;
+        }
         state.detailsDraft[key] = parseBoolButton(btn.dataset.boolValue);
         group.querySelectorAll("[data-bool-value]").forEach((el) => {
           const on = el === btn;
@@ -2981,32 +3016,16 @@ function wireEvents() {
       openReopen("actions", event.target);
       return;
     }
-    const up = event.target.closest("[data-action-up]");
-    const down = event.target.closest("[data-action-down]");
     const remove = event.target.closest("[data-action-remove]");
-    if (up) {
-      const i = Number(up.dataset.actionUp);
-      if (i > 0) {
-        const next = [...state.actionsDraft];
-        [next[i - 1], next[i]] = [next[i], next[i - 1]];
-        state.actionsDraft = next;
-        renderActions();
-        queueActionsAutosave(true);
-      }
-    }
-    if (down) {
-      const i = Number(down.dataset.actionDown);
-      if (i < state.actionsDraft.length - 1) {
-        const next = [...state.actionsDraft];
-        [next[i + 1], next[i]] = [next[i], next[i + 1]];
-        state.actionsDraft = next;
-        renderActions();
-        queueActionsAutosave(true);
-      }
-    }
     if (remove) {
+      const vocab = state.catalogs.pharmacologicalActionOptions || [];
+      const custom = customActionDraftRows(state.actionsDraft, vocab);
       const i = Number(remove.dataset.actionRemove);
-      state.actionsDraft = state.actionsDraft.filter((_, idx) => idx !== i);
+      custom.splice(i, 1);
+      state.actionsDraft = composeActionsDraft(vocab, [
+        ...state.actionsDraft.filter((item) => isVocabActionLabel(item, vocab)),
+        ...custom,
+      ]);
       renderActions();
       queueActionsAutosave(true);
     }
@@ -3014,22 +3033,26 @@ function wireEvents() {
   $("tab-actions")?.addEventListener("input", (event) => {
     const el = event.target;
     if (el.dataset.actionText == null) return;
-    const i = Number(el.dataset.actionText);
-    state.actionsDraft[i] = el.value;
+    const vocab = state.catalogs.pharmacologicalActionOptions || [];
+    const custom = customActionDraftRows(state.actionsDraft, vocab);
+    custom[Number(el.dataset.actionText)] = el.value;
+    state.actionsDraft = composeActionsDraft(vocab, [
+      ...state.actionsDraft.filter((item) => isVocabActionLabel(item, vocab)),
+      ...custom,
+    ]);
     syncActionsVerifyUi();
     queueActionsAutosave(false);
   });
   $("tab-actions")?.addEventListener("change", (event) => {
     const el = event.target;
-    if (el.dataset.actionVocab == null) return;
-    const i = Number(el.dataset.actionVocab);
-    if (el.value) {
-      state.actionsDraft[i] = el.value;
-      const input = document.querySelector(`[data-action-text="${i}"]`);
-      if (input) input.value = el.value;
-      syncActionsVerifyUi();
-      queueActionsAutosave(true);
-    }
+    if (el.dataset.actionVocabToggle == null) return;
+    const vocab = state.catalogs.pharmacologicalActionOptions || [];
+    state.actionsDraft = composeActionsDraft(
+      vocab,
+      toggleVocabActionDraft(state.actionsDraft, el.dataset.actionVocabToggle, el.checked),
+    );
+    syncActionsVerifyUi();
+    queueActionsAutosave(true);
   });
   $("tab-actions")?.addEventListener("focusout", (event) => {
     if (event.target.dataset.actionText == null) return;

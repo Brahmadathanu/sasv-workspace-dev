@@ -1177,17 +1177,87 @@ export const PRODUCT_DETAILS_DECLARATION_FIELDS = Object.freeze([
   { key: "containsSelfGeneratedAlcohol", label: "Contains Self-generated Alcohol" },
 ]);
 
+export const COMBINED_RESTRICTED_DECLARATION_LABEL =
+  "Contains Bhang / Apheem (Opium) / Other Narcotics Ingredients / Schedule E-1 Ingredients / Self Generated Alcohol?";
+
+export const COMBINED_RESTRICTED_YES_UNAVAILABLE_COPY =
+  "Yes cannot be selected here. A generic Yes would require identifying which restricted ingredient applies, and this screen does not invent that detail.";
+
+export function combinedRestrictedDeclarationState(draft) {
+  const values = PRODUCT_DETAILS_DECLARATION_FIELDS.map((item) => draft?.[item.key]);
+  if (values.some((value) => value === true)) return "yes";
+  if (values.length && values.every((value) => value === false)) return "no";
+  return "unreviewed";
+}
+
+export function applyCombinedRestrictedDeclaration(draft, value) {
+  const next = { ...(draft || {}) };
+  if (value === true) return next;
+  const stored = value === false ? false : null;
+  for (const item of PRODUCT_DETAILS_DECLARATION_FIELDS) {
+    next[item.key] = stored;
+  }
+  return next;
+}
+
+export function actionLabelKey(value) {
+  return safeText(value).toLowerCase();
+}
+
+export function vocabActionLabelSet(vocab) {
+  const set = new Set();
+  for (const item of Array.isArray(vocab) ? vocab : []) {
+    const key = actionLabelKey(item?.label);
+    if (key) set.add(key);
+  }
+  return set;
+}
+
+export function isVocabActionLabel(text, vocab) {
+  return vocabActionLabelSet(vocab).has(actionLabelKey(text));
+}
+
+export function toggleVocabActionDraft(actions, label, selected) {
+  const list = Array.isArray(actions) ? [...actions] : [];
+  const key = actionLabelKey(label);
+  if (!key) return list;
+  const without = list.filter((item) => actionLabelKey(item) !== key);
+  if (selected === false) return without;
+  if (without.length !== list.length) return list;
+  without.push(safeText(label));
+  return without;
+}
+
+export function customActionDraftRows(actions, vocab) {
+  const vocabKeys = vocabActionLabelSet(vocab);
+  return (Array.isArray(actions) ? actions : []).filter((item) => {
+    if (!safeText(item)) return true;
+    return !vocabKeys.has(actionLabelKey(item));
+  });
+}
+
+export function composeActionsDraft(vocab, actions) {
+  const selected = new Set(
+    (Array.isArray(actions) ? actions : []).map((item) => actionLabelKey(item)).filter(Boolean),
+  );
+  const vocabRows = (Array.isArray(vocab) ? vocab : [])
+    .map((item) => safeText(item?.label))
+    .filter((label) => selected.has(actionLabelKey(label)));
+  return [...vocabRows, ...customActionDraftRows(actions, vocab)];
+}
+
 export function productDetailsVerifyGaps(draft) {
   const fields = [];
   if (!optionId(draft?.permissionPurposeTermId)) fields.push("Permission Purpose");
   if (!safeText(draft?.compositionTitle)) fields.push("Composition Title");
   if (!safeText(draft?.diseasesConditions)) fields.push("Diseases / Conditions");
-  const declarations = PRODUCT_DETAILS_DECLARATION_FIELDS.filter(
-    (item) => draft?.[item.key] == null,
-  );
+  const declarations =
+    combinedRestrictedDeclarationState(draft) === "unreviewed"
+      ? ["Restricted-ingredient declaration"]
+      : [];
   return {
     fields,
-    declarations: declarations.map((item) => item.label),
+    declarations,
     ok: fields.length === 0 && declarations.length === 0,
   };
 }

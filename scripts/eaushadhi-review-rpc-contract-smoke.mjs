@@ -130,6 +130,20 @@ assert(controlSrc.includes("canVerifyProductDetails"), "product details verify e
 assert(controlSrc.includes("canVerifyCompositionLine"), "line verify eligibility is used");
 assert(controlSrc.includes("canVerifyActionSet"), "actions verify eligibility is used");
 assert(!/Verify \$\{eligible\} reviewed lines/.test(controlSrc), "zero-count verify label is not interpolated directly");
+
+{
+  const renderStart = controlSrc.indexOf("function renderComposition()");
+  const renderEnd = controlSrc.indexOf("\nfunction ", renderStart + 1);
+  const renderFn = controlSrc.slice(renderStart, renderEnd === -1 ? undefined : renderEnd);
+  const declIdx = renderFn.indexOf("const saveStatus = state.lineSaveStatus.get(String(id))");
+  const useIdx = renderFn.indexOf("lineVerifyPendingCopy");
+  assert(declIdx !== -1 && useIdx !== -1 && declIdx < useIdx, "renderComposition declares saveStatus before first verify use");
+  assert((renderFn.match(/const saveStatus =/g) || []).length === 1, "renderComposition has exactly one saveStatus declaration");
+}
+assert(controlSrc.includes("data-bool-key=\"combinedRestricted\""), "restricted declarations use one combined control");
+assert(controlSrc.includes("data-action-vocab-toggle"), "actions vocabulary is a multi-select checklist");
+assert(!/\b46\b/.test(controlSrc), "pharmacological action terms are not hard-coded as 46");
+assert(apiSrc.includes("rpc_eaushadhi_pharmacological_action_options"), "action vocabulary remains server-supplied");
 assert(controlSrc.includes("registerApprovedProductCopy"), "copy registration is called after upload");
 assert(controlSrc.includes("createSignedUrl") || apiSrc.includes("createSignedUrl"), "private copy open uses signed URL");
 assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");

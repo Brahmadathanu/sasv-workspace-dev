@@ -7,6 +7,7 @@ import {
   QUEUE_FILTERS,
   QUEUE_RENDER_CHUNK,
   actionsDirty,
+  applyCombinedRestrictedDeclaration,
   buildApprovedProductCopyPath,
   canPromoteFormulation,
   canVerifyActionSet,
@@ -19,6 +20,8 @@ import {
   canSubmitSourceResolution,
   canSubmitWorkingSourceCorrection,
   classifyRpcError,
+  combinedRestrictedDeclarationState,
+  composeActionsDraft,
   detailsDraftFromReview,
   detailsDirty,
   ERROR_KIND,
@@ -58,6 +61,7 @@ import {
   suggestionFieldMode,
   summarizeVerifyReviewedLines,
   syncWorkingSourceQuantityDraft,
+  toggleVocabActionDraft,
   validateEvidenceFile,
   verifyReviewedConfirmLabel,
   verifyReviewedEmptyGuidance,
@@ -625,8 +629,42 @@ assert(
     containsScheduleE1: null,
     containsSelfGeneratedAlcohol: null,
   }) ===
-    "Verification pending: Permission Purpose, Diseases / Conditions and 5 declarations require review.",
+    "Verification pending: Permission Purpose, Diseases / Conditions and Restricted-ingredient declaration requires review.",
   "product details helper lists missing required inputs",
+);
+assert(
+  combinedRestrictedDeclarationState(completeDetails) === "no",
+  "all false restricted declarations are combined No",
+);
+assert(
+  combinedRestrictedDeclarationState({ ...completeDetails, containsOpium: true }) === "yes",
+  "any true restricted declaration is combined Yes",
+);
+assert(
+  combinedRestrictedDeclarationState({
+    containsBhang: null,
+    containsOpium: false,
+    containsOtherNarcotic: false,
+    containsScheduleE1: false,
+    containsSelfGeneratedAlcohol: false,
+  }) === "unreviewed",
+  "null remaining declarations stay unreviewed",
+);
+assert(
+  applyCombinedRestrictedDeclaration({ containsBhang: true }, true).containsBhang === true,
+  "generic Yes does not invent a restricted-ingredient reason",
+);
+assert(
+  applyCombinedRestrictedDeclaration({ containsBhang: null }, false).containsBhang === false &&
+    applyCombinedRestrictedDeclaration({ containsOpium: true }, false).containsOpium === false,
+  "combined No sets all underlying declarations to false",
+);
+
+const vocabTwo = [{ label: "Rasayana" }, { label: "Balya" }];
+assert(
+  composeActionsDraft(vocabTwo, toggleVocabActionDraft(["Rasayana"], "Balya", true)).join(",") ===
+    "Rasayana,Balya",
+  "multiple vocabulary actions can be selected together",
 );
 
 assert(
