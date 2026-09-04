@@ -37,4 +37,20 @@ contextBridge.exposeInMainWorld("auth", {
   setSession: (user) => ipcRenderer.invoke("auth:setSession", user),
 });
 
-console.log("preload ready: app, electronAPI, sopAPI, auth exposed");
+contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
+  getStatus: () => ipcRenderer.invoke("eaushadhi-worker:get-status"),
+  connect: () => ipcRenderer.invoke("eaushadhi-worker:connect"),
+  stop: () => ipcRenderer.invoke("eaushadhi-worker:stop"),
+  runFoundationCheck: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:foundation-check", {
+      productId,
+      accessToken,
+    }),
+  onStatus: (cb) => {
+    const handler = (_evt, payload) => cb && cb(payload);
+    ipcRenderer.on("eaushadhi-worker:status", handler);
+    return () => ipcRenderer.removeListener("eaushadhi-worker:status", handler);
+  },
+});
+
+console.log("preload ready: app, electronAPI, sopAPI, auth, eaushadhiWorkerAPI exposed");

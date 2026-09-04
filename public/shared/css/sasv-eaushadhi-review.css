@@ -898,6 +898,16 @@ body.sasv-eaushadhi-review .readiness-chip {
   font-size: var(--sasv-text-sm);
 }
 
+body.sasv-eaushadhi-review .worker-foundation-card {
+  margin-top: var(--sasv-space-3);
+}
+
+body.sasv-eaushadhi-review .worker-foundation-card h3 {
+  margin: 0 0 var(--sasv-space-2);
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+}
+
 body.sasv-eaushadhi-review .empty-state {
   padding: 28px 12px;
   text-align: center;

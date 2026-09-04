@@ -22,6 +22,7 @@ const helpersSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-he
 const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
 const htmlSrc = readFileSync(join(root, "public/shared/e-aushadhi-review-control.html"), "utf8");
 const cssSrc = readFileSync(join(root, "public/shared/css/sasv-eaushadhi-review.css"), "utf8");
+const workerClientSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-worker-client.js"), "utf8");
 const indexSrc = readFileSync(join(root, "index.html"), "utf8");
 const combined = `${apiSrc}\n${helpersSrc}\n${controlSrc}\n${htmlSrc}`;
 
@@ -48,6 +49,8 @@ const requiredRpcs = [
   "rpc_eaushadhi_reopen_product_actions",
   "rpc_eaushadhi_approved_product_copy_get",
   "rpc_eaushadhi_register_approved_product_copy",
+  "rpc_eaushadhi_worker_preflight",
+  "rpc_eaushadhi_worker_payload_get",
 ];
 
 for (const name of requiredRpcs) {
@@ -156,6 +159,7 @@ assert(!/resolveAll|resolve all issues|auto.?resolve/i.test(controlSrc), "no bul
 
 assert(!/\.from\(\s*["']regulatory/i.test(combined), "no direct regulatory table access");
 assert(!/playwright/i.test(combined), "no Playwright");
+assert(!/playwright/i.test(workerClientSrc), "worker client has no Playwright");
 assert(!/captcha/i.test(combined), "no CAPTCHA automation");
 assert(!/sop-attachments|tally-raw/.test(combined), "no SOP/tally bucket reuse");
 assert(htmlSrc.includes("ea-icon-search"), "inline SVG search icon exists");
@@ -210,6 +214,11 @@ assert(
   indexSrc.includes("hasStaffDirectory"),
   "Staff Directory fallback remains",
 );
+assert(controlSrc.includes("btnWorkerFoundation"), "Readiness has Foundation Check");
+assert(controlSrc.includes("Internal verification is not portal entry"), "internal vs portal copy");
+assert(workerClientSrc.includes("runFoundationCheck"), "worker client exposes foundation check");
+assert(!/run_begin|mark_entered|mark_portal_verified|mark_submitted/i.test(apiSrc + controlSrc + workerClientSrc), "no lifecycle write wrappers");
+assert(!/\bsubmit\b/i.test(workerClientSrc), "worker client has no Submit");
 
 if (failed) {
   console.error(`\n${failed} RPC contract assertion(s) failed`);
