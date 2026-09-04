@@ -1678,6 +1678,56 @@ function workerStatusLabel(status) {
   return status?.label || "Disconnected";
 }
 
+function toolbarWorkerStatusText() {
+  if (!workerApiAvailable()) return "Unavailable";
+  return workerStatusLabel(state.workerStatus);
+}
+
+function captureToolbarTitle() {
+  const outcome = state.workerCaptureResult?.ok === true ? state.workerCaptureResult.auth_outcome : "";
+  if (outcome) return `Capture Portal Contract (last: ${outcome})`;
+  return "Capture Portal Contract";
+}
+
+function setForceDisabled(el, disabled) {
+  if (!el) return;
+  if (disabled) el.dataset.forceDisabled = "true";
+  else delete el.dataset.forceDisabled;
+}
+
+function syncWorkerToolbarUi() {
+  const available = workerApiAvailable();
+  const status = state.workerStatus;
+  const busy = state.busy;
+  const connectDisabled =
+    !available ||
+    busy ||
+    (status?.state && status.state !== "IDLE" && status.state !== "FAILED");
+  const stopDisabled = !available || busy || !status?.state || status.state === "IDLE";
+  const captureEnabled =
+    available &&
+    !busy &&
+    (status?.state === "AUTH_REQUIRED" || status?.state === "READY");
+  const folderDisabled = !available || busy || state.workerCaptureResult?.ok !== true;
+  const statusEl = $("workerBrowserStatus");
+  if (statusEl) statusEl.textContent = toolbarWorkerStatusText();
+  setForceDisabled($("btnWorkerConnect"), connectDisabled);
+  setForceDisabled($("btnWorkerStop"), stopDisabled);
+  setForceDisabled($("btnWorkerCapture"), !captureEnabled);
+  setForceDisabled($("btnWorkerOpenCapture"), folderDisabled);
+  const captureBtn = $("btnWorkerCapture");
+  if (captureBtn) {
+    const title = captureToolbarTitle();
+    captureBtn.title = title;
+    captureBtn.setAttribute("aria-label", title);
+  }
+  applyPermissionUi();
+}
+
+function refreshReadinessIfActive() {
+  if (state.tab === "readiness" && state.selectedProductId) renderReadiness();
+}
+
 function workerFoundationSummary(result) {
   if (!result) return "No foundation check has been run for this product.";
   const reasons = Array.isArray(result.preflight?.reasons)
@@ -1694,86 +1744,31 @@ function workerFoundationSummary(result) {
   ].join(" ");
 }
 
-function workerCaptureSummary(result) {
-  if (!result) return "No portal contract capture has been saved on this session.";
-  if (result.ok === false) {
-    return result.message || "Portal contract capture failed.";
-  }
-  const warnings = Array.isArray(result.warnings) ? result.warnings.length : 0;
-  const structure = result.fingerprints?.structure_sha256
-    ? result.fingerprints.structure_sha256.slice(0, 12)
-    : "n/a";
-  const options = result.fingerprints?.option_sets_sha256
-    ? result.fingerprints.option_sets_sha256.slice(0, 12)
-    : "n/a";
-  return [
-    "Capture completed.",
-    `Auth evidence: ${result.auth_outcome || "n/a"}`,
-    `Pages inspected: ${result.pages_inspected ?? "n/a"}`,
-    `Native selects: ${result.native_selects ?? "n/a"}`,
-    `Options: ${result.option_count ?? "n/a"}`,
-    `Warnings: ${warnings}`,
-    `Structure fingerprint: ${structure}`,
-    `Option fingerprint: ${options}`,
-    "Read-only local evidence only. This does not fill the portal or change workflow status.",
-  ].join(" ");
-}
-
 function renderWorkerFoundationCard() {
   const available = workerApiAvailable();
-  const status = state.workerStatus;
   const busy = state.busy;
-  const connectDisabled =
-    !available ||
-    busy ||
-    (status?.state && status.state !== "IDLE" && status.state !== "FAILED");
-  const stopDisabled = !available || busy || !status?.state || status.state === "IDLE";
   const checkDisabled = !available || busy || !state.selectedProductId;
-  const captureEnabled =
-    available &&
-    !busy &&
-    (status?.state === "AUTH_REQUIRED" || status?.state === "READY");
-  const folderDisabled = !available || busy || state.workerCaptureResult?.ok !== true;
-  if (!available) {
-    return `
-      <div class="section-card worker-foundation-card">
-        <h3>Browser worker</h3>
-        <p class="muted-note">The dedicated e-Aushadhi browser worker is available only in the SASV Electron app. PWA cannot launch Edge.</p>
-        <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
-      </div>`;
-  }
+  const browserLine = available
+    ? `Browser session: ${workerStatusLabel(state.workerStatus)}. Connect, capture, and folder controls are in the page header.`
+    : "Browser session: Unavailable. The dedicated e-Aushadhi browser worker is available only in the SASV Electron app. PWA cannot launch Edge.";
   return `
     <div class="section-card worker-foundation-card">
-      <h3>Browser worker</h3>
+      <h3>Product execution check</h3>
       <p class="muted-note">Internal verification is not portal entry and is not portal verification.</p>
-      <p class="muted-note">Login and portal navigation happen in the dedicated Edge window. Capture inspects already-open pages only.</p>
-      <div class="readiness-chip"><span>Browser worker status</span><strong id="workerBrowserStatus">${escapeHtml(workerStatusLabel(status))}</strong></div>
+      <p class="muted-note" id="workerReadinessBrowserContext">${escapeHtml(browserLine)}</p>
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnWorkerConnect" data-edit-action="true" ${
-          connectDisabled ? `data-force-disabled="true"` : ""
-        }>Connect Browser</button>
-        <button type="button" class="icon-btn with-label" id="btnWorkerStop" data-edit-action="true" ${
-          stopDisabled ? `data-force-disabled="true"` : ""
-        }>Stop Browser</button>
         <button type="button" class="icon-btn with-label" id="btnWorkerFoundation" data-edit-action="true" ${
           checkDisabled ? `data-force-disabled="true"` : ""
         }>Foundation Check</button>
-        <button type="button" class="icon-btn with-label" id="btnWorkerCapture" data-edit-action="true" ${
-          captureEnabled ? "" : `data-force-disabled="true"`
-        }>Capture Portal Contract</button>
-        <button type="button" class="icon-btn with-label" id="btnWorkerOpenCapture" data-edit-action="true" ${
-          folderDisabled ? `data-force-disabled="true"` : ""
-        }>Open Capture Folder</button>
       </div>
       <p class="muted-note" id="workerFoundationResult">${escapeHtml(workerFoundationSummary(state.workerFoundationResult))}</p>
-      <p class="muted-note" id="workerCaptureResult">${escapeHtml(workerCaptureSummary(state.workerCaptureResult))}</p>
     </div>`;
 }
 
 async function submitWorkerConnect() {
   if (!canWrite() || state.busy) return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const result = await connectWorkerBrowser();
     if (result?.state) state.workerStatus = result;
@@ -1782,27 +1777,29 @@ async function submitWorkerConnect() {
     }
   } finally {
     state.busy = false;
-    renderReadiness();
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   }
 }
 
 async function submitWorkerStop() {
   if (state.busy) return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const result = await stopWorkerBrowser();
     if (result?.state) state.workerStatus = result;
   } finally {
     state.busy = false;
-    renderReadiness();
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   }
 }
 
 async function submitWorkerFoundationCheck() {
   if (!canWrite() || state.busy || !state.selectedProductId) return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const {
       data: { session },
@@ -1819,6 +1816,7 @@ async function submitWorkerFoundationCheck() {
     showToast(userMessageForError(error), "error");
   } finally {
     state.busy = false;
+    syncWorkerToolbarUi();
     renderReadiness();
   }
 }
@@ -1835,7 +1833,7 @@ async function submitWorkerCapture() {
   const status = state.workerStatus?.state;
   if (status !== "AUTH_REQUIRED" && status !== "READY") return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const token = await sessionAccessToken();
     const result = await captureWorkerPortalContract(token);
@@ -1849,14 +1847,15 @@ async function submitWorkerCapture() {
     showToast(userMessageForError(error), "error");
   } finally {
     state.busy = false;
-    renderReadiness();
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   }
 }
 
 async function submitWorkerOpenCapture() {
   if (!canWrite() || state.busy) return;
   state.busy = true;
-  applyPermissionUi();
+  syncWorkerToolbarUi();
   try {
     const token = await sessionAccessToken();
     const result = await openWorkerCaptureFolder(token);
@@ -1867,7 +1866,8 @@ async function submitWorkerOpenCapture() {
     showToast(userMessageForError(error), "error");
   } finally {
     state.busy = false;
-    renderReadiness();
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   }
 }
 
@@ -2115,6 +2115,9 @@ async function openProduct(productId) {
   try {
     const payload = await loadProductWorkspace(productId);
     if (gen !== state.loadGen) return;
+    if (!idsEqual(state.selectedProductId, productId)) {
+      state.workerFoundationResult = null;
+    }
     state.selectedProductId = Number(productId);
     state.queueRow = findQueueRow(state.queue, productId);
     state.tab = "overview";
@@ -2129,7 +2132,7 @@ async function openProduct(productId) {
     setStatus(err.message || "Failed to load product.", "error");
   } finally {
     state.busy = false;
-    applyPermissionUi();
+    syncWorkerToolbarUi();
   }
 }
 
@@ -2179,6 +2182,7 @@ async function backToQueue() {
   await flushAllLineAutosaves();
   await flushActionsAutosave();
   state.selectedProductId = null;
+  state.workerFoundationResult = null;
   state.queueRow = null;
   state.review = null;
   state.lines = [];
@@ -2875,11 +2879,19 @@ function wireEvents() {
   });
   onWorkerStatus((status) => {
     state.workerStatus = status;
-    const el = $("workerBrowserStatus");
-    if (el) el.textContent = workerStatusLabel(status);
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
   });
   void getWorkerStatus().then((status) => {
     if (status?.state) state.workerStatus = status;
+    syncWorkerToolbarUi();
+  });
+  $("eaWorkerToolbar")?.addEventListener("click", (event) => {
+    const id = event.target?.id;
+    if (id === "btnWorkerConnect") void submitWorkerConnect();
+    if (id === "btnWorkerStop") void submitWorkerStop();
+    if (id === "btnWorkerCapture") void submitWorkerCapture();
+    if (id === "btnWorkerOpenCapture") void submitWorkerOpenCapture();
   });
   $("homeBtn")?.addEventListener("click", async () => {
     if (!confirmLeaveDirty()) return;
@@ -3299,11 +3311,7 @@ function wireEvents() {
   $("tab-readiness")?.addEventListener("click", (event) => {
     if (event.target.id === "btnPromote") submitPromote();
     if (event.target.id === "btnVerifyProduct") submitVerifyProduct();
-    if (event.target.id === "btnWorkerConnect") submitWorkerConnect();
-    if (event.target.id === "btnWorkerStop") submitWorkerStop();
     if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
-    if (event.target.id === "btnWorkerCapture") submitWorkerCapture();
-    if (event.target.id === "btnWorkerOpenCapture") submitWorkerOpenCapture();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
     if (event.target.id === "fldPromoteNotes") state.promoteNotes = event.target.value;
@@ -3477,6 +3485,7 @@ async function initPage() {
     return;
   }
   applyPermissionUi();
+  syncWorkerToolbarUi();
   setStatus("Loading product queue...");
   try {
     const [queueRows, catalogs] = await Promise.all([

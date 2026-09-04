@@ -27,7 +27,25 @@ body.sasv-eaushadhi-review .page-sub {
 
 body.sasv-eaushadhi-review .header-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--sasv-space-2);
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+body.sasv-eaushadhi-review .ea-worker-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sasv-space-2);
+  padding-right: var(--sasv-space-2);
+  margin-right: 2px;
+  border-right: 1px solid var(--sasv-border);
+}
+
+body.sasv-eaushadhi-review .ea-worker-status-chip {
+  min-width: 7.5rem;
   align-items: center;
 }
 
@@ -973,8 +991,16 @@ body.sasv-eaushadhi-review .action-vocab-item {
     padding-block: var(--sasv-module-page-padding-sm);
     padding-inline: var(--sasv-module-page-padding-sm);
   }
+  body.sasv-eaushadhi-review .page-header {
+    flex-wrap: wrap;
+  }
   body.sasv-eaushadhi-review .page-sub {
     display: none;
+  }
+  body.sasv-eaushadhi-review .ea-worker-toolbar {
+    border-right: none;
+    padding-right: 0;
+    margin-right: 0;
   }
   body.sasv-eaushadhi-review .kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -16,6 +16,7 @@ dist-eaushadhi-capture-proof2/
 dist-eaushadhi-capture-harden-proof/
 dist-eaushadhi-live-evidence-proof/
 dist-eaushadhi-placeholder-proof/
+dist-eaushadhi-toolbar-proof/
 *.exe
 *.zip
 

@@ -215,8 +215,67 @@ assert(
   "Staff Directory fallback remains",
 );
 assert(controlSrc.includes("btnWorkerFoundation"), "Readiness has Foundation Check");
-assert(controlSrc.includes("btnWorkerCapture"), "Readiness has Capture Portal Contract");
-assert(controlSrc.includes("btnWorkerOpenCapture"), "Readiness has Open Capture Folder");
+assert(controlSrc.includes("syncWorkerToolbarUi"), "worker toolbar has a canonical sync function");
+assert(htmlSrc.includes('id="eaWorkerToolbar"'), "header contains the worker toolbar");
+assert((htmlSrc.match(/id="btnWorkerConnect"/g) || []).length === 1, "exactly one Connect button");
+assert((htmlSrc.match(/id="btnWorkerStop"/g) || []).length === 1, "exactly one Stop button");
+assert((htmlSrc.match(/id="btnWorkerCapture"/g) || []).length === 1, "exactly one Capture button");
+assert((htmlSrc.match(/id="btnWorkerOpenCapture"/g) || []).length === 1, "exactly one Open Capture Folder button");
+assert((htmlSrc.match(/id="workerBrowserStatus"/g) || []).length === 1, "exactly one worker status node");
+assert((htmlSrc.match(/id="btnWorkerFoundation"/g) || []).length === 0, "Foundation Check is not in static header HTML");
+assert(htmlSrc.indexOf('id="eaWorkerToolbar"') < htmlSrc.indexOf('id="refreshBtn"'), "worker toolbar is left of Refresh");
+assert(htmlSrc.indexOf('id="refreshBtn"') < htmlSrc.indexOf('id="homeBtn"'), "Refresh remains before HOME");
+assert(htmlSrc.includes('data-edit-action="true"'), "header worker controls keep data-edit-action");
+assert(
+  /id="btnWorkerConnect"[^>]*data-edit-action="true"/.test(htmlSrc) &&
+    /id="btnWorkerStop"[^>]*data-edit-action="true"/.test(htmlSrc) &&
+    /id="btnWorkerCapture"[^>]*data-edit-action="true"/.test(htmlSrc) &&
+    /id="btnWorkerOpenCapture"[^>]*data-edit-action="true"/.test(htmlSrc),
+  "view-only permission still applies to global worker controls",
+);
+const foundationCardSrc = controlSrc.slice(
+  controlSrc.indexOf("function renderWorkerFoundationCard"),
+  controlSrc.indexOf("async function submitWorkerConnect"),
+);
+assert(foundationCardSrc.includes("btnWorkerFoundation"), "Readiness card still renders Foundation Check");
+assert(!foundationCardSrc.includes("btnWorkerConnect"), "Readiness card does not render Connect");
+assert(!foundationCardSrc.includes("btnWorkerStop"), "Readiness card does not render Stop");
+assert(!foundationCardSrc.includes("btnWorkerCapture"), "Readiness card does not render Capture");
+assert(!foundationCardSrc.includes("btnWorkerOpenCapture"), "Readiness card does not render Open Folder");
+assert(!foundationCardSrc.includes("workerBrowserStatus"), "Readiness card does not own worker status id");
+assert(!foundationCardSrc.includes("workerCaptureResult"), "Readiness card does not show capture summary");
+const readinessClickSrc = controlSrc.slice(
+  controlSrc.indexOf('$("tab-readiness")?.addEventListener("click"'),
+  controlSrc.indexOf('$("tab-readiness")?.addEventListener("input"'),
+);
+assert(readinessClickSrc.includes("btnWorkerFoundation"), "Readiness click handles Foundation Check");
+assert(!readinessClickSrc.includes("btnWorkerConnect"), "Readiness click does not handle Connect");
+assert(!readinessClickSrc.includes("btnWorkerStop"), "Readiness click does not handle Stop");
+assert(!readinessClickSrc.includes("btnWorkerCapture"), "Readiness click does not handle Capture");
+assert(!readinessClickSrc.includes("btnWorkerOpenCapture"), "Readiness click does not handle Open Folder");
+assert((controlSrc.match(/async function submitWorkerConnect/g) || []).length === 1, "one submitWorkerConnect definition");
+assert((controlSrc.match(/async function submitWorkerStop/g) || []).length === 1, "one submitWorkerStop definition");
+assert((controlSrc.match(/async function submitWorkerCapture/g) || []).length === 1, "one submitWorkerCapture definition");
+assert((controlSrc.match(/async function submitWorkerOpenCapture/g) || []).length === 1, "one submitWorkerOpenCapture definition");
+assert(controlSrc.includes('$("eaWorkerToolbar")?.addEventListener("click"'), "header worker listener is canonical");
+assert(
+  /onWorkerStatus\(\(status\) => \{[\s\S]*?syncWorkerToolbarUi\(\);/.test(controlSrc),
+  "status subscription syncs the header toolbar",
+);
+const syncSrc = controlSrc.slice(
+  controlSrc.indexOf("function syncWorkerToolbarUi"),
+  controlSrc.indexOf("function refreshReadinessIfActive"),
+);
+assert(!syncSrc.includes("selectedProductId"), "toolbar sync is independent of selected product");
+assert(controlSrc.includes('function toolbarWorkerStatusText()') && controlSrc.includes('return "Unavailable"'), "PWA toolbar status is Unavailable");
+const openSrc = controlSrc.slice(
+  controlSrc.indexOf("async function openProduct"),
+  controlSrc.indexOf("async function reloadSelected"),
+);
+assert(openSrc.includes("workerFoundationResult = null"), "Foundation result clears on product switch");
+assert(!openSrc.includes("workerStatus = null"), "worker status is not cleared on product switch");
+assert(!openSrc.includes("workerCaptureResult = null"), "capture result is not cleared on product switch");
+assert(controlSrc.includes("The dedicated e-Aushadhi browser worker is available only in the SASV Electron app"), "PWA Readiness note remains");
 assert(!/screenshot/i.test(controlSrc), "Review UI does not request screenshots");
 assert(controlSrc.includes("Internal verification is not portal entry"), "internal vs portal copy");
 assert(workerClientSrc.includes("runFoundationCheck"), "worker client exposes foundation check");
