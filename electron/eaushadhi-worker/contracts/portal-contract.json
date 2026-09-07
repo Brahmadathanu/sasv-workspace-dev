@@ -4,7 +4,7 @@
   "allowedOrigins": ["https://www.e-aushadhi.gov.in"],
   "completeness": {
     "origins": true,
-    "authProbe": false,
+    "authProbe": true,
     "productLookup": false,
     "productDetails": false,
     "pharmacologicalActions": false,
@@ -12,10 +12,46 @@
     "saveUpdate": false,
     "reread": false
   },
-  "authProbe": null,
+  "authProbe": {
+    "routeEvidence": "/admin/addproductforlegacy",
+    "logoutSelector": "#logoutForm",
+    "logoutPath": "/logout",
+    "dashboardPath": "/admin/custom_dashboard1",
+    "negativeEntryKinds": ["password_input", "otp_entry", "captcha_entry"],
+    "ignoreNavLabels": ["Change Password"],
+    "verification_status": "verified",
+    "evidence_note": "Structural probe from authenticated live capture on /admin/addproductforlegacy. READY requires a live page probe, not contract completeness alone."
+  },
   "productLookup": null,
-  "productDetails": null,
-  "pharmacologicalActions": null,
+  "productDetails": {
+    "route": "/admin/addproductforlegacy",
+    "completeness": false,
+    "fields": {
+      "type": { "selector": "#type", "status": "verified" },
+      "categoryId": { "selector": "#categoryId", "status": "verified", "dependsOn": "type" },
+      "subTypeId": { "selector": "#subTypeId", "status": "verified", "dependsOn": ["type", "category"] },
+      "permissionPurpose": { "selector": "#permissionPurpose", "status": "verified" },
+      "indications": { "selector": "select#indications", "status": "verified", "multiple": true },
+      "restrictedYes": { "selector": "#drug_yes", "status": "observed" },
+      "restrictedNo": { "selector": "#drug_no", "status": "observed" },
+      "restrictedValue": { "selector": "#drugsValue", "status": "observed" },
+      "compositionTitle": { "selector": "#compositionTitle", "status": "observed" },
+      "disease": { "selector": "#disease", "status": "observed" },
+      "month": { "selector": "#month", "status": "unresolved" },
+      "regular": { "selector": "#regular", "status": "unresolved" },
+      "applyaccess": { "selector": "#applyaccess", "status": "unresolved" },
+      "uploadAttachment": { "selector": "#uploadAttachment", "status": "unresolved" },
+      "applicantFile": { "selector": "#applicantFile", "status": "unresolved" }
+    }
+  },
+  "pharmacologicalActions": {
+    "route": "/admin/addproductforlegacy",
+    "selector": "select#indications",
+    "name": "indications",
+    "multiple": true,
+    "completeness": false,
+    "evidence_note": "Native multi-select captured. Fill and reread are not proven."
+  },
   "composition": null,
   "saveUpdate": null,
   "reread": null

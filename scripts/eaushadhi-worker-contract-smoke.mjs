@@ -31,18 +31,33 @@ try {
 } catch (error) {
   incomplete = error;
 }
-assert(incomplete?.kind === "CONTRACT_INCOMPLETE", "missing productDetails is CONTRACT_INCOMPLETE");
+assert(incomplete?.kind === "CONTRACT_INCOMPLETE", "populated productDetails remains CONTRACT_INCOMPLETE");
 
-let authIncomplete = null;
+const authProbe = requireContract("authProbe", contract);
+assert(authProbe.logoutSelector === "#logoutForm", "authProbe contract is complete");
+
+let lookupIncomplete = null;
 try {
-  requireContract("authProbe", contract);
+  requireContract("productLookup", contract);
 } catch (error) {
-  authIncomplete = error;
+  lookupIncomplete = error;
 }
-assert(authIncomplete?.kind === "CONTRACT_INCOMPLETE", "missing authProbe is CONTRACT_INCOMPLETE");
+assert(lookupIncomplete?.kind === "CONTRACT_INCOMPLETE", "productLookup remains CONTRACT_INCOMPLETE");
+
+let pharmIncomplete = null;
+try {
+  requireContract("pharmacologicalActions", contract);
+} catch (error) {
+  pharmIncomplete = error;
+}
+assert(pharmIncomplete?.kind === "CONTRACT_INCOMPLETE", "pharmacologicalActions remains CONTRACT_INCOMPLETE");
 
 const completeness = getContractCompleteness(contract);
 assert(completeness.origins === true, "origin contract is known");
+assert(completeness.authProbe === true, "authProbe completeness is true");
+assert(completeness.productLookup === false, "productLookup remains incomplete");
+assert(completeness.productDetails === false, "productDetails completeness is false");
+assert(completeness.pharmacologicalActions === false, "pharmacologicalActions completeness is false");
 assert(completeness.saveUpdate === false, "saveUpdate remains incomplete");
 assert(completeness.reread === false, "reread remains incomplete");
 
