@@ -70,8 +70,27 @@ assert(vocab.sanitized_capture_id && vocab.source_route === "/admin/addproductfo
 
 assert(schemaSql.includes("parent_domain_code"), "schema adds parent_domain_code");
 assert(schemaSql.includes("parent_external_id"), "schema adds parent_external_id");
+assert(schemaSql.includes("not null default ''"), "parent columns default ''");
+assert(schemaSql.includes("drop index if exists regulatory.portal_option_external_id_uidx;"), "drops external_id uniqueness only");
+assert(schemaSql.includes("drop index if exists regulatory.portal_option_label_uidx;"), "drops label uniqueness only");
+assert(!schemaSql.includes("pg_index"), "no generic unique-index loop");
+assert(!/for rec in/i.test(schemaSql), "no rec loop over indexes");
+assert(!schemaSql.includes("drop index if exists regulatory.portal_option_id_portal_key"), "does not drop id_portal key");
+assert(!schemaSql.includes("drop index if exists regulatory.portal_option_pkey"), "does not drop pkey");
+assert(!schemaSql.includes("drop index if exists regulatory.portal_option_snapshot_idx"), "does not drop snapshot idx");
+assert(!schemaSql.includes("drop index if exists regulatory.portal_option_active_domain_idx"), "does not drop active domain idx");
 assert(schemaSql.includes("portal_option_scoped_external_uidx"), "scoped external uniqueness");
 assert(schemaSql.includes("portal_option_scoped_label_uidx"), "scoped label uniqueness");
+assert(
+  schemaSql.indexOf("drop index if exists regulatory.portal_option_external_id_uidx") <
+    schemaSql.indexOf("portal_option_scoped_external_uidx"),
+  "old uniqueness is dropped before scoped replacements",
+);
+assert(
+  schemaSql.indexOf("add column if not exists parent_domain_code") <
+    schemaSql.indexOf("drop index if exists regulatory.portal_option_external_id_uidx"),
+  "parent columns exist before uniqueness is replaced",
+);
 
 assert(dataSql.includes("INGREDIENT_TYPE"), "data migration asserts composition domains");
 assert(dataSql.includes("expected 109"), "composition 109 assertion present");

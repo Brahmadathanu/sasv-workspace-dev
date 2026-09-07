@@ -6,24 +6,8 @@ alter table regulatory.portal_option
   add column if not exists parent_domain_code text not null default '',
   add column if not exists parent_external_id text not null default '';
 
-do $$
-declare
-  rec record;
-begin
-  for rec in
-    select i.relname as idx
-    from pg_index x
-    join pg_class i on i.oid = x.indexrelid
-    join pg_class t on t.oid = x.indrelid
-    join pg_namespace n on n.oid = t.relnamespace
-    where n.nspname = 'regulatory'
-      and t.relname = 'portal_option'
-      and x.indisunique
-      and not x.indisprimary
-  loop
-    execute format('drop index if exists regulatory.%I', rec.idx);
-  end loop;
-end $$;
+drop index if exists regulatory.portal_option_external_id_uidx;
+drop index if exists regulatory.portal_option_label_uidx;
 
 create unique index if not exists portal_option_scoped_external_uidx
   on regulatory.portal_option (

@@ -85,7 +85,71 @@ assert(changeOnly.signals.credentialEntries.length === 0, "Change Password is no
 assert(probeHtml(captchaOnly).authenticated === false, "CAPTCHA entry fails auth");
 assert(probeHtml(otpOnly).authenticated === false, "OTP entry fails auth");
 
+const placeholderCaptcha = probeHtml(`<!DOCTYPE html><html><body>
+  <form id="logoutForm" action="/logout"></form>
+  <input id="x" type="text" placeholder="Enter Captcha" />
+</body></html>`);
+assert(
+  placeholderCaptcha.signals.credentialEntries.some((row) => row.kind === "captcha_entry"),
+  "placeholder Enter Captcha is captcha_entry",
+);
+
+const ariaOtp = probeHtml(`<!DOCTYPE html><html><body>
+  <form id="logoutForm" action="/logout"></form>
+  <input id="x" type="text" aria-label="OTP" />
+</body></html>`);
+assert(
+  ariaOtp.signals.credentialEntries.some((row) => row.kind === "otp_entry"),
+  "aria-label OTP is otp_entry",
+);
+
+const labelledCaptcha = probeHtml(`<!DOCTYPE html><html><body>
+  <form id="logoutForm" action="/logout"></form>
+  <label for="x">Enter CAPTCHA</label>
+  <input id="x" type="text" />
+</body></html>`);
+assert(
+  labelledCaptcha.signals.credentialEntries.some((row) => row.kind === "captcha_entry"),
+  "associated label Enter CAPTCHA is captcha_entry",
+);
+
+const trailingSlash = probeHtml(`<!DOCTYPE html><html><body>
+  <form id="logoutForm" action="/logout/"></form>
+</body></html>`);
+assert(trailingSlash.authenticated === true, "/logout/ normalizes to contract logoutPath");
+
+function probeHtmlWithSpec(html, customSpec) {
+  const prevDoc = global.document;
+  const prevLoc = global.location;
+  global.document = parseHtml(html);
+  global.location = { href: "https://www.e-aushadhi.gov.in/" };
+  try {
+    return evaluateAuthProbe(collectAuthProbeSignals(customSpec), customSpec);
+  } finally {
+    global.document = prevDoc;
+    global.location = prevLoc;
+  }
+}
+const contractLogout = probeHtmlWithSpec(
+  `<!DOCTYPE html><html><body><form id="logoutForm" action="/logout"></form></body></html>`,
+  spec,
+);
+assert(contractLogout.authenticated === true, "spec.logoutPath=/logout authenticates /logout");
+const differentSpec = { ...spec, logoutPath: "/different-logout" };
+const wrongPath = probeHtmlWithSpec(
+  `<!DOCTYPE html><html><body><form id="logoutForm" action="/logout"></form></body></html>`,
+  differentSpec,
+);
+assert(wrongPath.authenticated === false, "/logout does not authenticate when contract wants /different-logout");
+const matchingAlt = probeHtmlWithSpec(
+  `<!DOCTYPE html><html><body><form id="logoutForm" action="/different-logout"></form></body></html>`,
+  differentSpec,
+);
+assert(matchingAlt.authenticated === true, "spec.logoutPath=/different-logout requires that path");
+
 const authSrc = readFileSync(join(root, "electron/eaushadhi-worker/auth-probe.js"), "utf8");
+assert(!authSrc.includes('path === "/logout"') && !authSrc.includes("path === '/logout'"), "logout path is not hardcoded");
+assert(authSrc.includes("logoutPath"), "probe reads contract logoutPath");
 const indexSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
 assert(!/\.click\s*\(/.test(authSrc), "auth probe does not click");
 assert(!/\.fill\s*\(/.test(authSrc), "auth probe does not fill");

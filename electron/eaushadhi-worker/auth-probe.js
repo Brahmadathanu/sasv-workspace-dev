@@ -18,8 +18,51 @@ function normalizePath(href, baseHref) {
   }
 }
 
-function isLogoutPath(path) {
-  return path === "/logout";
+function expectedLogoutPath(spec) {
+  const raw = spec && spec.logoutPath ? spec.logoutPath : "/logout";
+  return normalizePath(raw, "https://www.e-aushadhi.gov.in/");
+}
+
+function associatedLabelText(field, doc) {
+  const parts = [];
+  const id = String(field?.id || "").trim();
+  if (id && doc && typeof doc.querySelectorAll === "function") {
+    const labels = doc.querySelectorAll("label") || [];
+    for (const label of labels) {
+      if (String(label.getAttribute("for") || "") === id) {
+        parts.push(String(label.textContent || ""));
+      }
+    }
+  }
+  let current = field && field.parent;
+  while (current) {
+    const tag = String(current.tagName || "").toLowerCase();
+    if (tag === "label") {
+      parts.push(String(current.textContent || ""));
+      break;
+    }
+    current = current.parent;
+  }
+  return parts.join(" ");
+}
+
+function classifyCredentialEntry(field, doc) {
+  const tag = String(field?.tagName || "").toLowerCase();
+  if (tag !== "input" && tag !== "textarea") return null;
+  const type = String(field.getAttribute("type") || field.type || "").toLowerCase();
+  const id = String(field.id || "");
+  const name = String(field.getAttribute("name") || field.name || "");
+  const autocomplete = String(field.getAttribute("autocomplete") || "").toLowerCase();
+  const placeholder = String(field.getAttribute("placeholder") || "");
+  const ariaLabel = String(field.getAttribute("aria-label") || "");
+  const labelText = associatedLabelText(field, doc);
+  const hay = `${id} ${name} ${type} ${autocomplete} ${placeholder} ${ariaLabel} ${labelText}`.toLowerCase();
+  if (type === "password") return "password_input";
+  if (/\b(otp|one[-\s]?time|totp)\b/.test(hay) || autocomplete === "one-time-code") {
+    return "otp_entry";
+  }
+  if (/\bcaptcha\b/.test(hay)) return "captcha_entry";
+  return null;
 }
 
 function collectAuthProbeSignals(spec) {
@@ -27,6 +70,7 @@ function collectAuthProbeSignals(spec) {
   const loc = globalThis.location;
   const baseHref = loc && loc.href ? loc.href : "https://www.e-aushadhi.gov.in/";
   const logoutSelector = (spec && spec.logoutSelector) || "#logoutForm";
+  const wantedLogoutPath = expectedLogoutPath(spec);
   const logoutEl = doc ? doc.querySelector(logoutSelector) : null;
   const hrefCandidates = [];
   if (logoutEl) {
@@ -42,32 +86,20 @@ function collectAuthProbeSignals(spec) {
   const logoutPaths = hrefCandidates
     .map((value) => normalizePath(value, baseHref))
     .filter(Boolean);
-  const logoutPathMatch = logoutPaths.some(isLogoutPath);
+  const logoutPathMatch = logoutPaths.some((path) => path === wantedLogoutPath);
 
   const credentialEntries = [];
   const fields = doc ? doc.querySelectorAll("input, textarea") : [];
   for (const field of fields) {
-    const tag = String(field.tagName || "").toLowerCase();
-    if (tag !== "input" && tag !== "textarea") continue;
-    const type = String(field.getAttribute("type") || field.type || "").toLowerCase();
-    const id = String(field.id || "");
-    const name = String(field.getAttribute("name") || field.name || "");
-    const autocomplete = String(field.getAttribute("autocomplete") || "").toLowerCase();
-    const hay = `${id} ${name} ${type} ${autocomplete}`.toLowerCase();
-    let kind = null;
-    if (type === "password") kind = "password_input";
-    else if (/\b(otp|one[-\s]?time|totp)\b/.test(hay) || autocomplete === "one-time-code") {
-      kind = "otp_entry";
-    } else if (/\bcaptcha\b/.test(hay)) kind = "captcha_entry";
-    if (kind) {
-      credentialEntries.push({
-        kind,
-        tag,
-        id: id || null,
-        name: name || null,
-        type: type || null,
-      });
-    }
+    const kind = classifyCredentialEntry(field, doc);
+    if (!kind) continue;
+    credentialEntries.push({
+      kind,
+      tag: String(field.tagName || "").toLowerCase(),
+      id: field.id || null,
+      name: field.getAttribute("name") || field.name || null,
+      type: String(field.getAttribute("type") || field.type || "") || null,
+    });
   }
 
   const dashboardSelector = spec && spec.dashboardPath ? spec.dashboardPath : "/admin/custom_dashboard1";
@@ -82,6 +114,7 @@ function collectAuthProbeSignals(spec) {
   return {
     logoutPresent: Boolean(logoutEl),
     logoutPathMatch,
+    expectedLogoutPath: wantedLogoutPath,
     credentialEntries,
     dashboardPresent,
   };
@@ -128,4 +161,5 @@ module.exports = {
   evaluateAuthProbe,
   probeAuthenticatedSession,
   normalizePath,
+  expectedLogoutPath,
 };
