@@ -83,6 +83,7 @@ assert(workerIndexSrc.includes("causeMessageSanitized"), "unpacked connect prese
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js")), "auth-probe is unpacked");
 const authProbeSrc = readFileSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js"), "utf8");
 assert(authProbeSrc.includes("collectAuthProbeSignals"), "unpacked auth-probe collects structural signals");
+assert(authProbeSrc.includes("function normalizePathLocal"), "unpacked collectAuthProbeSignals is serialization-safe");
 assert(authProbeSrc.includes("password"), "unpacked auth-probe fail-closes on password input");
 const authSignalsLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/auth-signals.js");
 assert(existsSync(authSignalsLoose), "auth-signals is unpacked");
