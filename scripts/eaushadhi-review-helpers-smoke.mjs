@@ -29,6 +29,7 @@ import {
   effectiveOptionId,
   evidenceFileExtension,
   evidenceFileNameMatchesExpected,
+  evidenceFileTypeMatchesExtension,
   filterCompositionLines,
   filterQueueRows,
   formatIssueDetails,
@@ -769,6 +770,17 @@ assert(evidenceFileExtension({ name: "label.png" }) === "png", "png extension is
 assert(evidenceFileExtension({ name: "label.JPG" }) === "jpg", "jpg extension is lowercased");
 assert(evidenceFileExtension({ name: "label" }) === "", "missing suffix is unsupported");
 assert(evidenceFileExtension({ name: "label.gif" }) === "", "unsupported suffix is rejected");
+assert(evidenceFileTypeMatchesExtension({ name: "label.pdf", type: "application/pdf" }) === true, "pdf MIME matches pdf suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.png", type: "image/png" }) === true, "png MIME matches png suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.jpg", type: "image/jpeg" }) === true, "jpeg MIME matches jpg suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.jpeg", type: "image/jpeg" }) === true, "jpeg MIME matches jpeg suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.jpg", type: "application/pdf" }) === false, "pdf MIME does not match jpg suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.png", type: "image/jpeg" }) === false, "jpeg MIME does not match png suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.jpg", type: "image/png" }) === false, "png MIME does not match jpg suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.jpeg", type: "image/png" }) === false, "png MIME does not match jpeg suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.pdf", type: "image/jpeg" }) === false, "jpeg MIME does not match pdf suffix");
+assert(evidenceFileTypeMatchesExtension({ name: "label.pdf", type: "" }) === false, "missing MIME is incoherent");
+assert(evidenceFileTypeMatchesExtension({ name: "label", type: "application/pdf" }) === false, "missing extension is incoherent");
 assert(evidenceFileNameMatchesExpected(expectedPdf, expectedPdf) === true, "exact filename match is accepted");
 assert(evidenceFileNameMatchesExpected(expectedPdf.toUpperCase(), expectedPdf) === false, "case mismatch is rejected");
 assert(
@@ -808,6 +820,20 @@ assert(
     contract: matchContract,
   }) === false,
   "MIME validation still blocks governed upload",
+);
+assert(
+  governedCopyUploadReady({
+    file: {
+      name: expectedPdf.replace(".pdf", ".png"),
+      type: "image/jpeg",
+      size: 1024,
+    },
+    contract: {
+      expected_file_name: expectedPdf.replace(".pdf", ".png"),
+      expected_storage_path: "approved-product-copy/262/EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.png",
+    },
+  }) === false,
+  "MIME/extension mismatch cannot upload even with expected filename",
 );
 
 assert(

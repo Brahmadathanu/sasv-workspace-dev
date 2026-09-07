@@ -45,9 +45,11 @@ import {
   EVIDENCE_CONTRACT_UNAVAILABLE,
   EVIDENCE_EXTENSION_REQUIRED_COPY,
   EVIDENCE_FILENAME_RENAME_COPY,
+  EVIDENCE_MIME_EXTENSION_MISMATCH_COPY,
   entryStatusChipClass,
   evidenceFileExtension,
   evidenceFileNameMatchesExpected,
+  evidenceFileTypeMatchesExtension,
   filterCompositionLines,
   findQueueRow,
   filterQueueRows,
@@ -3050,7 +3052,7 @@ async function syncCopyContractAfterWorkspace() {
   const file = state.copyPick?.file;
   if (file) {
     const ext = evidenceFileExtension(file);
-    if (!ext) return;
+    if (!ext || !evidenceFileTypeMatchesExtension(file)) return;
     await ensureCopyContract(ext);
     return;
   }
@@ -3069,6 +3071,11 @@ async function pickCopyFile(file) {
   const ext = evidenceFileExtension(file);
   if (!ext) {
     state.copyPick = { file, error: EVIDENCE_EXTENSION_REQUIRED_COPY };
+    renderEvidence();
+    return;
+  }
+  if (!evidenceFileTypeMatchesExtension(file)) {
+    state.copyPick = { file, error: EVIDENCE_MIME_EXTENSION_MISMATCH_COPY };
     renderEvidence();
     return;
   }
@@ -3104,13 +3111,20 @@ async function uploadSelectedCopy() {
     renderEvidence();
     return;
   }
+  if (!evidenceFileTypeMatchesExtension(file)) {
+    state.copyPick = { file, error: EVIDENCE_MIME_EXTENSION_MISMATCH_COPY };
+    renderEvidence();
+    return;
+  }
   const contract = await ensureCopyContract(ext);
   if (!governedCopyUploadReady({ file, contract })) {
-    const error = !contract?.expected_storage_path
-      ? state.copyContractError || EVIDENCE_CONTRACT_UNAVAILABLE
-      : evidenceFileNameMatchesExpected(file.name, contract.expected_file_name)
+    const error = !evidenceFileTypeMatchesExtension(file)
+      ? EVIDENCE_MIME_EXTENSION_MISMATCH_COPY
+      : !contract?.expected_storage_path
         ? state.copyContractError || EVIDENCE_CONTRACT_UNAVAILABLE
-        : EVIDENCE_FILENAME_RENAME_COPY;
+        : evidenceFileNameMatchesExpected(file.name, contract.expected_file_name)
+          ? state.copyContractError || EVIDENCE_CONTRACT_UNAVAILABLE
+          : EVIDENCE_FILENAME_RENAME_COPY;
     state.copyPick = { file, error };
     renderEvidence();
     return;

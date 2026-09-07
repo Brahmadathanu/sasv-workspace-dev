@@ -53,6 +53,8 @@ export const EVIDENCE_CONTRACT_UNAVAILABLE =
   "Document filename contract is unavailable.";
 export const EVIDENCE_EXTENSION_REQUIRED_COPY =
   "File name must end with .pdf, .jpg, .jpeg, or .png.";
+export const EVIDENCE_MIME_EXTENSION_MISMATCH_COPY =
+  "The file type does not match its filename extension.";
 
 export const REVIEW_LENSES = Object.freeze([
   { id: "all", label: "All" },
@@ -580,10 +582,21 @@ export function evidenceFileNameMatchesExpected(actual, expected) {
   return typeof actual === "string" && typeof expected === "string" && actual === expected;
 }
 
+export function evidenceFileTypeMatchesExtension(file) {
+  const mime = safeText(file?.type).toLowerCase();
+  const ext = evidenceFileExtension(file);
+  if (!mime || !ext) return false;
+  if (mime === "application/pdf") return ext === "pdf";
+  if (mime === "image/png") return ext === "png";
+  if (mime === "image/jpeg") return ext === "jpg" || ext === "jpeg";
+  return false;
+}
+
 export function governedCopyUploadReady({ file, contract } = {}) {
   if (!file || !contract) return false;
   if (!validateEvidenceFile(file).ok) return false;
   if (!evidenceFileExtension(file)) return false;
+  if (!evidenceFileTypeMatchesExtension(file)) return false;
   if (!contract.expected_file_name || !contract.expected_storage_path) return false;
   return evidenceFileNameMatchesExpected(file.name, contract.expected_file_name);
 }
