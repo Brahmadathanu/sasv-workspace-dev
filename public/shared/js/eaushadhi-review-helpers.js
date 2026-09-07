@@ -49,6 +49,11 @@ export const CANONICAL_PROMOTE_NOTES =
   "Promoted after complete e-Aushadhi Product Details and Composition review.";
 export const CANONICAL_VERIFY_NOTES =
   "Internally verified after completion of Product Details, Pharmacological Action, Composition, Approved Formulation and Approved Product Copy review.";
+export const FIRST_CONTROLLED_PRODUCT_ID = 262;
+
+export function isFirstControlledEntryProduct(productId) {
+  return Number(productId) === FIRST_CONTROLLED_PRODUCT_ID;
+}
 export const EVIDENCE_FILENAME_RENAME_COPY =
   "Rename the file exactly as shown above before upload.";
 export const EVIDENCE_CONTRACT_UNAVAILABLE =

@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
+  runEntryDryRun: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:entry-dry-run", {
+      productId,
+      accessToken,
+    }),
   capturePortalContract: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
   openCaptureFolder: (accessToken) =>

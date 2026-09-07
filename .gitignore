@@ -20,6 +20,7 @@ dist-eaushadhi-toolbar-proof/
 dist-eaushadhi-header-erp-proof/
 dist-eaushadhi-live-contract-proof/
 dist-eaushadhi-evidence-filename-proof/
+dist-eaushadhi-first-entry-capture-proof/
 *.exe
 *.zip
 

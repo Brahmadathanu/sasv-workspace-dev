@@ -74,6 +74,7 @@ assert(captureSrc.includes("indications"), "unpacked capture recognizes indicati
 assert(captureSrc.includes("PLACEHOLDER_SENTINELS"), "unpacked capture uses sentinel placeholder values");
 assert(captureSrc.includes('"-1"'), "unpacked capture recognizes -1 placeholder sentinels");
 
+assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/dry-run.js")), "dry-run module is unpacked");
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js")), "auth-probe is unpacked");
 const authProbeSrc = readFileSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js"), "utf8");
 assert(authProbeSrc.includes("collectAuthProbeSignals"), "unpacked auth-probe collects structural signals");

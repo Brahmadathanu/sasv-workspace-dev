@@ -21,6 +21,8 @@ import {
   autosaveStateLabel,
   CANONICAL_PROMOTE_NOTES,
   CANONICAL_VERIFY_NOTES,
+  FIRST_CONTROLLED_PRODUCT_ID,
+  isFirstControlledEntryProduct,
   canPromoteFormulation,
   canVerifyProductWorkflow,
   canCorrectWorkingSourceLine,
@@ -143,6 +145,7 @@ import {
   onWorkerStatus,
   openWorkerCaptureFolder,
   runWorkerFoundationCheck,
+  runWorkerEntryDryRun,
   stopWorkerBrowser,
   workerApiAvailable,
 } from "./eaushadhi-review-worker-client.js";
@@ -204,6 +207,7 @@ const state = {
   verifyNotesOrigin: "unset",
   workerStatus: null,
   workerFoundationResult: null,
+  workerDryRunResult: null,
   workerCaptureResult: null,
   loadGen: 0,
   busy: false,
@@ -1888,6 +1892,52 @@ function renderWorkerFoundationCard() {
     </div>`;
 }
 
+function workerDryRunSummary(result) {
+  if (!result) return "No entry-readiness dry-run has been run for Karpooradi.";
+  const phases = Array.isArray(result.phases)
+    ? result.phases.map((item) => `${item.id}: ${item.status}`).join("; ")
+    : "";
+  return [
+    `Result: ${result.errorKind || "OK"}`,
+    `Worker: ${result.workerState || "n/a"}`,
+    `Content hash: ${result.contentHash || "n/a"}`,
+    `Payload hash: ${result.payloadHash || "n/a"}`,
+    result.stoppedPhase ? `Stopped at: ${result.stoppedPhase}` : "",
+    result.message || "",
+    phases,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function renderEntryDryRunCard() {
+  if (!isFirstControlledEntryProduct(state.selectedProductId)) return "";
+  const available = workerApiAvailable();
+  const busy = state.busy;
+  const workerState = state.workerStatus?.state || "IDLE";
+  const readyChip = state.queueRow?.is_ready_for_entry === true ? "READY" : "Not ready";
+  const checkDisabled = !available || busy;
+  const completeness = state.workerDryRunResult?.contractCompleteness;
+  const contractLine = completeness
+    ? `Lookup ${completeness.productLookup ? "complete" : "incomplete"}; Details ${
+        completeness.productDetails ? "complete" : "incomplete"
+      }; Composition ${completeness.composition ? "complete" : "incomplete"}`
+    : "Contract readiness: incomplete until capture proves deterministic execution.";
+  return `
+    <div class="section-card worker-entry-dryrun-card">
+      <h3>First controlled entry readiness</h3>
+      <p class="muted-note">Product ${FIRST_CONTROLLED_PRODUCT_ID} only. This check does not enter the portal, Save, or Submit.</p>
+      <p class="muted-note">Internal ${escapeHtml(readyChip)}. Worker ${escapeHtml(workerStatusLabel(state.workerStatus))} (${escapeHtml(workerState)}).</p>
+      <p class="muted-note">${escapeHtml(contractLine)}</p>
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label" id="btnWorkerEntryDryRun" data-edit-action="true" ${
+          checkDisabled ? `data-force-disabled="true"` : ""
+        }>Check Entry Readiness</button>
+      </div>
+      <p class="muted-note" id="workerDryRunResult">${escapeHtml(workerDryRunSummary(state.workerDryRunResult))}</p>
+    </div>`;
+}
+
 async function submitWorkerConnect() {
   if (!canWrite() || state.busy) return;
   state.busy = true;
@@ -1934,6 +1984,28 @@ async function submitWorkerFoundationCheck() {
       showToast(result.message || "Foundation check stopped as designed.", "info");
     } else if (result?.ok === false) {
       showToast(result.message || "Foundation check failed", "error");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
+async function submitWorkerEntryDryRun() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await runWorkerEntryDryRun(state.selectedProductId, token);
+    state.workerDryRunResult = result;
+    if (result?.errorKind === "CONTRACT_INCOMPLETE") {
+      showToast(result.message || "Entry dry-run stopped as designed.", "info");
+    } else if (result?.ok === false) {
+      showToast(result.message || "Entry dry-run failed", "error");
     }
   } catch (error) {
     showToast(userMessageForError(error), "error");
@@ -2072,7 +2144,8 @@ function renderReadiness() {
       <p class="muted-note">These actions prepare internal records only. They do not enter or submit the Government portal.</p>
       <p class="muted-note">Portal entry statuses (${escapeHtml(normalizeEntryStatus(row.entry_status))}) are display-only in this module.</p>
     </div>
-    ${renderWorkerFoundationCard()}`;
+    ${renderWorkerFoundationCard()}
+    ${renderEntryDryRunCard()}`;
   applyPermissionUi();
 }
 
@@ -2226,6 +2299,7 @@ async function openProduct(productId) {
     if (gen !== state.loadGen) return;
     if (!idsEqual(state.selectedProductId, productId)) {
       state.workerFoundationResult = null;
+      state.workerDryRunResult = null;
     }
     state.selectedProductId = Number(productId);
     state.queueRow = findQueueRow(state.queue, productId);
@@ -2302,6 +2376,7 @@ async function backToQueue() {
   await flushActionsAutosave();
   state.selectedProductId = null;
   state.workerFoundationResult = null;
+  state.workerDryRunResult = null;
   state.promoteNotes = "";
   state.promoteNotesOrigin = "unset";
   state.verifyNotes = "";
@@ -3670,6 +3745,7 @@ function wireEvents() {
     if (event.target.id === "btnPromote") submitPromote();
     if (event.target.id === "btnVerifyProduct") submitVerifyProduct();
     if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
+    if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
     if (event.target.id === "fldPromoteNotes") {

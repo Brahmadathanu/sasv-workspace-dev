@@ -66,6 +66,7 @@ function getContractCompleteness(contract = loadPortalContract()) {
     productDetails: completeness.productDetails === true,
     pharmacologicalActions: completeness.pharmacologicalActions === true,
     composition: completeness.composition === true,
+    evidence: completeness.evidence === true,
     saveUpdate: completeness.saveUpdate === true,
     reread: completeness.reread === true,
   };

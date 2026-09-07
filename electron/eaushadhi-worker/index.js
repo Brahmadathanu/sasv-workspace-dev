@@ -13,6 +13,7 @@ const { launchDedicatedEdge, dedicatedProfileDir } = require("./browser");
 const { attachContextOriginGuard, assertAllowedUrl } = require("./origin-guard");
 const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
+const { runEntryDryRun } = require("./dry-run");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const { captureOpenPages } = require("./capture");
 const { capturesRoot, isPathInsideRoot } = require("./capture/persist");
@@ -292,6 +293,52 @@ function createEaushadhiWorker({
     }
   }
 
+  async function runControlledEntryDryRun(rawProductId, rawAccessToken) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const previous = machine.get();
+    if (previous === STATES.STOPPING) {
+      throw workerError(ERROR_KINDS.CANCELLED, "Browser worker is stopping.");
+    }
+    const runId = randomUUID();
+    lastErrorKind = null;
+    lastErrorMessage = null;
+    phase = "entry-dry-run";
+    emit();
+    try {
+      const result = await runEntryDryRun({
+        productId: id,
+        workerState: previous,
+        callRpc: (name, args) => rpcCall(accessToken, name, args),
+      });
+      result.runId = runId;
+      lastErrorKind = result.errorKind;
+      lastErrorMessage = result.message;
+      log({
+        runId,
+        productId: id,
+        phase: "entry-dry-run",
+        errorKind: result.errorKind,
+        error: result.message,
+      });
+      emit();
+      return result;
+    } catch (error) {
+      const wrapped =
+        error instanceof WorkerError ? error : classifyServerError(error);
+      setError(wrapped);
+      log({
+        runId,
+        productId: id,
+        phase,
+        errorKind: wrapped.kind,
+        error: wrapped.message,
+      });
+      emit();
+      throw wrapped;
+    }
+  }
+
   async function requireViewPermission(accessToken) {
     try {
       await rpcCall(accessToken, "rpc_eaushadhi_require_permission", { p_edit: false });
@@ -431,6 +478,7 @@ function createEaushadhiWorker({
     connect,
     stop,
     runFoundationCheck,
+    runControlledEntryDryRun,
     capturePortalContract,
     openLastCaptureFolder,
   };
