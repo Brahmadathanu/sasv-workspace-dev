@@ -33,8 +33,19 @@ const MUTATING_RPC_NAMES = Object.freeze([
   "rpc_eaushadhi_worker_mark_portal_verified",
 ]);
 
+const PHASE_STATUS = Object.freeze({
+  PASS: "pass",
+  STOP: "stop",
+  NOT_RUN: "not_run",
+});
+
 function phaseRecord(id, status, detail) {
   return { id, status, detail: detail || "" };
+}
+
+function firstStoppedPhase(phases) {
+  const list = Array.isArray(phases) ? phases : [];
+  return list.find((item) => item.status === PHASE_STATUS.STOP)?.id || null;
 }
 
 function buildStoppedResult({
@@ -46,6 +57,7 @@ function buildStoppedResult({
   preflight,
   content,
   rpcsInvoked,
+  contractCompleteness,
 }) {
   return {
     ok: false,
@@ -58,13 +70,13 @@ function buildStoppedResult({
     workflowRowVersion: content?.workflow_row_version || preflight?.workflow_row_version || null,
     payloadHash: content?.payload_hash || null,
     contentHash: content?.content_hash || null,
-    contractCompleteness: getContractCompleteness(),
+    contractCompleteness,
     mutated: false,
     entryStatusChanged: false,
     rpcsInvoked: rpcsInvoked || [],
     errorKind,
     message,
-    stoppedPhase: [...phases].reverse().find((item) => item.status === "stop")?.id || null,
+    stoppedPhase: firstStoppedPhase(phases),
   };
 }
 
@@ -76,6 +88,7 @@ async function runEntryDryRun({
 } = {}) {
   const rpcsInvoked = [];
   const phases = [];
+  const contractCompleteness = getContractCompleteness(contract);
   const wrappedCall = async (name, args) => {
     if (MUTATING_RPC_NAMES.includes(name)) {
       throw workerError(
@@ -92,7 +105,7 @@ async function runEntryDryRun({
     phases.push(
       phaseRecord(
         "Preflight",
-        "stop",
+        PHASE_STATUS.STOP,
         `Dry-run is locked to product_id ${FIRST_CONTROLLED_PRODUCT_ID}.`,
       ),
     );
@@ -103,12 +116,17 @@ async function runEntryDryRun({
       message: `First controlled entry dry-run accepts only product_id ${FIRST_CONTROLLED_PRODUCT_ID}.`,
       phases,
       rpcsInvoked,
+      contractCompleteness,
     });
   }
 
   if (workerState !== "READY") {
     phases.push(
-      phaseRecord("Preflight", "stop", `Worker status is ${workerState || "unknown"}, not READY.`),
+      phaseRecord(
+        "Preflight",
+        PHASE_STATUS.STOP,
+        `Worker status is ${workerState || "unknown"}, not READY.`,
+      ),
     );
     return buildStoppedResult({
       productId,
@@ -117,6 +135,7 @@ async function runEntryDryRun({
       message: "Check Entry Readiness requires a READY dedicated browser session.",
       phases,
       rpcsInvoked,
+      contractCompleteness,
     });
   }
 
@@ -131,7 +150,7 @@ async function runEntryDryRun({
     phases.push(
       phaseRecord(
         "Preflight",
-        "stop",
+        PHASE_STATUS.STOP,
         (preflight?.reasons || []).join("; ") || "Product is not eligible.",
       ),
     );
@@ -149,16 +168,17 @@ async function runEntryDryRun({
         workflowRowVersion: preflight?.workflow_row_version || null,
       },
       rpcsInvoked,
+      contractCompleteness,
     });
   }
-  phases.push(phaseRecord("Preflight", "pass", "Preflight eligible."));
+  phases.push(phaseRecord("Preflight", PHASE_STATUS.PASS, "Preflight eligible."));
 
   const content = await wrappedCall("rpc_eaushadhi_worker_content_get", {
     p_product_id: productId,
     p_expected_workflow_row_version: preflight.workflow_row_version,
   });
   if (!content?.content_hash) {
-    phases.push(phaseRecord("Content Snapshot", "stop", "content_hash is missing."));
+    phases.push(phaseRecord("Content Snapshot", PHASE_STATUS.STOP, "content_hash is missing."));
     return buildStoppedResult({
       productId,
       workerState,
@@ -174,50 +194,74 @@ async function runEntryDryRun({
       },
       content,
       rpcsInvoked,
+      contractCompleteness,
     });
   }
   phases.push(
     phaseRecord(
       "Content Snapshot",
-      "pass",
+      PHASE_STATUS.PASS,
       `workflow_row_version ${content.workflow_row_version || preflight.workflow_row_version}; content_hash recorded.`,
     ),
   );
 
-  const completeness = getContractCompleteness(contract);
   const firstGap = REQUIRED_CONTRACT_SECTIONS.find(
-    ({ section }) => completeness[section] !== true,
+    ({ section }) => contractCompleteness[section] !== true,
   );
   phases.push(
     phaseRecord(
       "Contract Readiness",
-      firstGap ? "stop" : "pass",
+      PHASE_STATUS.PASS,
       firstGap
-        ? `Required portal contract remains incomplete (${firstGap.section}).`
+        ? `Required portal contract remains incomplete. First execution gate: ${firstGap.phase}.`
         : "Required portal contract sections are complete.",
     ),
   );
 
+  let blocked = false;
   for (const item of REQUIRED_CONTRACT_SECTIONS) {
-    const ready = completeness[item.section] === true;
+    if (blocked) {
+      phases.push(
+        phaseRecord(
+          item.phase,
+          PHASE_STATUS.NOT_RUN,
+          `Not evaluated; blocked by ${firstGap.phase}.`,
+        ),
+      );
+      continue;
+    }
+    const ready = contractCompleteness[item.section] === true;
+    if (ready) {
+      phases.push(phaseRecord(item.phase, PHASE_STATUS.PASS, `${item.section} is complete.`));
+      continue;
+    }
     phases.push(
       phaseRecord(
         item.phase,
-        ready ? "pass" : "stop",
-        ready
-          ? `${item.section} is complete.`
-          : `${item.section} is not proven for deterministic execution.`,
+        PHASE_STATUS.STOP,
+        `${item.section} is not proven for deterministic execution.`,
+      ),
+    );
+    blocked = true;
+  }
+
+  if (blocked) {
+    phases.push(
+      phaseRecord(
+        "Comparator Readiness",
+        PHASE_STATUS.NOT_RUN,
+        `Not evaluated; blocked by ${firstGap.phase}.`,
+      ),
+    );
+  } else {
+    phases.push(
+      phaseRecord(
+        "Comparator Readiness",
+        PHASE_STATUS.STOP,
+        "Retained-state reread is not wired; comparator scaffolding is offline-only.",
       ),
     );
   }
-
-  phases.push(
-    phaseRecord(
-      "Comparator Readiness",
-      "stop",
-      "Retained-state reread is not wired; comparator scaffolding is offline-only.",
-    ),
-  );
 
   const preflightView = {
     eligible: true,
@@ -237,6 +281,7 @@ async function runEntryDryRun({
     preflight: preflightView,
     content,
     rpcsInvoked,
+    contractCompleteness,
   });
 }
 
@@ -244,5 +289,6 @@ module.exports = {
   DRY_RUN_PHASES,
   REQUIRED_CONTRACT_SECTIONS,
   MUTATING_RPC_NAMES,
+  PHASE_STATUS,
   runEntryDryRun,
 };

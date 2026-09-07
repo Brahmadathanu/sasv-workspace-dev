@@ -160,6 +160,142 @@ assert(
   MUTATING_RPC_NAMES.every((name) => !invoked.includes(name)),
   "mutating lifecycle RPCs are not invoked",
 );
+assert(dry.stoppedPhase === "Lookup Contract", "default contract first stop is Lookup Contract");
+assert(dry.entryStatusChanged === false, "dry-run does not change entry status");
+assert(
+  JSON.stringify(dry.rpcsInvoked) ===
+    JSON.stringify(["rpc_eaushadhi_worker_preflight", "rpc_eaushadhi_worker_content_get"]),
+  "invoked RPCs are only preflight and content_get",
+);
+assert(
+  dry.phases.filter((item) => item.status === "stop").length === 1,
+  "default dry-run has exactly one execution stop",
+);
+assert(
+  dry.phases.slice(dry.phases.findIndex((item) => item.status === "stop") + 1).every(
+    (item) => item.status === "not_run",
+  ),
+  "downstream phases after first blocker are not_run",
+);
+assert(
+  JSON.stringify(dry.contractCompleteness) === JSON.stringify(completeness),
+  "default dry-run reports the evaluated default contract completeness",
+);
+
+function eligibleCallRpc() {
+  return async (name, args) => {
+    if (name === "rpc_eaushadhi_worker_preflight") return eligiblePreflight;
+    if (name === "rpc_eaushadhi_worker_content_get") {
+      assert(args.p_expected_workflow_row_version === 5, "content_get uses workflow row version");
+      return content;
+    }
+    throw new Error(`unexpected rpc ${name}`);
+  };
+}
+
+function contractWithFlags(flags) {
+  const base = loadPortalContract();
+  return {
+    ...base,
+    completeness: {
+      ...base.completeness,
+      ...flags,
+    },
+  };
+}
+
+async function dryWithFlags(flags) {
+  const contract = contractWithFlags(flags);
+  return {
+    contract,
+    result: await runEntryDryRun({
+      productId: 262,
+      workerState: "READY",
+      contract,
+      callRpc: eligibleCallRpc(),
+    }),
+  };
+}
+
+function assertSingleStop(result, expectedPhase) {
+  assert(result.stoppedPhase === expectedPhase, `stoppedPhase is ${expectedPhase}`);
+  const stops = result.phases.filter((item) => item.status === "stop");
+  assert(stops.length === 1, `${expectedPhase}: exactly one stop`);
+  assert(stops[0].id === expectedPhase, `${expectedPhase}: stop record matches first blocker`);
+  const stopIndex = result.phases.findIndex((item) => item.status === "stop");
+  assert(
+    result.phases.slice(stopIndex + 1).every((item) => item.status === "not_run"),
+    `${expectedPhase}: later phases are not_run`,
+  );
+  assert(result.mutated === false, `${expectedPhase}: mutated remains false`);
+}
+
+{
+  const { result } = await dryWithFlags({
+    productLookup: false,
+    productDetails: false,
+    composition: false,
+    evidence: false,
+    saveUpdate: false,
+    reread: false,
+  });
+  assertSingleStop(result, "Lookup Contract");
+}
+
+{
+  const { result } = await dryWithFlags({
+    productLookup: true,
+    productDetails: false,
+    composition: false,
+    evidence: false,
+    saveUpdate: false,
+    reread: false,
+  });
+  assertSingleStop(result, "Product Details Contract");
+}
+
+{
+  const { result } = await dryWithFlags({
+    productLookup: true,
+    productDetails: true,
+    composition: false,
+    evidence: false,
+    saveUpdate: false,
+    reread: false,
+  });
+  assertSingleStop(result, "Composition Contract");
+}
+
+{
+  const { result } = await dryWithFlags({
+    productLookup: true,
+    productDetails: true,
+    composition: true,
+    evidence: true,
+    saveUpdate: true,
+    reread: true,
+  });
+  assertSingleStop(result, "Comparator Readiness");
+}
+
+{
+  const flags = {
+    productLookup: true,
+    productDetails: false,
+    composition: false,
+    evidence: false,
+    saveUpdate: false,
+    reread: false,
+  };
+  const { contract, result } = await dryWithFlags(flags);
+  const expected = getContractCompleteness(contract);
+  assert(
+    JSON.stringify(result.contractCompleteness) === JSON.stringify(expected),
+    "injected contract completeness is reported exactly",
+  );
+  assert(result.contractCompleteness.productLookup === true, "injected lookup completeness is true");
+  assert(result.contractCompleteness.productDetails === false, "injected details completeness is false");
+}
 
 const other = await runEntryDryRun({
   productId: 41,
