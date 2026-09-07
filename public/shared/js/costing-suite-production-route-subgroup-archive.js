@@ -38,6 +38,14 @@ import {
   resolvePrmRouteFamilyMasterIdentity,
   validatePrmProductSubgroupMappingApprovalReference,
   validatePrmSubgroupMappingCreateSelection,
+  appendPrmRowsDeduped,
+  buildPrmInfiniteScrollFooterHtml,
+  setupPrmRegisterProgressiveScroll,
+  teardownPrmRegisterProgressiveScroll,
+  maybePrmRegisterAutoLoadChain,
+  prmRegisterHasMore,
+  commitPrmRegisterTotalCount,
+  reconcilePrmRegisterTotalAfterAppend,
 } from "./costing-suite-production-route-helpers.js";
 import {
   buildApproveProductSubgroupMappingArgs,
@@ -129,41 +137,115 @@ export function createPrmSubgroupArchiveController(deps = {}) {
     ]);
   }
 
-  async function loadSubgroupMappings({ resetOffset = false, search } = {}) {
+  function wireSubgroupRegisterScroll(wrap, { lensId, hasMore, isLoading, loadMore }) {
+    teardownPrmRegisterProgressiveScroll(wrap);
+    setupPrmRegisterProgressiveScroll(wrap, {
+      lensId,
+      getActiveLens: () => state.activeLens,
+      hasMore,
+      isLoading,
+      loadMore,
+    });
+    void maybePrmRegisterAutoLoadChain(wrap, {
+      lensId,
+      getActiveLens: () => state.activeLens,
+      hasMore,
+      isLoading,
+      loadMore,
+    });
+  }
+
+  async function loadSubgroupMappings({
+    resetOffset = false,
+    search,
+    append = false,
+  } = {}) {
     if (!canView()) {
       state.permissionDenied = true;
       state.subgroupMappingRows = [];
       state.subgroupMappingTotalCount = 0;
       return { ok: false, permissionDenied: true };
     }
-    const current = ++state.subgroupMappingGeneration;
-    state.subgroupMappingLoading = true;
-    state.permissionDenied = false;
-    state.subgroupMappingLoadError = null;
-    if (resetOffset) {
+    if (append) {
+      if (
+        state.subgroupMappingLoading ||
+        state.subgroupMappingLoadingMore ||
+        !prmRegisterHasMore({
+          loadedCount: (state.subgroupMappingRows || []).length,
+          totalCount: state.subgroupMappingTotalCount,
+          lastBatchSize: state.prmLastBatchSize,
+          pageLimit: state.limit,
+        })
+      ) {
+        return { ok: true, skipped: true };
+      }
+      state.subgroupMappingLoadingMore = true;
+      state.subgroupMappingLoadMoreError = null;
+    } else {
+      const current = ++state.subgroupMappingGeneration;
+      state.subgroupMappingLoading = true;
+      state.permissionDenied = false;
+      state.subgroupMappingLoadError = null;
+      state.subgroupMappingLoadMoreError = null;
+      state.subgroupMappingLoadingMore = false;
+      if (resetOffset) {
+        state.page = 1;
+        state.offset = 0;
+        state.subgroupMappingRows = [];
+      }
+      if (search != null) state.search = String(search || "").trim();
+      void current;
+    }
+    const requestGen = state.subgroupMappingGeneration;
+    const filterSnapshot = {
+      search: state.search || "",
+      subgroup_mapping_status: state.subgroup_mapping_status || "",
+      route_family_id: state.route_family_id || "",
+      product_group_id: state.product_group_id || "",
+      product_subgroup_id: state.product_subgroup_id || "",
+    };
+    await ensureMasterOptions();
+    const limit = Math.max(1, Number(state.limit) || 25);
+    state.limit = limit;
+    const offset = append ? (state.subgroupMappingRows || []).length : 0;
+    if (!append && resetOffset) {
       state.page = 1;
       state.offset = 0;
     }
-    if (search != null) state.search = String(search || "").trim();
-    await ensureMasterOptions();
     const response = await invoke(
       RPC.subgroupMappings,
       buildSubgroupMappingsRpcArgs({
-        status: state.subgroup_mapping_status || null,
-        search: state.search || null,
-        route_family_id: state.route_family_id || null,
-        product_group_id: state.product_group_id || null,
-        product_subgroup_id: state.product_subgroup_id || null,
-        limit: state.limit,
-        offset: state.offset,
+        status: filterSnapshot.subgroup_mapping_status || null,
+        search: filterSnapshot.search || null,
+        route_family_id: filterSnapshot.route_family_id || null,
+        product_group_id: filterSnapshot.product_group_id || null,
+        product_subgroup_id: filterSnapshot.product_subgroup_id || null,
+        limit,
+        offset,
       }),
       "Unable to load Product Subgroup mappings.",
     );
-    if (current !== state.subgroupMappingGeneration) {
+    if (requestGen !== state.subgroupMappingGeneration) {
       return { ok: false, stale: true };
     }
-    state.subgroupMappingLoading = false;
+    if (
+      filterSnapshot.search !== (state.search || "") ||
+      filterSnapshot.subgroup_mapping_status !==
+        (state.subgroup_mapping_status || "") ||
+      filterSnapshot.route_family_id !== (state.route_family_id || "") ||
+      filterSnapshot.product_group_id !== (state.product_group_id || "") ||
+      filterSnapshot.product_subgroup_id !== (state.product_subgroup_id || "")
+    ) {
+      return { ok: false, stale: true };
+    }
+    if (append) state.subgroupMappingLoadingMore = false;
+    else state.subgroupMappingLoading = false;
     if (!response.ok) {
+      if (append) {
+        state.subgroupMappingLoadMoreError =
+          response.error?.message || "Unable to load more mappings.";
+        return { ok: false, error: response.error, append: true };
+      }
       state.subgroupMappingRows = [];
       state.subgroupMappingTotalCount = 0;
       state.subgroupMappingLoadError =
@@ -171,24 +253,62 @@ export function createPrmSubgroupArchiveController(deps = {}) {
       return response;
     }
     const normalized = normalizePrmSubgroupMappingsPayload(response.data);
-    state.subgroupMappingRows = normalized.rows;
-    state.subgroupMappingTotalCount = normalized.total_count;
+    const incoming = normalized.rows;
+    const loadedBefore = append ? (state.subgroupMappingRows || []).length : 0;
+    state.subgroupMappingRows = append
+      ? appendPrmRowsDeduped(state.subgroupMappingRows, incoming, (row) =>
+          normalizePrmIntegerId(row?.mapping_id),
+        )
+      : incoming;
+    state.prmLastBatchSize = incoming.length;
+    state.subgroupMappingTotalCount = commitPrmRegisterTotalCount({
+      previousTotal: state.subgroupMappingTotalCount,
+      incomingTotal: normalized.total_count,
+      append,
+      loadedCount: state.subgroupMappingRows.length,
+    });
+    state.subgroupMappingTotalCount = reconcilePrmRegisterTotalAfterAppend({
+      totalCount: state.subgroupMappingTotalCount,
+      loadedBefore,
+      loadedAfter: state.subgroupMappingRows.length,
+      incomingCount: incoming.length,
+      append,
+    });
     state.subgroup_mapping_status_counts = normalized.status_counts || {};
     const page = clampPrmPagination({
       total: state.subgroupMappingTotalCount,
-      offset: state.offset,
-      limit: state.limit,
+      offset,
+      limit,
       page: state.page,
     });
     state.page = page.page;
     state.offset = page.offset;
-    return { ok: true, data: normalized };
+    return { ok: true, data: normalized, append };
+  }
+
+  async function loadMoreSubgroupMappings() {
+    const result = await loadSubgroupMappings({ append: true });
+    if (
+      result?.ok &&
+      !result.skipped &&
+      state.activeLens === "product-subgroup-mappings"
+    ) {
+      renderSubgroupMappings({ preserveScroll: true });
+    } else if (
+      result &&
+      !result.ok &&
+      result.append &&
+      state.activeLens === "product-subgroup-mappings"
+    ) {
+      renderSubgroupMappings({ preserveScroll: true });
+    }
+    return result;
   }
 
   async function refreshSubgroupMappingsAfterMutation({
     refreshFailureMessage = "Mapping updated, but the register could not be refreshed.",
   } = {}) {
-    const result = await loadSubgroupMappings({ resetOffset: false });
+    const result = await loadSubgroupMappings({ resetOffset: true });
     if (state.activeLens === "product-subgroup-mappings") {
       if (typeof onRegisterRefreshed === "function") {
         onRegisterRefreshed();
@@ -381,14 +501,16 @@ export function createPrmSubgroupArchiveController(deps = {}) {
     });
   }
 
-  function renderSubgroupMappings() {
+  function renderSubgroupMappings({ preserveScroll = false } = {}) {
     const host = hosts();
+    const priorScroll = preserveScroll ? host.tableWrap?.scrollTop : null;
     host.tableWrap?.classList.remove("hidden");
     const table = document.getElementById("mainTable");
     if (table) {
       table.style.display = "";
       table.setAttribute("data-prm-subgroup-mappings-table", "");
     }
+    teardownPrmRegisterProgressiveScroll(host.tableWrap);
     const colCount = 6;
     host.tableHead.innerHTML = `<tr>
       <th>Product Subgroup</th>
@@ -425,19 +547,20 @@ export function createPrmSubgroupArchiveController(deps = {}) {
       host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="status cp-prm-empty-state">${escapeHtml(PRM_EMPTY_STATES.subgroupMappings)}</div></td></tr>`;
       return;
     }
-    host.tableBody.innerHTML = rows
-      .map((row, index) => {
-        const familyIdentity = resolvePrmRouteFamilyMasterIdentity(
-          (state.routeFamilies || []).find(
-            (item) =>
-              normalizePrmIntegerId(item.route_family_id ?? item.id) ===
-              row.route_family_id,
-          ) || row,
-        );
-        const subgroupName =
-          row.product_subgroup_name ||
-          `Product Subgroup ${row.product_subgroup_id || ""}`;
-        return `<tr class="cp-prm-row cp-prm-subgroup-mapping-row" tabindex="0" role="button" data-prm-subgroup-mapping-row="${index}" data-prm-subgroup-mapping-id="${text(row.mapping_id)}" title="Open mapping ${text(row.mapping_id, "")}" aria-label="Open Product Subgroup mapping ${text(subgroupName)}">
+    host.tableBody.innerHTML =
+      rows
+        .map((row, index) => {
+          const familyIdentity = resolvePrmRouteFamilyMasterIdentity(
+            (state.routeFamilies || []).find(
+              (item) =>
+                normalizePrmIntegerId(item.route_family_id ?? item.id) ===
+                row.route_family_id,
+            ) || row,
+          );
+          const subgroupName =
+            row.product_subgroup_name ||
+            `Product Subgroup ${row.product_subgroup_id || ""}`;
+          return `<tr class="cp-prm-row cp-prm-subgroup-mapping-row" tabindex="0" role="button" data-prm-subgroup-mapping-row="${index}" data-prm-subgroup-mapping-id="${text(row.mapping_id)}" title="Open mapping ${text(row.mapping_id, "")}" aria-label="Open Product Subgroup mapping ${text(subgroupName)}">
           <td><div class="cp-cell-primary">${text(subgroupName)}</div></td>
           <td>${text(row.product_group_name)}</td>
           <td title="${text(familyIdentity.title || `Route family ${row.route_family_id || ""}`, "")}"><div class="cp-cell-primary">${text(familyIdentity.primaryLabel)}</div></td>
@@ -445,8 +568,20 @@ export function createPrmSubgroupArchiveController(deps = {}) {
           <td>${text(row.effective_from)}</td>
           <td>${text(row.mapping_basis)}</td>
         </tr>`;
-      })
-      .join("");
+        })
+        .join("") +
+      buildPrmInfiniteScrollFooterHtml({
+        colCount,
+        loadingMore: state.subgroupMappingLoadingMore,
+        loadMoreError: state.subgroupMappingLoadMoreError,
+        hasMore: prmRegisterHasMore({
+          loadedCount: rows.length,
+          totalCount: state.subgroupMappingTotalCount,
+          lastBatchSize: state.prmLastBatchSize,
+          pageLimit: state.limit,
+        }),
+        entityLabel: "mappings",
+      });
     const openRow = (target) => {
       const tr = target.closest("[data-prm-subgroup-mapping-row]");
       if (!tr) return;
@@ -465,6 +600,22 @@ export function createPrmSubgroupArchiveController(deps = {}) {
       if (!tr) return;
       event.preventDefault();
       openRow(tr);
+    });
+    if (priorScroll != null && host.tableWrap) {
+      host.tableWrap.scrollTop = priorScroll;
+    }
+    wireSubgroupRegisterScroll(host.tableWrap, {
+      lensId: "product-subgroup-mappings",
+      hasMore: () =>
+        prmRegisterHasMore({
+          loadedCount: (state.subgroupMappingRows || []).length,
+          totalCount: state.subgroupMappingTotalCount,
+          lastBatchSize: state.prmLastBatchSize,
+          pageLimit: state.limit,
+        }),
+      isLoading: () =>
+        state.subgroupMappingLoading || state.subgroupMappingLoadingMore,
+      loadMore: loadMoreSubgroupMappings,
     });
   }
 
@@ -1247,36 +1398,85 @@ export function createPrmSubgroupArchiveController(deps = {}) {
     );
   }
 
-  async function loadArchivedRoutes({ resetOffset = false, search } = {}) {
+  async function loadArchivedRoutes({
+    resetOffset = false,
+    search,
+    append = false,
+  } = {}) {
     if (!canView()) {
       state.permissionDenied = true;
       state.archivedRouteRows = [];
       state.archivedRouteTotalCount = 0;
       return { ok: false, permissionDenied: true };
     }
-    const current = ++state.archivedRouteGeneration;
-    state.archivedRouteLoading = true;
-    state.archivedRouteLoadError = null;
-    if (resetOffset) {
+    if (append) {
+      if (
+        state.archivedRouteLoading ||
+        state.archivedRouteLoadingMore ||
+        !prmRegisterHasMore({
+          loadedCount: (state.archivedRouteRows || []).length,
+          totalCount: state.archivedRouteTotalCount,
+          lastBatchSize: state.prmLastBatchSize,
+          pageLimit: state.limit,
+        })
+      ) {
+        return { ok: true, skipped: true };
+      }
+      state.archivedRouteLoadingMore = true;
+      state.archivedRouteLoadMoreError = null;
+    } else {
+      const current = ++state.archivedRouteGeneration;
+      state.archivedRouteLoading = true;
+      state.archivedRouteLoadError = null;
+      state.archivedRouteLoadMoreError = null;
+      state.archivedRouteLoadingMore = false;
+      if (resetOffset) {
+        state.page = 1;
+        state.offset = 0;
+        state.archivedRouteRows = [];
+      }
+      if (search != null) state.search = String(search || "").trim();
+      void current;
+    }
+    const requestGen = state.archivedRouteGeneration;
+    const filterSnapshot = {
+      search: state.search || "",
+      archived_entity_type: state.archived_entity_type || "",
+    };
+    const limit = Math.max(1, Number(state.limit) || 25);
+    state.limit = limit;
+    const offset = append ? (state.archivedRouteRows || []).length : 0;
+    if (!append && resetOffset) {
       state.page = 1;
       state.offset = 0;
     }
-    if (search != null) state.search = String(search || "").trim();
     const response = await invoke(
       RPC.archivedRoutes,
       buildArchivedRoutesRpcArgs({
-        search: state.search || null,
-        entity_type: state.archived_entity_type || null,
-        limit: state.limit,
-        offset: state.offset,
+        search: filterSnapshot.search || null,
+        entity_type: filterSnapshot.archived_entity_type || null,
+        limit,
+        offset,
       }),
       "Unable to load archived route architecture.",
     );
-    if (current !== state.archivedRouteGeneration) {
+    if (requestGen !== state.archivedRouteGeneration) {
       return { ok: false, stale: true };
     }
-    state.archivedRouteLoading = false;
+    if (
+      filterSnapshot.search !== (state.search || "") ||
+      filterSnapshot.archived_entity_type !== (state.archived_entity_type || "")
+    ) {
+      return { ok: false, stale: true };
+    }
+    if (append) state.archivedRouteLoadingMore = false;
+    else state.archivedRouteLoading = false;
     if (!response.ok) {
+      if (append) {
+        state.archivedRouteLoadMoreError =
+          response.error?.message || "Unable to load more archived records.";
+        return { ok: false, error: response.error, append: true };
+      }
       state.archivedRouteRows = [];
       state.archivedRouteTotalCount = 0;
       state.archivedRouteLoadError =
@@ -1284,17 +1484,57 @@ export function createPrmSubgroupArchiveController(deps = {}) {
       return response;
     }
     const normalized = normalizePrmArchivedRoutesPayload(response.data);
-    state.archivedRouteRows = normalized.rows;
-    state.archivedRouteTotalCount = normalized.total_count;
+    const incoming = normalized.rows;
+    const loadedBefore = append ? (state.archivedRouteRows || []).length : 0;
+    state.archivedRouteRows = append
+      ? appendPrmRowsDeduped(state.archivedRouteRows, incoming, (row) => {
+          const type = normalizePrmCode(row?.entity_type).toUpperCase();
+          const id = normalizePrmIntegerId(row?.entity_id);
+          return id == null ? null : `${type}:${id}`;
+        })
+      : incoming;
+    state.prmLastBatchSize = incoming.length;
+    state.archivedRouteTotalCount = commitPrmRegisterTotalCount({
+      previousTotal: state.archivedRouteTotalCount,
+      incomingTotal: normalized.total_count,
+      append,
+      loadedCount: state.archivedRouteRows.length,
+    });
+    state.archivedRouteTotalCount = reconcilePrmRegisterTotalAfterAppend({
+      totalCount: state.archivedRouteTotalCount,
+      loadedBefore,
+      loadedAfter: state.archivedRouteRows.length,
+      incomingCount: incoming.length,
+      append,
+    });
     const page = clampPrmPagination({
       total: state.archivedRouteTotalCount,
-      offset: state.offset,
-      limit: state.limit,
+      offset,
+      limit,
       page: state.page,
     });
     state.page = page.page;
     state.offset = page.offset;
-    return { ok: true, data: normalized };
+    return { ok: true, data: normalized, append };
+  }
+
+  async function loadMoreArchivedRoutes() {
+    const result = await loadArchivedRoutes({ append: true });
+    if (
+      result?.ok &&
+      !result.skipped &&
+      state.activeLens === "archived-routes"
+    ) {
+      renderArchivedRoutes({ preserveScroll: true });
+    } else if (
+      result &&
+      !result.ok &&
+      result.append &&
+      state.activeLens === "archived-routes"
+    ) {
+      renderArchivedRoutes({ preserveScroll: true });
+    }
+    return result;
   }
 
   function buildArchivedMetadataDetailHtml(row) {
@@ -1407,11 +1647,13 @@ export function createPrmSubgroupArchiveController(deps = {}) {
     });
   }
 
-  function renderArchivedRoutes() {
+  function renderArchivedRoutes({ preserveScroll = false } = {}) {
     const host = hosts();
+    const priorScroll = preserveScroll ? host.tableWrap?.scrollTop : null;
     host.tableWrap?.classList.remove("hidden");
     const table = document.getElementById("mainTable");
     if (table) table.style.display = "";
+    teardownPrmRegisterProgressiveScroll(host.tableWrap);
     const colCount = 8;
     host.tableHead.innerHTML = `<tr>
       <th>Type</th>
@@ -1459,14 +1701,15 @@ export function createPrmSubgroupArchiveController(deps = {}) {
       host.tableBody.innerHTML = `<tr><td colspan="${colCount}"><div class="status cp-prm-empty-state">${escapeHtml(PRM_EMPTY_STATES.archivedRoutes)}</div></td></tr>`;
       return;
     }
-    host.tableBody.innerHTML = rows
-      .map((row, index) => {
-        const original =
-          formatPrmRouteStatusLabel(row.original_status) ||
-          formatPrmAssignmentStatusLabel(row.original_status) ||
-          row.original_status ||
-          "—";
-        return `<tr class="cp-prm-row" data-prm-archived-index="${index}" tabindex="0">
+    host.tableBody.innerHTML =
+      rows
+        .map((row, index) => {
+          const original =
+            formatPrmRouteStatusLabel(row.original_status) ||
+            formatPrmAssignmentStatusLabel(row.original_status) ||
+            row.original_status ||
+            "—";
+          return `<tr class="cp-prm-row" data-prm-archived-index="${index}" tabindex="0">
           <td><div class="cp-cell-primary">${text(formatPrmArchivedEntityTypeLabel(row.entity_type))}</div><span class="cp-prm-badge">Archived</span></td>
           <td><div class="cp-cell-primary">${text(row.name || row.code)}</div></td>
           <td>${text(row.parent_name || row.route_family_name)}</td>
@@ -1476,8 +1719,20 @@ export function createPrmSubgroupArchiveController(deps = {}) {
           <td>${text(row.archived_at)}</td>
           <td>${text(row.archive_reason)}</td>
         </tr>`;
-      })
-      .join("");
+        })
+        .join("") +
+      buildPrmInfiniteScrollFooterHtml({
+        colCount,
+        loadingMore: state.archivedRouteLoadingMore,
+        loadMoreError: state.archivedRouteLoadMoreError,
+        hasMore: prmRegisterHasMore({
+          loadedCount: rows.length,
+          totalCount: state.archivedRouteTotalCount,
+          lastBatchSize: state.prmLastBatchSize,
+          pageLimit: state.limit,
+        }),
+        entityLabel: "records",
+      });
     on(host.tableBody, "click", (event) => {
       const tr = event.target.closest("[data-prm-archived-index]");
       if (!tr) return;
@@ -1485,14 +1740,32 @@ export function createPrmSubgroupArchiveController(deps = {}) {
       const row = rows[index];
       if (row) void openArchivedDetail(row);
     });
+    if (priorScroll != null && host.tableWrap) {
+      host.tableWrap.scrollTop = priorScroll;
+    }
+    wireSubgroupRegisterScroll(host.tableWrap, {
+      lensId: "archived-routes",
+      hasMore: () =>
+        prmRegisterHasMore({
+          loadedCount: (state.archivedRouteRows || []).length,
+          totalCount: state.archivedRouteTotalCount,
+          lastBatchSize: state.prmLastBatchSize,
+          pageLimit: state.limit,
+        }),
+      isLoading: () =>
+        state.archivedRouteLoading || state.archivedRouteLoadingMore,
+      loadMore: loadMoreArchivedRoutes,
+    });
   }
 
   return {
     loadSubgroupMappings,
+    loadMoreSubgroupMappings,
     renderSubgroupMappings,
     openSubgroupMappingDetailModal,
     openCreateSubgroupMappingModal,
     loadArchivedRoutes,
+    loadMoreArchivedRoutes,
     renderArchivedRoutes,
     openArchivedDetail,
   };

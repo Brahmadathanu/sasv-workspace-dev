@@ -101,30 +101,49 @@ const family10 = [
     sequence_no: 10,
     activity_name: "RM dispensation",
     allows_skip_with_approval: false,
+    route_step_scope: "BOUNDARY_RM_ISSUE",
   },
   {
     family_route_step_id: 51,
     sequence_no: 20,
     activity_name: "Pulverization",
     allows_skip_with_approval: true,
+    route_step_scope: "PRODUCTION_PROCESS",
   },
   {
     family_route_step_id: 52,
     sequence_no: 30,
     activity_name: "Sieving",
     allows_skip_with_approval: true,
+    route_step_scope: "PRODUCTION_PROCESS",
   },
   {
     family_route_step_id: 53,
     sequence_no: 40,
     activity_name: "Finished Goods Quality Assessment",
     allows_skip_with_approval: false,
+    route_step_scope: "QC_OTHER_POOL",
   },
   {
     family_route_step_id: 54,
     sequence_no: 50,
     activity_name: "Transfer to FG store",
     allows_skip_with_approval: false,
+    route_step_scope: "BOUNDARY_FG_TRANSFER",
+  },
+  {
+    family_route_step_id: 55,
+    sequence_no: 25,
+    activity_name: "Post-cooling blending",
+    allows_skip_with_approval: false,
+    route_step_scope: "PRODUCTION_PROCESS",
+  },
+  {
+    family_route_step_id: 56,
+    sequence_no: 45,
+    activity_name: "Stores other pool step",
+    allows_skip_with_approval: false,
+    route_step_scope: "STORES_OTHER_POOL",
   },
 ];
 const catalogues = {
@@ -208,10 +227,10 @@ const locatedFormHtml = buildProductDeltaFormHtml({
   familySteps: family10,
 });
 const bypassEligible = selectPrmBypassEligibleFamilySteps(family10);
-const flipped = selectPrmBypassEligibleFamilySteps(
+const skipFlagIgnored = selectPrmBypassEligibleFamilySteps(
   family10.map((step) => ({
     ...step,
-    allows_skip_with_approval: step.family_route_step_id === 50,
+    allows_skip_with_approval: false,
   })),
 );
 const canonicalRow = normalizePrmProductRouteOverride({
@@ -261,7 +280,7 @@ const addInvalid = validatePrmProductDeltaForm(
   { operation_type: "ADD_STEP", base_step_id: null, override_reason: "" },
   { familySteps: family10 },
 );
-const bypassInvalid = validatePrmProductDeltaForm(
+const bypassInvalidRm = validatePrmProductDeltaForm(
   {
     operation_type: "BYPASS_STEP",
     base_step_id: 50,
@@ -269,7 +288,23 @@ const bypassInvalid = validatePrmProductDeltaForm(
   },
   { familySteps: family10 },
 );
-const bypassValid = validatePrmProductDeltaForm(
+const bypassInvalidFg = validatePrmProductDeltaForm(
+  {
+    operation_type: "BYPASS_STEP",
+    base_step_id: 54,
+    override_reason: "Cannot bypass FG transfer",
+  },
+  { familySteps: family10 },
+);
+const bypassUnknownStep = validatePrmProductDeltaForm(
+  {
+    operation_type: "BYPASS_STEP",
+    base_step_id: 999,
+    override_reason: "Unknown Family step is not bypassable",
+  },
+  { familySteps: family10 },
+);
+const bypassValidSkipTrue = validatePrmProductDeltaForm(
   {
     operation_type: "BYPASS_STEP",
     base_step_id: 51,
@@ -277,6 +312,35 @@ const bypassValid = validatePrmProductDeltaForm(
   },
   { familySteps: family10 },
 );
+const bypassValidSkipFalse = validatePrmProductDeltaForm(
+  {
+    operation_type: "BYPASS_STEP",
+    base_step_id: 55,
+    override_reason: "Post-cooling blending is not on this Product route",
+  },
+  { familySteps: family10 },
+);
+const bypassValidQcPool = validatePrmProductDeltaForm(
+  {
+    operation_type: "BYPASS_STEP",
+    base_step_id: 53,
+    override_reason: "QC other-pool step is not on this Product route",
+  },
+  { familySteps: family10 },
+);
+const bypassValidStoresPool = validatePrmProductDeltaForm(
+  {
+    operation_type: "BYPASS_STEP",
+    base_step_id: 56,
+    override_reason: "Stores other-pool step is not on this Product route",
+  },
+  { familySteps: family10 },
+);
+const liveBypass = buildOverrideJson({
+  operation_type: "BYPASS_STEP",
+  base_step_id: 55,
+  override_reason: "Post-cooling blending is not on this Product route",
+});
 const nonAddMissingBase = validatePrmProductDeltaForm(
   {
     operation_type: "ALTER_CYCLE",
@@ -394,20 +458,65 @@ const bypassBaseSelect =
 assert(
   bypassBaseSelect.includes('value="51"') &&
     bypassBaseSelect.includes('value="52"') &&
+    bypassBaseSelect.includes('value="55"') &&
     !bypassBaseSelect.includes('value="50"') &&
+    !bypassBaseSelect.includes('value="54"') &&
     !bypassBaseSelect.includes('value="20"') &&
     formatPrmDeltaBaseStepLabel(family10[1]) === "Seq 20 — Pulverization" &&
     resolvePrmFamilyStepId(family10[1]) === 51,
   "14 base step stores real step id",
 );
+const bypassEligibleIds = bypassEligible
+  .map((s) => s.family_route_step_id)
+  .join(",");
+const skipIgnoredIds = skipFlagIgnored
+  .map((s) => s.family_route_step_id)
+  .join(",");
 assert(
-  bypassEligible.map((s) => s.family_route_step_id).join(",") === "51,52" &&
-    flipped.map((s) => s.family_route_step_id).join(",") === "50" &&
+  bypassEligibleIds === "51,52,53,55,56" &&
+    skipIgnoredIds === bypassEligibleIds &&
+    bypassBaseSelect.includes('value="51"') &&
+    bypassBaseSelect.includes('value="52"') &&
+    bypassBaseSelect.includes('value="53"') &&
+    bypassBaseSelect.includes('value="55"') &&
+    bypassBaseSelect.includes('value="56"') &&
+    !bypassBaseSelect.includes('value="50"') &&
+    !bypassBaseSelect.includes('value="54"') &&
+    bypassValidSkipTrue.ok === true &&
+    bypassValidSkipFalse.ok === true &&
+    bypassValidQcPool.ok === true &&
+    bypassValidStoresPool.ok === true &&
+    bypassInvalidRm.ok === false &&
+    bypassInvalidFg.ok === false &&
+    bypassUnknownStep.ok === false &&
+    bypassInvalidRm.errors.some((msg) => /RM issue and FG transfer/i.test(msg)) &&
+    bypassInvalidFg.errors.some((msg) => /RM issue and FG transfer/i.test(msg)) &&
+    bypassUnknownStep.errors.some((msg) =>
+      /not available for Product-route bypass/i.test(msg),
+    ) &&
+    liveBypass.operation_type === "BYPASS_STEP" &&
+    liveBypass.base_step_id === 55 &&
+    liveBypass.override_reason ===
+      "Post-cooling blending is not on this Product route" &&
+    /if \(operation === "BYPASS_STEP"\) \{\s*return \{\s*operation_type: operation,\s*base_step_id,\s*override_reason,\s*\};/.test(
+      formSrc,
+    ) &&
+    bypassFormHtml.includes(
+      "Bypass excludes an inherited Family step from this Product's approved standard route",
+    ) &&
+    !bypassFormHtml.includes(
+      "Only Family steps that allow skip-with-approval can be bypassed.",
+    ) &&
+    !formSrc.includes("does not permit approved bypass") &&
+    !/allows_skip_with_approval/.test(
+      helpersSrc.match(
+        /export function selectPrmBypassEligibleFamilySteps[\s\S]*?\n\}/,
+      )?.[0] || "allows_skip_with_approval",
+    ) &&
+    formSrc.includes("selectPrmBypassEligibleFamilySteps") &&
     !formSrc.includes("51, 52") &&
-    !formSrc.includes("family_route_step_id === 51") &&
-    bypassInvalid.ok === false &&
-    bypassValid.ok === true,
-  "15 bypass options honor skip-with-approval",
+    !formSrc.includes("family_route_step_id === 51"),
+  "15 Product BYPASS excludes RM/FG boundaries, not skip-with-approval",
 );
 assert(
   addFormHtml.includes("<select id=\"prmProductDeltaActivity\"") &&

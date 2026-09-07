@@ -86,6 +86,11 @@ import {
   normalizePrmStatusCounts,
   selectPrmPrimaryReadinessFilterStatuses,
   sumPrmStatusCounts,
+  commitPrmRegisterTotalCount,
+  reconcilePrmRegisterTotalAfterAppend,
+  prmRegisterHasMore,
+  setupPrmRegisterProgressiveScroll,
+  teardownPrmRegisterProgressiveScroll,
   clearPrmActiveRowClass,
   createPrmModalStack,
   formatPrmCommercialHierarchyLabel,
@@ -879,6 +884,34 @@ const statusCounts = normalizePrmStatusCounts({
   BLOCKED_NO_VALID_EFFECTIVE_ROUTE: 0,
 });
 assert(sumPrmStatusCounts(statusCounts) === 495, "status_counts sum is exact-run total");
+assert(
+  commitPrmRegisterTotalCount({
+    previousTotal: 441,
+    incomingTotal: 25,
+    append: true,
+    loadedCount: 50,
+  }) === 441,
+  "append never shrinks committed total",
+);
+assert(
+  reconcilePrmRegisterTotalAfterAppend({
+    totalCount: 441,
+    loadedBefore: 25,
+    loadedAfter: 25,
+    incomingCount: 0,
+    append: true,
+  }) === 25,
+  "empty append batch stops pagination",
+);
+assert(
+  prmRegisterHasMore({ loadedCount: 25, totalCount: 495 }),
+  "hasMore true when loaded below server total",
+);
+assert(
+  typeof setupPrmRegisterProgressiveScroll === "function" &&
+    typeof teardownPrmRegisterProgressiveScroll === "function",
+  "progressive scroll setup/teardown exported",
+);
 const primary = selectPrmPrimaryReadinessFilterStatuses(statusCounts);
 assert(
   primary.includes("READY") &&
@@ -912,6 +945,8 @@ assert(
 assert(
   mainSrc.includes("status_counts_baseline") &&
     mainSrc.includes("selectPrmPrimaryReadinessFilterStatuses") &&
+    mainSrc.includes("prmReadinessMoreStatuses") &&
+    mainSrc.includes("PRM_READINESS_STATUSES") &&
     mainSrc.includes("exact_run_total") &&
     mainSrc.includes("readinessLoadError") &&
     mainSrc.includes("clearReadinessFilters"),

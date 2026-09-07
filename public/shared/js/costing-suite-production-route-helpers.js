@@ -30,6 +30,220 @@ export const PRODUCTION_ROUTE_LENS_IDS = Object.freeze([
 
 export const PRODUCTION_ROUTE_DEFAULT_LENS = "route-readiness";
 
+/** Paginated PRM registers that load additional rows on scroll (not shell pager). */
+export const PRM_INFINITE_SCROLL_LENSES = Object.freeze([
+  "route-readiness",
+  "product-route-assignments",
+  "shared-workload-preview",
+  "product-subgroup-mappings",
+  "route-family-foundation-review",
+  "archived-routes",
+]);
+
+export function isPrmInfiniteScrollLens(lensId) {
+  return PRM_INFINITE_SCROLL_LENSES.includes(String(lensId || "").trim());
+}
+
+export function mergePrmStatusCountSources(...sources) {
+  const out = {};
+  for (const src of sources) {
+    if (!src || typeof src !== "object") continue;
+    for (const [key, raw] of Object.entries(src)) {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) continue;
+      out[key] = Math.max(Number(out[key]) || 0, n);
+    }
+  }
+  return out;
+}
+
+export function prmRegisterHasMore({
+  loadedCount = 0,
+  totalCount = 0,
+  lastBatchSize = 0,
+  pageLimit = 0,
+} = {}) {
+  const total = Number(totalCount) || 0;
+  const loaded = Number(loadedCount) || 0;
+  if (total > 0) return loaded < total;
+  const lim = Math.max(1, Number(pageLimit) || 25);
+  return (Number(lastBatchSize) || 0) >= lim;
+}
+
+/** Commit server total_count; never shrink on append; empty batch handled separately. */
+export function commitPrmRegisterTotalCount({
+  previousTotal = 0,
+  incomingTotal = 0,
+  append = false,
+  loadedCount = 0,
+} = {}) {
+  const incoming = Math.max(0, Number(incomingTotal) || 0);
+  const prev = Math.max(0, Number(previousTotal) || 0);
+  const loaded = Math.max(0, Number(loadedCount) || 0);
+  if (append) return Math.max(prev, incoming, loaded);
+  return incoming;
+}
+
+/** Stop pagination when append adds nothing or server sends an empty batch. */
+export function reconcilePrmRegisterTotalAfterAppend({
+  totalCount = 0,
+  loadedBefore = 0,
+  loadedAfter = 0,
+  incomingCount = 0,
+  append = false,
+} = {}) {
+  const total = Math.max(0, Number(totalCount) || 0);
+  if (!append) return total;
+  if (incomingCount <= 0) return Math.min(total, loadedAfter);
+  if (loadedAfter > loadedBefore) return total;
+  return Math.min(total, loadedAfter);
+}
+
+export function appendPrmRowsDeduped(existing, incoming, keyFn) {
+  const resolveKey =
+    typeof keyFn === "function"
+      ? keyFn
+      : (row) => normalizePrmIntegerId(row?.product_id);
+  const seen = new Set(
+    (existing || [])
+      .map((row) => resolveKey(row))
+      .filter((key) => key != null)
+      .map(String),
+  );
+  const next = [...(existing || [])];
+  for (const row of incoming || []) {
+    const key = resolveKey(row);
+    const token = key == null ? null : String(key);
+    if (token != null && seen.has(token)) continue;
+    if (token != null) seen.add(token);
+    next.push(row);
+  }
+  return next;
+}
+
+export function buildPrmInfiniteScrollFooterHtml({
+  colCount = 1,
+  loadingMore = false,
+  loadMoreError = null,
+  hasMore = false,
+  entityLabel = "rows",
+} = {}) {
+  const cols = Math.max(1, Number(colCount) || 1);
+  if (loadingMore) {
+    return `<tr data-prm-load-more data-prm-load-more-sentinel aria-hidden="true"><td colspan="${cols}"><div class="cost-sheet-explain-loading">Loading more ${String(entityLabel)}…</div></td></tr>`;
+  }
+  if (loadMoreError) {
+    return `<tr data-prm-load-more><td colspan="${cols}"><div class="status">${String(loadMoreError)}</div></td></tr>`;
+  }
+  if (hasMore) {
+    return `<tr data-prm-load-more data-prm-load-more-sentinel aria-hidden="true"><td colspan="${cols}"><div class="cp-muted-text">Scroll for more ${String(entityLabel)}…</div></td></tr>`;
+  }
+  return "";
+}
+
+const prmProgressiveScrollState = new WeakMap();
+
+/** Remove progressive-scroll observers/listeners (safe to call every render). */
+export function teardownPrmRegisterProgressiveScroll(wrap) {
+  if (!wrap) return;
+  const prev = prmProgressiveScrollState.get(wrap);
+  if (prev?.observer) prev.observer.disconnect();
+  if (prev?.listener) wrap.removeEventListener("scroll", prev.listener);
+  prmProgressiveScrollState.delete(wrap);
+}
+
+/**
+ * Server-truth progressive scroll for paginated PRM registers.
+ * Mirrors material-cost trace: IntersectionObserver sentinel + scroll fallback.
+ * Always teardown then setup so render()/unbind() cannot leave a dead listener.
+ */
+export function setupPrmRegisterProgressiveScroll(
+  wrap,
+  {
+    lensId,
+    getActiveLens,
+    hasMore,
+    isLoading,
+    loadMore,
+    thresholdPx = 240,
+    rootMargin = "120px 0px",
+  } = {},
+) {
+  teardownPrmRegisterProgressiveScroll(wrap);
+  if (!wrap || !lensId || typeof getActiveLens !== "function") return;
+
+  const requestLoad = () => {
+    if (getActiveLens() !== lensId) return;
+    if (!hasMore()) return;
+    if (isLoading()) return;
+    void loadMore();
+  };
+
+  const listener = () => {
+    if (getActiveLens() !== lensId) return;
+    if (!hasMore()) return;
+    if (isLoading()) return;
+    const remaining = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
+    if (remaining > Number(thresholdPx)) return;
+    requestLoad();
+  };
+  wrap.addEventListener("scroll", listener, { passive: true });
+
+  let observer = null;
+  const sentinel = wrap.querySelector("[data-prm-load-more-sentinel]");
+  if (sentinel && typeof IntersectionObserver === "function") {
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        requestLoad();
+      },
+      { root: wrap, rootMargin, threshold: 0 },
+    );
+    observer.observe(sentinel);
+  }
+
+  prmProgressiveScrollState.set(wrap, { observer, listener, lensId });
+}
+
+/** Fill short registers until scrollable or server hasMore is false. */
+export async function maybePrmRegisterAutoLoadChain(
+  wrap,
+  {
+    lensId,
+    getActiveLens,
+    hasMore,
+    isLoading,
+    loadMore,
+    thresholdPx = 240,
+    maxRounds = 12,
+  } = {},
+) {
+  if (!wrap || !lensId || typeof getActiveLens !== "function") return;
+  for (let round = 0; round < maxRounds; round += 1) {
+    if (getActiveLens() !== lensId) return;
+    if (!hasMore()) return;
+    if (isLoading()) return;
+    const remaining = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
+    if (remaining > Number(thresholdPx)) return;
+    const result = await loadMore();
+    if (!result || result.skipped || !result.ok) return;
+    await new Promise((resolve) => {
+      if (typeof requestAnimationFrame === "function") requestAnimationFrame(resolve);
+      else setTimeout(resolve, 0);
+    });
+  }
+}
+
+/** @deprecated use setupPrmRegisterProgressiveScroll */
+export function bindPrmRegisterInfiniteScroll(wrap, opts = {}) {
+  setupPrmRegisterProgressiveScroll(wrap, opts);
+}
+
+/** @deprecated use maybePrmRegisterAutoLoadChain */
+export function maybePrmRegisterPrefetchFill(wrap, opts = {}) {
+  void maybePrmRegisterAutoLoadChain(wrap, { ...opts, maxRounds: 1 });
+}
+
 export const OBSOLETE_PRM_LENS_IDS = Object.freeze([
   "product-group-routes",
   "product-group-route-editor",
@@ -545,7 +759,7 @@ export const PRM_EMPTY_STATES = Object.freeze({
   productEditor:
     "No Product Route selected.\n\nOpen a Product from Route Readiness / Product Summary to create or edit a Product-specific route.",
   effectiveViewer:
-    "Search or select a Product to view its effective manufacturing route.",
+    "Search for a Product above to view its effective route.",
   subgroupMappings:
     "No Product Subgroup mappings yet.\n\nCreate a Draft to map a Product Subgroup to a Manufacturing Route Family.",
   archivedRoutes: "No archived route architecture.",
@@ -2380,8 +2594,10 @@ export function formatPrmDeltaBaseStepLabel(step = {}) {
 
 export function selectPrmBypassEligibleFamilySteps(steps = []) {
   return coercePrmList(steps).filter((step) => {
-    const raw = step?.allows_skip_with_approval;
-    return raw === true || raw === "true" || raw === "t" || raw === 1 || raw === "1";
+    const scope = normalizePrmCode(
+      step?.route_step_scope || step?.step_scope || step?.scope,
+    ).toUpperCase();
+    return scope !== "BOUNDARY_RM_ISSUE" && scope !== "BOUNDARY_FG_TRANSFER";
   });
 }
 
@@ -3376,6 +3592,54 @@ export function formatPrmProductGroupHierarchyLabel(row = {}) {
     .map((part) => (isBlankPrmValue(part) ? "" : String(part).trim()))
     .filter(Boolean);
   return parts.length ? parts.join(" › ") : "";
+}
+
+/**
+ * Effective Route Viewer Product option filter — uses canonical state.search.
+ * Matches Product name/item, Product ID, and Product Group name when present.
+ * Empty search returns the full catalogue. Does not invent route-code matching.
+ */
+export function filterPrmEffectiveViewerProducts(products = [], search = "") {
+  const list = coercePrmList(products);
+  const q = String(search || "")
+    .trim()
+    .toLowerCase();
+  if (!q) return list;
+  return list.filter((product) => {
+    const id = normalizePrmIntegerId(product?.product_id ?? product?.id);
+    const name = String(
+      product?.product_name || product?.name || product?.item || "",
+    )
+      .trim()
+      .toLowerCase();
+    const group = String(
+      product?.product_group_name || product?.group_name || "",
+    )
+      .trim()
+      .toLowerCase();
+    const idText = id != null ? String(id) : "";
+    return (
+      (name && name.includes(q)) ||
+      (idText && idText.includes(q)) ||
+      (group && group.includes(q))
+    );
+  });
+}
+
+/** Compact Effective Viewer global-search result labels. */
+export function formatPrmEffectiveViewerProductResultCopy(product = {}) {
+  const id = normalizePrmIntegerId(product?.product_id ?? product?.id);
+  const primary = String(
+    product?.product_name ||
+      product?.name ||
+      product?.item ||
+      (id != null ? `Product ${id}` : ""),
+  ).trim();
+  const secondary = id != null ? `Product ${id}` : "";
+  const group = String(
+    product?.product_group_name || product?.group_name || "",
+  ).trim();
+  return { product_id: id, primary, secondary, group };
 }
 
 /**

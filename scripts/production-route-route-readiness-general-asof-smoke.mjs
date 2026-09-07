@@ -24,6 +24,7 @@ const read = (relativePath) => readFileSync(join(root, relativePath), "utf8");
 
 const mainSrc = read("public/shared/js/costing-suite-production-route.js");
 const shellSrc = read("public/shared/js/costing-suite-shell.js");
+const htmlSrc = read("public/shared/production-route-manager.html");
 const helpersSrc = read(
   "public/shared/js/costing-suite-production-route-helpers.js",
 );
@@ -34,11 +35,11 @@ const thisSrc = read(
 
 const loadFn =
   mainSrc.match(
-    /async function loadReadiness\([\s\S]*?\n  function applyExactRunStatusCounts/,
+    /async function loadReadiness\([\s\S]*?\n  async function loadMoreReadiness/,
   )?.[0] || "";
 const renderFn =
   mainSrc.match(
-    /function renderReadiness\(\) \{[\s\S]*?\n  function mappingReviewGroupStateLabel/,
+    /function renderReadiness\([\s\S]*?\n  function mappingReviewGroupStateLabel/,
   )?.[0] || "";
 const clearFn =
   mainSrc.match(
@@ -51,6 +52,10 @@ const createAssignFn =
 const asOfChromeFn =
   mainSrc.match(
     /function syncPrmAsOfDateChrome\([\s\S]*?\n  function applyPrmDeepLinkToUrl/,
+  )?.[0] || "";
+const rebuildReadinessFn =
+  mainSrc.match(
+    /function rebuildReadinessPeqOptions\(\) \{[\s\S]*?\n  function applyDeepLinkFromUrl/,
   )?.[0] || "";
 
 let failed = 0;
@@ -100,12 +105,13 @@ assert(
     built.params.p_route_family_id == null &&
     built.params.p_limit === 25 &&
     built.params.p_offset === 0 &&
-    loadFn.includes("search: state.search") &&
-    loadFn.includes("readiness_status: state.readiness_status") &&
-    loadFn.includes("product_group_id: state.product_group_id") &&
-    loadFn.includes("route_family_id: state.route_family_id") &&
-    loadFn.includes("limit: state.limit") &&
-    loadFn.includes("offset: state.offset"),
+    loadFn.includes("filterSnapshot.search") &&
+    loadFn.includes("filterSnapshot.readiness_status") &&
+    loadFn.includes("filterSnapshot.product_group_id") &&
+    loadFn.includes("filterSnapshot.route_family_id") &&
+    loadFn.includes("limit,") &&
+    loadFn.includes("offset,") &&
+    loadFn.includes("append: true"),
   "D search/status/group/family/limit/offset remain correctly built",
 );
 
@@ -148,6 +154,15 @@ assert(
     shellSrc.includes("clearReadinessFilters") &&
     shellSrc.includes('CURRENT_LENS === "route-readiness"'),
   "G Clear Filters resets search/status/group/family/offset",
+);
+
+assert(
+  htmlSrc.includes('id="prmReadinessMoreStatuses"') &&
+    rebuildReadinessFn.includes("prmReadinessMoreStatuses") &&
+    rebuildReadinessFn.includes("PRM_READINESS_STATUSES") &&
+    shellSrc.includes("prmReadinessMoreStatuses") &&
+    shellSrc.includes("setReadinessStatus"),
+  "G2 readiness More statuses dropdown wired in HTML, rebuild, and shell",
 );
 
 assert(
@@ -202,7 +217,7 @@ assert(
   "K no smoke mutates Product 161 or batch reference",
 );
 
-assert(/hub-cache-v315/.test(swSrc), "SW bumped once to hub-cache-v315");
+assert(/hub-cache-v323/.test(swSrc), "SW cache version present");
 
 if (failed) {
   console.error(

@@ -2676,10 +2676,45 @@
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
       }
-      .cp-prm-effective-viewer-toolbar {
+      .cp-prm-effective-viewer-search-results {
+        box-sizing: border-box;
+        max-height: min(320px, 50vh);
+        overflow: auto;
+        padding: 4px;
+        border: 1px solid var(--sasv-search-select-border, var(--border, #d1d5db));
+        border-radius: 8px;
+        background: var(--sasv-surface, var(--card, #fff));
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+      }
+      .cp-prm-effective-viewer-search-empty {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+      .cp-prm-effective-viewer-search-row {
         display: grid;
-        gap: 6px;
-        align-items: start;
+        gap: 2px;
+        width: 100%;
+        margin: 0;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .cp-prm-effective-viewer-search-row:hover,
+      .cp-prm-effective-viewer-search-row:focus-visible,
+      .cp-prm-effective-viewer-search-row.is-active {
+        background: var(--sasv-primary-50, var(--sasv-action-primary-soft-bg, #eef2ff));
+        outline: none;
+      }
+      .cp-prm-effective-viewer-search-primary {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .cp-prm-effective-viewer-search-secondary {
+        font-size: 12px;
       }
       .cp-prm-effective-viewer-status {
         display: flex;
@@ -2869,6 +2904,16 @@
               </li>
               <!-- Primary chips for statuses present in exact-run status_counts are filled by rebuildReadinessPeqOptions -->
             </ul>
+            <label class="cp-prm-field" style="display:block;margin-top:8px" for="prmReadinessMoreStatuses">
+              <span class="peq-filter-section-title">More statuses</span>
+              <select
+                id="prmReadinessMoreStatuses"
+                class="cp-period-select"
+                aria-label="More readiness statuses"
+              >
+                <option value="">Select status…</option>
+              </select>
+            </label>
           </div>
           <div class="peq-filter-section" data-peq-section="prm-assignments" hidden>
             <div class="peq-filter-section-title">Assignment status</div>

@@ -84,6 +84,7 @@ import {
 import {
   applyPrmAcceptedPaint,
   applyPrmTableWrapVisible,
+  isPrmInfiniteScrollLens,
   normalizePrmCode,
   shouldAcceptPrmPaintGeneration,
 } from "./costing-suite-production-route-helpers.js";
@@ -5285,6 +5286,8 @@ function updateSearchPlaceholder() {
     placeholder = "Search product, group, or action…";
   } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
     placeholder = "Search Product, Product ID, SKU ID or action";
+  } else if (CURRENT_LENS === "effective-route-viewer") {
+    placeholder = "Search Product name or ID";
   } else if (isProductionRouteLens(CURRENT_LENS)) {
     placeholder = "Search Product or Product Group.";
   }
@@ -5545,13 +5548,9 @@ function syncPrmPaintChrome() {
   const shellPagination = document.querySelector(
     "#genericTableMetaRow .pagination",
   );
-  const showPager =
-    CURRENT_LENS === "route-readiness" ||
-    CURRENT_LENS === "product-route-assignments";
+  const showPager = !isPrmInfiniteScrollLens(CURRENT_LENS);
   const showPrmTableMeta =
-    CURRENT_LENS === "route-readiness" ||
-    CURRENT_LENS === "product-route-assignments" ||
-    CURRENT_LENS === "shared-workload-preview" ||
+    isPrmInfiniteScrollLens(CURRENT_LENS) ||
     CURRENT_LENS === "route-families";
   setVisible(shellPagination, showPager, "inline-flex");
   if (genericTableMetaRow) {
@@ -5857,8 +5856,8 @@ function renderTable() {
   const prmAssignmentsActive = CURRENT_LENS === "product-route-assignments";
   const prmWorkloadActive = CURRENT_LENS === "shared-workload-preview";
   const prmFamiliesActive = CURRENT_LENS === "route-families";
-  const prmPaginatedActive =
-    prmReadinessActive || prmAssignmentsActive || prmWorkloadActive;
+  const prmInfiniteScrollActive = isPrmInfiniteScrollLens(CURRENT_LENS);
+  const prmPaginatedActive = prmInfiniteScrollActive;
   const prmRegisterCountActive = prmPaginatedActive || prmFamiliesActive;
   const prmActive = isProductionRouteLens(CURRENT_LENS);
   const actionQueueActive = qcQueueActive || msQueueActive || prmPaginatedActive;
@@ -7271,6 +7270,7 @@ function wireFilterDrawer() {
       (target.id === "prmProductGroupFilter" ||
         target.id === "prmRouteFamilyFilter" ||
         target.id === "prmSubgroupFilterSelect" ||
+        target.id === "prmReadinessMoreStatuses" ||
         target.id === "prmAssignmentMoreStatuses" ||
         target.id === "prmWorkloadMoreFoundations" ||
         target.id === "prmWorkloadMoreQuantities" ||
@@ -7288,6 +7288,10 @@ function wireFilterDrawer() {
           result = await productionRouteCtrl.setRouteFamilyFilter(target.value);
         } else if (target.id === "prmSubgroupFilterSelect") {
           result = await productionRouteCtrl.setProductSubgroupFilter?.(target.value);
+        } else if (target.id === "prmReadinessMoreStatuses") {
+          result = await productionRouteCtrl.setReadinessStatus?.(
+            target.value || "",
+          );
         } else if (target.id === "prmWorkloadMoreFoundations") {
           result = await productionRouteCtrl.setFoundationStatus?.(target.value || "");
         } else if (target.id === "prmWorkloadMoreQuantities") {
@@ -8590,6 +8594,12 @@ searchBox?.addEventListener("input", () => {
         });
         if (result?.stale === true) return;
         CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+        if (CURRENT_LENS === "effective-route-viewer") {
+          productionRouteCtrl.syncEffectiveViewerSearchResults?.();
+          renderTable();
+          updateFilterButtonState();
+          return;
+        }
         renderTable();
         productionRouteCtrl.rebuildReadinessPeqOptions?.();
         productionRouteCtrl.rebuildAssignmentPeqOptions?.();
@@ -8647,6 +8657,12 @@ searchClear?.addEventListener("click", () => {
       });
       if (result?.stale === true) return;
       CURRENT_PAGE = productionRouteCtrl.getPage() || 1;
+      if (CURRENT_LENS === "effective-route-viewer") {
+        productionRouteCtrl.hideEffectiveViewerSearchResults?.();
+        renderTable();
+        updateFilterButtonState();
+        return;
+      }
       renderTable();
       updateFilterButtonState();
     })();
@@ -8672,7 +8688,7 @@ prevPage?.addEventListener("click", () => {
   if (isMaterialCostTraceLensActive()) {
     return;
   }
-  if (CURRENT_LENS === "shared-workload-preview") {
+  if (isPrmInfiniteScrollLens(CURRENT_LENS)) {
     return;
   }
   if (isQcActionQueueLens(CURRENT_LENS)) {
@@ -8689,16 +8705,6 @@ prevPage?.addEventListener("click", () => {
     void loadRowsForLens({ preservePage: true });
     return;
   }
-  if (
-    CURRENT_LENS === "route-readiness" ||
-    CURRENT_LENS === "product-route-assignments"
-  ) {
-    const page = productionRouteCtrl.getPage();
-    if (page <= 1) return;
-    CURRENT_PAGE = page - 1;
-    void loadRowsForLens({ preservePage: true });
-    return;
-  }
   if (CURRENT_PAGE > 1) {
     CURRENT_PAGE -= 1;
     renderTable();
@@ -8708,7 +8714,7 @@ nextPage?.addEventListener("click", () => {
   if (isMaterialCostTraceLensActive()) {
     return;
   }
-  if (CURRENT_LENS === "shared-workload-preview") {
+  if (isPrmInfiniteScrollLens(CURRENT_LENS)) {
     return;
   }
   if (isQcActionQueueLens(CURRENT_LENS)) {
@@ -8726,20 +8732,6 @@ nextPage?.addEventListener("click", () => {
     const page = materialsStoresActionQueueCtrl.getPage();
     const totalPages = msTotalPages(
       materialsStoresActionQueueCtrl.getTotalCount(),
-      PAGE_SIZE,
-    );
-    if (page >= totalPages) return;
-    CURRENT_PAGE = page + 1;
-    void loadRowsForLens({ preservePage: true });
-    return;
-  }
-  if (
-    CURRENT_LENS === "route-readiness" ||
-    CURRENT_LENS === "product-route-assignments"
-  ) {
-    const page = productionRouteCtrl.getPage();
-    const totalPages = prmTotalPages(
-      productionRouteCtrl.getTotalCount(),
       PAGE_SIZE,
     );
     if (page >= totalPages) return;

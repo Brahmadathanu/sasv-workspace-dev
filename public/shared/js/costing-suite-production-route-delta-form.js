@@ -334,7 +334,7 @@ export function buildProductDeltaFormHtml({
         <div class="cp-detail-grid cp-detail-grid--2col">
           <div class="cp-prm-form-field cp-prm-form-field--full"><span class="cp-field-label">Base step</span>
             <select id="${prefix}BaseStep" class="cp-period-select" data-prm-delta-base-step>${baseStepOptionsHtml(familySteps, seed.base_step_id, { bypassOnly })}</select>
-            <span class="cp-muted-text" data-prm-delta-bypass-hint ${bypassOnly ? "" : "hidden"}>Only Family steps that allow skip-with-approval can be bypassed.</span>
+            <span class="cp-muted-text" data-prm-delta-bypass-hint ${bypassOnly ? "" : "hidden"}>Bypass excludes an inherited Family step from this Product's approved standard route. It is not execution skip-with-approval. RM issue and FG transfer boundaries cannot be bypassed.</span>
           </div>
         </div>
       </section>`,
@@ -706,11 +706,25 @@ export function validatePrmProductDeltaForm(
     errors.push("Select the Family Route step this delta applies to.");
   }
   if (op === "BYPASS_STEP" && values.base_step_id != null) {
+    const familyStep = coercePrmList(familySteps).find(
+      (step) => resolvePrmFamilyStepId(step) === values.base_step_id,
+    );
     const eligible = selectPrmBypassEligibleFamilySteps(familySteps).some(
       (step) => resolvePrmFamilyStepId(step) === values.base_step_id,
     );
-    if (!eligible) {
-      errors.push("This Family step does not permit approved bypass.");
+    if (!familyStep || !eligible) {
+      const scope = normalizePrmCode(
+        familyStep?.route_step_scope ||
+          familyStep?.step_scope ||
+          familyStep?.scope,
+      ).toUpperCase();
+      if (scope === "BOUNDARY_RM_ISSUE" || scope === "BOUNDARY_FG_TRANSFER") {
+        errors.push("RM issue and FG transfer boundaries cannot be bypassed.");
+      } else {
+        errors.push(
+          "The selected Family step is not available for Product-route bypass.",
+        );
+      }
     }
   }
   if (op === "REPLACE_STEP") {

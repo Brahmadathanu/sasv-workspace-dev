@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v323"; // PRM modal close blur before aria-hidden
+const CACHE_NAME = "hub-cache-v324"; // PRM modal close blur before aria-hidden
 
 const PRECACHE = [
   // Hub shell

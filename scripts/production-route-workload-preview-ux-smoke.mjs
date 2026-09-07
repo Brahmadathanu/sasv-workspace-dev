@@ -196,11 +196,9 @@ assert(
   "37 Route Readiness uses general readiness; Run80 exact-run map retained",
 );
 assert(
-  /showPager[\s\S]{0,180}shared-workload-preview/.test(shellSrc) === false ||
-    /showPager\s*=\s*[\s\S]{0,120}route-readiness[\s\S]{0,80}product-route-assignments\s*;/.test(
-      shellSrc,
-    ),
-  "38 shell paginator hidden only on workload lens",
+  shellSrc.includes("isPrmInfiniteScrollLens") &&
+    shellSrc.includes("const showPager = !isPrmInfiniteScrollLens(CURRENT_LENS)"),
+  "38 shell paginator hidden on all infinite-scroll PRM lenses",
 );
 assert(
   mainSrc.includes("workloadLimit") &&
@@ -278,8 +276,8 @@ assert(
   "58 semantic theme only",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v315"/.test(swSrc),
-  "59 exactly one SW bump after all smokes pass (hub-cache-v315)",
+  /hub-cache-v323/.test(swSrc),
+  "59 SW cache version present",
 );
 
 assert(

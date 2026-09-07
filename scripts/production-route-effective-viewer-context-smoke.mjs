@@ -7,6 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   PRM_EMPTY_STATES,
+  filterPrmEffectiveViewerProducts,
+  formatPrmEffectiveViewerProductResultCopy,
   formatPrmFamilyRouteVersionCopy,
   formatPrmProductRouteVersionCopy,
   formatPrmStepSourceLabel,
@@ -21,23 +23,37 @@ const helpersSrc = read(
   "public/shared/js/costing-suite-production-route-helpers.js",
 );
 const mainSrc = read("public/shared/js/costing-suite-production-route.js");
+const shellSrc = read("public/shared/js/costing-suite-shell.js");
 const htmlSrc = read("public/shared/production-route-manager.html");
 const swSrc = read("public/sw.js");
 
 const renderEffectiveFn =
-  mainSrc.match(/function renderEffective\([\s\S]*?\n  function hideSpecialHosts/)?.[0] ||
-  "";
+  mainSrc.match(
+    /function renderEffective\([\s\S]*?\n  function hideSpecialHosts/,
+  )?.[0] || "";
 const loadEffectiveViewerFn =
   mainSrc.match(
-    /async function loadEffectiveViewerProduct\([\s\S]*?\n  function buildEffectiveViewerProductOptionsHtml/,
+    /async function loadEffectiveViewerProduct\([\s\S]*?\n  const PRM_EFFECTIVE_VIEWER_SEARCH_RESULT_CAP/,
+  )?.[0] ||
+  mainSrc.match(
+    /async function loadEffectiveViewerProduct\([\s\S]*?\n  function /,
+  )?.[0] ||
+  "";
+const selectFromSearchFn =
+  mainSrc.match(
+    /async function selectEffectiveViewerProductFromSearch\([\s\S]*?\n  function onEffectiveViewerSearchKeydown/,
   )?.[0] || "";
 const loadBranch =
   mainSrc.match(
     /if \(active === "effective-route-viewer"\) \{[\s\S]*?\n    if \(active === "product-subgroup-mappings"\)/,
   )?.[0] || "";
 const navigateFn =
-  mainSrc.match(/function navigate\(lens, params = \{\}, replace = false\) \{[\s\S]*?\n  async function navigateToFamilyRouteEditor/)?.[0] ||
-  mainSrc.match(/function navigate\(lens, params = \{\}, replace = false\) \{[\s\S]*?\n  function navigateToFamilyRouteEditor/)?.[0] ||
+  mainSrc.match(
+    /function navigate\(lens, params = \{\}, replace = false\) \{[\s\S]*?\n  async function navigateToFamilyRouteEditor/,
+  )?.[0] ||
+  mainSrc.match(
+    /function navigate\(lens, params = \{\}, replace = false\) \{[\s\S]*?\n  function navigateToFamilyRouteEditor/,
+  )?.[0] ||
   "";
 const applyDeepLinkFn =
   mainSrc.match(
@@ -55,10 +71,19 @@ const buildStepsTableFn =
   mainSrc.match(
     /function buildEffectiveStepsTableHtml\([\s\S]*?\n  function buildProductSummarySnapshotHtml/,
   )?.[0] || "";
+const shellPrmSearchFn =
+  shellSrc.match(
+    /searchBox\?\.addEventListener\("input", \(\) => \{[\s\S]*?if \(isProductionRouteLens\(CURRENT_LENS\)\) \{[\s\S]*?updateSearchClear\(\);\s*return;\s*\}\s*if \(CURRENT_LENS === "manual-provisions"\)/,
+  )?.[0] || "";
+const shellPrmSearchLensBranch =
+  shellPrmSearchFn.match(
+    /if \(isProductionRouteLens\(CURRENT_LENS\)\) \{[\s\S]*?updateSearchClear\(\);\s*return;\s*\}/,
+  )?.[0] || "";
 
 const stepFieldDefs =
-  mainSrc.match(/const PRM_EFFECTIVE_STEP_FIELD_DEFS = Object\.freeze\([\s\S]*?\]\);/)?.[0] ||
-  "";
+  mainSrc.match(
+    /const PRM_EFFECTIVE_STEP_FIELD_DEFS = Object\.freeze\([\s\S]*?\]\);/,
+  )?.[0] || "";
 
 let failed = 0;
 function assert(ok, message) {
@@ -76,6 +101,24 @@ const familyHistory = [
   { id: 10, family_route_id: 10, route_version: 2, status: "APPROVED" },
 ];
 
+const catalogueFixture = [
+  {
+    product_id: 954,
+    product_name: "Parangi Rasayanam",
+    product_group_name: "Lehyam (Ilakam) / Rasayanam",
+  },
+  {
+    product_id: 959,
+    product_name: "Amukkura Lehyam",
+    product_group_name: "Lehyam (Ilakam) / Rasayanam",
+  },
+  {
+    product_id: 161,
+    product_name: "Kukkutappavu Choornam",
+    product_group_name: "Choornam",
+  },
+];
+
 assert(
   mainSrc.includes("effectiveViewer:") &&
     mainSrc.includes('status: "empty"') &&
@@ -84,9 +127,9 @@ assert(
 );
 assert(
   PRM_EMPTY_STATES.effectiveViewer.includes(
-    "Search or select a Product to view its effective manufacturing route.",
+    "Search for a Product above to view its effective route.",
   ),
-  "2 bare viewer empty state copy",
+  "2/J empty state instructs use of global search",
 );
 assert(
   loadBranch.includes("resetEffectiveViewer()") &&
@@ -107,19 +150,22 @@ assert(
 );
 assert(
   loadBranch.includes('"deep-link"') &&
-    mainSrc.includes('navigate("effective-route-viewer", { product_id: effectiveProductId })') &&
+    mainSrc.includes(
+      'navigate("effective-route-viewer", { product_id: effectiveProductId })',
+    ) &&
     mainSrc.includes("normalizePrmIntegerId(productId)") &&
     mainSrc.includes("Product is required to view the effective route"),
-  "6 explicit deep-link Product loads via viewer loader; Summary View effective normalizes id",
+  "6/I deep-link Product loads via viewer loader",
 );
 assert(
-  renderEffectiveFn.includes("buildEffectiveViewerProductOptionsHtml(selectorProductId)") &&
-    renderEffectiveFn.includes("viewer.productId"),
-  "7 Product selector syncs to viewer productId",
+  !renderEffectiveFn.includes("prmEffectiveProduct") &&
+    !renderEffectiveFn.includes("buildEffectiveViewerProductOptionsHtml") &&
+    !mainSrc.includes("function buildEffectiveViewerProductOptionsHtml"),
+  "7/B/M no in-tab Product dropdown / option builder",
 );
 assert(
-  renderEffectiveFn.includes("findEffectiveViewerProductRow") &&
-    renderEffectiveFn.includes("productRow.product_name"),
+  renderEffectiveFn.includes("findEffectiveViewerProductRow") ||
+    buildViewerHeaderFn.includes("findEffectiveViewerProductRow"),
   "8 Product name enriched from master options",
 );
 assert(
@@ -150,7 +196,6 @@ assert(
 );
 assert(
   !helpersSrc.includes("if (familyRouteId === 10)") &&
-    !helpersSrc.match(/resolvePrmFamilyRouteVersionFromHistory[\s\S]*routeId\s*===\s*10/) &&
     resolvePrmFamilyRouteVersionFromHistory(99, familyHistory) == null,
   "15 no id-to-version inference",
 );
@@ -160,8 +205,7 @@ assert(
   "16 route source humanised in viewer header",
 );
 assert(
-  buildViewerHeaderFn.includes("formatPrmReadinessLabel(readiness)") ||
-    buildViewerHeaderFn.includes("formatPrmReadinessLabel"),
+  buildViewerHeaderFn.includes("formatPrmReadinessLabel"),
   "17 Ready/readiness label path present",
 );
 assert(
@@ -169,14 +213,15 @@ assert(
   "18 Valid/validation summary path present",
 );
 assert(
-  renderEffectiveFn.includes('"user-select"') &&
+  selectFromSearchFn.includes('loadEffectiveViewerProduct(pid, "user-select")') &&
     loadEffectiveViewerFn.includes("RPC.effective"),
-  "19 selecting Product loads route via viewer RPC",
+  "19/G explicit Product-result selection loads via viewer RPC",
 );
 assert(
-  renderEffectiveFn.includes("resetEffectiveViewer()") &&
-    renderEffectiveFn.includes('if (pid == null)'),
-  "20 clearing Product clears viewer route",
+  selectFromSearchFn.includes("clearCanonicalSearchUi()") &&
+    selectFromSearchFn.includes("hideEffectiveViewerSearchResults()") &&
+    !selectFromSearchFn.includes("resetEffectiveViewer()"),
+  "20/H selection clears search without clearing selected Product",
 );
 assert(
   loadEffectiveViewerFn.includes('status: "error"') &&
@@ -193,8 +238,7 @@ assert(
   "24 Step column present in field defs",
 );
 assert(
-  buildStepsTableFn.includes("<th>") &&
-    buildStepsTableFn.includes("col.label"),
+  buildStepsTableFn.includes("<th>") && buildStepsTableFn.includes("col.label"),
   "25 rendered value columns get headers",
 );
 assert(
@@ -230,12 +274,11 @@ assert(
 assert(
   navigateFn.includes('resolved === "effective-route-viewer"') &&
     navigateFn.includes("resetEffectiveViewer()") &&
-    applyDeepLinkFn.includes("url.searchParams.delete(\"product_id\")"),
+    applyDeepLinkFn.includes('url.searchParams.delete("product_id")'),
   "34 bare URL/tab strips product_id and resets viewer",
 );
 assert(
-  mainSrc.includes("onPrmPopState") &&
-    mainSrc.includes("applyDeepLinkFromUrl()"),
+  mainSrc.includes("onPrmPopState") && mainSrc.includes("applyDeepLinkFromUrl()"),
   "35 Back/popstate follows URL deep-link state",
 );
 assert(
@@ -251,13 +294,82 @@ assert(
   "39/40 no validation/approval/costing refresh in viewer loader",
 );
 assert(
-  htmlSrc.includes("cp-prm-effective-viewer-toolbar") &&
+  htmlSrc.includes("cp-prm-effective-viewer-search-results") &&
     htmlSrc.includes("var(--muted") &&
-    htmlSrc.includes("cp-prm-effective-viewer-status"),
-  "41/42 narrow layout hooks and semantic tokens",
+    htmlSrc.includes("cp-prm-effective-viewer-status") &&
+    !htmlSrc.includes("cp-prm-effective-viewer-toolbar"),
+  "41/42 search popover CSS present; toolbar CSS removed",
 );
 
-// Prior approval/validate smokes pin older SW versions and cascade; not part of 4F.5D3-A.
+assert(
+  loadBranch.includes('loadMasterOptions({ catalogueScope: "unscoped" })') &&
+    !loadBranch.includes("ensureMasterOptions()"),
+  "A Effective Viewer master-options load is explicitly UN-SCOPED",
+);
+assert(
+  !renderEffectiveFn.includes("enhanceSearchableSelect") &&
+    !renderEffectiveFn.includes("prmEffectiveProduct"),
+  "C No enhanceSearchableSelect / Product select in Effective Viewer",
+);
+assert(
+  loadBranch.includes("state.search") &&
+    mainSrc.includes("filterPrmEffectiveViewerProducts") &&
+    !mainSrc.includes("effectiveViewerSearch:") &&
+    !mainSrc.includes("state.effectiveViewerSearch") &&
+    shellSrc.includes('CURRENT_LENS === "effective-route-viewer"') &&
+    shellSrc.includes("Search Product name or ID"),
+  "D state.search remains canonical; shell lens placeholder retained",
+);
+assert(
+  filterPrmEffectiveViewerProducts(catalogueFixture, "Amukkura Lehyam").map(
+    (p) => p.product_id,
+  ).join(",") === "959" &&
+    filterPrmEffectiveViewerProducts(catalogueFixture, "959").map(
+      (p) => p.product_id,
+    ).join(",") === "959" &&
+    filterPrmEffectiveViewerProducts(catalogueFixture, "Amukk").map(
+      (p) => p.product_id,
+    ).join(",") === "959" &&
+    formatPrmEffectiveViewerProductResultCopy(catalogueFixture[1]).primary ===
+      "Amukkura Lehyam" &&
+    formatPrmEffectiveViewerProductResultCopy(catalogueFixture[1]).secondary ===
+      "Product 959",
+  "E filterPrmEffectiveViewerProducts drives Product result matching",
+);
+assert(
+  !loadBranch.includes("loadEffectiveViewerProduct(productId, \"user-select\")") &&
+    loadBranch.includes("syncEffectiveViewerSearchResults") &&
+    !/syncEffectiveViewerSearchResults[\s\S]{0,200}loadEffectiveViewerProduct/.test(
+      loadBranch,
+    ),
+  "F Typing/search state update does NOT call loadEffectiveViewerProduct",
+);
+assert(
+  selectFromSearchFn.includes('loadEffectiveViewerProduct(pid, "user-select")') &&
+    mainSrc.includes("selectEffectiveViewerProductFromSearch") &&
+    shellPrmSearchLensBranch.includes("syncEffectiveViewerSearchResults"),
+  "G Explicit Product-result selection DOES call loadEffectiveViewerProduct",
+);
+assert(
+  shellPrmSearchLensBranch.includes('CURRENT_LENS === "effective-route-viewer"') &&
+    shellSrc.includes("rebuildReadinessPeqOptions") &&
+    shellPrmSearchLensBranch.includes("rebuildReadinessPeqOptions"),
+  "K Other PRM lens search paths remain present",
+);
+assert(
+  loadEffectiveViewerFn.includes("buildEffectiveRouteArgs") &&
+    loadEffectiveViewerFn.includes("product_id: pid") &&
+    mainSrc.includes('RPC.effective'),
+  "L Effective-route RPC builder/contract unchanged",
+);
+assert(
+  mainSrc.includes("onEffectiveViewerSearchKeydown") &&
+    mainSrc.includes("ArrowDown") &&
+    mainSrc.includes("ArrowUp") &&
+    mainSrc.includes('event.key === "Enter"') &&
+    mainSrc.includes('event.key === "Escape"'),
+  "Keyboard Arrow/Enter/Escape implemented for result popover",
+);
 assert(
   /CACHE_NAME = "hub-cache-v\d+"/.test(swSrc),
   "44 SW cache name present",

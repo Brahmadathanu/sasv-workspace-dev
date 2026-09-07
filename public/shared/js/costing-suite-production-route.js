@@ -89,6 +89,8 @@ import {
   formatPrmWorkloadRawDisplay,
   PRM_WORKLOAD_DL_SCOPE_TITLE,
   PRM_WORKLOAD_POH_SCOPE_TITLE,
+  filterPrmEffectiveViewerProducts,
+  formatPrmEffectiveViewerProductResultCopy,
   formatPrmProductGroupHierarchyLabel,
   formatPrmExactRunContextCue,
   formatPrmMonthYearLabel,
@@ -135,6 +137,15 @@ import {
   shouldAcceptPrmPaintGeneration,
   shouldApplyPrmLensTransitionTeardown,
   applyPrmTableWrapVisible,
+  appendPrmRowsDeduped,
+  buildPrmInfiniteScrollFooterHtml,
+  setupPrmRegisterProgressiveScroll,
+  teardownPrmRegisterProgressiveScroll,
+  maybePrmRegisterAutoLoadChain,
+  isPrmInfiniteScrollLens,
+  prmRegisterHasMore,
+  commitPrmRegisterTotalCount,
+  reconcilePrmRegisterTotalAfterAppend,
   resolvePrmFamilyRouteEditorLoadId,
   resolvePrmFamilyRouteEditorRouteId,
   shouldApplyPrmFamilyRouteEmptyContextRefresh,
@@ -466,11 +477,14 @@ export function createProductionRouteController(deps = {}) {
     offset: 0,
     page: 1,
     total_count: 0,
+    prmLastBatchSize: 0,
     exact_run_total: null,
     status_counts: {},
     status_counts_baseline: {},
     readinessRows: [],
     readinessLoadError: null,
+    readinessLoadingMore: false,
+    readinessLoadMoreError: null,
     // Product Assignments register (Gate 11Y.4C.2)
     assignment_status: "",
     assignmentRows: [],
@@ -480,6 +494,8 @@ export function createProductionRouteController(deps = {}) {
     assignmentTotalBaseline: null,
     assignmentLoadError: null,
     assignmentLoading: false,
+    assignmentLoadingMore: false,
+    assignmentLoadMoreError: null,
     assignmentGeneration: 0,
     /** Transient remediation focus from deep-link product_id (not sticky). */
     assignmentFocusProductId: null,
@@ -556,6 +572,9 @@ export function createProductionRouteController(deps = {}) {
     foundationReviewGroups: [],
     foundationReviewLoadError: null,
     foundationTotalCount: 0,
+    foundationLoadingMore: false,
+    foundationLoadMoreError: null,
+    foundationGeneration: 0,
     costCentresPayload: null,
     costCentres: [],
     costCentresLoadError: null,
@@ -570,6 +589,8 @@ export function createProductionRouteController(deps = {}) {
     subgroup_mapping_status_counts: {},
     subgroupMappingLoadError: null,
     subgroupMappingLoading: false,
+    subgroupMappingLoadingMore: false,
+    subgroupMappingLoadMoreError: null,
     subgroupMappingGeneration: 0,
     // Gate 11Y.10I.2C.3F.1C — Archived Routes
     archived_entity_type: "",
@@ -577,6 +598,8 @@ export function createProductionRouteController(deps = {}) {
     archivedRouteTotalCount: 0,
     archivedRouteLoadError: null,
     archivedRouteLoading: false,
+    archivedRouteLoadingMore: false,
+    archivedRouteLoadMoreError: null,
     archivedRouteGeneration: 0,
     loading: false,
     error: null,
@@ -925,48 +948,119 @@ export function createProductionRouteController(deps = {}) {
     return { ok: true, data: state.options };
   }
 
-  async function loadReadiness({ resetOffset = false, search } = {}) {
+  function readinessHasMore() {
+    return prmRegisterHasMore({
+      loadedCount: (state.readinessRows || []).length,
+      totalCount: state.total_count,
+      lastBatchSize: state.prmLastBatchSize,
+      pageLimit: state.limit,
+    });
+  }
+
+  function wirePrmRegisterScroll(wrap, { lensId, hasMore, isLoading, loadMore }) {
+    teardownPrmRegisterProgressiveScroll(wrap);
+    setupPrmRegisterProgressiveScroll(wrap, {
+      lensId,
+      getActiveLens: () => state.activeLens,
+      hasMore,
+      isLoading,
+      loadMore,
+    });
+    void maybePrmRegisterAutoLoadChain(wrap, {
+      lensId,
+      getActiveLens: () => state.activeLens,
+      hasMore,
+      isLoading,
+      loadMore,
+    });
+  }
+
+  async function loadReadiness({
+    resetOffset = false,
+    search,
+    append = false,
+  } = {}) {
     if (!canView()) {
       state.permissionDenied = true;
       return { ok: false, permissionDenied: true };
     }
-    const current = ++generation;
-    state.loading = true;
-    state.permissionDenied = false;
-    state.readinessLoadError = null;
-    if (resetOffset) {
-      state.page = 1;
-      state.offset = 0;
+    if (append) {
+      if (state.loading || state.readinessLoadingMore || !readinessHasMore()) {
+        return { ok: true, skipped: true };
+      }
+      state.readinessLoadingMore = true;
+      state.readinessLoadMoreError = null;
+    } else {
+      ++generation;
+      state.loading = true;
+      state.permissionDenied = false;
+      state.readinessLoadError = null;
+      state.readinessLoadMoreError = null;
+      state.readinessLoadingMore = false;
+      state.readinessRows = [];
+      if (resetOffset) {
+        state.page = 1;
+        state.offset = 0;
+      }
+      if (search != null) state.search = String(search || "").trim();
     }
-    if (search != null) state.search = String(search || "").trim();
+    const requestGen = generation;
+    const filterSnapshot = {
+      search: state.search || "",
+      readiness_status: state.readiness_status || "",
+      product_group_id: state.product_group_id || "",
+      route_family_id: state.route_family_id || "",
+    };
     if (!isPrmMasterOptionsReady(state.optionsStatus) || !state.options) {
       const options = await ensureMasterOptions();
       if (!options.ok) {
         state.loading = false;
+        state.readinessLoadingMore = false;
         return options;
       }
     }
     const isUnfiltered =
-      !state.readiness_status &&
-      !state.search &&
-      !state.product_group_id &&
-      !state.route_family_id;
+      !filterSnapshot.readiness_status &&
+      !filterSnapshot.search &&
+      !filterSnapshot.product_group_id &&
+      !filterSnapshot.route_family_id;
+    const limit = Math.max(1, Number(state.limit) || 25);
+    state.limit = limit;
+    const offset = append ? (state.readinessRows || []).length : 0;
+    if (!append && resetOffset) {
+      state.page = 1;
+      state.offset = 0;
+    }
     const response = await invoke(
       RPC.generalReadiness,
       buildReadinessRpcArgs({
         as_of_date: getAsOfDate(),
-        search: state.search,
-        readiness_status: state.readiness_status || null,
-        product_group_id: state.product_group_id || null,
-        route_family_id: state.route_family_id || null,
-        limit: state.limit,
-        offset: state.offset,
+        search: filterSnapshot.search || null,
+        readiness_status: filterSnapshot.readiness_status || null,
+        product_group_id: filterSnapshot.product_group_id || null,
+        route_family_id: filterSnapshot.route_family_id || null,
+        limit,
+        offset,
       }),
       "Unable to load Route Readiness.",
     );
-    if (current !== generation) return { ok: false, stale: true };
-    state.loading = false;
+    if (requestGen !== generation) return { ok: false, stale: true };
+    if (
+      filterSnapshot.search !== (state.search || "") ||
+      filterSnapshot.readiness_status !== (state.readiness_status || "") ||
+      filterSnapshot.product_group_id !== (state.product_group_id || "") ||
+      filterSnapshot.route_family_id !== (state.route_family_id || "")
+    ) {
+      return { ok: false, stale: true };
+    }
+    if (append) state.readinessLoadingMore = false;
+    else state.loading = false;
     if (!response.ok) {
+      if (append) {
+        state.readinessLoadMoreError =
+          response.error?.message || "Unable to load more Products.";
+        return { ok: false, error: response.error, append: true };
+      }
       state.readinessRows = [];
       state.total_count = 0;
       state.readinessLoadError =
@@ -975,15 +1069,34 @@ export function createProductionRouteController(deps = {}) {
       return { ok: false, error: response.error };
     }
     const normalized = normalizeReadinessPayload(response.data);
+    const incoming = normalized.rows || [];
+    const loadedBefore = append ? (state.readinessRows || []).length : 0;
+    state.readinessRows = append
+      ? appendPrmRowsDeduped(state.readinessRows, incoming, (row) =>
+          normalizePrmIntegerId(row?.product_id),
+        )
+      : incoming;
+    state.prmLastBatchSize = incoming.length;
+    state.total_count = commitPrmRegisterTotalCount({
+      previousTotal: state.total_count,
+      incomingTotal: normalized.total_count,
+      append,
+      loadedCount: state.readinessRows.length,
+    });
+    state.total_count = reconcilePrmRegisterTotalAfterAppend({
+      totalCount: state.total_count,
+      loadedBefore,
+      loadedAfter: state.readinessRows.length,
+      incomingCount: incoming.length,
+      append,
+    });
     const page = clampPrmPagination({
-      offset: state.offset,
-      limit: state.limit,
-      total_count: normalized.total_count,
+      offset,
+      limit,
+      total_count: state.total_count,
     });
     state.offset = page.offset;
     state.page = page.pageIndex + 1;
-    state.total_count = page.total_count;
-    state.readinessRows = normalized.rows || [];
     applyExactRunStatusCounts(normalized.status_counts || {}, {
       isUnfiltered,
       pageTotal: normalized.total_count,
@@ -995,7 +1108,26 @@ export function createProductionRouteController(deps = {}) {
       if (baselineSum > 0) state.exact_run_total = baselineSum;
     }
     rebuildReadinessPeqOptions();
-    return { ok: true, total_count: state.total_count };
+    return { ok: true, total_count: state.total_count, append };
+  }
+
+  async function loadMoreReadiness() {
+    const result = await loadReadiness({ append: true });
+    if (
+      result?.ok &&
+      !result.skipped &&
+      state.activeLens === "route-readiness"
+    ) {
+      renderReadiness({ preserveScroll: true });
+    } else if (
+      result &&
+      !result.ok &&
+      result.append &&
+      state.activeLens === "route-readiness"
+    ) {
+      renderReadiness({ preserveScroll: true });
+    }
+    return result;
   }
 
   function applyExactRunStatusCounts(incoming, { isUnfiltered, pageTotal } = {}) {
@@ -1097,9 +1229,19 @@ export function createProductionRouteController(deps = {}) {
     return { ok: true, data: payload };
   }
 
+  function foundationHasMore() {
+    return prmRegisterHasMore({
+      loadedCount: (state.foundationReviewGroups || []).length,
+      totalCount: state.foundationTotalCount,
+      lastBatchSize: state.prmLastBatchSize,
+      pageLimit: state.limit,
+    });
+  }
+
   async function loadFoundationReview({
     resetOffset = false,
     search = state.search,
+    append = false,
   } = {}) {
     if (!canView()) {
       state.permissionDenied = true;
@@ -1110,15 +1252,41 @@ export function createProductionRouteController(deps = {}) {
       state.foundationTotalCount = 0;
       return { ok: false, reason: "permission" };
     }
-    state.permissionDenied = false;
-    state.loading = true;
-    state.foundationReviewLoadError = null;
-    if (resetOffset) {
+    if (append) {
+      if (
+        state.loading ||
+        state.foundationLoadingMore ||
+        !foundationHasMore()
+      ) {
+        return { ok: true, skipped: true };
+      }
+      state.foundationLoadingMore = true;
+      state.foundationLoadMoreError = null;
+    } else {
+      const current = ++state.foundationGeneration;
+      state.loading = true;
+      state.permissionDenied = false;
+      state.foundationReviewLoadError = null;
+      state.foundationLoadMoreError = null;
+      state.foundationLoadingMore = false;
+      if (resetOffset) {
+        state.page = 1;
+        state.offset = 0;
+        state.foundationReviewGroups = [];
+      }
+      if (search != null) state.search = String(search || "").trim();
+      void current;
+    }
+    const requestGen = state.foundationGeneration;
+    const filterSnapshot = { search: state.search || "" };
+    const ctx = PRM_FOUNDATION_REVIEW_EXACT_RUN_CONTEXT;
+    const limit = Math.max(1, Number(state.limit) || 25);
+    state.limit = limit;
+    const offset = append ? (state.foundationReviewGroups || []).length : 0;
+    if (!append && resetOffset) {
       state.page = 1;
       state.offset = 0;
     }
-    if (search != null) state.search = String(search || "").trim();
-    const ctx = PRM_FOUNDATION_REVIEW_EXACT_RUN_CONTEXT;
     const response = await invoke(
       RPC.foundationReview,
       buildFoundationReviewRpcArgs({
@@ -1126,14 +1294,27 @@ export function createProductionRouteController(deps = {}) {
         valuation_date: ctx.valuation_date,
         refresh_run_id: ctx.refresh_run_id,
         as_of_date: getAsOfDate(),
-        search: state.search || null,
-        limit: state.limit || 25,
-        offset: state.offset || 0,
+        search: filterSnapshot.search || null,
+        limit,
+        offset,
       }),
       "Unable to load Route Family foundation review.",
     );
-    state.loading = false;
+    if (requestGen !== state.foundationGeneration) {
+      return { ok: false, stale: true };
+    }
+    if (filterSnapshot.search !== (state.search || "")) {
+      return { ok: false, stale: true };
+    }
+    if (append) state.foundationLoadingMore = false;
+    else state.loading = false;
     if (!response.ok) {
+      if (append) {
+        state.foundationLoadMoreError =
+          response.error?.message ||
+          "Unable to load more Product Groups.";
+        return { ok: false, error: response.error, append: true };
+      }
       state.foundationReviewPayload = null;
       state.foundationReviewGroups = [];
       state.foundationTotalCount = 0;
@@ -1144,18 +1325,61 @@ export function createProductionRouteController(deps = {}) {
     }
     const payload = normalizePrmFoundationReviewPayload(response.data);
     state.foundationReviewPayload = payload;
-    state.foundationReviewGroups = payload.groups || [];
+    const incoming = payload.groups || [];
+    const loadedBefore = append ? (state.foundationReviewGroups || []).length : 0;
+    state.foundationReviewGroups = append
+      ? appendPrmRowsDeduped(state.foundationReviewGroups, incoming, (group) =>
+          normalizePrmIntegerId(group?.product_group_id),
+        )
+      : incoming;
+    state.prmLastBatchSize = incoming.length;
+    state.foundationTotalCount = commitPrmRegisterTotalCount({
+      previousTotal: state.foundationTotalCount,
+      incomingTotal: payload.filtered_group_count,
+      append,
+      loadedCount: state.foundationReviewGroups.length,
+    });
+    state.foundationTotalCount = reconcilePrmRegisterTotalAfterAppend({
+      totalCount: state.foundationTotalCount,
+      loadedBefore,
+      loadedAfter: state.foundationReviewGroups.length,
+      incomingCount: incoming.length,
+      append,
+    });
+    state.total_count = state.foundationTotalCount;
     const page = clampPrmPagination({
-      offset: state.offset,
-      limit: state.limit,
-      total_count: payload.filtered_group_count,
+      offset,
+      limit,
+      total_count: state.foundationTotalCount,
     });
     state.offset = page.offset;
     state.page = page.pageIndex + 1;
-    state.foundationTotalCount = page.total_count;
-    state.total_count = page.total_count;
     await ensureMasterOptions();
-    return { ok: true, data: payload, total_count: state.foundationTotalCount };
+    return {
+      ok: true,
+      data: payload,
+      total_count: state.foundationTotalCount,
+      append,
+    };
+  }
+
+  async function loadMoreFoundationReview() {
+    const result = await loadFoundationReview({ append: true });
+    if (
+      result?.ok &&
+      !result.skipped &&
+      state.activeLens === "route-family-foundation-review"
+    ) {
+      renderFoundationReview({ preserveScroll: true });
+    } else if (
+      result &&
+      !result.ok &&
+      result.append &&
+      state.activeLens === "route-family-foundation-review"
+    ) {
+      renderFoundationReview({ preserveScroll: true });
+    }
+    return result;
   }
 
   async function loadFamilyHistory(routeFamilyId) {
@@ -1304,24 +1528,287 @@ export function createProductionRouteController(deps = {}) {
     return { ok: true, data: payload };
   }
 
-  function buildEffectiveViewerProductOptionsHtml(selectedId) {
-    const selected = normalizePrmIntegerId(selectedId);
-    const opts = ['<option value="">Search or select Product</option>'];
-    for (const product of coercePrmList(state.products)) {
-      const id = normalizePrmIntegerId(product.product_id ?? product.id);
-      if (id == null) continue;
-      const name = product.product_name || product.name || `Product ${id}`;
-      const group =
-        product.product_group_name ||
-        formatPrmProductGroupHierarchyLabel(product) ||
-        "";
-      const search = [name, group, String(id)].filter(Boolean).join(" ");
-      const title = group ? `${name} · ${group}` : name;
-      opts.push(
-        `<option value="${escapeHtml(id)}" data-primary="${escapeHtml(name)}" data-secondary="${escapeHtml(group)}" data-search="${escapeHtml(search)}" title="${escapeHtml(title)}"${selected === id ? " selected" : ""}>${escapeHtml(name)}</option>`,
-      );
+  const PRM_EFFECTIVE_VIEWER_SEARCH_RESULT_CAP = 50;
+  let effectiveViewerSearchResultsEl = null;
+  let effectiveViewerSearchHighlight = -1;
+  let effectiveViewerSearchResults = [];
+  let effectiveViewerSearchChromeBound = false;
+  const effectiveViewerSearchChromeHandlers = [];
+
+  function clearCanonicalSearchUi() {
+    state.search = "";
+    const searchEl = document.getElementById("search");
+    if (searchEl) searchEl.value = "";
+    const clearBtn = document.getElementById("searchClear");
+    if (clearBtn) clearBtn.style.display = "none";
+  }
+
+  function hideEffectiveViewerSearchResults() {
+    effectiveViewerSearchHighlight = -1;
+    effectiveViewerSearchResults = [];
+    if (!effectiveViewerSearchResultsEl) return;
+    effectiveViewerSearchResultsEl.hidden = true;
+    effectiveViewerSearchResultsEl.innerHTML = "";
+    effectiveViewerSearchResultsEl.setAttribute("aria-hidden", "true");
+    const searchEl = document.getElementById("search");
+    searchEl?.setAttribute("aria-expanded", "false");
+  }
+
+  function destroyEffectiveViewerSearchResults() {
+    hideEffectiveViewerSearchResults();
+    unbindEffectiveViewerSearchChrome();
+    if (effectiveViewerSearchResultsEl) {
+      effectiveViewerSearchResultsEl.remove();
+      effectiveViewerSearchResultsEl = null;
     }
-    return opts.join("");
+  }
+
+  function ensureEffectiveViewerSearchResultsEl() {
+    if (effectiveViewerSearchResultsEl?.isConnected) {
+      return effectiveViewerSearchResultsEl;
+    }
+    const el = document.createElement("div");
+    el.id = "prmEffectiveViewerSearchResults";
+    el.className = "cp-prm-effective-viewer-search-results";
+    el.setAttribute("role", "listbox");
+    el.setAttribute("aria-label", "Product search results");
+    el.hidden = true;
+    document.body.appendChild(el);
+    effectiveViewerSearchResultsEl = el;
+    return el;
+  }
+
+  function positionEffectiveViewerSearchResults() {
+    const el = effectiveViewerSearchResultsEl;
+    const searchEl = document.getElementById("search");
+    if (!el || el.hidden || !searchEl) return;
+    const anchor =
+      searchEl.closest(".filter-item.search") ||
+      searchEl.closest(".search-card") ||
+      searchEl;
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.max(rect.width, 240);
+    const left = Math.min(
+      Math.max(8, rect.left),
+      Math.max(8, window.innerWidth - width - 8),
+    );
+    el.style.position = "fixed";
+    el.style.left = `${left}px`;
+    el.style.top = `${Math.max(8, rect.bottom + 4)}px`;
+    el.style.width = `${Math.min(width, window.innerWidth - 16)}px`;
+    el.style.zIndex = "1200";
+  }
+
+  function paintEffectiveViewerSearchHighlight() {
+    const el = effectiveViewerSearchResultsEl;
+    if (!el) return;
+    const rows = el.querySelectorAll("[data-prm-effective-viewer-product-id]");
+    rows.forEach((row, idx) => {
+      const onRow = idx === effectiveViewerSearchHighlight;
+      row.classList.toggle("is-active", onRow);
+      row.setAttribute("aria-selected", onRow ? "true" : "false");
+      if (onRow) {
+        try {
+          row.scrollIntoView({ block: "nearest" });
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  }
+
+  function renderEffectiveViewerSearchResults() {
+    if (state.activeLens !== "effective-route-viewer") {
+      hideEffectiveViewerSearchResults();
+      return;
+    }
+    const query = String(state.search || "").trim();
+    if (!query) {
+      hideEffectiveViewerSearchResults();
+      return;
+    }
+    const matches = filterPrmEffectiveViewerProducts(
+      state.products,
+      query,
+    ).slice(0, PRM_EFFECTIVE_VIEWER_SEARCH_RESULT_CAP);
+    effectiveViewerSearchResults = matches;
+    const el = ensureEffectiveViewerSearchResultsEl();
+    bindEffectiveViewerSearchChrome();
+    if (!matches.length) {
+      el.innerHTML = `<div class="cp-prm-effective-viewer-search-empty cp-muted-text">No Products match this search.</div>`;
+      el.hidden = false;
+      el.setAttribute("aria-hidden", "false");
+      effectiveViewerSearchHighlight = -1;
+      positionEffectiveViewerSearchResults();
+      document.getElementById("search")?.setAttribute("aria-expanded", "true");
+      return;
+    }
+    if (
+      effectiveViewerSearchHighlight < 0 ||
+      effectiveViewerSearchHighlight >= matches.length
+    ) {
+      effectiveViewerSearchHighlight = 0;
+    }
+    el.innerHTML = matches
+      .map((product, idx) => {
+        const copy = formatPrmEffectiveViewerProductResultCopy(product);
+        const id = copy.product_id;
+        if (id == null) return "";
+        const secondaryParts = [copy.secondary, copy.group].filter(Boolean);
+        return `<button type="button" class="cp-prm-effective-viewer-search-row${
+          idx === effectiveViewerSearchHighlight ? " is-active" : ""
+        }" role="option" aria-selected="${
+          idx === effectiveViewerSearchHighlight ? "true" : "false"
+        }" data-prm-effective-viewer-product-id="${escapeHtml(id)}">
+          <span class="cp-prm-effective-viewer-search-primary">${escapeHtml(copy.primary)}</span>
+          <span class="cp-prm-effective-viewer-search-secondary cp-muted-text">${escapeHtml(
+            secondaryParts.join(" · "),
+          )}</span>
+        </button>`;
+      })
+      .join("");
+    el.hidden = false;
+    el.setAttribute("aria-hidden", "false");
+    positionEffectiveViewerSearchResults();
+    document.getElementById("search")?.setAttribute("aria-expanded", "true");
+  }
+
+  function syncEffectiveViewerSearchResults() {
+    if (state.activeLens !== "effective-route-viewer") {
+      hideEffectiveViewerSearchResults();
+      return;
+    }
+    renderEffectiveViewerSearchResults();
+  }
+
+  async function selectEffectiveViewerProductFromSearch(productId) {
+    const pid = normalizePrmIntegerId(productId);
+    if (pid == null) return { ok: false };
+    hideEffectiveViewerSearchResults();
+    clearCanonicalSearchUi();
+    await loadEffectiveViewerProduct(pid, "user-select");
+    if (state.activeLens !== "effective-route-viewer") {
+      return { ok: false, stale: true };
+    }
+    paintAcceptedPrmLens();
+    return { ok: true };
+  }
+
+  function onEffectiveViewerSearchKeydown(event) {
+    if (state.activeLens !== "effective-route-viewer") return;
+    const el = effectiveViewerSearchResultsEl;
+    const open = el && !el.hidden;
+    if (event.key === "Escape") {
+      if (open) {
+        event.preventDefault();
+        event.stopPropagation();
+        hideEffectiveViewerSearchResults();
+      }
+      return;
+    }
+    if (!open || !effectiveViewerSearchResults.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      effectiveViewerSearchHighlight = Math.min(
+        effectiveViewerSearchResults.length - 1,
+        Math.max(0, effectiveViewerSearchHighlight) + 1,
+      );
+      paintEffectiveViewerSearchHighlight();
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      effectiveViewerSearchHighlight = Math.max(
+        0,
+        (effectiveViewerSearchHighlight < 0
+          ? 0
+          : effectiveViewerSearchHighlight) - 1,
+      );
+      paintEffectiveViewerSearchHighlight();
+      return;
+    }
+    if (event.key === "Enter") {
+      const idx =
+        effectiveViewerSearchHighlight >= 0
+          ? effectiveViewerSearchHighlight
+          : 0;
+      const row = effectiveViewerSearchResults[idx];
+      const pid = normalizePrmIntegerId(row?.product_id ?? row?.id);
+      if (pid == null) return;
+      event.preventDefault();
+      void selectEffectiveViewerProductFromSearch(pid);
+    }
+  }
+
+  function onEffectiveViewerSearchResultsClick(event) {
+    const btn = event.target?.closest?.("[data-prm-effective-viewer-product-id]");
+    if (!btn || !effectiveViewerSearchResultsEl?.contains(btn)) return;
+    event.preventDefault();
+    const pid = normalizePrmIntegerId(
+      btn.getAttribute("data-prm-effective-viewer-product-id"),
+    );
+    if (pid == null) return;
+    void selectEffectiveViewerProductFromSearch(pid);
+  }
+
+  function onEffectiveViewerSearchOutsidePointer(event) {
+    if (state.activeLens !== "effective-route-viewer") return;
+    const el = effectiveViewerSearchResultsEl;
+    if (!el || el.hidden) return;
+    const searchEl = document.getElementById("search");
+    const clearBtn = document.getElementById("searchClear");
+    const t = event.target;
+    if (el.contains(t) || searchEl?.contains?.(t) || clearBtn?.contains?.(t)) {
+      return;
+    }
+    hideEffectiveViewerSearchResults();
+  }
+
+  function onEffectiveViewerSearchReposition() {
+    if (state.activeLens !== "effective-route-viewer") return;
+    if (!effectiveViewerSearchResultsEl || effectiveViewerSearchResultsEl.hidden) {
+      return;
+    }
+    positionEffectiveViewerSearchResults();
+  }
+
+  function bindEffectiveViewerSearchChrome() {
+    if (effectiveViewerSearchChromeBound) return;
+    const searchEl = document.getElementById("search");
+    const resultsEl = ensureEffectiveViewerSearchResultsEl();
+    const track = (target, type, fn, options) => {
+      if (!target) return;
+      target.addEventListener(type, fn, options);
+      effectiveViewerSearchChromeHandlers.push({ target, type, fn, options });
+    };
+    if (searchEl) {
+      track(searchEl, "keydown", onEffectiveViewerSearchKeydown);
+      searchEl.setAttribute("aria-autocomplete", "list");
+      searchEl.setAttribute("aria-controls", resultsEl.id);
+      searchEl.setAttribute("aria-haspopup", "listbox");
+    }
+    track(resultsEl, "mousedown", onEffectiveViewerSearchResultsClick);
+    track(document, "mousedown", onEffectiveViewerSearchOutsidePointer);
+    track(window, "resize", onEffectiveViewerSearchReposition);
+    track(window, "scroll", onEffectiveViewerSearchReposition, true);
+    effectiveViewerSearchChromeBound = true;
+  }
+
+  function unbindEffectiveViewerSearchChrome() {
+    for (const entry of effectiveViewerSearchChromeHandlers) {
+      try {
+        entry.target.removeEventListener(entry.type, entry.fn, entry.options);
+      } catch {
+        /* ignore */
+      }
+    }
+    effectiveViewerSearchChromeHandlers.length = 0;
+    effectiveViewerSearchChromeBound = false;
+    const searchEl = document.getElementById("search");
+    searchEl?.removeAttribute("aria-expanded");
+    searchEl?.removeAttribute("aria-controls");
+    searchEl?.removeAttribute("aria-autocomplete");
+    searchEl?.removeAttribute("aria-haspopup");
   }
 
   function viewerPlainText(value) {
@@ -3363,64 +3850,130 @@ export function createProductionRouteController(deps = {}) {
     };
   }
 
+  function assignmentHasMore() {
+    return prmRegisterHasMore({
+      loadedCount: (state.assignmentRows || []).length,
+      totalCount: state.assignmentTotalCount,
+      lastBatchSize: state.prmLastBatchSize,
+      pageLimit: state.limit,
+    });
+  }
+
   /** Product Assignments register (Gate 11Y.4C.2). Optional deep-link product focus. */
-  async function loadProductAssignments({ resetOffset = false, search } = {}) {
+  async function loadProductAssignments({
+    resetOffset = false,
+    search,
+    append = false,
+  } = {}) {
     if (!canView()) {
       state.permissionDenied = true;
       state.assignmentRows = [];
       state.assignmentTotalCount = 0;
       return { ok: false, permissionDenied: true };
     }
-    const current = ++state.assignmentGeneration;
-    state.assignmentLoading = true;
-    state.permissionDenied = false;
-    state.assignmentLoadError = null;
-    if (resetOffset) {
-      state.page = 1;
-      state.offset = 0;
+    if (append) {
+      if (
+        state.assignmentLoading ||
+        state.assignmentLoadingMore ||
+        !assignmentHasMore()
+      ) {
+        return { ok: true, skipped: true };
+      }
+      state.assignmentLoadingMore = true;
+      state.assignmentLoadMoreError = null;
+    } else {
+      const current = ++state.assignmentGeneration;
+      state.assignmentLoading = true;
+      state.permissionDenied = false;
+      state.assignmentLoadError = null;
+      state.assignmentLoadMoreError = null;
+      state.assignmentLoadingMore = false;
+      if (resetOffset) {
+        state.page = 1;
+        state.offset = 0;
+        state.assignmentRows = [];
+      }
+      if (search != null) state.search = String(search || "").trim();
+      void current;
     }
-    if (search != null) state.search = String(search || "").trim();
+    const requestGen = state.assignmentGeneration;
+    const filterSnapshot = {
+      search: state.search || "",
+      assignment_status: state.assignment_status || "",
+      product_group_id: state.product_group_id || "",
+      route_family_id: state.route_family_id || "",
+      assignmentFocusProductId: state.assignmentFocusProductId || "",
+    };
     // Hydrate catalogues only when not ready — never force a reload for register truth.
     if (!isPrmMasterOptionsReady(state.optionsStatus) || !state.options) {
       const options = await ensureMasterOptions();
-      if (current !== state.assignmentGeneration) {
-        return { ok: false, stale: true, generation: current };
+      if (requestGen !== state.assignmentGeneration) {
+        return { ok: false, stale: true, generation: requestGen };
       }
       if (!options.ok) {
         state.assignmentLoading = false;
+        state.assignmentLoadingMore = false;
         return {
           ok: false,
           error: options.error || options.errors,
-          generation: current,
+          generation: requestGen,
         };
       }
     }
     const focusProductId = normalizePrmIntegerId(state.assignmentFocusProductId);
     const isUnfiltered =
-      !state.assignment_status &&
-      !state.search &&
-      !state.product_group_id &&
-      !state.route_family_id &&
+      !filterSnapshot.assignment_status &&
+      !filterSnapshot.search &&
+      !filterSnapshot.product_group_id &&
+      !filterSnapshot.route_family_id &&
       focusProductId == null;
+    const limit = Math.max(1, Number(state.limit) || 25);
+    state.limit = limit;
+    const offset = append ? (state.assignmentRows || []).length : 0;
+    if (!append && resetOffset) {
+      state.page = 1;
+      state.offset = 0;
+    }
     const response = await invoke(
       RPC.productAssignments,
       buildProductAssignmentsRpcArgs({
-        status: state.assignment_status || null,
-        search: state.search || null,
-        route_family_id: state.route_family_id || null,
-        product_group_id: state.product_group_id || null,
-        // Company-wide when no remediation focus; deep-link focus passes p_product_id.
+        status: filterSnapshot.assignment_status || null,
+        search: filterSnapshot.search || null,
+        route_family_id: filterSnapshot.route_family_id || null,
+        product_group_id: filterSnapshot.product_group_id || null,
         product_id: focusProductId,
-        limit: state.limit,
-        offset: state.offset,
+        limit,
+        offset,
       }),
       "Unable to load Product Route Family assignments.",
     );
-    if (current !== state.assignmentGeneration) {
-      return { ok: false, stale: true, generation: current };
+    if (requestGen !== state.assignmentGeneration) {
+      return { ok: false, stale: true, generation: requestGen };
     }
-    state.assignmentLoading = false;
+    if (
+      filterSnapshot.search !== (state.search || "") ||
+      filterSnapshot.assignment_status !== (state.assignment_status || "") ||
+      filterSnapshot.product_group_id !== (state.product_group_id || "") ||
+      filterSnapshot.route_family_id !== (state.route_family_id || "") ||
+      filterSnapshot.assignmentFocusProductId !==
+        (state.assignmentFocusProductId || "")
+    ) {
+      return { ok: false, stale: true, generation: requestGen };
+    }
+    if (append) state.assignmentLoadingMore = false;
+    else state.assignmentLoading = false;
     if (!response.ok) {
+      if (append) {
+        state.assignmentLoadMoreError =
+          response.error?.message ||
+          "Unable to load more Product Assignments.";
+        return {
+          ok: false,
+          error: response.error,
+          generation: requestGen,
+          append: true,
+        };
+      }
       // Preserve last accepted register rows/count — do not wipe on failed reread.
       state.assignmentLoadError =
         response.error?.message ||
@@ -3428,23 +3981,42 @@ export function createProductionRouteController(deps = {}) {
       return {
         ok: false,
         error: response.error,
-        generation: current,
+        generation: requestGen,
       };
     }
     const normalized = normalizePrmProductAssignmentsPayload(response.data);
-    if (current !== state.assignmentGeneration) {
-      return { ok: false, stale: true, generation: current };
+    if (requestGen !== state.assignmentGeneration) {
+      return { ok: false, stale: true, generation: requestGen };
     }
+    const incoming = normalized.rows || [];
+    const loadedBefore = append ? (state.assignmentRows || []).length : 0;
+    state.assignmentRows = append
+      ? appendPrmRowsDeduped(state.assignmentRows, incoming, (row) =>
+          normalizePrmIntegerId(row?.product_id),
+        )
+      : incoming;
+    state.prmLastBatchSize = incoming.length;
+    state.assignmentTotalCount = commitPrmRegisterTotalCount({
+      previousTotal: state.assignmentTotalCount,
+      incomingTotal: normalized.total_count,
+      append,
+      loadedCount: state.assignmentRows.length,
+    });
+    state.assignmentTotalCount = reconcilePrmRegisterTotalAfterAppend({
+      totalCount: state.assignmentTotalCount,
+      loadedBefore,
+      loadedAfter: state.assignmentRows.length,
+      incomingCount: incoming.length,
+      append,
+    });
+    state.total_count = state.assignmentTotalCount;
     const page = clampPrmPagination({
-      offset: state.offset,
-      limit: state.limit,
-      total_count: normalized.total_count,
+      offset,
+      limit,
+      total_count: state.assignmentTotalCount,
     });
     state.offset = page.offset;
     state.page = page.pageIndex + 1;
-    state.assignmentTotalCount = page.total_count;
-    state.total_count = page.total_count;
-    state.assignmentRows = normalized.rows || [];
     applyAssignmentStatusCounts(normalized.status_counts || {}, {
       isUnfiltered,
       pageTotal: normalized.total_count,
@@ -3461,18 +4033,38 @@ export function createProductionRouteController(deps = {}) {
     return {
       ok: true,
       total_count: state.assignmentTotalCount,
-      generation: current,
+      generation: requestGen,
       rows: state.assignmentRows,
+      append,
     };
+  }
+
+  async function loadMoreProductAssignments() {
+    const result = await loadProductAssignments({ append: true });
+    if (
+      result?.ok &&
+      !result.skipped &&
+      state.activeLens === "product-route-assignments"
+    ) {
+      renderAssignments({ preserveScroll: true });
+    } else if (
+      result &&
+      !result.ok &&
+      result.append &&
+      state.activeLens === "product-route-assignments"
+    ) {
+      renderAssignments({ preserveScroll: true });
+    }
+    return result;
   }
 
   /**
    * Authoritative Product Assignments register refresh after mutation.
-   * No master-options reload. Paint only after accepted commit.
+   * Resets to the first batch so appended pages do not retain stale rows.
    */
   async function refreshProductAssignmentsAfterMutation({
     refreshFailureMessage = "Product Assignment updated, but the register could not be refreshed.",
-    resetOffset = false,
+    resetOffset = true,
   } = {}) {
     if (state.activeLens !== "product-route-assignments") {
       return { ok: false, skipped: true, reason: "lens" };
@@ -3566,9 +4158,12 @@ export function createProductionRouteController(deps = {}) {
   }
 
   function workloadHasMore() {
-    const total = Number(state.workloadTotalCount) || 0;
-    const loaded = (state.workloadRows || []).length;
-    return total > 0 && loaded < total;
+    return prmRegisterHasMore({
+      loadedCount: (state.workloadRows || []).length,
+      totalCount: state.workloadTotalCount,
+      lastBatchSize: state.prmLastBatchSize,
+      pageLimit: state.workloadLimit,
+    });
   }
 
   async function loadWorkloadPreview({
@@ -3696,21 +4291,35 @@ export function createProductionRouteController(deps = {}) {
       return { ok: false, error: response.error };
     }
     const normalized = normalizePrmWorkloadPreviewPayload(response.data);
+    const incoming = normalized.rows || [];
+    const loadedBefore = append ? (state.workloadRows || []).length : 0;
+    state.workloadRows = append
+      ? appendWorkloadRowsDeduped(state.workloadRows, incoming)
+      : incoming;
+    state.prmLastBatchSize = incoming.length;
+    state.workloadTotalCount = commitPrmRegisterTotalCount({
+      previousTotal: state.workloadTotalCount,
+      incomingTotal: normalized.total_count,
+      append,
+      loadedCount: state.workloadRows.length,
+    });
+    state.workloadTotalCount = reconcilePrmRegisterTotalAfterAppend({
+      totalCount: state.workloadTotalCount,
+      loadedBefore,
+      loadedAfter: state.workloadRows.length,
+      incomingCount: incoming.length,
+      append,
+    });
+    state.total_count = state.workloadTotalCount;
     const page = clampPrmPagination({
       offset,
       limit,
-      total_count: normalized.total_count,
+      total_count: state.workloadTotalCount,
     });
     state.offset = page.offset;
     state.workloadOffset = page.offset;
     state.page = page.pageIndex + 1;
     state.limit = limit;
-    state.workloadTotalCount = page.total_count;
-    state.total_count = page.total_count;
-    const incoming = normalized.rows || [];
-    state.workloadRows = append
-      ? appendWorkloadRowsDeduped(state.workloadRows, incoming)
-      : incoming;
     applyWorkloadStatusCounts(normalized, { isUnfiltered });
     state.workloadSummary = enrichWorkloadSummary(
       normalized.summary,
@@ -3754,10 +4363,10 @@ export function createProductionRouteController(deps = {}) {
     if (state.activeLens === "product-route-assignments") {
       await refreshProductAssignmentsAfterMutation({
         refreshFailureMessage,
-        resetOffset: opts.resetOffset === true,
+        resetOffset: opts.resetOffset !== false,
       });
     } else {
-      await loadReadiness({ resetOffset: false });
+      await loadReadiness({ resetOffset: true });
       if (state.activeLens === "route-readiness") {
         paintAcceptedPrmLens();
       }
@@ -7808,20 +8417,6 @@ export function createProductionRouteController(deps = {}) {
     return text(row[key]);
   }
 
-  function bindWorkloadInfiniteScroll(wrap) {
-    if (!wrap || wrap.dataset.prmWorkloadScrollBound === "1") return;
-    wrap.dataset.prmWorkloadScrollBound = "1";
-    on(wrap, "scroll", () => {
-      if (state.activeLens !== "shared-workload-preview") return;
-      if (!workloadHasMore()) return;
-      if (state.workloadLoading || state.workloadLoadingMore) return;
-      const remaining =
-        wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
-      if (remaining > 240) return;
-      void loadMoreWorkloadPreview();
-    });
-  }
-
   function renderWorkloadPreview({ preserveScroll = false } = {}) {
     const host = hosts();
     const priorScroll = preserveScroll ? host.tableWrap?.scrollTop : null;
@@ -7829,8 +8424,8 @@ export function createProductionRouteController(deps = {}) {
     const table = document.getElementById("mainTable");
     if (table) table.style.display = "";
     clearLensOwnedDom();
+    teardownPrmRegisterProgressiveScroll(host.tableWrap);
     if (table) table.setAttribute("data-prm-workload-table", "1");
-    bindWorkloadInfiniteScroll(host.tableWrap);
     const headers = [
       { label: "Product ID", title: "Product ID" },
       { label: "Product", title: "Product name" },
@@ -7892,22 +8487,13 @@ export function createProductionRouteController(deps = {}) {
       host.summary.innerHTML = workloadPreviewSummaryHtml();
       return;
     }
-    const footerRows = [];
-    if (state.workloadLoadingMore) {
-      footerRows.push(
-        `<tr data-prm-workload-load-more><td colspan="${colCount}"><div class="cost-sheet-explain-loading">Loading more Products…</div></td></tr>`,
-      );
-    } else if (state.workloadLoadMoreError) {
-      footerRows.push(
-        `<tr data-prm-workload-load-more><td colspan="${colCount}"><div class="status">${text(
-          state.workloadLoadMoreError,
-        )} <button type="button" class="cp-prm-link-btn" data-prm-workload-retry-more>Retry</button></div></td></tr>`,
-      );
-    } else if (workloadHasMore()) {
-      footerRows.push(
-        `<tr data-prm-workload-load-more><td colspan="${colCount}"><div class="cp-muted-text">Scroll for more Products…</div></td></tr>`,
-      );
-    }
+    const footerHtml = buildPrmInfiniteScrollFooterHtml({
+      colCount,
+      loadingMore: state.workloadLoadingMore,
+      loadMoreError: state.workloadLoadMoreError,
+      hasMore: workloadHasMore(),
+      entityLabel: "Products",
+    });
     host.tableBody.innerHTML =
       state.workloadRows
         .map(
@@ -7916,12 +8502,18 @@ export function createProductionRouteController(deps = {}) {
           ${keys.map((key) => `<td>${workloadCellHtml(row, key)}</td>`).join("")}
         </tr>`,
         )
-        .join("") + footerRows.join("");
+        .join("") + footerHtml;
     host.summary.innerHTML = workloadPreviewSummaryHtml();
     bindRows();
     if (priorScroll != null && host.tableWrap) {
       host.tableWrap.scrollTop = priorScroll;
     }
+    wirePrmRegisterScroll(host.tableWrap, {
+      lensId: "shared-workload-preview",
+      hasMore: workloadHasMore,
+      isLoading: () => state.workloadLoading || state.workloadLoadingMore,
+      loadMore: loadMoreWorkloadPreview,
+    });
   }
 
   function assignmentCellHtml(row, key) {
@@ -7976,12 +8568,14 @@ export function createProductionRouteController(deps = {}) {
     });
   }
 
-  function renderAssignments() {
+  function renderAssignments({ preserveScroll = false } = {}) {
     const host = hosts();
+    const priorScroll = preserveScroll ? host.tableWrap?.scrollTop : null;
     host.tableWrap?.classList.remove("hidden");
     const table = document.getElementById("mainTable");
     if (table) table.style.display = "";
     clearLensOwnedDom();
+    teardownPrmRegisterProgressiveScroll(host.tableWrap);
     const headers = [
       "Assignment ID",
       "Product",
@@ -8048,31 +8642,50 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
     const focusId = normalizePrmIntegerId(state.assignmentFocusProductId);
-    host.tableBody.innerHTML = state.assignmentRows
-      .map((row, index) => {
-        const isFocused =
-          focusId != null && String(row.product_id) === String(focusId);
-        const rowClass = isFocused
-          ? `cp-prm-row ${PRM_ACTIVE_ROW_CLASS}`
-          : "cp-prm-row";
-        return `<tr class="${rowClass}" tabindex="0" role="button" data-prm-assignment-row="${index}"${
-          isFocused ? ' aria-current="true"' : ""
-        }>
+    const footerHtml = buildPrmInfiniteScrollFooterHtml({
+      colCount,
+      loadingMore: state.assignmentLoadingMore,
+      loadMoreError: state.assignmentLoadMoreError,
+      hasMore: assignmentHasMore(),
+      entityLabel: "Product Assignments",
+    });
+    host.tableBody.innerHTML =
+      state.assignmentRows
+        .map((row, index) => {
+          const isFocused =
+            focusId != null && String(row.product_id) === String(focusId);
+          const rowClass = isFocused
+            ? `cp-prm-row ${PRM_ACTIVE_ROW_CLASS}`
+            : "cp-prm-row";
+          return `<tr class="${rowClass}" tabindex="0" role="button" data-prm-assignment-row="${index}"${
+            isFocused ? ' aria-current="true"' : ""
+          }>
           ${keys.map((key) => `<td>${assignmentCellHtml(row, key)}</td>`).join("")}
         </tr>`;
-      })
-      .join("");
+        })
+        .join("") + footerHtml;
     host.summary.innerHTML = assignmentRegisterSummaryHtml();
     bindRows();
     bindAssignmentRegisterChrome(host);
+    if (priorScroll != null && host.tableWrap) {
+      host.tableWrap.scrollTop = priorScroll;
+    }
+    wirePrmRegisterScroll(host.tableWrap, {
+      lensId: "product-route-assignments",
+      hasMore: assignmentHasMore,
+      isLoading: () => state.assignmentLoading || state.assignmentLoadingMore,
+      loadMore: loadMoreProductAssignments,
+    });
   }
 
-  function renderReadiness() {
+  function renderReadiness({ preserveScroll = false } = {}) {
     const host = hosts();
+    const priorScroll = preserveScroll ? host.tableWrap?.scrollTop : null;
     host.tableWrap?.classList.remove("hidden");
     const table = document.getElementById("mainTable");
     if (table) table.style.display = "";
     clearLensOwnedDom();
+    teardownPrmRegisterProgressiveScroll(host.tableWrap);
     const cols = selectPrmReadinessColumns(state.readinessRows);
     const colCount = Math.max(cols.length, 1);
     if (host.tableHead) host.tableHead.innerHTML = readinessHeader();
@@ -8096,15 +8709,23 @@ export function createProductionRouteController(deps = {}) {
       host.summary.innerHTML = readinessAsOfContextHtml();
       return;
     }
-    host.tableBody.innerHTML = state.readinessRows
-      .map(
-        (row, index) => `<tr class="cp-prm-row" tabindex="0" data-prm-product-row="${index}">
+    host.tableBody.innerHTML =
+      state.readinessRows
+        .map(
+          (row, index) => `<tr class="cp-prm-row" tabindex="0" data-prm-product-row="${index}">
           ${cols
             .map((col) => `<td>${readinessCellHtml(row, col)}</td>`)
             .join("")}
         </tr>`,
-      )
-      .join("");
+        )
+        .join("") +
+      buildPrmInfiniteScrollFooterHtml({
+        colCount,
+        loadingMore: state.readinessLoadingMore,
+        loadMoreError: state.readinessLoadMoreError,
+        hasMore: readinessHasMore(),
+        entityLabel: "Products",
+      });
     host.summary.innerHTML = `${readinessAsOfContextHtml()}<div class="cp-prm-cards">${state.readinessRows
       .map(
         (row, index) => `<article class="cp-prm-card cp-prm-row" tabindex="0" data-prm-product-row="${index}">
@@ -8115,6 +8736,15 @@ export function createProductionRouteController(deps = {}) {
       )
       .join("")}</div>`;
     bindRows();
+    if (priorScroll != null && host.tableWrap) {
+      host.tableWrap.scrollTop = priorScroll;
+    }
+    wirePrmRegisterScroll(host.tableWrap, {
+      lensId: "route-readiness",
+      hasMore: readinessHasMore,
+      isLoading: () => state.loading || state.readinessLoadingMore,
+      loadMore: loadMoreReadiness,
+    });
   }
 
   function mappingReviewGroupStateLabel(group = {}) {
@@ -8563,12 +9193,14 @@ export function createProductionRouteController(deps = {}) {
     });
   }
 
-  function renderFoundationReview() {
+  function renderFoundationReview({ preserveScroll = false } = {}) {
     const host = hosts();
+    const priorScroll = preserveScroll ? host.tableWrap?.scrollTop : null;
     host.tableWrap?.classList.remove("hidden");
     const table = document.getElementById("mainTable");
     if (table) table.style.display = "";
     clearLensOwnedDom();
+    teardownPrmRegisterProgressiveScroll(host.tableWrap);
     const payload = state.foundationReviewPayload;
     const classMap = getPrmFoundationReviewClassSummaryMap(payload?.class_summary);
     const periodLabel =
@@ -8661,14 +9293,15 @@ export function createProductionRouteController(deps = {}) {
       return;
     }
 
-    host.tableBody.innerHTML = state.foundationReviewGroups
-      .map((group, index) => {
-        const groupName =
-          group.product_group_name || `Product Group ${group.product_group_id}`;
-        const ariaLabel = `Open Foundation Review for ${groupName}`;
-        return `<tr class="cp-prm-row cp-prm-foundation-review-row" tabindex="0" role="button" data-prm-foundation-review-group="${index}" aria-label="${text(
-          ariaLabel,
-        )}">
+    host.tableBody.innerHTML =
+      state.foundationReviewGroups
+        .map((group, index) => {
+          const groupName =
+            group.product_group_name || `Product Group ${group.product_group_id}`;
+          const ariaLabel = `Open Foundation Review for ${groupName}`;
+          return `<tr class="cp-prm-row cp-prm-foundation-review-row" tabindex="0" role="button" data-prm-foundation-review-group="${index}" aria-label="${text(
+            ariaLabel,
+          )}">
           <td>${text(group.category_name)}</td>
           <td>${text(group.subcategory_name)}</td>
           <td>
@@ -8684,10 +9317,26 @@ export function createProductionRouteController(deps = {}) {
             formatPrmFoundationGroupEvidenceClassLabel(group.group_evidence_class),
           )}</td>
         </tr>`;
-      })
-      .join("");
+        })
+        .join("") +
+      buildPrmInfiniteScrollFooterHtml({
+        colCount: 9,
+        loadingMore: state.foundationLoadingMore,
+        loadMoreError: state.foundationLoadMoreError,
+        hasMore: foundationHasMore(),
+        entityLabel: "Product Groups",
+      });
 
     bindRows();
+    if (priorScroll != null && host.tableWrap) {
+      host.tableWrap.scrollTop = priorScroll;
+    }
+    wirePrmRegisterScroll(host.tableWrap, {
+      lensId: "route-family-foundation-review",
+      hasMore: foundationHasMore,
+      isLoading: () => state.loading || state.foundationLoadingMore,
+      loadMore: loadMoreFoundationReview,
+    });
   }
 
 
@@ -10768,37 +11417,12 @@ export function createProductionRouteController(deps = {}) {
     host.tableHead.innerHTML = "";
     host.tableBody.innerHTML = "";
     destroySearchableSelectsIn(host.summary);
+    if (host.summary) {
+      host.summary.innerHTML = "";
+      host.summary.classList.remove("is-visible");
+    }
     const lensRoot = ensureLensRoot("effective-route-viewer");
     const viewer = state.effectiveViewer || createEmptyEffectiveViewer();
-    const selectorProductId = viewer.productId;
-    host.summary.innerHTML = `<div class="cp-prm-actions cp-prm-effective-viewer-toolbar">
-      <label class="cp-field-label" for="prmEffectiveProduct">Select Product</label>
-      <select id="prmEffectiveProduct" class="cp-period-select" aria-label="Search or select Product">
-        ${buildEffectiveViewerProductOptionsHtml(selectorProductId)}
-      </select>
-    </div>`;
-    host.summary.classList.add("is-visible");
-    const selectEl = document.getElementById("prmEffectiveProduct");
-    if (selectEl) {
-      enhanceSearchableSelect(selectEl, {
-        placeholder: "Search or select Product",
-        allowEmptyOption: true,
-        openOnFocus: true,
-        showAllWhenEmpty: true,
-        clearSelectedOnBackspace: true,
-      });
-      on(selectEl, "change", async () => {
-        const pid = normalizePrmIntegerId(selectEl.value);
-        if (pid == null) {
-          resetEffectiveViewer();
-          paintAcceptedPrmLens();
-          return;
-        }
-        await loadEffectiveViewerProduct(pid, "user-select");
-        if (state.activeLens !== "effective-route-viewer") return;
-        paintAcceptedPrmLens();
-      });
-    }
     if (viewer.status === "loading") {
       lensRoot.innerHTML = `<div class="status">Loading effective route…</div>`;
       return;
@@ -10850,8 +11474,12 @@ export function createProductionRouteController(deps = {}) {
     return { ...result, generation: token, stale: false };
   }
 
-  async function load({ lens, deepLink = {}, resetOffset = false, search } = {}) {
+  async function load({ lens, resetOffset = true, search, ...rest } = {}) {
     if (disposed) return { ok: false };
+    // Preserve prior deepLink when the caller omitted it (e.g. global search debounce).
+    const deepLink = Object.prototype.hasOwnProperty.call(rest, "deepLink")
+      ? rest.deepLink || {}
+      : state.deepLink || {};
     state.deepLink = { ...deepLink };
     if (deepLink.as_of_date) state.as_of_date = deepLink.as_of_date;
     const requestedLens =
@@ -11063,17 +11691,32 @@ export function createProductionRouteController(deps = {}) {
       return acceptedCandidates;
     }
     if (active === "effective-route-viewer") {
-      const result = await ensureMasterOptions();
+      if (search != null) state.search = String(search || "").trim();
+      // Always force an unscoped Product catalogue — do not inherit
+      // product/group/family-scoped master-options from other PRM lenses.
+      const result = await loadMasterOptions({ catalogueScope: "unscoped" });
       const afterOptions = finalizePrmLoad(token, active, result);
       if (afterOptions.stale) return afterOptions;
       if (!result.ok) return afterOptions;
       const productId = normalizePrmIntegerId(deepLink.product_id);
-      if (productId == null) {
-        resetEffectiveViewer();
-        return finalizePrmLoad(token, active, result);
+      if (productId != null) {
+        const alreadyReady =
+          state.effectiveViewer?.productId === productId &&
+          state.effectiveViewer?.status === "ready" &&
+          state.effectiveViewer?.payload;
+        if (!alreadyReady) {
+          await loadEffectiveViewerProduct(productId, "deep-link");
+        }
+        hideEffectiveViewerSearchResults();
+        return finalizePrmLoad(token, active, { ok: true });
       }
-      await loadEffectiveViewerProduct(productId, "deep-link");
-      return finalizePrmLoad(token, active, { ok: true });
+      // Explicit lens/URL load without product_id = bare entry (reset).
+      // Global-search debounce omits deepLink and must not clear selection.
+      if (Object.prototype.hasOwnProperty.call(rest, "deepLink")) {
+        resetEffectiveViewer();
+      }
+      syncEffectiveViewerSearchResults();
+      return finalizePrmLoad(token, active, result);
     }
     if (active === "product-subgroup-mappings") {
       if (deepLink.product_group_id) {
@@ -11218,12 +11861,15 @@ export function createProductionRouteController(deps = {}) {
   }
 
   function syncPageFromShell(page, pageSize = 25) {
-    if (state.activeLens === "shared-workload-preview") {
-      // Infinite scroll owns paging; shell must not force page flips.
+    if (isPrmInfiniteScrollLens(state.activeLens)) {
       state.page = 1;
       state.offset = 0;
-      state.workloadOffset = 0;
-      state.limit = Math.max(1, Number(state.workloadLimit) || 50);
+      if (state.activeLens === "shared-workload-preview") {
+        state.workloadOffset = 0;
+        state.limit = Math.max(1, Number(state.workloadLimit) || 50);
+      } else {
+        state.limit = Math.max(1, Number(pageSize) || 25);
+      }
       return;
     }
     state.page = Math.max(1, Number(page) || 1);
@@ -11767,16 +12413,18 @@ export function createProductionRouteController(deps = {}) {
 
   function rebuildReadinessPeqOptions() {
     syncPrmFilterDrawerSections();
+    const counts = state.status_counts_baseline || state.status_counts || {};
+    const activeStatus = normalizePrmCode(state.readiness_status);
+    const primary = selectPrmPrimaryReadinessFilterStatuses(counts);
     const list = document.getElementById("prmReadinessChecklist");
     if (list) {
-      const counts = state.status_counts_baseline || state.status_counts || {};
       const allTotal =
         state.exact_run_total != null
           ? state.exact_run_total
           : sumPrmStatusCounts(counts);
-      const primary = selectPrmPrimaryReadinessFilterStatuses(counts);
+      const primarySet = new Set(primary);
       list.innerHTML = [
-        `<li><label><input type="radio" name="prmReadinessStatus" data-prm-readiness="" ${state.readiness_status ? "" : "checked"}> All statuses${
+        `<li><label><input type="radio" name="prmReadinessStatus" data-prm-readiness="" ${activeStatus ? "" : "checked"}> All statuses${
           allTotal != null && Number.isFinite(Number(allTotal))
             ? ` <span class="cp-muted-text">(${text(allTotal)})</span>`
             : ""
@@ -11784,7 +12432,7 @@ export function createProductionRouteController(deps = {}) {
         ...primary.map((code) => {
           const n = Number(counts[code]);
           return `<li><label><input type="radio" name="prmReadinessStatus" data-prm-readiness="${text(code)}" ${
-            state.readiness_status === code ? "checked" : ""
+            activeStatus === code ? "checked" : ""
           }> ${text(formatPrmReadinessLabel(code))}${
             Number.isFinite(n)
               ? ` <span class="cp-muted-text">(${text(n)})</span>`
@@ -11792,6 +12440,32 @@ export function createProductionRouteController(deps = {}) {
           }</label></li>`;
         }),
       ].join("");
+      if (activeStatus && !primarySet.has(activeStatus)) {
+        list
+          .querySelectorAll('input[name="prmReadinessStatus"]')
+          .forEach((el) => {
+            el.checked = false;
+          });
+      }
+    }
+    const more = document.getElementById("prmReadinessMoreStatuses");
+    if (more) {
+      const extras = Object.keys(counts)
+        .filter((code) => !PRM_READINESS_STATUSES.includes(code))
+        .sort();
+      const moreStatuses = [...PRM_READINESS_STATUSES, ...extras];
+      more.innerHTML = `<option value="">Select status…</option>${moreStatuses
+        .map((code) => {
+          const n = Number(counts[code]);
+          const label = `${formatPrmReadinessLabel(code)} (${
+            Number.isFinite(n) ? n : 0
+          })`;
+          return option(code, label, activeStatus === code);
+        })
+        .join("")}`;
+      if (activeStatus && primary.includes(activeStatus)) {
+        more.value = "";
+      }
     }
     rebuildSharedPrmFilterSelects();
     if (state.activeLens === "product-route-assignments") {
@@ -11842,6 +12516,7 @@ export function createProductionRouteController(deps = {}) {
     } else {
       unbindModalHandlers();
     }
+    destroyEffectiveViewerSearchResults();
     unbind();
     if (prmPopstateBound && typeof window !== "undefined") {
       window.removeEventListener("popstate", onPrmPopState);
@@ -11851,6 +12526,7 @@ export function createProductionRouteController(deps = {}) {
 
   function onLensExit() {
     unbind();
+    destroyEffectiveViewerSearchResults();
     hideSpecialHosts();
     state.productRouteCreateHandoff = null;
     state.productRouteReentryChooser = null;
@@ -11867,6 +12543,8 @@ export function createProductionRouteController(deps = {}) {
     paintAcceptedPrmLens,
     getPaintGeneration: () => lensRenderGeneration,
     syncPageFromShell,
+    syncEffectiveViewerSearchResults,
+    hideEffectiveViewerSearchResults,
     getPage: () => state.page,
     getTotalCount: () =>
       state.activeLens === "product-route-assignments"
