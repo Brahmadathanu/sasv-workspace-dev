@@ -36,6 +36,11 @@ export async function runWorkerFoundationCheck(productId, accessToken) {
   return window.eaushadhiWorkerAPI.runFoundationCheck(productId, accessToken);
 }
 
+export async function runWorkerEntryDryRun(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.runEntryDryRun(productId, accessToken);
+}
+
 export async function captureWorkerPortalContract(accessToken) {
   if (!workerApiAvailable()) return unsupported();
   return window.eaushadhiWorkerAPI.capturePortalContract(accessToken);

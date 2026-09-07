@@ -9,9 +9,11 @@
     "productDetails": false,
     "pharmacologicalActions": false,
     "composition": false,
+    "evidence": false,
     "saveUpdate": false,
     "reread": false
   },
+  "firstControlledProductId": 262,
   "authProbe": {
     "routeEvidence": "/admin/addproductforlegacy",
     "logoutSelector": "#logoutForm",
@@ -22,11 +24,16 @@
     "verification_status": "verified",
     "evidence_note": "Structural probe from authenticated live capture on /admin/addproductforlegacy. READY requires a live page probe, not contract completeness alone."
   },
-  "productLookup": null,
+  "productLookup": {
+    "completeness": false,
+    "evidence_note": "Deterministic legacy product list/search, exact-name targeting, and duplicate distinguishability are not proven. Capture must remain observational."
+  },
   "productDetails": {
     "route": "/admin/addproductforlegacy",
     "completeness": false,
+    "evidence_note": "Karpooradi is Ayurveda Proprietary Medicine. Current captured category/subtype inventories are scoped to Siddha Classical Medicine. Do not enable Product Details writing until Ayurvedic Proprietary Medicine vocabulary and dependencies are captured. No governed term_portal_mapping exists yet for System, Medicine Class, Dosage Form, Subtype, or Permission Purpose.",
     "fields": {
+      "name": { "selector": "#name", "status": "unresolved" },
       "type": { "selector": "#type", "status": "verified" },
       "categoryId": { "selector": "#categoryId", "status": "verified", "dependsOn": "type" },
       "subTypeId": { "selector": "#subTypeId", "status": "verified", "dependsOn": ["type", "category"] },
@@ -38,6 +45,8 @@
       "compositionTitle": { "selector": "#compositionTitle", "status": "observed" },
       "disease": { "selector": "#disease", "status": "observed" },
       "month": { "selector": "#month", "status": "unresolved" },
+      "countryApplicable": { "selector": "#countryApplicable", "status": "unresolved" },
+      "countryId": { "selector": "#countryId", "status": "unresolved" },
       "regular": { "selector": "#regular", "status": "unresolved" },
       "applyaccess": { "selector": "#applyaccess", "status": "unresolved" },
       "uploadAttachment": { "selector": "#uploadAttachment", "status": "unresolved" },
@@ -52,7 +61,20 @@
     "completeness": false,
     "evidence_note": "Native multi-select captured. Fill and reread are not proven."
   },
-  "composition": null,
-  "saveUpdate": null,
-  "reread": null
+  "composition": {
+    "completeness": false,
+    "evidence_note": "Composition navigation and row-add/edit sequence are not proven. Do not add or edit rows during capture."
+  },
+  "evidence": {
+    "completeness": false,
+    "evidence_note": "Approved Product Copy portal upload and reread semantics are not proven. Do not upload. COA/stability is out of scope."
+  },
+  "saveUpdate": {
+    "completeness": false,
+    "evidence_note": "Save, Update, shell-create, and final Submit are not distinguished well enough for deterministic execution. Do not click."
+  },
+  "reread": {
+    "completeness": false,
+    "evidence_note": "Retained-state reread locations are not proven."
+  }
 }

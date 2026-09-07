@@ -474,18 +474,21 @@ assert(contractJson.completeness.productLookup === false, "productLookup remains
 assert(contractJson.completeness.productDetails === false, "productDetails completeness remains false");
 assert(contractJson.completeness.pharmacologicalActions === false, "pharmacologicalActions completeness remains false");
 assert(contractJson.completeness.composition === false, "composition remains incomplete");
+assert(contractJson.completeness.evidence === false, "evidence remains incomplete");
 assert(contractJson.completeness.saveUpdate === false, "saveUpdate remains incomplete");
 assert(contractJson.completeness.reread === false, "reread remains incomplete");
 assert(contractJson.authProbe && contractJson.authProbe.logoutSelector === "#logoutForm", "authProbe definition is populated");
-assert(contractJson.productLookup === null, "productLookup remains null");
+assert(contractJson.productLookup && contractJson.productLookup.completeness === false, "productLookup object stays incomplete");
 assert(contractJson.productDetails && contractJson.productDetails.fields.type.selector === "#type", "productDetails fields are populated");
+assert(contractJson.productDetails.fields.name.selector === "#name", "product name selector is recorded");
 assert(
   contractJson.pharmacologicalActions && contractJson.pharmacologicalActions.selector === "select#indications",
   "pharmacologicalActions control is recorded",
 );
-assert(contractJson.composition === null, "composition remains null");
-assert(contractJson.saveUpdate === null, "saveUpdate remains null");
-assert(contractJson.reread === null, "reread remains null");
+assert(contractJson.composition && contractJson.composition.completeness === false, "composition stays incomplete");
+assert(contractJson.evidence && contractJson.evidence.completeness === false, "evidence stays incomplete");
+assert(contractJson.saveUpdate && contractJson.saveUpdate.completeness === false, "saveUpdate stays incomplete");
+assert(contractJson.reread && contractJson.reread.completeness === false, "reread stays incomplete");
 
 if (failed) {
   console.error(`\n${failed} capture assertion(s) failed`);

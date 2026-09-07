@@ -14,6 +14,7 @@ const CHANNELS = Object.freeze({
   CONNECT: "eaushadhi-worker:connect",
   STOP: "eaushadhi-worker:stop",
   FOUNDATION_CHECK: "eaushadhi-worker:foundation-check",
+  ENTRY_DRY_RUN: "eaushadhi-worker:entry-dry-run",
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
 });
@@ -78,6 +79,15 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
       return worker.runFoundationCheck(productId, accessToken);
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.ENTRY_DRY_RUN,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.runControlledEntryDryRun(productId, accessToken);
     }),
   );
 

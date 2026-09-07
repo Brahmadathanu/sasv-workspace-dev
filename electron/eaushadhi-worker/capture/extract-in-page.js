@@ -159,6 +159,7 @@ function extractPortalPage() {
   const inputs = Array.from(document.querySelectorAll("input")).map((el) => {
     const rec = controlRecord(el);
     rec.hidden = rec.type === "hidden" || el.hidden === true;
+    rec.accept = rec.type === "file" ? attr(el, "accept") : null;
     return rec;
   });
 
@@ -198,12 +199,21 @@ function extractPortalPage() {
     };
   });
 
-  const tables = Array.from(document.querySelectorAll("table")).map((table, index) => ({
-    id: table.id || null,
-    index,
-    headers: Array.from(table.querySelectorAll("th")).map((th) => textOf(th)).filter(Boolean),
-    row_count: table.tBodies && table.tBodies[0] ? table.tBodies[0].rows.length : table.rows.length,
-  }));
+  const tables = Array.from(document.querySelectorAll("table")).map((table, index) => {
+    const body = table.tBodies && table.tBodies[0] ? table.tBodies[0] : table;
+    const rows = body && body.rows ? Array.from(body.rows) : [];
+    const name_cell_samples = rows.slice(0, 5).map((row) => {
+      const cell = row.cells && row.cells[0] ? row.cells[0] : null;
+      return textOf(cell);
+    }).filter(Boolean);
+    return {
+      id: table.id || null,
+      index,
+      headers: Array.from(table.querySelectorAll("th")).map((th) => textOf(th)).filter(Boolean),
+      row_count: rows.length,
+      name_cell_samples,
+    };
+  });
 
   let title = "";
   try {

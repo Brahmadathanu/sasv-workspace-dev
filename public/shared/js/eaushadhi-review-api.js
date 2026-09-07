@@ -482,6 +482,93 @@ export async function fetchWorkerPayload(productId, expectedWorkflowRowVersion) 
   );
 }
 
+export async function fetchWorkerContentGet(productId, expectedWorkflowRowVersion) {
+  const id = Number(optionId(productId));
+  const version = Number(expectedWorkflowRowVersion);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new EaushadhiRpcError(
+      "rpc_eaushadhi_worker_content_get",
+      new Error("p_product_id is required"),
+      classifyRpcError({ message: "p_product_id is required" }),
+    );
+  }
+  if (!Number.isInteger(version)) {
+    throw new EaushadhiRpcError(
+      "rpc_eaushadhi_worker_content_get",
+      new Error("p_expected_workflow_row_version is required"),
+      classifyRpcError({ message: "p_expected_workflow_row_version is required" }),
+    );
+  }
+  return asFirst(
+    await callRpc("rpc_eaushadhi_worker_content_get", {
+      p_product_id: id,
+      p_expected_workflow_row_version: version,
+    }),
+  );
+}
+
+export async function fetchWorkerRunBegin(
+  productId,
+  expectedWorkflowRowVersion,
+  expectedContentHash,
+  expectedPayloadHash,
+  startContext,
+) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_worker_run_begin", {
+      p_product_id: Number(optionId(productId)),
+      p_expected_workflow_row_version: Number(expectedWorkflowRowVersion),
+      p_expected_content_hash: expectedContentHash,
+      p_expected_payload_hash: expectedPayloadHash ?? null,
+      p_start_context: startContext ?? {},
+    }),
+  );
+}
+
+export async function fetchWorkerRunResume(runId, expectedWorkflowRowVersion, expectedContentHash) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_worker_run_resume", {
+      p_run_id: runId,
+      p_expected_workflow_row_version: Number(expectedWorkflowRowVersion),
+      p_expected_content_hash: expectedContentHash,
+    }),
+  );
+}
+
+export async function fetchWorkerMarkEntered(
+  runId,
+  expectedWorkflowRowVersion,
+  expectedContentHash,
+  portalProductRef,
+  enteredAudit,
+) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_worker_mark_entered", {
+      p_run_id: runId,
+      p_expected_workflow_row_version: Number(expectedWorkflowRowVersion),
+      p_expected_content_hash: expectedContentHash,
+      p_portal_product_ref: portalProductRef ?? null,
+      p_entered_audit: enteredAudit ?? {},
+    }),
+  );
+}
+
+export async function fetchWorkerMarkPortalVerified(
+  runId,
+  expectedWorkflowRowVersion,
+  expectedContentHash,
+  compareReport,
+) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_worker_mark_portal_verified", {
+      p_run_id: runId,
+      p_expected_workflow_row_version: Number(expectedWorkflowRowVersion),
+      p_expected_content_hash: expectedContentHash,
+      p_compare_report: compareReport,
+    }),
+  );
+}
+
 export async function loadProductWorkspace(productId) {
   const id = Number(optionId(productId));
   const [review, lines, actions, evidence, issues, copy, copyContract] = await Promise.all([

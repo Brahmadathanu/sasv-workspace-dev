@@ -52,6 +52,7 @@ const requiredRpcs = [
   "rpc_eaushadhi_document_upload_contract",
   "rpc_eaushadhi_worker_preflight",
   "rpc_eaushadhi_worker_payload_get",
+  "rpc_eaushadhi_worker_content_get",
 ];
 
 for (const name of requiredRpcs) {
@@ -380,7 +381,21 @@ assert(controlSrc.includes("Internal verification is not portal entry"), "intern
 assert(workerClientSrc.includes("runFoundationCheck"), "worker client exposes foundation check");
 assert(workerClientSrc.includes("capturePortalContract"), "worker client exposes portal contract capture");
 assert(workerClientSrc.includes("openCaptureFolder"), "worker client exposes open capture folder");
-assert(!/run_begin|mark_entered|mark_portal_verified|mark_submitted/i.test(apiSrc + controlSrc + workerClientSrc), "no lifecycle write wrappers");
+assert(apiSrc.includes("rpc_eaushadhi_worker_run_begin"), "run_begin wrapper exists");
+assert(apiSrc.includes("p_expected_content_hash:"), "run_begin uses p_expected_content_hash");
+assert(apiSrc.includes("rpc_eaushadhi_worker_run_resume"), "run_resume wrapper exists");
+assert(apiSrc.includes("rpc_eaushadhi_worker_mark_entered"), "mark_entered wrapper exists");
+assert(apiSrc.includes("rpc_eaushadhi_worker_mark_portal_verified"), "mark_portal_verified wrapper exists");
+assert(!/rpc_eaushadhi_worker_mark_submitted|fetchWorkerMarkSubmitted/.test(apiSrc), "no SUBMITTED wrapper");
+assert(!controlSrc.includes("fetchWorkerRunBegin"), "controller does not call run_begin");
+assert(!controlSrc.includes("fetchWorkerRunResume"), "controller does not call run_resume");
+assert(!controlSrc.includes("fetchWorkerMarkEntered"), "controller does not call mark_entered");
+assert(!controlSrc.includes("fetchWorkerMarkPortalVerified"), "controller does not call mark_portal_verified");
+assert(!/Enter Product/.test(controlSrc), "UI does not expose Enter Product");
+assert(controlSrc.includes("Check Entry Readiness"), "UI exposes Check Entry Readiness");
+assert(controlSrc.includes("btnWorkerEntryDryRun"), "dry-run action exists");
+assert(controlSrc.includes("isFirstControlledEntryProduct"), "dry-run card is locked to the first controlled product");
+assert(workerClientSrc.includes("runEntryDryRun"), "worker client exposes entry dry-run");
 assert(!/\bsubmit\b/i.test(workerClientSrc), "worker client has no Submit");
 
 if (failed) {

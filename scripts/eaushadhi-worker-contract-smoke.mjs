@@ -59,6 +59,7 @@ assert(completeness.productLookup === false, "productLookup remains incomplete")
 assert(completeness.productDetails === false, "productDetails completeness is false");
 assert(completeness.pharmacologicalActions === false, "pharmacologicalActions completeness is false");
 assert(completeness.saveUpdate === false, "saveUpdate remains incomplete");
+assert(completeness.evidence === false, "evidence remains incomplete");
 assert(completeness.reread === false, "reread remains incomplete");
 
 assertAllowedUrl("https://www.e-aushadhi.gov.in/login", contract);
