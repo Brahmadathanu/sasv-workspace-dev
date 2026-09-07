@@ -141,7 +141,28 @@ assert(helpersSrc.includes("Pharmacological Action review") === false, "promotio
 assert(controlSrc.includes("verifyNotesOrigin"), "verification notes origin is tracked");
 assert(controlSrc.includes("CANONICAL_VERIFY_NOTES"), "canonical verification notes are used");
 assert(controlSrc.includes("state.verifyNotesOrigin = \"unset\""), "product switch resets verification notes origin");
-assert(controlSrc.includes("showVerify = ready !== true"), "already READY products do not show editable verification default");
+assert(
+  controlSrc.includes(
+    'showVerify = normalizeReviewStatus(review.review_status ?? row.review_status) !== "VERIFIED"',
+  ),
+  "Verify Product controls hide when overall review_status is VERIFIED",
+);
+assert(!controlSrc.includes("showVerify = ready !== true"), "Verify Product visibility is not derived from is_ready_for_entry");
+{
+  const start = controlSrc.indexOf("function applyVerifyNotesIfNeeded");
+  const end = controlSrc.indexOf("\nfunction ", start + 1);
+  const fn = controlSrc.slice(start, end === -1 ? undefined : end);
+  assert(!fn.includes("is_ready_for_entry"), "verify notes default does not use READY");
+  assert(fn.includes('=== "VERIFIED"'), "already verified uses overall review_status VERIFIED");
+}
+{
+  const start = helpersSrc.indexOf("export function canVerifyProductWorkflow");
+  const end = helpersSrc.indexOf("\nexport function ", start + 1);
+  const fn = helpersSrc.slice(start, end === -1 ? undefined : end);
+  assert(fn.includes("dossierReady"), "product verify eligibility requires dossier_ready");
+  assert(fn.includes("entryStatus"), "product verify eligibility requires entry_status");
+  assert(fn.includes("reviewStatus"), "product verify eligibility requires review_status");
+}
 {
   const renderStart = controlSrc.indexOf("function renderEvidence()");
   const renderEnd = controlSrc.indexOf("\nfunction ", renderStart + 1);

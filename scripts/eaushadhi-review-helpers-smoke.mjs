@@ -71,6 +71,7 @@ import {
   syncWorkingSourceQuantityDraft,
   toggleVocabActionDraft,
   validateEvidenceFile,
+  verifyProductUnavailableReason,
   verifyReviewedConfirmLabel,
   verifyReviewedEmptyGuidance,
   visibleQueueRows,
@@ -435,14 +436,82 @@ assert(
   }) === false,
   "promote gate false when live ERROR/BLOCKER issues exist",
 );
+const verifyEligibleBase = {
+  canEdit: true,
+  compositionReviewComplete: true,
+  verifiedLines: 3,
+  compositionLines: 3,
+  openBlockers: 0,
+  workflowRowVersion: 1,
+  dossierReady: true,
+  entryStatus: "NOT_STARTED",
+  reviewStatus: "PENDING",
+};
 assert(
   canVerifyProductWorkflow({
-    canEdit: true,
-    compositionReviewComplete: true,
+    ...verifyEligibleBase,
     openBlockers: 1,
-    workflowRowVersion: 1,
   }) === false,
   "product verify gated by blockers",
+);
+assert(
+  canVerifyProductWorkflow({
+    ...verifyEligibleBase,
+    dossierReady: false,
+  }) === false,
+  "product verify unavailable when dossier_ready is false despite complete composition",
+);
+assert(
+  canVerifyProductWorkflow(verifyEligibleBase) === true,
+  "product verify eligible when dossier is ready, composition complete, entry not started, and review pending",
+);
+assert(
+  canVerifyProductWorkflow({
+    ...verifyEligibleBase,
+    reviewStatus: "VERIFIED",
+  }) === false,
+  "product verify unavailable after overall review_status VERIFIED even if READY is false",
+);
+assert(
+  canVerifyProductWorkflow({
+    ...verifyEligibleBase,
+    reviewStatus: "VERIFIED",
+  }) === false,
+  "product verify unavailable after overall review_status VERIFIED even if READY is true",
+);
+assert(
+  canVerifyProductWorkflow({
+    ...verifyEligibleBase,
+    entryStatus: "IN_PROGRESS",
+  }) === false,
+  "product verify unavailable after portal entry has started",
+);
+assert(
+  /dossier|Product Details|Approved Product Copy/i.test(
+    verifyProductUnavailableReason({
+      ...verifyEligibleBase,
+      dossierReady: false,
+    }),
+  ),
+  "unavailable reason names incomplete dossier when dossier_ready is false",
+);
+assert(
+  /already internally verified/i.test(
+    verifyProductUnavailableReason({
+      ...verifyEligibleBase,
+      reviewStatus: "VERIFIED",
+    }),
+  ),
+  "unavailable reason names already internally verified",
+);
+assert(
+  /portal entry/i.test(
+    verifyProductUnavailableReason({
+      ...verifyEligibleBase,
+      entryStatus: "IN_PROGRESS",
+    }),
+  ),
+  "unavailable reason names portal entry already started",
 );
 
 assert(classifyRpcError({ code: "42501", message: "Nope" }).kind === ERROR_KIND.AUTHORIZATION, "auth error class");
@@ -918,12 +987,45 @@ assert(
 );
 assert(
   shouldApplyVerifyNotesDefault({
+    alreadyVerified: false,
+    verificationEligible: canVerifyProductWorkflow({
+      ...verifyEligibleBase,
+      dossierReady: false,
+    }),
+    notes: "",
+    origin: "unset",
+  }) === false,
+  "canonical verify notes do not auto-fill when dossier_ready is false",
+);
+assert(
+  shouldApplyVerifyNotesDefault({
+    alreadyVerified: false,
+    verificationEligible: canVerifyProductWorkflow(verifyEligibleBase),
+    notes: "",
+    origin: "unset",
+  }) === true,
+  "canonical verify notes auto-fill when dossier is ready and review is pending",
+);
+assert(
+  shouldApplyVerifyNotesDefault({
     alreadyVerified: true,
-    verificationEligible: true,
+    verificationEligible: false,
     notes: "",
     origin: "unset",
   }) === false,
   "already verified products do not receive a verification default",
+);
+assert(
+  shouldApplyVerifyNotesDefault({
+    alreadyVerified: true,
+    verificationEligible: canVerifyProductWorkflow({
+      ...verifyEligibleBase,
+      reviewStatus: "VERIFIED",
+    }),
+    notes: "",
+    origin: "unset",
+  }) === false,
+  "VERIFIED-but-not-READY products do not receive a verification default",
 );
 assert(
   CANONICAL_VERIFY_NOTES ===

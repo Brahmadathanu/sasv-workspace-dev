@@ -2011,14 +2011,7 @@ function renderReadiness() {
     approvedFormulationPresent: evidence.approved_formulation_present,
     workflowRowVersion: row.workflow_row_version,
   };
-  const verifyArgs = {
-    canEdit: canWrite(),
-    compositionReviewComplete: row.composition_review_complete,
-    verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
-    compositionLines: row.composition_lines ?? evidence.composition_lines_total,
-    openBlockers: row.open_blockers,
-    workflowRowVersion: row.workflow_row_version,
-  };
+  const verifyArgs = currentVerifyArgs();
   const promoteOk = canPromoteFormulation(promoteArgs);
   const verifyOk = canVerifyProductWorkflow(verifyArgs);
   const blockersClear = toInt(row.open_blockers) === 0 && issueCount === 0;
@@ -2032,7 +2025,7 @@ function renderReadiness() {
   ];
   const ready = row.is_ready_for_entry === true;
   const showPromote = evidence.approved_formulation_present !== true;
-  const showVerify = ready !== true;
+  const showVerify = normalizeReviewStatus(review.review_status ?? row.review_status) !== "VERIFIED";
   const promoteReason = promoteUnavailableReason(promoteArgs);
   const verifyReason = verifyProductUnavailableReason(verifyArgs);
   host.innerHTML = `
@@ -2954,17 +2947,25 @@ function currentPromoteEligibility() {
   });
 }
 
-function currentVerifyEligibility() {
+function currentVerifyArgs() {
   const row = state.queueRow || {};
+  const review = state.review || {};
   const evidence = state.evidence || {};
-  return canVerifyProductWorkflow({
+  return {
     canEdit: canWrite(),
     compositionReviewComplete: row.composition_review_complete,
     verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
     compositionLines: row.composition_lines ?? evidence.composition_lines_total,
     openBlockers: row.open_blockers,
     workflowRowVersion: row.workflow_row_version,
-  });
+    dossierReady: row.dossier_ready === true || evidence.dossier_ready === true,
+    entryStatus: row.entry_status,
+    reviewStatus: review.review_status ?? row.review_status,
+  };
+}
+
+function currentVerifyEligibility() {
+  return canVerifyProductWorkflow(currentVerifyArgs());
 }
 
 function applyPromoteNotesIfNeeded() {
@@ -2984,7 +2985,10 @@ function applyPromoteNotesIfNeeded() {
 function applyVerifyNotesIfNeeded() {
   if (
     shouldApplyVerifyNotesDefault({
-      alreadyVerified: state.queueRow?.is_ready_for_entry === true,
+      alreadyVerified:
+        normalizeReviewStatus(
+          state.review?.review_status ?? state.queueRow?.review_status,
+        ) === "VERIFIED",
       verificationEligible: currentVerifyEligibility(),
       notes: state.verifyNotes,
       origin: state.verifyNotesOrigin,

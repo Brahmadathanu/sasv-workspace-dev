@@ -1025,6 +1025,15 @@ export function verifyProductUnavailableReason(args = {}) {
   if (args.canEdit !== true) {
     return "Internal verification is unavailable with read-only access.";
   }
+  if (normalizeReviewStatus(args.reviewStatus) === "VERIFIED") {
+    return "This product is already internally verified.";
+  }
+  if (normalizeEntryStatus(args.entryStatus) !== "NOT_STARTED") {
+    return "Internal verification is unavailable after portal entry has started.";
+  }
+  if (args.dossierReady !== true) {
+    return "Internal verification becomes available after Product Details, Pharmacological Action, Composition, Approved Formulation, and Approved Product Copy are complete.";
+  }
   return "Verify Product internally becomes available after composition is complete and blocking issues are cleared.";
 }
 
@@ -1445,8 +1454,14 @@ export function canVerifyProductWorkflow({
   compositionLines,
   openBlockers,
   workflowRowVersion,
+  dossierReady,
+  entryStatus,
+  reviewStatus,
 } = {}) {
   if (!canEdit) return false;
+  if (normalizeReviewStatus(reviewStatus) === "VERIFIED") return false;
+  if (normalizeEntryStatus(entryStatus) !== "NOT_STARTED") return false;
+  if (dossierReady !== true) return false;
   const linesComplete =
     compositionReviewComplete === true ||
     (toInt(compositionLines) > 0 &&
