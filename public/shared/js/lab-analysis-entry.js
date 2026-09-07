@@ -5,6 +5,8 @@
  * ─────────────────────────────────────────────────────────────────────────
  * labSupabase views  (schema: lab)
  *   v_sample_receipt_fg_picker      → { product_id, product_name }
+ *   v_sample_receipt_fg_batch_picker → { bmr_id, product_id, batch_no, … }
+ *   v_analysis_header               → analysis uniqueness preflight / lot picker
  *   v_rm_pm_item_with_group         → { stock_item_id, stock_item_name,
  *                                        inv_group_id, inv_group_label, category_code, … }
  *   v_sample_receipt_staff_picker   → { staff_id, full_name, designation,
@@ -42,7 +44,8 @@
  *     p_product_id,                -- uuid | null  (FG only)
  *     p_batch_no_snapshot,         -- text | null  (FG only)
  *     p_stock_item_id,             -- uuid | null  (RM only)
- *     p_system_lot_no,             -- text | null  (RM only)
+ *     p_system_lot_no,             -- text | null; null for FG and new RM/PM lots;
+ *                                     existing system lot for RM/PM re-analysis
  *     p_sample_received_date,      -- date  (ISO string YYYY-MM-DD)
  *     p_physical_register_ref,     -- text | null
  *     p_analysed_by_staff_id,      -- uuid
@@ -106,6 +109,17 @@ const stockItemSelect = $("stockItemSelect");
 const stockItemSearchInput = $("stockItemSearchInput");
 const stockItemSearchList = $("stockItemSearchList");
 const systemLotNo = $("systemLotNo");
+const systemLotNoGroup = $("systemLotNoGroup");
+const lotModePills = $("lotModePills");
+const existingLotWrap = $("existingLotWrap");
+const existingLotSelect = $("existingLotSelect");
+const existingLotSearchInput = $("existingLotSearchInput");
+const existingLotSearchList = $("existingLotSearchList");
+const existingLotMsg = $("existingLotMsg");
+const existingLotEmpty = $("existingLotEmpty");
+const activeAnalysisBanner = $("activeAnalysisBanner");
+const activeAnalysisBannerSub = $("activeAnalysisBannerSub");
+const activeAnalysisBannerBody = $("activeAnalysisBannerBody");
 const sampleDate = $("sampleDate");
 const physRegRef = $("physRegRef");
 const analysedBy = $("analysedBy");
@@ -168,6 +182,32 @@ let rmItems = []; // RM items from v_rm_pm_item_with_group (category_code = 'RM'
 let pmItems = []; // PM items from v_rm_pm_item_with_group (category_code = 'PLM')
 let mappingCheckDebounceTimer = null;
 let pendingSwitchType = null; // type pill click queued pending confirmation
+
+const TERMINAL_STATUSES = new Set([
+  "APPROVED_FOR_COA",
+  "COA_GENERATED",
+  "CANCELLED",
+]);
+
+function isTerminalAnalysisStatus(status) {
+  const key = String(status ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  return TERMINAL_STATUSES.has(key);
+}
+
+const ACTIVE_ANALYSIS_BLOCK_MSG =
+  "An active analysis already exists for this batch or lot.";
+const GENERIC_ACTIVE_CONFLICT_MSG =
+  "An active analysis already exists for this batch or lot.";
+
+let activeAnalyses = [];
+let lotMode = "new"; // "new" | "existing"
+let selectedExistingSystemLotNo = null;
+let rmPmLotGroups = [];
+let fgPreflightRequestId = 0;
+let rmPmLotLoadRequestId = 0;
 
 const RECEIVE_SAMPLE_ACTION = "RECEIVE_SAMPLE";
 const RECEIVE_DENIED_MSG =
@@ -470,9 +510,31 @@ function wireEvents() {
   bindSearchInputToSelect(productSearchInput, productSelect, productMsg);
   bindSearchInputToSelect(batchSearchInput, batchNoSelect, batchSelectMsg);
   bindSearchInputToSelect(stockItemSearchInput, stockItemSelect, stockItemMsg);
+  bindSearchInputToSelect(
+    existingLotSearchInput,
+    existingLotSelect,
+    existingLotMsg,
+  );
   syncSearchUiForSelect(productSelect);
   syncSearchUiForSelect(batchNoSelect);
   syncSearchUiForSelect(stockItemSelect);
+  syncSearchUiForSelect(existingLotSelect);
+
+  if (lotModePills) {
+    lotModePills.querySelectorAll("[data-lot-mode]").forEach((pill) => {
+      pill.addEventListener("click", () => {
+        const mode = pill.dataset.lotMode;
+        if (!mode || mode === lotMode) return;
+        setLotMode(mode);
+      });
+    });
+  }
+  if (existingLotSelect) {
+    existingLotSelect.addEventListener("change", () => {
+      syncSearchInputFromSelect(existingLotSelect);
+      onExistingLotSelected();
+    });
+  }
 
   // Home navigation
   homeBtn.addEventListener("click", () => Platform.goHome());
@@ -546,6 +608,7 @@ function wireEvents() {
     clearMappingState();
     await populateFgBatchDropdown(productSelect.value);
     updateSampleTypeSummary();
+    resetUniquenessState();
   });
 
   // Batch No dropdown → populate read-only fields + trigger mapping check
@@ -564,6 +627,7 @@ function wireEvents() {
     }
     updateStartButton();
     updateSampleTypeSummary();
+    runFgActiveAnalysisPreflight();
   });
 
   // Stock item change → trigger mapping check
@@ -572,6 +636,7 @@ function wireEvents() {
     clearMappingState();
     if (stockItemSelect.value) scheduleProtocolCheck();
     updateSampleTypeSummary();
+    onStockItemChangedForLots();
   });
 
   // Sample received date is stored as receipt/legacy metadata; it does not
@@ -652,6 +717,7 @@ function isFormDirty() {
   // RM fields
   if (stockItemSelect.value) return true;
   if (systemLotNo.value.trim()) return true;
+  if (selectedExistingSystemLotNo) return true;
   // Common fields (excluding auto-defaulted date)
   if (physRegRef.value.trim()) return true;
   if (remarks.value.trim()) return true;
@@ -668,6 +734,8 @@ function clearFormData() {
   systemLotNo.value = "";
   physRegRef.value = "";
   remarks.value = "";
+  resetUniquenessState();
+  setLotMode("new");
   clearAllFieldErrors();
   startError.classList.add("hidden");
   startError.textContent = "";
@@ -685,6 +753,9 @@ function handleSampleTypeChange(type) {
     pill.classList.toggle("active", isActive);
     pill.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
+
+  resetUniquenessState();
+  setLotMode("new");
 
   // Show the right item fields
   if (type === "FG_BATCH") {
@@ -861,7 +932,10 @@ function isReceiptDetailsComplete() {
   const hasSubjectDetails =
     currentSampleType === "FG_BATCH"
       ? !!(productSelect.value && batchNoSelect.value)
-      : !!stockItemSelect.value;
+      : !!(
+          stockItemSelect.value &&
+          (lotMode !== "existing" || selectedExistingSystemLotNo)
+        );
   return !!(
     hasSubjectDetails &&
     sampleDate.value &&
@@ -1496,6 +1570,12 @@ async function populateFgBatchDropdown(productId) {
       opt.textContent = r.batch_no ?? "—";
       opt.dataset.batchSize = r.batch_size ?? "";
       opt.dataset.uom = r.uom ?? "";
+      opt.dataset.bmrId =
+        r.bmr_id != null && r.bmr_id !== ""
+          ? String(r.bmr_id)
+          : r.bmr_id != null && r.bmr_id !== ""
+            ? String(r.bmr_id)
+            : "";
       batchNoSelect.appendChild(opt);
     });
     batchNoSelect.disabled = false;
@@ -1581,6 +1661,18 @@ function validateForm() {
       );
       errors.push(`${itemLabel} is required`);
     }
+    if (lotMode === "existing" && !selectedExistingSystemLotNo) {
+      setFieldError(
+        existingLotSearchInput,
+        existingLotMsg,
+        "Select an existing system lot",
+      );
+      errors.push("An existing system lot is required for re-analysis");
+    }
+  }
+
+  if (activeAnalyses.length > 0) {
+    errors.push(ACTIVE_ANALYSIS_BLOCK_MSG);
   }
 
   if (!sampleDate.value) {
@@ -1660,6 +1752,7 @@ function clearAllFieldErrors() {
     [productSearchInput, productMsg],
     [batchSearchInput, batchSelectMsg],
     [stockItemSearchInput, stockItemMsg],
+    [existingLotSearchInput, existingLotMsg],
     [systemLotNo, lotMsg],
     [sampleDate, dateMsg],
     [physRegRef, physRegMsg],
@@ -1691,7 +1784,9 @@ function updateStartButton() {
     sampleDate.value &&
     physRegRef.value.trim() &&
     analysedBy.value &&
-    personInCharge.value
+    personInCharge.value &&
+    activeAnalyses.length === 0 &&
+    (isFG || lotMode !== "existing" || !!selectedExistingSystemLotNo)
   );
   startAnalysisBtn.disabled = !canStart;
   if (!permissionAllows) {
@@ -1804,6 +1899,15 @@ async function startAnalysis() {
     return;
   }
 
+  if (activeAnalyses.length > 0) {
+    startError.textContent = ACTIVE_ANALYSIS_BLOCK_MSG;
+    startError.classList.remove("hidden");
+    toast(ACTIVE_ANALYSIS_BLOCK_MSG, "warn");
+    renderActiveAnalysisBanner(activeAnalyses);
+    updateStartButton();
+    return;
+  }
+
   // Set loading state on button
   startAnalysisBtn.classList.add("loading");
   startAnalysisBtn.disabled = true;
@@ -1830,11 +1934,17 @@ async function startAnalysis() {
     showCreatedState(result);
   } catch (err) {
     console.error("[lab-analysis-entry] startAnalysis error:", err);
+    startAnalysisBtn.classList.remove("loading");
+    const uniqueness = interpretReceiveSampleError(err);
+    if (uniqueness.isConflict) {
+      await handleReceiveSampleConflict(uniqueness);
+      updateStartButton();
+      return;
+    }
     const msg = err.message ?? "An unexpected error occurred.";
     startError.textContent = msg;
     startError.classList.remove("hidden");
     toast(`Failed to create analysis: ${msg}`, "error");
-    startAnalysisBtn.classList.remove("loading");
     startAnalysisBtn.disabled = false;
   }
 }
@@ -1852,7 +1962,7 @@ function buildRpcParams() {
     p_product_id: isFG ? productSelect.value || null : null,
     p_batch_no_snapshot: isFG ? batchNoSelect.value || null : null,
     p_stock_item_id: !isFG ? stockItemSelect.value || null : null,
-    p_system_lot_no: null,
+    p_system_lot_no: resolveSystemLotNoParam(),
     p_sample_received_date: selectedSampleDate(),
     p_physical_register_ref: physRegRef.value.trim() || null,
     p_analysed_by_staff_id: analysedBy.value || null,
@@ -1959,6 +2069,8 @@ function resetForm() {
   // Reset state
   currentSampleType = null;
   createdAnalysis = null;
+  resetUniquenessState();
+  setLotMode("new");
 
   // Reset type pills
   typePills.querySelectorAll(".type-pill").forEach((p) => {
@@ -2097,6 +2209,9 @@ function getSearchBindingForSelect(selectEl) {
   if (selectEl.id === "stockItemSelect") {
     return { input: stockItemSearchInput, datalist: stockItemSearchList };
   }
+  if (selectEl.id === "existingLotSelect") {
+    return { input: existingLotSearchInput, datalist: existingLotSearchList };
+  }
   return null;
 }
 
@@ -2192,6 +2307,392 @@ function populateSelect(selectEl, rows, valueFn, labelFn, placeholder) {
   syncSearchUiForSelect(selectEl);
 }
 
+function resolveSystemLotNoParam() {
+  if (currentSampleType === "FG_BATCH") return null;
+  if (lotMode === "existing") {
+    const lot = String(selectedExistingSystemLotNo ?? "").trim();
+    return lot || null;
+  }
+  return null;
+}
+
+function getSelectedBmrId() {
+  const opt = batchNoSelect?.options?.[batchNoSelect.selectedIndex];
+  const raw = opt?.dataset?.bmrId || opt?.dataset?.bmrId || "";
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeHeaderRow(row) {
+  if (!row) return null;
+  const analysisId = row.analysis_id ?? row.id;
+  if (analysisId == null || analysisId === "") return null;
+  return {
+    analysis_id: analysisId,
+    analysis_register_no: row.analysis_register_no ?? null,
+    status: row.status ?? "",
+    item_name: row.item_name || row.product_name || row.stock_item_name || "",
+    batch_no_snapshot: row.batch_no_snapshot ?? "",
+    system_lot_no: row.system_lot_no ?? "",
+    analysis_subject_type: row.analysis_subject_type ?? "",
+    bmr_id: row.bmr_id ?? row.bmr_id ?? null,
+    supplier_lot_no: row.supplier_lot_no ?? "",
+    supplier_name_snapshot: row.supplier_name_snapshot ?? "",
+    sample_received_date: row.sample_received_date ?? "",
+  };
+}
+
+function nonTerminalAnalyses(rows) {
+  return (rows || []).filter((r) => !isTerminalAnalysisStatus(r.status));
+}
+
+function resetUniquenessState() {
+  activeAnalyses = [];
+  selectedExistingSystemLotNo = null;
+  rmPmLotGroups = [];
+  if (existingLotSelect) {
+    existingLotSelect.innerHTML =
+      '<option value="">— Select existing system lot —</option>';
+    existingLotSelect.disabled = true;
+    syncSearchUiForSelect(existingLotSelect);
+  }
+  if (existingLotEmpty) existingLotEmpty.classList.add("hidden");
+  if (existingLotSearchInput) {
+    clearFieldError(existingLotSearchInput, existingLotMsg);
+  }
+  hideActiveAnalysisBanner();
+}
+
+function hideActiveAnalysisBanner() {
+  if (!activeAnalysisBanner) return;
+  activeAnalysisBanner.classList.add("hidden");
+  if (activeAnalysisBannerBody) activeAnalysisBannerBody.innerHTML = "";
+}
+
+function renderActiveAnalysisBanner(rows, subMessage) {
+  const list = (rows || []).filter(Boolean);
+  activeAnalyses = list;
+  if (!activeAnalysisBanner || !activeAnalysisBannerBody) return;
+  if (!list.length) {
+    hideActiveAnalysisBanner();
+    return;
+  }
+  if (activeAnalysisBannerSub) {
+    activeAnalysisBannerSub.textContent =
+      subMessage ||
+      "Only one unfinished analysis is allowed for this batch or lot. Open the existing analysis instead of creating another.";
+  }
+  const isFG = currentSampleType === "FG_BATCH";
+  activeAnalysisBannerBody.innerHTML = list
+    .map((row) => {
+      const id = row.analysis_id;
+      const registerNo = row.analysis_register_no || "—";
+      const statusLabel = formatStatus(row.status);
+      const itemName = row.item_name || "—";
+      const identity = isFG
+        ? row.batch_no_snapshot || "—"
+        : row.system_lot_no || "—";
+      const identityLabel = isFG ? "Batch" : "System lot";
+      return `<div class="active-analysis-card">
+        <div class="active-analysis-meta">
+          <div class="active-analysis-reg">${esc(String(registerNo))}</div>
+          <div class="active-analysis-line">Status: ${esc(statusLabel)}</div>
+          <div class="active-analysis-line">${esc(itemName)}</div>
+          <div class="active-analysis-line">${esc(identityLabel)}: ${esc(String(identity))}</div>
+        </div>
+        <button type="button" class="btn-open-existing" data-open-analysis-id="${esc(String(id))}">Open Existing Analysis</button>
+      </div>`;
+    })
+    .join("");
+  activeAnalysisBanner.classList.remove("hidden");
+  activeAnalysisBannerBody
+    .querySelectorAll("[data-open-analysis-id]")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const analysisId = btn.getAttribute("data-open-analysis-id");
+        if (!analysisId) return;
+        navigate(
+          `analysis-workspace.html?id=${encodeURIComponent(analysisId)}`,
+        );
+      });
+    });
+}
+
+function setLotMode(mode) {
+  lotMode = mode === "existing" ? "existing" : "new";
+  selectedExistingSystemLotNo = null;
+  if (lotModePills) {
+    lotModePills.querySelectorAll("[data-lot-mode]").forEach((pill) => {
+      const active = pill.dataset.lotMode === lotMode;
+      pill.classList.toggle("active", active);
+      pill.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+  if (existingLotWrap) {
+    existingLotWrap.classList.toggle("hidden", lotMode !== "existing");
+  }
+  if (systemLotNoGroup) {
+    systemLotNoGroup.classList.toggle("hidden", lotMode === "existing");
+  }
+  if (systemLotNo) {
+    systemLotNo.value = "";
+    systemLotNo.readOnly = true;
+    systemLotNo.placeholder = "Auto-generated after saving";
+  }
+  if (lotMode !== "existing") {
+    activeAnalyses = [];
+    hideActiveAnalysisBanner();
+    if (existingLotSelect) {
+      existingLotSelect.value = "";
+      syncSearchUiForSelect(existingLotSelect);
+    }
+  } else {
+    loadRmPmLotsForSelectedItem();
+  }
+  updateStartButton();
+  updateSampleTypeSummary();
+}
+
+function onStockItemChangedForLots() {
+  selectedExistingSystemLotNo = null;
+  activeAnalyses = [];
+  hideActiveAnalysisBanner();
+  if (currentSampleType === "RM_LOT" || currentSampleType === "PM_LOT") {
+    if (lotMode === "existing") loadRmPmLotsForSelectedItem();
+  }
+  updateStartButton();
+}
+
+function onExistingLotSelected() {
+  const lotNo = String(existingLotSelect?.value ?? "").trim();
+  selectedExistingSystemLotNo = lotNo || null;
+  if (!selectedExistingSystemLotNo) {
+    activeAnalyses = [];
+    hideActiveAnalysisBanner();
+    updateStartButton();
+    return;
+  }
+  const group = rmPmLotGroups.find(
+    (g) => g.system_lot_no === selectedExistingSystemLotNo,
+  );
+  const active = group ? nonTerminalAnalyses(group.analyses) : [];
+  if (active.length) {
+    renderActiveAnalysisBanner(active);
+  } else {
+    activeAnalyses = [];
+    hideActiveAnalysisBanner();
+  }
+  updateStartButton();
+}
+
+async function fetchAnalysisHeaders(filters) {
+  let query = labSupabase.from("v_analysis_header").select("*");
+  Object.entries(filters || {}).forEach(([key, value]) => {
+    query = query.eq(key, value);
+  });
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(normalizeHeaderRow).filter(Boolean);
+}
+
+async function fetchAnalysisHeaderById(analysisId) {
+  const { data, error } = await labSupabase
+    .from("v_analysis_header")
+    .select("*")
+    .eq("id", analysisId)
+    .maybeSingle();
+  if (error) throw error;
+  return normalizeHeaderRow(data);
+}
+
+async function runFgActiveAnalysisPreflight() {
+  const requestId = ++fgPreflightRequestId;
+  if (currentSampleType !== "FG_BATCH") return;
+  const bmrId = getSelectedBmrId();
+  if (!bmrId || !batchNoSelect.value) {
+    activeAnalyses = [];
+    hideActiveAnalysisBanner();
+    updateStartButton();
+    return;
+  }
+  try {
+    const rows = await fetchAnalysisHeaders({
+      analysis_subject_type: "FG_BATCH",
+      bmr_id: bmrId,
+    });
+    if (requestId !== fgPreflightRequestId) return;
+    const active = nonTerminalAnalyses(rows);
+    if (active.length) renderActiveAnalysisBanner(active);
+    else {
+      activeAnalyses = [];
+      hideActiveAnalysisBanner();
+    }
+  } catch (err) {
+    if (requestId !== fgPreflightRequestId) return;
+    console.error(
+      "[lab-analysis-entry] FG active-analysis preflight failed:",
+      err,
+    );
+  }
+  updateStartButton();
+}
+
+function groupRmPmLots(rows) {
+  const map = new Map();
+  (rows || []).forEach((row) => {
+    const lotNo = String(row.system_lot_no ?? "").trim();
+    if (!lotNo) return;
+    if (!map.has(lotNo)) map.set(lotNo, []);
+    map.get(lotNo).push(row);
+  });
+  return Array.from(map.entries())
+    .map(([system_lot_no, analyses]) => {
+      const sorted = [...analyses].sort(
+        (a, b) => Number(b.analysis_id) - Number(a.analysis_id),
+      );
+      const latest = sorted[0];
+      return {
+        system_lot_no,
+        analyses: sorted,
+        latest,
+        hasActive: nonTerminalAnalyses(sorted).length > 0,
+      };
+    })
+    .sort((a, b) =>
+      String(a.system_lot_no).localeCompare(String(b.system_lot_no)),
+    );
+}
+
+function lotOptionLabel(group) {
+  const latest = group.latest || {};
+  const bits = [
+    group.system_lot_no,
+    "—",
+    latest.analysis_register_no || "—",
+    `(${formatStatus(latest.status)})`,
+  ];
+  const extras = [];
+  if (latest.supplier_lot_no) extras.push(latest.supplier_lot_no);
+  if (latest.supplier_name_snapshot) extras.push(latest.supplier_name_snapshot);
+  if (latest.sample_received_date) extras.push(String(latest.sample_received_date));
+  const extra = extras.length ? ` · ${extras.join(" · ")}` : "";
+  return `${bits.join(" ")}${extra}`;
+}
+
+async function loadRmPmLotsForSelectedItem() {
+  const requestId = ++rmPmLotLoadRequestId;
+  selectedExistingSystemLotNo = null;
+  activeAnalyses = [];
+  hideActiveAnalysisBanner();
+  const subjectType = currentSampleType;
+  const stockItemId = stockItemSelect?.value;
+  if (
+    (subjectType !== "RM_LOT" && subjectType !== "PM_LOT") ||
+    !stockItemId ||
+    lotMode !== "existing"
+  ) {
+    rmPmLotGroups = [];
+    if (existingLotSelect) {
+      existingLotSelect.innerHTML =
+        '<option value="">— Select existing system lot —</option>';
+      existingLotSelect.disabled = true;
+      syncSearchUiForSelect(existingLotSelect);
+    }
+    if (existingLotEmpty) existingLotEmpty.classList.add("hidden");
+    updateStartButton();
+    return;
+  }
+  if (existingLotSelect) {
+    existingLotSelect.innerHTML = '<option value="">— Loading lots… —</option>';
+    existingLotSelect.disabled = true;
+    syncSearchUiForSelect(existingLotSelect);
+  }
+  if (existingLotEmpty) existingLotEmpty.classList.add("hidden");
+  try {
+    const rows = await fetchAnalysisHeaders({
+      analysis_subject_type: subjectType,
+      stock_item_id: stockItemId,
+    });
+    if (requestId !== rmPmLotLoadRequestId) return;
+    rmPmLotGroups = groupRmPmLots(rows);
+    if (!rmPmLotGroups.length) {
+      existingLotSelect.innerHTML =
+        '<option value="">— No previous system lots —</option>';
+      existingLotSelect.disabled = true;
+      if (existingLotEmpty) existingLotEmpty.classList.remove("hidden");
+    } else {
+      existingLotSelect.innerHTML =
+        '<option value="">— Select existing system lot —</option>';
+      rmPmLotGroups.forEach((group) => {
+        const opt = document.createElement("option");
+        opt.value = group.system_lot_no;
+        opt.textContent = lotOptionLabel(group);
+        existingLotSelect.appendChild(opt);
+      });
+      existingLotSelect.disabled = false;
+    }
+    syncSearchUiForSelect(existingLotSelect);
+  } catch (err) {
+    if (requestId !== rmPmLotLoadRequestId) return;
+    console.error("[lab-analysis-entry] RM/PM lot load failed:", err);
+    if (existingLotSelect) {
+      existingLotSelect.innerHTML =
+        '<option value="">— Could not load lots —</option>';
+      existingLotSelect.disabled = true;
+      syncSearchUiForSelect(existingLotSelect);
+    }
+  }
+  updateStartButton();
+}
+
+function interpretReceiveSampleError(err) {
+  const code = String(err?.code ?? "");
+  const details = String(err?.details ?? "");
+  const isConflict = code === "23505";
+  let existingId = null;
+  if (isConflict) {
+    const match =
+      details.match(/existing_analysis_id\s*=\s*(\d+)/i) ||
+      details.match(/existing_analysis_id\s*=\s*(\d+)/i);
+    if (match) existingId = Number(match[1]);
+  }
+  return { isConflict, existingId };
+}
+
+async function handleReceiveSampleConflict(uniqueness) {
+  startError.textContent = GENERIC_ACTIVE_CONFLICT_MSG;
+  startError.classList.remove("hidden");
+  toast(GENERIC_ACTIVE_CONFLICT_MSG, "warn");
+  if (uniqueness.existingId) {
+    try {
+      const row = await fetchAnalysisHeaderById(uniqueness.existingId);
+      if (row) {
+        renderActiveAnalysisBanner([row], GENERIC_ACTIVE_CONFLICT_MSG);
+        updateStartButton();
+        return;
+      }
+    } catch (err) {
+      console.error("[lab-analysis-entry] conflict lookup failed:", err);
+    }
+  }
+  renderActiveAnalysisBanner(
+    activeAnalyses.length
+      ? activeAnalyses
+      : [
+          {
+            analysis_id: uniqueness.existingId || "",
+            analysis_register_no: "—",
+            status: "",
+            item_name: "",
+            batch_no_snapshot: batchNoSelect?.value || "",
+            system_lot_no: selectedExistingSystemLotNo || "",
+          },
+        ],
+    GENERIC_ACTIVE_CONFLICT_MSG,
+  );
+}
+
 function formatStatus(status) {
   const STATUS_LABELS = {
     DRAFT: "Draft",
@@ -2200,6 +2701,13 @@ function formatStatus(status) {
     SCRUTINY_PASSED: "Scrutiny Passed",
     APPROVED_FOR_COA: "Approved for COA",
     COA_GENERATED: "COA Generated",
+    SCRUTINY_FAILED: "Scrutiny Failed",
+    CANCELLED: "Cancelled",
+    APPROVED_FOR_COA: "Approved for COA",
+    COA_GENERATED: "COA Generated",
+    PENDING_SCRUTINY: "Pending Scrutiny",
+    SCRUTINY_PASSED: "Scrutiny Passed",
+    IN_PROGRESS: "In Progress",
   };
   const key = String(status ?? "")
     .toUpperCase()

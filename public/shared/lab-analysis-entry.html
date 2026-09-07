@@ -391,6 +391,151 @@
         color: #5b21b6;
       }
 
+      /* ── Uniqueness: lot mode + active analysis banner ────────────── */
+      .lot-mode-pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .lot-mode-pill {
+        flex: 1 1 160px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        padding: 8px 12px;
+        border: 1.5px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        transition: all 0.15s ease;
+      }
+      .lot-mode-pill:hover {
+        border-color: #d97706;
+        background: rgba(245, 158, 11, 0.06);
+      }
+      .lot-mode-pill.active {
+        border-color: #d97706;
+        background: linear-gradient(
+          135deg,
+          rgba(245, 158, 11, 0.12),
+          rgba(245, 158, 11, 0.04)
+        );
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+      }
+      .lot-mode-pill-label {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #92400e;
+      }
+      .lot-mode-pill-sub {
+        font-size: 11px;
+        color: var(--muted, #6b7280);
+      }
+      .existing-lot-wrap.hidden,
+      .system-lot-group.hidden {
+        display: none;
+      }
+      .lot-empty-msg {
+        font-size: 12px;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 7px;
+        padding: 8px 10px;
+        margin-top: 6px;
+      }
+      .lot-empty-msg.hidden {
+        display: none;
+      }
+      .active-analysis-banner {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 16px;
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        margin: 0 0 14px;
+      }
+      .active-analysis-banner.hidden {
+        display: none;
+      }
+      .active-analysis-banner-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #92400e;
+      }
+      .active-analysis-banner-sub {
+        font-size: 12px;
+        color: #b45309;
+      }
+      .active-analysis-card {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        background: #fff;
+        border: 1px solid #fde68a;
+        border-radius: 7px;
+      }
+      .active-analysis-meta {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+        flex: 1 1 180px;
+      }
+      .active-analysis-reg {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .active-analysis-line {
+        font-size: 12px;
+        color: #57534e;
+        word-break: break-word;
+      }
+      .btn-open-existing {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 7px 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+        font-family: inherit;
+        background: #fff;
+        border: 1px solid #d97706;
+        color: #92400e;
+        border-radius: 7px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .btn-open-existing:hover {
+        background: #fef3c7;
+      }
+      @media (max-width: 600px) {
+        .lot-mode-pills {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .lot-mode-pill {
+          flex: 1 1 auto;
+        }
+        .active-analysis-card {
+          flex-direction: column;
+        }
+        .btn-open-existing {
+          width: 100%;
+        }
+      }
+
       /* ── Form rows and groups ─────────────────────────────────────── */
       .form-row {
         display: grid;
@@ -1594,6 +1739,31 @@
             </button>
           </div>
           <div class="form-section-title">Lot Information</div>
+          <div
+            class="lot-mode-pills"
+            id="lotModePills"
+            role="group"
+            aria-label="Lot mode"
+          >
+            <button
+              class="lot-mode-pill active"
+              type="button"
+              data-lot-mode="new"
+              aria-pressed="true"
+            >
+              <span class="lot-mode-pill-label">New physical lot</span>
+              <span class="lot-mode-pill-sub">Generate a new system lot</span>
+            </button>
+            <button
+              class="lot-mode-pill"
+              type="button"
+              data-lot-mode="existing"
+              aria-pressed="false"
+            >
+              <span class="lot-mode-pill-label">Existing lot / re-analysis</span>
+              <span class="lot-mode-pill-sub">Reuse a previous system lot</span>
+            </button>
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label for="stockItemSearchInput"
@@ -1622,7 +1792,7 @@
               </div>
               <div class="field-msg" id="stockItemMsg" role="alert"></div>
             </div>
-            <div class="form-group">
+            <div class="form-group system-lot-group" id="systemLotNoGroup">
               <label for="systemLotNo">System Lot No</label>
               <input
                 type="text"
@@ -1635,6 +1805,41 @@
                 readonly
               />
               <div class="field-msg" id="lotMsg" role="alert"></div>
+            </div>
+            <div class="form-group existing-lot-wrap hidden" id="existingLotWrap">
+              <label for="existingLotSearchInput"
+                >Existing System Lot
+                <span class="req" aria-hidden="true">*</span></label
+              >
+              <div class="search-select-wrap">
+                <input
+                  id="existingLotSearchInput"
+                  class="form-control"
+                  type="text"
+                  list="existingLotSearchList"
+                  placeholder="Type to search an existing system lot"
+                  autocomplete="off"
+                  aria-required="true"
+                />
+                <datalist id="existingLotSearchList"></datalist>
+                <select
+                  id="existingLotSelect"
+                  class="form-control native-select-hidden"
+                  aria-hidden="true"
+                  tabindex="-1"
+                >
+                  <option value="">— Select existing system lot —</option>
+                </select>
+              </div>
+              <div class="field-msg" id="existingLotMsg" role="alert"></div>
+              <div
+                id="existingLotEmpty"
+                class="lot-empty-msg hidden"
+                role="status"
+              >
+                No previous system lots exist for this item. Use New physical
+                lot.
+              </div>
             </div>
           </div>
           <div class="mobile-field-drawer-footer">
@@ -1836,6 +2041,22 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div
+          id="activeAnalysisBanner"
+          class="active-analysis-banner hidden"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="active-analysis-banner-title">
+            An active analysis already exists
+          </div>
+          <div class="active-analysis-banner-sub" id="activeAnalysisBannerSub">
+            Only one unfinished analysis is allowed for this batch or lot. Open
+            the existing analysis instead of creating another.
+          </div>
+          <div id="activeAnalysisBannerBody"></div>
         </div>
 
         <!-- Start analysis action -->
