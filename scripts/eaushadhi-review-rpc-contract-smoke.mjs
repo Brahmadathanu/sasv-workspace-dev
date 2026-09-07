@@ -49,6 +49,7 @@ const requiredRpcs = [
   "rpc_eaushadhi_reopen_product_actions",
   "rpc_eaushadhi_approved_product_copy_get",
   "rpc_eaushadhi_register_approved_product_copy",
+  "rpc_eaushadhi_document_upload_contract",
   "rpc_eaushadhi_worker_preflight",
   "rpc_eaushadhi_worker_payload_get",
 ];
@@ -118,8 +119,25 @@ assert(apiSrc.includes("p_original_file_name:"), "copy register uses p_original_
 assert(apiSrc.includes("p_mime_type:"), "copy register uses p_mime_type");
 assert(apiSrc.includes("p_file_size_bytes:"), "copy register uses p_file_size_bytes");
 assert(apiSrc.includes("p_content_sha256:"), "copy register uses p_content_sha256");
+assert(apiSrc.includes("fetchDocumentUploadContract"), "document contract wrapper exists");
+assert(apiSrc.includes("p_document_purpose:"), "document contract uses p_document_purpose");
+assert(apiSrc.includes("p_extension:"), "document contract uses p_extension");
+assert(apiSrc.includes("DOCUMENT_PURPOSE.APPROVED_PRODUCT_COPY"), "document contract requests Approved Product Copy");
 assert(helpersSrc.includes("eaushadhi-evidence"), "private evidence bucket is used");
-assert(helpersSrc.includes("approved-product-copy/"), "approved copy path prefix is used");
+assert(controlSrc.includes("expected_storage_path"), "governed upload uses server storage path");
+assert(controlSrc.includes("evidenceFileTypeMatchesExtension"), "controller requires MIME/extension coherence");
+assert(controlSrc.includes("EVIDENCE_MIME_EXTENSION_MISMATCH_COPY"), "MIME/extension mismatch copy is shown");
+assert(helpersSrc.includes("evidenceFileTypeMatchesExtension"), "MIME/extension helper exists");
+assert(!controlSrc.includes("buildApprovedProductCopyPath"), "controller no longer uses legacy token path");
+assert(!/version_no\s*\+|parseInt\([^)]*V0|replace\(["']V01/.test(controlSrc), "no client-side version arithmetic");
+assert(controlSrc.includes("btnCopyExpectedFileName"), "expected filename Copy action exists");
+assert(controlSrc.includes("navigator.clipboard.writeText"), "clipboard uses writeText when available");
+assert(controlSrc.includes("document.execCommand(\"copy\")"), "clipboard has a safe fallback");
+assert(controlSrc.includes("reloadSelected()"), "successful copy registration reloads workspace");
+assert(controlSrc.includes("promoteNotesOrigin"), "promotion notes origin is tracked");
+assert(controlSrc.includes("CANONICAL_PROMOTE_NOTES"), "canonical promotion notes are used");
+assert(controlSrc.includes("state.promoteNotesOrigin = \"unset\""), "product switch resets promotion notes origin");
+assert(helpersSrc.includes("Pharmacological Action review") === false, "promotion default does not claim pharmacological-action review");
 assert(controlSrc.includes("Verify line"), "composition verify line wording");
 assert(controlSrc.includes("data-source-correct"), "correct source action exists");
 assert(!/Save progress/.test(controlSrc + htmlSrc), "routine save progress button removed");
@@ -148,6 +166,12 @@ assert(controlSrc.includes("data-action-vocab-toggle"), "actions vocabulary is a
 assert(!/\b46\b/.test(controlSrc), "pharmacological action terms are not hard-coded as 46");
 assert(apiSrc.includes("rpc_eaushadhi_pharmacological_action_options"), "action vocabulary remains server-supplied");
 assert(controlSrc.includes("registerApprovedProductCopy"), "copy registration is called after upload");
+assert(
+  controlSrc.includes("removeApprovedProductCopyObject(path)"),
+  "registration failure still removes uploaded storage object",
+);
+assert(!helpersSrc.includes("buildApprovedProductCopyPath"), "legacy token path helper is removed");
+assert(!helpersSrc.includes("sanitizeEvidenceFileName"), "obsolete filename sanitizer is removed");
 assert(controlSrc.includes("createSignedUrl") || apiSrc.includes("createSignedUrl"), "private copy open uses signed URL");
 assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");
 assert(

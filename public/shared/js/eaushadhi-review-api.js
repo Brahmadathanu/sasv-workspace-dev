@@ -5,6 +5,7 @@
 import { supabase } from "./supabaseClient.js";
 import {
   classifyRpcError,
+  DOCUMENT_PURPOSE,
   EVIDENCE_BUCKET,
   optionId,
   PORTAL_DOMAINS,
@@ -332,6 +333,28 @@ export async function reopenProductActions({
   );
 }
 
+export async function fetchDocumentUploadContract({
+  productId,
+  documentPurpose,
+  extension,
+} = {}) {
+  const id = Number(optionId(productId));
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new EaushadhiRpcError(
+      "rpc_eaushadhi_document_upload_contract",
+      new Error("p_product_id is required"),
+      classifyRpcError({ message: "p_product_id is required" }),
+    );
+  }
+  return asFirst(
+    await callRpc("rpc_eaushadhi_document_upload_contract", {
+      p_product_id: id,
+      p_document_purpose: documentPurpose,
+      p_extension: extension,
+    }),
+  );
+}
+
 export async function fetchApprovedProductCopy(productId) {
   return asFirst(
     await callRpc("rpc_eaushadhi_approved_product_copy_get", {
@@ -461,13 +484,18 @@ export async function fetchWorkerPayload(productId, expectedWorkflowRowVersion) 
 
 export async function loadProductWorkspace(productId) {
   const id = Number(optionId(productId));
-  const [review, lines, actions, evidence, issues, copy] = await Promise.all([
+  const [review, lines, actions, evidence, issues, copy, copyContract] = await Promise.all([
     fetchProductReview(id),
     fetchReviewQueue(id),
     fetchProductActions(id),
     fetchEvidenceStatus(id),
     fetchProductIssues(id),
     fetchApprovedProductCopy(id).catch(() => null),
+    fetchDocumentUploadContract({
+      productId: id,
+      documentPurpose: DOCUMENT_PURPOSE.APPROVED_PRODUCT_COPY,
+      extension: "pdf",
+    }).catch((error) => ({ error })),
   ]);
-  return { review, lines, actions, evidence, issues, copy };
+  return { review, lines, actions, evidence, issues, copy, copyContract };
 }

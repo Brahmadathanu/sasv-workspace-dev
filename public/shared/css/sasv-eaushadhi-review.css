@@ -782,6 +782,32 @@ body.sasv-eaushadhi-review .ea-copy-meta {
   font-size: var(--sasv-text-md);
 }
 
+body.sasv-eaushadhi-review .ea-expected-file {
+  margin: 0 0 var(--sasv-space-2);
+}
+
+body.sasv-eaushadhi-review .ea-expected-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sasv-space-2);
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .ea-expected-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-medium);
+  line-height: var(--sasv-lh-normal);
+  color: var(--sasv-text);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+body.sasv-eaushadhi-review .ea-expected-file-row .icon-btn.with-label {
+  flex: 0 0 auto;
+}
+
 body.sasv-eaushadhi-review .line-head {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
