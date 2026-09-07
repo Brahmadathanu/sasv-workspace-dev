@@ -19,7 +19,7 @@ import {
   actionsDraftFromRows,
   applyCombinedRestrictedDeclaration,
   autosaveStateLabel,
-  buildApprovedProductCopyPath,
+  CANONICAL_PROMOTE_NOTES,
   canPromoteFormulation,
   canVerifyProductWorkflow,
   canCorrectWorkingSourceLine,
@@ -41,7 +41,13 @@ import {
   detailsDraftFromReview,
   detailsDirty,
   displayText,
+  DOCUMENT_PURPOSE,
+  EVIDENCE_CONTRACT_UNAVAILABLE,
+  EVIDENCE_EXTENSION_REQUIRED_COPY,
+  EVIDENCE_FILENAME_RENAME_COPY,
   entryStatusChipClass,
+  evidenceFileExtension,
+  evidenceFileNameMatchesExpected,
   filterCompositionLines,
   findQueueRow,
   filterQueueRows,
@@ -51,6 +57,7 @@ import {
   formatRawQuantityDisplay,
   formatShowingCount,
   formatVerifiedTotal,
+  governedCopyUploadReady,
   idsEqual,
   isEditableKeyboardTarget,
   isVerifiedStatus,
@@ -84,6 +91,7 @@ import {
   severityLabel,
   severityRank,
   shouldAppendQueueChunk,
+  shouldApplyPromoteNotesDefault,
   sourceFieldDisplay,
   suggestionBasisSummary,
   summarizeVerifyReviewedLines,
@@ -105,6 +113,7 @@ import {
 import {
   EaushadhiRpcError,
   fetchProductQueue,
+  fetchDocumentUploadContract,
   correctWorkingSourceLine,
   fetchSourceIssueContext,
   loadProductWorkspace,
@@ -186,6 +195,7 @@ const state = {
   actionsDraft: [],
   actionsBaseline: [],
   promoteNotes: "",
+  promoteNotesOrigin: "unset",
   verifyNotes: "",
   workerStatus: null,
   workerFoundationResult: null,
@@ -224,6 +234,8 @@ const state = {
   actionsReviewStatus: "PENDING",
   copy: null,
   copyPick: null,
+  copyContract: null,
+  copyContractError: "",
 };
 
 let searchTimer = null;
@@ -1595,9 +1607,19 @@ function renderEvidence() {
   const copy = state.copy;
   const pick = state.copyPick;
   const hasCopy = Boolean(copy?.storage_path) || evidence.approved_product_copy_present === true;
+  const expectedName = state.copyContract?.expected_file_name || "";
+  const canUpload = governedCopyUploadReady({ file: pick?.file, contract: state.copyContract }) && !pick?.error;
   host.innerHTML = `
     <div class="section-card">
       <h3 class="section-title">Approved Product Copy</h3>
+      <div class="ea-expected-file">
+        <span class="meta-label">Expected filename</span>
+        <div class="ea-expected-file-row">
+          <span class="ea-expected-file-name" id="eaExpectedFileName">${escapeHtml(expectedName || "Unavailable")}</span>
+          <button type="button" class="icon-btn with-label" id="btnCopyExpectedFileName"${expectedName ? "" : " disabled"}>Copy</button>
+        </div>
+      </div>
+      ${state.copyContractError ? `<p class="muted-note ea-autosave is-failed" aria-live="polite">${escapeHtml(state.copyContractError)}</p>` : ""}
       ${hasCopy && copy ? `
         <div class="ea-copy-meta">
           <div><strong>${escapeHtml(displayText(copy.original_file_name))}</strong></div>
@@ -1627,7 +1649,9 @@ function renderEvidence() {
           <div class="muted-note">${escapeHtml(pick.file.type || "-")} / ${escapeHtml(formatFileSize(pick.file.size))}</div>
         </div>
         <div class="action-row">
-          <button type="button" class="icon-btn with-label primary" id="btnUploadCopy" data-edit-action="true">Upload copy</button>
+          <button type="button" class="icon-btn with-label primary" id="btnUploadCopy" data-edit-action="true"${
+            canUpload ? "" : ` data-force-disabled="true"`
+          }>Upload copy</button>
           <button type="button" class="icon-btn with-label" id="btnCancelCopy">Cancel</button>
         </div>`
           : ""
@@ -2136,6 +2160,16 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.evidence = payload.evidence;
   state.issues = payload.issues || [];
   state.copy = payload.copy || null;
+  if (payload.copyContract?.error) {
+    state.copyContract = null;
+    state.copyContractError = userMessageForError(payload.copyContract.error) || EVIDENCE_CONTRACT_UNAVAILABLE;
+  } else if (payload.copyContract) {
+    state.copyContract = payload.copyContract;
+    state.copyContractError = payload.copyContract.expected_file_name && payload.copyContract.expected_storage_path
+      ? ""
+      : EVIDENCE_CONTRACT_UNAVAILABLE;
+    if (state.copyContractError) state.copyContract = null;
+  }
   state.actionsReviewStatus = workingActionReviewStatus(state.actions);
   if (!preserveDrafts) {
     state.lineSaveStatus = new Map();
@@ -2218,7 +2252,11 @@ async function openProduct(productId) {
     state.queueRow = findQueueRow(state.queue, productId);
     state.tab = "overview";
     state.preservedAfterStale = false;
+    state.promoteNotes = "";
+    state.promoteNotesOrigin = "unset";
     applyWorkspacePayload(payload, { preserveDrafts: false });
+    applyPromoteNotesIfNeeded();
+    await syncCopyContractAfterWorkspace();
     setAppMode("product");
     renderProductHeader();
     renderActiveTab();
@@ -2245,6 +2283,8 @@ async function reloadSelected({
   if (gen !== state.loadGen) return;
   await refreshQueue({ silent: true });
   applyWorkspacePayload(payload, { preserveDrafts });
+  applyPromoteNotesIfNeeded();
+  await syncCopyContractAfterWorkspace();
   renderProductHeader();
   renderActiveTab();
   if (restoreComposition && state.tab === "composition") {
@@ -2279,6 +2319,10 @@ async function backToQueue() {
   await flushActionsAutosave();
   state.selectedProductId = null;
   state.workerFoundationResult = null;
+  state.promoteNotes = "";
+  state.promoteNotesOrigin = "unset";
+  state.copyContract = null;
+  state.copyContractError = "";
   state.queueRow = null;
   state.review = null;
   state.lines = [];
@@ -2900,13 +2944,149 @@ async function hashFileSha256(file) {
     .join("");
 }
 
-function pickCopyFile(file) {
+function currentPromoteEligibility() {
+  const row = state.queueRow || {};
+  const review = state.review || {};
+  const evidence = state.evidence || {};
+  return canPromoteFormulation({
+    canEdit: canWrite(),
+    productReviewStatus: review.review_status,
+    compositionReviewComplete: row.composition_review_complete,
+    verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
+    compositionLines: row.composition_lines ?? evidence.composition_lines_total,
+    openBlockers: row.open_blockers,
+    errorOrBlockerIssueCount: openErrorOrBlockerCount(state.issues),
+    approvedFormulationPresent: evidence.approved_formulation_present,
+    workflowRowVersion: row.workflow_row_version,
+  });
+}
+
+function applyPromoteNotesIfNeeded() {
+  if (
+    shouldApplyPromoteNotesDefault({
+      formulationPromoted: state.evidence?.approved_formulation_present === true,
+      promotionEligible: currentPromoteEligibility(),
+      notes: state.promoteNotes,
+      origin: state.promoteNotesOrigin,
+    })
+  ) {
+    state.promoteNotes = CANONICAL_PROMOTE_NOTES;
+    state.promoteNotesOrigin = "default";
+  }
+}
+
+function fallbackCopyText(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand("copy");
+  ta.remove();
+  if (!ok) throw new Error("Copy failed.");
+}
+
+async function copyExpectedFilename() {
+  const text = state.copyContract?.expected_file_name;
+  if (!text) {
+    showToast("No expected filename to copy.", "error");
+    return;
+  }
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      fallbackCopyText(text);
+    }
+    showToast("Expected filename copied.", "success");
+  } catch {
+    try {
+      fallbackCopyText(text);
+      showToast("Expected filename copied.", "success");
+    } catch {
+      showToast("Copy failed.", "error");
+    }
+  }
+}
+
+async function ensureCopyContract(extension) {
+  const ext = String(extension || "").toLowerCase();
+  const current = state.copyContract;
+  if (
+    current &&
+    !state.copyContractError &&
+    Number(current.product_id) === Number(state.selectedProductId) &&
+    current.document_purpose === DOCUMENT_PURPOSE.APPROVED_PRODUCT_COPY &&
+    current.extension === ext &&
+    current.expected_file_name &&
+    current.expected_storage_path
+  ) {
+    return current;
+  }
+  try {
+    const row = await fetchDocumentUploadContract({
+      productId: state.selectedProductId,
+      documentPurpose: DOCUMENT_PURPOSE.APPROVED_PRODUCT_COPY,
+      extension: ext,
+    });
+    if (!row?.expected_file_name || !row?.expected_storage_path) {
+      state.copyContract = null;
+      state.copyContractError = EVIDENCE_CONTRACT_UNAVAILABLE;
+      return null;
+    }
+    state.copyContract = row;
+    state.copyContractError = "";
+    return row;
+  } catch (err) {
+    state.copyContract = null;
+    state.copyContractError = userMessageForError(err) || EVIDENCE_CONTRACT_UNAVAILABLE;
+    return null;
+  }
+}
+
+async function syncCopyContractAfterWorkspace() {
+  const file = state.copyPick?.file;
+  if (file) {
+    const ext = evidenceFileExtension(file);
+    if (!ext) return;
+    await ensureCopyContract(ext);
+    return;
+  }
+  if (state.copyContract?.expected_file_name && state.copyContract?.expected_storage_path) return;
+  await ensureCopyContract("pdf");
+}
+
+async function pickCopyFile(file) {
+  if (!file) return;
   const check = validateEvidenceFile(file);
   if (!check.ok) {
     state.copyPick = { file: null, error: check.error };
-  } else {
-    state.copyPick = { file, error: "" };
+    renderEvidence();
+    return;
   }
+  const ext = evidenceFileExtension(file);
+  if (!ext) {
+    state.copyPick = { file, error: EVIDENCE_EXTENSION_REQUIRED_COPY };
+    renderEvidence();
+    return;
+  }
+  const contract = await ensureCopyContract(ext);
+  if (!contract?.expected_file_name || !contract?.expected_storage_path) {
+    state.copyPick = {
+      file,
+      error: state.copyContractError || EVIDENCE_CONTRACT_UNAVAILABLE,
+    };
+    renderEvidence();
+    return;
+  }
+  if (!evidenceFileNameMatchesExpected(file.name, contract.expected_file_name)) {
+    state.copyPick = { file, error: EVIDENCE_FILENAME_RENAME_COPY };
+    renderEvidence();
+    return;
+  }
+  state.copyPick = { file, error: "" };
   renderEvidence();
 }
 
@@ -2918,14 +3098,24 @@ async function uploadSelectedCopy() {
     renderEvidence();
     return;
   }
-  const token =
-    globalThis.crypto?.randomUUID?.() ||
-    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const path = buildApprovedProductCopyPath(state.selectedProductId, file.name, token);
-  if (!path) {
-    showToast("Cannot build a storage path for this product.", "error");
+  const ext = evidenceFileExtension(file);
+  if (!ext) {
+    state.copyPick = { file, error: EVIDENCE_EXTENSION_REQUIRED_COPY };
+    renderEvidence();
     return;
   }
+  const contract = await ensureCopyContract(ext);
+  if (!governedCopyUploadReady({ file, contract })) {
+    const error = !contract?.expected_storage_path
+      ? state.copyContractError || EVIDENCE_CONTRACT_UNAVAILABLE
+      : evidenceFileNameMatchesExpected(file.name, contract.expected_file_name)
+        ? state.copyContractError || EVIDENCE_CONTRACT_UNAVAILABLE
+        : EVIDENCE_FILENAME_RENAME_COPY;
+    state.copyPick = { file, error };
+    renderEvidence();
+    return;
+  }
+  const path = contract.expected_storage_path;
   await runMutation(async () => {
     await uploadApprovedProductCopyObject(path, file, file.type);
     try {
@@ -3416,16 +3606,21 @@ function wireEvents() {
 
   $("tab-evidence")?.addEventListener("change", (event) => {
     if (event.target.id !== "fldCopyFile") return;
-    pickCopyFile(event.target.files?.[0] || null);
+    const file = event.target.files?.[0];
+    if (!file) return;
+    void pickCopyFile(file);
   });
   $("tab-evidence")?.addEventListener("click", (event) => {
-    if (event.target.id === "btnUploadCopy") void uploadSelectedCopy();
-    if (event.target.id === "btnCancelCopy") {
+    const btn = event.target.closest("button");
+    if (!btn) return;
+    if (btn.id === "btnCopyExpectedFileName") void copyExpectedFilename();
+    if (btn.id === "btnUploadCopy") void uploadSelectedCopy();
+    if (btn.id === "btnCancelCopy") {
       state.copyPick = null;
       renderEvidence();
     }
-    if (event.target.id === "btnOpenCopy") void openCurrentCopy();
-    if (event.target.id === "btnReplaceCopy") {
+    if (btn.id === "btnOpenCopy") void openCurrentCopy();
+    if (btn.id === "btnReplaceCopy") {
       state.copyPick = { file: null, error: "" };
       renderEvidence();
       requestAnimationFrame(() => $("fldCopyFile")?.click());
@@ -3438,7 +3633,10 @@ function wireEvents() {
     if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
-    if (event.target.id === "fldPromoteNotes") state.promoteNotes = event.target.value;
+    if (event.target.id === "fldPromoteNotes") {
+      state.promoteNotes = event.target.value;
+      state.promoteNotesOrigin = "user";
+    }
     if (event.target.id === "fldVerifyNotes") state.verifyNotes = event.target.value;
   });
 

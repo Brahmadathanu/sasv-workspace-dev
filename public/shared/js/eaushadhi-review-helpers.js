@@ -41,6 +41,18 @@ export const EVIDENCE_ALLOWED_MIME = Object.freeze([
   "image/jpeg",
   "image/png",
 ]);
+export const EVIDENCE_ALLOWED_EXTENSIONS = Object.freeze(["pdf", "jpg", "jpeg", "png"]);
+export const DOCUMENT_PURPOSE = Object.freeze({
+  APPROVED_PRODUCT_COPY: "APPROVED_PRODUCT_COPY",
+});
+export const CANONICAL_PROMOTE_NOTES =
+  "Promoted after complete e-Aushadhi Product Details and Composition review.";
+export const EVIDENCE_FILENAME_RENAME_COPY =
+  "Rename the file exactly as shown above before upload.";
+export const EVIDENCE_CONTRACT_UNAVAILABLE =
+  "Document filename contract is unavailable.";
+export const EVIDENCE_EXTENSION_REQUIRED_COPY =
+  "File name must end with .pdf, .jpg, .jpeg, or .png.";
 
 export const REVIEW_LENSES = Object.freeze([
   { id: "all", label: "All" },
@@ -556,20 +568,37 @@ export function validateEvidenceFile(file) {
   return { ok: true, error: "" };
 }
 
-export function sanitizeEvidenceFileName(name) {
-  const cleaned = safeText(name)
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80);
-  return cleaned || "copy";
+export function evidenceFileExtension(file) {
+  const name = typeof file?.name === "string" ? file.name : "";
+  const dot = name.lastIndexOf(".");
+  if (dot < 0 || dot === name.length - 1) return "";
+  const ext = name.slice(dot + 1).toLowerCase();
+  return EVIDENCE_ALLOWED_EXTENSIONS.includes(ext) ? ext : "";
 }
 
-export function buildApprovedProductCopyPath(productId, originalName, uniqueToken) {
-  const id = Number(optionId(productId));
-  if (!Number.isInteger(id) || id <= 0) return "";
-  const token = safeText(uniqueToken) || `u${Date.now()}`;
-  return `approved-product-copy/${id}/${token}-${sanitizeEvidenceFileName(originalName)}`;
+export function evidenceFileNameMatchesExpected(actual, expected) {
+  return typeof actual === "string" && typeof expected === "string" && actual === expected;
+}
+
+export function governedCopyUploadReady({ file, contract } = {}) {
+  if (!file || !contract) return false;
+  if (!validateEvidenceFile(file).ok) return false;
+  if (!evidenceFileExtension(file)) return false;
+  if (!contract.expected_file_name || !contract.expected_storage_path) return false;
+  return evidenceFileNameMatchesExpected(file.name, contract.expected_file_name);
+}
+
+export function shouldApplyPromoteNotesDefault({
+  formulationPromoted,
+  promotionEligible,
+  notes,
+  origin,
+} = {}) {
+  if (formulationPromoted === true) return false;
+  if (promotionEligible !== true) return false;
+  if (origin === "user") return false;
+  if (safeText(notes)) return false;
+  return origin === "unset" || origin === "default" || origin == null || origin === "";
 }
 
 export function formatFileSize(bytes) {

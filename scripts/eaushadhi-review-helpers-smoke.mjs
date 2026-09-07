@@ -8,7 +8,7 @@ import {
   QUEUE_RENDER_CHUNK,
   actionsDirty,
   applyCombinedRestrictedDeclaration,
-  buildApprovedProductCopyPath,
+  CANONICAL_PROMOTE_NOTES,
   canPromoteFormulation,
   canVerifyActionSet,
   canVerifyCompositionLine,
@@ -24,14 +24,18 @@ import {
   composeActionsDraft,
   detailsDraftFromReview,
   detailsDirty,
+  DOCUMENT_PURPOSE,
   ERROR_KIND,
   effectiveOptionId,
+  evidenceFileExtension,
+  evidenceFileNameMatchesExpected,
   filterCompositionLines,
   filterQueueRows,
   formatIssueDetails,
   formatRawQuantityDisplay,
   formatShowingCount,
   formatVerifiedTotal,
+  governedCopyUploadReady,
   isNonstandardQuantityText,
   isVerifiedStatus,
   issuesForLine,
@@ -56,6 +60,7 @@ import {
   resetQueueRenderCount,
   resolveFieldProvenance,
   shouldAppendQueueChunk,
+  shouldApplyPromoteNotesDefault,
   shouldSyncQuantityText,
   snapshotQueueView,
   suggestionFieldMode,
@@ -754,9 +759,97 @@ assert(
   validateEvidenceFile({ type: "text/plain", size: 10 }).ok === false,
   "disallowed evidence mime is rejected",
 );
+
+const expectedPdf = "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf";
+assert(DOCUMENT_PURPOSE.APPROVED_PRODUCT_COPY === "APPROVED_PRODUCT_COPY", "document purpose is Approved Product Copy");
+assert(evidenceFileExtension({ name: "label.PDF" }) === "pdf", "pdf extension is lowercased");
+assert(evidenceFileExtension({ name: "label.jpg" }) === "jpg", "jpg extension is preserved");
+assert(evidenceFileExtension({ name: "label.jpeg" }) === "jpeg", "jpeg extension is distinct from jpg");
+assert(evidenceFileExtension({ name: "label.png" }) === "png", "png extension is preserved");
+assert(evidenceFileExtension({ name: "label.JPG" }) === "jpg", "jpg extension is lowercased");
+assert(evidenceFileExtension({ name: "label" }) === "", "missing suffix is unsupported");
+assert(evidenceFileExtension({ name: "label.gif" }) === "", "unsupported suffix is rejected");
+assert(evidenceFileNameMatchesExpected(expectedPdf, expectedPdf) === true, "exact filename match is accepted");
+assert(evidenceFileNameMatchesExpected(expectedPdf.toUpperCase(), expectedPdf) === false, "case mismatch is rejected");
 assert(
-  buildApprovedProductCopyPath(183, "label.pdf", "abc") === "approved-product-copy/183/abc-label.pdf",
-  "safe approved copy storage path",
+  evidenceFileNameMatchesExpected(expectedPdf.replace("V01", "V1"), expectedPdf) === false,
+  "one-character mismatch is rejected",
+);
+assert(evidenceFileNameMatchesExpected(` ${expectedPdf}`, expectedPdf) === false, "whitespace mismatch is rejected");
+assert(
+  evidenceFileNameMatchesExpected(expectedPdf.replace(".pdf", " (1).pdf"), expectedPdf) === false,
+  "copy-suffix mismatch is rejected",
+);
+
+const matchContract = {
+  expected_file_name: expectedPdf,
+  expected_storage_path: "approved-product-copy/262/EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf",
+};
+const matchFile = { name: expectedPdf, type: "application/pdf", size: 1024 };
+assert(governedCopyUploadReady({ file: matchFile, contract: matchContract }) === true, "matching filename can upload");
+assert(
+  governedCopyUploadReady({
+    file: { ...matchFile, name: "wrong.pdf" },
+    contract: matchContract,
+  }) === false,
+  "filename mismatch cannot upload",
+);
+assert(governedCopyUploadReady({ file: matchFile, contract: null }) === false, "missing contract cannot upload");
+assert(
+  governedCopyUploadReady({
+    file: matchFile,
+    contract: { expected_file_name: expectedPdf, expected_storage_path: "" },
+  }) === false,
+  "contract without storage path cannot upload",
+);
+assert(
+  governedCopyUploadReady({
+    file: { name: expectedPdf, type: "text/plain", size: 10 },
+    contract: matchContract,
+  }) === false,
+  "MIME validation still blocks governed upload",
+);
+
+assert(
+  shouldApplyPromoteNotesDefault({
+    formulationPromoted: false,
+    promotionEligible: true,
+    notes: "",
+    origin: "unset",
+  }) === true,
+  "eligible blank notes receive the default",
+);
+assert(
+  shouldApplyPromoteNotesDefault({
+    formulationPromoted: false,
+    promotionEligible: true,
+    notes: "Custom notes",
+    origin: "user",
+  }) === false,
+  "user custom notes are retained",
+);
+assert(
+  shouldApplyPromoteNotesDefault({
+    formulationPromoted: false,
+    promotionEligible: true,
+    notes: "",
+    origin: "user",
+  }) === false,
+  "user-cleared notes remain blank",
+);
+assert(
+  shouldApplyPromoteNotesDefault({
+    formulationPromoted: true,
+    promotionEligible: false,
+    notes: "",
+    origin: "unset",
+  }) === false,
+  "already promoted does not receive a default",
+);
+assert(
+  CANONICAL_PROMOTE_NOTES ===
+    "Promoted after complete e-Aushadhi Product Details and Composition review.",
+  "canonical promotion notes omit pharmacological-action claim",
 );
 
 if (failed) {
