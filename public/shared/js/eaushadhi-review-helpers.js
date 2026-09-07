@@ -47,6 +47,8 @@ export const DOCUMENT_PURPOSE = Object.freeze({
 });
 export const CANONICAL_PROMOTE_NOTES =
   "Promoted after complete e-Aushadhi Product Details and Composition review.";
+export const CANONICAL_VERIFY_NOTES =
+  "Internally verified after completion of Product Details, Pharmacological Action, Composition, Approved Formulation and Approved Product Copy review.";
 export const EVIDENCE_FILENAME_RENAME_COPY =
   "Rename the file exactly as shown above before upload.";
 export const EVIDENCE_CONTRACT_UNAVAILABLE =
@@ -614,6 +616,19 @@ export function shouldApplyPromoteNotesDefault({
   return origin === "unset" || origin === "default" || origin == null || origin === "";
 }
 
+export function shouldApplyVerifyNotesDefault({
+  alreadyVerified,
+  verificationEligible,
+  notes,
+  origin,
+} = {}) {
+  if (alreadyVerified === true) return false;
+  if (verificationEligible !== true) return false;
+  if (origin === "user") return false;
+  if (safeText(notes)) return false;
+  return origin === "unset" || origin === "default" || origin == null || origin === "";
+}
+
 export function formatFileSize(bytes) {
   const n = toInt(bytes);
   if (n < 1024) return `${n} B`;
@@ -1009,6 +1024,15 @@ export function verifyProductUnavailableReason(args = {}) {
   if (canVerifyProductWorkflow(args)) return "";
   if (args.canEdit !== true) {
     return "Internal verification is unavailable with read-only access.";
+  }
+  if (normalizeReviewStatus(args.reviewStatus) === "VERIFIED") {
+    return "This product is already internally verified.";
+  }
+  if (normalizeEntryStatus(args.entryStatus) !== "NOT_STARTED") {
+    return "Internal verification is unavailable after portal entry has started.";
+  }
+  if (args.dossierReady !== true) {
+    return "Internal verification becomes available after Product Details, Pharmacological Action, Composition, Approved Formulation, and Approved Product Copy are complete.";
   }
   return "Verify Product internally becomes available after composition is complete and blocking issues are cleared.";
 }
@@ -1430,8 +1454,14 @@ export function canVerifyProductWorkflow({
   compositionLines,
   openBlockers,
   workflowRowVersion,
+  dossierReady,
+  entryStatus,
+  reviewStatus,
 } = {}) {
   if (!canEdit) return false;
+  if (normalizeReviewStatus(reviewStatus) === "VERIFIED") return false;
+  if (normalizeEntryStatus(entryStatus) !== "NOT_STARTED") return false;
+  if (dossierReady !== true) return false;
   const linesComplete =
     compositionReviewComplete === true ||
     (toInt(compositionLines) > 0 &&

@@ -138,6 +138,59 @@ assert(controlSrc.includes("promoteNotesOrigin"), "promotion notes origin is tra
 assert(controlSrc.includes("CANONICAL_PROMOTE_NOTES"), "canonical promotion notes are used");
 assert(controlSrc.includes("state.promoteNotesOrigin = \"unset\""), "product switch resets promotion notes origin");
 assert(helpersSrc.includes("Pharmacological Action review") === false, "promotion default does not claim pharmacological-action review");
+assert(controlSrc.includes("verifyNotesOrigin"), "verification notes origin is tracked");
+assert(controlSrc.includes("CANONICAL_VERIFY_NOTES"), "canonical verification notes are used");
+assert(controlSrc.includes("state.verifyNotesOrigin = \"unset\""), "product switch resets verification notes origin");
+assert(
+  controlSrc.includes(
+    'showVerify = normalizeReviewStatus(review.review_status ?? row.review_status) !== "VERIFIED"',
+  ),
+  "Verify Product controls hide when overall review_status is VERIFIED",
+);
+assert(!controlSrc.includes("showVerify = ready !== true"), "Verify Product visibility is not derived from is_ready_for_entry");
+{
+  const start = controlSrc.indexOf("function applyVerifyNotesIfNeeded");
+  const end = controlSrc.indexOf("\nfunction ", start + 1);
+  const fn = controlSrc.slice(start, end === -1 ? undefined : end);
+  assert(!fn.includes("is_ready_for_entry"), "verify notes default does not use READY");
+  assert(fn.includes('=== "VERIFIED"'), "already verified uses overall review_status VERIFIED");
+}
+{
+  const start = helpersSrc.indexOf("export function canVerifyProductWorkflow");
+  const end = helpersSrc.indexOf("\nexport function ", start + 1);
+  const fn = helpersSrc.slice(start, end === -1 ? undefined : end);
+  assert(fn.includes("dossierReady"), "product verify eligibility requires dossier_ready");
+  assert(fn.includes("entryStatus"), "product verify eligibility requires entry_status");
+  assert(fn.includes("reviewStatus"), "product verify eligibility requires review_status");
+}
+{
+  const renderStart = controlSrc.indexOf("function renderEvidence()");
+  const renderEnd = controlSrc.indexOf("\nfunction ", renderStart + 1);
+  const renderFn = controlSrc.slice(renderStart, renderEnd === -1 ? undefined : renderEnd);
+  assert(renderFn.includes("eaExpectedFileName"), "expected filename is always rendered in Evidence");
+  assert(!renderFn.includes("composition_review_complete"), "expected filename is not gated on composition status");
+  assert(!renderFn.includes("is_ready_for_entry"), "expected filename is not gated on READY status");
+  assert(!renderFn.includes("review_status"), "expected filename is not gated on product details status");
+}
+{
+  const start = helpersSrc.indexOf("export function governedCopyUploadReady");
+  const end = helpersSrc.indexOf("\nexport function ", start + 1);
+  const fn = helpersSrc.slice(start, end === -1 ? undefined : end);
+  assert(!fn.includes("review_status"), "governed upload is independent of other review statuses");
+  assert(!fn.includes("is_ready_for_entry"), "governed upload is independent of READY status");
+}
+assert(controlSrc.includes('id="btnChooseCopy"'), "copy picker uses a labeled module button");
+assert(controlSrc.includes("ea-copy-head"), "copy card uses a compact header row");
+assert(controlSrc.includes('id="fldCopyFile"') && controlSrc.includes("ea-copy-file"), "native file input stays hidden");
+assert(!controlSrc.includes("<label for=\"fldCopyFile\">"), "native Choose file label is not used");
+assert(cssSrc.includes(".ea-copy-file"), "copy file input is visually hidden");
+assert(cssSrc.includes(".evidence-card > .status-chip"), "evidence status chips are scoped to hug content");
+assert(cssSrc.includes(".readiness-chip > .status-chip"), "readiness chips are scoped to hug content");
+assert(apiSrc.includes("fetchDocumentUploadContract"), "workspace load requests the document contract");
+assert(
+  /export async function loadProductWorkspace[\s\S]*fetchDocumentUploadContract[\s\S]*review_status/.test(apiSrc) === false,
+  "document contract fetch is not gated on review status",
+);
 assert(controlSrc.includes("Verify line"), "composition verify line wording");
 assert(controlSrc.includes("data-source-correct"), "correct source action exists");
 assert(!/Save progress/.test(controlSrc + htmlSrc), "routine save progress button removed");
