@@ -21,6 +21,7 @@ dist-eaushadhi-header-erp-proof/
 dist-eaushadhi-live-contract-proof/
 dist-eaushadhi-evidence-filename-proof/
 dist-eaushadhi-first-entry-capture-proof/
+dist-eaushadhi-evidence-card-hierarchy-proof/
 *.exe
 *.zip
 
