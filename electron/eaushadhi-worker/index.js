@@ -4,7 +4,7 @@ const { randomUUID } = require("crypto");
 const path = require("path");
 const { STATES, createWorkerState, statusLabel } = require("./state");
 const { ERROR_KINDS, WorkerError, workerError, classifyServerError } = require("./errors");
-const { writeDiagnostic } = require("./diagnostics");
+const { sanitizeText, writeDiagnostic } = require("./diagnostics");
 const {
   loadPortalContract,
   requireContract,
@@ -18,6 +18,50 @@ const { validateProductId, validateAccessToken, publicStatus } = require("./vali
 const { captureOpenPages } = require("./capture");
 const { capturesRoot, isPathInsideRoot } = require("./capture/persist");
 const { probeAuthenticatedSession } = require("./auth-probe");
+
+const CONNECT_PHASES = Object.freeze({
+  CONTRACT: "connect:contract",
+  LAUNCH: "connect:launch",
+  GUARD: "connect:guard",
+  PAGE: "connect:page",
+  NAVIGATE: "connect:navigate",
+  ORIGIN_CHECK: "connect:origin-check",
+  AUTH_PROBE: "connect:auth-probe",
+  READY: "connect:ready",
+});
+
+function connectFailureDetails(error, connectPhase) {
+  const existing =
+    error?.details && typeof error.details === "object" ? { ...error.details } : {};
+  const details = {
+    ...existing,
+    connectPhase: existing.connectPhase || connectPhase || null,
+  };
+  if (!details.causeMessageSanitized) {
+    const raw = error instanceof WorkerError ? "" : String(error?.message || error || "");
+    const cause = sanitizeText(raw);
+    if (cause) details.causeMessageSanitized = cause;
+  } else {
+    details.causeMessageSanitized = sanitizeText(details.causeMessageSanitized);
+  }
+  return details;
+}
+
+function wrapConnectFailure(error, connectPhase) {
+  const details = connectFailureDetails(error, connectPhase);
+  if (error instanceof WorkerError) {
+    return workerError(error.kind, error.message, {
+      section: error.section,
+      details,
+    });
+  }
+  const cause = details.causeMessageSanitized || "Unknown error";
+  return workerError(
+    ERROR_KINDS.CRASH,
+    sanitizeText(`Browser connect failed. ${cause}`),
+    { details },
+  );
+}
 
 function createEaushadhiWorker({
   getUserDataPath,
@@ -67,7 +111,7 @@ function createEaushadhiWorker({
       writeDiagnostic(getUserDataPath(), {
         ...record,
         workerState: machine.get(),
-        phase,
+        phase: record.phase != null ? record.phase : phase,
         productId: record.productId || productId,
       });
     } catch {
@@ -135,26 +179,34 @@ function createEaushadhiWorker({
       );
     }
     machine.transition(STATES.STARTING);
-    phase = "connect";
+    phase = CONNECT_PHASES.CONTRACT;
     emit();
     try {
+      phase = CONNECT_PHASES.CONTRACT;
       requireSection("origins");
       const contract = loadPortalContract();
+      phase = CONNECT_PHASES.LAUNCH;
       const userDataDir = dedicatedProfileDir(getUserDataPath());
       const launcher = typeof launchBrowser === "function" ? launchBrowser : launchDedicatedEdge;
       context = await launcher(userDataDir);
+      phase = CONNECT_PHASES.GUARD;
       detachContextGuard = attachContextOriginGuard(context, {
         contract,
         onDisallowed: (error, url) => {
           void failClosed(error, url);
         },
       });
+      phase = CONNECT_PHASES.PAGE;
       const page = context.pages()[0] || (await context.newPage());
+      phase = CONNECT_PHASES.NAVIGATE;
       await page.goto(contract.baseUrl, { waitUntil: "domcontentloaded" });
+      phase = CONNECT_PHASES.ORIGIN_CHECK;
       assertAllowedUrl(page.url(), contract);
       try {
+        phase = CONNECT_PHASES.AUTH_PROBE;
         const authSpec = requireSection("authProbe");
         const probe = await probeAuthenticatedSession(page, authSpec);
+        phase = CONNECT_PHASES.READY;
         if (probe.authenticated) {
           machine.transition(STATES.READY);
           lastErrorKind = null;
@@ -168,19 +220,16 @@ function createEaushadhiWorker({
         }
       } catch (error) {
         if (error?.kind !== ERROR_KINDS.CONTRACT_INCOMPLETE) throw error;
+        phase = CONNECT_PHASES.READY;
         machine.transition(STATES.AUTH_REQUIRED);
         lastErrorKind = ERROR_KINDS.AUTH_REQUIRED;
         lastErrorMessage =
           "Login in the dedicated Edge window. Authenticated portal state cannot be proven yet.";
       }
-      phase = "connected";
       log({ phase, url: page.url() });
       return emit();
     } catch (error) {
-      const wrapped =
-        error instanceof WorkerError
-          ? error
-          : workerError(ERROR_KINDS.CRASH, "Browser connect failed.");
+      const wrapped = wrapConnectFailure(error, phase);
       setError(wrapped);
       await closeBrowser();
       if (machine.get() !== STATES.FAILED) {
@@ -192,7 +241,11 @@ function createEaushadhiWorker({
           machine.transition(STATES.FAILED);
         }
       }
-      log({ phase: "connect", errorKind: wrapped.kind, error: wrapped.message });
+      log({
+        phase: wrapped.details?.connectPhase || phase,
+        errorKind: wrapped.kind,
+        error: wrapped.details?.causeMessageSanitized || wrapped.message,
+      });
       emit();
       throw wrapped;
     }
@@ -485,5 +538,6 @@ function createEaushadhiWorker({
 }
 
 module.exports = {
+  CONNECT_PHASES,
   createEaushadhiWorker,
 };
