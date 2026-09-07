@@ -1,4 +1,4 @@
 {
   "portal": "https://www.e-aushadhi.gov.in/",
-  "note": "Fixtures only. live-vocabularies.json is sanitized native option evidence. Automated tests must not call the live portal or launch Microsoft Edge."
+  "note": "Fixtures only. live-vocabularies.json is sanitized live portal evidence. Automated tests must not call the live portal or launch Microsoft Edge."
 }

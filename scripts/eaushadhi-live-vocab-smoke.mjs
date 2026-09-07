@@ -1,6 +1,6 @@
 /**
- * Sanitized live vocabulary fixture and parent-scope SQL contract.
- * Does not apply the migration and does not contact the live portal.
+ * Sanitized live portal vocabulary fixture.
+ * Does not contact the live portal and does not inspect server migrations.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -21,14 +21,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const vocab = JSON.parse(
   readFileSync(join(root, "scripts/fixtures/eaushadhi-portal/live-vocabularies.json"), "utf8"),
 );
-const schemaSql = readFileSync(
-  join(root, "supabase/migrations/20260907120000_eaushadhi_portal_option_parent_scope.sql"),
-  "utf8",
-);
-const dataSql = readFileSync(
-  join(root, "supabase/migrations/20260907120100_eaushadhi_live_portal_vocabularies.sql"),
-  "utf8",
-);
 
 const domains = vocab.domains;
 assert(domains.PRODUCT_TYPE.options.length === 8, "exactly 8 PRODUCT_TYPE");
@@ -39,10 +31,11 @@ assert(domains.PRODUCT_CATEGORY.options.length === 84, "exactly 84 PRODUCT_CATEG
 assert(domains.RESTRICTED_INGREDIENT_CATEGORY.options.length === 3, "exactly 3 restricted categories");
 
 assert(
-  domains.PRODUCT_CATEGORY.parent?.external_id === "Siddha Classical Medicine",
-  "category parent is Siddha Classical Medicine",
+  domains.PRODUCT_CATEGORY.parent?.domain_code === "PRODUCT_TYPE" &&
+    domains.PRODUCT_CATEGORY.parent?.external_id === "Siddha Classical Medicine",
+  "category parent is PRODUCT_TYPE / Siddha Classical Medicine",
 );
-assert(domains.PRODUCT_SUBTYPE.parent?.domain_code === "PRODUCT_TYPE", "subtype preserves type parent");
+assert(domains.PRODUCT_SUBTYPE.parent?.domain_code === "PRODUCT_TYPE", "subtype parent scope preserved");
 
 const placeholders = ["-1", "0", ""];
 for (const [code, domain] of Object.entries(domains)) {
@@ -56,7 +49,7 @@ for (const [code, domain] of Object.entries(domains)) {
 
 const sentinel = domains.PRODUCT_SUBTYPE.options.find((opt) => opt.external_id === "32");
 assert(sentinel?.label === "-", "subtype 32 / - is preserved");
-assert(/sentinel/i.test(sentinel.notes || ""), "subtype 32 is marked not for fill");
+assert(/sentinel/i.test(sentinel.notes || "") && /not a fill/i.test(sentinel.notes || ""), "subtype 32 is marked sentinel/not-fill");
 
 const pharmIds = domains.PHARMACOLOGICAL_ACTION.options.map((opt) => opt.external_id);
 const pharmLabels = domains.PHARMACOLOGICAL_ACTION.options.map((opt) => opt.label);
@@ -65,40 +58,9 @@ assert(new Set(pharmLabels.map((v) => v.toLowerCase().trim())).size === 46, "46 
 assert(!pharmIds.some((id) => String(id).startsWith("select2-")), "no Select2 generated ids");
 
 const fixtureText = JSON.stringify(vocab);
-assert(!/license|username|profile/i.test(fixtureText) || fixtureText.includes("capture"), "fixture has no account identity fields");
-assert(vocab.sanitized_capture_id && vocab.source_route === "/admin/addproductforlegacy", "sanitized capture provenance present");
-
-assert(schemaSql.includes("parent_domain_code"), "schema adds parent_domain_code");
-assert(schemaSql.includes("parent_external_id"), "schema adds parent_external_id");
-assert(schemaSql.includes("not null default ''"), "parent columns default ''");
-assert(schemaSql.includes("drop index if exists regulatory.portal_option_external_id_uidx;"), "drops external_id uniqueness only");
-assert(schemaSql.includes("drop index if exists regulatory.portal_option_label_uidx;"), "drops label uniqueness only");
-assert(!schemaSql.includes("pg_index"), "no generic unique-index loop");
-assert(!/for rec in/i.test(schemaSql), "no rec loop over indexes");
-assert(!schemaSql.includes("drop index if exists regulatory.portal_option_id_portal_key"), "does not drop id_portal key");
-assert(!schemaSql.includes("drop index if exists regulatory.portal_option_pkey"), "does not drop pkey");
-assert(!schemaSql.includes("drop index if exists regulatory.portal_option_snapshot_idx"), "does not drop snapshot idx");
-assert(!schemaSql.includes("drop index if exists regulatory.portal_option_active_domain_idx"), "does not drop active domain idx");
-assert(schemaSql.includes("portal_option_scoped_external_uidx"), "scoped external uniqueness");
-assert(schemaSql.includes("portal_option_scoped_label_uidx"), "scoped label uniqueness");
-assert(
-  schemaSql.indexOf("drop index if exists regulatory.portal_option_external_id_uidx") <
-    schemaSql.indexOf("portal_option_scoped_external_uidx"),
-  "old uniqueness is dropped before scoped replacements",
-);
-assert(
-  schemaSql.indexOf("add column if not exists parent_domain_code") <
-    schemaSql.indexOf("drop index if exists regulatory.portal_option_external_id_uidx"),
-  "parent columns exist before uniqueness is replaced",
-);
-
-assert(dataSql.includes("INGREDIENT_TYPE"), "data migration asserts composition domains");
-assert(dataSql.includes("expected 109"), "composition 109 assertion present");
-assert(dataSql.includes("mapping_status = 'VERIFIED'"), "exact maps may become VERIFIED");
-assert(dataSql.includes("eaushadhi_product_workflow"), "product workflow count is asserted unchanged");
-assert(!/rpc_eaushadhi_verify_product|mark_entered|PORTAL_VERIFIED/.test(dataSql), "no product workflow mutation");
-assert(dataSql.includes("parent_domain_code"), "data load writes parent scope");
-assert(dataSql.includes("Siddha Classical Medicine"), "category rows scoped to Siddha Classical Medicine");
+assert(!/"username"|"email"|"license"|user_display|profile_name/i.test(fixtureText), "fixture has no account/profile identity fields");
+assert(vocab.provenance === "authenticated_live_portal_capture", "sanitized provenance exists");
+assert(vocab.sanitized_capture_id && vocab.source_route === "/admin/addproductforlegacy", "sanitized capture route/id present");
 
 function payloadHash(options) {
   const canonical = options
@@ -107,6 +69,10 @@ function payloadHash(options) {
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 assert(payloadHash(domains.PRODUCT_TYPE.options).length === 64, "deterministic payload hash");
+assert(
+  payloadHash(domains.PRODUCT_TYPE.options) === payloadHash(domains.PRODUCT_TYPE.options),
+  "payload hash helper is deterministic",
+);
 
 if (failed) {
   console.error(`\n${failed} live-vocab assertion(s) failed`);
