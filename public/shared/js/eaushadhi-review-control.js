@@ -1646,14 +1646,6 @@ function renderEvidence() {
   const copyChip = pick?.file || !hasCopy ? chip("neutral", "Pending") : chip("success", "Present");
   host.innerHTML = `
     <div class="section-card ea-copy-card">
-      <div class="ea-expected-file">
-        <span class="meta-label">Expected filename</span>
-        <div class="ea-expected-file-row">
-          <span class="ea-expected-file-name" id="eaExpectedFileName">${escapeHtml(expectedName || "Unavailable")}</span>
-          <button type="button" class="icon-btn with-label" id="btnCopyExpectedFileName"${expectedName ? "" : " disabled"}>Copy</button>
-        </div>
-      </div>
-      ${state.copyContractError ? `<p class="muted-note ea-autosave is-failed" aria-live="polite">${escapeHtml(state.copyContractError)}</p>` : ""}
       <div class="ea-copy-head">
         <div class="ea-copy-title-group">
           <h3 class="section-title">Approved Product Copy</h3>
@@ -1663,6 +1655,14 @@ function renderEvidence() {
       </div>
       <p class="ea-copy-sub muted-note">${escapeHtml(copyCardSubline(hasCopy, copy, pick))}</p>
       ${pick?.error ? `<p class="ea-copy-sub muted-note ea-autosave is-failed" aria-live="polite">${escapeHtml(pick.error)}</p>` : ""}
+      <div class="ea-expected-file">
+        <span class="meta-label">Expected filename</span>
+        <div class="ea-expected-file-row">
+          <span class="ea-expected-file-name" id="eaExpectedFileName">${escapeHtml(expectedName || "Unavailable")}</span>
+          <button type="button" class="icon-btn with-label" id="btnCopyExpectedFileName"${expectedName ? "" : " disabled"}>Copy</button>
+        </div>
+      </div>
+      ${state.copyContractError ? `<p class="muted-note ea-autosave is-failed ea-copy-contract-error" aria-live="polite">${escapeHtml(state.copyContractError)}</p>` : ""}
       <input id="fldCopyFile" class="ea-copy-file" type="file" accept="application/pdf,image/jpeg,image/png" hidden data-edit-action="true" />
     </div>
     <div class="section-card">

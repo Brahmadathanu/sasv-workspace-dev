@@ -783,7 +783,7 @@ body.sasv-eaushadhi-review .ea-copy-meta {
 }
 
 body.sasv-eaushadhi-review .ea-expected-file {
-  margin: 0 0 var(--sasv-space-2);
+  margin: var(--sasv-space-3) 0 0;
 }
 
 body.sasv-eaushadhi-review .ea-expected-file-row {
@@ -847,6 +847,10 @@ body.sasv-eaushadhi-review .ea-copy-actions {
 }
 
 body.sasv-eaushadhi-review .ea-copy-sub {
+  margin: 4px 0 0;
+}
+
+body.sasv-eaushadhi-review .ea-copy-contract-error {
   margin: 4px 0 0;
 }
 

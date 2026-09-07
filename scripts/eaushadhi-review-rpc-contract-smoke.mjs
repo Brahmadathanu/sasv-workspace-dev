@@ -172,6 +172,22 @@ assert(!controlSrc.includes("showVerify = ready !== true"), "Verify Product visi
   assert(!renderFn.includes("composition_review_complete"), "expected filename is not gated on composition status");
   assert(!renderFn.includes("is_ready_for_entry"), "expected filename is not gated on READY status");
   assert(!renderFn.includes("review_status"), "expected filename is not gated on product details status");
+  const copyHeadAt = renderFn.indexOf("ea-copy-head");
+  const copySubAt = renderFn.indexOf("ea-copy-sub");
+  const expectedAt = renderFn.indexOf("ea-expected-file");
+  const contractErrorAt = renderFn.indexOf("copyContractError");
+  const pickErrorAt = renderFn.indexOf("pick?.error");
+  const fileInputAt = renderFn.indexOf('id="fldCopyFile"');
+  assert(copyHeadAt !== -1 && copySubAt !== -1 && expectedAt !== -1, "copy card has heading, subline, and expected filename");
+  assert(copyHeadAt < copySubAt, "Approved Product Copy heading markup occurs before copy subline");
+  assert(copySubAt < expectedAt, "dynamic copy subline occurs before Expected Filename");
+  assert(copyHeadAt < expectedAt, "Approved Product Copy heading markup occurs before Expected Filename markup");
+  assert(renderFn.includes("copyCardSubline"), "dynamic ea-copy-sub remains");
+  assert(renderFn.includes("btnCopyExpectedFileName"), "Copy expected filename button remains in Evidence card");
+  assert(renderFn.includes("copyCardActions"), "Choose file / Replace / Open actions remain in Evidence card");
+  assert(fileInputAt > expectedAt, "hidden native file input remains after the filename section");
+  assert(pickErrorAt !== -1 && pickErrorAt < expectedAt, "selected-file validation stays with the heading/subline section");
+  assert(contractErrorAt !== -1 && contractErrorAt > expectedAt, "filename-contract error stays with Expected Filename");
 }
 {
   const start = helpersSrc.indexOf("export function governedCopyUploadReady");
