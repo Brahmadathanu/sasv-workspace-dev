@@ -18,6 +18,7 @@ dist-eaushadhi-live-evidence-proof/
 dist-eaushadhi-placeholder-proof/
 dist-eaushadhi-toolbar-proof/
 dist-eaushadhi-header-erp-proof/
+dist-eaushadhi-live-contract-proof/
 *.exe
 *.zip
 

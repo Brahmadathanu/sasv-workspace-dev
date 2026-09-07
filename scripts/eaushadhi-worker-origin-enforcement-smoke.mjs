@@ -63,6 +63,25 @@ function createMockPage(startUrl = "about:blank") {
       for (const handler of listeners.framenavigated || []) handler(mainFrame);
       return null;
     },
+    async evaluate(fn, arg) {
+      const prevDoc = global.document;
+      const prevLoc = global.location;
+      global.document = {
+        querySelector() {
+          return null;
+        },
+        querySelectorAll() {
+          return [];
+        },
+      };
+      global.location = { href: currentUrl };
+      try {
+        return fn(arg);
+      } finally {
+        global.document = prevDoc;
+        global.location = prevLoc;
+      }
+    },
     async navigateMainFrame(next) {
       currentUrl = next;
       for (const handler of listeners.framenavigated || []) handler(mainFrame);

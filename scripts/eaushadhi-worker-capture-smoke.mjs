@@ -107,7 +107,7 @@ function createMockPage(startUrl = "about:blank") {
     rejectHeldEvaluate(error) {
       if (heldEvaluate?.reject) heldEvaluate.reject(error);
     },
-    async evaluate(fn) {
+    async evaluate(fn, arg) {
       if (heldEvaluate) return heldEvaluate.promise;
       const prevDoc = global.document;
       const prevLoc = global.location;
@@ -120,7 +120,7 @@ function createMockPage(startUrl = "about:blank") {
         },
       };
       try {
-        return fn();
+        return fn(arg);
       } finally {
         global.document = prevDoc;
         global.location = prevLoc;
@@ -457,14 +457,10 @@ try {
 assert(denyKind === ERROR_KINDS.AUTHORIZATION, "20: capture IPC/worker requires server permission");
 
 const readyTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-ready-"));
-const ready = makeWorker(readyTmp, {
-  requireContract: (section) => {
-    if (section === "authProbe") return { synthetic: true };
-    return requireContract(section);
-  },
-});
+const ready = makeWorker(readyTmp);
+ready.mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
 await ready.worker.connect();
-assert(ready.worker.getStatus().state === STATES.READY, "synthetic future contract reaches READY");
+assert(ready.worker.getStatus().state === STATES.READY, "live logout probe reaches READY");
 ready.mock.page.setHtml(productHtml, "https://www.e-aushadhi.gov.in/Product/AddUpdate");
 await ready.worker.capturePortalContract(TOKEN);
 assert(ready.worker.getStatus().state === STATES.READY, "23: capture from READY returns to READY");
@@ -473,17 +469,20 @@ const contractJson = JSON.parse(
   readFileSync(join(root, "electron/eaushadhi-worker/contracts/portal-contract.json"), "utf8"),
 );
 assert(contractJson.completeness.origins === true, "origins completeness unchanged");
-assert(contractJson.completeness.authProbe === false, "authProbe completeness unchanged");
-assert(contractJson.completeness.productLookup === false, "productLookup completeness unchanged");
-assert(contractJson.completeness.productDetails === false, "productDetails completeness unchanged");
-assert(contractJson.completeness.pharmacologicalActions === false, "pharmacologicalActions completeness unchanged");
-assert(contractJson.completeness.composition === false, "composition completeness unchanged");
-assert(contractJson.completeness.saveUpdate === false, "saveUpdate completeness unchanged");
-assert(contractJson.completeness.reread === false, "reread completeness unchanged");
-assert(contractJson.authProbe === null, "authProbe remains null");
+assert(contractJson.completeness.authProbe === true, "authProbe completeness is true with runtime probe");
+assert(contractJson.completeness.productLookup === false, "productLookup remains incomplete");
+assert(contractJson.completeness.productDetails === false, "productDetails completeness remains false");
+assert(contractJson.completeness.pharmacologicalActions === false, "pharmacologicalActions completeness remains false");
+assert(contractJson.completeness.composition === false, "composition remains incomplete");
+assert(contractJson.completeness.saveUpdate === false, "saveUpdate remains incomplete");
+assert(contractJson.completeness.reread === false, "reread remains incomplete");
+assert(contractJson.authProbe && contractJson.authProbe.logoutSelector === "#logoutForm", "authProbe definition is populated");
 assert(contractJson.productLookup === null, "productLookup remains null");
-assert(contractJson.productDetails === null, "productDetails remains null");
-assert(contractJson.pharmacologicalActions === null, "pharmacologicalActions remains null");
+assert(contractJson.productDetails && contractJson.productDetails.fields.type.selector === "#type", "productDetails fields are populated");
+assert(
+  contractJson.pharmacologicalActions && contractJson.pharmacologicalActions.selector === "select#indications",
+  "pharmacologicalActions control is recorded",
+);
 assert(contractJson.composition === null, "composition remains null");
 assert(contractJson.saveUpdate === null, "saveUpdate remains null");
 assert(contractJson.reread === null, "reread remains null");

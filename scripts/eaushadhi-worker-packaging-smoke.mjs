@@ -22,6 +22,7 @@ function assert(cond, msg) {
 
 const distCandidates = [
   process.env.EAUSHADHI_PACK_DIST,
+  "dist-eaushadhi-live-contract-proof",
   "dist-eaushadhi-header-erp-proof",
   "dist-eaushadhi-toolbar-proof",
   "dist-eaushadhi-placeholder-proof",
@@ -73,6 +74,10 @@ assert(captureSrc.includes("indications"), "unpacked capture recognizes indicati
 assert(captureSrc.includes("PLACEHOLDER_SENTINELS"), "unpacked capture uses sentinel placeholder values");
 assert(captureSrc.includes('"-1"'), "unpacked capture recognizes -1 placeholder sentinels");
 
+assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js")), "auth-probe is unpacked");
+const authProbeSrc = readFileSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js"), "utf8");
+assert(authProbeSrc.includes("collectAuthProbeSignals"), "unpacked auth-probe collects structural signals");
+assert(authProbeSrc.includes("password"), "unpacked auth-probe fail-closes on password input");
 const authSignalsLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/auth-signals.js");
 assert(existsSync(authSignalsLoose), "auth-signals is unpacked");
 const authSignalsSrc = readFileSync(authSignalsLoose, "utf8");

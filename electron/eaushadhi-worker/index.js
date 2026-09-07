@@ -16,6 +16,7 @@ const { loadFoundationSnapshot } = require("./foundation-check");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const { captureOpenPages } = require("./capture");
 const { capturesRoot, isPathInsideRoot } = require("./capture/persist");
+const { probeAuthenticatedSession } = require("./auth-probe");
 
 function createEaushadhiWorker({
   getUserDataPath,
@@ -151,8 +152,19 @@ function createEaushadhiWorker({
       await page.goto(contract.baseUrl, { waitUntil: "domcontentloaded" });
       assertAllowedUrl(page.url(), contract);
       try {
-        requireSection("authProbe");
-        machine.transition(STATES.READY);
+        const authSpec = requireSection("authProbe");
+        const probe = await probeAuthenticatedSession(page, authSpec);
+        if (probe.authenticated) {
+          machine.transition(STATES.READY);
+          lastErrorKind = null;
+          lastErrorMessage = null;
+        } else {
+          machine.transition(STATES.AUTH_REQUIRED);
+          lastErrorKind = ERROR_KINDS.AUTH_REQUIRED;
+          lastErrorMessage =
+            probe.reason ||
+            "Login in the dedicated Edge window. Authenticated portal state cannot be proven yet.";
+        }
       } catch (error) {
         if (error?.kind !== ERROR_KINDS.CONTRACT_INCOMPLETE) throw error;
         machine.transition(STATES.AUTH_REQUIRED);

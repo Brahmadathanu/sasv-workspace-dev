@@ -1,0 +1,640 @@
+{
+  "sanitized_capture_id": "120e796d-9bb8-4d21-811f-a4cb5b908394",
+  "captured_at": "2026-09-04T13:31:03.361Z",
+  "source_route": "/admin/addproductforlegacy",
+  "provenance": "authenticated_live_portal_capture",
+  "portal_code": "E_AUSHADHI",
+  "domains": {
+    "PRODUCT_TYPE": {
+      "control": "#type",
+      "parent": null,
+      "options": [
+        {
+          "external_id": "Ayurvedic Classical Medicine",
+          "label": "Ayurvedic Classical Medicine"
+        },
+        {
+          "external_id": "Ayurvedic Proprietary Medicine",
+          "label": "Ayurvedic Proprietary Medicine"
+        },
+        {
+          "external_id": "Siddha Classical Medicine",
+          "label": "Siddha Classical Medicine"
+        },
+        {
+          "external_id": "Siddha Proprietary Medicine",
+          "label": "Siddha Proprietary Medicine"
+        },
+        {
+          "external_id": "Sowa Rigpa Classical Medicine",
+          "label": "Sowa Rigpa Classical Medicine"
+        },
+        {
+          "external_id": "Sowa Rigpa Proprietary Medicine",
+          "label": "Sowa Rigpa Proprietary Medicine"
+        },
+        {
+          "external_id": "Unani Classical Medicine",
+          "label": "Unani Classical Medicine"
+        },
+        {
+          "external_id": "Unani Proprietary Medicine",
+          "label": "Unani Proprietary Medicine"
+        }
+      ]
+    },
+    "PRODUCT_CATEGORY": {
+      "control": "#categoryId",
+      "parent": {
+        "domain_code": "PRODUCT_TYPE",
+        "external_id": "Siddha Classical Medicine"
+      },
+      "options": [
+        {
+          "external_id": "Aerosol - For External Use",
+          "label": "Aerosol - For External Use"
+        },
+        {
+          "external_id": "Anjana",
+          "label": "Anjana"
+        },
+        {
+          "external_id": "Aristha",
+          "label": "Aristha"
+        },
+        {
+          "external_id": "Ark",
+          "label": "Ark"
+        },
+        {
+          "external_id": "Asava",
+          "label": "Asava"
+        },
+        {
+          "external_id": "Aschyotan",
+          "label": "Aschyotan"
+        },
+        {
+          "external_id": "Avaleh",
+          "label": "Avaleh"
+        },
+        {
+          "external_id": "Bhasma",
+          "label": "Bhasma"
+        },
+        {
+          "external_id": "Capsule - Hard",
+          "label": "Capsule - Hard"
+        },
+        {
+          "external_id": "Capsule -Soft",
+          "label": "Capsule -Soft"
+        },
+        {
+          "external_id": "Chenduram",
+          "label": "Chenduram"
+        },
+        {
+          "external_id": "Churna (Powder) - For External Use",
+          "label": "Churna (Powder) - For External Use"
+        },
+        {
+          "external_id": "Churna (Powder) - For Internal Use",
+          "label": "Churna (Powder) - For Internal Use"
+        },
+        {
+          "external_id": "Dhoomravarti",
+          "label": "Dhoomravarti"
+        },
+        {
+          "external_id": "Dhoopan",
+          "label": "Dhoopan"
+        },
+        {
+          "external_id": "External Preparation",
+          "label": "External Preparation"
+        },
+        {
+          "external_id": "Extract Dry",
+          "label": "Extract Dry"
+        },
+        {
+          "external_id": "Extract Wet",
+          "label": "Extract Wet"
+        },
+        {
+          "external_id": "Ghana",
+          "label": "Ghana"
+        },
+        {
+          "external_id": "Ghrit",
+          "label": "Ghrit"
+        },
+        {
+          "external_id": "Gummies",
+          "label": "Gummies"
+        },
+        {
+          "external_id": "Gutika",
+          "label": "Gutika"
+        },
+        {
+          "external_id": "Ilakam",
+          "label": "Ilakam"
+        },
+        {
+          "external_id": "Kajal",
+          "label": "Kajal"
+        },
+        {
+          "external_id": "Kalimapu",
+          "label": "Kalimapu"
+        },
+        {
+          "external_id": "Kanmai",
+          "label": "Kanmai"
+        },
+        {
+          "external_id": "Karn Bindu",
+          "label": "Karn Bindu"
+        },
+        {
+          "external_id": "Karpu",
+          "label": "Karpu"
+        },
+        {
+          "external_id": "Khand",
+          "label": "Khand"
+        },
+        {
+          "external_id": "Ksara",
+          "label": "Ksara"
+        },
+        {
+          "external_id": "Kshar Sutra",
+          "label": "Kshar Sutra"
+        },
+        {
+          "external_id": "Kshar Varti",
+          "label": "Kshar Varti"
+        },
+        {
+          "external_id": "Kulikai",
+          "label": "Kulikai"
+        },
+        {
+          "external_id": "Kupi Pakva",
+          "label": "Kupi Pakva"
+        },
+        {
+          "external_id": "Kuppi Centuram",
+          "label": "Kuppi Centuram"
+        },
+        {
+          "external_id": "Kutinir ",
+          "label": "Kutinir"
+        },
+        {
+          "external_id": "Kutinir Churanam",
+          "label": "Kutinir Churanam"
+        },
+        {
+          "external_id": "Kwath Churna",
+          "label": "Kwath Churna"
+        },
+        {
+          "external_id": "Lakayam",
+          "label": "Lakayam"
+        },
+        {
+          "external_id": "Lavana",
+          "label": "Lavana"
+        },
+        {
+          "external_id": "Lepa ",
+          "label": "Lepa"
+        },
+        {
+          "external_id": "Lozenges",
+          "label": "Lozenges"
+        },
+        {
+          "external_id": "Manapaku",
+          "label": "Manapaku"
+        },
+        {
+          "external_id": "Manjan",
+          "label": "Manjan"
+        },
+        {
+          "external_id": "Marham (Cream)",
+          "label": "Marham (Cream)"
+        },
+        {
+          "external_id": "Mattirai",
+          "label": "Mattirai"
+        },
+        {
+          "external_id": "Modak",
+          "label": "Modak"
+        },
+        {
+          "external_id": "Nasa Bindu",
+          "label": "Nasa Bindu"
+        },
+        {
+          "external_id": "Nasya",
+          "label": "Nasya"
+        },
+        {
+          "external_id": "Netra Malham",
+          "label": "Netra Malham"
+        },
+        {
+          "external_id": "Ney",
+          "label": "Ney"
+        },
+        {
+          "external_id": "Ointment",
+          "label": "Ointment"
+        },
+        {
+          "external_id": "Oral Drop",
+          "label": "Oral Drop"
+        },
+        {
+          "external_id": "Oral Liquid",
+          "label": "Oral Liquid"
+        },
+        {
+          "external_id": "Pacai",
+          "label": "Pacai"
+        },
+        {
+          "external_id": "Pak",
+          "label": "Pak"
+        },
+        {
+          "external_id": "Panak",
+          "label": "Panak"
+        },
+        {
+          "external_id": "Panir",
+          "label": "Panir"
+        },
+        {
+          "external_id": "Parpam",
+          "label": "Parpam"
+        },
+        {
+          "external_id": "Parpati",
+          "label": "Parpati"
+        },
+        {
+          "external_id": "Pasai",
+          "label": "Pasai"
+        },
+        {
+          "external_id": "Pills",
+          "label": "Pills"
+        },
+        {
+          "external_id": "Pisti",
+          "label": "Pisti"
+        },
+        {
+          "external_id": "Pravahi Kwath",
+          "label": "Pravahi Kwath"
+        },
+        {
+          "external_id": "Saram",
+          "label": "Saram"
+        },
+        {
+          "external_id": "Sattu",
+          "label": "Sattu"
+        },
+        {
+          "external_id": "Satva",
+          "label": "Satva"
+        },
+        {
+          "external_id": "Shampoo",
+          "label": "Shampoo"
+        },
+        {
+          "external_id": "Sindura",
+          "label": "Sindura"
+        },
+        {
+          "external_id": "Single Drugs ",
+          "label": "Single Drugs"
+        },
+        {
+          "external_id": "Soap",
+          "label": "Soap"
+        },
+        {
+          "external_id": "Spray - For External Use",
+          "label": "Spray - For External Use"
+        },
+        {
+          "external_id": "Sura",
+          "label": "Sura"
+        },
+        {
+          "external_id": "Swarasa (Juice)",
+          "label": "Swarasa (Juice)"
+        },
+        {
+          "external_id": "Syrup",
+          "label": "Syrup"
+        },
+        {
+          "external_id": "Tablet",
+          "label": "Tablet"
+        },
+        {
+          "external_id": "Tailam (Oil)",
+          "label": "Tailam (Oil)"
+        },
+        {
+          "external_id": "Taila (Oil)",
+          "label": "Taila (Oil)"
+        },
+        {
+          "external_id": "Tinir",
+          "label": "Tinir"
+        },
+        {
+          "external_id": "Tiravakam",
+          "label": "Tiravakam"
+        },
+        {
+          "external_id": "Toothpaste",
+          "label": "Toothpaste"
+        },
+        {
+          "external_id": "Uppu",
+          "label": "Uppu"
+        },
+        {
+          "external_id": "Vartti",
+          "label": "Vartti"
+        },
+        {
+          "external_id": "Vati",
+          "label": "Vati"
+        }
+      ]
+    },
+    "PRODUCT_SUBTYPE": {
+      "control": "#subTypeId",
+      "parent": {
+        "domain_code": "PRODUCT_TYPE",
+        "external_id": "Siddha Classical Medicine"
+      },
+      "options": [
+        {
+          "external_id": "19",
+          "label": "Regular"
+        },
+        {
+          "external_id": "20",
+          "label": "Change in Dosage Form"
+        },
+        {
+          "external_id": "21",
+          "label": "Used for new indication"
+        },
+        {
+          "external_id": "32",
+          "label": "-",
+          "notes": "Captured domain sentinel. Not a fill target."
+        }
+      ]
+    },
+    "PERMISSION_PURPOSE": {
+      "control": "#permissionPurpose",
+      "parent": null,
+      "options": [
+        {
+          "external_id": "Regular",
+          "label": "Regular"
+        },
+        {
+          "external_id": "Export Only",
+          "label": "Export Only"
+        }
+      ]
+    },
+    "PHARMACOLOGICAL_ACTION": {
+      "control": "select#indications",
+      "parent": null,
+      "options": [
+        {
+          "external_id": "Nervous System Brains and Nerves",
+          "label": "Nervous System (Brains & Nerves)"
+        },
+        {
+          "external_id": "Cardiovascular System Heart and Blood Vessels",
+          "label": "Cardiovascular System (Heart & Blood Vessels)"
+        },
+        {
+          "external_id": "Respiratory System Lungs and Breathings",
+          "label": "Respiratory System (Lungs & Breathings)"
+        },
+        {
+          "external_id": "Digestive system Stomach, Liver, Intestine",
+          "label": "Digestive system (Stomach, Liver, Intestine)"
+        },
+        {
+          "external_id": "Musculoskeletal System Bones and Joints",
+          "label": "Musculoskeletal System (Bones &Joints)"
+        },
+        {
+          "external_id": "Endocrine and Metabolic System",
+          "label": "Endocrine & Metabolic System"
+        },
+        {
+          "external_id": "Immune System and General Wellness",
+          "label": "Immune System & General Wellness"
+        },
+        {
+          "external_id": "Urinary System Kidney and Bladder",
+          "label": "Urinary System (Kidney & Bladder)"
+        },
+        {
+          "external_id": "Skin Health",
+          "label": "Skin Health"
+        },
+        {
+          "external_id": "Hair Health",
+          "label": "Hair Health"
+        },
+        {
+          "external_id": "Reproductive System Male",
+          "label": "Reproductive System (Male)"
+        },
+        {
+          "external_id": "Reproductive System Female",
+          "label": "Reproductive System (Female)"
+        },
+        {
+          "external_id": "Weight management and Fitness",
+          "label": "Weight management & Fitness"
+        },
+        {
+          "external_id": "Mental Wellness and Emotional Health",
+          "label": "Mental Wellness & Emotional Health"
+        },
+        {
+          "external_id": "Detoxification and Cleansing",
+          "label": "Detoxification & Cleansing"
+        },
+        {
+          "external_id": "Adaptogens and Energy Booster",
+          "label": "Adaptogens & Energy Booster"
+        },
+        {
+          "external_id": "Antioxidants and Anti-agings",
+          "label": "Antioxidants & Anti-agings"
+        },
+        {
+          "external_id": "Saundrya Prashadhak",
+          "label": "Saundrya Prashadhak"
+        },
+        {
+          "external_id": "Oral Health",
+          "label": "Oral Health"
+        },
+        {
+          "external_id": "Dental Health",
+          "label": "Dental Health"
+        },
+        {
+          "external_id": "Infections and Inflammation Support",
+          "label": "Infections & Inflammation Support"
+        },
+        {
+          "external_id": "Children's Wellness",
+          "label": "Children's Wellness"
+        },
+        {
+          "external_id": "Lifestyle Supports",
+          "label": "Lifestyle Supports"
+        },
+        {
+          "external_id": "Cognitive Performance and Nootropics",
+          "label": "Cognitive Performance & Nootropics"
+        },
+        {
+          "external_id": "Blood Purification and Hematologic Support",
+          "label": "Blood Purification & Hematologic Support"
+        },
+        {
+          "external_id": "Anti-Parasitic and Gut Cleanse",
+          "label": "Anti-Parasitic & Gut Cleanse"
+        },
+        {
+          "external_id": "Cellular Health",
+          "label": "Cellular Health"
+        },
+        {
+          "external_id": "Male vitality",
+          "label": "Male vitality"
+        },
+        {
+          "external_id": "Female Vitality",
+          "label": "Female Vitality"
+        },
+        {
+          "external_id": "Female Hormonal Balance",
+          "label": "Female Hormonal Balance"
+        },
+        {
+          "external_id": "Liver and Enzyme Support",
+          "label": "Liver & Enzyme Support"
+        },
+        {
+          "external_id": "Allergy and Autoimmune Modulation",
+          "label": "Allergy & Autoimmune Modulation"
+        },
+        {
+          "external_id": "Sleep and Circadian Rhythm",
+          "label": "Sleep & Circadian Rhythm"
+        },
+        {
+          "external_id": "Metabolism and Gut Health Support",
+          "label": "Metabolism & Gut Health Support"
+        },
+        {
+          "external_id": "Antiviral and Antibacterial Support",
+          "label": "Antiviral & Antibacterial Support"
+        },
+        {
+          "external_id": "Inflammation and Pain Management",
+          "label": "Inflammation & Pain Management"
+        },
+        {
+          "external_id": "Cancer Support Adjunct and Preventive",
+          "label": "Cancer Support (Adjunct & Preventive)"
+        },
+        {
+          "external_id": "Superfood Concentrates",
+          "label": "Superfood Concentrates"
+        },
+        {
+          "external_id": "Eye Health",
+          "label": "Eye Health"
+        },
+        {
+          "external_id": "Blood sugar Modulation",
+          "label": "Blood sugar Modulation"
+        },
+        {
+          "external_id": "Sport Nutrition and Muscle Recovery",
+          "label": "Sport Nutrition & Muscle Recovery"
+        },
+        {
+          "external_id": "Rejuvenation Therapies",
+          "label": "Rejuvenation Therapies"
+        },
+        {
+          "external_id": "PCOD/PCOS and Menstrual Health",
+          "label": "PCOD/PCOS & Menstrual Health"
+        },
+        {
+          "external_id": "Panchkarma Support",
+          "label": "Panchkarma Support"
+        },
+        {
+          "external_id": "Nasya and Aroma Based Herabal Delivery",
+          "label": "Nasya & Aroma Based Herabal Delivery"
+        },
+        {
+          "external_id": "Other",
+          "label": "Other"
+        }
+      ]
+    },
+    "RESTRICTED_INGREDIENT_CATEGORY": {
+      "control": "#drugsValue",
+      "parent": null,
+      "options": [
+        {
+          "external_id": "Bhang/Apheem(Opium)/Other Narcotics Ingredients",
+          "label": "Bhang/Apheem(Opium)/Other Narcotics Ingredients"
+        },
+        {
+          "external_id": "Schedule E-1 Ingredients",
+          "label": "Schedule E-1 Ingredients"
+        },
+        {
+          "external_id": "Self Generated Alcohol",
+          "label": "Self Generated Alcohol"
+        }
+      ]
+    }
+  }
+}
