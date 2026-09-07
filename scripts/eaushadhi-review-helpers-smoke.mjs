@@ -9,6 +9,7 @@ import {
   actionsDirty,
   applyCombinedRestrictedDeclaration,
   CANONICAL_PROMOTE_NOTES,
+  CANONICAL_VERIFY_NOTES,
   canPromoteFormulation,
   canVerifyActionSet,
   canVerifyCompositionLine,
@@ -62,6 +63,7 @@ import {
   resolveFieldProvenance,
   shouldAppendQueueChunk,
   shouldApplyPromoteNotesDefault,
+  shouldApplyVerifyNotesDefault,
   shouldSyncQuantityText,
   snapshotQueueView,
   suggestionFieldMode,
@@ -876,6 +878,57 @@ assert(
   CANONICAL_PROMOTE_NOTES ===
     "Promoted after complete e-Aushadhi Product Details and Composition review.",
   "canonical promotion notes omit pharmacological-action claim",
+);
+
+assert(
+  shouldApplyVerifyNotesDefault({
+    alreadyVerified: false,
+    verificationEligible: true,
+    notes: "",
+    origin: "unset",
+  }) === true,
+  "eligible blank verification notes receive the default",
+);
+assert(
+  shouldApplyVerifyNotesDefault({
+    alreadyVerified: false,
+    verificationEligible: true,
+    notes: "Custom verification notes",
+    origin: "user",
+  }) === false,
+  "user custom verification notes are retained",
+);
+assert(
+  shouldApplyVerifyNotesDefault({
+    alreadyVerified: false,
+    verificationEligible: true,
+    notes: "",
+    origin: "user",
+  }) === false,
+  "user-cleared verification notes remain blank",
+);
+assert(
+  shouldApplyVerifyNotesDefault({
+    alreadyVerified: false,
+    verificationEligible: true,
+    notes: "",
+    origin: "user",
+  }) === false,
+  "rerender does not regenerate verification notes after user clear",
+);
+assert(
+  shouldApplyVerifyNotesDefault({
+    alreadyVerified: true,
+    verificationEligible: true,
+    notes: "",
+    origin: "unset",
+  }) === false,
+  "already verified products do not receive a verification default",
+);
+assert(
+  CANONICAL_VERIFY_NOTES ===
+    "Internally verified after completion of Product Details, Pharmacological Action, Composition, Approved Formulation and Approved Product Copy review.",
+  "canonical internal verification notes list the completed review stages",
 );
 
 if (failed) {

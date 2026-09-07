@@ -47,6 +47,8 @@ export const DOCUMENT_PURPOSE = Object.freeze({
 });
 export const CANONICAL_PROMOTE_NOTES =
   "Promoted after complete e-Aushadhi Product Details and Composition review.";
+export const CANONICAL_VERIFY_NOTES =
+  "Internally verified after completion of Product Details, Pharmacological Action, Composition, Approved Formulation and Approved Product Copy review.";
 export const EVIDENCE_FILENAME_RENAME_COPY =
   "Rename the file exactly as shown above before upload.";
 export const EVIDENCE_CONTRACT_UNAVAILABLE =
@@ -609,6 +611,19 @@ export function shouldApplyPromoteNotesDefault({
 } = {}) {
   if (formulationPromoted === true) return false;
   if (promotionEligible !== true) return false;
+  if (origin === "user") return false;
+  if (safeText(notes)) return false;
+  return origin === "unset" || origin === "default" || origin == null || origin === "";
+}
+
+export function shouldApplyVerifyNotesDefault({
+  alreadyVerified,
+  verificationEligible,
+  notes,
+  origin,
+} = {}) {
+  if (alreadyVerified === true) return false;
+  if (verificationEligible !== true) return false;
   if (origin === "user") return false;
   if (safeText(notes)) return false;
   return origin === "unset" || origin === "default" || origin == null || origin === "";

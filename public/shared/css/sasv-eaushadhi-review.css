@@ -808,6 +808,52 @@ body.sasv-eaushadhi-review .ea-expected-file-row .icon-btn.with-label {
   flex: 0 0 auto;
 }
 
+body.sasv-eaushadhi-review .ea-copy-card {
+  padding-bottom: 10px;
+}
+
+body.sasv-eaushadhi-review .ea-copy-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sasv-space-2);
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .ea-copy-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sasv-space-2);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .ea-copy-head .section-title {
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .ea-copy-title-group .status-chip,
+body.sasv-eaushadhi-review .ea-copy-head > .status-chip {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: max-content;
+}
+
+body.sasv-eaushadhi-review .ea-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review .ea-copy-sub {
+  margin: 4px 0 0;
+}
+
+body.sasv-eaushadhi-review .ea-copy-file {
+  display: none;
+}
+
 body.sasv-eaushadhi-review .line-head {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
@@ -950,12 +996,27 @@ body.sasv-eaushadhi-review .evidence-list {
 
 body.sasv-eaushadhi-review .evidence-card {
   display: flex;
+  flex-direction: row;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-sm);
   border-left-width: 3px;
+}
+
+body.sasv-eaushadhi-review .evidence-card > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .evidence-card > .status-chip,
+body.sasv-eaushadhi-review .readiness-chip > .status-chip {
+  flex: 0 0 auto;
+  align-self: center;
+  width: max-content;
+  max-width: max-content;
 }
 
 body.sasv-eaushadhi-review .evidence-card.is-met {
@@ -993,12 +1054,19 @@ body.sasv-eaushadhi-review .readiness-compact {
 
 body.sasv-eaushadhi-review .readiness-chip {
   display: flex;
+  flex-direction: row;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sasv-space-2);
   padding: 6px 8px;
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-sm);
   font-size: var(--sasv-text-sm);
+}
+
+body.sasv-eaushadhi-review .readiness-chip > span {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 body.sasv-eaushadhi-review .worker-foundation-card {
@@ -1096,7 +1164,8 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: 1fr;
   }
-  body.sasv-eaushadhi-review .product-header {
+  body.sasv-eaushadhi-review .product-header,
+  body.sasv-eaushadhi-review .ea-copy-head {
     flex-wrap: wrap;
   }
 }

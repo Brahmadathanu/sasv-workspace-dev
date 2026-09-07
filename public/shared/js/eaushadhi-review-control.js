@@ -20,6 +20,7 @@ import {
   applyCombinedRestrictedDeclaration,
   autosaveStateLabel,
   CANONICAL_PROMOTE_NOTES,
+  CANONICAL_VERIFY_NOTES,
   canPromoteFormulation,
   canVerifyProductWorkflow,
   canCorrectWorkingSourceLine,
@@ -94,6 +95,7 @@ import {
   severityRank,
   shouldAppendQueueChunk,
   shouldApplyPromoteNotesDefault,
+  shouldApplyVerifyNotesDefault,
   sourceFieldDisplay,
   suggestionBasisSummary,
   summarizeVerifyReviewedLines,
@@ -199,6 +201,7 @@ const state = {
   promoteNotes: "",
   promoteNotesOrigin: "unset",
   verifyNotes: "",
+  verifyNotesOrigin: "unset",
   workerStatus: null,
   workerFoundationResult: null,
   workerCaptureResult: null,
@@ -1601,6 +1604,31 @@ function evidenceCard(title, met, pendingCopy) {
   </div>`;
 }
 
+function copyCardSubline(hasCopy, copy, pick) {
+  if (pick?.file) {
+    const prefix = hasCopy ? "Replace with" : "Selected";
+    return `${prefix} ${displayText(pick.file.name)} / ${displayText(pick.file.type || "-")} / ${formatFileSize(pick.file.size)}`;
+  }
+  if (hasCopy && copy) {
+    return `${displayText(copy.original_file_name)} / ${displayText(copy.mime_type)} / ${formatFileSize(copy.file_size_bytes)} / ${copy.created_at ? String(copy.created_at).slice(0, 10) : "-"}`;
+  }
+  return "PDF / JPG / PNG. Max 20 MB";
+}
+
+function copyCardActions(hasCopy, pick, canUpload) {
+  if (pick?.file) {
+    return `<button type="button" class="icon-btn with-label primary" id="btnUploadCopy" data-edit-action="true"${
+      canUpload ? "" : ` data-force-disabled="true"`
+    }>Upload copy</button>
+        <button type="button" class="icon-btn with-label" id="btnCancelCopy">Cancel</button>`;
+  }
+  if (hasCopy) {
+    return `<button type="button" class="icon-btn with-label" id="btnOpenCopy">Open copy</button>
+        <button type="button" class="icon-btn with-label" id="btnReplaceCopy" data-edit-action="true">Replace copy</button>`;
+  }
+  return `<button type="button" class="icon-btn with-label" id="btnChooseCopy" data-edit-action="true" aria-label="Choose approved product copy file" title="PDF, JPG, or PNG. Max 20 MB.">Choose file</button>`;
+}
+
 function renderEvidence() {
   const host = $("tab-evidence");
   const evidence = state.evidence || {};
@@ -1611,9 +1639,9 @@ function renderEvidence() {
   const hasCopy = Boolean(copy?.storage_path) || evidence.approved_product_copy_present === true;
   const expectedName = state.copyContract?.expected_file_name || "";
   const canUpload = governedCopyUploadReady({ file: pick?.file, contract: state.copyContract }) && !pick?.error;
+  const copyChip = pick?.file || !hasCopy ? chip("neutral", "Pending") : chip("success", "Present");
   host.innerHTML = `
-    <div class="section-card">
-      <h3 class="section-title">Approved Product Copy</h3>
+    <div class="section-card ea-copy-card">
       <div class="ea-expected-file">
         <span class="meta-label">Expected filename</span>
         <div class="ea-expected-file-row">
@@ -1622,43 +1650,16 @@ function renderEvidence() {
         </div>
       </div>
       ${state.copyContractError ? `<p class="muted-note ea-autosave is-failed" aria-live="polite">${escapeHtml(state.copyContractError)}</p>` : ""}
-      ${hasCopy && copy ? `
-        <div class="ea-copy-meta">
-          <div><strong>${escapeHtml(displayText(copy.original_file_name))}</strong></div>
-          <div class="muted-note">${escapeHtml(displayText(copy.mime_type))} / ${escapeHtml(formatFileSize(copy.file_size_bytes))}</div>
-          <div class="muted-note">${escapeHtml(copy.created_at ? String(copy.created_at).slice(0, 10) : "-")}</div>
+      <div class="ea-copy-head">
+        <div class="ea-copy-title-group">
+          <h3 class="section-title">Approved Product Copy</h3>
+          ${copyChip}
         </div>
-        <div class="action-row">
-          <button type="button" class="icon-btn with-label" id="btnOpenCopy">Open copy</button>
-          <button type="button" class="icon-btn with-label" id="btnReplaceCopy" data-edit-action="true">Replace copy</button>
-        </div>
-      ` : `
-        ${chip("neutral", "Pending")}
-        <p class="muted-note">Accepted: PDF / JPG / PNG. Max 20 MB.</p>
-      `}
-      ${
-        !hasCopy || pick
-          ? `<div class="form-field" style="margin-top:10px">
-        <label for="fldCopyFile">Choose file</label>
-        <input id="fldCopyFile" type="file" accept="application/pdf,image/jpeg,image/png" data-edit-action="true" />
-      </div>`
-          : ""
-      }
-      ${
-        pick?.file
-          ? `<div class="ea-copy-meta">
-          <div>${escapeHtml(pick.file.name)}</div>
-          <div class="muted-note">${escapeHtml(pick.file.type || "-")} / ${escapeHtml(formatFileSize(pick.file.size))}</div>
-        </div>
-        <div class="action-row">
-          <button type="button" class="icon-btn with-label primary" id="btnUploadCopy" data-edit-action="true"${
-            canUpload ? "" : ` data-force-disabled="true"`
-          }>Upload copy</button>
-          <button type="button" class="icon-btn with-label" id="btnCancelCopy">Cancel</button>
-        </div>`
-          : ""
-      }
-      ${pick?.error ? `<p class="muted-note ea-autosave is-failed" aria-live="polite">${escapeHtml(pick.error)}</p>` : ""}
+        <div class="ea-copy-actions">${copyCardActions(hasCopy, pick, canUpload)}</div>
+      </div>
+      <p class="ea-copy-sub muted-note">${escapeHtml(copyCardSubline(hasCopy, copy, pick))}</p>
+      ${pick?.error ? `<p class="ea-copy-sub muted-note ea-autosave is-failed" aria-live="polite">${escapeHtml(pick.error)}</p>` : ""}
+      <input id="fldCopyFile" class="ea-copy-file" type="file" accept="application/pdf,image/jpeg,image/png" hidden data-edit-action="true" />
     </div>
     <div class="section-card">
       <h3 class="section-title">Evidence status</h3>
@@ -1999,37 +2000,6 @@ function renderReadiness() {
   const review = state.review || {};
   const evidence = state.evidence || {};
   const issueCount = openErrorOrBlockerCount(state.issues);
-  const promoteOk = canPromoteFormulation({
-    canEdit: canWrite(),
-    productReviewStatus: review.review_status,
-    compositionReviewComplete: row.composition_review_complete,
-    verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
-    compositionLines: row.composition_lines ?? evidence.composition_lines_total,
-    openBlockers: row.open_blockers,
-    errorOrBlockerIssueCount: issueCount,
-    approvedFormulationPresent: evidence.approved_formulation_present,
-    workflowRowVersion: row.workflow_row_version,
-  });
-  const verifyOk = canVerifyProductWorkflow({
-    canEdit: canWrite(),
-    compositionReviewComplete: row.composition_review_complete,
-    verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
-    compositionLines: row.composition_lines ?? evidence.composition_lines_total,
-    openBlockers: row.open_blockers,
-    workflowRowVersion: row.workflow_row_version,
-  });
-  const blockersClear = toInt(row.open_blockers) === 0 && issueCount === 0;
-  const gates = [
-    ["Product Details", normalizeReviewStatus(review.review_status) === "VERIFIED", false],
-    ["Pharmacological Action", evidence.pharmacological_action_present === true, false],
-    ["Composition", compositionIsComplete(row, evidence), false],
-    ["Blocking issues", blockersClear, !blockersClear],
-    ["Approved Product Copy", evidence.approved_product_copy_present === true, false],
-    ["Approved Formulation", evidence.approved_formulation_present === true, false],
-  ];
-  const ready = row.is_ready_for_entry === true;
-  const showPromote = evidence.approved_formulation_present !== true;
-  const showVerify = ready !== true;
   const promoteArgs = {
     canEdit: canWrite(),
     productReviewStatus: review.review_status,
@@ -2049,6 +2019,20 @@ function renderReadiness() {
     openBlockers: row.open_blockers,
     workflowRowVersion: row.workflow_row_version,
   };
+  const promoteOk = canPromoteFormulation(promoteArgs);
+  const verifyOk = canVerifyProductWorkflow(verifyArgs);
+  const blockersClear = toInt(row.open_blockers) === 0 && issueCount === 0;
+  const gates = [
+    ["Product Details", normalizeReviewStatus(review.review_status) === "VERIFIED", false],
+    ["Pharmacological Action", evidence.pharmacological_action_present === true, false],
+    ["Composition", compositionIsComplete(row, evidence), false],
+    ["Blocking issues", blockersClear, !blockersClear],
+    ["Approved Product Copy", evidence.approved_product_copy_present === true, false],
+    ["Approved Formulation", evidence.approved_formulation_present === true, false],
+  ];
+  const ready = row.is_ready_for_entry === true;
+  const showPromote = evidence.approved_formulation_present !== true;
+  const showVerify = ready !== true;
   const promoteReason = promoteUnavailableReason(promoteArgs);
   const verifyReason = verifyProductUnavailableReason(verifyArgs);
   host.innerHTML = `
@@ -2256,8 +2240,11 @@ async function openProduct(productId) {
     state.preservedAfterStale = false;
     state.promoteNotes = "";
     state.promoteNotesOrigin = "unset";
+    state.verifyNotes = "";
+    state.verifyNotesOrigin = "unset";
     applyWorkspacePayload(payload, { preserveDrafts: false });
     applyPromoteNotesIfNeeded();
+    applyVerifyNotesIfNeeded();
     await syncCopyContractAfterWorkspace();
     setAppMode("product");
     renderProductHeader();
@@ -2286,6 +2273,7 @@ async function reloadSelected({
   await refreshQueue({ silent: true });
   applyWorkspacePayload(payload, { preserveDrafts });
   applyPromoteNotesIfNeeded();
+  applyVerifyNotesIfNeeded();
   await syncCopyContractAfterWorkspace();
   renderProductHeader();
   renderActiveTab();
@@ -2323,8 +2311,11 @@ async function backToQueue() {
   state.workerFoundationResult = null;
   state.promoteNotes = "";
   state.promoteNotesOrigin = "unset";
+  state.verifyNotes = "";
+  state.verifyNotesOrigin = "unset";
   state.copyContract = null;
   state.copyContractError = "";
+  state.copyPick = null;
   state.queueRow = null;
   state.review = null;
   state.lines = [];
@@ -2963,6 +2954,19 @@ function currentPromoteEligibility() {
   });
 }
 
+function currentVerifyEligibility() {
+  const row = state.queueRow || {};
+  const evidence = state.evidence || {};
+  return canVerifyProductWorkflow({
+    canEdit: canWrite(),
+    compositionReviewComplete: row.composition_review_complete,
+    verifiedLines: row.verified_lines ?? evidence.composition_lines_verified,
+    compositionLines: row.composition_lines ?? evidence.composition_lines_total,
+    openBlockers: row.open_blockers,
+    workflowRowVersion: row.workflow_row_version,
+  });
+}
+
 function applyPromoteNotesIfNeeded() {
   if (
     shouldApplyPromoteNotesDefault({
@@ -2974,6 +2978,20 @@ function applyPromoteNotesIfNeeded() {
   ) {
     state.promoteNotes = CANONICAL_PROMOTE_NOTES;
     state.promoteNotesOrigin = "default";
+  }
+}
+
+function applyVerifyNotesIfNeeded() {
+  if (
+    shouldApplyVerifyNotesDefault({
+      alreadyVerified: state.queueRow?.is_ready_for_entry === true,
+      verificationEligible: currentVerifyEligibility(),
+      notes: state.verifyNotes,
+      origin: state.verifyNotesOrigin,
+    })
+  ) {
+    state.verifyNotes = CANONICAL_VERIFY_NOTES;
+    state.verifyNotesOrigin = "default";
   }
 }
 
@@ -3628,6 +3646,9 @@ function wireEvents() {
     const btn = event.target.closest("button");
     if (!btn) return;
     if (btn.id === "btnCopyExpectedFileName") void copyExpectedFilename();
+    if (btn.id === "btnChooseCopy") {
+      $("fldCopyFile")?.click();
+    }
     if (btn.id === "btnUploadCopy") void uploadSelectedCopy();
     if (btn.id === "btnCancelCopy") {
       state.copyPick = null;
@@ -3651,7 +3672,10 @@ function wireEvents() {
       state.promoteNotes = event.target.value;
       state.promoteNotesOrigin = "user";
     }
-    if (event.target.id === "fldVerifyNotes") state.verifyNotes = event.target.value;
+    if (event.target.id === "fldVerifyNotes") {
+      state.verifyNotes = event.target.value;
+      state.verifyNotesOrigin = "user";
+    }
   });
 
   $("sourceResolveClose")?.addEventListener("click", closeSourceResolve);
