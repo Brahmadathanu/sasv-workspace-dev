@@ -75,6 +75,11 @@ assert(captureSrc.includes("PLACEHOLDER_SENTINELS"), "unpacked capture uses sent
 assert(captureSrc.includes('"-1"'), "unpacked capture recognizes -1 placeholder sentinels");
 
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/dry-run.js")), "dry-run module is unpacked");
+const workerIndexLoose = join(asarUnpacked, "electron/eaushadhi-worker/index.js");
+assert(existsSync(workerIndexLoose), "worker index is unpacked");
+const workerIndexSrc = readFileSync(workerIndexLoose, "utf8");
+assert(workerIndexSrc.includes("connect:launch"), "unpacked connect records launch phase");
+assert(workerIndexSrc.includes("causeMessageSanitized"), "unpacked connect preserves sanitized root cause");
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js")), "auth-probe is unpacked");
 const authProbeSrc = readFileSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js"), "utf8");
 assert(authProbeSrc.includes("collectAuthProbeSignals"), "unpacked auth-probe collects structural signals");

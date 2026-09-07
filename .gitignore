@@ -22,6 +22,7 @@ dist-eaushadhi-live-contract-proof/
 dist-eaushadhi-evidence-filename-proof/
 dist-eaushadhi-first-entry-capture-proof/
 dist-eaushadhi-evidence-card-hierarchy-proof/
+dist-eaushadhi-connect-diagnostics-proof/
 *.exe
 *.zip
 

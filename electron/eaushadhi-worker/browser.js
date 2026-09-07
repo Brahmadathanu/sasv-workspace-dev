@@ -1,7 +1,8 @@
 /* eslint-env node */
 
 const path = require("path");
-const { ERROR_KINDS, workerError } = require("./errors");
+const { ERROR_KINDS, WorkerError, workerError } = require("./errors");
+const { sanitizeText } = require("./diagnostics");
 
 function resolvePlaywrightCore() {
   return require("playwright-core");
@@ -39,12 +40,14 @@ async function launchDedicatedEdge(userDataDir) {
     );
     return context;
   } catch (error) {
+    if (error instanceof WorkerError) throw error;
     const message = String(error?.message || error);
     throw workerError(
       ERROR_KINDS.BROWSER_NOT_AVAILABLE,
       /executable|browser|msedge|edge/i.test(message)
         ? "Microsoft Edge is not available for the dedicated e-Aushadhi profile."
         : "The dedicated Microsoft Edge session could not be started.",
+      { details: { causeMessageSanitized: sanitizeText(message) } },
     );
   }
 }
