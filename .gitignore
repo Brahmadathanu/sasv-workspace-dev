@@ -23,6 +23,7 @@ dist-eaushadhi-evidence-filename-proof/
 dist-eaushadhi-first-entry-capture-proof/
 dist-eaushadhi-evidence-card-hierarchy-proof/
 dist-eaushadhi-connect-diagnostics-proof/
+dist-eaushadhi-auth-probe-serialization-proof/
 *.exe
 *.zip
 
