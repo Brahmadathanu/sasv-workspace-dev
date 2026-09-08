@@ -393,28 +393,80 @@ function extractClassificationValidationEvidence() {
   }
 
   /**
-   * Lightweight heuristic only: subtype control reference + "-1" + comparison-like
-   * operators in the same bounded snippet. Prefer under-classification.
+   * Conservative: only count when a subtype value expression is directly compared
+   * to a quoted "-1" (either operand order). Prefer under-classification.
    */
+  function subtypeValueExprSource() {
+    return (
+      "(?:" +
+      "document\\.getElementById\\s*\\(\\s*['\"]subTypeId['\"]\\s*\\)\\s*\\.\\s*value" +
+      "|" +
+      "\\$\\s*\\(\\s*['\"]#subTypeId['\"]\\s*\\)\\s*\\.\\s*val\\s*\\(\\s*\\)" +
+      "|" +
+      "subTypeId\\s*\\.\\s*value" +
+      ")"
+    );
+  }
+
+  function directMinusOneRegexes() {
+    const subtypeValueExpr = subtypeValueExprSource();
+    const minusOne = "['\"]-1['\"]";
+    const op = "(?:===?|!==?)";
+    return [
+      new RegExp(subtypeValueExpr + "\\s*" + op + "\\s*" + minusOne, "gi"),
+      new RegExp(minusOne + "\\s*" + op + "\\s*" + subtypeValueExpr, "gi"),
+    ];
+  }
+
   function hasDirectMinusOneComparison(snippet) {
     const s = String(snippet || "");
-    const subtypeRef =
-      /subTypeId|#subTypeId|getElementById\s*\(\s*['"]subTypeId['"]\s*\)|#\s*subTypeId|\[\s*['"]#?subTypeId['"]\s*\]/i.test(
-        s,
-      );
-    const minusOneLiteral = /['"]-1['"]/.test(s);
-    const comparisonLike =
-      /(?:===?|!==?)|\.val\s*\(|\.value\s*(?:===?|!==?)/.test(s);
-    return subtypeRef && minusOneLiteral && comparisonLike;
+    return directMinusOneRegexes().some((re) => {
+      re.lastIndex = 0;
+      return re.test(s);
+    });
   }
 
   /**
-   * Stronger than candidate: direct -1 comparison plus rejection/messaging language
-   * in the same bounded snippet. Still conservative / under-classified.
+   * Stronger than candidate: recognized direct subtype-to--1 comparison plus
+   * rejection/messaging language in the same bounded snippet.
    */
   function hasExplicitMinusOneRejection(snippet) {
     if (!hasDirectMinusOneComparison(snippet)) return false;
     return /please\s*select|alert\s*\(|throw\s+|return\s+['"][^'"]+/i.test(String(snippet || ""));
+  }
+
+  function collectDirectMinusOneMatches(body, scriptIndex) {
+    const out = [];
+    const seen = new Set();
+    for (const re of directMinusOneRegexes()) {
+      re.lastIndex = 0;
+      let match;
+      while ((match = re.exec(String(body || ""))) !== null) {
+        const start = Math.max(0, match.index - 24);
+        const end = Math.min(body.length, match.index + match[0].length + 72);
+        const snippet = sliceText(body.slice(start, end), MAX_SNIPPET);
+        const key = `${match.index}:${snippet}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const explicitMinusOne = hasExplicitMinusOneRejection(snippet);
+        out.push({
+          script_index: scriptIndex,
+          src_path: null,
+          source_kind: "inline",
+          match_term: "subTypeId~-1",
+          context_snippet: snippet,
+          evidence_class: explicitMinusOne
+            ? "explicit_subtype_minus_one_rejection_candidate"
+            : "subtype_minus_one_rejection_candidate",
+          subtype_related: true,
+          validation_or_sentinel: true,
+          direct_minus_one_comparison: true,
+          explicit_minus_one_rejection: explicitMinusOne,
+        });
+        if (out.length >= 5) return out;
+      }
+    }
+    return out;
   }
 
   function classifyInlineSnippet(term, snippet) {
@@ -508,13 +560,26 @@ function extractClassificationValidationEvidence() {
           explicit_minus_one_rejection: classified.explicitMinusOne,
         });
       }
-      // Keep at most one match per evidence_class per script (prefer first), then
-      // allow a small remainder so unrelated sentinels are not crowded out.
+      // Dedicated body scan finds every direct subtype-to--1 comparison, not only
+      // the first term hit inside a large script.
+      for (const direct of collectDirectMinusOneMatches(body, index)) {
+        perScript.push(direct);
+      }
+      // Prefer keeping every recognized direct subtype-to--1 comparison match,
+      // and at most one match per other evidence_class so negatives are not crowded out.
+      const kept = [];
       const byClass = new Map();
       for (const match of perScript) {
+        if (match.direct_minus_one_comparison === true) {
+          if (kept.filter((item) => item.direct_minus_one_comparison).length < 5) {
+            kept.push(match);
+          }
+          continue;
+        }
         if (!byClass.has(match.evidence_class)) byClass.set(match.evidence_class, match);
       }
-      for (const match of byClass.values()) {
+      for (const match of byClass.values()) kept.push(match);
+      for (const match of kept) {
         if (inlineMatches.length >= MAX_SCRIPT_MATCHES) break;
         inlineMatches.push(match);
       }

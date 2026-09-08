@@ -64,13 +64,44 @@
       }
     </script>
     <script>
-      // Direct subtype + "-1" comparison/rejection candidate for observational capture.
+      // Direct subtype-to--1 comparison + rejection messaging (positive explicit).
       function validateSubTypeBeforeSave() {
-        var el = document.getElementById("subTypeId");
-        if (el && el.value === "-1") {
+        if (document.getElementById("subTypeId").value === "-1") {
           return "Please Select Sub Type";
         }
         return null;
+      }
+      function checkJQuerySubTypeBlank() {
+        if ($("#subTypeId").val() == "-1") {
+          return false;
+        }
+        return true;
+      }
+      function checkReversedSubTypeBlank() {
+        if ("-1" === document.getElementById("subTypeId").value) {
+          return "blank";
+        }
+        return null;
+      }
+    </script>
+    <script>
+      // Negative: subtype control ref + unrelated field compared to "-1".
+      function falsePositiveOtherFieldMinusOne() {
+        var subtype = document.getElementById("subTypeId");
+        if (otherField == "-1") {
+          return "no";
+        }
+        return subtype;
+      }
+    </script>
+    <script>
+      // Negative: subtype ref + unrelated boolean compare + separate "-1" string.
+      function falsePositiveSeparateMinusOne() {
+        var x = document.getElementById("subTypeId");
+        if (someFlag === true) {
+          var code = "-1";
+        }
+        return x;
       }
     </script>
     <script>

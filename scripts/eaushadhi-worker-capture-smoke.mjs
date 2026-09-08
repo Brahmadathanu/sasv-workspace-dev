@@ -331,13 +331,66 @@ assert(
       match.subtype_related === true &&
       match.direct_minus_one_comparison !== true,
   ),
-  "A: generic subtype + required/valid context is subtype_validation_candidate only",
+  "3: generic subtype + required/valid context is subtype_validation_candidate only",
+);
+assert(
+  !(validation.script_matches || []).some(
+    (match) =>
+      /otherField/.test(String(match.context_snippet || "")) &&
+      (match.evidence_class === "subtype_minus_one_rejection_candidate" ||
+        match.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+        match.direct_minus_one_comparison === true),
+  ),
+  "1: subTypeId + otherField == \"-1\" is NOT a subtype-to--1 rejection candidate",
+);
+assert(
+  !(validation.script_matches || []).some(
+    (match) =>
+      /someFlag/.test(String(match.context_snippet || "")) &&
+      (match.evidence_class === "subtype_minus_one_rejection_candidate" ||
+        match.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+        match.direct_minus_one_comparison === true),
+  ),
+  "2: subTypeId + someFlag + separate \"-1\" is NOT a subtype-to--1 rejection candidate",
 );
 assert(
   (validation.script_matches || []).some(
     (match) => match.evidence_class === "unrelated_sentinel_candidate",
   ),
-  "B: unrelated -1 classified separately",
+  "8: unrelated -1 classified separately",
+);
+assert(
+  (validation.script_matches || []).some(
+    (match) =>
+      match.source_kind === "inline" &&
+      match.direct_minus_one_comparison === true &&
+      /getElementById\s*\(\s*["']subTypeId["']\s*\)\s*\.\s*value\s*===\s*["']-1["']/.test(
+        String(match.context_snippet || ""),
+      ),
+  ),
+  "4: document.getElementById(\"subTypeId\").value === \"-1\" recognized",
+);
+assert(
+  (validation.script_matches || []).some(
+    (match) =>
+      match.source_kind === "inline" &&
+      match.direct_minus_one_comparison === true &&
+      /\$\s*\(\s*["']#subTypeId["']\s*\)\s*\.\s*val\s*\(\s*\)\s*==\s*["']-1["']/.test(
+        String(match.context_snippet || ""),
+      ),
+  ),
+  "5: $(\"#subTypeId\").val() == \"-1\" recognized",
+);
+assert(
+  (validation.script_matches || []).some(
+    (match) =>
+      match.source_kind === "inline" &&
+      match.direct_minus_one_comparison === true &&
+      /["']-1["']\s*===\s*document\.getElementById\s*\(\s*["']subTypeId["']\s*\)\s*\.\s*value/.test(
+        String(match.context_snippet || ""),
+      ),
+  ),
+  "6: reversed \"-1\" === getElementById(\"subTypeId\").value recognized",
 );
 assert(
   (validation.script_matches || []).some(
@@ -347,7 +400,7 @@ assert(
         match.evidence_class === "explicit_subtype_minus_one_rejection_candidate") &&
       match.direct_minus_one_comparison === true,
   ),
-  "C: direct subtype + -1 comparison produces rejection candidate evidence",
+  "direct subtype-to--1 comparison produces rejection candidate evidence",
 );
 assert(validation.conclusion_inputs?.subtype_validation_candidate_observed === true, "subtype_validation_candidate_observed");
 assert(
@@ -356,7 +409,7 @@ assert(
 );
 assert(
   validation.conclusion_inputs?.explicit_subtype_minus_one_rejection_observed === true,
-  "explicit field true only when comparison + rejection messaging co-occur",
+  "7: explicit elevates only with direct comparison + rejection messaging",
 );
 assert(
   !(
