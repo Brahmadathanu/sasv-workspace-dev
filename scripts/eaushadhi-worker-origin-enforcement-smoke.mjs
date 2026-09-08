@@ -18,8 +18,13 @@ const { ERROR_KINDS } = require(join(root, "electron/eaushadhi-worker/errors.js"
 const {
   shouldEnforceMainFrameUrl,
   attachMainFrameOriginGuard,
+  attachContextOriginGuard,
+  DETECTION_SOURCES,
 } = require(join(root, "electron/eaushadhi-worker/origin-guard.js"));
 const { diagnosticOrigin } = require(join(root, "electron/eaushadhi-worker/diagnostics.js"));
+const { loadPortalContract } = require(
+  join(root, "electron/eaushadhi-worker/contracts/portal-contract.js"),
+);
 
 let failed = 0;
 function assert(cond, msg) {
@@ -77,6 +82,9 @@ function createMockPage(startUrl = "about:blank", { html = "<html></html>", onCl
     setHtml(nextHtml, url) {
       document = parseHtml(nextHtml);
       if (url) currentUrl = url;
+    },
+    setUrlSilent(url) {
+      currentUrl = url;
     },
     async goto(next) {
       currentUrl = next;
@@ -492,6 +500,308 @@ function makeWorker(tmp, launchBrowser, extras = {}) {
   assert(mock.isClosed() === true, "secondary still-open path closes context");
   const record = lastLogRecord(tmpStillOpen);
   assert(record.containment_action === "secondary_close_failed_fail_closed", "still-open path logs secondary_close_failed_fail_closed");
+}
+
+{
+  const contract = loadPortalContract();
+  const timers = [];
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const google = mock.openPopup("https://www.google.com/");
+  google.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  let containCount = 0;
+  const guard = attachContextOriginGuard(mock.context, {
+    contract,
+    onDisallowed: (_error, _url, page) => {
+      containCount += 1;
+      void page.close();
+    },
+    createInterval: (fn, ms) => {
+      const id = setInterval(fn, ms);
+      timers.push(id);
+      return id;
+    },
+  });
+  await wait(30);
+  assert(google.isClosed() === false, "1: passive attach does not contain pre-existing Google page");
+  assert(guard.isReconciliationActive() === false, "1: reconciler inactive before activation");
+  assert(containCount === 0, "1: no containment during passive phase");
+  guard.activateReconciliation();
+  await wait(40);
+  assert(google.isClosed() === true, "2: activation sweep closes pre-existing Google secondary");
+  assert(mock.page.isClosed() === false, "2: controlled portal page survives activation sweep");
+  assert(guard.isReconciliationActive() === true, "2: reconciler active after activation");
+  guard.detach();
+  for (const id of timers) clearInterval(id);
+}
+
+{
+  const tmpBoot = mkdtempSync(join(os.tmpdir(), "ea-boot-google-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  const preGoogle = mock.openPopup("https://www.google.com/");
+  preGoogle.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  const worker = makeWorker(tmpBoot, async () => mock.context);
+  await worker.connect();
+  await wait(60);
+  assert(preGoogle.isClosed() === true, "2/3: connect activation closes pre-existing Google after controlled nomination");
+  assert(mock.page.isClosed() === false, "3: connect page used for portal is not closed by early reconciliation");
+  assert(
+    worker.getStatus().state === STATES.AUTH_REQUIRED || worker.getStatus().state === STATES.READY,
+    "3: worker remains AUTH_REQUIRED/READY after activation sweep",
+  );
+  const logs = readLogs(tmpBoot);
+  assert(logs.includes("closed_offending_page"), "2: activation logs closed_offending_page");
+  assert(logs.includes("context_reconciliation"), "2: activation uses context_reconciliation");
+  assert(logs.includes('"page_role":"secondary"'), "2: activation containment is secondary");
+}
+
+{
+  const tmpAttach = mkdtempSync(join(os.tmpdir(), "ea-attach-google-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpAttach, async () => mock.context);
+  await worker.connect();
+  const alreadyGoogle = mock.openPopup("https://www.google.com/");
+  alreadyGoogle.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  await wait(40);
+  assert(alreadyGoogle.isClosed() === true, "4: post-activation page already at Google is contained");
+  assert(mock.page.isClosed() === false, "4: controlled survives page_attach_check");
+  assert(worker.getStatus().state === STATES.READY, "4: READY preserved after page_attach_check");
+  const record = lastLogRecord(tmpAttach);
+  assert(record.detection_source === DETECTION_SOURCES.PAGE_ATTACH_CHECK, "4: detection_source page_attach_check");
+  assert(record.containment_action === "closed_offending_page", "4: page_attach_check closes offending page");
+}
+
+{
+  const tmpNav = mkdtempSync(join(os.tmpdir(), "ea-nav-google-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpNav, async () => mock.context);
+  await worker.connect();
+  const blank = mock.openPopup("about:blank");
+  blank.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  await blank.navigateMainFrame("https://www.google.com/");
+  await wait(40);
+  assert(blank.isClosed() === true, "5: blank->Google uses navigation containment");
+  const record = lastLogRecord(tmpNav);
+  assert(record.detection_source === DETECTION_SOURCES.NAVIGATION_EVENT, "5: detection_source navigation_event");
+}
+
+{
+  const tmpSilent = mkdtempSync(join(os.tmpdir(), "ea-silent-google-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpSilent, async () => mock.context);
+  await worker.connect();
+  const secondary = mock.openPopup("about:blank");
+  secondary.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  secondary.setUrlSilent("https://www.google.com/");
+  await wait(900);
+  assert(secondary.isClosed() === true, "6/7: reconciler detects silent disallowed URL");
+  assert(mock.page.isClosed() === false, "7: controlled survives reconciler secondary close");
+  assert(worker.getStatus().state === STATES.READY, "7: READY preserved after reconciler secondary");
+  const record = lastLogRecord(tmpSilent);
+  assert(record.detection_source === DETECTION_SOURCES.CONTEXT_RECONCILIATION, "6: detection_source context_reconciliation");
+  assert(record.page_role === "secondary", "7: reconciler secondary page_role");
+}
+
+{
+  const tmpCtrl = mkdtempSync(join(os.tmpdir(), "ea-recon-ctrl-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpCtrl, async () => mock.context);
+  await worker.connect();
+  mock.page.setUrlSilent("https://www.google.com/");
+  await wait(900);
+  assert(worker.getStatus().state === STATES.FAILED, "8: reconciler controlled off-origin -> FAILED");
+  assert(mock.isClosed() === true, "8: reconciler controlled escape closes context");
+  const record = lastLogRecord(tmpCtrl);
+  assert(record.page_role === "controlled", "8: controlled page_role");
+  assert(record.containment_action === "fail_closed", "8: fail_closed containment_action");
+  assert(record.detection_source === DETECTION_SOURCES.CONTEXT_RECONCILIATION, "8: reconciler detection_source");
+}
+
+{
+  const tmpFail = mkdtempSync(join(os.tmpdir(), "ea-recon-close-fail-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpFail, async () => mock.context);
+  await worker.connect();
+  const secondary = mock.openPopup("about:blank", "<html></html>", {
+    closeImpl: async () => {
+      throw new Error("reconcile close refused");
+    },
+  });
+  secondary.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  secondary.setUrlSilent("https://www.google.com/");
+  await wait(900);
+  assert(worker.getStatus().state === STATES.FAILED, "9: reconciler secondary close failure -> FAILED");
+  const record = lastLogRecord(tmpFail);
+  assert(record.containment_action === "secondary_close_failed_fail_closed", "9: secondary_close_failed_fail_closed");
+}
+
+{
+  const contract = loadPortalContract();
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  let containCount = 0;
+  const guard = attachContextOriginGuard(mock.context, {
+    contract,
+    onDisallowed: (_error, _url, page) => {
+      containCount += 1;
+      void page.close();
+    },
+    createInterval: () => {
+      const handle = { unref() {} };
+      return handle;
+    },
+    clearIntervalFn: () => {},
+  });
+  guard.activateReconciliation();
+  const secondary = mock.openPopup("about:blank");
+  secondary.setUrlSilent("https://www.google.com/");
+  await secondary.navigateMainFrame("https://www.google.com/");
+  guard.runReconcileOnce();
+  await wait(20);
+  assert(containCount === 1, "10: nav + reconciliation contain once");
+  assert(secondary.isClosed() === true, "10: page closed once");
+  guard.detach();
+}
+
+{
+  const contract = loadPortalContract();
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  let containCount = 0;
+  const guard = attachContextOriginGuard(mock.context, {
+    contract,
+    onDisallowed: (_error, _url, page) => {
+      containCount += 1;
+      void page.close();
+    },
+    createInterval: () => ({ unref() {} }),
+    clearIntervalFn: () => {},
+  });
+  guard.activateReconciliation();
+  const secondary = mock.openPopup("https://www.google.com/");
+  await secondary.navigateMainFrame("https://www.google.com/");
+  guard.runReconcileOnce();
+  await wait(20);
+  assert(containCount === 1, "11: page_attach_check + navigation + reconcile contain once");
+  assert(secondary.isClosed() === true, "11: raced page closed");
+  guard.detach();
+}
+
+{
+  const tmpAllowed = mkdtempSync(join(os.tmpdir(), "ea-allowed-sec-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpAllowed, async () => mock.context);
+  await worker.connect();
+  const allowed = mock.openPopup("https://www.e-aushadhi.gov.in/other", authHtml);
+  await wait(900);
+  assert(allowed.isClosed() === false, "13: allowed e-Aushadhi secondary untouched by reconciler");
+  assert(worker.getStatus().state === STATES.READY, "13: READY with allowed secondary");
+}
+
+{
+  const tmpNonHttp = mkdtempSync(join(os.tmpdir(), "ea-nonhttp-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpNonHttp, async () => mock.context);
+  await worker.connect();
+  const edgeTab = mock.openPopup("edge://newtab/");
+  const blankTab = mock.openPopup("about:blank");
+  await wait(900);
+  assert(edgeTab.isClosed() === false, "14: edge:// page untouched");
+  assert(blankTab.isClosed() === false, "14: about:blank page untouched");
+}
+
+{
+  const timers = [];
+  let ticks = 0;
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const guard = attachContextOriginGuard(mock.context, {
+    contract: loadPortalContract(),
+    onDisallowed: () => {},
+    createInterval: (fn, ms) => {
+      ticks += 1;
+      const id = setInterval(fn, ms);
+      timers.push(id);
+      return id;
+    },
+  });
+  assert(timers.length === 0, "15: Stop before activation creates no reconciler timer");
+  guard.detach();
+  assert(timers.length === 0, "15: detach before activation leaves no timer");
+}
+
+{
+  const timers = [];
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const guard = attachContextOriginGuard(mock.context, {
+    contract: loadPortalContract(),
+    onDisallowed: () => {},
+    createInterval: (fn, ms) => {
+      const id = setInterval(fn, ms);
+      timers.push(id);
+      if (typeof id.unref === "function") id.unref();
+      return id;
+    },
+    clearIntervalFn: (id) => {
+      clearInterval(id);
+      const idx = timers.indexOf(id);
+      if (idx >= 0) timers.splice(idx, 1);
+    },
+  });
+  guard.activateReconciliation();
+  assert(timers.length === 1, "16: activation starts exactly one timer");
+  guard.detach();
+  assert(timers.length === 0, "16: detach after activation clears timer");
+  assert(guard.isReconciliationActive() === false, "16: reconciler inactive after detach");
+}
+
+{
+  const tmpFailClosed = mkdtempSync(join(os.tmpdir(), "ea-failclosed-timer-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpFailClosed, async () => mock.context);
+  await worker.connect();
+  await mock.page.navigateMainFrame("https://www.google.com/");
+  await wait(40);
+  assert(worker.getStatus().state === STATES.FAILED, "17: failClosed path reaches FAILED");
+  assert(mock.isClosed() === true, "17: failClosed closes context");
+}
+
+{
+  const tmpReconnect = mkdtempSync(join(os.tmpdir(), "ea-reconnect-"));
+  let launchCount = 0;
+  const worker = makeWorker(tmpReconnect, async () => {
+    launchCount += 1;
+    const mock = createMockEdgeContext("about:blank", { html: authHtml });
+    mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+    return mock.context;
+  });
+  await worker.connect();
+  await worker.stop();
+  await worker.connect();
+  assert(launchCount === 2, "18: reconnect launches a fresh context");
+  assert(worker.getStatus().state === STATES.READY, "18: reconnect reaches READY/authenticated fixture");
+  await worker.stop();
 }
 
 {

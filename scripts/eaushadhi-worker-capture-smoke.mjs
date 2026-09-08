@@ -65,6 +65,7 @@ function createMockPage(startUrl = "about:blank") {
   const extraFrames = [];
   const listeners = {};
   let heldEvaluate = null;
+  let closed = false;
   const mainFrame = {
     url() {
       return currentUrl;
@@ -74,12 +75,18 @@ function createMockPage(startUrl = "about:blank") {
     url: () => currentUrl,
     mainFrame: () => mainFrame,
     frames: () => [mainFrame, ...extraFrames],
+    isClosed: () => closed,
     on(name, fn) {
       listeners[name] = listeners[name] || [];
       listeners[name].push(fn);
     },
     off(name, fn) {
       listeners[name] = (listeners[name] || []).filter((handler) => handler !== fn);
+    },
+    async close() {
+      if (closed) return;
+      closed = true;
+      for (const handler of listeners.close || []) handler();
     },
     async goto(next) {
       currentUrl = next;
@@ -157,6 +164,10 @@ function createMockContext() {
   function openPage(url) {
     const page = createMockPage(url);
     pages.push(page);
+    page.on("close", () => {
+      const index = pages.indexOf(page);
+      if (index >= 0) pages.splice(index, 1);
+    });
     for (const handler of listeners.page || []) handler(page);
     return page;
   }
@@ -421,18 +432,18 @@ const foreignTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-foreign-"));
 const foreign = makeWorker(foreignTmp);
 await foreign.worker.connect();
 foreign.mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/Home/Dashboard");
-foreign.mock.addPage("https://example.com/other?secret=test#fragment");
-let foreignKind = null;
-try {
-  await foreign.worker.capturePortalContract(TOKEN);
-} catch (error) {
-  foreignKind = error.kind;
-}
-assert(foreignKind === ERROR_KINDS.DISALLOWED_ORIGIN, "enumeration: DISALLOWED_ORIGIN");
-assert(foreign.worker.getStatus().state === STATES.FAILED, "enumeration: worker FAILED");
-assert(foreign.worker.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "enumeration: lastErrorKind DISALLOWED_ORIGIN");
-assert(foreign.mock.isClosed() === true, "enumeration: context closed");
-assert(existsSync(join(foreignTmp, "eaushadhi-contract-captures")) === false, "enumeration: no capture.json persisted");
+const foreignPage = foreign.mock.addPage("https://example.com/other?secret=test#fragment");
+foreignPage.evaluate = async () => {
+  throw new Error("external page was evaluated");
+};
+await waitFor(() => foreignPage.isClosed() === true);
+assert(foreignPage.isClosed() === true, "enumeration: post-activation foreign page is contained by origin guard");
+assert(foreign.worker.getStatus().state !== STATES.FAILED, "enumeration: secondary containment does not failClosed the worker");
+assert(foreign.mock.isClosed() === false, "enumeration: controlled context remains open after secondary containment");
+assert(existsSync(join(foreignTmp, "eaushadhi-contract-captures")) === false, "enumeration: no capture.json persisted before capture");
+const foreignCapture = await foreign.worker.capturePortalContract(TOKEN);
+assert(foreignCapture.ok === true, "enumeration: capture proceeds after foreign secondary was contained");
+assert(foreign.worker.getStatus().lastErrorKind !== ERROR_KINDS.DISALLOWED_ORIGIN, "enumeration: DISALLOWED_ORIGIN cleared for surviving controlled session");
 
 const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
 assert(ipcSrc.includes(CHANNELS.CAPTURE_CONTRACT), "capture IPC channel exists");

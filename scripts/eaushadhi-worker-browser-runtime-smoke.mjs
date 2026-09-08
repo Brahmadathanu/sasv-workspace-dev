@@ -54,6 +54,12 @@ const htmlSrc = readFileSync(join(root, "public/shared/e-aushadhi-review-control
 const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
 const preloadSrc = readFileSync(join(root, "preload.js"), "utf8");
 const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
+const originGuardSrc = readFileSync(join(root, "electron/eaushadhi-worker/origin-guard.js"), "utf8");
+const workerIndexSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
+assert(originGuardSrc.includes("activateReconciliation"), "reconciler has explicit activation");
+assert(originGuardSrc.includes("page_attach_check"), "attach-time URL classification exists");
+assert(originGuardSrc.includes("context_reconciliation"), "context reconciliation exists");
+assert(workerIndexSrc.includes("activateReconciliation"), "worker activates reconciliation after controlledPage");
 const stopHint = "Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi.";
 assert(htmlSrc.includes(stopHint), "18: Stop HTML title/tooltip uses canonical no-logout wording");
 assert(controlSrc.includes(stopHint), "18: placeWorkerStop applies canonical Stop wording");

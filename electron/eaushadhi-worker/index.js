@@ -102,6 +102,7 @@ function createEaushadhiWorker({
   let stopRequested = false;
   let containingOrigin = false;
   let detachContextGuard = null;
+  let originGuardController = null;
   let lastCaptureDir = null;
   let authRefreshInFlight = false;
   let controlledPage = null;
@@ -238,6 +239,7 @@ function createEaushadhiWorker({
       }
       detachContextGuard = null;
     }
+    originGuardController = null;
     portalContract = null;
     if (!context) return;
     const current = context;
@@ -256,7 +258,7 @@ function createEaushadhiWorker({
     return isAllowedPageUrl(url, contract);
   }
 
-  async function containSecondaryPage(page, error, url) {
+  async function containSecondaryPage(page, error, url, extras = {}) {
     let closeFailed = false;
     let closeErrorMessage = null;
     try {
@@ -288,6 +290,7 @@ function createEaushadhiWorker({
         {
           pageRole: "secondary",
           containmentAction: "secondary_close_failed_fail_closed",
+          detectionSource: extras.detectionSource || null,
         },
       );
       return;
@@ -299,6 +302,7 @@ function createEaushadhiWorker({
       error: error?.message,
       pageRole: "secondary",
       containmentAction: "closed_offending_page",
+      detectionSource: extras.detectionSource || null,
     });
     emit();
   }
@@ -314,6 +318,7 @@ function createEaushadhiWorker({
       error: error?.message,
       pageRole: extras.pageRole || "controlled",
       containmentAction: extras.containmentAction || "fail_closed",
+      detectionSource: extras.detectionSource || null,
     });
     await closeBrowser();
     const current = machine.get();
@@ -358,19 +363,28 @@ function createEaushadhiWorker({
       const launcher = typeof launchBrowser === "function" ? launchBrowser : launchDedicatedEdge;
       context = await launcher(userDataDir);
       phase = CONNECT_PHASES.GUARD;
-      detachContextGuard = attachContextOriginGuard(context, {
+      originGuardController = attachContextOriginGuard(context, {
         contract,
-        onDisallowed: (error, url, page) => {
+        onDisallowed: (error, url, page, extras = {}) => {
           if (page && controlledPage && page === controlledPage) {
             void failClosed(error, url, {
               pageRole: "controlled",
               containmentAction: "fail_closed",
+              detectionSource: extras.detectionSource || null,
             });
             return;
           }
-          void containSecondaryPage(page, error, url);
+          void containSecondaryPage(page, error, url, extras);
         },
       });
+      detachContextGuard = () => {
+        try {
+          originGuardController?.detach();
+        } catch {
+          // ignore
+        }
+        originGuardController = null;
+      };
       phase = CONNECT_PHASES.PAGE;
       const page = context.pages()[0] || (await context.newPage());
       phase = CONNECT_PHASES.NAVIGATE;
@@ -378,6 +392,9 @@ function createEaushadhiWorker({
       phase = CONNECT_PHASES.ORIGIN_CHECK;
       assertAllowedUrl(page.url(), contract);
       setControlledPage(page);
+      if (typeof originGuardController?.activateReconciliation === "function") {
+        originGuardController.activateReconciliation();
+      }
       try {
         phase = CONNECT_PHASES.AUTH_PROBE;
         const authSpec = requireSection("authProbe");
