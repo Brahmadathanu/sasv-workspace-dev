@@ -34,6 +34,7 @@ const distCandidates = [
   "dist-eaushadhi-hardening-proof",
   "dist-eaushadhi-worker-proof",
   "dist-eaushadhi-auth-refresh-proof",
+  "dist-eaushadhi-browser-runtime-hardening-proof",
   "dist",
 ].filter(Boolean);
 const dist = distCandidates
@@ -164,7 +165,20 @@ assert(playwrightResolved, "playwright-core resolves in the development context"
 const browserSrc = readFileSync(join(root, "electron/eaushadhi-worker/browser.js"), "utf8");
 assert(browserSrc.includes('channel: "msedge"'), "Edge channel launch path is present");
 assert(browserSrc.includes("eaushadhi-portal-profile"), "dedicated profile path is present");
+assert(browserSrc.includes("viewport: null"), "packaging source uses native viewport");
+assert(browserSrc.includes("chromiumSandbox: true"), "packaging source enables chromium sandbox");
+assert(browserSrc.includes('ignoreDefaultArgs: ["--no-sandbox"]'), "packaging source suppresses only --no-sandbox");
+assert(browserSrc.includes("--start-maximized"), "packaging source starts maximized");
 assert(!browserSrc.includes('channel: "chrome"'), "no Chrome fallback");
+assert(!browserSrc.includes("width: 1280"), "packaging source no longer forces 1280 viewport");
+
+assert(originGuardSrc.includes("onDisallowed(error, url, page)"), "unpacked origin-guard passes page identity");
+assert(workerIndexSrc.includes("setControlledPage"), "unpacked worker tracks controlledPage");
+assert(workerIndexSrc.includes("isUsableControlledPage"), "unpacked worker retains a valid controlled page on recheck");
+assert(workerIndexSrc.includes("closed_offending_page"), "unpacked worker records secondary containment");
+assert(workerIndexSrc.includes("secondary_close_failed_fail_closed"), "unpacked worker fail-closes when secondary close fails");
+assert(workerIndexSrc.includes("adopted_allowed_page"), "unpacked worker records controlled-page adoption");
+assert(workerIndexSrc.includes("active operation"), "unpacked worker fail-closes controlled loss while RUNNING");
 
 if (failed) {
   console.error(`\n${failed} packaging assertion(s) failed`);

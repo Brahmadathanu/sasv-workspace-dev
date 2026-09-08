@@ -59,7 +59,7 @@ function attachMainFrameOriginGuard(page, { contract, onDisallowed }) {
       assertAllowedUrl(url, contract);
     } catch (error) {
       if (error?.kind === ERROR_KINDS.DISALLOWED_ORIGIN) {
-        onDisallowed(error, url);
+        onDisallowed(error, url, page);
       } else {
         throw error;
       }

@@ -244,8 +244,14 @@ assert(!helpersSrc.includes("buildApprovedProductCopyPath"), "legacy token path 
 assert(!helpersSrc.includes("sanitizeEvidenceFileName"), "obsolete filename sanitizer is removed");
 assert(controlSrc.includes("createSignedUrl") || apiSrc.includes("createSignedUrl"), "private copy open uses signed URL");
 assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");
+const STOP_BROWSER_TOOLTIP =
+  "Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi.";
+// Canonical Stop wording intentionally uses an em dash. Exclude that approved
+// literal before scanning for other mojibake-prone punctuation.
+const uiLiteralsWithoutCanonicalStop = (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("");
 assert(
-  !/[·…←→↑↓—]/.test(controlSrc + htmlSrc) && !/Â·|â€/.test(controlSrc + htmlSrc),
+  !/[·…←→↑↓—]/.test(uiLiteralsWithoutCanonicalStop) &&
+    !/Â·|â€/.test(controlSrc + htmlSrc),
   "module-authored UI literals avoid mojibake-prone punctuation",
 );
 assert(controlSrc.includes("data-source-resolve"), "resolve source issue action exists");
@@ -315,6 +321,8 @@ assert((htmlSrc.match(/id="btnWorkerConnect"/g) || []).length === 1, "exactly on
 assert((htmlSrc.match(/id="btnWorkerRecheckLogin"/g) || []).length === 1, "exactly one Recheck Login button");
 assert(htmlSrc.includes(">Recheck Login<"), "Recheck Login copy is used");
 assert((htmlSrc.match(/id="btnWorkerStop"/g) || []).length === 1, "exactly one Stop button");
+assert(htmlSrc.includes(STOP_BROWSER_TOOLTIP), "Stop tooltip clarifies no portal logout");
+assert(controlSrc.includes("does not log out of e-Aushadhi"), "controller keeps Stop no-logout wording");
 assert((htmlSrc.match(/id="btnWorkerCapture"/g) || []).length === 1, "exactly one Capture button");
 assert((htmlSrc.match(/id="btnWorkerOpenCapture"/g) || []).length === 1, "exactly one Open Capture Folder button");
 assert((htmlSrc.match(/id="workerBrowserStatus"/g) || []).length === 1, "exactly one worker status node");
