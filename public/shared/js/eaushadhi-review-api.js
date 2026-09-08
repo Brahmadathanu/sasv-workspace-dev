@@ -333,6 +333,89 @@ export async function reopenProductActions({
   );
 }
 
+export async function fetchProductClassificationReview(productId) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_product_classification_review_get", {
+      p_product_id: Number(productId),
+    }),
+  );
+}
+
+export async function saveProductClassificationReview({
+  productId,
+  expectedRowVersion,
+  productTypeOptionId,
+  productCategoryOptionId,
+  productSubtypeOptionId,
+  subtypeMode,
+  reviewNotes = null,
+  verify = false,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_product_classification_review_save", {
+      p_product_id: Number(productId),
+      p_expected_row_version: Number(expectedRowVersion),
+      p_product_type_option_id:
+        productTypeOptionId == null || productTypeOptionId === ""
+          ? null
+          : Number(productTypeOptionId),
+      p_product_category_option_id:
+        productCategoryOptionId == null || productCategoryOptionId === ""
+          ? null
+          : Number(productCategoryOptionId),
+      p_product_subtype_option_id:
+        productSubtypeOptionId == null || productSubtypeOptionId === ""
+          ? null
+          : Number(productSubtypeOptionId),
+      p_subtype_mode: subtypeMode,
+      p_review_notes: reviewNotes,
+      p_verify: verify === true,
+    }),
+  );
+}
+
+export async function reopenProductClassification({
+  productId,
+  expectedRowVersion,
+  reason,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_reopen_product_classification", {
+      p_product_id: Number(productId),
+      p_expected_row_version: Number(expectedRowVersion),
+      p_reason: reason,
+    }),
+  );
+}
+
+export async function fetchProductClassificationOptions(domainCode, productTypeOptionId = null) {
+  const domain = String(domainCode || "").toUpperCase();
+  if (!["PRODUCT_TYPE", "PRODUCT_CATEGORY", "PRODUCT_SUBTYPE"].includes(domain)) {
+    throw new EaushadhiRpcError(
+      "rpc_eaushadhi_product_classification_options",
+      new Error(`Unsupported e-Aushadhi product classification domain: ${domainCode}`),
+      classifyRpcError({
+        message: `Unsupported e-Aushadhi product classification domain: ${domainCode}`,
+      }),
+    );
+  }
+  const args = { p_domain_code: domain };
+  if (domain === "PRODUCT_CATEGORY" || domain === "PRODUCT_SUBTYPE") {
+    const typeId = Number(optionId(productTypeOptionId));
+    if (!Number.isInteger(typeId) || typeId <= 0) {
+      throw new EaushadhiRpcError(
+        "rpc_eaushadhi_product_classification_options",
+        new Error(`p_product_type_option_id is required for ${domain}`),
+        classifyRpcError({ message: `p_product_type_option_id is required for ${domain}` }),
+      );
+    }
+    args.p_product_type_option_id = typeId;
+  } else {
+    args.p_product_type_option_id = null;
+  }
+  return asArray(await callRpc("rpc_eaushadhi_product_classification_options", args));
+}
+
 export async function fetchDocumentUploadContract({
   productId,
   documentPurpose,
@@ -571,7 +654,17 @@ export async function fetchWorkerMarkPortalVerified(
 
 export async function loadProductWorkspace(productId) {
   const id = Number(optionId(productId));
-  const [review, lines, actions, evidence, issues, copy, copyContract] = await Promise.all([
+  const [
+    review,
+    lines,
+    actions,
+    evidence,
+    issues,
+    copy,
+    copyContract,
+    classification,
+    classificationTypeOptions,
+  ] = await Promise.all([
     fetchProductReview(id),
     fetchReviewQueue(id),
     fetchProductActions(id),
@@ -583,6 +676,33 @@ export async function loadProductWorkspace(productId) {
       documentPurpose: DOCUMENT_PURPOSE.APPROVED_PRODUCT_COPY,
       extension: "pdf",
     }).catch((error) => ({ error })),
+    fetchProductClassificationReview(id),
+    fetchProductClassificationOptions("PRODUCT_TYPE"),
   ]);
-  return { review, lines, actions, evidence, issues, copy, copyContract };
+  const typeId =
+    optionId(classification?.selected_product_type_option_id) ??
+    optionId(classification?.suggested_product_type_option_id);
+  let classificationCategoryOptions = [];
+  let classificationSubtypeOptions = [];
+  if (typeId) {
+    [classificationCategoryOptions, classificationSubtypeOptions] = await Promise.all([
+      fetchProductClassificationOptions("PRODUCT_CATEGORY", typeId),
+      fetchProductClassificationOptions("PRODUCT_SUBTYPE", typeId),
+    ]);
+  }
+  return {
+    review,
+    lines,
+    actions,
+    evidence,
+    issues,
+    copy,
+    copyContract,
+    classification,
+    classificationOptions: {
+      PRODUCT_TYPE: classificationTypeOptions,
+      PRODUCT_CATEGORY: classificationCategoryOptions,
+      PRODUCT_SUBTYPE: classificationSubtypeOptions,
+    },
+  };
 }
