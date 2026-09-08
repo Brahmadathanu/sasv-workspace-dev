@@ -72,6 +72,30 @@ function attachMainFrameOriginGuard(page, { contract, onDisallowed }) {
   };
 }
 
+function isAllowedPageUrl(urlValue, contract) {
+  if (!shouldEnforceMainFrameUrl(urlValue)) return false;
+  try {
+    assertAllowedUrl(urlValue, contract);
+    return true;
+  } catch (error) {
+    if (error?.kind === ERROR_KINDS.DISALLOWED_ORIGIN) return false;
+    throw error;
+  }
+}
+
+function selectAllowedOriginPage(context, contract) {
+  const pages = typeof context.pages === "function" ? context.pages() : [];
+  let selected = null;
+  for (const page of pages) {
+    if (!page) continue;
+    if (typeof page.isClosed === "function" && page.isClosed()) continue;
+    const url = typeof page.url === "function" ? page.url() : "";
+    if (!isAllowedPageUrl(url, contract)) continue;
+    selected = page;
+  }
+  return selected;
+}
+
 function attachContextOriginGuard(context, { contract, onDisallowed }) {
   if (!context) return () => {};
   const detachByPage = new Map();
@@ -107,6 +131,8 @@ module.exports = {
   originFromUrl,
   shouldEnforceMainFrameUrl,
   assertAllowedUrl,
+  isAllowedPageUrl,
+  selectAllowedOriginPage,
   attachMainFrameOriginGuard,
   attachContextOriginGuard,
 };
