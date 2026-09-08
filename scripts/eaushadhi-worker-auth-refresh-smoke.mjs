@@ -16,7 +16,9 @@ const { createEaushadhiWorker, AUTH_REFRESH_PHASE, CONNECT_PHASES } = require(
   join(root, "electron/eaushadhi-worker/index.js"),
 );
 const { STATES } = require(join(root, "electron/eaushadhi-worker/state.js"));
-const { ERROR_KINDS, WorkerError } = require(join(root, "electron/eaushadhi-worker/errors.js"));
+const { ERROR_KINDS, WorkerError, workerError } = require(
+  join(root, "electron/eaushadhi-worker/errors.js"),
+);
 const { CHANNELS } = require(join(root, "electron/eaushadhi-worker/ipc.js"));
 const { selectAllowedOriginPage } = require(join(root, "electron/eaushadhi-worker/origin-guard.js"));
 const { loadPortalContract } = require(
@@ -46,6 +48,11 @@ const recheckSrc = workerIndexSrc.slice(
   workerIndexSrc.indexOf("async function stop()"),
 );
 assert(recheckSrc.includes("probeAuthenticatedSession"), "recheck uses probeAuthenticatedSession");
+assert(
+  recheckSrc.includes("if (machine.get() === STATES.READY)") &&
+    recheckSrc.includes("machine.transition(STATES.AUTH_REQUIRED)"),
+  "recheck fail-closes READY to AUTH_REQUIRED on execution errors",
+);
 assert(!/\.goto\s*\(/.test(recheckSrc), "recheck source does not call goto");
 assert(!/\.(?:click|fill|type|press|selectOption)\s*\(/.test(recheckSrc), "recheck source does not click/fill/submit");
 assert(!recheckSrc.includes("run_begin"), "recheck does not begin a worker run");
@@ -58,6 +65,9 @@ assert(
   !/captureEnabled\s*=\s*available && !busy && \(workerState === "AUTH_REQUIRED"/.test(controlSrc),
   "toolbar Capture is not enabled in AUTH_REQUIRED",
 );
+function captureEnabledForWorkerState(workerState) {
+  return workerState === STATES.READY;
+}
 assert(preloadSrc.includes("recheckLogin:"), "preload exposes recheckLogin");
 assert(!/evaluate\s*:/.test(preloadSrc), "preload does not expose evaluate");
 
@@ -179,7 +189,9 @@ function makeWorker(tmp, context, extras = {}) {
   assert(worker.getStatus().state === STATES.READY, "connect authenticated is READY");
   const status = await worker.recheckAuthentication();
   assert(status.state === STATES.READY, "3: READY recheck stays READY");
+  assert(status.lastErrorKind == null, "3: only current authenticated proof preserves READY");
   assert(context.isClosed() === false, "3: browser stays open while READY");
+  assert(captureEnabledForWorkerState(status.state) === true, "9: Capture stays enabled only while READY");
 }
 
 {
@@ -289,6 +301,109 @@ function makeWorker(tmp, context, extras = {}) {
   assert(worker.getStatus().state !== STATES.READY, "6: probe throw does not set READY");
   assert(worker.getStatus().state === STATES.AUTH_REQUIRED, "6: probe throw remains AUTH_REQUIRED");
   assert(context.isClosed() === false, "6: probe throw keeps the dedicated context open");
+}
+
+{
+  const tmp = mkdtempSync(join(os.tmpdir(), "ea-recheck-ready-unauth-"));
+  const page = createMockPage(authHtml);
+  const context = createMockContext([page]);
+  const worker = makeWorker(tmp, context);
+  await worker.connect();
+  assert(worker.getStatus().state === STATES.READY, "ordinary unauth starts READY");
+  page.setHtml(loginHtml, "https://www.e-aushadhi.gov.in/");
+  const status = await worker.recheckAuthentication();
+  assert(status.state === STATES.AUTH_REQUIRED, "ordinary unauthenticated READY recheck becomes AUTH_REQUIRED");
+  assert(status.lastErrorKind === ERROR_KINDS.AUTH_REQUIRED, "ordinary unauthenticated result is AUTH_REQUIRED");
+  assert(context.isClosed() === false, "ordinary unauthenticated READY recheck keeps the browser open");
+  assert(captureEnabledForWorkerState(status.state) === false, "ordinary unauthenticated READY recheck disables Capture");
+}
+
+{
+  const tmp = mkdtempSync(join(os.tmpdir(), "ea-recheck-ready-throw-"));
+  let probeThrows = false;
+  const page = createMockPage(authHtml, {
+    evaluateImpl: async (fn, arg) => {
+      if (probeThrows) throw new Error("page.evaluate: Execution context was destroyed");
+      const document = parseHtml(authHtml);
+      const prevDoc = global.document;
+      const prevLoc = global.location;
+      global.document = document;
+      global.location = { href: "https://www.e-aushadhi.gov.in/" };
+      try {
+        return fn(arg);
+      } finally {
+        global.document = prevDoc;
+        global.location = prevLoc;
+      }
+    },
+  });
+  const context = createMockContext([page]);
+  const worker = makeWorker(tmp, context);
+  const connected = await worker.connect();
+  assert(connected.state === STATES.READY, "READY probe-throw fixture connects as READY");
+  assert(captureEnabledForWorkerState(connected.state) === true, "Capture is enabled while READY before failed recheck");
+  probeThrows = true;
+  let thrown = null;
+  try {
+    await worker.recheckAuthentication();
+  } catch (error) {
+    thrown = error;
+  }
+  const status = worker.getStatus();
+  assert(thrown instanceof WorkerError, "READY probe throw is a governed WorkerError");
+  assert(thrown.kind === ERROR_KINDS.CRASH, "READY probe throw stays CRASH");
+  assert(thrown.kind !== ERROR_KINDS.AUTH_REQUIRED, "READY probe throw is not ordinary unauthenticated");
+  assert(String(thrown.message).includes("Login recheck failed."), "READY probe throw has a useful recheck message");
+  assert(
+    String(thrown.details?.causeMessageSanitized).includes("Execution context was destroyed"),
+    "READY probe throw retains sanitized cause",
+  );
+  assert(status.state === STATES.AUTH_REQUIRED, "READY probe throw fails closed to AUTH_REQUIRED");
+  assert(status.state !== STATES.READY, "READY probe throw does not retain READY");
+  assert(status.lastErrorKind === ERROR_KINDS.CRASH, "READY probe throw records governed CRASH");
+  assert(status.lastErrorKind !== ERROR_KINDS.AUTH_REQUIRED, "READY probe throw does not rewrite CRASH as AUTH_REQUIRED");
+  assert(context.isClosed() === false, "READY probe throw keeps the dedicated context open");
+  assert(captureEnabledForWorkerState(status.state) === false, "failed READY recheck disables Capture");
+}
+
+{
+  const tmp = mkdtempSync(join(os.tmpdir(), "ea-recheck-ready-origin-"));
+  let originThrows = false;
+  const page = createMockPage(authHtml, {
+    evaluateImpl: async (fn, arg) => {
+      if (originThrows) {
+        throw workerError(
+          ERROR_KINDS.DISALLOWED_ORIGIN,
+          "Main-frame navigation left the allowed e-Aushadhi origin.",
+        );
+      }
+      const document = parseHtml(authHtml);
+      const prevDoc = global.document;
+      const prevLoc = global.location;
+      global.document = document;
+      global.location = { href: "https://www.e-aushadhi.gov.in/" };
+      try {
+        return fn(arg);
+      } finally {
+        global.document = prevDoc;
+        global.location = prevLoc;
+      }
+    },
+  });
+  const context = createMockContext([page]);
+  const worker = makeWorker(tmp, context);
+  const connected = await worker.connect();
+  assert(connected.state === STATES.READY, "DISALLOWED_ORIGIN fixture connects as READY");
+  originThrows = true;
+  let thrown = null;
+  try {
+    await worker.recheckAuthentication();
+  } catch (error) {
+    thrown = error;
+  }
+  assert(thrown.kind === ERROR_KINDS.DISALLOWED_ORIGIN, "DISALLOWED_ORIGIN is preserved");
+  assert(worker.getStatus().state === STATES.FAILED, "DISALLOWED_ORIGIN still fail-closes to FAILED");
+  assert(context.isClosed() === true, "DISALLOWED_ORIGIN still closes the dedicated context");
 }
 
 {

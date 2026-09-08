@@ -341,6 +341,9 @@ function createEaushadhiWorker({
         await failClosed(wrapped, wrapped.details?.url);
         throw wrapped;
       }
+      if (machine.get() === STATES.READY) {
+        machine.transition(STATES.AUTH_REQUIRED);
+      }
       setError(wrapped);
       log({
         phase: wrapped.details?.connectPhase || AUTH_REFRESH_PHASE,

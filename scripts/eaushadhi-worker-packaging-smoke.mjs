@@ -87,6 +87,11 @@ const recheckSrc = workerIndexSrc.slice(
   workerIndexSrc.indexOf("async function stop()"),
 );
 assert(recheckSrc.includes("probeAuthenticatedSession"), "unpacked recheck uses the existing auth probe");
+assert(
+  recheckSrc.includes("if (machine.get() === STATES.READY)") &&
+    recheckSrc.includes("machine.transition(STATES.AUTH_REQUIRED)"),
+  "unpacked recheck fail-closes READY on probe execution errors",
+);
 assert(!/\.goto\s*\(/.test(recheckSrc), "unpacked recheck does not navigate");
 assert(workerIndexSrc.includes("causeMessageSanitized"), "unpacked connect preserves sanitized root cause");
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js")), "auth-probe is unpacked");
