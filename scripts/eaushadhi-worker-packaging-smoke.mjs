@@ -98,6 +98,31 @@ assert(!/\.goto\s*\(/.test(captureSrc), "unpacked capture does not call goto");
 assert(captureSrc.includes("indications"), "unpacked capture recognizes indications as pharmacological candidate");
 assert(captureSrc.includes("PLACEHOLDER_SENTINELS"), "unpacked capture uses sentinel placeholder values");
 assert(captureSrc.includes('"-1"'), "unpacked capture recognizes -1 placeholder sentinels");
+assert(
+  captureSrc.includes("extractClassificationValidationEvidence") ||
+    existsSync(join(root, "electron/eaushadhi-worker/capture/validation-evidence-in-page.js")),
+  "capture wires classification validation evidence",
+);
+const validationInPageLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/validation-evidence-in-page.js");
+const validationNodeLoose = join(asarUnpacked, "electron/eaushadhi-worker/capture/validation-evidence.js");
+assert(
+  existsSync(join(root, "electron/eaushadhi-worker/capture/validation-evidence-in-page.js")),
+  "validation-evidence-in-page exists in source",
+);
+assert(existsSync(join(root, "electron/eaushadhi-worker/capture/validation-evidence.js")), "validation-evidence exists in source");
+if (existsSync(validationInPageLoose)) {
+  const validationSrc = readFileSync(validationInPageLoose, "utf8");
+  assert(validationSrc.includes("extractClassificationValidationEvidence"), "unpacked validation in-page extractor present");
+  assert(!/\.checkValidity\s*\(/.test(validationSrc), "unpacked validation extractor has no checkValidity call");
+  assert(!/\.reportValidity\s*\(/.test(validationSrc), "unpacked validation extractor has no reportValidity call");
+} else {
+  console.warn("WARN: validation-evidence-in-page.js not in current dist unpack; rebuild required");
+}
+if (existsSync(validationNodeLoose)) {
+  const nodeSrc = readFileSync(validationNodeLoose, "utf8");
+  assert(nodeSrc.includes("finalizeClassificationValidationEvidence"), "unpacked validation finalize present");
+  assert(nodeSrc.includes("createHash"), "unpacked validation hashes on Node side");
+}
 
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/dry-run.js")), "dry-run module is unpacked");
 const workerIndexLoose = join(asarUnpacked, "electron/eaushadhi-worker/index.js");

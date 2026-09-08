@@ -38,11 +38,80 @@ function createNode(tag, attrs) {
     get selected() {
       return Object.prototype.hasOwnProperty.call(this.attrs, "selected");
     },
-    get checked() {
-      return Object.prototype.hasOwnProperty.call(this.attrs, "checked");
+    get required() {
+      return Object.prototype.hasOwnProperty.call(this.attrs, "required");
+    },
+    get readOnly() {
+      return Object.prototype.hasOwnProperty.call(this.attrs, "readonly");
+    },
+    get willValidate() {
+      const tag = this.tagName;
+      if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") {
+        return this.disabled !== true;
+      }
+      return false;
+    },
+    get validity() {
+      const missing =
+        this.required === true &&
+        (this.tagName === "SELECT"
+          ? String(this.value || "") === ""
+          : String(this.value || "") === "");
+      return {
+        valid: !missing,
+        valueMissing: missing,
+        customError: false,
+        badInput: false,
+        patternMismatch: false,
+        rangeOverflow: false,
+        rangeUnderflow: false,
+        stepMismatch: false,
+        tooLong: false,
+        tooShort: false,
+        typeMismatch: false,
+      };
+    },
+    get selectedIndex() {
+      if (this.tagName !== "SELECT") return -1;
+      const opts = this.options;
+      const selected = opts.findIndex((opt) => opt.selected === true);
+      if (selected >= 0) return selected;
+      return opts.length ? 0 : -1;
+    },
+    set selectedIndex(_next) {
+      throw new Error("extract must not assign selectedIndex");
+    },
+    get dataset() {
+      const out = {};
+      for (const [key, value] of Object.entries(this.attrs)) {
+        if (!/^data-/i.test(key)) continue;
+        const name = key
+          .slice(5)
+          .replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
+        out[name] = value;
+      }
+      return out;
+    },
+    get attributes() {
+      return Object.entries(this.attrs).map(([name, value]) => ({ name, value }));
+    },
+    get parentElement() {
+      return this.parent && this.parent.tagName ? this.parent : null;
+    },
+    get offsetParent() {
+      return this.parentElement;
+    },
+    getClientRects() {
+      return [{ width: 1, height: 1 }];
     },
     get value() {
       if (this.tagName === "OPTION") return this.attrs.value == null ? this.textContent : this.attrs.value;
+      if (this.tagName === "SELECT") {
+        const opts = this.options;
+        const index = this.selectedIndex;
+        if (index < 0 || !opts[index]) return "";
+        return opts[index].value;
+      }
       return this.attrs.value || "";
     },
     set value(next) {
@@ -102,7 +171,20 @@ function createNode(tag, attrs) {
     submit() {
       throw new Error("extract must not submit forms");
     },
+    checkValidity() {
+      throw new Error("extract must not call checkValidity");
+    },
+    reportValidity() {
+      throw new Error("extract must not call reportValidity");
+    },
   };
+
+  if (Object.prototype.hasOwnProperty.call(attrs, "onclick")) {
+    node.onclick = function fixtureOnClickHandler() {
+      globalThis.__EA_CAPTURE_HANDLER_FIRED = true;
+    };
+  }
+
   return node;
 }
 
@@ -138,7 +220,17 @@ function matches(node, selector) {
     return node.tagName === nameTag[1].toUpperCase() && String(node.getAttribute("name") || "") === nameTag[2];
   }
   if (sel.startsWith("#")) return node.id === sel.slice(1).replace(/\\/g, "");
+  if (sel.startsWith(".")) {
+    const cls = sel.slice(1);
+    return String(node.className || "")
+      .split(/\s+/)
+      .includes(cls);
+  }
   if (/^[a-z0-9]+$/i.test(sel)) return node.tagName === sel.toUpperCase();
+  // Simple descendant-friendly tag lists like "span, div, p"
+  if (sel.includes("[") && sel.includes("]")) {
+    // unsupported complex selectors fall through
+  }
   return false;
 }
 
@@ -175,6 +267,12 @@ function parseHtml(html) {
   root.title = titleNode ? titleNode.textContent.trim() : "";
   root.querySelector = (sel) => collect(root, sel)[0] || null;
   root.querySelectorAll = (sel) => collect(root, sel);
+  root.getElementById = (id) => collect(root, `#${String(id || "")}`)[0] || null;
+  Object.defineProperty(root, "scripts", {
+    get() {
+      return collect(root, "script");
+    },
+  });
   return root;
 }
 

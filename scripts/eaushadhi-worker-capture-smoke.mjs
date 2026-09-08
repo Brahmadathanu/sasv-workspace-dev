@@ -121,7 +121,13 @@ function createMockPage(startUrl = "about:blank") {
       const prevLoc = global.location;
       const prevCss = global.CSS;
       global.document = document;
-      global.location = { href: currentUrl };
+      let pathname = "/";
+      try {
+        pathname = new URL(currentUrl).pathname || "/";
+      } catch {
+        pathname = "/";
+      }
+      global.location = { href: currentUrl, pathname };
       global.CSS = {
         escape(value) {
           return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
@@ -226,13 +232,16 @@ function scanCaptureSources() {
 }
 
 const forbiddenCall =
-  /\.(?:click|fill|type|press|goto|selectOption|setInputFiles)\s*\(|locator\.(?:click|fill|type|press)\s*\(|\.request\.post\s*\(|form\.submit\s*\(/;
+  /\.(?:click|fill|type|press|goto|selectOption|setInputFiles)\s*\(|locator\.(?:click|fill|type|press)\s*\(|\.request\.post\s*\(|form\.submit\s*\(|requestSubmit\s*\(|checkValidity\s*\(|reportValidity\s*\(|dispatchEvent\s*\(|\bfetch\s*\(|XMLHttpRequest/;
 
 for (const file of scanCaptureSources()) {
   assert(!forbiddenCall.test(file.src), `${file.name} does not invoke mutating Playwright/DOM actions`);
   assert(!/screenshot|page\.png|\.jpeg/i.test(file.src), `${file.name} does not take screenshots`);
+  if (file.name === "validation-evidence-in-page.js" || file.name === "validation-evidence.js") {
+    assert(!/\.click\s*\(/.test(file.src), `${file.name} does not call click`);
+    assert(!/selectedIndex\s*=(?!=)/.test(file.src), `${file.name} does not assign selectedIndex`);
+  }
 }
-
 const idleTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-idle-"));
 const idle = makeWorker(idleTmp);
 let idleKind = null;
@@ -283,10 +292,77 @@ assert(authResult.auth_outcome !== "AUTH_REQUIRED", "Change Password nav is not 
 const legacyTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-legacy-"));
 const legacy = makeWorker(legacyTmp);
 await legacy.worker.connect();
+globalThis.__EA_CAPTURE_HANDLER_FIRED = false;
 legacy.mock.page.setHtml(legacyHtml, "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
 const legacyResult = await legacy.worker.capturePortalContract(TOKEN);
 assert(legacyResult.auth_outcome === "AUTHENTICATED_CANDIDATE", "legacy authenticated page is AUTHENTICATED_CANDIDATE");
+assert(globalThis.__EA_CAPTURE_HANDLER_FIRED !== true, "12: submit handler flags remain UNSET after capture");
 const legacyJson = readCapture(legacyTmp);
+assert(legacyJson.capture_schema_version === 1, "schema version remains 1");
+const validation = legacyJson.classification_validation_evidence;
+assert(validation && typeof validation === "object", "2: subtype validation evidence exists");
+assert(validation.subtype_control?.control_found === true, "subtype control found");
+assert(validation.subtype_control.selected_option_value === "-1", "3: selected_option_value survives redaction as -1");
+assert(validation.subtype_control.selected_option_label === "--Select--", "4: selected_option_label survives");
+assert(validation.subtype_control.required_property === true, "5: required_property is true");
+assert(validation.subtype_control.required_attribute != null, "5: required_attribute present");
+assert(String(validation.subtype_control.aria_required) === "true", "5: aria_required is true");
+assert(validation.subtype_control.selected_index === 0, "6: selected_index is accurate");
+assert(validation.subtype_control.will_validate === true, "7: will_validate is true");
+assert(validation.subtype_control.validity && typeof validation.subtype_control.validity.valid === "boolean", "7: validity fields present");
+assert(validation.subtype_control.validity.value_missing === false, "7: value_missing false for -1 selection");
+assert(
+  Array.isArray(validation.nearby_validation_elements) && validation.nearby_validation_elements.length <= 8,
+  "9: nearby validation evidence is bounded",
+);
+const saveBtn = (validation.submit_controls || []).find((item) => item.id === "save_btn");
+const saveRbtn = (validation.submit_controls || []).find((item) => item.id === "save_rbtn");
+assert(saveBtn && saveBtn.control_found === true, "10: #save_btn observed");
+assert(saveRbtn && saveRbtn.control_found === true, "10: #save_rbtn observed");
+assert(saveBtn.activated === false && saveRbtn.activated === false, "11: activated remains false");
+assert(saveBtn.onclick_property_is_function === true, "save_btn onclick property observed");
+assert(typeof saveBtn.onclick_source_preview === "string" && saveBtn.onclick_source_preview.length <= 240, "handler preview bounded");
+assert(typeof saveBtn.onclick_source_sha256 === "string" && saveBtn.onclick_source_sha256.length === 64, "Node-side handler sha256 present");
+assert(
+  (validation.script_matches || []).some(
+    (match) =>
+      match.source_kind === "inline" &&
+      match.evidence_class === "subtype_validation_candidate" &&
+      match.subtype_related === true,
+  ),
+  "13: inline subtype validation match is detected",
+);
+assert(
+  (validation.script_matches || []).some(
+    (match) => match.evidence_class === "unrelated_sentinel_candidate",
+  ),
+  "14: unrelated -1 classified separately",
+);
+assert(
+  validation.conclusion_inputs?.explicit_subtype_minus_one_rejection_observed === true,
+  "explicit rejection candidate observed from subtype+sentinel proximity",
+);
+assert(validation.conclusion_inputs?.evidence_complete === false, "evidence_complete remains false");
+assert(!(JSON.stringify(validation).includes("blank_valid") || JSON.stringify(validation).includes("portal_accepts_blank")), "no blank_valid conclusion");
+assert(
+  (validation.script_matches || []).every(
+    (match) => !match.context_snippet || match.context_snippet.length <= 160,
+  ),
+  "15: script snippets are bounded",
+);
+assert(
+  (validation.script_matches || []).some(
+    (match) => match.source_kind === "external_unresolved" && /product-validation\.js/.test(String(match.src_path || "")),
+  ),
+  "16: external script recorded unresolved without fetch",
+);
+assert(!JSON.stringify(legacyJson).includes("PLANTED_SECRET_TOKEN_SHOULD_NOT_PERSIST"), "17: planted secret does not survive capture");
+assert(
+  (validation.limitations || []).includes("external_script_bodies_not_fetched") &&
+    (validation.limitations || []).includes("delegated_or_dynamic_listeners_not_enumerated") &&
+    (validation.limitations || []).includes("checkValidity_and_reportValidity_not_called"),
+  "limitations record unresolved enforcement surfaces",
+);
 assert(!JSON.stringify(legacyJson).includes("SYNTH_LICENSE_USER_999"), "synthetic profile identifier is absent");
 assert(legacyJson.pages[0].buttons.some((btn) => btn.id === "profile" && btn.text == null), "profile chrome keeps id and drops display text");
 assert(

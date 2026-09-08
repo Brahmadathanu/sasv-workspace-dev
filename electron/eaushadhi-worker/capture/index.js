@@ -2,6 +2,8 @@
 
 const { randomUUID } = require("crypto");
 const { extractPortalPage } = require("./extract-in-page");
+const { extractClassificationValidationEvidence } = require("./validation-evidence-in-page");
+const { finalizeClassificationValidationEvidence } = require("./validation-evidence");
 const { collectPageSignals, classifyAuth, AUTH_OUTCOMES } = require("./auth-signals");
 const {
   safePathFromUrl,
@@ -468,6 +470,13 @@ async function inspectPage(page, contract) {
     throw new Error("Capture page is missing evaluate.");
   }
   const extracted = await page.evaluate(extractPortalPage);
+  let validationRaw = null;
+  try {
+    validationRaw = await page.evaluate(extractClassificationValidationEvidence);
+  } catch {
+    validationRaw = null;
+  }
+  const classification_validation_evidence = finalizeClassificationValidationEvidence(validationRaw);
   const selects = attachBindings(extracted.selects);
   const inputs = attachBindings(extracted.inputs);
   const textareas = attachBindings(extracted.textareas);
@@ -484,6 +493,7 @@ async function inspectPage(page, contract) {
     anchors: extracted.anchors || [],
     tables: extracted.tables || [],
     child_frame_origins: childFrameOrigins(page),
+    classification_validation_evidence,
     lookup: lookupStructure({ ...extracted, inputs, buttons, selects }),
     composition_structure: compositionStructure({
       ...extracted,
@@ -546,6 +556,14 @@ async function captureOpenPages({ context, contract, userDataPath, workerStateBe
     }
   }
 
+  function pickValidationEvidence(pages) {
+    const withControl = pages.find(
+      (page) => page.classification_validation_evidence?.subtype_control?.control_found === true,
+    );
+    if (withControl) return withControl.classification_validation_evidence;
+    return pages[0]?.classification_validation_evidence || finalizeClassificationValidationEvidence(null);
+  }
+
   const captureId = randomUUID();
   const draft = {
     capture_schema_version: CAPTURE_SCHEMA_VERSION,
@@ -571,6 +589,7 @@ async function captureOpenPages({ context, contract, userDataPath, workerStateBe
       anchors: page.anchors,
       tables: page.tables,
       child_frame_origins: page.child_frame_origins,
+      classification_validation_evidence: page.classification_validation_evidence,
       lookup: page.lookup,
       composition_structure: page.composition_structure,
       product_details_observation: page.product_details_observation,
@@ -604,6 +623,7 @@ async function captureOpenPages({ context, contract, userDataPath, workerStateBe
     reread_structure: inspected.map((page) => page.reread_structure),
     shell_creation_structure: inspected.map((page) => page.shell_creation_structure),
     save_update_structure: inspected.flatMap((page) => page.save_update_structure),
+    classification_validation_evidence: pickValidationEvidence(inspected),
     proposed_selectors: inspected.flatMap((page) =>
       [...(page.inputs || []), ...(page.selects || []), ...(page.buttons || [])]
         .filter((item) => item.selector_candidate?.selector)
@@ -660,4 +680,5 @@ module.exports = {
   isPlaceholderOption,
   classifyAuth,
   classifyActionCandidate,
+  finalizeClassificationValidationEvidence,
 };

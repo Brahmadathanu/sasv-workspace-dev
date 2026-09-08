@@ -15,9 +15,18 @@
       </select>
       <span class="select2 select2-container"></span>
       <label for="subTypeId">Sub Type</label>
-      <select id="subTypeId" name="subTypeId" class="select2-hidden-accessible" data-select2-id="subTypeId">
-        <option value="-1">--Select--</option>
+      <select
+        id="subTypeId"
+        name="subTypeId"
+        class="select2-hidden-accessible"
+        data-select2-id="subTypeId"
+        required
+        aria-required="true"
+        aria-describedby="subTypeHelp"
+      >
+        <option value="-1" selected>--Select--</option>
       </select>
+      <span id="subTypeHelp" class="field-validation-help">Please Select a Sub Type when required.</span>
       <span class="select2 select2-container"></span>
       <label for="countryApplicable">Country Applicable</label>
       <select id="countryApplicable" name="countryApplicable" class="select2-hidden-accessible" data-select2-id="countryApplicable">
@@ -45,8 +54,23 @@
       <input id="compositionTitle" name="compositionTitle" type="text" />
       <label for="disease">Diseases and Conditions</label>
       <textarea id="disease" name="disease"></textarea>
-      <button type="submit" id="save_btn">Save</button>
-      <button type="submit" id="save_rbtn">Save</button>
+      <button type="submit" id="save_btn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true; alert('bearer PLANTED_SECRET_TOKEN_SHOULD_NOT_PERSIST')">Save</button>
+      <button type="submit" id="save_rbtn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true">Save</button>
     </form>
+    <script>
+      // Inline subtype validation candidate for observational capture.
+      function validateSubTypeBeforeSave() {
+        var el = document.getElementById("subTypeId");
+        if (el && el.value === "-1") {
+          return "Please Select Sub Type";
+        }
+        return null;
+      }
+    </script>
+    <script>
+      // Unrelated sentinel occurrence must not alone prove subtype rejection.
+      var GENERIC_PAGE_CODE = "-1";
+    </script>
+    <script src="/admin/assets/product-validation.js"></script>
   </body>
 </html>
