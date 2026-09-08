@@ -11,7 +11,15 @@ import os from "node:os";
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureDir = join(root, "scripts/fixtures/eaushadhi-portal");
-const { parseHtml } = require(join(fixtureDir, "mini-dom.cjs"));
+const { parseHtml, installSaveDataFixture, uninstallSaveDataFixture } = require(join(fixtureDir, "mini-dom.cjs"));
+const { extractClassificationValidationEvidence } = require(join(
+  root,
+  "electron/eaushadhi-worker/capture/validation-evidence-in-page.js",
+));
+const { finalizeClassificationValidationEvidence } = require(join(
+  root,
+  "electron/eaushadhi-worker/capture/validation-evidence.js",
+));
 const { createEaushadhiWorker } = require(join(root, "electron/eaushadhi-worker/index.js"));
 const { attachMockBrowserCdp } = require(join(fixtureDir, "mock-browser-cdp.cjs"));
 const { STATES } = require(join(root, "electron/eaushadhi-worker/state.js"));
@@ -101,6 +109,11 @@ function createMockPage(startUrl = "about:blank") {
     setHtml(html, url) {
       document = parseHtml(html);
       if (url) currentUrl = url;
+      if (/\bSaveData\s*\(/.test(String(html || ""))) {
+        installSaveDataFixture();
+      } else {
+        uninstallSaveDataFixture();
+      }
     },
     addChildFrame(url) {
       extraFrames.push({ url: () => url });
@@ -293,10 +306,12 @@ const legacyTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-legacy-"));
 const legacy = makeWorker(legacyTmp);
 await legacy.worker.connect();
 globalThis.__EA_CAPTURE_HANDLER_FIRED = false;
+globalThis.__EA_SAVEDATA_INVOKED = false;
 legacy.mock.page.setHtml(legacyHtml, "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
 const legacyResult = await legacy.worker.capturePortalContract(TOKEN);
 assert(legacyResult.auth_outcome === "AUTHENTICATED_CANDIDATE", "legacy authenticated page is AUTHENTICATED_CANDIDATE");
 assert(globalThis.__EA_CAPTURE_HANDLER_FIRED !== true, "12: submit handler flags remain UNSET after capture");
+assert(globalThis.__EA_SAVEDATA_INVOKED !== true, "SaveData invocation flag remains false after capture");
 const legacyJson = readCapture(legacyTmp);
 assert(legacyJson.capture_schema_version === 1, "schema version remains 1");
 const validation = legacyJson.classification_validation_evidence;
@@ -323,6 +338,91 @@ assert(saveBtn.activated === false && saveRbtn.activated === false, "11: activat
 assert(saveBtn.onclick_property_is_function === true, "save_btn onclick property observed");
 assert(typeof saveBtn.onclick_source_preview === "string" && saveBtn.onclick_source_preview.length <= 240, "handler preview bounded");
 assert(typeof saveBtn.onclick_source_sha256 === "string" && saveBtn.onclick_source_sha256.length === 64, "Node-side handler sha256 present");
+assert(/\bSaveData\s*\(\s*\)/.test(String(saveBtn.onclick_source_preview || "")), "save_btn preview references SaveData()");
+
+const saveDataEvidence = (validation.referenced_handler_functions || []).find(
+  (item) => item.function_name === "SaveData" && item.control_id === "save_btn",
+);
+assert(saveDataEvidence, "1: SaveData referenced-handler evidence present");
+assert(saveDataEvidence.referenced_by_onclick === true, "1: SaveData resolved because #save_btn references it");
+assert(saveDataEvidence.found === true, "SaveData found");
+assert(saveDataEvidence.typeof === "function", "2: typeof === function");
+assert(saveDataEvidence.source_capture_status === "captured", "3: SaveData source captured without invocation");
+assert(typeof saveDataEvidence.source_length === "number" && saveDataEvidence.source_length > 0, "15: source_length recorded");
+assert(saveDataEvidence.source_truncated === false, "16: source_truncated false for in-limit SaveData");
+assert(
+  typeof saveDataEvidence.source_sha256 === "string" &&
+    saveDataEvidence.source_sha256.length === 64 &&
+    saveDataEvidence.hash_scope === "full_function_source",
+  "17: full-source hash is Node-side with hash_scope full_function_source",
+);
+assert(!Object.prototype.hasOwnProperty.call(saveDataEvidence, "function_source_raw"), "13: raw function source does not survive finalized JSON");
+assert(!JSON.stringify(saveDataEvidence).includes("function_source_raw"), "13b: function_source_raw absent from JSON");
+assert(Array.isArray(saveDataEvidence.snippets) && saveDataEvidence.snippets.length <= 8, "12: snippet count is bounded");
+assert(
+  saveDataEvidence.snippets.every((item) => !item.context_snippet || item.context_snippet.length <= 160),
+  "11: snippets are bounded",
+);
+assert(
+  saveDataEvidence.snippets.some(
+    (item) =>
+      item.direct_minus_one_comparison === true &&
+      /getElementById\s*\(\s*["']subTypeId["']\s*\)\s*\.\s*value\s*===\s*["']-1["']/.test(
+        String(item.context_snippet || ""),
+      ),
+  ),
+  "6: SaveData direct getElementById subtype === \"-1\" detected",
+);
+assert(
+  saveDataEvidence.snippets.some(
+    (item) =>
+      item.direct_minus_one_comparison === true &&
+      /\$\s*\(\s*["']#subTypeId["']\s*\)\s*\.\s*val\s*\(\s*\)\s*==\s*["']-1["']/.test(
+        String(item.context_snippet || ""),
+      ),
+  ),
+  "7: SaveData jQuery subtype == \"-1\" detected",
+);
+assert(
+  !(saveDataEvidence.snippets || []).some(
+    (item) =>
+      /otherField/.test(String(item.context_snippet || "")) &&
+      (item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+        item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+        item.direct_minus_one_comparison === true),
+  ),
+  "8: SaveData otherField == \"-1\" is NOT subtype rejection",
+);
+assert(
+  !(saveDataEvidence.snippets || []).some(
+    (item) =>
+      /Sub Type\*/.test(String(item.context_snippet || "")) &&
+      item.direct_minus_one_comparison === true,
+  ),
+  "9: generic Sub Type* does not prove minus-one rejection",
+);
+assert(
+  saveDataEvidence.observation_flags?.explicit_subtype_minus_one_rejection_observed === true &&
+    saveDataEvidence.snippets.some(
+      (item) =>
+        item.explicit_minus_one_rejection === true &&
+        item.direct_minus_one_comparison === true,
+    ),
+  "10: explicit rejection only with direct comparison + rejection messaging",
+);
+assert(
+  validation.conclusion_inputs?.referenced_handler_subtype_minus_one_rejection_candidate_observed === true,
+  "referenced_handler minus-one rejection candidate observed (additive)",
+);
+assert(
+  validation.conclusion_inputs?.referenced_handler_explicit_subtype_minus_one_rejection_observed === true,
+  "referenced_handler explicit rejection observed (additive)",
+);
+assert(!JSON.stringify(legacyJson).includes("PLANTED_SAVEDATA_SECRET_SHOULD_NOT_PERSIST"), "14: planted SaveData secret does not survive");
+assert(
+  (validation.limitations || []).includes("referenced_handler_bodies_via_tostring_only"),
+  "limitation: referenced_handler_bodies_via_tostring_only",
+);
 assert(
   (validation.script_matches || []).some(
     (match) =>
@@ -433,6 +533,49 @@ assert(
   "16: external script recorded unresolved without fetch",
 );
 assert(!JSON.stringify(legacyJson).includes("PLANTED_SECRET_TOKEN_SHOULD_NOT_PERSIST"), "17: planted secret does not survive capture");
+
+// Oversized SaveData source: do not transfer full body; do not mislabel hash scope.
+{
+  const prevDoc = global.document;
+  const prevLoc = global.location;
+  const prevSaveData = globalThis.SaveData;
+  const prevInvoked = globalThis.__EA_SAVEDATA_INVOKED;
+  try {
+    global.document = parseHtml(legacyHtml);
+    global.location = {
+      href: "https://www.e-aushadhi.gov.in/admin/addproductforlegacy",
+      pathname: "/admin/addproductforlegacy",
+    };
+    installSaveDataFixture();
+    const oversizedBody = `${"/*pad*/".repeat(45000)}\nif (document.getElementById("subTypeId").value === "-1") { return "Please Select Sub Type"; }\n`;
+    globalThis.__EA_SAVEDATA_INVOKED = false;
+    globalThis.SaveData = new Function(oversizedBody);
+    assert(Function.prototype.toString.call(globalThis.SaveData).length > 262144, "oversized fixture exceeds capture limit");
+    const oversizedRaw = extractClassificationValidationEvidence();
+    assert(globalThis.__EA_SAVEDATA_INVOKED !== true, "18: oversized path does not invoke SaveData");
+    const oversizedEntry = (oversizedRaw.referenced_handler_functions || [])[0];
+    assert(oversizedEntry && oversizedEntry.source_truncated === true, "18: source_truncated true when over limit");
+    assert(oversizedEntry.function_source_raw == null, "18: oversized path does not transfer unrestricted full body");
+    assert(oversizedEntry.source_capture_status === "captured_truncated", "18: captured_truncated status");
+    assert(typeof oversizedEntry.source_length === "number" && oversizedEntry.source_length > 262144, "18: source_length is original length");
+    const oversizedFinal = finalizeClassificationValidationEvidence(oversizedRaw);
+    const finalizedEntry = (oversizedFinal.referenced_handler_functions || [])[0];
+    assert(finalizedEntry.source_truncated === true, "16b: finalized source_truncated true");
+    assert(finalizedEntry.source_sha256 == null, "18: no full-source hash when truncated");
+    assert(finalizedEntry.hash_scope == null, "18: hash_scope null when truncated (not mislabeled full)");
+    assert(!JSON.stringify(oversizedFinal).includes("function_source_raw"), "18: raw absent after finalize");
+    assert(
+      (oversizedFinal.limitations || []).includes("referenced_function_source_size_limited"),
+      "limitation: referenced_function_source_size_limited",
+    );
+  } finally {
+    global.document = prevDoc;
+    global.location = prevLoc;
+    globalThis.SaveData = prevSaveData;
+    globalThis.__EA_SAVEDATA_INVOKED = prevInvoked;
+  }
+}
+
 assert(
   (validation.limitations || []).includes("external_script_bodies_not_fetched") &&
     (validation.limitations || []).includes("delegated_or_dynamic_listeners_not_enumerated") &&

@@ -54,8 +54,8 @@
       <input id="compositionTitle" name="compositionTitle" type="text" />
       <label for="disease">Diseases and Conditions</label>
       <textarea id="disease" name="disease"></textarea>
-      <button type="submit" id="save_btn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true; alert('bearer PLANTED_SECRET_TOKEN_SHOULD_NOT_PERSIST')">Save</button>
-      <button type="submit" id="save_rbtn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true">Save</button>
+      <button type="submit" id="save_btn" onclick="return SaveData();">Save</button>
+      <button type="submit" id="save_rbtn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true; alert('bearer PLANTED_SECRET_TOKEN_SHOULD_NOT_PERSIST')">Save</button>
     </form>
     <script>
       // Generic subtype + validation language WITHOUT a "-1" comparison.

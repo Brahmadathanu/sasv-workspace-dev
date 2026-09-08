@@ -180,12 +180,66 @@ function createNode(tag, attrs) {
   };
 
   if (Object.prototype.hasOwnProperty.call(attrs, "onclick")) {
-    node.onclick = function fixtureOnClickHandler() {
-      globalThis.__EA_CAPTURE_HANDLER_FIRED = true;
-    };
+    const onclickSrc = String(attrs.onclick || "");
+    if (/\bSaveData\s*\(\s*\)/.test(onclickSrc) && !/\.\s*SaveData\s*\(/.test(onclickSrc)) {
+      // Mirror the live portal wrapper shape so Function#toString exposes SaveData().
+      node.onclick = function () {
+        globalThis.__EA_CAPTURE_HANDLER_FIRED = true;
+        if (typeof globalThis.SaveData === "function") {
+          return globalThis.SaveData();
+        }
+        return undefined;
+      };
+    } else {
+      node.onclick = function fixtureOnClickHandler() {
+        globalThis.__EA_CAPTURE_HANDLER_FIRED = true;
+      };
+    }
   }
 
   return node;
+}
+
+/**
+ * Install a read-only-inspectable SaveData fixture for legacy Add Product smokes.
+ * Calling SaveData sets __EA_SAVEDATA_INVOKED — capture must leave that false.
+ */
+function installSaveDataFixture() {
+  globalThis.__EA_SAVEDATA_INVOKED = false;
+  globalThis.SaveData = function SaveData() {
+    globalThis.__EA_SAVEDATA_INVOKED = true;
+    // Direct subtype-to--1 + rejection messaging (explicit candidate).
+    if (document.getElementById("subTypeId").value === "-1") {
+      return "Please Select Sub Type";
+    }
+    // jQuery form.
+    if ($("#subTypeId").val() == "-1") {
+      return false;
+    }
+    // Reversed operand order.
+    if ("-1" === document.getElementById("subTypeId").value) {
+      return "blank";
+    }
+    // Negative: subtype ref present + unrelated field compared to "-1".
+    var subtype = document.getElementById("subTypeId");
+    if (otherField == "-1") {
+      return subtype;
+    }
+    // Generic Sub Type* / required wording without a subtype-to--1 comparison.
+    var labelHint = "Sub Type* is required when category is selected";
+    // Planted secret in an unrelated region — must not survive sanitized snippets.
+    var deadCodeMarker = "bearer PLANTED_SAVEDATA_SECRET_SHOULD_NOT_PERSIST unused";
+    return labelHint || deadCodeMarker || true;
+  };
+}
+
+function uninstallSaveDataFixture() {
+  try {
+    delete globalThis.SaveData;
+  } catch {
+    globalThis.SaveData = undefined;
+  }
+  globalThis.__EA_SAVEDATA_INVOKED = false;
 }
 
 function collect(root, selector) {
@@ -278,4 +332,6 @@ function parseHtml(html) {
 
 module.exports = {
   parseHtml,
+  installSaveDataFixture,
+  uninstallSaveDataFixture,
 };
