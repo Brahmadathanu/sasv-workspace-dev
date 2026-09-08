@@ -47,6 +47,10 @@ const requiredRpcs = [
   "rpc_eaushadhi_reopen_line_review",
   "rpc_eaushadhi_reopen_product_review",
   "rpc_eaushadhi_reopen_product_actions",
+  "rpc_eaushadhi_reopen_product_classification",
+  "rpc_eaushadhi_product_classification_review_get",
+  "rpc_eaushadhi_product_classification_review_save",
+  "rpc_eaushadhi_product_classification_options",
   "rpc_eaushadhi_approved_product_copy_get",
   "rpc_eaushadhi_register_approved_product_copy",
   "rpc_eaushadhi_document_upload_contract",
@@ -114,6 +118,59 @@ assert(apiSrc.includes("p_raw_quantity_value:"), "source correct uses p_raw_quan
 assert(apiSrc.includes("p_raw_unit_text:"), "source correct uses p_raw_unit_text");
 assert(apiSrc.includes("p_correction_reason:"), "source correct uses p_correction_reason");
 assert(apiSrc.includes("p_reason:"), "reopen RPCs use p_reason");
+assert(apiSrc.includes("reopenProductClassification"), "classification reopen wrapper exists");
+assert(
+  /rpc_eaushadhi_reopen_product_classification[\s\S]*p_reason/.test(apiSrc),
+  "classification reopen passes p_reason to server",
+);
+assert(apiSrc.includes("p_subtype_mode:"), "classification save uses p_subtype_mode");
+assert(apiSrc.includes("p_product_type_option_id:"), "classification save uses type option id");
+assert(apiSrc.includes("p_product_category_option_id:"), "classification save uses category option id");
+assert(apiSrc.includes("p_product_subtype_option_id:"), "classification save uses subtype option id");
+assert(apiSrc.includes('p_verify: verify === true'), "classification/ordinary saves use p_verify");
+assert(apiSrc.includes("fetchProductClassificationOptions"), "classification options wrapper exists");
+assert(
+  !apiSrc.includes('fetchPortalOptions("PRODUCT_TYPE")') &&
+    !apiSrc.includes('fetchPortalOptions("PRODUCT_CATEGORY")') &&
+    !apiSrc.includes('fetchPortalOptions("PRODUCT_SUBTYPE")'),
+  "generic portal_options is not used for classification domains",
+);
+assert(controlSrc.includes("Portal Classification"), "classification card loads in Product Details");
+assert(controlSrc.includes("portalClassificationCard"), "classification card has stable host id");
+assert(controlSrc.includes("fldClassProductType"), "Product Type dropdown exists");
+assert(controlSrc.includes("fldClassCategory"), "Category dropdown exists");
+assert(controlSrc.includes("fldClassSubtype"), "Portal Sub Type dropdown exists");
+assert(controlSrc.includes("Not yet resolved"), "UNRESOLVED subtype display copy exists");
+assert(controlSrc.includes("Verify Portal Classification"), "Verify action exists");
+assert(controlSrc.includes("Reopen Portal Classification"), "Reopen action exists");
+assert(controlSrc.includes("openReopen(\"classification\""), "classification uses reopen modal");
+assert(controlSrc.includes("queueClassificationAutosave(true)"), "dropdown edits trigger immediate autosave");
+assert(controlSrc.includes("queueClassificationAutosave(false)"), "notes use debounced autosave");
+assert(controlSrc.includes("p_verify") || apiSrc.includes("p_verify: verify === true"), "ordinary save uses p_verify false path");
+assert(controlSrc.includes("persistClassification(false)"), "ordinary dropdown edit saves with p_verify=false");
+assert(controlSrc.includes("persistClassification(true)"), "Verify calls classification save with p_verify=true");
+assert(controlSrc.includes('scope === "classification"'), "stale row_version visible/reload for classification");
+assert(controlSrc.includes("reloadSelected({ preserveDrafts: false })"), "stale classification reloads workspace");
+assert(controlSrc.includes("handleClassificationTypeChange"), "Type change reloads Category/Sub Type scope");
+assert(controlSrc.includes("clearIncompatibleClassificationChildren"), "incompatible children cleared on Type change");
+assert(controlSrc.includes("CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE"), "Kuzhambu independence note rendered");
+assert(controlSrc.includes("is_ready_for_entry === true"), "readiness remains server-owned");
+assert(
+  /Portal Classification[\s\S]*reviewStatusChipClass\(classificationStatus\)/.test(controlSrc) ||
+    controlSrc.includes('span>Portal Classification</span>'),
+  "readiness shows Portal Classification status gate",
+);
+assert(!controlSrc.includes("classification_review_complete") || controlSrc.includes("is_ready_for_entry"), "READY not invented client-side from classification alone");
+assert(!/rpc_eaushadhi_worker_/.test(controlSrc.match(/persistClassification[\s\S]*?^async function/m)?.[0] || ""), "classification path has no worker calls");
+assert(!/mark_submitted|Submit QC|portal write/i.test(controlSrc.slice(controlSrc.indexOf("persistClassification"), controlSrc.indexOf("persistClassification") + 800)), "no Submit/QC in classification persist");
+assert(helpersSrc.includes("neverMapInternalDosageToPortalSubtype"), "helper blocks Kuzhambu auto-map");
+assert(helpersSrc.includes("selectableClassificationOptions"), "fill_eligible filtering helper exists");
+assert(apiSrc.includes("classification,"), "workspace loads classification payload");
+assert(controlSrc.includes("Regulatory purpose"), "existing Product Details section retained");
+assert(controlSrc.includes("Pharmacological"), "Actions unaffected");
+assert(controlSrc.includes("Composition"), "Composition tab retained");
+assert(!controlSrc.includes("fetchWorkerMarkSubmitted"), "no Submit wrapper usage");
+assert(!/Enter Product/.test(controlSrc), "UI does not expose Enter Product");
 assert(apiSrc.includes("p_storage_bucket:"), "copy register uses p_storage_bucket");
 assert(apiSrc.includes("p_storage_path:"), "copy register uses p_storage_path");
 assert(apiSrc.includes("p_original_file_name:"), "copy register uses p_original_file_name");

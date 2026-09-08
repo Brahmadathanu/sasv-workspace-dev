@@ -31,8 +31,15 @@ import {
   canSubmitSourceResolution,
   canSubmitWorkingSourceCorrection,
   canVerifyActionSet,
+  canVerifyClassification,
   canVerifyCompositionLine,
   canVerifyProductDetails,
+  classificationDirty,
+  classificationDraftFromReview,
+  classificationSuggestionCopy,
+  classificationVerifyPendingCopy,
+  CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE,
+  clearIncompatibleClassificationChildren,
   classifyRpcError,
   combinedRestrictedDeclarationState,
   COMBINED_RESTRICTED_DECLARATION_LABEL,
@@ -89,10 +96,12 @@ import {
   provenanceLabel,
   queueKpis,
   resetQueueRenderCount,
+  resolveClassificationSubtypeMode,
   resolveFieldProvenance,
   reviewStatusChipClass,
   safeText,
   scheduleDebounced,
+  selectableClassificationOptions,
   severityLabel,
   severityRank,
   shouldAppendQueueChunk,
@@ -120,6 +129,7 @@ import {
   EaushadhiRpcError,
   fetchProductQueue,
   fetchDocumentUploadContract,
+  fetchProductClassificationOptions,
   correctWorkingSourceLine,
   fetchSourceIssueContext,
   loadProductWorkspace,
@@ -129,10 +139,12 @@ import {
   removeApprovedProductCopyObject,
   reopenLineReview,
   reopenProductActions,
+  reopenProductClassification,
   reopenProductReview,
   resolveSourceIssue,
   saveLineReview,
   saveProductActions,
+  saveProductClassificationReview,
   saveProductReview,
   signedApprovedProductCopyUrl,
   uploadApprovedProductCopyObject,
@@ -198,6 +210,15 @@ const state = {
   issues: [],
   detailsDraft: null,
   detailsBaseline: null,
+  classification: null,
+  classificationDraft: null,
+  classificationBaseline: null,
+  classificationOptions: {
+    PRODUCT_TYPE: [],
+    PRODUCT_CATEGORY: [],
+    PRODUCT_SUBTYPE: [],
+  },
+  classificationSaveStatus: "",
   lineDrafts: new Map(),
   lineBaselines: new Map(),
   actionsDraft: [],
@@ -257,6 +278,9 @@ const lineHalted = new Set();
 let detailsInflight = false;
 let detailsQueued = false;
 let detailsHalted = false;
+let classificationInflight = false;
+let classificationQueued = false;
+let classificationHalted = false;
 let actionsInflight = false;
 let actionsQueued = false;
 let actionsHalted = false;
@@ -405,6 +429,7 @@ function toastError(err) {
 function workspaceIsDirty() {
   if (!state.selectedProductId) return false;
   if (detailsDirty(state.detailsDraft, state.detailsBaseline)) return true;
+  if (classificationDirty(state.classificationDraft, state.classificationBaseline)) return true;
   if (actionsDirty(state.actionsDraft, state.actionsBaseline)) return true;
   for (const [id, draft] of state.lineDrafts.entries()) {
     if (lineDirty(draft, state.lineBaselines.get(id))) return true;
@@ -714,6 +739,40 @@ function optionHtml(options, selectedId, extra = []) {
   return parts.join("");
 }
 
+function classificationOptionHtml(options, selectedId, { emptyLabel = "Select..." } = {}) {
+  const seen = new Set();
+  const list = selectableClassificationOptions(options);
+  const parts = [`<option value="">${escapeHtml(emptyLabel)}</option>`];
+  for (const opt of list) {
+    const id = optionId(opt?.portal_option_id ?? opt?.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const label = displayText(opt?.label, id);
+    const selected = idsEqual(id, selectedId) ? " selected" : "";
+    parts.push(
+      `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(label)}</option>`,
+    );
+  }
+  if (selectedId && !seen.has(String(selectedId))) {
+    parts.push(
+      `<option value="${escapeHtml(selectedId)}" selected>Current value ${escapeHtml(selectedId)}</option>`,
+    );
+  }
+  return parts.join("");
+}
+
+function classificationSubtypeOptionHtml(draft) {
+  const mode = resolveClassificationSubtypeMode(draft || {});
+  if (mode === "BLANK") {
+    return `<option value="" selected>Not yet resolved</option>`;
+  }
+  const selected =
+    mode === "OPTION" ? optionId(draft?.productSubtypeOptionId) : null;
+  return classificationOptionHtml(state.classificationOptions.PRODUCT_SUBTYPE, selected, {
+    emptyLabel: "Not yet resolved",
+  });
+}
+
 function renderIssues(issues, emptyText) {
   const list = Array.isArray(issues) ? issues : [];
   if (!list.length) {
@@ -912,7 +971,88 @@ function renderDetails() {
   const detailsVerifyHint = productDetailsVerifyPendingCopy(draft, {
     saveStatus: state.detailsSaveStatus,
   });
+  const classDraft =
+    state.classificationDraft || classificationDraftFromReview(state.classification);
+  const classLocked = isVerifiedStatus(
+    state.classification?.review_status ?? classDraft.reviewStatus,
+  );
+  const classDisable = classLocked || resolveClassificationSubtypeMode(classDraft) === "BLANK"
+    ? " disabled"
+    : "";
+  const typeSelected = optionId(classDraft.productTypeOptionId);
+  const childDisable = classDisable || !typeSelected ? " disabled" : "";
+  const classSuggestions = classificationSuggestionCopy(state.classification);
+  const classVerifyOk = canVerifyClassification(classDraft, {
+    canEdit: canWrite(),
+    saveStatus: state.classificationSaveStatus,
+    reviewStatus: state.classification?.review_status,
+  });
+  const classVerifyHint = classificationVerifyPendingCopy(classDraft, {
+    saveStatus: state.classificationSaveStatus,
+    reviewStatus: state.classification?.review_status,
+  });
+  const classStatus = normalizeReviewStatus(
+    state.classification?.review_status ?? classDraft.reviewStatus,
+  ) || "PENDING";
   host.innerHTML = `
+    <div class="section-card${classLocked ? " is-verified" : ""}" id="portalClassificationCard">
+      <div class="section-title-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <h3 class="section-title" style="margin:0">Portal Classification</h3>
+        ${chip(reviewStatusChipClass(classStatus), displayText(classStatus, "PENDING"))}
+      </div>
+      ${classLocked ? lockNoteHtml() : ""}
+      <div class="form-field">
+        <label for="fldClassProductType">Product Type</label>
+        <select id="fldClassProductType" class="sasv-control" data-edit-action="true" data-classification-field="type"${classDisable}>
+          ${classificationOptionHtml(state.classificationOptions.PRODUCT_TYPE, classDraft.productTypeOptionId)}
+        </select>
+        <span class="muted-note">Suggested Product Type: ${escapeHtml(classSuggestions.productType)}</span>
+      </div>
+      <div class="form-field">
+        <label for="fldClassCategory">Category / Dosage Form</label>
+        <select id="fldClassCategory" class="sasv-control" data-edit-action="true" data-classification-field="category"${childDisable}>
+          ${classificationOptionHtml(state.classificationOptions.PRODUCT_CATEGORY, classDraft.productCategoryOptionId)}
+        </select>
+        <span class="muted-note">Suggested Category: ${escapeHtml(classSuggestions.productCategory)}</span>
+      </div>
+      <div class="form-field">
+        <label for="fldClassSubtype">Portal Sub Type</label>
+        <select id="fldClassSubtype" class="sasv-control" data-edit-action="true" data-classification-field="subtype"${
+          childDisable || resolveClassificationSubtypeMode(classDraft) === "BLANK" ? " disabled" : ""
+        }>
+          ${classificationSubtypeOptionHtml(classDraft)}
+        </select>
+        <span class="muted-note">Portal Sub Type: ${escapeHtml(classSuggestions.productSubtype)}</span>
+        <span class="muted-note">${escapeHtml(CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE)}</span>
+      </div>
+      <div class="form-field">
+        <label for="fldClassNotes">Review Notes</label>
+        <textarea id="fldClassNotes" class="sasv-control" rows="2" data-edit-action="true" data-classification-field="notes"${classDisable}>${escapeHtml(classDraft.reviewNotes || "")}</textarea>
+      </div>
+      ${autosaveHtml(state.classificationSaveStatus, "classificationAutosave")}
+      <div class="action-row">
+        ${
+          classLocked
+            ? `${chip("success", "Verified")}
+        ${
+          canReopenReviewedSection({
+            reviewStatus: state.classification?.review_status,
+            canEdit: canWrite(),
+          })
+            ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenClassification" data-edit-action="true">Reopen Portal Classification</button>`
+            : ""
+        }`
+            : `<button type="button" class="icon-btn with-label primary" id="btnVerifyClassification" data-edit-action="true"${
+                classVerifyOk ? "" : " data-force-disabled=\"true\""
+              }${classVerifyHint ? ` title="${escapeHtml(classVerifyHint)}"` : ""}>Verify Portal Classification</button>`
+        }
+      </div>
+      ${
+        classLocked
+          ? ""
+          : `<p class="disabled-reason" id="classificationVerifyHint"${classVerifyHint ? "" : " hidden"}>${escapeHtml(classVerifyHint)}</p>`
+      }
+    </div>
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Regulatory purpose</h3>
       ${locked ? lockNoteHtml() : ""}
@@ -2124,6 +2264,8 @@ function renderReadiness() {
     ["Approved Product Copy", evidence.approved_product_copy_present === true, false],
     ["Approved Formulation", evidence.approved_formulation_present === true, false],
   ];
+  const classificationStatus =
+    normalizeReviewStatus(state.classification?.review_status) || "PENDING";
   const ready = row.is_ready_for_entry === true;
   const showPromote = evidence.approved_formulation_present !== true;
   const showVerify = normalizeReviewStatus(review.review_status ?? row.review_status) !== "VERIFIED";
@@ -2135,6 +2277,10 @@ function renderReadiness() {
         ready ? "READY FOR E-AUSHADHI" : "NOT READY"
       }</div>
       <div class="readiness-compact">
+        <div class="readiness-chip"><span>Portal Classification</span>${chip(
+          reviewStatusChipClass(classificationStatus),
+          displayText(classificationStatus, "PENDING"),
+        )}</div>
         ${gates
           .map(([label, met, blocked]) => {
             const status = gateStatus(met, blocked);
@@ -2199,7 +2345,9 @@ function selectWorkflowTab(next, { focusTab = false } = {}) {
   if (!WORKSPACE_TABS.includes(next)) return;
   if (state.tab === "details") {
     syncDetailsDraftFromForm();
+    syncClassificationDraftFromForm();
     void flushDetailsAutosave();
+    void flushClassificationAutosave();
   }
   if (state.tab === "composition") void flushAllLineAutosaves();
   if (state.tab === "actions") void flushActionsAutosave();
@@ -2234,6 +2382,23 @@ function syncDetailsDraftFromForm() {
   syncDetailsVerifyUi();
 }
 
+function syncClassificationDraftFromForm() {
+  if (!state.classificationDraft) return;
+  const subtypeId = optionId($("fldClassSubtype")?.value);
+  const subtypeMode = resolveClassificationSubtypeMode({
+    subtypeMode: state.classificationDraft.subtypeMode,
+    productSubtypeOptionId: subtypeId,
+  });
+  state.classificationDraft = {
+    ...state.classificationDraft,
+    productTypeOptionId: optionId($("fldClassProductType")?.value),
+    productCategoryOptionId: optionId($("fldClassCategory")?.value),
+    productSubtypeOptionId: subtypeMode === "OPTION" ? subtypeId : null,
+    subtypeMode,
+    reviewNotes: $("fldClassNotes")?.value ?? "",
+  };
+}
+
 function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.review = payload.review;
   state.lines = payload.lines || [];
@@ -2241,6 +2406,12 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.evidence = payload.evidence;
   state.issues = payload.issues || [];
   state.copy = payload.copy || null;
+  state.classification = payload.classification || null;
+  state.classificationOptions = payload.classificationOptions || {
+    PRODUCT_TYPE: [],
+    PRODUCT_CATEGORY: [],
+    PRODUCT_SUBTYPE: [],
+  };
   if (payload.copyContract?.error) {
     state.copyContract = null;
     state.copyContractError = userMessageForError(payload.copyContract.error) || EVIDENCE_CONTRACT_UNAVAILABLE;
@@ -2255,10 +2426,12 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   if (!preserveDrafts) {
     state.lineSaveStatus = new Map();
     state.detailsSaveStatus = "";
+    state.classificationSaveStatus = "";
     state.actionsSaveStatus = "";
     state.copyPick = null;
     lineHalted.clear();
     detailsHalted = false;
+    classificationHalted = false;
     actionsHalted = false;
   }
   const freshDetails = detailsDraftFromReview(state.review);
@@ -2268,6 +2441,22 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
     state.detailsDraft = freshDetails;
   }
   state.detailsBaseline = freshDetails;
+
+  const freshClassification = classificationDraftFromReview(state.classification);
+  if (
+    preserveDrafts &&
+    state.classificationDraft &&
+    classificationDirty(state.classificationDraft, state.classificationBaseline)
+  ) {
+    state.classificationDraft = {
+      ...state.classificationDraft,
+      rowVersion: freshClassification.rowVersion,
+      reviewStatus: freshClassification.reviewStatus,
+    };
+  } else {
+    state.classificationDraft = freshClassification;
+  }
+  state.classificationBaseline = freshClassification;
 
   const nextDrafts = new Map();
   const nextBaselines = new Map();
@@ -2313,6 +2502,7 @@ async function openProduct(productId) {
   if (state.selectedProductId && !idsEqual(state.selectedProductId, productId)) {
     if (!confirmLeaveDirty()) return;
     await flushDetailsAutosave();
+    await flushClassificationAutosave();
     await flushAllLineAutosaves();
     await flushActionsAutosave();
   }
@@ -2401,6 +2591,7 @@ async function reloadSelected({
 async function backToQueue() {
   if (!confirmLeaveDirty()) return;
   await flushDetailsAutosave();
+  await flushClassificationAutosave();
   await flushAllLineAutosaves();
   await flushActionsAutosave();
   state.selectedProductId = null;
@@ -2415,6 +2606,15 @@ async function backToQueue() {
   state.copyPick = null;
   state.queueRow = null;
   state.review = null;
+  state.classification = null;
+  state.classificationDraft = null;
+  state.classificationBaseline = null;
+  state.classificationSaveStatus = "";
+  state.classificationOptions = {
+    PRODUCT_TYPE: [],
+    PRODUCT_CATEGORY: [],
+    PRODUCT_SUBTYPE: [],
+  };
   state.lines = [];
   state.actions = [];
   state.issues = [];
@@ -2648,6 +2848,150 @@ async function flushDetailsAutosave() {
   if (flushDebounced(autosaveTimers, "details")) await autosaveDetails();
 }
 
+async function persistClassification(verify) {
+  const draft = state.classificationDraft;
+  if (!draft) return null;
+  if (!verify && classificationHalted) return null;
+  if (!verify && isVerifiedStatus(state.classification?.review_status)) return null;
+  const subtypeMode = resolveClassificationSubtypeMode(draft);
+  state.classificationSaveStatus = "saving";
+  patchAutosaveEl("classificationAutosave", "saving");
+  const result = await saveProductClassificationReview({
+    productId: state.selectedProductId,
+    expectedRowVersion: draft.rowVersion,
+    productTypeOptionId: draft.productTypeOptionId,
+    productCategoryOptionId: draft.productCategoryOptionId,
+    productSubtypeOptionId: subtypeMode === "OPTION" ? draft.productSubtypeOptionId : null,
+    subtypeMode,
+    reviewNotes: safeText(draft.reviewNotes) || null,
+    verify,
+  });
+  if (result?.row_version != null && state.classificationDraft) {
+    state.classificationDraft.rowVersion = result.row_version;
+    state.classificationDraft.reviewStatus = result.review_status || state.classificationDraft.reviewStatus;
+    state.classificationDraft.subtypeMode = result.selected_subtype_mode || subtypeMode;
+  }
+  if (state.classification && result) {
+    state.classification = {
+      ...state.classification,
+      ...result,
+      review_status: result.review_status,
+      row_version: result.row_version,
+      selected_subtype_mode: result.selected_subtype_mode,
+    };
+  }
+  state.classificationBaseline = { ...state.classificationDraft };
+  state.classificationSaveStatus = "saved";
+  patchAutosaveEl("classificationAutosave", "saved");
+  return result;
+}
+
+async function autosaveClassification() {
+  if (classificationHalted || !canWrite()) return;
+  if (classificationInflight) {
+    classificationQueued = true;
+    return;
+  }
+  classificationInflight = true;
+  try {
+    await persistClassification(false);
+  } catch (err) {
+    handleAutosaveError(err, "classification");
+  } finally {
+    classificationInflight = false;
+    if (classificationQueued) {
+      classificationQueued = false;
+      void autosaveClassification();
+    }
+  }
+}
+
+function queueClassificationAutosave(immediate) {
+  if (immediate) {
+    flushDebounced(autosaveTimers, "classification");
+    void autosaveClassification();
+    return;
+  }
+  scheduleDebounced(autosaveTimers, "classification", AUTOSAVE_DEBOUNCE_MS, () => {
+    void autosaveClassification();
+  });
+}
+
+async function flushClassificationAutosave() {
+  if (flushDebounced(autosaveTimers, "classification")) await autosaveClassification();
+}
+
+async function reloadClassificationScopedOptions(typeId) {
+  if (!typeId) {
+    state.classificationOptions = {
+      ...state.classificationOptions,
+      PRODUCT_CATEGORY: [],
+      PRODUCT_SUBTYPE: [],
+    };
+    return;
+  }
+  const [categories, subtypes] = await Promise.all([
+    fetchProductClassificationOptions("PRODUCT_CATEGORY", typeId),
+    fetchProductClassificationOptions("PRODUCT_SUBTYPE", typeId),
+  ]);
+  state.classificationOptions = {
+    ...state.classificationOptions,
+    PRODUCT_CATEGORY: categories,
+    PRODUCT_SUBTYPE: subtypes,
+  };
+}
+
+async function handleClassificationTypeChange() {
+  if (!state.classificationDraft) return;
+  if (!canEditReviewedSection(state.classification?.review_status)) return;
+  const typeId = optionId($("fldClassProductType")?.value);
+  state.classificationDraft.productTypeOptionId = typeId;
+  await reloadClassificationScopedOptions(typeId);
+  const cleared = clearIncompatibleClassificationChildren({
+    productTypeOptionId: typeId,
+    productCategoryOptionId: state.classificationDraft.productCategoryOptionId,
+    productSubtypeOptionId: state.classificationDraft.productSubtypeOptionId,
+    categoryOptions: state.classificationOptions.PRODUCT_CATEGORY,
+    subtypeOptions: state.classificationOptions.PRODUCT_SUBTYPE,
+  });
+  state.classificationDraft = {
+    ...state.classificationDraft,
+    ...cleared,
+  };
+  renderDetails();
+  queueClassificationAutosave(true);
+}
+
+async function submitClassification(verify) {
+  syncClassificationDraftFromForm();
+  if (verify) {
+    const reason = classificationVerifyPendingCopy(state.classificationDraft, {
+      saveStatus: state.classificationSaveStatus,
+      reviewStatus: state.classification?.review_status,
+    });
+    if (
+      !canVerifyClassification(state.classificationDraft, {
+        canEdit: canWrite(),
+        saveStatus: state.classificationSaveStatus,
+        reviewStatus: state.classification?.review_status,
+      })
+    ) {
+      showToast(reason || "Portal Classification is not ready to verify.", "error");
+      return;
+    }
+  }
+  flushDebounced(autosaveTimers, "classification");
+  if (!verify) {
+    await autosaveClassification();
+    return;
+  }
+  await runMutation(async () => {
+    await persistClassification(true);
+    showToast("Portal Classification verified.", "success");
+    await reloadSelected({ preserveDrafts: false });
+  });
+}
+
 async function persistActions(verify) {
   if (!verify && actionsHalted) return null;
   if (!verify && isVerifiedStatus(state.actionsReviewStatus)) return null;
@@ -2721,6 +3065,13 @@ function handleAutosaveError(err, scope, lineId) {
       detailsHalted = true;
       state.detailsSaveStatus = "stale";
       patchAutosaveEl("detailsAutosave", "stale");
+    } else if (scope === "classification") {
+      classificationHalted = true;
+      state.classificationSaveStatus = "stale";
+      patchAutosaveEl("classificationAutosave", "stale");
+      showToast("Server data changed - refresh/review required", "error", 6400);
+      void reloadSelected({ preserveDrafts: false });
+      return;
     } else {
       actionsHalted = true;
       state.actionsSaveStatus = "stale";
@@ -2735,6 +3086,9 @@ function handleAutosaveError(err, scope, lineId) {
   } else if (scope === "details") {
     state.detailsSaveStatus = "failed";
     patchAutosaveEl("detailsAutosave", "failed");
+  } else if (scope === "classification") {
+    state.classificationSaveStatus = "failed";
+    patchAutosaveEl("classificationAutosave", "failed");
   } else {
     state.actionsSaveStatus = "failed";
     patchAutosaveEl("actionsAutosave", "failed");
@@ -2860,6 +3214,13 @@ function reopenCopy(kind) {
       confirm: "Reopen Product Details",
     };
   }
+  if (kind === "classification") {
+    return {
+      title: "Reopen Portal Classification",
+      body: "Portal Classification has already been verified. Reopening will return the section to In Review.",
+      confirm: "Reopen Portal Classification",
+    };
+  }
   return {
     title: "Reopen Actions",
     body: "Pharmacological actions have already been verified. Reopening will return the section to In Review.",
@@ -2928,6 +3289,12 @@ async function submitReopen() {
       await reopenProductReview({
         productId: state.selectedProductId,
         expectedRowVersion: state.detailsDraft?.rowVersion,
+        reason,
+      });
+    } else if (kind === "classification") {
+      await reopenProductClassification({
+        productId: state.selectedProductId,
+        expectedRowVersion: state.classificationDraft?.rowVersion,
         reason,
       });
     } else {
@@ -3351,6 +3718,7 @@ function wireEvents() {
   $("homeBtn")?.addEventListener("click", async () => {
     if (!confirmLeaveDirty()) return;
     await flushDetailsAutosave();
+    await flushClassificationAutosave();
     await flushAllLineAutosaves();
     await flushActionsAutosave();
     Platform.goHome();
@@ -3561,6 +3929,8 @@ function wireEvents() {
   $("tab-details")?.addEventListener("click", (event) => {
     if (event.target.id === "btnVerifyDetails") submitDetails(true);
     if (event.target.id === "btnReopenDetails") openReopen("details", event.target);
+    if (event.target.id === "btnVerifyClassification") void submitClassification(true);
+    if (event.target.id === "btnReopenClassification") openReopen("classification", event.target);
     const boolBtn = event.target.closest("[data-bool-value]");
     if (boolBtn && state.detailsDraft && canEditReviewedSection(state.review?.review_status)) {
       const group = boolBtn.closest("[data-bool-key]");
@@ -3614,6 +3984,11 @@ function wireEvents() {
   });
   $("tab-details")?.addEventListener("input", (event) => {
     if (state.tab !== "details") return;
+    if (event.target.id === "fldClassNotes") {
+      syncClassificationDraftFromForm();
+      queueClassificationAutosave(false);
+      return;
+    }
     syncDetailsDraftFromForm();
     if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {
       queueDetailsAutosave(false);
@@ -3621,10 +3996,24 @@ function wireEvents() {
   });
   $("tab-details")?.addEventListener("change", (event) => {
     if (state.tab !== "details") return;
+    if (event.target.id === "fldClassProductType") {
+      void handleClassificationTypeChange();
+      return;
+    }
+    if (event.target.id === "fldClassCategory" || event.target.id === "fldClassSubtype") {
+      syncClassificationDraftFromForm();
+      queueClassificationAutosave(true);
+      renderDetails();
+      return;
+    }
     syncDetailsDraftFromForm();
     if (event.target.id === "fldPurpose") queueDetailsAutosave(true);
   });
   $("tab-details")?.addEventListener("focusout", (event) => {
+    if (event.target.id === "fldClassNotes") {
+      void flushClassificationAutosave();
+      return;
+    }
     if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {
       void flushDetailsAutosave();
     }

@@ -1609,3 +1609,174 @@ export function findQueueRow(rows, productId) {
   const list = Array.isArray(rows) ? rows : [];
   return list.find((row) => idsEqual(row?.product_id, id)) || null;
 }
+
+export const CLASSIFICATION_OPTION_DOMAINS = Object.freeze([
+  "PRODUCT_TYPE",
+  "PRODUCT_CATEGORY",
+  "PRODUCT_SUBTYPE",
+]);
+
+export const CLASSIFICATION_SUBTYPE_MODES = Object.freeze([
+  "UNRESOLVED",
+  "OPTION",
+  "BLANK",
+]);
+
+export const CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE =
+  "Portal Sub Type is independent of internal dosage subtype. Internal Kuzhambu is not reused.";
+
+export function normalizeClassificationSubtypeMode(value) {
+  const mode = safeText(value).toUpperCase();
+  return CLASSIFICATION_SUBTYPE_MODES.includes(mode) ? mode : "UNRESOLVED";
+}
+
+export function isDashOrBlankPortalOptionLabel(label) {
+  const text = safeText(label);
+  if (!text) return true;
+  const lower = text.toLowerCase();
+  return text === "-" || text === "–" || text === "—" || lower === "blank";
+}
+
+export function isFillEligibleClassificationOption(option) {
+  if (!option || typeof option !== "object") return false;
+  if (option.fill_eligible === false) return false;
+  if (isDashOrBlankPortalOptionLabel(option.label)) return false;
+  return Boolean(optionId(option.portal_option_id ?? option.id));
+}
+
+export function selectableClassificationOptions(options) {
+  return (Array.isArray(options) ? options : []).filter(isFillEligibleClassificationOption);
+}
+
+export function classificationDraftFromReview(review) {
+  const row = review || {};
+  const subtypeMode = normalizeClassificationSubtypeMode(row.selected_subtype_mode);
+  const selectedSubtype = optionId(row.selected_product_subtype_option_id);
+  const suggestedSubtype = optionId(row.suggested_product_subtype_option_id);
+  let productSubtypeOptionId = null;
+  let draftMode = subtypeMode;
+  if (subtypeMode === "OPTION") {
+    productSubtypeOptionId = selectedSubtype ?? suggestedSubtype;
+    draftMode = productSubtypeOptionId ? "OPTION" : "UNRESOLVED";
+  } else if (subtypeMode === "BLANK") {
+    productSubtypeOptionId = null;
+    draftMode = "BLANK";
+  } else {
+    productSubtypeOptionId = null;
+    draftMode = "UNRESOLVED";
+  }
+  return {
+    productTypeOptionId: effectiveOptionId(
+      row.selected_product_type_option_id,
+      row.suggested_product_type_option_id,
+    ),
+    productCategoryOptionId: effectiveOptionId(
+      row.selected_product_category_option_id,
+      row.suggested_product_category_option_id,
+    ),
+    productSubtypeOptionId,
+    subtypeMode: draftMode,
+    reviewNotes: row.review_notes ?? "",
+    rowVersion: row.row_version ?? null,
+    reviewStatus: normalizeReviewStatus(row.review_status) || "PENDING",
+  };
+}
+
+export function classificationDirty(draft, baseline) {
+  return (
+    JSON.stringify(omitRowVersion(draft)) !==
+    JSON.stringify(omitRowVersion(baseline))
+  );
+}
+
+export function classificationSuggestionCopy(review) {
+  const row = review || {};
+  return {
+    productType: safeText(row.suggested_product_type_label) || "No suggestion",
+    productCategory: safeText(row.suggested_product_category_label) || "No suggestion",
+    productSubtype: safeText(row.suggested_product_subtype_label) || "No suggestion / Not yet resolved",
+  };
+}
+
+export function classificationVerifyGaps(draft) {
+  const gaps = [];
+  if (!optionId(draft?.productTypeOptionId)) gaps.push("Product Type");
+  if (!optionId(draft?.productCategoryOptionId)) gaps.push("Category / Dosage Form");
+  const mode = normalizeClassificationSubtypeMode(draft?.subtypeMode);
+  if (mode === "UNRESOLVED") gaps.push("Portal Sub Type (not yet resolved)");
+  if (mode === "BLANK") gaps.push("Portal Sub Type (blank is not verifiable)");
+  if (mode === "OPTION" && !optionId(draft?.productSubtypeOptionId)) {
+    gaps.push("Portal Sub Type");
+  }
+  return gaps;
+}
+
+export function classificationVerifyPendingCopy(draft, { saveStatus, reviewStatus } = {}) {
+  if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) {
+    return "Portal Classification is already verified.";
+  }
+  if (saveStatus === "stale") return "Server data changed - refresh/review required";
+  if (saveStatus === "failed") return "Save failed. Refresh and retry before verifying.";
+  const gaps = classificationVerifyGaps(draft);
+  if (!gaps.length) return "";
+  return `Verification pending: ${joinListWithAnd(gaps)}.`;
+}
+
+export function canVerifyClassification(draft, { canEdit = true, saveStatus, reviewStatus } = {}) {
+  if (canEdit === false) return false;
+  if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) return false;
+  if (saveStatus === "failed" || saveStatus === "stale") return false;
+  return classificationVerifyGaps(draft).length === 0;
+}
+
+export function resolveClassificationSubtypeMode({
+  subtypeMode,
+  productSubtypeOptionId,
+} = {}) {
+  const mode = normalizeClassificationSubtypeMode(subtypeMode);
+  if (mode === "BLANK") return "BLANK";
+  if (optionId(productSubtypeOptionId)) return "OPTION";
+  return "UNRESOLVED";
+}
+
+export function clearIncompatibleClassificationChildren({
+  productTypeOptionId,
+  productCategoryOptionId,
+  productSubtypeOptionId,
+  categoryOptions,
+  subtypeOptions,
+} = {}) {
+  const typeId = optionId(productTypeOptionId);
+  if (!typeId) {
+    return {
+      productCategoryOptionId: null,
+      productSubtypeOptionId: null,
+      subtypeMode: "UNRESOLVED",
+    };
+  }
+  const categories = selectableClassificationOptions(categoryOptions);
+  const subtypes = selectableClassificationOptions(subtypeOptions);
+  const categoryOk = categories.some((opt) =>
+    idsEqual(opt.portal_option_id ?? opt.id, productCategoryOptionId),
+  );
+  const subtypeOk = subtypes.some((opt) =>
+    idsEqual(opt.portal_option_id ?? opt.id, productSubtypeOptionId),
+  );
+  const nextCategory = categoryOk ? optionId(productCategoryOptionId) : null;
+  const nextSubtype = subtypeOk ? optionId(productSubtypeOptionId) : null;
+  return {
+    productCategoryOptionId: nextCategory,
+    productSubtypeOptionId: nextSubtype,
+    subtypeMode: resolveClassificationSubtypeMode({
+      productSubtypeOptionId: nextSubtype,
+    }),
+  };
+}
+
+/** Never derive portal subtype from internal dosage/subtype labels (e.g. Kuzhambu). */
+export function neverMapInternalDosageToPortalSubtype(internalSubtypeLabel) {
+  const label = safeText(internalSubtypeLabel).toLowerCase();
+  if (!label) return null;
+  if (label.includes("kuzhambu")) return null;
+  return null;
+}
