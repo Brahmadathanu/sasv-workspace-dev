@@ -174,7 +174,9 @@ assert(!browserSrc.includes("width: 1280"), "packaging source no longer forces 1
 
 assert(originGuardSrc.includes("onDisallowed(error, url, page)"), "unpacked origin-guard passes page identity");
 assert(workerIndexSrc.includes("setControlledPage"), "unpacked worker tracks controlledPage");
+assert(workerIndexSrc.includes("isUsableControlledPage"), "unpacked worker retains a valid controlled page on recheck");
 assert(workerIndexSrc.includes("closed_offending_page"), "unpacked worker records secondary containment");
+assert(workerIndexSrc.includes("secondary_close_failed_fail_closed"), "unpacked worker fail-closes when secondary close fails");
 assert(workerIndexSrc.includes("adopted_allowed_page"), "unpacked worker records controlled-page adoption");
 assert(workerIndexSrc.includes("active operation"), "unpacked worker fail-closes controlled loss while RUNNING");
 

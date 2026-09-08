@@ -13,6 +13,7 @@ const { launchDedicatedEdge, dedicatedProfileDir } = require("./browser");
 const {
   attachContextOriginGuard,
   assertAllowedUrl,
+  isAllowedPageUrl,
   selectAllowedOriginPage,
 } = require("./origin-guard");
 const { callWorkerRpc } = require("./server-client");
@@ -248,15 +249,16 @@ function createEaushadhiWorker({
     }
   }
 
+  function isUsableControlledPage(page, contract) {
+    if (!page) return false;
+    if (typeof page.isClosed === "function" && page.isClosed()) return false;
+    const url = typeof page.url === "function" ? page.url() : "";
+    return isAllowedPageUrl(url, contract);
+  }
+
   async function containSecondaryPage(page, error, url) {
-    log({
-      phase: "origin-guard",
-      url,
-      errorKind: error?.kind || ERROR_KINDS.DISALLOWED_ORIGIN,
-      error: error?.message,
-      pageRole: "secondary",
-      containmentAction: "closed_offending_page",
-    });
+    let closeFailed = false;
+    let closeErrorMessage = null;
     try {
       if (
         page &&
@@ -265,9 +267,39 @@ function createEaushadhiWorker({
       ) {
         await page.close();
       }
-    } catch {
-      // ignore close errors on secondary pages
+    } catch (closeError) {
+      closeFailed = true;
+      closeErrorMessage = String(closeError?.message || closeError || "page.close failed");
     }
+    const stillOpen =
+      !!page &&
+      !(typeof page.isClosed === "function" && page.isClosed());
+    if (closeFailed || stillOpen) {
+      await failClosed(
+        workerError(
+          ERROR_KINDS.DISALLOWED_ORIGIN,
+          sanitizeText(
+            closeFailed
+              ? `Secondary disallowed-origin page could not be closed. ${closeErrorMessage || ""}`.trim()
+              : "Secondary disallowed-origin page remained open after close.",
+          ),
+        ),
+        url,
+        {
+          pageRole: "secondary",
+          containmentAction: "secondary_close_failed_fail_closed",
+        },
+      );
+      return;
+    }
+    log({
+      phase: "origin-guard",
+      url,
+      errorKind: error?.kind || ERROR_KINDS.DISALLOWED_ORIGIN,
+      error: error?.message,
+      pageRole: "secondary",
+      containmentAction: "closed_offending_page",
+    });
     emit();
   }
 
@@ -435,14 +467,28 @@ function createEaushadhiWorker({
       const contract = loadPortalContract();
       portalContract = contract;
       requireSection("origins");
-      const page = selectAllowedOriginPage(context, contract);
-      if (!page) {
-        throw workerError(
-          ERROR_KINDS.CRASH,
-          "No allowed e-Aushadhi page is available to recheck login.",
-        );
+      let page = null;
+      let adoptedFallback = false;
+      if (isUsableControlledPage(controlledPage, contract)) {
+        page = controlledPage;
+      } else {
+        page = selectAllowedOriginPage(context, contract);
+        if (!page) {
+          throw workerError(
+            ERROR_KINDS.CRASH,
+            "No allowed e-Aushadhi page is available to recheck login.",
+          );
+        }
+        setControlledPage(page);
+        adoptedFallback = true;
+        log({
+          phase: "origin-guard",
+          url: typeof page.url === "function" ? page.url() : null,
+          pageRole: "controlled",
+          containmentAction: "adopted_allowed_page",
+          error: "Recheck adopted an allowed e-Aushadhi page because the prior controlled page was unavailable.",
+        });
       }
-      setControlledPage(page);
       try {
         const authSpec = requireSection("authProbe");
         const probe = await probeAuthenticatedSession(page, authSpec);
@@ -456,7 +502,11 @@ function createEaushadhiWorker({
         });
       }
       phase = CONNECT_PHASES.READY;
-      log({ phase: AUTH_REFRESH_PHASE, url: typeof page.url === "function" ? page.url() : null });
+      log({
+        phase: AUTH_REFRESH_PHASE,
+        url: typeof page.url === "function" ? page.url() : null,
+        error: adoptedFallback ? "recheck_after_fallback_adoption" : "recheck_existing_controlled_page",
+      });
       return emit();
     } catch (error) {
       const wrapped = wrapAuthRefreshFailure(error, AUTH_REFRESH_PHASE);

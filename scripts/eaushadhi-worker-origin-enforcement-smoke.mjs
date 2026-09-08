@@ -42,7 +42,7 @@ assert(
 );
 assert(diagnosticOrigin("not a url") === "INVALID_URL", "unparseable URL becomes INVALID_URL");
 
-function createMockPage(startUrl = "about:blank", { html = "<html></html>", onClosed } = {}) {
+function createMockPage(startUrl = "about:blank", { html = "<html></html>", onClosed, closeImpl } = {}) {
   let currentUrl = startUrl;
   let document = parseHtml(html);
   let closed = false;
@@ -105,6 +105,17 @@ function createMockPage(startUrl = "about:blank", { html = "<html></html>", onCl
       for (const handler of listeners.framenavigated || []) handler(child);
     },
     async close() {
+      if (typeof closeImpl === "function") {
+        counts.close += 1;
+        return closeImpl(page, {
+          markClosed() {
+            if (closed) return;
+            closed = true;
+            for (const handler of listeners.close || []) handler();
+            if (typeof onClosed === "function") onClosed(page);
+          },
+        });
+      }
       if (closed) return;
       closed = true;
       counts.close += 1;
@@ -150,10 +161,11 @@ function createMockEdgeContext(startUrl = "about:blank", { html } = {}) {
     },
   };
 
-  function openPage(url, pageHtml) {
+  function openPage(url, pageHtml, pageOptions = {}) {
     const page = createMockPage(url, {
       html: pageHtml || html || "<html></html>",
       onClosed: removePage,
+      ...pageOptions,
     });
     pages.push(page);
     for (const handler of listeners.page || []) handler(page);
@@ -166,8 +178,8 @@ function createMockEdgeContext(startUrl = "about:blank", { html } = {}) {
     page: first,
     pages,
     isClosed: () => closed,
-    openPopup(url, pageHtml) {
-      return openPage(url, pageHtml);
+    openPopup(url, pageHtml, pageOptions = {}) {
+      return openPage(url, pageHtml, pageOptions);
     },
   };
 }
@@ -391,6 +403,95 @@ function makeWorker(tmp, launchBrowser, extras = {}) {
   await mock.page.close();
   await wait(40);
   assert(worker.getStatus().state === STATES.FAILED, "5: with only disallowed leftovers, controlled close failCloses");
+}
+
+{
+  const tmpKeep = mkdtempSync(join(os.tmpdir(), "ea-recheck-keep-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpKeep, async () => mock.context);
+  await worker.connect();
+  const other = mock.openPopup("https://www.e-aushadhi.gov.in/other", authHtml);
+  await wait(20);
+  const beforeControlled = mock.page.counts.evaluate;
+  const beforeOther = other.counts.evaluate;
+  const beforeLogs = readLogs(tmpKeep);
+  const status = await worker.recheckAuthentication();
+  assert(status.state === STATES.READY, "recheck keeps READY with valid controlled page");
+  assert(mock.page.counts.evaluate === beforeControlled + 1, "recheck probes existing controlled page");
+  assert(other.counts.evaluate === beforeOther, "recheck does not probe another allowed page");
+  const afterLogs = readLogs(tmpKeep).slice(beforeLogs.length);
+  assert(!afterLogs.includes("adopted_allowed_page"), "valid controlled recheck does not log adopted_allowed_page");
+  assert(afterLogs.includes("recheck_existing_controlled_page"), "valid controlled recheck logs retention");
+}
+
+{
+  const tmpFallback = mkdtempSync(join(os.tmpdir(), "ea-recheck-fallback-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpFallback, async () => mock.context);
+  await worker.connect();
+  const fallback = mock.openPopup("https://www.e-aushadhi.gov.in/other", authHtml);
+  await wait(20);
+  mock.page.setHtml(authHtml, "about:blank");
+  const beforeFallback = fallback.counts.evaluate;
+  const beforeControlled = mock.page.counts.evaluate;
+  const status = await worker.recheckAuthentication();
+  assert(status.state === STATES.READY, "invalid controlled page falls back and stays READY");
+  assert(fallback.counts.evaluate === beforeFallback + 1, "fallback allowed page is probed");
+  assert(mock.page.counts.evaluate === beforeControlled, "invalid controlled page is not probed");
+  const record = lastLogRecord(tmpFallback);
+  assert(
+    record.containment_action === "adopted_allowed_page" ||
+      readLogs(tmpFallback).includes("adopted_allowed_page"),
+    "fallback adoption logs adopted_allowed_page",
+  );
+}
+
+{
+  const tmpCloseThrow = mkdtempSync(join(os.tmpdir(), "ea-sec-close-throw-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpCloseThrow, async () => mock.context);
+  await worker.connect();
+  const secondary = mock.openPopup("about:blank", "<html></html>", {
+    closeImpl: async () => {
+      throw new Error("page.close refused");
+    },
+  });
+  secondary.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  await secondary.navigateMainFrame("https://www.google.com/");
+  await wait(40);
+  assert(worker.getStatus().state === STATES.FAILED, "secondary close throw -> FAILED");
+  assert(mock.isClosed() === true, "secondary close throw closes context");
+  assert(worker.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "secondary close throw keeps DISALLOWED_ORIGIN");
+  const record = lastLogRecord(tmpCloseThrow);
+  assert(record.containment_action === "secondary_close_failed_fail_closed", "secondary close throw logs secondary_close_failed_fail_closed");
+  assert(record.page_role === "secondary", "secondary close throw keeps secondary page_role");
+}
+
+{
+  const tmpStillOpen = mkdtempSync(join(os.tmpdir(), "ea-sec-still-open-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpStillOpen, async () => mock.context);
+  await worker.connect();
+  const secondary = mock.openPopup("about:blank", "<html></html>", {
+    closeImpl: async () => {
+      // pretend close succeeded without marking closed
+    },
+  });
+  secondary.evaluate = async () => {
+    throw new Error("external page was evaluated");
+  };
+  await secondary.navigateMainFrame("https://www.google.com/");
+  await wait(40);
+  assert(worker.getStatus().state === STATES.FAILED, "secondary still open after close -> FAILED");
+  assert(mock.isClosed() === true, "secondary still-open path closes context");
+  const record = lastLogRecord(tmpStillOpen);
+  assert(record.containment_action === "secondary_close_failed_fail_closed", "still-open path logs secondary_close_failed_fail_closed");
 }
 
 {
