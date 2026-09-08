@@ -12,6 +12,7 @@ import {
   CANONICAL_VERIFY_NOTES,
   canPromoteFormulation,
   canVerifyActionSet,
+  canVerifyClassification,
   canVerifyCompositionLine,
   canVerifyProductDetails,
   canVerifyProductWorkflow,
@@ -20,6 +21,12 @@ import {
   canReopenReviewedSection,
   canSubmitSourceResolution,
   canSubmitWorkingSourceCorrection,
+  classificationDirty,
+  classificationDraftFromReview,
+  classificationSuggestionCopy,
+  classificationVerifyPendingCopy,
+  CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE,
+  clearIncompatibleClassificationChildren,
   classifyRpcError,
   combinedRestrictedDeclarationState,
   composeActionsDraft,
@@ -40,6 +47,7 @@ import {
   governedCopyUploadReady,
   isNonstandardQuantityText,
   isVerifiedStatus,
+  isFillEligibleClassificationOption,
   issuesForLine,
   lineDirty,
   lineDraftFromRow,
@@ -48,6 +56,9 @@ import {
   lineHasLiveIssue,
   lineHasResolvableSourceIssue,
   lineSelectionsComplete,
+  neverMapInternalDosageToPortalSubtype,
+  selectableClassificationOptions,
+  resolveClassificationSubtypeMode,
   matchesQueueFilter,
   mergePreservedLineDraft,
   nextQueueRenderCount,
@@ -1031,6 +1042,214 @@ assert(
   CANONICAL_VERIFY_NOTES ===
     "Internally verified after completion of Product Details, Pharmacological Action, Composition, Approved Formulation and Approved Product Copy review.",
   "canonical internal verification notes list the completed review stages",
+);
+
+const karpooradiClassification = {
+  product_id: 262,
+  review_status: "PENDING",
+  selected_subtype_mode: "UNRESOLVED",
+  suggested_product_type_option_id: 120,
+  suggested_product_type_label: "Ayurvedic Proprietary Medicine",
+  selected_product_type_option_id: null,
+  suggested_product_category_option_id: 278,
+  suggested_product_category_label: "Taila (Oil)",
+  selected_product_category_option_id: null,
+  suggested_product_subtype_option_id: null,
+  suggested_product_subtype_label: null,
+  selected_product_subtype_option_id: null,
+  review_notes: null,
+  row_version: 1,
+};
+const classDraft = classificationDraftFromReview(karpooradiClassification);
+assert(classDraft.productTypeOptionId === "120", "Type suggestion seeds draft without Verify");
+assert(classDraft.productCategoryOptionId === "278", "Category suggestion seeds draft without Verify");
+assert(classDraft.productSubtypeOptionId == null, "Sub Type remains UNRESOLVED without invention");
+assert(classDraft.subtypeMode === "UNRESOLVED", "draft subtype mode stays UNRESOLVED");
+assert(classDraft.reviewStatus === "PENDING", "PENDING classification remains editable draft");
+assert(
+  canVerifyClassification(classDraft, { canEdit: true, saveStatus: "" }) === false,
+  "UNRESOLVED cannot Verify",
+);
+assert(
+  /not yet resolved/i.test(classificationVerifyPendingCopy(classDraft, {})),
+  "UNRESOLVED verify copy names unresolved subtype",
+);
+assert(
+  canVerifyClassification(
+    { ...classDraft, productCategoryOptionId: null },
+    { canEdit: true },
+  ) === false,
+  "missing Category cannot Verify",
+);
+assert(
+  canVerifyClassification(
+    { ...classDraft, subtypeMode: "OPTION", productSubtypeOptionId: null },
+    { canEdit: true },
+  ) === false,
+  "missing Sub Type cannot Verify",
+);
+assert(
+  canVerifyClassification(
+    {
+      ...classDraft,
+      subtypeMode: "OPTION",
+      productSubtypeOptionId: "266",
+      reviewStatus: "IN_REVIEW",
+    },
+    { canEdit: true, saveStatus: "" },
+  ) === true,
+  "valid OPTION classification can Verify in mocked contract test",
+);
+assert(
+  canVerifyClassification(
+    {
+      ...classDraft,
+      subtypeMode: "OPTION",
+      productSubtypeOptionId: "266",
+      reviewStatus: "VERIFIED",
+    },
+    { canEdit: true },
+  ) === false,
+  "VERIFIED locks verification",
+);
+assert(
+  canEditReviewedSection("PENDING") === true && canEditReviewedSection("IN_REVIEW") === true,
+  "PENDING / IN_REVIEW classification stays editable",
+);
+assert(canEditReviewedSection("VERIFIED") === false, "VERIFIED locks fields");
+assert(
+  neverMapInternalDosageToPortalSubtype("Kuzhambu") == null,
+  "internal Kuzhambu never auto-maps",
+);
+assert(
+  neverMapInternalDosageToPortalSubtype("Taila") == null,
+  "internal dosage labels never auto-map to portal subtype",
+);
+const classOptions = [
+  { portal_option_id: 266, label: "Balya", fill_eligible: true },
+  { portal_option_id: 274, label: "-", fill_eligible: false },
+  { portal_option_id: 999, label: "Hidden", fill_eligible: false },
+  { portal_option_id: 1000, label: "Blank", fill_eligible: true },
+];
+assert(isFillEligibleClassificationOption(classOptions[0]) === true, "fill_eligible OPTION selectable");
+assert(isFillEligibleClassificationOption(classOptions[1]) === false, '"-" excluded / disabled');
+assert(isFillEligibleClassificationOption(classOptions[2]) === false, "fill_eligible=false excluded");
+assert(isFillEligibleClassificationOption(classOptions[3]) === false, "BLANK label not selectable");
+assert(
+  selectableClassificationOptions(classOptions).map((o) => o.portal_option_id).join(",") === "266",
+  "only fill-eligible non-dash options remain",
+);
+const cleared = clearIncompatibleClassificationChildren({
+  productTypeOptionId: "120",
+  productCategoryOptionId: "278",
+  productSubtypeOptionId: "266",
+  categoryOptions: [{ portal_option_id: 999, label: "Other", fill_eligible: true }],
+  subtypeOptions: [{ portal_option_id: 888, label: "OtherSub", fill_eligible: true }],
+});
+assert(cleared.productCategoryOptionId == null, "incompatible Category cleared");
+assert(cleared.productSubtypeOptionId == null, "incompatible Sub Type cleared");
+assert(cleared.subtypeMode === "UNRESOLVED", "cleared subtype returns UNRESOLVED");
+assert(
+  resolveClassificationSubtypeMode({
+    subtypeMode: "BLANK",
+    preserveBlank: true,
+  }) === "BLANK",
+  "server BLANK can be preserved until operator edit",
+);
+assert(
+  resolveClassificationSubtypeMode({
+    subtypeMode: "BLANK",
+    preserveBlank: false,
+  }) === "UNRESOLVED",
+  "editable BLANK recovers to UNRESOLVED without trapping",
+);
+assert(
+  resolveClassificationSubtypeMode({
+    subtypeMode: "BLANK",
+    productSubtypeOptionId: "266",
+    preserveBlank: false,
+  }) === "OPTION",
+  "operator can move BLANK -> OPTION using genuine fill-eligible subtype",
+);
+assert(
+  canVerifyClassification(
+    { ...classDraft, subtypeMode: "BLANK" },
+    { canEdit: true },
+  ) === false,
+  "BLANK cannot Verify",
+);
+const validClassDraft = {
+  ...classDraft,
+  subtypeMode: "OPTION",
+  productSubtypeOptionId: "266",
+  reviewStatus: "IN_REVIEW",
+};
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "saving" }) === false,
+  "classification autosave saving disables Verify",
+);
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "saved" }) === true,
+  "after successful save status becomes saved, valid classification Verify becomes enabled",
+);
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "failed" }) === false,
+  "failed autosave disables Verify",
+);
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "stale" }) === false,
+  "stale autosave disables Verify",
+);
+assert(
+  /Saving classification/.test(
+    classificationVerifyPendingCopy(validClassDraft, { saveStatus: "saving" }),
+  ),
+  "saving status shows classification verify guidance",
+);
+const blankRow = {
+  product_id: 1,
+  review_status: "IN_REVIEW",
+  selected_subtype_mode: "BLANK",
+  suggested_product_type_option_id: 120,
+  selected_product_type_option_id: 120,
+  suggested_product_category_option_id: 278,
+  selected_product_category_option_id: 278,
+  suggested_product_subtype_option_id: null,
+  selected_product_subtype_option_id: null,
+  row_version: 2,
+};
+const blankDraft = classificationDraftFromReview(blankRow);
+assert(blankDraft.subtypeMode === "BLANK", "server BLANK draft mirrors BLANK until recovery");
+assert(blankDraft.productTypeOptionId === "120", "editable BLANK keeps Product Type draft");
+assert(blankDraft.productCategoryOptionId === "278", "editable BLANK keeps Category draft");
+assert(
+  neverMapInternalDosageToPortalSubtype("Kuzhambu") == null,
+  "Kuzhambu remains non-derived",
+);
+const suggestions = classificationSuggestionCopy(karpooradiClassification);
+assert(
+  suggestions.productType === "Ayurvedic Proprietary Medicine",
+  "Karpooradi type suggestion provenance visible",
+);
+assert(suggestions.productCategory === "Taila (Oil)", "Karpooradi category suggestion provenance visible");
+assert(
+  /not yet resolved/i.test(suggestions.productSubtype),
+  "Karpooradi subtype shows no suggestion / not yet resolved",
+);
+assert(
+  /Kuzhambu/.test(CLASSIFICATION_SUBTYPE_INDEPENDENCE_NOTE),
+  "independence note states Kuzhambu is not reused",
+);
+assert(
+  classificationDirty(
+    { ...classDraft, reviewNotes: "note" },
+    classDraft,
+  ) === true,
+  "notes edits mark classification dirty for serialized autosave",
+);
+assert(
+  canReopenReviewedSection({ reviewStatus: "VERIFIED", canEdit: true }) === true,
+  "Reopen requires verified section then reason in UI/RPC",
 );
 
 if (failed) {
