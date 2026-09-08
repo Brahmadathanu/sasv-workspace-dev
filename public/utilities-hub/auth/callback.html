@@ -35,6 +35,9 @@
         color: #fff;
         cursor: pointer;
       }
+      input {
+        box-sizing: border-box;
+      }
     </style>
   </head>
   <body>
@@ -52,12 +55,38 @@
 
       const card = document.querySelector(".card");
       const status = document.getElementById("status");
+      const openButton = document.getElementById("open");
       const HUB_URL = "/utilities-hub/";
+      let recoveryEventSeen = false;
+
+      const {
+        data: { subscription: authSubscription },
+      } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "PASSWORD_RECOVERY") {
+          recoveryEventSeen = true;
+        }
+      });
 
       function setStatus(text) {
         if (status) {
           status.textContent = text;
         }
+      }
+
+      function getUrlAuthContext() {
+        const hashParams = new URLSearchParams(location.hash.replace(/^#/, ""));
+        const searchParams = new URLSearchParams(location.search);
+        const explicitType =
+          searchParams.get("type") || hashParams.get("type") || "";
+        const appFlow = searchParams.get("flow") || hashParams.get("flow") || "";
+
+        return {
+          hashParams,
+          searchParams,
+          isRecovery:
+            explicitType.toLowerCase() === "recovery" ||
+            appFlow.toLowerCase() === "recovery",
+        };
       }
 
       function broadcastSignedIn() {
@@ -79,8 +108,7 @@
       }
 
       async function establishSessionFromUrl() {
-        const hashParams = new URLSearchParams(location.hash.replace(/^#/, ""));
-        const searchParams = new URLSearchParams(location.search);
+        const { hashParams, searchParams, isRecovery } = getUrlAuthContext();
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         const authCode = searchParams.get("code");
@@ -95,7 +123,7 @@
             refresh_token: refreshToken,
           });
           if (error) throw error;
-          return;
+          return { isRecovery };
         }
 
         if (tokenHash) {
@@ -104,14 +132,26 @@
             type: otpType,
           });
           if (error) throw error;
-          return;
+          return { isRecovery };
         }
 
         if (authCode) {
           const { error } =
             await supabase.auth.exchangeCodeForSession(authCode);
           if (error) throw error;
+          return { isRecovery };
         }
+
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!session) {
+          throw new Error("Invalid or expired authentication link.");
+        }
+
+        return { isRecovery };
       }
 
       function openHub() {
@@ -125,36 +165,52 @@
       function showResetForm() {
         if (card.querySelector("form")) return;
 
+        if (openButton) {
+          openButton.style.display = "none";
+        }
+
         const form = document.createElement("form");
         form.innerHTML = `
           <h2>Set a new password</h2>
-          <p style="color:#475569;margin:0.4rem 0">Enter a new password to finish resetting.</p>
-          <input id="new-pass" type="password" placeholder="New password" style="height:40px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;width:100%;margin-top:8px" />
-          <button id="save-pass" type="submit" style="margin-top:10px;padding:0.6rem 1rem;border-radius:8px;border:1px solid #0a62c3;background:#0a62c3;color:#fff;cursor:pointer;">Save password</button>
-          <p id="msg" style="margin-top:8px;color:#475569"></p>
+          <p style="color:#475569;margin:0.4rem 0">Enter and confirm the new password to finish resetting your account.</p>
+          <input id="new-pass" type="password" autocomplete="new-password" placeholder="New password" style="height:40px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;width:100%;margin-top:8px" />
+          <input id="confirm-pass" type="password" autocomplete="new-password" placeholder="Confirm new password" style="height:40px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;width:100%;margin-top:8px" />
+          <button id="save-pass" type="submit">Save password</button>
+          <p id="msg" role="status" aria-live="polite" style="margin-top:8px;color:#475569"></p>
         `;
         card.appendChild(form);
 
         const msg = form.querySelector("#msg");
+        const saveButton = form.querySelector("#save-pass");
+
         form.addEventListener("submit", async (event) => {
           event.preventDefault();
           const pwd = form.querySelector("#new-pass").value;
+          const confirmPwd = form.querySelector("#confirm-pass").value;
+
           if (!pwd) {
-            msg.textContent = "Enter a password.";
+            msg.textContent = "Enter a new password.";
+            return;
+          }
+          if (pwd !== confirmPwd) {
+            msg.textContent = "The passwords do not match.";
             return;
           }
 
+          saveButton.disabled = true;
           msg.textContent = "Updating…";
           try {
             const { error } = await supabase.auth.updateUser({ password: pwd });
             if (error) throw error;
-            msg.textContent = "Password updated. You are signed in.";
+            msg.textContent = "Password updated successfully.";
             setStatus("Password updated. Opening the hub…");
             broadcastSignedIn();
             scheduleOpenHub();
           } catch (err) {
             console.error(err);
-            msg.textContent = "Could not update password. Try again.";
+            msg.textContent =
+              err?.message || "Could not update password. Request a new reset link and try again.";
+            saveButton.disabled = false;
           }
         });
       }
@@ -162,10 +218,10 @@
       async function boot() {
         try {
           setStatus("Completing sign-in…");
-          await establishSessionFromUrl();
+          const authContext = await establishSessionFromUrl();
 
-          const hash = location.hash || "";
-          if (hash.includes("type=recovery")) {
+          await Promise.resolve();
+          if (authContext.isRecovery || recoveryEventSeen) {
             setStatus("Recovery verified. Set a new password to continue.");
             showResetForm();
             return;
@@ -178,12 +234,15 @@
           console.error("Auth callback failed", error);
           setStatus(
             error?.message ||
-              "Could not complete sign-in automatically. Use the button below to open the hub.",
+              "Could not complete sign-in automatically. Request a new link and try again.",
           );
         }
       }
 
-      document.getElementById("open")?.addEventListener("click", openHub);
+      openButton?.addEventListener("click", openHub);
+      window.addEventListener("pagehide", () => authSubscription.unsubscribe(), {
+        once: true,
+      });
 
       boot();
     </script>

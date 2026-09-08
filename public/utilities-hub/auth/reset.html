@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Reset password — SASV Utilities Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, Arial, sans-serif;
+        margin: 24px;
+        color: #0b1420;
+        background: #f8fafc;
+      }
+      .card {
+        max-width: 520px;
+        margin: 12vh auto 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        background: #fff;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin: 0 0 8px;
+      }
+      p {
+        color: #475569;
+      }
+      label {
+        display: block;
+        margin-top: 16px;
+        font-weight: 600;
+      }
+      input {
+        box-sizing: border-box;
+        width: 100%;
+        height: 42px;
+        margin-top: 6px;
+        padding: 6px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+      }
+      button {
+        margin-top: 14px;
+        padding: 0.65rem 1rem;
+        border-radius: 8px;
+        border: 1px solid #0a62c3;
+        background: #0a62c3;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      a {
+        color: #0a62c3;
+      }
+      #msg {
+        min-height: 1.2em;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Reset your password</h1>
+      <p>
+        Enter the email address used for your SASV Utilities Hub account. We’ll
+        send a password-reset link to that address.
+      </p>
+
+      <form id="reset-form">
+        <label for="email">Email address</label>
+        <input
+          id="email"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          required
+        />
+        <button id="send" type="submit">Send reset link</button>
+        <p id="msg" role="status" aria-live="polite"></p>
+      </form>
+
+      <p><a href="/utilities-hub/">Back to Utilities Hub</a></p>
+    </main>
+
+    <script type="module">
+      import { supabase } from "../../shared/js/supabaseClient.js";
+
+      const form = document.getElementById("reset-form");
+      const emailInput = document.getElementById("email");
+      const sendButton = document.getElementById("send");
+      const msg = document.getElementById("msg");
+
+      form?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = emailInput?.value?.trim();
+        if (!email) {
+          msg.textContent = "Enter your email address.";
+          return;
+        }
+
+        const redirectUrl = new URL(
+          "/utilities-hub/auth/callback.html",
+          location.origin,
+        );
+        redirectUrl.searchParams.set("flow", "recovery");
+
+        sendButton.disabled = true;
+        msg.textContent = "Sending reset email…";
+
+        try {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: redirectUrl.href,
+          });
+          if (error) throw error;
+          msg.textContent =
+            "If an account exists for that email, a reset link has been sent. Check the inbox and spam folder.";
+        } catch (error) {
+          console.error("Password reset request failed", error);
+          msg.textContent =
+            error?.message || "Could not send the reset email. Try again.";
+        } finally {
+          sendButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
