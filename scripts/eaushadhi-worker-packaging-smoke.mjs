@@ -56,6 +56,29 @@ const originGuardLoose = join(asarUnpacked, "electron/eaushadhi-worker/origin-gu
 const rendererGuardLoose = join(asarUnpacked, "electron/eaushadhi-worker/renderer-guard.js");
 assert(existsSync(originGuardLoose), "origin-guard is unpacked");
 const originGuardSrc = readFileSync(originGuardLoose, "utf8");
+const diagnosticsLoose = join(asarUnpacked, "electron/eaushadhi-worker/diagnostics.js");
+assert(existsSync(diagnosticsLoose), "diagnostics is unpacked");
+const diagnosticsSrc = readFileSync(diagnosticsLoose, "utf8");
+const cdpGuardSourcePath = join(root, "electron/eaushadhi-worker/cdp-target-guard.js");
+assert(existsSync(cdpGuardSourcePath), "cdp-target-guard module exists in source");
+const cdpGuardSourceSrc = readFileSync(cdpGuardSourcePath, "utf8");
+const cdpGuardLoose = join(asarUnpacked, "electron/eaushadhi-worker/cdp-target-guard.js");
+if (existsSync(cdpGuardLoose)) {
+  const cdpGuardLooseSrc = readFileSync(cdpGuardLoose, "utf8");
+  assert(cdpGuardLooseSrc.includes("createCdpTargetGuard"), "unpacked cdp-target-guard exports guard");
+  assert(cdpGuardLooseSrc.includes("Target.setDiscoverTargets"), "unpacked CDP enables discovery");
+  assert(cdpGuardLooseSrc.includes("Target.closeTarget"), "unpacked CDP closes targets");
+} else {
+  console.warn(
+    "WARN: cdp-target-guard.js not in current dist unpack; rebuild required for packaged CDP proof",
+  );
+}
+assert(
+  cdpGuardSourceSrc.includes("Target.setDiscoverTargets") &&
+    cdpGuardSourceSrc.includes("Target.getTargets") &&
+    cdpGuardSourceSrc.includes("Target.closeTarget"),
+  "source CDP guard uses Target.setDiscoverTargets/getTargets/closeTarget",
+);
 assert(
   originGuardSrc.includes("attachContextOriginGuard"),
   "unpacked origin-guard attaches to every current and future context page",
@@ -172,13 +195,35 @@ assert(browserSrc.includes("--start-maximized"), "packaging source starts maximi
 assert(!browserSrc.includes('channel: "chrome"'), "no Chrome fallback");
 assert(!browserSrc.includes("width: 1280"), "packaging source no longer forces 1280 viewport");
 
-assert(originGuardSrc.includes("onDisallowed(error, url, page)"), "unpacked origin-guard passes page identity");
+assert(
+  /onDisallowed\(\s*error,\s*url,\s*page/.test(originGuardSrc),
+  "unpacked origin-guard passes page identity",
+);
+assert(originGuardSrc.includes("activateReconciliation"), "unpacked origin-guard exposes activation");
+assert(originGuardSrc.includes("page_attach_check"), "unpacked origin-guard has page_attach_check");
+assert(originGuardSrc.includes("context_reconciliation"), "unpacked origin-guard has context_reconciliation");
+assert(originGuardSrc.includes("detection_source") || originGuardSrc.includes("detectionSource"), "unpacked origin-guard tracks detection source");
+assert(originGuardSrc.includes("containmentInFlight"), "unpacked origin-guard dedupes containment");
 assert(workerIndexSrc.includes("setControlledPage"), "unpacked worker tracks controlledPage");
+assert(workerIndexSrc.includes("activateReconciliation"), "unpacked worker activates reconciliation after controlledPage");
 assert(workerIndexSrc.includes("isUsableControlledPage"), "unpacked worker retains a valid controlled page on recheck");
 assert(workerIndexSrc.includes("closed_offending_page"), "unpacked worker records secondary containment");
 assert(workerIndexSrc.includes("secondary_close_failed_fail_closed"), "unpacked worker fail-closes when secondary close fails");
 assert(workerIndexSrc.includes("adopted_allowed_page"), "unpacked worker records controlled-page adoption");
 assert(workerIndexSrc.includes("active operation"), "unpacked worker fail-closes controlled loss while RUNNING");
+assert(diagnosticsSrc.includes("detection_source"), "unpacked diagnostics persist detection_source");
+const workerIndexRootSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
+assert(workerIndexRootSrc.includes("bindControlledTarget"), "source worker binds controlled CDP target");
+assert(workerIndexRootSrc.includes("createCdpTargetGuard"), "source worker wires CDP target guard");
+assert(workerIndexRootSrc.includes("closed_offending_target"), "source worker records closed_offending_target");
+assert(!browserSrc.includes("remote-debugging-port"), "packaging source has no remote-debugging-port");
+assert(!browserSrc.includes("connectOverCDP"), "packaging source has no connectOverCDP");
+const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const unpack = packageJson?.build?.asarUnpack || [];
+assert(
+  unpack.some((pattern) => String(pattern).replace(/\\/g, "/").includes("electron/eaushadhi-worker")),
+  "asarUnpack includes electron/eaushadhi-worker for CDP guard packaging",
+);
 
 if (failed) {
   console.error(`\n${failed} packaging assertion(s) failed`);

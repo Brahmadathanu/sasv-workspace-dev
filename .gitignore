@@ -26,6 +26,7 @@ dist-eaushadhi-connect-diagnostics-proof/
 dist-eaushadhi-auth-probe-serialization-proof/
 dist-eaushadhi-auth-refresh-proof/
 dist-eaushadhi-browser-runtime-hardening-proof/
+dist-eaushadhi-manual-tab-origin-reconciliation-proof/
 *.exe
 *.zip
 

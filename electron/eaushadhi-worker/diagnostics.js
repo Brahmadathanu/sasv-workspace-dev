@@ -43,6 +43,8 @@ function writeDiagnostic(userDataPath, record) {
   const pageRole = record.pageRole || record.page_role || null;
   const containmentAction =
     record.containmentAction || record.containment_action || null;
+  const detectionSource =
+    record.detectionSource || record.detection_source || null;
   const line = JSON.stringify({
     timestamp: new Date().toISOString(),
     run_id: record.runId || null,
@@ -53,7 +55,8 @@ function writeDiagnostic(userDataPath, record) {
       record.errorKind === "DISALLOWED_ORIGIN" ||
       record.phase === "origin-guard" ||
       pageRole ||
-      containmentAction
+      containmentAction ||
+      detectionSource
         ? diagnosticOrigin(record.url)
         : safeUrl(record.url),
     contract_section: record.contractSection || null,
@@ -61,6 +64,7 @@ function writeDiagnostic(userDataPath, record) {
     error: sanitizeText(record.error),
     page_role: pageRole,
     containment_action: containmentAction,
+    detection_source: detectionSource,
   });
   fs.appendFileSync(filePath, `${line}\n`, "utf8");
 }

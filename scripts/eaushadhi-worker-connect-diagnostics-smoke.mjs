@@ -14,6 +14,7 @@ const { parseHtml } = require(join(fixtureDir, "mini-dom.cjs"));
 const { createEaushadhiWorker, CONNECT_PHASES } = require(
   join(root, "electron/eaushadhi-worker/index.js"),
 );
+const { attachMockBrowserCdp } = require(join(fixtureDir, "mock-browser-cdp.cjs"));
 const { STATES } = require(join(root, "electron/eaushadhi-worker/state.js"));
 const { ERROR_KINDS, WorkerError } = require(join(root, "electron/eaushadhi-worker/errors.js"));
 const { writeDiagnostic, sanitizeText } = require(
@@ -86,7 +87,7 @@ function createMockPage(html, { startUrl = "about:blank", gotoImpl, evaluateImpl
 
 function createMockContext(page, { newPageImpl } = {}) {
   let closed = false;
-  return {
+  return attachMockBrowserCdp({
     pages: () => (page ? [page] : []),
     on() {},
     off() {},
@@ -99,7 +100,7 @@ function createMockContext(page, { newPageImpl } = {}) {
       closed = true;
     },
     isClosed: () => closed,
-  };
+  });
 }
 
 function makeWorker(tmp, launchBrowser) {

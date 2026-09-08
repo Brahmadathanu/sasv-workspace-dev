@@ -16,6 +16,7 @@ const { collectAuthProbeSignals, evaluateAuthProbe, probeAuthenticatedSession } 
   join(root, "electron/eaushadhi-worker/auth-probe.js"),
 );
 const { createEaushadhiWorker } = require(join(root, "electron/eaushadhi-worker/index.js"));
+const { attachMockBrowserCdp } = require(join(fixtureDir, "mock-browser-cdp.cjs"));
 const { STATES } = require(join(root, "electron/eaushadhi-worker/state.js"));
 const { loadPortalContract } = require(join(root, "electron/eaushadhi-worker/contracts/portal-contract.js"));
 
@@ -322,7 +323,7 @@ function createMockPage(html) {
 function makeWorker(html) {
   const page = createMockPage(html);
   let closed = false;
-  const context = {
+  const context = attachMockBrowserCdp({
     pages: () => [page],
     on() {},
     off() {},
@@ -332,7 +333,7 @@ function makeWorker(html) {
     async close() {
       closed = true;
     },
-  };
+  });
   const tmp = mkdtempSync(join(os.tmpdir(), "ea-auth-"));
   const worker = createEaushadhiWorker({
     getUserDataPath: () => tmp,

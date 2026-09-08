@@ -16,6 +16,11 @@ const {
   isAllowedPageUrl,
   selectAllowedOriginPage,
 } = require("./origin-guard");
+const {
+  createCdpTargetGuard,
+  createTargetContainmentRegistry,
+  resolvePageTargetId,
+} = require("./cdp-target-guard");
 const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
 const { runEntryDryRun } = require("./dry-run");
@@ -102,9 +107,13 @@ function createEaushadhiWorker({
   let stopRequested = false;
   let containingOrigin = false;
   let detachContextGuard = null;
+  let originGuardController = null;
+  let cdpTargetGuard = null;
+  let targetContainmentRegistry = createTargetContainmentRegistry();
   let lastCaptureDir = null;
   let authRefreshInFlight = false;
   let controlledPage = null;
+  let controlledTargetId = null;
   let detachControlledClose = null;
   let portalContract = null;
   const rpcCall = typeof callRpc === "function" ? callRpc : callWorkerRpc;
@@ -156,6 +165,7 @@ function createEaushadhiWorker({
       detachControlledClose = null;
     }
     controlledPage = null;
+    controlledTargetId = null;
   }
 
   function setControlledPage(page) {
@@ -172,6 +182,30 @@ function createEaushadhiWorker({
       };
     }
     return controlledPage;
+  }
+
+  async function bindControlledTarget(page) {
+    if (!page) {
+      throw workerError(
+        ERROR_KINDS.CRASH,
+        "Controlled page is required before CDP target binding.",
+      );
+    }
+    if (!context) {
+      throw workerError(
+        ERROR_KINDS.CRASH,
+        "Browser context is required before CDP target binding.",
+      );
+    }
+    const targetId = await resolvePageTargetId(context, page);
+    if (!controlledPage || controlledPage !== page) {
+      throw workerError(
+        ERROR_KINDS.CRASH,
+        "Controlled page changed during CDP target binding.",
+      );
+    }
+    controlledTargetId = targetId;
+    return controlledTargetId;
   }
 
   async function handleControlledPageClosed() {
@@ -203,6 +237,22 @@ function createEaushadhiWorker({
       const next = context ? selectAllowedOriginPage(context, contract) : null;
       if (next) {
         setControlledPage(next);
+        try {
+          await bindControlledTarget(next);
+        } catch (bindError) {
+          await failClosed(
+            workerError(
+              ERROR_KINDS.CRASH,
+              sanitizeText(bindError?.message || "Controlled CDP target binding failed during adoption."),
+            ),
+            typeof next.url === "function" ? next.url() : null,
+            {
+              pageRole: "controlled",
+              containmentAction: "fail_closed",
+            },
+          );
+          return;
+        }
         log({
           phase: "origin-guard",
           url: typeof next.url === "function" ? next.url() : null,
@@ -230,6 +280,17 @@ function createEaushadhiWorker({
 
   async function closeBrowser() {
     clearControlledPage();
+    if (cdpTargetGuard) {
+      try {
+        await cdpTargetGuard.detach();
+      } catch {
+        // ignore
+      }
+      cdpTargetGuard = null;
+    }
+    if (typeof targetContainmentRegistry?.clear === "function") {
+      targetContainmentRegistry.clear();
+    }
     if (detachContextGuard) {
       try {
         detachContextGuard();
@@ -238,6 +299,7 @@ function createEaushadhiWorker({
       }
       detachContextGuard = null;
     }
+    originGuardController = null;
     portalContract = null;
     if (!context) return;
     const current = context;
@@ -256,7 +318,21 @@ function createEaushadhiWorker({
     return isAllowedPageUrl(url, contract);
   }
 
-  async function containSecondaryPage(page, error, url) {
+  async function containSecondaryPage(page, error, url, extras = {}) {
+    let targetId = extras.targetId || null;
+    if (!targetId && page && context && typeof context.newCDPSession === "function") {
+      try {
+        targetId = await resolvePageTargetId(context, page);
+      } catch {
+        targetId = null;
+      }
+    }
+    if (targetId) {
+      if (extras.alreadyClaimed !== true && !targetContainmentRegistry.tryClaim(targetId)) {
+        // CDP (or a prior claim) already owns containment for this target.
+        return;
+      }
+    }
     let closeFailed = false;
     let closeErrorMessage = null;
     try {
@@ -275,6 +351,7 @@ function createEaushadhiWorker({
       !!page &&
       !(typeof page.isClosed === "function" && page.isClosed());
     if (closeFailed || stillOpen) {
+      if (targetId) targetContainmentRegistry.markFailed(targetId);
       await failClosed(
         workerError(
           ERROR_KINDS.DISALLOWED_ORIGIN,
@@ -288,6 +365,57 @@ function createEaushadhiWorker({
         {
           pageRole: "secondary",
           containmentAction: "secondary_close_failed_fail_closed",
+          detectionSource: extras.detectionSource || null,
+        },
+      );
+      return;
+    }
+    if (targetId) targetContainmentRegistry.markClosed(targetId);
+    log({
+      phase: "origin-guard",
+      url,
+      errorKind: error?.kind || ERROR_KINDS.DISALLOWED_ORIGIN,
+      error: error?.message,
+      pageRole: "secondary",
+      containmentAction: "closed_offending_page",
+      detectionSource: extras.detectionSource || null,
+    });
+    emit();
+  }
+
+  async function containSecondaryTarget(targetId, error, url, extras = {}) {
+    const id = String(targetId || "");
+    if (!id || !cdpTargetGuard) {
+      await failClosed(
+        workerError(
+          ERROR_KINDS.DISALLOWED_ORIGIN,
+          "Secondary disallowed-origin target could not be closed.",
+        ),
+        url,
+        {
+          pageRole: "secondary",
+          containmentAction: "secondary_close_failed_fail_closed",
+          detectionSource: extras.detectionSource || null,
+        },
+      );
+      return;
+    }
+    const result = await cdpTargetGuard.closeAndVerifyTarget(id);
+    if (!result?.closed) {
+      await failClosed(
+        workerError(
+          ERROR_KINDS.DISALLOWED_ORIGIN,
+          sanitizeText(
+            result?.reason === "close_threw"
+              ? `Secondary disallowed-origin target could not be closed. ${result.errorMessage || ""}`.trim()
+              : "Secondary disallowed-origin target remained open after close.",
+          ),
+        ),
+        url,
+        {
+          pageRole: "secondary",
+          containmentAction: "secondary_close_failed_fail_closed",
+          detectionSource: extras.detectionSource || null,
         },
       );
       return;
@@ -298,7 +426,8 @@ function createEaushadhiWorker({
       errorKind: error?.kind || ERROR_KINDS.DISALLOWED_ORIGIN,
       error: error?.message,
       pageRole: "secondary",
-      containmentAction: "closed_offending_page",
+      containmentAction: "closed_offending_target",
+      detectionSource: extras.detectionSource || null,
     });
     emit();
   }
@@ -314,6 +443,7 @@ function createEaushadhiWorker({
       error: error?.message,
       pageRole: extras.pageRole || "controlled",
       containmentAction: extras.containmentAction || "fail_closed",
+      detectionSource: extras.detectionSource || null,
     });
     await closeBrowser();
     const current = machine.get();
@@ -358,19 +488,28 @@ function createEaushadhiWorker({
       const launcher = typeof launchBrowser === "function" ? launchBrowser : launchDedicatedEdge;
       context = await launcher(userDataDir);
       phase = CONNECT_PHASES.GUARD;
-      detachContextGuard = attachContextOriginGuard(context, {
+      originGuardController = attachContextOriginGuard(context, {
         contract,
-        onDisallowed: (error, url, page) => {
+        onDisallowed: (error, url, page, extras = {}) => {
           if (page && controlledPage && page === controlledPage) {
             void failClosed(error, url, {
               pageRole: "controlled",
               containmentAction: "fail_closed",
+              detectionSource: extras.detectionSource || null,
             });
             return;
           }
-          void containSecondaryPage(page, error, url);
+          void containSecondaryPage(page, error, url, extras);
         },
       });
+      detachContextGuard = () => {
+        try {
+          originGuardController?.detach();
+        } catch {
+          // ignore
+        }
+        originGuardController = null;
+      };
       phase = CONNECT_PHASES.PAGE;
       const page = context.pages()[0] || (await context.newPage());
       phase = CONNECT_PHASES.NAVIGATE;
@@ -378,6 +517,38 @@ function createEaushadhiWorker({
       phase = CONNECT_PHASES.ORIGIN_CHECK;
       assertAllowedUrl(page.url(), contract);
       setControlledPage(page);
+      await bindControlledTarget(page);
+      if (typeof originGuardController?.activateReconciliation === "function") {
+        originGuardController.activateReconciliation();
+      }
+      const browser = typeof context.browser === "function" ? context.browser() : null;
+      if (!browser || typeof browser.newBrowserCDPSession !== "function") {
+        throw workerError(
+          ERROR_KINDS.CRASH,
+          "Browser-level CDP session is unavailable for target discovery.",
+        );
+      }
+      targetContainmentRegistry = createTargetContainmentRegistry();
+      cdpTargetGuard = createCdpTargetGuard({
+        browser,
+        contract,
+        getControlledTargetId: () => controlledTargetId,
+        containmentRegistry: targetContainmentRegistry,
+        onDisallowedTarget: (error, url, extras = {}) => {
+          if (extras.targetId && controlledTargetId && extras.targetId === controlledTargetId) {
+            void failClosed(error, url, {
+              pageRole: "controlled",
+              containmentAction: "fail_closed",
+              detectionSource: extras.detectionSource || null,
+            });
+            return;
+          }
+          void containSecondaryTarget(extras.targetId, error, url, {
+            detectionSource: extras.detectionSource || null,
+          });
+        },
+      });
+      await cdpTargetGuard.activate();
       try {
         phase = CONNECT_PHASES.AUTH_PROBE;
         const authSpec = requireSection("authProbe");
@@ -480,6 +651,7 @@ function createEaushadhiWorker({
           );
         }
         setControlledPage(page);
+        await bindControlledTarget(page);
         adoptedFallback = true;
         log({
           phase: "origin-guard",
