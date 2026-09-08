@@ -15,9 +15,18 @@
       </select>
       <span class="select2 select2-container"></span>
       <label for="subTypeId">Sub Type</label>
-      <select id="subTypeId" name="subTypeId" class="select2-hidden-accessible" data-select2-id="subTypeId">
-        <option value="-1">--Select--</option>
+      <select
+        id="subTypeId"
+        name="subTypeId"
+        class="select2-hidden-accessible"
+        data-select2-id="subTypeId"
+        required
+        aria-required="true"
+        aria-describedby="subTypeHelp"
+      >
+        <option value="-1" selected>--Select--</option>
       </select>
+      <span id="subTypeHelp" class="field-validation-help">Please Select a Sub Type when required.</span>
       <span class="select2 select2-container"></span>
       <label for="countryApplicable">Country Applicable</label>
       <select id="countryApplicable" name="countryApplicable" class="select2-hidden-accessible" data-select2-id="countryApplicable">
@@ -45,8 +54,60 @@
       <input id="compositionTitle" name="compositionTitle" type="text" />
       <label for="disease">Diseases and Conditions</label>
       <textarea id="disease" name="disease"></textarea>
-      <button type="submit" id="save_btn">Save</button>
-      <button type="submit" id="save_rbtn">Save</button>
+      <button type="submit" id="save_btn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true; alert('bearer PLANTED_SECRET_TOKEN_SHOULD_NOT_PERSIST')">Save</button>
+      <button type="submit" id="save_rbtn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true">Save</button>
     </form>
+    <script>
+      // Generic subtype + validation language WITHOUT a "-1" comparison.
+      function noteSubTypeFieldRequired() {
+        return "Sub Type field is required when category is selected";
+      }
+    </script>
+    <script>
+      // Direct subtype-to--1 comparison + rejection messaging (positive explicit).
+      function validateSubTypeBeforeSave() {
+        if (document.getElementById("subTypeId").value === "-1") {
+          return "Please Select Sub Type";
+        }
+        return null;
+      }
+      function checkJQuerySubTypeBlank() {
+        if ($("#subTypeId").val() == "-1") {
+          return false;
+        }
+        return true;
+      }
+      function checkReversedSubTypeBlank() {
+        if ("-1" === document.getElementById("subTypeId").value) {
+          return "blank";
+        }
+        return null;
+      }
+    </script>
+    <script>
+      // Negative: subtype control ref + unrelated field compared to "-1".
+      function falsePositiveOtherFieldMinusOne() {
+        var subtype = document.getElementById("subTypeId");
+        if (otherField == "-1") {
+          return "no";
+        }
+        return subtype;
+      }
+    </script>
+    <script>
+      // Negative: subtype ref + unrelated boolean compare + separate "-1" string.
+      function falsePositiveSeparateMinusOne() {
+        var x = document.getElementById("subTypeId");
+        if (someFlag === true) {
+          var code = "-1";
+        }
+        return x;
+      }
+    </script>
+    <script>
+      // Unrelated sentinel occurrence must not alone prove rejection.
+      var GENERIC_PAGE_CODE = "-1";
+    </script>
+    <script src="/admin/assets/product-validation.js"></script>
   </body>
 </html>
