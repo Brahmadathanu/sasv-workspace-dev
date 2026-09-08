@@ -103,6 +103,9 @@ function createEaushadhiWorker({
   let detachContextGuard = null;
   let lastCaptureDir = null;
   let authRefreshInFlight = false;
+  let controlledPage = null;
+  let detachControlledClose = null;
+  let portalContract = null;
   const rpcCall = typeof callRpc === "function" ? callRpc : callWorkerRpc;
   const requireSection =
     typeof requireContractFn === "function" ? requireContractFn : requireContract;
@@ -142,7 +145,90 @@ function createEaushadhiWorker({
     }
   }
 
+  function clearControlledPage() {
+    if (detachControlledClose) {
+      try {
+        detachControlledClose();
+      } catch {
+        // ignore
+      }
+      detachControlledClose = null;
+    }
+    controlledPage = null;
+  }
+
+  function setControlledPage(page) {
+    clearControlledPage();
+    if (!page) return null;
+    controlledPage = page;
+    const onClose = () => {
+      void handleControlledPageClosed();
+    };
+    if (typeof page.on === "function") {
+      page.on("close", onClose);
+      detachControlledClose = () => {
+        if (typeof page.off === "function") page.off("close", onClose);
+      };
+    }
+    return controlledPage;
+  }
+
+  async function handleControlledPageClosed() {
+    if (containingOrigin || stopRequested) return;
+    if (controlledPage && typeof controlledPage.isClosed === "function" && !controlledPage.isClosed()) {
+      return;
+    }
+    const previousControlled = controlledPage;
+    clearControlledPage();
+    const state = machine.get();
+    const contract = portalContract || loadPortalContract();
+
+    if (state === STATES.RUNNING) {
+      await failClosed(
+        workerError(
+          ERROR_KINDS.DISALLOWED_ORIGIN,
+          "Controlled e-Aushadhi page was lost during an active operation.",
+        ),
+        typeof previousControlled?.url === "function" ? previousControlled.url() : null,
+        {
+          pageRole: "controlled",
+          containmentAction: "fail_closed",
+        },
+      );
+      return;
+    }
+
+    if (state === STATES.READY || state === STATES.AUTH_REQUIRED) {
+      const next = context ? selectAllowedOriginPage(context, contract) : null;
+      if (next) {
+        setControlledPage(next);
+        log({
+          phase: "origin-guard",
+          url: typeof next.url === "function" ? next.url() : null,
+          pageRole: "controlled",
+          containmentAction: "adopted_allowed_page",
+          error: "Controlled page closed; adopted another allowed e-Aushadhi page.",
+        });
+        emit();
+        return;
+      }
+    }
+
+    await failClosed(
+      workerError(
+        ERROR_KINDS.DISALLOWED_ORIGIN,
+        "No allowed e-Aushadhi page remains in the dedicated browser.",
+      ),
+      null,
+      {
+        pageRole: "controlled",
+        containmentAction: "fail_closed",
+      },
+    );
+  }
+
   async function closeBrowser() {
+    clearControlledPage();
     if (detachContextGuard) {
       try {
         detachContextGuard();
@@ -151,6 +237,7 @@ function createEaushadhiWorker({
       }
       detachContextGuard = null;
     }
+    portalContract = null;
     if (!context) return;
     const current = context;
     context = null;
@@ -161,7 +248,30 @@ function createEaushadhiWorker({
     }
   }
 
-  async function failClosed(error, url) {
+  async function containSecondaryPage(page, error, url) {
+    log({
+      phase: "origin-guard",
+      url,
+      errorKind: error?.kind || ERROR_KINDS.DISALLOWED_ORIGIN,
+      error: error?.message,
+      pageRole: "secondary",
+      containmentAction: "closed_offending_page",
+    });
+    try {
+      if (
+        page &&
+        typeof page.close === "function" &&
+        !(typeof page.isClosed === "function" && page.isClosed())
+      ) {
+        await page.close();
+      }
+    } catch {
+      // ignore close errors on secondary pages
+    }
+    emit();
+  }
+
+  async function failClosed(error, url, extras = {}) {
     if (containingOrigin) return;
     containingOrigin = true;
     setError(error);
@@ -170,6 +280,8 @@ function createEaushadhiWorker({
       url,
       errorKind: error?.kind || ERROR_KINDS.DISALLOWED_ORIGIN,
       error: error?.message,
+      pageRole: extras.pageRole || "controlled",
+      containmentAction: extras.containmentAction || "fail_closed",
     });
     await closeBrowser();
     const current = machine.get();
@@ -208,6 +320,7 @@ function createEaushadhiWorker({
       phase = CONNECT_PHASES.CONTRACT;
       requireSection("origins");
       const contract = loadPortalContract();
+      portalContract = contract;
       phase = CONNECT_PHASES.LAUNCH;
       const userDataDir = dedicatedProfileDir(getUserDataPath());
       const launcher = typeof launchBrowser === "function" ? launchBrowser : launchDedicatedEdge;
@@ -215,8 +328,15 @@ function createEaushadhiWorker({
       phase = CONNECT_PHASES.GUARD;
       detachContextGuard = attachContextOriginGuard(context, {
         contract,
-        onDisallowed: (error, url) => {
-          void failClosed(error, url);
+        onDisallowed: (error, url, page) => {
+          if (page && controlledPage && page === controlledPage) {
+            void failClosed(error, url, {
+              pageRole: "controlled",
+              containmentAction: "fail_closed",
+            });
+            return;
+          }
+          void containSecondaryPage(page, error, url);
         },
       });
       phase = CONNECT_PHASES.PAGE;
@@ -225,6 +345,7 @@ function createEaushadhiWorker({
       await page.goto(contract.baseUrl, { waitUntil: "domcontentloaded" });
       phase = CONNECT_PHASES.ORIGIN_CHECK;
       assertAllowedUrl(page.url(), contract);
+      setControlledPage(page);
       try {
         phase = CONNECT_PHASES.AUTH_PROBE;
         const authSpec = requireSection("authProbe");
@@ -312,6 +433,7 @@ function createEaushadhiWorker({
     emit();
     try {
       const contract = loadPortalContract();
+      portalContract = contract;
       requireSection("origins");
       const page = selectAllowedOriginPage(context, contract);
       if (!page) {
@@ -320,6 +442,7 @@ function createEaushadhiWorker({
           "No allowed e-Aushadhi page is available to recheck login.",
         );
       }
+      setControlledPage(page);
       try {
         const authSpec = requireSection("authProbe");
         const probe = await probeAuthenticatedSession(page, authSpec);
@@ -338,7 +461,10 @@ function createEaushadhiWorker({
     } catch (error) {
       const wrapped = wrapAuthRefreshFailure(error, AUTH_REFRESH_PHASE);
       if (wrapped.kind === ERROR_KINDS.DISALLOWED_ORIGIN) {
-        await failClosed(wrapped, wrapped.details?.url);
+        await failClosed(wrapped, wrapped.details?.url, {
+          pageRole: "controlled",
+          containmentAction: "fail_closed",
+        });
         throw wrapped;
       }
       if (machine.get() === STATES.READY) {

@@ -12,8 +12,11 @@ function edgeLaunchOptions() {
   return {
     channel: "msedge",
     headless: false,
-    viewport: { width: 1280, height: 800 },
+    viewport: null,
     ignoreHTTPSErrors: false,
+    chromiumSandbox: true,
+    ignoreDefaultArgs: ["--no-sandbox"],
+    args: ["--start-maximized"],
   };
 }
 

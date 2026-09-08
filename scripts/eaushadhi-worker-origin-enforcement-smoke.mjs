@@ -1,3 +1,7 @@
+/**
+ * Origin containment with controlled vs secondary page roles.
+ * Does not launch Microsoft Edge or contact the live portal.
+ */
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +10,8 @@ import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const fixtureDir = join(root, "scripts/fixtures/eaushadhi-portal");
+const { parseHtml } = require(join(fixtureDir, "mini-dom.cjs"));
 const { createEaushadhiWorker } = require(join(root, "electron/eaushadhi-worker/index.js"));
 const { STATES } = require(join(root, "electron/eaushadhi-worker/state.js"));
 const { ERROR_KINDS } = require(join(root, "electron/eaushadhi-worker/errors.js"));
@@ -25,6 +31,9 @@ function assert(cond, msg) {
   }
 }
 
+const authHtml = readFileSync(join(fixtureDir, "authenticated.html"), "utf8");
+const loginHtml = readFileSync(join(fixtureDir, "login.html"), "utf8");
+
 assert(shouldEnforceMainFrameUrl("https://www.e-aushadhi.gov.in/x") === true, "http(s) main-frame is enforced");
 assert(shouldEnforceMainFrameUrl("about:blank") === false, "about:blank is not an origin escape");
 assert(
@@ -33,20 +42,26 @@ assert(
 );
 assert(diagnosticOrigin("not a url") === "INVALID_URL", "unparseable URL becomes INVALID_URL");
 
-function createMockPage(startUrl = "about:blank") {
+function createMockPage(startUrl = "about:blank", { html = "<html></html>", onClosed } = {}) {
   let currentUrl = startUrl;
+  let document = parseHtml(html);
+  let closed = false;
   const mainFrame = {
     url() {
       return currentUrl;
     },
   };
   const listeners = {};
+  const counts = { evaluate: 0, close: 0 };
   const page = {
     mainFrame() {
       return mainFrame;
     },
     url() {
       return currentUrl;
+    },
+    isClosed() {
+      return closed;
     },
     on(name, fn) {
       listeners[name] = listeners[name] || [];
@@ -58,22 +73,21 @@ function createMockPage(startUrl = "about:blank") {
     listenerCount(name) {
       return (listeners[name] || []).length;
     },
+    counts,
+    setHtml(nextHtml, url) {
+      document = parseHtml(nextHtml);
+      if (url) currentUrl = url;
+    },
     async goto(next) {
       currentUrl = next;
       for (const handler of listeners.framenavigated || []) handler(mainFrame);
       return null;
     },
     async evaluate(fn, arg) {
+      counts.evaluate += 1;
       const prevDoc = global.document;
       const prevLoc = global.location;
-      global.document = {
-        querySelector() {
-          return null;
-        },
-        querySelectorAll() {
-          return [];
-        },
-      };
+      global.document = document;
       global.location = { href: currentUrl };
       try {
         return fn(arg);
@@ -90,17 +104,30 @@ function createMockPage(startUrl = "about:blank") {
       const child = { url: () => url };
       for (const handler of listeners.framenavigated || []) handler(child);
     },
+    async close() {
+      if (closed) return;
+      closed = true;
+      counts.close += 1;
+      for (const handler of listeners.close || []) handler();
+      if (typeof onClosed === "function") onClosed(page);
+    },
   };
   return page;
 }
 
-function createMockEdgeContext(startUrl = "about:blank") {
+function createMockEdgeContext(startUrl = "about:blank", { html } = {}) {
   const pages = [];
   const listeners = {};
   let closed = false;
+
+  function removePage(page) {
+    const index = pages.indexOf(page);
+    if (index >= 0) pages.splice(index, 1);
+  }
+
   const context = {
     pages() {
-      return [...pages];
+      return pages.filter((page) => !page.isClosed());
     },
     on(name, fn) {
       listeners[name] = listeners[name] || [];
@@ -117,24 +144,30 @@ function createMockEdgeContext(startUrl = "about:blank") {
     },
     async close() {
       closed = true;
+      for (const page of [...pages]) {
+        if (!page.isClosed()) await page.close();
+      }
     },
   };
 
-  function openPage(url) {
-    const page = createMockPage(url);
+  function openPage(url, pageHtml) {
+    const page = createMockPage(url, {
+      html: pageHtml || html || "<html></html>",
+      onClosed: removePage,
+    });
     pages.push(page);
     for (const handler of listeners.page || []) handler(page);
     return page;
   }
 
-  const first = createMockPage(startUrl);
-  pages.push(first);
+  const first = openPage(startUrl);
   return {
     context,
     page: first,
+    pages,
     isClosed: () => closed,
-    openPopup(url) {
-      return openPage(url);
+    openPopup(url, pageHtml) {
+      return openPage(url, pageHtml);
     },
   };
 }
@@ -150,81 +183,224 @@ function readLogs(tmp) {
     .join("\n");
 }
 
-function makeWorker(tmp, launchBrowser) {
+function lastLogRecord(tmp) {
+  const lines = readLogs(tmp)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return JSON.parse(lines[lines.length - 1]);
+}
+
+function makeWorker(tmp, launchBrowser, extras = {}) {
   return createEaushadhiWorker({
     getUserDataPath: () => tmp,
     launchBrowser,
+    callRpc: extras.callRpc,
   });
 }
 
-const tmpA = mkdtempSync(join(os.tmpdir(), "ea-worker-a-"));
-const mockA = createMockEdgeContext();
-const workerA = makeWorker(tmpA, async () => mockA.context);
+{
+  const tmpA = mkdtempSync(join(os.tmpdir(), "ea-worker-a-"));
+  const mockA = createMockEdgeContext();
+  const workerA = makeWorker(tmpA, async () => mockA.context);
 
-await workerA.connect();
-assert(workerA.getStatus().state === STATES.AUTH_REQUIRED, "A: initial allowed page remains AUTH_REQUIRED");
-assert(mockA.isClosed() === false, "A: initial allowed page keeps context open");
+  await workerA.connect();
+  assert(workerA.getStatus().state === STATES.AUTH_REQUIRED, "1: controlled allowed page remains AUTH_REQUIRED");
+  assert(mockA.isClosed() === false, "1: controlled allowed page keeps context open");
 
-await mockA.page.navigateMainFrame("https://www.e-aushadhi.gov.in/next");
-await wait(20);
-assert(workerA.getStatus().state === STATES.AUTH_REQUIRED, "A: same-origin navigation remains active");
+  await mockA.page.navigateMainFrame("https://www.e-aushadhi.gov.in/next");
+  await wait(20);
+  assert(workerA.getStatus().state === STATES.AUTH_REQUIRED, "A: same-origin navigation remains active");
 
-mockA.page.emitChildFrame("https://example.com/iframe");
-await wait(20);
-assert(workerA.getStatus().state === STATES.AUTH_REQUIRED, "F: child-frame foreign URL does not fail closed");
-assert(mockA.isClosed() === false, "F: child-frame foreign URL does not close the browser");
+  mockA.page.emitChildFrame("https://example.com/iframe");
+  await wait(20);
+  assert(workerA.getStatus().state === STATES.AUTH_REQUIRED, "F: child-frame foreign URL does not fail closed");
+  assert(mockA.isClosed() === false, "F: child-frame foreign URL does not close the browser");
 
-const sameOriginPopup = mockA.openPopup("https://www.e-aushadhi.gov.in/popup");
-await wait(20);
-assert(sameOriginPopup.listenerCount("framenavigated") === 1, "C: new same-origin page is guarded automatically");
-assert(mockA.isClosed() === false, "C: same-origin popup keeps context active");
+  const sameOriginPopup = mockA.openPopup("https://www.e-aushadhi.gov.in/popup");
+  await wait(20);
+  assert(sameOriginPopup.listenerCount("framenavigated") === 1, "C: new same-origin page is guarded automatically");
+  assert(mockA.isClosed() === false, "6: secondary allowed e-Aushadhi page is not closed");
 
-await workerA.stop();
-assert(workerA.getStatus().state === STATES.IDLE, "G: stop returns IDLE");
-assert(mockA.context.listenerCount("page") === 0, "G: context page listener is removed on stop");
-assert(mockA.page.listenerCount("framenavigated") === 0, "G: page navigation listener is removed on stop");
+  await workerA.stop();
+  assert(workerA.getStatus().state === STATES.IDLE, "G: stop returns IDLE");
+  assert(mockA.context.listenerCount("page") === 0, "G: context page listener is removed on stop");
+  assert(mockA.page.listenerCount("framenavigated") === 0, "G: page navigation listener is removed on stop");
 
-await mockA.page.navigateMainFrame("https://example.com/after-stop");
-await wait(20);
-assert(workerA.getStatus().state === STATES.IDLE, "G: stale page navigation after stop does not fail the worker");
+  await mockA.page.navigateMainFrame("https://example.com/after-stop");
+  await wait(20);
+  assert(workerA.getStatus().state === STATES.IDLE, "G: stale page navigation after stop does not fail the worker");
+}
 
-const tmpB = mkdtempSync(join(os.tmpdir(), "ea-worker-b-"));
-const mockB = createMockEdgeContext();
-const workerB = makeWorker(tmpB, async () => mockB.context);
-await workerB.connect();
-const pageObj = mockB.page;
-attachMainFrameOriginGuard(pageObj, {
-  contract: { allowedOrigins: ["https://www.e-aushadhi.gov.in"] },
-  onDisallowed: () => {},
-});
-assert(pageObj.listenerCount("framenavigated") === 1, "duplicate page guard is not attached");
+{
+  const tmpB = mkdtempSync(join(os.tmpdir(), "ea-worker-b-"));
+  const mockB = createMockEdgeContext();
+  const workerB = makeWorker(tmpB, async () => mockB.context);
+  await workerB.connect();
+  const pageObj = mockB.page;
+  attachMainFrameOriginGuard(pageObj, {
+    contract: { allowedOrigins: ["https://www.e-aushadhi.gov.in"] },
+    onDisallowed: () => {},
+  });
+  assert(pageObj.listenerCount("framenavigated") === 1, "duplicate page guard is not attached");
 
-await mockB.page.navigateMainFrame("https://example.com/escape");
-await wait(40);
-assert(workerB.getStatus().state === STATES.FAILED, "B: foreign navigation on initial page fails closed");
-assert(workerB.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "B: DISALLOWED_ORIGIN");
-assert(mockB.isClosed() === true, "B: entire context closes");
+  await mockB.page.navigateMainFrame("https://www.google.com/");
+  await wait(40);
+  assert(workerB.getStatus().state === STATES.FAILED, "2: controlled page navigates google.com -> full failClosed");
+  assert(workerB.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "B: DISALLOWED_ORIGIN");
+  assert(mockB.isClosed() === true, "2: controlled escape closes entire context");
+  const recordB = lastLogRecord(tmpB);
+  assert(recordB.page_role === "controlled", "2: controlled page_role logged");
+  assert(recordB.containment_action === "fail_closed", "2: fail_closed containment_action logged");
+}
 
-const tmpC = mkdtempSync(join(os.tmpdir(), "ea-worker-c-"));
-const mockC = createMockEdgeContext();
-const workerC = makeWorker(tmpC, async () => mockC.context);
-await workerC.connect();
-const popup = mockC.openPopup("https://www.e-aushadhi.gov.in/other");
-await wait(20);
-assert(popup.listenerCount("framenavigated") === 1, "D: new page is guarded");
-await popup.navigateMainFrame("https://example.com/private/path?secret=test-value#fragment");
-await wait(40);
-assert(workerC.getStatus().state === STATES.FAILED, "D: new-page foreign navigation fails the worker");
-assert(workerC.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "D: DISALLOWED_ORIGIN from new page");
-assert(mockC.isClosed() === true, "D: entire browser context closes");
+{
+  const tmpC = mkdtempSync(join(os.tmpdir(), "ea-worker-c-"));
+  const mockC = createMockEdgeContext("about:blank", { html: authHtml });
+  mockC.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const workerC = makeWorker(tmpC, async () => mockC.context);
+  await workerC.connect();
+  assert(workerC.getStatus().state === STATES.READY, "3: authenticated connect is READY");
+  const popup = mockC.openPopup("https://www.e-aushadhi.gov.in/other");
+  await wait(20);
+  assert(popup.listenerCount("framenavigated") === 1, "D: new page is guarded");
+  const evaluateBefore = popup.counts.evaluate;
+  await popup.navigateMainFrame("https://www.google.com/private/path?secret=test-value#fragment");
+  await wait(40);
+  assert(popup.isClosed() === true, "3: secondary/new page off-origin is closed only");
+  assert(mockC.page.isClosed() === false, "7: controlled e-Aushadhi page survives");
+  assert(mockC.isClosed() === false, "3: context stays open after secondary escape");
+  assert(workerC.getStatus().state === STATES.READY, "4: worker remains READY with valid controlled page");
+  assert(popup.counts.evaluate === evaluateBefore, "5: external page DOM is never evaluated");
+  const recordC = lastLogRecord(tmpC);
+  assert(recordC.page_role === "secondary", "secondary page_role logged");
+  assert(recordC.containment_action === "closed_offending_page", "closed_offending_page logged");
+  assert(recordC.url === "https://www.google.com", "E: sanitized origin is stored");
+  assert(!JSON.stringify(recordC).includes("private/path"), "E: path is not stored");
+  assert(!JSON.stringify(recordC).includes("secret"), "E: query key is not stored");
+  assert(!JSON.stringify(recordC).includes("test-value"), "E: query value is not stored");
+  assert(!JSON.stringify(recordC).includes("fragment"), "E: hash is not stored");
+}
 
-const logs = readLogs(tmpC);
-assert(logs.includes("https://example.com"), "E: sanitized origin is stored");
-assert(!logs.includes("private/path"), "E: path is not stored");
-assert(!logs.includes("secret"), "E: query key is not stored");
-assert(!logs.includes("test-value"), "E: query value is not stored");
-assert(!logs.includes("fragment"), "E: hash is not stored");
-assert(!logs.includes("INVALID_URL") || logs.includes("https://example.com"), "E: parsed origin is used");
+{
+  const tmpPopup = mkdtempSync(join(os.tmpdir(), "ea-worker-popup-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpPopup, async () => mock.context);
+  await worker.connect();
+  const popup = mock.openPopup("about:blank");
+  await popup.navigateMainFrame("https://example.com/escape");
+  await wait(40);
+  assert(popup.isClosed() === true, "9: popup external origin closes offending popup only");
+  assert(mock.page.isClosed() === false, "9: controlled page remains after popup escape");
+  assert(worker.getStatus().state === STATES.READY, "9: worker stays READY after popup escape");
+  assert(mock.isClosed() === false, "9: context remains open after popup escape");
+}
+
+{
+  const tmpReady = mkdtempSync(join(os.tmpdir(), "ea-ctrl-ready-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpReady, async () => mock.context);
+  await worker.connect();
+  assert(worker.getStatus().state === STATES.READY, "READY controlled-close starts READY");
+  const secondary = mock.openPopup("https://www.e-aushadhi.gov.in/other", authHtml);
+  await wait(20);
+  await mock.page.close();
+  await wait(40);
+  assert(worker.getStatus().state === STATES.READY, "READY+controlled close+allowed page -> remains READY");
+  assert(secondary.isClosed() === false, "READY adoption keeps the other allowed page open");
+  assert(mock.isClosed() === false, "READY adoption keeps context open");
+  const record = lastLogRecord(tmpReady);
+  assert(record.containment_action === "adopted_allowed_page", "READY adoption logs adopted_allowed_page");
+  assert(record.page_role === "controlled", "READY adoption logs controlled page_role");
+}
+
+{
+  const tmpAuth = mkdtempSync(join(os.tmpdir(), "ea-ctrl-auth-"));
+  const mock = createMockEdgeContext("about:blank", { html: loginHtml });
+  mock.page.setHtml(loginHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpAuth, async () => mock.context);
+  await worker.connect();
+  assert(worker.getStatus().state === STATES.AUTH_REQUIRED, "AUTH_REQUIRED controlled-close starts AUTH_REQUIRED");
+  const secondary = mock.openPopup("https://www.e-aushadhi.gov.in/other", loginHtml);
+  await wait(20);
+  await mock.page.close();
+  await wait(40);
+  assert(worker.getStatus().state === STATES.AUTH_REQUIRED, "AUTH_REQUIRED+controlled close+allowed page -> remains AUTH_REQUIRED");
+  assert(secondary.isClosed() === false, "AUTH_REQUIRED adoption keeps the other allowed page open");
+  assert(mock.isClosed() === false, "AUTH_REQUIRED adoption keeps context open");
+}
+
+{
+  const tmpRun = mkdtempSync(join(os.tmpdir(), "ea-ctrl-run-"));
+  let release;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpRun, async () => mock.context, {
+    callRpc: async () => held,
+  });
+  await worker.connect();
+  const secondary = mock.openPopup("https://www.e-aushadhi.gov.in/other", authHtml);
+  await wait(20);
+  const running = worker.runFoundationCheck(12, "a".repeat(24));
+  await wait(20);
+  assert(worker.getStatus().state === STATES.RUNNING, "RUNNING controlled-close starts RUNNING");
+  await mock.page.close();
+  await wait(40);
+  assert(worker.getStatus().state === STATES.FAILED, "RUNNING+controlled close -> FAILED even if another allowed page exists");
+  assert(mock.isClosed() === true, "RUNNING+controlled close closes context");
+  assert(worker.getStatus().lastErrorKind === ERROR_KINDS.DISALLOWED_ORIGIN, "RUNNING controlled-close is DISALLOWED_ORIGIN");
+  const record = lastLogRecord(tmpRun);
+  assert(String(record.error).includes("active operation"), "RUNNING controlled-close explains lost page during active operation");
+  assert(record.containment_action === "fail_closed", "RUNNING controlled-close is fail_closed");
+  release(null);
+  await running.catch(() => {});
+  void secondary;
+}
+
+{
+  const tmpNone = mkdtempSync(join(os.tmpdir(), "ea-ctrl-none-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpNone, async () => mock.context);
+  await worker.connect();
+  await mock.page.close();
+  await wait(40);
+  assert(worker.getStatus().state === STATES.FAILED, "4: no allowed page after controlled close -> failClosed");
+  assert(mock.isClosed() === true, "4: no allowed page closes context");
+}
+
+{
+  const tmpDisallow = mkdtempSync(join(os.tmpdir(), "ea-ctrl-disallow-"));
+  const mock = createMockEdgeContext("about:blank", { html: authHtml });
+  mock.page.setHtml(authHtml, "https://www.e-aushadhi.gov.in/");
+  const worker = makeWorker(tmpDisallow, async () => mock.context);
+  await worker.connect();
+  const foreign = mock.openPopup("about:blank");
+  foreign.evaluate = async () => {
+    throw new Error("disallowed page was evaluated");
+  };
+  await foreign.navigateMainFrame("https://example.com/keep-out");
+  await wait(40);
+  assert(foreign.isClosed() === true, "5: adoption never chooses a disallowed page; foreign page is closed by guard");
+  assert(worker.getStatus().state === STATES.READY, "5: worker stays READY after foreign popup containment");
+  await mock.page.close();
+  await wait(40);
+  assert(worker.getStatus().state === STATES.FAILED, "5: with only disallowed leftovers, controlled close failCloses");
+}
+
+{
+  const contractSrc = readFileSync(
+    join(root, "electron/eaushadhi-worker/contracts/portal-contract.json"),
+    "utf8",
+  );
+  assert(contractSrc.includes("https://www.e-aushadhi.gov.in"), "10: allowedOrigins still include portal origin");
+  assert(!contractSrc.includes("https://www.google.com"), "10: allowedOrigins do not include Google");
+}
 
 if (failed) {
   console.error(`\n${failed} origin enforcement assertion(s) failed`);

@@ -40,6 +40,9 @@ function writeDiagnostic(userDataPath, record) {
   ensureDir(root);
   const day = new Date().toISOString().slice(0, 10);
   const filePath = path.join(root, `${day}.jsonl`);
+  const pageRole = record.pageRole || record.page_role || null;
+  const containmentAction =
+    record.containmentAction || record.containment_action || null;
   const line = JSON.stringify({
     timestamp: new Date().toISOString(),
     run_id: record.runId || null,
@@ -47,12 +50,17 @@ function writeDiagnostic(userDataPath, record) {
     worker_state: record.workerState || null,
     phase: record.phase || null,
     url:
-      record.errorKind === "DISALLOWED_ORIGIN" || record.phase === "origin-guard"
+      record.errorKind === "DISALLOWED_ORIGIN" ||
+      record.phase === "origin-guard" ||
+      pageRole ||
+      containmentAction
         ? diagnosticOrigin(record.url)
         : safeUrl(record.url),
     contract_section: record.contractSection || null,
     error_kind: record.errorKind || null,
     error: sanitizeText(record.error),
+    page_role: pageRole,
+    containment_action: containmentAction,
   });
   fs.appendFileSync(filePath, `${line}\n`, "utf8");
 }

@@ -315,6 +315,11 @@ assert((htmlSrc.match(/id="btnWorkerConnect"/g) || []).length === 1, "exactly on
 assert((htmlSrc.match(/id="btnWorkerRecheckLogin"/g) || []).length === 1, "exactly one Recheck Login button");
 assert(htmlSrc.includes(">Recheck Login<"), "Recheck Login copy is used");
 assert((htmlSrc.match(/id="btnWorkerStop"/g) || []).length === 1, "exactly one Stop button");
+assert(
+  htmlSrc.includes("Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi."),
+  "Stop tooltip clarifies no portal logout",
+);
+assert(controlSrc.includes("does not log out of e-Aushadhi"), "controller keeps Stop no-logout wording");
 assert((htmlSrc.match(/id="btnWorkerCapture"/g) || []).length === 1, "exactly one Capture button");
 assert((htmlSrc.match(/id="btnWorkerOpenCapture"/g) || []).length === 1, "exactly one Open Capture Folder button");
 assert((htmlSrc.match(/id="workerBrowserStatus"/g) || []).length === 1, "exactly one worker status node");

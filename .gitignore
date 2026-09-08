@@ -25,6 +25,7 @@ dist-eaushadhi-evidence-card-hierarchy-proof/
 dist-eaushadhi-connect-diagnostics-proof/
 dist-eaushadhi-auth-probe-serialization-proof/
 dist-eaushadhi-auth-refresh-proof/
+dist-eaushadhi-browser-runtime-hardening-proof/
 *.exe
 *.zip
 

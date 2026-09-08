@@ -1771,6 +1771,9 @@ function setMenuActionDisabled(el, disabled) {
   else el.removeAttribute("aria-disabled");
 }
 
+const STOP_BROWSER_HINT =
+  "Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi.";
+
 function placeWorkerStop(connectPrimary) {
   const stop = $("btnWorkerStop");
   const menu = $("eaWorkerMenu");
@@ -1778,6 +1781,8 @@ function placeWorkerStop(connectPrimary) {
   const connect = $("btnWorkerConnect");
   if (!stop || !menu || !more || !connect) return;
   connect.hidden = !connectPrimary;
+  stop.title = STOP_BROWSER_HINT;
+  stop.setAttribute("aria-label", STOP_BROWSER_HINT);
   if (connectPrimary) {
     menu.insertBefore(stop, menu.firstChild);
     stop.hidden = false;
