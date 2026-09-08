@@ -5,6 +5,7 @@ const { sanitizeText } = require("../diagnostics");
 
 const HANDLER_PREVIEW_MAX = 240;
 const SNIPPET_MAX = 160;
+const MAX_HANDLER_SNIPPETS = 8;
 
 function sha256Text(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
@@ -52,6 +53,55 @@ function finalizeScriptMatch(match) {
   };
 }
 
+function finalizeReferencedHandler(entry) {
+  const rawSource = entry?.function_source_raw;
+  const hasFullRaw = typeof rawSource === "string" && rawSource.length > 0;
+  const truncated = entry?.source_truncated === true;
+  let sourceSha256 = null;
+  let hashScope = null;
+  if (hasFullRaw && truncated !== true) {
+    sourceSha256 = sha256Text(rawSource);
+    hashScope = "full_function_source";
+  }
+
+  const snippets = (Array.isArray(entry?.snippets) ? entry.snippets : [])
+    .slice(0, MAX_HANDLER_SNIPPETS)
+    .map((item) => ({
+      match_term: item?.match_term || null,
+      context_snippet: item?.context_snippet
+        ? boundSanitize(item.context_snippet, SNIPPET_MAX)
+        : null,
+      evidence_class: item?.evidence_class || null,
+      subtype_related: item?.subtype_related === true,
+      validation_or_sentinel: item?.validation_or_sentinel === true,
+      direct_minus_one_comparison: item?.direct_minus_one_comparison === true,
+      explicit_minus_one_rejection: item?.explicit_minus_one_rejection === true,
+    }));
+
+  const flags = entry?.observation_flags || {};
+  return {
+    function_name: entry?.function_name || null,
+    control_id: entry?.control_id || null,
+    referenced_by_onclick: entry?.referenced_by_onclick === true,
+    found: entry?.found === true,
+    typeof: entry?.typeof || null,
+    source_capture_status: entry?.source_capture_status || null,
+    source_length: typeof entry?.source_length === "number" ? entry.source_length : null,
+    source_truncated: truncated === true,
+    source_sha256: sourceSha256,
+    hash_scope: hashScope,
+    snippets,
+    observation_flags: {
+      subtype_validation_candidate_observed: flags.subtype_validation_candidate_observed === true,
+      subtype_minus_one_rejection_candidate_observed:
+        flags.subtype_minus_one_rejection_candidate_observed === true,
+      explicit_subtype_minus_one_rejection_observed:
+        flags.explicit_subtype_minus_one_rejection_observed === true,
+    },
+    evidence_complete: false,
+  };
+}
+
 function emptyConclusionInputs() {
   return {
     html_required_observed: false,
@@ -60,6 +110,9 @@ function emptyConclusionInputs() {
     subtype_minus_one_rejection_candidate_observed: false,
     explicit_subtype_minus_one_rejection_observed: false,
     inline_script_subtype_terms_observed: false,
+    referenced_handler_subtype_validation_candidate_observed: false,
+    referenced_handler_subtype_minus_one_rejection_candidate_observed: false,
+    referenced_handler_explicit_subtype_minus_one_rejection_observed: false,
     evidence_complete: false,
   };
 }
@@ -69,10 +122,12 @@ function emptyConclusionInputs() {
  * Never sets blank_valid / portal_accepts_blank. evidence_complete stays false while
  * external/dynamic enforcement surfaces remain unresolved.
  *
- * Rejection semantics (conservative / under-classify):
+ * Inline rejection semantics (conservative / under-classify):
  * - subtype_validation_candidate: subtype + generic validation language only
- * - subtype_minus_one_rejection_candidate: subtype + "-1" + comparison-like context
- * - explicit_subtype_minus_one_rejection: stronger comparison + rejection messaging
+ * - subtype_minus_one_rejection_candidate: direct subtype-to--1 comparison
+ * - explicit_subtype_minus_one_rejection: direct comparison + rejection messaging
+ *
+ * Referenced-handler flags are additive and separate from inline-script facts.
  */
 function finalizeClassificationValidationEvidence(raw) {
   if (!raw || typeof raw !== "object") {
@@ -82,6 +137,7 @@ function finalizeClassificationValidationEvidence(raw) {
       submit_controls: [],
       nearby_validation_elements: [],
       script_matches: [],
+      referenced_handler_functions: [],
       limitations: [
         "external_script_bodies_not_fetched",
         "delegated_or_dynamic_listeners_not_enumerated",
@@ -95,6 +151,7 @@ function finalizeClassificationValidationEvidence(raw) {
 
   const subtype = raw.subtype_control || { control_found: false, id: "subTypeId" };
   const scriptMatches = (raw.script_matches || []).map(finalizeScriptMatch);
+  const referencedHandlers = (raw.referenced_handler_functions || []).map(finalizeReferencedHandler);
   const nearby = (raw.nearby_validation_elements || []).slice(0, 8).map((item) => ({
     id: item?.id || null,
     class_name: item?.class_name ? boundSanitize(item.class_name, 120) : null,
@@ -136,12 +193,23 @@ function finalizeClassificationValidationEvidence(raw) {
 
   const inlineSubtypeTerms = inline.some((match) => match.subtype_related === true);
 
+  const referencedValidationObserved = referencedHandlers.some(
+    (item) => item.observation_flags?.subtype_validation_candidate_observed === true,
+  );
+  const referencedRejectionObserved = referencedHandlers.some(
+    (item) => item.observation_flags?.subtype_minus_one_rejection_candidate_observed === true,
+  );
+  const referencedExplicitObserved = referencedHandlers.some(
+    (item) => item.observation_flags?.explicit_subtype_minus_one_rejection_observed === true,
+  );
+
   const limitations = Array.from(
     new Set([
       ...(Array.isArray(raw.limitations) ? raw.limitations : []),
       "external_script_bodies_not_fetched",
       "delegated_or_dynamic_listeners_not_enumerated",
       "checkValidity_and_reportValidity_not_called",
+      "referenced_handler_bodies_via_tostring_only",
     ]),
   );
 
@@ -151,6 +219,7 @@ function finalizeClassificationValidationEvidence(raw) {
     submit_controls: (raw.submit_controls || []).map(finalizeSubmitControl),
     nearby_validation_elements: nearby,
     script_matches: scriptMatches,
+    referenced_handler_functions: referencedHandlers,
     limitations,
     conclusion_inputs: {
       html_required_observed: htmlRequiredObserved,
@@ -159,6 +228,9 @@ function finalizeClassificationValidationEvidence(raw) {
       subtype_minus_one_rejection_candidate_observed: rejectionCandidateObserved,
       explicit_subtype_minus_one_rejection_observed: explicitRejectionObserved,
       inline_script_subtype_terms_observed: inlineSubtypeTerms,
+      referenced_handler_subtype_validation_candidate_observed: referencedValidationObserved,
+      referenced_handler_subtype_minus_one_rejection_candidate_observed: referencedRejectionObserved,
+      referenced_handler_explicit_subtype_minus_one_rejection_observed: referencedExplicitObserved,
       // Asymmetric: unresolved external/dynamic surfaces keep evidence incomplete.
       evidence_complete: false,
     },

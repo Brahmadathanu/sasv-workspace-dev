@@ -13,8 +13,13 @@ function extractClassificationValidationEvidence() {
   const MAX_TEXT = 120;
   const MAX_DATA_ATTRS = 20;
   const MAX_DATA_VALUE = 80;
+  // Hard cap for transferring Function#toString of an allowlisted referenced handler.
+  const MAX_REFERENCED_FUNCTION_SOURCE = 262144;
+  const MAX_HANDLER_SNIPPETS = 8;
 
   const SUBMIT_IDS = ["save_btn", "save_rbtn"];
+  // Legacy Add Product primary submit target only — do not expand without new evidence.
+  const REFERENCED_HANDLER_ALLOWLIST = ["SaveData"];
   const MATCH_TERMS = [
     "subTypeId",
     "subtype",
@@ -26,6 +31,20 @@ function extractClassificationValidationEvidence() {
     '"-1"',
     "'-1'",
     "Please Select",
+  ];
+  const HANDLER_MATCH_TERMS = [
+    "subTypeId",
+    "subtype",
+    "sub type",
+    "Sub Type",
+    "categoryId",
+    '"-1"',
+    "'-1'",
+    "Please Select",
+    "required",
+    "error",
+    "alert",
+    "validation",
   ];
 
   function attr(el, name) {
@@ -587,6 +606,158 @@ function extractClassificationValidationEvidence() {
     return inlineMatches.concat(externalUnresolved).slice(0, MAX_SCRIPT_MATCHES);
   }
 
+  /**
+   * Recognize only a simple zero-arg Identifier() call. Reject dotted / dynamic forms.
+   * Name must still pass the hard allowlist before resolution.
+   */
+  function simpleAllowlistedCallName(preview) {
+    const text = String(preview || "");
+    if (!text) return null;
+    if (/\[\s*['"]SaveData['"]\s*\]/.test(text)) return null;
+    // Require a non-member SaveData() occurrence (rejects only-dotted forms like obj.SaveData()).
+    const match = text.match(/(?:^|[^\w$.])(SaveData)\s*\(\s*\)/);
+    if (!match) return null;
+    if (REFERENCED_HANDLER_ALLOWLIST.indexOf(match[1]) < 0) return null;
+    return match[1];
+  }
+
+  function scanHandlerSource(body) {
+    const source = String(body || "");
+    const lower = source.toLowerCase();
+    const per = [];
+    for (const term of HANDLER_MATCH_TERMS) {
+      const idx = lower.indexOf(String(term).toLowerCase());
+      if (idx < 0) continue;
+      const start = Math.max(0, idx - 60);
+      const end = Math.min(source.length, idx + String(term).length + 120);
+      const snippet = sliceText(source.slice(start, end), MAX_SNIPPET);
+      const classified = classifyInlineSnippet(term, snippet);
+      per.push({
+        match_term: term,
+        context_snippet: snippet,
+        evidence_class: classified.evidenceClass,
+        subtype_related: classified.subtypeRelated,
+        validation_or_sentinel: classified.validationOrSentinel,
+        direct_minus_one_comparison: classified.directMinusOne,
+        explicit_minus_one_rejection: classified.explicitMinusOne,
+      });
+    }
+    for (const direct of collectDirectMinusOneMatches(source, null)) {
+      per.push({
+        match_term: direct.match_term,
+        context_snippet: direct.context_snippet,
+        evidence_class: direct.evidence_class,
+        subtype_related: direct.subtype_related,
+        validation_or_sentinel: direct.validation_or_sentinel,
+        direct_minus_one_comparison: direct.direct_minus_one_comparison,
+        explicit_minus_one_rejection: direct.explicit_minus_one_rejection,
+      });
+    }
+    const kept = [];
+    const byClass = new Map();
+    for (const item of per) {
+      if (item.direct_minus_one_comparison === true) {
+        if (kept.filter((row) => row.direct_minus_one_comparison).length < 5) kept.push(item);
+        continue;
+      }
+      if (!byClass.has(item.evidence_class)) byClass.set(item.evidence_class, item);
+    }
+    for (const item of byClass.values()) kept.push(item);
+    return kept.slice(0, MAX_HANDLER_SNIPPETS);
+  }
+
+  function observationFlagsFromSnippets(snippets) {
+    const list = Array.isArray(snippets) ? snippets : [];
+    return {
+      subtype_validation_candidate_observed: list.some(
+        (item) =>
+          item.evidence_class === "subtype_validation_candidate" ||
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate",
+      ),
+      subtype_minus_one_rejection_candidate_observed: list.some(
+        (item) =>
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+          item.direct_minus_one_comparison === true,
+      ),
+      explicit_subtype_minus_one_rejection_observed: list.some(
+        (item) =>
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+          item.explicit_minus_one_rejection === true,
+      ),
+    };
+  }
+
+  /**
+   * Read-only inspection of allowlisted globals referenced by submit onclick wrappers.
+   * Uses Function.prototype.toString only — never invokes the target function.
+   */
+  function referencedHandlerFunctions(controls) {
+    const out = [];
+    const globalObject = typeof window !== "undefined" ? window : globalThis;
+    for (const control of controls || []) {
+      if (!control || control.control_found !== true || control.id !== "save_btn") continue;
+      const fromAttribute = simpleAllowlistedCallName(control.onclick_attribute);
+      const fromPreview = simpleAllowlistedCallName(control.onclick_source_preview_raw);
+      const functionName = fromAttribute || fromPreview;
+      if (!functionName) continue;
+
+      // Hard-coded property access for the allowlisted legacy name only.
+      const value = globalObject.SaveData;
+      const typeOf = typeof value;
+      const entry = {
+        function_name: functionName,
+        control_id: control.id,
+        referenced_by_onclick: true,
+        found: typeOf === "function",
+        typeof: typeOf,
+        source_capture_status: "not_found",
+        source_length: null,
+        source_truncated: false,
+        function_source_raw: null,
+        snippets: [],
+        observation_flags: {
+          subtype_validation_candidate_observed: false,
+          subtype_minus_one_rejection_candidate_observed: false,
+          explicit_subtype_minus_one_rejection_observed: false,
+        },
+        evidence_complete: false,
+      };
+
+      if (typeOf !== "function") {
+        entry.source_capture_status = typeOf === "undefined" ? "not_found" : "not_a_function";
+        out.push(entry);
+        continue;
+      }
+
+      try {
+        const raw = Function.prototype.toString.call(value);
+        entry.source_length = raw.length;
+        if (/\[native code\]/i.test(raw)) {
+          entry.source_capture_status = "native_or_opaque";
+        } else if (raw.length > MAX_REFERENCED_FUNCTION_SOURCE) {
+          // Bound scan only; do not transfer unrestricted full source across evaluate.
+          entry.source_truncated = true;
+          entry.source_capture_status = "captured_truncated";
+          const bounded = raw.slice(0, MAX_REFERENCED_FUNCTION_SOURCE);
+          entry.snippets = scanHandlerSource(bounded);
+          entry.function_source_raw = null;
+        } else {
+          entry.source_truncated = false;
+          entry.source_capture_status = "captured";
+          entry.snippets = scanHandlerSource(raw);
+          entry.function_source_raw = raw;
+        }
+        entry.observation_flags = observationFlagsFromSnippets(entry.snippets);
+      } catch {
+        entry.source_capture_status = "tostring_failed";
+      }
+      out.push(entry);
+    }
+    return out;
+  }
+
   let pathHint = null;
   try {
     pathHint = location && location.pathname ? String(location.pathname) : null;
@@ -595,17 +766,29 @@ function extractClassificationValidationEvidence() {
   }
 
   const subtype = subtypeControl();
+  const controls = submitControls();
+  const referenced = referencedHandlerFunctions(controls);
+  const limitations = [
+    "external_script_bodies_not_fetched",
+    "delegated_or_dynamic_listeners_not_enumerated",
+    "checkValidity_and_reportValidity_not_called",
+    "referenced_handler_bodies_via_tostring_only",
+  ];
+  if (referenced.some((item) => item.source_capture_status === "native_or_opaque")) {
+    limitations.push("native_or_opaque_functions_not_inspectable");
+  }
+  if (referenced.some((item) => item.source_truncated === true)) {
+    limitations.push("referenced_function_source_size_limited");
+  }
+
   return {
     target_path_hint: pathHint,
     subtype_control: subtype,
-    submit_controls: submitControls(),
+    submit_controls: controls,
     nearby_validation_elements: nearbyValidationElements(subtype),
     script_matches: scriptMatches(),
-    limitations: [
-      "external_script_bodies_not_fetched",
-      "delegated_or_dynamic_listeners_not_enumerated",
-      "checkValidity_and_reportValidity_not_called",
-    ],
+    referenced_handler_functions: referenced,
+    limitations,
   };
 }
 

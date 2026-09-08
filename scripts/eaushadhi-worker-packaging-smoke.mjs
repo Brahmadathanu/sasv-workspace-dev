@@ -115,6 +115,12 @@ if (existsSync(validationInPageLoose)) {
   assert(validationSrc.includes("extractClassificationValidationEvidence"), "unpacked validation in-page extractor present");
   assert(!/\.checkValidity\s*\(/.test(validationSrc), "unpacked validation extractor has no checkValidity call");
   assert(!/\.reportValidity\s*\(/.test(validationSrc), "unpacked validation extractor has no reportValidity call");
+  assert(validationSrc.includes("MAX_REFERENCED_FUNCTION_SOURCE"), "unpacked validation has referenced function size limit");
+  assert(validationSrc.includes("referencedHandlerFunctions"), "unpacked validation inspects referenced handlers");
+  assert(validationSrc.includes("Function.prototype.toString.call"), "unpacked validation uses toString only");
+  assert(!/SaveData\s*\(\s*\)\s*;/.test(validationSrc.replace(/Function\.prototype\.toString\.call\([^)]+\)/g, "")), "unpacked validation does not invoke SaveData");
+  assert(!/\bfetch\s*\(/.test(validationSrc), "unpacked validation has no fetch");
+  assert(!/XMLHttpRequest/.test(validationSrc), "unpacked validation has no XHR");
 } else {
   console.warn("WARN: validation-evidence-in-page.js not in current dist unpack; rebuild required");
 }
@@ -122,6 +128,10 @@ if (existsSync(validationNodeLoose)) {
   const nodeSrc = readFileSync(validationNodeLoose, "utf8");
   assert(nodeSrc.includes("finalizeClassificationValidationEvidence"), "unpacked validation finalize present");
   assert(nodeSrc.includes("createHash"), "unpacked validation hashes on Node side");
+  assert(nodeSrc.includes("referenced_handler_functions"), "unpacked finalize keeps referenced_handler_functions");
+  assert(nodeSrc.includes("hash_scope"), "unpacked finalize records hash_scope");
+  assert(nodeSrc.includes("function_source_raw"), "unpacked finalize knows transport-only raw field");
+  assert(nodeSrc.includes("full_function_source"), "unpacked finalize labels full-source hash scope");
 }
 
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/dry-run.js")), "dry-run module is unpacked");

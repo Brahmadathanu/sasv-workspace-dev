@@ -28,6 +28,7 @@ dist-eaushadhi-auth-refresh-proof/
 dist-eaushadhi-browser-runtime-hardening-proof/
 dist-eaushadhi-manual-tab-origin-reconciliation-proof/
 dist-eaushadhi-subtype-validation-capture-proof/
+dist-eaushadhi-savedata-validation-capture-proof/
 *.exe
 *.zip
 
