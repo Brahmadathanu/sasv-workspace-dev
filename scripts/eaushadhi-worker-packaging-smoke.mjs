@@ -33,6 +33,7 @@ const distCandidates = [
   "dist-eaushadhi-capture-proof",
   "dist-eaushadhi-hardening-proof",
   "dist-eaushadhi-worker-proof",
+  "dist-eaushadhi-auth-refresh-proof",
   "dist",
 ].filter(Boolean);
 const dist = distCandidates
@@ -79,6 +80,19 @@ const workerIndexLoose = join(asarUnpacked, "electron/eaushadhi-worker/index.js"
 assert(existsSync(workerIndexLoose), "worker index is unpacked");
 const workerIndexSrc = readFileSync(workerIndexLoose, "utf8");
 assert(workerIndexSrc.includes("connect:launch"), "unpacked connect records launch phase");
+assert(workerIndexSrc.includes("recheckAuthentication"), "unpacked worker exposes auth recheck");
+assert(workerIndexSrc.includes("auth-refresh"), "unpacked worker records auth-refresh phase");
+const recheckSrc = workerIndexSrc.slice(
+  workerIndexSrc.indexOf("async function recheckAuthentication"),
+  workerIndexSrc.indexOf("async function stop()"),
+);
+assert(recheckSrc.includes("probeAuthenticatedSession"), "unpacked recheck uses the existing auth probe");
+assert(
+  recheckSrc.includes("if (machine.get() === STATES.READY)") &&
+    recheckSrc.includes("machine.transition(STATES.AUTH_REQUIRED)"),
+  "unpacked recheck fail-closes READY on probe execution errors",
+);
+assert(!/\.goto\s*\(/.test(recheckSrc), "unpacked recheck does not navigate");
 assert(workerIndexSrc.includes("causeMessageSanitized"), "unpacked connect preserves sanitized root cause");
 assert(existsSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js")), "auth-probe is unpacked");
 const authProbeSrc = readFileSync(join(asarUnpacked, "electron/eaushadhi-worker/auth-probe.js"), "utf8");
@@ -123,6 +137,8 @@ if (existsSync(asarPath)) {
         const asarKey = listed.find((item) => String(item).replace(/\\/g, "/").endsWith("public/shared/e-aushadhi-review-control.html"));
         const reviewHtml = asar.extractFile(asarPath, asarKey.replace(/^[\\/]/, "")).toString("utf8");
         assert(reviewHtml.includes('id="eaWorkerToolbar"'), "packaged Review HTML has worker toolbar");
+        assert(reviewHtml.includes('id="btnWorkerRecheckLogin"'), "packaged Review HTML has Recheck Login");
+        assert(reviewHtml.includes("Recheck Login"), "packaged Recheck Login copy is present");
         assert(reviewHtml.includes('id="eaWorkerMenu"'), "packaged Review HTML has worker overflow menu");
         assert(reviewHtml.indexOf('id="eaWorkerToolbar"') < reviewHtml.indexOf('id="refreshBtn"'), "packaged worker toolbar is left of Refresh");
         assert(reviewHtml.indexOf('id="eaWorkerMenu"') < reviewHtml.indexOf('id="refreshBtn"'), "packaged worker menu is left of Refresh");

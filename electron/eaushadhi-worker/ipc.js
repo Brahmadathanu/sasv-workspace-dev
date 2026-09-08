@@ -17,6 +17,7 @@ const CHANNELS = Object.freeze({
   ENTRY_DRY_RUN: "eaushadhi-worker:entry-dry-run",
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
+  RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
 });
 
 function errorPayload(error) {
@@ -71,6 +72,11 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
   ipcMain.handle(
     CHANNELS.STOP,
     withRendererGuard(async () => worker.stop()),
+  );
+
+  ipcMain.handle(
+    CHANNELS.RECHECK_LOGIN,
+    withRendererGuard(async () => worker.recheckAuthentication()),
   );
 
   ipcMain.handle(

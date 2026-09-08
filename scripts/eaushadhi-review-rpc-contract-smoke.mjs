@@ -312,6 +312,8 @@ assert(controlSrc.includes("btnWorkerFoundation"), "Readiness has Foundation Che
 assert(controlSrc.includes("syncWorkerToolbarUi"), "worker toolbar has a canonical sync function");
 assert(htmlSrc.includes('id="eaWorkerToolbar"'), "header contains the worker toolbar");
 assert((htmlSrc.match(/id="btnWorkerConnect"/g) || []).length === 1, "exactly one Connect button");
+assert((htmlSrc.match(/id="btnWorkerRecheckLogin"/g) || []).length === 1, "exactly one Recheck Login button");
+assert(htmlSrc.includes(">Recheck Login<"), "Recheck Login copy is used");
 assert((htmlSrc.match(/id="btnWorkerStop"/g) || []).length === 1, "exactly one Stop button");
 assert((htmlSrc.match(/id="btnWorkerCapture"/g) || []).length === 1, "exactly one Capture button");
 assert((htmlSrc.match(/id="btnWorkerOpenCapture"/g) || []).length === 1, "exactly one Open Capture Folder button");
@@ -344,10 +346,26 @@ assert(htmlSrc.indexOf('id="refreshBtn"') < htmlSrc.indexOf('id="homeBtn"'), "Re
 assert(htmlSrc.includes('data-edit-action="true"'), "header worker controls keep data-edit-action");
 assert(
   /id="btnWorkerConnect"[^>]*data-edit-action="true"/.test(htmlSrc) &&
+    /id="btnWorkerRecheckLogin"[^>]*data-edit-action="true"/.test(htmlSrc) &&
     /id="btnWorkerStop"[^>]*data-edit-action="true"/.test(htmlSrc) &&
     /id="btnWorkerCapture"[^>]*data-edit-action="true"/.test(htmlSrc) &&
     /id="btnWorkerOpenCapture"[^>]*data-edit-action="true"/.test(htmlSrc),
   "view-only permission still applies to global worker controls",
+);
+assert(
+  controlSrc.includes('workerState === "READY"') &&
+    controlSrc.includes("captureEnabled") &&
+    !/captureEnabled\s*=\s*available && !busy && \(workerState === "AUTH_REQUIRED" \|\| workerState === "READY"\)/.test(
+      controlSrc,
+    ),
+  "Capture stays gated to READY and is not enabled for AUTH_REQUIRED",
+);
+assert(controlSrc.includes('if (status !== "READY") return;'), "Capture submit requires READY");
+assert(controlSrc.includes("recheckWorkerLogin"), "toolbar can invoke login recheck");
+assert(controlSrc.includes("submitWorkerRecheckLogin"), "Recheck Login has a submit handler");
+assert(
+  htmlSrc.indexOf('id="btnWorkerRecheckLogin"') < htmlSrc.indexOf('id="btnWorkerStop"'),
+  "Recheck Login sits before Stop",
 );
 const foundationCardSrc = controlSrc.slice(
   controlSrc.indexOf("function renderWorkerFoundationCard"),
@@ -355,6 +373,7 @@ const foundationCardSrc = controlSrc.slice(
 );
 assert(foundationCardSrc.includes("btnWorkerFoundation"), "Readiness card still renders Foundation Check");
 assert(!foundationCardSrc.includes("btnWorkerConnect"), "Readiness card does not render Connect");
+assert(!foundationCardSrc.includes("btnWorkerRecheckLogin"), "Readiness card does not render Recheck Login");
 assert(!foundationCardSrc.includes("btnWorkerStop"), "Readiness card does not render Stop");
 assert(!foundationCardSrc.includes("btnWorkerCapture"), "Readiness card does not render Capture");
 assert(!foundationCardSrc.includes("btnWorkerOpenCapture"), "Readiness card does not render Open Folder");
@@ -370,6 +389,7 @@ assert(!readinessClickSrc.includes("btnWorkerStop"), "Readiness click does not h
 assert(!readinessClickSrc.includes("btnWorkerCapture"), "Readiness click does not handle Capture");
 assert(!readinessClickSrc.includes("btnWorkerOpenCapture"), "Readiness click does not handle Open Folder");
 assert((controlSrc.match(/async function submitWorkerConnect/g) || []).length === 1, "one submitWorkerConnect definition");
+assert((controlSrc.match(/async function submitWorkerRecheckLogin/g) || []).length === 1, "one submitWorkerRecheckLogin definition");
 assert((controlSrc.match(/async function submitWorkerStop/g) || []).length === 1, "one submitWorkerStop definition");
 assert((controlSrc.match(/async function submitWorkerCapture/g) || []).length === 1, "one submitWorkerCapture definition");
 assert((controlSrc.match(/async function submitWorkerOpenCapture/g) || []).length === 1, "one submitWorkerOpenCapture definition");
@@ -395,6 +415,7 @@ assert(controlSrc.includes("The dedicated e-Aushadhi browser worker is available
 assert(!/screenshot/i.test(controlSrc), "Review UI does not request screenshots");
 assert(controlSrc.includes("Internal verification is not portal entry"), "internal vs portal copy");
 assert(workerClientSrc.includes("runFoundationCheck"), "worker client exposes foundation check");
+assert(workerClientSrc.includes("recheckLogin"), "worker client exposes login recheck");
 assert(workerClientSrc.includes("capturePortalContract"), "worker client exposes portal contract capture");
 assert(workerClientSrc.includes("openCaptureFolder"), "worker client exposes open capture folder");
 assert(apiSrc.includes("rpc_eaushadhi_worker_run_begin"), "run_begin wrapper exists");

@@ -10,7 +10,11 @@ const {
   requireContract,
 } = require("./contracts/portal-contract");
 const { launchDedicatedEdge, dedicatedProfileDir } = require("./browser");
-const { attachContextOriginGuard, assertAllowedUrl } = require("./origin-guard");
+const {
+  attachContextOriginGuard,
+  assertAllowedUrl,
+  selectAllowedOriginPage,
+} = require("./origin-guard");
 const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
 const { runEntryDryRun } = require("./dry-run");
@@ -29,6 +33,8 @@ const CONNECT_PHASES = Object.freeze({
   AUTH_PROBE: "connect:auth-probe",
   READY: "connect:ready",
 });
+
+const AUTH_REFRESH_PHASE = "auth-refresh";
 
 function connectFailureDetails(error, connectPhase) {
   const existing =
@@ -63,6 +69,22 @@ function wrapConnectFailure(error, connectPhase) {
   );
 }
 
+function wrapAuthRefreshFailure(error, refreshPhase) {
+  const details = connectFailureDetails(error, refreshPhase);
+  if (error instanceof WorkerError) {
+    return workerError(error.kind, error.message, {
+      section: error.section,
+      details,
+    });
+  }
+  const cause = details.causeMessageSanitized || "Unknown error";
+  return workerError(
+    ERROR_KINDS.CRASH,
+    sanitizeText(`Login recheck failed. ${cause}`),
+    { details },
+  );
+}
+
 function createEaushadhiWorker({
   getUserDataPath,
   onStatus,
@@ -80,6 +102,7 @@ function createEaushadhiWorker({
   let containingOrigin = false;
   let detachContextGuard = null;
   let lastCaptureDir = null;
+  let authRefreshInFlight = false;
   const rpcCall = typeof callRpc === "function" ? callRpc : callWorkerRpc;
   const requireSection =
     typeof requireContractFn === "function" ? requireContractFn : requireContract;
@@ -248,6 +271,90 @@ function createEaushadhiWorker({
       });
       emit();
       throw wrapped;
+    }
+  }
+
+  function applyAuthProbeResult(probe) {
+    const current = machine.get();
+    if (probe?.authenticated) {
+      if (current === STATES.AUTH_REQUIRED) machine.transition(STATES.READY);
+      lastErrorKind = null;
+      lastErrorMessage = null;
+      return;
+    }
+    if (current === STATES.READY) machine.transition(STATES.AUTH_REQUIRED);
+    lastErrorKind = ERROR_KINDS.AUTH_REQUIRED;
+    lastErrorMessage =
+      probe?.reason ||
+      "Login in the dedicated Edge window. Authenticated portal state cannot be proven yet.";
+  }
+
+  async function recheckAuthentication() {
+    const previous = machine.get();
+    if (!context) {
+      throw workerError(
+        ERROR_KINDS.WORKER_NOT_READY,
+        "Connect the dedicated browser before rechecking login.",
+      );
+    }
+    if (previous !== STATES.AUTH_REQUIRED && previous !== STATES.READY) {
+      throw workerError(
+        ERROR_KINDS.WORKER_NOT_READY,
+        "Login can only be rechecked while the browser is waiting for login or already Ready.",
+      );
+    }
+    if (authRefreshInFlight) {
+      throw workerError(ERROR_KINDS.CRASH, "Login is already being rechecked.");
+    }
+    authRefreshInFlight = true;
+    const previousPhase = phase;
+    phase = AUTH_REFRESH_PHASE;
+    emit();
+    try {
+      const contract = loadPortalContract();
+      requireSection("origins");
+      const page = selectAllowedOriginPage(context, contract);
+      if (!page) {
+        throw workerError(
+          ERROR_KINDS.CRASH,
+          "No allowed e-Aushadhi page is available to recheck login.",
+        );
+      }
+      try {
+        const authSpec = requireSection("authProbe");
+        const probe = await probeAuthenticatedSession(page, authSpec);
+        applyAuthProbeResult(probe);
+      } catch (error) {
+        if (error?.kind !== ERROR_KINDS.CONTRACT_INCOMPLETE) throw error;
+        applyAuthProbeResult({
+          authenticated: false,
+          reason:
+            "Login in the dedicated Edge window. Authenticated portal state cannot be proven yet.",
+        });
+      }
+      phase = CONNECT_PHASES.READY;
+      log({ phase: AUTH_REFRESH_PHASE, url: typeof page.url === "function" ? page.url() : null });
+      return emit();
+    } catch (error) {
+      const wrapped = wrapAuthRefreshFailure(error, AUTH_REFRESH_PHASE);
+      if (wrapped.kind === ERROR_KINDS.DISALLOWED_ORIGIN) {
+        await failClosed(wrapped, wrapped.details?.url);
+        throw wrapped;
+      }
+      if (machine.get() === STATES.READY) {
+        machine.transition(STATES.AUTH_REQUIRED);
+      }
+      setError(wrapped);
+      log({
+        phase: wrapped.details?.connectPhase || AUTH_REFRESH_PHASE,
+        errorKind: wrapped.kind,
+        error: wrapped.details?.causeMessageSanitized || wrapped.message,
+      });
+      phase = previousPhase || CONNECT_PHASES.READY;
+      emit();
+      throw wrapped;
+    } finally {
+      authRefreshInFlight = false;
     }
   }
 
@@ -529,6 +636,7 @@ function createEaushadhiWorker({
   return {
     getStatus,
     connect,
+    recheckAuthentication,
     stop,
     runFoundationCheck,
     runControlledEntryDryRun,
@@ -538,6 +646,7 @@ function createEaushadhiWorker({
 }
 
 module.exports = {
+  AUTH_REFRESH_PHASE,
   CONNECT_PHASES,
   createEaushadhiWorker,
 };

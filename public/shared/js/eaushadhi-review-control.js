@@ -144,6 +144,7 @@ import {
   getWorkerStatus,
   onWorkerStatus,
   openWorkerCaptureFolder,
+  recheckWorkerLogin,
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
   stopWorkerBrowser,
@@ -1817,13 +1818,16 @@ function syncWorkerToolbarUi() {
     busy ||
     (workerState && workerState !== "IDLE" && workerState !== "FAILED");
   const stopDisabled = !available || busy || !workerState || workerState === "IDLE";
-  const captureEnabled =
-    available && !busy && (workerState === "AUTH_REQUIRED" || workerState === "READY");
+  const recheckVisible = available && workerState === "AUTH_REQUIRED";
+  const recheckDisabled = !available || busy || workerState !== "AUTH_REQUIRED";
+  const captureEnabled = available && !busy && workerState === "READY";
   const folderDisabled = !available || busy || state.workerCaptureResult?.ok !== true;
   const toolbarKey = `${available ? "electron" : "pwa"}:${workerState || "none"}`;
   if (toolbarKey !== lastWorkerToolbarKey) closeWorkerMenu();
   lastWorkerToolbarKey = toolbarKey;
   placeWorkerStop(connectPrimary);
+  const recheck = $("btnWorkerRecheckLogin");
+  if (recheck) recheck.hidden = !recheckVisible;
   const statusEl = $("workerBrowserStatus");
   if (statusEl) statusEl.textContent = toolbarWorkerStatusText();
   const chip = $("eaWorkerStatusChip");
@@ -1832,6 +1836,7 @@ function syncWorkerToolbarUi() {
     chip.className = `sasv-chip chip ${tone} ea-worker-status-chip`;
   }
   setMenuActionDisabled($("btnWorkerConnect"), connectDisabled);
+  setMenuActionDisabled($("btnWorkerRecheckLogin"), recheckDisabled);
   setMenuActionDisabled($("btnWorkerStop"), stopDisabled);
   setMenuActionDisabled($("btnWorkerCapture"), !captureEnabled);
   setMenuActionDisabled($("btnWorkerOpenCapture"), folderDisabled);
@@ -1842,7 +1847,7 @@ function syncWorkerToolbarUi() {
     captureBtn.setAttribute("aria-label", title);
   }
   applyPermissionUi();
-  ["btnWorkerConnect", "btnWorkerStop", "btnWorkerCapture", "btnWorkerOpenCapture"].forEach((id) => {
+  ["btnWorkerConnect", "btnWorkerRecheckLogin", "btnWorkerStop", "btnWorkerCapture", "btnWorkerOpenCapture"].forEach((id) => {
     const el = $(id);
     if (!el) return;
     if (el.disabled) el.setAttribute("aria-disabled", "true");
@@ -1955,6 +1960,25 @@ async function submitWorkerConnect() {
   }
 }
 
+async function submitWorkerRecheckLogin() {
+  if (!canWrite() || state.busy) return;
+  const status = state.workerStatus?.state;
+  if (status !== "AUTH_REQUIRED") return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const result = await recheckWorkerLogin();
+    if (result?.state) state.workerStatus = result;
+    if (result?.ok === false) {
+      showToast(result.message || "Login recheck failed", "error");
+    }
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    refreshReadinessIfActive();
+  }
+}
+
 async function submitWorkerStop() {
   if (state.busy) return;
   state.busy = true;
@@ -2026,7 +2050,7 @@ async function sessionAccessToken() {
 async function submitWorkerCapture() {
   if (!canWrite() || state.busy) return;
   const status = state.workerStatus?.state;
-  if (status !== "AUTH_REQUIRED" && status !== "READY") return;
+  if (status !== "READY") return;
   state.busy = true;
   syncWorkerToolbarUi();
   try {
@@ -3295,10 +3319,11 @@ function wireEvents() {
     const action = target.closest("button");
     if (!action || action.disabled || action.getAttribute("aria-disabled") === "true") return;
     const id = action.id;
-    if (id === "btnWorkerConnect" || id === "btnWorkerStop" || id === "btnWorkerCapture" || id === "btnWorkerOpenCapture") {
+    if (id === "btnWorkerConnect" || id === "btnWorkerRecheckLogin" || id === "btnWorkerStop" || id === "btnWorkerCapture" || id === "btnWorkerOpenCapture") {
       closeWorkerMenu();
     }
     if (id === "btnWorkerConnect") void submitWorkerConnect();
+    if (id === "btnWorkerRecheckLogin") void submitWorkerRecheckLogin();
     if (id === "btnWorkerStop") void submitWorkerStop();
     if (id === "btnWorkerCapture") void submitWorkerCapture();
     if (id === "btnWorkerOpenCapture") void submitWorkerOpenCapture();

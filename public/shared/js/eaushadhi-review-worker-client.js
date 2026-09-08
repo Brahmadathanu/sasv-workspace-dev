@@ -26,6 +26,11 @@ export async function connectWorkerBrowser() {
   return window.eaushadhiWorkerAPI.connect();
 }
 
+export async function recheckWorkerLogin() {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.recheckLogin();
+}
+
 export async function stopWorkerBrowser() {
   if (!workerApiAvailable()) return unsupported();
   return window.eaushadhiWorkerAPI.stop();

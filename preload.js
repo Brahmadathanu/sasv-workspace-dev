@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld("auth", {
 contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
   getStatus: () => ipcRenderer.invoke("eaushadhi-worker:get-status"),
   connect: () => ipcRenderer.invoke("eaushadhi-worker:connect"),
+  recheckLogin: () => ipcRenderer.invoke("eaushadhi-worker:recheck-login"),
   stop: () => ipcRenderer.invoke("eaushadhi-worker:stop"),
   runFoundationCheck: (productId, accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:foundation-check", {
