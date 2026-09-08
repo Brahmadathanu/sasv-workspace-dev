@@ -13,6 +13,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureDir = join(root, "scripts/fixtures/eaushadhi-portal");
 const { parseHtml } = require(join(fixtureDir, "mini-dom.cjs"));
 const { createEaushadhiWorker } = require(join(root, "electron/eaushadhi-worker/index.js"));
+const { attachMockBrowserCdp } = require(join(fixtureDir, "mock-browser-cdp.cjs"));
 const { STATES } = require(join(root, "electron/eaushadhi-worker/state.js"));
 const { ERROR_KINDS, workerError } = require(join(root, "electron/eaushadhi-worker/errors.js"));
 const { requireContract } = require(join(root, "electron/eaushadhi-worker/contracts/portal-contract.js"));
@@ -174,6 +175,7 @@ function createMockContext() {
 
   const first = createMockPage("about:blank");
   pages.push(first);
+  attachMockBrowserCdp(context, { getPages: () => pages.filter((page) => !page.isClosed()) });
   return {
     context,
     page: first,
