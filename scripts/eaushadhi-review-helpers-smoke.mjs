@@ -1150,8 +1150,26 @@ assert(cleared.productCategoryOptionId == null, "incompatible Category cleared")
 assert(cleared.productSubtypeOptionId == null, "incompatible Sub Type cleared");
 assert(cleared.subtypeMode === "UNRESOLVED", "cleared subtype returns UNRESOLVED");
 assert(
-  resolveClassificationSubtypeMode({ subtypeMode: "BLANK" }) === "BLANK",
-  "BLANK mode preserved for read-only-compatible blocking",
+  resolveClassificationSubtypeMode({
+    subtypeMode: "BLANK",
+    preserveBlank: true,
+  }) === "BLANK",
+  "server BLANK can be preserved until operator edit",
+);
+assert(
+  resolveClassificationSubtypeMode({
+    subtypeMode: "BLANK",
+    preserveBlank: false,
+  }) === "UNRESOLVED",
+  "editable BLANK recovers to UNRESOLVED without trapping",
+);
+assert(
+  resolveClassificationSubtypeMode({
+    subtypeMode: "BLANK",
+    productSubtypeOptionId: "266",
+    preserveBlank: false,
+  }) === "OPTION",
+  "operator can move BLANK -> OPTION using genuine fill-eligible subtype",
 );
 assert(
   canVerifyClassification(
@@ -1159,6 +1177,54 @@ assert(
     { canEdit: true },
   ) === false,
   "BLANK cannot Verify",
+);
+const validClassDraft = {
+  ...classDraft,
+  subtypeMode: "OPTION",
+  productSubtypeOptionId: "266",
+  reviewStatus: "IN_REVIEW",
+};
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "saving" }) === false,
+  "classification autosave saving disables Verify",
+);
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "saved" }) === true,
+  "after successful save status becomes saved, valid classification Verify becomes enabled",
+);
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "failed" }) === false,
+  "failed autosave disables Verify",
+);
+assert(
+  canVerifyClassification(validClassDraft, { canEdit: true, saveStatus: "stale" }) === false,
+  "stale autosave disables Verify",
+);
+assert(
+  /Saving classification/.test(
+    classificationVerifyPendingCopy(validClassDraft, { saveStatus: "saving" }),
+  ),
+  "saving status shows classification verify guidance",
+);
+const blankRow = {
+  product_id: 1,
+  review_status: "IN_REVIEW",
+  selected_subtype_mode: "BLANK",
+  suggested_product_type_option_id: 120,
+  selected_product_type_option_id: 120,
+  suggested_product_category_option_id: 278,
+  selected_product_category_option_id: 278,
+  suggested_product_subtype_option_id: null,
+  selected_product_subtype_option_id: null,
+  row_version: 2,
+};
+const blankDraft = classificationDraftFromReview(blankRow);
+assert(blankDraft.subtypeMode === "BLANK", "server BLANK draft mirrors BLANK until recovery");
+assert(blankDraft.productTypeOptionId === "120", "editable BLANK keeps Product Type draft");
+assert(blankDraft.productCategoryOptionId === "278", "editable BLANK keeps Category draft");
+assert(
+  neverMapInternalDosageToPortalSubtype("Kuzhambu") == null,
+  "Kuzhambu remains non-derived",
 );
 const suggestions = classificationSuggestionCopy(karpooradiClassification);
 assert(

@@ -1715,6 +1715,7 @@ export function classificationVerifyPendingCopy(draft, { saveStatus, reviewStatu
   if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) {
     return "Portal Classification is already verified.";
   }
+  if (saveStatus === "saving") return "Saving classification...";
   if (saveStatus === "stale") return "Server data changed - refresh/review required";
   if (saveStatus === "failed") return "Save failed. Refresh and retry before verifying.";
   const gaps = classificationVerifyGaps(draft);
@@ -1725,17 +1726,26 @@ export function classificationVerifyPendingCopy(draft, { saveStatus, reviewStatu
 export function canVerifyClassification(draft, { canEdit = true, saveStatus, reviewStatus } = {}) {
   if (canEdit === false) return false;
   if (isVerifiedStatus(reviewStatus ?? draft?.reviewStatus)) return false;
-  if (saveStatus === "failed" || saveStatus === "stale") return false;
+  if (saveStatus === "saving" || saveStatus === "failed" || saveStatus === "stale") {
+    return false;
+  }
   return classificationVerifyGaps(draft).length === 0;
 }
 
+/**
+ * Resolve subtype mode for draft/save.
+ * BLANK is never a selectable mode: with a fill-eligible subtype → OPTION;
+ * without one, recoverable drafts become UNRESOLVED (not an invisible BLANK trap).
+ * Pass preserveBlank=true only when mirroring a server BLANK row before operator edit.
+ */
 export function resolveClassificationSubtypeMode({
   subtypeMode,
   productSubtypeOptionId,
+  preserveBlank = false,
 } = {}) {
-  const mode = normalizeClassificationSubtypeMode(subtypeMode);
-  if (mode === "BLANK") return "BLANK";
   if (optionId(productSubtypeOptionId)) return "OPTION";
+  const mode = normalizeClassificationSubtypeMode(subtypeMode);
+  if (mode === "BLANK" && preserveBlank) return "BLANK";
   return "UNRESOLVED";
 }
 

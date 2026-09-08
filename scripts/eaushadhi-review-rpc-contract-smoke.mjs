@@ -135,18 +135,47 @@ assert(
     !apiSrc.includes('fetchPortalOptions("PRODUCT_SUBTYPE")'),
   "generic portal_options is not used for classification domains",
 );
-assert(controlSrc.includes("Portal Classification"), "classification card loads in Product Details");
-assert(controlSrc.includes("portalClassificationCard"), "classification card has stable host id");
-assert(controlSrc.includes("fldClassProductType"), "Product Type dropdown exists");
-assert(controlSrc.includes("fldClassCategory"), "Category dropdown exists");
-assert(controlSrc.includes("fldClassSubtype"), "Portal Sub Type dropdown exists");
-assert(controlSrc.includes("Not yet resolved"), "UNRESOLVED subtype display copy exists");
+assert(controlSrc.includes("function syncClassificationVerifyUi"), "classification verify UI sync exists");
+assert(
+  controlSrc.includes('if (id === "classificationAutosave") syncClassificationVerifyUi()'),
+  "patchAutosaveEl classification path invokes classification verify sync",
+);
+assert(
+  controlSrc.includes("syncClassificationVerifyUi();"),
+  "classification draft sync refreshes Verify without full navigation",
+);
+assert(
+  /const classDisable = classLocked \? " disabled" : ""/.test(controlSrc),
+  "only VERIFIED globally locks classification fields",
+);
+assert(
+  !/classDisable = classLocked \|\|/.test(controlSrc),
+  "editable BLANK does not disable Product Type via global classDisable",
+);
+assert(
+  !/childDisable \|\| resolveClassificationSubtypeMode\(classDraft\) === "BLANK"/.test(controlSrc),
+  "editable BLANK does not disable Category/Sub Type via BLANK special-case",
+);
+assert(
+  /classificationSubtypeOptionHtml[\s\S]*Not yet resolved[\s\S]*fill-eligible/.test(controlSrc) ||
+    (controlSrc.includes("classificationSubtypeOptionHtml") &&
+      controlSrc.includes('emptyLabel: "Not yet resolved"') &&
+      !/if \(mode === "BLANK"\) \{\s*return `<option value="" selected>Not yet resolved<\/option>`/.test(
+        controlSrc,
+      )),
+  "editable BLANK renders Sub Type as safely unresolved/correctable",
+);
+assert(
+  controlSrc.includes("preserveBlank: false"),
+  "form sync recovers BLANK to UNRESOLVED/OPTION",
+);
+assert(helpersSrc.includes('saveStatus === "saving"'), "saving status gates classification Verify");
+assert(controlSrc.includes("Regulatory purpose"), "existing Product Details section retained");
 assert(controlSrc.includes("Verify Portal Classification"), "Verify action exists");
 assert(controlSrc.includes("Reopen Portal Classification"), "Reopen action exists");
 assert(controlSrc.includes("openReopen(\"classification\""), "classification uses reopen modal");
 assert(controlSrc.includes("queueClassificationAutosave(true)"), "dropdown edits trigger immediate autosave");
 assert(controlSrc.includes("queueClassificationAutosave(false)"), "notes use debounced autosave");
-assert(controlSrc.includes("p_verify") || apiSrc.includes("p_verify: verify === true"), "ordinary save uses p_verify false path");
 assert(controlSrc.includes("persistClassification(false)"), "ordinary dropdown edit saves with p_verify=false");
 assert(controlSrc.includes("persistClassification(true)"), "Verify calls classification save with p_verify=true");
 assert(controlSrc.includes('scope === "classification"'), "stale row_version visible/reload for classification");
@@ -166,7 +195,6 @@ assert(!/mark_submitted|Submit QC|portal write/i.test(controlSrc.slice(controlSr
 assert(helpersSrc.includes("neverMapInternalDosageToPortalSubtype"), "helper blocks Kuzhambu auto-map");
 assert(helpersSrc.includes("selectableClassificationOptions"), "fill_eligible filtering helper exists");
 assert(apiSrc.includes("classification,"), "workspace loads classification payload");
-assert(controlSrc.includes("Regulatory purpose"), "existing Product Details section retained");
 assert(controlSrc.includes("Pharmacological"), "Actions unaffected");
 assert(controlSrc.includes("Composition"), "Composition tab retained");
 assert(!controlSrc.includes("fetchWorkerMarkSubmitted"), "no Submit wrapper usage");

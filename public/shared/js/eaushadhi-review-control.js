@@ -395,6 +395,25 @@ function syncActionsVerifyUi() {
   setHintEl("actionsVerifyHint", reason);
 }
 
+function syncClassificationVerifyUi() {
+  const btn = $("btnVerifyClassification");
+  if (!btn) return;
+  const ok = canVerifyClassification(state.classificationDraft, {
+    canEdit: canWrite(),
+    saveStatus: state.classificationSaveStatus,
+    reviewStatus: state.classification?.review_status,
+  });
+  const reason = classificationVerifyPendingCopy(state.classificationDraft, {
+    saveStatus: state.classificationSaveStatus,
+    reviewStatus: state.classification?.review_status,
+  });
+  btn.disabled = !ok || !canWrite() || state.busy;
+  btn.dataset.forceDisabled = ok ? "false" : "true";
+  if (reason) btn.title = reason;
+  else btn.removeAttribute("title");
+  setHintEl("classificationVerifyHint", reason);
+}
+
 function syncLineVerifyUi(lineId) {
   const id = String(lineId);
   const btn = document.querySelector(`[data-line-verify="${id}"]`);
@@ -462,6 +481,7 @@ function patchAutosaveEl(id, status) {
   else el.removeAttribute("aria-live");
   if (id === "detailsAutosave") syncDetailsVerifyUi();
   if (id === "actionsAutosave") syncActionsVerifyUi();
+  if (id === "classificationAutosave") syncClassificationVerifyUi();
   if (String(id).startsWith("line-save-")) syncLineVerifyUi(String(id).slice("line-save-".length));
 }
 
@@ -762,12 +782,14 @@ function classificationOptionHtml(options, selectedId, { emptyLabel = "Select...
 }
 
 function classificationSubtypeOptionHtml(draft) {
-  const mode = resolveClassificationSubtypeMode(draft || {});
-  if (mode === "BLANK") {
-    return `<option value="" selected>Not yet resolved</option>`;
-  }
+  const mode = resolveClassificationSubtypeMode({
+    ...(draft || {}),
+    preserveBlank: false,
+  });
   const selected =
     mode === "OPTION" ? optionId(draft?.productSubtypeOptionId) : null;
+  // BLANK and UNRESOLVED both render as correctable "Not yet resolved" plus
+  // fill-eligible options only (no Blank / "-" choices).
   return classificationOptionHtml(state.classificationOptions.PRODUCT_SUBTYPE, selected, {
     emptyLabel: "Not yet resolved",
   });
@@ -976,9 +998,7 @@ function renderDetails() {
   const classLocked = isVerifiedStatus(
     state.classification?.review_status ?? classDraft.reviewStatus,
   );
-  const classDisable = classLocked || resolveClassificationSubtypeMode(classDraft) === "BLANK"
-    ? " disabled"
-    : "";
+  const classDisable = classLocked ? " disabled" : "";
   const typeSelected = optionId(classDraft.productTypeOptionId);
   const childDisable = classDisable || !typeSelected ? " disabled" : "";
   const classSuggestions = classificationSuggestionCopy(state.classification);
@@ -1017,9 +1037,7 @@ function renderDetails() {
       </div>
       <div class="form-field">
         <label for="fldClassSubtype">Portal Sub Type</label>
-        <select id="fldClassSubtype" class="sasv-control" data-edit-action="true" data-classification-field="subtype"${
-          childDisable || resolveClassificationSubtypeMode(classDraft) === "BLANK" ? " disabled" : ""
-        }>
+        <select id="fldClassSubtype" class="sasv-control" data-edit-action="true" data-classification-field="subtype"${childDisable}>
           ${classificationSubtypeOptionHtml(classDraft)}
         </select>
         <span class="muted-note">Portal Sub Type: ${escapeHtml(classSuggestions.productSubtype)}</span>
@@ -2385,9 +2403,11 @@ function syncDetailsDraftFromForm() {
 function syncClassificationDraftFromForm() {
   if (!state.classificationDraft) return;
   const subtypeId = optionId($("fldClassSubtype")?.value);
+  // Recover BLANK -> UNRESOLVED/OPTION from the operator's corrected form state.
   const subtypeMode = resolveClassificationSubtypeMode({
     subtypeMode: state.classificationDraft.subtypeMode,
     productSubtypeOptionId: subtypeId,
+    preserveBlank: false,
   });
   state.classificationDraft = {
     ...state.classificationDraft,
@@ -2397,6 +2417,7 @@ function syncClassificationDraftFromForm() {
     subtypeMode,
     reviewNotes: $("fldClassNotes")?.value ?? "",
   };
+  syncClassificationVerifyUi();
 }
 
 function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
