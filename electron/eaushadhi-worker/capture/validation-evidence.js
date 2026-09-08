@@ -47,6 +47,20 @@ function finalizeScriptMatch(match) {
     evidence_class: match?.evidence_class || null,
     subtype_related: match?.subtype_related === true,
     validation_or_sentinel: match?.validation_or_sentinel === true,
+    direct_minus_one_comparison: match?.direct_minus_one_comparison === true,
+    explicit_minus_one_rejection: match?.explicit_minus_one_rejection === true,
+  };
+}
+
+function emptyConclusionInputs() {
+  return {
+    html_required_observed: false,
+    native_value_missing: false,
+    subtype_validation_candidate_observed: false,
+    subtype_minus_one_rejection_candidate_observed: false,
+    explicit_subtype_minus_one_rejection_observed: false,
+    inline_script_subtype_terms_observed: false,
+    evidence_complete: false,
   };
 }
 
@@ -54,6 +68,11 @@ function finalizeScriptMatch(match) {
  * Node-side finalize: sanitize previews, hash handlers, build factual conclusion_inputs.
  * Never sets blank_valid / portal_accepts_blank. evidence_complete stays false while
  * external/dynamic enforcement surfaces remain unresolved.
+ *
+ * Rejection semantics (conservative / under-classify):
+ * - subtype_validation_candidate: subtype + generic validation language only
+ * - subtype_minus_one_rejection_candidate: subtype + "-1" + comparison-like context
+ * - explicit_subtype_minus_one_rejection: stronger comparison + rejection messaging
  */
 function finalizeClassificationValidationEvidence(raw) {
   if (!raw || typeof raw !== "object") {
@@ -69,13 +88,7 @@ function finalizeClassificationValidationEvidence(raw) {
         "checkValidity_and_reportValidity_not_called",
         "validation_evidence_extract_missing",
       ],
-      conclusion_inputs: {
-        html_required_observed: false,
-        native_value_missing: false,
-        explicit_subtype_minus_one_rejection_observed: false,
-        inline_script_subtype_terms_observed: false,
-        evidence_complete: false,
-      },
+      conclusion_inputs: emptyConclusionInputs(),
       verification_status: "unverified",
     };
   }
@@ -99,17 +112,29 @@ function finalizeClassificationValidationEvidence(raw) {
   const nativeValueMissing =
     subtype.control_found === true && subtype.validity && subtype.validity.value_missing === true;
 
-  const explicitRejection = scriptMatches.some(
+  const inline = scriptMatches.filter((match) => match.source_kind === "inline");
+
+  const subtypeValidationCandidateObserved = inline.some(
     (match) =>
-      match.source_kind === "inline" &&
-      match.evidence_class === "subtype_validation_candidate" &&
-      match.subtype_related === true &&
-      match.validation_or_sentinel === true,
+      match.evidence_class === "subtype_validation_candidate" ||
+      match.evidence_class === "subtype_minus_one_rejection_candidate" ||
+      match.evidence_class === "explicit_subtype_minus_one_rejection_candidate",
   );
 
-  const inlineSubtypeTerms = scriptMatches.some(
-    (match) => match.source_kind === "inline" && match.subtype_related === true,
+  const rejectionCandidateObserved = inline.some(
+    (match) =>
+      match.evidence_class === "subtype_minus_one_rejection_candidate" ||
+      match.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+      match.direct_minus_one_comparison === true,
   );
+
+  const explicitRejectionObserved = inline.some(
+    (match) =>
+      match.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+      match.explicit_minus_one_rejection === true,
+  );
+
+  const inlineSubtypeTerms = inline.some((match) => match.subtype_related === true);
 
   const limitations = Array.from(
     new Set([
@@ -130,7 +155,9 @@ function finalizeClassificationValidationEvidence(raw) {
     conclusion_inputs: {
       html_required_observed: htmlRequiredObserved,
       native_value_missing: nativeValueMissing,
-      explicit_subtype_minus_one_rejection_observed: explicitRejection,
+      subtype_validation_candidate_observed: subtypeValidationCandidateObserved,
+      subtype_minus_one_rejection_candidate_observed: rejectionCandidateObserved,
+      explicit_subtype_minus_one_rejection_observed: explicitRejectionObserved,
       inline_script_subtype_terms_observed: inlineSubtypeTerms,
       // Asymmetric: unresolved external/dynamic surfaces keep evidence incomplete.
       evidence_complete: false,

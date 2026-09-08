@@ -58,7 +58,13 @@
       <button type="submit" id="save_rbtn" onclick="window.__EA_CAPTURE_HANDLER_FIRED=true">Save</button>
     </form>
     <script>
-      // Inline subtype validation candidate for observational capture.
+      // Generic subtype + validation language WITHOUT a "-1" comparison.
+      function noteSubTypeFieldRequired() {
+        return "Sub Type field is required when category is selected";
+      }
+    </script>
+    <script>
+      // Direct subtype + "-1" comparison/rejection candidate for observational capture.
       function validateSubTypeBeforeSave() {
         var el = document.getElementById("subTypeId");
         if (el && el.value === "-1") {
@@ -68,7 +74,7 @@
       }
     </script>
     <script>
-      // Unrelated sentinel occurrence must not alone prove subtype rejection.
+      // Unrelated sentinel occurrence must not alone prove rejection.
       var GENERIC_PAGE_CODE = "-1";
     </script>
     <script src="/admin/assets/product-validation.js"></script>

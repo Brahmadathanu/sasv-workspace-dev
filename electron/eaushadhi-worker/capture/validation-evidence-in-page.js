@@ -392,6 +392,63 @@ function extractClassificationValidationEvidence() {
     );
   }
 
+  /**
+   * Lightweight heuristic only: subtype control reference + "-1" + comparison-like
+   * operators in the same bounded snippet. Prefer under-classification.
+   */
+  function hasDirectMinusOneComparison(snippet) {
+    const s = String(snippet || "");
+    const subtypeRef =
+      /subTypeId|#subTypeId|getElementById\s*\(\s*['"]subTypeId['"]\s*\)|#\s*subTypeId|\[\s*['"]#?subTypeId['"]\s*\]/i.test(
+        s,
+      );
+    const minusOneLiteral = /['"]-1['"]/.test(s);
+    const comparisonLike =
+      /(?:===?|!==?)|\.val\s*\(|\.value\s*(?:===?|!==?)/.test(s);
+    return subtypeRef && minusOneLiteral && comparisonLike;
+  }
+
+  /**
+   * Stronger than candidate: direct -1 comparison plus rejection/messaging language
+   * in the same bounded snippet. Still conservative / under-classified.
+   */
+  function hasExplicitMinusOneRejection(snippet) {
+    if (!hasDirectMinusOneComparison(snippet)) return false;
+    return /please\s*select|alert\s*\(|throw\s+|return\s+['"][^'"]+/i.test(String(snippet || ""));
+  }
+
+  function classifyInlineSnippet(term, snippet) {
+    const subtypeRelated = isSubtypeRelated(term) || /subtype|sub\s*type|subtypeid/i.test(snippet);
+    const validationOrSentinel =
+      isValidationOrSentinel(term) || /please\s*select|valid|error|required|"-1"|'-1'/i.test(snippet);
+    const directMinusOne = hasDirectMinusOneComparison(snippet);
+    const explicitMinusOne = hasExplicitMinusOneRejection(snippet);
+    const termIsMinusOneSentinel = /"-1"|'-1'/.test(String(term || ""));
+    const hasSubtypeControlRef =
+      /subTypeId|#subTypeId|getElementById\s*\(\s*['"]subTypeId['"]\s*\)/i.test(String(snippet || ""));
+
+    let evidenceClass = "validation_contract_candidate";
+    if (explicitMinusOne) {
+      evidenceClass = "explicit_subtype_minus_one_rejection_candidate";
+    } else if (directMinusOne) {
+      evidenceClass = "subtype_minus_one_rejection_candidate";
+    } else if (termIsMinusOneSentinel && !hasSubtypeControlRef) {
+      // A bare "-1" without a subtype control reference is not subtype rejection evidence,
+      // even if nearby prose mentions the English word "subtype".
+      evidenceClass = "unrelated_sentinel_candidate";
+    } else if (subtypeRelated && validationOrSentinel) {
+      evidenceClass = "subtype_validation_candidate";
+    }
+
+    return {
+      evidenceClass,
+      subtypeRelated: hasSubtypeControlRef || (subtypeRelated && !termIsMinusOneSentinel),
+      validationOrSentinel,
+      directMinusOne,
+      explicitMinusOne,
+    };
+  }
+
   function scriptMatches() {
     const inlineMatches = [];
     const externalUnresolved = [];
@@ -421,6 +478,8 @@ function extractClassificationValidationEvidence() {
           evidence_class: "external_script_not_fetched",
           subtype_related: false,
           validation_or_sentinel: false,
+          direct_minus_one_comparison: false,
+          explicit_minus_one_rejection: false,
         });
         continue;
       }
@@ -428,32 +487,36 @@ function extractClassificationValidationEvidence() {
       const body = String(script.textContent || "");
       if (!body) continue;
       const lower = body.toLowerCase();
+      const perScript = [];
       for (const term of MATCH_TERMS) {
-        if (inlineMatches.length >= MAX_SCRIPT_MATCHES) break;
         const idx = lower.indexOf(String(term).toLowerCase());
         if (idx < 0) continue;
-        const start = Math.max(0, idx - 40);
-        const end = Math.min(body.length, idx + String(term).length + 80);
+        const start = Math.max(0, idx - 60);
+        const end = Math.min(body.length, idx + String(term).length + 120);
         const snippet = sliceText(body.slice(start, end), MAX_SNIPPET);
-        const subtypeRelated = isSubtypeRelated(term) || /subtype|sub\s*type|subtypeid/i.test(snippet);
-        const validationOrSentinel =
-          isValidationOrSentinel(term) || /please\s*select|valid|error|required|"-1"|'-1'/i.test(snippet);
-        let evidenceClass = "validation_contract_candidate";
-        if (subtypeRelated && validationOrSentinel) {
-          evidenceClass = "subtype_validation_candidate";
-        } else if (!subtypeRelated && /"-1"|'-1'/.test(term)) {
-          evidenceClass = "unrelated_sentinel_candidate";
-        }
-        inlineMatches.push({
+        const classified = classifyInlineSnippet(term, snippet);
+        perScript.push({
           script_index: index,
           src_path: null,
           source_kind: "inline",
           match_term: term,
           context_snippet: snippet,
-          evidence_class: evidenceClass,
-          subtype_related: subtypeRelated,
-          validation_or_sentinel: validationOrSentinel,
+          evidence_class: classified.evidenceClass,
+          subtype_related: classified.subtypeRelated,
+          validation_or_sentinel: classified.validationOrSentinel,
+          direct_minus_one_comparison: classified.directMinusOne,
+          explicit_minus_one_rejection: classified.explicitMinusOne,
         });
+      }
+      // Keep at most one match per evidence_class per script (prefer first), then
+      // allow a small remainder so unrelated sentinels are not crowded out.
+      const byClass = new Map();
+      for (const match of perScript) {
+        if (!byClass.has(match.evidence_class)) byClass.set(match.evidence_class, match);
+      }
+      for (const match of byClass.values()) {
+        if (inlineMatches.length >= MAX_SCRIPT_MATCHES) break;
+        inlineMatches.push(match);
       }
     }
     return inlineMatches.concat(externalUnresolved).slice(0, MAX_SCRIPT_MATCHES);

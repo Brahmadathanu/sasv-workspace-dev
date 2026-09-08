@@ -328,19 +328,42 @@ assert(
     (match) =>
       match.source_kind === "inline" &&
       match.evidence_class === "subtype_validation_candidate" &&
-      match.subtype_related === true,
+      match.subtype_related === true &&
+      match.direct_minus_one_comparison !== true,
   ),
-  "13: inline subtype validation match is detected",
+  "A: generic subtype + required/valid context is subtype_validation_candidate only",
 );
 assert(
   (validation.script_matches || []).some(
     (match) => match.evidence_class === "unrelated_sentinel_candidate",
   ),
-  "14: unrelated -1 classified separately",
+  "B: unrelated -1 classified separately",
+);
+assert(
+  (validation.script_matches || []).some(
+    (match) =>
+      match.source_kind === "inline" &&
+      (match.evidence_class === "subtype_minus_one_rejection_candidate" ||
+        match.evidence_class === "explicit_subtype_minus_one_rejection_candidate") &&
+      match.direct_minus_one_comparison === true,
+  ),
+  "C: direct subtype + -1 comparison produces rejection candidate evidence",
+);
+assert(validation.conclusion_inputs?.subtype_validation_candidate_observed === true, "subtype_validation_candidate_observed");
+assert(
+  validation.conclusion_inputs?.subtype_minus_one_rejection_candidate_observed === true,
+  "subtype_minus_one_rejection_candidate_observed from direct comparison",
 );
 assert(
   validation.conclusion_inputs?.explicit_subtype_minus_one_rejection_observed === true,
-  "explicit rejection candidate observed from subtype+sentinel proximity",
+  "explicit field true only when comparison + rejection messaging co-occur",
+);
+assert(
+  !(
+    validation.conclusion_inputs?.explicit_subtype_minus_one_rejection_observed === true &&
+    validation.conclusion_inputs?.subtype_minus_one_rejection_candidate_observed !== true
+  ),
+  "explicit rejection implies candidate rejection",
 );
 assert(validation.conclusion_inputs?.evidence_complete === false, "evidence_complete remains false");
 assert(!(JSON.stringify(validation).includes("blank_valid") || JSON.stringify(validation).includes("portal_accepts_blank")), "no blank_valid conclusion");
