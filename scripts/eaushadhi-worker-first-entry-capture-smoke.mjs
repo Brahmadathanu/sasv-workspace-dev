@@ -364,6 +364,18 @@ assert(!/\.goto\s*\(/.test(captureSrc), "capture does not call goto");
 assert(!/qc|quality control/i.test(controlSrc + dryRunSrc), "no QC");
 assert(!/mark_submitted/.test(indexSrc + dryRunSrc), "no Submit lifecycle");
 
+const classificationMigration = readFileSync(
+  join(root, "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql"),
+  "utf8",
+);
+assert(
+  classificationMigration.includes("'classification', v_classification"),
+  "classification is bound into worker payload migration",
+);
+assert(!/rpc_eaushadhi_worker_run_begin/.test(classificationMigration), "classification migration does not call run_begin");
+assert(/mutated: false/.test(dryRunSrc), "dry-run source keeps mutated: false");
+assert(/FIRST_CONTROLLED_PRODUCT_ID/.test(dryRunSrc), "dry-run remains first-product locked");
+
 if (failed) {
   console.error(`\n${failed} first-entry capture assertion(s) failed`);
   process.exit(1);

@@ -528,6 +528,15 @@ assert(controlSrc.includes("isFirstControlledEntryProduct"), "dry-run card is lo
 assert(workerClientSrc.includes("runEntryDryRun"), "worker client exposes entry dry-run");
 assert(!/\bsubmit\b/i.test(workerClientSrc), "worker client has no Submit");
 
+const classificationMigration = readFileSync(
+  join(root, "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql"),
+  "utf8",
+);
+assert(classificationMigration.includes("'classification', v_classification"), "worker payload migration binds classification");
+assert(!/suggested_product_/.test(classificationMigration), "worker payload never emits suggested classification");
+assert(!/rpc_eaushadhi_worker_run_begin/.test(classificationMigration), "classification payload migration has no run_begin");
+assert(!/mark_submitted/.test(classificationMigration), "classification payload migration has no SUBMITTED");
+
 if (failed) {
   console.error(`\n${failed} RPC contract assertion(s) failed`);
   process.exit(1);
