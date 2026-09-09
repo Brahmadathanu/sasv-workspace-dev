@@ -119,6 +119,8 @@ if (existsSync(validationInPageLoose)) {
   assert(validationSrc.includes("referencedHandlerFunctions"), "unpacked validation inspects referenced handlers");
   assert(validationSrc.includes("collectAliasedMinusOneMatches"), "unpacked validation has alias minus-one collector");
   assert(validationSrc.includes("alias_provenance_valid"), "unpacked validation records alias provenance");
+  assert(validationSrc.includes("collectSubtypeValidationMessageContexts"), "unpacked validation collects subtype message contexts");
+  assert(validationSrc.includes("Please Select Sub Type"), "unpacked validation matches exact subtype phrase");
   assert(!/subtypeValueExprSource[\s\S]*subTypeId\\s\*\(\?:===/.test(validationSrc), "bare subTypeId not added to subtypeValueExprSource");
   assert(validationSrc.includes("Function.prototype.toString.call"), "unpacked validation uses toString only");
   assert(!/SaveData\s*\(\s*\)\s*;/.test(validationSrc.replace(/Function\.prototype\.toString\.call\([^)]+\)/g, "")), "unpacked validation does not invoke SaveData");
@@ -132,6 +134,7 @@ if (existsSync(validationNodeLoose)) {
   assert(nodeSrc.includes("finalizeClassificationValidationEvidence"), "unpacked validation finalize present");
   assert(nodeSrc.includes("createHash"), "unpacked validation hashes on Node side");
   assert(nodeSrc.includes("referenced_handler_functions"), "unpacked finalize keeps referenced_handler_functions");
+  assert(nodeSrc.includes("subtype_validation_message_contexts"), "unpacked finalize keeps subtype_validation_message_contexts");
   assert(nodeSrc.includes("hash_scope"), "unpacked finalize records hash_scope");
   assert(nodeSrc.includes("function_source_raw"), "unpacked finalize knows transport-only raw field");
   assert(nodeSrc.includes("full_function_source"), "unpacked finalize labels full-source hash scope");

@@ -358,6 +358,22 @@ assert(
 );
 assert(!Object.prototype.hasOwnProperty.call(saveDataEvidence, "function_source_raw"), "13: raw function source does not survive finalized JSON");
 assert(!JSON.stringify(saveDataEvidence).includes("function_source_raw"), "13b: function_source_raw absent from JSON");
+assert(Array.isArray(saveDataEvidence.subtype_validation_message_contexts), "msgctx: contexts array present for untruncated SaveData");
+assert(
+  (saveDataEvidence.subtype_validation_message_contexts || []).some(
+    (item) =>
+      item.validation_message === "Please Select Sub Type" &&
+      typeof item.validation_message_offset === "number" &&
+      typeof item.validation_branch_context_snippet === "string" &&
+      item.validation_branch_context_snippet.length > 0 &&
+      item.validation_branch_context_snippet.length <= 1024 &&
+      typeof item.validation_branch_context_start === "number" &&
+      typeof item.validation_branch_context_end === "number" &&
+      item.validation_branch_context_end > item.validation_branch_context_start,
+  ),
+  "msgctx: exact Please Select Sub Type context captured with valid exclusive end",
+);
+assert(!JSON.stringify(saveDataEvidence).includes("validation_branch_context_snippet_raw"), "msgctx: transport raw field dropped");
 assert(Array.isArray(saveDataEvidence.snippets) && saveDataEvidence.snippets.length <= 8, "12: snippet count is bounded");
 assert(
   saveDataEvidence.snippets.every((item) => !item.context_snippet || item.context_snippet.length <= 160),
@@ -758,6 +774,109 @@ runAliasBodyCase(
   },
 );
 
+const distantPad = `/* ${"x".repeat(200)} */`;
+runAliasBodyCase(
+  "msgctx-distant",
+  `
+    var subTypeId = document.getElementById("subTypeId").value;
+    ${distantPad}
+    if (SOME_UNKNOWN_CONDITION) {
+      $.confirm({ content: "Please Select Sub Type" });
+    }
+  `,
+  (entry) => {
+    const ctx = (entry?.subtype_validation_message_contexts || [])[0];
+    assert(ctx, "msgctx1: distant exact message yields context");
+    assert(
+      /getElementById\s*\(\s*["']subTypeId["']\s*\)\s*\.\s*value/.test(
+        String(ctx.validation_branch_context_snippet || ""),
+      ),
+      "msgctx1: governing assignment visible in wide context",
+    );
+    assert(
+      ctx.validation_branch_context_end - ctx.validation_branch_context_start <= 512 + "Please Select Sub Type".length + 256,
+      "msgctx2: raw requested span obeys 512/256 policy",
+    );
+    assert(String(ctx.validation_branch_context_snippet || "").length <= 1024, "msgctx2: persisted context <= 1024");
+    assert(
+      ctx.validation_branch_context_end > ctx.validation_message_offset,
+      "msgctx2: exclusive end after message offset",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "msgctx-category",
+  `return "Please Select Category";`,
+  (entry) => {
+    assert(
+      !Array.isArray(entry?.subtype_validation_message_contexts) ||
+        entry.subtype_validation_message_contexts.length === 0,
+      "msgctx3: Please Select Category does not trigger",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "msgctx-generic-please",
+  `return "Please Select";`,
+  (entry) => {
+    assert(
+      !(entry?.subtype_validation_message_contexts || []).length,
+      "msgctx4: bare Please Select does not trigger",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "msgctx-near-phrase",
+  `return "Please Select a Sub Type when required";`,
+  (entry) => {
+    assert(
+      !(entry?.subtype_validation_message_contexts || []).length,
+      "msgctx5: near-phrase without exact target does not trigger",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "msgctx-multi",
+  `
+    var a = "Please Select Sub Type";
+    var b = "Please Select Sub Type";
+    var c = "Please Select Sub Type";
+    var d = "Please Select Sub Type";
+  `,
+  (entry) => {
+    const list = entry?.subtype_validation_message_contexts || [];
+    assert(list.length === 3, "msgctx6: max 3 occurrences emitted");
+    const offsets = list.map((item) => item.validation_message_offset);
+    assert(new Set(offsets).size === 3, "msgctx6: offsets distinct");
+    assert(
+      offsets[0] < offsets[1] && offsets[1] < offsets[2],
+      "msgctx6: offsets ordered deterministically",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "msgctx-secret-outside",
+  `
+    var subTypeId = document.getElementById("subTypeId").value;
+    if (flag) { return "Please Select Sub Type"; }
+    ${"/*pad*/".repeat(80)}
+    var SECRET_OUTSIDE = "bearer BRANCH_CTX_SECRET_SHOULD_NOT_PERSIST";
+  `,
+  (entry, finalized) => {
+    assert((entry?.subtype_validation_message_contexts || []).length >= 1, "msgctx7: context present");
+    assert(
+      !JSON.stringify(finalized).includes("BRANCH_CTX_SECRET_SHOULD_NOT_PERSIST"),
+      "msgctx7: secret outside window does not persist",
+    );
+    assert(!JSON.stringify(finalized).includes("function_source_raw"), "msgctx8: raw absent");
+  },
+);
+
 // Oversized SaveData source: do not transfer full body; do not mislabel hash scope.
 {
   const prevDoc = global.document;
@@ -787,6 +906,16 @@ runAliasBodyCase(
     assert(finalizedEntry.source_truncated === true, "16b: finalized source_truncated true");
     assert(finalizedEntry.source_sha256 == null, "18: no full-source hash when truncated");
     assert(finalizedEntry.hash_scope == null, "18: hash_scope null when truncated (not mislabeled full)");
+    assert(
+      !Array.isArray(finalizedEntry.subtype_validation_message_contexts) ||
+        finalizedEntry.subtype_validation_message_contexts.length === 0,
+      "msgctx9: truncated SaveData emits no subtype_validation_message_contexts",
+    );
+    assert(
+      !Array.isArray(oversizedEntry.subtype_validation_message_contexts) ||
+        oversizedEntry.subtype_validation_message_contexts.length === 0,
+      "msgctx9b: raw truncated path also omits message contexts",
+    );
     assert(!JSON.stringify(oversizedFinal).includes("function_source_raw"), "18: raw absent after finalize");
     assert(
       (oversizedFinal.limitations || []).includes("referenced_function_source_size_limited"),
