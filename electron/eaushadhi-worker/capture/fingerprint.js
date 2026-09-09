@@ -54,6 +54,21 @@ function structureFingerprintInput(capture) {
       tables: page.tables,
       composition_structure: page.composition_structure || capture.composition_structure,
       save_update_structure: page.save_update_structure || capture.save_update_structure,
+      lifecycle_contract_evidence: {
+        page_path: (page.lifecycle_contract_evidence || capture.lifecycle_contract_evidence)?.page_path || null,
+        control_roles: ((page.lifecycle_contract_evidence || capture.lifecycle_contract_evidence)?.controls || []).map(
+          (item) => ({ id: item.id, candidate_role: item.candidate_role }),
+        ),
+        request_classes: ((page.lifecycle_contract_evidence || capture.lifecycle_contract_evidence)?.requests || []).map(
+          (item) => ({
+            static_path: item.static_path,
+            method: item.method,
+            mutation_classification: item.mutation_classification,
+          }),
+        ),
+        shell_create_status:
+          (page.lifecycle_contract_evidence || capture.lifecycle_contract_evidence)?.shell_create_proof?.status || null,
+      },
     })),
   };
 }

@@ -314,6 +314,12 @@ assert(globalThis.__EA_CAPTURE_HANDLER_FIRED !== true, "12: submit handler flags
 assert(globalThis.__EA_SAVEDATA_INVOKED !== true, "SaveData invocation flag remains false after capture");
 const legacyJson = readCapture(legacyTmp);
 assert(legacyJson.capture_schema_version === 1, "schema version remains 1");
+const lifecycle = legacyJson.lifecycle_contract_evidence;
+assert(lifecycle && typeof lifecycle === "object", "lifecycle_contract_evidence exists");
+assert(lifecycle.schema_version === 1, "lifecycle schema_version is 1");
+assert(lifecycle.activated === false, "lifecycle activated false");
+assert(Array.isArray(lifecycle.requests_executed) && lifecycle.requests_executed.length === 0, "lifecycle executed no requests");
+assert(!JSON.stringify(lifecycle).includes("function_source_raw"), "lifecycle drops raw function sources");
 const validation = legacyJson.classification_validation_evidence;
 assert(validation && typeof validation === "object", "2: subtype validation evidence exists");
 assert(validation.subtype_control?.control_found === true, "subtype control found");
