@@ -110,13 +110,22 @@ assert(
   "stock-purchase-explorer retains lowercase plm source-channel token",
 );
 
-// ── 6. Class C contract retention in BOM ─────────────────────────────────────
-assert(/rpc_plm_/.test(bom), "manage-pm-bom.js retains rpc_plm_ contracts");
+// ── 6. Class C: PM public RPCs + retained physical PLM tables ────────────────
+assert(/rpc_pm_/.test(bom), "manage-pm-bom.js uses rpc_pm_ contracts");
+assert(
+  !/\.rpc\(\s*["']rpc_plm_/.test(bom),
+  "manage-pm-bom.js has no active rpc_plm_ calls",
+);
 assert(
   /plm_sku_pack_map/.test(bom),
   "manage-pm-bom.js retains plm_sku_pack_map",
 );
 assert(/plm_tpl_header/.test(bom), "manage-pm-bom.js retains plm_tpl_header");
+assert(
+  !/\.from\(\s*["']pm_tpl_header["']\)/.test(bom) &&
+    !/\.from\(\s*["']pm_sku_pack_map["']\)/.test(bom),
+  "manage-pm-bom.js does not invent pm_* physical tables",
+);
 
 // ── 7. PEC compatibility retention (read-only) ───────────────────────────────
 assert(

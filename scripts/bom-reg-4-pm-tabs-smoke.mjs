@@ -94,11 +94,11 @@ assert(
   "pills persistent error"
 );
 assert(/Failed to load mapped SKUs:/.test(src), "mapped SKUs persistent error");
-assert(/rpc_plm_ovr_list/.test(src), "override list RPC unchanged");
-assert(/rpc_plm_ovr_upsert/.test(src), "override upsert RPC unchanged");
-assert(/rpc_plm_ovr_delete/.test(src), "override delete RPC unchanged");
-assert(/rpc_plm_preview_effective/.test(src), "preview RPC unchanged");
-assert(/rpc_plm_override_counts/.test(src), "counts RPC unchanged");
+assert(/rpc_pm_ovr_list/.test(src), "override list uses rpc_pm_ovr_list");
+assert(/rpc_pm_ovr_upsert/.test(src), "override upsert uses rpc_pm_ovr_upsert");
+assert(/rpc_pm_ovr_delete/.test(src), "override delete uses rpc_pm_ovr_delete");
+assert(/rpc_pm_preview_effective/.test(src), "preview uses rpc_pm_preview_effective");
+assert(/rpc_pm_override_counts/.test(src), "counts uses rpc_pm_override_counts");
 assert(
   /PREVIEW_UI_BOUND/.test(src) && !/PREVIEW_INIT_DONE/.test(src),
   "preview listeners bound once independently of data"
@@ -128,7 +128,8 @@ assert(
   "rebuild tab loads mapped SKUs when selected"
 );
 assert(
-  !activateRebuild.includes("rpc_plm_rebuild"),
+  !activateRebuild.includes("rpc_pm_rebuild") &&
+    !activateRebuild.includes("rpc_plm_rebuild"),
   "rebuild tab open does not call rebuild RPCs"
 );
 
