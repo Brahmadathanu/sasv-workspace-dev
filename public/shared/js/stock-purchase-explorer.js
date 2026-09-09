@@ -480,7 +480,7 @@ function mapSourceKindToCategoryCode(kind) {
   const k = String(kind).toLowerCase();
   const map = {
     rm: "RM",
-    plm: "PLM",
+    plm: "PM",
     consumable: "IND",
     fuel: "IND",
   };
