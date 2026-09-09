@@ -7757,7 +7757,7 @@ async function loadPmGroups() {
   const { data, error } = await labSupabase
     .from("v_rm_pm_item_with_group")
     .select("subcategory_id, subcategory_label")
-    .eq("category_code", "PLM")
+    .eq("category_code", "PM")
     .order("subcategory_label");
 
   if (error) {
@@ -8503,7 +8503,7 @@ async function loadPmItems(selectEl) {
   const { data, error } = await labSupabase
     .from("v_rm_pm_item_with_group")
     .select("stock_item_id, stock_item_name")
-    .eq("category_code", "PLM")
+    .eq("category_code", "PM")
     .order("stock_item_name");
 
   if (error) {
@@ -8554,7 +8554,7 @@ async function onPmOverrideItemChange() {
     .from("v_rm_pm_item_with_group")
     .select("subcategory_id, subcategory_label")
     .eq("stock_item_id", stockItemId)
-    .eq("category_code", "PLM")
+    .eq("category_code", "PM")
     .limit(1);
 
   if (grpErr) {
