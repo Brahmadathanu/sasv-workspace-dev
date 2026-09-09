@@ -449,21 +449,182 @@ function extractClassificationValidationEvidence() {
    * Stronger than candidate: recognized direct subtype-to--1 comparison plus
    * rejection/messaging language in the same bounded snippet.
    */
+  function hasRejectionMessaging(text) {
+    return /please\s*select|alert\s*\(|\$\s*\.\s*confirm\s*\(|throw\s+|return\s+['"][^'"]+/i.test(
+      String(text || ""),
+    );
+  }
+
   function hasExplicitMinusOneRejection(snippet) {
     if (!hasDirectMinusOneComparison(snippet)) return false;
-    return /please\s*select|alert\s*\(|throw\s+|return\s+['"][^'"]+/i.test(String(snippet || ""));
+    return hasRejectionMessaging(snippet);
+  }
+
+  function isEqualityOperator(op) {
+    return op === "==" || op === "===";
+  }
+
+  /**
+   * Trusted binding only:
+   *   var|let|const subTypeId = document.getElementById("subTypeId").value
+   * Do not add bare subTypeId to subtypeValueExprSource().
+   */
+  function collectTrustedSubTypeAliases(source) {
+    const body = String(source || "");
+    const re =
+      /(?:var|let|const)\s+(subTypeId)\s*=\s*document\.getElementById\s*\(\s*['"]subTypeId['"]\s*\)\s*\.\s*value\s*;?/gi;
+    const out = [];
+    let match;
+    while ((match = re.exec(body)) !== null) {
+      out.push({
+        aliasName: match[1],
+        assignStart: match.index,
+        assignEnd: match.index + match[0].length,
+        assignmentText: match[0],
+        sourceExpression: 'document.getElementById("subTypeId").value',
+      });
+      if (out.length >= 5) break;
+    }
+    return out;
+  }
+
+  function aliasReassignedBetween(source, aliasName, from, to) {
+    if (to <= from) return false;
+    const slice = String(source || "").slice(from, to);
+    // Any assignment to the alias (not == / === / != / !==).
+    const re = new RegExp("(?:^|[^\\w$])" + aliasName + "\\s*=(?!=)", "g");
+    return re.test(slice);
+  }
+
+  function findAliasComparisons(source, aliasName, afterOffset) {
+    const body = String(source || "");
+    const out = [];
+    const forward = new RegExp(
+      "(?:^|[^\\w$])(" + aliasName + ")\\s*(===?|!==?)\\s*['\"]-1['\"]",
+      "g",
+    );
+    const reverse = new RegExp(
+      "['\"]-1['\"]\\s*(===?|!==?)\\s*(" + aliasName + ")(?![\\w$])",
+      "g",
+    );
+    function pushMatch(match, operator) {
+      const cmpIndex = match.index;
+      if (cmpIndex < afterOffset) return;
+      out.push({
+        index: cmpIndex,
+        end: cmpIndex + match[0].length,
+        operator,
+        text: match[0],
+      });
+    }
+    let match;
+    while ((match = forward.exec(body)) !== null) {
+      pushMatch(match, match[2]);
+      if (out.length >= 8) return out;
+    }
+    while ((match = reverse.exec(body)) !== null) {
+      pushMatch(match, match[1]);
+      if (out.length >= 8) return out;
+    }
+    return out;
+  }
+
+  function collectAliasedMinusOneMatches(body, scriptIndex) {
+    const source = String(body || "");
+    const out = [];
+    const seen = new Set();
+    for (const binding of collectTrustedSubTypeAliases(source)) {
+      const comparisons = findAliasComparisons(source, binding.aliasName, binding.assignEnd);
+      for (const cmp of comparisons) {
+        const provenanceValid = !aliasReassignedBetween(
+          source,
+          binding.aliasName,
+          binding.assignEnd,
+          cmp.index,
+        );
+        if (!provenanceValid) continue;
+
+        const equality = isEqualityOperator(cmp.operator);
+        const explicitWindowStart = Math.max(0, cmp.index - 80);
+        const explicitWindowEnd = Math.min(source.length, cmp.end + 220);
+        const explicitWindow = source.slice(explicitWindowStart, explicitWindowEnd);
+        const contextStart = Math.max(0, cmp.index - 24);
+        const contextEnd = Math.min(source.length, cmp.end + 72);
+        const snippet = sliceText(source.slice(contextStart, contextEnd), MAX_SNIPPET);
+        const assignmentSnippet = sliceText(binding.assignmentText, MAX_SNIPPET);
+        const comparisonSnippet = sliceText(cmp.text, MAX_SNIPPET);
+
+        const key = `${binding.assignStart}:${cmp.index}:${cmp.operator}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        // Inequality: factual alias comparison only — never rejection/explicit.
+        if (!equality) {
+          out.push({
+            script_index: scriptIndex,
+            src_path: null,
+            source_kind: scriptIndex == null ? "referenced_handler" : "inline",
+            match_term: "subTypeId-alias~-1",
+            context_snippet: snippet,
+            evidence_class: "subtype_alias_inequality_comparison_candidate",
+            subtype_related: true,
+            validation_or_sentinel: true,
+            direct_minus_one_comparison: false,
+            explicit_minus_one_rejection: false,
+            alias_name: binding.aliasName,
+            alias_source_expression: binding.sourceExpression,
+            alias_assignment_snippet: assignmentSnippet,
+            alias_comparison_snippet: comparisonSnippet,
+            comparison_operator: cmp.operator,
+            direct_alias_minus_one_comparison: true,
+            alias_provenance_valid: true,
+            explicit_alias_minus_one_rejection: false,
+          });
+          if (out.length >= 5) return out;
+          continue;
+        }
+
+        const explicitAlias =
+          hasRejectionMessaging(explicitWindow) || hasRejectionMessaging(snippet);
+        out.push({
+          script_index: scriptIndex,
+          src_path: null,
+          source_kind: scriptIndex == null ? "referenced_handler" : "inline",
+          match_term: "subTypeId-alias~-1",
+          context_snippet: snippet,
+          evidence_class: explicitAlias
+            ? "explicit_subtype_minus_one_rejection_candidate"
+            : "subtype_minus_one_rejection_candidate",
+          subtype_related: true,
+          validation_or_sentinel: true,
+          direct_minus_one_comparison: true,
+          explicit_minus_one_rejection: explicitAlias,
+          alias_name: binding.aliasName,
+          alias_source_expression: binding.sourceExpression,
+          alias_assignment_snippet: assignmentSnippet,
+          alias_comparison_snippet: comparisonSnippet,
+          comparison_operator: cmp.operator,
+          direct_alias_minus_one_comparison: true,
+          alias_provenance_valid: true,
+          explicit_alias_minus_one_rejection: explicitAlias,
+        });
+        if (out.length >= 5) return out;
+      }
+    }
+    return out;
   }
 
   function collectDirectMinusOneMatches(body, scriptIndex) {
     const out = [];
     const seen = new Set();
+    const source = String(body || "");
     for (const re of directMinusOneRegexes()) {
       re.lastIndex = 0;
       let match;
-      while ((match = re.exec(String(body || ""))) !== null) {
+      while ((match = re.exec(source)) !== null) {
         const start = Math.max(0, match.index - 24);
-        const end = Math.min(body.length, match.index + match[0].length + 72);
-        const snippet = sliceText(body.slice(start, end), MAX_SNIPPET);
+        const end = Math.min(source.length, match.index + match[0].length + 72);
+        const snippet = sliceText(source.slice(start, end), MAX_SNIPPET);
         const key = `${match.index}:${snippet}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -482,8 +643,16 @@ function extractClassificationValidationEvidence() {
           direct_minus_one_comparison: true,
           explicit_minus_one_rejection: explicitMinusOne,
         });
-        if (out.length >= 5) return out;
+        if (out.length >= 5) break;
       }
+      if (out.length >= 5) break;
+    }
+    for (const aliasHit of collectAliasedMinusOneMatches(source, scriptIndex)) {
+      if (out.length >= 5) break;
+      const key = `alias:${aliasHit.alias_assignment_snippet}:${aliasHit.alias_comparison_snippet}:${aliasHit.comparison_operator}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(aliasHit);
     }
     return out;
   }
@@ -584,13 +753,22 @@ function extractClassificationValidationEvidence() {
       for (const direct of collectDirectMinusOneMatches(body, index)) {
         perScript.push(direct);
       }
-      // Prefer keeping every recognized direct subtype-to--1 comparison match,
+      // Prefer keeping recognized direct/alias subtype-to--1 comparison matches,
       // and at most one match per other evidence_class so negatives are not crowded out.
       const kept = [];
       const byClass = new Map();
       for (const match of perScript) {
-        if (match.direct_minus_one_comparison === true) {
-          if (kept.filter((item) => item.direct_minus_one_comparison).length < 5) {
+        if (
+          match.direct_minus_one_comparison === true ||
+          match.direct_alias_minus_one_comparison === true
+        ) {
+          if (
+            kept.filter(
+              (item) =>
+                item.direct_minus_one_comparison === true ||
+                item.direct_alias_minus_one_comparison === true,
+            ).length < 5
+          ) {
             kept.push(match);
           }
           continue;
@@ -651,13 +829,32 @@ function extractClassificationValidationEvidence() {
         validation_or_sentinel: direct.validation_or_sentinel,
         direct_minus_one_comparison: direct.direct_minus_one_comparison,
         explicit_minus_one_rejection: direct.explicit_minus_one_rejection,
+        alias_name: direct.alias_name || null,
+        alias_source_expression: direct.alias_source_expression || null,
+        alias_assignment_snippet: direct.alias_assignment_snippet || null,
+        alias_comparison_snippet: direct.alias_comparison_snippet || null,
+        comparison_operator: direct.comparison_operator || null,
+        direct_alias_minus_one_comparison: direct.direct_alias_minus_one_comparison === true,
+        alias_provenance_valid: direct.alias_provenance_valid === true,
+        explicit_alias_minus_one_rejection: direct.explicit_alias_minus_one_rejection === true,
       });
     }
     const kept = [];
     const byClass = new Map();
     for (const item of per) {
-      if (item.direct_minus_one_comparison === true) {
-        if (kept.filter((row) => row.direct_minus_one_comparison).length < 5) kept.push(item);
+      if (
+        item.direct_minus_one_comparison === true ||
+        item.direct_alias_minus_one_comparison === true
+      ) {
+        if (
+          kept.filter(
+            (row) =>
+              row.direct_minus_one_comparison === true ||
+              row.direct_alias_minus_one_comparison === true,
+          ).length < 5
+        ) {
+          kept.push(item);
+        }
         continue;
       }
       if (!byClass.has(item.evidence_class)) byClass.set(item.evidence_class, item);
@@ -675,16 +872,19 @@ function extractClassificationValidationEvidence() {
           item.evidence_class === "subtype_minus_one_rejection_candidate" ||
           item.evidence_class === "explicit_subtype_minus_one_rejection_candidate",
       ),
+      // Rejection requires equality-class evidence — not bare inequality alias facts.
       subtype_minus_one_rejection_candidate_observed: list.some(
         (item) =>
           item.evidence_class === "subtype_minus_one_rejection_candidate" ||
           item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
-          item.direct_minus_one_comparison === true,
+          (item.direct_minus_one_comparison === true &&
+            item.evidence_class !== "subtype_alias_inequality_comparison_candidate"),
       ),
       explicit_subtype_minus_one_rejection_observed: list.some(
         (item) =>
           item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
-          item.explicit_minus_one_rejection === true,
+          item.explicit_minus_one_rejection === true ||
+          item.explicit_alias_minus_one_rejection === true,
       ),
     };
   }

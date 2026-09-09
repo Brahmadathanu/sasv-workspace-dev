@@ -36,20 +36,40 @@ function finalizeSubmitControl(control) {
   };
 }
 
+function finalizeSnippetFields(item) {
+  return {
+    match_term: item?.match_term || null,
+    context_snippet: item?.context_snippet
+      ? boundSanitize(item.context_snippet, SNIPPET_MAX)
+      : null,
+    evidence_class: item?.evidence_class || null,
+    subtype_related: item?.subtype_related === true,
+    validation_or_sentinel: item?.validation_or_sentinel === true,
+    direct_minus_one_comparison: item?.direct_minus_one_comparison === true,
+    explicit_minus_one_rejection: item?.explicit_minus_one_rejection === true,
+    alias_name: item?.alias_name || null,
+    alias_source_expression: item?.alias_source_expression
+      ? boundSanitize(item.alias_source_expression, SNIPPET_MAX)
+      : null,
+    alias_assignment_snippet: item?.alias_assignment_snippet
+      ? boundSanitize(item.alias_assignment_snippet, SNIPPET_MAX)
+      : null,
+    alias_comparison_snippet: item?.alias_comparison_snippet
+      ? boundSanitize(item.alias_comparison_snippet, SNIPPET_MAX)
+      : null,
+    comparison_operator: item?.comparison_operator || null,
+    direct_alias_minus_one_comparison: item?.direct_alias_minus_one_comparison === true,
+    alias_provenance_valid: item?.alias_provenance_valid === true,
+    explicit_alias_minus_one_rejection: item?.explicit_alias_minus_one_rejection === true,
+  };
+}
+
 function finalizeScriptMatch(match) {
   return {
     script_index: match?.script_index ?? null,
     src_path: match?.src_path || null,
     source_kind: match?.source_kind || null,
-    match_term: match?.match_term || null,
-    context_snippet: match?.context_snippet
-      ? boundSanitize(match.context_snippet, SNIPPET_MAX)
-      : null,
-    evidence_class: match?.evidence_class || null,
-    subtype_related: match?.subtype_related === true,
-    validation_or_sentinel: match?.validation_or_sentinel === true,
-    direct_minus_one_comparison: match?.direct_minus_one_comparison === true,
-    explicit_minus_one_rejection: match?.explicit_minus_one_rejection === true,
+    ...finalizeSnippetFields(match),
   };
 }
 
@@ -66,17 +86,7 @@ function finalizeReferencedHandler(entry) {
 
   const snippets = (Array.isArray(entry?.snippets) ? entry.snippets : [])
     .slice(0, MAX_HANDLER_SNIPPETS)
-    .map((item) => ({
-      match_term: item?.match_term || null,
-      context_snippet: item?.context_snippet
-        ? boundSanitize(item.context_snippet, SNIPPET_MAX)
-        : null,
-      evidence_class: item?.evidence_class || null,
-      subtype_related: item?.subtype_related === true,
-      validation_or_sentinel: item?.validation_or_sentinel === true,
-      direct_minus_one_comparison: item?.direct_minus_one_comparison === true,
-      explicit_minus_one_rejection: item?.explicit_minus_one_rejection === true,
-    }));
+    .map((item) => finalizeSnippetFields(item));
 
   const flags = entry?.observation_flags || {};
   return {

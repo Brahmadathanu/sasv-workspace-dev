@@ -411,6 +411,21 @@ assert(
   "10: explicit rejection only with direct comparison + rejection messaging",
 );
 assert(
+  saveDataEvidence.snippets.some(
+    (item) =>
+      item.direct_alias_minus_one_comparison === true &&
+      item.alias_name === "subTypeId" &&
+      item.alias_provenance_valid === true &&
+      item.comparison_operator === "==" &&
+      item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" &&
+      item.explicit_alias_minus_one_rejection === true &&
+      /getElementById\s*\(\s*["']subTypeId["']\s*\)\s*\.\s*value/.test(
+        String(item.alias_assignment_snippet || ""),
+      ),
+  ),
+  "alias1: var subTypeId = getElementById(subTypeId).value + == \"-1\" + Please Select is explicit",
+);
+assert(
   validation.conclusion_inputs?.referenced_handler_subtype_minus_one_rejection_candidate_observed === true,
   "referenced_handler minus-one rejection candidate observed (additive)",
 );
@@ -533,6 +548,215 @@ assert(
   "16: external script recorded unresolved without fetch",
 );
 assert(!JSON.stringify(legacyJson).includes("PLANTED_SECRET_TOKEN_SHOULD_NOT_PERSIST"), "17: planted secret does not survive capture");
+
+// Alias provenance / inequality / negative cases via direct SaveData body swaps.
+function runAliasBodyCase(label, bodySource, checkFn) {
+  const prevDoc = global.document;
+  const prevLoc = global.location;
+  const prevSaveData = globalThis.SaveData;
+  const prevInvoked = globalThis.__EA_SAVEDATA_INVOKED;
+  try {
+    global.document = parseHtml(legacyHtml);
+    global.location = {
+      href: "https://www.e-aushadhi.gov.in/admin/addproductforlegacy",
+      pathname: "/admin/addproductforlegacy",
+    };
+    globalThis.__EA_SAVEDATA_INVOKED = false;
+    // eslint-disable-next-line no-new-func
+    globalThis.SaveData = new Function(`${bodySource}; return true;`);
+    // Force wrapper recognition via existing #save_btn onclick attribute SaveData().
+    const raw = extractClassificationValidationEvidence();
+    assert(globalThis.__EA_SAVEDATA_INVOKED !== true, `${label}: SaveData not invoked`);
+    const finalized = finalizeClassificationValidationEvidence(raw);
+    const entry = (finalized.referenced_handler_functions || []).find(
+      (item) => item.function_name === "SaveData",
+    );
+    checkFn(entry, finalized, raw);
+  } finally {
+    global.document = prevDoc;
+    global.location = prevLoc;
+    globalThis.SaveData = prevSaveData;
+    globalThis.__EA_SAVEDATA_INVOKED = prevInvoked;
+  }
+}
+
+runAliasBodyCase(
+  "alias2-strict",
+  `
+    var subTypeId = document.getElementById("subTypeId").value;
+    if (subTypeId === "-1") { $.confirm({ content: "Please Select Sub Type" }); }
+  `,
+  (entry) => {
+    assert(
+      entry?.snippets?.some(
+        (item) =>
+          item.direct_alias_minus_one_comparison === true &&
+          item.comparison_operator === "===" &&
+          item.explicit_alias_minus_one_rejection === true,
+      ),
+      "alias2: strict equality alias rejection",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "alias3-reversed",
+  `
+    const subTypeId = document.getElementById("subTypeId").value;
+    if ("-1" === subTypeId) { alert("Please Select Sub Type"); }
+  `,
+  (entry) => {
+    assert(
+      entry?.snippets?.some(
+        (item) =>
+          item.direct_alias_minus_one_comparison === true &&
+          item.comparison_operator === "===" &&
+          item.explicit_alias_minus_one_rejection === true &&
+          /["']-1["']\s*===\s*subTypeId/.test(String(item.alias_comparison_snippet || "")),
+      ),
+      "alias3: reversed equality alias rejection",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "alias4-otherField",
+  `
+    var otherField = document.getElementById("otherField").value;
+    if (otherField == "-1") { return "Please Select Sub Type"; }
+  `,
+  (entry) => {
+    assert(
+      !(entry?.snippets || []).some(
+        (item) =>
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+          item.direct_alias_minus_one_comparison === true,
+      ),
+      "alias4: otherField == \"-1\" is NOT subtype rejection",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "alias5-reassign",
+  `
+    var subTypeId = document.getElementById("subTypeId").value;
+    subTypeId = otherField;
+    if (subTypeId == "-1") { $.confirm({ content: "Please Select Sub Type" }); }
+  `,
+  (entry) => {
+    assert(
+      !(entry?.snippets || []).some(
+        (item) =>
+          item.direct_alias_minus_one_comparison === true ||
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate",
+      ),
+      "alias5: reassignment invalidates alias provenance",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "alias6-message-only",
+  `
+    return "Please Select Sub Type";
+  `,
+  (entry) => {
+    assert(
+      !(entry?.snippets || []).some(
+        (item) =>
+          item.direct_alias_minus_one_comparison === true ||
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate",
+      ),
+      "alias6: message alone is not minus-one rejection",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "alias7-categoryId",
+  `
+    var subTypeId = document.getElementById("categoryId").value;
+    if (subTypeId == "-1") { return "Please Select Sub Type"; }
+  `,
+  (entry) => {
+    assert(
+      !(entry?.snippets || []).some(
+        (item) =>
+          item.direct_alias_minus_one_comparison === true ||
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate",
+      ),
+      "alias7: categoryId binding is NOT subtype rejection",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "alias8-inequality",
+  `
+    var subTypeId = document.getElementById("subTypeId").value;
+    if (subTypeId != "-1") { save(); }
+  `,
+  (entry) => {
+    assert(
+      entry?.snippets?.some(
+        (item) =>
+          item.direct_alias_minus_one_comparison === true &&
+          item.comparison_operator === "!=" &&
+          item.evidence_class === "subtype_alias_inequality_comparison_candidate",
+      ),
+      "alias8: inequality alias comparison may be observed factually",
+    );
+    assert(
+      !(entry?.snippets || []).some(
+        (item) =>
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate" ||
+          item.explicit_alias_minus_one_rejection === true,
+      ),
+      "alias8: inequality MUST NOT be rejection/explicit",
+    );
+    assert(
+      entry?.observation_flags?.subtype_minus_one_rejection_candidate_observed !== true,
+      "alias8: observation flag rejection false for inequality-only body",
+    );
+    assert(
+      entry?.observation_flags?.explicit_subtype_minus_one_rejection_observed !== true,
+      "alias8: observation flag explicit false for inequality-only body",
+    );
+  },
+);
+
+runAliasBodyCase(
+  "alias9-inequality-reversed",
+  `
+    let subTypeId = document.getElementById("subTypeId").value;
+    if ("-1" !== subTypeId) { save(); }
+  `,
+  (entry) => {
+    assert(
+      entry?.snippets?.some(
+        (item) =>
+          item.direct_alias_minus_one_comparison === true &&
+          item.comparison_operator === "!==" &&
+          item.evidence_class === "subtype_alias_inequality_comparison_candidate",
+      ),
+      "alias9: reversed inequality observed factually",
+    );
+    assert(
+      !(entry?.snippets || []).some(
+        (item) =>
+          item.evidence_class === "subtype_minus_one_rejection_candidate" ||
+          item.evidence_class === "explicit_subtype_minus_one_rejection_candidate",
+      ),
+      "alias9: reversed inequality MUST NOT be rejection",
+    );
+  },
+);
 
 // Oversized SaveData source: do not transfer full body; do not mislabel hash scope.
 {
