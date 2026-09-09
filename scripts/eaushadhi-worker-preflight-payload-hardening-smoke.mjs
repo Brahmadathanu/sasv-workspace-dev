@@ -65,6 +65,18 @@ assert(!sql.includes("'portal_product_name', null"), "payload no longer hard-cod
 assert(sql.includes("revoke all on function public.rpc_eaushadhi_worker_preflight(integer) from anon"), "anon execute revoked");
 assert(!/rpc_eaushadhi_worker_run_begin/.test(sql), "no run_begin RPC");
 
+const classificationSql = readFileSync(
+  join(root, "supabase/migrations/20260909163000_eaushadhi_worker_payload_classification.sql"),
+  "utf8",
+);
+assert(classificationSql.includes("'classification', v_classification"), "classification migration binds classification");
+assert(
+  classificationSql.includes("'classification_row_version', v_class.row_version"),
+  "classification migration exposes classification_row_version",
+);
+assert(!/rpc_eaushadhi_worker_run_begin/.test(classificationSql), "classification migration has no run_begin");
+assert(!/suggested_product_/.test(classificationSql), "classification migration never uses suggested_*");
+
 function hashCanonical(payload) {
   return createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex");
 }
@@ -80,6 +92,11 @@ const changed = hashCanonical({
   product: { product_id: 1, canonical_product_name: "Internal", portal_product_name: "Portal B" },
 });
 assert(same !== changed, "changing portal_product_name changes the canonical hash");
+const withClassification = hashCanonical({
+  ...base,
+  classification: { subtype_mode: "OPTION", product_subtype: { portal_option_value: "31" } },
+});
+assert(same !== withClassification, "adding classification changes the canonical hash");
 
 if (failed) {
   console.error(`\n${failed} preflight/payload hardening assertion(s) failed`);

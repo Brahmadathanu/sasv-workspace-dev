@@ -31,7 +31,7 @@
   "productDetails": {
     "route": "/admin/addproductforlegacy",
     "completeness": false,
-    "evidence_note": "Karpooradi is Ayurveda Proprietary Medicine. Current captured category/subtype inventories are scoped to Siddha Classical Medicine. Do not enable Product Details writing until Ayurvedic Proprietary Medicine vocabulary and dependencies are captured. No governed term_portal_mapping exists yet for System, Medicine Class, Dosage Form, Subtype, or Permission Purpose.",
+    "evidence_note": "Ayurvedic Proprietary Medicine Product Type, Taila (Oil) category scoped to that Product Type, and Ayurvedic Proprietary subtype vocabulary (including selectable external id 31 / label \"-\") are captured and proven. Portal placeholder -1 / --Select-- is rejected by SaveData. Internal dossier subtype labels such as Kuzhambu are not portal subtypes and must not be reused for fill. Deterministic Product Details write/reread remains unproven, so productDetails completeness stays false. No governed term_portal_mapping exists yet for System, Medicine Class, Dosage Form, or Permission Purpose.",
     "fields": {
       "name": { "selector": "#name", "status": "unresolved" },
       "type": { "selector": "#type", "status": "verified" },
