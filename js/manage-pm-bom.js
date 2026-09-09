@@ -3463,7 +3463,7 @@ function exportAsCsv() {
     [
       "SN",
       "Item Code",
-      "Stock Item (PLM)",
+      "Stock Item (PM)",
       "Qty per Ref",
       "UOM",
       "Wastage %",
@@ -3483,7 +3483,7 @@ function exportAsCsv() {
   ]);
   const all = headerLines.concat(lineRows);
   const csv = all.map((row) => row.map(csvEscape).join(",")).join("\n");
-  const fname = `plm-template_${sanitizeFilename(
+  const fname = `pm-template_${sanitizeFilename(
     snap.code || String(CURRENT_TPL_ID)
   )}_${formatDateStamp()}.csv`;
   downloadBlob(fname, csv, "text/csv;charset=utf-8");
@@ -3524,7 +3524,7 @@ function buildHtmlDocument() {
   <html>
     <head>
       <meta charset="UTF-8" />
-      <title>PLM Template ${escapeHtml(snap.code || "")}</title>
+      <title>PM Template ${escapeHtml(snap.code || "")}</title>
       <style>
         body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; font-size: 13px; color:#0f172a; }
         h1 { font-size: 18px; margin: 12px 0; }
@@ -3536,14 +3536,14 @@ function buildHtmlDocument() {
       </style>
     </head>
     <body>
-      <h1>PLM Template</h1>
+      <h1>PM Template</h1>
       ${headerMeta}
       <table>
         <thead>
           <tr>
             <th>SN</th>
             <th>Item Code</th>
-            <th>Stock Item (PLM)</th>
+            <th>Stock Item (PM)</th>
             <th>Qty per Ref</th>
             <th>UOM</th>
             <th>Wastage %</th>
@@ -3568,7 +3568,7 @@ function exportAsHtml() {
   }
   const html = buildHtmlDocument();
   const code = (tplCode?.value || CURRENT_TPL_ID || "template").toString();
-  const fname = `plm-template_${sanitizeFilename(
+  const fname = `pm-template_${sanitizeFilename(
     code
   )}_${formatDateStamp()}.html`;
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
@@ -3617,7 +3617,7 @@ function exportAsPdf() {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
-  doc.text(`PLM Template — ${snap.code || CURRENT_TPL_ID}`, margin, y);
+  doc.text(`PM Template — ${snap.code || CURRENT_TPL_ID}`, margin, y);
   y += 18;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
@@ -3653,7 +3653,7 @@ function exportAsPdf() {
     [
       "SN",
       "Item Code",
-      "Stock Item (PLM)",
+      "Stock Item (PM)",
       "Qty per Ref",
       "UOM",
       "Wastage %",
@@ -3735,7 +3735,7 @@ function exportAsPdf() {
       y += 14;
     });
   }
-  const filename = `plm-template_${sanitizeFilename(
+  const filename = `pm-template_${sanitizeFilename(
     snap.code || String(CURRENT_TPL_ID)
   )}_${formatDateStamp()}.pdf`;
   try {
