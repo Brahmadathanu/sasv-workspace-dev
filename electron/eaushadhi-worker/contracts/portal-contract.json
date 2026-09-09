@@ -71,10 +71,10 @@
   },
   "saveUpdate": {
     "completeness": false,
-    "evidence_note": "Save, Update, shell-create, and final Submit are not distinguished well enough for deterministic execution. Do not click."
+    "evidence_note": "Lifecycle contract capture may record shell-create / Save / Update / final-Submit candidates from source analysis, but they remain non-executable. Save, Update, shell-create, and final Submit are not proven for deterministic automation. Do not click."
   },
   "reread": {
     "completeness": false,
-    "evidence_note": "Retained-state reread locations are not proven."
+    "evidence_note": "Retained-state reread requires refind/open-existing-record or load-existing JSON after persistence. DOM values on the current page are not retained reread. Not proven."
   }
 }

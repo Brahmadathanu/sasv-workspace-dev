@@ -7,7 +7,6 @@ const STATUS = Object.freeze({
 });
 
 const AYURVEDIC_PROPRIETARY = /ayurvedic\s+proprietary/i;
-const SIDDHA_CLASSICAL = /siddha\s+classical/i;
 
 function statusFor(complete, note, contradiction) {
   if (contradiction) {
@@ -53,9 +52,6 @@ function summarizeContractEvidence(capture) {
   const categoryVocabs = flattenVocab(capture).filter(
     (item) => item.select_id === "categoryId" || /category/i.test(String(item.control_key || "")),
   );
-  const siddhaScopedCategory = categoryVocabs.some((vocab) =>
-    (vocab.options || []).some((opt) => SIDDHA_CLASSICAL.test(String(opt.label || ""))),
-  );
   const categoryCount = categoryVocabs.reduce(
     (sum, vocab) => sum + (Array.isArray(vocab.options) ? vocab.options.length : 0),
     0,
@@ -100,9 +96,10 @@ function summarizeContractEvidence(capture) {
     productDetails: statusFor(
       false,
       hasAyurvedicProprietary
-        ? `Ayurvedic Proprietary Medicine appears in Product Type, but category/subtype capture is not proven for that type (observed category option rows: ${categoryCount}).`
-        : "Ayurvedic Proprietary Medicine Product Type / category / subtype vocabulary is not proven.",
-      hasAyurvedicProprietary && siddhaScopedCategory,
+        ? `Ayurvedic Proprietary Medicine Product Type vocabulary is observed (category option rows: ${categoryCount}). Separately governed capture has proven Taila (Oil) category scope and Ayurvedic Proprietary subtype vocabulary including external id 31 / label "-". Deterministic Product Details write and retained-state reread remain unproven, so productDetails stays unresolved.`
+        : "Ayurvedic Proprietary Medicine Product Type vocabulary was not observed in this capture; governed category/subtype proofs still do not authorize write/reread.",
+      // Siddha Classical under category is historical noise on some pages; do not treat as a hard contradiction against governed Ayurvedic Proprietary proofs.
+      false,
     ),
     composition: statusFor(
       false,

@@ -4,6 +4,11 @@ const { randomUUID } = require("crypto");
 const { extractPortalPage } = require("./extract-in-page");
 const { extractClassificationValidationEvidence } = require("./validation-evidence-in-page");
 const { finalizeClassificationValidationEvidence } = require("./validation-evidence");
+const { extractLifecycleContractEvidence } = require("./lifecycle-evidence-in-page");
+const {
+  finalizeLifecycleContractEvidence,
+  enrichLifecycleWithStaticScripts,
+} = require("./lifecycle-evidence");
 const { collectPageSignals, classifyAuth, AUTH_OUTCOMES } = require("./auth-signals");
 const {
   safePathFromUrl,
@@ -477,6 +482,30 @@ async function inspectPage(page, contract) {
     validationRaw = null;
   }
   const classification_validation_evidence = finalizeClassificationValidationEvidence(validationRaw);
+  let lifecycleRaw = null;
+  try {
+    lifecycleRaw = await page.evaluate(extractLifecycleContractEvidence);
+  } catch {
+    lifecycleRaw = null;
+  }
+  let lifecycle_contract_evidence = finalizeLifecycleContractEvidence(lifecycleRaw);
+  try {
+    lifecycle_contract_evidence = await enrichLifecycleWithStaticScripts(
+      page,
+      lifecycle_contract_evidence,
+      origin,
+    );
+  } catch {
+    lifecycle_contract_evidence = {
+      ...lifecycle_contract_evidence,
+      limitations: Array.from(
+        new Set([
+          ...(lifecycle_contract_evidence.limitations || []),
+          "static_script_enrichment_failed",
+        ]),
+      ),
+    };
+  }
   const selects = attachBindings(extracted.selects);
   const inputs = attachBindings(extracted.inputs);
   const textareas = attachBindings(extracted.textareas);
@@ -494,6 +523,7 @@ async function inspectPage(page, contract) {
     tables: extracted.tables || [],
     child_frame_origins: childFrameOrigins(page),
     classification_validation_evidence,
+    lifecycle_contract_evidence,
     lookup: lookupStructure({ ...extracted, inputs, buttons, selects }),
     composition_structure: compositionStructure({
       ...extracted,
@@ -564,6 +594,17 @@ async function captureOpenPages({ context, contract, userDataPath, workerStateBe
     return pages[0]?.classification_validation_evidence || finalizeClassificationValidationEvidence(null);
   }
 
+  function pickLifecycleEvidence(pages) {
+    const withLifecycle = pages.find(
+      (page) =>
+        (page.lifecycle_contract_evidence?.controls || []).length > 0 ||
+        (page.lifecycle_contract_evidence?.functions || []).length > 0 ||
+        (page.lifecycle_contract_evidence?.requests || []).length > 0,
+    );
+    if (withLifecycle) return withLifecycle.lifecycle_contract_evidence;
+    return pages[0]?.lifecycle_contract_evidence || finalizeLifecycleContractEvidence(null);
+  }
+
   const captureId = randomUUID();
   const draft = {
     capture_schema_version: CAPTURE_SCHEMA_VERSION,
@@ -590,6 +631,7 @@ async function captureOpenPages({ context, contract, userDataPath, workerStateBe
       tables: page.tables,
       child_frame_origins: page.child_frame_origins,
       classification_validation_evidence: page.classification_validation_evidence,
+      lifecycle_contract_evidence: page.lifecycle_contract_evidence,
       lookup: page.lookup,
       composition_structure: page.composition_structure,
       product_details_observation: page.product_details_observation,
@@ -624,6 +666,7 @@ async function captureOpenPages({ context, contract, userDataPath, workerStateBe
     shell_creation_structure: inspected.map((page) => page.shell_creation_structure),
     save_update_structure: inspected.flatMap((page) => page.save_update_structure),
     classification_validation_evidence: pickValidationEvidence(inspected),
+    lifecycle_contract_evidence: pickLifecycleEvidence(inspected),
     proposed_selectors: inspected.flatMap((page) =>
       [...(page.inputs || []), ...(page.selects || []), ...(page.buttons || [])]
         .filter((item) => item.selector_candidate?.selector)
@@ -681,4 +724,6 @@ module.exports = {
   classifyAuth,
   classifyActionCandidate,
   finalizeClassificationValidationEvidence,
+  finalizeLifecycleContractEvidence,
+  extractLifecycleContractEvidence,
 };
