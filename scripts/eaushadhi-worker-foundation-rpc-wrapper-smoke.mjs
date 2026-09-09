@@ -109,7 +109,7 @@ assert(!/rpc_eaushadhi_worker_run_begin/.test(workerSrc), "foundation does not c
 assert(!/mark_entered|mark_portal_verified|click\('Save|Submit/.test(workerSrc), "no mutating portal/runtime transitions");
 
 const classificationMigration = readFileSync(
-  join(root, "supabase/migrations/20260909163000_eaushadhi_worker_payload_classification.sql"),
+  join(root, "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql"),
   "utf8",
 );
 assert(classificationMigration.includes("rpc_eaushadhi_worker_payload_get"), "classification migration replaces payload_get");

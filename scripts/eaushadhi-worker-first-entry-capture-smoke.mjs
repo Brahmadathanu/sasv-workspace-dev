@@ -365,7 +365,7 @@ assert(!/qc|quality control/i.test(controlSrc + dryRunSrc), "no QC");
 assert(!/mark_submitted/.test(indexSrc + dryRunSrc), "no Submit lifecycle");
 
 const classificationMigration = readFileSync(
-  join(root, "supabase/migrations/20260909163000_eaushadhi_worker_payload_classification.sql"),
+  join(root, "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql"),
   "utf8",
 );
 assert(

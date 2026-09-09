@@ -529,7 +529,7 @@ assert(workerClientSrc.includes("runEntryDryRun"), "worker client exposes entry 
 assert(!/\bsubmit\b/i.test(workerClientSrc), "worker client has no Submit");
 
 const classificationMigration = readFileSync(
-  join(root, "supabase/migrations/20260909163000_eaushadhi_worker_payload_classification.sql"),
+  join(root, "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql"),
   "utf8",
 );
 assert(classificationMigration.includes("'classification', v_classification"), "worker payload migration binds classification");

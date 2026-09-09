@@ -66,7 +66,7 @@ assert(sql.includes("revoke all on function public.rpc_eaushadhi_worker_prefligh
 assert(!/rpc_eaushadhi_worker_run_begin/.test(sql), "no run_begin RPC");
 
 const classificationSql = readFileSync(
-  join(root, "supabase/migrations/20260909163000_eaushadhi_worker_payload_classification.sql"),
+  join(root, "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql"),
   "utf8",
 );
 assert(classificationSql.includes("'classification', v_classification"), "classification migration binds classification");

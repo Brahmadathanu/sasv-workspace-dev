@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationPath = join(
   root,
-  "supabase/migrations/20260909163000_eaushadhi_worker_payload_classification.sql",
+  "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql",
 );
 const contractPath = join(root, "electron/eaushadhi-worker/contracts/portal-contract.json");
 const dryRunPath = join(root, "electron/eaushadhi-worker/dry-run.js");
