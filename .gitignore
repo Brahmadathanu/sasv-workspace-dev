@@ -30,6 +30,7 @@ dist-eaushadhi-manual-tab-origin-reconciliation-proof/
 dist-eaushadhi-subtype-validation-capture-proof/
 dist-eaushadhi-savedata-validation-capture-proof/
 dist-eaushadhi-subtype-alias-validation-proof/
+dist-eaushadhi-subtype-branch-context-proof/
 *.exe
 *.zip
 

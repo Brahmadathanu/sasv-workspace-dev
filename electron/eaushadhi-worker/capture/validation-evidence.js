@@ -6,6 +6,8 @@ const { sanitizeText } = require("../diagnostics");
 const HANDLER_PREVIEW_MAX = 240;
 const SNIPPET_MAX = 160;
 const MAX_HANDLER_SNIPPETS = 8;
+const MAX_SUBTYPE_MESSAGE_CONTEXT = 1024;
+const MAX_SUBTYPE_MESSAGE_CONTEXTS = 3;
 
 function sha256Text(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
@@ -73,6 +75,31 @@ function finalizeScriptMatch(match) {
   };
 }
 
+function finalizeSubtypeMessageContext(item) {
+  const rawSnippet =
+    item?.validation_branch_context_snippet_raw || item?.validation_branch_context_snippet || null;
+  return {
+    validation_message: item?.validation_message || null,
+    validation_message_offset:
+      typeof item?.validation_message_offset === "number" ? item.validation_message_offset : null,
+    validation_branch_context_snippet: rawSnippet
+      ? boundSanitize(rawSnippet, MAX_SUBTYPE_MESSAGE_CONTEXT)
+      : null,
+    validation_branch_context_start:
+      typeof item?.validation_branch_context_start === "number"
+        ? item.validation_branch_context_start
+        : null,
+    validation_branch_context_end:
+      typeof item?.validation_branch_context_end === "number"
+        ? item.validation_branch_context_end
+        : null,
+    validation_branch_context_truncated_before:
+      item?.validation_branch_context_truncated_before === true,
+    validation_branch_context_truncated_after:
+      item?.validation_branch_context_truncated_after === true,
+  };
+}
+
 function finalizeReferencedHandler(entry) {
   const rawSource = entry?.function_source_raw;
   const hasFullRaw = typeof rawSource === "string" && rawSource.length > 0;
@@ -88,6 +115,17 @@ function finalizeReferencedHandler(entry) {
     .slice(0, MAX_HANDLER_SNIPPETS)
     .map((item) => finalizeSnippetFields(item));
 
+  // Wide message contexts only when full untruncated source was available.
+  const messageContexts =
+    truncated === true
+      ? []
+      : (Array.isArray(entry?.subtype_validation_message_contexts)
+          ? entry.subtype_validation_message_contexts
+          : []
+        )
+          .slice(0, MAX_SUBTYPE_MESSAGE_CONTEXTS)
+          .map((item) => finalizeSubtypeMessageContext(item));
+
   const flags = entry?.observation_flags || {};
   return {
     function_name: entry?.function_name || null,
@@ -101,6 +139,7 @@ function finalizeReferencedHandler(entry) {
     source_sha256: sourceSha256,
     hash_scope: hashScope,
     snippets,
+    subtype_validation_message_contexts: messageContexts,
     observation_flags: {
       subtype_validation_candidate_observed: flags.subtype_validation_candidate_observed === true,
       subtype_minus_one_rejection_candidate_observed:

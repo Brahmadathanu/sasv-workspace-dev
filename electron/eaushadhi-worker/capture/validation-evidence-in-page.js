@@ -16,6 +16,11 @@ function extractClassificationValidationEvidence() {
   // Hard cap for transferring Function#toString of an allowlisted referenced handler.
   const MAX_REFERENCED_FUNCTION_SOURCE = 262144;
   const MAX_HANDLER_SNIPPETS = 8;
+  const SUBTYPE_VALIDATION_MESSAGE = "Please Select Sub Type";
+  const MAX_SUBTYPE_MESSAGE_CONTEXTS = 3;
+  const SUBTYPE_MESSAGE_CONTEXT_BEFORE = 512;
+  const SUBTYPE_MESSAGE_CONTEXT_AFTER = 256;
+  const MAX_SUBTYPE_MESSAGE_CONTEXT = 1024;
 
   const SUBMIT_IDS = ["save_btn", "save_rbtn"];
   // Legacy Add Product primary submit target only — do not expand without new evidence.
@@ -890,6 +895,39 @@ function extractClassificationValidationEvidence() {
   }
 
   /**
+   * Factual only: bounded windows around exact "Please Select Sub Type" in a full
+   * untruncated SaveData Function#toString body. No semantic classification.
+   */
+  function collectSubtypeValidationMessageContexts(fullSource) {
+    const source = String(fullSource || "");
+    const needle = SUBTYPE_VALIDATION_MESSAGE;
+    const needleLower = needle.toLowerCase();
+    const sourceLower = source.toLowerCase();
+    const out = [];
+    let searchFrom = 0;
+    while (out.length < MAX_SUBTYPE_MESSAGE_CONTEXTS) {
+      const messageOffset = sourceLower.indexOf(needleLower, searchFrom);
+      if (messageOffset < 0) break;
+      const phraseEnd = messageOffset + needle.length;
+      const rawStart = Math.max(0, messageOffset - SUBTYPE_MESSAGE_CONTEXT_BEFORE);
+      const rawEnd = Math.min(source.length, phraseEnd + SUBTYPE_MESSAGE_CONTEXT_AFTER);
+      const rawSlice = source.slice(rawStart, rawEnd);
+      out.push({
+        validation_message: SUBTYPE_VALIDATION_MESSAGE,
+        validation_message_offset: messageOffset,
+        // Transport raw slice; Node finalize sanitizes to <= 1024.
+        validation_branch_context_snippet_raw: rawSlice,
+        validation_branch_context_start: rawStart,
+        validation_branch_context_end: rawEnd,
+        validation_branch_context_truncated_before: rawStart > 0,
+        validation_branch_context_truncated_after: rawEnd < source.length,
+      });
+      searchFrom = phraseEnd;
+    }
+    return out;
+  }
+
+  /**
    * Read-only inspection of allowlisted globals referenced by submit onclick wrappers.
    * Uses Function.prototype.toString only — never invokes the target function.
    */
@@ -917,6 +955,7 @@ function extractClassificationValidationEvidence() {
         source_truncated: false,
         function_source_raw: null,
         snippets: [],
+        subtype_validation_message_contexts: [],
         observation_flags: {
           subtype_validation_candidate_observed: false,
           subtype_minus_one_rejection_candidate_observed: false,
@@ -938,16 +977,19 @@ function extractClassificationValidationEvidence() {
           entry.source_capture_status = "native_or_opaque";
         } else if (raw.length > MAX_REFERENCED_FUNCTION_SOURCE) {
           // Bound scan only; do not transfer unrestricted full source across evaluate.
+          // Wide subtype message contexts require untruncated full source — omit them.
           entry.source_truncated = true;
           entry.source_capture_status = "captured_truncated";
           const bounded = raw.slice(0, MAX_REFERENCED_FUNCTION_SOURCE);
           entry.snippets = scanHandlerSource(bounded);
           entry.function_source_raw = null;
+          entry.subtype_validation_message_contexts = [];
         } else {
           entry.source_truncated = false;
           entry.source_capture_status = "captured";
           entry.snippets = scanHandlerSource(raw);
           entry.function_source_raw = raw;
+          entry.subtype_validation_message_contexts = collectSubtypeValidationMessageContexts(raw);
         }
         entry.observation_flags = observationFlagsFromSnippets(entry.snippets);
       } catch {
