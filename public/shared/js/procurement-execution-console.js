@@ -911,13 +911,41 @@ function prClassText(row) {
   );
 }
 
+function normalizePrRmScopeLabel(raw) {
+  const v = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (v === "normal") return "Normal RM";
+  if (v === "jit") return "JIT RM";
+  if (v === "all") return "All RM";
+  return "";
+}
+
 function prScopeText(row) {
-  return (
-    row?.rm_scope_label ||
-    row?.rm_scope ||
-    row?.generation_filters?.rm_scope ||
-    "—"
-  );
+  const explicit =
+    String(row?.rm_scope_label ?? "").trim() ||
+    normalizePrRmScopeLabel(row?.rm_scope) ||
+    normalizePrRmScopeLabel(row?.generation_filters?.rm_scope);
+  if (explicit) return explicit;
+
+  const classCode = canonicalMaterialClassCode(row?.material_class_code);
+  const classLabel = String(
+    canonicalMaterialClassText(row?.material_class_label) || "",
+  ).trim();
+  const classDisplay = String(
+    canonicalMaterialClassText(row?.material_class_display) || "",
+  ).trim();
+
+  if (classCode === "PM") {
+    return classLabel || classDisplay || "Packing Material";
+  }
+  if (classCode === "RM") {
+    return classLabel || classDisplay || "Raw Material";
+  }
+  if (classCode) {
+    return classLabel || classDisplay || classCode;
+  }
+  return "—";
 }
 
 function extractRpcId(payload) {
