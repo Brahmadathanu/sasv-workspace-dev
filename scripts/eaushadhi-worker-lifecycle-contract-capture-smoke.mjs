@@ -19,6 +19,7 @@ const {
   classifyStaticScriptAcquisitionUrl,
   assessShellCreateEvidence,
   bucketRequests,
+  isStaticScriptPath,
 } = require(join(captureDir, "source-analyzer.js"));
 const {
   finalizeLifecycleContractEvidence,
@@ -148,13 +149,56 @@ assert(shellProof.criteria.endpoint === true, "shell proof: endpoint");
 
 // Static script acquisition rules
 const origin = "https://www.e-aushadhi.gov.in";
+const positiveStaticPaths = [
+  "/db_static/eaushadhi/addproductforlegacy-abc.js",
+  "/static/app.js",
+  "/assets/app.js",
+  "/js/app.js",
+];
+for (const path of positiveStaticPaths) {
+  assert(isStaticScriptPath(path) === true, `positive static path allowed: ${path}`);
+  assert(
+    classifyStaticScriptAcquisitionUrl(`${origin}${path}`, origin).ok === true,
+    `positive same-origin acquisition allowed: ${path}`,
+  );
+}
+
+const negativeStaticPaths = [
+  "/admin/foo.js",
+  "/admin/custom_dashboard1.js",
+  "/api/foo.js",
+  "/random/foo.js",
+  "/foo.js",
+];
+for (const path of negativeStaticPaths) {
+  assert(isStaticScriptPath(path) === false, `negative static path rejected: ${path}`);
+  assert(
+    classifyStaticScriptAcquisitionUrl(`${origin}${path}`, origin).ok === false,
+    `negative same-origin acquisition rejected: ${path}`,
+  );
+}
+
+const stripped = classifyStaticScriptAcquisitionUrl(
+  "https://www.e-aushadhi.gov.in/db_static/eaushadhi/addproductforlegacy-abc.js?cache=1#x",
+  origin,
+);
+assert(stripped.ok === true, "query/hash static path still allowed");
 assert(
-  classifyStaticScriptAcquisitionUrl(
-    "https://www.e-aushadhi.gov.in/db_static/eaushadhi/addproductforlegacy-abc.js?cache=1#x",
-    origin,
-  ).url === "https://www.e-aushadhi.gov.in/db_static/eaushadhi/addproductforlegacy-abc.js",
+  stripped.url === "https://www.e-aushadhi.gov.in/db_static/eaushadhi/addproductforlegacy-abc.js",
   "static acquisition strips query/hash",
 );
+assert(stripped.path === "/db_static/eaushadhi/addproductforlegacy-abc.js", "stripped path keeps approved prefix");
+
+assert(
+  classifyStaticScriptAcquisitionUrl("https://evil.example/db_static/x.js", origin).ok === false,
+  "cross-origin approved-looking static path rejected",
+);
+assert(
+  classifyStaticScriptAcquisitionUrl(`${origin}/admin/getSomething.js`, origin).ok === false,
+  "/admin/getSomething.js rejected even if .js",
+);
+assert(isStaticScriptPath("/admin/getSomething.js") === false, "isStaticScriptPath rejects /admin/getSomething.js");
+
 assert(
   classifyStaticScriptAcquisitionUrl(
     "https://www.e-aushadhi.gov.in/admin/saveproductforlegacy",
@@ -163,15 +207,53 @@ assert(
   "business save endpoint rejected",
 );
 assert(
-  classifyStaticScriptAcquisitionUrl("https://evil.example/db_static/x.js", origin).ok === false,
-  "cross-origin rejected",
-);
-assert(
   classifyStaticScriptAcquisitionUrl(
     "https://www.e-aushadhi.gov.in/admin/getsubtypeName",
     origin,
   ).ok === false,
   "business get endpoint rejected as script",
+);
+assert(
+  classifyMutation({
+    method: "POST",
+    urlExpression: "../admin/saveproductforlegacy",
+    payloadExpression: '{ actiontype: "add" }',
+    sourceFunction: "SaveData",
+  }).mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE,
+  "business endpoint mutation classification unchanged",
+);
+
+// Rejected URLs must not cause request issuance during enrichment.
+const rejectedRequestCalls = [];
+const rejectedEnrich = await enrichLifecycleWithStaticScripts(
+  {
+    request: {
+      get(url) {
+        rejectedRequestCalls.push(String(url));
+        throw new Error("rejected URL must not be fetched");
+      },
+    },
+  },
+  {
+    schema_version: 1,
+    controls: [],
+    functions: [],
+    requests: [],
+    limitations: [],
+    script_inventory: negativeStaticPaths.map((path, index) => ({
+      script_index: index,
+      source_kind: "external",
+      src_path: path,
+      src_url_for_acquisition: `${origin}${path}`,
+      acquisition_status: "pending_static_check",
+    })),
+  },
+  origin,
+);
+assert(rejectedRequestCalls.length === 0, "no request issued for rejected static URLs");
+assert(
+  (rejectedEnrich.script_inventory || []).every((item) => item.acquisition_status === "unresolved"),
+  "rejected static URLs remain unresolved without fetch",
 );
 
 // Finalize drops raw bodies

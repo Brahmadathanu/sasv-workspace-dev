@@ -83,11 +83,18 @@ function isBusinessApiPath(pathValue) {
     !/\/admin\/getsubtypename\b/.test(path);
 }
 
+const APPROVED_STATIC_SCRIPT_PREFIXES = Object.freeze([
+  "/db_static/",
+  "/static/",
+  "/assets/",
+  "/js/",
+]);
+
 function isStaticScriptPath(pathValue) {
   const path = String(pathValue || "").toLowerCase();
-  if (!/\.js$/i.test(path)) return false;
+  if (!path.endsWith(".js")) return false;
   if (isBusinessApiPath(path)) return false;
-  return /\/db_static\/|\/static\/|\/assets\/|\/js\//.test(path) || /\.js$/i.test(path);
+  return APPROVED_STATIC_SCRIPT_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 /**
@@ -488,4 +495,5 @@ module.exports = {
   classifyStaticScriptAcquisitionUrl,
   isBusinessApiPath,
   isStaticScriptPath,
+  APPROVED_STATIC_SCRIPT_PREFIXES,
 };
