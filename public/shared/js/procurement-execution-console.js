@@ -675,14 +675,22 @@ function normalize(value) {
     .trim();
 }
 
+function canonicalMaterialClassCode(value) {
+  // Inbound compatibility only: retired packing-material code PLM maps to canonical PM.
+  const code = String(value ?? "").trim().toUpperCase();
+  return code === "PLM" ? "PM" : code;
+}
+
+function canonicalMaterialClassText(value) {
+  return String(value ?? "").replace(/\bPLM\b/g, "PM");
+}
+
 function displayMaterialClassCode(code) {
-  const c = String(code ?? "").trim().toUpperCase();
-  if (c === "PLM") return "PM";
-  return c;
+  return canonicalMaterialClassCode(code);
 }
 
 function displayMaterialClassText(text) {
-  return String(text ?? "").replace(/\bPLM\b/g, "PM");
+  return canonicalMaterialClassText(text);
 }
 
 function normalizeRmProcurementMode(row) {
@@ -892,8 +900,11 @@ function wireProcurementOverlayA11y() {
 
 function prClassText(row) {
   return (
-    displayMaterialClassText(row?.material_class_display) ||
-    [displayMaterialClassCode(row?.material_class_code), row?.material_class_label]
+    canonicalMaterialClassText(row?.material_class_display) ||
+    [
+      canonicalMaterialClassCode(row?.material_class_code),
+      canonicalMaterialClassText(row?.material_class_label),
+    ]
       .filter(Boolean)
       .join(" - ") ||
     (row?.material_class_id ? `Class ID: ${row.material_class_id}` : "—")
@@ -1655,7 +1666,7 @@ function openDetailModal(row) {
     [
       ["Indent #", row.indent_number],
       ["Item", row.stock_item_name],
-      ["Class", row.material_class_code],
+      ["Class", canonicalMaterialClassCode(row.material_class_code)],
       ["UOM", row.uom_code],
       ["Requested Qty", row.requested_qty ?? row.indent_qty],
       ["Allocated Qty", row.allocated_qty],
@@ -1866,7 +1877,7 @@ function renderRows() {
     tr.style.cursor = "pointer";
     tr.innerHTML = `
       <td title="Indent ID: ${esc(row.indent_id ?? "")}">${esc(row.indent_number ?? "")}</td>
-      <td title="${esc(row.material_class_code ?? "")} | ${esc(row.uom_code ?? "")}">${esc(row.stock_item_name ?? "")}</td>
+      <td title="${esc(canonicalMaterialClassCode(row.material_class_code ?? ""))} | ${esc(row.uom_code ?? "")}">${esc(row.stock_item_name ?? "")}</td>
       <td>${fmt(row.remaining_qty)}</td>
       <td><span class="pill ${priorityBandPillClass(row.priority_band_final)}">${esc(row.priority_band_final ?? "-")}</span></td>
       <td>${fmt(row.priority_score_system)}</td>
@@ -3267,15 +3278,16 @@ function getIndentAddLinePrBlockedMessage() {
 function getIndentMaterialClassPickerFilter(materialClassId) {
   const id = Number(materialClassId);
   if (id === 1) return { column: "is_rm", value: true };
+  // Retained server contract: v_stock_item_picker.is_plm (not a user-facing class code).
   if (id === 2) return { column: "is_plm", value: true };
   if (id === 5) return { column: "is_ind", value: true };
   return null;
 }
 
 function materialClassIdFromCategoryCode(categoryCode) {
-  const code = String(categoryCode || "").trim().toUpperCase();
+  const code = canonicalMaterialClassCode(categoryCode);
   if (code === "RM") return 1;
-  if (code === "PM" || code === "PLM") return 2;
+  if (code === "PM") return 2;
   if (code === "IND") return 5;
   return null;
 }
@@ -4204,7 +4216,9 @@ function applyIndentLineFiltersAndRender() {
         r.code,
         r.uom_code,
         r.material_class_code,
+        canonicalMaterialClassCode(r.material_class_code),
         r.material_class_label,
+        canonicalMaterialClassText(r.material_class_label),
         r.source_category_label,
         r.source_subcategory_label,
         String(r.stock_item_id ?? ""),
@@ -5313,6 +5327,7 @@ async function buildIndentRequisitionRows(indentId) {
       .from("v_stock_current_by_item")
       .select("inv_stock_item_id,qty_on_hand,source_kind")
       .in("inv_stock_item_id", itemIds);
+    // Retained server contract: v_stock_current_by_item.source_kind includes "plm".
     const ORDER = ["rm", "plm", "consumables"];
     (stocks ?? []).forEach((s) => {
       const cur = stockMap[s.inv_stock_item_id];
@@ -5336,7 +5351,10 @@ async function buildIndentRequisitionRows(indentId) {
     const cat = itemCatMap[l.stock_item_id] ?? {};
     const qtyInStock = stockMap[l.stock_item_id]?.qty_on_hand ?? 0;
     return {
-      category: cat.category || l.material_class_label || "",
+      category:
+        cat.category ||
+        canonicalMaterialClassText(l.material_class_label) ||
+        "",
       materialDescription: l.stock_item_name ?? "",
       uom: l.uom_code ?? String(l.uom_id ?? ""),
       qtyRequested: fmtFixed(l.requested_qty ?? "", 2),
@@ -5376,12 +5394,12 @@ async function buildIndentRequisitionRows(indentId) {
 function openExportIndentModal() {
   if (!state.selectedIndent) return;
   const row = state.selectedIndent;
-  const classCode = String(row.material_class_code ?? "")
-    .trim()
-    .toUpperCase();
+  const classCode = canonicalMaterialClassCode(row.material_class_code);
   qs("expReqNo").value = row.indent_number ?? "";
   qs("expReqType").value =
-    row.material_class_label ?? row.material_class_code ?? "All";
+    canonicalMaterialClassText(row.material_class_label) ||
+    classCode ||
+    "All";
   qs("expReqDate").value = new Date().toISOString().slice(0, 10);
   qs("expDeptUnit").value = "SHRO / SASV";
   qs("expLocation").value =
@@ -6284,7 +6302,9 @@ function wireAddPrLineItemSearch() {
     }
     currentItems = rows;
     rows.forEach((item, idx) => {
-      const classLabel = item.category_code ?? String(item.category_id ?? "");
+      const classLabel =
+        canonicalMaterialClassCode(item.category_code) ||
+        String(item.category_id ?? "");
       const li = document.createElement("li");
       li.setAttribute("role", "option");
       li.dataset.idx = String(idx);
@@ -6456,6 +6476,7 @@ function wireAddIndentLineItemSearch() {
     let req = supabase
       .from("v_stock_item_picker")
       .select(
+        // Retained server contract columns: is_plm is not a user-facing class code.
         "stock_item_id,stock_item_code,stock_item_name,default_uom_id,default_uom_code,category_code,is_rm,is_plm,is_ind",
       )
       .eq("active", true)
@@ -6489,7 +6510,7 @@ function wireAddIndentLineItemSearch() {
     }
     currentItems = rows;
     rows.forEach((item, idx) => {
-      const classLabel = item.category_code ?? "";
+      const classLabel = canonicalMaterialClassCode(item.category_code ?? "");
       const li = document.createElement("li");
       li.setAttribute("role", "option");
       li.dataset.idx = String(idx);
@@ -7466,7 +7487,7 @@ function buildPrFormExportRows(pr) {
   const tableRows = lines.map((row, i) => ({
     sn: i + 1,
     item: row.stock_item_name ?? String(row.stock_item_id ?? ""),
-    materialClass: row.material_class_code ?? "",
+    materialClass: canonicalMaterialClassCode(row.material_class_code ?? ""),
     uom: row.uom_code ?? "",
     systemSuggested: fmtQty(row.system_suggested_qty),
     requested: fmtQty(row.requested_qty),
@@ -8356,7 +8377,8 @@ async function loadExcess() {
       if (search && !ilikeContains(r.stock_item_name, search)) return false;
       if (
         filters.materialClassId &&
-        String(r.material_class_code ?? "") !== String(filters.materialClassId)
+        canonicalMaterialClassCode(r.material_class_code) !==
+          canonicalMaterialClassCode(filters.materialClassId)
       ) {
         return false;
       }
@@ -9074,9 +9096,9 @@ function mapVendorBuylistExportRow(row) {
   return {
     Vendor: getVwlOperationalBucketName(row),
     "Material Class":
-      row.material_class_display ||
-      row.material_class_label ||
-      row.material_class_code ||
+      canonicalMaterialClassText(row.material_class_display) ||
+      canonicalMaterialClassText(row.material_class_label) ||
+      canonicalMaterialClassCode(row.material_class_code) ||
       "",
     "RM Scope": row.rm_scope_label || row.rm_scope || "",
     Item: row.stock_item_name ?? "",
@@ -9521,7 +9543,10 @@ async function loadVendorBuylistFilterOptions() {
   ]);
 
   state.vwlMaterialClassOptions = [...(classRows || [])].sort((a, b) =>
-    compareStrAsc(a.material_class_code, b.material_class_code),
+    compareStrAsc(
+      canonicalMaterialClassCode(a.material_class_code),
+      canonicalMaterialClassCode(b.material_class_code),
+    ),
   );
   state.vwlRmScopeOptions = [...(rmRows || [])].sort((a, b) =>
     compareStrAsc(a.rm_scope_label, b.rm_scope_label),
@@ -9543,17 +9568,18 @@ function populateVwlMaterialClassFilter() {
   (state.vwlMaterialClassOptions || []).forEach((row) => {
     const opt = document.createElement("option");
     opt.value = String(row.material_class_id ?? "");
-    opt.dataset.code = row.material_class_code || "";
+    opt.dataset.code = canonicalMaterialClassCode(row.material_class_code || "");
     opt.textContent =
-      row.material_class_display ||
-      `${row.material_class_code || ""} - ${row.material_class_label || ""}`.trim();
+      canonicalMaterialClassText(row.material_class_display) ||
+      `${canonicalMaterialClassCode(row.material_class_code || "")} - ${canonicalMaterialClassText(row.material_class_label || "")}`.trim();
     sel.appendChild(opt);
   });
 
   sel.value = current;
   state.vwlFilters.materialClassId = sel.value || "";
-  state.vwlFilters.materialClassCode =
-    sel.selectedOptions?.[0]?.dataset?.code || "";
+  state.vwlFilters.materialClassCode = canonicalMaterialClassCode(
+    sel.selectedOptions?.[0]?.dataset?.code || "",
+  );
 }
 
 function populateVwlRmScopeFilter() {
@@ -9576,7 +9602,9 @@ function populateVwlRmScopeFilter() {
 
 function getSelectedVwlMaterialClassCode() {
   const sel = qs("vwlMaterialClassFilter");
-  return sel?.selectedOptions?.[0]?.dataset?.code || "";
+  return canonicalMaterialClassCode(
+    sel?.selectedOptions?.[0]?.dataset?.code || "",
+  );
 }
 
 function refreshVwlRmScopeAvailability() {
@@ -11340,8 +11368,9 @@ function wireVendorBuylistControls() {
   qs("vwlMaterialClassFilter")?.addEventListener("change", () => {
     const sel = qs("vwlMaterialClassFilter");
     state.vwlFilters.materialClassId = sel?.value || "";
-    state.vwlFilters.materialClassCode =
-      sel?.selectedOptions?.[0]?.dataset?.code || "";
+    state.vwlFilters.materialClassCode = canonicalMaterialClassCode(
+      sel?.selectedOptions?.[0]?.dataset?.code || "",
+    );
 
     refreshVwlRmScopeAvailability();
     state.vwl.page = 0;
