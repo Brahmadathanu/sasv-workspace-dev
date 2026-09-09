@@ -165,7 +165,7 @@ let workflowActionPermissions = new Map();
 let receivePermissionVerified = false;
 let fgBatchLoadRequestId = 0;
 let rmItems = []; // RM items from v_rm_pm_item_with_group (category_code = 'RM')
-let pmItems = []; // PM items from v_rm_pm_item_with_group (category_code = 'PLM')
+let pmItems = []; // PM items from v_rm_pm_item_with_group (category_code = 'PM')
 let mappingCheckDebounceTimer = null;
 let pendingSwitchType = null; // type pill click queued pending confirmation
 
@@ -361,7 +361,7 @@ async function loadPickers() {
 
     // Cache RM and PM items separately — populated on type selection
     rmItems = allItems.filter((i) => i.category_code === "RM");
-    pmItems = allItems.filter((i) => i.category_code === "PLM");
+    pmItems = allItems.filter((i) => i.category_code === "PM");
 
     // Populate staff pickers
     const allStaff = staffRes.data ?? [];
@@ -1273,7 +1273,7 @@ async function checkPmReadiness(stockItemId) {
       .from("v_rm_pm_item_with_group")
       .select("subcategory_id, subcategory_label")
       .eq("stock_item_id", stockItemId)
-      .eq("category_code", "PLM")
+      .eq("category_code", "PM")
       .limit(1);
     if (subcatErr) throw subcatErr;
 

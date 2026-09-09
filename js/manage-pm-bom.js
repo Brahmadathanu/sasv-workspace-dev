@@ -310,7 +310,7 @@ const ovrCtl = {
 
 // Data caches
 let UOMS = [];
-let STOCK_ITEMS = []; // PLM-category items
+let STOCK_ITEMS = []; // PM-category items (canonical packing-material code)
 let TEMPLATES = [];
 let CURRENT_TPL_ID = null;
 let CURRENT_LINES = [];
@@ -433,12 +433,12 @@ async function loadUoms() {
 }
 
 async function loadPlmItems() {
-  // Robustly load ALL stock items mapped to PLM category
-  // 1) Find PLM category id
+  // Robustly load ALL stock items mapped to PM category
+  // 1) Find PM category id (canonical packing-material code)
   const { data: cats, error: catErr } = await supabase
     .from("inv_class_category")
     .select("id")
-    .eq("code", "PLM")
+    .eq("code", "PM")
     .limit(1);
   if (catErr) throw catErr;
   const catId = cats && cats[0] ? cats[0].id : null;

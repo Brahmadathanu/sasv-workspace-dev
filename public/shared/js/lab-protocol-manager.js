@@ -1783,7 +1783,7 @@ async function loadFmFamilies() {
     ({ data, error } = await labSupabase
       .from("v_rm_pm_item_with_group")
       .select("subcategory_id, subcategory_label")
-      .eq("category_code", "PLM")
+      .eq("category_code", "PM")
       .order("subcategory_label"));
 
     if (!error) {
