@@ -117,6 +117,9 @@ if (existsSync(validationInPageLoose)) {
   assert(!/\.reportValidity\s*\(/.test(validationSrc), "unpacked validation extractor has no reportValidity call");
   assert(validationSrc.includes("MAX_REFERENCED_FUNCTION_SOURCE"), "unpacked validation has referenced function size limit");
   assert(validationSrc.includes("referencedHandlerFunctions"), "unpacked validation inspects referenced handlers");
+  assert(validationSrc.includes("collectAliasedMinusOneMatches"), "unpacked validation has alias minus-one collector");
+  assert(validationSrc.includes("alias_provenance_valid"), "unpacked validation records alias provenance");
+  assert(!/subtypeValueExprSource[\s\S]*subTypeId\\s\*\(\?:===/.test(validationSrc), "bare subTypeId not added to subtypeValueExprSource");
   assert(validationSrc.includes("Function.prototype.toString.call"), "unpacked validation uses toString only");
   assert(!/SaveData\s*\(\s*\)\s*;/.test(validationSrc.replace(/Function\.prototype\.toString\.call\([^)]+\)/g, "")), "unpacked validation does not invoke SaveData");
   assert(!/\bfetch\s*\(/.test(validationSrc), "unpacked validation has no fetch");

@@ -208,6 +208,12 @@ function installSaveDataFixture() {
   globalThis.__EA_SAVEDATA_INVOKED = false;
   globalThis.SaveData = function SaveData() {
     globalThis.__EA_SAVEDATA_INVOKED = true;
+    // Live-style trusted alias + equality rejection messaging.
+    var subTypeId = document.getElementById("subTypeId").value;
+    if (subTypeId == "-1") {
+      $.confirm({ content: "Please Select Sub Type" });
+      return false;
+    }
     // Direct subtype-to--1 + rejection messaging (explicit candidate).
     if (document.getElementById("subTypeId").value === "-1") {
       return "Please Select Sub Type";
