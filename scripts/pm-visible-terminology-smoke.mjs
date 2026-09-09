@@ -98,10 +98,22 @@ assert(
   "pm-rebuild-dashboard.js has no user-facing PLM toasts/options",
 );
 assert(
-  /v_mrp_plm_|mrp_plm_rebuild_|PLM_OVERVIEW_VIEW_CANDIDATES|getPlmLabel|#plmFilter|plmFilter/.test(
+  /v_mrp_pm_|mrp_pm_rebuild_|PM_OVERVIEW_VIEW_CANDIDATES|getPlmLabel|#plmFilter|plmFilter/.test(
     rebuildJs,
   ),
-  "pm-rebuild-dashboard.js keeps internal plm_* contracts/ids",
+  "pm-rebuild-dashboard.js uses PM public contracts and keeps DOM helper ids",
+);
+assert(
+  !/PLM_OVERVIEW_VIEW_CANDIDATES/.test(rebuildJs),
+  "pm-rebuild-dashboard.js no longer uses PLM_OVERVIEW_VIEW_CANDIDATES",
+);
+assert(
+  !/v_mrp_plm_/.test(rebuildJs),
+  "pm-rebuild-dashboard.js has no v_mrp_plm_ view candidates",
+);
+assert(
+  !/mrp_plm_rebuild_/.test(rebuildJs),
+  "pm-rebuild-dashboard.js has no mrp_plm_rebuild_ client calls",
 );
 
 // ── Stock Purchase Explorer ──────────────────────────────────────────────────

@@ -24,14 +24,14 @@ import {
 
 // Preferred view name; if the view isn't present on the server we'll try
 // a short list of fallbacks to remain resilient during early deployments.
-const PLM_OVERVIEW_VIEW_CANDIDATES = [
-  "v_mrp_plm_planned_vs_issued_overview",
-  "v_mrp_plm_issue_monthly_enriched",
-  "v_mrp_plm_issue_monthly_allocated",
+const PM_OVERVIEW_VIEW_CANDIDATES = [
+  "v_mrp_pm_planned_vs_issued_overview",
+  "v_mrp_pm_issue_monthly_enriched",
+  "v_mrp_pm_issue_monthly_allocated",
 ];
-const RPC_DRY_RUN_ALL = "mrp_plm_rebuild_dry_run_all";
-const RPC_REBUILD_ALL = "mrp_plm_rebuild_all";
-const RPC_REBUILD_FOR_ITEM = "mrp_plm_rebuild_for_item";
+const RPC_DRY_RUN_ALL = "mrp_pm_rebuild_dry_run_all";
+const RPC_REBUILD_ALL = "mrp_pm_rebuild_all";
+const RPC_REBUILD_FOR_ITEM = "mrp_pm_rebuild_for_item";
 
 // RPC wrapper for consistent logging and error propagation
 async function callRpc(rpcName, payload) {
@@ -325,7 +325,7 @@ async function fetchOverview(horizonStart) {
   // Try candidate views in order until one succeeds. This helps when the
   // preferred view hasn't been created on the backend yet.
   overviewRows = [];
-  for (const candidate of PLM_OVERVIEW_VIEW_CANDIDATES) {
+  for (const candidate of PM_OVERVIEW_VIEW_CANDIDATES) {
     try {
       const { data, error } = await supabase
         .from(candidate)
@@ -337,7 +337,7 @@ async function fetchOverview(horizonStart) {
           console.warn(`View ${candidate} not found, trying next candidate.`);
           continue;
         }
-        console.error("Failed loading PLM overview", error);
+        console.error("Failed loading PM overview", error);
         showToast("Failed to load PM overview", {
           type: "error",
           duration: 4000,
@@ -346,7 +346,7 @@ async function fetchOverview(horizonStart) {
         return;
       }
       overviewRows = data || [];
-      console.info(`Using PLM overview view: ${candidate}`);
+      console.info(`Using PM overview view: ${candidate}`);
       return;
     } catch (err) {
       console.error(`Error fetching from ${candidate}`, err);

@@ -73,7 +73,8 @@ assert(
   "Rebuild tab open syncs picker"
 );
 assert(
-  !activateRebuild.includes("rpc_plm_rebuild"),
+  !activateRebuild.includes("rpc_pm_rebuild") &&
+    !activateRebuild.includes("rpc_plm_rebuild"),
   "Rebuild tab open does not call rebuild RPCs"
 );
 assert(

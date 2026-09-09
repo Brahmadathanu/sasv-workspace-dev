@@ -982,7 +982,7 @@ function applyMapMode() {
       renderPreview([]);
       return;
     }
-    const { data, error } = await supabase.rpc("rpc_plm_preview_effective", {
+    const { data, error } = await supabase.rpc("rpc_pm_preview_effective", {
       p_sku_id: id,
     });
     if (error) {
@@ -1004,7 +1004,7 @@ function applyMapMode() {
       renderPreview([]);
       return;
     }
-    const { data, error } = await supabase.rpc("rpc_plm_ovr_list", {
+    const { data, error } = await supabase.rpc("rpc_pm_ovr_list", {
       p_sku_id: skuId,
     });
     if (error) {
@@ -1199,7 +1199,7 @@ function applyMapMode() {
     try {
       const u = UOMS.find((x) => x.id === r.uom_id);
       const uomCode = u?.code || null;
-      const { error } = await supabase.rpc("rpc_plm_ovr_upsert", {
+      const { error } = await supabase.rpc("rpc_pm_ovr_upsert", {
         p_id: r.id,
         p_sku_id: skuId,
         p_op: "set",
@@ -1273,7 +1273,7 @@ function applyMapMode() {
       const ok = await openConfirm("Delete this override?");
       if (!ok) return;
       if (row?.id) {
-        const { error } = await supabase.rpc("rpc_plm_ovr_delete", {
+        const { error } = await supabase.rpc("rpc_pm_ovr_delete", {
           p_id: row.id,
         });
         if (error) return setStatus(`Delete failed: ${error.message}`, "error");
@@ -1339,7 +1339,7 @@ mapMappedBody?.addEventListener("click", async (ev) => {
     try {
       const ok = await mapOpenConfirm("Delete this mapping?");
       if (!ok) return;
-      const { error: clearErr } = await supabase.rpc("rpc_plm_map_clear", {
+      const { error: clearErr } = await supabase.rpc("rpc_pm_map_clear", {
         p_sku_id: skuId,
       });
       if (clearErr) throw clearErr;
@@ -1384,13 +1384,13 @@ async function mapSaveAll() {
   const results = await Promise.allSettled(
     changes.map(async (c) => {
       if (c.newTplId) {
-        const { error: setErr } = await supabase.rpc("rpc_plm_map_set", {
+        const { error: setErr } = await supabase.rpc("rpc_pm_map_set", {
           p_sku_id: c.skuId,
           p_tpl_id: c.newTplId,
         });
         if (setErr) throw setErr;
       } else {
-        const { error: clrErr } = await supabase.rpc("rpc_plm_map_clear", {
+        const { error: clrErr } = await supabase.rpc("rpc_pm_map_clear", {
           p_sku_id: c.skuId,
         });
         if (clrErr) throw clrErr;
@@ -1436,13 +1436,13 @@ async function mapSaveRow(i) {
   const newNotes = notesIn ? String(notesIn.value || "") : "";
   try {
     if (newTplId) {
-      const { error: setErr } = await supabase.rpc("rpc_plm_map_set", {
+      const { error: setErr } = await supabase.rpc("rpc_pm_map_set", {
         p_sku_id: Number(r.sku_id),
         p_tpl_id: newTplId,
       });
       if (setErr) throw setErr;
     } else {
-      const { error: clrErr } = await supabase.rpc("rpc_plm_map_clear", {
+      const { error: clrErr } = await supabase.rpc("rpc_pm_map_clear", {
         p_sku_id: Number(r.sku_id),
       });
       if (clrErr) throw clrErr;
@@ -2017,7 +2017,7 @@ async function previewUpdatePills() {
     // Use server RPC to get exact counts (no client fallback)
     let withCount = 0;
     let withoutCount = 0;
-    const { data, error } = await supabase.rpc("rpc_plm_override_counts");
+    const { data, error } = await supabase.rpc("rpc_pm_override_counts");
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
     const total = Number(row?.total_skus ?? 0);
@@ -2423,7 +2423,7 @@ async function initMappingTab() {
       const tplId = parseInt(mapNewTplPicker?.value || "", 10);
       if (!skuId || !tplId)
         return setStatus("Select both SKU and Template.", "error");
-      const { error } = await supabase.rpc("rpc_plm_map_set", {
+      const { error } = await supabase.rpc("rpc_pm_map_set", {
         p_sku_id: skuId,
         p_tpl_id: tplId,
       });
@@ -2551,7 +2551,7 @@ async function loadTemplateHeader(tplId) {
 
 async function loadTemplateLines(tplId) {
   // Prefer RPC which returns resolved uom code and names
-  const { data, error } = await supabase.rpc("rpc_plm_tpl_list_lines", {
+  const { data, error } = await supabase.rpc("rpc_pm_tpl_list_lines", {
     p_tpl_id: tplId,
   });
   if (error) throw error;
@@ -3874,7 +3874,7 @@ async function saveAll() {
 
   setStatus("Saving…", "info", 2500);
   // Upsert header by code
-  const { error: upErr } = await supabase.rpc("rpc_plm_tpl_upsert_header", {
+  const { error: upErr } = await supabase.rpc("rpc_pm_tpl_upsert_header", {
     p_code: code,
     p_reference_output_qty: header.reference_output_qty,
     p_ref_uom_code: uomCode,
@@ -3895,7 +3895,7 @@ async function saveAll() {
   // Compute deletes based on current DB state
   let dbLines = [];
   try {
-    const { data } = await supabase.rpc("rpc_plm_tpl_list_lines", {
+    const { data } = await supabase.rpc("rpc_pm_tpl_list_lines", {
       p_tpl_id: CURRENT_TPL_ID,
     });
     dbLines = data || [];
@@ -3912,7 +3912,7 @@ async function saveAll() {
       // find line id in dbLines
       const row = dbLines.find((r) => toKey(r.stock_item_id, r.uom_id) === key);
       if (row?.id)
-        await supabase.rpc("rpc_plm_tpl_delete_line", { p_line_id: row.id });
+        await supabase.rpc("rpc_pm_tpl_delete_line", { p_line_id: row.id });
     }
   }
   // Upserts
@@ -3921,7 +3921,7 @@ async function saveAll() {
     const code = u?.code;
     if (!l.stock_item_id || !code || !l.qty_per_reference_output)
       return Promise.resolve();
-    return supabase.rpc("rpc_plm_tpl_upsert_line", {
+    return supabase.rpc("rpc_pm_tpl_upsert_line", {
       p_tpl_id: CURRENT_TPL_ID,
       p_stock_item_id: l.stock_item_id,
       p_qty: l.qty_per_reference_output,
@@ -3934,7 +3934,7 @@ async function saveAll() {
   await Promise.all(upTasks);
 
   // Renumber lines at end
-  await supabase.rpc("rpc_plm_tpl_renumber", { p_tpl_id: CURRENT_TPL_ID });
+  await supabase.rpc("rpc_pm_tpl_renumber", { p_tpl_id: CURRENT_TPL_ID });
 
   setStatus("Saved successfully.", "success");
   await refreshTemplate();
@@ -4505,7 +4505,7 @@ dlModal?.addEventListener("keydown", (e) => {
 renumberBtn.addEventListener("click", async () => {
   if (!CURRENT_TPL_ID)
     return setStatus("Select a template to renumber.", "error");
-  const { error } = await supabase.rpc("rpc_plm_tpl_renumber", {
+  const { error } = await supabase.rpc("rpc_pm_tpl_renumber", {
     p_tpl_id: CURRENT_TPL_ID,
   });
   if (error) return setStatus(`Renumber failed: ${error.message}`, "error");
@@ -4544,7 +4544,7 @@ rebuildTplBtn?.addEventListener("click", async () => {
   if (!tplId) return setStatus("Select a template.", "error");
   try {
     showMask("Rebuilding template…");
-    const { data, error } = await supabase.rpc("rpc_plm_rebuild_skus_for_tpl", {
+    const { data, error } = await supabase.rpc("rpc_pm_rebuild_skus_for_tpl", {
       p_tpl_id: tplId,
     });
     if (error) return setStatus(`Rebuild failed: ${error.message}`, "error");
@@ -4566,7 +4566,7 @@ dryRunBtn?.addEventListener("click", async () => {
   try {
     showMask("Performing dry run…");
     while (true) {
-      const { data, error } = await supabase.rpc("rpc_plm_rebuild_all", {
+      const { data, error } = await supabase.rpc("rpc_pm_rebuild_all", {
         p_dry_run: true,
         p_limit: batchSize,
         p_offset: offset,
@@ -4609,7 +4609,7 @@ rebuildAllBtn?.addEventListener("click", async () => {
   try {
     showMask("Rebuilding all templates…");
     while (true) {
-      const { data, error } = await supabase.rpc("rpc_plm_rebuild_all", {
+      const { data, error } = await supabase.rpc("rpc_pm_rebuild_all", {
         p_dry_run: false,
         p_limit: batchSize,
         p_offset: offset,
@@ -5199,7 +5199,7 @@ rebuildTplPicker?.addEventListener("change", () => {
         // List lines and delete via RPC per line (ensures server-side invariants)
         let lineIds = [];
         try {
-          const { data } = await supabase.rpc("rpc_plm_tpl_list_lines", {
+          const { data } = await supabase.rpc("rpc_pm_tpl_list_lines", {
             p_tpl_id: CURRENT_TPL_ID,
           });
           lineIds = (data || []).map((r) => r.id || r.line_id).filter(Boolean);
@@ -5209,7 +5209,7 @@ rebuildTplPicker?.addEventListener("change", () => {
         if (lineIds.length) {
           await Promise.all(
             lineIds.map((id) =>
-              supabase.rpc("rpc_plm_tpl_delete_line", { p_line_id: id })
+              supabase.rpc("rpc_pm_tpl_delete_line", { p_line_id: id })
             )
           );
         }
