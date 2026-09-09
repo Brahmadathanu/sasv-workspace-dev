@@ -251,7 +251,7 @@ function showConfirmModal(message) {
 function buildPlmDropdown() {
   const select = els.plmFilter();
   // clear leaving first option
-  select.innerHTML = '<option value="">-- All PLM items --</option>';
+  select.innerHTML = '<option value="">-- All PM items --</option>';
   const seen = new Map();
   overviewRows.forEach((r) => {
     if (!r.stock_item_id) return;
@@ -272,7 +272,7 @@ function buildPlmDropdown() {
     syncSearchableSelect(select);
   } else {
     enhanceSearchableSelect(select, {
-      placeholder: "Search PLM items…",
+      placeholder: "Search PM items…",
       allowEmptyOption: true,
       debounceMs: 220,
       clearSelectedOnBackspace: true,
@@ -338,7 +338,7 @@ async function fetchOverview(horizonStart) {
           continue;
         }
         console.error("Failed loading PLM overview", error);
-        showToast("Failed to load PLM overview", {
+        showToast("Failed to load PM overview", {
           type: "error",
           duration: 4000,
         });
@@ -353,7 +353,7 @@ async function fetchOverview(horizonStart) {
       // try next candidate
     }
   }
-  showToast("PLM overview view not found on server", {
+  showToast("PM overview view not found on server", {
     type: "error",
     duration: 6000,
   });
@@ -474,7 +474,7 @@ async function dryRunAll() {
     });
     const header = `Dry run result for ${monthDisplayFromHorizon(
       currentHorizonStart
-    )} (All PLM items)`;
+    )} (All PM items)`;
     showDryRunResult(data, header);
   } catch (err) {
     console.error(err);
@@ -521,11 +521,11 @@ function showDryRunResult(data, headerText) {
           r.after_net_requirement ?? r.after_net ?? r.after_net_requirement
         );
         const comment = escapeHtml(r.changes_summary || r.message || "");
-        const plm = escapeHtml(r.stock_item_code || r.stock_item_name || "PLM");
+        const plm = escapeHtml(r.stock_item_code || r.stock_item_name || "PM");
         return `<tr><td>${plm}</td><td style="text-align:right">${before}</td><td style="text-align:right">${after}</td><td>${comment}</td></tr>`;
       })
       .join("");
-    html = `<table style="width:100%"><thead><tr><th>PLM</th><th>Before net</th><th>After net</th><th>Comment</th></tr></thead><tbody>${rows}</tbody></table>`;
+    html = `<table style="width:100%"><thead><tr><th>PM</th><th>Before net</th><th>After net</th><th>Comment</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
   showHtmlModal(headerText || "Dry run result", html);
 }
@@ -536,14 +536,14 @@ async function rebuildAll() {
     return;
   }
   if (!canEditPM()) {
-    showToast("You do not have permission to rebuild PLM allocations", {
+    showToast("You do not have permission to rebuild PM allocations", {
       type: "error",
     });
     return;
   }
   if (
     !(await showConfirmModal(
-      "This will rebuild PLM allocations for the selected month using the latest templates. Continue?"
+      "This will rebuild PM allocations for the selected month using the latest templates. Continue?"
     ))
   )
     return;
@@ -566,14 +566,14 @@ async function rebuildAll() {
 async function rebuildForItem(row) {
   if (!currentHorizonStart) return;
   if (!canEditPM()) {
-    showToast("You do not have permission to rebuild PLM allocations", {
+    showToast("You do not have permission to rebuild PM allocations", {
       type: "error",
     });
     return;
   }
   if (
     !(await showConfirmModal(
-      `Rebuild PLM allocations for ${getPlmLabel(row)} in this month?`
+      `Rebuild PM allocations for ${getPlmLabel(row)} in this month?`
     ))
   )
     return;

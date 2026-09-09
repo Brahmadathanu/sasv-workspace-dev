@@ -645,9 +645,9 @@ function renderCoverage() {
     // Structured markup: title + icon + three stat items (total, mapped, unmapped)
     const icon = getSourceIcon(safe);
     el.innerHTML = `
-      <div class="stat-title">${icon}<span class="stat-title-text">${(
-      c.source_kind || ""
-    ).toUpperCase()}</span></div>
+      <div class="stat-title">${icon}<span class="stat-title-text">${escapeHtml(
+      formatSourceKindLabel(c.source_kind)
+    )}</span></div>
       <div class="stat-grid">
         <div class="stat-item">
           <div class="stat-num">${Number(c.total_aliases || 0)}</div>
@@ -729,7 +729,7 @@ function renderAliases() {
 
     tr.innerHTML = `
       <td>${escapeHtml(row.tally_item_name)}</td>
-      <td>${escapeHtml(row.source_kind)}</td>
+      <td>${escapeHtml(formatSourceKindLabel(row.source_kind))}</td>
       <td><span class="pill ${pillClass}">${escapeHtml(
       capitalize(row.status || "unmapped")
     )}</span></td>
@@ -806,7 +806,7 @@ function renderDetail() {
   const src = (a.source_kind || "").toString();
   const status = (a.status || "unmapped").toString();
   if (refs.detailSourceKind) {
-    refs.detailSourceKind.textContent = src ? src.toUpperCase() : "";
+    refs.detailSourceKind.textContent = formatSourceKindLabel(src);
     const safeSrc = src.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
     refs.detailSourceKind.className = `chip source-${safeSrc}`;
   }
@@ -1083,6 +1083,12 @@ const debouncedListReload = debounce(() => {
 }, 300);
 
 /* Helpers */
+function formatSourceKindLabel(kind) {
+  const k = (kind || "").toString().trim().toLowerCase();
+  if (!k) return "";
+  if (k === "plm") return "PM";
+  return k.toUpperCase();
+}
 function escapeHtml(s) {
   if (s === null || s === undefined) return "";
   return String(s).replace(

@@ -9,7 +9,7 @@ import { iconHtml } from "./ui-icons.js";
 // JS SNIPPET 1: extended state with canonical classification filters
 const state = {
   currentTab: "overview",
-  // Tally-origin classification (RM / PLM / consumable / fuel)
+  // Tally-origin classification (RM / PM / consumable / fuel)
   currentSourceKind: "all",
   // Canonical classification (from inv_class_* tables)
   currentCategoryCode: "all",
@@ -2015,7 +2015,7 @@ function consumptionCardHtml(row, index) {
       },
       {
         label: "Split:",
-        html: `RM/PLM ${formatIndianNumber(row.rm_pm_issue_qty)} · Consumables ${formatIndianNumber(row.consumable_out_qty)}`,
+        html: `RM/PM ${formatIndianNumber(row.rm_pm_issue_qty)} · Consumables ${formatIndianNumber(row.consumable_out_qty)}`,
       },
     ],
   });
@@ -2343,7 +2343,7 @@ function renderConsumptionTable(rows, totalCount = 0, opts = {}) {
     <th style="vertical-align:middle; text-align:center">UOM</th>
     <th style="vertical-align:middle; text-align:center">Classification</th>
     <th style="vertical-align:middle; text-align:center">Total Consumed Qty</th>
-    <th style="vertical-align:middle; text-align:center">RM/PLM Issues</th>
+    <th style="vertical-align:middle; text-align:center">RM/PM Issues</th>
     <th style="vertical-align:middle; text-align:center">Consumables Out</th>
     <th style="vertical-align:middle; text-align:center">Usage Months</th>
     <th style="vertical-align:middle; text-align:center">First Month</th>
@@ -2402,7 +2402,7 @@ async function loadAndRenderConsumptionMonthly(invStockItemId) {
       <table class="erp-table">
         <thead><tr>
           <th class="col-date">Month</th>
-          <th class="numeric">RM/PLM Issues</th>
+          <th class="numeric">RM/PM Issues</th>
           <th class="numeric">Consumables Out</th>
           <th class="numeric">Total Consumed</th>
         </tr></thead>
