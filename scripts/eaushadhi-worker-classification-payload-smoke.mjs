@@ -12,6 +12,10 @@ const migrationPath = join(
   root,
   "supabase/migrations/20260909112939_eaushadhi_worker_payload_classification.sql",
 );
+const fillEligibleHardeningPath = join(
+  root,
+  "supabase/migrations/20260909115104_eaushadhi_worker_payload_classification_fill_eligible_hardening.sql",
+);
 const contractPath = join(root, "electron/eaushadhi-worker/contracts/portal-contract.json");
 const dryRunPath = join(root, "electron/eaushadhi-worker/dry-run.js");
 const productLockPath = join(root, "electron/eaushadhi-worker/product-lock.js");
@@ -27,7 +31,9 @@ function assert(cond, msg) {
 }
 
 assert(existsSync(migrationPath), "classification payload migration exists");
+assert(existsSync(fillEligibleHardeningPath), "fill_eligible hardening migration exists");
 const sql = readFileSync(migrationPath, "utf8");
+const fillEligibleSql = readFileSync(fillEligibleHardeningPath, "utf8");
 
 assert(sql.includes("'classification', v_classification"), "payload emits classification object");
 assert(sql.includes("'classification_row_version', v_class.row_version"), "versions expose classification_row_version");
@@ -44,31 +50,97 @@ assert(
 );
 
 assert(
-  sql.includes("Verified classification is missing a resolvable Product Type option"),
+  fillEligibleSql.includes("(v_type.source_context->>'fill_eligible') is distinct from 'true'"),
+  "strict fill_eligible for Product Type",
+);
+assert(
+  fillEligibleSql.includes("(v_category.source_context->>'fill_eligible') is distinct from 'true'"),
+  "strict fill_eligible for Product Category",
+);
+assert(
+  fillEligibleSql.includes("(v_subtype.source_context->>'fill_eligible') is distinct from 'true'"),
+  "strict fill_eligible for OPTION Product Sub Type",
+);
+assert(
+  !/coalesce\(\s*v_type\.source_context->>'fill_eligible'\s*,\s*'true'\s*\)/.test(fillEligibleSql),
+  "hardening does not default missing type fill_eligible to true",
+);
+assert(
+  !/coalesce\(\s*v_category\.source_context->>'fill_eligible'\s*,\s*'true'\s*\)/.test(fillEligibleSql),
+  "hardening does not default missing category fill_eligible to true",
+);
+assert(
+  !/coalesce\(\s*v_subtype\.source_context->>'fill_eligible'\s*,\s*'true'\s*\)/.test(fillEligibleSql),
+  "hardening does not default missing subtype fill_eligible to true",
+);
+assert(!/eaushadhi_worker_content_hash/.test(fillEligibleSql), "fill_eligible hardening does not rewrite content_hash");
+
+function isAffirmativelyFillEligible(sourceContext) {
+  // Mirror SQL: (source_context->>'fill_eligible') is distinct from 'true'
+  const value =
+    sourceContext && Object.prototype.hasOwnProperty.call(sourceContext, "fill_eligible")
+      ? sourceContext.fill_eligible === null
+        ? null
+        : String(sourceContext.fill_eligible)
+      : null;
+  return value === "true";
+}
+
+assert(isAffirmativelyFillEligible({ fill_eligible: true }) === true || isAffirmativelyFillEligible({ fill_eligible: "true" }) === true, "fill_eligible true passes");
+assert(isAffirmativelyFillEligible({ fill_eligible: "true" }) === true, "fill_eligible text true passes");
+assert(isAffirmativelyFillEligible({ fill_eligible: "false" }) === false, "fill_eligible false fails");
+assert(isAffirmativelyFillEligible({}) === false, "fill_eligible key absent fails");
+assert(isAffirmativelyFillEligible({ fill_eligible: null }) === false, "fill_eligible null fails");
+assert(isAffirmativelyFillEligible({ fill_eligible: "" }) === false, "fill_eligible empty fails");
+["type", "category", "subtype"].forEach((role) => {
+  assert(
+    isAffirmativelyFillEligible({ fill_eligible: "true" }) === true,
+    `${role}: fill_eligible true passes`,
+  );
+  assert(
+    isAffirmativelyFillEligible({ fill_eligible: "false" }) === false,
+    `${role}: fill_eligible false fails`,
+  );
+  assert(isAffirmativelyFillEligible({}) === false, `${role}: fill_eligible key absent fails`);
+  assert(
+    isAffirmativelyFillEligible({ fill_eligible: null }) === false,
+    `${role}: fill_eligible null fails`,
+  );
+});
+
+assert(
+  fillEligibleSql.includes("Verified classification is missing a resolvable Product Type option") ||
+    sql.includes("Verified classification is missing a resolvable Product Type option"),
   "fail-closed: VERIFIED missing type",
 );
 assert(
-  sql.includes("Verified classification is missing a resolvable Product Category option"),
+  fillEligibleSql.includes("Verified classification is missing a resolvable Product Category option") ||
+    sql.includes("Verified classification is missing a resolvable Product Category option"),
   "fail-closed: VERIFIED missing category",
 );
 assert(
-  sql.includes("Verified classification cannot remain UNRESOLVED"),
+  fillEligibleSql.includes("Verified classification cannot remain UNRESOLVED") ||
+    sql.includes("Verified classification cannot remain UNRESOLVED"),
   "fail-closed: VERIFIED + UNRESOLVED",
 );
 assert(
-  sql.includes("Verified OPTION classification is missing a resolvable Product Sub Type option"),
+  fillEligibleSql.includes("Verified OPTION classification is missing a resolvable Product Sub Type option") ||
+    sql.includes("Verified OPTION classification is missing a resolvable Product Sub Type option"),
   "fail-closed: VERIFIED OPTION without subtype",
 );
 assert(
-  sql.includes("Verified BLANK classification must not select a Product Sub Type option"),
+  fillEligibleSql.includes("Verified BLANK classification must not select a Product Sub Type option") ||
+    sql.includes("Verified BLANK classification must not select a Product Sub Type option"),
   "fail-closed: VERIFIED BLANK with subtype",
 );
 assert(
-  sql.includes("Verified Product Category is not scoped to selected Product Type"),
+  fillEligibleSql.includes("Verified Product Category is not scoped to selected Product Type") ||
+    sql.includes("Verified Product Category is not scoped to selected Product Type"),
   "fail-closed: category parent scope mismatch",
 );
 assert(
-  sql.includes("Verified Product Sub Type is not scoped to selected Product Type"),
+  fillEligibleSql.includes("Verified Product Sub Type is not scoped to selected Product Type") ||
+    sql.includes("Verified Product Sub Type is not scoped to selected Product Type"),
   "fail-closed: subtype parent scope mismatch",
 );
 
