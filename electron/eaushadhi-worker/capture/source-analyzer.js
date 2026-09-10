@@ -29,6 +29,8 @@ const REGION_BODY_MAX = 48000;
 const AJAX_OBJECT_MAX = 12000;
 const DEFERRED_TRAIL_MAX = 1200;
 const SURROUNDING_MAX = 400;
+/** Bounded same-enclosing-function body for request-local proof (not whole-script). */
+const FUNCTION_SEMANTIC_MAX = 8192;
 
 const SCAN_TERMS = Object.freeze([
   "SaveData",
@@ -82,6 +84,7 @@ const GENERIC_NESTED_FUNCTION_NAMES = Object.freeze(
     "callback",
     "onclick",
     "onchange",
+    "response",
   ]),
 );
 
@@ -100,6 +103,19 @@ function boundSanitize(value, max) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, max);
+}
+
+/** Classification-only binder: redact secrets but keep FUNCTION_SEMANTIC_MAX (not diagnostics 500). */
+const FUNCTION_CONTEXT_SENSITIVE =
+  /access_token|refresh_token|authorization|bearer\s+[a-z0-9._-]+|password|otp|captcha|cookie|storage.state/gi;
+
+function boundEnclosingFunctionContext(value, max = FUNCTION_SEMANTIC_MAX) {
+  const limit = typeof max === "number" ? max : FUNCTION_SEMANTIC_MAX;
+  return String(value || "")
+    .replace(FUNCTION_CONTEXT_SENSITIVE, "[redacted]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, limit);
 }
 
 function stripUrlToPath(urlValue) {
@@ -292,19 +308,31 @@ function extractAjaxSuccessBody(block) {
   return extractBalancedFunctionBody(text, braceAt);
 }
 
+function extractAjaxDataExpression(block) {
+  const text = String(block || "");
+  // Narrow multiline-tolerant capture: data: JSON . stringify ( ident )
+  const stringifyMatch = text.match(
+    /\bdata\s*:\s*JSON\s*\.\s*stringify\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/i,
+  );
+  if (stringifyMatch) {
+    return `JSON.stringify(${stringifyMatch[1]})`;
+  }
+  const dataMatch = text.match(/\bdata\s*:\s*([^,}\n]+)/);
+  return dataMatch ? dataMatch[1] : null;
+}
+
 function extractAjaxBlockMeta(block) {
   const urlMatch = block.match(/\burl\s*:\s*(['"`])([^'"`]+)\1/) ||
     block.match(/\burl\s*:\s*([^\s,}+]+)/);
   const typeMatch =
     block.match(/\b(?:type|method)\s*:\s*(['"`])(GET|POST|PUT|DELETE|PATCH)\1/i) ||
     block.match(/\b(?:type|method)\s*:\s*(GET|POST|PUT|DELETE|PATCH)\b/i);
-  const dataMatch = block.match(/\bdata\s*:\s*([^,}\n]+)/);
   const contentMatch = block.match(/\bcontentType\s*:\s*(['"`])([^'"`]+)\1/);
   const successBody = extractAjaxSuccessBody(block);
   return {
     url_expression: urlMatch ? urlMatch[2] || urlMatch[1] : null,
     method: typeMatch ? (typeMatch[2] || typeMatch[1] || "").toUpperCase() : null,
-    payload_expression: dataMatch ? dataMatch[1] : null,
+    payload_expression: extractAjaxDataExpression(block),
     content_type: contentMatch ? contentMatch[2] : null,
     response_usage: buildResponseUsageMarkers(successBody),
   };
@@ -433,9 +461,46 @@ function hasWritePayloadActionType(payloadExpression) {
   return /\bactiontype\b/.test(payload) && /\b(add|update|delete|submit|create|insert)\b/.test(payload);
 }
 
-function hasWriteOrSubmitChain(responseUsage, surroundingContext) {
-  const hay = `${responseUsage || ""} ${surroundingContext || ""}`.toLowerCase();
+function hasWriteOrSubmitChain(responseUsage, surroundingContext, enclosingFunctionContext) {
+  const hay = `${responseUsage || ""} ${surroundingContext || ""} ${enclosingFunctionContext || ""}`.toLowerCase();
   return /write_or_submit_chained|saveproductdata|submitproduct\s*\(/.test(hay);
+}
+
+/**
+ * Same-function product-id proof: param → local object map → AJAX data/stringify.
+ * Never infers id from endpoint name alone.
+ */
+function proveSameFunctionLinkedProductId(ctx) {
+  const fnCtx = String(ctx.enclosingFunctionContext || "");
+  const payloadRaw = String(ctx.payloadExpression || "").trim();
+  if (!fnCtx || !payloadRaw) return false;
+
+  const header = fnCtx.slice(0, 240);
+  const paramMatch = header.match(
+    /function\s+[A-Za-z_$][\w$]*\s*\(\s*([A-Za-z_$][\w$]*)\s*(?:[,)])/,
+  );
+  const paramName = paramMatch ? paramMatch[1] : null;
+  if (!paramName || !/^(id|productid|productlid)$/i.test(paramName)) return false;
+
+  const objMatch = fnCtx.match(
+    /(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=\s*\{[\s\S]{0,160}?['"]?(id|productid|productlid)['"]?\s*:\s*([A-Za-z_$][\w$]*)/,
+  );
+  if (!objMatch) return false;
+  const objName = objMatch[1];
+  const mappedFrom = objMatch[3];
+  if (mappedFrom.toLowerCase() !== paramName.toLowerCase()) return false;
+
+  const payloadCompact = payloadRaw.replace(/\s+/g, "");
+  if (new RegExp(`^${objName}$`, "i").test(payloadRaw.trim())) return true;
+  const stringifyArg = payloadRaw.match(/JSON\s*\.\s*stringify\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/i);
+  if (stringifyArg && stringifyArg[1].toLowerCase() === objName.toLowerCase()) return true;
+  if (
+    /^JSON\.stringify\(/i.test(payloadCompact) &&
+    new RegExp(`JSON\\.stringify\\(${objName}\\)`, "i").test(payloadCompact)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function proveLoadProductDataforLegacyReadOnly(ctx) {
@@ -459,7 +524,11 @@ function proveLoadProductDataforLegacyReadOnly(ctx) {
       semanticHay,
     );
   const noWritePayload = !hasWritePayloadActionType(ctx.payloadExpression);
-  const noWriteChain = !hasWriteOrSubmitChain(ctx.responseUsage, ctx.surroundingContext);
+  const noWriteChain = !hasWriteOrSubmitChain(
+    ctx.responseUsage,
+    ctx.surroundingContext,
+    ctx.enclosingFunctionContext,
+  );
 
   const basis = ["loadproductdataforlegacy_identity"];
   if (queryInputs) basis.push("list_query_inputs");
@@ -481,11 +550,14 @@ function proveGetproductDataUpdateReadOnly(ctx) {
   const payload = String(ctx.payloadExpression || "").toLowerCase();
   const response = String(ctx.responseUsage || "").toLowerCase();
   const surrounding = String(ctx.surroundingContext || "").toLowerCase();
-  const semantic = `${payload} ${response} ${surrounding}`;
+  const fnCtx = String(ctx.enclosingFunctionContext || "").toLowerCase();
+  const semantic = `${payload} ${response} ${surrounding} ${fnCtx}`;
 
   const hasId =
     /\b(id|productid|productlid)\b/.test(payload) ||
-    /\b(id|productid|productlid)\b/.test(surrounding);
+    /\b(id|productid|productlid)\b/.test(surrounding) ||
+    proveSameFunctionLinkedProductId(ctx) ||
+    /\b(id|productid|productlid)\b/.test(fnCtx);
   const populatesFields =
     /form_field_population|#name|#type|#category|#subtype|#permission|#remarks|#compositiontitle|#disease|\.val\s*\(/.test(
       semantic,
@@ -495,7 +567,11 @@ function proveGetproductDataUpdateReadOnly(ctx) {
   const localUpdateUi =
     /local_edit_ui_mode|save_btn|update\s*product|['\"]update['\"]/.test(semantic);
   const noServerWrite =
-    !hasWriteOrSubmitChain(ctx.responseUsage, ctx.surroundingContext) &&
+    !hasWriteOrSubmitChain(
+      ctx.responseUsage,
+      ctx.surroundingContext,
+      ctx.enclosingFunctionContext,
+    ) &&
     !/saveproductdata/.test(semantic);
 
   const basis = ["getproductdataupdate_identity"];
@@ -517,7 +593,8 @@ function proveSubmitProductRequestFacts(ctx) {
     /\/admin\/submitproduct\b/.test(identityHay) ||
     /submitproduct/.test(String(ctx.urlExpression || "").toLowerCase() + String(ctx.staticPath || "").toLowerCase());
   const postOk = methodNorm === "POST";
-  const idPayload = /\b(id|productid|productlid)\b/.test(String(ctx.payloadExpression || "").toLowerCase());
+  const idInPayload = /\b(id|productid|productlid)\b/.test(String(ctx.payloadExpression || "").toLowerCase());
+  const idPayload = idInPayload || proveSameFunctionLinkedProductId(ctx);
   const basis = [];
   if (fnOk) basis.push("enclosing_function_submitProduct");
   if (endpointOk) basis.push("endpoint_submitProduct");
@@ -547,6 +624,7 @@ function classifyMutation({
   payloadExpression = "",
   responseUsage = "",
   surroundingContext = "",
+  enclosingFunctionContext = "",
   sourceFunction = "",
   linkageEvidence = null,
 } = {}) {
@@ -564,6 +642,7 @@ function classifyMutation({
     payloadExpression,
     responseUsage,
     surroundingContext,
+    enclosingFunctionContext,
     sourceFunction,
   };
 
@@ -760,6 +839,7 @@ function finalizeRequestRecord(partial, linkageEvidence) {
     payloadExpression: partial.payload_expression,
     responseUsage: partial.response_usage,
     surroundingContext: partial.surrounding_context,
+    enclosingFunctionContext: partial.enclosing_function_context,
     sourceFunction: partial.source_function,
     linkageEvidence,
   });
@@ -934,6 +1014,8 @@ function payloadSemanticKey(payloadExpression) {
   if (/formdata|append\s*\(/.test(p)) bits.push("formdata");
   if (/\bactiontype\b/.test(p)) bits.push("actiontype");
   if (/\b(id|productid|productlid)\b/.test(p)) bits.push("id");
+  // Live Get/submit often send JSON.stringify(jsondata) without a literal id token.
+  if (/json\s*\.\s*stringify\s*\(\s*(jsondata|formdata|payload)\s*\)/.test(p)) bits.push("id");
   if (/\b(pageno|search|order|licenseid|length)\b/.test(p)) bits.push("list_query");
   if (/\bname\b/.test(p)) bits.push("name");
   return bits.join("+") || "none";
@@ -1111,6 +1193,7 @@ function analyzeSourceText(source, meta = {}) {
 
   for (const region of regions) {
     const regionReqs = extractRequestsFromSource(region.body, region.name);
+    const enclosingFunctionContext = boundEnclosingFunctionContext(region.body, FUNCTION_SEMANTIC_MAX);
     for (const req of regionReqs) {
       // Skip ajax that belongs to a nested named function inside this region.
       const resolved = req.source_function;
@@ -1118,12 +1201,14 @@ function analyzeSourceText(source, meta = {}) {
         continue;
       }
       req.source_function = region.name;
+      req.enclosing_function_context = enclosingFunctionContext;
       rawRequests.push(req);
     }
   }
 
   const orphanReqs = extractRequestsFromSource(analyzed, sourceFunction);
   for (const req of orphanReqs) {
+    // Orphans must not receive whole-script semantic context.
     rawRequests.push(req);
   }
 
@@ -1324,6 +1409,7 @@ module.exports = {
   MAX_SOURCE_BYTES,
   MAX_FUNCTIONS,
   MAX_REQUESTS,
+  FUNCTION_SEMANTIC_MAX,
   SCAN_TERMS,
   sha256Text,
   boundSanitize,
