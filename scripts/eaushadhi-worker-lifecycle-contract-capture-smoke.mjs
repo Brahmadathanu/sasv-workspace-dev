@@ -271,18 +271,26 @@ assert(
     (live.named_regions_segmented || []).includes("submitProduct"),
   "live static: named regions segmented",
 );
+assert(
+  !(live.named_regions_segmented || []).includes("action") &&
+    !(live.named_regions_segmented || []).includes("data"),
+  "live static: generic nested callbacks are not authoritative regions",
+);
 const liveSave = live.requests.find((r) => /SaveProductData/i.test(r.static_path || r.url_expression || ""));
 assert(liveSave && liveSave.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE, "live: SaveProductData MUTATING");
-assert(liveSave.source_function === "SaveData", "live: SaveData enclosing attribution");
+assert(liveSave.source_function === "SaveData", "live: SaveData enclosing attribution (not nested action)");
+assert(liveSave.source_function !== "action", "live: SaveData not attributed to generic action");
 assert(liveSave.mutation_classification !== MUTATION_CLASS.TERMINAL_CANDIDATE, "live: SaveData not terminal");
 assert(liveSave.deferred_handling === true || /deferred_done|deferred_fail/.test(String(liveSave.response_usage || "")), "live: SaveData .done/.fail captured");
 
 const liveLoad = live.requests.find((r) => /LoadProductDataforLegacy/i.test(r.static_path || r.url_expression || ""));
 assert(liveLoad && liveLoad.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN, "live: LoadProduct READ_ONLY_PROVEN");
 assert(liveLoad.source_function === "LoadProductDataforLegacy", "live: LoadProduct attributed without window export");
+assert(liveLoad.source_function !== "data", "live: LoadProduct not attributed to generic data");
 
 const liveGet = live.requests.find((r) => /GetproductDataUpdate/i.test(r.static_path || r.url_expression || ""));
 assert(liveGet && liveGet.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN, "live: GetproductDataUpdate READ_ONLY_PROVEN");
+assert(liveGet.source_function === "GetproductDataUpdate", "live: Getproduct enclosing attribution");
 
 const liveSubmit = live.requests.find((r) => /submitProduct/i.test(r.static_path || "") || /submitProduct/i.test(r.url_expression || ""));
 assert(liveSubmit && liveSubmit.mutation_classification === MUTATION_CLASS.TERMINAL_CANDIDATE, "live: submitProduct TERMINAL");
@@ -291,6 +299,10 @@ assert(liveSubmit.source_function === "submitProduct", "live: submitProduct encl
 const liveBuckets = bucketRequests(live.requests, live.composition_observations);
 assert(liveBuckets.shell_create_candidates.some((r) => /SaveProductData/i.test(r.static_path || "")), "live: shell candidate");
 assert(liveBuckets.final_submit_candidates.length > 0, "live: final_submit_candidates");
+assert(
+  liveBuckets.final_submit_candidates.some((r) => r.source_function === "submitProduct"),
+  "live: final_submit attributed to submitProduct",
+);
 assert(liveBuckets.lookup_candidates.some((r) => /LoadProductDataforLegacy/i.test(r.static_path || "")), "live: Load in lookup/list");
 assert(
   !liveBuckets.reread_candidates.some((r) => /LoadProductDataforLegacy/i.test(r.static_path || "")),
@@ -310,6 +322,7 @@ const liveShell = assessShellCreateEvidence({
 });
 assert(liveShell.status === "evidence_present_unproven", "live shell: evidence_present_unproven");
 assert(Array.isArray(liveShell.missing_criteria) && liveShell.missing_criteria.length === 0, "live shell: missing_criteria empty");
+assert(liveShell.status !== "source_contract_proven", "live shell never source_contract_proven");
 
 // Cross-source duplicate: weaker UNKNOWN must not mask proven Getproduct
 const weakGet = {
