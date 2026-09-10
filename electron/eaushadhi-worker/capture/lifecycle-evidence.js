@@ -105,6 +105,7 @@ function finalizeLifecycleContractEvidence(raw) {
 
   const functions = [];
   const requests = [];
+  const compositionObservations = [];
   const limitations = new Set(Array.isArray(raw.limitations) ? raw.limitations : []);
 
   for (const rawFn of Array.isArray(raw.functions_raw) ? raw.functions_raw : []) {
@@ -125,11 +126,13 @@ function finalizeLifecycleContractEvidence(raw) {
           contexts: [],
           named_functions: [],
           requests: [],
+          composition_observations: [],
           limitations: ["function_source_unavailable"],
         };
     for (const lim of analysis.limitations || []) limitations.add(lim);
     functions.push(finalizeFunctionEntry(rawFn, analysis));
     for (const req of analysis.requests || []) requests.push(req);
+    for (const obs of analysis.composition_observations || []) compositionObservations.push(obs);
   }
 
   for (const inline of Array.isArray(raw.inline_sources) ? raw.inline_sources : []) {
@@ -154,6 +157,7 @@ function finalizeLifecycleContractEvidence(raw) {
       ),
     );
     for (const req of analysis.requests || []) requests.push(req);
+    for (const obs of analysis.composition_observations || []) compositionObservations.push(obs);
   }
 
   const script_inventory = (Array.isArray(raw.scripts) ? raw.scripts : []).map((item) => ({
@@ -167,7 +171,7 @@ function finalizeLifecycleContractEvidence(raw) {
     source_sha256: item?.source_sha256 || null,
   }));
 
-  const buckets = bucketRequests(requests);
+  const buckets = bucketRequests(requests, compositionObservations);
   const shell_create_proof = assessShellCreateEvidence({
     controls,
     functions,
@@ -207,6 +211,9 @@ async function enrichLifecycleWithStaticScripts(page, evidence, pageOrigin) {
   const limitations = new Set(evidence.limitations || []);
   const functions = [...(evidence.functions || [])];
   const requests = [...(evidence.requests || [])];
+  const compositionObservations = [
+    ...((evidence.composition_candidates || []).filter((item) => item && item.candidate_kind === "source_link_or_handler")),
+  ];
   let acquired = 0;
 
   for (const item of inventory) {
@@ -252,6 +259,7 @@ async function enrichLifecycleWithStaticScripts(page, evidence, pageOrigin) {
         source_function: `static_script:${verdict.path}`,
         source_kind: "same_origin_static_js",
       });
+      for (const lim of analysis.limitations || []) limitations.add(lim);
       functions.push({
         name: `static_script:${verdict.path}`,
         source_kind: "same_origin_static_js",
@@ -266,6 +274,7 @@ async function enrichLifecycleWithStaticScripts(page, evidence, pageOrigin) {
         named_functions_observed: analysis.named_functions,
       });
       for (const req of analysis.requests || []) requests.push(req);
+      for (const obs of analysis.composition_observations || []) compositionObservations.push(obs);
       acquired += 1;
     } catch {
       item.acquisition_status = "unresolved";
@@ -274,7 +283,7 @@ async function enrichLifecycleWithStaticScripts(page, evidence, pageOrigin) {
     }
   }
 
-  const buckets = bucketRequests(requests);
+  const buckets = bucketRequests(requests, compositionObservations);
   const shell_create_proof = assessShellCreateEvidence({
     controls: evidence.controls,
     functions,

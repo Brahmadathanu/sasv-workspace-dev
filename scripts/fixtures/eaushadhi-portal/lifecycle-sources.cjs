@@ -1,6 +1,6 @@
 /**
  * Fixture JavaScript sources for lifecycle contract analyzer smokes.
- * These are non-executable documentation-style snippets resembling portal patterns.
+ * Live-shaped (addproductforlegacy) documentation snippets — non-executable.
  */
 
 const SHELL_CREATE_CANDIDATE = `
@@ -10,25 +10,23 @@ function SaveData() {
     alert("Please Select Sub Type");
     return false;
   }
-  var payload = {
-    actiontype: "add",
-    name: $("#name").val(),
-    type: $("#type").val(),
-    categoryId: $("#categoryId").val(),
-    subTypeId: subTypeId,
-    id: ""
-  };
+  var formData = new FormData();
+  formData.append("actiontype", document.getElementById("actiontype").value || "add");
+  formData.append("name", $("#name").val());
+  formData.append("type", $("#type").val());
+  formData.append("categoryId", $("#categoryId").val());
+  formData.append("subTypeId", subTypeId);
+  formData.append("id", $("#id").val() || "");
   $.ajax({
-    url: "../admin/saveproductforlegacy",
+    url: "../admin/SaveProductData",
     type: "POST",
-    data: JSON.stringify(payload),
-    contentType: "application/json",
+    data: formData,
+    processData: false,
+    contentType: false,
     success: function (response) {
       var productId = response.productId;
-      $("#hiddenProductId").val(productId);
-      // composition section becomes available after shell create
+      $("#id").val(productId);
       $("#compositionPanel").show();
-      // subsequent edit/update state
       window.currentMode = "update";
     }
   });
@@ -37,15 +35,16 @@ function SaveData() {
 
 const UPDATE_CANDIDATE = `
 function SaveData() {
-  var payload = {
-    actiontype: "update",
-    id: $("#hiddenProductId").val(),
-    name: $("#name").val()
-  };
+  var formData = new FormData();
+  formData.append("actiontype", "update");
+  formData.append("id", $("#id").val());
+  formData.append("name", $("#name").val());
   $.ajax({
-    url: "../admin/updateproductforlegacy",
+    url: "../admin/SaveProductData",
     type: "POST",
-    data: payload,
+    data: formData,
+    processData: false,
+    contentType: false,
     success: function () {
       alert("Updated");
     }
@@ -53,35 +52,120 @@ function SaveData() {
 }
 `;
 
-const TERMINAL_SUBMIT_CANDIDATE = `
-function FinalSubmitProduct() {
+const MUTATING_UPDATE_PRODUCT = `
+function UpdateProduct() {
   $.ajax({
-    url: "../admin/finalsubmitproduct",
+    url: "../admin/UpdateProduct",
     type: "POST",
-    data: { id: $("#hiddenProductId").val(), actiontype: "final_submit" },
+    data: { id: $("#id").val(), name: $("#name").val(), actiontype: "update" },
     success: function () {
-      // forward for approval / irreversible lock
-      window.location = "../admin/forwardforapproval";
+      alert("product updated on server");
     }
   });
 }
 `;
 
-const READ_ONLY_LOOKUP_CANDIDATE = `
-function searchLegacyProducts() {
-  var name = $("#productSearch").val();
-  $.get("../admin/viewproducttbllegacy", { productName: name }, function (rows) {
-    renderExactNameRows(rows);
+const TERMINAL_SUBMIT_CANDIDATE = `
+document.querySelectorAll('.Submit').forEach(function (el) {
+  el.onclick = function () {
+    var id = el.getAttribute('data-id');
+    if (!confirm('I hereby declare / undertaking that details are correct. Submit product?')) return;
+    submitProduct(id);
+  };
+});
+function submitProduct(id) {
+  $.ajax({
+    url: "../admin/submitProduct",
+    type: "POST",
+    data: { "id": id },
+    success: function () {
+      alert("Submitted");
+    }
   });
 }
-function LoadProductDataforLegacy(productId) {
+`;
+
+const GENERIC_LIBRARY_SUBMIT = `
+function wireFormHelpers() {
+  // generic library mention of submit must NOT become terminal
+  var cfg = { onsubmit: true, submitHandler: function () {} };
+  return cfg;
+}
+`;
+
+const READ_ONLY_LOOKUP_CANDIDATE = `
+function searchProductNames(q) {
+  $.get("../admin/getProductNames", { query: q }, function (rows) {
+    renderExactNameSuggestions(rows);
+  });
+}
+`;
+
+const LOAD_PRODUCT_DATATABLE = `
+function LoadProductDataforLegacy() {
   $.ajax({
     url: "../admin/LoadProductDataforLegacy",
-    type: "GET",
-    data: { id: productId },
+    type: "POST",
+    data: { pageno: 1, search: "", order: "asc", licenseid: window.licenseId },
+    success: function (res) {
+      var jsondata = res;
+      var TotalCount = res.TotalCount;
+      var statusData = res.aaData || res.statusData || [];
+      $('#productTable').dataTable({
+        aaData: statusData,
+        columns: [
+          { data: 'srno' },
+          { data: 'name' },
+          { data: 'type' },
+          { data: 'category' },
+          { data: 'subtype' },
+          { data: 'edit' },
+          { data: 'composition' },
+          { data: 'referback' },
+          { data: 'delete' },
+          { data: 'print' },
+          { data: 'action' }
+        ]
+      });
+      statusData.forEach(function (row) {
+        statusData.composition = '<a class="composition-link" href="#" onclick="openComposition(' + row.id + ')">Composition</a>';
+        row.composition = statusData.composition;
+      });
+    }
+  });
+}
+`;
+
+const LOAD_PRODUCT_POST_WITHOUT_READ_PROOF = `
+function LoadSomethingLegacy() {
+  $.ajax({
+    url: "../admin/LoadSomethingLegacy",
+    type: "POST",
+    data: { x: 1 },
+    success: function () {}
+  });
+}
+`;
+
+const GETPRODUCT_DATA_UPDATE_REREAD = `
+function GetproductDataUpdate(id) {
+  $.ajax({
+    url: "../admin/GetproductDataUpdate",
+    type: "POST",
+    data: { id: id },
     success: function (data) {
       $("#name").val(data.name);
       $("#type").val(data.type);
+      $("#categoryId").val(data.category);
+      $("#subTypeId").val(data.subtype);
+      $("#permissionPurpose").val(data.permission);
+      $("#remarks").val(data.remarks);
+      $("#compositionTitle").val(data.compositionTitle);
+      $("#disease").val(data.actions || data.disease);
+      $("#id").val(data.id);
+      document.getElementById("actiontype").value = "Edit";
+      $("#save_btn").text("Update");
+      $("#pageHeading").text("Update Product");
     }
   });
 }
@@ -110,24 +194,15 @@ function saveCompositionRow() {
 }
 `;
 
-const EXISTING_RECORD_REREAD = `
-function openExistingLegacyProduct(productId) {
-  LoadProductDataforLegacy(productId);
-}
-function LoadProductDataforLegacy(productId) {
-  $.ajax({
-    url: "../admin/LoadProductDataforLegacy",
-    method: "GET",
-    data: { id: productId },
-    success: function (retained) {
-      // server-provided retained values — not DOM-after-typing
-      $("#name").val(retained.name);
-      $("#categoryId").val(retained.categoryId);
-      $("#subTypeId").val(retained.subTypeId);
-    }
-  });
+const COMPOSITION_STATUSDATA_LINKAGE = `
+function mapProductRows(statusData) {
+  for (var i = 0; i < statusData.length; i++) {
+    statusData.composition = '<a class="composition-action" href="#" onclick="openComposition(' + statusData[i].id + ')">Composition</a>';
+  }
 }
 `;
+
+const EXISTING_RECORD_REREAD = GETPRODUCT_DATA_UPDATE_REREAD;
 
 const GET_ALONE_UNKNOWN = `
 function ping() {
@@ -142,10 +217,16 @@ function ping() {
 module.exports = {
   SHELL_CREATE_CANDIDATE,
   UPDATE_CANDIDATE,
+  MUTATING_UPDATE_PRODUCT,
   TERMINAL_SUBMIT_CANDIDATE,
+  GENERIC_LIBRARY_SUBMIT,
   READ_ONLY_LOOKUP_CANDIDATE,
+  LOAD_PRODUCT_DATATABLE,
+  LOAD_PRODUCT_POST_WITHOUT_READ_PROOF,
+  GETPRODUCT_DATA_UPDATE_REREAD,
   UNKNOWN_AMBIGUOUS_CANDIDATE,
   COMPOSITION_LOAD_UPDATE,
+  COMPOSITION_STATUSDATA_LINKAGE,
   EXISTING_RECORD_REREAD,
   GET_ALONE_UNKNOWN,
 };

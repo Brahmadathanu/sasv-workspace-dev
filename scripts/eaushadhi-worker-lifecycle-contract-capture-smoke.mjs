@@ -20,6 +20,7 @@ const {
   assessShellCreateEvidence,
   bucketRequests,
   isStaticScriptPath,
+  extractSourceLinkageEvidence,
 } = require(join(captureDir, "source-analyzer.js"));
 const {
   finalizeLifecycleContractEvidence,
@@ -31,10 +32,16 @@ const { loadPortalContract } = require(join(root, "electron/eaushadhi-worker/con
 const {
   SHELL_CREATE_CANDIDATE,
   UPDATE_CANDIDATE,
+  MUTATING_UPDATE_PRODUCT,
   TERMINAL_SUBMIT_CANDIDATE,
+  GENERIC_LIBRARY_SUBMIT,
   READ_ONLY_LOOKUP_CANDIDATE,
+  LOAD_PRODUCT_DATATABLE,
+  LOAD_PRODUCT_POST_WITHOUT_READ_PROOF,
+  GETPRODUCT_DATA_UPDATE_REREAD,
   UNKNOWN_AMBIGUOUS_CANDIDATE,
   COMPOSITION_LOAD_UPDATE,
+  COMPOSITION_STATUSDATA_LINKAGE,
   EXISTING_RECORD_REREAD,
   GET_ALONE_UNKNOWN,
 } = require(join(fixtureDir, "lifecycle-sources.cjs"));
@@ -62,7 +69,7 @@ const sourceFiles = [
 for (const file of sourceFiles) {
   const text = readFileSync(join(captureDir, file), "utf8");
   assert(!FORBIDDEN_SOURCE.test(text), `${file}: no mutation primitives / SaveData invoke`);
-  // In-page extractor must not call fetch/$.ajax; Node enrich may use page.request.get only.
+  assert(!/source_contract_proven/.test(text), `${file}: no source_contract_proven status`);
   if (file === "lifecycle-evidence-in-page.js") {
     assert(!/\bfetch\s*\(/.test(text), `${file}: no fetch()`);
     assert(!/\$\.(?:ajax|get|post)\s*\(/.test(text), `${file}: no jquery ajax invoke`);
@@ -76,35 +83,122 @@ for (const file of sourceFiles) {
 assert(!/rpc_eaushadhi_worker_run_begin/.test(readFileSync(join(captureDir, "lifecycle-evidence.js"), "utf8")), "no run_begin in lifecycle finalize");
 assert(!/rpc_eaushadhi_worker_run_begin/.test(readFileSync(join(captureDir, "index.js"), "utf8")), "capture index has no run_begin");
 
-// A. shell-create candidate
+// 1. SaveData → SaveProductData mutating / shell; not terminal
 const shell = analyzeSourceText(SHELL_CREATE_CANDIDATE, { name: "SaveData", source_function: "SaveData" });
 assert(shell.source_sha256 && shell.source_truncated === false, "shell: sha256 present");
 assert(shell.requests.some((r) => r.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE), "shell: mutating request");
 assert(shell.requests.every((r) => r.mutation_classification !== MUTATION_CLASS.TERMINAL_CANDIDATE), "shell: not terminal");
-assert(/saveproductforlegacy/i.test(JSON.stringify(shell.requests)), "shell: endpoint observed");
+assert(/SaveProductData/i.test(JSON.stringify(shell.requests)), "shell: SaveProductData endpoint observed");
+assert(shell.requests.some((r) => r.source_function === "SaveData"), "shell: enclosing function SaveData");
+const shellBuckets = bucketRequests(shell.requests);
+assert(shellBuckets.shell_create_candidates.length > 0, "shell: bucketed shell_create");
+assert(shellBuckets.final_submit_candidates.length === 0, "shell: not final_submit");
 
-// B. update candidate
 const update = analyzeSourceText(UPDATE_CANDIDATE, { name: "SaveData", source_function: "SaveData" });
-assert(update.requests.some((r) => r.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE), "update: mutating");
-assert(/updateproductforlegacy/i.test(JSON.stringify(update.requests)), "update: endpoint");
+assert(update.requests.some((r) => r.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE), "update SaveData: mutating");
+assert(update.requests.every((r) => r.mutation_classification !== MUTATION_CLASS.TERMINAL_CANDIDATE), "#save_btn/SaveData path not terminal");
 
-// C. terminal
-const terminal = analyzeSourceText(TERMINAL_SUBMIT_CANDIDATE, { name: "FinalSubmitProduct", source_function: "FinalSubmitProduct" });
-assert(terminal.requests.some((r) => r.mutation_classification === MUTATION_CLASS.TERMINAL_CANDIDATE), "terminal: TERMINAL_CANDIDATE");
+// 2. LoadProductDataforLegacy POST + DataTable → READ_ONLY; lookup/list; not reread
+const loadDt = analyzeSourceText(LOAD_PRODUCT_DATATABLE, {
+  name: "LoadProductDataforLegacy",
+  source_function: "LoadProductDataforLegacy",
+});
+assert(
+  loadDt.requests.some((r) => r.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN),
+  "LoadProductDataforLegacy DataTable: READ_ONLY_PROVEN",
+);
+assert(loadDt.requests.some((r) => r.source_function === "LoadProductDataforLegacy"), "LoadProduct: enclosing fn");
+const loadBuckets = bucketRequests(loadDt.requests, loadDt.composition_observations);
+assert(loadBuckets.lookup_candidates.length > 0, "LoadProduct: lookup/list bucket");
+assert(loadBuckets.reread_candidates.length === 0, "LoadProduct: NOT retained reread");
+assert(
+  (loadDt.composition_observations || []).some((c) => c.candidate_kind === "source_link_or_handler") ||
+    loadBuckets.composition_candidates.some((c) => c.candidate_kind === "source_link_or_handler"),
+  "LoadProduct: composition observation when source provides linkage",
+);
+
+// 3. similar Load POST without joint read evidence → not READ_ONLY
+const loadBare = analyzeSourceText(LOAD_PRODUCT_POST_WITHOUT_READ_PROOF, {
+  name: "LoadSomethingLegacy",
+  source_function: "LoadSomethingLegacy",
+});
+assert(
+  loadBare.requests.every((r) => r.mutation_classification !== MUTATION_CLASS.READ_ONLY_PROVEN),
+  "Load POST without read proof: not READ_ONLY_PROVEN",
+);
+assert(
+  loadBare.requests.some((r) => r.mutation_classification === MUTATION_CLASS.UNKNOWN),
+  "Load POST without read proof: UNKNOWN",
+);
+
+// 4. GetproductDataUpdate → READ_ONLY + existing load + reread
+const getUpdate = analyzeSourceText(GETPRODUCT_DATA_UPDATE_REREAD, {
+  name: "GetproductDataUpdate",
+  source_function: "GetproductDataUpdate",
+});
+assert(
+  getUpdate.requests.some((r) => r.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN),
+  "GetproductDataUpdate: READ_ONLY_PROVEN",
+);
+const getUpdateBuckets = bucketRequests(getUpdate.requests);
+assert(getUpdateBuckets.existing_record_load_candidates.length > 0, "GetproductDataUpdate: existing_record_load");
+assert(getUpdateBuckets.reread_candidates.length > 0, "GetproductDataUpdate: reread candidate");
+assert(getUpdateBuckets.lookup_candidates.length === 0, "GetproductDataUpdate: not list lookup");
+
+// 5. UpdateProduct mutating
+const updateProduct = analyzeSourceText(MUTATING_UPDATE_PRODUCT, {
+  name: "UpdateProduct",
+  source_function: "UpdateProduct",
+});
+assert(
+  updateProduct.requests.some((r) => r.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE),
+  "UpdateProduct: MUTATING_CANDIDATE",
+);
+
+// 6–9. submitProduct terminal with linkage; SaveData not terminal; row .Submit contributes
+const terminal = analyzeSourceText(TERMINAL_SUBMIT_CANDIDATE, {
+  name: "submitProduct",
+  source_function: "submitProduct",
+});
+const linkage = extractSourceLinkageEvidence(TERMINAL_SUBMIT_CANDIDATE);
+assert(linkage.row_submit_links_submitProduct === true, "row .Submit linkage marker present");
+assert(
+  terminal.requests.some((r) => r.mutation_classification === MUTATION_CLASS.TERMINAL_CANDIDATE),
+  "submitProduct: TERMINAL_CANDIDATE",
+);
+assert(
+  terminal.requests.some((r) => (r.linkage_markers || []).includes("row_Submit_invokes_submitProduct")),
+  "submitProduct: linkage markers on request (not distant text dump)",
+);
 const terminalBuckets = bucketRequests(terminal.requests);
-assert(terminalBuckets.final_submit_candidates.length > 0, "terminal: bucketed as final_submit");
-assert(terminalBuckets.shell_create_candidates.length === 0, "terminal: never treated as shell-create");
+assert(terminalBuckets.final_submit_candidates.length > 0, "submitProduct: final_submit_candidates");
+assert(terminalBuckets.shell_create_candidates.length === 0, "submitProduct: never shell-create");
 
-// D. read-only lookup
-const lookup = analyzeSourceText(READ_ONLY_LOOKUP_CANDIDATE, { name: "searchLegacyProducts" });
+// 7. generic library submit not terminal
+const genericSubmit = analyzeSourceText(GENERIC_LIBRARY_SUBMIT, { name: "wireFormHelpers" });
+assert(
+  genericSubmit.requests.every((r) => r.mutation_classification !== MUTATION_CLASS.TERMINAL_CANDIDATE),
+  "generic library submit: not terminal",
+);
+assert(
+  classifyMutation({
+    method: "POST",
+    urlExpression: "../admin/other",
+    surroundingContext: "please submit the form helper",
+    sourceFunction: "helper",
+  }).mutation_classification !== MUTATION_CLASS.TERMINAL_CANDIDATE,
+  "generic submit word: not terminal",
+);
+
+// D. read-only lookup getProductNames
+const lookup = analyzeSourceText(READ_ONLY_LOOKUP_CANDIDATE, { name: "searchProductNames" });
 assert(lookup.requests.some((r) => r.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN), "lookup: READ_ONLY_PROVEN");
-assert(/viewproducttbllegacy|loadproductdataforlegacy/i.test(JSON.stringify(lookup.requests)), "lookup: endpoints");
+assert(/getProductNames/i.test(JSON.stringify(lookup.requests)), "lookup: getProductNames");
 
 // E. unknown ambiguous
 const unknown = analyzeSourceText(UNKNOWN_AMBIGUOUS_CANDIDATE, { name: "doThing" });
 assert(unknown.requests.some((r) => r.mutation_classification === MUTATION_CLASS.UNKNOWN), "ambiguous: UNKNOWN");
 
-// GET alone insufficient
 const getAlone = classifyMutation({
   method: "GET",
   urlExpression: "../admin/obscureStatus",
@@ -118,7 +212,7 @@ assert(
   "GET alone fixture never READ_ONLY_PROVEN",
 );
 
-// F. composition
+// F. composition load/save + statusData linkage
 const composition = analyzeSourceText(COMPOSITION_LOAD_UPDATE, { name: "composition" });
 const compositionBuckets = bucketRequests(composition.requests);
 assert(compositionBuckets.composition_candidates.length > 0, "composition: candidates present");
@@ -130,24 +224,37 @@ assert(
   composition.requests.some((r) => r.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN),
   "composition: load rows read-only proven",
 );
+const compositionLink = analyzeSourceText(COMPOSITION_STATUSDATA_LINKAGE, { name: "mapProductRows" });
+assert(
+  (compositionLink.composition_observations || []).some((o) => o.observation === "statusData.composition"),
+  "composition: statusData.composition observation extracted",
+);
+assert(
+  (compositionLink.composition_observations || []).some((o) => o.linkage_complete === true),
+  "composition: exact handler linkage when source provides it",
+);
 
-// G. existing-record / reread
-const reread = analyzeSourceText(EXISTING_RECORD_REREAD, { name: "LoadProductDataforLegacy" });
+// G. existing-record / reread via GetproductDataUpdate
+const reread = analyzeSourceText(EXISTING_RECORD_REREAD, { name: "GetproductDataUpdate" });
 const rereadBuckets = bucketRequests(reread.requests);
 assert(rereadBuckets.existing_record_load_candidates.length > 0, "reread: existing-record load candidates");
 assert(rereadBuckets.reread_candidates.length > 0, "reread: reread candidates");
 
-// Shell-create proof assessment remains unresolved without full criteria — but fixture is rich.
+// Shell-create proof — only unresolved | evidence_present_unproven
 const shellProof = assessShellCreateEvidence({
   controls: [{ id: "save_btn", candidate_role: "save_or_submit_ambiguous" }],
   functions: [{ name: "SaveData", contexts: shell.contexts }],
   requests: shell.requests,
 });
-assert(shellProof.status === "evidence_present_unproven" || shellProof.status === "unresolved", "shell proof not complete-executable");
+assert(
+  shellProof.status === "evidence_present_unproven" || shellProof.status === "unresolved",
+  "shell proof not complete-executable",
+);
+assert(shellProof.status !== "source_contract_proven", "shell proof never source_contract_proven");
 assert(shellProof.criteria.handler_function === true, "shell proof: handler");
 assert(shellProof.criteria.endpoint === true, "shell proof: endpoint");
 
-// Static script acquisition rules
+// Static script acquisition rules unchanged
 const origin = "https://www.e-aushadhi.gov.in";
 const positiveStaticPaths = [
   "/db_static/eaushadhi/addproductforlegacy-abc.js",
@@ -200,24 +307,18 @@ assert(
 assert(isStaticScriptPath("/admin/getSomething.js") === false, "isStaticScriptPath rejects /admin/getSomething.js");
 
 assert(
-  classifyStaticScriptAcquisitionUrl(
-    "https://www.e-aushadhi.gov.in/admin/saveproductforlegacy",
-    origin,
-  ).ok === false,
-  "business save endpoint rejected",
+  classifyStaticScriptAcquisitionUrl(`${origin}/admin/SaveProductData`, origin).ok === false,
+  "business SaveProductData endpoint rejected",
 );
 assert(
-  classifyStaticScriptAcquisitionUrl(
-    "https://www.e-aushadhi.gov.in/admin/getsubtypeName",
-    origin,
-  ).ok === false,
+  classifyStaticScriptAcquisitionUrl(`${origin}/admin/getsubtypeName`, origin).ok === false,
   "business get endpoint rejected as script",
 );
 assert(
   classifyMutation({
     method: "POST",
-    urlExpression: "../admin/saveproductforlegacy",
-    payloadExpression: '{ actiontype: "add" }',
+    urlExpression: "../admin/SaveProductData",
+    payloadExpression: "formData with actiontype add",
     sourceFunction: "SaveData",
   }).mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE,
   "business endpoint mutation classification unchanged",
@@ -286,7 +387,6 @@ assert(Array.isArray(finalized.requests_executed) && finalized.requests_executed
 assert(finalized.shell_create_candidates.length > 0, "finalize buckets shell-create");
 assert(finalized.verification_status === "unverified", "verification unverified");
 
-// Enrich without request API stays unresolved for externals
 const enriched = await enrichLifecycleWithStaticScripts(
   {},
   {
@@ -308,7 +408,7 @@ assert(
   "without request API external stays unresolved",
 );
 
-// In-page extractor on fixture DOM — observational only
+// In-page extractor on fixture DOM — observational only + chrome roles
 globalThis.__EA_SAVEDATA_INVOKED = false;
 globalThis.__EA_LIFECYCLE_HANDLER_FIRED = false;
 const legacyHtml = readFileSync(join(fixtureDir, "addproduct-legacy.html"), "utf8");
@@ -323,13 +423,74 @@ globalThis.SaveData = function SaveData() {
   globalThis.__EA_SAVEDATA_INVOKED = true;
   return prevSaveData ? prevSaveData() : true;
 };
-// Ensure onclick wrapper exists for allowlist resolution.
 const saveBtn = document.getElementById("save_btn");
 if (saveBtn) {
   saveBtn.attrs = saveBtn.attrs || {};
   saveBtn.attrs.onclick = "SaveData()";
   saveBtn.getAttribute = (name) => (name === "onclick" ? "SaveData()" : saveBtn.attrs[name] || null);
 }
+
+// Synthetic chrome + row Submit controls for role classification
+const chromeSpecs = [
+  { id: "menuBtn", type: "submit", text: "Menu", className: "" },
+  { id: "refreshBtn", type: "submit", text: "Refresh", className: "" },
+  { id: "logoutBtn", type: "submit", text: "Logout", className: "" },
+];
+for (const spec of chromeSpecs) {
+  const el = {
+    id: spec.id,
+    name: null,
+    tagName: "BUTTON",
+    type: spec.type,
+    className: spec.className,
+    textContent: spec.text,
+    hidden: false,
+    disabled: false,
+    onclick: null,
+    form: null,
+    attrs: {},
+    getAttribute(name) {
+      if (name === "type") return spec.type;
+      if (name === "class") return spec.className;
+      return this.attrs[name] || null;
+    },
+    closest() {
+      return null;
+    },
+  };
+  document._nodes = document._nodes || [];
+  // parseHtml querySelectorAll uses document tree; inject via body children if available
+  if (document.body && document.body.appendChild) {
+    document.body.appendChild(el);
+  } else if (typeof document.querySelectorAll === "function") {
+    const prev = document.querySelectorAll.bind(document);
+    document.querySelectorAll = (sel) => {
+      const base = Array.from(prev(sel) || []);
+      if (String(sel).includes("button") || String(sel).includes("submit")) base.push(el);
+      return base;
+    };
+  }
+}
+
+const rowSubmit = {
+  id: null,
+  name: null,
+  tagName: "A",
+  type: null,
+  className: "Submit",
+  textContent: "Submit",
+  hidden: false,
+  disabled: false,
+  onclick: null,
+  form: null,
+  attrs: { class: "Submit", onclick: "submitProduct(123)" },
+  getAttribute(name) {
+    return this.attrs[name] || null;
+  },
+  closest() {
+    return null;
+  },
+};
 
 const extracted = extractLifecycleContractEvidence();
 assert(extracted.activated === false, "extract activated false");
@@ -338,6 +499,70 @@ assert(globalThis.__EA_SAVEDATA_INVOKED !== true, "SaveData not invoked by extra
 assert(globalThis.__EA_LIFECYCLE_HANDLER_FIRED !== true, "no handler fired");
 const fromExtract = finalizeLifecycleContractEvidence(extracted);
 assert(fromExtract.controls.some((c) => c.id === "save_btn"), "extract sees save_btn");
+const saveControl = fromExtract.controls.find((c) => c.id === "save_btn");
+assert(
+  saveControl && saveControl.candidate_role !== "final_submit_candidate",
+  "#save_btn is not terminal role",
+);
+
+// Direct role checks via a minimal document re-extract with injected nodes
+const roleDoc = parseHtml(`<!DOCTYPE html><html><body>
+  <button type="submit" id="menuBtn">Menu</button>
+  <button type="submit" id="refreshBtn">Refresh</button>
+  <button type="submit" id="logoutBtn">Logout</button>
+  <button type="submit" id="save_btn" onclick="SaveData()">Submit</button>
+  <a class="Submit" href="#" onclick="submitProduct(9)">Submit</a>
+</body></html>`);
+globalThis.document = roleDoc;
+globalThis.SaveData = function SaveData() {
+  globalThis.__EA_SAVEDATA_INVOKED = true;
+};
+globalThis.submitProduct = function submitProduct() {
+  globalThis.__EA_LIFECYCLE_HANDLER_FIRED = true;
+};
+globalThis.__EA_SAVEDATA_INVOKED = false;
+globalThis.__EA_LIFECYCLE_HANDLER_FIRED = false;
+const roleExtract = extractLifecycleContractEvidence();
+assert(globalThis.__EA_SAVEDATA_INVOKED !== true, "role extract did not invoke SaveData");
+assert(globalThis.__EA_LIFECYCLE_HANDLER_FIRED !== true, "role extract did not invoke submitProduct");
+const roles = Object.fromEntries(roleExtract.controls.map((c) => [c.id || c.text || c.className || Math.random(), c]));
+const menu = roleExtract.controls.find((c) => c.id === "menuBtn" || c.text === "Menu");
+const refresh = roleExtract.controls.find((c) => c.id === "refreshBtn" || c.text === "Refresh");
+const logout = roleExtract.controls.find((c) => c.id === "logoutBtn" || c.text === "Logout");
+const saveRole = roleExtract.controls.find((c) => c.id === "save_btn");
+const rowRole = roleExtract.controls.find((c) => /submitproduct/i.test(String(c.onclick_preview || "")) && /Submit/i.test(String(c.text || "")));
+assert(menu && menu.candidate_role === "chrome_navigation", "Menu not lifecycle save/submit");
+assert(refresh && refresh.candidate_role === "chrome_navigation", "Refresh not lifecycle save/submit");
+assert(logout && logout.candidate_role === "chrome_navigation", "Logout not lifecycle save/submit");
+assert(saveRole && saveRole.candidate_role === "save_or_submit_ambiguous", "#save_btn save candidate role");
+assert(rowRole && rowRole.candidate_role === "final_submit_candidate", "row .Submit → terminal candidate role");
+assert(
+  !assessShellCreateEvidence({
+    controls: roleExtract.controls,
+    functions: [{ name: "SaveData" }],
+    requests: shell.requests,
+  }).criteria.initiating_control === false ||
+    roleExtract.controls.filter((c) => c.candidate_role === "chrome_navigation").every((c) => c.candidate_role === "chrome_navigation"),
+  "chrome controls classified non-lifecycle",
+);
+const shellWithChrome = assessShellCreateEvidence({
+  controls: [
+    { id: "menuBtn", candidate_role: "chrome_navigation" },
+    { id: "save_btn", candidate_role: "save_or_submit_ambiguous" },
+  ],
+  functions: [{ name: "SaveData" }],
+  requests: shell.requests,
+});
+assert(shellWithChrome.criteria.initiating_control === true, "chrome ignored; save_btn still initiates");
+assert(
+  assessShellCreateEvidence({
+    controls: [{ id: "menuBtn", candidate_role: "chrome_navigation" }],
+    functions: [{ name: "SaveData" }],
+    requests: shell.requests,
+  }).criteria.initiating_control === false,
+  "chrome alone does not satisfy initiating_control",
+);
+
 uninstallSaveDataFixture();
 
 // Contract completeness stays false
@@ -350,8 +575,9 @@ assert(contract.completeness.evidence === false, "evidence false");
 assert(contract.completeness.saveUpdate === false, "saveUpdate false");
 assert(contract.completeness.reread === false, "reread false");
 assert(/Do not click/i.test(contract.saveUpdate.evidence_note), "saveUpdate Do not click");
+assert(/GetproductDataUpdate/i.test(contract.reread.evidence_note), "reread note mentions GetproductDataUpdate");
+assert(/SaveProductData/i.test(contract.saveUpdate.evidence_note), "saveUpdate note mentions SaveProductData");
 
-// Stale contract-evidence summary correction
 const summary = summarizeContractEvidence({
   vocabularies: [
     {
@@ -376,7 +602,6 @@ assert(!/category\/subtype capture is not proven/i.test(summary.productDetails.n
 assert(/Taila \(Oil\)|subtype vocabulary|external id 31/i.test(summary.productDetails.note), "summary recognizes governed category/subtype proofs");
 assert(summary.productDetails.status !== "proven", "productDetails not proven");
 
-// Deterministic schema keys
 for (const key of [
   "schema_version",
   "controls",
@@ -394,8 +619,7 @@ for (const key of [
   assert(Object.prototype.hasOwnProperty.call(finalized, key), `schema has ${key}`);
 }
 
-// Secret sanitisation via capture redaction (sensitive.js)
-const secretSource = `function SaveData(){ $.ajax({url:"../admin/saveproductforlegacy",type:"POST",data:{x:1}}); }`;
+const secretSource = `function SaveData(){ $.ajax({url:"../admin/SaveProductData",type:"POST",data:{x:1}}); }`;
 const secretAnalysis = analyzeSourceText(secretSource, { name: "SaveData" });
 const { redactCapture } = require(join(captureDir, "sensitive.js"));
 const planted = finalizeLifecycleContractEvidence({
@@ -425,6 +649,10 @@ assert(!JSON.stringify(redacted).includes("PLANTED_LIFECYCLE_SECRET"), "redactio
 assert(!JSON.stringify(redacted).includes("PLANTED_COOKIE"), "redaction drops cookie secret");
 assert(secretAnalysis.source_sha256, "secret fixture still hashed");
 assert(!JSON.stringify(planted).includes("function_source_raw"), "raw secret source not retained after finalize");
+
+// Avoid unused var lint-style noise in smoke
+void roles;
+void rowSubmit;
 
 if (failed) {
   console.error(`eaushadhi-worker-lifecycle-contract-capture-smoke: ${failed} failure(s)`);

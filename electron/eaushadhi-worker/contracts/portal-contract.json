@@ -26,7 +26,7 @@
   },
   "productLookup": {
     "completeness": false,
-    "evidence_note": "Deterministic legacy product list/search, exact-name targeting, and duplicate distinguishability are not proven. Capture must remain observational."
+    "evidence_note": "Observational candidates may include getProductNames suggestion lookup and LoadProductDataforLegacy DataTable/list search when source-proven read-only. Exact-name targeting and duplicate distinguishability remain unproven without a stable id-based refind route. Capture must remain observational."
   },
   "productDetails": {
     "route": "/admin/addproductforlegacy",
@@ -63,7 +63,7 @@
   },
   "composition": {
     "completeness": false,
-    "evidence_note": "Composition navigation and row-add/edit sequence are not proven. Do not add or edit rows during capture."
+    "evidence_note": "Product Details may expose a Composition column / statusData.composition HTML candidate from source observation. Navigation, handler execution, and row-add/edit/reread remain unproven. Do not add or edit rows during capture."
   },
   "evidence": {
     "completeness": false,
@@ -71,10 +71,10 @@
   },
   "saveUpdate": {
     "completeness": false,
-    "evidence_note": "Lifecycle contract capture may record shell-create / Save / Update / final-Submit candidates from source analysis, but they remain non-executable. Save, Update, shell-create, and final Submit are not proven for deterministic automation. Do not click."
+    "evidence_note": "Lifecycle capture may observe #save_btn → SaveData → SaveProductData (add/update FormData) as shell-create/save-update candidates, distinct from row .Submit → submitProduct → submitProduct terminal candidates. All remain non-executable. Do not click."
   },
   "reread": {
     "completeness": false,
-    "evidence_note": "Retained-state reread requires refind/open-existing-record or load-existing JSON after persistence. DOM values on the current page are not retained reread. Not proven."
+    "evidence_note": "Retained-state Product Details reread candidate is GetproductDataUpdate(id) only when source proves server-returned field population into the form. List-loading via LoadProductDataforLegacy is not retained details reread. DOM values on the current page are not retained reread. Not proven."
   }
 }
