@@ -14,7 +14,12 @@ function extractLifecycleContractEvidence() {
   const MAX_TEXT = 120;
   const MAX_REFERENCED_FUNCTION_SOURCE = 262144;
   const MAX_FUNCTIONS = 16;
-  const HANDLER_ALLOWLIST = ["SaveData", "LoadProductDataforLegacy"];
+  const HANDLER_ALLOWLIST = [
+    "SaveData",
+    "LoadProductDataforLegacy",
+    "GetproductDataUpdate",
+    "submitProduct",
+  ];
 
   function attr(el, name) {
     if (!el || typeof el.getAttribute !== "function") return null;
@@ -57,18 +62,64 @@ function extractLifecycleContractEvidence() {
     };
   }
 
+  function classNameOf(el) {
+    if (!el) return "";
+    if (typeof el.className === "string") return el.className;
+    const fromAttr = attr(el, "class");
+    return fromAttr || "";
+  }
+
+  function isChromeNavigation(el, text, href) {
+    const id = String(el.id || "").toLowerCase();
+    const name = String(el.name || "").toLowerCase();
+    const label = String(text || "").toLowerCase();
+    const path = String(href || "").toLowerCase();
+    const className = classNameOf(el).toLowerCase();
+    if (/save_btn|save_rbtn/.test(id)) return false;
+    if (/\bsubmit\b/.test(className) && /submitproduct/i.test(String(attr(el, "onclick") || ""))) return false;
+    if (/logoutform|logout|lnkupdateprofile|changepassword|menu|refresh|dashboard/.test(`${id} ${name} ${className}`)) {
+      return true;
+    }
+    if (/^(menu|refresh|logout|dashboard|home|profile)$/i.test(label.trim())) return true;
+    if (/change\s*password|log\s*out|sign\s*out/.test(label)) return true;
+    if (/\/logout\b|\/custom_dashboard|\/changepassword|\/updateprofile/.test(path)) return true;
+    return false;
+  }
+
   function candidateRole(el, text, onclick) {
-    const hay = `${el.id || ""} ${el.name || ""} ${text || ""} ${onclick || ""}`.toLowerCase();
-    if (/final\s*submit|forward\s*for\s*approval|approve/.test(hay)) return "final_submit_candidate";
-    if (/loadproductdataforlegacy|viewproducttbllegacy/.test(hay)) return "existing_record_load_candidate";
+    const className = classNameOf(el);
+    const href = String(el.tagName || "").toLowerCase() === "a" ? pathOnly(attr(el, "href")) : null;
+    if (isChromeNavigation(el, text, href)) return "chrome_navigation";
+
+    const hay = `${el.id || ""} ${el.name || ""} ${className} ${text || ""} ${onclick || ""}`.toLowerCase();
+
+    // Row-level Submit linked to submitProduct is terminal — not #save_btn.
+    if (
+      (/submitproduct\s*\(/.test(hay) || /\bsubmitproduct\b/.test(hay)) &&
+      (/\bsubmit\b/.test(className.toLowerCase()) || /\.submit\b/.test(hay) || /\bsubmit\b/.test(String(text || "").toLowerCase()))
+    ) {
+      return "final_submit_candidate";
+    }
+    if (/final\s*submit|forward\s*for\s*approval/.test(hay)) return "final_submit_candidate";
+
+    if (/loadproductdataforlegacy|viewproducttbllegacy|getproductdataupdate/.test(hay)) {
+      return "existing_record_load_candidate";
+    }
     if (/composition|ingredient/.test(hay) && /(add|edit|delete|save|update)/.test(hay)) {
       return "composition_mutation_candidate";
     }
-    if (/\bupdate\b/.test(hay) && !/\bsave\b/.test(hay)) return "update_candidate";
+    if (/\bupdate\b/.test(hay) && !/\bsave\b/.test(hay) && !/save_btn|save_rbtn/.test(hay)) {
+      return "update_candidate";
+    }
     if (/create\s+product|add\s+product|new\s+product/.test(hay)) return "shell_create_candidate";
-    if (/save_btn|save_rbtn/.test(hay) || /\bsave\b/.test(hay) || /\bsubmit\b/.test(hay) || el.type === "submit") {
+
+    // #save_btn / SaveData → save/create-update candidate, never terminal from label Submit.
+    if (/save_btn|save_rbtn/.test(hay) || /savedata\s*\(/.test(hay) || /\bsavedata\b/.test(hay)) {
       return "save_or_submit_ambiguous";
     }
+
+    // Do not treat bare type=submit or generic "submit" chrome as lifecycle.
+    if (/\bsave\b/.test(hay)) return "save_or_submit_ambiguous";
     if (/search|find|lookup|list/.test(hay)) return "lookup_candidate";
     return "unknown";
   }
@@ -119,7 +170,9 @@ function extractLifecycleContractEvidence() {
 
   const controls = [];
   const controlNodes = Array.from(
-    document.querySelectorAll("button, input[type='submit'], input[type='button'], a[href], a[onclick]"),
+    document.querySelectorAll(
+      "button, input[type='submit'], input[type='button'], a[href], a[onclick], a.Submit, .Submit",
+    ),
   ).slice(0, MAX_CONTROLS);
   for (const el of controlNodes) {
     controls.push(controlRecord(el));
@@ -226,10 +279,16 @@ function extractLifecycleContractEvidence() {
     const name = simpleAllowlistedCallName(control.onclick_preview);
     if (name) captureAllowlisted(name, control.id);
   }
-  // Always attempt SaveData if present (legacy primary).
+  // Always attempt primary lifecycle handlers when present on window.
   if (!seenFns.has("SaveData")) captureAllowlisted("SaveData", null);
   if (!seenFns.has("LoadProductDataforLegacy")) {
     captureAllowlisted("LoadProductDataforLegacy", null);
+  }
+  if (!seenFns.has("GetproductDataUpdate")) {
+    captureAllowlisted("GetproductDataUpdate", null);
+  }
+  if (!seenFns.has("submitProduct")) {
+    captureAllowlisted("submitProduct", null);
   }
 
   // Cap transferred function bodies.
