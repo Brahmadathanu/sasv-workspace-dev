@@ -230,37 +230,49 @@ const LIVE_STATIC_PAGE_SCRIPT = `
     formData.append("actiontype", document.getElementById("actiontype").value || "add");
     formData.append("name", $("#name").val());
     formData.append("id", $("#id").val() || "");
-    $ . ajax({
-      url: "../admin/SaveProductData",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false
-    }).done(function (response) {
-      var productId = response.productId;
-      $("#id").val(productId);
-      $("#compositionPanel").show();
-      window.currentMode = "update";
-    }).fail(function () {
-      alert("save failed");
-    });
+    // Live portal nests Save ajax under generic object callback "action" — must not override SaveData.
+    var handlers = {
+      action: function () {
+        $ . ajax({
+          url: "../admin/SaveProductData",
+          type: "POST",
+          data: formData,
+          processData: false,
+          contentType: false
+        }).done(function (response) {
+          var productId = response.productId;
+          $("#id").val(productId);
+          $("#compositionPanel").show();
+          window.currentMode = "update";
+        }).fail(function () {
+          alert("save failed");
+        });
+      }
+    };
+    handlers.action();
   }
 
   function wireProductTable() {
     function LoadProductDataforLegacy() {
-      $.ajax({
-        url: "../admin/LoadProductDataforLegacy",
-        type: "POST",
-        data: { pageno: 1, length: 10, search: "", order: "asc", licenseid: window.licenseId }
-      }).done(function (res) {
-        var TotalCount = res.TotalCount;
-        var statusData = res.aaData || [];
-        $('#productTable').dataTable({ aaData: statusData, columns: [{ data: 'name' }, { data: 'composition' }] });
-        for (var i = 0; i < statusData.length; i++) {
-          statusData.composition = '<a class="addcomposition" href="#">Composition</a>';
-          statusData[i].composition = statusData.composition;
+      // Live portal nests Load ajax under generic object callback "data" — must not override LoadProduct.
+      var cfg = {
+        data: function () {
+          $.ajax({
+            url: "../admin/LoadProductDataforLegacy",
+            type: "POST",
+            data: { pageno: 1, length: 10, search: "", order: "asc", licenseid: window.licenseId }
+          }).done(function (res) {
+            var TotalCount = res.TotalCount;
+            var statusData = res.aaData || [];
+            $('#productTable').dataTable({ aaData: statusData, columns: [{ data: 'name' }, { data: 'composition' }] });
+            for (var i = 0; i < statusData.length; i++) {
+              statusData.composition = '<a class="addcomposition" href="#">Composition</a>';
+              statusData[i].composition = statusData.composition;
+            }
+          });
         }
-      });
+      };
+      cfg.data();
     }
     LoadProductDataforLegacy();
   }

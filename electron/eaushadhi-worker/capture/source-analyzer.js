@@ -68,6 +68,29 @@ const SEGMENT_FUNCTION_RE =
 
 const ENCLOSING_FUNCTION_RE = SEGMENT_FUNCTION_RE;
 
+/** Nested object/callback names that must not override outer lifecycle function attribution. */
+const GENERIC_NESTED_FUNCTION_NAMES = Object.freeze(
+  new Set([
+    "action",
+    "data",
+    "success",
+    "error",
+    "done",
+    "fail",
+    "always",
+    "complete",
+    "callback",
+    "onclick",
+    "onchange",
+  ]),
+);
+
+function isGenericNestedFunctionName(name) {
+  const n = String(name || "").trim();
+  if (!n) return false;
+  return GENERIC_NESTED_FUNCTION_NAMES.has(n);
+}
+
 function sha256Text(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 }
@@ -125,19 +148,22 @@ function findEnclosingFunctionName(source, offset) {
   const end = Math.max(0, Math.min(Number(offset) || 0, text.length));
   const windowStart = Math.max(0, end - 16000);
   const slice = text.slice(windowStart, end);
-  let bestName = null;
-  let bestPos = -1;
+  const candidates = [];
   const re = new RegExp(SEGMENT_FUNCTION_RE.source, "g");
   let match;
   while ((match = re.exec(slice))) {
     const name = match[1] || match[2] || match[3] || match[4];
     if (!name) continue;
     if (/^static_script:/i.test(name) || /^inline_script_/i.test(name)) continue;
-    bestName = name;
-    bestPos = match.index;
+    candidates.push(name);
   }
-  if (bestPos < 0) return null;
-  return bestName;
+  // Nearest → outer: skip generic nested object/callback names.
+  for (let i = candidates.length - 1; i >= 0; i -= 1) {
+    const name = candidates[i];
+    if (isGenericNestedFunctionName(name)) continue;
+    return name;
+  }
+  return null;
 }
 
 function extractBalancedSpan(text, openBraceIndex, maxLen) {
@@ -794,6 +820,7 @@ function extractNamedFunctionRegions(source) {
   while ((match = re.exec(text)) && regions.length < MAX_FUNCTIONS) {
     const name = match[1] || match[2] || match[3] || match[4];
     if (!name || /^static_script:/i.test(name) || /^inline_script_/i.test(name)) continue;
+    if (isGenericNestedFunctionName(name)) continue;
     const after = text.slice(match.index, Math.min(text.length, match.index + 400));
     const braceRel = after.indexOf("{");
     if (braceRel < 0) continue;
@@ -1309,6 +1336,7 @@ module.exports = {
   extractSourceLinkageEvidence,
   extractCompositionObservations,
   findEnclosingFunctionName,
+  isGenericNestedFunctionName,
   analyzeSourceText,
   assessShellCreateEvidence,
   bucketRequests,
