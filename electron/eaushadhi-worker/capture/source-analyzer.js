@@ -25,6 +25,9 @@ const SNIPPET_MAX = 240;
 const URL_EXPR_MAX = 240;
 const DATA_EXPR_MAX = 320;
 const SUCCESS_BODY_MAX = 720;
+const REGION_BODY_MAX = 48000;
+const AJAX_OBJECT_MAX = 12000;
+const DEFERRED_TRAIL_MAX = 1200;
 const SURROUNDING_MAX = 400;
 
 const SCAN_TERMS = Object.freeze([
@@ -44,6 +47,7 @@ const SCAN_TERMS = Object.freeze([
   "viewproducttbllegacy",
   "composition",
   "statusData.composition",
+  "addcomposition",
   "ingredient",
   "edit",
   "delete",
@@ -58,8 +62,11 @@ const SCAN_TERMS = Object.freeze([
 const NAMED_FUNCTION_RE =
   /function\s+([A-Za-z_$][\w$]*)\s*\(|([A-Za-z_$][\w$]*)\s*=\s*function\s*\(|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\s*\(|\([^)]*\)\s*=>)/g;
 
-const ENCLOSING_FUNCTION_RE =
-  /function\s+([A-Za-z_$][\w$]*)\s*\(|([A-Za-z_$][\w$]*)\s*=\s*function\s*\(|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function\s*\(/g;
+/** Includes object-method `Name: function` for enclosing / segmentation. */
+const SEGMENT_FUNCTION_RE =
+  /function\s+([A-Za-z_$][\w$]*)\s*\(|([A-Za-z_$][\w$]*)\s*=\s*function\s*\(|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function\s*\(|([A-Za-z_$][\w$]*)\s*:\s*function\s*\(/g;
+
+const ENCLOSING_FUNCTION_RE = SEGMENT_FUNCTION_RE;
 
 function sha256Text(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
@@ -116,14 +123,14 @@ function pathIdentityHay({ sourceFunction, urlExpression, staticPath }) {
 function findEnclosingFunctionName(source, offset) {
   const text = String(source || "");
   const end = Math.max(0, Math.min(Number(offset) || 0, text.length));
-  const windowStart = Math.max(0, end - 8000);
+  const windowStart = Math.max(0, end - 16000);
   const slice = text.slice(windowStart, end);
   let bestName = null;
   let bestPos = -1;
-  ENCLOSING_FUNCTION_RE.lastIndex = 0;
+  const re = new RegExp(SEGMENT_FUNCTION_RE.source, "g");
   let match;
-  while ((match = ENCLOSING_FUNCTION_RE.exec(slice))) {
-    const name = match[1] || match[2] || match[3];
+  while ((match = re.exec(slice))) {
+    const name = match[1] || match[2] || match[3] || match[4];
     if (!name) continue;
     if (/^static_script:/i.test(name) || /^inline_script_/i.test(name)) continue;
     bestName = name;
@@ -133,11 +140,12 @@ function findEnclosingFunctionName(source, offset) {
   return bestName;
 }
 
-function extractBalancedFunctionBody(text, openBraceIndex) {
+function extractBalancedSpan(text, openBraceIndex, maxLen) {
   const src = String(text || "");
+  const limit = typeof maxLen === "number" ? maxLen : SUCCESS_BODY_MAX;
   if (openBraceIndex < 0 || openBraceIndex >= src.length || src[openBraceIndex] !== "{") return "";
   let depth = 0;
-  for (let i = openBraceIndex; i < src.length && i - openBraceIndex < SUCCESS_BODY_MAX + 80; i += 1) {
+  for (let i = openBraceIndex; i < src.length && i - openBraceIndex < limit + 80; i += 1) {
     const ch = src[i];
     if (ch === "{") depth += 1;
     else if (ch === "}") {
@@ -145,7 +153,90 @@ function extractBalancedFunctionBody(text, openBraceIndex) {
       if (depth === 0) return src.slice(openBraceIndex, i + 1);
     }
   }
-  return src.slice(openBraceIndex, Math.min(src.length, openBraceIndex + SUCCESS_BODY_MAX));
+  return src.slice(openBraceIndex, Math.min(src.length, openBraceIndex + limit));
+}
+
+function extractBalancedFunctionBody(text, openBraceIndex) {
+  return extractBalancedSpan(text, openBraceIndex, SUCCESS_BODY_MAX);
+}
+
+function stripJsCommentsForScan(source) {
+  return String(source || "")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
+function mergeResponseUsage(...parts) {
+  const markers = [];
+  const excerpts = [];
+  for (const part of parts) {
+    const raw = String(part || "").trim();
+    if (!raw) continue;
+    const semi = raw.indexOf(";");
+    if (semi > 0 && /^[a-z0-9_,]+$/i.test(raw.slice(0, semi).replace(/,/g, ""))) {
+      for (const m of raw.slice(0, semi).split(",")) {
+        if (m && !markers.includes(m)) markers.push(m);
+      }
+      const ex = raw.slice(semi + 1).trim();
+      if (ex) excerpts.push(ex);
+    } else if (/^[a-z0-9_,]+$/i.test(raw) && !/\s/.test(raw)) {
+      for (const m of raw.split(",")) {
+        if (m && !markers.includes(m)) markers.push(m);
+      }
+    } else {
+      const built = buildResponseUsageMarkers(raw);
+      if (!built) continue;
+      const s = built.indexOf(";");
+      if (s > 0) {
+        for (const m of built.slice(0, s).split(",")) {
+          if (m && !markers.includes(m)) markers.push(m);
+        }
+        excerpts.push(built.slice(s + 1));
+      } else {
+        excerpts.push(built);
+      }
+    }
+  }
+  const excerpt = boundSanitize(excerpts.join(" "), SNIPPET_MAX);
+  if (!markers.length && !excerpt) return null;
+  return markers.length ? `${markers.join(",")};${excerpt}` : excerpt;
+}
+
+/**
+ * Bounded deferred trail after a jQuery ajax/post call closes.
+ * Captures .done / .fail / .always for the SAME chain only.
+ */
+function extractDeferredTrailBodies(source, callEndIndex) {
+  const text = String(source || "");
+  const start = Math.max(0, Number(callEndIndex) || 0);
+  const trail = text.slice(start, Math.min(text.length, start + DEFERRED_TRAIL_MAX));
+  // Must begin with whitespace/parens then .done/.fail/.always — stop at semicolon ending chain or unrelated token.
+  if (!/^\s*\)?\s*\.(done|fail|always)\s*\(/i.test(trail) && !/^\s*\.(done|fail|always)\s*\(/i.test(trail)) {
+    // Allow trailing `)` then deferred: ajax({...}).done
+    if (!/^\s*\)\s*\.(done|fail|always)\s*\(/i.test(trail)) {
+      // Also accept when callEnd already past closing paren of ajax(
+      if (!/\.(done|fail|always)\s*\(/i.test(trail.slice(0, 80))) {
+        return { bodies: [], hasDeferred: false, hasFail: false, markers: [] };
+      }
+    }
+  }
+  const bodies = [];
+  const markers = [];
+  let hasFail = false;
+  const re = /\.(done|fail|always)\s*\(\s*function\s*\([^)]*\)\s*\{/gi;
+  let match;
+  let scanned = 0;
+  while ((match = re.exec(trail)) && scanned < 4) {
+    const kind = String(match[1] || "").toLowerCase();
+    markers.push(`deferred_${kind}`);
+    if (kind === "fail") hasFail = true;
+    const braceAt = trail.indexOf("{", match.index + match[0].length - 1);
+    if (braceAt >= 0) {
+      bodies.push(extractBalancedSpan(trail, braceAt, SUCCESS_BODY_MAX));
+    }
+    scanned += 1;
+  }
+  return { bodies, hasDeferred: markers.length > 0, hasFail, markers };
 }
 
 function buildResponseUsageMarkers(successBody) {
@@ -195,22 +286,22 @@ function extractAjaxBlockMeta(block) {
 
 /**
  * Source-level linkage evidence kept separate from AJAX request surrounding_context.
- * Deterministic markers only — no distant text copied into request records.
+ * Prefer ACTIVE binders (comments stripped) over commented-out historical blocks.
  */
 function extractSourceLinkageEvidence(source) {
-  const text = String(source || "");
-  const lower = text.toLowerCase();
+  const active = stripJsCommentsForScan(source);
+  const lower = active.toLowerCase();
   const markers = [];
   const rowSubmit =
     /\.submit\b/.test(lower) &&
-    (/queryselectorall\s*\(\s*['\"]\.submit['\"]/i.test(text) ||
-      /class\s*=\s*['\"][^'\"]*\bsubmit\b/i.test(text) ||
+    (/queryselectorall\s*\(\s*['\"]\.submit['\"]/i.test(active) ||
+      /class\s*=\s*['\"][^'\"]*\bsubmit\b/i.test(active) ||
       /['\"]\.submit['\"]/.test(lower));
-  const invokesSubmitProduct = /submitproduct\s*\(/i.test(text);
+  const invokesSubmitProduct = /submitproduct\s*\(/i.test(active);
   if (rowSubmit && invokesSubmitProduct) markers.push("row_Submit_invokes_submitProduct");
   if (
     invokesSubmitProduct &&
-    /confirm|declaration|undertaking|hereby\s+declare|are you sure/i.test(text)
+    /confirm|declaration|undertaking|hereby\s+declare|are you sure/i.test(active)
   ) {
     markers.push("submitProduct_confirmation_or_declaration");
   }
@@ -225,37 +316,85 @@ function extractCompositionObservations(source) {
   const text = String(source || "");
   const out = [];
   const limitations = [];
-  if (!/statusdata\.composition|composition/i.test(text)) {
+  if (!/statusdata\.composition|composition|addcomposition/i.test(text)) {
     return { observations: out, limitations };
   }
 
   const hasStatusData = /statusdata\.composition/i.test(text);
+  const addBinderMatch = text.match(
+    /queryselectorall\s*\(\s*['\"]\.addcomposition['\"]\s*\)[\s\S]{0,500}/i,
+  );
+  let binderHandler = null;
+  let binderIdExpr = null;
+  if (addBinderMatch) {
+    const binderWindow = addBinderMatch[0];
+    const h =
+      binderWindow.match(/(opencomposition|loadcomposition|addcomposition|composition[A-Za-z_]*)\s*\(([^)]*)\)/i) ||
+      binderWindow.match(/onclick\s*=\s*['\"]([^'\"]+)['\"]/i);
+    if (h) {
+      binderHandler = boundSanitize(h[0], 160);
+      if (h[2]) binderIdExpr = boundSanitize(h[2], 80);
+    }
+    const idHit = binderWindow.match(/\b(?:id|productid|productlid|hid)\b\s*[=:]\s*([A-Za-z0-9_$.]+)/i);
+    if (idHit) binderIdExpr = binderIdExpr || boundSanitize(idHit[1], 80);
+  }
+
   if (hasStatusData) {
     const idx = text.toLowerCase().indexOf("statusdata.composition");
-    const window = text.slice(Math.max(0, idx - 80), Math.min(text.length, idx + 280));
+    const window = text.slice(Math.max(0, idx - 80), Math.min(text.length, idx + 400));
     const handlerMatch =
       window.match(/onclick\s*=\s*['\"]([^'\"]+)['\"]/i) ||
       window.match(/(opencomposition|loadcomposition|composition[A-Za-z_]*)\s*\(/i) ||
       window.match(/href\s*=\s*['\"]([^'\"]+)['\"]/i);
-    const classMatch = window.match(/class\s*=\s*['\"]([^'\"]*composition[^'\"]*)['\"]/i);
+    const classMatch =
+      window.match(/class\s*=\s*['\"]([^'\"]*addcomposition[^'\"]*)['\"]/i) ||
+      window.match(/class\s*=\s*['\"]([^'\"]*composition[^'\"]*)['\"]/i);
     const idParam =
       window.match(/\b(?:id|productid|productlid)\s*[=:]\s*([A-Za-z0-9_$.]+)/i) ||
       window.match(/\((\s*[A-Za-z0-9_$.]+\s*)\)/);
-    const hasExactLinkage = Boolean(handlerMatch || /href\s*=|onclick\s*=/i.test(window));
+    const classHasAdd = /addcomposition/i.test(String(classMatch && classMatch[1] || ""));
+    const hasExactLinkage = Boolean(
+      handlerMatch ||
+        /href\s*=|onclick\s*=/i.test(window) ||
+        (classHasAdd && addBinderMatch) ||
+        (addBinderMatch && (binderHandler || binderIdExpr || idParam)),
+    );
     out.push({
       candidate_kind: "source_link_or_handler",
       observation: "statusData.composition",
-      class_or_id: classMatch ? boundSanitize(classMatch[1], 80) : null,
-      handler_or_href: handlerMatch ? boundSanitize(handlerMatch[1] || handlerMatch[0], 160) : null,
-      product_id_expression: idParam ? boundSanitize(idParam[1], 80) : null,
+      class_or_id: classMatch ? boundSanitize(classMatch[1], 80) : classHasAdd ? "addcomposition" : null,
+      handler_or_href: handlerMatch
+        ? boundSanitize(handlerMatch[1] || handlerMatch[0], 160)
+        : binderHandler,
+      product_id_expression: idParam
+        ? boundSanitize(idParam[1], 80)
+        : binderIdExpr,
+      addcomposition_binder_observed: Boolean(addBinderMatch),
       linkage_complete: hasExactLinkage,
       mutation_classification: MUTATION_CLASS.UNKNOWN,
       evidence_basis: hasExactLinkage
-        ? ["statusData.composition", "composition_action_html_observed"]
+        ? ["statusData.composition", "composition_action_html_observed"].concat(
+            addBinderMatch ? ["addcomposition_binder_correlated"] : [],
+          )
         : ["statusData.composition", "composition_column_without_exact_handler_linkage"],
     });
     if (!hasExactLinkage) {
       limitations.push("composition_action_linkage_incomplete");
+    }
+  } else if (addBinderMatch) {
+    out.push({
+      candidate_kind: "source_link_or_handler",
+      observation: "addcomposition_binder",
+      class_or_id: "addcomposition",
+      handler_or_href: binderHandler,
+      product_id_expression: binderIdExpr,
+      addcomposition_binder_observed: true,
+      linkage_complete: Boolean(binderHandler || binderIdExpr),
+      mutation_classification: MUTATION_CLASS.UNKNOWN,
+      evidence_basis: ["addcomposition_binder_observed"],
+    });
+    if (!hasStatusData) {
+      limitations.push("composition_binder_without_statusData_composition");
     }
   } else if (/composition/i.test(text)) {
     limitations.push("composition_mentioned_without_statusData_composition_linkage");
@@ -609,6 +748,8 @@ function finalizeRequestRecord(partial, linkageEvidence) {
     mutation_classification: classified.mutation_classification,
     evidence_basis: classified.evidence_basis,
     linkage_markers: Array.isArray(classified.linkage_markers) ? classified.linkage_markers : [],
+    deferred_handling: partial.deferred_handling === true,
+    deferred_fail: partial.deferred_fail === true,
   };
 }
 
@@ -625,6 +766,8 @@ function pushRawRequest(list, partial) {
     surrounding_context: partial.surrounding_context
       ? boundSanitize(partial.surrounding_context, SURROUNDING_MAX)
       : null,
+    deferred_handling: partial.deferred_handling === true,
+    deferred_fail: partial.deferred_fail === true,
   });
 }
 
@@ -639,31 +782,73 @@ function resolveSourceFunction(source, offset, fallback) {
 }
 
 function extractBalancedObjectBody(text, openBraceIndex) {
-  return extractBalancedFunctionBody(text, openBraceIndex);
+  return extractBalancedSpan(text, openBraceIndex, AJAX_OBJECT_MAX);
+}
+
+function extractNamedFunctionRegions(source) {
+  const text = String(source || "");
+  const regions = [];
+  const seenSpans = new Set();
+  const re = new RegExp(SEGMENT_FUNCTION_RE.source, "g");
+  let match;
+  while ((match = re.exec(text)) && regions.length < MAX_FUNCTIONS) {
+    const name = match[1] || match[2] || match[3] || match[4];
+    if (!name || /^static_script:/i.test(name) || /^inline_script_/i.test(name)) continue;
+    const after = text.slice(match.index, Math.min(text.length, match.index + 400));
+    const braceRel = after.indexOf("{");
+    if (braceRel < 0) continue;
+    const braceAt = match.index + braceRel;
+    const body = extractBalancedSpan(text, braceAt, REGION_BODY_MAX);
+    if (!body || body.length < 2) continue;
+    const end = braceAt + body.length;
+    const key = `${name}:${braceAt}:${end}`;
+    if (seenSpans.has(key)) continue;
+    seenSpans.add(key);
+    regions.push({
+      name,
+      start: match.index,
+      end,
+      body: text.slice(match.index, end),
+    });
+  }
+  return regions;
 }
 
 function extractRequestsFromSource(source, sourceFunction = null) {
   const text = String(source || "");
   const requests = [];
 
-  const ajaxStartRe = /\$\.ajax\s*\(\s*\{/g;
+  const ajaxStartRe = /\$\s*\.\s*ajax\s*\(\s*\{/g;
   let match;
   while ((match = ajaxStartRe.exec(text)) && requests.length < MAX_REQUESTS) {
     const openBrace = match.index + match[0].length - 1;
     const objectBody = extractBalancedObjectBody(text, openBrace);
     if (!objectBody) continue;
-    // Strip outer braces for meta parsing (same shape as prior capture group).
     const block = objectBody.slice(1, -1);
     const meta = extractAjaxBlockMeta(block);
+    const callEnd = openBrace + objectBody.length;
+    let trailStart = callEnd;
+    const afterObj = text.slice(callEnd, callEnd + 8);
+    const parenClose = afterObj.indexOf(")");
+    if (parenClose >= 0) trailStart = callEnd + parenClose + 1;
+    const deferred = extractDeferredTrailBodies(text, trailStart);
+    const responseUsage = mergeResponseUsage(
+      meta.response_usage,
+      ...deferred.bodies.map((b) => buildResponseUsageMarkers(b)),
+      deferred.markers.join(","),
+    );
     pushRawRequest(requests, {
       source_function: resolveSourceFunction(text, match.index, sourceFunction),
       surrounding_context: block.slice(0, SURROUNDING_MAX),
       ...meta,
+      response_usage: responseUsage,
+      deferred_handling: deferred.hasDeferred,
+      deferred_fail: deferred.hasFail,
     });
-    ajaxStartRe.lastIndex = openBrace + objectBody.length;
+    ajaxStartRe.lastIndex = Math.max(ajaxStartRe.lastIndex, trailStart);
   }
 
-  const postRe = /\$\.post\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*([^)]*)\)/g;
+  const postRe = /\$\s*\.\s*post\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*([^)]*)\)/g;
   while ((match = postRe.exec(text)) && requests.length < MAX_REQUESTS) {
     const payloadAndMaybeCb = match[3] || "";
     const cbMatch = payloadAndMaybeCb.match(/function\s*\([^)]*\)\s*\{/);
@@ -672,6 +857,12 @@ function extractRequestsFromSource(source, sourceFunction = null) {
       const braceAt = payloadAndMaybeCb.indexOf("{", cbMatch.index);
       responseUsage = buildResponseUsageMarkers(extractBalancedFunctionBody(payloadAndMaybeCb, braceAt));
     }
+    const deferred = extractDeferredTrailBodies(text, match.index + match[0].length);
+    responseUsage = mergeResponseUsage(
+      responseUsage,
+      ...deferred.bodies.map((b) => buildResponseUsageMarkers(b)),
+      deferred.markers.join(","),
+    );
     pushRawRequest(requests, {
       source_function: resolveSourceFunction(text, match.index, sourceFunction),
       url_expression: match[2],
@@ -679,10 +870,12 @@ function extractRequestsFromSource(source, sourceFunction = null) {
       payload_expression: payloadAndMaybeCb.split(",").slice(0, 1).join(","),
       response_usage: responseUsage,
       surrounding_context: match[0].slice(0, SURROUNDING_MAX),
+      deferred_handling: deferred.hasDeferred,
+      deferred_fail: deferred.hasFail,
     });
   }
 
-  const getRe = /\$\.get\s*\(\s*(['"`])([^'"`]+)\1/g;
+  const getRe = /\$\s*\.\s*get\s*\(\s*(['"`])([^'"`]+)\1/g;
   while ((match = getRe.exec(text)) && requests.length < MAX_REQUESTS) {
     pushRawRequest(requests, {
       source_function: resolveSourceFunction(text, match.index, sourceFunction),
@@ -708,6 +901,174 @@ function extractRequestsFromSource(source, sourceFunction = null) {
   return requests;
 }
 
+function payloadSemanticKey(payloadExpression) {
+  const p = String(payloadExpression || "").toLowerCase();
+  const bits = [];
+  if (/formdata|append\s*\(/.test(p)) bits.push("formdata");
+  if (/\bactiontype\b/.test(p)) bits.push("actiontype");
+  if (/\b(id|productid|productlid)\b/.test(p)) bits.push("id");
+  if (/\b(pageno|search|order|licenseid|length)\b/.test(p)) bits.push("list_query");
+  if (/\bname\b/.test(p)) bits.push("name");
+  return bits.join("+") || "none";
+}
+
+function isScriptFallbackName(name) {
+  return /^static_script:/i.test(String(name || "")) || /^inline_script_/i.test(String(name || ""));
+}
+
+function classRank(classification) {
+  switch (classification) {
+    case MUTATION_CLASS.TERMINAL_CANDIDATE:
+      return 4;
+    case MUTATION_CLASS.READ_ONLY_PROVEN:
+      return 3;
+    case MUTATION_CLASS.MUTATING_CANDIDATE:
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+function isGenericFallbackBasis(req) {
+  const basis = Array.isArray(req.evidence_basis) ? req.evidence_basis : [];
+  const joined = basis.join("|").toLowerCase();
+  if (/incomplete_|post_read_like_identity_without_joint_proof|insufficient_source|terminal_linkage_incomplete/.test(joined)) {
+    return true;
+  }
+  if (
+    req.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE &&
+    basis.length <= 2 &&
+    basis.includes("http_post") &&
+    !basis.some((b) => /savedata|saveproductdata|actiontype|enclosing_function_submitproduct|endpoint_submitproduct/i.test(b))
+  ) {
+    return true;
+  }
+  if (req.mutation_classification === MUTATION_CLASS.UNKNOWN) return true;
+  return false;
+}
+
+function isJointProofBasis(req) {
+  const basis = Array.isArray(req.evidence_basis) ? req.evidence_basis : [];
+  return basis.some((b) =>
+    /loadproductdataforlegacy_identity|getproductdataupdate_identity|enclosing_function_submitproduct|endpoint_submitproduct|datatable_or_list|retained_field_population|linkage:row_submit|SaveData_reference|SaveProductData_endpoint|actiontype_semantics/i.test(
+      String(b),
+    ),
+  );
+}
+
+function requestIdentityKey(req, loose = false) {
+  const method = String(req.method || "").toUpperCase();
+  const path = String(req.static_path || stripUrlToPath(req.url_expression) || "").toLowerCase();
+  const fn = loose || isScriptFallbackName(req.source_function)
+    ? "*"
+    : String(req.source_function || "").toLowerCase();
+  const payload = payloadSemanticKey(req.payload_expression);
+  return `${method}|${path}|${fn}|${payload}`;
+}
+
+function preferNamedFunction(primary, pool) {
+  if (!isScriptFallbackName(primary.source_function)) return primary;
+  const named = pool.find((r) => !isScriptFallbackName(r.source_function));
+  if (!named) return primary;
+  return {
+    ...primary,
+    source_function: named.source_function,
+  };
+}
+
+function pickPreferredDuplicate(pool) {
+  if (!pool.length) return null;
+  if (pool.length === 1) return pool[0];
+
+  const joint = pool.filter(isJointProofBasis);
+  const generic = pool.filter(isGenericFallbackBasis);
+
+  if (joint.length >= 1 && generic.length >= 1) {
+    const jointClasses = new Set(joint.map((j) => j.mutation_classification));
+    if (jointClasses.size === 1) {
+      return preferNamedFunction(joint[0], pool);
+    }
+  }
+
+  const jointClasses = new Set(joint.map((j) => j.mutation_classification));
+  if (
+    jointClasses.has(MUTATION_CLASS.READ_ONLY_PROVEN) &&
+    (jointClasses.has(MUTATION_CLASS.MUTATING_CANDIDATE) || jointClasses.has(MUTATION_CLASS.TERMINAL_CANDIDATE))
+  ) {
+    const conservative =
+      joint.find((j) => j.mutation_classification === MUTATION_CLASS.TERMINAL_CANDIDATE) ||
+      joint.find((j) => j.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE);
+    const chosen = preferNamedFunction(conservative, pool);
+    const basis = Array.isArray(chosen.evidence_basis) ? chosen.evidence_basis.slice() : [];
+    if (!basis.includes("classification_conflict_fail_closed")) {
+      basis.push("classification_conflict_fail_closed");
+    }
+    return { ...chosen, evidence_basis: basis };
+  }
+
+  if (joint.length === 1 && generic.length >= 1) {
+    return preferNamedFunction(joint[0], pool);
+  }
+
+  const sorted = pool.slice().sort((a, b) => {
+    const rankDiff = classRank(b.mutation_classification) - classRank(a.mutation_classification);
+    if (rankDiff) return rankDiff;
+    const aNamed = isScriptFallbackName(a.source_function) ? 0 : 1;
+    const bNamed = isScriptFallbackName(b.source_function) ? 0 : 1;
+    if (bNamed !== aNamed) return bNamed - aNamed;
+    return String(b.response_usage || "").length - String(a.response_usage || "").length;
+  });
+  return sorted[0];
+}
+
+/**
+ * Deterministic dedupe. Prefer endpoint-specific joint proofs over generic POST
+ * fallbacks for the SAME request identity. Do NOT silently replace a strong
+ * mutating/terminal interpretation with READ_ONLY when both are joint-strong.
+ */
+function dedupeLifecycleRequests(requests) {
+  const list = Array.isArray(requests) ? requests.slice() : [];
+  if (list.length <= 1) return list;
+
+  const groups = new Map();
+  for (const req of list) {
+    const key = requestIdentityKey(req, true);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(req);
+  }
+
+  const out = [];
+  for (const [, items] of groups) {
+    if (items.length === 1) {
+      out.push(items[0]);
+      continue;
+    }
+
+    const byFn = new Map();
+    for (const req of items) {
+      const fn = isScriptFallbackName(req.source_function)
+        ? "__fallback__"
+        : String(req.source_function || "").toLowerCase();
+      if (!byFn.has(fn)) byFn.set(fn, []);
+      byFn.get(fn).push(req);
+    }
+
+    const realFns = [...byFn.keys()].filter((k) => k !== "__fallback__");
+    if (realFns.length > 1) {
+      const fallback = byFn.get("__fallback__") || [];
+      for (const fn of realFns) {
+        const pool = [...byFn.get(fn), ...fallback];
+        out.push(pickPreferredDuplicate(pool));
+      }
+      continue;
+    }
+
+    out.push(pickPreferredDuplicate(items));
+  }
+
+  return out.slice(0, MAX_REQUESTS);
+}
+
 function analyzeSourceText(source, meta = {}) {
   const original = String(source || "");
   const truncated = original.length > MAX_SOURCE_BYTES;
@@ -717,8 +1078,31 @@ function analyzeSourceText(source, meta = {}) {
   const named = extractNamedFunctions(analyzed);
   const linkage = extractSourceLinkageEvidence(analyzed);
   const composition = extractCompositionObservations(analyzed);
-  const rawRequests = extractRequestsFromSource(analyzed, sourceFunction);
-  const requests = rawRequests.map((req) => finalizeRequestRecord(req, linkage));
+
+  const regions = extractNamedFunctionRegions(analyzed);
+  const rawRequests = [];
+
+  for (const region of regions) {
+    const regionReqs = extractRequestsFromSource(region.body, region.name);
+    for (const req of regionReqs) {
+      // Skip ajax that belongs to a nested named function inside this region.
+      const resolved = req.source_function;
+      if (resolved && resolved !== region.name && !isScriptFallbackName(resolved)) {
+        continue;
+      }
+      req.source_function = region.name;
+      rawRequests.push(req);
+    }
+  }
+
+  const orphanReqs = extractRequestsFromSource(analyzed, sourceFunction);
+  for (const req of orphanReqs) {
+    rawRequests.push(req);
+  }
+
+  const requests = dedupeLifecycleRequests(
+    rawRequests.map((req) => finalizeRequestRecord(req, linkage)),
+  );
 
   const limitations = [];
   if (truncated) limitations.push("source_truncated_at_analyzer_cap");
@@ -732,6 +1116,7 @@ function analyzeSourceText(source, meta = {}) {
     source_sha256: truncated ? null : sha256Text(original),
     hash_scope: truncated ? null : "full_source_text",
     named_functions: named,
+    named_regions_segmented: regions.map((r) => r.name),
     contexts: contexts.slice(0, MAX_CONTEXTS_PER_TERM * 8),
     requests,
     source_linkage_evidence: linkage,
@@ -764,7 +1149,10 @@ function assessShellCreateEvidence(analysisBundle) {
   const hasMethod = mutatingReqs.some((r) => r.method);
   const hasPayload = mutatingReqs.some((r) => r.payload_expression);
   const hasActionType = /actiontype/i.test(allText);
-  const hasSuccess = mutatingReqs.some((r) => r.response_usage) || /success\s*:/i.test(allText);
+  const hasSuccess =
+    mutatingReqs.some((r) => r.response_usage) ||
+    mutatingReqs.some((r) => r.deferred_handling === true || r.deferred_fail === true) ||
+    /success\s*:|\.done\s*\(|\.fail\s*\(|\.always\s*\(|\berror\s*:/i.test(allText);
   const hasProductId =
     /productid|productlid|product_id/i.test(allText) &&
     /(return|assign|response|data\.|result)/i.test(allText);
@@ -916,6 +1304,7 @@ module.exports = {
   classifyMutation,
   collectTermContexts,
   extractNamedFunctions,
+  extractNamedFunctionRegions,
   extractRequestsFromSource,
   extractSourceLinkageEvidence,
   extractCompositionObservations,
@@ -923,6 +1312,7 @@ module.exports = {
   analyzeSourceText,
   assessShellCreateEvidence,
   bucketRequests,
+  dedupeLifecycleRequests,
   classifyStaticScriptAcquisitionUrl,
   isBusinessApiPath,
   isStaticScriptPath,

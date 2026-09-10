@@ -214,6 +214,120 @@ function ping() {
 }
 `;
 
+/**
+ * Whole-page live-shaped static script (addproductforlegacy).
+ * Analyzed as static_script:/db_static/... — not per-function snippets.
+ * Uses $.ajax + .done/.fail, non-window LoadProductDataforLegacy region,
+ * GetproductDataUpdate, submitProduct + ACTIVE .Submit binder, composition.
+ */
+const LIVE_STATIC_PAGE_SCRIPT = `
+(function (window, document, $) {
+  // historical commented binder must not be preferred over ACTIVE .Submit below
+  // document.querySelectorAll('.Submit').forEach(function(el){ submitProduct(el.id); });
+
+  function SaveData() {
+    var formData = new FormData();
+    formData.append("actiontype", document.getElementById("actiontype").value || "add");
+    formData.append("name", $("#name").val());
+    formData.append("id", $("#id").val() || "");
+    $ . ajax({
+      url: "../admin/SaveProductData",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false
+    }).done(function (response) {
+      var productId = response.productId;
+      $("#id").val(productId);
+      $("#compositionPanel").show();
+      window.currentMode = "update";
+    }).fail(function () {
+      alert("save failed");
+    });
+  }
+
+  function wireProductTable() {
+    function LoadProductDataforLegacy() {
+      $.ajax({
+        url: "../admin/LoadProductDataforLegacy",
+        type: "POST",
+        data: { pageno: 1, length: 10, search: "", order: "asc", licenseid: window.licenseId }
+      }).done(function (res) {
+        var TotalCount = res.TotalCount;
+        var statusData = res.aaData || [];
+        $('#productTable').dataTable({ aaData: statusData, columns: [{ data: 'name' }, { data: 'composition' }] });
+        for (var i = 0; i < statusData.length; i++) {
+          statusData.composition = '<a class="addcomposition" href="#">Composition</a>';
+          statusData[i].composition = statusData.composition;
+        }
+      });
+    }
+    LoadProductDataforLegacy();
+  }
+
+  function GetproductDataUpdate(id) {
+    $.ajax({
+      url: "../admin/GetproductDataUpdate",
+      type: "POST",
+      data: { id: id }
+    }).done(function (data) {
+      $("#name").val(data.name);
+      $("#type").val(data.type);
+      $("#categoryId").val(data.category);
+      $("#subTypeId").val(data.subtype);
+      $("#compositionTitle").val(data.compositionTitle);
+      $("#id").val(data.id);
+      document.getElementById("actiontype").value = "Edit";
+      $("#save_btn").text("Update");
+      $("#pageHeading").text("Update Product");
+    });
+  }
+
+  function submitProduct(id) {
+    $.ajax({
+      url: "../admin/submitProduct",
+      type: "POST",
+      data: { "id": id }
+    }).done(function () {
+      alert("Submitted");
+    });
+  }
+
+  document.querySelectorAll('.Submit').forEach(function (el) {
+    el.onclick = function () {
+      var hid = el.getAttribute('data-id');
+      if (!confirm('I hereby declare / undertaking that details are correct. Submit product?')) return;
+      submitProduct(hid);
+    };
+  });
+
+  document.querySelectorAll('.addcomposition').forEach(function (el) {
+    el.onclick = function () {
+      var hid = el.getAttribute('data-id');
+      openComposition(hid);
+    };
+  });
+
+  window.SaveData = SaveData;
+  window.GetproductDataUpdate = GetproductDataUpdate;
+  window.submitProduct = submitProduct;
+  wireProductTable();
+})(window, document, jQuery);
+`;
+
+const CONTRADICTION_GETPRODUCT_MUTATING = `
+function GetproductDataUpdate(id) {
+  $.ajax({
+    url: "../admin/GetproductDataUpdate",
+    type: "POST",
+    data: { id: id, actiontype: "update", name: $("#name").val() },
+    success: function () {
+      alert("server write via update endpoint semantics");
+    }
+  });
+}
+`;
+
 module.exports = {
   SHELL_CREATE_CANDIDATE,
   UPDATE_CANDIDATE,
@@ -229,4 +343,6 @@ module.exports = {
   COMPOSITION_STATUSDATA_LINKAGE,
   EXISTING_RECORD_REREAD,
   GET_ALONE_UNKNOWN,
+  LIVE_STATIC_PAGE_SCRIPT,
+  CONTRADICTION_GETPRODUCT_MUTATING,
 };
