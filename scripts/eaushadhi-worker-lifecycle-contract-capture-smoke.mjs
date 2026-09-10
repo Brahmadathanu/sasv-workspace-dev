@@ -19,6 +19,7 @@ const {
   classifyStaticScriptAcquisitionUrl,
   assessShellCreateEvidence,
   bucketRequests,
+  dedupeLifecycleRequests,
   isStaticScriptPath,
   extractSourceLinkageEvidence,
 } = require(join(captureDir, "source-analyzer.js"));
@@ -44,6 +45,7 @@ const {
   COMPOSITION_STATUSDATA_LINKAGE,
   EXISTING_RECORD_REREAD,
   GET_ALONE_UNKNOWN,
+  LIVE_STATIC_PAGE_SCRIPT,
 } = require(join(fixtureDir, "lifecycle-sources.cjs"));
 const { parseHtml, installSaveDataFixture, uninstallSaveDataFixture } = require(join(fixtureDir, "mini-dom.cjs"));
 
@@ -253,6 +255,143 @@ assert(
 assert(shellProof.status !== "source_contract_proven", "shell proof never source_contract_proven");
 assert(shellProof.criteria.handler_function === true, "shell proof: handler");
 assert(shellProof.criteria.endpoint === true, "shell proof: endpoint");
+
+// --- Live whole-static-script correlation (capture 297f0893 shape) ---
+const liveStaticPath =
+  "static_script:/db_static/eaushadhi/addproductforlegacy-4f97f4fb38bf04556d376bd91854f6a1.js";
+const live = analyzeSourceText(LIVE_STATIC_PAGE_SCRIPT, {
+  name: liveStaticPath,
+  source_function: liveStaticPath,
+  source_kind: "same_origin_static_js",
+});
+assert(
+  (live.named_regions_segmented || []).includes("SaveData") &&
+    (live.named_regions_segmented || []).includes("LoadProductDataforLegacy") &&
+    (live.named_regions_segmented || []).includes("GetproductDataUpdate") &&
+    (live.named_regions_segmented || []).includes("submitProduct"),
+  "live static: named regions segmented",
+);
+const liveSave = live.requests.find((r) => /SaveProductData/i.test(r.static_path || r.url_expression || ""));
+assert(liveSave && liveSave.mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE, "live: SaveProductData MUTATING");
+assert(liveSave.source_function === "SaveData", "live: SaveData enclosing attribution");
+assert(liveSave.mutation_classification !== MUTATION_CLASS.TERMINAL_CANDIDATE, "live: SaveData not terminal");
+assert(liveSave.deferred_handling === true || /deferred_done|deferred_fail/.test(String(liveSave.response_usage || "")), "live: SaveData .done/.fail captured");
+
+const liveLoad = live.requests.find((r) => /LoadProductDataforLegacy/i.test(r.static_path || r.url_expression || ""));
+assert(liveLoad && liveLoad.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN, "live: LoadProduct READ_ONLY_PROVEN");
+assert(liveLoad.source_function === "LoadProductDataforLegacy", "live: LoadProduct attributed without window export");
+
+const liveGet = live.requests.find((r) => /GetproductDataUpdate/i.test(r.static_path || r.url_expression || ""));
+assert(liveGet && liveGet.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN, "live: GetproductDataUpdate READ_ONLY_PROVEN");
+
+const liveSubmit = live.requests.find((r) => /submitProduct/i.test(r.static_path || "") || /submitProduct/i.test(r.url_expression || ""));
+assert(liveSubmit && liveSubmit.mutation_classification === MUTATION_CLASS.TERMINAL_CANDIDATE, "live: submitProduct TERMINAL");
+assert(liveSubmit.source_function === "submitProduct", "live: submitProduct enclosing name");
+
+const liveBuckets = bucketRequests(live.requests, live.composition_observations);
+assert(liveBuckets.shell_create_candidates.some((r) => /SaveProductData/i.test(r.static_path || "")), "live: shell candidate");
+assert(liveBuckets.final_submit_candidates.length > 0, "live: final_submit_candidates");
+assert(liveBuckets.lookup_candidates.some((r) => /LoadProductDataforLegacy/i.test(r.static_path || "")), "live: Load in lookup/list");
+assert(
+  !liveBuckets.reread_candidates.some((r) => /LoadProductDataforLegacy/i.test(r.static_path || "")),
+  "live: Load NOT reread",
+);
+assert(liveBuckets.existing_record_load_candidates.some((r) => /GetproductDataUpdate/i.test(r.static_path || "")), "live: Getproduct existing load");
+assert(liveBuckets.reread_candidates.some((r) => /GetproductDataUpdate/i.test(r.static_path || "")), "live: Getproduct reread");
+assert(
+  (live.composition_observations || []).some((o) => o.linkage_complete === true && /addcomposition/i.test(String(o.class_or_id || o.evidence_basis || ""))),
+  "live: composition addcomposition linkage",
+);
+
+const liveShell = assessShellCreateEvidence({
+  controls: [{ id: "save_btn", candidate_role: "save_or_submit_ambiguous" }],
+  functions: (live.named_regions_segmented || []).map((name) => ({ name })),
+  requests: live.requests,
+});
+assert(liveShell.status === "evidence_present_unproven", "live shell: evidence_present_unproven");
+assert(Array.isArray(liveShell.missing_criteria) && liveShell.missing_criteria.length === 0, "live shell: missing_criteria empty");
+
+// Cross-source duplicate: weaker UNKNOWN must not mask proven Getproduct
+const weakGet = {
+  source_function: liveStaticPath,
+  url_expression: "../admin/GetproductDataUpdate",
+  static_path: "../admin/GetproductDataUpdate",
+  method: "POST",
+  payload_expression: "{ id: id }",
+  response_usage: null,
+  mutation_classification: MUTATION_CLASS.UNKNOWN,
+  evidence_basis: ["incomplete_getproductdataupdate_read_proof"],
+  linkage_markers: [],
+};
+const dedupedGet = dedupeLifecycleRequests([weakGet, liveGet]);
+assert(dedupedGet.length === 1, "dedupe: single Getproduct remains");
+assert(dedupedGet[0].mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN, "dedupe: prefers joint READ_ONLY over UNKNOWN");
+assert(dedupedGet[0].source_function === "GetproductDataUpdate", "dedupe: prefers named function");
+
+// Contradiction: strong MUTATING joint vs READ_ONLY joint → fail closed, keep mutating
+const strongMutatingGet = {
+  source_function: "GetproductDataUpdate",
+  url_expression: "../admin/GetproductDataUpdate",
+  static_path: "../admin/GetproductDataUpdate",
+  method: "POST",
+  payload_expression: liveGet.payload_expression || "{ id: id }",
+  response_usage: "actiontype_semantics",
+  mutation_classification: MUTATION_CLASS.MUTATING_CANDIDATE,
+  evidence_basis: ["getproductdataupdate_identity", "actiontype_semantics", "http_post", "mutating_verb"],
+  linkage_markers: [],
+};
+const conflict = dedupeLifecycleRequests([liveGet, strongMutatingGet]);
+assert(conflict.length === 1, "contradiction dedupe: one survivor");
+assert(conflict[0].mutation_classification === MUTATION_CLASS.MUTATING_CANDIDATE, "contradiction: fail-closed keeps MUTATING over READ_ONLY");
+assert(
+  (conflict[0].evidence_basis || []).includes("classification_conflict_fail_closed"),
+  "contradiction: conflict marker recorded",
+);
+
+// Finalize path with window + static duplicate sources
+const crossFinalize = finalizeLifecycleContractEvidence({
+  schema_version: 1,
+  page_path: "/admin/addproductforlegacy",
+  controls: [{ id: "save_btn", candidate_role: "save_or_submit_ambiguous", activated: false }],
+  scripts: [],
+  inline_sources: [],
+  functions_raw: [
+    {
+      name: "GetproductDataUpdate",
+      source_kind: "window_tostring",
+      found: true,
+      source_capture_status: "captured",
+      source_length: GETPRODUCT_DATA_UPDATE_REREAD.length,
+      source_truncated: false,
+      function_source_raw: GETPRODUCT_DATA_UPDATE_REREAD,
+    },
+    {
+      name: liveStaticPath,
+      source_kind: "same_origin_static_js",
+      found: true,
+      source_capture_status: "captured",
+      source_length: LIVE_STATIC_PAGE_SCRIPT.length,
+      source_truncated: false,
+      function_source_raw: LIVE_STATIC_PAGE_SCRIPT,
+    },
+  ],
+  limitations: [],
+  requests_executed: [],
+});
+assert(crossFinalize.activated === false, "cross-finalize activated false");
+assert(crossFinalize.requests_executed.length === 0, "cross-finalize no requests executed");
+assert(
+  crossFinalize.reread_candidates.some((r) => /GetproductDataUpdate/i.test(r.static_path || "")),
+  "cross-finalize: Getproduct reread present",
+);
+assert(
+  crossFinalize.requests.filter((r) => /GetproductDataUpdate/i.test(r.static_path || "")).length === 1,
+  "cross-finalize: Getproduct deduped to one",
+);
+assert(
+  crossFinalize.final_submit_candidates.length > 0,
+  "cross-finalize: submitProduct terminal bucketed",
+);
 
 // Static script acquisition rules unchanged
 const origin = "https://www.e-aushadhi.gov.in";

@@ -6,6 +6,7 @@ const {
   analyzeSourceText,
   assessShellCreateEvidence,
   bucketRequests,
+  dedupeLifecycleRequests,
   classifyStaticScriptAcquisitionUrl,
   boundSanitize,
   sha256Text,
@@ -171,11 +172,12 @@ function finalizeLifecycleContractEvidence(raw) {
     source_sha256: item?.source_sha256 || null,
   }));
 
-  const buckets = bucketRequests(requests, compositionObservations);
+  const dedupedRequests = dedupeLifecycleRequests(requests);
+  const buckets = bucketRequests(dedupedRequests, compositionObservations);
   const shell_create_proof = assessShellCreateEvidence({
     controls,
     functions,
-    requests,
+    requests: dedupedRequests,
   });
 
   limitations.add("contract_completeness_not_flipped");
@@ -186,7 +188,7 @@ function finalizeLifecycleContractEvidence(raw) {
     page_path: raw.page_path || null,
     controls,
     functions,
-    requests: requests.slice(0, 40),
+    requests: dedupedRequests.slice(0, 40),
     ...buckets,
     shell_create_proof,
     script_inventory,
@@ -283,17 +285,18 @@ async function enrichLifecycleWithStaticScripts(page, evidence, pageOrigin) {
     }
   }
 
-  const buckets = bucketRequests(requests, compositionObservations);
+  const dedupedRequests = dedupeLifecycleRequests(requests);
+  const buckets = bucketRequests(dedupedRequests, compositionObservations);
   const shell_create_proof = assessShellCreateEvidence({
     controls: evidence.controls,
     functions,
-    requests,
+    requests: dedupedRequests,
   });
 
   return {
     ...evidence,
     functions,
-    requests: requests.slice(0, 40),
+    requests: dedupedRequests.slice(0, 40),
     ...buckets,
     shell_create_proof,
     script_inventory: inventory,
