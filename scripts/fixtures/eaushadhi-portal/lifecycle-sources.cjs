@@ -149,10 +149,11 @@ function LoadSomethingLegacy() {
 
 const GETPRODUCT_DATA_UPDATE_REREAD = `
 function GetproductDataUpdate(id) {
+  var jsondata = { "id": id };
   $.ajax({
     url: "../admin/GetproductDataUpdate",
     type: "POST",
-    data: { id: id },
+    data: JSON.stringify(jsondata),
     success: function (data) {
       $("#name").val(data.name);
       $("#type").val(data.type);
@@ -254,22 +255,27 @@ const LIVE_STATIC_PAGE_SCRIPT = `
 
   function wireProductTable() {
     function LoadProductDataforLegacy() {
-      // Live portal nests Load ajax under generic object callback "data" — must not override LoadProduct.
+      // Live portal nests Load under generic "data" and "response" — must not override LoadProduct.
       var cfg = {
         data: function () {
-          $.ajax({
-            url: "../admin/LoadProductDataforLegacy",
-            type: "POST",
-            data: { pageno: 1, length: 10, search: "", order: "asc", licenseid: window.licenseId }
-          }).done(function (res) {
-            var TotalCount = res.TotalCount;
-            var statusData = res.aaData || [];
-            $('#productTable').dataTable({ aaData: statusData, columns: [{ data: 'name' }, { data: 'composition' }] });
-            for (var i = 0; i < statusData.length; i++) {
-              statusData.composition = '<a class="addcomposition" href="#">Composition</a>';
-              statusData[i].composition = statusData.composition;
+          var transport = {
+            response: function () {
+              $.ajax({
+                url: "../admin/LoadProductDataforLegacy",
+                type: "POST",
+                data: { pageno: 1, length: 10, search: "", order: "asc", licenseid: window.licenseId }
+              }).done(function (res) {
+                var TotalCount = res.TotalCount;
+                var statusData = res.aaData || [];
+                $('#productTable').dataTable({ aaData: statusData, columns: [{ data: 'name' }, { data: 'composition' }] });
+                for (var i = 0; i < statusData.length; i++) {
+                  statusData.composition = '<a class="addcomposition" href="#">Composition</a>';
+                  statusData[i].composition = statusData.composition;
+                }
+              });
             }
-          });
+          };
+          transport.response();
         }
       };
       cfg.data();
@@ -278,17 +284,55 @@ const LIVE_STATIC_PAGE_SCRIPT = `
   }
 
   function GetproductDataUpdate(id) {
+    var jsondata = { "id": id };
+    // Live Getproduct bodies are large; retained-field population precedes late Edit/Update UI.
+    // Pad beyond 2400 chars so FUNCTION_SEMANTIC_MAX=8192 must retain late actiontype evidence.
+    /* pad01 ${"x".repeat(220)} */
+    /* pad02 ${"x".repeat(220)} */
+    /* pad03 ${"x".repeat(220)} */
+    /* pad04 ${"x".repeat(220)} */
+    /* pad05 ${"x".repeat(220)} */
+    /* pad06 ${"x".repeat(220)} */
+    /* pad07 ${"x".repeat(220)} */
+    /* pad08 ${"x".repeat(220)} */
+    /* pad09 ${"x".repeat(220)} */
+    /* pad10 ${"x".repeat(220)} */
+    /* pad11 ${"x".repeat(220)} */
+    /* pad12 ${"x".repeat(220)} */
     $.ajax({
       url: "../admin/GetproductDataUpdate",
       type: "POST",
-      data: { id: id }
+      data: JSON.stringify(jsondata)
     }).done(function (data) {
       $("#name").val(data.name);
       $("#type").val(data.type);
       $("#categoryId").val(data.category);
       $("#subTypeId").val(data.subtype);
+      $("#permissionPurpose").val(data.permission);
+      $("#remarks").val(data.remarks);
       $("#compositionTitle").val(data.compositionTitle);
+      $("#disease").val(data.actions || data.disease);
+      $("#indications").val(data.indications);
+      $("#contra").val(data.contra);
+      $("#dose").val(data.dose);
+      $("#pack").val(data.pack);
+      $("#mfg").val(data.mfg);
       $("#id").val(data.id);
+      $("#f01").val(data.f01); $("#f02").val(data.f02); $("#f03").val(data.f03); $("#f04").val(data.f04);
+      $("#f05").val(data.f05); $("#f06").val(data.f06); $("#f07").val(data.f07); $("#f08").val(data.f08);
+      $("#f09").val(data.f09); $("#f10").val(data.f10); $("#f11").val(data.f11); $("#f12").val(data.f12);
+      $("#f13").val(data.f13); $("#f14").val(data.f14); $("#f15").val(data.f15); $("#f16").val(data.f16);
+      $("#f17").val(data.f17); $("#f18").val(data.f18); $("#f19").val(data.f19); $("#f20").val(data.f20);
+      $("#f21").val(data.f21); $("#f22").val(data.f22); $("#f23").val(data.f23); $("#f24").val(data.f24);
+      $("#f25").val(data.f25); $("#f26").val(data.f26); $("#f27").val(data.f27); $("#f28").val(data.f28);
+      $("#f29").val(data.f29); $("#f30").val(data.f30); $("#f31").val(data.f31); $("#f32").val(data.f32);
+      $("#f33").val(data.f33); $("#f34").val(data.f34); $("#f35").val(data.f35); $("#f36").val(data.f36);
+      $("#f37").val(data.f37); $("#f38").val(data.f38); $("#f39").val(data.f39); $("#f40").val(data.f40);
+      $("#f41").val(data.f41); $("#f42").val(data.f42); $("#f43").val(data.f43); $("#f44").val(data.f44);
+      $("#f45").val(data.f45); $("#f46").val(data.f46); $("#f47").val(data.f47); $("#f48").val(data.f48);
+      $("#f49").val(data.f49); $("#f50").val(data.f50); $("#f51").val(data.f51); $("#f52").val(data.f52);
+      $("#f53").val(data.f53); $("#f54").val(data.f54); $("#f55").val(data.f55); $("#f56").val(data.f56);
+      $("#f57").val(data.f57); $("#f58").val(data.f58); $("#f59").val(data.f59); $("#f60").val(data.f60);
       document.getElementById("actiontype").value = "Edit";
       $("#save_btn").text("Update");
       $("#pageHeading").text("Update Product");
@@ -296,10 +340,12 @@ const LIVE_STATIC_PAGE_SCRIPT = `
   }
 
   function submitProduct(id) {
+    var jsondata = { "id": id };
     $.ajax({
       url: "../admin/submitProduct",
       type: "POST",
-      data: { "id": id }
+      data: JSON
+        .stringify(jsondata)
     }).done(function () {
       alert("Submitted");
     });

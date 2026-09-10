@@ -273,7 +273,8 @@ assert(
 );
 assert(
   !(live.named_regions_segmented || []).includes("action") &&
-    !(live.named_regions_segmented || []).includes("data"),
+    !(live.named_regions_segmented || []).includes("data") &&
+    !(live.named_regions_segmented || []).includes("response"),
   "live static: generic nested callbacks are not authoritative regions",
 );
 const liveSave = live.requests.find((r) => /SaveProductData/i.test(r.static_path || r.url_expression || ""));
@@ -287,14 +288,31 @@ const liveLoad = live.requests.find((r) => /LoadProductDataforLegacy/i.test(r.st
 assert(liveLoad && liveLoad.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN, "live: LoadProduct READ_ONLY_PROVEN");
 assert(liveLoad.source_function === "LoadProductDataforLegacy", "live: LoadProduct attributed without window export");
 assert(liveLoad.source_function !== "data", "live: LoadProduct not attributed to generic data");
+assert(liveLoad.source_function !== "response", "live: LoadProduct not attributed to generic response");
 
 const liveGet = live.requests.find((r) => /GetproductDataUpdate/i.test(r.static_path || r.url_expression || ""));
 assert(liveGet && liveGet.mutation_classification === MUTATION_CLASS.READ_ONLY_PROVEN, "live: GetproductDataUpdate READ_ONLY_PROVEN");
 assert(liveGet.source_function === "GetproductDataUpdate", "live: Getproduct enclosing attribution");
+assert(
+  Array.isArray(liveGet.evidence_basis) &&
+    liveGet.evidence_basis.includes("product_id_request") &&
+    liveGet.evidence_basis.includes("retained_field_population") &&
+    liveGet.evidence_basis.includes("local_actiontype_edit_mode") &&
+    liveGet.evidence_basis.includes("local_update_ui_mode") &&
+    liveGet.evidence_basis.includes("no_server_write_in_same_function"),
+  "live: Getproduct joint READ_ONLY basis complete",
+);
+assert(/JSON\.stringify\s*\(\s*jsondata\s*\)/i.test(String(liveGet.payload_expression || "")), "live: Getproduct payload preserves JSON.stringify(jsondata)");
 
 const liveSubmit = live.requests.find((r) => /submitProduct/i.test(r.static_path || "") || /submitProduct/i.test(r.url_expression || ""));
 assert(liveSubmit && liveSubmit.mutation_classification === MUTATION_CLASS.TERMINAL_CANDIDATE, "live: submitProduct TERMINAL");
 assert(liveSubmit.source_function === "submitProduct", "live: submitProduct enclosing name");
+assert(String(liveSubmit.payload_expression || "").trim() !== "JSON", "live: submitProduct payload not bare JSON");
+assert(/JSON\.stringify\s*\(\s*jsondata\s*\)/i.test(String(liveSubmit.payload_expression || "")), "live: submitProduct multiline stringify normalized");
+assert(
+  Array.isArray(liveSubmit.evidence_basis) && liveSubmit.evidence_basis.includes("product_id_payload"),
+  "live: submitProduct product_id_payload via same-function linkage",
+);
 
 const liveBuckets = bucketRequests(live.requests, live.composition_observations);
 assert(liveBuckets.shell_create_candidates.some((r) => /SaveProductData/i.test(r.static_path || "")), "live: shell candidate");
@@ -330,7 +348,7 @@ const weakGet = {
   url_expression: "../admin/GetproductDataUpdate",
   static_path: "../admin/GetproductDataUpdate",
   method: "POST",
-  payload_expression: "{ id: id }",
+  payload_expression: liveGet.payload_expression || "JSON.stringify(jsondata)",
   response_usage: null,
   mutation_classification: MUTATION_CLASS.UNKNOWN,
   evidence_basis: ["incomplete_getproductdataupdate_read_proof"],
