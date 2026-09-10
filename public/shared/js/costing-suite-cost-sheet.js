@@ -59,6 +59,47 @@ export const PRINTABLE_LINES_VIEW =
 export const PRINTABLE_PRODUCT_SUMMARY_VIEW =
   "v_costing_pricing_printable_cost_sheet_product_summary";
 
+export const PRINTABLE_SUMMARY_TIMEOUT_RETRY_DELAY_MS = 300;
+export const PRINTABLE_SUMMARY_TIMEOUT_MAX_RETRIES = 1;
+
+export function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function isPgStatementTimeoutError(err) {
+  if (!err) return false;
+  if (String(err.code || "") === "57014") return true;
+  const message = String(err.message || err.details || "");
+  return /statement timeout/i.test(message);
+}
+
+/**
+ * Retry a printable-summary READ once when PostgreSQL cancels it (57014).
+ * Never use this helper for mutations or costingRpc writes.
+ */
+export async function readWithPgStatementTimeoutRetry(readFn, options = {}) {
+  const maxRetries = Number.isFinite(Number(options.maxRetries))
+    ? Number(options.maxRetries)
+    : PRINTABLE_SUMMARY_TIMEOUT_MAX_RETRIES;
+  const delayMs = Number.isFinite(Number(options.delayMs))
+    ? Number(options.delayMs)
+    : PRINTABLE_SUMMARY_TIMEOUT_RETRY_DELAY_MS;
+  const sleep =
+    typeof options.sleep === "function" ? options.sleep : sleepMs;
+  let retriesUsed = 0;
+  for (;;) {
+    try {
+      return await readFn();
+    } catch (err) {
+      if (!isPgStatementTimeoutError(err) || retriesUsed >= maxRetries) {
+        throw err;
+      }
+      retriesUsed += 1;
+      await sleep(delayMs);
+    }
+  }
+}
+
 /**
  * Whitelisted evidence_json keys for Cost Sheet Explain.
  * Tuple: [key, label, valueType, section?]
@@ -389,6 +430,7 @@ export function createCostSheetController(deps) {
     navigateTraceabilityDrill,
     getActivePeriodStart,
     getCurrentLens,
+    sleepMs: sleepFn,
   } = deps;
 
   const {
@@ -559,17 +601,23 @@ export function createCostSheetController(deps) {
     const pageSize = 1000;
     let from = 0;
     const rows = [];
+    const retrySleep = typeof sleepFn === "function" ? sleepFn : sleepMs;
 
     while (true) {
       const to = from + pageSize - 1;
-      const { data, error } = await costingFrom(PRINTABLE_PRODUCT_SUMMARY_VIEW)
-        .select("*")
-        .eq("period_start", periodStart)
-        .order("product_name", { ascending: true })
-        .order("product_id", { ascending: true })
-        .range(from, to);
-
-      if (error) throw error;
+      const { data } = await readWithPgStatementTimeoutRetry(
+        async () => {
+          const result = await costingFrom(PRINTABLE_PRODUCT_SUMMARY_VIEW)
+            .select("*")
+            .eq("period_start", periodStart)
+            .order("product_name", { ascending: true })
+            .order("product_id", { ascending: true })
+            .range(from, to);
+          if (result.error) throw result.error;
+          return result;
+        },
+        { sleep: retrySleep },
+      );
       const pageRows = data || [];
       rows.push(...pageRows);
       if (pageRows.length < pageSize) break;
@@ -5614,11 +5662,12 @@ export function createCostSheetController(deps) {
     closeCostSheetExplainDrawer();
     closeCostSheetModal();
     printableLines = [];
-    printableProductSummaryCache = null;
     currentPrintableExactRunContext = null;
     currentPrintableSummaryRow = null;
     clearMonthlyAllocationDriverTraceCache();
     // Shared lens-load invalidation: period/run/snapshot context is reloading.
+    // Printable product-summary cache is reused across ordinary tab switches
+    // and is cleared by invalidatePrintableLinesCache (period change / costing refresh).
     clearMarketingExplainSummaryCache();
     clearQcExplainCache();
     clearMsExplainCache();

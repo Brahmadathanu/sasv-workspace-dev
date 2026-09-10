@@ -4717,7 +4717,7 @@ async function switchLens(lensId) {
   try {
     await loadRowsForLens();
   } catch (err) {
-    handleError("Failed to load selected lens", err);
+    handleLensLoadFailure("Failed to load selected lens", err);
   }
 }
 
@@ -7609,6 +7609,37 @@ function handleError(message, err, inModal = false) {
   showToast(message, "error", 4200);
 }
 
+function isPrintableCostSheetLens(lensId = CURRENT_LENS) {
+  return lensId === "printable-cost-sheet";
+}
+
+/**
+ * Final printable Cost Sheet list failure. One toast, status + Try again.
+ * Try again reloads the lens via loadRowsForLens only — never a costing refresh RPC.
+ */
+function handlePrintableCostSheetLoadFailure(message, err) {
+  console.error(`[costing-suite] ${message}`, err);
+  const detail = err?.message ? `${message}: ${err.message}` : message;
+  setStatus(detail, "error");
+  if (statusArea) {
+    const retryBtn = document.createElement("button");
+    retryBtn.type = "button";
+    retryBtn.className = "peq-filter-action-btn";
+    retryBtn.setAttribute("data-printable-summary-try-again", "");
+    retryBtn.textContent = "Try again";
+    statusArea.append(" ", retryBtn);
+  }
+  showToast(message, "error", 4200);
+}
+
+function handleLensLoadFailure(message, err) {
+  if (isPrintableCostSheetLens()) {
+    handlePrintableCostSheetLoadFailure(message, err);
+    return;
+  }
+  handleError(message, err);
+}
+
 
 async function resolveAuthenticatedUserId() {
   try {
@@ -7702,6 +7733,7 @@ const costSheetCtrl = createCostSheetController({
   enableLineExplain:
     document.body?.dataset?.costingModuleKey === "cost-sheet-review",
   costingFrom,
+  sleepMs,
   showToast,
   text,
   formatMoney,
@@ -8527,6 +8559,12 @@ async function init() {
   }
 }
 
+document.addEventListener("click", (event) => {
+  const retryBtn = event.target?.closest?.("[data-printable-summary-try-again]");
+  if (!retryBtn) return;
+  event.preventDefault();
+  void loadRowsForLens();
+});
 refreshBtn?.addEventListener("click", onCostingSuiteRefreshClick);
 costingPeriodSelect?.addEventListener("change", () => {
   if (costingPeriodSelect.disabled) return;
