@@ -3845,7 +3845,7 @@ async function setActiveCostingPeriod(periodStart) {
     await refreshOpenDrawerIfNeeded();
     await reloadCostPeriodValuationIfNeeded();
   } catch (err) {
-    handleLensLoadFailure("Failed to load costing period", err);
+    handleError("Failed to load costing period", err);
   }
 }
 
@@ -7620,12 +7620,14 @@ function isPrintableCostSheetLens(lensId = CURRENT_LENS) {
 function handlePrintableCostSheetLoadFailure(message, err) {
   console.error(`[costing-suite] ${message}`, err);
   const detail = err?.message ? `${message}: ${err.message}` : message;
+  setStatus(detail, "error");
   if (statusArea) {
-    statusArea.hidden = false;
-    statusArea.style.display = "block";
-    statusArea.style.color = "#b91c1c";
-    statusArea.setAttribute("data-type", "error");
-    statusArea.innerHTML = `${escapeHtml(detail)} <button type="button" class="peq-filter-action-btn" data-printable-summary-try-again>Try again</button>`;
+    const retryBtn = document.createElement("button");
+    retryBtn.type = "button";
+    retryBtn.className = "peq-filter-action-btn";
+    retryBtn.setAttribute("data-printable-summary-try-again", "");
+    retryBtn.textContent = "Try again";
+    statusArea.append(" ", retryBtn);
   }
   showToast(message, "error", 4200);
 }
@@ -8553,7 +8555,7 @@ async function init() {
     await loadRowsForLens();
     void resumeInFlightRefreshRunIfNeeded();
   } catch (err) {
-    handleLensLoadFailure("Initialization error", err);
+    handleError("Initialization error", err);
   }
 }
 

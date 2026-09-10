@@ -264,8 +264,55 @@ assert(
 );
 assert(
   printableFailFn.includes("data-printable-summary-try-again") &&
-    printableFailFn.includes("Try again"),
-  "final failure exposes Try again",
+    printableFailFn.includes("Try again") &&
+    printableFailFn.includes("setStatus(detail, \"error\")") &&
+    printableFailFn.includes("createElement(\"button\")") &&
+    !printableFailFn.includes("innerHTML"),
+  "final failure exposes a safely appended Try again button",
+);
+assert(
+  !/#[0-9a-fA-F]{3,8}/.test(printableFailFn),
+  "printable failure handler contains no hard-coded hexadecimal error colour",
+);
+
+const switchLensStart = shellSrc.indexOf("async function switchLens");
+const switchLensEnd = shellSrc.indexOf("function getRowStatus", switchLensStart);
+const switchLensFn =
+  switchLensStart >= 0 && switchLensEnd > switchLensStart
+    ? shellSrc.slice(switchLensStart, switchLensEnd)
+    : "";
+assert(
+  switchLensFn.includes(
+    'handleLensLoadFailure("Failed to load selected lens", err)',
+  ),
+  "switchLens selected-lens failure uses the printable-aware handler",
+);
+
+const periodStartIdx = shellSrc.indexOf("async function setActiveCostingPeriod");
+const periodEndIdx = shellSrc.indexOf("async function fetchAllRows", periodStartIdx);
+const periodFn =
+  periodStartIdx >= 0 && periodEndIdx > periodStartIdx
+    ? shellSrc.slice(periodStartIdx, periodEndIdx)
+    : "";
+assert(
+  periodFn.includes('handleError("Failed to load costing period", err)') &&
+    !periodFn.includes("handleLensLoadFailure"),
+  "setActiveCostingPeriod continues to use generic handleError",
+);
+
+const initStart = shellSrc.indexOf("async function init(");
+const initEnd = shellSrc.indexOf(
+  "document.addEventListener(\"click\", (event) => {",
+  initStart,
+);
+const initFn =
+  initStart >= 0 && initEnd > initStart
+    ? shellSrc.slice(initStart, initEnd)
+    : "";
+assert(
+  initFn.includes('handleError("Initialization error", err)') &&
+    !initFn.includes("handleLensLoadFailure"),
+  "init continues to use generic handleError",
 );
 
 // --- 16. Other costing-suite route defaults unchanged ---
