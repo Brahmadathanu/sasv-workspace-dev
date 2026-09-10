@@ -3845,7 +3845,7 @@ async function setActiveCostingPeriod(periodStart) {
     await refreshOpenDrawerIfNeeded();
     await reloadCostPeriodValuationIfNeeded();
   } catch (err) {
-    handleError("Failed to load costing period", err);
+    handleLensLoadFailure("Failed to load costing period", err);
   }
 }
 
@@ -4717,7 +4717,7 @@ async function switchLens(lensId) {
   try {
     await loadRowsForLens();
   } catch (err) {
-    handleError("Failed to load selected lens", err);
+    handleLensLoadFailure("Failed to load selected lens", err);
   }
 }
 
@@ -7609,6 +7609,35 @@ function handleError(message, err, inModal = false) {
   showToast(message, "error", 4200);
 }
 
+function isPrintableCostSheetLens(lensId = CURRENT_LENS) {
+  return lensId === "printable-cost-sheet";
+}
+
+/**
+ * Final printable Cost Sheet list failure. One toast, status + Try again.
+ * Try again reloads the lens via loadRowsForLens only — never a costing refresh RPC.
+ */
+function handlePrintableCostSheetLoadFailure(message, err) {
+  console.error(`[costing-suite] ${message}`, err);
+  const detail = err?.message ? `${message}: ${err.message}` : message;
+  if (statusArea) {
+    statusArea.hidden = false;
+    statusArea.style.display = "block";
+    statusArea.style.color = "#b91c1c";
+    statusArea.setAttribute("data-type", "error");
+    statusArea.innerHTML = `${escapeHtml(detail)} <button type="button" class="peq-filter-action-btn" data-printable-summary-try-again>Try again</button>`;
+  }
+  showToast(message, "error", 4200);
+}
+
+function handleLensLoadFailure(message, err) {
+  if (isPrintableCostSheetLens()) {
+    handlePrintableCostSheetLoadFailure(message, err);
+    return;
+  }
+  handleError(message, err);
+}
+
 
 async function resolveAuthenticatedUserId() {
   try {
@@ -7702,6 +7731,7 @@ const costSheetCtrl = createCostSheetController({
   enableLineExplain:
     document.body?.dataset?.costingModuleKey === "cost-sheet-review",
   costingFrom,
+  sleepMs,
   showToast,
   text,
   formatMoney,
@@ -8523,10 +8553,16 @@ async function init() {
     await loadRowsForLens();
     void resumeInFlightRefreshRunIfNeeded();
   } catch (err) {
-    handleError("Initialization error", err);
+    handleLensLoadFailure("Initialization error", err);
   }
 }
 
+document.addEventListener("click", (event) => {
+  const retryBtn = event.target?.closest?.("[data-printable-summary-try-again]");
+  if (!retryBtn) return;
+  event.preventDefault();
+  void loadRowsForLens();
+});
 refreshBtn?.addEventListener("click", onCostingSuiteRefreshClick);
 costingPeriodSelect?.addEventListener("change", () => {
   if (costingPeriodSelect.disabled) return;
