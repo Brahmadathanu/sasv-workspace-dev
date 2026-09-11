@@ -5,6 +5,8 @@
  * - v_costing_pricing_commercial_sales_basis
  * - rpc_get_sales_allocation_default_policies
  * - rpc_set_sales_allocation_default_policy
+ * - rpc_get_regional_sales_allocation_default_policies
+ * - rpc_set_regional_sales_allocation_default_policy
  * - rpc_get_sku_sales_assumptions
  * - rpc_set_sku_sales_assumption
  * - rpc_close_sku_sales_assumption
@@ -25,14 +27,28 @@ const CSA_ASSUMPTION_BASES = [
   "NEW_PRODUCT_ESTIMATE",
 ];
 
-const CSA_DEFAULT_SCENARIOS = [
+export const CSA_DEFAULT_SCENARIOS = [
   "NEW_SKU_EXISTING_PRODUCT",
   "NEW_PRODUCT_NO_HISTORY",
 ];
 
-const CSA_SCENARIO_BUSINESS_LABELS = {
+export const CSA_REGIONAL_DEFAULT_SCENARIOS = [
+  "NO_ELIGIBLE_REGIONAL_HISTORY",
+  "NO_POSITIVE_REGIONAL_HISTORY",
+];
+
+export const CSA_REGIONAL_DEFAULT_REGIONS = ["IK", "OK"];
+
+export const CSA_SCENARIO_BUSINESS_LABELS = {
   NEW_SKU_EXISTING_PRODUCT: "New SKU",
   NEW_PRODUCT_NO_HISTORY: "New Product",
+  NO_ELIGIBLE_REGIONAL_HISTORY: "No regional sales history",
+  NO_POSITIVE_REGIONAL_HISTORY: "No positive regional sales quantity",
+};
+
+export const CSA_REGION_BUSINESS_LABELS = {
+  IK: "Inside Kerala",
+  OK: "Outside Kerala",
 };
 
 /** Exact canonical tokens for source filter buckets (never rewrite stored values). */
@@ -87,9 +103,73 @@ const CSA_ALIGNMENTS = [
   "c-left",
 ];
 
-function scenarioBusinessLabel(scenarioCode) {
+export function scenarioBusinessLabel(scenarioCode) {
   const code = String(scenarioCode || "").trim();
   return CSA_SCENARIO_BUSINESS_LABELS[code] || code || "--";
+}
+
+export function regionBusinessLabel(regionCode) {
+  const code = String(regionCode || "").trim();
+  return CSA_REGION_BUSINESS_LABELS[code] || code || "--";
+}
+
+export function defaultPolicyRowId(row) {
+  const raw = row?.id ?? row?.policy_id;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function isOpenDefaultPolicy(row) {
+  const status = normalizeToken(row?.status);
+  return (
+    (status === "APPROVED" || status === "ACTIVE") &&
+    isNullish(row?.effective_to)
+  );
+}
+
+function sortDefaultPolicyRows(rows) {
+  return [...(Array.isArray(rows) ? rows : [])].sort((a, b) => {
+    const fromCmp = compareIsoDate(b?.effective_from, a?.effective_from);
+    if (fromCmp) return fromCmp;
+    return defaultPolicyRowId(b) - defaultPolicyRowId(a);
+  });
+}
+
+export function pickCurrentDefaultPolicy(rows, scenarioCode) {
+  const forScenario = (Array.isArray(rows) ? rows : []).filter(
+    (row) => normalizeToken(row?.scenario_code) === normalizeToken(scenarioCode),
+  );
+  const open = forScenario.find((row) => isOpenDefaultPolicy(row));
+  if (open) return open;
+  return sortDefaultPolicyRows(forScenario)[0] || null;
+}
+
+export function pickCurrentRegionalDefaultPolicy(
+  rows,
+  scenarioCode,
+  regionCode,
+) {
+  const matched = (Array.isArray(rows) ? rows : []).filter(
+    (row) =>
+      normalizeToken(row?.scenario_code) === normalizeToken(scenarioCode) &&
+      normalizeToken(row?.region_code) === normalizeToken(regionCode),
+  );
+  const open = matched.find((row) => isOpenDefaultPolicy(row));
+  if (open) return open;
+  return sortDefaultPolicyRows(matched)[0] || null;
+}
+
+export function previousDefaultPolicyRevisions(rows, current, matchFn) {
+  const currentId = defaultPolicyRowId(current);
+  return sortDefaultPolicyRows(
+    (Array.isArray(rows) ? rows : []).filter((row) => {
+      if (typeof matchFn === "function" && !matchFn(row)) return false;
+      if (!current) return true;
+      const id = defaultPolicyRowId(row);
+      if (currentId && id === currentId) return false;
+      return true;
+    }),
+  );
 }
 
 function $(id) {
@@ -213,22 +293,6 @@ export function findOpenSkuSalesAssumption(historyRows) {
   );
 }
 
-function pickDefaultPolicyForScenario(rows, scenarioCode) {
-  const forScenario = (Array.isArray(rows) ? rows : []).filter(
-    (row) => normalizeToken(row?.scenario_code) === normalizeToken(scenarioCode),
-  );
-  const activeOpen = forScenario.find(
-    (row) =>
-      normalizeToken(row?.status) === "ACTIVE" && isNullish(row?.effective_to),
-  );
-  if (activeOpen) return activeOpen;
-  return (
-    [...forScenario].sort((a, b) =>
-      compareIsoDate(b?.effective_from, a?.effective_from),
-    )[0] || null
-  );
-}
-
 export function createCommercialSalesAssumptionHandlers(deps) {
   const {
     costingFrom,
@@ -258,6 +322,9 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   let defaultsRows = [];
   let defaultsError = null;
   let defaultsLoading = false;
+  let regionalDefaultsRows = [];
+  let regionalDefaultsError = null;
+  let regionalDefaultsLoading = false;
   let listLoadToken = 0;
   let defaultsLoadToken = 0;
 
@@ -267,7 +334,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   let historyError = null;
   let writeInFlight = false;
   let defaultWriteInFlight = false;
-  let defaultReviseScenario = null;
+  let defaultReviseTarget = null;
 
   function canEdit() {
     return (
@@ -378,22 +445,54 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   async function loadDefaultPolicies() {
     const token = ++defaultsLoadToken;
     defaultsLoading = true;
+    regionalDefaultsLoading = true;
     defaultsError = null;
+    regionalDefaultsError = null;
     try {
-      const { data, error } = await costingRpc(
-        "rpc_get_sales_allocation_default_policies",
-      );
-      if (error) throw error;
+      const [companySettled, regionalSettled] = await Promise.allSettled([
+        costingRpc("rpc_get_sales_allocation_default_policies"),
+        costingRpc("rpc_get_regional_sales_allocation_default_policies"),
+      ]);
       if (token !== defaultsLoadToken) return null;
-      defaultsRows = Array.isArray(data) ? data : [];
-      return defaultsRows;
+
+      if (companySettled.status === "fulfilled") {
+        const { data, error } = companySettled.value || {};
+        if (error) {
+          defaultsRows = [];
+          defaultsError = error;
+        } else {
+          defaultsRows = Array.isArray(data) ? data : [];
+        }
+      } else {
+        defaultsRows = [];
+        defaultsError = companySettled.reason;
+      }
+
+      if (regionalSettled.status === "fulfilled") {
+        const { data, error } = regionalSettled.value || {};
+        if (error) {
+          regionalDefaultsRows = [];
+          regionalDefaultsError = error;
+        } else {
+          regionalDefaultsRows = Array.isArray(data) ? data : [];
+        }
+      } else {
+        regionalDefaultsRows = [];
+        regionalDefaultsError = regionalSettled.reason;
+      }
+
+      if (defaultsError && regionalDefaultsError) throw defaultsError;
+      if (defaultsError) throw defaultsError;
+      if (regionalDefaultsError) throw regionalDefaultsError;
+      return { defaultsRows, regionalDefaultsRows };
     } catch (err) {
       if (token !== defaultsLoadToken) return null;
-      defaultsRows = [];
-      defaultsError = err;
       throw err;
     } finally {
-      if (token === defaultsLoadToken) defaultsLoading = false;
+      if (token === defaultsLoadToken) {
+        defaultsLoading = false;
+        regionalDefaultsLoading = false;
+      }
     }
   }
 
@@ -533,14 +632,39 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   }
 
   function defaultsQuantityTitleParts() {
-    if (defaultsLoading) return "Loading defaults…";
-    if (defaultsError) return "Defaults unavailable";
-    return CSA_DEFAULT_SCENARIOS.map((scenario) => {
-      const policy = pickDefaultPolicyForScenario(defaultsRows, scenario);
-      const label = scenarioBusinessLabel(scenario);
-      const qty = policy ? formatNumber(policy.default_sales_units) : "--";
-      return `${label}: ${qty}`;
-    }).join(". ");
+    const parts = [];
+    if (defaultsLoading) parts.push("Loading company-wide defaults…");
+    else if (defaultsError) parts.push("Company-wide defaults unavailable");
+    else {
+      parts.push(
+        CSA_DEFAULT_SCENARIOS.map((scenario) => {
+          const policy = pickCurrentDefaultPolicy(defaultsRows, scenario);
+          const label = scenarioBusinessLabel(scenario);
+          const qty = policy ? formatNumber(policy.default_sales_units) : "--";
+          return `${label}: ${qty}`;
+        }).join(". "),
+      );
+    }
+    if (regionalDefaultsLoading) parts.push("Loading regional defaults…");
+    else if (regionalDefaultsError) parts.push("Regional defaults unavailable");
+    else {
+      const regionalParts = [];
+      for (const scenario of CSA_REGIONAL_DEFAULT_SCENARIOS) {
+        for (const region of CSA_REGIONAL_DEFAULT_REGIONS) {
+          const policy = pickCurrentRegionalDefaultPolicy(
+            regionalDefaultsRows,
+            scenario,
+            region,
+          );
+          const qty = policy ? formatNumber(policy.default_sales_units) : "--";
+          regionalParts.push(
+            `${scenarioBusinessLabel(scenario)} ${regionBusinessLabel(region)}: ${qty}`,
+          );
+        }
+      }
+      if (regionalParts.length) parts.push(regionalParts.join(". "));
+    }
+    return parts.filter(Boolean).join(". ");
   }
 
   /** Meta-row Manage/View Defaults button config (no chrome chips). */
@@ -1081,21 +1205,61 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     }
   }
 
-  function openDefaultPolicyReviseModal(scenarioCode) {
+  function currentPolicyForReviseTarget(target) {
+    if (!target) return null;
+    if (target.kind === "regional") {
+      return pickCurrentRegionalDefaultPolicy(
+        regionalDefaultsRows,
+        target.scenarioCode,
+        target.regionCode,
+      );
+    }
+    return pickCurrentDefaultPolicy(defaultsRows, target.scenarioCode);
+  }
+
+  function openDefaultPolicyReviseModal(target) {
     if (!requireEditAccess?.("revise sales allocation default policy")) return;
-    const scenario = String(scenarioCode || "").trim();
-    if (!CSA_DEFAULT_SCENARIOS.includes(scenario)) {
+    const scenario = String(target?.scenarioCode || "").trim();
+    const region = String(target?.regionCode || "").trim();
+    const kind = target?.kind === "regional" ? "regional" : "company";
+    if (kind === "company" && !CSA_DEFAULT_SCENARIOS.includes(scenario)) {
       showToast("Unknown default policy scenario.", "error");
       return;
     }
-    defaultReviseScenario = scenario;
+    if (kind === "regional") {
+      if (!CSA_REGIONAL_DEFAULT_SCENARIOS.includes(scenario)) {
+        showToast("Unknown regional default policy scenario.", "error");
+        return;
+      }
+      if (!CSA_REGIONAL_DEFAULT_REGIONS.includes(region)) {
+        showToast("Unknown regional default policy region.", "error");
+        return;
+      }
+    }
+    defaultReviseTarget = {
+      kind,
+      scenarioCode: scenario,
+      regionCode: kind === "regional" ? region : null,
+    };
     clearDefaultModalError();
     const title = $("csaDefaultPolicyTitle");
     if (title) {
-      title.textContent = `Revise Default Policy — ${scenarioBusinessLabel(scenario)}`;
+      title.textContent =
+        kind === "regional"
+          ? `Revise Default Policy — ${scenarioBusinessLabel(scenario)} · ${regionBusinessLabel(region)} (${region})`
+          : `Revise Default Policy — ${scenarioBusinessLabel(scenario)}`;
     }
     const scenarioEl = $("csaDefaultPolicyScenario");
     if (scenarioEl) scenarioEl.value = scenario;
+    const regionWrap = $("csaDefaultPolicyRegionWrap");
+    const regionEl = $("csaDefaultPolicyRegion");
+    if (regionWrap) regionWrap.hidden = kind !== "regional";
+    if (regionEl) {
+      regionEl.value =
+        kind === "regional"
+          ? `${regionBusinessLabel(region)} (${region})`
+          : "";
+    }
     const units = $("csaDefaultPolicyUnits");
     if (units) units.value = "";
     const from = $("csaDefaultPolicyEffectiveFrom");
@@ -1111,62 +1275,179 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     modal.setAttribute("aria-hidden", "false");
   }
 
-  function renderDefaultsHubBody() {
-    const host = $("csaDefaultsHubBody");
-    if (!host) return;
-    if (defaultsLoading) {
-      host.innerHTML = `<div class="cp-muted-text">Loading governed defaults…</div>`;
-      return;
-    }
-    if (defaultsError) {
-      host.innerHTML = `<div class="status error">Failed to load governed default policies.</div>`;
-      return;
-    }
-    const canWrite = canEdit();
-    host.innerHTML = CSA_DEFAULT_SCENARIOS.map((scenario) => {
-      const policy = pickDefaultPolicyForScenario(defaultsRows, scenario);
-      const label = scenarioBusinessLabel(scenario);
-      const reviseBtn = canWrite
-        ? `<button type="button" class="icon-btn" data-csa-hub-revise="${text(scenario)}">Revise</button>`
-        : "";
-      if (!policy) {
-        return `<div class="cp-csa-hub-scenario" data-scenario="${text(scenario)}">
-          <div class="cp-csa-hub-scenario-head">
-            <div>
-              <div class="cp-csa-hub-scenario-label">${text(label)}</div>
-              <div class="cp-muted-text">${text(scenario)}</div>
-            </div>
-            ${reviseBtn}
-          </div>
-          <div class="cp-muted-text">No policy for this scenario.</div>
-        </div>`;
-      }
-      return `<div class="cp-csa-hub-scenario" data-scenario="${text(scenario)}">
+  function renderDefaultHistoryTable(historyRows) {
+    if (!historyRows.length) return "";
+    return `<div class="cp-csa-hub-history">
+      <div class="cp-csa-hub-history-title">Previous revisions</div>
+      <div class="table-scroll">
+        <table class="cp-simple-table">
+          <thead><tr>
+            <th>Status</th>
+            <th class="c-right">Units</th>
+            <th>Effective from</th>
+            <th>Effective to</th>
+            <th>Approval</th>
+          </tr></thead>
+          <tbody>
+            ${historyRows
+              .map(
+                (row) => `<tr>
+                  <td>${statusChip(normalizeStatus(row.status))}</td>
+                  <td class="c-right">${formatNumber(row.default_sales_units)}</td>
+                  <td>${formatDate(row.effective_from)}</td>
+                  <td>${formatDate(row.effective_to)}</td>
+                  <td>${text(row.approval_reference || "--")}<div class="cp-muted-text">${text(row.reason || "")}</div></td>
+                </tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  function renderDefaultPolicyCard({
+    label,
+    codeLine,
+    policy,
+    reviseTarget,
+    historyRows,
+    canWrite,
+  }) {
+    const reviseBtn = canWrite
+      ? `<button type="button" class="icon-btn" data-csa-revise-kind="${text(reviseTarget.kind)}" data-csa-revise-scenario="${text(reviseTarget.scenarioCode)}" data-csa-revise-region="${text(reviseTarget.regionCode || "")}">Revise</button>`
+      : "";
+    if (!policy) {
+      return `<div class="cp-csa-hub-scenario">
         <div class="cp-csa-hub-scenario-head">
           <div>
             <div class="cp-csa-hub-scenario-label">${text(label)}</div>
-            <div class="cp-muted-text">${text(scenario)}</div>
+            <div class="cp-muted-text">${text(codeLine)}</div>
           </div>
           ${reviseBtn}
         </div>
-        <div class="cp-csa-default-grid">
-          <div><span class="cp-muted-text">Quantity</span><div>${formatNumber(policy.default_sales_units)}</div></div>
-          <div><span class="cp-muted-text">Status</span><div>${statusChip(normalizeStatus(policy.status))}</div></div>
-          <div><span class="cp-muted-text">Effective from</span><div>${formatDate(policy.effective_from)}</div></div>
-          <div><span class="cp-muted-text">Effective to</span><div>${formatDate(policy.effective_to)}</div></div>
-          <div><span class="cp-muted-text">Reason</span><div>${text(policy.reason || "--")}</div></div>
-          <div><span class="cp-muted-text">Approval</span><div>${text(policy.approval_reference || "--")}</div></div>
-          <div><span class="cp-muted-text">Previous policy</span><div>${text(policy.previous_policy_id ?? "--")}</div></div>
-          <div><span class="cp-muted-text">Created</span><div>${formatDateTime(policy.created_at)} · ${text(policy.created_by || "--")}</div></div>
+        <div class="cp-muted-text">No policy for this scenario.</div>
+      </div>`;
+    }
+    return `<div class="cp-csa-hub-scenario">
+      <div class="cp-csa-hub-scenario-head">
+        <div>
+          <div class="cp-csa-hub-scenario-label">${text(label)}</div>
+          <div class="cp-muted-text">${text(codeLine)}</div>
         </div>
+        ${reviseBtn}
+      </div>
+      <div class="cp-csa-default-grid">
+        <div><span class="cp-muted-text">Default sales units</span><div>${formatNumber(policy.default_sales_units)}</div></div>
+        <div><span class="cp-muted-text">Status</span><div>${statusChip(normalizeStatus(policy.status))}</div></div>
+        <div><span class="cp-muted-text">Effective from</span><div>${formatDate(policy.effective_from)}</div></div>
+        <div><span class="cp-muted-text">Effective to</span><div>${formatDate(policy.effective_to)}</div></div>
+        <div><span class="cp-muted-text">Approval reference</span><div>${text(policy.approval_reference || "--")}</div></div>
+        <div style="grid-column:1/-1"><span class="cp-muted-text">Reason</span><div>${text(policy.reason || "--")}</div></div>
+      </div>
+      ${renderDefaultHistoryTable(historyRows)}
+    </div>`;
+  }
+
+  function renderCompanyDefaultsSection(canWrite) {
+    if (defaultsLoading) {
+      return `<div class="cp-muted-text">Loading company-wide defaults…</div>`;
+    }
+    if (defaultsError) {
+      return `<div class="status error">Failed to load company-wide default policies.</div>`;
+    }
+    return CSA_DEFAULT_SCENARIOS.map((scenario) => {
+      const policy = pickCurrentDefaultPolicy(defaultsRows, scenario);
+      const historyRows = previousDefaultPolicyRevisions(
+        defaultsRows,
+        policy,
+        (row) =>
+          normalizeToken(row?.scenario_code) === normalizeToken(scenario),
+      );
+      return renderDefaultPolicyCard({
+        label: scenarioBusinessLabel(scenario),
+        codeLine: scenario,
+        policy,
+        reviseTarget: { kind: "company", scenarioCode: scenario },
+        historyRows,
+        canWrite,
+      });
+    }).join("");
+  }
+
+  function renderRegionalDefaultsSection(canWrite) {
+    if (regionalDefaultsLoading) {
+      return `<div class="cp-muted-text">Loading regional defaults…</div>`;
+    }
+    if (regionalDefaultsError) {
+      return `<div class="status error">Failed to load regional default policies.</div>`;
+    }
+    return CSA_REGIONAL_DEFAULT_SCENARIOS.map((scenario) => {
+      const cards = CSA_REGIONAL_DEFAULT_REGIONS.map((region) => {
+        const policy = pickCurrentRegionalDefaultPolicy(
+          regionalDefaultsRows,
+          scenario,
+          region,
+        );
+        const historyRows = previousDefaultPolicyRevisions(
+          regionalDefaultsRows,
+          policy,
+          (row) =>
+            normalizeToken(row?.scenario_code) === normalizeToken(scenario) &&
+            normalizeToken(row?.region_code) === normalizeToken(region),
+        );
+        return renderDefaultPolicyCard({
+          label: `${regionBusinessLabel(region)} (${region})`,
+          codeLine: `${scenario} · ${region}`,
+          policy,
+          reviseTarget: {
+            kind: "regional",
+            scenarioCode: scenario,
+            regionCode: region,
+          },
+          historyRows,
+          canWrite,
+        });
+      }).join("");
+      return `<div class="cp-csa-hub-scenario-group">
+        <div class="cp-csa-hub-scenario-label">${text(scenarioBusinessLabel(scenario))}</div>
+        <div class="cp-muted-text">${text(scenario)}</div>
+        <div class="cp-csa-hub-region-pair">${cards}</div>
       </div>`;
     }).join("");
+  }
 
-    host.querySelectorAll("[data-csa-hub-revise]").forEach((btn) => {
+  function wireDefaultsHubReviseButtons(host) {
+    host.querySelectorAll("[data-csa-revise-scenario]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        openDefaultPolicyReviseModal(btn.getAttribute("data-csa-hub-revise"));
+        openDefaultPolicyReviseModal({
+          kind: btn.getAttribute("data-csa-revise-kind"),
+          scenarioCode: btn.getAttribute("data-csa-revise-scenario"),
+          regionCode: btn.getAttribute("data-csa-revise-region") || null,
+        });
       });
     });
+  }
+
+  function renderDefaultsHubBody() {
+    const host = $("csaDefaultsHubBody");
+    if (!host) return;
+    const canWrite = canEdit();
+    host.innerHTML = `
+      <section class="cp-csa-hub-section" aria-labelledby="csaCompanyDefaultsHeading">
+        <div id="csaCompanyDefaultsHeading" class="cp-csa-section-title">Company-wide defaults</div>
+        ${renderCompanyDefaultsSection(canWrite)}
+      </section>
+      <section class="cp-csa-hub-section" aria-labelledby="csaRegionalDefaultsHeading">
+        <div id="csaRegionalDefaultsHeading" class="cp-csa-section-title">Regional defaults</div>
+        <p class="cp-csa-warning-note">
+          Governed regional fallback quantities used when a region has no positive
+          actual sales evidence and no explicit regional SKU assumption. These remain
+          review-required assumptions. Revisions apply to future costing refreshes only.
+        </p>
+        ${renderRegionalDefaultsSection(canWrite)}
+      </section>`;
+    wireDefaultsHubReviseButtons(host);
   }
 
   function openDefaultsHubModal() {
@@ -1200,22 +1481,41 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     if (!modal) return;
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
-    defaultReviseScenario = null;
+    defaultReviseTarget = null;
     defaultWriteInFlight = false;
     clearDefaultModalError();
     const saveBtn = $("csaDefaultPolicySaveBtn");
     if (saveBtn) saveBtn.disabled = false;
+    const regionWrap = $("csaDefaultPolicyRegionWrap");
+    if (regionWrap) regionWrap.hidden = true;
+    const regionEl = $("csaDefaultPolicyRegion");
+    if (regionEl) regionEl.value = "";
   }
 
   async function saveDefaultPolicyRevision() {
     if (!requireEditAccess?.("revise sales allocation default policy")) return;
     if (defaultWriteInFlight) return;
-    const scenario =
-      defaultReviseScenario ||
-      String($("csaDefaultPolicyScenario")?.value || "").trim();
-    if (!CSA_DEFAULT_SCENARIOS.includes(scenario)) {
+    const kind =
+      defaultReviseTarget?.kind === "regional" ? "regional" : "company";
+    const scenario = String(
+      defaultReviseTarget?.scenarioCode ||
+        $("csaDefaultPolicyScenario")?.value ||
+        "",
+    ).trim();
+    const region = String(defaultReviseTarget?.regionCode || "").trim();
+    if (kind === "company" && !CSA_DEFAULT_SCENARIOS.includes(scenario)) {
       setDefaultModalError("Scenario is required.");
       return;
+    }
+    if (kind === "regional") {
+      if (!CSA_REGIONAL_DEFAULT_SCENARIOS.includes(scenario)) {
+        setDefaultModalError("Scenario is required.");
+        return;
+      }
+      if (!CSA_REGIONAL_DEFAULT_REGIONS.includes(region)) {
+        setDefaultModalError("Region is required.");
+        return;
+      }
     }
     const unitsRaw = String($("csaDefaultPolicyUnits")?.value ?? "").trim();
     const effectiveFrom = String(
@@ -1242,22 +1542,48 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       setDefaultModalError("Reason is required.");
       return;
     }
+    const open = currentPolicyForReviseTarget({
+      kind,
+      scenarioCode: scenario,
+      regionCode: region || null,
+    });
+    if (open && isOpenDefaultPolicy(open)) {
+      const openFrom = isoDateOnly(open.effective_from);
+      if (!openFrom || compareIsoDate(effectiveFrom, openFrom) <= 0) {
+        setDefaultModalError(
+          "Effective-from must be later than the current open policy’s effective-from.",
+        );
+        return;
+      }
+    }
 
     defaultWriteInFlight = true;
     const saveBtn = $("csaDefaultPolicySaveBtn");
     if (saveBtn) saveBtn.disabled = true;
     setLoadingMask(true, "Saving default sales allocation policy...");
     try {
-      const { error } = await costingRpc(
-        "rpc_set_sales_allocation_default_policy",
-        {
-          p_scenario_code: scenario,
-          p_default_sales_units: units,
-          p_effective_from: effectiveFrom,
-          p_reason: reason,
-          p_approval_reference: approval || null,
-        },
-      );
+      const rpcName =
+        kind === "regional"
+          ? "rpc_set_regional_sales_allocation_default_policy"
+          : "rpc_set_sales_allocation_default_policy";
+      const rpcArgs =
+        kind === "regional"
+          ? {
+              p_scenario_code: scenario,
+              p_region_code: region,
+              p_default_sales_units: units,
+              p_effective_from: effectiveFrom,
+              p_reason: reason,
+              p_approval_reference: approval || null,
+            }
+          : {
+              p_scenario_code: scenario,
+              p_default_sales_units: units,
+              p_effective_from: effectiveFrom,
+              p_reason: reason,
+              p_approval_reference: approval || null,
+            };
+      const { error } = await costingRpc(rpcName, rpcArgs);
       if (error) throw error;
       closeDefaultPolicyModal();
       showToast(CSA_DEFAULT_POLICY_FUTURE_REFRESH_MESSAGE, "success", 6200);
@@ -1267,7 +1593,9 @@ export function createCommercialSalesAssumptionHandlers(deps) {
         handleError("Failed to reload default policies", err);
       }
       if (isDefaultsHubOpen()) renderDefaultsHubBody();
-      if (typeof reloadRows === "function") await reloadRows();
+      if (kind === "company" && typeof reloadRows === "function") {
+        await reloadRows();
+      }
     } catch (err) {
       handleError("Failed to save default sales allocation policy", err);
       setDefaultModalError(

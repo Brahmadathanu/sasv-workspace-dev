@@ -3208,6 +3208,44 @@
       .cp-csa-hub-scenario:last-child {
         margin-bottom: 0;
       }
+      .cp-csa-hub-section {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border, #e5e7eb);
+      }
+      .cp-csa-hub-section:first-child {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+      }
+      .cp-csa-hub-scenario-group {
+        margin-bottom: 10px;
+      }
+      .cp-csa-hub-scenario-group:last-child {
+        margin-bottom: 0;
+      }
+      .cp-csa-hub-scenario-group > .cp-csa-hub-scenario-label {
+        margin-bottom: 2px;
+      }
+      .cp-csa-hub-scenario-group > .cp-muted-text {
+        margin-bottom: 8px;
+      }
+      .cp-csa-hub-region-pair {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .cp-csa-hub-region-pair > .cp-csa-hub-scenario {
+        margin-bottom: 0;
+      }
+      .cp-csa-hub-history {
+        margin-top: 8px;
+      }
+      .cp-csa-hub-history-title {
+        font-size: 12px;
+        font-weight: 650;
+        margin-bottom: 4px;
+      }
       .cp-csa-hub-scenario-head {
         display: flex;
         align-items: flex-start;
@@ -3253,7 +3291,8 @@
         outline-offset: -2px;
       }
       @media (max-width: 900px) {
-        .cp-csa-default-grid {
+        .cp-csa-default-grid,
+        .cp-csa-hub-region-pair {
           grid-template-columns: 1fr;
         }
       }
@@ -7063,7 +7102,7 @@
       class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
       aria-hidden="true"
     >
-      <div class="cost-sheet-sign-panel" style="max-width: 720px">
+      <div class="cost-sheet-sign-panel" style="max-width: 800px">
         <div class="cost-sheet-sign-header">
           <span id="csaDefaultsHubTitle" class="cp-modal-title"
             >Governed Defaults</span
@@ -7080,9 +7119,12 @@
         </div>
         <div class="cost-sheet-sign-body">
           <p class="cp-csa-warning-note">
-            Governed fallback quantities used when a SKU has no usable positive
-            sales history and no effective SKU-specific assumption. Revisions
-            apply to future costing refreshes only.
+            Governed fallback quantities used when there is no usable positive
+            sales evidence and no effective SKU-specific assumption. Company-wide
+            and regional defaults are policy values, not per-SKU assumptions.
+            Revising a default creates a new effective revision; previous
+            revisions remain in history. Revisions apply to future costing
+            refreshes only. Completed refresh runs are unchanged.
           </p>
           <div id="csaDefaultsHubBody"></div>
         </div>
@@ -7129,6 +7171,10 @@
             <label>
               Scenario
               <input id="csaDefaultPolicyScenario" type="text" readonly />
+            </label>
+            <label id="csaDefaultPolicyRegionWrap" hidden>
+              Region
+              <input id="csaDefaultPolicyRegion" type="text" readonly />
             </label>
             <label>
               Default sales units
