@@ -615,6 +615,15 @@ assert(indexSrc.includes("runTrustedProductDetailsPreview"), "preview uses trust
 assert(indexSrc.includes("runTrustedProductDetailsStart"), "start uses trusted orchestration");
 assert(indexSrc.includes("resolveApprovedProductCopyFile"), "index wires trusted approved-copy resolver");
 assert(!indexSrc.includes("evidence?.approved_product_copy_present === true"), "index no longer treats metadata alone as resolved");
+assert(!indexSrc.includes("options.adapters"), "index does not accept renderer adapters");
+assert(!indexSrc.includes("options.content"), "index does not accept renderer content");
+assert(!indexSrc.includes("source-analyzer"), "executor wiring does not touch source-analyzer");
+assert(
+  !require("fs")
+    .readFileSync(join(root, "electron/eaushadhi-worker/product-details-trusted.js"), "utf8")
+    .includes("window.LoadProductDataforLegacy("),
+  "trusted duplicate path never calls window.LoadProductDataforLegacy(",
+);
 
 const trustedSrc = readFileSync(
   join(root, "electron/eaushadhi-worker/product-details-trusted.js"),
