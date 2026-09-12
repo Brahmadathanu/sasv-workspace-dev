@@ -247,11 +247,13 @@ const successInput = {
   payloadHash: "payload-1",
   duplicateSearch: noneDuplicate,
   pageState: readyPage,
+  entryStatus: "NOT_STARTED",
   reviewStatus: "VERIFIED",
   classificationVerified: true,
   isReadyForEntry: true,
   userConfirmed: true,
   fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+  allowTestFieldGovernanceOverrides: true,
   permissionOptions: [{ label: "For Sale", value: "7" }],
   approvedFileName: EXPECTED_APPROVED_COPY_NAME,
 };
@@ -423,12 +425,40 @@ assert(
 
 const indexSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
 assert(indexSrc.includes("PRODUCT_DETAILS_LIVE_ARMED = false"), "live execution remains disarmed");
-assert(indexSrc.includes("LIVE_EXECUTION_NOT_ARMED"), "Start returns LIVE_EXECUTION_NOT_ARMED when disarmed");
+assert(indexSrc.includes("runTrustedProductDetailsPreview"), "preview uses trusted orchestration");
+assert(indexSrc.includes("runTrustedProductDetailsStart"), "start uses trusted orchestration");
+assert(!indexSrc.includes("options.adapters"), "index does not accept renderer adapters");
+assert(!indexSrc.includes("options.content"), "index does not accept renderer content");
 assert(!indexSrc.includes("source-analyzer"), "executor wiring does not touch source-analyzer");
+
+const trustedSrc = readFileSync(
+  join(root, "electron/eaushadhi-worker/product-details-trusted.js"),
+  "utf8",
+);
+assert(trustedSrc.includes("LIVE_EXECUTION_NOT_ARMED"), "trusted start returns LIVE_EXECUTION_NOT_ARMED");
+assert(trustedSrc.includes("fieldGovernanceOverrides"), "trusted module names override key to reject");
+assert(trustedSrc.includes("RENDERER_FORBIDDEN_OPTION_KEYS"), "forbidden renderer keys are listed");
+
+const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
+assert(
+  ipcSrc.includes("userConfirmed: payload?.userConfirmed === true"),
+  "IPC start forwards only userConfirmed",
+);
+assert(
+  /product-details-preview[\s\S]*previewProductDetailsExecution\(productId, accessToken, \{\}\)/.test(
+    ipcSrc,
+  ),
+  "IPC preview forwards empty options object",
+);
 
 const preloadSrc = readFileSync(join(root, "preload.js"), "utf8");
 assert(preloadSrc.includes("previewProductDetails:"), "preload exposes previewProductDetails");
 assert(preloadSrc.includes("startProductDetails:"), "preload exposes startProductDetails");
+assert(
+  preloadSrc.includes("userConfirmed: options?.userConfirmed === true"),
+  "preload start sends only userConfirmed",
+);
+assert(!preloadSrc.includes("...(options"), "preload does not spread renderer options");
 assert(!/evaluate\s*:/.test(preloadSrc), "preload does not expose evaluate");
 
 const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
@@ -436,6 +466,239 @@ assert(controlSrc.includes("Start Product Details"), "Review UI has Start Produc
 assert(controlSrc.includes("will NOT add Composition"), "warning mentions no Composition");
 assert(!controlSrc.includes("submitProduct"), "UI does not reference submitProduct");
 assert(!/Enter Product/.test(controlSrc), "UI does not expose Enter Product");
+assert(
+  !controlSrc.includes("contentHash: state.workerProductDetailsPreview"),
+  "UI does not send preview contentHash on Start",
+);
+assert(
+  !controlSrc.includes("entryStatus: state.queueRow"),
+  "UI does not send queue entryStatus on Preview",
+);
+
+const {
+  sanitizeRendererCommand,
+  RENDERER_FORBIDDEN_OPTION_KEYS,
+  runTrustedProductDetailsPreview,
+  runTrustedProductDetailsStart,
+  collectAuthoritativeProductDetailsContext,
+  buildTrustedExecutorInput,
+} = require(join(root, "electron/eaushadhi-worker/product-details-trusted.js"));
+
+const malicious = {
+  content: baseContent({ details: { ...baseContent().details, remarks: "hacked" } }),
+  contentHash: "forged-hash",
+  workflowRowVersion: 999,
+  entryStatus: "NOT_STARTED",
+  reviewStatus: "VERIFIED",
+  classificationVerified: true,
+  isReadyForEntry: true,
+  duplicateSearch: noneDuplicate,
+  pageState: readyPage,
+  permissionOptions: [{ label: "For Sale", value: "7" }],
+  fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+  adapters: {
+    runBegin: async () => {
+      throw new Error("renderer adapter must never run");
+    },
+  },
+  userConfirmed: true,
+};
+const sanitized = sanitizeRendererCommand(malicious);
+assert(sanitized.userConfirmed === true, "sanitize keeps userConfirmed");
+assert(
+  sanitized.forbiddenPresent.includes("content") &&
+    sanitized.forbiddenPresent.includes("adapters") &&
+    sanitized.forbiddenPresent.includes("fieldGovernanceOverrides"),
+  "sanitize detects forbidden renderer keys",
+);
+assert(
+  RENDERER_FORBIDDEN_OPTION_KEYS.includes("duplicateSearch") &&
+    RENDERER_FORBIDDEN_OPTION_KEYS.includes("pageState"),
+  "forbidden key list covers duplicateSearch and pageState",
+);
+
+const noOverrideExec = await executeProductDetails(
+  {
+    ...successInput,
+    fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+    allowTestFieldGovernanceOverrides: false,
+  },
+  {
+    runBegin: async () => {
+      throw new Error("must not begin when overrides stripped");
+    },
+  },
+);
+assert(
+  noOverrideExec.ok === false && noOverrideExec.code === "FIELD_GOVERNANCE_INCOMPLETE",
+  "production execute ignores fieldGovernanceOverrides without test flag",
+);
+
+let mutatingRpcNames = [];
+let saveDataCalls = 0;
+const authoritativeContent = baseContent({
+  entry_status: "NOT_STARTED",
+  product: {
+    portal_product_name: "Karpooradi Thailam",
+    canonical_product_name: "Karpooradi Thailam",
+    review_status: "VERIFIED",
+  },
+  classification: {
+    review_status: "VERIFIED",
+    is_verified: true,
+    product_type: { portal_option_value: "1", label: "Ayurveda" },
+    product_category: { portal_option_value: "10", label: "Thailam" },
+    product_subtype: { portal_option_value: "31", label: "-" },
+  },
+  is_ready_for_entry: true,
+});
+
+function makeTrustedDeps(overrides = {}) {
+  return {
+    productId: 262,
+    liveArmed: false,
+    page: {
+      evaluate: async (fn, arg) => {
+        if (typeof fn === "function" && fn.constructor.name === "AsyncFunction") {
+          return {
+            source: "LoadProductDataforLegacy",
+            searchApplied: true,
+            searchTerm: "Karpooradi Thailam",
+            totalCount: 0,
+            rows: [],
+            coverageComplete: true,
+          };
+        }
+        const result = fn(arg);
+        if (result && result.origin) return { ...readyPage, ...result, workerState: undefined };
+        if (Array.isArray(result)) return [{ label: "For Sale", value: "7" }];
+        return result;
+      },
+    },
+    callRpc: async (name, args) => {
+      mutatingRpcNames.push(name);
+      if (name === "rpc_eaushadhi_require_permission") return { ok: true };
+      if (name === "rpc_eaushadhi_worker_preflight") {
+        return {
+          workflow_row_version: 7,
+          entry_status: "NOT_STARTED",
+          is_ready_for_entry: true,
+          review_status: "VERIFIED",
+          eligible: true,
+        };
+      }
+      if (name === "rpc_eaushadhi_worker_content_get") {
+        assert(args.p_product_id === 262, "content_get uses product 262");
+        return authoritativeContent;
+      }
+      throw new Error(`unexpected rpc ${name}`);
+    },
+    getWorkerState: () => "READY",
+    measurePageState: async () => ({ ok: true, pageState: readyPage }),
+    searchDuplicates: async () => ({ ok: true, searchResponse: noneDuplicate }),
+    enumeratePermissionOptions: async () => ({
+      ok: true,
+      options: [{ label: "For Sale", value: "7" }],
+    }),
+    resolveApprovedCopy: async () => ({ ok: true }),
+    buildAdapters: async () => {
+      throw new Error("adapters must not build while disarmed");
+    },
+    ...overrides,
+  };
+}
+
+mutatingRpcNames = [];
+const trustedPreview = await runTrustedProductDetailsPreview(makeTrustedDeps());
+assert(trustedPreview.liveArmed === false, "trusted preview reports liveArmed false");
+assert(
+  trustedPreview.preview?.startEnabled !== true,
+  "trusted preview keeps Start disabled while disarmed / incomplete governance",
+);
+assert(
+  (trustedPreview.preview?.blockers || []).includes("FIELD_GOVERNANCE_INCOMPLETE") ||
+    trustedPreview.code === "FIELD_GOVERNANCE_INCOMPLETE" ||
+    (trustedPreview.fieldGate && trustedPreview.fieldGate.ok === false),
+  "authoritative preview still surfaces required-field blockers",
+);
+assert(
+  mutatingRpcNames.every(
+    (n) =>
+      n === "rpc_eaushadhi_require_permission" ||
+      n === "rpc_eaushadhi_worker_preflight" ||
+      n === "rpc_eaushadhi_worker_content_get",
+  ),
+  "trusted preview only uses read-only RPCs",
+);
+assert(!mutatingRpcNames.includes("rpc_eaushadhi_worker_run_begin"), "preview never run_begin");
+
+const forgedPreview = await runTrustedProductDetailsPreview({
+  ...makeTrustedDeps(),
+  // Even if a caller tried to attach renderer fields on deps, collect ignores them.
+  content: { forged: true },
+  reviewStatus: "VERIFIED",
+  fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+});
+assert(
+  forgedPreview.fieldGate?.ok === false ||
+    (forgedPreview.preview?.blockers || []).includes("FIELD_GOVERNANCE_INCOMPLETE"),
+  "renderer-style overrides cannot clear remarks/country/month blockers via trusted preview",
+);
+
+mutatingRpcNames = [];
+saveDataCalls = 0;
+const trustedStart = await runTrustedProductDetailsStart(makeTrustedDeps(), {
+  userConfirmed: true,
+  ...malicious,
+});
+assert(trustedStart.code === "LIVE_EXECUTION_NOT_ARMED", "trusted start remains disarmed");
+assert(trustedStart.runBegun !== true, "disarmed start never begins run");
+assert(trustedStart.inventedFailureRpcCalled === false, "disarmed start invents no failure RPC");
+assert(!mutatingRpcNames.includes("rpc_eaushadhi_worker_run_begin"), "start never run_begin while disarmed");
+assert(saveDataCalls === 0, "no SaveData while disarmed");
+
+const missingAuthority = await collectAuthoritativeProductDetailsContext({
+  productId: 262,
+  callRpc: async (name) => {
+    if (name === "rpc_eaushadhi_require_permission") return { ok: true };
+    if (name === "rpc_eaushadhi_worker_preflight") return {};
+    throw new Error("should stop before content_get without version");
+  },
+  getWorkerState: () => "READY",
+});
+assert(
+  missingAuthority.ok === false && missingAuthority.code === "AUTHORITATIVE_EVIDENCE_MISSING",
+  "unknown/missing governance fails closed",
+);
+
+const authorityOk = await collectAuthoritativeProductDetailsContext(makeTrustedDeps());
+assert(authorityOk.ok === true, "authoritative collection succeeds with trusted deps");
+const trustedInput = buildTrustedExecutorInput(authorityOk, { userConfirmed: true });
+assert(
+  !Object.prototype.hasOwnProperty.call(trustedInput, "fieldGovernanceOverrides") ||
+    trustedInput.allowTestFieldGovernanceOverrides === false,
+  "trusted executor input does not enable governance overrides",
+);
+assert(trustedInput.authorityMode === true, "trusted executor input is authorityMode");
+assert(trustedInput.reviewStatus === "VERIFIED", "reviewStatus comes from server content/preflight");
+assert(trustedInput.classificationVerified === true, "classificationVerified is explicit true");
+assert(trustedInput.isReadyForEntry === true, "isReadyForEntry is explicit true");
+assert(trustedInput.entryStatus === "NOT_STARTED", "entryStatus is explicit from server");
+
+const unknownGov = assessProductDetailsPreflight({
+  productId: 262,
+  content: baseContent(),
+  contentHash: "x",
+  authorityMode: true,
+  // intentionally omit review/classification/ready/entry/page/duplicate
+});
+assert(
+  unknownGov.code === "ENTRY_STATUS_UNKNOWN" ||
+    unknownGov.code === "WORKFLOW_STATUS_UNKNOWN" ||
+    unknownGov.code === "PAGE_STATE_UNKNOWN" ||
+    unknownGov.code === "DUPLICATE_SEARCH_UNKNOWN",
+  "authorityMode does not default-true VERIFIED/READY/NOT_STARTED",
+);
 
 const concurrentFirst = mutex.runExclusive(async () => {
   await new Promise((r) => setTimeout(r, 40));

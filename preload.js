@@ -52,17 +52,16 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
-  previewProductDetails: (productId, accessToken, options) =>
+  previewProductDetails: (productId, accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:product-details-preview", {
       productId,
       accessToken,
-      ...(options && typeof options === "object" ? options : {}),
     }),
   startProductDetails: (productId, accessToken, options) =>
     ipcRenderer.invoke("eaushadhi-worker:product-details-start", {
       productId,
       accessToken,
-      ...(options && typeof options === "object" ? options : {}),
+      userConfirmed: options?.userConfirmed === true,
     }),
   capturePortalContract: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),

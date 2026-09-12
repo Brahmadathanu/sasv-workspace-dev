@@ -532,6 +532,11 @@ assert(controlSrc.includes("isFirstControlledEntryProduct"), "dry-run card is lo
 assert(workerClientSrc.includes("runEntryDryRun"), "worker client exposes entry dry-run");
 assert(workerClientSrc.includes("previewProductDetails"), "worker client exposes product details preview");
 assert(workerClientSrc.includes("startProductDetails"), "worker client exposes product details start");
+assert(
+  workerClientSrc.includes("userConfirmed: options?.userConfirmed === true"),
+  "worker client start sends only userConfirmed",
+);
+assert(!workerClientSrc.includes("contentHash"), "worker client does not send contentHash");
 assert(!/\bsubmit\b/i.test(workerClientSrc), "worker client has no Submit");
 
 const classificationMigration = readFileSync(

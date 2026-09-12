@@ -2255,15 +2255,7 @@ async function submitWorkerProductDetailsPreview() {
   syncWorkerToolbarUi();
   try {
     const token = await sessionAccessToken();
-    const result = await previewWorkerProductDetails(state.selectedProductId, token, {
-      entryStatus: state.queueRow?.entry_status || "NOT_STARTED",
-      reviewStatus: state.review?.review_status || state.queueRow?.review_status,
-      classificationVerified:
-        String(state.classification?.review_status || "").toUpperCase() === "VERIFIED",
-      isReadyForEntry: state.queueRow?.is_ready_for_entry === true,
-      contentHash: state.queueRow?.content_hash || null,
-      workflowRowVersion: state.queueRow?.workflow_row_version || null,
-    });
+    const result = await previewWorkerProductDetails(state.selectedProductId, token);
     state.workerProductDetailsPreview = result;
     if (result?.ok === false || result?.preview?.startEnabled !== true) {
       showToast(result?.message || "Product Details Start remains blocked.", "info");
@@ -2295,8 +2287,6 @@ async function submitWorkerProductDetailsStart() {
     const token = await sessionAccessToken();
     const result = await startWorkerProductDetails(state.selectedProductId, token, {
       userConfirmed: true,
-      contentHash: state.workerProductDetailsPreview?.preview?.contentHash || null,
-      workflowRowVersion: state.workerProductDetailsPreview?.preview?.workflowRowVersion || null,
     });
     state.workerProductDetailsResult = result;
     if (result?.code === "LIVE_EXECUTION_NOT_ARMED") {

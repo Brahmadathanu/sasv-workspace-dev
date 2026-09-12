@@ -112,11 +112,16 @@ function buildPreviewModel({ productId, content, fieldGate, duplicate, pageGuard
 /**
  * Pure preflight assessment used by UI preview and Start gating.
  * Does not call mutating RPCs.
+ *
+ * Production trusted path must set authorityMode: true so missing governance
+ * never defaults to VERIFIED / READY / NOT_STARTED.
+ * fieldGovernanceOverrides are ignored unless allowTestFieldGovernanceOverrides.
  */
 function assessProductDetailsPreflight(input = {}) {
   const productId = Number(input.productId);
   const content = input.content || null;
   const phases = [];
+  const authorityMode = input.authorityMode === true;
   phaseLog(phases, PHASE.PRECHECK, "begin");
 
   if (productId !== FIRST_CONTROLLED_PRODUCT_ID) {
@@ -133,7 +138,20 @@ function assessProductDetailsPreflight(input = {}) {
     };
   }
 
-  const entryStatus = String(content?.entry_status || input.entryStatus || "NOT_STARTED").toUpperCase();
+  let entryStatus = null;
+  if (authorityMode) {
+    if (input.entryStatus == null || String(input.entryStatus).trim() === "") {
+      return {
+        ok: false,
+        code: "ENTRY_STATUS_UNKNOWN",
+        message: "Authoritative entry_status is missing.",
+        phases,
+      };
+    }
+    entryStatus = String(input.entryStatus).toUpperCase();
+  } else {
+    entryStatus = String(content?.entry_status || input.entryStatus || "NOT_STARTED").toUpperCase();
+  }
   if (entryStatus !== "NOT_STARTED" && input.resume !== true) {
     return {
       ok: false,
@@ -143,25 +161,51 @@ function assessProductDetailsPreflight(input = {}) {
     };
   }
 
-  if (input.reviewStatus && String(input.reviewStatus).toUpperCase() !== "VERIFIED") {
-    return { ok: false, code: "WORKFLOW_NOT_VERIFIED", phases };
-  }
-  if (input.classificationVerified === false) {
-    return { ok: false, code: "CLASSIFICATION_NOT_VERIFIED", phases };
-  }
-  if (input.isReadyForEntry === false) {
-    return { ok: false, code: "NOT_READY", phases };
+  if (authorityMode) {
+    if (input.reviewStatus == null || String(input.reviewStatus).trim() === "") {
+      return { ok: false, code: "WORKFLOW_STATUS_UNKNOWN", phases };
+    }
+    if (String(input.reviewStatus).toUpperCase() !== "VERIFIED") {
+      return { ok: false, code: "WORKFLOW_NOT_VERIFIED", phases };
+    }
+    if (input.classificationVerified !== true) {
+      return { ok: false, code: "CLASSIFICATION_NOT_VERIFIED", phases };
+    }
+    if (input.isReadyForEntry !== true) {
+      return { ok: false, code: "NOT_READY", phases };
+    }
+    if (!input.pageState) {
+      return { ok: false, code: "PAGE_STATE_UNKNOWN", phases };
+    }
+    if (!input.duplicateSearch) {
+      return { ok: false, code: "DUPLICATE_SEARCH_UNKNOWN", phases };
+    }
+  } else {
+    if (input.reviewStatus && String(input.reviewStatus).toUpperCase() !== "VERIFIED") {
+      return { ok: false, code: "WORKFLOW_NOT_VERIFIED", phases };
+    }
+    if (input.classificationVerified === false) {
+      return { ok: false, code: "CLASSIFICATION_NOT_VERIFIED", phases };
+    }
+    if (input.isReadyForEntry === false) {
+      return { ok: false, code: "NOT_READY", phases };
+    }
   }
 
+  const allowOverrides = input.allowTestFieldGovernanceOverrides === true;
   const gateOptions = {
     approvedFileName: input.approvedFileName,
-    fieldGovernanceOverrides: input.fieldGovernanceOverrides || null,
+    fieldGovernanceOverrides: allowOverrides ? input.fieldGovernanceOverrides || null : null,
   };
   const fieldGate = assessRequiredFieldGate(content, gateOptions);
   const duplicate = input.duplicateSearch
     ? evaluateDuplicateGuard(input.duplicateSearch)
     : { ok: false, outcome: DUPLICATE_OUTCOME.SEARCH_INCOMPLETE, message: "Duplicate search not provided." };
-  const pageGuard = input.pageState ? assertPageGuards(input.pageState) : { ok: true, skipped: true };
+  const pageGuard = input.pageState
+    ? assertPageGuards(input.pageState)
+    : authorityMode
+      ? { ok: false, code: "PAGE_STATE_UNKNOWN" }
+      : { ok: true, skipped: true };
 
   const preview = buildPreviewModel({
     productId,
@@ -177,7 +221,7 @@ function assessProductDetailsPreflight(input = {}) {
     fieldGate.ok &&
     duplicate.ok === true &&
     duplicate.outcome === DUPLICATE_OUTCOME.NONE &&
-    (pageGuard.ok === true || pageGuard.skipped === true) &&
+    pageGuard.ok === true &&
     Boolean(preview.contentHash);
 
   return {
@@ -196,6 +240,18 @@ function assessProductDetailsPreflight(input = {}) {
 }
 
 /**
+ * Offline/test-only preflight that may inject fieldGovernanceOverrides.
+ * Production trusted wrappers must never call this.
+ */
+function assessProductDetailsPreflightForTest(input = {}) {
+  return assessProductDetailsPreflight({
+    ...input,
+    allowTestFieldGovernanceOverrides: true,
+    authorityMode: false,
+  });
+}
+
+/**
  * Execute controlled Product Details create using injected adapters only.
  * adapters may include: runBegin, markEntered, markPortalVerified, fillForm, saveOnce, reread, resolveFile
  * Smokes must inject mocks; never hit live portal.
@@ -203,7 +259,11 @@ function assessProductDetailsPreflight(input = {}) {
 async function executeProductDetails(input = {}, adapters = {}) {
   return globalSaveMutex.runExclusive(async () => {
     const phases = [];
-    const preflight = assessProductDetailsPreflight(input);
+    const preflightInput =
+      input.allowTestFieldGovernanceOverrides === true
+        ? input
+        : { ...input, fieldGovernanceOverrides: null, allowTestFieldGovernanceOverrides: false };
+    const preflight = assessProductDetailsPreflight(preflightInput);
     phaseLog(phases, PHASE.PRECHECK, preflight.code);
     if (!preflight.ok) {
       return {
@@ -492,6 +552,7 @@ module.exports = {
   FIRST_CONTROLLED_PRODUCT_ID,
   EXPECTED_PORTAL_PRODUCT_NAME,
   assessProductDetailsPreflight,
+  assessProductDetailsPreflightForTest,
   executeProductDetails,
   planResumeAction,
   assertPageGuards,

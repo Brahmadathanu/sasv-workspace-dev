@@ -25,11 +25,16 @@ const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
 const { runEntryDryRun } = require("./dry-run");
 const {
-  assessProductDetailsPreflight,
-  executeProductDetails,
-  planResumeAction,
   FIRST_CONTROLLED_PRODUCT_ID: PD_PRODUCT_ID,
 } = require("./product-details-executor");
+const {
+  sanitizeRendererCommand,
+  runTrustedProductDetailsPreview,
+  runTrustedProductDetailsStart,
+  measureConnectedPageState,
+  enumerateLivePermissionOptions,
+  runLiveDuplicateSearch,
+} = require("./product-details-trusted");
 
 /** Live portal mutation remains disarmed until a separate live-approval change. */
 const PRODUCT_DETAILS_LIVE_ARMED = false;
@@ -856,9 +861,36 @@ function createEaushadhiWorker({
     }
   }
 
-  async function previewProductDetailsExecution(rawProductId, rawAccessToken, options = {}) {
+  function buildProductDetailsTrustedDeps(accessToken) {
+    return {
+      productId: PD_PRODUCT_ID,
+      liveArmed: PRODUCT_DETAILS_LIVE_ARMED,
+      page: page || null,
+      callRpc: (name, args) => rpcCall(accessToken, name, args),
+      getWorkerState: () => machine.get(),
+      measurePageState: async ({ workerState }) =>
+        measureConnectedPageState({ page, workerState }),
+      searchDuplicates: async ({ searchTerm }) =>
+        runLiveDuplicateSearch(page, searchTerm),
+      enumeratePermissionOptions: async () => enumerateLivePermissionOptions(page),
+      resolveApprovedCopy: async ({ evidence }) => ({
+        ok: evidence?.approved_product_copy_present === true,
+        source: "content_get.evidence",
+      }),
+      // Adapters are constructed only here when live arm is enabled later.
+      buildAdapters: async () => {
+        throw workerError(
+          ERROR_KINDS.CRASH,
+          "Trusted Product Details adapters are not armed in this build.",
+        );
+      },
+    };
+  }
+
+  async function previewProductDetailsExecution(rawProductId, rawAccessToken, rawOptions = {}) {
     const id = validateProductId(rawProductId);
-    validateAccessToken(rawAccessToken);
+    const accessToken = validateAccessToken(rawAccessToken);
+    sanitizeRendererCommand(rawOptions);
     if (id !== PD_PRODUCT_ID) {
       return {
         ok: false,
@@ -866,43 +898,14 @@ function createEaushadhiWorker({
         message: `Product Details preview accepts only product_id ${PD_PRODUCT_ID}.`,
       };
     }
-    // Preview uses caller-supplied governed snapshot for offline safety when provided.
-    // Live content_get may be supplied later; mutating RPCs are never called here.
-    const assessment = assessProductDetailsPreflight({
-      productId: id,
-      content: options.content || null,
-      contentHash: options.contentHash || options.content?.content_hash || null,
-      workflowRowVersion:
-        options.workflowRowVersion || options.content?.versions?.workflow_row_version || null,
-      entryStatus: options.entryStatus || options.content?.entry_status || "NOT_STARTED",
-      reviewStatus: options.reviewStatus || "VERIFIED",
-      classificationVerified: options.classificationVerified !== false,
-      isReadyForEntry: options.isReadyForEntry !== false,
-      duplicateSearch: options.duplicateSearch || null,
-      pageState: options.pageState || {
-        workerState: machine.get(),
-        origin: options.origin,
-        path: options.path,
-      },
-      approvedFileName: options.approvedFileName,
-    });
-    assessment.liveArmed = PRODUCT_DETAILS_LIVE_ARMED;
-    if (assessment.preview) {
-      assessment.preview.startEnabled =
-        assessment.preview.startEnabled === true && PRODUCT_DETAILS_LIVE_ARMED === true;
-      if (!PRODUCT_DETAILS_LIVE_ARMED) {
-        assessment.preview.blockers = [
-          ...(assessment.preview.blockers || []),
-          "LIVE_EXECUTION_NOT_ARMED",
-        ];
-      }
-    }
-    return assessment;
+    // Renderer evidence is discarded. Authority comes from server + connected page only.
+    return runTrustedProductDetailsPreview(buildProductDetailsTrustedDeps(accessToken));
   }
 
-  async function startProductDetailsExecution(rawProductId, rawAccessToken, options = {}) {
+  async function startProductDetailsExecution(rawProductId, rawAccessToken, rawOptions = {}) {
     const id = validateProductId(rawProductId);
-    validateAccessToken(rawAccessToken);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
     if (id !== PD_PRODUCT_ID) {
       return {
         ok: false,
@@ -911,33 +914,11 @@ function createEaushadhiWorker({
         inventedFailureRpcCalled: false,
       };
     }
-    if (!PRODUCT_DETAILS_LIVE_ARMED) {
-      return {
-        ok: false,
-        code: "LIVE_EXECUTION_NOT_ARMED",
-        message:
-          "Live Product Details execution is implemented but disarmed. No run_begin / SaveData / mark_* will run until separate live approval arms it.",
-        inventedFailureRpcCalled: false,
-        resumePlan: planResumeAction({ runStatus: null }),
-      };
-    }
-    // Armed path would call executeProductDetails with real adapters.
-    // Kept unreachable while PRODUCT_DETAILS_LIVE_ARMED === false.
-    return executeProductDetails(
-      {
-        productId: id,
-        content: options.content,
-        contentHash: options.contentHash,
-        finalContentHash: options.finalContentHash,
-        workflowRowVersion: options.workflowRowVersion,
-        payloadHash: options.payloadHash,
-        duplicateSearch: options.duplicateSearch,
-        pageState: options.pageState,
-        permissionOptions: options.permissionOptions,
-        userConfirmed: options.userConfirmed === true,
-      },
-      options.adapters || {},
-    );
+    // Never forward renderer adapters / content / governance fields.
+    return runTrustedProductDetailsStart(buildProductDetailsTrustedDeps(accessToken), {
+      userConfirmed: command.userConfirmed === true,
+      correlationId: command.correlationId,
+    });
   }
 
   async function requireViewPermission(accessToken) {

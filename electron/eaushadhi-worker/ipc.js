@@ -104,7 +104,8 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
     withRendererGuard(async (_event, payload) => {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
-      return worker.previewProductDetailsExecution(productId, accessToken, payload || {});
+      // Trust boundary: do not forward renderer evidence objects.
+      return worker.previewProductDetailsExecution(productId, accessToken, {});
     }),
   );
 
@@ -113,7 +114,10 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
     withRendererGuard(async (_event, payload) => {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
-      return worker.startProductDetailsExecution(productId, accessToken, payload || {});
+      // Trust boundary: only explicit confirmation may pass from renderer.
+      return worker.startProductDetailsExecution(productId, accessToken, {
+        userConfirmed: payload?.userConfirmed === true,
+      });
     }),
   );
 
