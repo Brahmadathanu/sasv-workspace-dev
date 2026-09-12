@@ -15,6 +15,8 @@ const CHANNELS = Object.freeze({
   STOP: "eaushadhi-worker:stop",
   FOUNDATION_CHECK: "eaushadhi-worker:foundation-check",
   ENTRY_DRY_RUN: "eaushadhi-worker:entry-dry-run",
+  PRODUCT_DETAILS_PREVIEW: "eaushadhi-worker:product-details-preview",
+  PRODUCT_DETAILS_START: "eaushadhi-worker:product-details-start",
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
@@ -94,6 +96,28 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
       return worker.runControlledEntryDryRun(productId, accessToken);
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.PRODUCT_DETAILS_PREVIEW,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      // Trust boundary: do not forward renderer evidence objects.
+      return worker.previewProductDetailsExecution(productId, accessToken, {});
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.PRODUCT_DETAILS_START,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      // Trust boundary: only explicit confirmation may pass from renderer.
+      return worker.startProductDetailsExecution(productId, accessToken, {
+        userConfirmed: payload?.userConfirmed === true,
+      });
     }),
   );
 
