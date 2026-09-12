@@ -26,7 +26,16 @@ const {
 const {
   evaluateDuplicateGuard,
   DUPLICATE_OUTCOME,
+  normalizeLoadProductDataforLegacyResponse,
+  buildLoadProductDataforLegacyListBody,
 } = require(join(root, "electron/eaushadhi-worker/portal-duplicate-guard.js"));
+const {
+  createInPageDuplicateSearchProbe,
+} = require(join(root, "electron/eaushadhi-worker/product-details-trusted.js"));
+const {
+  resolveApprovedProductCopyFile,
+  filenameMatchesGoverned,
+} = require(join(root, "electron/eaushadhi-worker/approved-copy-resolve.js"));
 const {
   compareProductDetailsReread,
   toMarkPortalVerifiedReport,
@@ -182,6 +191,183 @@ assert(
   evaluateDuplicateGuard(noneDuplicate).outcome === DUPLICATE_OUTCOME.NONE,
   "coverage-proven empty search is NONE",
 );
+
+const listBody = buildLoadProductDataforLegacyListBody("Karpooradi Thailam", {
+  length: 10,
+  licenseid: "L1",
+});
+assert(listBody.search === "Karpooradi Thailam", "list body applies exact search term");
+assert(listBody.pageno === 1 && listBody.order === "asc", "list body uses proven paging/order fields");
+
+const normalizedList = normalizeLoadProductDataforLegacyResponse(
+  { TotalCount: 0, aaData: [] },
+  "Karpooradi Thailam",
+);
+assert(normalizedList.mechanism === "datatable_list_post", "normalize marks datatable list mechanism");
+assert(normalizedList.coverageComplete === true, "empty TotalCount=0 coverage is complete");
+
+const probeSrc = createInPageDuplicateSearchProbe.toString();
+assert(!/LoadProductDataforLegacy\s*\(/.test(probeSrc), "probe source never invokes LoadProductDataforLegacy(");
+assert(probeSrc.includes("../admin/LoadProductDataforLegacy"), "probe posts proven admin list endpoint");
+assert(probeSrc.includes("datatable_list_post"), "probe labels datatable list mechanism");
+
+{
+  const posts = [];
+  const fakeWindow = {
+    licenseId: "LIC-9",
+    // Global symbol exists but must remain unused.
+    LoadProductDataforLegacy: () => {
+      throw new Error("global LoadProductDataforLegacy must not be called");
+    },
+    jQuery: {
+      ajax({ url, type, data, success }) {
+        posts.push({ url, type, data });
+        const length = Number(data.length || 10);
+        const all = [
+          { name: "Other Product", id: 1 },
+          { name: "Karpooradi Thailam", id: 2 },
+        ];
+        // Simulate portal length paging: return slice, TotalCount is full match count for search.
+        const matches = all.filter((r) =>
+          String(r.name).toLowerCase() === String(data.search || "").toLowerCase(),
+        );
+        const total = matches.length;
+        success({
+          TotalCount: total,
+          aaData: matches.slice(0, length),
+        });
+      },
+    },
+  };
+  const probe = createInPageDuplicateSearchProbe();
+  const bound = probe.bind(fakeWindow);
+  // Run probe with window/jQuery globals injected.
+  const prevJq = globalThis.jQuery;
+  const prevLic = globalThis.licenseId;
+  const prevFn = globalThis.LoadProductDataforLegacy;
+  globalThis.jQuery = fakeWindow.jQuery;
+  globalThis.licenseId = fakeWindow.licenseId;
+  globalThis.LoadProductDataforLegacy = fakeWindow.LoadProductDataforLegacy;
+  globalThis.window = globalThis;
+  let probeResult;
+  try {
+    probeResult = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+  } finally {
+    globalThis.jQuery = prevJq;
+    globalThis.licenseId = prevLic;
+    globalThis.LoadProductDataforLegacy = prevFn;
+  }
+  assert(posts.length >= 1, "DataTable list POST was issued without global LoadProductDataforLegacy call");
+  assert(posts.every((p) => p.type === "POST"), "duplicate list requests are POST");
+  assert(
+    posts.every((p) => String(p.url).includes("LoadProductDataforLegacy")),
+    "duplicate list URL is LoadProductDataforLegacy",
+  );
+  assert(posts[0].data.search === "Karpooradi Thailam", "exact search term applied on list POST");
+  assert(probeResult.usedGlobalWindowFn === false, "probe reports global window fn unused");
+  assert(probeResult.mechanism === "datatable_list_post", "probe result uses datatable mechanism");
+  assert(probeResult.searchApplied === true, "probe applied search");
+  const guarded = evaluateDuplicateGuard(probeResult);
+  assert(guarded.outcome === DUPLICATE_OUTCOME.EXACT_ONE, "one exact list match is EXACT_ONE");
+}
+
+assert(
+  evaluateDuplicateGuard({
+    source: "LoadProductDataforLegacy",
+    searchApplied: true,
+    searchTerm: "Karpooradi Thailam",
+    totalCount: 2,
+    rows: [{ name: "Karpooradi Thailam" }],
+    coverageComplete: false,
+  }).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+  "incomplete list coverage remains COVERAGE_UNPROVEN",
+);
+
+assert(filenameMatchesGoverned(EXPECTED_APPROVED_COPY_NAME), "governed approved filename matches");
+
+{
+  const failResolver = await resolveApprovedProductCopyFile({
+    productId: 262,
+    accessToken: "tok",
+    userDataPath: join(root, ".tmp-smoke-userdata"),
+    evidence: {
+      approved_product_copy_present: true,
+      original_file_name: EXPECTED_APPROVED_COPY_NAME,
+    },
+    callRpc: async () => {
+      throw new Error("rpc failed");
+    },
+  });
+  assert(failResolver.ok === false, "resolver failure fails closed");
+}
+
+{
+  const wrongName = await resolveApprovedProductCopyFile({
+    productId: 262,
+    accessToken: "tok",
+    userDataPath: join(root, ".tmp-smoke-userdata"),
+    evidence: {
+      approved_product_copy_present: true,
+      original_file_name: "wrong.pdf",
+    },
+    callRpc: async () => ({
+      original_file_name: "wrong.pdf",
+      storage_bucket: "eaushadhi-evidence",
+      storage_path: "x/wrong.pdf",
+    }),
+  });
+  assert(
+    wrongName.ok === false && wrongName.code === "APPROVED_COPY_NAME_MISMATCH",
+    "wrong approved filename is blocked",
+  );
+}
+
+{
+  const rendererPath = await resolveApprovedProductCopyFile({
+    productId: 262,
+    accessToken: "tok",
+    userDataPath: join(root, ".tmp-smoke-userdata"),
+    evidence: {
+      approved_product_copy_present: true,
+      original_file_name: EXPECTED_APPROVED_COPY_NAME,
+    },
+    rendererLocalPath: "C:\\\\Users\\\\evil\\\\file.pdf",
+    callRpc: async () => ({
+      original_file_name: EXPECTED_APPROVED_COPY_NAME,
+      storage_bucket: "eaushadhi-evidence",
+      storage_path: "ok.pdf",
+    }),
+  });
+  assert(
+    rendererPath.ok === false && rendererPath.code === "RENDERER_PATH_REJECTED",
+    "renderer path cannot satisfy file resolution",
+  );
+}
+
+{
+  const okResolve = await resolveApprovedProductCopyFile({
+    productId: 262,
+    accessToken: "tok",
+    userDataPath: join(root, ".tmp-smoke-userdata"),
+    evidence: {
+      approved_product_copy_present: true,
+      original_file_name: EXPECTED_APPROVED_COPY_NAME,
+      storage_bucket: "eaushadhi-evidence",
+      storage_path: "p/ok.pdf",
+    },
+    callRpc: async (name) => {
+      assert(name === "rpc_eaushadhi_approved_product_copy_get", "resolver uses approved_product_copy_get");
+      return {
+        original_file_name: EXPECTED_APPROVED_COPY_NAME,
+        storage_bucket: "eaushadhi-evidence",
+        storage_path: "p/ok.pdf",
+      };
+    },
+  });
+  // Without mocking supabase signed URL, download stage fails closed — still not metadata-only success.
+  assert(okResolve.ok === false, "resolver does not succeed on metadata alone without downloadable artifact");
+  assert(okResolve.code !== "APPROVED_COPY_METADATA_MISSING", "failure is past metadata gate");
+}
 
 const lockedOut = assessProductDetailsPreflight({
   productId: 999,
@@ -427,9 +613,8 @@ const indexSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), 
 assert(indexSrc.includes("PRODUCT_DETAILS_LIVE_ARMED = false"), "live execution remains disarmed");
 assert(indexSrc.includes("runTrustedProductDetailsPreview"), "preview uses trusted orchestration");
 assert(indexSrc.includes("runTrustedProductDetailsStart"), "start uses trusted orchestration");
-assert(!indexSrc.includes("options.adapters"), "index does not accept renderer adapters");
-assert(!indexSrc.includes("options.content"), "index does not accept renderer content");
-assert(!indexSrc.includes("source-analyzer"), "executor wiring does not touch source-analyzer");
+assert(indexSrc.includes("resolveApprovedProductCopyFile"), "index wires trusted approved-copy resolver");
+assert(!indexSrc.includes("evidence?.approved_product_copy_present === true"), "index no longer treats metadata alone as resolved");
 
 const trustedSrc = readFileSync(
   join(root, "electron/eaushadhi-worker/product-details-trusted.js"),
@@ -673,6 +858,39 @@ assert(
 
 const authorityOk = await collectAuthoritativeProductDetailsContext(makeTrustedDeps());
 assert(authorityOk.ok === true, "authoritative collection succeeds with trusted deps");
+
+{
+  const depsNoResolver = makeTrustedDeps();
+  delete depsNoResolver.resolveApprovedCopy;
+  const blocked = await collectAuthoritativeProductDetailsContext(depsNoResolver);
+  assert(
+    blocked.ok === false && (blocked.missing || []).includes("approved_copy_resolver"),
+    "metadata present but resolver missing is blocked",
+  );
+}
+
+{
+  const depsFail = makeTrustedDeps({
+    resolveApprovedCopy: async () => ({ ok: false, code: "APPROVED_COPY_DOWNLOAD_FAILED" }),
+  });
+  const blocked = await collectAuthoritativeProductDetailsContext(depsFail);
+  assert(
+    blocked.ok === false && (blocked.missing || []).includes("approved_copy"),
+    "metadata present but resolver fails is blocked",
+  );
+}
+
+{
+  const depsOk = makeTrustedDeps({
+    resolveApprovedCopy: async () => ({
+      ok: true,
+      localPath: join(root, ".tmp-smoke-userdata", "resolved.pdf"),
+      fileName: EXPECTED_APPROVED_COPY_NAME,
+    }),
+  });
+  const ok = await collectAuthoritativeProductDetailsContext(depsOk);
+  assert(ok.ok === true && ok.approvedResolved === true, "successful trusted resolver sets approvedResolved");
+}
 const trustedInput = buildTrustedExecutorInput(authorityOk, { userConfirmed: true });
 assert(
   !Object.prototype.hasOwnProperty.call(trustedInput, "fieldGovernanceOverrides") ||

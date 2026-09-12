@@ -147,8 +147,81 @@ function evaluateDuplicateGuard(searchResponse, expectedName = EXPECTED_PORTAL_P
   };
 }
 
+/**
+ * Normalize LoadProductDataforLegacy list response into duplicate-guard input.
+ * Accepts DataTable-style TotalCount / aaData payloads only.
+ */
+function normalizeLoadProductDataforLegacyResponse(raw, searchTerm) {
+  const payload = raw && typeof raw === "object" ? raw : null;
+  if (!payload) {
+    return {
+      source: "LoadProductDataforLegacy",
+      searchApplied: false,
+      searchTerm: searchTerm || EXPECTED_PORTAL_PRODUCT_NAME,
+      totalCount: null,
+      rows: null,
+      reason: "response_not_object",
+    };
+  }
+  const rowsRaw = Array.isArray(payload.aaData)
+    ? payload.aaData
+    : Array.isArray(payload.statusData)
+      ? payload.statusData
+      : Array.isArray(payload.data)
+        ? payload.data
+        : Array.isArray(payload.rows)
+          ? payload.rows
+          : null;
+  const totalCount =
+    payload.TotalCount != null
+      ? Number(payload.TotalCount)
+      : payload.iTotalRecords != null
+        ? Number(payload.iTotalRecords)
+        : payload.totalCount != null
+          ? Number(payload.totalCount)
+          : null;
+  const rows = Array.isArray(rowsRaw)
+    ? rowsRaw.map((row) => {
+        if (row == null) return { name: "" };
+        if (typeof row === "string") return { name: row };
+        if (Array.isArray(row)) return { name: String(row[1] || row[0] || "") };
+        return {
+          name: String(row.name || row.product_name || row.ProductName || ""),
+          id: row.id != null ? row.id : row.product_id,
+        };
+      })
+    : null;
+  const coverageComplete =
+    Number.isFinite(totalCount) && Array.isArray(rows) && totalCount === rows.length;
+  return {
+    source: "LoadProductDataforLegacy",
+    searchApplied: true,
+    searchTerm: searchTerm || EXPECTED_PORTAL_PRODUCT_NAME,
+    totalCount: Number.isFinite(totalCount) ? totalCount : null,
+    rows,
+    coverageComplete,
+    mechanism: "datatable_list_post",
+  };
+}
+
+/**
+ * Body for the proven read-only list endpoint (portal DataTable path).
+ * Does not invoke window.LoadProductDataforLegacy.
+ */
+function buildLoadProductDataforLegacyListBody(searchTerm, options = {}) {
+  return {
+    pageno: options.pageno != null ? Number(options.pageno) : 1,
+    length: options.length != null ? Number(options.length) : 10,
+    search: String(searchTerm || EXPECTED_PORTAL_PRODUCT_NAME),
+    order: options.order || "asc",
+    licenseid: options.licenseid != null ? options.licenseid : "",
+  };
+}
+
 module.exports = {
   DUPLICATE_OUTCOME,
   assessSearchCoverage,
   evaluateDuplicateGuard,
+  normalizeLoadProductDataforLegacyResponse,
+  buildLoadProductDataforLegacyListBody,
 };

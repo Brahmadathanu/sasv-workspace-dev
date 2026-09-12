@@ -35,6 +35,7 @@ const {
   enumerateLivePermissionOptions,
   runLiveDuplicateSearch,
 } = require("./product-details-trusted");
+const { resolveApprovedProductCopyFile } = require("./approved-copy-resolve");
 
 /** Live portal mutation remains disarmed until a separate live-approval change. */
 const PRODUCT_DETAILS_LIVE_ARMED = false;
@@ -873,10 +874,15 @@ function createEaushadhiWorker({
       searchDuplicates: async ({ searchTerm }) =>
         runLiveDuplicateSearch(page, searchTerm),
       enumeratePermissionOptions: async () => enumerateLivePermissionOptions(page),
-      resolveApprovedCopy: async ({ evidence }) => ({
-        ok: evidence?.approved_product_copy_present === true,
-        source: "content_get.evidence",
-      }),
+      resolveApprovedCopy: async ({ evidence, expectedFileName }) =>
+        resolveApprovedProductCopyFile({
+          productId: PD_PRODUCT_ID,
+          accessToken,
+          userDataPath: getUserDataPath(),
+          callRpc: (name, args) => rpcCall(accessToken, name, args),
+          evidence,
+          expectedFileName,
+        }),
       // Adapters are constructed only here when live arm is enabled later.
       buildAdapters: async () => {
         throw workerError(

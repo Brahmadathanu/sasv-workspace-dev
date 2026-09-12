@@ -101,12 +101,17 @@ function createInPagePermissionOptionsProbe() {
 }
 
 /**
- * Read-only duplicate search probe. Prefer LoadProductDataforLegacy when present.
- * Never mutates portal state.
+ * Read-only duplicate search via the proven DataTable list POST:
+ * POST ../admin/LoadProductDataforLegacy
+ * with { pageno, length, search, order, licenseid }.
+ *
+ * Does NOT call window.LoadProductDataforLegacy even if it exists.
+ * Does NOT infer NONE from visible table rows.
  */
 function createInPageDuplicateSearchProbe() {
   return async (searchTerm) => {
     const term = String(searchTerm || "").trim();
+    const endpointRel = "../admin/LoadProductDataforLegacy";
     if (!term) {
       return {
         source: "LoadProductDataforLegacy",
@@ -114,21 +119,95 @@ function createInPageDuplicateSearchProbe() {
         searchTerm: term,
         totalCount: null,
         rows: null,
+        mechanism: "datatable_list_post",
+        usedGlobalWindowFn: false,
       };
     }
-    if (typeof window.LoadProductDataforLegacy !== "function") {
+
+    function extract(payload) {
+      const obj = payload && typeof payload === "object" ? payload : null;
+      if (!obj) {
+        return { totalCount: null, rows: null };
+      }
+      const rowsRaw = Array.isArray(obj.aaData)
+        ? obj.aaData
+        : Array.isArray(obj.statusData)
+          ? obj.statusData
+          : Array.isArray(obj.data)
+            ? obj.data
+            : Array.isArray(obj.rows)
+              ? obj.rows
+              : null;
+      const totalCount =
+        obj.TotalCount != null
+          ? Number(obj.TotalCount)
+          : obj.iTotalRecords != null
+            ? Number(obj.iTotalRecords)
+            : obj.totalCount != null
+              ? Number(obj.totalCount)
+              : null;
+      const rows = Array.isArray(rowsRaw)
+        ? rowsRaw.map(function (row) {
+            if (row == null) return { name: "" };
+            if (typeof row === "string") return { name: row };
+            if (Array.isArray(row)) return { name: String(row[1] || row[0] || "") };
+            return {
+              name: String(row.name || row.product_name || row.ProductName || ""),
+              id: row.id != null ? row.id : row.product_id,
+            };
+          })
+        : null;
       return {
-        source: "LoadProductDataforLegacy",
-        searchApplied: false,
-        searchTerm: term,
-        totalCount: null,
-        rows: null,
-        reason: "LoadProductDataforLegacy_unavailable",
+        totalCount: Number.isFinite(totalCount) ? totalCount : null,
+        rows: rows,
       };
     }
-    let raw;
+
+    async function postList(body) {
+      if (window.jQuery && typeof window.jQuery.ajax === "function") {
+        return await new Promise(function (resolve, reject) {
+          window.jQuery.ajax({
+            url: endpointRel,
+            type: "POST",
+            data: body,
+            dataType: "json",
+            success: resolve,
+            error: function (_xhr, status, err) {
+              reject(new Error(String(err || status || "ajax_failed")));
+            },
+          });
+        });
+      }
+      const url = new URL(endpointRel, location.href).href;
+      const form = new URLSearchParams();
+      Object.keys(body).forEach(function (key) {
+        form.append(key, body[key] == null ? "" : String(body[key]));
+      });
+      const res = await fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: form.toString(),
+      });
+      if (!res.ok) throw new Error("http_" + res.status);
+      return await res.json();
+    }
+
+    const licenseid = window.licenseId != null ? window.licenseId : "";
+    const baseBody = {
+      pageno: 1,
+      length: 10,
+      search: term,
+      order: "asc",
+      licenseid: licenseid,
+    };
+
+    let firstPayload;
     try {
-      raw = await Promise.resolve(window.LoadProductDataforLegacy(term));
+      firstPayload = await postList(baseBody);
     } catch (error) {
       return {
         source: "LoadProductDataforLegacy",
@@ -136,47 +215,59 @@ function createInPageDuplicateSearchProbe() {
         searchTerm: term,
         totalCount: null,
         rows: null,
-        reason: "LoadProductDataforLegacy_threw",
+        mechanism: "datatable_list_post",
+        usedGlobalWindowFn: false,
+        reason: "list_request_failed",
         error: String(error && error.message ? error.message : error),
       };
     }
-    const payload = raw && typeof raw === "object" ? raw : {};
-    const rows = Array.isArray(payload.aaData)
-      ? payload.aaData
-      : Array.isArray(payload.data)
-        ? payload.data
-        : Array.isArray(payload.rows)
-          ? payload.rows
-          : null;
-    const totalCount =
-      payload.TotalCount != null
-        ? Number(payload.TotalCount)
-        : payload.iTotalRecords != null
-          ? Number(payload.iTotalRecords)
-          : payload.totalCount != null
-            ? Number(payload.totalCount)
-            : null;
-    const normalizedRows = Array.isArray(rows)
-      ? rows.map((row) => {
-          if (row == null) return { name: "" };
-          if (typeof row === "string") return { name: row };
-          if (Array.isArray(row)) return { name: String(row[1] || row[0] || "") };
-          return {
-            name: String(row.name || row.product_name || row.ProductName || ""),
-            id: row.id != null ? row.id : row.product_id,
-          };
-        })
-      : null;
+
+    let extracted = extract(firstPayload);
+    if (
+      Number.isFinite(extracted.totalCount) &&
+      extracted.totalCount > 0 &&
+      (!Array.isArray(extracted.rows) || extracted.rows.length < extracted.totalCount)
+    ) {
+      try {
+        const fullPayload = await postList({
+          pageno: 1,
+          length: extracted.totalCount,
+          search: term,
+          order: "asc",
+          licenseid: licenseid,
+        });
+        extracted = extract(fullPayload);
+      } catch (error) {
+        return {
+          source: "LoadProductDataforLegacy",
+          searchApplied: true,
+          searchTerm: term,
+          totalCount: extracted.totalCount,
+          rows: extracted.rows,
+          coverageComplete: false,
+          mechanism: "datatable_list_post",
+          usedGlobalWindowFn: false,
+          reason: "coverage_refetch_failed",
+          error: String(error && error.message ? error.message : error),
+        };
+      }
+    }
+
+    const coverageComplete =
+      Number.isFinite(extracted.totalCount) &&
+      Array.isArray(extracted.rows) &&
+      extracted.totalCount === extracted.rows.length;
+
     return {
       source: "LoadProductDataforLegacy",
       searchApplied: true,
       searchTerm: term,
-      totalCount,
-      rows: normalizedRows,
-      coverageComplete:
-        Number.isFinite(totalCount) &&
-        Array.isArray(normalizedRows) &&
-        totalCount === normalizedRows.length,
+      totalCount: extracted.totalCount,
+      rows: extracted.rows,
+      coverageComplete: coverageComplete,
+      mechanism: "datatable_list_post",
+      usedGlobalWindowFn: false,
+      globalWindowFnPresent: typeof window.LoadProductDataforLegacy === "function",
     };
   };
 }
@@ -389,17 +480,22 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
   const approvedPresent = content?.evidence?.approved_product_copy_present === true;
   const approvedFileName =
     content?.evidence?.original_file_name || EXPECTED_APPROVED_COPY_NAME;
-  let approvedResolved = approvedPresent === true;
-  if (typeof deps.resolveApprovedCopy === "function") {
-    const resolved = await deps.resolveApprovedCopy({
-      productId,
-      fileName: approvedFileName,
-      evidence: content?.evidence || null,
-    });
-    approvedResolved = resolved?.ok === true;
-    if (!approvedResolved) missing.push("approved_copy");
+  let approvedResolved = false;
+  let approvedResolution = null;
+  // Metadata alone is never enough. Resolver must be present and succeed.
+  if (typeof deps.resolveApprovedCopy !== "function") {
+    missing.push("approved_copy_resolver");
   } else if (!approvedPresent) {
     missing.push("approved_copy");
+  } else {
+    approvedResolution = await deps.resolveApprovedCopy({
+      productId,
+      fileName: approvedFileName,
+      expectedFileName: EXPECTED_APPROVED_COPY_NAME,
+      evidence: content?.evidence || null,
+    });
+    approvedResolved = approvedResolution?.ok === true;
+    if (!approvedResolved) missing.push("approved_copy");
   }
 
   if (missing.length) {
@@ -441,6 +537,7 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     permissionOptions,
     approvedFileName,
     approvedResolved,
+    approvedLocalPath: approvedResolution?.localPath || null,
   };
 }
 
