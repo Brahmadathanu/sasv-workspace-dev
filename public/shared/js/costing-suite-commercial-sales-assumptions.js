@@ -1277,8 +1277,9 @@ export function createCommercialSalesAssumptionHandlers(deps) {
 
   function renderDefaultHistoryTable(historyRows) {
     if (!historyRows.length) return "";
-    return `<div class="cp-csa-hub-history">
-      <div class="cp-csa-hub-history-title">Previous revisions</div>
+    const count = historyRows.length;
+    return `<details class="cp-csa-hub-history">
+      <summary>Previous revisions (${count})</summary>
       <div class="table-scroll">
         <table class="cp-simple-table">
           <thead><tr>
@@ -1296,14 +1297,14 @@ export function createCommercialSalesAssumptionHandlers(deps) {
                   <td class="c-right">${formatNumber(row.default_sales_units)}</td>
                   <td>${formatDate(row.effective_from)}</td>
                   <td>${formatDate(row.effective_to)}</td>
-                  <td>${text(row.approval_reference || "--")}<div class="cp-muted-text">${text(row.reason || "")}</div></td>
+                  <td><div class="cp-csa-hub-approval-ref">${text(row.approval_reference || "--")}</div><div class="cp-muted-text">${text(row.reason || "")}</div></td>
                 </tr>`,
               )
               .join("")}
           </tbody>
         </table>
       </div>
-    </div>`;
+    </details>`;
   }
 
   function renderDefaultPolicyCard({
@@ -1317,34 +1318,42 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     const reviseBtn = canWrite
       ? `<button type="button" class="icon-btn" data-csa-revise-kind="${text(reviseTarget.kind)}" data-csa-revise-scenario="${text(reviseTarget.scenarioCode)}" data-csa-revise-region="${text(reviseTarget.regionCode || "")}">Revise</button>`
       : "";
-    if (!policy) {
-      return `<div class="cp-csa-hub-scenario">
-        <div class="cp-csa-hub-scenario-head">
-          <div>
-            <div class="cp-csa-hub-scenario-label">${text(label)}</div>
-            <div class="cp-muted-text">${text(codeLine)}</div>
-          </div>
+    const codeBlock = codeLine
+      ? `<div class="cp-csa-hub-scenario-code">${text(codeLine)}</div>`
+      : "";
+    const statusBlock = policy
+      ? statusChip(normalizeStatus(policy.status))
+      : "";
+    const head = `<div class="cp-csa-hub-scenario-head">
+        <div class="cp-csa-hub-scenario-head-main">
+          <div class="cp-csa-hub-scenario-label">${text(label)}</div>
+          ${codeBlock}
+        </div>
+        <div class="cp-csa-hub-scenario-head-actions">
+          ${statusBlock}
           ${reviseBtn}
         </div>
+      </div>`;
+    if (!policy) {
+      return `<div class="cp-csa-hub-scenario">
+        ${head}
         <div class="cp-muted-text">No policy for this scenario.</div>
       </div>`;
     }
+    const approvalRef = text(policy.approval_reference || "--");
+    const reasonText = text(policy.reason || "--");
     return `<div class="cp-csa-hub-scenario">
-      <div class="cp-csa-hub-scenario-head">
-        <div>
-          <div class="cp-csa-hub-scenario-label">${text(label)}</div>
-          <div class="cp-muted-text">${text(codeLine)}</div>
-        </div>
-        ${reviseBtn}
-      </div>
+      ${head}
       <div class="cp-csa-default-grid">
         <div><span class="cp-muted-text">Default sales units</span><div>${formatNumber(policy.default_sales_units)}</div></div>
-        <div><span class="cp-muted-text">Status</span><div>${statusChip(normalizeStatus(policy.status))}</div></div>
         <div><span class="cp-muted-text">Effective from</span><div>${formatDate(policy.effective_from)}</div></div>
         <div><span class="cp-muted-text">Effective to</span><div>${formatDate(policy.effective_to)}</div></div>
-        <div><span class="cp-muted-text">Approval reference</span><div>${text(policy.approval_reference || "--")}</div></div>
-        <div style="grid-column:1/-1"><span class="cp-muted-text">Reason</span><div>${text(policy.reason || "--")}</div></div>
+        <div><span class="cp-muted-text">Approval reference</span><div class="cp-csa-hub-approval-ref" title="${approvalRef}">${approvalRef}</div></div>
       </div>
+      <details class="cp-csa-hub-reason">
+        <summary>Reason</summary>
+        <div class="cp-csa-hub-reason-body">${reasonText}</div>
+      </details>
       ${renderDefaultHistoryTable(historyRows)}
     </div>`;
   }
@@ -1356,7 +1365,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     if (defaultsError) {
       return `<div class="status error">Failed to load company-wide default policies.</div>`;
     }
-    return CSA_DEFAULT_SCENARIOS.map((scenario) => {
+    const cards = CSA_DEFAULT_SCENARIOS.map((scenario) => {
       const policy = pickCurrentDefaultPolicy(defaultsRows, scenario);
       const historyRows = previousDefaultPolicyRevisions(
         defaultsRows,
@@ -1373,6 +1382,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
         canWrite,
       });
     }).join("");
+    return `<div class="cp-csa-hub-company-grid">${cards}</div>`;
   }
 
   function renderRegionalDefaultsSection(canWrite) {
@@ -1398,7 +1408,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
         );
         return renderDefaultPolicyCard({
           label: `${regionBusinessLabel(region)} (${region})`,
-          codeLine: `${scenario} · ${region}`,
+          codeLine: "",
           policy,
           reviseTarget: {
             kind: "regional",
@@ -1411,7 +1421,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       }).join("");
       return `<div class="cp-csa-hub-scenario-group">
         <div class="cp-csa-hub-scenario-label">${text(scenarioBusinessLabel(scenario))}</div>
-        <div class="cp-muted-text">${text(scenario)}</div>
+        <div class="cp-csa-hub-scenario-code">${text(scenario)}</div>
         <div class="cp-csa-hub-region-pair">${cards}</div>
       </div>`;
     }).join("");

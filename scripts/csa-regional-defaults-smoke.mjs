@@ -249,6 +249,54 @@ assert(
   "hub body host remains",
 );
 assert(
+  /#csaDefaultsHubModal\s+\.cost-sheet-sign-panel\s*\{[\s\S]*?width:\s*min\(1080px,\s*92vw\)/.test(
+    htmlSrc,
+  ) &&
+    /#csaDefaultsHubModal\s+\.cost-sheet-sign-panel\s*\{[\s\S]*?max-height:\s*min\(90vh,\s*920px\)/.test(
+      htmlSrc,
+    ) &&
+    /#csaDefaultsHubModal\s+\.cost-sheet-sign-body\s*\{[\s\S]*?overflow-y:\s*auto/.test(
+      htmlSrc,
+    ),
+  "scoped Defaults hub width/height and body scroll exist",
+);
+assert(
+  !/id="csaDefaultsHubModal"[\s\S]*?style="max-width:\s*800px"/.test(htmlSrc),
+  "ineffective inline max-width:800px removed from Defaults hub",
+);
+assert(
+  htmlSrc.includes(".cp-csa-hub-company-grid") &&
+    csaSrc.includes("cp-csa-hub-company-grid"),
+  "company grid class exists in CSS and render",
+);
+assert(
+  htmlSrc.includes(".cp-csa-hub-region-pair") &&
+    csaSrc.includes("cp-csa-hub-region-pair"),
+  "regional pair structure retained",
+);
+assert(
+  csaSrc.includes('class="cp-csa-hub-reason"') &&
+    csaSrc.includes("<summary>Reason</summary>"),
+  "Reason disclosure exists",
+);
+assert(
+  csaSrc.includes('class="cp-csa-hub-history"') &&
+    csaSrc.includes("Previous revisions ("),
+  "history disclosure exists",
+);
+assert(
+  csaSrc.includes("data-csa-revise-kind=") &&
+    csaSrc.includes("data-csa-revise-scenario=") &&
+    csaSrc.includes("data-csa-revise-region=") &&
+    csaSrc.includes("wireDefaultsHubReviseButtons"),
+  "existing Revise wiring remains present",
+);
+assert(
+  !csaSrc.includes("loadSkuStatusDiagnosis") &&
+    !csaSrc.includes("v_costing_pricing_sku_status_diagnosis"),
+  "CSA module does not touch diagnosis loader",
+);
+assert(
   csaSrc.includes("Company-wide defaults") &&
     csaSrc.includes("Regional defaults") &&
     csaSrc.includes("Default sales units"),

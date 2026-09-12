@@ -3198,12 +3198,24 @@
         border-color: var(--primary, var(--sasv-action-primary));
         color: #fff;
       }
+      #csaDefaultsHubModal .cost-sheet-sign-panel {
+        width: min(1080px, 92vw);
+        max-width: min(1080px, 92vw);
+        max-height: min(90vh, 920px);
+        display: flex;
+        flex-direction: column;
+      }
+      #csaDefaultsHubModal .cost-sheet-sign-body {
+        min-height: 0;
+        overflow-y: auto;
+      }
       .cp-csa-hub-scenario {
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
         padding: 10px;
         margin-bottom: 10px;
         background: var(--panel-bg, #fff);
+        min-width: 0;
       }
       .cp-csa-hub-scenario:last-child {
         margin-bottom: 0;
@@ -3227,24 +3239,60 @@
       .cp-csa-hub-scenario-group > .cp-csa-hub-scenario-label {
         margin-bottom: 2px;
       }
+      .cp-csa-hub-scenario-group > .cp-csa-hub-scenario-code,
       .cp-csa-hub-scenario-group > .cp-muted-text {
         margin-bottom: 8px;
       }
+      .cp-csa-hub-company-grid,
       .cp-csa-hub-region-pair {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
       }
+      .cp-csa-hub-company-grid > .cp-csa-hub-scenario,
       .cp-csa-hub-region-pair > .cp-csa-hub-scenario {
         margin-bottom: 0;
       }
       .cp-csa-hub-history {
         margin-top: 8px;
+        border-top: 1px solid var(--border, #e5e7eb);
+        padding-top: 6px;
       }
-      .cp-csa-hub-history-title {
+      .cp-csa-hub-history > summary,
+      .cp-csa-hub-reason > summary {
+        cursor: pointer;
         font-size: 12px;
         font-weight: 650;
-        margin-bottom: 4px;
+        color: var(--muted, #6b7280);
+        list-style: none;
+      }
+      .cp-csa-hub-history > summary::-webkit-details-marker,
+      .cp-csa-hub-reason > summary::-webkit-details-marker {
+        display: none;
+      }
+      .cp-csa-hub-history > summary::before,
+      .cp-csa-hub-reason > summary::before {
+        content: "▸";
+        display: inline-block;
+        margin-right: 6px;
+        color: var(--muted, #6b7280);
+      }
+      .cp-csa-hub-history[open] > summary::before,
+      .cp-csa-hub-reason[open] > summary::before {
+        content: "▾";
+      }
+      .cp-csa-hub-reason {
+        margin-top: 8px;
+      }
+      .cp-csa-hub-reason-body {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--text, #0f172a);
+        overflow-wrap: anywhere;
+      }
+      .cp-csa-hub-history .table-scroll {
+        margin-top: 6px;
       }
       .cp-csa-hub-scenario-head {
         display: flex;
@@ -3252,16 +3300,44 @@
         justify-content: space-between;
         gap: 8px;
         margin-bottom: 8px;
+        flex-wrap: wrap;
+      }
+      .cp-csa-hub-scenario-head-main {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .cp-csa-hub-scenario-head-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+      .cp-csa-hub-scenario-head-actions .icon-btn {
+        flex-shrink: 0;
+        white-space: nowrap;
       }
       .cp-csa-hub-scenario-label {
         font-size: 13px;
         font-weight: 650;
+      }
+      .cp-csa-hub-scenario-code {
+        font-size: 11px;
+        line-height: 1.35;
+        color: var(--muted, #6b7280);
+        overflow-wrap: anywhere;
       }
       .cp-csa-default-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 6px 10px;
         font-size: 12px;
+      }
+      .cp-csa-hub-approval-ref {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        min-width: 0;
       }
       .cp-csa-context-grid,
       .cp-csa-form-grid {
@@ -3292,6 +3368,7 @@
       }
       @media (max-width: 900px) {
         .cp-csa-default-grid,
+        .cp-csa-hub-company-grid,
         .cp-csa-hub-region-pair {
           grid-template-columns: 1fr;
         }
@@ -7102,7 +7179,7 @@
       class="cost-sheet-sign-modal cp-policy-workflow-modal hidden"
       aria-hidden="true"
     >
-      <div class="cost-sheet-sign-panel" style="max-width: 800px">
+      <div class="cost-sheet-sign-panel">
         <div class="cost-sheet-sign-header">
           <span id="csaDefaultsHubTitle" class="cp-modal-title"
             >Governed Defaults</span
