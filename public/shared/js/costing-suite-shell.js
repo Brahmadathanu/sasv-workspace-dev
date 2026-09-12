@@ -628,8 +628,19 @@ let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
 let SELECTED_ROW = null;
 let LAST_REFRESH_TIME = null;
+/**
+ * SKU status diagnosis cache strategy:
+ * - Keyed by sku_id in DIAGNOSIS_BY_SKU_ID for the active period only.
+ * - DIAGNOSIS_CACHE_PERIOD_START records which period the Map belongs to.
+ * - Cleared on every loadRowsForLens start and on active period change.
+ * - Never stores a period-wide diagnosis fetch.
+ * SKU_STATUS_DIAGNOSIS remains an empty compatibility stub (not a period dump).
+ */
 let SKU_STATUS_DIAGNOSIS = [];
 let DIAGNOSIS_BY_SKU_ID = new Map();
+let DIAGNOSIS_CACHE_PERIOD_START = null;
+/** @type {Map<string, Promise>} */
+const DIAGNOSIS_INFLIGHT = new Map();
 /** Bumped on every loadRowsForLens start; ignores stale main/diagnosis completions. */
 let ROWS_LOAD_GENERATION = 0;
 let CURRENT_EXPORT_USER = "--";
@@ -3833,6 +3844,7 @@ async function setActiveCostingPeriod(periodStart) {
   if (!normalized || normalized === ACTIVE_PERIOD_START) return;
 
   ACTIVE_PERIOD_START = normalized;
+  clearSkuStatusDiagnosisCache();
   costBuildCtrl.setManualProvisionPeriodFilter(normalized);
   costSheetCtrl.invalidatePrintableLinesCache();
   controlCenterCtrl.clearSkuExactEvidenceCache?.();
@@ -3895,14 +3907,18 @@ function setVisible(el, visible, displayValue = "") {
 }
 
 /**
- * Cost Sheet Review lenses where period-wide diagnosis is supplementary to the
- * main table and must not block first paint.
+ * Drawer/consumer eligibility only — never used to prefetch diagnosis on lens startup.
  */
-function isCsrDeferredDiagnosisLens(lensId) {
+function lensNeedsSkuStatusDiagnosis(lensId) {
+  return lensId === "sku-cost-sheet" || isSchemeComparisonLens(lensId);
+}
+
+/** Drawer tabs that actually render SKU status diagnosis / material evidence. */
+function skuTabNeedsStatusDiagnosis(tabId) {
   return (
-    lensId === "sku-cost-sheet" ||
-    lensId === "cost-comparison" ||
-    lensId === "scheme-comparison"
+    tabId === "overview" ||
+    tabId === "cost-layers" ||
+    tabId === "scheme"
   );
 }
 
@@ -3910,75 +3926,150 @@ function isRowsLoadCurrent(loadGeneration) {
   return loadGeneration === ROWS_LOAD_GENERATION;
 }
 
+function clearSkuStatusDiagnosisCache() {
+  SKU_STATUS_DIAGNOSIS = [];
+  DIAGNOSIS_BY_SKU_ID = new Map();
+  DIAGNOSIS_CACHE_PERIOD_START = null;
+  DIAGNOSIS_INFLIGHT.clear();
+}
+
+function diagnosisInflightKey(periodStart, skuId) {
+  return `${String(periodStart)}|${Number(skuId)}`;
+}
+
 /**
  * Re-render open SKU/scheme drawer tabs that embed diagnosis, without touching
- * ALL_ROWS / main table queries.
+ * ALL_ROWS / main table queries. Ensures only the selected SKU (never period-wide).
  */
 function refreshOpenDrawerDiagnosisIfNeeded() {
   if (!detailsModal || detailsModal.classList.contains("hidden")) return;
   if (!SELECTED_ROW) return;
-  if (
-    CURRENT_LENS !== "sku-cost-sheet" &&
-    !isSchemeComparisonLens(CURRENT_LENS)
-  ) {
-    return;
-  }
+  if (!lensNeedsSkuStatusDiagnosis(CURRENT_LENS)) return;
   const activeTab = drawerTabs?.querySelector(".tab.active")?.dataset?.tab;
-  if (!activeTab) return;
-  void setDrawerTab(activeTab);
+  if (!activeTab || !skuTabNeedsStatusDiagnosis(activeTab)) return;
+  const skuId = SELECTED_ROW?.sku_id;
+  void (async () => {
+    if (skuId != null) {
+      await ensureSkuStatusDiagnosis(skuId, ACTIVE_PERIOD_START, {
+        force: true,
+        reportFailure: true,
+        loadGeneration: ROWS_LOAD_GENERATION,
+      });
+    }
+    if (!detailsModal || detailsModal.classList.contains("hidden")) return;
+    if (!SELECTED_ROW) return;
+    if (!lensNeedsSkuStatusDiagnosis(CURRENT_LENS)) return;
+    if (Number(SELECTED_ROW?.sku_id) !== Number(skuId)) return;
+    const tab = drawerTabs?.querySelector(".tab.active")?.dataset?.tab;
+    if (!tab || !skuTabNeedsStatusDiagnosis(tab)) return;
+    void setDrawerTab(tab);
+  })();
 }
 
 /**
+ * Selected-SKU diagnosis fetch against v_costing_pricing_sku_status_diagnosis.
+ * Never period-wide; never uses fetchAllRows.
+ *
+ * @param {number|string} skuId
  * @param {string} periodStart
- * @param {{ loadGeneration?: number|null }} [options]
- * @returns {Promise<{ applied: boolean, stale?: boolean, failed?: boolean }>}
+ * @param {{ loadGeneration?: number|null, force?: boolean, reportFailure?: boolean }} [options]
+ * @returns {Promise<{ applied: boolean, stale?: boolean, failed?: boolean, missing?: boolean, cached?: boolean, row?: object|null }>}
  */
-async function loadSkuStatusDiagnosis(periodStart, options = {}) {
+async function ensureSkuStatusDiagnosis(skuId, periodStart, options = {}) {
   const loadGeneration =
     options.loadGeneration === undefined ? null : options.loadGeneration;
-  try {
-    const rows = await fetchAllRows(
-      () =>
-        costingFrom("v_costing_pricing_sku_status_diagnosis")
-          .select("*")
-          .eq("period_start", periodStart)
-          .order("product_name", { ascending: true })
-          .order("pack_size", { ascending: true }),
-      1000,
-    );
-    if (loadGeneration != null && !isRowsLoadCurrent(loadGeneration)) {
-      return { applied: false, stale: true };
-    }
-    SKU_STATUS_DIAGNOSIS = rows;
-    DIAGNOSIS_BY_SKU_ID = new Map(
-      SKU_STATUS_DIAGNOSIS.map((row) => [Number(row.sku_id), row]),
-    );
-    return { applied: true };
-  } catch (err) {
-    if (loadGeneration != null && !isRowsLoadCurrent(loadGeneration)) {
-      return { applied: false, stale: true };
-    }
-    SKU_STATUS_DIAGNOSIS = [];
-    DIAGNOSIS_BY_SKU_ID = new Map();
-    console.error("Costing diagnosis could not be loaded", err);
-    showToast(
-      "Costing diagnosis could not be loaded. Existing cost and scheme data are still displayed.",
-      "warning",
-      5200,
-    );
-    return { applied: true, failed: true };
-  }
-}
+  const force = options.force === true;
+  const reportFailure = options.reportFailure === true;
+  const expectedSkuId = Number(skuId);
+  const period = periodStart;
 
-function scheduleDeferredSkuStatusDiagnosis(periodStart, loadGeneration) {
-  void (async () => {
-    const result = await loadSkuStatusDiagnosis(periodStart, {
-      loadGeneration,
-    });
-    if (!result?.applied || result.stale) return;
-    if (!isRowsLoadCurrent(loadGeneration)) return;
-    refreshOpenDrawerDiagnosisIfNeeded();
+  if (!Number.isFinite(expectedSkuId) || expectedSkuId <= 0 || !period) {
+    return { applied: false, missing: true };
+  }
+
+  // Defense in depth: never query diagnosis outside CSR diagnosis-consuming lenses.
+  if (!lensNeedsSkuStatusDiagnosis(CURRENT_LENS)) {
+    return { applied: false, stale: true };
+  }
+
+  if (
+    DIAGNOSIS_CACHE_PERIOD_START != null &&
+    String(DIAGNOSIS_CACHE_PERIOD_START) !== String(period)
+  ) {
+    clearSkuStatusDiagnosisCache();
+  }
+
+  if (!force) {
+    const cached = DIAGNOSIS_BY_SKU_ID.get(expectedSkuId);
+    if (cached && String(cached.period_start) === String(period)) {
+      return { applied: true, cached: true, row: cached };
+    }
+  }
+
+  const inflightKey = diagnosisInflightKey(period, expectedSkuId);
+  if (!force && DIAGNOSIS_INFLIGHT.has(inflightKey)) {
+    return DIAGNOSIS_INFLIGHT.get(inflightKey);
+  }
+
+  const run = (async () => {
+    try {
+      if (!lensNeedsSkuStatusDiagnosis(CURRENT_LENS)) {
+        return { applied: false, stale: true };
+      }
+      const { data, error } = await costingFrom(
+        "v_costing_pricing_sku_status_diagnosis",
+      )
+        .select("*")
+        .eq("period_start", period)
+        .eq("sku_id", expectedSkuId)
+        .limit(1);
+      if (error) throw error;
+
+      if (loadGeneration != null && !isRowsLoadCurrent(loadGeneration)) {
+        return { applied: false, stale: true };
+      }
+      if (String(ACTIVE_PERIOD_START) !== String(period)) {
+        return { applied: false, stale: true };
+      }
+      if (!lensNeedsSkuStatusDiagnosis(CURRENT_LENS)) {
+        return { applied: false, stale: true };
+      }
+      const selectedId = Number(SELECTED_ROW?.sku_id);
+      if (Number.isFinite(selectedId) && selectedId > 0 && selectedId !== expectedSkuId) {
+        return { applied: false, stale: true };
+      }
+
+      const row = Array.isArray(data) ? data[0] || null : data || null;
+      DIAGNOSIS_CACHE_PERIOD_START = period;
+      if (row) {
+        DIAGNOSIS_BY_SKU_ID.set(expectedSkuId, row);
+      } else {
+        DIAGNOSIS_BY_SKU_ID.delete(expectedSkuId);
+      }
+      return { applied: true, row };
+    } catch (err) {
+      if (loadGeneration != null && !isRowsLoadCurrent(loadGeneration)) {
+        return { applied: false, stale: true };
+      }
+      if (String(ACTIVE_PERIOD_START) !== String(period)) {
+        return { applied: false, stale: true };
+      }
+      console.error("Costing diagnosis could not be loaded", err);
+      if (reportFailure && lensNeedsSkuStatusDiagnosis(CURRENT_LENS)) {
+        showToast(
+          "Costing diagnosis could not be loaded. Existing cost and scheme data are still displayed.",
+          "warning",
+          5200,
+        );
+      }
+      return { applied: true, failed: true };
+    } finally {
+      DIAGNOSIS_INFLIGHT.delete(inflightKey);
+    }
   })();
+
+  DIAGNOSIS_INFLIGHT.set(inflightKey, run);
+  return run;
 }
 
 function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
@@ -3986,6 +4077,13 @@ function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
   if (!row) return null;
   if (periodStart && String(row.period_start) !== String(periodStart))
     return null;
+  if (
+    DIAGNOSIS_CACHE_PERIOD_START != null &&
+    periodStart &&
+    String(DIAGNOSIS_CACHE_PERIOD_START) !== String(periodStart)
+  ) {
+    return null;
+  }
   return row;
 }
 
@@ -4003,6 +4101,8 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     costSheetCtrl.onLensLoadStart();
     ALL_ROWS = [];
     VIEW = [];
+    // Lens startup never loads SKU status diagnosis (selected-SKU on demand only).
+    clearSkuStatusDiagnosisCache();
     if (!preservePage) CURRENT_PAGE = 1;
 
     if (shouldShowKpiStrip()) {
@@ -4011,9 +4111,6 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     }
 
     if (CURRENT_LENS === "manual-provisions") {
-      SKU_STATUS_DIAGNOSIS = [];
-      DIAGNOSIS_BY_SKU_ID = new Map();
-
       await costBuildCtrl.loadManualProvisionLensData(ACTIVE_PERIOD_START);
       if (!isRowsLoadCurrent(loadGeneration)) return;
 
@@ -4023,8 +4120,6 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     }
 
     if (isQcActionQueueLens(CURRENT_LENS)) {
-      SKU_STATUS_DIAGNOSIS = [];
-      DIAGNOSIS_BY_SKU_ID = new Map();
       ALL_ROWS = [];
       VIEW = [];
       qcActionQueueCtrl.onLensLoadStart?.();
@@ -4046,8 +4141,6 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     }
 
     if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
-      SKU_STATUS_DIAGNOSIS = [];
-      DIAGNOSIS_BY_SKU_ID = new Map();
       ALL_ROWS = [];
       VIEW = [];
       materialsStoresActionQueueCtrl.onLensLoadStart?.();
@@ -4069,8 +4162,6 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     }
 
     if (isProductionRouteLens(CURRENT_LENS)) {
-      SKU_STATUS_DIAGNOSIS = [];
-      DIAGNOSIS_BY_SKU_ID = new Map();
       ALL_ROWS = [];
       VIEW = [];
       productionRouteCtrl.onLensLoadStart?.();
@@ -4092,29 +4183,6 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       updateFreshnessIndicator();
       renderTable();
       return;
-    }
-
-    if (
-      CURRENT_LENS === "dashboard" ||
-      CURRENT_LENS === "costing-review-workbench" ||
-      CURRENT_LENS === "sku-control-status" ||
-      CURRENT_LENS === "cost-governance" ||
-      CURRENT_LENS === "staff-governance" ||
-      CURRENT_LENS === "manual-rate-manager" ||
-      CURRENT_LENS === "rm-cost-trace" ||
-      CURRENT_LENS === "pm-cost-trace" ||
-      CURRENT_LENS === "printable-cost-sheet" ||
-      CURRENT_LENS === "mrp-governance"
-    ) {
-      SKU_STATUS_DIAGNOSIS = [];
-      DIAGNOSIS_BY_SKU_ID = new Map();
-    } else if (isCsrDeferredDiagnosisLens(CURRENT_LENS)) {
-      SKU_STATUS_DIAGNOSIS = [];
-      DIAGNOSIS_BY_SKU_ID = new Map();
-      scheduleDeferredSkuStatusDiagnosis(ACTIVE_PERIOD_START, loadGeneration);
-    } else {
-      await loadSkuStatusDiagnosis(ACTIVE_PERIOD_START);
-      if (!isRowsLoadCurrent(loadGeneration)) return;
     }
 
     const viewName = VIEW_BY_LENS[CURRENT_LENS];
@@ -6361,6 +6429,16 @@ function renderSkuDiagnosisPanel(rowOrSkuId) {
 
 async function renderSkuTab(tabId) {
   const detail = await fetchSkuDetail(SELECTED_ROW);
+  if (
+    lensNeedsSkuStatusDiagnosis(CURRENT_LENS) &&
+    skuTabNeedsStatusDiagnosis(tabId)
+  ) {
+    const skuId = detail?.sku_id ?? SELECTED_ROW?.sku_id;
+    await ensureSkuStatusDiagnosis(skuId, ACTIVE_PERIOD_START, {
+      reportFailure: true,
+      loadGeneration: ROWS_LOAD_GENERATION,
+    });
+  }
   const diagnosisPanel = renderSkuDiagnosisPanel(detail);
   if (tabId === "overview") {
     const diagnosisSection = buildSkuDiagnosisSection(detail);
