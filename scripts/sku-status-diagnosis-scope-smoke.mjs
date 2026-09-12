@@ -163,7 +163,7 @@ const ensureLensGuardIdx = ensureBody.search(
   /if\s*\(\s*!lensNeedsSkuStatusDiagnosis\s*\(\s*CURRENT_LENS\s*\)\s*\)/,
 );
 const ensureQueryIdx = ensureBody.search(
-  /costingFrom\s*\(\s*["']v_costing_pricing_sku_status_diagnosis["']\s*\)/,
+  /costingFrom\s*\(\s*["']v_costing_pricing_sku_status_diagnosis["']/,
 );
 assert(
   ensureLensGuardIdx >= 0 &&
