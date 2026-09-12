@@ -283,7 +283,30 @@ assert(
   "incomplete list coverage remains COVERAGE_UNPROVEN",
 );
 
-assert(filenameMatchesGoverned(EXPECTED_APPROVED_COPY_NAME), "governed approved filename matches");
+assert(filenameMatchesGoverned(EXPECTED_APPROVED_COPY_NAME), "exact V01 approved filename passes");
+assert(
+  filenameMatchesGoverned("EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V00.pdf") === false,
+  "V00 approved filename fails",
+);
+assert(
+  filenameMatchesGoverned("EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V02.pdf") === false,
+  "V02 approved filename fails",
+);
+assert(
+  filenameMatchesGoverned(
+    "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01_backup.pdf",
+  ) === false,
+  "backup suffix approved filename fails",
+);
+assert(
+  filenameMatchesGoverned("EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.docx") ===
+    false,
+  "different extension approved filename fails",
+);
+assert(
+  filenameMatchesGoverned("KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY") === false,
+  "substring KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY fails",
+);
 
 {
   const failResolver = await resolveApprovedProductCopyFile({
@@ -729,6 +752,7 @@ assert(
 );
 
 let mutatingRpcNames = [];
+let permissionEditFlags = [];
 let saveDataCalls = 0;
 const authoritativeContent = baseContent({
   entry_status: "NOT_STARTED",
@@ -771,7 +795,10 @@ function makeTrustedDeps(overrides = {}) {
     },
     callRpc: async (name, args) => {
       mutatingRpcNames.push(name);
-      if (name === "rpc_eaushadhi_require_permission") return { ok: true };
+      if (name === "rpc_eaushadhi_require_permission") {
+        permissionEditFlags.push(args?.p_edit);
+        return { ok: true };
+      }
       if (name === "rpc_eaushadhi_worker_preflight") {
         return {
           workflow_row_version: 7,
@@ -803,6 +830,7 @@ function makeTrustedDeps(overrides = {}) {
 }
 
 mutatingRpcNames = [];
+permissionEditFlags = [];
 const trustedPreview = await runTrustedProductDetailsPreview(makeTrustedDeps());
 assert(trustedPreview.liveArmed === false, "trusted preview reports liveArmed false");
 assert(
@@ -825,14 +853,33 @@ assert(
   "trusted preview only uses read-only RPCs",
 );
 assert(!mutatingRpcNames.includes("rpc_eaushadhi_worker_run_begin"), "preview never run_begin");
+assert(
+  permissionEditFlags.length >= 1 && permissionEditFlags.every((v) => v === false),
+  "Preview permission RPC uses p_edit=false",
+);
 
 const forgedPreview = await runTrustedProductDetailsPreview({
-  ...makeTrustedDeps(),
-  // Even if a caller tried to attach renderer fields on deps, collect ignores them.
+  ...makeTrustedDeps({ requireEditPermission: true }),
   content: { forged: true },
   reviewStatus: "VERIFIED",
   fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+  p_edit: true,
+  requireEditPermission: true,
 });
+assert(
+  forgedPreview.authority?.requireEditPermission === false ||
+    forgedPreview.fieldGate?.ok === false ||
+    (forgedPreview.preview?.blockers || []).includes("FIELD_GOVERNANCE_INCOMPLETE"),
+  "renderer-style requireEditPermission cannot force preview into edit mode",
+);
+permissionEditFlags = [];
+await runTrustedProductDetailsPreview(
+  makeTrustedDeps({ requireEditPermission: true, p_edit: true }),
+);
+assert(
+  permissionEditFlags.every((v) => v === false),
+  "renderer cannot override preview p_edit to true via deps",
+);
 assert(
   forgedPreview.fieldGate?.ok === false ||
     (forgedPreview.preview?.blockers || []).includes("FIELD_GOVERNANCE_INCOMPLETE"),
@@ -840,16 +887,62 @@ assert(
 );
 
 mutatingRpcNames = [];
+permissionEditFlags = [];
 saveDataCalls = 0;
 const trustedStart = await runTrustedProductDetailsStart(makeTrustedDeps(), {
   userConfirmed: true,
   ...malicious,
+  requireEditPermission: false,
+  p_edit: false,
 });
 assert(trustedStart.code === "LIVE_EXECUTION_NOT_ARMED", "trusted start remains disarmed");
 assert(trustedStart.runBegun !== true, "disarmed start never begins run");
 assert(trustedStart.inventedFailureRpcCalled === false, "disarmed start invents no failure RPC");
 assert(!mutatingRpcNames.includes("rpc_eaushadhi_worker_run_begin"), "start never run_begin while disarmed");
 assert(saveDataCalls === 0, "no SaveData while disarmed");
+assert(
+  permissionEditFlags.length >= 1 && permissionEditFlags.every((v) => v === true),
+  "Start permission RPC uses p_edit=true",
+);
+assert(trustedStart.requireEditPermission === true, "start result records requireEditPermission true");
+assert(
+  RENDERER_FORBIDDEN_OPTION_KEYS.includes("requireEditPermission") &&
+    RENDERER_FORBIDDEN_OPTION_KEYS.includes("p_edit"),
+  "renderer cannot supply requireEditPermission/p_edit through sanitize allowlist",
+);
+
+{
+  let beginCalls = 0;
+  permissionEditFlags = [];
+  const denied = await runTrustedProductDetailsStart(
+    makeTrustedDeps({
+      liveArmed: true,
+      callRpc: async (name, args) => {
+        mutatingRpcNames.push(name);
+        if (name === "rpc_eaushadhi_require_permission") {
+          permissionEditFlags.push(args?.p_edit);
+          throw new Error("edit permission denied");
+        }
+        throw new Error(`unexpected rpc ${name}`);
+      },
+      buildAdapters: async () => ({
+        runBegin: async () => {
+          beginCalls += 1;
+          return { run_id: "should-not-run" };
+        },
+      }),
+    }),
+    { userConfirmed: true },
+  );
+  assert(denied.code === "PERMISSION_DENIED", "denied edit permission blocks Start");
+  assert(denied.runBegun !== true, "edit denial never begins run");
+  assert(beginCalls === 0, "no run_begin after edit-permission denial");
+  assert(
+    permissionEditFlags.length === 1 && permissionEditFlags[0] === true,
+    "denied Start still requested p_edit=true",
+  );
+  assert(!mutatingRpcNames.includes("rpc_eaushadhi_worker_run_begin"), "edit denial never calls run_begin RPC");
+}
 
 const missingAuthority = await collectAuthoritativeProductDetailsContext({
   productId: 262,

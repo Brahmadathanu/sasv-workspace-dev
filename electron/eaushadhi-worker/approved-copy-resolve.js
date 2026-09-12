@@ -33,10 +33,9 @@ function pickCopyRecord(raw) {
 }
 
 function filenameMatchesGoverned(name) {
-  const raw = String(name || "").trim();
-  if (!raw) return false;
-  if (namesEqualExact(raw, EXPECTED_APPROVED_COPY_NAME)) return true;
-  return /KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY/i.test(raw);
+  // Product 262: exact governed filename only (NFC/trim/case-insensitive via namesEqualExact).
+  // No regex / substring / version-variant acceptance.
+  return namesEqualExact(String(name || ""), EXPECTED_APPROVED_COPY_NAME);
 }
 
 /**
@@ -121,16 +120,21 @@ async function resolveApprovedProductCopyFile(args = {}) {
     };
   }
 
-  const fileName = String(
-    copy.original_file_name || args.evidence?.original_file_name || "",
-  ).trim();
-  const expected = args.expectedFileName || EXPECTED_APPROVED_COPY_NAME;
-  if (!filenameMatchesGoverned(fileName) || !filenameMatchesGoverned(expected)) {
+  const fileName = String(copy.original_file_name || "").trim();
+  const evidenceName = String(args.evidence?.original_file_name || "").trim();
+  const expected = EXPECTED_APPROVED_COPY_NAME;
+  // Both evidence and RPC record must resolve to the exact governed V01 filename.
+  if (
+    !filenameMatchesGoverned(fileName) ||
+    (evidenceName && !filenameMatchesGoverned(evidenceName)) ||
+    (args.expectedFileName && !filenameMatchesGoverned(args.expectedFileName)) ||
+    !filenameMatchesGoverned(expected)
+  ) {
     return {
       ok: false,
       code: "APPROVED_COPY_NAME_MISMATCH",
       message: `Expected governed filename ${EXPECTED_APPROVED_COPY_NAME}.`,
-      fileName,
+      fileName: fileName || evidenceName || null,
     };
   }
 

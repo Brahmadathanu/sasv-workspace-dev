@@ -43,6 +43,8 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "saveDataAvailable",
   "approvedFileName",
   "content_hash",
+  "requireEditPermission",
+  "p_edit",
 ]);
 
 /**
@@ -357,14 +359,19 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     };
   }
 
+  // INTERNAL trusted flag only — never from renderer IPC.
+  const requireEditPermission = deps.requireEditPermission === true;
   try {
-    await deps.callRpc("rpc_eaushadhi_require_permission", { p_edit: false });
+    await deps.callRpc("rpc_eaushadhi_require_permission", {
+      p_edit: requireEditPermission,
+    });
   } catch (error) {
     return {
       ok: false,
       code: "PERMISSION_DENIED",
       message: error?.message || "Permission check failed.",
       missing: ["permission"],
+      requireEditPermission,
     };
   }
 
@@ -523,6 +530,7 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     ok: true,
     code: "AUTHORITY_COLLECTED",
     productId,
+    requireEditPermission,
     preflight,
     content,
     contentHash,
@@ -584,7 +592,11 @@ function applyLiveArmGate(assessment, liveArmed) {
  */
 async function runTrustedProductDetailsPreview(deps = {}) {
   const liveArmed = deps.liveArmed === true;
-  const authority = await collectAuthoritativeProductDetailsContext(deps);
+  // Preview is view-only. Renderer cannot override this.
+  const authority = await collectAuthoritativeProductDetailsContext({
+    ...deps,
+    requireEditPermission: false,
+  });
   if (!authority.ok) {
     return applyLiveArmGate(
       {
@@ -615,6 +627,7 @@ async function runTrustedProductDetailsPreview(deps = {}) {
     contentHash: authority.contentHash,
     workflowRowVersion: authority.workflowRowVersion,
     duplicateOutcome: evaluateDuplicateGuard(authority.duplicateSearch).outcome,
+    requireEditPermission: false,
   };
   return applyLiveArmGate(assessment, liveArmed);
 }
@@ -627,10 +640,16 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
   const liveArmed = deps.liveArmed === true;
   const userConfirmed = command.userConfirmed === true;
 
+  // Start always requires edit permission. Renderer cannot override this.
+  const startDeps = {
+    ...deps,
+    requireEditPermission: true,
+  };
+
   if (!liveArmed) {
     // Still collect authority so Start does not trust a prior renderer preview,
     // but never cross the mutation boundary while disarmed.
-    const authority = await collectAuthoritativeProductDetailsContext(deps);
+    const authority = await collectAuthoritativeProductDetailsContext(startDeps);
     return {
       ok: false,
       code: "LIVE_EXECUTION_NOT_ARMED",
@@ -642,6 +661,7 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
       resumePlan: planResumeAction({ runStatus: null }),
       authorityCode: authority.code,
       authorityMissing: authority.missing || [],
+      requireEditPermission: true,
       preflight: authority.ok
         ? assessProductDetailsPreflight(
             buildTrustedExecutorInput(authority, { userConfirmed: false }),
@@ -658,10 +678,11 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
       inventedFailureRpcCalled: false,
       mutated: false,
       runBegun: false,
+      requireEditPermission: true,
     };
   }
 
-  const authority = await collectAuthoritativeProductDetailsContext(deps);
+  const authority = await collectAuthoritativeProductDetailsContext(startDeps);
   if (!authority.ok) {
     return {
       ok: false,
@@ -671,6 +692,7 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
       inventedFailureRpcCalled: false,
       mutated: false,
       runBegun: false,
+      requireEditPermission: true,
     };
   }
 
