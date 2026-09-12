@@ -116,14 +116,60 @@ assert(
   "cost-comparison does not preload diagnosis",
 );
 
+assert(
+  shellSrc.includes("function skuTabNeedsStatusDiagnosis(") &&
+    /skuTabNeedsStatusDiagnosis\([^)]*\)\s*\{[\s\S]*?overview[\s\S]*?cost-layers[\s\S]*?scheme/.test(
+      shellSrc,
+    ),
+  "diagnosis consumer tabs are explicitly scoped (overview/cost-layers/scheme)",
+);
+
 const renderSkuTabFn = shellSrc.match(
   /async function renderSkuTab\([\s\S]*?\nfunction setModalTabs/,
 );
 assert(!!renderSkuTabFn, "renderSkuTab extractable");
 const renderSkuTabBody = renderSkuTabFn ? renderSkuTabFn[0] : "";
 assert(
-  /await\s+ensureSkuStatusDiagnosis\s*\(/.test(renderSkuTabBody),
-  "CSR selected-SKU drawer path calls ensureSkuStatusDiagnosis",
+  /lensNeedsSkuStatusDiagnosis\s*\(\s*CURRENT_LENS\s*\)/.test(renderSkuTabBody) &&
+    /skuTabNeedsStatusDiagnosis\s*\(\s*tabId\s*\)/.test(renderSkuTabBody) &&
+    /await\s+ensureSkuStatusDiagnosis\s*\(/.test(renderSkuTabBody),
+  "CSR selected-SKU drawer path gates ensure behind lens + tab eligibility",
+);
+assert(
+  !/tabId\s*===\s*["']selling-price["'][\s\S]{0,200}ensureSkuStatusDiagnosis/.test(
+    renderSkuTabBody,
+  ) &&
+    !/["']selling-price["'][\s\S]{0,80}skuTabNeedsStatusDiagnosis/.test(
+      shellSrc.match(
+        /function skuTabNeedsStatusDiagnosis\([\s\S]*?\nfunction isRowsLoadCurrent/,
+      )?.[0] || "",
+    ),
+  "selling-price does not trigger ensure / is not a diagnosis consumer tab",
+);
+assert(
+  /if\s*\(\s*[\s\S]*?lensNeedsSkuStatusDiagnosis\s*\(\s*CURRENT_LENS\s*\)[\s\S]*?skuTabNeedsStatusDiagnosis\s*\(\s*tabId\s*\)[\s\S]*?\)\s*\{[\s\S]*?await\s+ensureSkuStatusDiagnosis/.test(
+    renderSkuTabBody,
+  ),
+  "ensure is only called inside the dual eligibility guard",
+);
+
+assert(
+  /if\s*\(\s*!lensNeedsSkuStatusDiagnosis\s*\(\s*CURRENT_LENS\s*\)\s*\)\s*\{[\s\S]*?return\s*\{\s*applied:\s*false,\s*stale:\s*true/.test(
+    ensureBody,
+  ),
+  "non-diagnosis lens fails eligibility before query",
+);
+const ensureLensGuardIdx = ensureBody.search(
+  /if\s*\(\s*!lensNeedsSkuStatusDiagnosis\s*\(\s*CURRENT_LENS\s*\)\s*\)/,
+);
+const ensureQueryIdx = ensureBody.search(
+  /costingFrom\s*\(\s*["']v_costing_pricing_sku_status_diagnosis["']\s*\)/,
+);
+assert(
+  ensureLensGuardIdx >= 0 &&
+    ensureQueryIdx >= 0 &&
+    ensureLensGuardIdx < ensureQueryIdx,
+  "lens eligibility guard runs before PostgREST diagnosis query",
 );
 
 assert(
