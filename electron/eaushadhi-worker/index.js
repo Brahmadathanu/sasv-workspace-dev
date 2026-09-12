@@ -24,6 +24,15 @@ const {
 const { callWorkerRpc } = require("./server-client");
 const { loadFoundationSnapshot } = require("./foundation-check");
 const { runEntryDryRun } = require("./dry-run");
+const {
+  assessProductDetailsPreflight,
+  executeProductDetails,
+  planResumeAction,
+  FIRST_CONTROLLED_PRODUCT_ID: PD_PRODUCT_ID,
+} = require("./product-details-executor");
+
+/** Live portal mutation remains disarmed until a separate live-approval change. */
+const PRODUCT_DETAILS_LIVE_ARMED = false;
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const { captureOpenPages } = require("./capture");
 const { capturesRoot, isPathInsideRoot } = require("./capture/persist");
@@ -847,6 +856,90 @@ function createEaushadhiWorker({
     }
   }
 
+  async function previewProductDetailsExecution(rawProductId, rawAccessToken, options = {}) {
+    const id = validateProductId(rawProductId);
+    validateAccessToken(rawAccessToken);
+    if (id !== PD_PRODUCT_ID) {
+      return {
+        ok: false,
+        code: "PRODUCT_LOCK_REJECTED",
+        message: `Product Details preview accepts only product_id ${PD_PRODUCT_ID}.`,
+      };
+    }
+    // Preview uses caller-supplied governed snapshot for offline safety when provided.
+    // Live content_get may be supplied later; mutating RPCs are never called here.
+    const assessment = assessProductDetailsPreflight({
+      productId: id,
+      content: options.content || null,
+      contentHash: options.contentHash || options.content?.content_hash || null,
+      workflowRowVersion:
+        options.workflowRowVersion || options.content?.versions?.workflow_row_version || null,
+      entryStatus: options.entryStatus || options.content?.entry_status || "NOT_STARTED",
+      reviewStatus: options.reviewStatus || "VERIFIED",
+      classificationVerified: options.classificationVerified !== false,
+      isReadyForEntry: options.isReadyForEntry !== false,
+      duplicateSearch: options.duplicateSearch || null,
+      pageState: options.pageState || {
+        workerState: machine.get(),
+        origin: options.origin,
+        path: options.path,
+      },
+      approvedFileName: options.approvedFileName,
+    });
+    assessment.liveArmed = PRODUCT_DETAILS_LIVE_ARMED;
+    if (assessment.preview) {
+      assessment.preview.startEnabled =
+        assessment.preview.startEnabled === true && PRODUCT_DETAILS_LIVE_ARMED === true;
+      if (!PRODUCT_DETAILS_LIVE_ARMED) {
+        assessment.preview.blockers = [
+          ...(assessment.preview.blockers || []),
+          "LIVE_EXECUTION_NOT_ARMED",
+        ];
+      }
+    }
+    return assessment;
+  }
+
+  async function startProductDetailsExecution(rawProductId, rawAccessToken, options = {}) {
+    const id = validateProductId(rawProductId);
+    validateAccessToken(rawAccessToken);
+    if (id !== PD_PRODUCT_ID) {
+      return {
+        ok: false,
+        code: "PRODUCT_LOCK_REJECTED",
+        message: `Product Details execution accepts only product_id ${PD_PRODUCT_ID}.`,
+        inventedFailureRpcCalled: false,
+      };
+    }
+    if (!PRODUCT_DETAILS_LIVE_ARMED) {
+      return {
+        ok: false,
+        code: "LIVE_EXECUTION_NOT_ARMED",
+        message:
+          "Live Product Details execution is implemented but disarmed. No run_begin / SaveData / mark_* will run until separate live approval arms it.",
+        inventedFailureRpcCalled: false,
+        resumePlan: planResumeAction({ runStatus: null }),
+      };
+    }
+    // Armed path would call executeProductDetails with real adapters.
+    // Kept unreachable while PRODUCT_DETAILS_LIVE_ARMED === false.
+    return executeProductDetails(
+      {
+        productId: id,
+        content: options.content,
+        contentHash: options.contentHash,
+        finalContentHash: options.finalContentHash,
+        workflowRowVersion: options.workflowRowVersion,
+        payloadHash: options.payloadHash,
+        duplicateSearch: options.duplicateSearch,
+        pageState: options.pageState,
+        permissionOptions: options.permissionOptions,
+        userConfirmed: options.userConfirmed === true,
+      },
+      options.adapters || {},
+    );
+  }
+
   async function requireViewPermission(accessToken) {
     try {
       await rpcCall(accessToken, "rpc_eaushadhi_require_permission", { p_edit: false });
@@ -988,6 +1081,8 @@ function createEaushadhiWorker({
     stop,
     runFoundationCheck,
     runControlledEntryDryRun,
+    previewProductDetailsExecution,
+    startProductDetailsExecution,
     capturePortalContract,
     openLastCaptureFolder,
   };

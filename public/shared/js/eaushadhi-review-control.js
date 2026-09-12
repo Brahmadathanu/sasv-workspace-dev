@@ -159,6 +159,8 @@ import {
   recheckWorkerLogin,
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
+  previewWorkerProductDetails,
+  startWorkerProductDetails,
   stopWorkerBrowser,
   workerApiAvailable,
 } from "./eaushadhi-review-worker-client.js";
@@ -230,6 +232,8 @@ const state = {
   workerStatus: null,
   workerFoundationResult: null,
   workerDryRunResult: null,
+  workerProductDetailsPreview: null,
+  workerProductDetailsResult: null,
   workerCaptureResult: null,
   loadGen: 0,
   busy: false,
@@ -2078,6 +2082,20 @@ function workerDryRunSummary(result) {
     .join(" ");
 }
 
+function workerProductDetailsPreviewSummary(preview) {
+  if (!preview) return "No Product Details preview yet.";
+  const blockers = preview.preview?.blockers || preview.blockers || [];
+  const start = preview.preview?.startEnabled === true;
+  const code = preview.code || "";
+  const bits = [
+    code ? `Status ${code}` : null,
+    start ? "Start enabled" : "Start disabled",
+    blockers.length ? `Blockers: ${blockers.join(", ")}` : null,
+    preview.liveArmed === false ? "Live execution disarmed" : null,
+  ].filter(Boolean);
+  return bits.join(". ") || "Preview complete.";
+}
+
 function renderEntryDryRunCard() {
   if (!isFirstControlledEntryProduct(state.selectedProductId)) return "";
   const available = workerApiAvailable();
@@ -2091,6 +2109,12 @@ function renderEntryDryRunCard() {
         completeness.productDetails ? "complete" : "incomplete"
       }; Composition ${completeness.composition ? "complete" : "incomplete"}`
     : "Contract readiness: incomplete until capture proves deterministic execution.";
+  const pdPreview = state.workerProductDetailsPreview;
+  const startEnabled = pdPreview?.preview?.startEnabled === true;
+  const startDisabled = !available || busy || !startEnabled;
+  const warning =
+    pdPreview?.preview?.warning ||
+    "This action will write Product Details to the Government e-Aushadhi portal. It will NOT add Composition and will NOT final-submit the product.";
   return `
     <div class="section-card worker-entry-dryrun-card">
       <h3>First controlled entry readiness</h3>
@@ -2103,6 +2127,28 @@ function renderEntryDryRunCard() {
         }>Check Entry Readiness</button>
       </div>
       <p class="muted-note" id="workerDryRunResult">${escapeHtml(workerDryRunSummary(state.workerDryRunResult))}</p>
+    </div>
+    <div class="section-card worker-product-details-card">
+      <h3>Karpooradi Product Details execution</h3>
+      <p class="muted-note">Product ${FIRST_CONTROLLED_PRODUCT_ID} - Karpooradi Thailam - Create Product Details only.</p>
+      <p class="muted-note">${escapeHtml(warning)}</p>
+      <p class="muted-note">Lifecycle: NOT_STARTED -> IN_PROGRESS -> ENTERED -> PORTAL_VERIFIED (stop). No Composition. No submit.</p>
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label" id="btnWorkerProductDetailsPreview" data-edit-action="true" ${
+          checkDisabled ? `data-force-disabled="true"` : ""
+        }>Preview Product Details</button>
+        <button type="button" class="icon-btn with-label primary" id="btnWorkerProductDetailsStart" data-edit-action="true" ${
+          startDisabled ? `data-force-disabled="true"` : ""
+        }>Start Product Details</button>
+      </div>
+      <p class="muted-note" id="workerProductDetailsPreviewResult">${escapeHtml(
+        workerProductDetailsPreviewSummary(pdPreview),
+      )}</p>
+      <p class="muted-note" id="workerProductDetailsStartResult">${escapeHtml(
+        state.workerProductDetailsResult
+          ? `${state.workerProductDetailsResult.code || ""} ${state.workerProductDetailsResult.message || ""}`.trim()
+          : "Start remains blocked until preview clears every gate and live execution is armed.",
+      )}</p>
     </div>`;
 }
 
@@ -2193,6 +2239,72 @@ async function submitWorkerEntryDryRun() {
       showToast(result.message || "Entry dry-run stopped as designed.", "info");
     } else if (result?.ok === false) {
       showToast(result.message || "Entry dry-run failed", "error");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
+async function submitWorkerProductDetailsPreview() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await previewWorkerProductDetails(state.selectedProductId, token, {
+      entryStatus: state.queueRow?.entry_status || "NOT_STARTED",
+      reviewStatus: state.review?.review_status || state.queueRow?.review_status,
+      classificationVerified:
+        String(state.classification?.review_status || "").toUpperCase() === "VERIFIED",
+      isReadyForEntry: state.queueRow?.is_ready_for_entry === true,
+      contentHash: state.queueRow?.content_hash || null,
+      workflowRowVersion: state.queueRow?.workflow_row_version || null,
+    });
+    state.workerProductDetailsPreview = result;
+    if (result?.ok === false || result?.preview?.startEnabled !== true) {
+      showToast(result?.message || "Product Details Start remains blocked.", "info");
+    } else {
+      showToast("Product Details preview ready.", "success");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
+async function submitWorkerProductDetailsStart() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (state.workerProductDetailsPreview?.preview?.startEnabled !== true) {
+    showToast("Start Product Details is disabled until preview gates pass.", "info");
+    return;
+  }
+  const warning =
+    state.workerProductDetailsPreview?.preview?.warning ||
+    "This will write Product Details to the Government portal. Continue?";
+  if (!window.confirm(warning)) return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await startWorkerProductDetails(state.selectedProductId, token, {
+      userConfirmed: true,
+      contentHash: state.workerProductDetailsPreview?.preview?.contentHash || null,
+      workflowRowVersion: state.workerProductDetailsPreview?.preview?.workflowRowVersion || null,
+    });
+    state.workerProductDetailsResult = result;
+    if (result?.code === "LIVE_EXECUTION_NOT_ARMED") {
+      showToast(result.message || "Live execution is disarmed.", "info");
+    } else if (result?.ok === false) {
+      showToast(result.message || "Product Details start blocked.", "error");
+    } else if (result?.ok === true) {
+      showToast(result.message || "Product Details completed.", "success");
     }
   } catch (error) {
     showToast(userMessageForError(error), "error");
@@ -2540,6 +2652,8 @@ async function openProduct(productId) {
     if (!idsEqual(state.selectedProductId, productId)) {
       state.workerFoundationResult = null;
       state.workerDryRunResult = null;
+      state.workerProductDetailsPreview = null;
+      state.workerProductDetailsResult = null;
     }
     state.selectedProductId = Number(productId);
     state.queueRow = findQueueRow(state.queue, productId);
@@ -2618,6 +2732,8 @@ async function backToQueue() {
   state.selectedProductId = null;
   state.workerFoundationResult = null;
   state.workerDryRunResult = null;
+  state.workerProductDetailsPreview = null;
+  state.workerProductDetailsResult = null;
   state.promoteNotes = "";
   state.promoteNotesOrigin = "unset";
   state.verifyNotes = "";
@@ -4186,6 +4302,8 @@ function wireEvents() {
     if (event.target.id === "btnVerifyProduct") submitVerifyProduct();
     if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
+    if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
+    if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
     if (event.target.id === "fldPromoteNotes") {

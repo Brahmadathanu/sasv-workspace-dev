@@ -46,6 +46,16 @@ export async function runWorkerEntryDryRun(productId, accessToken) {
   return window.eaushadhiWorkerAPI.runEntryDryRun(productId, accessToken);
 }
 
+export async function previewWorkerProductDetails(productId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.previewProductDetails(productId, accessToken, options);
+}
+
+export async function startWorkerProductDetails(productId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.startProductDetails(productId, accessToken, options);
+}
+
 export async function captureWorkerPortalContract(accessToken) {
   if (!workerApiAvailable()) return unsupported();
   return window.eaushadhiWorkerAPI.capturePortalContract(accessToken);

@@ -524,8 +524,14 @@ assert(!controlSrc.includes("fetchWorkerMarkPortalVerified"), "controller does n
 assert(!/Enter Product/.test(controlSrc), "UI does not expose Enter Product");
 assert(controlSrc.includes("Check Entry Readiness"), "UI exposes Check Entry Readiness");
 assert(controlSrc.includes("btnWorkerEntryDryRun"), "dry-run action exists");
+assert(controlSrc.includes("Preview Product Details"), "UI exposes Product Details preview");
+assert(controlSrc.includes("Start Product Details"), "UI exposes Start Product Details");
+assert(controlSrc.includes("btnWorkerProductDetailsPreview"), "Product Details preview action exists");
+assert(controlSrc.includes("btnWorkerProductDetailsStart"), "Product Details start action exists");
 assert(controlSrc.includes("isFirstControlledEntryProduct"), "dry-run card is locked to the first controlled product");
 assert(workerClientSrc.includes("runEntryDryRun"), "worker client exposes entry dry-run");
+assert(workerClientSrc.includes("previewProductDetails"), "worker client exposes product details preview");
+assert(workerClientSrc.includes("startProductDetails"), "worker client exposes product details start");
 assert(!/\bsubmit\b/i.test(workerClientSrc), "worker client has no Submit");
 
 const classificationMigration = readFileSync(

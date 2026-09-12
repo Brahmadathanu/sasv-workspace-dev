@@ -52,6 +52,18 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
+  previewProductDetails: (productId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:product-details-preview", {
+      productId,
+      accessToken,
+      ...(options && typeof options === "object" ? options : {}),
+    }),
+  startProductDetails: (productId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:product-details-start", {
+      productId,
+      accessToken,
+      ...(options && typeof options === "object" ? options : {}),
+    }),
   capturePortalContract: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
   openCaptureFolder: (accessToken) =>

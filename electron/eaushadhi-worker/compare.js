@@ -315,11 +315,188 @@ function compareIntendedVsPortal(intended, portal, options = {}) {
   };
 }
 
+const OVERALL_COMPARE = Object.freeze({
+  MATCH: "MATCH",
+  MISMATCH: "MISMATCH",
+  INCOMPLETE: "INCOMPLETE",
+});
+
+/**
+ * Deterministic Product Details retained-reread compare for mark_portal_verified.
+ * Does not invent FAILED lifecycle states — callers stop without mark_failed RPC.
+ */
+function compareProductDetailsReread(expected, retained, options = {}) {
+  const items = [];
+  const push = (path, exp, act, result, normalizationApplied = "nfc_trim") => {
+    items.push({
+      path,
+      expected: exp,
+      actual: act,
+      result,
+      match: result === COMPARE_RESULT.MATCH,
+      normalization_applied: normalizationApplied,
+      reason: result === COMPARE_RESULT.MATCH ? null : result,
+    });
+  };
+
+  if (!retained || typeof retained !== "object") {
+    return {
+      overall: OVERALL_COMPARE.INCOMPLETE,
+      equal: false,
+      items: [
+        {
+          path: "retained",
+          expected: "object",
+          actual: retained,
+          result: COMPARE_RESULT.UNAVAILABLE,
+          match: false,
+          reason: "retained_snapshot_missing",
+        },
+      ],
+    };
+  }
+
+  push(
+    "product.name",
+    expected?.name,
+    retained?.name,
+    textsEqual(expected?.name, retained?.name) ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
+  );
+
+  for (const key of ["type", "categoryId", "subTypeId"]) {
+    const exp = expected?.[key];
+    const act = retained?.[key];
+    if (exp == null || exp === "") {
+      push(key, exp, act, COMPARE_RESULT.UNAVAILABLE, "none");
+      continue;
+    }
+    push(
+      key,
+      exp,
+      act,
+      String(exp) === String(act) ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
+      "exact_portal_value",
+    );
+  }
+
+  if (expected?.permissionPurpose) {
+    const expLabel = expected.permissionPurpose.label;
+    const expValue = expected.permissionPurpose.value;
+    const actLabel = retained?.permissionPurpose?.label;
+    const actValue = retained?.permissionPurpose?.value;
+    const labelOk = textsEqual(expLabel, actLabel);
+    const valueOk = expValue == null || String(expValue) === String(actValue);
+    push(
+      "permissionPurpose",
+      { label: expLabel, value: expValue },
+      { label: actLabel, value: actValue },
+      labelOk && valueOk ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
+      "exact_label_and_value",
+    );
+  }
+
+  for (const key of ["compositionTitle", "disease"]) {
+    push(
+      key,
+      expected?.[key],
+      retained?.[key],
+      textsEqual(expected?.[key], retained?.[key]) ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
+    );
+  }
+
+  const expInd = Array.isArray(expected?.indications)
+    ? expected.indications.map((v) => normalizeText(v)).filter(Boolean).sort()
+    : [];
+  const actInd = Array.isArray(retained?.indications)
+    ? retained.indications.map((v) => normalizeText(v)).filter(Boolean).sort()
+    : [];
+  push(
+    "indications",
+    expInd,
+    actInd,
+    JSON.stringify(expInd) === JSON.stringify(actInd) ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
+    "exact_set_sorted",
+  );
+
+  push(
+    "drugs",
+    expected?.drugs,
+    retained?.drugs,
+    String(expected?.drugs || "") === String(retained?.drugs || "")
+      ? COMPARE_RESULT.MATCH
+      : COMPARE_RESULT.MISMATCH,
+    "exact_enum",
+  );
+  if (String(expected?.drugs || "").toUpperCase() === "YES") {
+    push(
+      "drugsValue",
+      expected?.drugsValue,
+      retained?.drugsValue,
+      textsEqual(expected?.drugsValue, retained?.drugsValue)
+        ? COMPARE_RESULT.MATCH
+        : COMPARE_RESULT.MISMATCH,
+    );
+  }
+
+  for (const key of options.governedOptionalKeys || []) {
+    if (expected?.[key] == null || expected?.[key] === "") continue;
+    push(
+      key,
+      expected[key],
+      retained?.[key],
+      textsEqual(expected[key], retained?.[key]) ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
+    );
+  }
+
+  if (expected?.attachmentFileName) {
+    const actName = retained?.attachmentFileName || retained?.uploadAttachmentName;
+    push(
+      "attachment.fileName",
+      expected.attachmentFileName,
+      actName,
+      actName
+        ? textsEqual(expected.attachmentFileName, actName)
+          ? COMPARE_RESULT.MATCH
+          : COMPARE_RESULT.MISMATCH
+        : COMPARE_RESULT.UNAVAILABLE,
+      "filename_metadata_only",
+    );
+  }
+
+  const hasUnavailable = items.some((i) => i.result === COMPARE_RESULT.UNAVAILABLE);
+  const hasMismatch = items.some((i) => i.result === COMPARE_RESULT.MISMATCH);
+  let overall = OVERALL_COMPARE.MATCH;
+  if (hasMismatch) overall = OVERALL_COMPARE.MISMATCH;
+  else if (hasUnavailable) overall = OVERALL_COMPARE.INCOMPLETE;
+
+  return {
+    overall,
+    equal: overall === OVERALL_COMPARE.MATCH,
+    items,
+  };
+}
+
+function toMarkPortalVerifiedReport(compareResult) {
+  const items = Array.isArray(compareResult?.items) ? compareResult.items : [];
+  return {
+    equal: compareResult?.overall === OVERALL_COMPARE.MATCH,
+    items: items.map((item) => ({
+      path: item.path,
+      expected: item.expected,
+      actual: item.actual,
+      result: item.result === COMPARE_RESULT.MATCH ? "MATCH" : item.result,
+    })),
+  };
+}
+
 module.exports = {
   COMPARE_RESULT,
+  OVERALL_COMPARE,
   normalizeText,
   normalizeLookupName,
   namesEqualExact,
   compareIntendedVsPortal,
   compareGovernedSnapshot,
+  compareProductDetailsReread,
+  toMarkPortalVerifiedReport,
 };
