@@ -323,6 +323,43 @@ assert(
   "live-versioned regional default parity migrations exist",
 );
 
+const sourceConstraintsSql = fs.readFileSync(
+  path.join(
+    root,
+    "supabase/migrations/20260912105216_regional_sales_default_policy_source_constraints.sql",
+  ),
+  "utf8",
+);
+assert(
+  sourceConstraintsSql.includes("SOURCE-CONTROL PARITY") &&
+    sourceConstraintsSql.includes("DO NOT reapply to production") &&
+    sourceConstraintsSql.includes(
+      "20260912105216_regional_sales_default_policy_source_constraints",
+    ),
+  "source-constraints parity header present",
+);
+assert(
+  sourceConstraintsSql.includes("sku_regional_marketing_basis_source_chk") &&
+    sourceConstraintsSql.includes(
+      "sku_regional_marketing_allocation_value_source_chk",
+    ) &&
+    sourceConstraintsSql.includes("REGIONAL_DEFAULT_POLICY_UNITS") &&
+    sourceConstraintsSql.includes("GOVERNED_REGIONAL_DEFAULT") &&
+    sourceConstraintsSql.includes(
+      "sku_regional_marketing_allocation_basis_snapshot",
+    ) &&
+    sourceConstraintsSql.includes(
+      "sku_regional_marketing_expense_allocation_snapshot",
+    ),
+  "source-constraints parity SQL covers live check targets",
+);
+assert(
+  !/\b(insert|update|delete|truncate)\b/i.test(
+    sourceConstraintsSql.replace(/--[^\n]*/g, ""),
+  ),
+  "source-constraints parity SQL has no DML",
+);
+
 if (failed) {
   console.error(`\n${failed} CSA regional-defaults smoke assertion(s) failed`);
   process.exit(1);
