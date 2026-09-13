@@ -1,6 +1,8 @@
 -- Gate A — PLM PM-BOM revision governance behavioral smoke
 -- Run AFTER applying:
 --   supabase/migrations/20260913093738_plm_bom_revision_governance_gate_a.sql
+--   supabase/migrations/20260913094900_plm_bom_revision_gate_a_function_privilege_hardening.sql
+--   supabase/migrations/20260913095639_plm_bom_revision_gate_a_approval_separation.sql
 --
 -- Uses a single DO block that raises a pass marker so fixture rows roll back.
 -- Does not seed lasting business revisions. Does not touch costing / MRP / runs.
@@ -12,6 +14,48 @@
 select
   to_regclass('public.plm_bom_revision') is not null as has_revision_table,
   to_regclass('public.plm_bom_revision_line') is not null as has_revision_line_table;
+
+-- Privilege matrix (post-hardening + approval separation)
+select
+  p.proname,
+  has_function_privilege('anon', p.oid, 'EXECUTE') as anon_exec,
+  has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_exec,
+  has_function_privilege('public', p.oid, 'EXECUTE') as public_exec,
+  has_function_privilege('service_role', p.oid, 'EXECUTE') as service_role_exec
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and (
+    p.proname like 'fn_plm_bom_revision%'
+    or p.proname like 'rpc_plm_bom_revision%'
+    or p.proname in (
+      'plm_sku_bom_revision_as_of',
+      'plm_sku_bom_lines_as_of',
+      'plm_sku_requirement_unit_as_of'
+    )
+  )
+order by p.proname;
+
+select
+  has_table_privilege('anon', 'public.plm_bom_revision', 'SELECT') as anon_table_sel,
+  has_table_privilege('authenticated', 'public.plm_bom_revision', 'SELECT') as auth_table_sel,
+  has_table_privilege('authenticated', 'public.plm_bom_revision', 'INSERT') as auth_table_ins,
+  has_table_privilege('authenticated', 'public.plm_bom_revision_line', 'SELECT') as auth_line_sel;
+
+select
+  key, kind, label, is_assignable, meta
+from public.permission_targets
+where key = 'role:pm-bom-revision-approve';
+
+select
+  pg_get_functiondef('public.rpc_plm_bom_revision_approve(bigint,date,text,text)'::regprocedure)
+    like '%require_permission(''role:pm-bom-revision-approve''%' as approve_uses_role,
+  pg_get_functiondef('public.rpc_plm_bom_revision_create_draft(bigint,date)'::regprocedure)
+    like '%require_permission(''module:pm-templates'', true)%' as create_uses_pm_edit,
+  pg_get_functiondef('public.rpc_plm_bom_revision_cancel(bigint)'::regprocedure)
+    like '%require_permission(''module:pm-templates'', true)%' as cancel_uses_pm_edit,
+  pg_get_functiondef('public.rpc_plm_bom_revision_list(bigint)'::regprocedure)
+    like '%require_permission(''module:pm-templates'', false)%' as list_uses_pm_view;
 
 select c.conname, pg_get_constraintdef(c.oid) as def
 from pg_constraint c
