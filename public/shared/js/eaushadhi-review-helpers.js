@@ -1162,6 +1162,35 @@ export function detailsDraftFromReview(review) {
   };
 }
 
+export const PORTAL_SHELFMONTH_ROUTE_OPTIONS = Object.freeze([
+  { value: "RegularAsPerClause", label: "Regular As Per Clause" },
+  { value: "Applyforaccessofshelflife", label: "Apply for access of shelf life" },
+]);
+
+export function portalFieldsDraftFromRow(row) {
+  const source = row || {};
+  return {
+    remarks: source.remarks ?? "",
+    portalShelfmonthRoute: source.portal_shelfmonth_route ?? "",
+    rowVersion: source.row_version ?? null,
+  };
+}
+
+export function portalFieldsDirty(draft, baseline) {
+  return (
+    JSON.stringify(omitRowVersion(draft)) !==
+    JSON.stringify(omitRowVersion(baseline))
+  );
+}
+
+export function portalFieldsSaveReady(draft) {
+  return (
+    safeText(draft?.remarks) &&
+    safeText(draft?.portalShelfmonthRoute) &&
+    draft?.rowVersion != null
+  );
+}
+
 export function lineDraftFromRow(row) {
   const source = row || {};
   return {

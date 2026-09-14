@@ -468,6 +468,8 @@ async function executeProductDetails(input = {}, adapters = {}) {
       indications: preflight.fillPlan.fields.find((f) => f.key === "indications")?.expected,
       drugs: preflight.fillPlan.fields.find((f) => f.key === "drugs")?.expected,
       drugsValue: preflight.fillPlan.fields.find((f) => f.key === "drugsValue")?.expected,
+      remarks: preflight.fillPlan.fields.find((f) => f.key === "remarks")?.expected,
+      shelfmonth: preflight.fillPlan.fields.find((f) => f.key === "shelfmonth")?.expected,
       attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
     };
 

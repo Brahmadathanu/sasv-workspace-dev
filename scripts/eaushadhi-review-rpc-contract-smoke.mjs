@@ -57,6 +57,8 @@ const requiredRpcs = [
   "rpc_eaushadhi_worker_preflight",
   "rpc_eaushadhi_worker_payload_get",
   "rpc_eaushadhi_worker_content_get",
+  "rpc_eaushadhi_product_dossier_portal_fields_get",
+  "rpc_eaushadhi_product_dossier_portal_fields_save",
 ];
 
 for (const name of requiredRpcs) {
@@ -101,6 +103,21 @@ const reviewSaveArgs = [
 for (const arg of reviewSaveArgs) {
   assert(apiSrc.includes(`${arg}:`), `product_review_save arg ${arg}`);
 }
+
+const dossierPortalSaveArgs = [
+  "p_product_id",
+  "p_expected_row_version",
+  "p_remarks",
+  "p_portal_shelfmonth_route",
+];
+for (const arg of dossierPortalSaveArgs) {
+  assert(apiSrc.includes(`${arg}:`), `dossier portal fields save arg ${arg}`);
+}
+assert(apiSrc.includes("fetchProductDossierPortalFields"), "dossier portal fields fetch wrapper exists");
+assert(apiSrc.includes("saveProductDossierPortalFields"), "dossier portal fields save wrapper exists");
+assert(controlSrc.includes("fldPortalRemarks"), "Review UI exposes Portal Remarks");
+assert(controlSrc.includes("fldPortalShelfmonthRoute"), "Review UI exposes Shelf-life Route");
+assert(helpersSrc.includes("RegularAsPerClause"), "helpers lock shelfmonth enum values");
 
 assert(apiSrc.includes("p_expected_workflow_row_version:"), "actions/promote use workflow row version");
 assert(apiSrc.includes("p_actions:"), "actions save uses p_actions");
