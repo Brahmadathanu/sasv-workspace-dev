@@ -21,6 +21,23 @@ function extractClassificationValidationEvidence() {
   const SUBTYPE_MESSAGE_CONTEXT_BEFORE = 512;
   const SUBTYPE_MESSAGE_CONTEXT_AFTER = 256;
   const MAX_SUBTYPE_MESSAGE_CONTEXT = 1024;
+  const MAX_PD_FIELD_CONTEXTS_PER_KEY = 3;
+  const PD_FIELD_CONTEXT_BEFORE = 512;
+  const PD_FIELD_CONTEXT_AFTER = 256;
+  // Exact identifier / branch needles for remaining Product Details contract probe.
+  const PD_FIELD_NEEDLES = [
+    { field_key: "remarks", match_term: "remarks" },
+    { field_key: "countryApplicable", match_term: "countryApplicable" },
+    { field_key: "countryId", match_term: "countryId" },
+    { field_key: "month", match_term: "month" },
+    { field_key: "shelfmonth", match_term: "shelfmonth" },
+    { field_key: "actiontype", match_term: "actiontype" },
+    { field_key: "purposeApply", match_term: "purposeApply" },
+    { field_key: "countryApplicable", match_term: "All" },
+    { field_key: "countryApplicable", match_term: "Selected" },
+    { field_key: "month", match_term: "month = -1" },
+    { field_key: "month", match_term: "month=-1" },
+  ];
 
   const SUBMIT_IDS = ["save_btn", "save_rbtn"];
   // Legacy Add Product primary submit target only — do not expand without new evidence.
@@ -928,6 +945,55 @@ function extractClassificationValidationEvidence() {
   }
 
   /**
+   * Factual only: bounded windows around remaining Product Details field / branch
+   * needles in a full untruncated SaveData Function#toString body. No classification.
+   */
+  function collectProductDetailsFieldValidationContexts(fullSource) {
+    const source = String(fullSource || "");
+    const out = [];
+    const perNeedle = Object.create(null);
+
+    for (const needle of PD_FIELD_NEEDLES) {
+      const fieldKey = needle.field_key;
+      const term = String(needle.match_term || "");
+      if (!term) continue;
+      const needleKey = `${fieldKey}::${term}`;
+      if ((perNeedle[needleKey] || 0) >= MAX_PD_FIELD_CONTEXTS_PER_KEY) continue;
+
+      let searchFrom = 0;
+      while ((perNeedle[needleKey] || 0) < MAX_PD_FIELD_CONTEXTS_PER_KEY) {
+        const matchOffset = source.indexOf(term, searchFrom);
+        if (matchOffset < 0) break;
+        // Prefer identifier-ish boundaries for short tokens like "All" / "month".
+        if (term.length <= 6) {
+          const before = matchOffset > 0 ? source[matchOffset - 1] : "";
+          const after = matchOffset + term.length < source.length ? source[matchOffset + term.length] : "";
+          const beforeOk = !before || /[^A-Za-z0-9_$]/.test(before);
+          const afterOk = !after || /[^A-Za-z0-9_$]/.test(after);
+          if (!beforeOk || !afterOk) {
+            searchFrom = matchOffset + term.length;
+            continue;
+          }
+        }
+        const phraseEnd = matchOffset + term.length;
+        const rawStart = Math.max(0, matchOffset - PD_FIELD_CONTEXT_BEFORE);
+        const rawEnd = Math.min(source.length, phraseEnd + PD_FIELD_CONTEXT_AFTER);
+        out.push({
+          field_key: fieldKey,
+          match_term: term,
+          match_offset: matchOffset,
+          branch_context_snippet_raw: source.slice(rawStart, rawEnd),
+          validation_branch_context_truncated_before: rawStart > 0,
+          validation_branch_context_truncated_after: rawEnd < source.length,
+        });
+        perNeedle[needleKey] = (perNeedle[needleKey] || 0) + 1;
+        searchFrom = phraseEnd;
+      }
+    }
+    return out;
+  }
+
+  /**
    * Read-only inspection of allowlisted globals referenced by submit onclick wrappers.
    * Uses Function.prototype.toString only — never invokes the target function.
    */
@@ -956,6 +1022,7 @@ function extractClassificationValidationEvidence() {
         function_source_raw: null,
         snippets: [],
         subtype_validation_message_contexts: [],
+        product_details_field_validation_contexts: [],
         observation_flags: {
           subtype_validation_candidate_observed: false,
           subtype_minus_one_rejection_candidate_observed: false,
@@ -984,12 +1051,15 @@ function extractClassificationValidationEvidence() {
           entry.snippets = scanHandlerSource(bounded);
           entry.function_source_raw = null;
           entry.subtype_validation_message_contexts = [];
+          entry.product_details_field_validation_contexts = [];
         } else {
           entry.source_truncated = false;
           entry.source_capture_status = "captured";
           entry.snippets = scanHandlerSource(raw);
           entry.function_source_raw = raw;
           entry.subtype_validation_message_contexts = collectSubtypeValidationMessageContexts(raw);
+          entry.product_details_field_validation_contexts =
+            collectProductDetailsFieldValidationContexts(raw);
         }
         entry.observation_flags = observationFlagsFromSnippets(entry.snippets);
       } catch {

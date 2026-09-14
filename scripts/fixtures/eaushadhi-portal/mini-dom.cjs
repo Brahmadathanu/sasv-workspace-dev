@@ -32,6 +32,9 @@ function createNode(tag, attrs) {
     get disabled() {
       return Object.prototype.hasOwnProperty.call(this.attrs, "disabled");
     },
+    get checked() {
+      return Object.prototype.hasOwnProperty.call(this.attrs, "checked");
+    },
     get multiple() {
       return Object.prototype.hasOwnProperty.call(this.attrs, "multiple");
     },
@@ -233,9 +236,27 @@ function installSaveDataFixture() {
     }
     // Generic Sub Type* / required wording without a subtype-to--1 comparison.
     var labelHint = "Sub Type* is required when category is selected";
+    // Remaining Product Details field / branch markers (observational only).
+    var remarks = document.getElementById("remarks") && document.getElementById("remarks").value;
+    if (remarks == null || remarks === "") {
+      return "Please enter remarks";
+    }
+    var countryApplicable = document.getElementById("countryApplicable").value;
+    if (countryApplicable === "All") {
+      var countryId = null;
+    }
+    if (countryApplicable === "Selected") {
+      countryId = document.getElementById("countryId").value;
+    }
+    if (document.getElementById("actiontype").value == "add") {
+      var month = -1;
+    }
+    var shelfmonth = document.querySelector("input[name='shelfmonth']:checked");
+    // Discovery token only — no DOM element required in fixture.
+    var purposeApplyMarker = "purposeApply";
     // Planted secret in an unrelated region — must not survive sanitized snippets.
     var deadCodeMarker = "bearer PLANTED_SAVEDATA_SECRET_SHOULD_NOT_PERSIST unused";
-    return labelHint || deadCodeMarker || true;
+    return labelHint || deadCodeMarker || purposeApplyMarker || true;
   };
 }
 

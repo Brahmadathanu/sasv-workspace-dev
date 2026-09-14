@@ -337,6 +337,7 @@ function productDetailsObservation(pageExtract) {
     "countryApplicable",
     "countryId",
     "compositionTitle",
+    "remarks",
   ]);
   const controls = [...(pageExtract.inputs || []), ...(pageExtract.selects || []), ...(pageExtract.textareas || [])]
     .filter((item) => wanted.has(String(item.id || "")))
@@ -367,13 +368,104 @@ function productDetailsObservation(pageExtract) {
     .some((select) =>
       (select.options || []).some((opt) => /ayurvedic\s+proprietary/i.test(String(opt.label || ""))),
     );
+
+  const shelfmonthRadios = Array.isArray(pageExtract.shelfmonth_radios)
+    ? pageExtract.shelfmonth_radios.map((item) => ({
+        id: item?.id || null,
+        name: item?.name || null,
+        type: "radio",
+        raw_value_attr: item?.raw_value_attr == null ? null : String(item.raw_value_attr),
+        dom_value_property: item?.dom_value_property == null ? null : String(item.dom_value_property),
+        label_for_attr: item?.label_for_attr == null ? null : String(item.label_for_attr),
+        label_text: item?.label_text == null ? null : String(item.label_text),
+        surrounding_text: item?.surrounding_text == null ? null : String(item.surrounding_text),
+        checked: item?.checked === true,
+        visible: item?.visible === true,
+        disabled: item?.disabled === true,
+        structure_excerpt: item?.structure_excerpt == null ? null : String(item.structure_excerpt),
+        mutated: false,
+      }))
+    : [];
+
+  const branchProbe = pageExtract.product_details_branch_probe || {};
+  const actionProbe = branchProbe.actiontype || {};
+  const purposeProbe = branchProbe.purposeApply || {};
+
+  const remainingPresence = Array.isArray(pageExtract.remaining_field_presence)
+    ? pageExtract.remaining_field_presence
+    : [];
+
+  const remainingKeys = [];
+  for (const key of ["remarks", "countryApplicable", "countryId", "month"]) {
+    if (remainingPresence.some((item) => item && item.id === key && item.present === true)) {
+      remainingKeys.push(key);
+    }
+  }
+  if (shelfmonthRadios.length > 0 || remainingPresence.some((item) => item && (item.id === "regular" || item.id === "applyaccess") && item.present === true)) {
+    remainingKeys.push("shelfmonth");
+  }
+
   return {
     controls,
+    shelfmonth_radios: shelfmonthRadios,
+    branch_context: {
+      actiontype: {
+        observed: actionProbe.observed === true,
+        observed_dom_value:
+          actionProbe.observed_dom_value == null ? null : String(actionProbe.observed_dom_value),
+        mutated: false,
+      },
+      purposeApply: {
+        observed_in_dom: purposeProbe.observed_in_dom === true,
+        observed_dom_value:
+          purposeProbe.observed_dom_value == null ? null : String(purposeProbe.observed_dom_value),
+        // Filled after SaveData validation finalize in inspectPage.
+        observed_in_savedata_source: null,
+        mutated: false,
+      },
+    },
+    remaining_fields_observed: remainingKeys,
+    remaining_field_presence: remainingPresence.map((item) => ({
+      id: item?.id || null,
+      present: item?.present === true,
+      tag: item?.tag || null,
+      type: item?.type || null,
+      name: item?.name || null,
+      visible: item?.visible == null ? null : item.visible === true,
+      disabled: item?.disabled == null ? null : item.disabled === true,
+      readOnly: item?.readOnly == null ? null : item.readOnly === true,
+      option_count: typeof item?.option_count === "number" ? item.option_count : null,
+      selector_candidate: item?.selector_candidate || null,
+      mutated: false,
+    })),
     ayurvedic_proprietary_type_option_present: typeHasAyurvedicOption,
     ayurvedic_proprietary_currently_selected: ayurvedicProprietary,
     category_subtype_dependency: "unresolved",
-    note: "Selections were observed only. Capture does not change Product Type, Category, or Subtype.",
+    note: "Selections were observed only. Capture does not change Product Type, Category, or Subtype. Remaining-field values are not classified in this probe.",
   };
+}
+
+function purposeApplyObservedInSaveData(validationEvidence) {
+  const handlers = validationEvidence?.referenced_handler_functions || [];
+  let saw = false;
+  for (const handler of handlers) {
+    const contexts = handler?.product_details_field_validation_contexts || [];
+    for (const ctx of contexts) {
+      if (String(ctx?.field_key || "") === "purposeApply" || String(ctx?.match_term || "") === "purposeApply") {
+        saw = true;
+        break;
+      }
+    }
+    if (saw) break;
+  }
+  if (saw) return true;
+  // Explicit false when SaveData was captured and scanned; null when evidence missing.
+  const saveData = handlers.find((item) => item?.function_name === "SaveData");
+  if (!saveData || saveData.found !== true) return null;
+  if (saveData.source_capture_status === "captured" && saveData.source_truncated !== true) {
+    return false;
+  }
+  return null;
 }
 
 function evidenceStructure(pageExtract) {
@@ -510,6 +602,14 @@ async function inspectPage(page, contract) {
   const inputs = attachBindings(extracted.inputs);
   const textareas = attachBindings(extracted.textareas);
   const buttons = attachBindings(extracted.buttons);
+  const product_details_observation = productDetailsObservation({
+    ...extracted,
+    inputs,
+    selects,
+    textareas,
+  });
+  product_details_observation.branch_context.purposeApply.observed_in_savedata_source =
+    purposeApplyObservedInSaveData(classification_validation_evidence);
   const pageBody = {
     origin,
     path: safePathFromUrl(url),
@@ -532,12 +632,7 @@ async function inspectPage(page, contract) {
       textareas,
       buttons,
     }),
-    product_details_observation: productDetailsObservation({
-      ...extracted,
-      inputs,
-      selects,
-      textareas,
-    }),
+    product_details_observation,
     evidence_structure: evidenceStructure({ ...extracted, inputs }),
     reread_structure: rereadStructure({ ...extracted, inputs, selects, textareas }),
     shell_creation_structure: shellCreationStructure({ ...extracted, buttons }, extracted.forms),

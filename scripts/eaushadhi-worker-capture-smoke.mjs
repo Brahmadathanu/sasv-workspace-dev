@@ -381,6 +381,101 @@ assert(
 );
 assert(!JSON.stringify(saveDataEvidence).includes("validation_branch_context_snippet_raw"), "msgctx: transport raw field dropped");
 assert(Array.isArray(saveDataEvidence.snippets) && saveDataEvidence.snippets.length <= 8, "12: snippet count is bounded");
+
+const pdFieldContexts = saveDataEvidence.product_details_field_validation_contexts || [];
+assert(Array.isArray(pdFieldContexts) && pdFieldContexts.length > 0, "pdctx: product_details_field_validation_contexts present");
+for (const key of ["remarks", "countryApplicable", "countryId", "month", "shelfmonth", "actiontype", "purposeApply"]) {
+  assert(
+    pdFieldContexts.some((item) => item.field_key === key),
+    `pdctx: field_key ${key} present`,
+  );
+}
+assert(
+  pdFieldContexts.some((item) => item.match_term === "All" || String(item.branch_context_snippet || "").includes("All")),
+  "pdctx: All branch literal observed",
+);
+assert(
+  pdFieldContexts.some((item) => item.match_term === "Selected" || String(item.branch_context_snippet || "").includes("Selected")),
+  "pdctx: Selected branch literal observed",
+);
+assert(
+  pdFieldContexts.some(
+    (item) =>
+      item.match_term === "month = -1" ||
+      item.match_term === "month=-1" ||
+      /month\s*=\s*-1/.test(String(item.branch_context_snippet || "")),
+  ),
+  "pdctx: month = -1 branch observed",
+);
+assert(
+  pdFieldContexts.every(
+    (item) =>
+      typeof item.branch_context_snippet === "string" &&
+      item.branch_context_snippet.length > 0 &&
+      item.branch_context_snippet.length <= 1024 &&
+      typeof item.match_offset === "number",
+  ),
+  "pdctx: snippets bounded and offsets present",
+);
+assert(!JSON.stringify(saveDataEvidence).includes("branch_context_snippet_raw"), "pdctx: transport raw field dropped");
+
+const pdObs = legacyJson.pages[0].product_details_observation;
+assert(pdObs && typeof pdObs === "object", "pdobs: product_details_observation present");
+const shelfRadios = pdObs.shelfmonth_radios || [];
+assert(shelfRadios.length === 2, "pdobs: two shelfmonth radios");
+const regularRadio = shelfRadios.find((item) => item.id === "regular");
+const applyRadio = shelfRadios.find((item) => item.id === "applyaccess");
+assert(regularRadio?.raw_value_attr === "REGULAR_PLANTED_VALUE", "pdobs: regular raw_value_attr exact");
+assert(regularRadio?.dom_value_property === "REGULAR_PLANTED_VALUE", "pdobs: regular dom_value_property exact");
+assert(regularRadio?.label_for_attr === "regular", "pdobs: regular label_for_attr");
+assert(regularRadio?.label_text === "Regular shelf life (planted)", "pdobs: regular label_text not inferred from id");
+assert(regularRadio?.checked === false, "pdobs: regular unchecked");
+assert(regularRadio?.visible === true, "pdobs: regular visible");
+assert(regularRadio?.disabled === false, "pdobs: regular enabled");
+assert(typeof regularRadio?.structure_excerpt === "string" && regularRadio.structure_excerpt.length <= 240, "pdobs: structure_excerpt bounded");
+assert(regularRadio.structure_excerpt.includes("REGULAR_PLANTED_VALUE"), "pdobs: structure_excerpt includes planted value");
+assert(regularRadio.mutated === false, "pdobs: radio mutated false");
+assert(applyRadio?.raw_value_attr === "APPLYACCESS_PLANTED_VALUE", "pdobs: applyaccess raw_value_attr exact");
+assert(applyRadio?.label_text === "Apply access shelf (planted)", "pdobs: applyaccess label_text");
+assert(applyRadio?.label_for_attr === "applyaccess", "pdobs: applyaccess label_for_attr");
+assert(applyRadio?.checked === true, "pdobs: applyaccess checked");
+assert(pdObs.branch_context?.actiontype?.observed === true, "pdobs: actiontype observed");
+assert(pdObs.branch_context?.actiontype?.observed_dom_value === "add", "pdobs: actiontype observed_dom_value from element.value");
+assert(pdObs.branch_context?.actiontype?.mutated === false, "pdobs: actiontype not mutated");
+assert(pdObs.branch_context?.purposeApply?.observed_in_dom === false, "pdobs: purposeApply absent from DOM");
+assert(pdObs.branch_context?.purposeApply?.observed_dom_value == null, "pdobs: purposeApply dom value null");
+assert(pdObs.branch_context?.purposeApply?.observed_in_savedata_source === true, "pdobs: purposeApply token in SaveData");
+assert(pdObs.branch_context?.purposeApply?.mutated === false, "pdobs: purposeApply not mutated");
+assert(
+  ["remarks", "countryApplicable", "countryId", "month", "shelfmonth"].every((key) =>
+    (pdObs.remaining_fields_observed || []).includes(key),
+  ),
+  "pdobs: remaining_fields_observed lists all five keys",
+);
+const remarksPresence = (pdObs.remaining_field_presence || []).find((item) => item.id === "remarks");
+assert(remarksPresence?.present === true, "pdobs: remarks present");
+assert(remarksPresence?.type === "textarea" || remarksPresence?.tag === "textarea", "pdobs: remarks type/tag");
+assert(!Object.prototype.hasOwnProperty.call(remarksPresence || {}, "value"), "pdobs: remarks free-text value not captured");
+assert(legacyJson.mutated === false, "pdobs: capture mutated false");
+assert(Array.isArray(legacyJson.clicks_performed) && legacyJson.clicks_performed.length === 0, "pdobs: clicks_performed empty");
+const workerActions = legacyJson.worker_actions || {};
+assert(
+  Object.values(workerActions).every((n) => n === 0),
+  "pdobs: worker action counters zero",
+);
+
+const secretInput = (legacyJson.pages[0].inputs || []).find((item) => item.id === "unrelated_secret");
+assert(secretInput, "secret input present structurally");
+assert(secretInput.raw_value_attr == null, "secret input has no raw_value_attr on generic path");
+assert(secretInput.dom_value_property == null, "secret input has no dom_value_property on generic path");
+assert(secretInput.structure_excerpt == null, "secret input has no structure_excerpt on generic path");
+assert(!JSON.stringify(legacyJson).includes("PLANTED_GENERIC_INPUT_SECRET_SHOULD_NOT_PERSIST"), "generic planted secret redacted");
+assert(
+  !(legacyJson.pages[0].inputs || []).some(
+    (item) => item && (item.raw_value_attr != null || item.dom_value_property != null || item.structure_excerpt != null),
+  ),
+  "generic inputs do not gain targeted raw-value fields",
+);
 assert(
   saveDataEvidence.snippets.every((item) => !item.context_snippet || item.context_snippet.length <= 160),
   "11: snippets are bounded",
@@ -918,9 +1013,19 @@ runAliasBodyCase(
       "msgctx9: truncated SaveData emits no subtype_validation_message_contexts",
     );
     assert(
+      !Array.isArray(finalizedEntry.product_details_field_validation_contexts) ||
+        finalizedEntry.product_details_field_validation_contexts.length === 0,
+      "pdctx9: truncated SaveData emits no product_details_field_validation_contexts",
+    );
+    assert(
       !Array.isArray(oversizedEntry.subtype_validation_message_contexts) ||
         oversizedEntry.subtype_validation_message_contexts.length === 0,
       "msgctx9b: raw truncated path also omits message contexts",
+    );
+    assert(
+      !Array.isArray(oversizedEntry.product_details_field_validation_contexts) ||
+        oversizedEntry.product_details_field_validation_contexts.length === 0,
+      "pdctx9b: raw truncated path also omits PD field contexts",
     );
     assert(!JSON.stringify(oversizedFinal).includes("function_source_raw"), "18: raw absent after finalize");
     assert(
@@ -976,8 +1081,10 @@ const typeVocab = (legacyJson.vocabularies || []).find((item) => item.select_id 
 assert(typeVocab?.options.some((opt) => opt.value === "-1" && opt.label === "Ayurveda Classical"), "genuine -1 domain value remains captured");
 assert(typeVocab.unresolved_async !== true, "genuine -1 value is not treated as placeholder-only unresolved");
 const countryVocab = (legacyJson.vocabularies || []).find((item) => item.select_id === "countryApplicable");
-assert(countryVocab?.options.some((opt) => opt.value === "0" && opt.label === "--Select Option--"), "value=0 placeholder option remains in evidence");
-assert(countryVocab.unresolved_async === true, "value=0 placeholder-only Select2 is unresolved_async");
+assert(countryVocab?.options.some((opt) => opt.value === "-1" && opt.label === "--Select--"), "countryApplicable placeholder option remains in evidence");
+assert(countryVocab?.options.some((opt) => opt.value === "All" && opt.label === "All"), "countryApplicable All option captured");
+assert(countryVocab?.options.some((opt) => opt.value === "Selected" && opt.label === "Selected"), "countryApplicable Selected option captured");
+assert(countryVocab.unresolved_async !== true, "populated countryApplicable is not unresolved_async");
 assert(indications.unresolved_async === false, "populated #indications remains resolved");
 
 const productTmp = mkdtempSync(join(os.tmpdir(), "ea-cap-product-"));
