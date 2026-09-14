@@ -136,6 +136,184 @@ function extractPortalPage() {
     };
   }
 
+  function visible(el) {
+    if (!el) return false;
+    if (el.hidden === true) return false;
+    const win = typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : null;
+    const style = win && typeof win.getComputedStyle === "function" ? win.getComputedStyle(el) : null;
+    if (style && (style.display === "none" || style.visibility === "hidden")) return false;
+    return true;
+  }
+
+  function isShelfmonthRadioTarget(el) {
+    if (!el || String(el.tagName || "").toLowerCase() !== "input") return false;
+    const id = String(el.id || "");
+    const name = attr(el, "name");
+    const type = String(attr(el, "type") || el.type || "").toLowerCase();
+    if (type !== "radio") return false;
+    if (id === "regular" || id === "applyaccess") return true;
+    return name === "shelfmonth";
+  }
+
+  function labelForAttr(id) {
+    if (!id) return null;
+    const label = document.querySelector(`label[for="${cssAttr(id)}"]`);
+    if (!label) return null;
+    return attr(label, "for");
+  }
+
+  function surroundingText(el) {
+    const container =
+      (el && el.closest && el.closest("td, th, li, fieldset, label, div, span")) || (el && el.parentElement) || null;
+    return textOf(container).slice(0, 120) || null;
+  }
+
+  function sanitizeAttrToken(value, max) {
+    return String(value == null ? "" : value)
+      .replace(/[\r\n\t]+/g, " ")
+      .replace(/[<>"'`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, max || 80);
+  }
+
+  /**
+   * Constructed structural excerpt — never raw outerHTML.
+   * Includes only safe radio/label attributes for contract understanding.
+   */
+  function structureExcerpt(el, meta) {
+    const bits = ["<input"];
+    if (meta.id) bits.push(` id="${sanitizeAttrToken(meta.id, 40)}"`);
+    if (meta.name) bits.push(` name="${sanitizeAttrToken(meta.name, 40)}"`);
+    bits.push(` type="radio"`);
+    if (meta.raw_value_attr != null && meta.raw_value_attr !== "") {
+      bits.push(` value="${sanitizeAttrToken(meta.raw_value_attr, 60)}"`);
+    }
+    if (meta.checked === true) bits.push(" checked");
+    if (meta.disabled === true) bits.push(" disabled");
+    const cls = sanitizeAttrToken(attr(el, "class"), 40);
+    if (cls) bits.push(` class="${cls}"`);
+    bits.push(">");
+    if (meta.label_for_attr || meta.label_text) {
+      bits.push(` <label`);
+      if (meta.label_for_attr) bits.push(` for="${sanitizeAttrToken(meta.label_for_attr, 40)}"`);
+      bits.push(">");
+      if (meta.label_text) bits.push(sanitizeAttrToken(meta.label_text, 60));
+      bits.push("</label>");
+    }
+    return bits.join("").slice(0, 240);
+  }
+
+  function shelfmonthRadioRecord(el) {
+    const id = el.id || null;
+    const rawValueAttr = attr(el, "value");
+    let domValueProperty = null;
+    try {
+      domValueProperty = el.value == null ? null : String(el.value);
+    } catch {
+      domValueProperty = null;
+    }
+    const labelText = associatedLabel(el);
+    const forAttr = labelForAttr(id);
+    const meta = {
+      id,
+      name: attr(el, "name"),
+      type: "radio",
+      raw_value_attr: rawValueAttr,
+      dom_value_property: domValueProperty,
+      label_for_attr: forAttr,
+      label_text: labelText,
+      surrounding_text: surroundingText(el),
+      checked: el.checked === true,
+      visible: visible(el),
+      disabled: el.disabled === true,
+      mutated: false,
+    };
+    meta.structure_excerpt = structureExcerpt(el, meta);
+    return meta;
+  }
+
+  function remainingFieldPresenceRecord(id) {
+    const el = document.getElementById(id);
+    if (!el) {
+      return {
+        id,
+        present: false,
+        tag: null,
+        type: null,
+        name: null,
+        visible: null,
+        disabled: null,
+        readOnly: null,
+        option_count: null,
+        selector_candidate: { strategy: "id", selector: `#${cssEscape(id)}` },
+        mutated: false,
+      };
+    }
+    const tag = String(el.tagName || "").toLowerCase();
+    const type =
+      attr(el, "type") ||
+      (tag === "select" ? "select" : tag === "textarea" ? "textarea" : tag === "input" ? "text" : tag);
+    let optionCount = null;
+    if (tag === "select" && el.options) {
+      optionCount = Array.from(el.options).length;
+    }
+    return {
+      id,
+      present: true,
+      tag,
+      type,
+      name: attr(el, "name"),
+      visible: visible(el),
+      disabled: el.disabled === true,
+      readOnly: el.readOnly === true,
+      option_count: optionCount,
+      selector_candidate: selectorCandidate(el),
+      mutated: false,
+    };
+  }
+
+  function readDomValue(el) {
+    if (!el) return null;
+    try {
+      return el.value == null ? null : String(el.value);
+    } catch {
+      return null;
+    }
+  }
+
+  function branchDomProbe() {
+    const actionEl = document.getElementById("actiontype");
+    const purposeEl = document.getElementById("purposeApply");
+    return {
+      actiontype: {
+        observed: !!actionEl,
+        observed_dom_value: actionEl ? readDomValue(actionEl) : null,
+        mutated: false,
+      },
+      purposeApply: {
+        observed_in_dom: !!purposeEl,
+        observed_dom_value: purposeEl ? readDomValue(purposeEl) : null,
+        mutated: false,
+      },
+    };
+  }
+
+  const shelfmonth_radios = Array.from(document.querySelectorAll("input")).filter(isShelfmonthRadioTarget).map(
+    shelfmonthRadioRecord,
+  );
+
+  const remaining_field_presence = [
+    "remarks",
+    "countryApplicable",
+    "countryId",
+    "month",
+    "regular",
+    "applyaccess",
+  ].map(remainingFieldPresenceRecord);
+
+  const product_details_branch_probe = branchDomProbe();
+
   const forms = Array.from(document.querySelectorAll("form")).map((form) => {
     let actionPath = null;
     try {
@@ -231,6 +409,10 @@ function extractPortalPage() {
     buttons,
     anchors,
     tables,
+    // Targeted Product Details probe only — never merged into generic input records.
+    shelfmonth_radios,
+    remaining_field_presence,
+    product_details_branch_probe,
   };
 }
 

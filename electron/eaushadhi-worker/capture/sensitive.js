@@ -58,6 +58,19 @@ function stripForbiddenKeys(value, path, dropped) {
       dropped.push(path ? `${path}.${key}` : key);
       continue;
     }
+    // Targeted Product Details probe keys — never allow on generic input/control paths.
+    if (
+      (key === "raw_value_attr" ||
+        key === "dom_value_property" ||
+        key === "structure_excerpt" ||
+        key === "observed_dom_value" ||
+        key === "label_for_attr" ||
+        key === "surrounding_text") &&
+      !/(^|\.)product_details_observation(\.|$)/.test(path || "")
+    ) {
+      dropped.push(path ? `${path}.${key}` : key);
+      continue;
+    }
     out[key] = stripForbiddenKeys(child, path ? `${path}.${key}` : key, dropped);
   }
   return out;

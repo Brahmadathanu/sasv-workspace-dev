@@ -8,7 +8,13 @@
     <button type="button" id="profile">SYNTH_LICENSE_USER_999</button>
     <a id="lnkUpdateProfile" href="/admin/updateprofile">Update Profile</a>
     <form id="productForm" method="post" action="/admin/addproductforlegacy">
-      <input type="hidden" id="actiontype" name="actiontype" value="must-not-capture" />
+      <input type="hidden" id="actiontype" name="actiontype" value="add" />
+      <input
+        type="text"
+        id="unrelated_secret"
+        name="unrelated_secret"
+        value="PLANTED_GENERIC_INPUT_SECRET_SHOULD_NOT_PERSIST"
+      />
       <label for="categoryId">Category</label>
       <select id="categoryId" name="categoryId" class="select2-hidden-accessible" data-select2-id="categoryId">
         <option value="-1">--Select--</option>
@@ -30,9 +36,25 @@
       <span class="select2 select2-container"></span>
       <label for="countryApplicable">Country Applicable</label>
       <select id="countryApplicable" name="countryApplicable" class="select2-hidden-accessible" data-select2-id="countryApplicable">
-        <option value="0">--Select Option--</option>
+        <option value="-1">--Select--</option>
+        <option value="All">All</option>
+        <option value="Selected">Selected</option>
       </select>
       <span class="select2 select2-container"></span>
+      <label for="countryId">Country</label>
+      <select id="countryId" name="countryId">
+        <option value="-1">--Select Country--</option>
+      </select>
+      <label for="month">Month</label>
+      <input id="month" name="month" type="text" />
+      <div class="shelfmonth-group">
+        <input id="regular" name="shelfmonth" type="radio" value="REGULAR_PLANTED_VALUE" />
+        <label for="regular">Regular shelf life (planted)</label>
+        <input id="applyaccess" name="shelfmonth" type="radio" value="APPLYACCESS_PLANTED_VALUE" checked />
+        <label for="applyaccess">Apply access shelf (planted)</label>
+      </div>
+      <label for="remarks">Remarks</label>
+      <textarea id="remarks" name="remarks"></textarea>
       <label for="type">Type</label>
       <select id="type" name="type">
         <option value="-1">Ayurveda Classical</option>

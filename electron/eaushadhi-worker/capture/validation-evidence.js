@@ -8,6 +8,8 @@ const SNIPPET_MAX = 160;
 const MAX_HANDLER_SNIPPETS = 8;
 const MAX_SUBTYPE_MESSAGE_CONTEXT = 1024;
 const MAX_SUBTYPE_MESSAGE_CONTEXTS = 3;
+const MAX_PD_FIELD_CONTEXT = 1024;
+const MAX_PD_FIELD_CONTEXTS = 24;
 
 function sha256Text(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
@@ -100,6 +102,20 @@ function finalizeSubtypeMessageContext(item) {
   };
 }
 
+function finalizeProductDetailsFieldContext(item) {
+  const rawSnippet = item?.branch_context_snippet_raw || item?.branch_context_snippet || null;
+  return {
+    field_key: item?.field_key || null,
+    match_term: item?.match_term || null,
+    match_offset: typeof item?.match_offset === "number" ? item.match_offset : null,
+    branch_context_snippet: rawSnippet ? boundSanitize(rawSnippet, MAX_PD_FIELD_CONTEXT) : null,
+    validation_branch_context_truncated_before:
+      item?.validation_branch_context_truncated_before === true,
+    validation_branch_context_truncated_after:
+      item?.validation_branch_context_truncated_after === true,
+  };
+}
+
 function finalizeReferencedHandler(entry) {
   const rawSource = entry?.function_source_raw;
   const hasFullRaw = typeof rawSource === "string" && rawSource.length > 0;
@@ -126,6 +142,16 @@ function finalizeReferencedHandler(entry) {
           .slice(0, MAX_SUBTYPE_MESSAGE_CONTEXTS)
           .map((item) => finalizeSubtypeMessageContext(item));
 
+  const pdFieldContexts =
+    truncated === true
+      ? []
+      : (Array.isArray(entry?.product_details_field_validation_contexts)
+          ? entry.product_details_field_validation_contexts
+          : []
+        )
+          .slice(0, MAX_PD_FIELD_CONTEXTS)
+          .map((item) => finalizeProductDetailsFieldContext(item));
+
   const flags = entry?.observation_flags || {};
   return {
     function_name: entry?.function_name || null,
@@ -140,6 +166,7 @@ function finalizeReferencedHandler(entry) {
     hash_scope: hashScope,
     snippets,
     subtype_validation_message_contexts: messageContexts,
+    product_details_field_validation_contexts: pdFieldContexts,
     observation_flags: {
       subtype_validation_candidate_observed: flags.subtype_validation_candidate_observed === true,
       subtype_minus_one_rejection_candidate_observed:
