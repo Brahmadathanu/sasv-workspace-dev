@@ -19,6 +19,13 @@ const EXPECTED_PORTAL_PRODUCT_NAME = "Karpooradi Thailam";
 const EXPECTED_APPROVED_COPY_NAME =
   "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf";
 
+const PORTAL_SHELFMONTH_ROUTE_VALUES = Object.freeze([
+  "RegularAsPerClause",
+  "Applyforaccessofshelflife",
+]);
+
+const EXPORT_ONLY_PERMISSION_LABEL = "Export Only";
+
 /**
  * SaveData-observed controls for the Ayurveda add branch.
  * Unresolved country/month/shelfmonth/remarks stay REQUIRED_GOVERNED without source → gate fails.
@@ -99,36 +106,36 @@ const FIELD_CONTRACT = Object.freeze([
     key: "remarks",
     selector: "#remarks",
     classification: FIELD_CLASS.REQUIRED_GOVERNED,
-    sourcePath: null,
-    governanceMissing: true,
+    sourcePath: "details.portal_remarks",
   },
   {
     key: "countryApplicable",
     selector: "#countryApplicable",
-    classification: FIELD_CLASS.REQUIRED_GOVERNED,
+    classification: FIELD_CLASS.CONDITIONAL_GOVERNED,
     sourcePath: null,
-    governanceMissing: true,
+    exportOnlyRequired: true,
   },
   {
     key: "countryId",
     selector: "#countryId",
-    classification: FIELD_CLASS.REQUIRED_GOVERNED,
+    classification: FIELD_CLASS.CONDITIONAL_GOVERNED,
     sourcePath: null,
-    governanceMissing: true,
+    exportOnlyRequired: true,
+    when: { countryApplicable: "Selected" },
   },
   {
     key: "month",
     selector: "#month",
-    classification: FIELD_CLASS.REQUIRED_GOVERNED,
+    classification: FIELD_CLASS.PROVEN_NOT_APPLICABLE,
     sourcePath: null,
-    governanceMissing: true,
+    portalDerived: true,
   },
   {
     key: "shelfmonth",
     selector: "input[name='shelfmonth'],#shelfmonth",
     classification: FIELD_CLASS.REQUIRED_GOVERNED,
-    sourcePath: null,
-    governanceMissing: true,
+    sourcePath: "details.portal_shelfmonth_route",
+    enumValues: PORTAL_SHELFMONTH_ROUTE_VALUES,
   },
 ]);
 
@@ -137,6 +144,35 @@ function getByPath(obj, path) {
   return String(path)
     .split(".")
     .reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+}
+
+function normalizeGovernedText(value) {
+  if (value == null) return "";
+  return String(value).normalize("NFC").trim();
+}
+
+function isExportOnlyPermission(content) {
+  return namesEqualExact(
+    content?.details?.permission_purpose_label,
+    EXPORT_ONLY_PERMISSION_LABEL,
+  );
+}
+
+function isValidPortalShelfmonthRoute(value) {
+  const route = String(value || "").trim();
+  return PORTAL_SHELFMONTH_ROUTE_VALUES.includes(route);
+}
+
+function isProvenNotApplicableField(spec, content) {
+  if (spec.classification === FIELD_CLASS.PROVEN_NOT_APPLICABLE) return true;
+  if (spec.key === "month") return true;
+  if (
+    (spec.key === "countryApplicable" || spec.key === "countryId") &&
+    !isExportOnlyPermission(content)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function assertProductLock(productId, content) {
@@ -231,7 +267,65 @@ function buildFillPlan(content, options = {}) {
       ? options.fieldGovernanceOverrides
       : null;
 
+  const permissionLabel = normalizeLookupName(content?.details?.permission_purpose_label);
+  if (!permissionLabel) {
+    blockers.push({
+      key: "permissionPurpose",
+      code: "PERMISSION_LABEL_MISSING",
+      message: "permission_purpose_label is unresolved.",
+    });
+  }
+
   for (const spec of FIELD_CONTRACT) {
+    if (isProvenNotApplicableField(spec, content)) {
+      fields.push({
+        ...spec,
+        governed: true,
+        expected: null,
+        fill: false,
+        skipped: true,
+        reason: "proven_not_applicable",
+      });
+      continue;
+    }
+
+    const overrideVal = overrides?.[spec.key];
+    if (overrideVal != null && String(overrideVal).trim() !== "") {
+      const expectedOverride = String(overrideVal).trim();
+      if (spec.key === "shelfmonth" && !isValidPortalShelfmonthRoute(expectedOverride)) {
+        blockers.push({
+          key: "shelfmonth",
+          code: "FIELD_VALUE_INVALID",
+          message: `Override shelfmonth must be one of ${PORTAL_SHELFMONTH_ROUTE_VALUES.join(", ")}.`,
+        });
+        fields.push({ ...spec, governed: false, expected: null, fill: false, fromOverride: true });
+        continue;
+      }
+      fields.push({
+        ...spec,
+        governed: true,
+        expected: spec.key === "remarks" ? normalizeGovernedText(expectedOverride) : expectedOverride,
+        fill: true,
+        fromOverride: true,
+      });
+      continue;
+    }
+
+    if (spec.exportOnlyRequired && isExportOnlyPermission(content)) {
+      blockers.push({
+        key: spec.key,
+        code: "FIELD_GOVERNANCE_INCOMPLETE",
+        message: `Export Only requires governed ${spec.key} (not yet available).`,
+      });
+      fields.push({
+        ...spec,
+        governed: false,
+        expected: null,
+        fill: false,
+      });
+      continue;
+    }
+
     if (spec.governanceMissing || spec.sourcePath == null) {
       const overrideVal = overrides?.[spec.key];
       // Production never supplies overrides; offline harness may inject explicit values
@@ -259,6 +353,47 @@ function buildFillPlan(content, options = {}) {
         expected: null,
         fill: false,
       });
+      continue;
+    }
+
+    if (spec.key === "remarks") {
+      const raw = getByPath(content, spec.sourcePath);
+      const expected = normalizeGovernedText(raw);
+      if (!expected) {
+        blockers.push({
+          key: "remarks",
+          code: raw == null || raw === "" ? "FIELD_VALUE_MISSING" : "FIELD_VALUE_BLANK",
+          message: "portal_remarks is required and cannot be blank.",
+        });
+        fields.push({ ...spec, governed: false, expected: null, fill: false });
+        continue;
+      }
+      fields.push({ ...spec, governed: true, expected, fill: true });
+      continue;
+    }
+
+    if (spec.key === "shelfmonth") {
+      const raw = getByPath(content, spec.sourcePath);
+      if (raw == null || raw === "") {
+        blockers.push({
+          key: "shelfmonth",
+          code: "FIELD_VALUE_MISSING",
+          message: "portal_shelfmonth_route is required.",
+        });
+        fields.push({ ...spec, governed: false, expected: null, fill: false });
+        continue;
+      }
+      const expected = String(raw).trim();
+      if (!isValidPortalShelfmonthRoute(expected)) {
+        blockers.push({
+          key: "shelfmonth",
+          code: "FIELD_VALUE_INVALID",
+          message: `portal_shelfmonth_route must be one of ${PORTAL_SHELFMONTH_ROUTE_VALUES.join(", ")}.`,
+        });
+        fields.push({ ...spec, governed: false, expected: null, fill: false });
+        continue;
+      }
+      fields.push({ ...spec, governed: true, expected, fill: true });
       continue;
     }
 
@@ -402,9 +537,14 @@ module.exports = {
   FIELD_CONTRACT,
   EXPECTED_PORTAL_PRODUCT_NAME,
   EXPECTED_APPROVED_COPY_NAME,
+  PORTAL_SHELFMONTH_ROUTE_VALUES,
+  EXPORT_ONLY_PERMISSION_LABEL,
   assertProductLock,
   rejectKuzhambuSubtype,
   resolvePermissionPurposeByExactLabel,
+  isExportOnlyPermission,
+  isValidPortalShelfmonthRoute,
+  normalizeGovernedText,
   buildFillPlan,
   assessRequiredFieldGate,
   indicationValues,

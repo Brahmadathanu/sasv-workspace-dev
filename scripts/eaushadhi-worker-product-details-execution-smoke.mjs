@@ -19,10 +19,13 @@ const {
 } = require(join(root, "electron/eaushadhi-worker/product-details-executor.js"));
 const {
   EXPECTED_APPROVED_COPY_NAME,
+  PORTAL_SHELFMONTH_ROUTE_VALUES,
   assessRequiredFieldGate,
+  buildFillPlan,
   resolvePermissionPurposeByExactLabel,
   rejectKuzhambuSubtype,
 } = require(join(root, "electron/eaushadhi-worker/product-details-field-map.js"));
+const { createInPageFillScript } = require(join(root, "electron/eaushadhi-worker/portal-dom-fill.js"));
 const {
   evaluateDuplicateGuard,
   DUPLICATE_OUTCOME,
@@ -58,14 +61,11 @@ function assert(cond, msg) {
 
 const GOVERNANCE_OVERRIDES = Object.freeze({
   remarks: "smoke-governed-remarks",
-  countryApplicable: "YES",
-  countryId: "1",
-  month: "24",
-  shelfmonth: "24",
+  shelfmonth: "RegularAsPerClause",
 });
 
 function baseContent(extra = {}) {
-  return {
+  const base = {
     content_hash: "hash-karpooradi-smoke-1",
     entry_status: "NOT_STARTED",
     versions: { workflow_row_version: 7 },
@@ -79,17 +79,27 @@ function baseContent(extra = {}) {
       product_subtype: { portal_option_value: "31", label: "-" },
     },
     details: {
-      permission_purpose_label: "For Sale",
+      permission_purpose_label: "Regular",
       composition_title: "For 10 mL",
       diseases_conditions: "Sandhirujah, Śōpham",
       combined_restricted_declaration: "NO",
+      portal_remarks: null,
+      portal_shelfmonth_route: null,
     },
     actions: [{ portal_option_value: "99", label: "Musculoskeletal System (Bones &Joints)" }],
     evidence: {
       approved_product_copy_present: true,
       original_file_name: EXPECTED_APPROVED_COPY_NAME,
     },
+  };
+  return {
+    ...base,
     ...extra,
+    product: { ...base.product, ...(extra.product || {}) },
+    classification: { ...base.classification, ...(extra.classification || {}) },
+    details: { ...base.details, ...(extra.details || {}) },
+    evidence: { ...base.evidence, ...(extra.evidence || {}) },
+    actions: extra.actions || base.actions,
   };
 }
 
@@ -126,19 +136,103 @@ const kuzhambu = rejectKuzhambuSubtype({
 assert(kuzhambu.ok === false, "Kuzhambu subtype is rejected");
 
 const gateBlocked = assessRequiredFieldGate(baseContent());
-assert(gateBlocked.ok === false, "1A: missing country/month/remarks blocks gate");
+assert(gateBlocked.ok === false, "1A: missing portal remarks/shelfmonth blocks gate");
 assert(
   gateBlocked.code === "FIELD_GOVERNANCE_INCOMPLETE",
   "1A code is FIELD_GOVERNANCE_INCOMPLETE",
 );
 assert(
   (gateBlocked.blockers || []).some((b) => b.key === "remarks"),
-  "remarks is a governance blocker",
+  "1. null remarks blocks",
 );
 assert(
-  (gateBlocked.blockers || []).some((b) => b.key === "countryId"),
-  "countryId is a governance blocker",
+  (gateBlocked.blockers || []).some((b) => b.key === "shelfmonth"),
+  "3. null shelfmonth blocks",
 );
+assert(
+  !(gateBlocked.blockers || []).some((b) => b.key === "month"),
+  "7. month does not block ADD",
+);
+assert(
+  !(gateBlocked.blockers || []).some((b) => b.key === "countryApplicable"),
+  "9. countryApplicable does not block Regular",
+);
+assert(
+  !(gateBlocked.blockers || []).some((b) => b.key === "countryId"),
+  "9. countryId does not block Regular",
+);
+
+const blankRemarks = assessRequiredFieldGate(
+  baseContent({ details: { portal_remarks: "   ", portal_shelfmonth_route: "RegularAsPerClause" } }),
+);
+assert(blankRemarks.ok === false, "2. blank remarks blocks");
+assert((blankRemarks.blockers || []).some((b) => b.key === "remarks"), "blank remarks blocker key");
+
+const invalidShelf = assessRequiredFieldGate(
+  baseContent({
+    details: { portal_remarks: "ok", portal_shelfmonth_route: "NotARealRoute" },
+  }),
+);
+assert(invalidShelf.ok === false, "4. invalid shelfmonth blocks");
+assert((invalidShelf.blockers || []).some((b) => b.key === "shelfmonth"), "invalid shelfmonth blocker key");
+
+const regularClause = assessRequiredFieldGate(
+  baseContent({
+    details: { portal_remarks: "Portal remarks", portal_shelfmonth_route: "RegularAsPerClause" },
+  }),
+);
+assert(regularClause.ok === true, "5. RegularAsPerClause passes field governance");
+
+const applyAccess = assessRequiredFieldGate(
+  baseContent({
+    details: {
+      portal_remarks: "Portal remarks",
+      portal_shelfmonth_route: "Applyforaccessofshelflife",
+    },
+  }),
+);
+assert(applyAccess.ok === true, "6. Applyforaccessofshelflife passes field governance");
+
+const monthPlan = buildFillPlan(
+  baseContent({ details: { portal_remarks: "x", portal_shelfmonth_route: "RegularAsPerClause" } }),
+);
+const monthField = (monthPlan.fields || []).find((f) => f.key === "month");
+assert(monthField?.fill === false && monthField?.skipped === true, "8. month is not DOM-filled");
+
+const exportOnlyBlocked = assessRequiredFieldGate(
+  baseContent({
+    details: {
+      permission_purpose_label: "Export Only",
+      portal_remarks: "Portal remarks",
+      portal_shelfmonth_route: "RegularAsPerClause",
+    },
+  }),
+);
+assert(exportOnlyBlocked.ok === false, "11. Export Only remains fail-closed for country fields");
+assert(
+  (exportOnlyBlocked.blockers || []).some((b) => b.key === "countryApplicable"),
+  "Export Only blocks countryApplicable",
+);
+
+const regularPlan = buildFillPlan(
+  baseContent({ details: { portal_remarks: "Exact remarks", portal_shelfmonth_route: "RegularAsPerClause" } }),
+);
+const countryField = (regularPlan.fields || []).find((f) => f.key === "countryApplicable");
+assert(countryField?.fill === false && countryField?.skipped === true, "10. country fields are not DOM-filled for Regular");
+assert(
+  (regularPlan.fields || []).find((f) => f.key === "remarks")?.expected === "Exact remarks",
+  "12. remarks fills exactly from portal_remarks",
+);
+assert(
+  (regularPlan.fields || []).find((f) => f.key === "shelfmonth")?.expected === "RegularAsPerClause",
+  "12. shelfmonth uses exact enum token",
+);
+assert(
+  PORTAL_SHELFMONTH_ROUTE_VALUES.includes("RegularAsPerClause") &&
+    PORTAL_SHELFMONTH_ROUTE_VALUES.includes("Applyforaccessofshelflife"),
+  "shelfmonth enum lock",
+);
+assert(createInPageFillScript().includes('input[name="shelfmonth"]'), "13. shelfmonth checks exact radio");
 
 const gatePass = assessRequiredFieldGate(baseContent(), {
   fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
@@ -463,7 +557,7 @@ const successInput = {
   userConfirmed: true,
   fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
   allowTestFieldGovernanceOverrides: true,
-  permissionOptions: [{ label: "For Sale", value: "7" }],
+  permissionOptions: [{ label: "Regular", value: "7" }],
   approvedFileName: EXPECTED_APPROVED_COPY_NAME,
 };
 
@@ -490,11 +584,13 @@ const success = await executeProductDetails(successInput, {
     type: "1",
     categoryId: "10",
     subTypeId: "31",
-    permissionPurpose: { label: "For Sale", value: "7" },
+    permissionPurpose: { label: "Regular", value: "7" },
     compositionTitle: "For 10 mL",
     disease: "Sandhirujah, Śōpham",
     indications: ["99"],
     drugs: "NO",
+    remarks: GOVERNANCE_OVERRIDES.remarks,
+    shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
     attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
   }),
   markPortalVerified: async (args) => {
@@ -576,11 +672,13 @@ const mismatch = await executeProductDetails(successInput, {
     type: "1",
     categoryId: "10",
     subTypeId: "31",
-    permissionPurpose: { label: "For Sale", value: "7" },
+    permissionPurpose: { label: "Regular", value: "7" },
     compositionTitle: "For 10 mL",
     disease: "Sandhirujah, Śōpham",
     indications: ["99"],
     drugs: "NO",
+    remarks: GOVERNANCE_OVERRIDES.remarks,
+    shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
     attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
   }),
   markPortalVerified: async () => {
@@ -596,11 +694,13 @@ const compareMatch = compareProductDetailsReread(
     type: "1",
     categoryId: "10",
     subTypeId: "31",
-    permissionPurpose: { label: "For Sale", value: "7" },
+    permissionPurpose: { label: "Regular", value: "7" },
     compositionTitle: "For 10 mL",
     disease: "Sandhirujah, Śōpham",
     indications: ["99"],
     drugs: "NO",
+    remarks: GOVERNANCE_OVERRIDES.remarks,
+    shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
     attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
   },
   {
@@ -608,15 +708,17 @@ const compareMatch = compareProductDetailsReread(
     type: "1",
     categoryId: "10",
     subTypeId: "31",
-    permissionPurpose: { label: "For Sale", value: "7" },
+    permissionPurpose: { label: "Regular", value: "7" },
     compositionTitle: "For 10 mL",
     disease: "Sandhirujah, Śōpham",
     indications: ["99"],
     drugs: "NO",
+    remarks: GOVERNANCE_OVERRIDES.remarks,
+    shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
     attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
   },
 );
-assert(compareMatch.overall === OVERALL_COMPARE.MATCH, "reread compare MATCH");
+assert(compareMatch.overall === OVERALL_COMPARE.MATCH, "14. remarks/shelfmonth compare on reread MATCH");
 assert(toMarkPortalVerifiedReport(compareMatch).equal === true, "portal_verified report equal");
 
 assert(
@@ -702,7 +804,16 @@ const {
 } = require(join(root, "electron/eaushadhi-worker/product-details-trusted.js"));
 
 const malicious = {
-  content: baseContent({ details: { ...baseContent().details, remarks: "hacked" } }),
+  content: baseContent({
+    details: {
+      portal_remarks: "hacked",
+      portal_shelfmonth_route: "RegularAsPerClause",
+    },
+  }),
+  remarks: "hacked",
+  portal_remarks: "hacked",
+  shelfmonth: "Applyforaccessofshelflife",
+  portal_shelfmonth_route: "Applyforaccessofshelflife",
   contentHash: "forged-hash",
   workflowRowVersion: 999,
   entryStatus: "NOT_STARTED",
@@ -711,7 +822,7 @@ const malicious = {
   isReadyForEntry: true,
   duplicateSearch: noneDuplicate,
   pageState: readyPage,
-  permissionOptions: [{ label: "For Sale", value: "7" }],
+  permissionOptions: [{ label: "Regular", value: "7" }],
   fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
   adapters: {
     runBegin: async () => {
@@ -725,8 +836,12 @@ assert(sanitized.userConfirmed === true, "sanitize keeps userConfirmed");
 assert(
   sanitized.forbiddenPresent.includes("content") &&
     sanitized.forbiddenPresent.includes("adapters") &&
-    sanitized.forbiddenPresent.includes("fieldGovernanceOverrides"),
-  "sanitize detects forbidden renderer keys",
+    sanitized.forbiddenPresent.includes("fieldGovernanceOverrides") &&
+    sanitized.forbiddenPresent.includes("portal_remarks") &&
+    sanitized.forbiddenPresent.includes("portal_shelfmonth_route") &&
+    sanitized.forbiddenPresent.includes("remarks") &&
+    sanitized.forbiddenPresent.includes("shelfmonth"),
+  "15. renderer spoof cannot override remarks/shelfmonth",
 );
 assert(
   RENDERER_FORBIDDEN_OPTION_KEYS.includes("duplicateSearch") &&
@@ -789,7 +904,7 @@ function makeTrustedDeps(overrides = {}) {
         }
         const result = fn(arg);
         if (result && result.origin) return { ...readyPage, ...result, workerState: undefined };
-        if (Array.isArray(result)) return [{ label: "For Sale", value: "7" }];
+        if (Array.isArray(result)) return [{ label: "Regular", value: "7" }];
         return result;
       },
     },
@@ -819,7 +934,7 @@ function makeTrustedDeps(overrides = {}) {
     searchDuplicates: async () => ({ ok: true, searchResponse: noneDuplicate }),
     enumeratePermissionOptions: async () => ({
       ok: true,
-      options: [{ label: "For Sale", value: "7" }],
+      options: [{ label: "Regular", value: "7" }],
     }),
     resolveApprovedCopy: async () => ({ ok: true }),
     buildAdapters: async () => {

@@ -132,6 +132,30 @@ export async function fetchProductReview(productId) {
   );
 }
 
+export async function fetchProductDossierPortalFields(productId) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_product_dossier_portal_fields_get", {
+      p_product_id: Number(productId),
+    }),
+  );
+}
+
+export async function saveProductDossierPortalFields({
+  productId,
+  expectedRowVersion,
+  remarks,
+  portalShelfmonthRoute,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_product_dossier_portal_fields_save", {
+      p_product_id: Number(productId),
+      p_expected_row_version: Number(expectedRowVersion),
+      p_remarks: remarks,
+      p_portal_shelfmonth_route: portalShelfmonthRoute,
+    }),
+  );
+}
+
 export async function saveProductReview({
   productId,
   expectedRowVersion,
@@ -664,6 +688,7 @@ export async function loadProductWorkspace(productId) {
     copyContract,
     classification,
     classificationTypeOptions,
+    dossierPortalFields,
   ] = await Promise.all([
     fetchProductReview(id),
     fetchReviewQueue(id),
@@ -678,6 +703,7 @@ export async function loadProductWorkspace(productId) {
     }).catch((error) => ({ error })),
     fetchProductClassificationReview(id),
     fetchProductClassificationOptions("PRODUCT_TYPE"),
+    fetchProductDossierPortalFields(id).catch(() => null),
   ]);
   const typeId =
     optionId(classification?.selected_product_type_option_id) ??
@@ -699,6 +725,7 @@ export async function loadProductWorkspace(productId) {
     copy,
     copyContract,
     classification,
+    dossierPortalFields,
     classificationOptions: {
       PRODUCT_TYPE: classificationTypeOptions,
       PRODUCT_CATEGORY: classificationCategoryOptions,

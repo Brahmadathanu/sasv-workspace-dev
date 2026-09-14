@@ -395,7 +395,8 @@ function compareProductDetailsReread(expected, retained, options = {}) {
     );
   }
 
-  for (const key of ["compositionTitle", "disease"]) {
+  for (const key of ["compositionTitle", "disease", "remarks", "shelfmonth"]) {
+    if (expected?.[key] == null || expected?.[key] === "") continue;
     push(
       key,
       expected?.[key],

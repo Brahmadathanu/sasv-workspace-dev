@@ -121,9 +121,35 @@ function createInPageFillScript() {
         result.filled.push('drugs');
         continue;
       }
-      if (field.key === 'name' || field.key === 'compositionTitle' || field.key === 'disease' || field.key === 'drugsValue') {
+      if (
+        field.key === 'name' ||
+        field.key === 'compositionTitle' ||
+        field.key === 'disease' ||
+        field.key === 'drugsValue' ||
+        field.key === 'remarks'
+      ) {
         setText(field.selector, field.expected);
         result.filled.push(field.key);
+        continue;
+      }
+      if (field.key === 'shelfmonth') {
+        const expected = String(field.expected || '').trim();
+        const selector = 'input[name="shelfmonth"][value="' + expected.replace(/"/g, '\\\\"') + '"]';
+        const matches = Array.prototype.filter.call(
+          document.querySelectorAll(selector),
+          function(el) {
+            return !el.disabled && el.offsetParent !== null;
+          },
+        );
+        if (matches.length !== 1) {
+          throw new Error('shelfmonth match count ' + matches.length + ' for ' + expected);
+        }
+        matches[0].checked = true;
+        matches[0].dispatchEvent(new Event('change', { bubbles: true }));
+        if (!matches[0].checked) {
+          throw new Error('shelfmonth not checked after fill');
+        }
+        result.filled.push('shelfmonth');
       }
     }
     return result;

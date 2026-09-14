@@ -50,6 +50,10 @@ import {
   composeActionsDraft,
   detailsDraftFromReview,
   detailsDirty,
+  portalFieldsDraftFromRow,
+  portalFieldsDirty,
+  portalFieldsSaveReady,
+  PORTAL_SHELFMONTH_ROUTE_OPTIONS,
   displayText,
   DOCUMENT_PURPOSE,
   EVIDENCE_CONTRACT_UNAVAILABLE,
@@ -146,6 +150,7 @@ import {
   saveProductActions,
   saveProductClassificationReview,
   saveProductReview,
+  saveProductDossierPortalFields,
   signedApprovedProductCopyUrl,
   uploadApprovedProductCopyObject,
   verifyProduct,
@@ -210,8 +215,12 @@ const state = {
   actions: [],
   evidence: null,
   issues: [],
+  dossierPortalFields: null,
   detailsDraft: null,
   detailsBaseline: null,
+  portalFieldsDraft: null,
+  portalFieldsBaseline: null,
+  portalFieldsSaveStatus: "",
   classification: null,
   classificationDraft: null,
   classificationBaseline: null,
@@ -282,6 +291,9 @@ const lineHalted = new Set();
 let detailsInflight = false;
 let detailsQueued = false;
 let detailsHalted = false;
+let portalFieldsInflight = false;
+let portalFieldsQueued = false;
+let portalFieldsHalted = false;
 let classificationInflight = false;
 let classificationQueued = false;
 let classificationHalted = false;
@@ -359,6 +371,14 @@ function setHintEl(id, text) {
   const value = safeText(text);
   el.hidden = !value;
   el.textContent = value;
+}
+
+function syncPortalFieldsUi() {
+  // Portal dossier fields have no verify action; autosave status only.
+}
+
+function portalFieldsEditable() {
+  return canWrite() && normalizeEntryStatus(state.queueRow?.entry_status) === "NOT_STARTED";
 }
 
 function syncDetailsVerifyUi() {
@@ -452,6 +472,7 @@ function toastError(err) {
 function workspaceIsDirty() {
   if (!state.selectedProductId) return false;
   if (detailsDirty(state.detailsDraft, state.detailsBaseline)) return true;
+  if (portalFieldsDirty(state.portalFieldsDraft, state.portalFieldsBaseline)) return true;
   if (classificationDirty(state.classificationDraft, state.classificationBaseline)) return true;
   if (actionsDirty(state.actionsDraft, state.actionsBaseline)) return true;
   for (const [id, draft] of state.lineDrafts.entries()) {
@@ -484,6 +505,7 @@ function patchAutosaveEl(id, status) {
   if (status === "failed" || status === "stale") el.setAttribute("aria-live", "polite");
   else el.removeAttribute("aria-live");
   if (id === "detailsAutosave") syncDetailsVerifyUi();
+  if (id === "portalFieldsAutosave") syncPortalFieldsUi();
   if (id === "actionsAutosave") syncActionsVerifyUi();
   if (id === "classificationAutosave") syncClassificationVerifyUi();
   if (String(id).startsWith("line-save-")) syncLineVerifyUi(String(id).slice("line-save-".length));
@@ -981,11 +1003,28 @@ function renderOverview() {
     </div>`;
 }
 
+function portalShelfmonthOptionsHtml(selectedValue) {
+  const selected = safeText(selectedValue);
+  const options = [
+    `<option value="">Select route...</option>`,
+    ...PORTAL_SHELFMONTH_ROUTE_OPTIONS.map(
+      (item) =>
+        `<option value="${escapeHtml(item.value)}"${
+          selected === item.value ? " selected" : ""
+        }>${escapeHtml(item.label)}</option>`,
+    ),
+  ];
+  return options.join("");
+}
+
 function renderDetails() {
   const host = $("tab-details");
   const draft = state.detailsDraft || detailsDraftFromReview(state.review);
+  const portalDraft = state.portalFieldsDraft || portalFieldsDraftFromRow(state.dossierPortalFields);
   const review = state.review || {};
   const locked = isVerifiedStatus(review.review_status);
+  const portalEditable = portalFieldsEditable();
+  const portalDisable = portalEditable ? "" : " disabled";
   const suggested = review.suggested_permission_purpose_label
     ? `Suggested: ${review.suggested_permission_purpose_label}`
     : "";
@@ -1094,6 +1133,36 @@ function renderDetails() {
         <label for="fldDiseases">Diseases / Conditions</label>
         <textarea id="fldDiseases" class="sasv-control" rows="3" data-edit-action="true"${disable}>${escapeHtml(draft.diseasesConditions || "")}</textarea>
       </div>
+    </div>
+    <div class="section-card">
+      <h3 class="section-title">Portal entry fields</h3>
+      <p class="muted-note">Governed portal remarks and shelf-life route for Product Details execution. Saved to the product dossier; worker reads these via content_get.</p>
+      ${
+        portalEditable
+          ? ""
+          : `<p class="muted-note">Portal dossier fields lock once entry has begun (${escapeHtml(normalizeEntryStatus(state.queueRow?.entry_status))}).</p>`
+      }
+      <div class="form-field">
+        <label for="fldPortalRemarks">Portal Remarks</label>
+        <textarea id="fldPortalRemarks" class="sasv-control" rows="2" data-edit-action="true" placeholder="Required before portal entry"${portalDisable}>${escapeHtml(portalDraft.remarks || "")}</textarea>
+        ${
+          safeText(portalDraft.remarks)
+            ? ""
+            : `<span class="muted-note">Unresolved: portal remarks are required.</span>`
+        }
+      </div>
+      <div class="form-field">
+        <label for="fldPortalShelfmonthRoute">Shelf-life Route</label>
+        <select id="fldPortalShelfmonthRoute" class="sasv-control" data-edit-action="true"${portalDisable}>
+          ${portalShelfmonthOptionsHtml(portalDraft.portalShelfmonthRoute)}
+        </select>
+        ${
+          safeText(portalDraft.portalShelfmonthRoute)
+            ? ""
+            : `<span class="muted-note">Unresolved: choose the exact portal shelf-life route.</span>`
+        }
+      </div>
+      ${autosaveHtml(state.portalFieldsSaveStatus, "portalFieldsAutosave")}
     </div>
     <div class="section-card${locked ? " is-verified" : ""}">
       <h3 class="section-title">Controlled declarations</h3>
@@ -2502,6 +2571,16 @@ function syncDetailsDraftFromForm() {
   syncDetailsVerifyUi();
 }
 
+function syncPortalFieldsDraftFromForm() {
+  if (!state.portalFieldsDraft) return;
+  state.portalFieldsDraft = {
+    ...state.portalFieldsDraft,
+    remarks: $("fldPortalRemarks")?.value ?? "",
+    portalShelfmonthRoute: $("fldPortalShelfmonthRoute")?.value ?? "",
+  };
+  syncPortalFieldsUi();
+}
+
 function syncClassificationDraftFromForm() {
   if (!state.classificationDraft) return;
   const subtypeId = optionId($("fldClassSubtype")?.value);
@@ -2530,6 +2609,7 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.issues = payload.issues || [];
   state.copy = payload.copy || null;
   state.classification = payload.classification || null;
+  state.dossierPortalFields = payload.dossierPortalFields || null;
   state.classificationOptions = payload.classificationOptions || {
     PRODUCT_TYPE: [],
     PRODUCT_CATEGORY: [],
@@ -2549,11 +2629,13 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   if (!preserveDrafts) {
     state.lineSaveStatus = new Map();
     state.detailsSaveStatus = "";
+    state.portalFieldsSaveStatus = "";
     state.classificationSaveStatus = "";
     state.actionsSaveStatus = "";
     state.copyPick = null;
     lineHalted.clear();
     detailsHalted = false;
+    portalFieldsHalted = false;
     classificationHalted = false;
     actionsHalted = false;
   }
@@ -2564,6 +2646,21 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
     state.detailsDraft = freshDetails;
   }
   state.detailsBaseline = freshDetails;
+
+  const freshPortalFields = portalFieldsDraftFromRow(state.dossierPortalFields);
+  if (
+    preserveDrafts &&
+    state.portalFieldsDraft &&
+    portalFieldsDirty(state.portalFieldsDraft, state.portalFieldsBaseline)
+  ) {
+    state.portalFieldsDraft = {
+      ...state.portalFieldsDraft,
+      rowVersion: freshPortalFields.rowVersion,
+    };
+  } else {
+    state.portalFieldsDraft = freshPortalFields;
+  }
+  state.portalFieldsBaseline = freshPortalFields;
 
   const freshClassification = classificationDraftFromReview(state.classification);
   if (
@@ -2975,6 +3072,71 @@ async function flushDetailsAutosave() {
   if (flushDebounced(autosaveTimers, "details")) await autosaveDetails();
 }
 
+async function persistPortalFields() {
+  const draft = state.portalFieldsDraft;
+  if (!draft || !portalFieldsEditable()) return null;
+  if (portalFieldsHalted) return null;
+  if (!portalFieldsSaveReady(draft)) return null;
+  state.portalFieldsSaveStatus = "saving";
+  patchAutosaveEl("portalFieldsAutosave", "saving");
+  const result = await saveProductDossierPortalFields({
+    productId: state.selectedProductId,
+    expectedRowVersion: draft.rowVersion,
+    remarks: safeText(draft.remarks),
+    portalShelfmonthRoute: safeText(draft.portalShelfmonthRoute),
+  });
+  if (result?.row_version != null && state.portalFieldsDraft) {
+    state.portalFieldsDraft.rowVersion = result.row_version;
+  }
+  if (state.dossierPortalFields && result) {
+    state.dossierPortalFields = {
+      ...state.dossierPortalFields,
+      remarks: result.remarks,
+      portal_shelfmonth_route: result.portal_shelfmonth_route,
+      row_version: result.row_version,
+    };
+  }
+  state.portalFieldsBaseline = { ...state.portalFieldsDraft };
+  state.portalFieldsSaveStatus = "saved";
+  patchAutosaveEl("portalFieldsAutosave", "saved");
+  return result;
+}
+
+async function autosavePortalFields() {
+  if (portalFieldsHalted || !portalFieldsEditable()) return;
+  if (portalFieldsInflight) {
+    portalFieldsQueued = true;
+    return;
+  }
+  portalFieldsInflight = true;
+  try {
+    await persistPortalFields();
+  } catch (err) {
+    handleAutosaveError(err, "portalFields");
+  } finally {
+    portalFieldsInflight = false;
+    if (portalFieldsQueued) {
+      portalFieldsQueued = false;
+      void autosavePortalFields();
+    }
+  }
+}
+
+function queuePortalFieldsAutosave(immediate) {
+  if (immediate) {
+    flushDebounced(autosaveTimers, "portalFields");
+    void autosavePortalFields();
+    return;
+  }
+  scheduleDebounced(autosaveTimers, "portalFields", AUTOSAVE_DEBOUNCE_MS, () => {
+    void autosavePortalFields();
+  });
+}
+
+async function flushPortalFieldsAutosave() {
+  if (flushDebounced(autosaveTimers, "portalFields")) await autosavePortalFields();
+}
+
 async function persistClassification(verify) {
   const draft = state.classificationDraft;
   if (!draft) return null;
@@ -3192,6 +3354,10 @@ function handleAutosaveError(err, scope, lineId) {
       detailsHalted = true;
       state.detailsSaveStatus = "stale";
       patchAutosaveEl("detailsAutosave", "stale");
+    } else if (scope === "portalFields") {
+      portalFieldsHalted = true;
+      state.portalFieldsSaveStatus = "stale";
+      patchAutosaveEl("portalFieldsAutosave", "stale");
     } else if (scope === "classification") {
       classificationHalted = true;
       state.classificationSaveStatus = "stale";
@@ -3213,6 +3379,9 @@ function handleAutosaveError(err, scope, lineId) {
   } else if (scope === "details") {
     state.detailsSaveStatus = "failed";
     patchAutosaveEl("detailsAutosave", "failed");
+  } else if (scope === "portalFields") {
+    state.portalFieldsSaveStatus = "failed";
+    patchAutosaveEl("portalFieldsAutosave", "failed");
   } else if (scope === "classification") {
     state.classificationSaveStatus = "failed";
     patchAutosaveEl("classificationAutosave", "failed");
@@ -4116,6 +4285,11 @@ function wireEvents() {
       queueClassificationAutosave(false);
       return;
     }
+    if (["fldPortalRemarks", "fldPortalShelfmonthRoute"].includes(event.target.id)) {
+      syncPortalFieldsDraftFromForm();
+      queuePortalFieldsAutosave(false);
+      return;
+    }
     syncDetailsDraftFromForm();
     if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {
       queueDetailsAutosave(false);
@@ -4133,12 +4307,21 @@ function wireEvents() {
       renderDetails();
       return;
     }
+    if (event.target.id === "fldPortalShelfmonthRoute") {
+      syncPortalFieldsDraftFromForm();
+      queuePortalFieldsAutosave(true);
+      return;
+    }
     syncDetailsDraftFromForm();
     if (event.target.id === "fldPurpose") queueDetailsAutosave(true);
   });
   $("tab-details")?.addEventListener("focusout", (event) => {
     if (event.target.id === "fldClassNotes") {
       void flushClassificationAutosave();
+      return;
+    }
+    if (["fldPortalRemarks", "fldPortalShelfmonthRoute"].includes(event.target.id)) {
+      void flushPortalFieldsAutosave();
       return;
     }
     if (["fldTitle", "fldDiseases", "fldReviewNotes"].includes(event.target.id)) {

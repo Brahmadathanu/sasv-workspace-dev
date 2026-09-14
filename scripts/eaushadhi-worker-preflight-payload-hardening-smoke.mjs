@@ -98,6 +98,46 @@ const withClassification = hashCanonical({
 });
 assert(same !== withClassification, "adding classification changes the canonical hash");
 
+const closureSql = readFileSync(
+  join(root, "supabase/migrations/20260914143000_eaushadhi_karpooradi_pd_field_contract_closure.sql"),
+  "utf8",
+);
+assert(
+  closureSql.includes("portal_shelfmonth_route") &&
+    closureSql.includes("'portal_remarks', d.remarks") &&
+    closureSql.includes("rpc_eaushadhi_worker_content_get"),
+  "closure migration adds dossier fields and reconciles content_get",
+);
+assert(
+  closureSql.includes("ENTRY_STATUS_NOT_EDITABLE") &&
+    closureSql.includes("rpc_eaushadhi_product_dossier_portal_fields_save"),
+  "closure migration adds dossier save RPC with lifecycle guard",
+);
+assert(
+  !/create or replace function regulatory\.eaushadhi_worker_content_hash/.test(closureSql),
+  "content_hash function definition unchanged in closure migration",
+);
+
+function hashDetails(payload) {
+  const details = { ...(payload.details || {}) };
+  delete details.review_status;
+  delete details.is_verified;
+  delete details.row_version;
+  return createHash("sha256").update(JSON.stringify({ details }), "utf8").digest("hex");
+}
+const withoutPortal = hashDetails({
+  details: { permission_purpose_label: "Regular", combined_restricted_declaration: "NO" },
+});
+const withPortal = hashDetails({
+  details: {
+    permission_purpose_label: "Regular",
+    combined_restricted_declaration: "NO",
+    portal_remarks: "x",
+    portal_shelfmonth_route: "RegularAsPerClause",
+  },
+});
+assert(withoutPortal !== withPortal, "content_hash canonical details change when portal fields change");
+
 if (failed) {
   console.error(`\n${failed} preflight/payload hardening assertion(s) failed`);
   process.exit(1);
