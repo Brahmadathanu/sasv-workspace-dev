@@ -31,8 +31,12 @@ const nonposParityName =
 const liveLedgerVersions = new Set([
   "20260915074731",
   "20260915085019",
-  // Prospective is NOT live-applied; must remain only as repo prospective file.
+  "20260915162212",
+  // Prospective cutover 20260915103000 may already be live; this smoke still
+  // treats the ACL hardening file as an explicit already-live parity capture.
 ]);
+
+const aclParityName = "20260915162212_csa_scoped_rpc_acl_hardening.sql";
 
 assert(!fs.existsSync(path.join(migDir, fakeParityName)), "no invented 20260915100000 parity migration");
 
@@ -117,6 +121,19 @@ for (const [file, version, mustInclude] of [
       "NON_POSITIVE_NET_ACTUAL_HISTORY",
       "fn_apply_regional_default_to_basis_snapshot",
       "marketing_allocation_policy",
+    ],
+  ],
+  [
+    aclParityName,
+    "20260915162212",
+    [
+      "SOURCE-CONTROL PARITY",
+      "DO NOT reapply to production",
+      "20260915162212_csa_scoped_rpc_acl_hardening",
+      "rpc_preview_sales_allocation_default_policy_scope",
+      "rpc_set_sales_allocation_default_policies_scoped",
+      "from public, anon",
+      "to authenticated, service_role",
     ],
   ],
 ]) {

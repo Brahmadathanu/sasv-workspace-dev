@@ -387,6 +387,15 @@ assert(
   fs.existsSync(
     path.join(
       root,
+      "supabase/migrations/20260915162212_csa_scoped_rpc_acl_hardening.sql",
+    ),
+  ),
+  "live-versioned CSA scoped RPC ACL parity migration exists",
+);
+assert(
+  fs.existsSync(
+    path.join(
+      root,
       "supabase/migrations/20260915103000_csa_scenario_owned_fallback_units_scoped_set.sql",
     ),
   ),
