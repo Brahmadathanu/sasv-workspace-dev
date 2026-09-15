@@ -1630,9 +1630,11 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       <section class="cp-csa-hub-section" aria-labelledby="csaRegionalDefaultsHeading">
         <div id="csaRegionalDefaultsHeading" class="cp-csa-section-title">Regional defaults</div>
         <p class="cp-csa-warning-note">
-          Governed regional fallback quantities used when a region has no positive
-          actual sales evidence and no explicit regional SKU assumption. These remain
-          review-required assumptions. Revisions apply to future costing refreshes only.
+          Governed regional planning fallback quantities used when higher-precedence
+          usable regional sales or assumption evidence cannot provide a positive
+          forward costing basis — including non-positive net actual history, where
+          eligible actual evidence exists but net billed value is zero or negative.
+          These remain review-required. Revisions apply to future costing refreshes only.
         </p>
         ${renderRegionalDefaultsSection(canWrite)}
       </section>`;

@@ -349,6 +349,12 @@ assert(
   "hub sections and default-sales-units label present",
 );
 assert(
+  /higher-precedence[\s\S]*positive\s+forward costing basis/i.test(csaSrc) &&
+    /non-positive net actual history/i.test(csaSrc) &&
+    !/region has no positive\s+actual sales evidence/i.test(csaSrc),
+  "regional defaults copy covers NON_POSITIVE without implying absent actuals",
+);
+assert(
   !ppmSrc.includes("rpc_set_regional_sales_allocation_default_policy"),
   "pricing-policy.js not given a parallel regional-default write path",
 );
@@ -367,6 +373,15 @@ assert(
       ),
     ),
   "live-versioned regional default parity migrations exist",
+);
+assert(
+  !fs.existsSync(
+    path.join(
+      root,
+      "supabase/migrations/20260915100000_sales_allocation_default_policy_foundation_parity.sql",
+    ),
+  ),
+  "invented company foundation parity migration removed",
 );
 assert(
   fs.existsSync(
@@ -390,19 +405,39 @@ assert(
     prospectiveSql.includes("rpc_preview_sales_allocation_default_policy_scope") &&
     prospectiveSql.includes("rpc_set_sales_allocation_default_policies_scoped") &&
     prospectiveSql.includes("NON_POSITIVE_NET_ACTUAL_HISTORY") &&
+    prospectiveSql.includes("create table if not exists costing.sales_allocation_default_policy") &&
+    prospectiveSql.includes("rpc_get_sales_allocation_default_policies") &&
     !/from costing\.fn_resolve_sales_planning_fallback_units_as_of/i.test(
       prospectiveSql.replace(
         /comment on function costing\.fn_resolve_sales_planning_fallback_units_as_of[\s\S]*?;/gi,
         "",
       ),
     ),
-  "prospective migration restores scenario ownership and adds scoped RPCs",
+  "prospective migration restores scenario ownership, company GET, and scoped RPCs",
 );
 assert(
-  /revoke all on function costing\.rpc_create_sales_planning_fallback_unit_policy/i.test(
+  /to_regprocedure\(\s*'costing\.rpc_create_sales_planning_fallback_unit_policy\(numeric,date,text,text\)'/i.test(
     prospectiveSql,
-  ),
-  "temporary shared fallback create RPC revoked from authenticated path",
+  ) &&
+    /revoke all on function costing\.rpc_create_sales_planning_fallback_unit_policy/i.test(
+      prospectiveSql,
+    ),
+  "temporary shared fallback create RPC revoked conditionally for fresh bootstrap",
+);
+assert(
+  /revoke all on function costing\.fn_revise_sales_allocation_default_policy[\s\S]*from public, anon, authenticated/i.test(
+    prospectiveSql,
+  ) &&
+    /revoke all on function costing\.fn_revise_regional_sales_allocation_default_policy[\s\S]*from public, anon, authenticated/i.test(
+      prospectiveSql,
+    ) &&
+    !/grant execute on function costing\.fn_revise_sales_allocation_default_policy/i.test(
+      prospectiveSql,
+    ) &&
+    !/grant execute on function costing\.fn_revise_regional_sales_allocation_default_policy/i.test(
+      prospectiveSql,
+    ),
+  "internal SECURITY DEFINER mutation helpers revoked from PUBLIC/anon/authenticated",
 );
 
 const sourceConstraintsSql = fs.readFileSync(
