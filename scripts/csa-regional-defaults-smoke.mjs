@@ -63,8 +63,8 @@ assert(
 );
 assert(
   CSA_REGIONAL_DEFAULT_SCENARIOS.join(",") ===
-    "NO_ELIGIBLE_REGIONAL_HISTORY,NO_POSITIVE_REGIONAL_HISTORY",
-  "two regional scenarios catalogued",
+    "NO_ELIGIBLE_REGIONAL_HISTORY,NO_POSITIVE_REGIONAL_HISTORY,NON_POSITIVE_NET_ACTUAL_HISTORY",
+  "three regional scenarios catalogued including NON_POSITIVE",
 );
 assert(
   CSA_REGIONAL_DEFAULT_REGIONS.join(",") === "IK,OK",
@@ -80,6 +80,8 @@ assert(
     "No regional sales history" &&
     CSA_SCENARIO_BUSINESS_LABELS.NO_POSITIVE_REGIONAL_HISTORY ===
       "No positive regional sales quantity" &&
+    CSA_SCENARIO_BUSINESS_LABELS.NON_POSITIVE_NET_ACTUAL_HISTORY ===
+      "Non-positive net actual history" &&
     CSA_REGION_BUSINESS_LABELS.IK === "Inside Kerala" &&
     CSA_REGION_BUSINESS_LABELS.OK === "Outside Kerala",
   "regional business labels",
@@ -214,14 +216,58 @@ assert(
 
 assert(
   typesSrc.includes("rpc_get_regional_sales_allocation_default_policies") &&
-    typesSrc.includes("rpc_set_regional_sales_allocation_default_policy"),
-  "generated supabase.ts includes both regional RPCs",
+    typesSrc.includes("rpc_set_regional_sales_allocation_default_policy") &&
+    typesSrc.includes("rpc_preview_sales_allocation_default_policy_scope") &&
+    typesSrc.includes("rpc_set_sales_allocation_default_policies_scoped"),
+  "generated supabase.ts includes regional + scoped preview/commit RPCs",
 );
 assert(
   /rpc_set_regional_sales_allocation_default_policy:\s*\{[\s\S]*?p_region_code:\s*string/.test(
     typesSrc,
   ),
   "generated SET args include p_region_code",
+);
+
+assert(
+  csaSrc.includes("rpc_preview_sales_allocation_default_policy_scope") &&
+    csaSrc.includes("rpc_set_sales_allocation_default_policies_scoped"),
+  "CSA revise uses preview + scoped commit RPCs",
+);
+assert(
+  csaSrc.includes("THIS_POLICY") &&
+    csaSrc.includes("SAME_REGION_LINKED") &&
+    csaSrc.includes("ALL_REGIONAL") &&
+    csaSrc.includes("ALL_COMPANY") &&
+    csaSrc.includes("ALL_LINKED"),
+  "all required scope codes present in CSA client",
+);
+assert(
+  csaSrc.includes("All linked fallback policies") &&
+    htmlSrc.includes("csaDefaultPolicyImpactPreview") &&
+    htmlSrc.includes("csaDefaultPolicyScopeOptions"),
+  "scope UX + impact preview hosts present",
+);
+assert(
+  !csaSrc.includes("const CSA_ALL_LINKED_TARGET_COUNT = 8") &&
+    !csaSrc.includes("ALL_LINKED_TARGETS = ["),
+  "client does not hard-code authoritative ALL_LINKED target list",
+);
+assert(
+  csaSrc.includes("REGIONAL_DEFAULT_POLICY_UNITS") &&
+    csaSrc.includes("GOVERNED_REGIONAL_DEFAULT") &&
+    csaSrc.includes("NON_POSITIVE_NET_ACTUAL_HISTORY"),
+  "default source token set includes regional governed tokens",
+);
+assert(
+  csaSrc.includes("rpc_get_sku_sales_assumptions") &&
+    csaSrc.includes("rpc_set_sku_sales_assumption") &&
+    csaSrc.includes("rpc_close_sku_sales_assumption"),
+  "explicit SKU assumption RPCs remain",
+);
+assert(
+  ppmSrc.includes('commercial-sales-assumptions') ||
+    ppmSrc.includes("COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID"),
+  "PPM routing still references CSA workspace",
 );
 
 assert(
@@ -303,6 +349,12 @@ assert(
   "hub sections and default-sales-units label present",
 );
 assert(
+  /higher-precedence[\s\S]*positive\s+forward costing basis/i.test(csaSrc) &&
+    /non-positive net actual history/i.test(csaSrc) &&
+    !/region has no positive\s+actual sales evidence/i.test(csaSrc),
+  "regional defaults copy covers NON_POSITIVE without implying absent actuals",
+);
+assert(
   !ppmSrc.includes("rpc_set_regional_sales_allocation_default_policy"),
   "pricing-policy.js not given a parallel regional-default write path",
 );
@@ -321,6 +373,71 @@ assert(
       ),
     ),
   "live-versioned regional default parity migrations exist",
+);
+assert(
+  !fs.existsSync(
+    path.join(
+      root,
+      "supabase/migrations/20260915100000_sales_allocation_default_policy_foundation_parity.sql",
+    ),
+  ),
+  "invented company foundation parity migration removed",
+);
+assert(
+  fs.existsSync(
+    path.join(
+      root,
+      "supabase/migrations/20260915103000_csa_scenario_owned_fallback_units_scoped_set.sql",
+    ),
+  ),
+  "prospective CSA scenario-owned scoped-set migration exists",
+);
+
+const prospectiveSql = fs.readFileSync(
+  path.join(
+    root,
+    "supabase/migrations/20260915103000_csa_scenario_owned_fallback_units_scoped_set.sql",
+  ),
+  "utf8",
+);
+assert(
+  prospectiveSql.includes("fn_expand_sales_allocation_default_policy_scope") &&
+    prospectiveSql.includes("rpc_preview_sales_allocation_default_policy_scope") &&
+    prospectiveSql.includes("rpc_set_sales_allocation_default_policies_scoped") &&
+    prospectiveSql.includes("NON_POSITIVE_NET_ACTUAL_HISTORY") &&
+    prospectiveSql.includes("create table if not exists costing.sales_allocation_default_policy") &&
+    prospectiveSql.includes("rpc_get_sales_allocation_default_policies") &&
+    !/from costing\.fn_resolve_sales_planning_fallback_units_as_of/i.test(
+      prospectiveSql.replace(
+        /comment on function costing\.fn_resolve_sales_planning_fallback_units_as_of[\s\S]*?;/gi,
+        "",
+      ),
+    ),
+  "prospective migration restores scenario ownership, company GET, and scoped RPCs",
+);
+assert(
+  /to_regprocedure\(\s*'costing\.rpc_create_sales_planning_fallback_unit_policy\(numeric,date,text,text\)'/i.test(
+    prospectiveSql,
+  ) &&
+    /revoke all on function costing\.rpc_create_sales_planning_fallback_unit_policy/i.test(
+      prospectiveSql,
+    ),
+  "temporary shared fallback create RPC revoked conditionally for fresh bootstrap",
+);
+assert(
+  /revoke all on function costing\.fn_revise_sales_allocation_default_policy[\s\S]*from public, anon, authenticated/i.test(
+    prospectiveSql,
+  ) &&
+    /revoke all on function costing\.fn_revise_regional_sales_allocation_default_policy[\s\S]*from public, anon, authenticated/i.test(
+      prospectiveSql,
+    ) &&
+    !/grant execute on function costing\.fn_revise_sales_allocation_default_policy/i.test(
+      prospectiveSql,
+    ) &&
+    !/grant execute on function costing\.fn_revise_regional_sales_allocation_default_policy/i.test(
+      prospectiveSql,
+    ),
+  "internal SECURITY DEFINER mutation helpers revoked from PUBLIC/anon/authenticated",
 );
 
 const sourceConstraintsSql = fs.readFileSync(

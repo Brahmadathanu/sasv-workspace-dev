@@ -44152,6 +44152,30 @@ export type Database = {
           status: string
         }[]
       }
+      rpc_preview_sales_allocation_default_policy_scope: {
+        Args: {
+          p_anchor_kind: string
+          p_default_sales_units: number
+          p_effective_from: string
+          p_region_code?: string | null
+          p_scenario_code: string
+          p_scope: string
+        }
+        Returns: Json
+      }
+      rpc_set_sales_allocation_default_policies_scoped: {
+        Args: {
+          p_anchor_kind: string
+          p_approval_reference?: string | null
+          p_default_sales_units: number
+          p_effective_from: string
+          p_reason: string
+          p_region_code?: string | null
+          p_scenario_code: string
+          p_scope: string
+        }
+        Returns: Json
+      }
       rpc_set_sales_allocation_default_policy: {
         Args: {
           p_approval_reference?: string
