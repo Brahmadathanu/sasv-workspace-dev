@@ -3253,6 +3253,39 @@
         margin-top: 5px;
         padding-top: 4px;
       }
+      .cp-csa-scope-fieldset {
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin: 0;
+      }
+      .cp-csa-scope-options {
+        display: grid;
+        gap: 6px;
+      }
+      .cp-csa-scope-option {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        font-size: 0.92rem;
+      }
+      .cp-csa-impact-preview {
+        margin-top: 12px;
+        padding: 10px;
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--panel-bg, #fff);
+      }
+      .cp-csa-impact-title {
+        margin: 0 0 8px;
+        font-size: 0.95rem;
+      }
+      .cp-csa-impact-warnings {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        color: var(--muted, #6b7280);
+        font-size: 0.85rem;
+      }
       .cp-csa-hub-scenario {
         border: 1px solid var(--border, #e5e7eb);
         border-radius: 8px;
@@ -7311,6 +7344,14 @@
               Effective from
               <input id="csaDefaultPolicyEffectiveFrom" type="date" />
             </label>
+            <fieldset
+              id="csaDefaultPolicyScopeFieldset"
+              class="cp-csa-scope-fieldset"
+              style="grid-column: 1 / -1"
+            >
+              <legend>Change scope</legend>
+              <div id="csaDefaultPolicyScopeOptions" class="cp-csa-scope-options"></div>
+            </fieldset>
             <label style="grid-column: 1 / -1">
               Reason
               <textarea
@@ -7324,6 +7365,11 @@
               <input id="csaDefaultPolicyApproval" type="text" />
             </label>
           </div>
+          <div
+            id="csaDefaultPolicyImpactPreview"
+            class="cp-csa-impact-preview"
+            hidden
+          ></div>
         </div>
         <div class="cost-sheet-sign-actions">
           <button
@@ -7337,6 +7383,7 @@
             id="csaDefaultPolicySaveBtn"
             type="button"
             class="icon-btn icon-btn-primary"
+            disabled
           >
             Save Revision
           </button>

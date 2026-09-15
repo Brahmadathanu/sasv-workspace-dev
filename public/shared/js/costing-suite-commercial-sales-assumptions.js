@@ -7,6 +7,8 @@
  * - rpc_set_sales_allocation_default_policy
  * - rpc_get_regional_sales_allocation_default_policies
  * - rpc_set_regional_sales_allocation_default_policy
+ * - rpc_preview_sales_allocation_default_policy_scope
+ * - rpc_set_sales_allocation_default_policies_scoped
  * - rpc_get_sku_sales_assumptions
  * - rpc_set_sku_sales_assumption
  * - rpc_close_sku_sales_assumption
@@ -35,6 +37,7 @@ export const CSA_DEFAULT_SCENARIOS = [
 export const CSA_REGIONAL_DEFAULT_SCENARIOS = [
   "NO_ELIGIBLE_REGIONAL_HISTORY",
   "NO_POSITIVE_REGIONAL_HISTORY",
+  "NON_POSITIVE_NET_ACTUAL_HISTORY",
 ];
 
 export const CSA_REGIONAL_DEFAULT_REGIONS = ["IK", "OK"];
@@ -44,6 +47,29 @@ export const CSA_SCENARIO_BUSINESS_LABELS = {
   NEW_PRODUCT_NO_HISTORY: "New Product",
   NO_ELIGIBLE_REGIONAL_HISTORY: "No regional sales history",
   NO_POSITIVE_REGIONAL_HISTORY: "No positive regional sales quantity",
+  NON_POSITIVE_NET_ACTUAL_HISTORY: "Non-positive net actual history",
+};
+
+/** Scope codes for CSA default-policy revise (backend expands targets). */
+export const CSA_DEFAULT_POLICY_SCOPES_COMPANY = [
+  "THIS_POLICY",
+  "ALL_COMPANY",
+  "ALL_LINKED",
+];
+
+export const CSA_DEFAULT_POLICY_SCOPES_REGIONAL = [
+  "THIS_POLICY",
+  "SAME_REGION_LINKED",
+  "ALL_REGIONAL",
+  "ALL_LINKED",
+];
+
+export const CSA_DEFAULT_POLICY_SCOPE_LABELS = {
+  THIS_POLICY: "This policy only",
+  ALL_COMPANY: "Both company fallback policies",
+  SAME_REGION_LINKED: "All linked fallbacks in this region",
+  ALL_REGIONAL: "All regional fallback policies",
+  ALL_LINKED: "All linked fallback policies",
 };
 
 export const CSA_REGION_BUSINESS_LABELS = {
@@ -73,6 +99,11 @@ const CSA_DEFAULT_SOURCE_TOKENS = new Set([
   "DEFAULT_POLICY",
   "NEW_SKU_EXISTING_PRODUCT",
   "NEW_PRODUCT_NO_HISTORY",
+  "NO_ELIGIBLE_REGIONAL_HISTORY",
+  "NO_POSITIVE_REGIONAL_HISTORY",
+  "NON_POSITIVE_NET_ACTUAL_HISTORY",
+  "REGIONAL_DEFAULT_POLICY_UNITS",
+  "GOVERNED_REGIONAL_DEFAULT",
   "DEFAULT",
   "DEFAULT_10_UNITS",
 ]);
@@ -335,6 +366,9 @@ export function createCommercialSalesAssumptionHandlers(deps) {
   let writeInFlight = false;
   let defaultWriteInFlight = false;
   let defaultReviseTarget = null;
+  let defaultScopePreview = null;
+  let defaultPreviewInFlight = false;
+  let defaultPreviewTimer = null;
 
   function canEdit() {
     return (
@@ -1217,6 +1251,148 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     return pickCurrentDefaultPolicy(defaultsRows, target.scenarioCode);
   }
 
+  function selectedDefaultScope() {
+    const checked = document.querySelector(
+      'input[name="csaDefaultPolicyScope"]:checked',
+    );
+    return String(checked?.value || "THIS_POLICY").trim() || "THIS_POLICY";
+  }
+
+  function renderDefaultScopeOptions(kind) {
+    const host = $("csaDefaultPolicyScopeOptions");
+    if (!host) return;
+    const scopes =
+      kind === "regional"
+        ? CSA_DEFAULT_POLICY_SCOPES_REGIONAL
+        : CSA_DEFAULT_POLICY_SCOPES_COMPANY;
+    host.innerHTML = scopes
+      .map((scope, idx) => {
+        const id = `csaDefaultPolicyScope_${scope}`;
+        const label = CSA_DEFAULT_POLICY_SCOPE_LABELS[scope] || scope;
+        const checked = idx === 0 ? "checked" : "";
+        return `<label class="cp-csa-scope-option"><input type="radio" name="csaDefaultPolicyScope" id="${id}" value="${scope}" ${checked} /> ${text(label)}</label>`;
+      })
+      .join("");
+    host.querySelectorAll('input[name="csaDefaultPolicyScope"]').forEach((el) => {
+      el.addEventListener("change", () => {
+        void refreshDefaultPolicyImpactPreview();
+      });
+    });
+  }
+
+  function setDefaultSaveEnabled(enabled) {
+    const saveBtn = $("csaDefaultPolicySaveBtn");
+    if (saveBtn) saveBtn.disabled = !enabled || defaultWriteInFlight;
+  }
+
+  function renderDefaultImpactPreview(preview) {
+    const host = $("csaDefaultPolicyImpactPreview");
+    if (!host) return;
+    if (!preview) {
+      host.hidden = true;
+      host.innerHTML = "";
+      setDefaultSaveEnabled(false);
+      return;
+    }
+    const targets = Array.isArray(preview.targets) ? preview.targets : [];
+    const companyTargets = targets.filter((t) => t.target_kind === "COMPANY");
+    const regionalTargets = targets.filter((t) => t.target_kind === "REGIONAL");
+    const scopeLabel =
+      CSA_DEFAULT_POLICY_SCOPE_LABELS[preview.scope] || preview.scope;
+    const warnings = Array.isArray(preview.warnings) ? preview.warnings : [];
+    const rows = targets
+      .map((t) => {
+        const name =
+          t.target_kind === "REGIONAL"
+            ? `${scenarioBusinessLabel(t.scenario_code)} · ${regionBusinessLabel(t.region_code)} (${t.region_code})`
+            : scenarioBusinessLabel(t.scenario_code);
+        const err = t.validation_ok
+          ? ""
+          : `<div class="status error">${text(t.validation_error || "Invalid")}</div>`;
+        return `<tr>
+          <td>${text(name)}</td>
+          <td class="c-right">${formatNumber(t.current_units)}</td>
+          <td class="c-right">${formatNumber(t.proposed_units)}</td>
+          <td>${err || "OK"}</td>
+        </tr>`;
+      })
+      .join("");
+    host.hidden = false;
+    host.innerHTML = `
+      <h4 class="cp-csa-impact-title">Impact preview</h4>
+      <div class="cp-csa-default-grid">
+        <div><span class="cp-muted-text">Scope</span><div>${text(scopeLabel)}</div></div>
+        <div><span class="cp-muted-text">Proposed units</span><div>${formatNumber(preview.proposed_units)}</div></div>
+        <div><span class="cp-muted-text">Effective from</span><div>${formatDate(preview.proposed_effective_from)}</div></div>
+        <div><span class="cp-muted-text">Policies to revise</span><div>${text(String(preview.target_count ?? targets.length))}</div></div>
+      </div>
+      <div class="cp-muted-text">Company targets: ${companyTargets.length}. Regional targets: ${regionalTargets.length}.</div>
+      <div class="table-scroll">
+        <table class="cp-simple-table">
+          <thead><tr><th>Target</th><th class="c-right">Current</th><th class="c-right">Proposed</th><th>Validation</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <ul class="cp-csa-impact-warnings">
+        ${warnings.map((w) => `<li>${text(w)}</li>`).join("")}
+      </ul>
+    `;
+    setDefaultSaveEnabled(Boolean(preview.commit_allowed));
+  }
+
+  async function refreshDefaultPolicyImpactPreview() {
+    if (!defaultReviseTarget) {
+      renderDefaultImpactPreview(null);
+      return;
+    }
+    const unitsRaw = String($("csaDefaultPolicyUnits")?.value ?? "").trim();
+    const effectiveFrom = String(
+      $("csaDefaultPolicyEffectiveFrom")?.value || "",
+    ).trim();
+    const units = Number(unitsRaw);
+    if (!unitsRaw || !Number.isFinite(units) || units <= 0 || !effectiveFrom) {
+      defaultScopePreview = null;
+      renderDefaultImpactPreview(null);
+      return;
+    }
+    const kind =
+      defaultReviseTarget.kind === "regional" ? "REGIONAL" : "COMPANY";
+    const scope = selectedDefaultScope();
+    defaultPreviewInFlight = true;
+    try {
+      const { data, error } = await costingRpc(
+        "rpc_preview_sales_allocation_default_policy_scope",
+        {
+          p_anchor_kind: kind,
+          p_scenario_code: defaultReviseTarget.scenarioCode,
+          p_region_code:
+            kind === "REGIONAL" ? defaultReviseTarget.regionCode : null,
+          p_scope: scope,
+          p_default_sales_units: units,
+          p_effective_from: effectiveFrom,
+        },
+      );
+      if (error) throw error;
+      defaultScopePreview = data;
+      renderDefaultImpactPreview(data);
+    } catch (err) {
+      defaultScopePreview = null;
+      renderDefaultImpactPreview(null);
+      setDefaultModalError(
+        err?.message || "Failed to preview scoped policy impact.",
+      );
+    } finally {
+      defaultPreviewInFlight = false;
+    }
+  }
+
+  function scheduleDefaultPolicyImpactPreview() {
+    if (defaultPreviewTimer) clearTimeout(defaultPreviewTimer);
+    defaultPreviewTimer = setTimeout(() => {
+      void refreshDefaultPolicyImpactPreview();
+    }, 250);
+  }
+
   function openDefaultPolicyReviseModal(target) {
     if (!requireEditAccess?.("revise sales allocation default policy")) return;
     const scenario = String(target?.scenarioCode || "").trim();
@@ -1241,6 +1417,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       scenarioCode: scenario,
       regionCode: kind === "regional" ? region : null,
     };
+    defaultScopePreview = null;
     clearDefaultModalError();
     const title = $("csaDefaultPolicyTitle");
     if (title) {
@@ -1268,6 +1445,8 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     if (reason) reason.value = "";
     const approval = $("csaDefaultPolicyApproval");
     if (approval) approval.value = "";
+    renderDefaultScopeOptions(kind);
+    renderDefaultImpactPreview(null);
 
     const modal = $("csaDefaultPolicyModal");
     if (!modal) return;
@@ -1492,10 +1671,16 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
     defaultReviseTarget = null;
+    defaultScopePreview = null;
     defaultWriteInFlight = false;
+    if (defaultPreviewTimer) {
+      clearTimeout(defaultPreviewTimer);
+      defaultPreviewTimer = null;
+    }
     clearDefaultModalError();
+    renderDefaultImpactPreview(null);
     const saveBtn = $("csaDefaultPolicySaveBtn");
-    if (saveBtn) saveBtn.disabled = false;
+    if (saveBtn) saveBtn.disabled = true;
     const regionWrap = $("csaDefaultPolicyRegionWrap");
     if (regionWrap) regionWrap.hidden = true;
     const regionEl = $("csaDefaultPolicyRegion");
@@ -1504,7 +1689,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
 
   async function saveDefaultPolicyRevision() {
     if (!requireEditAccess?.("revise sales allocation default policy")) return;
-    if (defaultWriteInFlight) return;
+    if (defaultWriteInFlight || defaultPreviewInFlight) return;
     const kind =
       defaultReviseTarget?.kind === "regional" ? "regional" : "company";
     const scenario = String(
@@ -1533,6 +1718,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     ).trim();
     const reason = String($("csaDefaultPolicyReason")?.value || "").trim();
     const approval = String($("csaDefaultPolicyApproval")?.value || "").trim();
+    const scope = selectedDefaultScope();
     clearDefaultModalError();
 
     if (!unitsRaw) {
@@ -1552,48 +1738,32 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       setDefaultModalError("Reason is required.");
       return;
     }
-    const open = currentPolicyForReviseTarget({
-      kind,
-      scenarioCode: scenario,
-      regionCode: region || null,
-    });
-    if (open && isOpenDefaultPolicy(open)) {
-      const openFrom = isoDateOnly(open.effective_from);
-      if (!openFrom || compareIsoDate(effectiveFrom, openFrom) <= 0) {
-        setDefaultModalError(
-          "Effective-from must be later than the current open policy’s effective-from.",
-        );
-        return;
-      }
+
+    await refreshDefaultPolicyImpactPreview();
+    if (!defaultScopePreview?.commit_allowed) {
+      setDefaultModalError(
+        "Impact preview is incomplete or invalid. Fix validation errors before saving.",
+      );
+      return;
     }
 
     defaultWriteInFlight = true;
-    const saveBtn = $("csaDefaultPolicySaveBtn");
-    if (saveBtn) saveBtn.disabled = true;
-    setLoadingMask(true, "Saving default sales allocation policy...");
+    setDefaultSaveEnabled(false);
+    setLoadingMask(true, "Saving scoped default sales allocation policies...");
     try {
-      const rpcName =
-        kind === "regional"
-          ? "rpc_set_regional_sales_allocation_default_policy"
-          : "rpc_set_sales_allocation_default_policy";
-      const rpcArgs =
-        kind === "regional"
-          ? {
-              p_scenario_code: scenario,
-              p_region_code: region,
-              p_default_sales_units: units,
-              p_effective_from: effectiveFrom,
-              p_reason: reason,
-              p_approval_reference: approval || null,
-            }
-          : {
-              p_scenario_code: scenario,
-              p_default_sales_units: units,
-              p_effective_from: effectiveFrom,
-              p_reason: reason,
-              p_approval_reference: approval || null,
-            };
-      const { error } = await costingRpc(rpcName, rpcArgs);
+      const { error } = await costingRpc(
+        "rpc_set_sales_allocation_default_policies_scoped",
+        {
+          p_anchor_kind: kind === "regional" ? "REGIONAL" : "COMPANY",
+          p_scenario_code: scenario,
+          p_region_code: kind === "regional" ? region : null,
+          p_scope: scope,
+          p_default_sales_units: units,
+          p_effective_from: effectiveFrom,
+          p_reason: reason,
+          p_approval_reference: approval || null,
+        },
+      );
       if (error) throw error;
       closeDefaultPolicyModal();
       showToast(CSA_DEFAULT_POLICY_FUTURE_REFRESH_MESSAGE, "success", 6200);
@@ -1603,7 +1773,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
         handleError("Failed to reload default policies", err);
       }
       if (isDefaultsHubOpen()) renderDefaultsHubBody();
-      if (kind === "company" && typeof reloadRows === "function") {
+      if (typeof reloadRows === "function") {
         await reloadRows();
       }
     } catch (err) {
@@ -1613,7 +1783,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
       );
     } finally {
       defaultWriteInFlight = false;
-      if (saveBtn) saveBtn.disabled = false;
+      setDefaultSaveEnabled(Boolean(defaultScopePreview?.commit_allowed));
       setLoadingMask(false);
     }
   }
@@ -1683,6 +1853,12 @@ export function createCommercialSalesAssumptionHandlers(deps) {
     });
     $("csaDefaultPolicySaveBtn")?.addEventListener("click", () => {
       void saveDefaultPolicyRevision();
+    });
+    $("csaDefaultPolicyUnits")?.addEventListener("input", () => {
+      scheduleDefaultPolicyImpactPreview();
+    });
+    $("csaDefaultPolicyEffectiveFrom")?.addEventListener("change", () => {
+      scheduleDefaultPolicyImpactPreview();
     });
   }
 
