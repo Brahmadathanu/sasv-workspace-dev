@@ -8,6 +8,9 @@ import { fileURLToPath } from "node:url";
 import {
   COMMERCIAL_SALES_ASSUMPTIONS_WORKSPACE_ID,
   CSA_DEFAULT_POLICY_FUTURE_REFRESH_MESSAGE,
+  CSA_DEFAULT_POLICY_SCOPE_LABELS,
+  CSA_DEFAULT_POLICY_SCOPES_COMPANY,
+  CSA_DEFAULT_POLICY_SCOPES_REGIONAL,
   CSA_DEFAULT_SCENARIOS,
   CSA_REGIONAL_DEFAULT_REGIONS,
   CSA_REGIONAL_DEFAULT_SCENARIOS,
@@ -484,6 +487,134 @@ assert(
     sourceConstraintsSql.replace(/--[^\n]*/g, ""),
   ),
   "source-constraints parity SQL has no DML",
+);
+
+function firstCssBlock(src, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = src.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`));
+  return match ? match[1] : "";
+}
+
+const revisionPanelDesktopCss = firstCssBlock(
+  htmlSrc,
+  "#csaDefaultPolicyModal .cost-sheet-sign-panel",
+);
+const revisionBodyCss = firstCssBlock(
+  htmlSrc,
+  "#csaDefaultPolicyModal .cost-sheet-sign-body",
+);
+const revisionChromeMatch = htmlSrc.match(
+  /#csaDefaultPolicyModal\s+\.cost-sheet-sign-header,\s*#csaDefaultPolicyModal\s+\.cost-sheet-sign-actions\s*\{([\s\S]*?)\}/,
+);
+const revisionPreviewTableCss = firstCssBlock(
+  htmlSrc,
+  "#csaDefaultPolicyModal .cp-csa-impact-preview .table-scroll",
+);
+const scopeOptionsCss = firstCssBlock(htmlSrc, ".cp-csa-scope-options");
+const scopeOptionCss = firstCssBlock(htmlSrc, ".sign-grid .cp-csa-scope-option");
+const scopeRadioCss = firstCssBlock(
+  htmlSrc,
+  '.sign-grid .cp-csa-scope-option input[type="radio"]',
+);
+const overlayCss = firstCssBlock(htmlSrc, ".cost-sheet-sign-modal");
+const sharedMobileWorkflowMatch = htmlSrc.match(
+  /@media \(max-width: 620px\)\s*\{[\s\S]*?\.cp-policy-workflow-modal\s*\{([\s\S]*?)\}[\s\S]*?\.cp-policy-workflow-modal\s+\.cost-sheet-sign-panel\s*\{([\s\S]*?)\}/,
+);
+const csaMobilePanelMatch = htmlSrc.match(
+  /@media \(max-width: 620px\)\s*\{\s*#csaDefaultPolicyModal\s+\.cost-sheet-sign-panel\s*\{([\s\S]*?)\}/,
+);
+
+assert(
+  /display:\s*flex/.test(revisionPanelDesktopCss) &&
+    /flex-direction:\s*column/.test(revisionPanelDesktopCss) &&
+    /min-height:\s*0/.test(revisionPanelDesktopCss) &&
+    /max-height:\s*calc\(100dvh\s*-\s*28px\)/.test(revisionPanelDesktopCss) &&
+    !/min-height:\s*100dvh/.test(revisionPanelDesktopCss),
+  "CSA revision panel is flex column with viewport-safe desktop max-height",
+);
+assert(
+  /flex:\s*1 1 auto/.test(revisionBodyCss) &&
+    /min-height:\s*0/.test(revisionBodyCss) &&
+    /overflow-y:\s*auto/.test(revisionBodyCss) &&
+    /overflow-x:\s*hidden/.test(revisionBodyCss),
+  "CSA revision body owns vertical scrolling",
+);
+assert(
+  revisionChromeMatch && /flex:\s*0 0 auto/.test(revisionChromeMatch[1]),
+  "CSA revision header/footer are non-growing",
+);
+assert(
+  /padding:\s*14px/.test(overlayCss) &&
+    !/min-height:\s*100dvh/.test(revisionPanelDesktopCss),
+  "desktop overlay padding is not paired with CSA panel min-height:100dvh",
+);
+assert(
+  sharedMobileWorkflowMatch &&
+    /padding:\s*0/.test(sharedMobileWorkflowMatch[1]) &&
+    /min-height:\s*100dvh/.test(sharedMobileWorkflowMatch[2]) &&
+    /max-height:\s*100dvh/.test(sharedMobileWorkflowMatch[2]),
+  "shared <=620px workflow overlay padding 0 + panel 100dvh remains intact",
+);
+assert(
+  csaMobilePanelMatch &&
+    /max-height:\s*100dvh/.test(csaMobilePanelMatch[1]) &&
+    /min-height:\s*100dvh/.test(csaMobilePanelMatch[1]),
+  "<=620px CSA revision panel uses exact 100dvh after overlay padding 0",
+);
+assert(
+  /flex:\s*0 0 auto/.test(revisionPreviewTableCss) &&
+    /overflow-x:\s*auto/.test(revisionPreviewTableCss) &&
+    /overflow-y:\s*visible/.test(revisionPreviewTableCss),
+  "CSA impact preview table does not own vertical scrolling",
+);
+assert(
+  /display:\s*flex/.test(scopeOptionsCss) &&
+    /flex-direction:\s*column/.test(scopeOptionsCss) &&
+    /align-items:\s*flex-start/.test(scopeOptionsCss) &&
+    !/display:\s*grid/.test(scopeOptionsCss),
+  "CSA scope options are a compact column, not a stretching grid",
+);
+assert(
+  /display:\s*inline-flex/.test(scopeOptionCss) &&
+    /flex-direction:\s*row/.test(scopeOptionCss) &&
+    /width:\s*fit-content/.test(scopeOptionCss) &&
+    /align-items:\s*center/.test(scopeOptionCss),
+  "CSA scope labels are compact inline-flex rows",
+);
+assert(
+  /width:\s*auto/.test(scopeRadioCss) &&
+    /min-height:\s*0/.test(scopeRadioCss) &&
+    /padding:\s*0/.test(scopeRadioCss) &&
+    /flex:\s*0 0 auto/.test(scopeRadioCss),
+  "CSA radios override .sign-grid input stretch sizing",
+);
+assert(
+  csaSrc.includes(
+    'return `<label class="cp-csa-scope-option" for="${id}"><input type="radio" name="csaDefaultPolicyScope" id="${id}" value="${scope}" ${checked} /> <span>${text(label)}</span></label>`;',
+  ),
+  "native radio name/id/value and span label text retained",
+);
+assert(
+  CSA_DEFAULT_POLICY_SCOPES_COMPANY.join(",") ===
+    "THIS_POLICY,ALL_COMPANY,ALL_LINKED",
+  "company scope array unchanged",
+);
+assert(
+  CSA_DEFAULT_POLICY_SCOPES_REGIONAL.join(",") ===
+    "THIS_POLICY,SAME_REGION_LINKED,ALL_REGIONAL,ALL_LINKED",
+  "regional scope array unchanged",
+);
+assert(
+  CSA_DEFAULT_POLICY_SCOPE_LABELS.THIS_POLICY === "This policy only" &&
+    CSA_DEFAULT_POLICY_SCOPE_LABELS.ALL_COMPANY ===
+      "Both company fallback policies" &&
+    CSA_DEFAULT_POLICY_SCOPE_LABELS.SAME_REGION_LINKED ===
+      "All linked fallbacks in this region" &&
+    CSA_DEFAULT_POLICY_SCOPE_LABELS.ALL_REGIONAL ===
+      "All regional fallback policies" &&
+    CSA_DEFAULT_POLICY_SCOPE_LABELS.ALL_LINKED ===
+      "All linked fallback policies",
+  "scope labels unchanged",
 );
 
 if (failed) {
