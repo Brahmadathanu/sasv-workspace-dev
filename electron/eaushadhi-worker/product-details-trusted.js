@@ -49,7 +49,22 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "content_hash",
   "requireEditPermission",
   "p_edit",
+  // Trusted-only diagnostic hook — never accepted from renderer IPC.
+  "reportPreviewStageFailure",
 ]);
+
+/**
+ * Optional trusted diagnostic hook. Never throws into preview control flow.
+ * Renderer must never supply this; only main-process deps may.
+ */
+function notifyPreviewStageFailure(deps, stage, code, error) {
+  if (typeof deps?.reportPreviewStageFailure !== "function") return;
+  try {
+    deps.reportPreviewStageFailure({ stage, code, error });
+  } catch {
+    // Diagnostics must never break fail-closed preview.
+  }
+}
 
 /**
  * Strip renderer payload to the only allowed command fields.
@@ -463,8 +478,9 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
   if (typeof deps.measurePageState === "function") {
     try {
       pageMeasure = await deps.measurePageState({ workerState });
-    } catch {
+    } catch (error) {
       // Unexpected probe throw — fail closed without leaking raw error to renderer.
+      notifyPreviewStageFailure(deps, "page_state", "PAGE_PROBE_FAILED", error);
       return {
         ok: false,
         code: "PAGE_PROBE_FAILED",
@@ -487,7 +503,13 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
         searchTerm: EXPECTED_PORTAL_PRODUCT_NAME,
       });
       duplicateSearch = dup?.searchResponse || null;
-    } catch {
+    } catch (error) {
+      notifyPreviewStageFailure(
+        deps,
+        "duplicate_search",
+        "DUPLICATE_SEARCH_FAILED",
+        error,
+      );
       return {
         ok: false,
         code: "DUPLICATE_SEARCH_FAILED",
@@ -504,7 +526,13 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       const perm = await deps.enumeratePermissionOptions({ page: deps.page });
       if (perm?.ok) permissionOptions = perm.options || [];
       else missing.push("permission_options");
-    } catch {
+    } catch (error) {
+      notifyPreviewStageFailure(
+        deps,
+        "permission_options",
+        "PERMISSION_OPTIONS_FAILED",
+        error,
+      );
       return {
         ok: false,
         code: "PERMISSION_OPTIONS_FAILED",
@@ -534,8 +562,14 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
         expectedFileName: EXPECTED_APPROVED_COPY_NAME,
         evidence: content?.evidence || null,
       });
-    } catch {
+    } catch (error) {
       // Thrown resolver failures only. Structured { ok:false, code } returns stay below.
+      notifyPreviewStageFailure(
+        deps,
+        "approved_copy",
+        "APPROVED_COPY_RESOLUTION_FAILED",
+        error,
+      );
       return {
         ok: false,
         code: "APPROVED_COPY_RESOLUTION_FAILED",

@@ -886,6 +886,16 @@ function createEaushadhiWorker({
           evidence,
           expectedFileName,
         }),
+      // Trusted-only. Never supplied by renderer IPC / sanitizeRendererCommand.
+      reportPreviewStageFailure: ({ stage, code, error }) => {
+        log({
+          phase: "product-details-preview",
+          productId: PD_PRODUCT_ID,
+          stage,
+          errorKind: code,
+          error: sanitizeText(error?.message || String(error || code)),
+        });
+      },
       // Adapters are constructed only here when live arm is enabled later.
       buildAdapters: async () => {
         throw workerError(

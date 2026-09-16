@@ -51,6 +51,7 @@ function writeDiagnostic(userDataPath, record) {
     product_id: record.productId || null,
     worker_state: record.workerState || null,
     phase: record.phase || null,
+    stage: record.stage || null,
     url:
       record.errorKind === "DISALLOWED_ORIGIN" ||
       record.phase === "origin-guard" ||

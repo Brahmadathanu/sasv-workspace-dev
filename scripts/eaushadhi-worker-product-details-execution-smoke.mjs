@@ -1171,15 +1171,24 @@ assert(
 }
 
 {
+  const diagCalls = [];
   const pageProbeFail = await runTrustedProductDetailsPreview(
     makeTrustedDeps({
       measurePageState: async () => {
         throw new Error("evaluate boom secret-token-xyz");
       },
+      reportPreviewStageFailure: (payload) => {
+        diagCalls.push(payload);
+      },
     }),
   );
   assert(pageProbeFail.code === "PAGE_PROBE_FAILED", "page-state probe throw => PAGE_PROBE_FAILED");
   assert(pageProbeFail.preview?.startEnabled !== true, "page probe failure keeps Start disabled");
+  assert(diagCalls.length === 1, "page probe diagnostic callback invoked once");
+  assert(
+    diagCalls[0]?.stage === "page_state" && diagCalls[0]?.code === "PAGE_PROBE_FAILED",
+    "page probe diagnostic receives stage/code",
+  );
   assert(
     !JSON.stringify(pageProbeFail).includes("secret-token-xyz"),
     "page probe failure does not leak raw exception text",
@@ -1188,15 +1197,25 @@ assert(
 }
 
 {
+  const diagCalls = [];
   const dupFail = await runTrustedProductDetailsPreview(
     makeTrustedDeps({
       searchDuplicates: async () => {
         throw new Error("duplicate evaluate boom bearer abc");
       },
+      reportPreviewStageFailure: (payload) => {
+        diagCalls.push(payload);
+      },
     }),
   );
   assert(dupFail.code === "DUPLICATE_SEARCH_FAILED", "duplicate-search throw => DUPLICATE_SEARCH_FAILED");
   assert(dupFail.preview?.startEnabled !== true, "duplicate search failure keeps Start disabled");
+  assert(diagCalls.length === 1, "duplicate search diagnostic callback invoked once");
+  assert(
+    diagCalls[0]?.stage === "duplicate_search" &&
+      diagCalls[0]?.code === "DUPLICATE_SEARCH_FAILED",
+    "duplicate search diagnostic receives stage/code",
+  );
   assert(
     !JSON.stringify(dupFail).includes("bearer abc"),
     "duplicate search failure does not leak raw exception text",
@@ -1204,10 +1223,14 @@ assert(
 }
 
 {
+  const diagCalls = [];
   const permFail = await runTrustedProductDetailsPreview(
     makeTrustedDeps({
       enumeratePermissionOptions: async () => {
         throw new Error("permission evaluate boom");
+      },
+      reportPreviewStageFailure: (payload) => {
+        diagCalls.push(payload);
       },
     }),
   );
@@ -1216,13 +1239,23 @@ assert(
     "permission enumeration throw => PERMISSION_OPTIONS_FAILED",
   );
   assert(permFail.preview?.startEnabled !== true, "permission options failure keeps Start disabled");
+  assert(diagCalls.length === 1, "permission options diagnostic callback invoked once");
+  assert(
+    diagCalls[0]?.stage === "permission_options" &&
+      diagCalls[0]?.code === "PERMISSION_OPTIONS_FAILED",
+    "permission options diagnostic receives stage/code",
+  );
 }
 
 {
+  const diagCalls = [];
   const copyThrow = await runTrustedProductDetailsPreview(
     makeTrustedDeps({
       resolveApprovedCopy: async () => {
         throw new Error("resolver explode signedUrl=https://evil/x");
+      },
+      reportPreviewStageFailure: (payload) => {
+        diagCalls.push(payload);
       },
     }),
   );
@@ -1231,10 +1264,69 @@ assert(
     "approved-copy resolver throw => APPROVED_COPY_RESOLUTION_FAILED",
   );
   assert(copyThrow.preview?.startEnabled !== true, "approved-copy throw keeps Start disabled");
+  assert(diagCalls.length === 1, "approved-copy diagnostic callback invoked once");
+  assert(
+    diagCalls[0]?.stage === "approved_copy" &&
+      diagCalls[0]?.code === "APPROVED_COPY_RESOLUTION_FAILED",
+    "approved-copy diagnostic receives stage/code",
+  );
   assert(
     !JSON.stringify(copyThrow).includes("signedUrl") &&
       !JSON.stringify(copyThrow).includes("https://evil"),
     "approved-copy throw does not leak signed URL",
+  );
+}
+
+{
+  const diagThrowPreview = await runTrustedProductDetailsPreview(
+    makeTrustedDeps({
+      measurePageState: async () => {
+        throw new Error("probe still fails");
+      },
+      reportPreviewStageFailure: () => {
+        throw new Error("diagnostic callback must not break preview");
+      },
+    }),
+  );
+  assert(
+    diagThrowPreview.code === "PAGE_PROBE_FAILED",
+    "diagnostic callback throw still returns PAGE_PROBE_FAILED",
+  );
+  assert(
+    diagThrowPreview.preview?.startEnabled !== true,
+    "diagnostic callback throw keeps Start disabled",
+  );
+}
+
+{
+  assert(
+    RENDERER_FORBIDDEN_OPTION_KEYS.includes("reportPreviewStageFailure"),
+    "reportPreviewStageFailure is renderer-forbidden",
+  );
+  const forgedDiag = sanitizeRendererCommand({
+    reportPreviewStageFailure: () => {
+      throw new Error("renderer must never inject diagnostics");
+    },
+    userConfirmed: true,
+  });
+  assert(
+    forgedDiag.forbiddenPresent.includes("reportPreviewStageFailure"),
+    "sanitize marks reportPreviewStageFailure as forbidden",
+  );
+  assert(
+    !Object.prototype.hasOwnProperty.call(forgedDiag, "reportPreviewStageFailure"),
+    "sanitize does not forward reportPreviewStageFailure",
+  );
+  assert(
+    indexSrc.includes("reportPreviewStageFailure:") &&
+      indexSrc.includes('phase: "product-details-preview"'),
+    "index wires trusted reportPreviewStageFailure into deps only",
+  );
+  assert(
+    /product-details-preview[\s\S]*previewProductDetailsExecution\(productId, accessToken, \{\}\)/.test(
+      ipcSrc,
+    ),
+    "IPC preview still forwards empty options (no diagnostic callback from renderer)",
   );
 }
 
