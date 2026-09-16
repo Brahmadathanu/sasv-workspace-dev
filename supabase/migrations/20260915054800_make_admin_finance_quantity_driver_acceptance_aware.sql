@@ -18,8 +18,8 @@ begin
     raise exception 'Expected 8 allocation-resolution readiness/note tests, found %', v_test_count;
   end if;
 
-  v_old := E'    from costing.sku_sales_allocation_basis_snapshot b\\n\\n    left join costing.v_cost_pool_monthly_combined ad';
-  v_new := E'    from costing.sku_sales_allocation_basis_snapshot b\\n\\n    cross join lateral costing.fn_sales_allocation_quantity_driver_review_status(b.id) qdr\\n\\n    left join costing.v_cost_pool_monthly_combined ad';
+  v_old := E'    from costing.sku_sales_allocation_basis_snapshot b\n\n    left join costing.v_cost_pool_monthly_combined ad';
+  v_new := E'    from costing.sku_sales_allocation_basis_snapshot b\n\n    cross join lateral costing.fn_sales_allocation_quantity_driver_review_status(b.id) qdr\n\n    left join costing.v_cost_pool_monthly_combined ad';
 
   if strpos(v_def,v_old)=0 then
     raise exception 'Expected Admin/finance source join anchor not found';
