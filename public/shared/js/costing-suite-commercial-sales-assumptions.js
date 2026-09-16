@@ -1270,7 +1270,7 @@ export function createCommercialSalesAssumptionHandlers(deps) {
         const id = `csaDefaultPolicyScope_${scope}`;
         const label = CSA_DEFAULT_POLICY_SCOPE_LABELS[scope] || scope;
         const checked = idx === 0 ? "checked" : "";
-        return `<label class="cp-csa-scope-option"><input type="radio" name="csaDefaultPolicyScope" id="${id}" value="${scope}" ${checked} /> ${text(label)}</label>`;
+        return `<label class="cp-csa-scope-option" for="${id}"><input type="radio" name="csaDefaultPolicyScope" id="${id}" value="${scope}" ${checked} /> <span>${text(label)}</span></label>`;
       })
       .join("");
     host.querySelectorAll('input[name="csaDefaultPolicyScope"]').forEach((el) => {
