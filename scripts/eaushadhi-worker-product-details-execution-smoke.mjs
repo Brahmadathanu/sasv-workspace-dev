@@ -16,6 +16,7 @@ const {
   assessProductDetailsPreflight,
   executeProductDetails,
   planResumeAction,
+  assertPageGuards,
 } = require(join(root, "electron/eaushadhi-worker/product-details-executor.js"));
 const {
   EXPECTED_APPROVED_COPY_NAME,
@@ -30,6 +31,8 @@ const {
   evaluateDuplicateGuard,
   DUPLICATE_OUTCOME,
   normalizeLoadProductDataforLegacyResponse,
+  buildLoadProductDataforLegacyListParams,
+  buildLoadProductDataforLegacyListUrl,
   buildLoadProductDataforLegacyListBody,
 } = require(join(root, "electron/eaushadhi-worker/portal-duplicate-guard.js"));
 const {
@@ -286,12 +289,71 @@ assert(
   "coverage-proven empty search is NONE",
 );
 
-const listBody = buildLoadProductDataforLegacyListBody("Karpooradi Thailam", {
+{
+  const freshAdd = assertPageGuards({
+    workerState: "READY",
+    origin: "https://www.e-aushadhi.gov.in",
+    path: "/admin/addproductforlegacy",
+    actiontype: "add",
+    hiddenId: "preset-nonempty",
+    staleEditState: false,
+    saveDataAvailable: true,
+  });
+  assert(freshAdd.ok === true, "fresh Add with nonempty hiddenId passes page guards");
+  assert(freshAdd.code !== "STALE_PRODUCT_ID", "fresh Add does not raise STALE_PRODUCT_ID");
+}
+
+{
+  const editPage = assertPageGuards({
+    workerState: "READY",
+    origin: "https://www.e-aushadhi.gov.in",
+    path: "/admin/addproductforlegacy",
+    actiontype: "Edit",
+    hiddenId: "9001",
+    staleEditState: false,
+    saveDataAvailable: true,
+  });
+  assert(editPage.ok === false && editPage.code === "NOT_ADD_MODE", "genuine Edit => NOT_ADD_MODE");
+}
+
+{
+  const staleEdit = assertPageGuards({
+    workerState: "READY",
+    origin: "https://www.e-aushadhi.gov.in",
+    path: "/admin/addproductforlegacy",
+    actiontype: "add",
+    hiddenId: "9001",
+    staleEditState: true,
+    saveDataAvailable: true,
+  });
+  assert(
+    staleEdit.ok === false && staleEdit.code === "STALE_EDIT_STATE",
+    "staleEditState true => STALE_EDIT_STATE",
+  );
+}
+
+const listParams = buildLoadProductDataforLegacyListParams("Karpooradi Thailam", {
   length: 10,
   licenseid: "L1",
 });
-assert(listBody.search === "Karpooradi Thailam", "list body applies exact search term");
-assert(listBody.pageno === 1 && listBody.order === "asc", "list body uses proven paging/order fields");
+assert(listParams.search === "Karpooradi Thailam", "list params apply exact search term");
+assert(listParams.pageno === 1 && listParams.order === "asc", "list params use proven paging/order fields");
+const listUrl = buildLoadProductDataforLegacyListUrl("../admin/LoadProductDataforLegacy", listParams);
+assert(listUrl.includes("LoadProductDataforLegacy?"), "list URL uses query string");
+assert(/[?&]pageno=1(?:&|$)/.test(listUrl), "list URL encodes pageno");
+assert(/[?&]length=10(?:&|$)/.test(listUrl), "list URL encodes length");
+assert(
+  listUrl.includes(`search=${encodeURIComponent("Karpooradi Thailam")}`) ||
+    listUrl.includes("search=Karpooradi+Thailam"),
+  "list URL encodes exact Karpooradi search",
+);
+assert(/[?&]order=asc(?:&|$)/.test(listUrl), "list URL encodes order");
+assert(/[?&]licenseid=L1(?:&|$)/.test(listUrl), "list URL encodes licenseid");
+assert(
+  buildLoadProductDataforLegacyListBody("Karpooradi Thailam", { length: 10 }).search ===
+    "Karpooradi Thailam",
+  "deprecated listBody helper still returns param object",
+);
 
 const normalizedList = normalizeLoadProductDataforLegacyResponse(
   { TotalCount: 0, aaData: [] },
@@ -299,50 +361,63 @@ const normalizedList = normalizeLoadProductDataforLegacyResponse(
 );
 assert(normalizedList.mechanism === "datatable_list_post", "normalize marks datatable list mechanism");
 assert(normalizedList.coverageComplete === true, "empty TotalCount=0 coverage is complete");
+assert(
+  evaluateDuplicateGuard(normalizedList).outcome === DUPLICATE_OUTCOME.NONE,
+  "{ TotalCount, aaData } complete zero result => NONE",
+);
 
 const probeSrc = createInPageDuplicateSearchProbe.toString();
 assert(!/LoadProductDataforLegacy\s*\(/.test(probeSrc), "probe source never invokes LoadProductDataforLegacy(");
 assert(probeSrc.includes("../admin/LoadProductDataforLegacy"), "probe posts proven admin list endpoint");
 assert(probeSrc.includes("datatable_list_post"), "probe labels datatable list mechanism");
+assert(probeSrc.includes('getElementById("licenseid")'), "probe reads DOM #licenseid");
+assert(
+  !/licenseid\s*=\s*window\.licenseId/.test(probeSrc),
+  "probe does not prefer window.licenseId as license authority",
+);
+assert(probeSrc.includes('contentType: "application/json"'), "probe sets application/json contentType");
+assert(!probeSrc.includes("application/x-www-form-urlencoded"), "probe does not use form-urlencoded body");
 
 {
   const posts = [];
-  const fakeWindow = {
-    licenseId: "LIC-9",
-    // Global symbol exists but must remain unused.
-    LoadProductDataforLegacy: () => {
-      throw new Error("global LoadProductDataforLegacy must not be called");
-    },
-    jQuery: {
-      ajax({ url, type, data, success }) {
-        posts.push({ url, type, data });
-        const length = Number(data.length || 10);
-        const all = [
-          { name: "Other Product", id: 1 },
-          { name: "Karpooradi Thailam", id: 2 },
-        ];
-        // Simulate portal length paging: return slice, TotalCount is full match count for search.
-        const matches = all.filter((r) =>
-          String(r.name).toLowerCase() === String(data.search || "").toLowerCase(),
-        );
-        const total = matches.length;
-        success({
-          TotalCount: total,
-          aaData: matches.slice(0, length),
-        });
-      },
+  const fakeDoc = {
+    getElementById(id) {
+      if (id === "licenseid") return { value: "DOM-LIC-7" };
+      return null;
     },
   };
-  const probe = createInPageDuplicateSearchProbe();
-  const bound = probe.bind(fakeWindow);
-  // Run probe with window/jQuery globals injected.
+  // Global symbol exists but must remain unused for license authority.
   const prevJq = globalThis.jQuery;
   const prevLic = globalThis.licenseId;
   const prevFn = globalThis.LoadProductDataforLegacy;
-  globalThis.jQuery = fakeWindow.jQuery;
-  globalThis.licenseId = fakeWindow.licenseId;
-  globalThis.LoadProductDataforLegacy = fakeWindow.LoadProductDataforLegacy;
+  const prevDoc = globalThis.document;
+  const prevWindow = globalThis.window;
+  globalThis.document = fakeDoc;
+  globalThis.licenseId = "WINDOW-LIC-SHOULD-NOT-WIN";
+  globalThis.LoadProductDataforLegacy = () => {
+    throw new Error("global LoadProductDataforLegacy must not be called");
+  };
   globalThis.window = globalThis;
+  globalThis.jQuery = {
+    ajax({ url, type, data, contentType, dataType, success }) {
+      posts.push({ url, type, data, contentType, dataType });
+      const parsed = new URL(String(url), "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
+      const search = parsed.searchParams.get("search") || "";
+      const length = Number(parsed.searchParams.get("length") || 10);
+      const all = [
+        { name: "Other Product", id: 1 },
+        { name: "Karpooradi Thailam", id: 2 },
+      ];
+      const matches = all.filter(
+        (r) => String(r.name).toLowerCase() === String(search).toLowerCase(),
+      );
+      const total = matches.length;
+      success({
+        TotalCount: total,
+        aaData: matches.slice(0, length),
+      });
+    },
+  };
   let probeResult;
   try {
     probeResult = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
@@ -350,19 +425,162 @@ assert(probeSrc.includes("datatable_list_post"), "probe labels datatable list me
     globalThis.jQuery = prevJq;
     globalThis.licenseId = prevLic;
     globalThis.LoadProductDataforLegacy = prevFn;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWindow;
   }
   assert(posts.length >= 1, "DataTable list POST was issued without global LoadProductDataforLegacy call");
   assert(posts.every((p) => p.type === "POST"), "duplicate list requests are POST");
   assert(
-    posts.every((p) => String(p.url).includes("LoadProductDataforLegacy")),
-    "duplicate list URL is LoadProductDataforLegacy",
+    posts.every((p) => String(p.url).includes("LoadProductDataforLegacy?")),
+    "jQuery path uses query URL",
   );
-  assert(posts[0].data.search === "Karpooradi Thailam", "exact search term applied on list POST");
+  assert(
+    posts.every((p) => /[?&]pageno=/.test(String(p.url))),
+    "duplicate-search URL includes encoded pageno",
+  );
+  assert(
+    posts.every((p) => /[?&]length=/.test(String(p.url))),
+    "duplicate-search URL includes encoded length",
+  );
+  assert(
+    posts.every(
+      (p) =>
+        String(p.url).includes(`search=${encodeURIComponent("Karpooradi Thailam")}`) ||
+        String(p.url).includes("search=Karpooradi+Thailam"),
+    ),
+    "exact search term Karpooradi Thailam in query URL",
+  );
+  assert(
+    posts.every((p) => /[?&]order=asc/.test(String(p.url))),
+    "duplicate-search URL includes encoded order",
+  );
+  assert(
+    posts.every((p) => String(p.url).includes("licenseid=DOM-LIC-7")),
+    "license source is DOM #licenseid value",
+  );
+  assert(
+    posts.every((p) => !String(p.url).includes("WINDOW-LIC")),
+    "window.licenseId is not used as license authority",
+  );
+  assert(
+    posts.every((p) => p.data === undefined || p.data === null),
+    "POST request contains no business fields in body",
+  );
+  assert(
+    posts.every((p) => p.contentType === "application/json"),
+    "jQuery contentType is application/json",
+  );
   assert(probeResult.usedGlobalWindowFn === false, "probe reports global window fn unused");
   assert(probeResult.mechanism === "datatable_list_post", "probe result uses datatable mechanism");
   assert(probeResult.searchApplied === true, "probe applied search");
   const guarded = evaluateDuplicateGuard(probeResult);
-  assert(guarded.outcome === DUPLICATE_OUTCOME.EXACT_ONE, "one exact list match is EXACT_ONE");
+  assert(guarded.outcome === DUPLICATE_OUTCOME.EXACT_ONE, "exact single match => EXACT_ONE");
+}
+
+{
+  const fetches = [];
+  const prevFetch = globalThis.fetch;
+  const prevJq = globalThis.jQuery;
+  const prevDoc = globalThis.document;
+  const prevWindow = globalThis.window;
+  const prevFn = globalThis.LoadProductDataforLegacy;
+  const prevLoc = globalThis.location;
+  globalThis.jQuery = undefined;
+  globalThis.location = {
+    href: "https://www.e-aushadhi.gov.in/admin/addproductforlegacy",
+  };
+  globalThis.document = {
+    getElementById(id) {
+      if (id === "licenseid") return { value: "DOM-FETCH-9" };
+      return null;
+    },
+  };
+  globalThis.window = globalThis;
+  globalThis.LoadProductDataforLegacy = () => {
+    throw new Error("global LoadProductDataforLegacy must not be called");
+  };
+  globalThis.fetch = async (url, opts = {}) => {
+    fetches.push({ url: String(url), opts });
+    return {
+      ok: true,
+      async json() {
+        return { TotalCount: 0, aaData: [] };
+      },
+    };
+  };
+  let fetchProbe;
+  try {
+    fetchProbe = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+  } finally {
+    globalThis.fetch = prevFetch;
+    globalThis.jQuery = prevJq;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWindow;
+    globalThis.LoadProductDataforLegacy = prevFn;
+    globalThis.location = prevLoc;
+  }
+  assert(fetches.length >= 1, "fetch fallback issued list POST");
+  assert(fetches.every((f) => f.opts.method === "POST"), "fetch fallback method is POST");
+  assert(
+    fetches.every((f) => f.url.includes("LoadProductDataforLegacy?")),
+    "fetch fallback uses same query URL",
+  );
+  assert(
+    fetches.every((f) => f.url.includes("licenseid=DOM-FETCH-9")),
+    "fetch fallback license comes from DOM #licenseid",
+  );
+  assert(
+    fetches.every((f) => f.opts.body === undefined || f.opts.body === null || f.opts.body === ""),
+    "fetch fallback has no form/business body",
+  );
+  assert(
+    fetches.every(
+      (f) =>
+        f.opts.headers &&
+        String(f.opts.headers["Content-Type"] || "").includes("application/json"),
+    ),
+    "fetch fallback uses application/json content type",
+  );
+  assert(
+    fetches.every((f) => !String(f.opts.headers?.["Content-Type"] || "").includes("form-urlencoded")),
+    "fetch fallback does not use form-urlencoded",
+  );
+  assert(fetchProbe.searchApplied === true, "fetch fallback marks search applied");
+  assert(
+    evaluateDuplicateGuard(fetchProbe).outcome === DUPLICATE_OUTCOME.NONE,
+    "fetch fallback zero complete result => NONE",
+  );
+}
+
+{
+  const failed = evaluateDuplicateGuard({
+    source: "LoadProductDataforLegacy",
+    searchApplied: false,
+    searchTerm: "Karpooradi Thailam",
+    totalCount: null,
+    rows: null,
+    reason: "list_request_failed",
+  });
+  assert(
+    failed.outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE,
+    "request failure => SEARCH_INCOMPLETE",
+  );
+}
+
+{
+  const malformed = evaluateDuplicateGuard({
+    source: "LoadProductDataforLegacy",
+    searchApplied: true,
+    searchTerm: "Karpooradi Thailam",
+    totalCount: null,
+    rows: null,
+  });
+  assert(
+    malformed.outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE ||
+      malformed.outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+    "malformed response => fail-closed, never NONE",
+  );
+  assert(malformed.outcome !== DUPLICATE_OUTCOME.NONE, "malformed response is not NONE");
 }
 
 assert(
@@ -374,7 +592,7 @@ assert(
     rows: [{ name: "Karpooradi Thailam" }],
     coverageComplete: false,
   }).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
-  "incomplete list coverage remains COVERAGE_UNPROVEN",
+  "incomplete page vs total => COVERAGE_UNPROVEN",
 );
 
 assert(filenameMatchesGoverned(EXPECTED_APPROVED_COPY_NAME), "exact V01 approved filename passes");

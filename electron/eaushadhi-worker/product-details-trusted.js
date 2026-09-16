@@ -123,11 +123,12 @@ function createInPagePermissionOptionsProbe() {
 
 /**
  * Read-only duplicate search via the proven DataTable list POST:
- * POST ../admin/LoadProductDataforLegacy
- * with { pageno, length, search, order, licenseid }.
+ * POST ../admin/LoadProductDataforLegacy?pageno&length&search&order&licenseid
+ * with no business request body (query-string transport).
  *
  * Does NOT call window.LoadProductDataforLegacy even if it exists.
  * Does NOT infer NONE from visible table rows.
+ * License comes from document.getElementById("licenseid"), matching portal source.
  */
 function createInPageDuplicateSearchProbe() {
   return async (searchTerm) => {
@@ -184,13 +185,24 @@ function createInPageDuplicateSearchProbe() {
       };
     }
 
-    async function postList(body) {
+    function buildListUrl(params) {
+      const qs = new URLSearchParams();
+      qs.set("pageno", String(params.pageno != null ? params.pageno : 1));
+      qs.set("length", String(params.length != null ? params.length : 10));
+      qs.set("search", String(params.search != null ? params.search : ""));
+      qs.set("order", String(params.order != null ? params.order : "asc"));
+      qs.set("licenseid", String(params.licenseid != null ? params.licenseid : ""));
+      return endpointRel + "?" + qs.toString();
+    }
+
+    async function postList(params) {
+      const listUrl = buildListUrl(params);
       if (window.jQuery && typeof window.jQuery.ajax === "function") {
         return await new Promise(function (resolve, reject) {
           window.jQuery.ajax({
-            url: endpointRel,
+            url: listUrl,
             type: "POST",
-            data: body,
+            contentType: "application/json",
             dataType: "json",
             success: resolve,
             error: function (_xhr, status, err) {
@@ -199,26 +211,24 @@ function createInPageDuplicateSearchProbe() {
           });
         });
       }
-      const url = new URL(endpointRel, location.href).href;
-      const form = new URLSearchParams();
-      Object.keys(body).forEach(function (key) {
-        form.append(key, body[key] == null ? "" : String(body[key]));
-      });
+      const url = new URL(listUrl, location.href).href;
       const res = await fetch(url, {
         method: "POST",
         credentials: "same-origin",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: form.toString(),
       });
       if (!res.ok) throw new Error("http_" + res.status);
       return await res.json();
     }
 
-    const licenseid = window.licenseId != null ? window.licenseId : "";
-    const baseBody = {
+    // Match portal source: document.getElementById("licenseid").value
+    const licenseEl = document.getElementById("licenseid");
+    const licenseid =
+      licenseEl && licenseEl.value != null ? String(licenseEl.value) : "";
+    const baseParams = {
       pageno: 1,
       length: 10,
       search: term,
@@ -228,7 +238,7 @@ function createInPageDuplicateSearchProbe() {
 
     let firstPayload;
     try {
-      firstPayload = await postList(baseBody);
+      firstPayload = await postList(baseParams);
     } catch (error) {
       return {
         source: "LoadProductDataforLegacy",
