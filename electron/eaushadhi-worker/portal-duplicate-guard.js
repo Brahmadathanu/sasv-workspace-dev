@@ -205,17 +205,43 @@ function normalizeLoadProductDataforLegacyResponse(raw, searchTerm) {
 }
 
 /**
- * Body for the proven read-only list endpoint (portal DataTable path).
+ * Query params for the proven read-only list endpoint (portal DataTable path).
+ * Live portal places these on the URL query string — not in the POST body.
  * Does not invoke window.LoadProductDataforLegacy.
  */
-function buildLoadProductDataforLegacyListBody(searchTerm, options = {}) {
+function buildLoadProductDataforLegacyListParams(searchTerm, options = {}) {
   return {
     pageno: options.pageno != null ? Number(options.pageno) : 1,
     length: options.length != null ? Number(options.length) : 10,
     search: String(searchTerm || EXPECTED_PORTAL_PRODUCT_NAME),
     order: options.order || "asc",
-    licenseid: options.licenseid != null ? options.licenseid : "",
+    licenseid: options.licenseid != null ? String(options.licenseid) : "",
   };
+}
+
+/**
+ * Build the relative list URL with encoded query parameters.
+ * @param {string} [baseRelativeUrl]
+ * @param {object} params from buildLoadProductDataforLegacyListParams
+ */
+function buildLoadProductDataforLegacyListUrl(
+  baseRelativeUrl = "../admin/LoadProductDataforLegacy",
+  params = {},
+) {
+  const base = String(baseRelativeUrl || "../admin/LoadProductDataforLegacy");
+  const qs = new URLSearchParams();
+  qs.set("pageno", String(params.pageno != null ? params.pageno : 1));
+  qs.set("length", String(params.length != null ? params.length : 10));
+  qs.set("search", String(params.search != null ? params.search : ""));
+  qs.set("order", String(params.order != null ? params.order : "asc"));
+  qs.set("licenseid", String(params.licenseid != null ? params.licenseid : ""));
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}${qs.toString()}`;
+}
+
+/** @deprecated Use buildLoadProductDataforLegacyListParams — list inputs are query params, not body. */
+function buildLoadProductDataforLegacyListBody(searchTerm, options = {}) {
+  return buildLoadProductDataforLegacyListParams(searchTerm, options);
 }
 
 module.exports = {
@@ -223,5 +249,7 @@ module.exports = {
   assessSearchCoverage,
   evaluateDuplicateGuard,
   normalizeLoadProductDataforLegacyResponse,
+  buildLoadProductDataforLegacyListParams,
+  buildLoadProductDataforLegacyListUrl,
   buildLoadProductDataforLegacyListBody,
 };

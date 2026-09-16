@@ -67,9 +67,8 @@ function assertPageGuards(pageState) {
   if (action && action !== "add" && action !== "new") {
     return { ok: false, code: "NOT_ADD_MODE", message: "Page is not in add/new mode." };
   }
-  if (s.hiddenId != null && String(s.hiddenId).trim() !== "") {
-    return { ok: false, code: "STALE_PRODUCT_ID", message: "Hidden #id is not empty." };
-  }
+  // Fresh Add pages may already carry a nonempty #id. Edit/stale state is
+  // proven by actiontype (above) and/or explicit staleEditState — not by #id alone.
   if (s.staleEditState === true) {
     return { ok: false, code: "STALE_EDIT_STATE", message: "Stale edit state detected." };
   }
