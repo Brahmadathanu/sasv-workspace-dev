@@ -461,7 +461,17 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
 
   let pageMeasure;
   if (typeof deps.measurePageState === "function") {
-    pageMeasure = await deps.measurePageState({ workerState });
+    try {
+      pageMeasure = await deps.measurePageState({ workerState });
+    } catch {
+      // Unexpected probe throw — fail closed without leaking raw error to renderer.
+      return {
+        ok: false,
+        code: "PAGE_PROBE_FAILED",
+        message: "Product Details page probe failed.",
+        missing: ["page_state"],
+      };
+    }
   } else {
     pageMeasure = { ok: false, code: "PAGE_PROBE_MISSING", pageState: null };
   }
@@ -471,19 +481,37 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
 
   let duplicateSearch = null;
   if (typeof deps.searchDuplicates === "function") {
-    const dup = await deps.searchDuplicates({
-      page: deps.page,
-      searchTerm: EXPECTED_PORTAL_PRODUCT_NAME,
-    });
-    duplicateSearch = dup?.searchResponse || null;
+    try {
+      const dup = await deps.searchDuplicates({
+        page: deps.page,
+        searchTerm: EXPECTED_PORTAL_PRODUCT_NAME,
+      });
+      duplicateSearch = dup?.searchResponse || null;
+    } catch {
+      return {
+        ok: false,
+        code: "DUPLICATE_SEARCH_FAILED",
+        message: "Product Details duplicate search failed.",
+        missing: ["duplicate_search"],
+      };
+    }
   }
   if (!duplicateSearch) missing.push("duplicate_search");
 
   let permissionOptions = [];
   if (typeof deps.enumeratePermissionOptions === "function") {
-    const perm = await deps.enumeratePermissionOptions({ page: deps.page });
-    if (perm?.ok) permissionOptions = perm.options || [];
-    else missing.push("permission_options");
+    try {
+      const perm = await deps.enumeratePermissionOptions({ page: deps.page });
+      if (perm?.ok) permissionOptions = perm.options || [];
+      else missing.push("permission_options");
+    } catch {
+      return {
+        ok: false,
+        code: "PERMISSION_OPTIONS_FAILED",
+        message: "Product Details permission options probe failed.",
+        missing: ["permission_options"],
+      };
+    }
   } else {
     missing.push("permission_options");
   }
@@ -499,12 +527,22 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
   } else if (!approvedPresent) {
     missing.push("approved_copy");
   } else {
-    approvedResolution = await deps.resolveApprovedCopy({
-      productId,
-      fileName: approvedFileName,
-      expectedFileName: EXPECTED_APPROVED_COPY_NAME,
-      evidence: content?.evidence || null,
-    });
+    try {
+      approvedResolution = await deps.resolveApprovedCopy({
+        productId,
+        fileName: approvedFileName,
+        expectedFileName: EXPECTED_APPROVED_COPY_NAME,
+        evidence: content?.evidence || null,
+      });
+    } catch {
+      // Thrown resolver failures only. Structured { ok:false, code } returns stay below.
+      return {
+        ok: false,
+        code: "APPROVED_COPY_RESOLUTION_FAILED",
+        message: "Approved product copy resolution failed.",
+        missing: ["approved_copy"],
+      };
+    }
     approvedResolved = approvedResolution?.ok === true;
     if (!approvedResolved) missing.push("approved_copy");
   }

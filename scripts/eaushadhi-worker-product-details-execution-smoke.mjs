@@ -1135,6 +1135,260 @@ assert(
   "authorityMode does not default-true VERIFIED/READY/NOT_STARTED",
 );
 
+// --- Preview controlled-page wiring + stage-failure hardening ---
+{
+  const depsFnMatch = indexSrc.match(
+    /function buildProductDetailsTrustedDeps\([\s\S]*?\n  \}/,
+  );
+  assert(Boolean(depsFnMatch), "buildProductDetailsTrustedDeps function present");
+  const depsFn = depsFnMatch[0];
+  assert(depsFn.includes("const activePage = controlledPage"), "deps snapshot controlledPage as activePage");
+  assert(!/\bpage\s*\|\|\s*null/.test(depsFn), "deps do not reference undeclared bare page || null");
+  assert(!/measureConnectedPageState\(\{\s*page\s*,/.test(depsFn), "measurePageState does not pass bare page");
+  assert(!/runLiveDuplicateSearch\(\s*page\s*,/.test(depsFn), "searchDuplicates does not pass bare page");
+  assert(
+    !/enumerateLivePermissionOptions\(\s*page\s*\)/.test(depsFn),
+    "enumeratePermissionOptions does not pass bare page",
+  );
+  assert(depsFn.includes("page: activePage"), "deps page property uses activePage");
+  assert(
+    depsFn.includes("measureConnectedPageState({ page: activePage, workerState })"),
+    "measurePageState wires activePage",
+  );
+  assert(
+    depsFn.includes("runLiveDuplicateSearch(activePage, searchTerm)"),
+    "searchDuplicates wires activePage",
+  );
+  assert(
+    depsFn.includes("enumerateLivePermissionOptions(activePage)"),
+    "enumeratePermissionOptions wires activePage",
+  );
+  assert(indexSrc.includes("PRODUCT_DETAILS_PREVIEW_FAILED"), "preview outer boundary code present");
+  assert(
+    indexSrc.includes('phase: "product-details-preview"'),
+    "preview unexpected failures log product-details-preview phase",
+  );
+}
+
+{
+  const pageProbeFail = await runTrustedProductDetailsPreview(
+    makeTrustedDeps({
+      measurePageState: async () => {
+        throw new Error("evaluate boom secret-token-xyz");
+      },
+    }),
+  );
+  assert(pageProbeFail.code === "PAGE_PROBE_FAILED", "page-state probe throw => PAGE_PROBE_FAILED");
+  assert(pageProbeFail.preview?.startEnabled !== true, "page probe failure keeps Start disabled");
+  assert(
+    !JSON.stringify(pageProbeFail).includes("secret-token-xyz"),
+    "page probe failure does not leak raw exception text",
+  );
+  assert(pageProbeFail.liveArmed === false, "page probe failure reports liveArmed false");
+}
+
+{
+  const dupFail = await runTrustedProductDetailsPreview(
+    makeTrustedDeps({
+      searchDuplicates: async () => {
+        throw new Error("duplicate evaluate boom bearer abc");
+      },
+    }),
+  );
+  assert(dupFail.code === "DUPLICATE_SEARCH_FAILED", "duplicate-search throw => DUPLICATE_SEARCH_FAILED");
+  assert(dupFail.preview?.startEnabled !== true, "duplicate search failure keeps Start disabled");
+  assert(
+    !JSON.stringify(dupFail).includes("bearer abc"),
+    "duplicate search failure does not leak raw exception text",
+  );
+}
+
+{
+  const permFail = await runTrustedProductDetailsPreview(
+    makeTrustedDeps({
+      enumeratePermissionOptions: async () => {
+        throw new Error("permission evaluate boom");
+      },
+    }),
+  );
+  assert(
+    permFail.code === "PERMISSION_OPTIONS_FAILED",
+    "permission enumeration throw => PERMISSION_OPTIONS_FAILED",
+  );
+  assert(permFail.preview?.startEnabled !== true, "permission options failure keeps Start disabled");
+}
+
+{
+  const copyThrow = await runTrustedProductDetailsPreview(
+    makeTrustedDeps({
+      resolveApprovedCopy: async () => {
+        throw new Error("resolver explode signedUrl=https://evil/x");
+      },
+    }),
+  );
+  assert(
+    copyThrow.code === "APPROVED_COPY_RESOLUTION_FAILED",
+    "approved-copy resolver throw => APPROVED_COPY_RESOLUTION_FAILED",
+  );
+  assert(copyThrow.preview?.startEnabled !== true, "approved-copy throw keeps Start disabled");
+  assert(
+    !JSON.stringify(copyThrow).includes("signedUrl") &&
+      !JSON.stringify(copyThrow).includes("https://evil"),
+    "approved-copy throw does not leak signed URL",
+  );
+}
+
+{
+  const copyReturnFail = await runTrustedProductDetailsPreview(
+    makeTrustedDeps({
+      resolveApprovedCopy: async () => ({
+        ok: false,
+        code: "APPROVED_COPY_DOWNLOAD_FAILED",
+        message: "Approved copy download HTTP 403.",
+      }),
+    }),
+  );
+  assert(
+    copyReturnFail.code === "AUTHORITATIVE_EVIDENCE_MISSING" &&
+      (copyReturnFail.missing || []).includes("approved_copy"),
+    "structured resolver {ok:false} keeps AUTHORITATIVE_EVIDENCE_MISSING semantics",
+  );
+  assert(
+    copyReturnFail.code !== "APPROVED_COPY_RESOLUTION_FAILED",
+    "structured resolver return is not remapped to APPROVED_COPY_RESOLUTION_FAILED",
+  );
+}
+
+{
+  const fs = require("fs");
+  const origMkdir = fs.mkdirSync;
+  fs.mkdirSync = () => {
+    throw new Error("EACCES /secret/user/path/approved-cache");
+  };
+  let cacheFail;
+  try {
+    cacheFail = await resolveApprovedProductCopyFile({
+      productId: 262,
+      accessToken: "tok",
+      userDataPath: join(root, ".tmp-smoke-userdata"),
+      evidence: {
+        approved_product_copy_present: true,
+        original_file_name: EXPECTED_APPROVED_COPY_NAME,
+      },
+      callRpc: async () => ({
+        original_file_name: EXPECTED_APPROVED_COPY_NAME,
+        storage_bucket: "eaushadhi-evidence",
+        storage_path: "p/ok.pdf",
+      }),
+    });
+  } finally {
+    fs.mkdirSync = origMkdir;
+  }
+  assert(
+    cacheFail.ok === false && cacheFail.code === "APPROVED_COPY_CACHE_FAILED",
+    "approved-copy cache mkdir failure => APPROVED_COPY_CACHE_FAILED",
+  );
+  assert(
+    !JSON.stringify(cacheFail).includes("/secret/user/path") &&
+      !JSON.stringify(cacheFail).includes("EACCES"),
+    "approved-copy cache failure does not expose filesystem details",
+  );
+}
+
+{
+  const { createEaushadhiWorker } = require(join(root, "electron/eaushadhi-worker/index.js"));
+  const worker = createEaushadhiWorker({
+    getUserDataPath: () => join(root, ".tmp-smoke-userdata"),
+    // Factory rpcCall signature matches callWorkerRpc(accessToken, name, args).
+    callRpc: async (_accessToken, name) => {
+      if (name === "rpc_eaushadhi_require_permission") return { ok: true };
+      if (name === "rpc_eaushadhi_worker_preflight") {
+        return {
+          workflow_row_version: 7,
+          entry_status: "NOT_STARTED",
+          is_ready_for_entry: true,
+          review_status: "VERIFIED",
+        };
+      }
+      if (name === "rpc_eaushadhi_worker_content_get") {
+        // Proxy throws on post-await property access. `then` must be undefined so
+        // await does not treat the result as a thenable inside the RPC try/catch.
+        return new Proxy(
+          {},
+          {
+            get(_target, prop) {
+              if (prop === "then") return undefined;
+              throw new Error("unexpected-secret-token-xyz bearer leak");
+            },
+          },
+        );
+      }
+      throw new Error(`unexpected rpc ${name}`);
+    },
+  });
+  const outer = await worker.previewProductDetailsExecution(262, "a".repeat(20));
+  assert(
+    outer.code === "PRODUCT_DETAILS_PREVIEW_FAILED",
+    "unexpected outer preview failure => PRODUCT_DETAILS_PREVIEW_FAILED",
+  );
+  assert(outer.message === "Product Details preview failed in the worker.", "outer preview uses safe message");
+  assert(outer.preview?.startEnabled === false, "outer preview failure keeps Start disabled");
+  assert(
+    Array.isArray(outer.preview?.blockers) &&
+      outer.preview.blockers.includes("PRODUCT_DETAILS_PREVIEW_FAILED"),
+    "outer preview blockers include PRODUCT_DETAILS_PREVIEW_FAILED",
+  );
+  assert(
+    !JSON.stringify(outer).includes("secret-token") &&
+      !JSON.stringify(outer).includes("bearer leak") &&
+      outer.message !== "Worker IPC failed.",
+    "outer preview failure is not generic Worker IPC failed and leaks no secrets",
+  );
+}
+
+{
+  mutatingRpcNames = [];
+  const validPreview = await runTrustedProductDetailsPreview(makeTrustedDeps());
+  assert(validPreview.liveArmed === false, "valid trusted preview keeps liveArmed false");
+  assert(
+    validPreview.code === "FIELD_GOVERNANCE_INCOMPLETE" ||
+      validPreview.ok === false ||
+      (validPreview.preview?.blockers || []).includes("FIELD_GOVERNANCE_INCOMPLETE") ||
+      (validPreview.preview?.blockers || []).includes("LIVE_EXECUTION_NOT_ARMED"),
+    "valid trusted preview still reaches normal assessment",
+  );
+  assert(
+    !mutatingRpcNames.includes("rpc_eaushadhi_worker_run_begin") &&
+      !mutatingRpcNames.includes("rpc_eaushadhi_worker_mark_entered") &&
+      !mutatingRpcNames.includes("rpc_eaushadhi_worker_mark_portal_verified"),
+    "Preview never calls run_begin / mark_entered / mark_portal_verified",
+  );
+}
+
+{
+  const forgedAuthority = await runTrustedProductDetailsPreview({
+    ...makeTrustedDeps(),
+    content: baseContent({
+      details: {
+        portal_remarks: "forged-remarks",
+        portal_shelfmonth_route: "RegularAsPerClause",
+      },
+    }),
+    reviewStatus: "VERIFIED",
+    classificationVerified: true,
+    isReadyForEntry: true,
+    fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+    pageState: readyPage,
+    duplicateSearch: noneDuplicate,
+  });
+  assert(
+    forgedAuthority.fieldGate?.ok === false ||
+      (forgedAuthority.preview?.blockers || []).includes("FIELD_GOVERNANCE_INCOMPLETE") ||
+      forgedAuthority.code === "FIELD_GOVERNANCE_INCOMPLETE",
+    "renderer-supplied authority keys remain ignored on trusted preview",
+  );
+}
+
 const concurrentFirst = mutex.runExclusive(async () => {
   await new Promise((r) => setTimeout(r, 40));
   return "a";

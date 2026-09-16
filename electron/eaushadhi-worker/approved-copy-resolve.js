@@ -153,7 +153,15 @@ async function resolveApprovedProductCopyFile(args = {}) {
   }
 
   const cacheRoot = approvedCopyCacheRoot(args.userDataPath);
-  fs.mkdirSync(cacheRoot, { recursive: true });
+  try {
+    fs.mkdirSync(cacheRoot, { recursive: true });
+  } catch {
+    return {
+      ok: false,
+      code: "APPROVED_COPY_CACHE_FAILED",
+      message: "Approved product copy cache could not be prepared.",
+    };
+  }
   const safeName = path.basename(fileName).replace(/[^\w.\-]+/g, "_");
   const localPath = path.join(cacheRoot, `${randomUUID()}-${safeName}`);
   if (!isPathInsideRoot(localPath, cacheRoot)) {

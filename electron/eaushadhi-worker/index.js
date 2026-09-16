@@ -863,17 +863,20 @@ function createEaushadhiWorker({
   }
 
   function buildProductDetailsTrustedDeps(accessToken) {
+    // Snapshot the controlled Playwright page. There is no closure-level `page`.
+    const activePage = controlledPage;
     return {
       productId: PD_PRODUCT_ID,
       liveArmed: PRODUCT_DETAILS_LIVE_ARMED,
-      page: page || null,
+      page: activePage,
       callRpc: (name, args) => rpcCall(accessToken, name, args),
       getWorkerState: () => machine.get(),
       measurePageState: async ({ workerState }) =>
-        measureConnectedPageState({ page, workerState }),
+        measureConnectedPageState({ page: activePage, workerState }),
       searchDuplicates: async ({ searchTerm }) =>
-        runLiveDuplicateSearch(page, searchTerm),
-      enumeratePermissionOptions: async () => enumerateLivePermissionOptions(page),
+        runLiveDuplicateSearch(activePage, searchTerm),
+      enumeratePermissionOptions: async () =>
+        enumerateLivePermissionOptions(activePage),
       resolveApprovedCopy: async ({ evidence, expectedFileName }) =>
         resolveApprovedProductCopyFile({
           productId: PD_PRODUCT_ID,
@@ -905,7 +908,29 @@ function createEaushadhiWorker({
       };
     }
     // Renderer evidence is discarded. Authority comes from server + connected page only.
-    return runTrustedProductDetailsPreview(buildProductDetailsTrustedDeps(accessToken));
+    try {
+      return await runTrustedProductDetailsPreview(
+        buildProductDetailsTrustedDeps(accessToken),
+      );
+    } catch (error) {
+      if (error instanceof WorkerError) throw error;
+      log({
+        phase: "product-details-preview",
+        productId: PD_PRODUCT_ID,
+        errorKind: ERROR_KINDS.CRASH,
+        error: sanitizeText(error?.message || String(error || "preview_failed")),
+      });
+      return {
+        ok: false,
+        code: "PRODUCT_DETAILS_PREVIEW_FAILED",
+        message: "Product Details preview failed in the worker.",
+        preview: {
+          productId: PD_PRODUCT_ID,
+          startEnabled: false,
+          blockers: ["PRODUCT_DETAILS_PREVIEW_FAILED"],
+        },
+      };
+    }
   }
 
   async function startProductDetailsExecution(rawProductId, rawAccessToken, rawOptions = {}) {
