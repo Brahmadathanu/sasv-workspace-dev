@@ -49,7 +49,22 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "content_hash",
   "requireEditPermission",
   "p_edit",
+  // Trusted-only diagnostic hook — never accepted from renderer IPC.
+  "reportPreviewStageFailure",
 ]);
+
+/**
+ * Optional trusted diagnostic hook. Never throws into preview control flow.
+ * Renderer must never supply this; only main-process deps may.
+ */
+function notifyPreviewStageFailure(deps, stage, code, error) {
+  if (typeof deps?.reportPreviewStageFailure !== "function") return;
+  try {
+    deps.reportPreviewStageFailure({ stage, code, error });
+  } catch {
+    // Diagnostics must never break fail-closed preview.
+  }
+}
 
 /**
  * Strip renderer payload to the only allowed command fields.
@@ -461,7 +476,18 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
 
   let pageMeasure;
   if (typeof deps.measurePageState === "function") {
-    pageMeasure = await deps.measurePageState({ workerState });
+    try {
+      pageMeasure = await deps.measurePageState({ workerState });
+    } catch (error) {
+      // Unexpected probe throw — fail closed without leaking raw error to renderer.
+      notifyPreviewStageFailure(deps, "page_state", "PAGE_PROBE_FAILED", error);
+      return {
+        ok: false,
+        code: "PAGE_PROBE_FAILED",
+        message: "Product Details page probe failed.",
+        missing: ["page_state"],
+      };
+    }
   } else {
     pageMeasure = { ok: false, code: "PAGE_PROBE_MISSING", pageState: null };
   }
@@ -471,19 +497,49 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
 
   let duplicateSearch = null;
   if (typeof deps.searchDuplicates === "function") {
-    const dup = await deps.searchDuplicates({
-      page: deps.page,
-      searchTerm: EXPECTED_PORTAL_PRODUCT_NAME,
-    });
-    duplicateSearch = dup?.searchResponse || null;
+    try {
+      const dup = await deps.searchDuplicates({
+        page: deps.page,
+        searchTerm: EXPECTED_PORTAL_PRODUCT_NAME,
+      });
+      duplicateSearch = dup?.searchResponse || null;
+    } catch (error) {
+      notifyPreviewStageFailure(
+        deps,
+        "duplicate_search",
+        "DUPLICATE_SEARCH_FAILED",
+        error,
+      );
+      return {
+        ok: false,
+        code: "DUPLICATE_SEARCH_FAILED",
+        message: "Product Details duplicate search failed.",
+        missing: ["duplicate_search"],
+      };
+    }
   }
   if (!duplicateSearch) missing.push("duplicate_search");
 
   let permissionOptions = [];
   if (typeof deps.enumeratePermissionOptions === "function") {
-    const perm = await deps.enumeratePermissionOptions({ page: deps.page });
-    if (perm?.ok) permissionOptions = perm.options || [];
-    else missing.push("permission_options");
+    try {
+      const perm = await deps.enumeratePermissionOptions({ page: deps.page });
+      if (perm?.ok) permissionOptions = perm.options || [];
+      else missing.push("permission_options");
+    } catch (error) {
+      notifyPreviewStageFailure(
+        deps,
+        "permission_options",
+        "PERMISSION_OPTIONS_FAILED",
+        error,
+      );
+      return {
+        ok: false,
+        code: "PERMISSION_OPTIONS_FAILED",
+        message: "Product Details permission options probe failed.",
+        missing: ["permission_options"],
+      };
+    }
   } else {
     missing.push("permission_options");
   }
@@ -499,12 +555,28 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
   } else if (!approvedPresent) {
     missing.push("approved_copy");
   } else {
-    approvedResolution = await deps.resolveApprovedCopy({
-      productId,
-      fileName: approvedFileName,
-      expectedFileName: EXPECTED_APPROVED_COPY_NAME,
-      evidence: content?.evidence || null,
-    });
+    try {
+      approvedResolution = await deps.resolveApprovedCopy({
+        productId,
+        fileName: approvedFileName,
+        expectedFileName: EXPECTED_APPROVED_COPY_NAME,
+        evidence: content?.evidence || null,
+      });
+    } catch (error) {
+      // Thrown resolver failures only. Structured { ok:false, code } returns stay below.
+      notifyPreviewStageFailure(
+        deps,
+        "approved_copy",
+        "APPROVED_COPY_RESOLUTION_FAILED",
+        error,
+      );
+      return {
+        ok: false,
+        code: "APPROVED_COPY_RESOLUTION_FAILED",
+        message: "Approved product copy resolution failed.",
+        missing: ["approved_copy"],
+      };
+    }
     approvedResolved = approvedResolution?.ok === true;
     if (!approvedResolved) missing.push("approved_copy");
   }
