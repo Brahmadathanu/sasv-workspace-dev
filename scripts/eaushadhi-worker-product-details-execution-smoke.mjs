@@ -47,9 +47,20 @@ const {
   toMarkPortalVerifiedReport,
   OVERALL_COMPARE,
 } = require(join(root, "electron/eaushadhi-worker/compare.js"));
-const { classifySaveOutcome, SAVE_OUTCOME, createSaveMutex } = require(
+const { classifySaveOutcome, SAVE_OUTCOME, createSaveMutex, parseSaveProductDataBusiness, createInPageSaveOnceScript } = require(
   join(root, "electron/eaushadhi-worker/portal-save-observe.js"),
 );
+const {
+  PRODUCT_DETAILS_LIVE_ARM,
+  isProductDetailsLiveArmedFor,
+} = require(join(root, "electron/eaushadhi-worker/product-details-live-arm.js"));
+const {
+  buildProductDetailsLiveAdapters,
+  createInPageRereadScript,
+  RUN_BEGIN_RPC,
+  MARK_ENTERED_RPC,
+  MARK_PORTAL_VERIFIED_RPC,
+} = require(join(root, "electron/eaushadhi-worker/product-details-live-adapters.js"));
 const { CHANNELS } = require(join(root, "electron/eaushadhi-worker/ipc.js"));
 
 let failed = 0;
@@ -1109,7 +1120,17 @@ assert(
 );
 
 const indexSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
-assert(indexSrc.includes("PRODUCT_DETAILS_LIVE_ARMED = false"), "live execution remains disarmed");
+assert(
+  PRODUCT_DETAILS_LIVE_ARM.enabled === false && isProductDetailsLiveArmedFor(262) === false,
+  "Phase A live arm remains false for product 262",
+);
+assert(
+  indexSrc.includes("isProductDetailsLiveArmedFor") &&
+    indexSrc.includes("buildProductDetailsLiveAdapters"),
+  "index wires live arm gate and adapter builder",
+);
+assert(!indexSrc.includes("rpc_eaushadhi_worker_run_begin"), "index source does not embed run_begin RPC name");
+assert(!/mark_entered|mark_portal_verified/.test(indexSrc), "index source does not embed mark_* RPC names");
 assert(indexSrc.includes("runTrustedProductDetailsPreview"), "preview uses trusted orchestration");
 assert(indexSrc.includes("runTrustedProductDetailsStart"), "start uses trusted orchestration");
 assert(indexSrc.includes("resolveApprovedProductCopyFile"), "index wires trusted approved-copy resolver");
@@ -1864,6 +1885,276 @@ const concurrentSecond = await mutex.runExclusive(async () => "b");
 const concurrentFirstResult = await concurrentFirst;
 assert(concurrentFirstResult === "a", "save mutex first caller runs");
 assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurrent execution");
+
+// --- Phase A live capability (disarmed) focused coverage ---
+{
+  assert(PRODUCT_DETAILS_LIVE_ARM.productIds.includes(262), "allowlist may list 262 as inert config");
+  assert(isProductDetailsLiveArmedFor(999) === false, "non-262 never armed");
+  assert(isProductDetailsLiveArmedFor(262) === false, "262 remains disarmed while enabled=false");
+
+  let adapterBuildThrew = false;
+  try {
+    buildProductDetailsLiveAdapters({
+      page: { evaluate: async () => null },
+      callRpc: async () => ({}),
+    });
+  } catch {
+    adapterBuildThrew = true;
+  }
+  assert(adapterBuildThrew, "live adapters refuse construction while Phase A disarmed");
+
+  const liveAdapterSrc = readFileSync(
+    join(root, "electron/eaushadhi-worker/product-details-live-adapters.js"),
+    "utf8",
+  );
+  assert(liveAdapterSrc.includes(RUN_BEGIN_RPC), "live adapters declare run_begin RPC");
+  assert(liveAdapterSrc.includes(MARK_ENTERED_RPC), "live adapters declare mark_entered RPC");
+  assert(liveAdapterSrc.includes(MARK_PORTAL_VERIFIED_RPC), "live adapters declare mark_portal_verified RPC");
+  assert(liveAdapterSrc.includes("GetproductDataUpdate"), "reread uses GetproductDataUpdate");
+  assert(!/submitProduct\s*\(/.test(liveAdapterSrc), "live adapters never call submitProduct(");
+  assert(!/composition/i.test(liveAdapterSrc) || liveAdapterSrc.includes("compositionTitle"), "no Composition mutation adapter");
+  assert(createInPageRereadScript().includes("GetproductDataUpdate"), "reread script names GetproductDataUpdate");
+  assert(createInPageSaveOnceScript().includes("window.SaveData"), "save script uses page-native SaveData");
+  assert(!createInPageSaveOnceScript().includes("http.request"), "save script is not Node HTTP");
+
+  const parsedOk = parseSaveProductDataBusiness({
+    status: "1",
+    message: "Saved",
+    id: "99001",
+  });
+  assert(parsedOk.businessSuccess === true && parsedOk.portalProductId === "99001", "business success + response id parsed");
+
+  const parsedFail = parseSaveProductDataBusiness({
+    status: "0",
+    message: "Something went wrong",
+  });
+  assert(parsedFail.businessFailure === true, "business failure parsed from status 0");
+
+  const noId = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenId: null,
+  });
+  assert(noId.outcome === SAVE_OUTCOME.AMBIGUOUS, "business success without portal id is not SUCCESS");
+
+  const httpOnly = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: null,
+    portalProductId: null,
+  });
+  assert(httpOnly.outcome === SAVE_OUTCOME.AMBIGUOUS, "HTTP success without business success is not ENTERED-eligible");
+
+  const bizFail = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: false,
+    businessFailure: true,
+    portalProductId: null,
+  });
+  assert(bizFail.outcome === SAVE_OUTCOME.FAILURE, "portal business failure classified FAILURE");
+
+  const joint = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "88001",
+    hiddenId: "88001",
+  });
+  assert(joint.outcome === SAVE_OUTCOME.SUCCESS, "business success + proven id => SUCCESS");
+
+  let markEnteredCalls = 0;
+  const noPortalIdRun = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-noid-1", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: null,
+      hiddenId: null,
+    }),
+    markEntered: async () => {
+      markEnteredCalls += 1;
+    },
+  });
+  assert(noPortalIdRun.ok === false, "success without portal id does not complete");
+  assert(markEnteredCalls === 0, "success without portal id never marks ENTERED");
+  assert(noPortalIdRun.requiresReadOnlyReconciliation === true, "missing portal id requires reconcile");
+
+  markEnteredCalls = 0;
+  const fakeInternalId = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-fake-262", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: "262",
+      hiddenId: "262",
+    }),
+    markEntered: async () => {
+      markEnteredCalls += 1;
+    },
+  });
+  assert(fakeInternalId.code === "PORTAL_ID_UNPROVEN", "internal product id 262 cannot satisfy portal id");
+  assert(markEnteredCalls === 0, "renderer/internal 262 id never marks ENTERED");
+
+  let saveRetry = 0;
+  const ambSave = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-amb-1", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => {
+      saveRetry += 1;
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: null,
+        portalProductId: null,
+      };
+    },
+  });
+  assert(ambSave.code === "SAVE_AMBIGUOUS", "ambiguous save stops");
+  assert(saveRetry === 1, "ambiguous save does not retry SaveData");
+  assert(ambSave.requiresReadOnlyReconciliation === true, "ambiguous save requires reconcile");
+
+  let order = [];
+  await executeProductDetails(successInput, {
+    runBegin: async () => {
+      order.push("run_begin");
+      return { run_id: "run-order-1", workflow_row_version: 7 };
+    },
+    fillForm: async () => {
+      order.push("fill");
+      return { ok: true };
+    },
+    saveOnce: async () => {
+      order.push("save");
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: true,
+        portalProductId: "9001",
+      };
+    },
+    markEntered: async () => {
+      order.push("entered");
+      return { ok: true };
+    },
+    reread: async () => {
+      order.push("reread");
+      return {
+        name: "Karpooradi Thailam",
+        type: "1",
+        categoryId: "10",
+        subTypeId: "31",
+        permissionPurpose: { label: "Regular", value: "7" },
+        compositionTitle: "For 10 mL",
+        disease: "Sandhirujah, Śōpham",
+        indications: ["99"],
+        drugs: "NO",
+        remarks: GOVERNANCE_OVERRIDES.remarks,
+        shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+        attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+      };
+    },
+    markPortalVerified: async () => {
+      order.push("verified");
+      return { ok: true };
+    },
+  });
+  assert(
+    order.join(",") === "run_begin,fill,save,entered,reread,verified",
+    "run_begin precedes first DOM mutation and retained reread precedes PORTAL_VERIFIED",
+  );
+
+  let fillBeforeBegin = false;
+  const blockedPreflight = await executeProductDetails(
+    {
+      ...successInput,
+      duplicateSearch: {
+        source: "LoadProductDataforLegacy",
+        searchApplied: true,
+        searchTerm: "Karpooradi Thailam",
+        totalCount: 1,
+        rows: [{ name: "Karpooradi Thailam" }],
+        coverageComplete: true,
+      },
+    },
+    {
+      runBegin: async () => {
+        throw new Error("run_begin must not run");
+      },
+      fillForm: async () => {
+        fillBeforeBegin = true;
+      },
+    },
+  );
+  assert(blockedPreflight.runBegun === false, "duplicate at Start blocks before run_begin");
+  assert(fillBeforeBegin === false, "duplicate at Start blocks before DOM mutation");
+
+  const wrongOrigin = assertPageGuards({
+    ...readyPage,
+    origin: "https://evil.example",
+  });
+  assert(wrongOrigin.ok === false && wrongOrigin.code === "WRONG_ORIGIN", "wrong origin blocks before run_begin");
+
+  const wrongPath = assertPageGuards({
+    ...readyPage,
+    path: "/admin/other",
+  });
+  assert(wrongPath.ok === false && wrongPath.code === "WRONG_PATH", "wrong path blocks before run_begin");
+
+  const editMode = assertPageGuards({
+    ...readyPage,
+    actiontype: "edit",
+  });
+  assert(editMode.ok === false && editMode.code === "NOT_ADD_MODE", "Edit mode blocks before run_begin");
+
+  const liveArmedInject = sanitizeRendererCommand({
+    liveArmed: true,
+    portalProductId: "999",
+    productIds: [262],
+    userConfirmed: true,
+  });
+  assert(liveArmedInject.userConfirmed === true, "sanitize keeps userConfirmed only");
+  assert(
+    liveArmedInject.forbiddenPresent.includes("liveArmed") &&
+      liveArmedInject.forbiddenPresent.includes("portalProductId"),
+    "renderer cannot inject live arm or portal product id",
+  );
+
+  const fillSrc = createInPageFillScript();
+  assert(fillSrc.includes("setSelectByValue"), "fill script uses exact select value sets");
+  assert(!/submitProduct/.test(fillSrc), "fill script has no submitProduct");
+  assert(!/SaveComposition|addcomposition/i.test(fillSrc), "fill script has no Composition mutation");
+
+  assert(planResumeAction({ runStatus: "ENTERED" }).mayCreate === false, "resume mayCreate false after ENTERED");
+  assert(
+    !/SUBMITTED|mark_submitted|submitProduct\s*\(/.test(
+      readFileSync(join(root, "electron/eaushadhi-worker/product-details-executor.js"), "utf8"),
+    ),
+    "SUBMITTED / submitProduct unreachable from executor",
+  );
+
+  const controlSrcPhaseA = readFileSync(
+    join(root, "public/shared/js/eaushadhi-review-control.js"),
+    "utf8",
+  );
+  assert(controlSrcPhaseA.includes("Will NOT add Composition"), "UI confirm mentions no Composition");
+  assert(controlSrcPhaseA.includes("Will NOT final-submit"), "UI confirm mentions no final-submit");
+  assert(controlSrcPhaseA.includes("Product 262"), "UI confirm mentions Product 262");
+}
 
 if (failed) {
   console.error(`\n${failed} assertion(s) failed`);

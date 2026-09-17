@@ -163,14 +163,18 @@ async function fillProductDetailsOnPage(page, fillPlan, permissionLiveOptions) {
   }
   const classificationSteps = buildDependentClassificationSteps(fillPlan);
   return page.evaluate(
-    async (plan) => {
-      // placeholder replaced by in-page script in real evaluate string form when wired
-      return plan;
+    async ({ source, plan }) => {
+      // eslint-disable-next-line no-new-func
+      const fn = new Function(source)();
+      return fn(plan);
     },
     {
-      fields: fillPlan.fields,
-      classificationSteps,
-      permissionLiveOptions: permissionLiveOptions || [],
+      source: createInPageFillScript(),
+      plan: {
+        fields: fillPlan?.fields || [],
+        classificationSteps,
+        permissionLiveOptions: permissionLiveOptions || [],
+      },
     },
   );
 }

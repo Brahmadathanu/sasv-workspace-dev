@@ -93,7 +93,7 @@ function buildPreviewModel({ productId, content, fieldGate, duplicate, pageGuard
     productName: EXPECTED_PORTAL_PRODUCT_NAME,
     operation: "Create Product Details only",
     warning:
-      "This action will write Product Details to the Government e-Aushadhi portal. It will NOT add Composition and will NOT final-submit the product.",
+      "Karpooradi Thailam\nProduct 262\nProduct Details only\nWill write to Government e-Aushadhi portal\nWill NOT add Composition\nWill NOT final-submit",
     lifecyclePath: "NOT_STARTED -> IN_PROGRESS -> ENTERED -> PORTAL_VERIFIED (stop)",
     classification: content?.classification || null,
     fieldSummary: (fieldGate?.fields || [])
@@ -403,6 +403,26 @@ async function executeProductDetails(input = {}, adapters = {}) {
     }
 
     portalProductId = saveClassified.portalProductId;
+    if (
+      !portalProductId ||
+      String(portalProductId).trim() === "" ||
+      String(portalProductId).trim() === "262"
+    ) {
+      // Explicit ENTERED guard: never mark ENTERED without proven portal id.
+      // Internal product 262 must never be accepted as portal product id.
+      return {
+        ok: false,
+        code: "PORTAL_ID_UNPROVEN",
+        message: "Save did not prove a portal product id; ENTERED refused; reconcile read-only.",
+        phases,
+        runId,
+        runBegun: true,
+        mutated: true,
+        portalProductId: null,
+        requiresReadOnlyReconciliation: true,
+        inventedFailureRpcCalled: false,
+      };
+    }
 
     if (typeof adapters.markEntered !== "function") {
       return {

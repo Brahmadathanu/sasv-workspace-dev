@@ -2348,7 +2348,14 @@ async function submitWorkerProductDetailsStart() {
   }
   const warning =
     state.workerProductDetailsPreview?.preview?.warning ||
-    "This will write Product Details to the Government portal. Continue?";
+    [
+      "Karpooradi Thailam",
+      "Product 262",
+      "Product Details only",
+      "Will write to Government e-Aushadhi portal",
+      "Will NOT add Composition",
+      "Will NOT final-submit",
+    ].join("\n");
   if (!window.confirm(warning)) return;
   state.busy = true;
   syncWorkerToolbarUi();
