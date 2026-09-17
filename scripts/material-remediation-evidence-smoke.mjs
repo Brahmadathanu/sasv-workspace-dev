@@ -229,6 +229,26 @@ assert(
   "launch tuple seeds TRACE_VALUATION_DATE / TRACE_REFRESH_RUN_ID",
 );
 assert(
+  applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_VALUATION_DATE = null") >= 0 &&
+    applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_REFRESH_RUN_ID = null") >= 0 &&
+    applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_VALUATION_DATE = null") <
+      applyTraceLaunchSrc.indexOf("context.valuationDate || context.valuation_date") &&
+    applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_REFRESH_RUN_ID = null") <
+      applyTraceLaunchSrc.indexOf("context.valuationDate || context.valuation_date"),
+  "applyTraceLaunchContext resets launch lineage before evaluating the incoming tuple",
+);
+assert(
+  /else \{\s*TRACE_VALUATION_DATE = null;\s*TRACE_REFRESH_RUN_ID = null;\s*\}/.test(
+    applyTraceLaunchSrc,
+  ),
+  "non-exact launch unpins previous display valuation/run",
+);
+assert(
+  /context\.productId != null/.test(applyTraceLaunchSrc) &&
+    !/TRACE_FILTERS = \{/.test(applyTraceLaunchSrc),
+  "launch-lineage reset does not clear unrelated Trace filters",
+);
+assert(
   /hasTraceLaunchExactIdentity\(\)/.test(assignTraceExactSrc) &&
     /seedTraceExactRunDisplayFromLaunch\(\)/.test(assignTraceExactSrc) &&
     /assignTraceExactRunDisplay\(/.test(pmFilterOptionsSrc) &&

@@ -4115,6 +4115,9 @@ export function createMaterialCostController(deps) {
   }
 
   function applyTraceLaunchContext(context = {}) {
+    TRACE_LAUNCH_VALUATION_DATE = null;
+    TRACE_LAUNCH_REFRESH_RUN_ID = null;
+
     const materialArea = normalizeTraceComponent(
       context.materialArea || context.material_area,
     );
@@ -4153,6 +4156,9 @@ export function createMaterialCostController(deps) {
       TRACE_LAUNCH_REFRESH_RUN_ID = refreshRunId;
       TRACE_VALUATION_DATE = valuationDate;
       TRACE_REFRESH_RUN_ID = refreshRunId;
+    } else {
+      TRACE_VALUATION_DATE = null;
+      TRACE_REFRESH_RUN_ID = null;
     }
   }
 
