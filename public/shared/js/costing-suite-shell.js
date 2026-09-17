@@ -2441,6 +2441,7 @@ function formatCostingRefreshRunMessage(statusRow, options = {}) {
 
 async function reloadCostingUiAfterRefreshRun() {
   costSheetCtrl.invalidatePrintableLinesCache();
+  controlCenterCtrl.clearSkuExactEvidenceCache?.();
   await loadRowsForLens();
   await refreshOpenDrawerIfNeeded();
   LAST_REFRESH_TIME = new Date();

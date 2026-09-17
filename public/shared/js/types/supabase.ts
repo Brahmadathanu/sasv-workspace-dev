@@ -19965,6 +19965,7 @@ export type Database = {
           product_id: number | null
           product_name: string | null
           recommended_ui_route: string | null
+          refresh_run_id: number | null
           rm_blocking_line_count: number | null
           rm_costing_status: string | null
           rm_manual_rate_line_count: number | null
@@ -19974,6 +19975,7 @@ export type Database = {
           selling_price_bridge_status: string | null
           sku_id: number | null
           snapshot_refreshed_at: string | null
+          valuation_date: string | null
         }
         Relationships: []
       }
