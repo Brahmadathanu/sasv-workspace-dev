@@ -154,9 +154,11 @@ assert(
     )?.[0] || "";
   assert(
     rmBanner.length > 0 &&
-      /do not invent/.test(rmBanner) &&
-      !/\bValuation\b/.test(rmBanner),
-    "12. RM does not invent Valuation/Run",
+      /\bValuation\b/.test(rmBanner) &&
+      /\bRun\b/.test(rmBanner) &&
+      /TRACE_FILTER_OPTIONS\.valuation_date/.test(rmBanner) &&
+      !/rows\[0\]/.test(rmBanner),
+    "12. RM banner shows selected-run Valuation/Run from launch or server payload",
   );
 }
 assert(

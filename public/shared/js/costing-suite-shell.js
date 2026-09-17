@@ -3879,6 +3879,7 @@ async function setActiveCostingPeriod(periodStart) {
   costBuildCtrl.setManualProvisionPeriodFilter(normalized);
   costSheetCtrl.invalidatePrintableLinesCache();
   controlCenterCtrl.clearSkuExactEvidenceCache?.();
+  materialCostCtrl.clearTraceLaunchExactIdentityOnPeriodChange?.();
   renderCostingPeriodOptions();
   syncPeriodControlState();
   pricingPolicyCtrl.onCommercialSalesPeriodChanged?.(normalized);

@@ -1,7 +1,6 @@
 /**
- * Workbench / MCM Trace launch-lineage lifecycle.
- * Covers controller reuse: exact A → non-exact B → exact C.
- * Does not claim RM/PM Trace list RPCs are exact-run filtered.
+ * Workbench / MCM Trace launch-lineage lifecycle and selected-run query identity.
+ * Covers controller reuse: exact A → non-exact B → exact C, plus period-picker reset.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -32,6 +31,17 @@ const shellSrc = readFileSync(
   "utf8",
 );
 const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
+const typesSrc = readFileSync(
+  join(root, "public/shared/js/types/supabase.ts"),
+  "utf8",
+);
+const migrationSrc = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20260917132726_material_trace_selected_run_read_contract.sql",
+  ),
+  "utf8",
+);
 
 const applyTraceLaunchSrc =
   materialSrc.match(
@@ -229,15 +239,121 @@ assert(
   "shell route round-trip and PRM deep-link IDs remain intact",
 );
 assert(
-  !/p_valuation_date/.test(rmTraceRpcSrc) &&
-    !/p_refresh_run_id/.test(rmTraceRpcSrc) &&
-    !/p_valuation_date/.test(pmTraceRpcSrc) &&
-    !/p_refresh_run_id/.test(pmTraceRpcSrc),
-  "RM/PM Trace RPC argument lists remain unchanged",
+  /function buildTraceSelectedRunRpcArgs\(/.test(materialSrc) &&
+    /if \(!hasTraceLaunchExactIdentity\(\)\) return \{\}/.test(materialSrc) &&
+    /p_valuation_date: TRACE_LAUNCH_VALUATION_DATE/.test(materialSrc) &&
+    /p_refresh_run_id: TRACE_LAUNCH_REFRESH_RUN_ID/.test(materialSrc),
+  "selected-run helper emits both exact args only from TRACE_LAUNCH_*",
+);
+assert(
+  /\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(rmTraceRpcSrc) &&
+    /\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(pmTraceRpcSrc),
+  "ordinary RM/PM list builders omit exact tuple unless launch identity exists",
+);
+assert(
+  /rpc_get_material_rate_rm_cost_trace_filter_options[\s\S]*\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(
+    materialSrc,
+  ) &&
+    /rpc_get_material_rate_pm_cost_trace_filter_options[\s\S]*\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(
+      materialSrc,
+    ) &&
+    /fetchAllRmTraceExportRows\(buildRmTraceRpcFilters\(\)\)/.test(materialSrc) &&
+    /fetchAllPmTraceExportRows\(buildPmTraceRpcFilters\(\)\)/.test(materialSrc) &&
+    /p_offset:\s*offset/.test(materialSrc),
+  "filter-options, load-more, and export reuse the same selected-run helper",
+);
+assert(
+  !/p_valuation_date:\s*null/.test(rmTraceRpcSrc) &&
+    !/p_refresh_run_id:\s*null/.test(rmTraceRpcSrc) &&
+    !/p_valuation_date:\s*TRACE_VALUATION_DATE/.test(materialSrc) &&
+    !/p_refresh_run_id:\s*TRACE_REFRESH_RUN_ID/.test(materialSrc) &&
+    !/p_valuation_date:\s*rows\[0\]/.test(materialSrc),
+  "query identity is never inferred from display, first row, or null placeholders",
+);
+assert(
+  /function clearTraceLaunchExactIdentityOnPeriodChange\(/.test(materialSrc) &&
+    /materialCostCtrl\.clearTraceLaunchExactIdentityOnPeriodChange\?\.\(\)/.test(
+      shellSrc,
+    ) &&
+    /async function setActiveCostingPeriod[\s\S]*clearTraceLaunchExactIdentityOnPeriodChange/.test(
+      shellSrc,
+    ),
+  "period picker clears Trace launch tuple before ordinary retrieval",
+);
+assert(
+  /"valuation_date"/.test(
+    materialSrc.match(/const RM_TRACE_EXPORT_COLUMNS = \[[\s\S]*?\];/)?.[0] ||
+      "",
+  ) &&
+    /"refresh_run_id"/.test(
+      materialSrc.match(/const RM_TRACE_EXPORT_COLUMNS = \[[\s\S]*?\];/)?.[0] ||
+        "",
+    ),
+  "RM export columns include valuation_date and refresh_run_id",
+);
+assert(
+  /rpc_get_material_rate_rm_cost_trace: \{[\s\S]*?p_valuation_date\?: string[\s\S]*?p_refresh_run_id\?: number|rpc_get_material_rate_rm_cost_trace: \{[\s\S]*?p_refresh_run_id\?: number[\s\S]*?p_valuation_date\?: string/.test(
+    typesSrc,
+  ) &&
+    /rpc_get_material_rate_pm_cost_trace: \{[\s\S]*?p_refresh_run_id\?: number[\s\S]*?p_valuation_date\?: string/.test(
+      typesSrc,
+    ) &&
+    /rpc_export_material_rate_rm_cost_trace: \{[\s\S]*?refresh_run_id: number[\s\S]*?valuation_date: string/.test(
+      typesSrc,
+    ),
+  "generated types include optional exact-run Args and RM return lineage",
+);
+assert(
+  /fn_resolve_material_trace_selected_run/.test(migrationSrc) &&
+    /overall_status = 'SUCCESS'/.test(migrationSrc) &&
+    /valuation_context_source = 'CAPTURED_AT_REQUEST'/.test(migrationSrc) &&
+    /DO NOT reapply to production/.test(migrationSrc),
+  "source-control migration is the selected-run read contract and must not be reapplied",
 );
 assert(
   /CACHE_NAME = "hub-cache-v324"/.test(swSrc),
   "current SW cache name remains hub-cache-v324",
+);
+
+function buildTraceSelectedRunRpcArgs(state) {
+  if (
+    !(
+      Boolean(state.TRACE_LAUNCH_VALUATION_DATE) &&
+      state.TRACE_LAUNCH_REFRESH_RUN_ID != null &&
+      Number.isFinite(Number(state.TRACE_LAUNCH_REFRESH_RUN_ID))
+    )
+  ) {
+    return {};
+  }
+  return {
+    p_valuation_date: state.TRACE_LAUNCH_VALUATION_DATE,
+    p_refresh_run_id: state.TRACE_LAUNCH_REFRESH_RUN_ID,
+  };
+}
+
+const queryState = createTraceLaunchState();
+assert(
+  Object.keys(buildTraceSelectedRunRpcArgs(queryState)).length === 0,
+  "ordinary navigation omits both exact-run RPC args",
+);
+applyTraceLaunchContext(queryState, {
+  valuationDate: "2026-09-10",
+  refreshRunId: 108,
+});
+const exactArgs = buildTraceSelectedRunRpcArgs(queryState);
+assert(
+  exactArgs.p_valuation_date === "2026-09-10" &&
+    exactArgs.p_refresh_run_id === 108 &&
+    Object.keys(exactArgs).length === 2,
+  "exact launch includes both exact-run RPC args and never only one",
+);
+queryState.TRACE_LAUNCH_VALUATION_DATE = null;
+queryState.TRACE_LAUNCH_REFRESH_RUN_ID = null;
+queryState.TRACE_VALUATION_DATE = "2026-09-10";
+queryState.TRACE_REFRESH_RUN_ID = 108;
+assert(
+  Object.keys(buildTraceSelectedRunRpcArgs(queryState)).length === 0,
+  "display-only TRACE_* values are not used as query identity",
 );
 
 if (failed) {
