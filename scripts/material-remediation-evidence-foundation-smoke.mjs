@@ -38,10 +38,30 @@ const typesSrc = readFileSync(
   "utf8",
 );
 const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
+const skuControlSnapshotParitySrc = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20260917113016_expose_exact_run_context_on_sku_control_snapshot_view.sql",
+  ),
+  "utf8",
+);
 const remediationSmokeSrc = readFileSync(
   join(root, "scripts/material-remediation-evidence-smoke.mjs"),
   "utf8",
 );
+
+const skuExactEvidenceLoaderSrc =
+  controlSrc.match(
+    /async function loadSkuExactEvidenceRows\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const skuExactEvidenceTabSrc =
+  controlSrc.match(
+    /async function renderSkuControlEvidenceTab\([\s\S]*?\n  async function /,
+  )?.[0] || "";
+const reloadAfterRefreshSrc =
+  shellSrc.match(
+    /async function reloadCostingUiAfterRefreshRun\([\s\S]*?\nasync function /,
+  )?.[0] || "";
 
 // A/B. Exact lines filter + exact-run fields in model/UI
 assert(
@@ -49,15 +69,31 @@ assert(
   "SKU exact evidence loader exists",
 );
 assert(
-  /v_costing_pricing_material_action_drilldown_snapshot/.test(controlSrc) &&
-    /eq\("period_start"/.test(controlSrc) &&
-    /eq\("product_id"/.test(controlSrc) &&
-    /eq\("sku_id"/.test(controlSrc),
-  "exact evidence filters by period_start + product_id + sku_id",
+  skuExactEvidenceLoaderSrc.includes(
+    "v_costing_pricing_material_action_drilldown_snapshot",
+  ) &&
+    skuExactEvidenceLoaderSrc.includes('.eq("period_start"') &&
+    skuExactEvidenceLoaderSrc.includes('.eq("valuation_date"') &&
+    skuExactEvidenceLoaderSrc.includes('.eq("refresh_run_id"') &&
+    skuExactEvidenceLoaderSrc.includes('.eq("product_id"') &&
+    skuExactEvidenceLoaderSrc.includes('.eq("sku_id"'),
+  "exact evidence filters by period_start + valuation_date + refresh_run_id + product_id + sku_id",
 );
 assert(
   /valuation_date/.test(controlSrc) && /refresh_run_id/.test(controlSrc),
   "exact-run fields valuation_date / refresh_run_id supported in evidence UI",
+);
+assert(
+  /Unable to load exact material evidence because this SKU's costing run context is incomplete/.test(
+    skuExactEvidenceTabSrc,
+  ),
+  "Evidence tab has a distinct missing-exact-context state",
+);
+assert(
+  /No exact material issue lines are available for this SKU in the current successful run snapshot/.test(
+    controlSrc,
+  ),
+  "valid-tuple empty snapshot message remains separate",
 );
 assert(
   formatSkuEvidenceAreaLabel({ material_area: "RM" }) === "RM" &&
@@ -145,10 +181,55 @@ assert(
 assert(
   buildSkuExactEvidenceCacheKey({
     periodStart: "2026-08-01",
+    valuationDate: "2026-08-07",
+    refreshRunId: 108,
     productId: 10,
     skuId: 134,
-  }) === "2026-08-01|10|134",
-  "Evidence cache key is period|product|sku",
+  }) === "2026-08-01|2026-08-07|108|10|134",
+  "Evidence cache key is period|valuation|run|product|sku",
+);
+assert(
+  buildSkuExactEvidenceCacheKey({
+    periodStart: "2026-08-01",
+    productId: 10,
+    skuId: 134,
+  }) === null,
+  "Missing valuationDate fails closed (null, no period-only key)",
+);
+assert(
+  buildSkuExactEvidenceCacheKey({
+    periodStart: "2026-08-01",
+    valuationDate: "2026-08-07",
+    productId: 10,
+    skuId: 134,
+  }) === null,
+  "Missing refreshRunId fails closed (null, no period-only key)",
+);
+assert(
+  buildSkuExactEvidenceCacheKey({
+    periodStart: "2026-08-01",
+    valuationDate: "2026-08-07",
+    refreshRunId: 108,
+    skuId: 134,
+  }) === null &&
+    buildSkuExactEvidenceCacheKey({
+      periodStart: "2026-08-01",
+      valuationDate: "2026-08-07",
+      refreshRunId: 108,
+      productId: 10,
+    }) === null,
+  "Missing productId or skuId fails closed (null)",
+);
+assert(
+  skuExactEvidenceLoaderSrc.includes("if (!cacheKey) return [];") &&
+    skuExactEvidenceLoaderSrc.indexOf("if (!cacheKey) return [];") <
+      skuExactEvidenceLoaderSrc.indexOf("fetchAllRows") &&
+    skuExactEvidenceLoaderSrc.indexOf("if (!cacheKey) return [];") <
+      skuExactEvidenceLoaderSrc.indexOf("SKU_EXACT_EVIDENCE_CACHE.set") &&
+    !/getActivePeriodStart/.test(skuExactEvidenceLoaderSrc) &&
+    !/CONTROL_DASHBOARD_SUMMARY/.test(skuExactEvidenceLoaderSrc) &&
+    !/ACTIVE_REFRESH_RUN/.test(skuExactEvidenceLoaderSrc),
+  "Incomplete exact identity does not query or write the evidence cache",
 );
 assert(
   buildSkuFoundationDiagnosisCacheKey({ productId: 10, skuId: 134 }) ===
@@ -164,6 +245,10 @@ assert(
   /clearSkuExactEvidenceCache/.test(controlSrc) &&
     /clearSkuExactEvidenceCache/.test(shellSrc),
   "Exact-evidence cache clears on period/context change path",
+);
+assert(
+  /clearSkuExactEvidenceCache/.test(reloadAfterRefreshSrc),
+  "Refresh completion clears SKU exact evidence cache",
 );
 
 // H. Arkkadi — frozen control note untouched; diagnosis separate
@@ -274,10 +359,37 @@ assert(
   "supabase.ts includes foundation diagnosis RPC typing",
 );
 
+// Source-control parity for already-applied SKU Control snapshot exact-run columns
+assert(
+  /SOURCE-CONTROL PARITY/.test(skuControlSnapshotParitySrc) &&
+    /DO NOT reapply to production/.test(skuControlSnapshotParitySrc) &&
+    /expose_exact_run_context_on_sku_control_snapshot_view/.test(
+      skuControlSnapshotParitySrc,
+    ),
+  "SKU Control snapshot migration is source-control parity for the live production change",
+);
+assert(
+  /security_invoker\s*=\s*true/.test(skuControlSnapshotParitySrc) &&
+    /v_current_successful_costing_refresh_run/.test(
+      skuControlSnapshotParitySrc,
+    ) &&
+    /DIRECT_LABOUR_ROUTE_BLOCKED/.test(skuControlSnapshotParitySrc) &&
+    /grant select on public\.v_costing_pricing_sku_control_status_snapshot to authenticated, service_role/.test(
+      skuControlSnapshotParitySrc,
+    ),
+  "parity view keeps invoker security, current-successful-run join, DL override, and SELECT grants",
+);
+assert(
+  /s\.ok_margin_percent_before_scheme,\s*s\.valuation_date,\s*s\.refresh_run_id/s.test(
+    skuControlSnapshotParitySrc,
+  ),
+  "valuation_date and refresh_run_id are appended after existing snapshot columns",
+);
+
 // Service worker (bump after successful smokes)
 assert(
-  /CACHE_NAME = "hub-cache-v250"/.test(swSrc),
-  "service worker bumped to hub-cache-v250",
+  /CACHE_NAME = "hub-cache-v323"/.test(swSrc),
+  "service worker cache name remains hub-cache-v323",
 );
 
 await shellAsyncSkuDrawer();

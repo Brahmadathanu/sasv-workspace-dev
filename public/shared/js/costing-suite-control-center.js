@@ -16,13 +16,39 @@ export function isControlCenterLens(lensId) {
   return CONTROL_CENTER_LENS_IDS.includes(lensId);
 }
 
-/** Session cache key: exact frozen evidence belongs to period + product + SKU. */
+/**
+ * Session cache key for exact frozen SKU evidence.
+ * Identity is period_start + valuation_date + refresh_run_id + product_id + sku_id.
+ * Incomplete identity fails closed (null); never emit a period-only key.
+ */
 export function buildSkuExactEvidenceCacheKey({
   periodStart,
+  valuationDate,
+  refreshRunId,
   productId,
   skuId,
 } = {}) {
-  return `${periodStart || ""}|${productId ?? ""}|${skuId ?? ""}`;
+  const period = String(periodStart ?? "").trim();
+  const valuation = String(valuationDate ?? "").trim();
+  const run = Number(refreshRunId);
+  const product = Number(productId);
+  const sku = Number(skuId);
+  if (
+    !period ||
+    !valuation ||
+    refreshRunId == null ||
+    refreshRunId === "" ||
+    !Number.isFinite(run) ||
+    productId == null ||
+    productId === "" ||
+    !Number.isFinite(product) ||
+    skuId == null ||
+    skuId === "" ||
+    !Number.isFinite(sku)
+  ) {
+    return null;
+  }
+  return `${period}|${valuation}|${run}|${product}|${sku}`;
 }
 
 /** Session cache key: current foundation diagnosis is live master data (no period). */
@@ -1956,17 +1982,19 @@ export function createControlCenterController(deps) {
   }
 
   async function loadSkuExactEvidenceRows(row) {
-    const periodStart =
-      row?.period_start || getActivePeriodStart?.() || null;
+    const periodStart = row?.period_start;
+    const valuationDate = row?.valuation_date;
+    const refreshRunId = row?.refresh_run_id;
     const productId = row?.product_id;
     const skuId = row?.sku_id;
-    if (!periodStart || productId == null || skuId == null) return [];
-
     const cacheKey = buildSkuExactEvidenceCacheKey({
       periodStart,
+      valuationDate,
+      refreshRunId,
       productId,
       skuId,
     });
+    if (!cacheKey) return [];
     if (SKU_EXACT_EVIDENCE_CACHE.has(cacheKey)) {
       return SKU_EXACT_EVIDENCE_CACHE.get(cacheKey) || [];
     }
@@ -1976,6 +2004,8 @@ export function createControlCenterController(deps) {
         costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
           .select("*")
           .eq("period_start", periodStart)
+          .eq("valuation_date", valuationDate)
+          .eq("refresh_run_id", refreshRunId)
           .eq("product_id", productId)
           .eq("sku_id", skuId)
           .order("material_area", { ascending: true })
@@ -2044,6 +2074,26 @@ export function createControlCenterController(deps) {
         ? `<div class="cp-muted-text" style="margin-top:8px;line-height:1.45">${text(secondaryMaterial)}</div>`
         : "",
     ]);
+
+    const evidenceKey = buildSkuExactEvidenceCacheKey({
+      periodStart: row?.period_start,
+      valuationDate: row?.valuation_date,
+      refreshRunId: row?.refresh_run_id,
+      productId: row?.product_id,
+      skuId: row?.sku_id,
+    });
+    if (!evidenceKey) {
+      LAST_SKU_EXACT_EVIDENCE_ROWS = [];
+      return `
+        ${summaryHtml}
+        <div class="cp-card" style="margin-top:12px">
+          <div class="cp-card-label">Exact material evidence</div>
+          <div class="status" style="margin-top:8px">${text(
+            "Unable to load exact material evidence because this SKU's costing run context is incomplete.",
+          )}</div>
+        </div>
+      `;
+    }
 
     let rows = [];
     try {
