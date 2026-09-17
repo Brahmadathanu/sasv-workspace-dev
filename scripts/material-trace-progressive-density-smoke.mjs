@@ -45,6 +45,10 @@ const cccHtml = readFileSync(
   join(root, "public/shared/costing-control-center.html"),
   "utf8",
 );
+const sasvCostingCss = readFileSync(
+  join(root, "public/shared/css/sasv-costing.css"),
+  "utf8",
+);
 const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
 const vendorSmoke = readFileSync(
   join(root, "scripts/material-vendor-rate-offers-smoke.mjs"),
@@ -196,6 +200,8 @@ const twinA = {
   product_id: 1,
   sku_id: 2,
   period_start: "2026-08-01",
+  valuation_date: "2026-08-07",
+  refresh_run_id: 108,
   source_line_key: "A",
   frozen_rm_line_snapshot_id: 100,
 };
@@ -231,6 +237,34 @@ assert(
   "safe group Trace target is shared",
 );
 assert(
+  canShareMaterialEvidenceTraceTarget([
+    twinA,
+    { ...twinB, valuation_date: "2026-08-08" },
+  ]) === false,
+  "different valuation_date is not shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    twinA,
+    { ...twinB, refresh_run_id: 109 },
+  ]) === false,
+  "different refresh_run_id is not shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    twinA,
+    { ...twinB, valuation_date: null },
+  ]) === false,
+  "missing valuation_date is not shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    twinA,
+    { ...twinB, refresh_run_id: null },
+  ]) === false,
+  "missing refresh_run_id is not shareable",
+);
+assert(
   canShareMaterialEvidenceTraceTarget([twinA, mixed]) === false,
   "unsafe mixed-target group is not shareable",
 );
@@ -257,8 +291,7 @@ assert(
   (/cp-evidence-trace-col/.test(controlSrc) ||
     /cp-evidence-action-col/.test(controlSrc)) &&
     /position:\s*sticky/.test(cccHtml) &&
-    (/cp-evidence-trace-col/.test(cccHtml) ||
-      /cp-evidence-action-col/.test(cccHtml)),
+    /cp-evidence-trace-btn/.test(sasvCostingCss),
   "sticky Trace column styles present",
 );
 
@@ -315,8 +348,8 @@ assert(
 );
 
 assert(
-  /CACHE_NAME = "hub-cache-v250"/.test(swSrc),
-  "service worker bumped to hub-cache-v250",
+  /CACHE_NAME = "hub-cache-v324"/.test(swSrc),
+  "service worker cache name remains hub-cache-v324",
 );
 
 if (failed > 0) {

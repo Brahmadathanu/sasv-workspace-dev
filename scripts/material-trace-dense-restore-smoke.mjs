@@ -163,8 +163,9 @@ assert(
   /placePopover/.test(materialSrc) &&
     /placePopover/.test(controlSrc) &&
     /zIndex = "6000"/.test(materialSrc) &&
+    /zIndex = "6000"/.test(controlSrc) &&
     /position: fixed/.test(mcmHtml) &&
-    /z-index: 6000/.test(cccHtml),
+    /z-index: 6000/.test(mcmHtml),
   "warning popover uses fixed viewport placement above table overflow",
 );
 assert(
@@ -197,6 +198,8 @@ for (let i = 0; i < 60; i += 1) {
   const productId = i < 47 ? i + 1 : ((i - 47) % 47) + 1;
   kaduRows.push({
     period_start: "2026-08-01",
+    valuation_date: "2026-08-07",
+    refresh_run_id: 108,
     material_area: "RM",
     stock_item_id: 351,
     stock_item_name: "Kadukurohini (D)",
@@ -231,11 +234,34 @@ assert(hierarchy.frozenLineCount === 60, "18. Kadukurohini raw count 60");
 assert(hierarchy.productCount === 47, "19. Kadukurohini Product count 47");
 assert(hierarchy.skuCount === 60, "20. Kadukurohini SKU count 60");
 assert(
-  /\.cp-wb-l2-list\.hidden\s*\{[\s\S]*display:\s*none\s*!important/.test(
-    cccHtml,
-  ) &&
+  hierarchy.subgroups.every(
+    (subgroup) =>
+      subgroup.period_start === "2026-08-01" &&
+      subgroup.valuation_date === "2026-08-07" &&
+      subgroup.refresh_run_id === 108,
+  ),
+  "20b. Kadukurohini subgroups retain the shared exact-run tuple",
+);
+assert(
+  buildWorkbenchEvidenceHierarchy([
+    kaduRows[0],
+    { ...kaduRows[0], valuation_date: "2026-08-08" },
+  ]).subgroups.length === 2,
+  "20c. hierarchy splits rows that differ only by valuation_date",
+);
+assert(
+  buildWorkbenchEvidenceHierarchy([
+    kaduRows[0],
+    { ...kaduRows[0], refresh_run_id: 109 },
+  ]).subgroups.length === 2,
+  "20d. hierarchy splits rows that differ only by refresh_run_id",
+);
+assert(
+  /cp-wb-l2-list hidden/.test(controlSrc) &&
+    /data-workbench-l2-list/.test(controlSrc) &&
     /Hide affected Products \/ SKUs/.test(controlSrc) &&
-    /data-workbench-l1-toggle/.test(controlSrc),
+    /data-workbench-l1-toggle/.test(controlSrc) &&
+    /classList\.toggle\("hidden"\)/.test(controlSrc),
   "21. affected Product/SKU table toggles visibly",
 );
 assert(
@@ -357,7 +383,10 @@ assert(
   "32b. progressive density smoke retained",
 );
 assert(/Stage-05|stage05|STAGE05/.test(stage05Smoke), "Stage-05 smoke retained");
-assert(/CACHE_NAME = "hub-cache-v250"/.test(swSrc), "SW bumped to hub-cache-v250");
+assert(
+  /CACHE_NAME = "hub-cache-v324"/.test(swSrc),
+  "SW cache name remains hub-cache-v324",
+);
 
 if (failed) {
   console.error(`\n${failed} assertion(s) failed`);

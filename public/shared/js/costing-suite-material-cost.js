@@ -672,6 +672,10 @@ export function createMaterialCostController(deps) {
   let TRACE_SNAPSHOT_REFRESHED_AT = null;
   let TRACE_VALUATION_DATE = null;
   let TRACE_REFRESH_RUN_ID = null;
+  // Launch-supplied exact-run lineage for navigation/display only.
+  // RM/PM Cost Trace list RPCs remain period-scoped and are not filtered by this tuple.
+  let TRACE_LAUNCH_VALUATION_DATE = null;
+  let TRACE_LAUNCH_REFRESH_RUN_ID = null;
   let rmTraceSearchTimer = null;
   let rmTraceEventsBound = false;
   let pmTraceSearchTimer = null;
@@ -4067,6 +4071,31 @@ export function createMaterialCostController(deps) {
     return TRACE_ERROR_MESSAGE;
   }
 
+  function hasTraceLaunchExactIdentity() {
+    return (
+      Boolean(TRACE_LAUNCH_VALUATION_DATE) &&
+      TRACE_LAUNCH_REFRESH_RUN_ID != null &&
+      Number.isFinite(Number(TRACE_LAUNCH_REFRESH_RUN_ID))
+    );
+  }
+
+  function seedTraceExactRunDisplayFromLaunch() {
+    if (!hasTraceLaunchExactIdentity()) return;
+    TRACE_VALUATION_DATE = TRACE_LAUNCH_VALUATION_DATE;
+    TRACE_REFRESH_RUN_ID = TRACE_LAUNCH_REFRESH_RUN_ID;
+  }
+
+  function assignTraceExactRunDisplay(valuationDate, refreshRunId) {
+    if (hasTraceLaunchExactIdentity()) {
+      seedTraceExactRunDisplayFromLaunch();
+      return;
+    }
+    if (valuationDate) TRACE_VALUATION_DATE = valuationDate;
+    if (refreshRunId != null && refreshRunId !== "") {
+      TRACE_REFRESH_RUN_ID = refreshRunId;
+    }
+  }
+
   function clearTraceConfidentialState() {
     TRACE_ROWS = [];
     TRACE_TOTAL_COUNT = 0;
@@ -4075,6 +4104,7 @@ export function createMaterialCostController(deps) {
     TRACE_LOAD_MORE_IN_FLIGHT = false;
     TRACE_VALUATION_DATE = null;
     TRACE_REFRESH_RUN_ID = null;
+    seedTraceExactRunDisplayFromLaunch();
   }
 
   function normalizeTraceComponent(value) {
@@ -4107,6 +4137,23 @@ export function createMaterialCostController(deps) {
       TRACE_FILTERS.stock_item_id = context.stockItemId;
     }
     if (context.search) TRACE_FILTERS.search_text = context.search;
+
+    const valuationDate = String(
+      context.valuationDate || context.valuation_date || "",
+    ).trim();
+    const refreshRunRaw = context.refreshRunId ?? context.refresh_run_id;
+    const refreshRunId = Number(refreshRunRaw);
+    if (
+      valuationDate &&
+      refreshRunRaw != null &&
+      refreshRunRaw !== "" &&
+      Number.isFinite(refreshRunId)
+    ) {
+      TRACE_LAUNCH_VALUATION_DATE = valuationDate;
+      TRACE_LAUNCH_REFRESH_RUN_ID = refreshRunId;
+      TRACE_VALUATION_DATE = valuationDate;
+      TRACE_REFRESH_RUN_ID = refreshRunId;
+    }
   }
 
   function resetOptionalTraceFilters({ keepPeriodOnly = true } = {}) {
@@ -4421,9 +4468,15 @@ export function createMaterialCostController(deps) {
     const total = Number(TRACE_TOTAL_COUNT || 0);
     const totalLabel = `${total.toLocaleString("en-IN")} record${total === 1 ? "" : "s"}`;
     const valuation =
-      TRACE_VALUATION_DATE || TRACE_FILTER_OPTIONS.valuation_date || null;
+      TRACE_LAUNCH_VALUATION_DATE ||
+      TRACE_VALUATION_DATE ||
+      TRACE_FILTER_OPTIONS.valuation_date ||
+      null;
     const runId =
-      TRACE_REFRESH_RUN_ID ?? TRACE_FILTER_OPTIONS.refresh_run_id ?? null;
+      TRACE_LAUNCH_REFRESH_RUN_ID ??
+      TRACE_REFRESH_RUN_ID ??
+      TRACE_FILTER_OPTIONS.refresh_run_id ??
+      null;
     const bits = [totalLabel];
     if (valuation) bits.push(`Valuation ${formatDate(valuation)}`);
     if (runId != null && runId !== "") bits.push(`Run ${runId}`);
@@ -4704,10 +4757,10 @@ export function createMaterialCostController(deps) {
     };
     TRACE_SNAPSHOT_REFRESHED_AT =
       TRACE_FILTER_OPTIONS.snapshot_refreshed_at || TRACE_SNAPSHOT_REFRESHED_AT;
-    TRACE_VALUATION_DATE =
-      TRACE_FILTER_OPTIONS.valuation_date || TRACE_VALUATION_DATE;
-    TRACE_REFRESH_RUN_ID =
-      TRACE_FILTER_OPTIONS.refresh_run_id ?? TRACE_REFRESH_RUN_ID;
+    assignTraceExactRunDisplay(
+      TRACE_FILTER_OPTIONS.valuation_date,
+      TRACE_FILTER_OPTIONS.refresh_run_id,
+    );
 
     if (
       TRACE_FILTERS.sku_id != null &&
@@ -4849,12 +4902,10 @@ export function createMaterialCostController(deps) {
       if (rows[0]?.snapshot_refreshed_at) {
         TRACE_SNAPSHOT_REFRESHED_AT = rows[0].snapshot_refreshed_at;
       }
-      if (rows[0]?.valuation_date) {
-        TRACE_VALUATION_DATE = rows[0].valuation_date;
-      }
-      if (rows[0]?.refresh_run_id != null) {
-        TRACE_REFRESH_RUN_ID = rows[0].refresh_run_id;
-      }
+      assignTraceExactRunDisplay(
+        rows[0]?.valuation_date,
+        rows[0]?.refresh_run_id,
+      );
       TRACE_HAS_MORE =
         TRACE_ROWS.length < TRACE_TOTAL_COUNT && rows.length > 0;
       TRACE_LOAD_STATE = rows.length ? "ready" : "empty";
@@ -4917,12 +4968,10 @@ export function createMaterialCostController(deps) {
         TRACE_SNAPSHOT_REFRESHED_AT = rows[0].snapshot_refreshed_at;
       }
       if (component === "PM") {
-        if (rows[0]?.valuation_date) {
-          TRACE_VALUATION_DATE = rows[0].valuation_date;
-        }
-        if (rows[0]?.refresh_run_id != null) {
-          TRACE_REFRESH_RUN_ID = rows[0].refresh_run_id;
-        }
+        assignTraceExactRunDisplay(
+          rows[0]?.valuation_date,
+          rows[0]?.refresh_run_id,
+        );
       }
 
       TRACE_ROWS = TRACE_ROWS.concat(rows);
