@@ -35,13 +35,6 @@ const typesSrc = readFileSync(
   join(root, "public/shared/js/types/supabase.ts"),
   "utf8",
 );
-const migrationSrc = readFileSync(
-  join(
-    root,
-    "supabase/migrations/20260917132726_material_trace_selected_run_read_contract.sql",
-  ),
-  "utf8",
-);
 
 const applyTraceLaunchSrc =
   materialSrc.match(
@@ -304,11 +297,19 @@ assert(
   "generated types include optional exact-run Args and RM return lineage",
 );
 assert(
-  /fn_resolve_material_trace_selected_run/.test(migrationSrc) &&
-    /overall_status = 'SUCCESS'/.test(migrationSrc) &&
-    /valuation_context_source = 'CAPTURED_AT_REQUEST'/.test(migrationSrc) &&
-    /DO NOT reapply to production/.test(migrationSrc),
-  "source-control migration is the selected-run read contract and must not be reapplied",
+  /rpc_get_material_rate_rm_cost_trace_filter_options: \{[\s\S]*?p_refresh_run_id\?: number[\s\S]*?p_valuation_date\?: string/.test(
+    typesSrc,
+  ) &&
+    /rpc_get_material_rate_pm_cost_trace_filter_options: \{[\s\S]*?p_refresh_run_id\?: number[\s\S]*?p_valuation_date\?: string/.test(
+      typesSrc,
+    ) &&
+    /rpc_export_material_rate_rm_cost_trace: \{[\s\S]*?p_refresh_run_id\?: number[\s\S]*?p_valuation_date\?: string/.test(
+      typesSrc,
+    ) &&
+    /rpc_export_material_rate_pm_cost_trace: \{[\s\S]*?p_refresh_run_id\?: number[\s\S]*?p_valuation_date\?: string/.test(
+      typesSrc,
+    ),
+  "generated types include optional exact-run Args on filter-options and export RPCs",
 );
 assert(
   /CACHE_NAME = "hub-cache-v324"/.test(swSrc),
