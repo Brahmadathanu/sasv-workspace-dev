@@ -358,6 +358,15 @@ assert(
   /rpc_get_current_material_foundation_diagnosis/.test(typesSrc),
   "supabase.ts includes foundation diagnosis RPC typing",
 );
+const skuControlSnapshotTypes =
+  typesSrc.match(
+    /v_costing_pricing_sku_control_status_snapshot:\s*\{\s*Row:\s*\{[\s\S]*?\n        \}/,
+  )?.[0] || "";
+assert(
+  /refresh_run_id:\s*number\s*\|\s*null/.test(skuControlSnapshotTypes) &&
+    /valuation_date:\s*string\s*\|\s*null/.test(skuControlSnapshotTypes),
+  "SKU Control snapshot generated type includes exact-run valuation_date and refresh_run_id",
+);
 
 // Source-control parity for already-applied SKU Control snapshot exact-run columns
 assert(
@@ -388,8 +397,8 @@ assert(
 
 // Service worker (bump after successful smokes)
 assert(
-  /CACHE_NAME = "hub-cache-v323"/.test(swSrc),
-  "service worker cache name remains hub-cache-v323",
+  /CACHE_NAME = "hub-cache-v324"/.test(swSrc),
+  "service worker cache name remains hub-cache-v324",
 );
 
 await shellAsyncSkuDrawer();
