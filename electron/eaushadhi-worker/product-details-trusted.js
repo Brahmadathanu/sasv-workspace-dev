@@ -187,10 +187,10 @@ function createInPageDuplicateSearchProbe() {
 
     function buildListUrl(params) {
       const qs = new URLSearchParams();
-      qs.set("pageno", String(params.pageno != null ? params.pageno : 1));
+      qs.set("pageno", String(params.pageno != null ? params.pageno : 0));
       qs.set("length", String(params.length != null ? params.length : 10));
       qs.set("search", String(params.search != null ? params.search : ""));
-      qs.set("order", String(params.order != null ? params.order : "asc"));
+      qs.set("order", String(params.order != null ? params.order : "1,null"));
       qs.set("licenseid", String(params.licenseid != null ? params.licenseid : ""));
       return endpointRel + "?" + qs.toString();
     }
@@ -229,10 +229,10 @@ function createInPageDuplicateSearchProbe() {
     const licenseid =
       licenseEl && licenseEl.value != null ? String(licenseEl.value) : "";
     const baseParams = {
-      pageno: 1,
+      pageno: 0,
       length: 10,
       search: term,
-      order: "asc",
+      order: "1,null",
       licenseid: licenseid,
     };
 
@@ -261,10 +261,10 @@ function createInPageDuplicateSearchProbe() {
     ) {
       try {
         const fullPayload = await postList({
-          pageno: 1,
+          pageno: 0,
           length: extracted.totalCount,
           search: term,
-          order: "asc",
+          order: "1,null",
           licenseid: licenseid,
         });
         extracted = extract(fullPayload);
