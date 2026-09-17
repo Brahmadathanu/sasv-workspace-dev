@@ -310,23 +310,82 @@ export function groupMaterialEvidenceLines(rows) {
   return groups;
 }
 
+function isBlankCostingIdentityPart(value) {
+  return value == null || String(value).trim() === "";
+}
+
+/**
+ * Workbench frozen drilldown identity is taken only from the selected queue row.
+ * Incomplete identity fails closed; never substitute period/run from current/latest helpers.
+ */
+export function resolveWorkbenchExactEvidenceIdentity(row = {}) {
+  const periodStart = String(row?.period_start ?? "").trim();
+  const valuationDate = String(row?.valuation_date ?? "").trim();
+  const refreshRunRaw = row?.refresh_run_id;
+  const refreshRunId = Number(refreshRunRaw);
+  const stockItemId = row?.stock_item_id;
+  const materialArea = String(row?.material_area ?? "").trim();
+  if (
+    !periodStart ||
+    !valuationDate ||
+    refreshRunRaw == null ||
+    refreshRunRaw === "" ||
+    !Number.isFinite(refreshRunId) ||
+    stockItemId == null ||
+    stockItemId === "" ||
+    !materialArea
+  ) {
+    return null;
+  }
+  return {
+    periodStart,
+    valuationDate,
+    refreshRunId,
+    stockItemId,
+    materialArea,
+  };
+}
+
+function hasCompleteMaterialEvidenceExactTuple(line) {
+  if (!line) return false;
+  const refreshRunRaw = line?.refresh_run_id;
+  return !(
+    isBlankCostingIdentityPart(line?.period_start) ||
+    isBlankCostingIdentityPart(line?.valuation_date) ||
+    refreshRunRaw == null ||
+    refreshRunRaw === "" ||
+    !Number.isFinite(Number(refreshRunRaw)) ||
+    line?.stock_item_id == null ||
+    line?.stock_item_id === "" ||
+    line?.product_id == null ||
+    line?.product_id === "" ||
+    line?.sku_id == null ||
+    line?.sku_id === ""
+  );
+}
+
 export function canShareMaterialEvidenceTraceTarget(members) {
   const list = Array.isArray(members) ? members.filter(Boolean) : [];
   if (!list.length) return false;
   const first = list[0];
+  if (!hasCompleteMaterialEvidenceExactTuple(first)) return false;
   const area = formatSkuEvidenceAreaLabel(first);
-  const stockItemId = first?.stock_item_id;
-  const periodStart = first?.period_start;
-  const productId = first?.product_id;
-  const skuId = first?.sku_id;
-  if (stockItemId == null || productId == null || skuId == null) return false;
+  const stockItemId = first.stock_item_id;
+  const periodStart = first.period_start;
+  const valuationDate = first.valuation_date;
+  const refreshRunId = first.refresh_run_id;
+  const productId = first.product_id;
+  const skuId = first.sku_id;
   return list.every((line) => {
     return (
+      hasCompleteMaterialEvidenceExactTuple(line) &&
       formatSkuEvidenceAreaLabel(line) === area &&
-      String(line?.stock_item_id) === String(stockItemId) &&
-      String(line?.period_start || "") === String(periodStart || "") &&
-      String(line?.product_id) === String(productId) &&
-      String(line?.sku_id) === String(skuId)
+      String(line.stock_item_id) === String(stockItemId) &&
+      String(line.period_start) === String(periodStart) &&
+      String(line.valuation_date) === String(valuationDate) &&
+      String(line.refresh_run_id) === String(refreshRunId) &&
+      String(line.product_id) === String(productId) &&
+      String(line.sku_id) === String(skuId)
     );
   });
 }
@@ -342,6 +401,8 @@ export function buildWorkbenchEvidenceHierarchy(rows) {
     if (row.sku_id != null) skuIds.add(String(row.sku_id));
     const key = [
       row?.period_start ?? "",
+      row?.valuation_date ?? "",
+      row?.refresh_run_id ?? "",
       formatSkuEvidenceAreaLabel(row),
       row?.stock_item_id ?? "",
       row?.product_id ?? "",
@@ -351,6 +412,8 @@ export function buildWorkbenchEvidenceHierarchy(rows) {
       subgroupMap.set(key, {
         key,
         period_start: row?.period_start ?? null,
+        valuation_date: row?.valuation_date ?? null,
+        refresh_run_id: row?.refresh_run_id ?? null,
         material_area: formatSkuEvidenceAreaLabel(row),
         stock_item_id: row?.stock_item_id ?? null,
         product_id: row?.product_id ?? null,
@@ -1257,9 +1320,15 @@ export function createControlCenterController(deps) {
   }
 
   async function loadWorkbenchLineEvidenceRows(row) {
-    if (!row?.stock_item_id || !row?.material_area) return [];
-    const periodStart = getActivePeriodStart();
-    if (!periodStart) return [];
+    const identity = resolveWorkbenchExactEvidenceIdentity(row);
+    if (!identity) return [];
+    const {
+      periodStart,
+      valuationDate,
+      refreshRunId,
+      stockItemId,
+      materialArea,
+    } = identity;
 
     if (
       row.action_severity != null &&
@@ -1272,8 +1341,10 @@ export function createControlCenterController(deps) {
           costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
             .select("*")
             .eq("period_start", periodStart)
-            .eq("stock_item_id", row.stock_item_id)
-            .eq("material_area", row.material_area)
+            .eq("valuation_date", valuationDate)
+            .eq("refresh_run_id", refreshRunId)
+            .eq("stock_item_id", stockItemId)
+            .eq("material_area", materialArea)
             .eq("action_severity", row.action_severity)
             .eq("recommended_ui_route", row.recommended_ui_route)
             .order("product_name", { ascending: true })
@@ -1288,8 +1359,10 @@ export function createControlCenterController(deps) {
         costingFrom("v_costing_pricing_material_action_drilldown_snapshot")
           .select("*")
           .eq("period_start", periodStart)
-          .eq("stock_item_id", row.stock_item_id)
-          .eq("material_area", row.material_area)
+          .eq("valuation_date", valuationDate)
+          .eq("refresh_run_id", refreshRunId)
+          .eq("stock_item_id", stockItemId)
+          .eq("material_area", materialArea)
           .order("product_name", { ascending: true })
           .order("sku_id", { ascending: true })
           .order("line_no", { ascending: true, nullsFirst: false }),
@@ -1617,11 +1690,30 @@ export function createControlCenterController(deps) {
       showToast?.("Trace navigation is unavailable.", "info");
       return;
     }
+    const periodStart = line?.period_start;
+    const valuationDate = line?.valuation_date;
+    const refreshRunRaw = line?.refresh_run_id;
+    const refreshRunId = Number(refreshRunRaw);
+    if (
+      isBlankCostingIdentityPart(periodStart) ||
+      isBlankCostingIdentityPart(valuationDate) ||
+      refreshRunRaw == null ||
+      refreshRunRaw === "" ||
+      !Number.isFinite(refreshRunId)
+    ) {
+      showToast?.(
+        "Exact frozen Trace cannot open because costing run context is incomplete.",
+        "info",
+      );
+      return;
+    }
     navigateToCostingRoute(
       "material-cost-manager",
       {
         lens: lensId,
-        periodStart: line.period_start || getActivePeriodStart(),
+        periodStart,
+        valuationDate,
+        refreshRunId,
         productId: line.product_id,
         skuId: line.sku_id,
         stockItemId: line.stock_item_id,
@@ -1734,6 +1826,20 @@ export function createControlCenterController(deps) {
   }
 
   async function renderWorkbenchLineEvidenceTab(row) {
+    const area = String(row?.material_area || "").trim().toUpperCase() || "—";
+    const identity = resolveWorkbenchExactEvidenceIdentity(row);
+    if (!identity) {
+      LAST_WORKBENCH_LINE_EVIDENCE_ROWS = [];
+      return `
+      <div class="cp-card" style="margin-bottom:12px">
+        <div class="cp-card-label">Exact run line evidence</div>
+        <div class="status" style="margin-top:8px">${text(
+          "Unable to load exact frozen evidence because costing run context is incomplete.",
+        )}</div>
+      </div>
+      `;
+    }
+
     let rows = [];
     try {
       rows = await loadWorkbenchLineEvidenceRows(row);
@@ -1744,7 +1850,6 @@ export function createControlCenterController(deps) {
     }
 
     LAST_WORKBENCH_LINE_EVIDENCE_ROWS = rows || [];
-    const area = String(row?.material_area || "").trim().toUpperCase() || "—";
     return `
       <div class="cp-card" style="margin-bottom:12px">
         <div class="cp-card-label">Exact run line evidence</div>

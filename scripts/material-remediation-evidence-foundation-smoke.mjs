@@ -7,9 +7,12 @@ import { fileURLToPath } from "node:url";
 import {
   buildSkuExactEvidenceCacheKey,
   buildSkuFoundationDiagnosisCacheKey,
+  buildWorkbenchEvidenceHierarchy,
+  canShareMaterialEvidenceTraceTarget,
   formatFoundationStatusLabel,
   formatSkuEvidenceAreaLabel,
   isUnverifiedFoundationRoute,
+  resolveWorkbenchExactEvidenceIdentity,
 } from "../public/shared/js/costing-suite-control-center.js";
 import { resolveSkuControlPrimaryMessage } from "../public/shared/js/costing-suite-recommended-ui-route.js";
 
@@ -53,6 +56,38 @@ const remediationSmokeSrc = readFileSync(
 const skuExactEvidenceLoaderSrc =
   controlSrc.match(
     /async function loadSkuExactEvidenceRows\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const workbenchEvidenceLoaderSrc =
+  controlSrc.match(
+    /async function loadWorkbenchLineEvidenceRows\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const workbenchEvidenceTabSrc =
+  controlSrc.match(
+    /async function renderWorkbenchLineEvidenceTab\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const navigateTraceSrc =
+  controlSrc.match(
+    /function navigateMaterialEvidenceTrace\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const normalizeDrillSrc =
+  shellSrc.match(
+    /function normalizeDrillContext\([\s\S]*?\nfunction /,
+  )?.[0] || "";
+const buildRouteQuerySrc =
+  shellSrc.match(
+    /function buildCostingRouteQuery\([\s\S]*?\nfunction /,
+  )?.[0] || "";
+const stashPendingSrc =
+  shellSrc.match(
+    /function stashPendingDrillContext\([\s\S]*?\nfunction /,
+  )?.[0] || "";
+const applyRouteLaunchSrc =
+  shellSrc.match(
+    /function applyRouteLaunchParams\([\s\S]*?\nfunction /,
+  )?.[0] || "";
+const drillToTargetSrc =
+  shellSrc.match(
+    /async function drillToCostingTarget\([\s\S]*?\nlet LENSES/,
   )?.[0] || "";
 const skuExactEvidenceTabSrc =
   controlSrc.match(
@@ -343,6 +378,225 @@ assert(
   /costing-review-workbench/.test(controlSrc) &&
     /renderWorkbenchLineEvidenceTab/.test(controlSrc),
   "Costing Review Workbench Line Evidence preserved",
+);
+
+const workbenchExactIdentity = resolveWorkbenchExactEvidenceIdentity({
+  period_start: "2026-08-01",
+  valuation_date: "2026-08-07",
+  refresh_run_id: 108,
+  stock_item_id: 351,
+  material_area: "RM",
+});
+assert(
+  workbenchExactIdentity?.periodStart === "2026-08-01" &&
+    workbenchExactIdentity?.valuationDate === "2026-08-07" &&
+    workbenchExactIdentity?.refreshRunId === 108 &&
+    workbenchExactIdentity?.stockItemId === 351 &&
+    workbenchExactIdentity?.materialArea === "RM",
+  "Workbench identity is taken from the selected queue row tuple",
+);
+assert(
+  resolveWorkbenchExactEvidenceIdentity({
+    stock_item_id: 351,
+    material_area: "RM",
+  }) === null &&
+    resolveWorkbenchExactEvidenceIdentity({
+      period_start: "2026-08-01",
+      stock_item_id: 351,
+      material_area: "RM",
+    }) === null &&
+    resolveWorkbenchExactEvidenceIdentity({
+      period_start: "2026-08-01",
+      valuation_date: "2026-08-07",
+      stock_item_id: 351,
+      material_area: "RM",
+    }) === null,
+  "Incomplete Workbench exact identity fails closed",
+);
+
+const workbenchBranchCount = (
+  workbenchEvidenceLoaderSrc.match(/\.eq\("valuation_date"/g) || []
+).length;
+const workbenchRunCount = (
+  workbenchEvidenceLoaderSrc.match(/\.eq\("refresh_run_id"/g) || []
+).length;
+const workbenchPeriodCount = (
+  workbenchEvidenceLoaderSrc.match(/\.eq\("period_start"/g) || []
+).length;
+assert(
+  workbenchBranchCount === 2 &&
+    workbenchRunCount === 2 &&
+    workbenchPeriodCount === 2 &&
+    workbenchEvidenceLoaderSrc.includes('.eq("stock_item_id"') &&
+    workbenchEvidenceLoaderSrc.includes('.eq("material_area"') &&
+    workbenchEvidenceLoaderSrc.includes('.eq("action_severity"') &&
+    workbenchEvidenceLoaderSrc.includes('.eq("recommended_ui_route"'),
+  "both Workbench drilldown branches filter exact-run identity and keep optional narrowing",
+);
+assert(
+  workbenchEvidenceLoaderSrc.includes("resolveWorkbenchExactEvidenceIdentity(row)") &&
+    /row\?\.period_start/.test(
+      controlSrc.match(
+        /export function resolveWorkbenchExactEvidenceIdentity\([\s\S]*?\nfunction /,
+      )?.[0] || "",
+    ),
+  "Workbench loader derives period_start from the selected queue row",
+);
+assert(
+  workbenchEvidenceLoaderSrc.includes("if (!identity) return [];") &&
+    workbenchEvidenceLoaderSrc.indexOf("if (!identity) return [];") <
+      workbenchEvidenceLoaderSrc.indexOf("fetchAllRows") &&
+    workbenchEvidenceLoaderSrc.indexOf("if (!identity) return [];") <
+      workbenchEvidenceLoaderSrc.indexOf("costingFrom") &&
+    !/getActivePeriodStart/.test(workbenchEvidenceLoaderSrc) &&
+    !/ACTIVE_REFRESH_RUN/.test(workbenchEvidenceLoaderSrc) &&
+    !/CONTROL_DASHBOARD_SUMMARY/.test(workbenchEvidenceLoaderSrc),
+  "incomplete Workbench identity returns before fetchAllRows/costingFrom and ignores current-run helpers",
+);
+assert(
+  /Unable to load exact frozen evidence because costing run context is incomplete/.test(
+    workbenchEvidenceTabSrc,
+  ),
+  "Workbench missing exact-context state is distinct",
+);
+assert(
+  /No exact material line evidence is available for this queue row/.test(
+    controlSrc,
+  ),
+  "valid Workbench tuple + zero rows keeps empty-snapshot meaning",
+);
+
+const hierarchyBase = {
+  period_start: "2026-08-01",
+  valuation_date: "2026-08-07",
+  refresh_run_id: 108,
+  material_area: "RM",
+  stock_item_id: 351,
+  product_id: 1,
+  sku_id: 2,
+  product_name: "Product 1",
+};
+const hierarchyByValuation = buildWorkbenchEvidenceHierarchy([
+  hierarchyBase,
+  { ...hierarchyBase, valuation_date: "2026-08-08" },
+]);
+const hierarchyByRun = buildWorkbenchEvidenceHierarchy([
+  hierarchyBase,
+  { ...hierarchyBase, refresh_run_id: 109 },
+]);
+const hierarchySame = buildWorkbenchEvidenceHierarchy([
+  hierarchyBase,
+  { ...hierarchyBase, source_line_key: "B" },
+]);
+assert(
+  hierarchyByValuation.subgroups.length === 2,
+  "hierarchy separates rows differing only by valuation_date",
+);
+assert(
+  hierarchyByRun.subgroups.length === 2,
+  "hierarchy separates rows differing only by refresh_run_id",
+);
+assert(
+  hierarchySame.subgroups.length === 1 &&
+    hierarchySame.subgroups[0].period_start === "2026-08-01" &&
+    hierarchySame.subgroups[0].valuation_date === "2026-08-07" &&
+    hierarchySame.subgroups[0].refresh_run_id === 108,
+  "subgroup object retains the exact costing tuple",
+);
+
+const shareTwinA = {
+  ...hierarchyBase,
+  source_line_key: "A",
+};
+const shareTwinB = {
+  ...hierarchyBase,
+  source_line_key: "B",
+};
+assert(
+  canShareMaterialEvidenceTraceTarget([shareTwinA, shareTwinB]) === true,
+  "same exact tuple remains shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    shareTwinA,
+    { ...shareTwinB, valuation_date: "2026-08-08" },
+  ]) === false,
+  "different valuation_date is not shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    shareTwinA,
+    { ...shareTwinB, refresh_run_id: 109 },
+  ]) === false,
+  "different refresh_run_id is not shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    shareTwinA,
+    { ...shareTwinB, valuation_date: null },
+  ]) === false,
+  "missing valuation_date is not shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    shareTwinA,
+    { ...shareTwinB, refresh_run_id: null },
+  ]) === false,
+  "missing refresh_run_id is not shareable",
+);
+assert(
+  canShareMaterialEvidenceTraceTarget([
+    { period_start: "2026-08-01", stock_item_id: 351, product_id: 1, sku_id: 2 },
+  ]) === false,
+  "period-only Trace sharing is rejected",
+);
+
+assert(
+  /valuationDate/.test(navigateTraceSrc) &&
+    /refreshRunId/.test(navigateTraceSrc) &&
+    /line\?\.valuation_date/.test(navigateTraceSrc) &&
+    /line\?\.refresh_run_id/.test(navigateTraceSrc) &&
+    !/getActivePeriodStart/.test(navigateTraceSrc) &&
+    !/line\.period_start\s*\|\|/.test(navigateTraceSrc),
+  "Trace handoff forwards valuationDate/refreshRunId with no active-period fallback",
+);
+assert(
+  /Exact frozen Trace cannot open because costing run context is incomplete/.test(
+    navigateTraceSrc,
+  ),
+  "incomplete Trace identity shows an informational toast and does not navigate",
+);
+
+assert(
+  /qs\.set\(\s*"valuation_date"/.test(buildRouteQuerySrc) &&
+    /qs\.set\(\s*"refresh_run_id"/.test(buildRouteQuerySrc) &&
+    /qs\.set\("family_route_id"/.test(buildRouteQuerySrc) &&
+    /qs\.set\("route_family_id"/.test(buildRouteQuerySrc) &&
+    /qs\.set\("product_route_id"/.test(buildRouteQuerySrc),
+  "buildCostingRouteQuery emits valuation_date/refresh_run_id and retains PRM deep-link IDs",
+);
+assert(
+  /valuationDate:/.test(normalizeDrillSrc) &&
+    /refreshRunId:\s*normalizeDrillId/.test(normalizeDrillSrc) &&
+    /payload\.valuation_date \|\| payload\.valuationDate/.test(normalizeDrillSrc) &&
+    /payload\.refresh_run_id \?\? payload\.refreshRunId/.test(normalizeDrillSrc),
+  "normalizeDrillContext round-trips valuationDate / refreshRunId",
+);
+assert(
+  /pending\.valuationDate = normalized\.valuationDate/.test(stashPendingSrc) &&
+    /pending\.refreshRunId = normalized\.refreshRunId/.test(stashPendingSrc),
+  "stashPendingDrillContext retains the exact-run tuple",
+);
+assert(
+  /valuation_date:\s*qp\.get\("valuation_date"\)/.test(applyRouteLaunchSrc) &&
+    /refresh_run_id:\s*qp\.get\("refresh_run_id"\)/.test(applyRouteLaunchSrc),
+  "applyRouteLaunchParams reads valuation_date / refresh_run_id from the URL",
+);
+assert(
+  /params\.valuationDate = normalizedFilters\.valuationDate/.test(drillToTargetSrc) &&
+    /params\.refreshRunId = normalizedFilters\.refreshRunId/.test(drillToTargetSrc) &&
+    /applyTraceLaunchContext\(\{[\s\S]*\.\.\.normalizedFilters/.test(drillToTargetSrc),
+  "same-route and new-tab drill paths retain exact-run launch fields",
 );
 assert(
   /rm-cost-trace/.test(controlSrc) && /pm-cost-trace/.test(controlSrc),

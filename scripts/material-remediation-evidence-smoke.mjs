@@ -195,6 +195,77 @@ assert(
     materialSrc.includes("pm_source"),
   "PM Trace exact-run + PM-native columns",
 );
+
+const applyTraceLaunchSrc =
+  materialSrc.match(
+    /function applyTraceLaunchContext\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const rmTraceRpcSrc =
+  materialSrc.match(
+    /function buildRmTraceRpcFilters\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const pmTraceRpcSrc =
+  materialSrc.match(
+    /function buildPmTraceRpcFilters\([\s\S]*?\n  function /,
+  )?.[0] || "";
+const pmFilterOptionsSrc =
+  materialSrc.match(
+    /async function loadPmTraceFilterOptions\([\s\S]*?\n  async function /,
+  )?.[0] || "";
+const assignTraceExactSrc =
+  materialSrc.match(
+    /function assignTraceExactRunDisplay\([\s\S]*?\n  function /,
+  )?.[0] || "";
+assert(
+  /context\.valuationDate \|\| context\.valuation_date/.test(applyTraceLaunchSrc) &&
+    /context\.refreshRunId \?\? context\.refresh_run_id/.test(applyTraceLaunchSrc),
+  "applyTraceLaunchContext reads the exact launch tuple",
+);
+assert(
+  /TRACE_LAUNCH_VALUATION_DATE = valuationDate/.test(applyTraceLaunchSrc) &&
+    /TRACE_LAUNCH_REFRESH_RUN_ID = refreshRunId/.test(applyTraceLaunchSrc) &&
+    /TRACE_VALUATION_DATE = valuationDate/.test(applyTraceLaunchSrc) &&
+    /TRACE_REFRESH_RUN_ID = refreshRunId/.test(applyTraceLaunchSrc),
+  "launch tuple seeds TRACE_VALUATION_DATE / TRACE_REFRESH_RUN_ID",
+);
+assert(
+  applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_VALUATION_DATE = null") >= 0 &&
+    applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_REFRESH_RUN_ID = null") >= 0 &&
+    applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_VALUATION_DATE = null") <
+      applyTraceLaunchSrc.indexOf("context.valuationDate || context.valuation_date") &&
+    applyTraceLaunchSrc.indexOf("TRACE_LAUNCH_REFRESH_RUN_ID = null") <
+      applyTraceLaunchSrc.indexOf("context.valuationDate || context.valuation_date"),
+  "applyTraceLaunchContext resets launch lineage before evaluating the incoming tuple",
+);
+assert(
+  /else \{\s*TRACE_VALUATION_DATE = null;\s*TRACE_REFRESH_RUN_ID = null;\s*\}/.test(
+    applyTraceLaunchSrc,
+  ),
+  "non-exact launch unpins previous display valuation/run",
+);
+assert(
+  /context\.productId != null/.test(applyTraceLaunchSrc) &&
+    !/TRACE_FILTERS = \{/.test(applyTraceLaunchSrc),
+  "launch-lineage reset does not clear unrelated Trace filters",
+);
+assert(
+  /hasTraceLaunchExactIdentity\(\)/.test(assignTraceExactSrc) &&
+    /seedTraceExactRunDisplayFromLaunch\(\)/.test(assignTraceExactSrc) &&
+    /assignTraceExactRunDisplay\(/.test(pmFilterOptionsSrc) &&
+    /assignTraceExactRunDisplay\(/.test(materialSrc),
+  "later PM filter-options / first-row assignment cannot overwrite a launch tuple",
+);
+assert(
+  !/p_valuation_date/.test(rmTraceRpcSrc) &&
+    !/p_refresh_run_id/.test(rmTraceRpcSrc) &&
+    !/p_valuation_date/.test(pmTraceRpcSrc) &&
+    !/p_refresh_run_id/.test(pmTraceRpcSrc),
+  "RM/PM Trace RPC argument lists remain period-scoped",
+);
+assert(
+  !/p_valuation_date/.test(materialSrc) && !/p_refresh_run_id/.test(materialSrc),
+  "Material Cost Manager does not add p_valuation_date / p_refresh_run_id RPC args",
+);
 assert(
   shellSrc.includes("role:material-cost-pm-trace") &&
     shellSrc.includes("role:material-cost-pm-trace-export") &&

@@ -737,6 +737,12 @@ function normalizeDrillContext(raw = {}) {
       normalizeMonthStart(
         payload.period_start || payload.periodStart || "",
       ) || null,
+    valuationDate:
+      String(payload.valuation_date || payload.valuationDate || "").trim() ||
+      null,
+    refreshRunId: normalizeDrillId(
+      payload.refresh_run_id ?? payload.refreshRunId,
+    ),
     search: String(
       payload.search || payload.q || payload.search_text || "",
     ).trim(),
@@ -808,6 +814,10 @@ function stashPendingDrillContext(filters) {
   }
   if (normalized.materialArea) pending.materialArea = normalized.materialArea;
   if (normalized.periodStart) pending.periodStart = normalized.periodStart;
+  if (normalized.valuationDate) pending.valuationDate = normalized.valuationDate;
+  if (normalized.refreshRunId != null) {
+    pending.refreshRunId = normalized.refreshRunId;
+  }
   if (normalized.workspace) pending.workspace = normalized.workspace;
   if (normalized.policyTab) pending.policyTab = normalized.policyTab;
   if (normalized.mrpTab) pending.mrpTab = normalized.mrpTab;
@@ -1556,6 +1566,18 @@ function buildCostingRouteQuery(params = {}) {
   if (params.periodStart || params.period_start) {
     qs.set("period_start", params.periodStart || params.period_start);
   }
+  if (params.valuationDate || params.valuation_date) {
+    qs.set(
+      "valuation_date",
+      params.valuationDate || params.valuation_date,
+    );
+  }
+  if (params.refreshRunId != null || params.refresh_run_id != null) {
+    const refreshRunId = params.refreshRunId ?? params.refresh_run_id;
+    if (refreshRunId !== "") {
+      qs.set("refresh_run_id", String(refreshRunId));
+    }
+  }
   if (params.productId != null || params.product_id != null) {
     qs.set("product_id", String(params.productId ?? params.product_id));
   }
@@ -1847,6 +1869,8 @@ function applyRouteLaunchParams() {
     trace_component: qp.get("trace_component"),
     material_area: qp.get("material_area"),
     period_start: qp.get("period_start"),
+    valuation_date: qp.get("valuation_date"),
+    refresh_run_id: qp.get("refresh_run_id"),
     product_id: qp.get("product_id"),
     sku_id: qp.get("sku_id"),
     stock_item_id: qp.get("stock_item_id"),
@@ -1952,6 +1976,12 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
     }
     if (normalizedFilters.periodStart) {
       params.periodStart = normalizedFilters.periodStart;
+    }
+    if (normalizedFilters.valuationDate) {
+      params.valuationDate = normalizedFilters.valuationDate;
+    }
+    if (normalizedFilters.refreshRunId != null) {
+      params.refreshRunId = normalizedFilters.refreshRunId;
     }
     if (normalizedFilters.productId != null) {
       params.productId = normalizedFilters.productId;
