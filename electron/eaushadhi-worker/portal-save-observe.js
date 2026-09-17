@@ -11,6 +11,9 @@ const SAVE_OUTCOME = Object.freeze({
   AMBIGUOUS: "AMBIGUOUS",
 });
 
+/** Internal controlled product id must never count as portal product id. */
+const INTERNAL_CONTROLLED_PRODUCT_ID_TEXT = "262";
+
 function createSaveMutex() {
   let locked = false;
   return {
@@ -33,6 +36,17 @@ function createSaveMutex() {
       }
     },
   };
+}
+
+/**
+ * Normalize portal/hidden id candidates.
+ * blank / "0" / "-1" => null
+ */
+function normalizePortalIdCandidate(value) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  if (!text || text === "0" || text === "-1") return null;
+  return text;
 }
 
 /**
@@ -76,8 +90,7 @@ function parseSaveProductDataBusiness(raw) {
     statusRaw === true ||
     /success|saved|inserted|updated/i.test(message)
   ) {
-    // status alone is not enough when status is missing; require explicit positive status
-    // when present. Message-only success is treated as unproven (null).
+    // Message-only success is treated as unproven (null) without explicit status.
     if (statusRaw != null) {
       businessSuccess = true;
       businessFailure = false;
@@ -109,10 +122,8 @@ function parseSaveProductDataBusiness(raw) {
   ];
   let portalProductId = null;
   for (const candidate of idCandidates) {
-    if (candidate == null) continue;
-    const text = String(candidate).trim();
-    if (!text || text === "0" || text === "-1") continue;
-    // Never accept internal controlled product id 262 as portal id evidence by itself.
+    const text = normalizePortalIdCandidate(candidate);
+    if (!text) continue;
     portalProductId = text;
     break;
   }
@@ -122,71 +133,115 @@ function parseSaveProductDataBusiness(raw) {
 
 /**
  * Normalize observed SaveProductData evidence into a joint success decision.
- * SUCCESS requires businessOk AND proven portalProductId.
- * Hidden #id alone never upgrades to SUCCESS without business success.
+ *
+ * SUCCESS requires businessOk AND a proven portalProductId from:
+ * 1) SaveProductData response id (preferred), or
+ * 2) newly-established hidden #id (hiddenIdAfter differs from hiddenIdBefore)
+ *
+ * Stale/pre-existing hidden #id alone never upgrades to SUCCESS.
  */
 function classifySaveOutcome(observation = {}) {
   const httpOk = observation.httpOk === true;
   const businessOk = observation.businessSuccess === true;
   const businessFail = observation.businessFailure === true;
-  const responseId =
-    observation.portalProductId != null && String(observation.portalProductId).trim() !== ""
-      ? String(observation.portalProductId).trim()
-      : null;
-  const hiddenId =
-    observation.hiddenId != null && String(observation.hiddenId).trim() !== ""
-      ? String(observation.hiddenId).trim()
-      : null;
+  const responseId = normalizePortalIdCandidate(observation.portalProductId);
+  const hiddenIdBefore = normalizePortalIdCandidate(
+    observation.hiddenIdBefore != null ? observation.hiddenIdBefore : observation.hiddenId,
+  );
+  // Prefer explicit after; legacy `hiddenId` treated as after only when before/after absent.
+  const hiddenIdAfter = normalizePortalIdCandidate(
+    observation.hiddenIdAfter != null
+      ? observation.hiddenIdAfter
+      : observation.hiddenIdBefore == null && observation.hiddenIdAfter == null
+        ? observation.hiddenId
+        : null,
+  );
 
-  // Prefer response-parsed id; allow hidden #id only as corroboration when business already ok.
+  const newlyEstablishedHiddenId =
+    Boolean(hiddenIdAfter) && hiddenIdAfter !== hiddenIdBefore ? hiddenIdAfter : null;
+
   let portalProductId = null;
+  let idSource = null;
+
   if (businessOk && responseId) {
     portalProductId = responseId;
-    if (hiddenId && hiddenId !== responseId) {
+    idSource = "response";
+    if (hiddenIdAfter && hiddenIdAfter !== responseId) {
       return {
         outcome: SAVE_OUTCOME.AMBIGUOUS,
         portalProductId: responseId,
+        hiddenIdBefore,
+        hiddenIdAfter,
         reason: "response_id_hidden_id_mismatch",
       };
     }
-  } else if (businessOk && !responseId && hiddenId) {
-    portalProductId = hiddenId;
+  } else if (businessOk && !responseId && newlyEstablishedHiddenId) {
+    portalProductId = newlyEstablishedHiddenId;
+    idSource = "newly_established_hidden_id";
+  } else if (businessOk && !responseId && hiddenIdAfter && hiddenIdAfter === hiddenIdBefore) {
+    return {
+      outcome: SAVE_OUTCOME.AMBIGUOUS,
+      portalProductId: null,
+      hiddenIdBefore,
+      hiddenIdAfter,
+      reason: "hidden_id_not_newly_established",
+    };
   }
 
   if (observation.invoked !== true) {
     return {
       outcome: SAVE_OUTCOME.FAILURE,
       portalProductId: null,
+      hiddenIdBefore,
+      hiddenIdAfter,
       reason: "savedata_not_invoked",
     };
   }
   if (observation.invokeCount > 1) {
     return {
       outcome: SAVE_OUTCOME.AMBIGUOUS,
-      portalProductId: portalProductId || responseId || hiddenId,
+      portalProductId: portalProductId || responseId || newlyEstablishedHiddenId,
+      hiddenIdBefore,
+      hiddenIdAfter,
       reason: "multiple_savedata_invocations",
     };
   }
   if (businessOk && portalProductId) {
+    if (portalProductId === INTERNAL_CONTROLLED_PRODUCT_ID_TEXT) {
+      return {
+        outcome: SAVE_OUTCOME.AMBIGUOUS,
+        portalProductId: null,
+        hiddenIdBefore,
+        hiddenIdAfter,
+        reason: "internal_product_id_rejected_as_portal_id",
+      };
+    }
     return {
       outcome: SAVE_OUTCOME.SUCCESS,
       portalProductId,
-      reason: responseId
-        ? "joint_success_with_response_portal_id"
-        : "joint_success_with_hidden_id_corroboration",
+      hiddenIdBefore,
+      hiddenIdAfter,
+      reason:
+        idSource === "response"
+          ? "joint_success_with_response_portal_id"
+          : "joint_success_with_newly_established_hidden_id",
     };
   }
   if (businessOk && !portalProductId) {
     return {
       outcome: SAVE_OUTCOME.AMBIGUOUS,
       portalProductId: null,
+      hiddenIdBefore,
+      hiddenIdAfter,
       reason: "business_ok_without_portal_id",
     };
   }
   if (businessFail) {
     return {
       outcome: SAVE_OUTCOME.FAILURE,
-      portalProductId: responseId || hiddenId,
+      portalProductId: responseId || newlyEstablishedHiddenId,
+      hiddenIdBefore,
+      hiddenIdAfter,
       reason: "business_failure",
     };
   }
@@ -194,12 +249,16 @@ function classifySaveOutcome(observation = {}) {
     return {
       outcome: SAVE_OUTCOME.AMBIGUOUS,
       portalProductId: null,
+      hiddenIdBefore,
+      hiddenIdAfter,
       reason: "http_ok_without_business_or_id",
     };
   }
   return {
     outcome: SAVE_OUTCOME.AMBIGUOUS,
-    portalProductId: responseId || hiddenId,
+    portalProductId: responseId || newlyEstablishedHiddenId,
+    hiddenIdBefore,
+    hiddenIdAfter,
     reason: "insufficient_joint_evidence",
   };
 }
@@ -221,6 +280,16 @@ function createInPageSaveOnceScript() {
       url: null,
       settled: false,
     };
+    function normalizeId(value) {
+      if (value == null) return null;
+      var text = String(value).trim();
+      if (!text || text === '0' || text === '-1') return null;
+      return text;
+    }
+    function readHiddenId() {
+      var hidden = document.getElementById('id');
+      return normalizeId(hidden && hidden.value != null ? hidden.value : null);
+    }
     function looksLikeSaveProductData(url) {
       return /SaveProductData/i.test(String(url || ''));
     }
@@ -261,10 +330,8 @@ function createInPageSaveOnceScript() {
       ];
       var portalProductId = null;
       for (var i = 0; i < idCandidates.length; i++) {
-        var c = idCandidates[i];
-        if (c == null) continue;
-        var t = String(c).trim();
-        if (!t || t === '0' || t === '-1') continue;
+        var t = normalizeId(idCandidates[i]);
+        if (!t) continue;
         portalProductId = t;
         break;
       }
@@ -313,6 +380,7 @@ function createInPageSaveOnceScript() {
       if (typeof window.SaveData !== 'function') {
         return { invoked: false, invokeCount: 0, error: 'SaveData_missing' };
       }
+      var hiddenIdBefore = readHiddenId();
       invokeCount += 1;
       window.SaveData();
       var deadline = Date.now() + 15000;
@@ -320,9 +388,7 @@ function createInPageSaveOnceScript() {
         await new Promise(function(r) { setTimeout(r, 50); });
       }
       var parsed = parseBusiness(captured.response);
-      var hidden = document.getElementById('id');
-      var hiddenId = hidden && hidden.value ? String(hidden.value).trim() : null;
-      if (hiddenId === '0' || hiddenId === '-1') hiddenId = null;
+      var hiddenIdAfter = readHiddenId();
       return {
         invoked: true,
         invokeCount: invokeCount,
@@ -330,7 +396,8 @@ function createInPageSaveOnceScript() {
         businessSuccess: parsed.businessSuccess,
         businessFailure: parsed.businessFailure,
         portalProductId: parsed.portalProductId,
-        hiddenId: hiddenId,
+        hiddenIdBefore: hiddenIdBefore,
+        hiddenIdAfter: hiddenIdAfter,
         responsePreview: captured.response ? String(captured.response).slice(0, 500) : null,
         url: captured.url,
         settled: captured.settled === true
@@ -351,5 +418,7 @@ module.exports = {
   createSaveMutex,
   classifySaveOutcome,
   parseSaveProductDataBusiness,
+  normalizePortalIdCandidate,
   createInPageSaveOnceScript,
+  INTERNAL_CONTROLLED_PRODUCT_ID_TEXT,
 };

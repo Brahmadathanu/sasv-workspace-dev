@@ -445,6 +445,11 @@ async function executeProductDetails(input = {}, adapters = {}) {
       enteredAudit: {
         saveReason: saveClassified.reason,
         phase: PHASE.SAVE_CONFIRMED,
+        hiddenIdBefore: saveClassified.hiddenIdBefore || null,
+        hiddenIdAfter: saveClassified.hiddenIdAfter || null,
+        // Fill-time exact approved copy proof — not re-proven via #uploadAttachment after reread.
+        approvedCopyFileName: EXPECTED_APPROVED_COPY_NAME,
+        approvedCopyProof: "fill_time_exact_v01",
       },
     });
     phaseLog(phases, PHASE.ENTERED_MARKED, portalProductId);
@@ -492,7 +497,9 @@ async function executeProductDetails(input = {}, adapters = {}) {
       attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
     };
 
-    const compareResult = compareProductDetailsReread(expectedCompare, retained);
+    const compareResult = compareProductDetailsReread(expectedCompare, retained, {
+      approvedCopyRereadUnavailable: true,
+    });
     phaseLog(phases, PHASE.COMPARE_COMPLETE, compareResult.overall);
 
     if (compareResult.overall !== OVERALL_COMPARE.MATCH) {

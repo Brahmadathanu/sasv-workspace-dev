@@ -28,16 +28,68 @@ function createInPageRereadScript() {
     if (typeof window.GetproductDataUpdate !== 'function') {
       return { ok: false, reason: 'GetproductDataUpdate_missing' };
     }
-    try {
-      window.GetproductDataUpdate(id);
-    } catch (error) {
-      return {
-        ok: false,
-        reason: 'GetproductDataUpdate_threw',
-        error: String(error && error.message ? error.message : error),
+
+    var loadState = {
+      settled: false,
+      httpOk: null,
+      status: null,
+      url: null,
+      error: null,
+    };
+    function looksLikeGetUpdate(url) {
+      return /GetproductDataUpdate|getproductdataupdate/i.test(String(url || ''));
+    }
+    var origOpen = XMLHttpRequest.prototype.open;
+    var origSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url) {
+      this.__sasvRereadUrl = url;
+      return origOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function() {
+      var xhr = this;
+      if (looksLikeGetUpdate(xhr.__sasvRereadUrl)) {
+        xhr.addEventListener('loadend', function() {
+          loadState.url = xhr.__sasvRereadUrl;
+          loadState.status = xhr.status;
+          loadState.httpOk = xhr.status >= 200 && xhr.status < 300;
+          loadState.settled = true;
+        });
+        xhr.addEventListener('error', function() {
+          loadState.error = 'xhr_error';
+          loadState.settled = true;
+          loadState.httpOk = false;
+        });
+      }
+      return origSend.apply(this, arguments);
+    };
+    var origFetch = window.fetch;
+    if (typeof origFetch === 'function') {
+      window.fetch = function(input, init) {
+        var url = typeof input === 'string' ? input : (input && input.url);
+        if (!looksLikeGetUpdate(url)) {
+          return origFetch.apply(this, arguments);
+        }
+        return origFetch.apply(this, arguments).then(function(res) {
+          loadState.url = url;
+          loadState.status = res.status;
+          loadState.httpOk = res.ok === true;
+          loadState.settled = true;
+          return res;
+        }).catch(function(err) {
+          loadState.error = String(err && err.message ? err.message : err);
+          loadState.httpOk = false;
+          loadState.settled = true;
+          throw err;
+        });
       };
     }
-    await new Promise(function(r) { setTimeout(r, 400); });
+
+    function normalizeId(value) {
+      if (value == null) return null;
+      var text = String(value).trim();
+      if (!text || text === '0' || text === '-1') return null;
+      return text;
+    }
     function val(sel) {
       var el = document.querySelector(sel);
       return el && el.value != null ? String(el.value) : null;
@@ -57,40 +109,114 @@ function createInPageRereadScript() {
         .map(function(o) { return String(o.textContent || o.label || '').trim(); })
         .filter(Boolean);
     }
-    var shelf = document.querySelector('input[name="shelfmonth"]:checked');
-    var drugsYes = document.getElementById('drug_yes');
-    var drugsNo = document.getElementById('drug_no');
-    var drugs = null;
-    if (drugsYes && drugsYes.checked) drugs = 'YES';
-    if (drugsNo && drugsNo.checked) drugs = 'NO';
-    var fileInput = document.getElementById('uploadAttachment');
-    var attachmentFileName = null;
-    if (fileInput && fileInput.files && fileInput.files[0] && fileInput.files[0].name) {
-      attachmentFileName = String(fileInput.files[0].name);
+    function snapshotFields() {
+      var shelf = document.querySelector('input[name="shelfmonth"]:checked');
+      var drugsYes = document.getElementById('drug_yes');
+      var drugsNo = document.getElementById('drug_no');
+      var drugs = null;
+      if (drugsYes && drugsYes.checked) drugs = 'YES';
+      if (drugsNo && drugsNo.checked) drugs = 'NO';
+      var actionEl = document.querySelector('#actiontype') || document.querySelector('[name="actiontype"]');
+      return {
+        name: val('#name'),
+        type: val('#type'),
+        categoryId: val('#categoryId'),
+        subTypeId: val('#subTypeId'),
+        permissionPurpose: {
+          value: val('#permissionPurpose'),
+          label: text('#permissionPurpose'),
+        },
+        compositionTitle: val('#compositionTitle'),
+        disease: val('#disease'),
+        indications: multiSelectedLabels('select#indications'),
+        drugs: drugs,
+        drugsValue: val('#drugsValue'),
+        remarks: val('#remarks'),
+        shelfmonth: shelf ? String(shelf.value) : null,
+        month: val('#month'),
+        // Browser file inputs do not expose retained uploaded filenames after edit load.
+        attachmentFileName: null,
+        attachmentRereadUnavailable: true,
+        hiddenId: normalizeId(val('#id')),
+        actiontype: actionEl && actionEl.value != null ? String(actionEl.value) : null,
+      };
     }
-    return {
-      ok: true,
-      source: 'GetproductDataUpdate',
-      portalProductId: id,
-      name: val('#name'),
-      type: val('#type'),
-      categoryId: val('#categoryId'),
-      subTypeId: val('#subTypeId'),
-      permissionPurpose: {
-        value: val('#permissionPurpose'),
-        label: text('#permissionPurpose'),
-      },
-      compositionTitle: val('#compositionTitle'),
-      disease: val('#disease'),
-      indications: multiSelectedLabels('select#indications'),
-      drugs: drugs,
-      drugsValue: val('#drugsValue'),
-      remarks: val('#remarks'),
-      shelfmonth: shelf ? String(shelf.value) : null,
-      month: val('#month'),
-      attachmentFileName: attachmentFileName,
-      hiddenId: val('#id'),
-    };
+
+    try {
+      try {
+        window.GetproductDataUpdate(id);
+      } catch (error) {
+        return {
+          ok: false,
+          reason: 'GetproductDataUpdate_threw',
+          error: String(error && error.message ? error.message : error),
+        };
+      }
+
+      var deadline = Date.now() + 15000;
+      while (!loadState.settled && Date.now() < deadline) {
+        await new Promise(function(r) { setTimeout(r, 50); });
+      }
+      if (!loadState.settled) {
+        return { ok: false, reason: 'reread_load_timeout', portalProductId: id };
+      }
+      if (loadState.httpOk !== true) {
+        return {
+          ok: false,
+          reason: 'reread_load_http_failed',
+          portalProductId: id,
+          status: loadState.status,
+          error: loadState.error,
+        };
+      }
+
+      // Deterministic page-state proof: requested id loaded into #id (Edit shell).
+      var stateDeadline = Date.now() + 5000;
+      var fields = null;
+      while (Date.now() < stateDeadline) {
+        fields = snapshotFields();
+        if (fields.hiddenId === id) break;
+        await new Promise(function(r) { setTimeout(r, 50); });
+      }
+      if (!fields || fields.hiddenId !== id) {
+        return {
+          ok: false,
+          reason: 'reread_requested_id_mismatch',
+          portalProductId: id,
+          actualHiddenId: fields ? fields.hiddenId : null,
+        };
+      }
+
+      return {
+        ok: true,
+        source: 'GetproductDataUpdate',
+        portalProductId: id,
+        loadUrl: loadState.url || null,
+        attachmentRereadUnavailable: true,
+        name: fields.name,
+        type: fields.type,
+        categoryId: fields.categoryId,
+        subTypeId: fields.subTypeId,
+        permissionPurpose: fields.permissionPurpose,
+        compositionTitle: fields.compositionTitle,
+        disease: fields.disease,
+        indications: fields.indications,
+        drugs: fields.drugs,
+        drugsValue: fields.drugsValue,
+        remarks: fields.remarks,
+        shelfmonth: fields.shelfmonth,
+        month: fields.month,
+        attachmentFileName: null,
+        hiddenId: fields.hiddenId,
+        actiontype: fields.actiontype,
+      };
+    } finally {
+      XMLHttpRequest.prototype.open = origOpen;
+      XMLHttpRequest.prototype.send = origSend;
+      if (typeof origFetch === 'function') {
+        window.fetch = origFetch;
+      }
+    }
   }
   return __sasvRereadProductDetails;`;
 }

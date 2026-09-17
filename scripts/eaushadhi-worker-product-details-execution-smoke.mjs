@@ -910,6 +910,8 @@ const saveOk = classifySaveOutcome({
   httpOk: true,
   businessSuccess: true,
   portalProductId: "7788",
+  hiddenIdBefore: null,
+  hiddenIdAfter: "7788",
 });
 assert(saveOk.outcome === SAVE_OUTCOME.SUCCESS, "joint Save success classified");
 const saveAmb = classifySaveOutcome({
@@ -920,6 +922,88 @@ const saveAmb = classifySaveOutcome({
   portalProductId: null,
 });
 assert(saveAmb.outcome === SAVE_OUTCOME.AMBIGUOUS, "ambiguous Save classified");
+
+// Audit: stale hidden #id provenance
+{
+  const staleHidden = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: "ABC",
+    hiddenIdAfter: "ABC",
+  });
+  assert(staleHidden.outcome === SAVE_OUTCOME.AMBIGUOUS, "A: unchanged stale hidden id => AMBIGUOUS");
+  assert(staleHidden.reason === "hidden_id_not_newly_established", "A: hidden_id_not_newly_established");
+
+  const newFromNull = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: null,
+    hiddenIdAfter: "7788",
+  });
+  assert(newFromNull.outcome === SAVE_OUTCOME.SUCCESS, "B: null→7788 newly established hidden id => SUCCESS");
+  assert(newFromNull.portalProductId === "7788", "B: portal id is newly established after id");
+
+  const changedHidden = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: "ABC",
+    hiddenIdAfter: "7788",
+  });
+  assert(changedHidden.outcome === SAVE_OUTCOME.SUCCESS, "C: ABC→7788 newly established => SUCCESS");
+
+  const responseWins = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "7788",
+    hiddenIdBefore: "ABC",
+    hiddenIdAfter: "7788",
+  });
+  assert(responseWins.outcome === SAVE_OUTCOME.SUCCESS, "D: response id + matching after => SUCCESS");
+
+  const mismatchIds = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "7788",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "9999",
+  });
+  assert(mismatchIds.outcome === SAVE_OUTCOME.AMBIGUOUS, "E: response vs after mismatch => AMBIGUOUS");
+
+  const noNewId = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: null,
+    hiddenIdAfter: null,
+  });
+  assert(noNewId.outcome === SAVE_OUTCOME.AMBIGUOUS, "F: no response id and no new hidden id => AMBIGUOUS");
+
+  const internalId = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "262",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "262",
+  });
+  assert(internalId.outcome !== SAVE_OUTCOME.SUCCESS, "G: literal internal 262 never SUCCESS");
+}
 
 let saveCalls = 0;
 let markFailedCalls = 0;
@@ -960,7 +1044,8 @@ const success = await executeProductDetails(successInput, {
       httpOk: true,
       businessSuccess: true,
       portalProductId: "7788",
-      hiddenId: "7788",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "7788",
     };
   },
   markEntered: async () => ({ ok: true }),
@@ -1050,6 +1135,8 @@ const mismatch = await executeProductDetails(successInput, {
     httpOk: true,
     businessSuccess: true,
     portalProductId: "7788",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "7788",
   }),
   markEntered: async () => ({ ok: true }),
   reread: async () => ({
@@ -1100,11 +1187,46 @@ const compareMatch = compareProductDetailsReread(
     drugs: "NO",
     remarks: GOVERNANCE_OVERRIDES.remarks,
     shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
-    attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    attachmentFileName: null,
+    attachmentRereadUnavailable: true,
   },
+  { approvedCopyRereadUnavailable: true },
 );
 assert(compareMatch.overall === OVERALL_COMPARE.MATCH, "14. remarks/shelfmonth compare on reread MATCH");
 assert(toMarkPortalVerifiedReport(compareMatch).equal === true, "portal_verified report equal");
+
+{
+  const emptyFileInput = compareProductDetailsReread(
+    {
+      name: "Karpooradi Thailam",
+      type: "120",
+      categoryId: "278",
+      subTypeId: "274",
+      drugs: "NO",
+      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    },
+    {
+      name: "Karpooradi Thailam",
+      type: "120",
+      categoryId: "278",
+      subTypeId: "274",
+      drugs: "NO",
+      indications: [],
+      attachmentFileName: null,
+      attachmentRereadUnavailable: true,
+    },
+    { approvedCopyRereadUnavailable: true },
+  );
+  assert(
+    emptyFileInput.overall === OVERALL_COMPARE.MATCH,
+    "approved-copy reread unavailable does not false-fail MATCH",
+  );
+  const attachItem = emptyFileInput.items.find((i) => i.path === "attachment.fileName");
+  assert(
+    attachItem?.normalization_applied === "fill_time_proven_reread_unavailable",
+    "approved-copy marked fill-time proven when reread unavailable",
+  );
+}
 
 assert(
   CHANNELS.PRODUCT_DETAILS_PREVIEW === "eaushadhi-worker:product-details-preview",
@@ -1936,7 +2058,8 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     httpOk: true,
     businessSuccess: true,
     portalProductId: null,
-    hiddenId: null,
+    hiddenIdBefore: null,
+    hiddenIdAfter: null,
   });
   assert(noId.outcome === SAVE_OUTCOME.AMBIGUOUS, "business success without portal id is not SUCCESS");
 
@@ -1965,7 +2088,8 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     httpOk: true,
     businessSuccess: true,
     portalProductId: "88001",
-    hiddenId: "88001",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "88001",
   });
   assert(joint.outcome === SAVE_OUTCOME.SUCCESS, "business success + proven id => SUCCESS");
 
@@ -1979,14 +2103,15 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       httpOk: true,
       businessSuccess: true,
       portalProductId: null,
-      hiddenId: null,
+      hiddenIdBefore: "STALE-PREEXISTING",
+      hiddenIdAfter: "STALE-PREEXISTING",
     }),
     markEntered: async () => {
       markEnteredCalls += 1;
     },
   });
-  assert(noPortalIdRun.ok === false, "success without portal id does not complete");
-  assert(markEnteredCalls === 0, "success without portal id never marks ENTERED");
+  assert(noPortalIdRun.ok === false, "stale hidden id does not complete");
+  assert(markEnteredCalls === 0, "stale hidden id never marks ENTERED");
   assert(noPortalIdRun.requiresReadOnlyReconciliation === true, "missing portal id requires reconcile");
 
   markEnteredCalls = 0;
@@ -1999,13 +2124,17 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       httpOk: true,
       businessSuccess: true,
       portalProductId: "262",
-      hiddenId: "262",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "262",
     }),
     markEntered: async () => {
       markEnteredCalls += 1;
     },
   });
-  assert(fakeInternalId.code === "PORTAL_ID_UNPROVEN", "internal product id 262 cannot satisfy portal id");
+  assert(
+    fakeInternalId.code === "SAVE_AMBIGUOUS" || fakeInternalId.code === "PORTAL_ID_UNPROVEN",
+    "internal product id 262 cannot satisfy portal id",
+  );
   assert(markEnteredCalls === 0, "renderer/internal 262 id never marks ENTERED");
 
   let saveRetry = 0;
@@ -2020,6 +2149,8 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
         httpOk: true,
         businessSuccess: null,
         portalProductId: null,
+        hiddenIdBefore: null,
+        hiddenIdAfter: null,
       };
     },
   });
@@ -2045,6 +2176,8 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
         httpOk: true,
         businessSuccess: true,
         portalProductId: "9001",
+        hiddenIdBefore: null,
+        hiddenIdAfter: "9001",
       };
     },
     markEntered: async () => {
@@ -2065,7 +2198,8 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
         drugs: "NO",
         remarks: GOVERNANCE_OVERRIDES.remarks,
         shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
-        attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+        attachmentFileName: null,
+        attachmentRereadUnavailable: true,
       };
     },
     markPortalVerified: async () => {
@@ -2077,6 +2211,115 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     order.join(",") === "run_begin,fill,save,entered,reread,verified",
     "run_begin precedes first DOM mutation and retained reread precedes PORTAL_VERIFIED",
   );
+
+  // Deterministic reread completion (offline harness around in-page script)
+  {
+    const rereadSrc = createInPageRereadScript();
+    assert(rereadSrc.includes("reread_load_timeout"), "reread script has bounded load timeout");
+    assert(rereadSrc.includes("reread_requested_id_mismatch"), "reread script proves requested id");
+    assert(rereadSrc.includes("GetproductDataUpdate"), "reread observes GetproductDataUpdate");
+    assert(!rereadSrc.includes("setTimeout(r, 400)"), "reread no longer relies on fixed 400ms sleep alone");
+
+    async function runRereadHarness({ settleDelayMs, httpStatus, returnedHiddenId, requestedId }) {
+      const prev = {
+        XMLHttpRequest: globalThis.XMLHttpRequest,
+        document: globalThis.document,
+        window: globalThis.window,
+        fetch: globalThis.fetch,
+      };
+      class FakeXHR {
+        open(_m, url) {
+          this.__sasvRereadUrl = url;
+        }
+        addEventListener(evt, cb) {
+          this[`_${evt}`] = cb;
+        }
+        send() {
+          setTimeout(() => {
+            this.status = httpStatus;
+            if (this._loadend) this._loadend();
+          }, settleDelayMs);
+        }
+      }
+      globalThis.XMLHttpRequest = FakeXHR;
+      globalThis.document = {
+        querySelector(sel) {
+          if (sel === "#id") return { value: returnedHiddenId };
+          if (sel === "#name") return { value: "Karpooradi Thailam" };
+          if (sel === "#type") return { value: "120" };
+          if (sel === "#categoryId") return { value: "278" };
+          if (sel === "#subTypeId") return { value: "274" };
+          if (sel === "#permissionPurpose") {
+            return {
+              value: "7",
+              selectedIndex: 0,
+              options: [{ textContent: "Regular" }],
+            };
+          }
+          if (sel === "#compositionTitle") return { value: "For 10 mL" };
+          if (sel === "#disease") return { value: "Sandhirujah, Śōpham" };
+          if (sel === "#drugsValue") return { value: "" };
+          if (sel === "#remarks") return { value: "x" };
+          if (sel === "#month") return { value: "-1" };
+          if (sel === "#actiontype" || sel === '[name="actiontype"]') return { value: "edit" };
+          if (sel === 'input[name="shelfmonth"]:checked') return { value: "RegularAsPerClause" };
+          if (sel === "select#indications") return { options: [] };
+          return null;
+        },
+        getElementById(id) {
+          if (id === "drug_no") return { checked: true };
+          if (id === "drug_yes") return { checked: false };
+          if (id === "id") return { value: returnedHiddenId };
+          return null;
+        },
+      };
+      globalThis.window = {
+        GetproductDataUpdate() {
+          const xhr = new FakeXHR();
+          xhr.open("POST", "../admin/GetproductDataUpdate");
+          xhr.send();
+        },
+      };
+      try {
+        // eslint-disable-next-line no-new-func
+        const fn = new Function(`${rereadSrc}; return __sasvRereadProductDetails;`)();
+        return await fn(requestedId);
+      } finally {
+        globalThis.XMLHttpRequest = prev.XMLHttpRequest;
+        globalThis.document = prev.document;
+        globalThis.window = prev.window;
+        globalThis.fetch = prev.fetch;
+      }
+    }
+
+    const slowOk = await runRereadHarness({
+      settleDelayMs: 120,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+    });
+    assert(slowOk.ok === true, "slow async GetproductDataUpdate is awaited to completion");
+    assert(slowOk.hiddenId === "9001", "requested portal id proven on reread snapshot");
+
+    const timedOut = await runRereadHarness({
+      settleDelayMs: 20000,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+    });
+    assert(timedOut.ok === false && timedOut.reason === "reread_load_timeout", "timeout => reread failure");
+
+    const wrongId = await runRereadHarness({
+      settleDelayMs: 20,
+      httpStatus: 200,
+      returnedHiddenId: "1111",
+      requestedId: "9001",
+    });
+    assert(
+      wrongId.ok === false && wrongId.reason === "reread_requested_id_mismatch",
+      "wrong returned id => reread failure",
+    );
+  }
 
   let fillBeforeBegin = false;
   const blockedPreflight = await executeProductDetails(
