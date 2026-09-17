@@ -211,10 +211,10 @@ function normalizeLoadProductDataforLegacyResponse(raw, searchTerm) {
  */
 function buildLoadProductDataforLegacyListParams(searchTerm, options = {}) {
   return {
-    pageno: options.pageno != null ? Number(options.pageno) : 1,
+    pageno: options.pageno != null ? Number(options.pageno) : 0,
     length: options.length != null ? Number(options.length) : 10,
     search: String(searchTerm || EXPECTED_PORTAL_PRODUCT_NAME),
-    order: options.order || "asc",
+    order: options.order || "1,null",
     licenseid: options.licenseid != null ? String(options.licenseid) : "",
   };
 }
@@ -230,10 +230,10 @@ function buildLoadProductDataforLegacyListUrl(
 ) {
   const base = String(baseRelativeUrl || "../admin/LoadProductDataforLegacy");
   const qs = new URLSearchParams();
-  qs.set("pageno", String(params.pageno != null ? params.pageno : 1));
+  qs.set("pageno", String(params.pageno != null ? params.pageno : 0));
   qs.set("length", String(params.length != null ? params.length : 10));
   qs.set("search", String(params.search != null ? params.search : ""));
-  qs.set("order", String(params.order != null ? params.order : "asc"));
+  qs.set("order", String(params.order != null ? params.order : "1,null"));
   qs.set("licenseid", String(params.licenseid != null ? params.licenseid : ""));
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}${qs.toString()}`;

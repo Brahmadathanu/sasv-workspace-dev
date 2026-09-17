@@ -337,22 +337,32 @@ const listParams = buildLoadProductDataforLegacyListParams("Karpooradi Thailam",
   licenseid: "L1",
 });
 assert(listParams.search === "Karpooradi Thailam", "list params apply exact search term");
-assert(listParams.pageno === 1 && listParams.order === "asc", "list params use proven paging/order fields");
+assert(listParams.pageno === 0, "list params default pageno is 0");
+assert(listParams.length === 10, "list params default length is 10");
+assert(listParams.order === "1,null", "list params default order is 1,null");
 const listUrl = buildLoadProductDataforLegacyListUrl("../admin/LoadProductDataforLegacy", listParams);
 assert(listUrl.includes("LoadProductDataforLegacy?"), "list URL uses query string");
-assert(/[?&]pageno=1(?:&|$)/.test(listUrl), "list URL encodes pageno");
+assert(/[?&]pageno=0(?:&|$)/.test(listUrl), "list URL encodes pageno=0");
 assert(/[?&]length=10(?:&|$)/.test(listUrl), "list URL encodes length");
 assert(
   listUrl.includes(`search=${encodeURIComponent("Karpooradi Thailam")}`) ||
     listUrl.includes("search=Karpooradi+Thailam"),
-  "list URL encodes exact Karpooradi search",
+  "list URL encodes exact Karpooradi Thailam search",
 );
-assert(/[?&]order=asc(?:&|$)/.test(listUrl), "list URL encodes order");
+assert(
+  /[?&]order=1%2Cnull(?:&|$)/.test(listUrl) || /[?&]order=1,null(?:&|$)/.test(listUrl),
+  "list URL encodes order=1,null",
+);
 assert(/[?&]licenseid=L1(?:&|$)/.test(listUrl), "list URL encodes licenseid");
 assert(
   buildLoadProductDataforLegacyListBody("Karpooradi Thailam", { length: 10 }).search ===
     "Karpooradi Thailam",
   "deprecated listBody helper still returns param object",
+);
+assert(
+  buildLoadProductDataforLegacyListBody("Karpooradi Thailam").pageno === 0 &&
+    buildLoadProductDataforLegacyListBody("Karpooradi Thailam").order === "1,null",
+  "deprecated listBody helper inherits native pageno/order defaults",
 );
 
 const normalizedList = normalizeLoadProductDataforLegacyResponse(
@@ -366,6 +376,45 @@ assert(
   "{ TotalCount, aaData } complete zero result => NONE",
 );
 
+{
+  const liveShape = normalizeLoadProductDataforLegacyResponse(
+    {
+      TotalCount: 0,
+      data: [],
+      message: "Data Load Successfully",
+      status: "1",
+    },
+    "Karpooradi Thailam",
+  );
+  assert(Array.isArray(liveShape.rows) && liveShape.rows.length === 0, "live-success shape maps data[] rows");
+  assert(liveShape.totalCount === 0, "live-success shape maps TotalCount");
+  assert(
+    evaluateDuplicateGuard(liveShape).outcome === DUPLICATE_OUTCOME.NONE,
+    "proven live-success TotalCount/data/status=1 => NONE",
+  );
+}
+
+{
+  const portalFail = normalizeLoadProductDataforLegacyResponse(
+    {
+      status: "0",
+      message: "Something went wrong",
+    },
+    "Karpooradi Thailam",
+  );
+  const portalFailOutcome = evaluateDuplicateGuard({
+    ...portalFail,
+    searchApplied: true,
+    source: "LoadProductDataforLegacy",
+  });
+  assert(
+    portalFailOutcome.outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE ||
+      portalFailOutcome.outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+    "portal status=0 response => fail-closed",
+  );
+  assert(portalFailOutcome.outcome !== DUPLICATE_OUTCOME.NONE, "portal status=0 response never NONE");
+}
+
 const probeSrc = createInPageDuplicateSearchProbe.toString();
 assert(!/LoadProductDataforLegacy\s*\(/.test(probeSrc), "probe source never invokes LoadProductDataforLegacy(");
 assert(probeSrc.includes("../admin/LoadProductDataforLegacy"), "probe posts proven admin list endpoint");
@@ -377,7 +426,14 @@ assert(
 );
 assert(probeSrc.includes('contentType: "application/json"'), "probe sets application/json contentType");
 assert(!probeSrc.includes("application/x-www-form-urlencoded"), "probe does not use form-urlencoded body");
-
+assert(probeSrc.includes("pageno: 0"), "probe baseParams use pageno 0");
+assert(probeSrc.includes('order: "1,null"'), "probe baseParams use order 1,null");
+assert(!probeSrc.includes("pageno: 1"), "probe no longer hardcodes pageno 1");
+assert(!probeSrc.includes('order: "asc"'), "probe no longer hardcodes order asc");
+assert(
+  !probeSrc.includes('"Karpooradi"') || probeSrc.includes("Karpooradi Thailam"),
+  "probe keeps full governed search term Karpooradi Thailam",
+);
 {
   const posts = [];
   const fakeDoc = {
@@ -435,8 +491,8 @@ assert(!probeSrc.includes("application/x-www-form-urlencoded"), "probe does not 
     "jQuery path uses query URL",
   );
   assert(
-    posts.every((p) => /[?&]pageno=/.test(String(p.url))),
-    "duplicate-search URL includes encoded pageno",
+    posts.every((p) => /[?&]pageno=0(?:&|$)/.test(String(p.url))),
+    "duplicate-search URL includes encoded pageno=0",
   );
   assert(
     posts.every((p) => /[?&]length=/.test(String(p.url))),
@@ -451,8 +507,12 @@ assert(!probeSrc.includes("application/x-www-form-urlencoded"), "probe does not 
     "exact search term Karpooradi Thailam in query URL",
   );
   assert(
-    posts.every((p) => /[?&]order=asc/.test(String(p.url))),
-    "duplicate-search URL includes encoded order",
+    posts.every(
+      (p) =>
+        /[?&]order=1%2Cnull(?:&|$)/.test(String(p.url)) ||
+        /[?&]order=1,null(?:&|$)/.test(String(p.url)),
+    ),
+    "duplicate-search URL includes encoded order=1,null",
   );
   assert(
     posts.every((p) => String(p.url).includes("licenseid=DOM-LIC-7")),
@@ -475,6 +535,84 @@ assert(!probeSrc.includes("application/x-www-form-urlencoded"), "probe does not 
   assert(probeResult.searchApplied === true, "probe applied search");
   const guarded = evaluateDuplicateGuard(probeResult);
   assert(guarded.outcome === DUPLICATE_OUTCOME.EXACT_ONE, "exact single match => EXACT_ONE");
+}
+
+{
+  const posts = [];
+  const fakeDoc = {
+    getElementById(id) {
+      if (id === "licenseid") return { value: "DOM-COV-3" };
+      return null;
+    },
+  };
+  const prevJq = globalThis.jQuery;
+  const prevDoc = globalThis.document;
+  const prevWindow = globalThis.window;
+  const prevFn = globalThis.LoadProductDataforLegacy;
+  globalThis.document = fakeDoc;
+  globalThis.window = globalThis;
+  globalThis.LoadProductDataforLegacy = () => {
+    throw new Error("global LoadProductDataforLegacy must not be called");
+  };
+  globalThis.jQuery = {
+    ajax({ url, type, data, contentType, success }) {
+      posts.push({ url, type, data, contentType });
+      const parsed = new URL(String(url), "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
+      const length = Number(parsed.searchParams.get("length") || 10);
+      const all = [
+        { name: "Karpooradi Thailam", id: 2 },
+        { name: "Karpooradi Thailam Extra", id: 3 },
+      ];
+      // First call uses default length=10 but intentionally returns an incomplete page.
+      if (posts.length === 1) {
+        success({
+          TotalCount: all.length,
+          data: all.slice(0, 1),
+          message: "Data Load Successfully",
+          status: "1",
+        });
+        return;
+      }
+      success({
+        TotalCount: all.length,
+        data: all.slice(0, length),
+        message: "Data Load Successfully",
+        status: "1",
+      });
+    },
+  };
+  let coverageProbe;
+  try {
+    coverageProbe = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+  } finally {
+    globalThis.jQuery = prevJq;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWindow;
+    globalThis.LoadProductDataforLegacy = prevFn;
+  }
+  assert(posts.length === 2, "coverage refetch issues second list POST when page incomplete");
+  const first = new URL(String(posts[0].url), "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
+  const second = new URL(String(posts[1].url), "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
+  assert(first.searchParams.get("pageno") === "0", "coverage first request pageno=0");
+  assert(second.searchParams.get("pageno") === "0", "coverage refetch pageno remains 0");
+  assert(first.searchParams.get("order") === "1,null", "coverage first request order=1,null");
+  assert(second.searchParams.get("order") === "1,null", "coverage refetch order remains 1,null");
+  assert(first.searchParams.get("search") === "Karpooradi Thailam", "coverage first search exact");
+  assert(second.searchParams.get("search") === "Karpooradi Thailam", "coverage refetch search unchanged");
+  assert(first.searchParams.get("licenseid") === "DOM-COV-3", "coverage first licenseid from DOM");
+  assert(second.searchParams.get("licenseid") === "DOM-COV-3", "coverage refetch licenseid unchanged");
+  assert(first.searchParams.get("length") === "10", "coverage first length=10");
+  assert(second.searchParams.get("length") === "2", "coverage refetch only length changes to totalCount");
+  assert(
+    posts.every((p) => p.data === undefined || p.data === null),
+    "coverage refetch posts have no business body",
+  );
+  assert(coverageProbe.coverageComplete === true, "coverage refetch completes when full page returned");
+  assert(
+    evaluateDuplicateGuard(coverageProbe).outcome === DUPLICATE_OUTCOME.AMBIGUOUS ||
+      evaluateDuplicateGuard(coverageProbe).outcome === DUPLICATE_OUTCOME.EXACT_ONE,
+    "coverage-complete multi-row result is classified (not NONE from incompleteness)",
+  );
 }
 
 {
@@ -524,6 +662,24 @@ assert(!probeSrc.includes("application/x-www-form-urlencoded"), "probe does not 
   assert(
     fetches.every((f) => f.url.includes("LoadProductDataforLegacy?")),
     "fetch fallback uses same query URL",
+  );
+  assert(
+    fetches.every((f) => /[?&]pageno=0(?:&|$)/.test(f.url)),
+    "fetch fallback uses pageno=0",
+  );
+  assert(
+    fetches.every(
+      (f) => /[?&]order=1%2Cnull(?:&|$)/.test(f.url) || /[?&]order=1,null(?:&|$)/.test(f.url),
+    ),
+    "fetch fallback uses order=1,null",
+  );
+  assert(
+    fetches.every(
+      (f) =>
+        f.url.includes(`search=${encodeURIComponent("Karpooradi Thailam")}`) ||
+        f.url.includes("search=Karpooradi+Thailam"),
+    ),
+    "fetch fallback keeps exact search Karpooradi Thailam",
   );
   assert(
     fetches.every((f) => f.url.includes("licenseid=DOM-FETCH-9")),
