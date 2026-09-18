@@ -146,14 +146,19 @@ assert(
 );
 
 // Metadata
-assert(
-  /function renderRmTraceSnapshotBanner[\s\S]*do not invent/.test(materialSrc) ||
-    (/function renderRmTraceSnapshotBanner[\s\S]*Snapshot refreshed/.test(
-      materialSrc,
-    ) &&
-      !/function renderRmTraceSnapshotBanner[\s\S]*Valuation/.test(materialSrc)),
-  "RM does not fabricate valuation/run",
-);
+{
+  const rmBanner =
+    materialSrc.match(
+      /function renderRmTraceSnapshotBanner\(\) \{[\s\S]*?\r?\n  function /,
+    )?.[0] || "";
+  assert(
+    rmBanner.length > 0 &&
+      /\bValuation\b/.test(rmBanner) &&
+      /TRACE_FILTER_OPTIONS\.valuation_date/.test(rmBanner) &&
+      !/rows\[0\]/.test(rmBanner),
+    "RM banner shows selected-run valuation/run from launch or server payload",
+  );
+}
 assert(
   /function renderPmTraceSnapshotBanner[\s\S]*Valuation/.test(materialSrc) &&
     /function renderPmTraceSnapshotBanner[\s\S]*Run/.test(materialSrc),

@@ -243,6 +243,8 @@ const RM_TRACE_EXPORT_BATCH_SIZE = 1000;
 
 const RM_TRACE_EXPORT_COLUMNS = [
   "period_start",
+  "valuation_date",
+  "refresh_run_id",
   "product_name",
   "sku_column_label",
   "stock_item_code",
@@ -4079,6 +4081,21 @@ export function createMaterialCostController(deps) {
     );
   }
 
+  function buildTraceSelectedRunRpcArgs() {
+    if (!hasTraceLaunchExactIdentity()) return {};
+    return {
+      p_valuation_date: TRACE_LAUNCH_VALUATION_DATE,
+      p_refresh_run_id: TRACE_LAUNCH_REFRESH_RUN_ID,
+    };
+  }
+
+  function clearTraceLaunchExactIdentityOnPeriodChange() {
+    TRACE_LAUNCH_VALUATION_DATE = null;
+    TRACE_LAUNCH_REFRESH_RUN_ID = null;
+    TRACE_VALUATION_DATE = null;
+    TRACE_REFRESH_RUN_ID = null;
+  }
+
   function seedTraceExactRunDisplayFromLaunch() {
     if (!hasTraceLaunchExactIdentity()) return;
     TRACE_VALUATION_DATE = TRACE_LAUNCH_VALUATION_DATE;
@@ -4455,8 +4472,19 @@ export function createMaterialCostController(deps) {
       null;
     const total = Number(TRACE_TOTAL_COUNT || 0);
     const totalLabel = `${total.toLocaleString("en-IN")} record${total === 1 ? "" : "s"}`;
+    const valuation =
+      TRACE_LAUNCH_VALUATION_DATE ||
+      TRACE_VALUATION_DATE ||
+      TRACE_FILTER_OPTIONS.valuation_date ||
+      null;
+    const runId =
+      TRACE_LAUNCH_REFRESH_RUN_ID ??
+      TRACE_REFRESH_RUN_ID ??
+      TRACE_FILTER_OPTIONS.refresh_run_id ??
+      null;
     const bits = [totalLabel];
-    // RM list RPC does not expose valuation/run — do not invent them.
+    if (valuation) bits.push(`Valuation ${formatDate(valuation)}`);
+    if (runId != null && runId !== "") bits.push(`Run ${runId}`);
     if (stamp) bits.push(`Snapshot refreshed ${formatDateTime(stamp)}`);
     dom.snapshot.innerHTML = renderTraceSnapshotBannerHtml({
       title: "RM Cost Trace",
@@ -4663,6 +4691,7 @@ export function createMaterialCostController(deps) {
       p_warning_status: TRACE_FILTERS.warning_status,
       p_has_semi_process: TRACE_FILTERS.has_semi_process,
       p_search_text: TRACE_FILTERS.search_text || null,
+      ...buildTraceSelectedRunRpcArgs(),
     };
   }
 
@@ -4677,6 +4706,7 @@ export function createMaterialCostController(deps) {
       p_bom_source: TRACE_FILTERS.bom_source,
       p_warning_status: TRACE_FILTERS.warning_status,
       p_search_text: TRACE_FILTERS.search_text || null,
+      ...buildTraceSelectedRunRpcArgs(),
     };
   }
 
@@ -4690,6 +4720,7 @@ export function createMaterialCostController(deps) {
       {
         p_period_start: periodStart,
         p_product_id: TRACE_FILTERS.product_id,
+        ...buildTraceSelectedRunRpcArgs(),
       },
     );
     if (error) throw error;
@@ -4715,6 +4746,10 @@ export function createMaterialCostController(deps) {
     };
     TRACE_SNAPSHOT_REFRESHED_AT =
       TRACE_FILTER_OPTIONS.snapshot_refreshed_at || TRACE_SNAPSHOT_REFRESHED_AT;
+    assignTraceExactRunDisplay(
+      TRACE_FILTER_OPTIONS.valuation_date,
+      TRACE_FILTER_OPTIONS.refresh_run_id,
+    );
 
     if (
       TRACE_FILTERS.sku_id != null &&
@@ -4736,6 +4771,7 @@ export function createMaterialCostController(deps) {
       {
         p_period_start: periodStart,
         p_product_id: TRACE_FILTERS.product_id,
+        ...buildTraceSelectedRunRpcArgs(),
       },
     );
     if (error) throw error;
@@ -4834,6 +4870,10 @@ export function createMaterialCostController(deps) {
       if (rows[0]?.snapshot_refreshed_at) {
         TRACE_SNAPSHOT_REFRESHED_AT = rows[0].snapshot_refreshed_at;
       }
+      assignTraceExactRunDisplay(
+        rows[0]?.valuation_date,
+        rows[0]?.refresh_run_id,
+      );
       TRACE_HAS_MORE =
         TRACE_ROWS.length < TRACE_TOTAL_COUNT && rows.length > 0;
       TRACE_LOAD_STATE = rows.length ? "ready" : "empty";
@@ -4973,12 +5013,10 @@ export function createMaterialCostController(deps) {
       if (rows[0]?.snapshot_refreshed_at) {
         TRACE_SNAPSHOT_REFRESHED_AT = rows[0].snapshot_refreshed_at;
       }
-      if (component === "PM") {
-        assignTraceExactRunDisplay(
-          rows[0]?.valuation_date,
-          rows[0]?.refresh_run_id,
-        );
-      }
+      assignTraceExactRunDisplay(
+        rows[0]?.valuation_date,
+        rows[0]?.refresh_run_id,
+      );
 
       TRACE_ROWS = TRACE_ROWS.concat(rows);
       TRACE_HAS_MORE =
@@ -6326,6 +6364,7 @@ export function createMaterialCostController(deps) {
     loadWorkbenchMatchIndex,
     findWorkbenchRowForMaterialIssue,
     applyTraceLaunchContext,
+    clearTraceLaunchExactIdentityOnPeriodChange,
     syncRmTraceChrome,
     syncTracePageFromShell,
     getTracePage,

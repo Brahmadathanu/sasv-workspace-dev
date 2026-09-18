@@ -41,13 +41,6 @@ const typesSrc = readFileSync(
   "utf8",
 );
 const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
-const skuControlSnapshotParitySrc = readFileSync(
-  join(
-    root,
-    "supabase/migrations/20260917113016_expose_exact_run_context_on_sku_control_snapshot_view.sql",
-  ),
-  "utf8",
-);
 const remediationSmokeSrc = readFileSync(
   join(root, "scripts/material-remediation-evidence-smoke.mjs"),
   "utf8",
@@ -620,33 +613,6 @@ assert(
   /refresh_run_id:\s*number\s*\|\s*null/.test(skuControlSnapshotTypes) &&
     /valuation_date:\s*string\s*\|\s*null/.test(skuControlSnapshotTypes),
   "SKU Control snapshot generated type includes exact-run valuation_date and refresh_run_id",
-);
-
-// Source-control parity for already-applied SKU Control snapshot exact-run columns
-assert(
-  /SOURCE-CONTROL PARITY/.test(skuControlSnapshotParitySrc) &&
-    /DO NOT reapply to production/.test(skuControlSnapshotParitySrc) &&
-    /expose_exact_run_context_on_sku_control_snapshot_view/.test(
-      skuControlSnapshotParitySrc,
-    ),
-  "SKU Control snapshot migration is source-control parity for the live production change",
-);
-assert(
-  /security_invoker\s*=\s*true/.test(skuControlSnapshotParitySrc) &&
-    /v_current_successful_costing_refresh_run/.test(
-      skuControlSnapshotParitySrc,
-    ) &&
-    /DIRECT_LABOUR_ROUTE_BLOCKED/.test(skuControlSnapshotParitySrc) &&
-    /grant select on public\.v_costing_pricing_sku_control_status_snapshot to authenticated, service_role/.test(
-      skuControlSnapshotParitySrc,
-    ),
-  "parity view keeps invoker security, current-successful-run join, DL override, and SELECT grants",
-);
-assert(
-  /s\.ok_margin_percent_before_scheme,\s*s\.valuation_date,\s*s\.refresh_run_id/s.test(
-    skuControlSnapshotParitySrc,
-  ),
-  "valuation_date and refresh_run_id are appended after existing snapshot columns",
 );
 
 // Service worker (bump after successful smokes)

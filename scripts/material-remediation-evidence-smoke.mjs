@@ -256,15 +256,20 @@ assert(
   "later PM filter-options / first-row assignment cannot overwrite a launch tuple",
 );
 assert(
-  !/p_valuation_date/.test(rmTraceRpcSrc) &&
-    !/p_refresh_run_id/.test(rmTraceRpcSrc) &&
-    !/p_valuation_date/.test(pmTraceRpcSrc) &&
-    !/p_refresh_run_id/.test(pmTraceRpcSrc),
-  "RM/PM Trace RPC argument lists remain period-scoped",
+  /function buildTraceSelectedRunRpcArgs\(/.test(materialSrc) &&
+    /if \(!hasTraceLaunchExactIdentity\(\)\) return \{\}/.test(materialSrc) &&
+    /\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(rmTraceRpcSrc) &&
+    /\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(pmTraceRpcSrc),
+  "RM/PM list builders send optional exact tuple only through the selected-run helper",
 );
 assert(
-  !/p_valuation_date/.test(materialSrc) && !/p_refresh_run_id/.test(materialSrc),
-  "Material Cost Manager does not add p_valuation_date / p_refresh_run_id RPC args",
+  /rpc_get_material_rate_rm_cost_trace_filter_options[\s\S]*\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(
+    materialSrc,
+  ) &&
+    /rpc_get_material_rate_pm_cost_trace_filter_options[\s\S]*\.\.\.buildTraceSelectedRunRpcArgs\(\)/.test(
+      materialSrc,
+    ),
+  "RM/PM filter-options receive the same selected-run helper args as the list",
 );
 assert(
   shellSrc.includes("role:material-cost-pm-trace") &&

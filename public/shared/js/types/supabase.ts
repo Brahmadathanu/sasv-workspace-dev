@@ -41622,10 +41622,12 @@ export type Database = {
           p_bom_source?: string
           p_period_start: string
           p_product_id?: number
+          p_refresh_run_id?: number
           p_review_state?: string
           p_search_text?: string
           p_sku_id?: number
           p_stock_item_id?: number
+          p_valuation_date?: string
           p_warning_status?: string
         }
         Returns: {
@@ -41657,10 +41659,12 @@ export type Database = {
           p_has_semi_process?: boolean
           p_period_start: string
           p_product_id?: number
+          p_refresh_run_id?: number
           p_review_state?: string
           p_search_text?: string
           p_sku_id?: number
           p_stock_item_id?: number
+          p_valuation_date?: string
           p_warning_status?: string
         }
         Returns: {
@@ -41672,6 +41676,7 @@ export type Database = {
           quantity_uom: string
           rate_date: string
           rate_source: string
+          refresh_run_id: number
           review_state: string
           rm_line_cost: number
           selected_rate: number
@@ -41681,6 +41686,7 @@ export type Database = {
           snapshot_refreshed_at: string
           stock_item_code: string
           stock_item_name: string
+          valuation_date: string
           warning_code: string
           warning_text: string
         }[]
@@ -42760,10 +42766,12 @@ export type Database = {
           p_offset?: number
           p_period_start: string
           p_product_id?: number
+          p_refresh_run_id?: number
           p_review_state?: string
           p_search_text?: string
           p_sku_id?: number
           p_stock_item_id?: number
+          p_valuation_date?: string
           p_warning_status?: string
         }
         Returns: {
@@ -42797,7 +42805,12 @@ export type Database = {
         }[]
       }
       rpc_get_material_rate_pm_cost_trace_filter_options: {
-        Args: { p_period_start: string; p_product_id?: number }
+        Args: {
+          p_period_start: string
+          p_product_id?: number
+          p_refresh_run_id?: number
+          p_valuation_date?: string
+        }
         Returns: Json
       }
       rpc_get_material_rate_rm_cost_trace: {
@@ -42808,10 +42821,12 @@ export type Database = {
           p_offset?: number
           p_period_start: string
           p_product_id?: number
+          p_refresh_run_id?: number
           p_review_state?: string
           p_search_text?: string
           p_sku_id?: number
           p_stock_item_id?: number
+          p_valuation_date?: string
           p_warning_status?: string
         }
         Returns: {
@@ -42830,6 +42845,7 @@ export type Database = {
           quantity_uom: string
           rate_date: string
           rate_source: string
+          refresh_run_id: number
           review_state: string
           rm_line_cost: number
           selected_rate: number
@@ -42843,12 +42859,18 @@ export type Database = {
           stock_item_name: string
           total_row_count: number
           trace_component: string
+          valuation_date: string
           warning_code: string
           warning_text: string
         }[]
       }
       rpc_get_material_rate_rm_cost_trace_filter_options: {
-        Args: { p_period_start: string; p_product_id?: number }
+        Args: {
+          p_period_start: string
+          p_product_id?: number
+          p_refresh_run_id?: number
+          p_valuation_date?: string
+        }
         Returns: Json
       }
       rpc_get_material_vendor_rate_offers: {
