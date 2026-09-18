@@ -1,16 +1,14 @@
 /* eslint-env node */
 
 /**
- * Trusted Product Details live-execution arm (Phase A: disarmed).
+ * Trusted Product Details live-execution arm (Phase B: armed for Product 262 only).
  * Renderer cannot supply or override this module.
- *
- * Phase B may flip enabled→true under separate approval.
  */
 
 const { FIRST_CONTROLLED_PRODUCT_ID } = require("./product-lock");
 
 const PRODUCT_DETAILS_LIVE_ARM = Object.freeze({
-  enabled: false,
+  enabled: true,
   productIds: Object.freeze([FIRST_CONTROLLED_PRODUCT_ID]),
 });
 
