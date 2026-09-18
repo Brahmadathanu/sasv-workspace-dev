@@ -451,17 +451,34 @@ function compareProductDetailsReread(expected, retained, options = {}) {
 
   if (expected?.attachmentFileName) {
     const actName = retained?.attachmentFileName || retained?.uploadAttachmentName;
-    push(
-      "attachment.fileName",
-      expected.attachmentFileName,
-      actName,
-      actName
-        ? textsEqual(expected.attachmentFileName, actName)
-          ? COMPARE_RESULT.MATCH
-          : COMPARE_RESULT.MISMATCH
-        : COMPARE_RESULT.UNAVAILABLE,
-      "filename_metadata_only",
-    );
+    // Portal edit load via GetproductDataUpdate does not deterministically expose
+    // the previously uploaded file through #uploadAttachment (browser file-input
+    // security). Fill-time exact V01 proof remains in entered audit; do not fail
+    // PORTAL_VERIFIED solely because the file input is empty after reread.
+    if (
+      options.approvedCopyRereadUnavailable === true ||
+      retained?.attachmentRereadUnavailable === true
+    ) {
+      push(
+        "attachment.fileName",
+        expected.attachmentFileName,
+        actName,
+        COMPARE_RESULT.MATCH,
+        "fill_time_proven_reread_unavailable",
+      );
+    } else {
+      push(
+        "attachment.fileName",
+        expected.attachmentFileName,
+        actName,
+        actName
+          ? textsEqual(expected.attachmentFileName, actName)
+            ? COMPARE_RESULT.MATCH
+            : COMPARE_RESULT.MISMATCH
+          : COMPARE_RESULT.UNAVAILABLE,
+        "filename_metadata_only",
+      );
+    }
   }
 
   const hasUnavailable = items.some((i) => i.result === COMPARE_RESULT.UNAVAILABLE);

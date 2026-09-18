@@ -47,9 +47,20 @@ const {
   toMarkPortalVerifiedReport,
   OVERALL_COMPARE,
 } = require(join(root, "electron/eaushadhi-worker/compare.js"));
-const { classifySaveOutcome, SAVE_OUTCOME, createSaveMutex } = require(
+const { classifySaveOutcome, SAVE_OUTCOME, createSaveMutex, parseSaveProductDataBusiness, createInPageSaveOnceScript } = require(
   join(root, "electron/eaushadhi-worker/portal-save-observe.js"),
 );
+const {
+  PRODUCT_DETAILS_LIVE_ARM,
+  isProductDetailsLiveArmedFor,
+} = require(join(root, "electron/eaushadhi-worker/product-details-live-arm.js"));
+const {
+  buildProductDetailsLiveAdapters,
+  createInPageRereadScript,
+  RUN_BEGIN_RPC,
+  MARK_ENTERED_RPC,
+  MARK_PORTAL_VERIFIED_RPC,
+} = require(join(root, "electron/eaushadhi-worker/product-details-live-adapters.js"));
 const { CHANNELS } = require(join(root, "electron/eaushadhi-worker/ipc.js"));
 
 let failed = 0;
@@ -899,6 +910,8 @@ const saveOk = classifySaveOutcome({
   httpOk: true,
   businessSuccess: true,
   portalProductId: "7788",
+  hiddenIdBefore: null,
+  hiddenIdAfter: "7788",
 });
 assert(saveOk.outcome === SAVE_OUTCOME.SUCCESS, "joint Save success classified");
 const saveAmb = classifySaveOutcome({
@@ -909,6 +922,88 @@ const saveAmb = classifySaveOutcome({
   portalProductId: null,
 });
 assert(saveAmb.outcome === SAVE_OUTCOME.AMBIGUOUS, "ambiguous Save classified");
+
+// Audit: stale hidden #id provenance
+{
+  const staleHidden = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: "ABC",
+    hiddenIdAfter: "ABC",
+  });
+  assert(staleHidden.outcome === SAVE_OUTCOME.AMBIGUOUS, "A: unchanged stale hidden id => AMBIGUOUS");
+  assert(staleHidden.reason === "hidden_id_not_newly_established", "A: hidden_id_not_newly_established");
+
+  const newFromNull = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: null,
+    hiddenIdAfter: "7788",
+  });
+  assert(newFromNull.outcome === SAVE_OUTCOME.SUCCESS, "B: null→7788 newly established hidden id => SUCCESS");
+  assert(newFromNull.portalProductId === "7788", "B: portal id is newly established after id");
+
+  const changedHidden = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: "ABC",
+    hiddenIdAfter: "7788",
+  });
+  assert(changedHidden.outcome === SAVE_OUTCOME.SUCCESS, "C: ABC→7788 newly established => SUCCESS");
+
+  const responseWins = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "7788",
+    hiddenIdBefore: "ABC",
+    hiddenIdAfter: "7788",
+  });
+  assert(responseWins.outcome === SAVE_OUTCOME.SUCCESS, "D: response id + matching after => SUCCESS");
+
+  const mismatchIds = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "7788",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "9999",
+  });
+  assert(mismatchIds.outcome === SAVE_OUTCOME.AMBIGUOUS, "E: response vs after mismatch => AMBIGUOUS");
+
+  const noNewId = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: null,
+    hiddenIdAfter: null,
+  });
+  assert(noNewId.outcome === SAVE_OUTCOME.AMBIGUOUS, "F: no response id and no new hidden id => AMBIGUOUS");
+
+  const internalId = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "262",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "262",
+  });
+  assert(internalId.outcome !== SAVE_OUTCOME.SUCCESS, "G: literal internal 262 never SUCCESS");
+}
 
 let saveCalls = 0;
 let markFailedCalls = 0;
@@ -949,7 +1044,8 @@ const success = await executeProductDetails(successInput, {
       httpOk: true,
       businessSuccess: true,
       portalProductId: "7788",
-      hiddenId: "7788",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "7788",
     };
   },
   markEntered: async () => ({ ok: true }),
@@ -1039,6 +1135,8 @@ const mismatch = await executeProductDetails(successInput, {
     httpOk: true,
     businessSuccess: true,
     portalProductId: "7788",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "7788",
   }),
   markEntered: async () => ({ ok: true }),
   reread: async () => ({
@@ -1089,11 +1187,46 @@ const compareMatch = compareProductDetailsReread(
     drugs: "NO",
     remarks: GOVERNANCE_OVERRIDES.remarks,
     shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
-    attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    attachmentFileName: null,
+    attachmentRereadUnavailable: true,
   },
+  { approvedCopyRereadUnavailable: true },
 );
 assert(compareMatch.overall === OVERALL_COMPARE.MATCH, "14. remarks/shelfmonth compare on reread MATCH");
 assert(toMarkPortalVerifiedReport(compareMatch).equal === true, "portal_verified report equal");
+
+{
+  const emptyFileInput = compareProductDetailsReread(
+    {
+      name: "Karpooradi Thailam",
+      type: "120",
+      categoryId: "278",
+      subTypeId: "274",
+      drugs: "NO",
+      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    },
+    {
+      name: "Karpooradi Thailam",
+      type: "120",
+      categoryId: "278",
+      subTypeId: "274",
+      drugs: "NO",
+      indications: [],
+      attachmentFileName: null,
+      attachmentRereadUnavailable: true,
+    },
+    { approvedCopyRereadUnavailable: true },
+  );
+  assert(
+    emptyFileInput.overall === OVERALL_COMPARE.MATCH,
+    "approved-copy reread unavailable does not false-fail MATCH",
+  );
+  const attachItem = emptyFileInput.items.find((i) => i.path === "attachment.fileName");
+  assert(
+    attachItem?.normalization_applied === "fill_time_proven_reread_unavailable",
+    "approved-copy marked fill-time proven when reread unavailable",
+  );
+}
 
 assert(
   CHANNELS.PRODUCT_DETAILS_PREVIEW === "eaushadhi-worker:product-details-preview",
@@ -1109,7 +1242,17 @@ assert(
 );
 
 const indexSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
-assert(indexSrc.includes("PRODUCT_DETAILS_LIVE_ARMED = false"), "live execution remains disarmed");
+assert(
+  PRODUCT_DETAILS_LIVE_ARM.enabled === false && isProductDetailsLiveArmedFor(262) === false,
+  "Phase A live arm remains false for product 262",
+);
+assert(
+  indexSrc.includes("isProductDetailsLiveArmedFor") &&
+    indexSrc.includes("buildProductDetailsLiveAdapters"),
+  "index wires live arm gate and adapter builder",
+);
+assert(!indexSrc.includes("rpc_eaushadhi_worker_run_begin"), "index source does not embed run_begin RPC name");
+assert(!/mark_entered|mark_portal_verified/.test(indexSrc), "index source does not embed mark_* RPC names");
 assert(indexSrc.includes("runTrustedProductDetailsPreview"), "preview uses trusted orchestration");
 assert(indexSrc.includes("runTrustedProductDetailsStart"), "start uses trusted orchestration");
 assert(indexSrc.includes("resolveApprovedProductCopyFile"), "index wires trusted approved-copy resolver");
@@ -1864,6 +2007,397 @@ const concurrentSecond = await mutex.runExclusive(async () => "b");
 const concurrentFirstResult = await concurrentFirst;
 assert(concurrentFirstResult === "a", "save mutex first caller runs");
 assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurrent execution");
+
+// --- Phase A live capability (disarmed) focused coverage ---
+{
+  assert(PRODUCT_DETAILS_LIVE_ARM.productIds.includes(262), "allowlist may list 262 as inert config");
+  assert(isProductDetailsLiveArmedFor(999) === false, "non-262 never armed");
+  assert(isProductDetailsLiveArmedFor(262) === false, "262 remains disarmed while enabled=false");
+
+  let adapterBuildThrew = false;
+  try {
+    buildProductDetailsLiveAdapters({
+      page: { evaluate: async () => null },
+      callRpc: async () => ({}),
+    });
+  } catch {
+    adapterBuildThrew = true;
+  }
+  assert(adapterBuildThrew, "live adapters refuse construction while Phase A disarmed");
+
+  const liveAdapterSrc = readFileSync(
+    join(root, "electron/eaushadhi-worker/product-details-live-adapters.js"),
+    "utf8",
+  );
+  assert(liveAdapterSrc.includes(RUN_BEGIN_RPC), "live adapters declare run_begin RPC");
+  assert(liveAdapterSrc.includes(MARK_ENTERED_RPC), "live adapters declare mark_entered RPC");
+  assert(liveAdapterSrc.includes(MARK_PORTAL_VERIFIED_RPC), "live adapters declare mark_portal_verified RPC");
+  assert(liveAdapterSrc.includes("GetproductDataUpdate"), "reread uses GetproductDataUpdate");
+  assert(!/submitProduct\s*\(/.test(liveAdapterSrc), "live adapters never call submitProduct(");
+  assert(!/composition/i.test(liveAdapterSrc) || liveAdapterSrc.includes("compositionTitle"), "no Composition mutation adapter");
+  assert(createInPageRereadScript().includes("GetproductDataUpdate"), "reread script names GetproductDataUpdate");
+  assert(createInPageSaveOnceScript().includes("window.SaveData"), "save script uses page-native SaveData");
+  assert(!createInPageSaveOnceScript().includes("http.request"), "save script is not Node HTTP");
+
+  const parsedOk = parseSaveProductDataBusiness({
+    status: "1",
+    message: "Saved",
+    id: "99001",
+  });
+  assert(parsedOk.businessSuccess === true && parsedOk.portalProductId === "99001", "business success + response id parsed");
+
+  const parsedFail = parseSaveProductDataBusiness({
+    status: "0",
+    message: "Something went wrong",
+  });
+  assert(parsedFail.businessFailure === true, "business failure parsed from status 0");
+
+  const noId = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: null,
+    hiddenIdBefore: null,
+    hiddenIdAfter: null,
+  });
+  assert(noId.outcome === SAVE_OUTCOME.AMBIGUOUS, "business success without portal id is not SUCCESS");
+
+  const httpOnly = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: null,
+    portalProductId: null,
+  });
+  assert(httpOnly.outcome === SAVE_OUTCOME.AMBIGUOUS, "HTTP success without business success is not ENTERED-eligible");
+
+  const bizFail = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: false,
+    businessFailure: true,
+    portalProductId: null,
+  });
+  assert(bizFail.outcome === SAVE_OUTCOME.FAILURE, "portal business failure classified FAILURE");
+
+  const joint = classifySaveOutcome({
+    invoked: true,
+    invokeCount: 1,
+    httpOk: true,
+    businessSuccess: true,
+    portalProductId: "88001",
+    hiddenIdBefore: null,
+    hiddenIdAfter: "88001",
+  });
+  assert(joint.outcome === SAVE_OUTCOME.SUCCESS, "business success + proven id => SUCCESS");
+
+  let markEnteredCalls = 0;
+  const noPortalIdRun = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-noid-1", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: null,
+      hiddenIdBefore: "STALE-PREEXISTING",
+      hiddenIdAfter: "STALE-PREEXISTING",
+    }),
+    markEntered: async () => {
+      markEnteredCalls += 1;
+    },
+  });
+  assert(noPortalIdRun.ok === false, "stale hidden id does not complete");
+  assert(markEnteredCalls === 0, "stale hidden id never marks ENTERED");
+  assert(noPortalIdRun.requiresReadOnlyReconciliation === true, "missing portal id requires reconcile");
+
+  markEnteredCalls = 0;
+  const fakeInternalId = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-fake-262", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: "262",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "262",
+    }),
+    markEntered: async () => {
+      markEnteredCalls += 1;
+    },
+  });
+  assert(
+    fakeInternalId.code === "SAVE_AMBIGUOUS" || fakeInternalId.code === "PORTAL_ID_UNPROVEN",
+    "internal product id 262 cannot satisfy portal id",
+  );
+  assert(markEnteredCalls === 0, "renderer/internal 262 id never marks ENTERED");
+
+  let saveRetry = 0;
+  const ambSave = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-amb-1", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => {
+      saveRetry += 1;
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: null,
+        portalProductId: null,
+        hiddenIdBefore: null,
+        hiddenIdAfter: null,
+      };
+    },
+  });
+  assert(ambSave.code === "SAVE_AMBIGUOUS", "ambiguous save stops");
+  assert(saveRetry === 1, "ambiguous save does not retry SaveData");
+  assert(ambSave.requiresReadOnlyReconciliation === true, "ambiguous save requires reconcile");
+
+  let order = [];
+  await executeProductDetails(successInput, {
+    runBegin: async () => {
+      order.push("run_begin");
+      return { run_id: "run-order-1", workflow_row_version: 7 };
+    },
+    fillForm: async () => {
+      order.push("fill");
+      return { ok: true };
+    },
+    saveOnce: async () => {
+      order.push("save");
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: true,
+        portalProductId: "9001",
+        hiddenIdBefore: null,
+        hiddenIdAfter: "9001",
+      };
+    },
+    markEntered: async () => {
+      order.push("entered");
+      return { ok: true };
+    },
+    reread: async () => {
+      order.push("reread");
+      return {
+        name: "Karpooradi Thailam",
+        type: "1",
+        categoryId: "10",
+        subTypeId: "31",
+        permissionPurpose: { label: "Regular", value: "7" },
+        compositionTitle: "For 10 mL",
+        disease: "Sandhirujah, Śōpham",
+        indications: ["99"],
+        drugs: "NO",
+        remarks: GOVERNANCE_OVERRIDES.remarks,
+        shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+        attachmentFileName: null,
+        attachmentRereadUnavailable: true,
+      };
+    },
+    markPortalVerified: async () => {
+      order.push("verified");
+      return { ok: true };
+    },
+  });
+  assert(
+    order.join(",") === "run_begin,fill,save,entered,reread,verified",
+    "run_begin precedes first DOM mutation and retained reread precedes PORTAL_VERIFIED",
+  );
+
+  // Deterministic reread completion (offline harness around in-page script)
+  {
+    const rereadSrc = createInPageRereadScript();
+    assert(rereadSrc.includes("reread_load_timeout"), "reread script has bounded load timeout");
+    assert(rereadSrc.includes("reread_requested_id_mismatch"), "reread script proves requested id");
+    assert(rereadSrc.includes("GetproductDataUpdate"), "reread observes GetproductDataUpdate");
+    assert(!rereadSrc.includes("setTimeout(r, 400)"), "reread no longer relies on fixed 400ms sleep alone");
+
+    async function runRereadHarness({ settleDelayMs, httpStatus, returnedHiddenId, requestedId }) {
+      const prev = {
+        XMLHttpRequest: globalThis.XMLHttpRequest,
+        document: globalThis.document,
+        window: globalThis.window,
+        fetch: globalThis.fetch,
+      };
+      class FakeXHR {
+        open(_m, url) {
+          this.__sasvRereadUrl = url;
+        }
+        addEventListener(evt, cb) {
+          this[`_${evt}`] = cb;
+        }
+        send() {
+          setTimeout(() => {
+            this.status = httpStatus;
+            if (this._loadend) this._loadend();
+          }, settleDelayMs);
+        }
+      }
+      globalThis.XMLHttpRequest = FakeXHR;
+      globalThis.document = {
+        querySelector(sel) {
+          if (sel === "#id") return { value: returnedHiddenId };
+          if (sel === "#name") return { value: "Karpooradi Thailam" };
+          if (sel === "#type") return { value: "120" };
+          if (sel === "#categoryId") return { value: "278" };
+          if (sel === "#subTypeId") return { value: "274" };
+          if (sel === "#permissionPurpose") {
+            return {
+              value: "7",
+              selectedIndex: 0,
+              options: [{ textContent: "Regular" }],
+            };
+          }
+          if (sel === "#compositionTitle") return { value: "For 10 mL" };
+          if (sel === "#disease") return { value: "Sandhirujah, Śōpham" };
+          if (sel === "#drugsValue") return { value: "" };
+          if (sel === "#remarks") return { value: "x" };
+          if (sel === "#month") return { value: "-1" };
+          if (sel === "#actiontype" || sel === '[name="actiontype"]') return { value: "edit" };
+          if (sel === 'input[name="shelfmonth"]:checked') return { value: "RegularAsPerClause" };
+          if (sel === "select#indications") return { options: [] };
+          return null;
+        },
+        getElementById(id) {
+          if (id === "drug_no") return { checked: true };
+          if (id === "drug_yes") return { checked: false };
+          if (id === "id") return { value: returnedHiddenId };
+          return null;
+        },
+      };
+      globalThis.window = {
+        GetproductDataUpdate() {
+          const xhr = new FakeXHR();
+          xhr.open("POST", "../admin/GetproductDataUpdate");
+          xhr.send();
+        },
+      };
+      try {
+        // eslint-disable-next-line no-new-func
+        const fn = new Function(`${rereadSrc}; return __sasvRereadProductDetails;`)();
+        return await fn(requestedId);
+      } finally {
+        globalThis.XMLHttpRequest = prev.XMLHttpRequest;
+        globalThis.document = prev.document;
+        globalThis.window = prev.window;
+        globalThis.fetch = prev.fetch;
+      }
+    }
+
+    const slowOk = await runRereadHarness({
+      settleDelayMs: 120,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+    });
+    assert(slowOk.ok === true, "slow async GetproductDataUpdate is awaited to completion");
+    assert(slowOk.hiddenId === "9001", "requested portal id proven on reread snapshot");
+
+    const timedOut = await runRereadHarness({
+      settleDelayMs: 20000,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+    });
+    assert(timedOut.ok === false && timedOut.reason === "reread_load_timeout", "timeout => reread failure");
+
+    const wrongId = await runRereadHarness({
+      settleDelayMs: 20,
+      httpStatus: 200,
+      returnedHiddenId: "1111",
+      requestedId: "9001",
+    });
+    assert(
+      wrongId.ok === false && wrongId.reason === "reread_requested_id_mismatch",
+      "wrong returned id => reread failure",
+    );
+  }
+
+  let fillBeforeBegin = false;
+  const blockedPreflight = await executeProductDetails(
+    {
+      ...successInput,
+      duplicateSearch: {
+        source: "LoadProductDataforLegacy",
+        searchApplied: true,
+        searchTerm: "Karpooradi Thailam",
+        totalCount: 1,
+        rows: [{ name: "Karpooradi Thailam" }],
+        coverageComplete: true,
+      },
+    },
+    {
+      runBegin: async () => {
+        throw new Error("run_begin must not run");
+      },
+      fillForm: async () => {
+        fillBeforeBegin = true;
+      },
+    },
+  );
+  assert(blockedPreflight.runBegun === false, "duplicate at Start blocks before run_begin");
+  assert(fillBeforeBegin === false, "duplicate at Start blocks before DOM mutation");
+
+  const wrongOrigin = assertPageGuards({
+    ...readyPage,
+    origin: "https://evil.example",
+  });
+  assert(wrongOrigin.ok === false && wrongOrigin.code === "WRONG_ORIGIN", "wrong origin blocks before run_begin");
+
+  const wrongPath = assertPageGuards({
+    ...readyPage,
+    path: "/admin/other",
+  });
+  assert(wrongPath.ok === false && wrongPath.code === "WRONG_PATH", "wrong path blocks before run_begin");
+
+  const editMode = assertPageGuards({
+    ...readyPage,
+    actiontype: "edit",
+  });
+  assert(editMode.ok === false && editMode.code === "NOT_ADD_MODE", "Edit mode blocks before run_begin");
+
+  const liveArmedInject = sanitizeRendererCommand({
+    liveArmed: true,
+    portalProductId: "999",
+    productIds: [262],
+    userConfirmed: true,
+  });
+  assert(liveArmedInject.userConfirmed === true, "sanitize keeps userConfirmed only");
+  assert(
+    liveArmedInject.forbiddenPresent.includes("liveArmed") &&
+      liveArmedInject.forbiddenPresent.includes("portalProductId"),
+    "renderer cannot inject live arm or portal product id",
+  );
+
+  const fillSrc = createInPageFillScript();
+  assert(fillSrc.includes("setSelectByValue"), "fill script uses exact select value sets");
+  assert(!/submitProduct/.test(fillSrc), "fill script has no submitProduct");
+  assert(!/SaveComposition|addcomposition/i.test(fillSrc), "fill script has no Composition mutation");
+
+  assert(planResumeAction({ runStatus: "ENTERED" }).mayCreate === false, "resume mayCreate false after ENTERED");
+  assert(
+    !/SUBMITTED|mark_submitted|submitProduct\s*\(/.test(
+      readFileSync(join(root, "electron/eaushadhi-worker/product-details-executor.js"), "utf8"),
+    ),
+    "SUBMITTED / submitProduct unreachable from executor",
+  );
+
+  const controlSrcPhaseA = readFileSync(
+    join(root, "public/shared/js/eaushadhi-review-control.js"),
+    "utf8",
+  );
+  assert(controlSrcPhaseA.includes("Will NOT add Composition"), "UI confirm mentions no Composition");
+  assert(controlSrcPhaseA.includes("Will NOT final-submit"), "UI confirm mentions no final-submit");
+  assert(controlSrcPhaseA.includes("Product 262"), "UI confirm mentions Product 262");
+}
 
 if (failed) {
   console.error(`\n${failed} assertion(s) failed`);

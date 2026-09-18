@@ -51,6 +51,14 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "p_edit",
   // Trusted-only diagnostic hook — never accepted from renderer IPC.
   "reportPreviewStageFailure",
+  // Live arm / portal identity — trusted main-process only.
+  "liveArmed",
+  "PRODUCT_DETAILS_LIVE_ARM",
+  "productIds",
+  "portalProductId",
+  "portalProductRef",
+  "buildAdapters",
+  "approvedLocalPath",
 ]);
 
 /**

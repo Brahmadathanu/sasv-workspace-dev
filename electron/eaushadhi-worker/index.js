@@ -36,9 +36,14 @@ const {
   runLiveDuplicateSearch,
 } = require("./product-details-trusted");
 const { resolveApprovedProductCopyFile } = require("./approved-copy-resolve");
+const {
+  PRODUCT_DETAILS_LIVE_ARM,
+  isProductDetailsLiveArmedFor,
+} = require("./product-details-live-arm");
+const { buildProductDetailsLiveAdapters } = require("./product-details-live-adapters");
 
-/** Live portal mutation remains disarmed until a separate live-approval change. */
-const PRODUCT_DETAILS_LIVE_ARMED = false;
+/** Phase A: capability exists; live mutation remains disarmed until Phase B. */
+const PRODUCT_DETAILS_LIVE_ARMED = isProductDetailsLiveArmedFor(PD_PRODUCT_ID);
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const { captureOpenPages } = require("./capture");
 const { capturesRoot, isPathInsideRoot } = require("./capture/persist");
@@ -865,9 +870,10 @@ function createEaushadhiWorker({
   function buildProductDetailsTrustedDeps(accessToken) {
     // Snapshot the controlled Playwright page. There is no closure-level `page`.
     const activePage = controlledPage;
+    const liveArmed = isProductDetailsLiveArmedFor(PD_PRODUCT_ID);
     return {
       productId: PD_PRODUCT_ID,
-      liveArmed: PRODUCT_DETAILS_LIVE_ARMED,
+      liveArmed,
       page: activePage,
       callRpc: (name, args) => rpcCall(accessToken, name, args),
       getWorkerState: () => machine.get(),
@@ -896,12 +902,20 @@ function createEaushadhiWorker({
           error: sanitizeText(error?.message || String(error || code)),
         });
       },
-      // Adapters are constructed only here when live arm is enabled later.
-      buildAdapters: async () => {
-        throw workerError(
-          ERROR_KINDS.CRASH,
-          "Trusted Product Details adapters are not armed in this build.",
-        );
+      // Adapters are constructed only when Phase B arms live execution.
+      buildAdapters: async ({ authority } = {}) => {
+        if (!isProductDetailsLiveArmedFor(PD_PRODUCT_ID)) {
+          throw workerError(
+            ERROR_KINDS.CRASH,
+            "Trusted Product Details adapters are not armed in this build.",
+          );
+        }
+        return buildProductDetailsLiveAdapters({
+          page: activePage,
+          callRpc: (name, args) => rpcCall(accessToken, name, args),
+          authority,
+          log: (entry) => log(entry),
+        });
       },
     };
   }
