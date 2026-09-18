@@ -1243,8 +1243,8 @@ assert(
 
 const indexSrc = readFileSync(join(root, "electron/eaushadhi-worker/index.js"), "utf8");
 assert(
-  PRODUCT_DETAILS_LIVE_ARM.enabled === false && isProductDetailsLiveArmedFor(262) === false,
-  "Phase A live arm remains false for product 262",
+  PRODUCT_DETAILS_LIVE_ARM.enabled === true && isProductDetailsLiveArmedFor(262) === true,
+  "Phase B live arm is enabled for product 262",
 );
 assert(
   indexSrc.includes("isProductDetailsLiveArmedFor") &&
@@ -2008,22 +2008,38 @@ const concurrentFirstResult = await concurrentFirst;
 assert(concurrentFirstResult === "a", "save mutex first caller runs");
 assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurrent execution");
 
-// --- Phase A live capability (disarmed) focused coverage ---
+// --- Phase B live arm (product 262 only) focused coverage ---
 {
-  assert(PRODUCT_DETAILS_LIVE_ARM.productIds.includes(262), "allowlist may list 262 as inert config");
+  assert(
+    JSON.stringify(PRODUCT_DETAILS_LIVE_ARM.productIds) === JSON.stringify([262]),
+    "productIds exactly [262]",
+  );
+  assert(FIRST_CONTROLLED_PRODUCT_ID === 262, "FIRST_CONTROLLED_PRODUCT_ID remains 262");
   assert(isProductDetailsLiveArmedFor(999) === false, "non-262 never armed");
-  assert(isProductDetailsLiveArmedFor(262) === false, "262 remains disarmed while enabled=false");
+  assert(isProductDetailsLiveArmedFor(262) === true, "262 is armed when enabled=true");
 
-  let adapterBuildThrew = false;
+  let adapterBuildOk = false;
+  let adapterBuildError = null;
   try {
-    buildProductDetailsLiveAdapters({
-      page: { evaluate: async () => null },
-      callRpc: async () => ({}),
+    const adapters = buildProductDetailsLiveAdapters({
+      page: { evaluate: async () => null, $: async () => null },
+      callRpc: async () => {
+        throw new Error("adapter construction must not call portal/RPC");
+      },
     });
-  } catch {
-    adapterBuildThrew = true;
+    adapterBuildOk =
+      adapters &&
+      typeof adapters.runBegin === "function" &&
+      typeof adapters.fillForm === "function" &&
+      typeof adapters.saveOnce === "function" &&
+      typeof adapters.markEntered === "function" &&
+      typeof adapters.reread === "function" &&
+      typeof adapters.markPortalVerified === "function";
+  } catch (error) {
+    adapterBuildError = error;
   }
-  assert(adapterBuildThrew, "live adapters refuse construction while Phase A disarmed");
+  assert(adapterBuildOk === true && adapterBuildError == null, "live adapters construct under offline mocks when armed");
+  assert(adapterBuildError == null, "no portal call is made during adapter-construction test");
 
   const liveAdapterSrc = readFileSync(
     join(root, "electron/eaushadhi-worker/product-details-live-adapters.js"),
