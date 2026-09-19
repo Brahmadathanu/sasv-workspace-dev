@@ -60,6 +60,8 @@ const {
 const {
   buildProductDetailsLiveAdapters,
   createInPageRereadScript,
+  prepareApprovedCopyFilePayload,
+  APPROVED_COPY_MIME_TYPE,
   RUN_BEGIN_RPC,
   MARK_ENTERED_RPC,
   MARK_PORTAL_VERIFIED_RPC,
@@ -1450,6 +1452,258 @@ assert(
     !liveAdaptersSrc.includes(".endsWith(") && !liveAdaptersSrc.includes(".includes(EXPECTED"),
     "attachment proof is not weakened to substring/endsWith",
   );
+  assert(
+    !/setInputFiles\(\s*localPath\s*\)/.test(liveAdaptersSrc),
+    "path-mode setInputFiles(localPath) is no longer used for approved Product Copy",
+  );
+  assert(
+    liveAdaptersSrc.includes("prepareApprovedCopyFilePayload") &&
+      liveAdaptersSrc.includes("fs.readFileSync") &&
+      liveAdaptersSrc.includes('mimeType: APPROVED_COPY_MIME_TYPE') &&
+      liveAdaptersSrc.includes("name: EXPECTED_APPROVED_COPY_NAME"),
+    "approved copy uses FilePayload name+mimeType+buffer from trusted Node",
+  );
+  assert(
+    APPROVED_COPY_MIME_TYPE === "application/pdf",
+    "approved copy MIME type is application/pdf",
+  );
+}
+
+{
+  const fs = require("fs");
+  const pathMod = require("path");
+  const os = require("os");
+  const tmpRoot = fs.mkdtempSync(pathMod.join(os.tmpdir(), "sasv-filepayload-"));
+  const goodPath = pathMod.join(tmpRoot, "payload-source.bin");
+  fs.writeFileSync(goodPath, Buffer.from("%PDF-1.4 filepayload-smoke"));
+  const emptyPath = pathMod.join(tmpRoot, "empty.bin");
+  fs.writeFileSync(emptyPath, Buffer.alloc(0));
+  const missingPath = pathMod.join(tmpRoot, "missing-never-created.bin");
+
+  const payload = prepareApprovedCopyFilePayload(goodPath);
+  assert(payload.name === EXPECTED_APPROVED_COPY_NAME, "FilePayload name is exact V01 governed filename");
+  assert(payload.mimeType === "application/pdf", "FilePayload mimeType is application/pdf");
+  assert(Buffer.isBuffer(payload.buffer) && payload.buffer.length > 0, "FilePayload buffer is non-empty");
+  assert(
+    pathMod.basename(goodPath) !== EXPECTED_APPROVED_COPY_NAME,
+    "smoke source path basename differs from governed name (proves no basename fallback)",
+  );
+
+  let missingCode = null;
+  try {
+    prepareApprovedCopyFilePayload(missingPath);
+  } catch (error) {
+    missingCode = error.code || error.message;
+  }
+  assert(missingCode === "APPROVED_COPY_LOCAL_FILE_MISSING", "missing local file => APPROVED_COPY_LOCAL_FILE_MISSING");
+
+  let emptyCode = null;
+  try {
+    prepareApprovedCopyFilePayload(emptyPath);
+  } catch (error) {
+    emptyCode = error.code || error.message;
+  }
+  assert(emptyCode === "APPROVED_COPY_LOCAL_FILE_EMPTY", "empty local file => APPROVED_COPY_LOCAL_FILE_EMPTY");
+
+  let capturedPayload = null;
+  let proofName = EXPECTED_APPROVED_COPY_NAME;
+  let proofLength = 1;
+  const page = {
+    evaluate: async (fnOrArg, maybeArg) => {
+      // First call: in-page fill script factory
+      if (maybeArg && maybeArg.source) return { filled: ["txtProductName"] };
+      // Second call: browser file-input proof
+      return {
+        length: proofLength,
+        name: proofName,
+        type: "application/pdf",
+      };
+    },
+    $: async () => ({
+      setInputFiles: async (arg) => {
+        capturedPayload = arg;
+      },
+    }),
+  };
+  const adapters = buildProductDetailsLiveAdapters({
+    page,
+    callRpc: async () => ({}),
+    authority: { approvedLocalPath: goodPath },
+    log: () => {},
+  });
+  const fillOk = await adapters.fillForm({
+    fillPlan: { fields: [{ key: "uploadAttachment", fill: true }] },
+  });
+  assert(capturedPayload != null, "Playwright setInputFiles received a payload object");
+  assert(
+    typeof capturedPayload === "object" && !Array.isArray(capturedPayload),
+    "setInputFiles receives FilePayload object, not a path string",
+  );
+  assert(capturedPayload.name === EXPECTED_APPROVED_COPY_NAME, "Playwright FilePayload name exact V01");
+  assert(capturedPayload.mimeType === "application/pdf", "Playwright FilePayload mimeType application/pdf");
+  assert(
+    Buffer.isBuffer(capturedPayload.buffer) && capturedPayload.buffer.length > 0,
+    "Playwright FilePayload buffer non-empty",
+  );
+  assert(fillOk.approvedCopyProof?.applied === true, "successful FilePayload attachment proves applied");
+  assert(
+    fillOk.approvedCopyProof?.fileName === EXPECTED_APPROVED_COPY_NAME,
+    "browser file input proof: files[0].name === exact V01 filename",
+  );
+
+  // Proof mismatch
+  proofName = "WRONG.pdf";
+  let proofMismatch = null;
+  try {
+    await adapters.fillForm({
+      fillPlan: { fields: [{ key: "uploadAttachment", fill: true }] },
+    });
+  } catch (error) {
+    proofMismatch = error.code || error.message;
+  }
+  assert(proofMismatch === "APPROVED_COPY_NOT_APPLIED", "attachment proof mismatch => APPROVED_COPY_NOT_APPLIED");
+  proofName = EXPECTED_APPROVED_COPY_NAME;
+
+  // setInputFiles failure
+  const pageSetFail = {
+    evaluate: async (fnOrArg, maybeArg) => {
+      if (maybeArg && maybeArg.source) return { filled: [] };
+      return { length: 1, name: EXPECTED_APPROVED_COPY_NAME, type: "application/pdf" };
+    },
+    $: async () => ({
+      setInputFiles: async () => {
+        throw new Error("playwright_setInputFiles_boom");
+      },
+    }),
+  };
+  const adaptersSetFail = buildProductDetailsLiveAdapters({
+    page: pageSetFail,
+    callRpc: async () => ({}),
+    authority: { approvedLocalPath: goodPath },
+    log: () => {},
+  });
+  let setFailCode = null;
+  try {
+    await adaptersSetFail.fillForm({
+      fillPlan: { fields: [{ key: "uploadAttachment", fill: true }] },
+    });
+  } catch (error) {
+    setFailCode = error.code || error.message;
+  }
+  assert(
+    setFailCode === "APPROVED_COPY_SET_INPUT_FILES_FAILED",
+    "setInputFiles failure => APPROVED_COPY_SET_INPUT_FILES_FAILED",
+  );
+
+  // Structured executor mapping + SaveData=0
+  for (const code of [
+    "APPROVED_COPY_LOCAL_FILE_MISSING",
+    "APPROVED_COPY_LOCAL_FILE_EMPTY",
+    "APPROVED_COPY_LOCAL_FILE_READ_FAILED",
+    "APPROVED_COPY_SET_INPUT_FILES_FAILED",
+    "APPROVED_COPY_NOT_APPLIED",
+  ]) {
+    let saveCalls = 0;
+    let enteredCalls = 0;
+    let portalCalls = 0;
+    const result = await executeProductDetailsResume(resumeBaseInput, {
+      runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+      fillForm: async () => {
+        const err = new Error(code);
+        err.code = code;
+        throw err;
+      },
+      saveOnce: async () => {
+        saveCalls += 1;
+      },
+      markEntered: async () => {
+        enteredCalls += 1;
+      },
+      markPortalVerified: async () => {
+        portalCalls += 1;
+      },
+    });
+    assert(result.ok === false && result.code === code, `Resume maps ${code} structured (not IPC)`);
+    assert(saveCalls === 0, `${code}: SaveData = 0`);
+    assert(enteredCalls === 0, `${code}: markEntered = 0`);
+    assert(portalCalls === 0, `${code}: markPortalVerified = 0`);
+    assert(result.runId === resumeRunId, `${code}: same existing run preserved`);
+    assert(result.runBegun === false, `${code}: no second run_begin`);
+  }
+
+  // Successful FilePayload attachment allows execution to progress to save layer
+  let saveReached = 0;
+  let markEnteredReached = 0;
+  let markPortalReached = 0;
+  const progressToSave = await executeProductDetailsResume(resumeBaseInput, {
+    runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+    fillForm: async () => ({
+      approvedCopyProof: { applied: true, fileName: EXPECTED_APPROVED_COPY_NAME },
+    }),
+    saveOnce: async () => {
+      saveReached += 1;
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: true,
+        portalProductId: "7788",
+        hiddenIdBefore: null,
+        hiddenIdAfter: "7788",
+      };
+    },
+    markEntered: async () => {
+      markEnteredReached += 1;
+      return { ok: true, workflow_row_version: 7 };
+    },
+    reread: async () => ({
+      name: "Karpooradi Thailam",
+      type: "1",
+      categoryId: "10",
+      subTypeId: "31",
+      permissionPurpose: { label: "Regular", value: "7" },
+      compositionTitle: "For 10 mL",
+      disease: "Sandhirujah, Śōpham",
+      indications: ["99"],
+      drugs: "NO",
+      remarks: GOVERNANCE_OVERRIDES.remarks,
+      shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    }),
+    markPortalVerified: async () => {
+      markPortalReached += 1;
+      return { ok: true };
+    },
+  });
+  assert(saveReached === 1, "successful FilePayload attachment allows progress to save layer");
+  assert(markEnteredReached === 1, "markEntered unchanged after successful FilePayload path");
+  assert(markPortalReached === 1, "portal verification unchanged after successful FilePayload path");
+  assert(progressToSave.runId === resumeRunId, "successful FilePayload resume preserves same run");
+  assert(progressToSave.runBegun !== true, "successful FilePayload resume does not call run_begin");
+
+  // Temp cleanup lifecycle (trusted finally)
+  const trustedSrc = readFileSync(
+    join(root, "electron/eaushadhi-worker/product-details-trusted.js"),
+    "utf8",
+  );
+  assert(
+    trustedSrc.includes("invokeApprovedCopyCleanup") &&
+      trustedSrc.includes("approvedCopyCleanup") &&
+      /finally\s*\{[\s\S]*invokeApprovedCopyCleanup/.test(trustedSrc),
+    "temp approved-copy cleanup occurs after trusted execution/failure",
+  );
+  assert(
+    /"approvedCopyCleanup"/.test(trustedSrc) &&
+      trustedSrc.indexOf('"approvedCopyCleanup"') <
+        trustedSrc.indexOf("function sanitizeRendererCommand"),
+    "approvedCopyCleanup is renderer-forbidden",
+  );
+
+  try {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
 }
 
 {
@@ -2892,6 +3146,15 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   assert(liveAdapterSrc.includes('mode === "resume"'), "live adapters branch on resume mode");
   assert(/if \(mode === "resume"\)[\s\S]*runResume/.test(liveAdapterSrc), "resume mode exposes runResume");
   assert(liveAdapterSrc.includes("APPROVED_COPY_NOT_APPLIED"), "fillForm enforces APPROVED_COPY_NOT_APPLIED");
+  assert(
+    !/setInputFiles\(\s*localPath\s*\)/.test(liveAdapterSrc),
+    "live adapters no longer path-mode setInputFiles(localPath)",
+  );
+  assert(
+    liveAdapterSrc.includes("prepareApprovedCopyFilePayload") &&
+      liveAdapterSrc.includes("uploadAttachment_set_filepayload"),
+    "live adapters apply approved copy via FilePayload",
+  );
   assert(liveAdapterSrc.includes("GetproductDataUpdate"), "reread uses GetproductDataUpdate");
   assert(!/submitProduct\s*\(/.test(liveAdapterSrc), "live adapters never call submitProduct(");
   assert(!/composition/i.test(liveAdapterSrc) || liveAdapterSrc.includes("compositionTitle"), "no Composition mutation adapter");

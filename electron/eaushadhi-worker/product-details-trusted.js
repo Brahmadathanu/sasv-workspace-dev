@@ -61,6 +61,7 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "portalProductRef",
   "buildAdapters",
   "approvedLocalPath",
+  "approvedCopyCleanup",
   "runId",
   "run_id",
   "activeRun",
@@ -112,6 +113,17 @@ function notifyPreviewStageFailure(deps, stage, code, error) {
     deps.reportPreviewStageFailure({ stage, code, error });
   } catch {
     // Diagnostics must never break fail-closed preview.
+  }
+}
+
+/** Best-effort approved-copy cache cleanup. Never throws. Never logs paths. */
+function invokeApprovedCopyCleanup(authority) {
+  try {
+    if (typeof authority?.approvedCopyCleanup === "function") {
+      authority.approvedCopyCleanup();
+    }
+  } catch {
+    // ignore
   }
 }
 
@@ -728,6 +740,9 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     approvedFileName,
     approvedResolved,
     approvedLocalPath: approvedResolution?.localPath || null,
+    // Trusted-only cleanup handle — never forwarded to renderer.
+    approvedCopyCleanup:
+      typeof approvedResolution?.cleanup === "function" ? approvedResolution.cleanup : null,
     activeRunCount,
     activeRun,
     contentHashMatchesRunStart,
@@ -814,91 +829,96 @@ async function runTrustedProductDetailsPreview(deps = {}) {
     ...deps,
     requireEditPermission: false,
   });
-  if (!authority.ok) {
-    return applyLiveArmGate(
-      {
-        ok: false,
-        code: authority.code,
-        message: authority.message,
-        missing: authority.missing || [],
-        authority,
-        preview: {
-          productId: FIRST_CONTROLLED_PRODUCT_ID,
-          productName: EXPECTED_PORTAL_PRODUCT_NAME,
-          startEnabled: false,
-          blockers: [authority.code, ...(authority.missing || [])],
-          governanceBlockers: [],
-          contentHash: authority.contentHash || null,
-          workflowRowVersion: authority.workflowRowVersion || null,
+  try {
+    if (!authority.ok) {
+      return applyLiveArmGate(
+        {
+          ok: false,
+          code: authority.code,
+          message: authority.message,
+          missing: authority.missing || [],
+          authority,
+          preview: {
+            productId: FIRST_CONTROLLED_PRODUCT_ID,
+            productName: EXPECTED_PORTAL_PRODUCT_NAME,
+            startEnabled: false,
+            blockers: [authority.code, ...(authority.missing || [])],
+            governanceBlockers: [],
+            contentHash: authority.contentHash || null,
+            workflowRowVersion: authority.workflowRowVersion || null,
+          },
         },
-      },
-      liveArmed,
-    );
-  }
+        liveArmed,
+      );
+    }
 
-  const executorInput = buildTrustedExecutorInput(authority, { userConfirmed: false });
-  const assessment = assessProductDetailsPreflight(executorInput);
-  const resumePlan = executorInput.resumePlan;
-  assessment.resumePlan = resumePlan;
+    const executorInput = buildTrustedExecutorInput(authority, { userConfirmed: false });
+    const assessment = assessProductDetailsPreflight(executorInput);
+    const resumePlan = executorInput.resumePlan;
+    assessment.resumePlan = resumePlan;
 
-  const entryUpper = String(authority.entryStatus).toUpperCase();
-  if (
-    (entryUpper === "IN_PROGRESS" || entryUpper === "ENTERED") &&
-    resumePlan.resumeEnabled === true
-  ) {
-    const resumeAssessment = assessProductDetailsResumePreflight({
-      ...executorInput,
-      resume: true,
-    });
-    assessment.resumePreflight = resumeAssessment;
-    if (resumeAssessment.ok === true) {
-      assessment.ok = true;
-      assessment.code = "RESUME_PREFLIGHT_PASS";
-      assessment.message =
-        resumeAssessment.message ||
-        "Interrupted Product Details run detected. Resume/reconcile the existing run.";
+    const entryUpper = String(authority.entryStatus).toUpperCase();
+    if (
+      (entryUpper === "IN_PROGRESS" || entryUpper === "ENTERED") &&
+      resumePlan.resumeEnabled === true
+    ) {
+      const resumeAssessment = assessProductDetailsResumePreflight({
+        ...executorInput,
+        resume: true,
+      });
+      assessment.resumePreflight = resumeAssessment;
+      if (resumeAssessment.ok === true) {
+        assessment.ok = true;
+        assessment.code = "RESUME_PREFLIGHT_PASS";
+        assessment.message =
+          resumeAssessment.message ||
+          "Interrupted Product Details run detected. Resume/reconcile the existing run.";
+        assessment.preview = {
+          ...(resumeAssessment.preview || assessment.preview),
+          startEnabled: false,
+          resumeEnabled: true,
+          resumeMessage:
+            resumeAssessment.preview?.resumeMessage ||
+            resumePlan.message ||
+            "Interrupted Product Details run detected. Resume/reconcile the existing run.",
+          blockers: resumeAssessment.preview?.blockers || [],
+        };
+      } else {
+        assessment.ok = false;
+        assessment.code = resumeAssessment.code || assessment.code;
+        assessment.message = resumeAssessment.message || assessment.message;
+        assessment.preview = {
+          ...(resumeAssessment.preview || assessment.preview),
+          startEnabled: false,
+          resumeEnabled: false,
+          resumeMessage:
+            resumeAssessment.preview?.resumeMessage ||
+            resumePlan.message ||
+            assessment.message,
+          blockers: resumeAssessment.preview?.blockers || assessment.preview?.blockers || [],
+        };
+      }
+    } else if (resumePlan) {
       assessment.preview = {
-        ...(resumeAssessment.preview || assessment.preview),
-        startEnabled: false,
-        resumeEnabled: true,
-        resumeMessage:
-          resumeAssessment.preview?.resumeMessage ||
-          resumePlan.message ||
-          "Interrupted Product Details run detected. Resume/reconcile the existing run.",
-        blockers: resumeAssessment.preview?.blockers || [],
-      };
-    } else {
-      assessment.ok = false;
-      assessment.code = resumeAssessment.code || assessment.code;
-      assessment.message = resumeAssessment.message || assessment.message;
-      assessment.preview = {
-        ...(resumeAssessment.preview || assessment.preview),
-        startEnabled: false,
+        ...assessment.preview,
         resumeEnabled: false,
-        resumeMessage:
-          resumeAssessment.preview?.resumeMessage ||
-          resumePlan.message ||
-          assessment.message,
-        blockers: resumeAssessment.preview?.blockers || assessment.preview?.blockers || [],
+        resumeMessage: resumePlan.message || null,
       };
     }
-  } else if (resumePlan) {
-    assessment.preview = {
-      ...assessment.preview,
-      resumeEnabled: false,
-      resumeMessage: resumePlan.message || null,
-    };
-  }
 
-  assessment.authority = {
-    source: "trusted_main_process",
-    contentHash: authority.contentHash,
-    workflowRowVersion: authority.workflowRowVersion,
-    duplicateOutcome: evaluateDuplicateGuard(authority.duplicateSearch).outcome,
-    activeRunCount: authority.activeRunCount,
-    requireEditPermission: false,
-  };
-  return applyLiveArmGate(assessment, liveArmed);
+    assessment.authority = {
+      source: "trusted_main_process",
+      contentHash: authority.contentHash,
+      workflowRowVersion: authority.workflowRowVersion,
+      duplicateOutcome: evaluateDuplicateGuard(authority.duplicateSearch).outcome,
+      activeRunCount: authority.activeRunCount,
+      requireEditPermission: false,
+    };
+    return applyLiveArmGate(assessment, liveArmed);
+  } finally {
+    // Preview never uploads — release downloaded temp copy after assessment.
+    invokeApprovedCopyCleanup(authority);
+  }
 }
 
 /**
@@ -919,24 +939,28 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
     // Still collect authority so Start does not trust a prior renderer preview,
     // but never cross the mutation boundary while disarmed.
     const authority = await collectAuthoritativeProductDetailsContext(startDeps);
-    return {
-      ok: false,
-      code: "LIVE_EXECUTION_NOT_ARMED",
-      message:
-        "Live Product Details execution is implemented but disarmed. No run_begin / SaveData / mark_* will run until separate live approval arms it.",
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-      resumePlan: planResumeAction({ runStatus: null }),
-      authorityCode: authority.code,
-      authorityMissing: authority.missing || [],
-      requireEditPermission: true,
-      preflight: authority.ok
-        ? assessProductDetailsPreflight(
-            buildTrustedExecutorInput(authority, { userConfirmed: false }),
-          )
-        : null,
-    };
+    try {
+      return {
+        ok: false,
+        code: "LIVE_EXECUTION_NOT_ARMED",
+        message:
+          "Live Product Details execution is implemented but disarmed. No run_begin / SaveData / mark_* will run until separate live approval arms it.",
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+        resumePlan: planResumeAction({ runStatus: null }),
+        authorityCode: authority.code,
+        authorityMissing: authority.missing || [],
+        requireEditPermission: true,
+        preflight: authority.ok
+          ? assessProductDetailsPreflight(
+              buildTrustedExecutorInput(authority, { userConfirmed: false }),
+            )
+          : null,
+      };
+    } finally {
+      invokeApprovedCopyCleanup(authority);
+    }
   }
 
   if (!userConfirmed) {
@@ -952,43 +976,47 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
   }
 
   const authority = await collectAuthoritativeProductDetailsContext(startDeps);
-  if (!authority.ok) {
-    return {
-      ok: false,
-      code: authority.code,
-      message: authority.message,
-      missing: authority.missing || [],
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-      requireEditPermission: true,
-    };
-  }
+  try {
+    if (!authority.ok) {
+      return {
+        ok: false,
+        code: authority.code,
+        message: authority.message,
+        missing: authority.missing || [],
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+        requireEditPermission: true,
+      };
+    }
 
-  const input = buildTrustedExecutorInput(authority, { userConfirmed: true });
-  if (typeof deps.buildAdapters !== "function") {
-    return {
-      ok: false,
-      code: "ADAPTERS_NOT_BUILT",
-      message: "Trusted adapters were not constructed by main process.",
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-    };
-  }
-  const adapters = await deps.buildAdapters({ authority, input, mode: "start" });
-  if (!adapters || typeof adapters !== "object" || adapters.__fromRenderer === true) {
-    return {
-      ok: false,
-      code: "ADAPTERS_REJECTED",
-      message: "Renderer-origin adapters are forbidden.",
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-    };
-  }
+    const input = buildTrustedExecutorInput(authority, { userConfirmed: true });
+    if (typeof deps.buildAdapters !== "function") {
+      return {
+        ok: false,
+        code: "ADAPTERS_NOT_BUILT",
+        message: "Trusted adapters were not constructed by main process.",
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+      };
+    }
+    const adapters = await deps.buildAdapters({ authority, input, mode: "start" });
+    if (!adapters || typeof adapters !== "object" || adapters.__fromRenderer === true) {
+      return {
+        ok: false,
+        code: "ADAPTERS_REJECTED",
+        message: "Renderer-origin adapters are forbidden.",
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+      };
+    }
 
-  return executeProductDetails(input, adapters);
+    return await executeProductDetails(input, adapters);
+  } finally {
+    invokeApprovedCopyCleanup(authority);
+  }
 }
 
 /**
@@ -1005,33 +1033,37 @@ async function runTrustedProductDetailsResume(deps = {}, command = {}) {
 
   if (!liveArmed) {
     const authority = await collectAuthoritativeProductDetailsContext(resumeDeps);
-    return {
-      ok: false,
-      code: "LIVE_EXECUTION_NOT_ARMED",
-      message:
-        "Live Product Details resume is implemented but disarmed. No run_resume / SaveData / mark_* will run until separate live approval arms it.",
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-      runResumed: false,
-      resumePlan: planResumeAction({
-        entryStatus: authority.entryStatus,
-        activeRunCount: authority.activeRunCount,
-        activeRun: authority.activeRun,
-        workflowPortalRef: authority.workflowPortalRef,
-        duplicateOutcome: authority.duplicateSearch
-          ? evaluateDuplicateGuard(authority.duplicateSearch).outcome
+    try {
+      return {
+        ok: false,
+        code: "LIVE_EXECUTION_NOT_ARMED",
+        message:
+          "Live Product Details resume is implemented but disarmed. No run_resume / SaveData / mark_* will run until separate live approval arms it.",
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+        resumePlan: planResumeAction({
+          entryStatus: authority.entryStatus,
+          activeRunCount: authority.activeRunCount,
+          activeRun: authority.activeRun,
+          workflowPortalRef: authority.workflowPortalRef,
+          duplicateOutcome: authority.duplicateSearch
+            ? evaluateDuplicateGuard(authority.duplicateSearch).outcome
+            : null,
+        }),
+        authorityCode: authority.code,
+        authorityMissing: authority.missing || [],
+        requireEditPermission: true,
+        preflight: authority.ok
+          ? assessProductDetailsResumePreflight(
+              buildTrustedExecutorInput(authority, { userConfirmed: false, resume: true }),
+            )
           : null,
-      }),
-      authorityCode: authority.code,
-      authorityMissing: authority.missing || [],
-      requireEditPermission: true,
-      preflight: authority.ok
-        ? assessProductDetailsResumePreflight(
-            buildTrustedExecutorInput(authority, { userConfirmed: false, resume: true }),
-          )
-        : null,
-    };
+      };
+    } finally {
+      invokeApprovedCopyCleanup(authority);
+    }
   }
 
   if (!userConfirmed) {
@@ -1048,57 +1080,61 @@ async function runTrustedProductDetailsResume(deps = {}, command = {}) {
   }
 
   const authority = await collectAuthoritativeProductDetailsContext(resumeDeps);
-  if (!authority.ok) {
-    return {
-      ok: false,
-      code: authority.code,
-      message: authority.message,
-      missing: authority.missing || [],
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-      runResumed: false,
-      requireEditPermission: true,
-    };
-  }
+  try {
+    if (!authority.ok) {
+      return {
+        ok: false,
+        code: authority.code,
+        message: authority.message,
+        missing: authority.missing || [],
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+        requireEditPermission: true,
+      };
+    }
 
-  const input = buildTrustedExecutorInput(authority, { userConfirmed: true, resume: true });
-  if (typeof deps.buildAdapters !== "function") {
-    return {
-      ok: false,
-      code: "ADAPTERS_NOT_BUILT",
-      message: "Trusted adapters were not constructed by main process.",
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-      runResumed: false,
-    };
-  }
-  const adapters = await deps.buildAdapters({ authority, input, mode: "resume" });
-  if (!adapters || typeof adapters !== "object" || adapters.__fromRenderer === true) {
-    return {
-      ok: false,
-      code: "ADAPTERS_REJECTED",
-      message: "Renderer-origin adapters are forbidden.",
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-      runResumed: false,
-    };
-  }
-  if (typeof adapters.runBegin === "function") {
-    return {
-      ok: false,
-      code: "RESUME_HAS_RUN_BEGIN",
-      message: "Resume adapters must not include runBegin.",
-      inventedFailureRpcCalled: false,
-      mutated: false,
-      runBegun: false,
-      runResumed: false,
-    };
-  }
+    const input = buildTrustedExecutorInput(authority, { userConfirmed: true, resume: true });
+    if (typeof deps.buildAdapters !== "function") {
+      return {
+        ok: false,
+        code: "ADAPTERS_NOT_BUILT",
+        message: "Trusted adapters were not constructed by main process.",
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+    const adapters = await deps.buildAdapters({ authority, input, mode: "resume" });
+    if (!adapters || typeof adapters !== "object" || adapters.__fromRenderer === true) {
+      return {
+        ok: false,
+        code: "ADAPTERS_REJECTED",
+        message: "Renderer-origin adapters are forbidden.",
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+    if (typeof adapters.runBegin === "function") {
+      return {
+        ok: false,
+        code: "RESUME_HAS_RUN_BEGIN",
+        message: "Resume adapters must not include runBegin.",
+        inventedFailureRpcCalled: false,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
 
-  return executeProductDetailsResume(input, adapters);
+    return await executeProductDetailsResume(input, adapters);
+  } finally {
+    invokeApprovedCopyCleanup(authority);
+  }
 }
 
 module.exports = {

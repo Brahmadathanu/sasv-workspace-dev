@@ -9,6 +9,7 @@
  * source guards that scan index.js remain valid while Phase A is disarmed.
  */
 
+const fs = require("fs");
 const { FIRST_CONTROLLED_PRODUCT_ID } = require("./product-lock");
 const { EXPECTED_APPROVED_COPY_NAME } = require("./product-details-field-map");
 const { createInPageFillScript } = require("./portal-dom-fill");
@@ -19,6 +20,70 @@ const RUN_BEGIN_RPC = "rpc_eaushadhi_worker_run_begin";
 const RUN_RESUME_RPC = "rpc_eaushadhi_worker_run_resume";
 const MARK_ENTERED_RPC = "rpc_eaushadhi_worker_mark_entered";
 const MARK_PORTAL_VERIFIED_RPC = "rpc_eaushadhi_worker_mark_portal_verified";
+const APPROVED_COPY_MIME_TYPE = "application/pdf";
+
+/**
+ * Build a Playwright FilePayload for the governed approved Product Copy.
+ * Never derives browser File.name from a temp path — name is the trusted constant.
+ * Throws Error with .code set to a structured APPROVED_COPY_* class (no filesystem path in message).
+ */
+function prepareApprovedCopyFilePayload(localPath) {
+  const pathStr = localPath == null ? "" : String(localPath).trim();
+  if (!pathStr) {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_MISSING");
+    err.code = "APPROVED_COPY_LOCAL_FILE_MISSING";
+    throw err;
+  }
+  let exists = false;
+  try {
+    exists = fs.existsSync(pathStr);
+  } catch {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_MISSING");
+    err.code = "APPROVED_COPY_LOCAL_FILE_MISSING";
+    throw err;
+  }
+  if (!exists) {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_MISSING");
+    err.code = "APPROVED_COPY_LOCAL_FILE_MISSING";
+    throw err;
+  }
+  let stat;
+  try {
+    stat = fs.statSync(pathStr);
+  } catch {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_READ_FAILED");
+    err.code = "APPROVED_COPY_LOCAL_FILE_READ_FAILED";
+    throw err;
+  }
+  if (!stat || typeof stat.isFile !== "function" || !stat.isFile()) {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_NOT_REGULAR");
+    err.code = "APPROVED_COPY_LOCAL_FILE_NOT_REGULAR";
+    throw err;
+  }
+  if (!Number.isFinite(stat.size) || stat.size <= 0) {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_EMPTY");
+    err.code = "APPROVED_COPY_LOCAL_FILE_EMPTY";
+    throw err;
+  }
+  let buffer;
+  try {
+    buffer = fs.readFileSync(pathStr);
+  } catch {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_READ_FAILED");
+    err.code = "APPROVED_COPY_LOCAL_FILE_READ_FAILED";
+    throw err;
+  }
+  if (!Buffer.isBuffer(buffer) || buffer.length <= 0) {
+    const err = new Error("APPROVED_COPY_LOCAL_FILE_EMPTY");
+    err.code = "APPROVED_COPY_LOCAL_FILE_EMPTY";
+    throw err;
+  }
+  return {
+    name: EXPECTED_APPROVED_COPY_NAME,
+    mimeType: APPROVED_COPY_MIME_TYPE,
+    buffer,
+  };
+}
 
 function createInPageRereadScript() {
   return `async function __sasvRereadProductDetails(portalProductId) {
@@ -269,33 +334,63 @@ function buildProductDetailsLiveAdapters(deps = {}) {
       let approvedCopyProof = null;
       if (uploadField) {
         if (!localPath) {
-          throw new Error("approved_local_path_missing_for_upload");
+          const err = new Error("approved_local_path_missing_for_upload");
+          err.code = "APPROVED_COPY_LOCAL_PATH_MISSING";
+          throw err;
         }
+        // Read into FilePayload in trusted Node — do not pass filesystem path to Playwright.
+        const filePayload = prepareApprovedCopyFilePayload(localPath);
         const handle = await page.$("#uploadAttachment");
         if (!handle) {
-          throw new Error("uploadAttachment_input_missing");
+          const err = new Error("uploadAttachment_input_missing");
+          err.code = "UPLOAD_ATTACHMENT_INPUT_MISSING";
+          throw err;
         }
-        await handle.setInputFiles(localPath);
+        try {
+          await handle.setInputFiles({
+            name: EXPECTED_APPROVED_COPY_NAME,
+            mimeType: APPROVED_COPY_MIME_TYPE,
+            buffer: filePayload.buffer,
+          });
+        } catch (error) {
+          const existing = String(error?.code || error?.message || "");
+          if (/^APPROVED_COPY_|^UPLOAD_ATTACHMENT_/.test(existing)) throw error;
+          const err = new Error("APPROVED_COPY_SET_INPUT_FILES_FAILED");
+          err.code = "APPROVED_COPY_SET_INPUT_FILES_FAILED";
+          log({
+            phase: "product-details-fill",
+            productId: FIRST_CONTROLLED_PRODUCT_ID,
+            detail: "setInputFiles_failed",
+            errorClass: "APPROVED_COPY_SET_INPUT_FILES_FAILED",
+          });
+          throw err;
+        }
         const proof = await page.evaluate(() => {
           const el = document.querySelector("#uploadAttachment");
           return {
             length: el && el.files ? el.files.length : 0,
             name: el && el.files && el.files[0] ? el.files[0].name : null,
+            type: el && el.files && el.files[0] ? el.files[0].type : null,
           };
         });
         if (proof.length !== 1 || proof.name !== EXPECTED_APPROVED_COPY_NAME) {
-          throw new Error("APPROVED_COPY_NOT_APPLIED");
+          const err = new Error("APPROVED_COPY_NOT_APPLIED");
+          err.code = "APPROVED_COPY_NOT_APPLIED";
+          throw err;
         }
         approvedCopyProof = {
           applied: true,
           fileName: proof.name,
           length: proof.length,
+          mimeType: proof.type || null,
         };
         log({
           phase: "product-details-fill",
           productId: FIRST_CONTROLLED_PRODUCT_ID,
-          detail: "uploadAttachment_set",
+          detail: "uploadAttachment_set_filepayload",
           expectedFileName: EXPECTED_APPROVED_COPY_NAME,
+          mimeType: APPROVED_COPY_MIME_TYPE,
+          bufferBytes: filePayload.buffer.length,
         });
       }
       log({
@@ -422,6 +517,8 @@ function buildProductDetailsLiveAdapters(deps = {}) {
 module.exports = {
   buildProductDetailsLiveAdapters,
   createInPageRereadScript,
+  prepareApprovedCopyFilePayload,
+  APPROVED_COPY_MIME_TYPE,
   RUN_BEGIN_RPC,
   RUN_RESUME_RPC,
   MARK_ENTERED_RPC,
