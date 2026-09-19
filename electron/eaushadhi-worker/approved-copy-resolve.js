@@ -11,7 +11,7 @@ const { randomUUID } = require("crypto");
 const { FIRST_CONTROLLED_PRODUCT_ID } = require("./product-lock");
 const { EXPECTED_APPROVED_COPY_NAME } = require("./product-details-field-map");
 const { namesEqualExact } = require("./lookup-equality");
-const { createUserScopedClient } = require("./server-client");
+const serverClient = require("./server-client");
 const { isPathInsideRoot } = require("./capture/persist");
 
 const APPROVED_COPY_CACHE_DIR = "eaushadhi-approved-copy-cache";
@@ -162,19 +162,54 @@ async function resolveApprovedProductCopyFile(args = {}) {
       message: "Approved product copy cache could not be prepared.",
     };
   }
+  // Preserve exact governed basename for Playwright File.name proof.
+  // Uniqueness is via parent directory only — never prefix the filename.
   const safeName = path.basename(fileName).replace(/[^\w.\-]+/g, "_");
-  const localPath = path.join(cacheRoot, `${randomUUID()}-${safeName}`);
-  if (!isPathInsideRoot(localPath, cacheRoot)) {
+  if (!filenameMatchesGoverned(safeName)) {
+    return {
+      ok: false,
+      code: "APPROVED_COPY_NAME_MISMATCH",
+      message: `Expected governed filename ${EXPECTED_APPROVED_COPY_NAME}.`,
+      fileName: safeName || fileName || null,
+    };
+  }
+  const uniqueDir = path.join(cacheRoot, randomUUID());
+  const localPath = path.join(uniqueDir, safeName);
+  if (!isPathInsideRoot(uniqueDir, cacheRoot) || !isPathInsideRoot(localPath, cacheRoot)) {
     return {
       ok: false,
       code: "APPROVED_COPY_PATH_ESCAPE",
       message: "Resolved temp path escaped the worker cache root.",
     };
   }
+  try {
+    fs.mkdirSync(uniqueDir, { recursive: true });
+  } catch {
+    return {
+      ok: false,
+      code: "APPROVED_COPY_CACHE_FAILED",
+      message: "Approved product copy cache could not be prepared.",
+    };
+  }
+
+  const removeTempArtifacts = () => {
+    try {
+      if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+    } catch {
+      // best-effort
+    }
+    try {
+      if (fs.existsSync(uniqueDir)) {
+        fs.rmSync(uniqueDir, { recursive: true, force: true });
+      }
+    } catch {
+      // best-effort
+    }
+  };
 
   let signedUrl = null;
   try {
-    const client = createUserScopedClient(args.accessToken);
+    const client = serverClient.createUserScopedClient(args.accessToken);
     try {
       const { data, error } = await client.storage
         .from(storageBucket)
@@ -189,6 +224,7 @@ async function resolveApprovedProductCopyFile(args = {}) {
       }
     }
   } catch (error) {
+    removeTempArtifacts();
     return {
       ok: false,
       code: "APPROVED_COPY_SIGNED_URL_FAILED",
@@ -197,6 +233,7 @@ async function resolveApprovedProductCopyFile(args = {}) {
   }
 
   if (!signedUrl) {
+    removeTempArtifacts();
     return {
       ok: false,
       code: "APPROVED_COPY_SIGNED_URL_MISSING",
@@ -207,6 +244,7 @@ async function resolveApprovedProductCopyFile(args = {}) {
   try {
     const response = await fetch(signedUrl);
     if (!response.ok) {
+      removeTempArtifacts();
       return {
         ok: false,
         code: "APPROVED_COPY_DOWNLOAD_FAILED",
@@ -215,6 +253,7 @@ async function resolveApprovedProductCopyFile(args = {}) {
     }
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer.length) {
+      removeTempArtifacts();
       return {
         ok: false,
         code: "APPROVED_COPY_EMPTY",
@@ -223,11 +262,7 @@ async function resolveApprovedProductCopyFile(args = {}) {
     }
     fs.writeFileSync(localPath, buffer);
   } catch (error) {
-    try {
-      if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
-    } catch {
-      // ignore
-    }
+    removeTempArtifacts();
     return {
       ok: false,
       code: "APPROVED_COPY_DOWNLOAD_FAILED",
@@ -236,18 +271,14 @@ async function resolveApprovedProductCopyFile(args = {}) {
   }
 
   const cleanup = () => {
-    try {
-      if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
-    } catch {
-      // best-effort
-    }
+    removeTempArtifacts();
   };
 
   return {
     ok: true,
     code: "APPROVED_COPY_RESOLVED",
     productId,
-    fileName,
+    fileName: safeName,
     storageBucket,
     storagePath,
     localPath,

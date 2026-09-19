@@ -43,6 +43,7 @@ const {
 const {
   resolveApprovedProductCopyFile,
   filenameMatchesGoverned,
+  approvedCopyCacheRoot,
 } = require(join(root, "electron/eaushadhi-worker/approved-copy-resolve.js"));
 const {
   compareProductDetailsReread,
@@ -849,6 +850,120 @@ assert(
 }
 
 {
+  const fs = require("fs");
+  const pathMod = require("path");
+  const serverClient = require(join(root, "electron/eaushadhi-worker/server-client.js"));
+  const cacheRoot = approvedCopyCacheRoot(join(root, ".tmp-smoke-userdata-approved"));
+  const origCreate = serverClient.createUserScopedClient;
+  const origFetch = globalThis.fetch;
+  serverClient.createUserScopedClient = () => ({
+    storage: {
+      from() {
+        return {
+          async createSignedUrl() {
+            return { data: { signedUrl: "https://example.test/approved.pdf" }, error: null };
+          },
+        };
+      },
+    },
+    async removeAllChannels() {},
+  });
+  globalThis.fetch = async () => ({
+    ok: true,
+    async arrayBuffer() {
+      return Buffer.from("%PDF-1.4 smoke");
+    },
+  });
+  let resolvedA;
+  let resolvedB;
+  try {
+    const commonArgs = {
+      productId: 262,
+      accessToken: "tok",
+      userDataPath: join(root, ".tmp-smoke-userdata-approved"),
+      evidence: {
+        approved_product_copy_present: true,
+        original_file_name: EXPECTED_APPROVED_COPY_NAME,
+        storage_bucket: "eaushadhi-evidence",
+        storage_path: "p/ok.pdf",
+      },
+      callRpc: async () => ({
+        original_file_name: EXPECTED_APPROVED_COPY_NAME,
+        storage_bucket: "eaushadhi-evidence",
+        storage_path: "p/ok.pdf",
+      }),
+    };
+    resolvedA = await resolveApprovedProductCopyFile(commonArgs);
+    resolvedB = await resolveApprovedProductCopyFile(commonArgs);
+    assert(resolvedA.ok === true, "approved-copy resolve succeeds with mocked download");
+    assert(resolvedB.ok === true, "second approved-copy resolve succeeds");
+    assert(
+      pathMod.basename(resolvedA.localPath) === EXPECTED_APPROVED_COPY_NAME,
+      "resolved local path basename equals exact governed V01 filename",
+    );
+    assert(
+      pathMod.basename(resolvedB.localPath) === EXPECTED_APPROVED_COPY_NAME,
+      "second resolve also preserves exact governed basename",
+    );
+    assert(
+      pathMod.dirname(resolvedA.localPath) !== pathMod.dirname(resolvedB.localPath),
+      "two resolutions use distinct parent directories",
+    );
+    assert(
+      pathMod.basename(resolvedA.localPath) === pathMod.basename(resolvedB.localPath),
+      "distinct dirs share the same exact basename",
+    );
+    assert(
+      resolvedA.localPath.startsWith(cacheRoot) && resolvedB.localPath.startsWith(cacheRoot),
+      "local paths remain inside approved-copy cache root",
+    );
+    assert(fs.existsSync(resolvedA.localPath), "resolved file exists before cleanup");
+    const dirA = pathMod.dirname(resolvedA.localPath);
+    resolvedA.cleanup();
+    assert(!fs.existsSync(resolvedA.localPath), "cleanup removes downloaded file");
+    assert(!fs.existsSync(dirA), "cleanup removes unique directory");
+    resolvedB.cleanup();
+    assert(!fs.existsSync(resolvedB.localPath), "second cleanup removes file");
+  } finally {
+    serverClient.createUserScopedClient = origCreate;
+    globalThis.fetch = origFetch;
+    if (resolvedA?.cleanup) {
+      try {
+        resolvedA.cleanup();
+      } catch {
+        // ignore
+      }
+    }
+    if (resolvedB?.cleanup) {
+      try {
+        resolvedB.cleanup();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const nameMismatch = await resolveApprovedProductCopyFile({
+    productId: 262,
+    accessToken: "tok",
+    userDataPath: join(root, ".tmp-smoke-userdata-approved"),
+    evidence: {
+      approved_product_copy_present: true,
+      original_file_name: "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V00.pdf",
+    },
+    callRpc: async () => ({
+      original_file_name: "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V00.pdf",
+      storage_bucket: "eaushadhi-evidence",
+      storage_path: "p/bad.pdf",
+    }),
+  });
+  assert(
+    nameMismatch.ok === false && nameMismatch.code === "APPROVED_COPY_NAME_MISMATCH",
+    "filename mismatch still rejected",
+  );
+}
+
+{
   const okResolve = await resolveApprovedProductCopyFile({
     productId: 262,
     accessToken: "tok",
@@ -1254,6 +1369,88 @@ assert(
     markPortalVerifiedArgs.compareReport.items.length > 0,
   "mark_portal_verified compare report has items",
 );
+
+{
+  let startSaveCalls = 0;
+  let startEnteredCalls = 0;
+  let startPortalCalls = 0;
+  const startFillFail = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-fill-fail", workflow_row_version: 7 }),
+    fillForm: async () => {
+      throw new Error("APPROVED_COPY_NOT_APPLIED");
+    },
+    saveOnce: async () => {
+      startSaveCalls += 1;
+      throw new Error("saveOnce must not run after fill failure");
+    },
+    markEntered: async () => {
+      startEnteredCalls += 1;
+      throw new Error("markEntered must not run after fill failure");
+    },
+    markPortalVerified: async () => {
+      startPortalCalls += 1;
+      throw new Error("markPortalVerified must not run after fill failure");
+    },
+  });
+  assert(
+    startFillFail.ok === false && startFillFail.code === "APPROVED_COPY_NOT_APPLIED",
+    "Start fill attachment failure returns structured code, not thrown IPC failure",
+  );
+  assert(startSaveCalls === 0, "Start attachment failure: SaveData called zero times");
+  assert(startEnteredCalls === 0, "Start attachment failure: markEntered called zero times");
+  assert(startPortalCalls === 0, "Start attachment failure: markPortalVerified called zero times");
+  assert(startFillFail.runBegun === true, "Start fill failure occurs after run_begin");
+}
+
+{
+  let resumeSaveCalls = 0;
+  let resumeEnteredCalls = 0;
+  let resumePortalCalls = 0;
+  const resumeFillFail = await executeProductDetailsResume(resumeBaseInput, {
+    runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+    fillForm: async () => {
+      throw new Error("APPROVED_COPY_NOT_APPLIED");
+    },
+    saveOnce: async () => {
+      resumeSaveCalls += 1;
+      throw new Error("saveOnce must not run after resume fill failure");
+    },
+    markEntered: async () => {
+      resumeEnteredCalls += 1;
+      throw new Error("markEntered must not run after resume fill failure");
+    },
+    markPortalVerified: async () => {
+      resumePortalCalls += 1;
+      throw new Error("markPortalVerified must not run after resume fill failure");
+    },
+  });
+  assert(
+    resumeFillFail.ok === false && resumeFillFail.code === "APPROVED_COPY_NOT_APPLIED",
+    "Resume attachment failure returns APPROVED_COPY_NOT_APPLIED",
+  );
+  assert(resumeSaveCalls === 0, "Resume attachment failure: SaveData called zero times");
+  assert(resumeEnteredCalls === 0, "Resume attachment failure: markEntered called zero times");
+  assert(resumePortalCalls === 0, "Resume attachment failure: markPortalVerified called zero times");
+  assert(resumeFillFail.runId === resumeRunId, "Resume attachment failure preserves same existing run");
+  assert(resumeFillFail.runBegun === false, "Resume attachment failure never calls run_begin");
+  assert(resumeFillFail.runResumed === true, "Resume attachment failure keeps runResumed");
+}
+
+{
+  const liveAdaptersSrc = readFileSync(
+    join(root, "electron/eaushadhi-worker/product-details-live-adapters.js"),
+    "utf8",
+  );
+  assert(
+    liveAdaptersSrc.includes("EXPECTED_APPROVED_COPY_NAME") &&
+      liveAdaptersSrc.includes("proof.name !== EXPECTED_APPROVED_COPY_NAME"),
+    "exact attachment proof remains strict equality",
+  );
+  assert(
+    !liveAdaptersSrc.includes(".endsWith(") && !liveAdaptersSrc.includes(".includes(EXPECTED"),
+    "attachment proof is not weakened to substring/endsWith",
+  );
+}
 
 {
   let resumeRunBeginCalls = 0;
