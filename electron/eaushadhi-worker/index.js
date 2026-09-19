@@ -31,6 +31,7 @@ const {
   sanitizeRendererCommand,
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
+  runTrustedProductDetailsResume,
   measureConnectedPageState,
   enumerateLivePermissionOptions,
   runLiveDuplicateSearch,
@@ -903,7 +904,7 @@ function createEaushadhiWorker({
         });
       },
       // Adapters are constructed only when Phase B arms live execution.
-      buildAdapters: async ({ authority } = {}) => {
+      buildAdapters: async ({ authority, mode } = {}) => {
         if (!isProductDetailsLiveArmedFor(PD_PRODUCT_ID)) {
           throw workerError(
             ERROR_KINDS.CRASH,
@@ -914,6 +915,7 @@ function createEaushadhiWorker({
           page: activePage,
           callRpc: (name, args) => rpcCall(accessToken, name, args),
           authority,
+          mode: mode === "resume" ? "resume" : "start",
           log: (entry) => log(entry),
         });
       },
@@ -971,6 +973,25 @@ function createEaushadhiWorker({
     }
     // Never forward renderer adapters / content / governance fields.
     return runTrustedProductDetailsStart(buildProductDetailsTrustedDeps(accessToken), {
+      userConfirmed: command.userConfirmed === true,
+      correlationId: command.correlationId,
+    });
+  }
+
+  async function resumeProductDetailsExecution(rawProductId, rawAccessToken, rawOptions = {}) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
+    if (id !== PD_PRODUCT_ID) {
+      return {
+        ok: false,
+        code: "PRODUCT_LOCK_REJECTED",
+        message: `Product Details resume accepts only product_id ${PD_PRODUCT_ID}.`,
+        inventedFailureRpcCalled: false,
+        runResumed: false,
+      };
+    }
+    return runTrustedProductDetailsResume(buildProductDetailsTrustedDeps(accessToken), {
       userConfirmed: command.userConfirmed === true,
       correlationId: command.correlationId,
     });
@@ -1119,6 +1140,7 @@ function createEaushadhiWorker({
     runControlledEntryDryRun,
     previewProductDetailsExecution,
     startProductDetailsExecution,
+    resumeProductDetailsExecution,
     capturePortalContract,
     openLastCaptureFolder,
   };

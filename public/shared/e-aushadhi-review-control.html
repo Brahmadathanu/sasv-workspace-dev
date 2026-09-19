@@ -259,5 +259,30 @@
         </div>
       </div>
     </div>
+    <div id="productDetailsConfirmBackdrop" class="sasv-modal-backdrop ea-source-resolve" hidden>
+      <div
+        id="productDetailsConfirmDialog"
+        class="sasv-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="productDetailsConfirmTitle"
+        aria-describedby="productDetailsConfirmBody"
+        tabindex="-1"
+      >
+        <div class="sasv-modal__header">
+          <h2 id="productDetailsConfirmTitle" class="sasv-modal__title">Start Product Details</h2>
+          <button type="button" id="productDetailsConfirmClose" class="sasv-modal__close" aria-label="Cancel">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="productDetailsConfirmBody" class="sasv-modal__body"></div>
+        <div class="sasv-modal__footer">
+          <button type="button" id="productDetailsConfirmCancel" class="icon-btn with-label">Cancel</button>
+          <button type="button" id="productDetailsConfirmOk" class="icon-btn with-label primary" data-edit-action="true">Confirm &amp; Start</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

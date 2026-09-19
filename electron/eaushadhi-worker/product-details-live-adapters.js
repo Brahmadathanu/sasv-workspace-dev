@@ -16,6 +16,7 @@ const { createInPageSaveOnceScript } = require("./portal-save-observe");
 const { isProductDetailsLiveArmedFor } = require("./product-details-live-arm");
 
 const RUN_BEGIN_RPC = "rpc_eaushadhi_worker_run_begin";
+const RUN_RESUME_RPC = "rpc_eaushadhi_worker_run_resume";
 const MARK_ENTERED_RPC = "rpc_eaushadhi_worker_mark_entered";
 const MARK_PORTAL_VERIFIED_RPC = "rpc_eaushadhi_worker_mark_portal_verified";
 
@@ -233,6 +234,7 @@ function buildProductDetailsLiveAdapters(deps = {}) {
   const callRpc = deps.callRpc;
   const authority = deps.authority || {};
   const log = typeof deps.log === "function" ? deps.log : () => {};
+  const mode = deps.mode === "resume" ? "resume" : "start";
 
   if (!page || typeof page.evaluate !== "function") {
     throw new Error("buildProductDetailsLiveAdapters requires a Playwright page");
@@ -244,20 +246,7 @@ function buildProductDetailsLiveAdapters(deps = {}) {
     throw new Error("Live Product Details adapters refused: execution is disarmed");
   }
 
-  return {
-    async runBegin(args = {}) {
-      log({ phase: "product-details-run-begin", productId: FIRST_CONTROLLED_PRODUCT_ID });
-      return callRpc(RUN_BEGIN_RPC, {
-        p_product_id: FIRST_CONTROLLED_PRODUCT_ID,
-        p_expected_workflow_row_version: Number(args.expectedWorkflowRowVersion),
-        p_expected_content_hash: args.expectedContentHash,
-        p_expected_payload_hash: args.expectedPayloadHash ?? null,
-        p_start_context: args.startContext || {
-          operation: "product_details_only",
-        },
-      });
-    },
-
+  const shared = {
     async fillForm({ fillPlan, classificationSteps, permissionResolution } = {}) {
       const result = await page.evaluate(
         async ({ source, plan }) => {
@@ -277,6 +266,7 @@ function buildProductDetailsLiveAdapters(deps = {}) {
       );
       const uploadField = (fillPlan?.fields || []).find((f) => f.key === "uploadAttachment" && f.fill);
       const localPath = authority.approvedLocalPath || null;
+      let approvedCopyProof = null;
       if (uploadField) {
         if (!localPath) {
           throw new Error("approved_local_path_missing_for_upload");
@@ -286,6 +276,21 @@ function buildProductDetailsLiveAdapters(deps = {}) {
           throw new Error("uploadAttachment_input_missing");
         }
         await handle.setInputFiles(localPath);
+        const proof = await page.evaluate(() => {
+          const el = document.querySelector("#uploadAttachment");
+          return {
+            length: el && el.files ? el.files.length : 0,
+            name: el && el.files && el.files[0] ? el.files[0].name : null,
+          };
+        });
+        if (proof.length !== 1 || proof.name !== EXPECTED_APPROVED_COPY_NAME) {
+          throw new Error("APPROVED_COPY_NOT_APPLIED");
+        }
+        approvedCopyProof = {
+          applied: true,
+          fileName: proof.name,
+          length: proof.length,
+        };
         log({
           phase: "product-details-fill",
           productId: FIRST_CONTROLLED_PRODUCT_ID,
@@ -299,7 +304,10 @@ function buildProductDetailsLiveAdapters(deps = {}) {
         detail: "dom_fill_complete",
         filledCount: Array.isArray(result?.filled) ? result.filled.length : null,
       });
-      return result;
+      return {
+        ...result,
+        approvedCopyProof,
+      };
     },
 
     async saveOnce() {
@@ -379,12 +387,43 @@ function buildProductDetailsLiveAdapters(deps = {}) {
       });
     },
   };
+
+  if (mode === "resume") {
+    return {
+      ...shared,
+      async runResume(args = {}) {
+        log({ phase: "product-details-run-resume", productId: FIRST_CONTROLLED_PRODUCT_ID });
+        return callRpc(RUN_RESUME_RPC, {
+          p_run_id: args.runId,
+          p_expected_workflow_row_version: Number(args.expectedWorkflowRowVersion),
+          p_expected_content_hash: args.expectedContentHash,
+        });
+      },
+    };
+  }
+
+  return {
+    ...shared,
+    async runBegin(args = {}) {
+      log({ phase: "product-details-run-begin", productId: FIRST_CONTROLLED_PRODUCT_ID });
+      return callRpc(RUN_BEGIN_RPC, {
+        p_product_id: FIRST_CONTROLLED_PRODUCT_ID,
+        p_expected_workflow_row_version: Number(args.expectedWorkflowRowVersion),
+        p_expected_content_hash: args.expectedContentHash,
+        p_expected_payload_hash: args.expectedPayloadHash ?? null,
+        p_start_context: args.startContext || {
+          operation: "product_details_only",
+        },
+      });
+    },
+  };
 }
 
 module.exports = {
   buildProductDetailsLiveAdapters,
   createInPageRereadScript,
   RUN_BEGIN_RPC,
+  RUN_RESUME_RPC,
   MARK_ENTERED_RPC,
   MARK_PORTAL_VERIFIED_RPC,
 };

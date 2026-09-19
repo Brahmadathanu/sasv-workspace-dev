@@ -58,6 +58,13 @@ export async function startWorkerProductDetails(productId, accessToken, options)
   });
 }
 
+export async function resumeWorkerProductDetails(productId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.resumeProductDetails(productId, accessToken, {
+    userConfirmed: options?.userConfirmed === true,
+  });
+}
+
 export async function captureWorkerPortalContract(accessToken) {
   if (!workerApiAvailable()) return unsupported();
   return window.eaushadhiWorkerAPI.capturePortalContract(accessToken);

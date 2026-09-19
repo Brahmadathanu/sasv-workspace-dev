@@ -165,6 +165,7 @@ import {
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
   previewWorkerProductDetails,
+  resumeWorkerProductDetails,
   startWorkerProductDetails,
   stopWorkerBrowser,
   workerApiAvailable,
@@ -272,6 +273,12 @@ const state = {
     trigger: null,
   },
   verifyReviewed: { open: false },
+  productDetailsConfirm: {
+    open: false,
+    mode: null,
+    trigger: null,
+    resolve: null,
+  },
   lineSaveStatus: new Map(),
   detailsSaveStatus: "",
   actionsSaveStatus: "",
@@ -2151,13 +2158,82 @@ function workerDryRunSummary(result) {
     .join(" ");
 }
 
+const PRODUCT_DETAILS_APPROVED_COPY_V01 =
+  "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf";
+
+function productDetailsConfirmBodyHtml(mode) {
+  const resumeNote =
+    mode === "resume"
+      ? "<p>An interrupted Product Details run was detected. Confirming will resume/reconcile the existing run on the same worker run id.</p>"
+      : "";
+  return `${resumeNote}
+    <p><strong>Karpooradi Thailam</strong> (Product ${FIRST_CONTROLLED_PRODUCT_ID})</p>
+    <ul>
+      <li>Product Details only — will write to the Government e-Aushadhi portal</li>
+      <li>Will NOT add Composition</li>
+      <li>Will NOT final-submit the product</li>
+      <li>Will attach governed approved copy: ${escapeHtml(PRODUCT_DETAILS_APPROVED_COPY_V01)}</li>
+    </ul>`;
+}
+
+function closeProductDetailsConfirm(accepted) {
+  const trigger = state.productDetailsConfirm.trigger;
+  const resolve = state.productDetailsConfirm.resolve;
+  state.productDetailsConfirm = {
+    open: false,
+    mode: null,
+    trigger: null,
+    resolve: null,
+  };
+  const backdrop = $("productDetailsConfirmBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  if (trigger && typeof trigger.focus === "function") trigger.focus();
+  if (typeof resolve === "function") resolve(accepted === true);
+}
+
+function openProductDetailsConfirmModal({ mode, trigger }) {
+  const normalizedMode = mode === "resume" ? "resume" : "start";
+  const title = $("productDetailsConfirmTitle");
+  const body = $("productDetailsConfirmBody");
+  const okBtn = $("productDetailsConfirmOk");
+  if (title) {
+    title.textContent =
+      normalizedMode === "resume"
+        ? "Resume Karpooradi Product Details"
+        : "Start Product Details";
+  }
+  if (body) body.innerHTML = productDetailsConfirmBodyHtml(normalizedMode);
+  if (okBtn) {
+    okBtn.textContent = normalizedMode === "resume" ? "Resume & Continue" : "Confirm & Start";
+  }
+  state.productDetailsConfirm = {
+    open: true,
+    mode: normalizedMode,
+    trigger: trigger || null,
+    resolve: null,
+  };
+  const backdrop = $("productDetailsConfirmBackdrop");
+  if (backdrop) backdrop.hidden = false;
+  return new Promise((resolve) => {
+    state.productDetailsConfirm.resolve = resolve;
+    $("productDetailsConfirmDialog")?.focus();
+    requestAnimationFrame(() => {
+      okBtn?.focus();
+    });
+  });
+}
+
 function workerProductDetailsPreviewSummary(preview) {
   if (!preview) return "No Product Details preview yet.";
   const blockers = preview.preview?.blockers || preview.blockers || [];
   const start = preview.preview?.startEnabled === true;
+  const resume = preview.preview?.resumeEnabled === true;
   const code = preview.code || "";
   const bits = [
     code ? `Status ${code}` : null,
+    resume
+      ? `Resume enabled${preview.preview?.resumeMessage ? `: ${preview.preview.resumeMessage}` : ""}`
+      : null,
     start ? "Start enabled" : "Start disabled",
     blockers.length ? `Blockers: ${blockers.join(", ")}` : null,
     preview.liveArmed === false ? "Live execution disarmed" : null,
@@ -2180,7 +2256,13 @@ function renderEntryDryRunCard() {
     : "Contract readiness: incomplete until capture proves deterministic execution.";
   const pdPreview = state.workerProductDetailsPreview;
   const startEnabled = pdPreview?.preview?.startEnabled === true;
-  const startDisabled = !available || busy || !startEnabled;
+  const resumeEnabled = pdPreview?.preview?.resumeEnabled === true;
+  const resumePath = resumeEnabled;
+  const startDisabled = !available || busy || !startEnabled || resumePath;
+  const resumeDisabled = !available || busy || !resumeEnabled;
+  const resumeMessage =
+    pdPreview?.preview?.resumeMessage ||
+    "Interrupted Product Details run detected. Resume/reconcile the existing run.";
   const warning =
     pdPreview?.preview?.warning ||
     "This action will write Product Details to the Government e-Aushadhi portal. It will NOT add Composition and will NOT final-submit the product.";
@@ -2201,6 +2283,11 @@ function renderEntryDryRunCard() {
       <h3>Karpooradi Product Details execution</h3>
       <p class="muted-note">Product ${FIRST_CONTROLLED_PRODUCT_ID} - Karpooradi Thailam - Create Product Details only.</p>
       <p class="muted-note">${escapeHtml(warning)}</p>
+      ${
+        resumePath
+          ? `<p class="muted-note" id="workerProductDetailsResumeNotice">${escapeHtml(resumeMessage)}</p>`
+          : ""
+      }
       <p class="muted-note">Lifecycle: NOT_STARTED -> IN_PROGRESS -> ENTERED -> PORTAL_VERIFIED (stop). No Composition. No submit.</p>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnWorkerProductDetailsPreview" data-edit-action="true" ${
@@ -2209,6 +2296,9 @@ function renderEntryDryRunCard() {
         <button type="button" class="icon-btn with-label primary" id="btnWorkerProductDetailsStart" data-edit-action="true" ${
           startDisabled ? `data-force-disabled="true"` : ""
         }>Start Product Details</button>
+        <button type="button" class="icon-btn with-label primary" id="btnWorkerProductDetailsResume" data-edit-action="true" ${
+          resumeDisabled ? `data-force-disabled="true"` : ""
+        }>Resume Product Details</button>
       </div>
       <p class="muted-note" id="workerProductDetailsPreviewResult">${escapeHtml(
         workerProductDetailsPreviewSummary(pdPreview),
@@ -2342,21 +2432,19 @@ async function submitWorkerProductDetailsPreview() {
 
 async function submitWorkerProductDetailsStart() {
   if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (state.workerProductDetailsPreview?.preview?.resumeEnabled === true) {
+    showToast("Use Resume Product Details for the interrupted run.", "info");
+    return;
+  }
   if (state.workerProductDetailsPreview?.preview?.startEnabled !== true) {
     showToast("Start Product Details is disabled until preview gates pass.", "info");
     return;
   }
-  const warning =
-    state.workerProductDetailsPreview?.preview?.warning ||
-    [
-      "Karpooradi Thailam",
-      "Product 262",
-      "Product Details only",
-      "Will write to Government e-Aushadhi portal",
-      "Will NOT add Composition",
-      "Will NOT final-submit",
-    ].join("\n");
-  if (!window.confirm(warning)) return;
+  const ok = await openProductDetailsConfirmModal({
+    mode: "start",
+    trigger: $("btnWorkerProductDetailsStart"),
+  });
+  if (!ok) return;
   state.busy = true;
   syncWorkerToolbarUi();
   try {
@@ -2371,6 +2459,41 @@ async function submitWorkerProductDetailsStart() {
       showToast(result.message || "Product Details start blocked.", "error");
     } else if (result?.ok === true) {
       showToast(result.message || "Product Details completed.", "success");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
+async function submitWorkerProductDetailsResume() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (state.workerProductDetailsPreview?.preview?.resumeEnabled !== true) {
+    showToast("Resume Product Details is disabled until preview enables resume.", "info");
+    return;
+  }
+  const ok = await openProductDetailsConfirmModal({
+    mode: "resume",
+    trigger: $("btnWorkerProductDetailsResume"),
+  });
+  if (!ok) return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await resumeWorkerProductDetails(state.selectedProductId, token, {
+      userConfirmed: true,
+    });
+    state.workerProductDetailsResult = result;
+    if (result?.code === "LIVE_EXECUTION_NOT_ARMED") {
+      showToast(result.message || "Live execution is disarmed.", "info");
+    } else if (result?.ok === false) {
+      showToast(result.message || "Product Details resume blocked.", "error");
+    } else if (result?.ok === true) {
+      showToast(result.message || "Product Details resumed.", "success");
     }
   } catch (error) {
     showToast(userMessageForError(error), "error");
@@ -4484,6 +4607,7 @@ function wireEvents() {
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
     if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
     if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();
+    if (event.target.id === "btnWorkerProductDetailsResume") submitWorkerProductDetailsResume();
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
     if (event.target.id === "fldPromoteNotes") {
@@ -4560,7 +4684,23 @@ function wireEvents() {
     if (event.target.id === "verifyReviewedBackdrop") closeVerifyReviewed();
   });
 
+  $("productDetailsConfirmClose")?.addEventListener("click", () => closeProductDetailsConfirm(false));
+  $("productDetailsConfirmCancel")?.addEventListener("click", () => closeProductDetailsConfirm(false));
+  $("productDetailsConfirmOk")?.addEventListener("click", () => closeProductDetailsConfirm(true));
+  $("productDetailsConfirmBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "productDetailsConfirmBackdrop") closeProductDetailsConfirm(false);
+  });
+
   document.addEventListener("keydown", (event) => {
+    if (state.productDetailsConfirm.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeProductDetailsConfirm(false);
+        return;
+      }
+      trapModalTab(event, "productDetailsConfirmDialog");
+      return;
+    }
     if (state.sourceResolve.open) {
       if (event.key === "Escape") {
         event.preventDefault();

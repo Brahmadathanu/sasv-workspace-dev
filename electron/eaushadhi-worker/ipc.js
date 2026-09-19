@@ -17,6 +17,7 @@ const CHANNELS = Object.freeze({
   ENTRY_DRY_RUN: "eaushadhi-worker:entry-dry-run",
   PRODUCT_DETAILS_PREVIEW: "eaushadhi-worker:product-details-preview",
   PRODUCT_DETAILS_START: "eaushadhi-worker:product-details-start",
+  PRODUCT_DETAILS_RESUME: "eaushadhi-worker:product-details-resume",
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
@@ -116,6 +117,17 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
       const accessToken = validateAccessToken(payload?.accessToken);
       // Trust boundary: only explicit confirmation may pass from renderer.
       return worker.startProductDetailsExecution(productId, accessToken, {
+        userConfirmed: payload?.userConfirmed === true,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.PRODUCT_DETAILS_RESUME,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.resumeProductDetailsExecution(productId, accessToken, {
         userConfirmed: payload?.userConfirmed === true,
       });
     }),
