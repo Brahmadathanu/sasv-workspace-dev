@@ -260,6 +260,62 @@ assert(
     ),
   "QC Overhead lineage override has no sales-share wording",
 );
+assert(
+  costSheetSrc.includes('request_mode: "current"') &&
+    /openProductQcExplainFromQueue[\s\S]*?request_mode:\s*"current"/.test(
+      costSheetSrc,
+    ),
+  "queue synthetic Explain is request_mode current",
+);
+assert(
+  costSheetSrc.includes('row.request_mode = "exact"') &&
+    helpersSrc.includes("buildQcExplainSelectedRunRpcArgs"),
+  "Cost Sheet QC Explain pins request_mode exact",
+);
+assert(
+  /rpc_get_qc_action_queue[\s\S]*?p_period_start[\s\S]*?p_action_code/.test(
+    queueSrc,
+  ) &&
+    !queueSrc.includes("p_valuation_date") &&
+    !queueSrc.includes("p_refresh_run_id"),
+  "queue list RPC stays period-only",
+);
+assert(
+  /loadProductQcExplain[\s\S]*?buildQcExplainSelectedRunRpcArgs/.test(
+    costSheetSrc,
+  ) &&
+    /loadSkuQcExplain[\s\S]*?buildQcExplainSelectedRunRpcArgs/.test(
+      costSheetSrc,
+    ),
+  "Product/SKU Explain loaders spread selected-run helper only",
+);
+
+const typesSrc = readFileSync(
+  join(root, "public/shared/js/types/supabase.ts"),
+  "utf8",
+);
+assert(
+  /rpc_get_product_qc_explain:\s*\{[\s\S]*?p_refresh_run_id\?:\s*number[\s\S]*?p_valuation_date\?:\s*string/.test(
+    typesSrc,
+  ) &&
+    /rpc_get_sku_qc_explain:\s*\{[\s\S]*?p_refresh_run_id\?:\s*number[\s\S]*?p_sku_id:\s*number[\s\S]*?p_valuation_date\?:\s*string/.test(
+      typesSrc,
+    ),
+  "generated types include optional exact args for both Explain RPCs",
+);
+
+const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
+assert(
+  /CACHE_NAME = "hub-cache-v325"/.test(swSrc) &&
+    !swSrc.includes("hub-cache-v324"),
+  "hub-cache-v325 is current generation",
+);
+assert(
+  !costSheetSrc.includes("20260918065615") &&
+    !helpersSrc.includes("qc_explain_optional_exact_run_read_contract") &&
+    !shellSrc.includes("20260918065615"),
+  "no SQL/migration parity strings in QC client sources",
+);
 
 const unwrapped = unwrapQcActionQueueRpcResult([
   {

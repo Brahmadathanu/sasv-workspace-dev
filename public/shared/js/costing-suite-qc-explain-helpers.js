@@ -31,6 +31,7 @@ const ACTION_LABELS = Object.freeze({
 
 const PROJECTION_SOURCE_LABELS = Object.freeze({
   PERSISTED_EXACT_RUN: "Persisted exact run",
+  PERSISTED_EXACT_RUN_UNAVAILABLE: "Persisted exact run unavailable",
   CONTROLLED_PRE_REFRESH_FALLBACK: "Controlled pre-refresh fallback",
 });
 
@@ -433,42 +434,222 @@ export function mergeSkuAndProductQcExplain(skuPayload) {
   };
 }
 
-export function qcExplainRequestIdentity({
-  period_start,
-  product_id,
-  sku_id = null,
-} = {}) {
-  const period = String(period_start || "").trim();
-  const productId = Number(product_id);
-  if (!period || !Number.isFinite(productId)) return null;
-  if (sku_id == null || sku_id === "") {
-    return `${period}|${productId}|product`;
-  }
-  const skuId = Number(sku_id);
-  if (!Number.isFinite(skuId)) return null;
-  return `${period}|${productId}|${skuId}`;
+function normalizeQcExplainPeriod(period_start) {
+  return String(period_start || "").trim();
+}
+
+function normalizeQcExplainValuationDate(valuation_date) {
+  return String(valuation_date || "").trim();
+}
+
+function normalizeQcExplainRefreshRunId(refresh_run_id) {
+  if (isBlankQcValue(refresh_run_id)) return null;
+  const n = Number(refresh_run_id);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeQcExplainProductId(product_id) {
+  const n = Number(product_id);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeQcExplainSkuId(sku_id) {
+  if (sku_id == null || sku_id === "") return null;
+  const n = Number(sku_id);
+  return Number.isFinite(n) ? n : null;
+}
+
+function qcExplainSkuOrProductToken(sku_id) {
+  if (sku_id == null || sku_id === "") return "product";
+  const n = Number(sku_id);
+  if (!Number.isFinite(n)) return null;
+  return String(n);
 }
 
 /**
- * Cache reuse guard: reject cached payload when a known current run id
- * disagrees with the cached refresh_run_id.
+ * Complete exact QC identity: request_mode exact + full period/product/
+ * valuation/run (+ finite sku when SKU request).
  */
-export function isQcExplainCacheEntryReusable(cacheEntry, currentRunId) {
+export function hasCompleteQcExplainExactIdentity(tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return false;
+  if (String(tuple.request_mode || "").trim() !== "exact") return false;
+  const period = normalizeQcExplainPeriod(tuple.period_start);
+  const productId = normalizeQcExplainProductId(tuple.product_id);
+  const valuationDate = normalizeQcExplainValuationDate(tuple.valuation_date);
+  const refreshRunId = normalizeQcExplainRefreshRunId(tuple.refresh_run_id);
+  if (!period || productId == null || !valuationDate || refreshRunId == null) {
+    return false;
+  }
+  if (tuple.sku_id != null && tuple.sku_id !== "") {
+    return normalizeQcExplainSkuId(tuple.sku_id) != null;
+  }
+  return true;
+}
+
+/**
+ * Selected-run RPC args for QC Explain.
+ * current → {}; exact complete → both args; exact incomplete → null (fail closed).
+ */
+export function buildQcExplainSelectedRunRpcArgs(tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return {};
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode !== "exact") return {};
+  if (!hasCompleteQcExplainExactIdentity(tuple)) return null;
+  return {
+    p_valuation_date: normalizeQcExplainValuationDate(tuple.valuation_date),
+    p_refresh_run_id: normalizeQcExplainRefreshRunId(tuple.refresh_run_id),
+  };
+}
+
+/**
+ * Cache / stale-paint identity.
+ * Exact: period|valuation_date|refresh_run_id|product|sku-or-product
+ * Current: period|current|product|sku-or-product
+ * Incomplete exact → null.
+ */
+export function qcExplainRequestIdentity(tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return null;
+  const period = normalizeQcExplainPeriod(tuple.period_start);
+  const productId = normalizeQcExplainProductId(tuple.product_id);
+  if (!period || productId == null) return null;
+  const skuToken = qcExplainSkuOrProductToken(tuple.sku_id);
+  if (skuToken == null) return null;
+
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode === "exact") {
+    if (!hasCompleteQcExplainExactIdentity(tuple)) return null;
+    const valuationDate = normalizeQcExplainValuationDate(tuple.valuation_date);
+    const refreshRunId = normalizeQcExplainRefreshRunId(tuple.refresh_run_id);
+    return `${period}|${valuationDate}|${refreshRunId}|${productId}|${skuToken}`;
+  }
+  if (mode === "current") {
+    return `${period}|current|${productId}|${skuToken}`;
+  }
+  return null;
+}
+
+/**
+ * Fail-closed cache reuse.
+ * Exact: cached valuation_date + refresh_run_id must equal request.
+ * Current: if source provides a known refresh_run_id, cached run must match;
+ * if source has no known run, do not reuse; blank cached run never reusable.
+ */
+export function isQcExplainCacheEntryReusable(cacheEntry, tuple = {}) {
   if (!cacheEntry || typeof cacheEntry !== "object") return false;
   if (cacheEntry.payload == null) return false;
-  if (isBlankQcValue(currentRunId)) return true;
-  if (isBlankQcValue(cacheEntry.refresh_run_id)) return true;
-  return Number(cacheEntry.refresh_run_id) === Number(currentRunId);
+  if (!tuple || typeof tuple !== "object") return false;
+
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode === "exact") {
+    if (!hasCompleteQcExplainExactIdentity(tuple)) return false;
+    const cachedVal = normalizeQcExplainValuationDate(cacheEntry.valuation_date);
+    const cachedRun = normalizeQcExplainRefreshRunId(cacheEntry.refresh_run_id);
+    if (!cachedVal || cachedRun == null) return false;
+    const reqVal = normalizeQcExplainValuationDate(tuple.valuation_date);
+    const reqRun = normalizeQcExplainRefreshRunId(tuple.refresh_run_id);
+    return cachedVal === reqVal && cachedRun === reqRun;
+  }
+
+  if (mode === "current") {
+    const knownRun = normalizeQcExplainRefreshRunId(tuple.refresh_run_id);
+    if (knownRun == null) return false;
+    const cachedRun = normalizeQcExplainRefreshRunId(cacheEntry.refresh_run_id);
+    if (cachedRun == null) return false;
+    return cachedRun === knownRun;
+  }
+
+  return false;
 }
 
 export function buildQcExplainCacheEntry(payload) {
   if (!payload || typeof payload !== "object") return null;
   return {
     payload,
+    period_start: pickFirstDefined(payload.period_start),
+    valuation_date: pickFirstDefined(payload.valuation_date),
     refresh_run_id: pickFirstDefined(payload.refresh_run_id),
     projection_source: pickFirstDefined(payload.projection_source),
     cached_at: Date.now(),
   };
+}
+
+function qcExplainLineageMatches(candidate, tuple) {
+  if (!candidate || typeof candidate !== "object" || !tuple) return false;
+  const period = normalizeQcExplainPeriod(candidate.period_start);
+  const valuationDate = normalizeQcExplainValuationDate(candidate.valuation_date);
+  const refreshRunId = normalizeQcExplainRefreshRunId(candidate.refresh_run_id);
+  if (!period || !valuationDate || refreshRunId == null) return false;
+  return (
+    period === normalizeQcExplainPeriod(tuple.period_start) &&
+    valuationDate === normalizeQcExplainValuationDate(tuple.valuation_date) &&
+    refreshRunId === normalizeQcExplainRefreshRunId(tuple.refresh_run_id)
+  );
+}
+
+/**
+ * Exact-mode response lineage agreement.
+ * Current mode always ok (no historical match required).
+ * Exact: fail closed on missing/mismatched lineage, fallback projection, or
+ * unavailable without top-level matching lineage.
+ */
+export function isQcExplainExactResponseAgreement(payload, tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return false;
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode !== "exact") return true;
+  if (!hasCompleteQcExplainExactIdentity(tuple)) return false;
+  if (!payload || typeof payload !== "object") return false;
+
+  const projection = normalizeQcCode(
+    pickFirstDefined(payload.projection_source),
+  ).toUpperCase();
+  if (projection === "CONTROLLED_PRE_REFRESH_FALLBACK") return false;
+
+  const summaryStatus = normalizeQcCode(
+    pickFirstDefined(payload.summary_status),
+  ).toUpperCase();
+  if (
+    summaryStatus === "NO_TRACE_DATA" &&
+    projection === "PERSISTED_EXACT_RUN_UNAVAILABLE"
+  ) {
+    return qcExplainLineageMatches(payload, tuple);
+  }
+
+  const isSkuRequest =
+    tuple.sku_id != null &&
+    tuple.sku_id !== "" &&
+    Number.isFinite(Number(tuple.sku_id));
+
+  if (isSkuRequest) {
+    const sku =
+      extractNestedSkuQcExplain(payload) ||
+      (payload.sku_id != null || payload.refresh_run_id != null ? payload : null);
+    if (!qcExplainLineageMatches(sku, tuple)) return false;
+    const product = extractNestedProductQcExplain(payload);
+    if (product && Object.keys(product).length > 0) {
+      if (!qcExplainLineageMatches(product, tuple)) return false;
+    }
+    return true;
+  }
+
+  return qcExplainLineageMatches(payload, tuple);
+}
+
+/** Truthful empty copy for exact-run unavailable projection. */
+export const QC_EXACT_RUN_UNAVAILABLE_MESSAGE =
+  "No persisted Quality Control allocation evidence is available for this requested exact costing run.";
+
+export function isQcExplainPersistedExactRunUnavailable(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const summaryStatus = normalizeQcCode(
+    pickFirstDefined(payload.summary_status),
+  ).toUpperCase();
+  const projection = normalizeQcCode(
+    pickFirstDefined(payload.projection_source),
+  ).toUpperCase();
+  return (
+    summaryStatus === "NO_TRACE_DATA" &&
+    projection === "PERSISTED_EXACT_RUN_UNAVAILABLE"
+  );
 }
 
 export function unwrapQcActionQueueRpcResult(data) {

@@ -9,6 +9,7 @@ import {
   QC_OVERHEAD_CALCULATION_LINEAGE,
   assignDefinedQcFields,
   buildQcExplainCacheEntry,
+  buildQcExplainSelectedRunRpcArgs,
   clampQcQueuePagination,
   coerceNestedQcObject,
   extractNestedProductQcExplain,
@@ -26,11 +27,15 @@ import {
   formatQcQuantitySourceLabel,
   formatQcReasonLabel,
   formatQcStatusLabel,
+  hasCompleteQcExplainExactIdentity,
   isQcExplainCacheEntryReusable,
+  isQcExplainExactResponseAgreement,
+  isQcExplainPersistedExactRunUnavailable,
   mergeQcActionCodeOptions,
   mergeSkuAndProductQcExplain,
   nextQcQueueOffsetOnFilterChange,
   pickFirstDefined,
+  QC_EXACT_RUN_UNAVAILABLE_MESSAGE,
   qcExplainRequestIdentity,
   resolveQcOverheadCalculationLineage,
   scrubObsoleteQcSalesShareText,
@@ -79,6 +84,11 @@ assert(
   formatQcProjectionSourceLabel("PERSISTED_EXACT_RUN") ===
     "Persisted exact run",
   "projection persisted",
+);
+assert(
+  formatQcProjectionSourceLabel("PERSISTED_EXACT_RUN_UNAVAILABLE") ===
+    "Persisted exact run unavailable",
+  "projection exact unavailable",
 );
 assert(
   formatQcProjectionSourceLabel("CONTROLLED_PRE_REFRESH_FALLBACK") ===
@@ -131,23 +141,353 @@ assert(
   `method formula text (${formula})`,
 );
 
-const id = qcExplainRequestIdentity({
-  period_start: "2026-07-01",
-  product_id: 10,
-  sku_id: 20,
-});
-assert(id === "2026-07-01|10|20", "request identity sku");
+const exactSkuTuple = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: 12,
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  request_mode: "exact",
+};
+const exactSkuRun108 = {
+  ...exactSkuTuple,
+  valuation_date: "2026-09-10",
+  refresh_run_id: 108,
+};
+const exactProductTuple = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: null,
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  request_mode: "exact",
+};
+const currentProductTuple = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: null,
+  valuation_date: "2026-09-10",
+  refresh_run_id: 108,
+  request_mode: "current",
+};
+const currentNoFreshness = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: null,
+  valuation_date: null,
+  refresh_run_id: null,
+  request_mode: "current",
+};
+const exactIncomplete = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: 12,
+  valuation_date: "2026-09-01",
+  refresh_run_id: null,
+  request_mode: "exact",
+};
 
-const entry = buildQcExplainCacheEntry({
-  refresh_run_id: 74,
-  projection_source: "PERSISTED_EXACT_RUN",
-  product_id: 10,
-});
-assert(isQcExplainCacheEntryReusable(entry, null), "cache reusable when run unknown");
-assert(isQcExplainCacheEntryReusable(entry, 74), "cache reusable same run");
+assert(hasCompleteQcExplainExactIdentity(exactSkuTuple), "exact SKU complete");
 assert(
-  !isQcExplainCacheEntryReusable(entry, 75),
-  "cache NOT reused when run changes",
+  hasCompleteQcExplainExactIdentity(exactProductTuple),
+  "exact Product complete",
+);
+assert(
+  !hasCompleteQcExplainExactIdentity(exactIncomplete),
+  "exact incomplete rejected",
+);
+assert(
+  !hasCompleteQcExplainExactIdentity(currentProductTuple),
+  "current mode is not exact identity",
+);
+
+const exactSkuArgs = buildQcExplainSelectedRunRpcArgs(exactSkuTuple);
+assert(
+  exactSkuArgs?.p_valuation_date === "2026-09-01" &&
+    exactSkuArgs?.p_refresh_run_id === 85 &&
+    Object.keys(exactSkuArgs).length === 2,
+  "exact SKU emits both exact args",
+);
+const exactProductArgs = buildQcExplainSelectedRunRpcArgs(exactProductTuple);
+assert(
+  exactProductArgs?.p_valuation_date === "2026-09-01" &&
+    exactProductArgs?.p_refresh_run_id === 85,
+  "exact Product emits both exact args",
+);
+const currentArgs = buildQcExplainSelectedRunRpcArgs(currentProductTuple);
+assert(
+  currentArgs &&
+    Object.keys(currentArgs).length === 0 &&
+    !("p_valuation_date" in currentArgs) &&
+    !("p_refresh_run_id" in currentArgs),
+  "current emits neither exact arg despite display lineage",
+);
+assert(
+  buildQcExplainSelectedRunRpcArgs(exactIncomplete) === null,
+  "exact incomplete never emits one exact arg",
+);
+
+const id85 = qcExplainRequestIdentity(exactSkuTuple);
+const id108 = qcExplainRequestIdentity(exactSkuRun108);
+const idProduct = qcExplainRequestIdentity(exactProductTuple);
+const idCurrent = qcExplainRequestIdentity(currentProductTuple);
+assert(id85 === "2026-09-01|2026-09-01|85|74|12", "exact Run85 cache key");
+assert(id108 === "2026-09-01|2026-09-10|108|74|12", "exact Run108 cache key");
+assert(id85 !== id108, "Run85 key differs from Run108");
+assert(idProduct === "2026-09-01|2026-09-01|85|74|product", "exact Product key");
+assert(idProduct !== id85, "Product and SKU keys differ");
+assert(
+  idCurrent === "2026-09-01|current|74|product",
+  "current key uses current sentinel not display run",
+);
+assert(
+  qcExplainRequestIdentity(exactIncomplete) === null,
+  "incomplete exact identity is null",
+);
+
+const entryOk = buildQcExplainCacheEntry({
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  projection_source: "PERSISTED_EXACT_RUN",
+  product_id: 74,
+});
+assert(
+  entryOk?.valuation_date === "2026-09-01" &&
+    entryOk?.refresh_run_id === 85 &&
+    entryOk?.period_start === "2026-09-01",
+  "cache entry stores lineage metadata",
+);
+assert(
+  isQcExplainCacheEntryReusable(entryOk, exactSkuTuple),
+  "exact cache reusable when lineage matches",
+);
+assert(
+  !isQcExplainCacheEntryReusable(
+    { payload: {}, valuation_date: null, refresh_run_id: 85 },
+    exactSkuTuple,
+  ),
+  "exact cache missing valuation rejected",
+);
+assert(
+  !isQcExplainCacheEntryReusable(
+    { payload: {}, valuation_date: "2026-09-01", refresh_run_id: null },
+    exactSkuTuple,
+  ),
+  "exact cache missing run rejected",
+);
+assert(
+  !isQcExplainCacheEntryReusable(
+    {
+      payload: {},
+      valuation_date: "2026-09-01",
+      refresh_run_id: 108,
+    },
+    exactSkuTuple,
+  ),
+  "exact cache mismatched run rejected",
+);
+assert(
+  !isQcExplainCacheEntryReusable(
+    {
+      payload: {},
+      valuation_date: "2026-09-10",
+      refresh_run_id: 85,
+    },
+    exactSkuTuple,
+  ),
+  "exact cache mismatched date rejected",
+);
+
+const currentEntry = buildQcExplainCacheEntry({
+  refresh_run_id: 108,
+  projection_source: "CONTROLLED_PRE_REFRESH_FALLBACK",
+});
+assert(
+  isQcExplainCacheEntryReusable(currentEntry, currentProductTuple),
+  "current cache reusable when known run matches",
+);
+assert(
+  !isQcExplainCacheEntryReusable(currentEntry, {
+    ...currentProductTuple,
+    refresh_run_id: 85,
+  }),
+  "current known-run cache mismatch rejected",
+);
+assert(
+  !isQcExplainCacheEntryReusable(
+    { payload: {}, refresh_run_id: null },
+    currentProductTuple,
+  ),
+  "current blank cached run rejected",
+);
+assert(
+  !isQcExplainCacheEntryReusable(currentEntry, currentNoFreshness),
+  "current with no freshness run does not reuse",
+);
+
+assert(
+  Object.keys(buildQcExplainSelectedRunRpcArgs(currentProductTuple)).length ===
+    0,
+  "cached/display lineage never becomes query identity",
+);
+
+assert(
+  qcExplainRequestIdentity(exactSkuTuple) !==
+    qcExplainRequestIdentity(exactSkuRun108),
+  "stale Run85 identity cannot equal Run108",
+);
+assert(
+  qcExplainRequestIdentity(currentProductTuple) !==
+    qcExplainRequestIdentity(exactProductTuple),
+  "current identity cannot equal exact identity",
+);
+
+const productSuccess = {
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  projection_source: "PERSISTED_EXACT_RUN",
+  summary_status: "READY",
+};
+assert(
+  isQcExplainExactResponseAgreement(productSuccess, exactProductTuple),
+  "exact Product response requires present matching lineage",
+);
+assert(
+  !isQcExplainExactResponseAgreement(
+    { valuation_date: "2026-09-01", refresh_run_id: 85 },
+    exactProductTuple,
+  ),
+  "missing exact Product period_start fails closed",
+);
+assert(
+  !isQcExplainExactResponseAgreement(
+    {
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-01",
+      refresh_run_id: 108,
+      projection_source: "PERSISTED_EXACT_RUN",
+    },
+    exactProductTuple,
+  ),
+  "mismatched exact Product run fails closed",
+);
+
+const skuSuccess = {
+  sku: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+    sku_id: 12,
+  },
+  product: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+    product_id: 74,
+  },
+  projection_source: "PERSISTED_EXACT_RUN",
+  summary_status: "READY",
+};
+assert(
+  isQcExplainExactResponseAgreement(skuSuccess, exactSkuTuple),
+  "exact SKU requires present matching SKU lineage",
+);
+assert(
+  !isQcExplainExactResponseAgreement(
+    {
+      sku: {
+        period_start: "2026-09-01",
+        valuation_date: "2026-09-01",
+        refresh_run_id: 85,
+      },
+      product: {
+        period_start: "2026-09-01",
+        valuation_date: "2026-09-01",
+        refresh_run_id: 108,
+      },
+      projection_source: "PERSISTED_EXACT_RUN",
+    },
+    exactSkuTuple,
+  ),
+  "nested Product lineage mismatch fails closed",
+);
+assert(
+  !isQcExplainExactResponseAgreement(
+    {
+      sku: { valuation_date: "2026-09-01", refresh_run_id: 85 },
+      projection_source: "PERSISTED_EXACT_RUN",
+    },
+    exactSkuTuple,
+  ),
+  "missing exact SKU period_start fails closed",
+);
+
+const unavailable = {
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  summary_status: "NO_TRACE_DATA",
+  projection_source: "PERSISTED_EXACT_RUN_UNAVAILABLE",
+};
+assert(
+  isQcExplainPersistedExactRunUnavailable(unavailable),
+  "unavailable projection detector",
+);
+assert(
+  isQcExplainExactResponseAgreement(unavailable, exactSkuTuple),
+  "exact unavailable top-level lineage matches",
+);
+assert(
+  !isQcExplainExactResponseAgreement(
+    {
+      summary_status: "NO_TRACE_DATA",
+      projection_source: "PERSISTED_EXACT_RUN_UNAVAILABLE",
+    },
+    exactSkuTuple,
+  ),
+  "unavailable without top-level lineage fails closed",
+);
+assert(
+  QC_EXACT_RUN_UNAVAILABLE_MESSAGE.includes(
+    "No persisted Quality Control allocation evidence",
+  ),
+  "unavailable state renders truthful empty UX copy",
+);
+assert(
+  costSheetSrc.includes("QC_EXACT_RUN_UNAVAILABLE_MESSAGE") &&
+    costSheetSrc.includes("PERSISTED_EXACT_RUN_UNAVAILABLE"),
+  "Cost Sheet binds unavailable empty UX",
+);
+
+assert(
+  !isQcExplainExactResponseAgreement(
+    {
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-01",
+      refresh_run_id: 85,
+      projection_source: "CONTROLLED_PRE_REFRESH_FALLBACK",
+      summary_status: "PENDING_NEW_GOVERNED_REFRESH",
+    },
+    exactProductTuple,
+  ),
+  "exact response rejects CONTROLLED_PRE_REFRESH_FALLBACK",
+);
+assert(
+  isQcExplainExactResponseAgreement(
+    {
+      projection_source: "CONTROLLED_PRE_REFRESH_FALLBACK",
+      summary_status: "PENDING_NEW_GOVERNED_REFRESH",
+    },
+    currentProductTuple,
+  ),
+  "current fallback remains supported (no exact match required)",
+);
+assert(
+  costSheetSrc.includes("CONTROLLED_PRE_REFRESH_FALLBACK") &&
+    costSheetSrc.includes("cp-qc-explain-fallback"),
+  "ordinary current fallback banner preserved in Cost Sheet",
 );
 
 assert(nextQcQueueOffsetOnFilterChange() === 0, "filter change resets offset");
