@@ -65,6 +65,18 @@ function phaseLog(phases, id, detail) {
   });
 }
 
+/**
+ * Server-returned workflow row version after mark_entered only.
+ * Never infer +1 client-side; never fall back to begin/resume version.
+ */
+function extractEnteredWorkflowRowVersion(enteredResult) {
+  const raw =
+    enteredResult?.workflow_row_version ?? enteredResult?.workflowRowVersion ?? null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) return null;
+  return n;
+}
+
 function assertPageGuards(pageState) {
   const s = pageState || {};
   if (s.workerState !== "READY") {
@@ -507,7 +519,7 @@ async function executeProductDetails(input = {}, adapters = {}) {
       };
     }
 
-    await adapters.markEntered({
+    const enteredResult = await adapters.markEntered({
       runId,
       expectedWorkflowRowVersion: beginResult.workflow_row_version || workflowRowVersion,
       expectedContentHash: contentHash,
@@ -523,6 +535,23 @@ async function executeProductDetails(input = {}, adapters = {}) {
       },
     });
     phaseLog(phases, PHASE.ENTERED_MARKED, portalProductId);
+
+    const enteredWorkflowRowVersion = extractEnteredWorkflowRowVersion(enteredResult);
+    if (enteredWorkflowRowVersion == null) {
+      return {
+        ok: false,
+        code: "ENTERED_ROW_VERSION_UNPROVEN",
+        message:
+          "mark_entered succeeded but did not return a workflow row version; portal_verified refused.",
+        phases,
+        runId,
+        portalProductId,
+        runBegun: true,
+        mutated: true,
+        requiresReadOnlyReconciliation: true,
+        inventedFailureRpcCalled: false,
+      };
+    }
 
     phaseLog(phases, PHASE.REREAD_REQUESTED, portalProductId);
     if (typeof adapters.reread !== "function") {
@@ -576,8 +605,7 @@ async function executeProductDetails(input = {}, adapters = {}) {
 
     await adapters.markPortalVerified({
       runId,
-      expectedWorkflowRowVersion:
-        beginResult.workflow_row_version || workflowRowVersion,
+      expectedWorkflowRowVersion: enteredWorkflowRowVersion,
       expectedContentHash: contentHash,
       compareReport: toMarkPortalVerifiedReport(compareResult),
     });
@@ -1234,6 +1262,8 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
         runStatus === "RUNNING" &&
         entryStatus === "IN_PROGRESS");
 
+    let portalVerifiedWorkflowRowVersion = null;
+
     if (shouldMarkEntered) {
       if (typeof adapters.markEntered !== "function") {
         return {
@@ -1248,7 +1278,7 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
           requiresReadOnlyReconciliation: true,
         };
       }
-      await adapters.markEntered({
+      const enteredResult = await adapters.markEntered({
         runId: resumedRunId,
         expectedWorkflowRowVersion:
           resumeResult?.workflow_row_version ?? workflowRowVersion,
@@ -1261,6 +1291,24 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
         },
       });
       phaseLog(phases, PHASE.ENTERED_MARKED, portalProductId);
+
+      portalVerifiedWorkflowRowVersion = extractEnteredWorkflowRowVersion(enteredResult);
+      if (portalVerifiedWorkflowRowVersion == null) {
+        return {
+          ok: false,
+          code: "ENTERED_ROW_VERSION_UNPROVEN",
+          message:
+            "mark_entered succeeded but did not return a workflow row version; portal_verified refused.",
+          phases,
+          runId: resumedRunId,
+          portalProductId,
+          runBegun: false,
+          runResumed: true,
+          mutated: true,
+          requiresReadOnlyReconciliation: true,
+          inventedFailureRpcCalled: false,
+        };
+      }
     } else if (
       resumePlan.action === RESUME_ACTION.READ_ONLY_RECONCILE_EXACT_ONE &&
       entryStatus === "IN_PROGRESS" &&
@@ -1278,6 +1326,28 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
         runResumed: true,
         mutated: false,
       };
+    } else {
+      // Already ENTERED (or reconcile without markEntered): use trusted current
+      // resume/preflight version — never invent +1 or reuse a prior IN_PROGRESS guess.
+      portalVerifiedWorkflowRowVersion =
+        extractEnteredWorkflowRowVersion(resumeResult) ??
+        extractEnteredWorkflowRowVersion({
+          workflow_row_version: workflowRowVersion,
+        });
+      if (portalVerifiedWorkflowRowVersion == null) {
+        return {
+          ok: false,
+          code: "ENTERED_ROW_VERSION_UNPROVEN",
+          message:
+            "Trusted current workflow row version missing for portal_verified after ENTERED reconcile.",
+          phases,
+          runId: resumedRunId,
+          portalProductId,
+          runBegun: false,
+          runResumed: true,
+          mutated: false,
+        };
+      }
     }
 
     phaseLog(phases, PHASE.REREAD_REQUESTED, portalProductId);
@@ -1334,8 +1404,7 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
 
     await adapters.markPortalVerified({
       runId: resumedRunId,
-      expectedWorkflowRowVersion:
-        resumeResult?.workflow_row_version ?? workflowRowVersion,
+      expectedWorkflowRowVersion: portalVerifiedWorkflowRowVersion,
       expectedContentHash: contentHash,
       compareReport: toMarkPortalVerifiedReport(compareResult),
     });

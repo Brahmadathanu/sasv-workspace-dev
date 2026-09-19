@@ -1142,7 +1142,7 @@ const success = await executeProductDetails(successInput, {
       hiddenIdAfter: "7788",
     };
   },
-  markEntered: async () => ({ ok: true }),
+  markEntered: async () => ({ ok: true, workflow_row_version: 8 }),
   reread: async () => ({
     name: "Karpooradi Thailam",
     type: "1",
@@ -1173,6 +1173,10 @@ assert(success.submitProductExecuted === false, "submitProduct never executed");
 assert(success.inventedFailureRpcCalled === false, "no invented failure RPC on success");
 assert(runBeginCalls === 1, "run_begin called once via mock");
 assert(saveCalls === 1, "SaveData invoked exactly once");
+assert(
+  markPortalVerifiedArgs?.expectedWorkflowRowVersion === 8,
+  "Start markPortalVerified uses ENTERED row version (not begin version 7)",
+);
 assert(
   markPortalVerifiedArgs?.compareReport?.equal === true,
   "mark_portal_verified receives equal compare report",
@@ -1288,7 +1292,7 @@ assert(
     },
     markEntered: async (args) => {
       resumeMarkEnteredArgs = args;
-      return { ok: true };
+      return { ok: true, workflow_row_version: 8 };
     },
     reread: async () => ({
       name: "Karpooradi Thailam",
@@ -1319,6 +1323,10 @@ assert(
   assert(resumeSaveCalls === 1, "resume CONTINUE calls saveOnce once");
   assert(resumeMarkEnteredArgs?.runId === resumeRunId, "markEntered uses same runId");
   assert(resumeMarkPortalVerifiedArgs?.runId === resumeRunId, "markPortalVerified uses same runId");
+  assert(
+    resumeMarkPortalVerifiedArgs?.expectedWorkflowRowVersion === 8,
+    "Resume markPortalVerified uses ENTERED row version (not resume version 7)",
+  );
 
   const exactOneDuplicate = {
     source: "LoadProductDataforLegacy",
@@ -1329,6 +1337,7 @@ assert(
     coverageComplete: true,
   };
   let exactOneSaveCalls = 0;
+  let exactOnePortalArgs = null;
   const exactOneResume = await executeProductDetailsResume(
     {
       ...resumeBaseInput,
@@ -1340,7 +1349,7 @@ assert(
         exactOneSaveCalls += 1;
         throw new Error("saveOnce must not run on EXACT_ONE reconcile");
       },
-      markEntered: async () => ({ ok: true }),
+      markEntered: async () => ({ ok: true, workflow_row_version: 8 }),
       reread: async () => ({
         name: "Karpooradi Thailam",
         type: "1",
@@ -1355,11 +1364,18 @@ assert(
         shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
         attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
       }),
-      markPortalVerified: async () => ({ ok: true }),
+      markPortalVerified: async (args) => {
+        exactOnePortalArgs = args;
+        return { ok: true };
+      },
     },
   );
   assert(exactOneResume.ok === true, "EXACT_ONE reconcile can complete without Save");
   assert(exactOneSaveCalls === 0, "EXACT_ONE reconcile does not call saveOnce");
+  assert(
+    exactOnePortalArgs?.expectedWorkflowRowVersion === 8,
+    "EXACT_ONE markPortalVerified uses ENTERED returned row version",
+  );
 }
 
 const drift = await executeProductDetails(
@@ -1411,7 +1427,7 @@ const mismatch = await executeProductDetails(successInput, {
     hiddenIdBefore: null,
     hiddenIdAfter: "7788",
   }),
-  markEntered: async () => ({ ok: true }),
+  markEntered: async () => ({ ok: true, workflow_row_version: 8 }),
   reread: async () => ({
     name: "Wrong Name",
     type: "1",
@@ -1432,6 +1448,142 @@ const mismatch = await executeProductDetails(successInput, {
 });
 assert(mismatch.code === "COMPARE_MISMATCH", "mismatch does not mark portal_verified");
 assert(mismatch.compareResult?.overall === OVERALL_COMPARE.MISMATCH, "overall MISMATCH");
+
+// --- ENTERED workflow row-version propagation regressions ---
+{
+  let startPortalArgs = null;
+  let startPortalCalls = 0;
+  const startRowPropagation = await executeProductDetails(
+    { ...successInput, workflowRowVersion: 6 },
+    {
+      runBegin: async () => ({ run_id: "run-rv-start", workflow_row_version: 6 }),
+      fillForm: async () => ({ ok: true }),
+      saveOnce: async () => ({
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: true,
+        portalProductId: "7788",
+        hiddenIdBefore: null,
+        hiddenIdAfter: "7788",
+      }),
+      markEntered: async () => ({ ok: true, workflow_row_version: 7 }),
+      reread: async () => ({
+        name: "Karpooradi Thailam",
+        type: "1",
+        categoryId: "10",
+        subTypeId: "31",
+        permissionPurpose: { label: "Regular", value: "7" },
+        compositionTitle: "For 10 mL",
+        disease: "Sandhirujah, Śōpham",
+        indications: ["99"],
+        drugs: "NO",
+        remarks: GOVERNANCE_OVERRIDES.remarks,
+        shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+        attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+      }),
+      markPortalVerified: async (args) => {
+        startPortalCalls += 1;
+        startPortalArgs = args;
+        return { ok: true };
+      },
+    },
+  );
+  assert(startRowPropagation.ok === true, "Start row-version regression reaches PORTAL_VERIFIED");
+  assert(startPortalCalls === 1, "Start portal verified called once");
+  assert(
+    startPortalArgs?.expectedWorkflowRowVersion === 7,
+    "Start: begin=6 entered=7 => portal verified receives 7",
+  );
+
+  let resumePortalArgs = null;
+  const resumeRowPropagation = await executeProductDetailsResume(resumeBaseInput, {
+    runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+    fillForm: async () => ({
+      ok: true,
+      approvedCopyProof: { applied: true, fileName: EXPECTED_APPROVED_COPY_NAME },
+    }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: "7788",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "7788",
+    }),
+    markEntered: async () => ({ ok: true, workflow_row_version: 7 }),
+    reread: async () => ({
+      name: "Karpooradi Thailam",
+      type: "1",
+      categoryId: "10",
+      subTypeId: "31",
+      permissionPurpose: { label: "Regular", value: "7" },
+      compositionTitle: "For 10 mL",
+      disease: "Sandhirujah, Śōpham",
+      indications: ["99"],
+      drugs: "NO",
+      remarks: GOVERNANCE_OVERRIDES.remarks,
+      shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    }),
+    markPortalVerified: async (args) => {
+      resumePortalArgs = args;
+      return { ok: true };
+    },
+  });
+  assert(resumeRowPropagation.ok === true, "Resume row-version regression reaches PORTAL_VERIFIED");
+  assert(
+    resumePortalArgs?.expectedWorkflowRowVersion === 7,
+    "Resume: resume=6 entered=7 => portal verified receives 7",
+  );
+  assert(resumePortalArgs?.runId === resumeRunId, "Resume row-version path keeps same run_id");
+
+  let missingVersionPortalCalls = 0;
+  const missingEnteredVersion = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-rv-missing", workflow_row_version: 6 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: "7788",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "7788",
+    }),
+    markEntered: async () => ({ ok: true }),
+    reread: async () => {
+      throw new Error("reread must not run when ENTERED row version unproven");
+    },
+    markPortalVerified: async () => {
+      missingVersionPortalCalls += 1;
+      throw new Error("markPortalVerified must not run when ENTERED row version unproven");
+    },
+  });
+  assert(
+    missingEnteredVersion.code === "ENTERED_ROW_VERSION_UNPROVEN",
+    "missing entered workflow row version fail-closes",
+  );
+  assert(missingVersionPortalCalls === 0, "missing entered version does not call markPortalVerified");
+
+  const executorSrcRv = readFileSync(
+    join(root, "electron/eaushadhi-worker/product-details-executor.js"),
+    "utf8",
+  );
+  assert(
+    !/workflow_row_version\s*\+\s*1|workflowRowVersion\s*\+\s*1/.test(executorSrcRv),
+    "executor does not client-side +1 workflow row version",
+  );
+  assert(
+    executorSrcRv.includes("ENTERED_ROW_VERSION_UNPROVEN"),
+    "executor defines ENTERED_ROW_VERSION_UNPROVEN fail-closed code",
+  );
+  assert(
+    executorSrcRv.includes("extractEnteredWorkflowRowVersion"),
+    "executor uses extractEnteredWorkflowRowVersion helper",
+  );
+}
 
 const compareMatch = compareProductDetailsReread(
   {
@@ -2506,7 +2658,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     },
     markEntered: async () => {
       order.push("entered");
-      return { ok: true };
+      return { ok: true, workflow_row_version: 8 };
     },
     reread: async () => {
       order.push("reread");
