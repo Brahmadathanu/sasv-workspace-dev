@@ -904,8 +904,51 @@ function assessProductDetailsResumePreflight(input = {}) {
   if (input.classificationVerified !== true) {
     return { ok: false, code: "CLASSIFICATION_NOT_VERIFIED", phases, resumePlan };
   }
-  if (input.isReadyForEntry !== true) {
-    return { ok: false, code: "NOT_READY", phases, resumePlan };
+  // Resume must NOT require is_ready_for_entry (NOT_STARTED-only). Use source readiness.
+  if (input.compositionReviewComplete !== true) {
+    return {
+      ok: false,
+      code: "COMPOSITION_REVIEW_INCOMPLETE",
+      message: "Composition review is incomplete; resume blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (input.dossierReady !== true) {
+    return {
+      ok: false,
+      code: "DOSSIER_NOT_READY",
+      message: "Dossier is not ready; resume blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (Number(input.openBlockers) !== 0) {
+    return {
+      ok: false,
+      code: "OPEN_BLOCKERS",
+      message: "Open blockers remain; resume blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (Number(input.openPortalIssues) !== 0) {
+    return {
+      ok: false,
+      code: "OPEN_PORTAL_ISSUES",
+      message: "Open portal issues remain; resume blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (input.resumeSourceReady !== true) {
+    return {
+      ok: false,
+      code: "RESUME_SOURCE_NOT_READY",
+      message: "Resume source readiness is not proven; resume blocked.",
+      phases,
+      resumePlan,
+    };
   }
   if (input.contentHashMatchesRunStart === false) {
     return {
