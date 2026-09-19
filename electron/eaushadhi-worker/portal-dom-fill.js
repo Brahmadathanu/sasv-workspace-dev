@@ -5,6 +5,10 @@
  * Pure planning helpers + injectable page adapters. No network.
  */
 
+/** Default bounded wait for dependent controls after classification. */
+const CONTROL_READY_TIMEOUT_MS = 8000;
+const CONTROL_READY_POLL_MS = 50;
+
 function buildDependentClassificationSteps(fillPlan) {
   const byKey = new Map((fillPlan?.fields || []).map((f) => [f.key, f]));
   const type = byKey.get("type");
@@ -34,6 +38,8 @@ function buildDependentClassificationSteps(fillPlan) {
  */
 function createInPageFillScript() {
   return `async function __sasvFillProductDetails(plan) {
+    var CONTROL_READY_TIMEOUT_MS = 8000;
+    var CONTROL_READY_POLL_MS = 50;
     function q(sel) { return document.querySelector(sel); }
     function optionsOf(sel) {
       const el = q(sel);
@@ -60,6 +66,46 @@ function createInPageFillScript() {
       el.dispatchEvent(new Event('change', { bubbles: true }));
       return String(el.value);
     }
+    function failControl(code, fieldKey) {
+      var err = new Error(code);
+      err.code = code;
+      err.fieldKey = fieldKey || null;
+      throw err;
+    }
+    function readyTimeoutMs() {
+      var n = Number(plan && plan.controlReadyTimeoutMs);
+      if (Number.isFinite(n) && n > 0 && n <= CONTROL_READY_TIMEOUT_MS) return n;
+      return CONTROL_READY_TIMEOUT_MS;
+    }
+    function waitForElement(sel, timeoutMs) {
+      var deadline = Date.now() + (timeoutMs || CONTROL_READY_TIMEOUT_MS);
+      return new Promise(function(resolve, reject) {
+        (function tick() {
+          if (q(sel)) return resolve(true);
+          if (Date.now() > deadline) {
+            return reject(new Error('element timeout ' + sel));
+          }
+          setTimeout(tick, CONTROL_READY_POLL_MS);
+        })();
+      });
+    }
+    function waitForSelectOptions(sel, timeoutMs) {
+      var deadline = Date.now() + (timeoutMs || CONTROL_READY_TIMEOUT_MS);
+      return new Promise(function(resolve, reject) {
+        (function tick() {
+          var el = q(sel);
+          var opts = optionsOf(sel);
+          var usable = opts.filter(function(o) {
+            return String(o.value || '').trim() !== '' || String(o.label || '').trim() !== '';
+          });
+          if (el && usable.length > 0) return resolve(true);
+          if (Date.now() > deadline) {
+            return reject(new Error('select options timeout ' + sel));
+          }
+          setTimeout(tick, CONTROL_READY_POLL_MS);
+        })();
+      });
+    }
     function waitForOption(sel, value, timeoutMs) {
       const deadline = Date.now() + (timeoutMs || 8000);
       return new Promise(function(resolve, reject) {
@@ -72,6 +118,40 @@ function createInPageFillScript() {
           setTimeout(tick, 50);
         })();
       });
+    }
+    async function waitRequiredDependentControls() {
+      var fields = plan.fields || [];
+      var timeoutMs = readyTimeoutMs();
+      var needsPermission = fields.some(function(f) { return f && f.fill && f.key === 'permissionPurpose'; });
+      var needsShelf = fields.some(function(f) { return f && f.fill && f.key === 'shelfmonth'; });
+      var needsUpload = fields.some(function(f) { return f && f.fill && f.key === 'uploadAttachment'; });
+
+      if (needsPermission) {
+        try {
+          await waitForElement('#permissionPurpose', timeoutMs);
+        } catch (e) {
+          failControl('PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING', 'permissionPurpose');
+        }
+        try {
+          await waitForSelectOptions('#permissionPurpose', timeoutMs);
+        } catch (e) {
+          failControl('PORTAL_PERMISSION_PURPOSE_NOT_READY', 'permissionPurpose');
+        }
+      }
+      if (needsShelf) {
+        try {
+          await waitForElement('input[name="shelfmonth"]', timeoutMs);
+        } catch (e) {
+          failControl('PORTAL_SHELFLIFE_CONTROL_MISSING', 'shelfmonth');
+        }
+      }
+      if (needsUpload) {
+        try {
+          await waitForElement('#uploadAttachment', timeoutMs);
+        } catch (e) {
+          failControl('PORTAL_REQUIRED_CONTROL_MISSING', 'uploadAttachment');
+        }
+      }
     }
     const result = { filled: [], permission: null };
     for (const step of (plan.classificationSteps || [])) {
@@ -87,6 +167,8 @@ function createInPageFillScript() {
       }
       result.filled.push(step.key);
     }
+    // After classification, wait for required dependent controls before filling them.
+    await waitRequiredDependentControls();
     for (const field of (plan.fields || [])) {
       if (!field.fill || field.key === 'type' || field.key === 'categoryId' || field.key === 'subTypeId') continue;
       if (field.key === 'permissionPurpose') {
@@ -183,4 +265,6 @@ module.exports = {
   buildDependentClassificationSteps,
   createInPageFillScript,
   fillProductDetailsOnPage,
+  CONTROL_READY_TIMEOUT_MS,
+  CONTROL_READY_POLL_MS,
 };
