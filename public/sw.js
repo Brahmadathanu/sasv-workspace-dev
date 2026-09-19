@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v324"; // SKU Control exact-run evidence cache identity
+const CACHE_NAME = "hub-cache-v325"; // QC Explain exact-run client identity + cache
 
 const PRECACHE = [
   // Hub shell

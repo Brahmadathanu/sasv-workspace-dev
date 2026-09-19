@@ -1,6 +1,8 @@
 import {
+  QC_EXACT_RUN_UNAVAILABLE_MESSAGE,
   QC_EXCLUSION_DISCLOSURE,
   buildQcExplainCacheEntry,
+  buildQcExplainSelectedRunRpcArgs,
   extractNestedProductQcExplain,
   formatQcAbsorptionMethodLabel,
   formatQcAbsorptionSourceMonth,
@@ -13,8 +15,11 @@ import {
   formatQcQuantitySourceLabel,
   formatQcReasonLabel,
   formatQcStatusLabel,
+  hasCompleteQcExplainExactIdentity,
   isBlankQcValue,
   isQcExplainCacheEntryReusable,
+  isQcExplainExactResponseAgreement,
+  isQcExplainPersistedExactRunUnavailable,
   mergeSkuAndProductQcExplain,
   pickFirstDefined,
   qcExplainRequestIdentity,
@@ -2798,15 +2803,33 @@ export function createCostSheetController(deps) {
     const period_start = String(row.period_start ?? "").trim();
     const product_id = Number(row.product_id);
     if (!period_start || !Number.isFinite(product_id)) return null;
+    const request_mode =
+      String(row.request_mode || "").trim() === "current" ? "current" : "exact";
+    const valuationRaw = String(
+      row.valuation_date ?? row.valuationDate ?? "",
+    ).trim();
+    const valuation_date = valuationRaw || null;
+    const runRaw = pickFirstDefined(row.refresh_run_id, row.refreshRunId);
+    const runNum = Number(runRaw);
+    const refresh_run_id =
+      runRaw == null || runRaw === "" || !Number.isFinite(runNum)
+        ? null
+        : runNum;
     const skuRaw = row.sku_id;
-    if (skuRaw == null || skuRaw === "") {
-      return { period_start, product_id, sku_id: null };
+    let sku_id = null;
+    if (skuRaw != null && skuRaw !== "") {
+      const skuNum = Number(skuRaw);
+      sku_id = Number.isFinite(skuNum) ? skuNum : null;
+      if (sku_id == null) return null;
     }
-    const sku_id = Number(skuRaw);
-    if (!Number.isFinite(sku_id)) {
-      return { period_start, product_id, sku_id: null };
-    }
-    return { period_start, product_id, sku_id };
+    return {
+      period_start,
+      product_id,
+      sku_id,
+      valuation_date,
+      refresh_run_id,
+      request_mode,
+    };
   }
 
   function qcExplainCacheKey(tuple) {
@@ -2816,19 +2839,16 @@ export function createCostSheetController(deps) {
   function qcExplainRowRequestIdentity(row) {
     const tuple = getQcExplainTuple(row);
     if (!tuple) return null;
+    const cacheKey = qcExplainCacheKey(tuple);
+    if (!cacheKey) return null;
     const label = normalizeCostSheetDisplayLabel(row.line_label ?? "")
       .trim()
       .toLowerCase();
-    return `${qcExplainCacheKey(tuple)}|${label || "quality control overhead"}`;
+    return `${cacheKey}|${label || "quality control overhead"}`;
   }
 
   function clearQcExplainCache() {
     qcExplainCache.clear();
-  }
-
-  function currentQcRunIdFromRow(row) {
-    if (!row) return null;
-    return pickFirstDefined(row.refresh_run_id, row.refreshRunId);
   }
 
   function isQcExplainResponseCurrent(row, requestIdentity) {
@@ -2843,11 +2863,20 @@ export function createCostSheetController(deps) {
     const requestTuple = getQcExplainTuple(row);
     if (!currentTuple || !requestTuple) return false;
     if (
+      currentTuple.request_mode !== requestTuple.request_mode ||
       currentTuple.period_start !== requestTuple.period_start ||
       currentTuple.product_id !== requestTuple.product_id ||
       currentTuple.sku_id !== requestTuple.sku_id
     ) {
       return false;
+    }
+    if (currentTuple.request_mode === "exact") {
+      if (
+        currentTuple.valuation_date !== requestTuple.valuation_date ||
+        currentTuple.refresh_run_id !== requestTuple.refresh_run_id
+      ) {
+        return false;
+      }
     }
     return Boolean(costSheetExplainContent.querySelector("#cpQcExplainHost"));
   }
@@ -2866,10 +2895,13 @@ export function createCostSheetController(deps) {
 
   async function loadSkuQcExplain(tuple) {
     if (!tuple || typeof costingRpc !== "function") return null;
+    const selectedRunArgs = buildQcExplainSelectedRunRpcArgs(tuple);
+    if (selectedRunArgs == null) return null;
     const { data, error } = await costingRpc("rpc_get_sku_qc_explain", {
       p_period_start: tuple.period_start,
       p_product_id: tuple.product_id,
       p_sku_id: tuple.sku_id,
+      ...selectedRunArgs,
     });
     if (error) throw error;
     return normalizeQcExplainRpcRow(data);
@@ -2877,9 +2909,12 @@ export function createCostSheetController(deps) {
 
   async function loadProductQcExplain(tuple) {
     if (!tuple || typeof costingRpc !== "function") return null;
+    const selectedRunArgs = buildQcExplainSelectedRunRpcArgs(tuple);
+    if (selectedRunArgs == null) return null;
     const { data, error } = await costingRpc("rpc_get_product_qc_explain", {
       p_period_start: tuple.period_start,
       p_product_id: tuple.product_id,
+      ...selectedRunArgs,
     });
     if (error) throw error;
     return normalizeQcExplainRpcRow(data);
@@ -2905,21 +2940,60 @@ export function createCostSheetController(deps) {
     </section>`;
   }
 
-  function renderQcExplainEmptyStatus(summaryStatus) {
-    const status = String(summaryStatus || "UNKNOWN").trim().toUpperCase();
-    if (status === "NO_CURRENT_SUCCESSFUL_RUN") {
+  function renderQcExplainEmptyStatus(payloadOrStatus) {
+    let summaryStatus = "";
+    let projection = "";
+    if (payloadOrStatus && typeof payloadOrStatus === "object") {
+      summaryStatus = String(
+        pickFirstDefined(
+          payloadOrStatus.summary_status,
+          payloadOrStatus.__sku?.summary_status,
+          payloadOrStatus.__product?.summary_status,
+        ) || "",
+      )
+        .trim()
+        .toUpperCase();
+      projection = String(
+        pickFirstDefined(
+          payloadOrStatus.projection_source,
+          payloadOrStatus.__sku?.projection_source,
+          payloadOrStatus.__product?.projection_source,
+        ) || "",
+      )
+        .trim()
+        .toUpperCase();
+    } else {
+      summaryStatus = String(payloadOrStatus || "UNKNOWN").trim().toUpperCase();
+    }
+
+    if (isQcExplainPersistedExactRunUnavailable(payloadOrStatus)) {
+      return renderQcExplainStateMessage(
+        QC_EXACT_RUN_UNAVAILABLE_MESSAGE,
+        "cp-qc-explain-empty",
+      );
+    }
+    if (
+      summaryStatus === "NO_TRACE_DATA" &&
+      projection === "PERSISTED_EXACT_RUN_UNAVAILABLE"
+    ) {
+      return renderQcExplainStateMessage(
+        QC_EXACT_RUN_UNAVAILABLE_MESSAGE,
+        "cp-qc-explain-empty",
+      );
+    }
+    if (summaryStatus === "NO_CURRENT_SUCCESSFUL_RUN") {
       return renderQcExplainStateMessage(
         "No current successful costing run is available for Quality Control allocation explanation on the selected period, product and SKU.",
         "cp-qc-explain-empty",
       );
     }
-    if (status === "NO_TRACE_DATA" || status === "NO_PERSISTED_DATA") {
+    if (summaryStatus === "NO_TRACE_DATA" || summaryStatus === "NO_PERSISTED_DATA") {
       return renderQcExplainStateMessage(
         "No Quality Control allocation trace was found for the selected product, SKU and costing run.",
         "cp-qc-explain-empty",
       );
     }
-    if (status === "UNKNOWN" || !status) {
+    if (summaryStatus === "UNKNOWN" || !summaryStatus) {
       return renderQcExplainStateMessage(
         "Quality Control allocation explanation is unavailable for this selection.",
         "cp-qc-explain-empty",
@@ -3036,7 +3110,16 @@ export function createCostSheetController(deps) {
     )
       .trim()
       .toUpperCase();
-    const emptyOnly = renderQcExplainEmptyStatus(summaryStatus);
+    const emptyOnly = renderQcExplainEmptyStatus({
+      summary_status: summaryStatus,
+      projection_source: pickFirstDefined(
+        sku.projection_source,
+        model.projection_source,
+        product.projection_source,
+      ),
+      __sku: sku,
+      __product: product,
+    });
     if (emptyOnly) return emptyOnly;
 
     const projection = String(
@@ -3547,21 +3630,36 @@ export function createCostSheetController(deps) {
       return;
     }
 
+    if (
+      tuple.request_mode === "exact" &&
+      !hasCompleteQcExplainExactIdentity(tuple)
+    ) {
+      replaceQcExplainHost(
+        renderQcExplainStateMessage(
+          "Quality Control allocation explanation is unavailable because the exact costing context is incomplete.",
+        ),
+      );
+      return;
+    }
+
     if (!isQcExplainResponseCurrent(row, requestIdentity)) return;
 
     const cacheKey = qcExplainCacheKey(tuple);
     const cached = qcExplainCache.get(cacheKey);
-    const currentRunId = currentQcRunIdFromRow(row);
-    if (cached && isQcExplainCacheEntryReusable(cached, currentRunId)) {
+    if (cached && isQcExplainCacheEntryReusable(cached, tuple)) {
       if (!isQcExplainResponseCurrent(row, requestIdentity)) return;
-      replaceQcExplainHost(
-        renderQcExplainSection(cached.payload, {
-          usedSkuRpc: tuple.sku_id != null,
-        }),
-      );
-      return;
+      if (!isQcExplainExactResponseAgreement(cached.payload, tuple)) {
+        qcExplainCache.delete(cacheKey);
+      } else {
+        replaceQcExplainHost(
+          renderQcExplainSection(cached.payload, {
+            usedSkuRpc: tuple.sku_id != null,
+          }),
+        );
+        return;
+      }
     }
-    if (cached && !isQcExplainCacheEntryReusable(cached, currentRunId)) {
+    if (cached && !isQcExplainCacheEntryReusable(cached, tuple)) {
       qcExplainCache.delete(cacheKey);
     }
 
@@ -3579,6 +3677,14 @@ export function createCostSheetController(deps) {
         replaceQcExplainHost(
           renderQcExplainStateMessage(
             "Quality Control allocation explanation is unavailable for this selection.",
+          ),
+        );
+        return;
+      }
+      if (!isQcExplainExactResponseAgreement(payload, tuple)) {
+        replaceQcExplainHost(
+          renderQcExplainStateMessage(
+            "Quality Control allocation explanation could not be validated for this exact costing run.",
           ),
         );
         return;
@@ -3639,6 +3745,7 @@ export function createCostSheetController(deps) {
       product_name: row.product_name,
       refresh_run_id: row.refresh_run_id,
       valuation_date: row.valuation_date,
+      request_mode: "current",
     };
     setCostSheetExplainHeader(synthetic, {
       lineLabel: "Quality Control Overhead",
@@ -4567,6 +4674,9 @@ export function createCostSheetController(deps) {
     }
 
     setCostSheetExplainHeader(row, params);
+    if (isQualityControlOverheadExplainLine(row)) {
+      row.request_mode = "exact";
+    }
     currentExplainTraceabilityRow = row;
     const explainHtml = renderCostSheetExplainContent(row, params);
     const showMarketing = isMarketingExpenseExplainLine(row);
