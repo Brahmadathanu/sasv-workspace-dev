@@ -126,6 +126,42 @@ function classifyFillFormFailure(error) {
       message: "Portal #uploadAttachment input was missing.",
     };
   }
+  if (
+    code === "PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING" ||
+    /PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING",
+      message: "Portal Permission Purpose control did not become available after classification.",
+    };
+  }
+  if (
+    code === "PORTAL_PERMISSION_PURPOSE_NOT_READY" ||
+    /PORTAL_PERMISSION_PURPOSE_NOT_READY/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_PERMISSION_PURPOSE_NOT_READY",
+      message: "Portal Permission Purpose options did not become ready after classification.",
+    };
+  }
+  if (
+    code === "PORTAL_SHELFLIFE_CONTROL_MISSING" ||
+    /PORTAL_SHELFLIFE_CONTROL_MISSING/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_SHELFLIFE_CONTROL_MISSING",
+      message: "Portal Shelf Life control did not become available after classification.",
+    };
+  }
+  if (
+    code === "PORTAL_REQUIRED_CONTROL_MISSING" ||
+    /PORTAL_REQUIRED_CONTROL_MISSING/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_REQUIRED_CONTROL_MISSING",
+      message: "A required Product Details portal control did not become available after classification.",
+    };
+  }
   return {
     code: "FILL_FORM_FAILED",
     message: "Product Details form fill failed before Save.",
