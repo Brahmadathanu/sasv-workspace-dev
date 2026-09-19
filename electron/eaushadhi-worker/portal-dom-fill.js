@@ -89,18 +89,75 @@ function createInPageFillScript() {
         })();
       });
     }
-    function waitForSelectOptions(sel, timeoutMs) {
+    /**
+     * Wait until exactly one option label matches expected (trim/case-insensitive).
+     * Placeholder-only (--Select--) is NOT ready. Duplicate exact labels fail closed.
+     */
+    function waitForExactSelectOption(sel, expectedLabel, timeoutMs) {
+      var expected = String(expectedLabel || '').trim().toLowerCase();
       var deadline = Date.now() + (timeoutMs || CONTROL_READY_TIMEOUT_MS);
       return new Promise(function(resolve, reject) {
         (function tick() {
           var el = q(sel);
-          var opts = optionsOf(sel);
-          var usable = opts.filter(function(o) {
-            return String(o.value || '').trim() !== '' || String(o.label || '').trim() !== '';
-          });
-          if (el && usable.length > 0) return resolve(true);
+          if (el) {
+            var opts = optionsOf(sel);
+            var matches = opts.filter(function(o) {
+              return String(o.label || '').trim().toLowerCase() === expected;
+            });
+            if (matches.length > 1) {
+              var amb = new Error('PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS');
+              amb.code = 'PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS';
+              return reject(amb);
+            }
+            if (matches.length === 1) {
+              return resolve({ label: matches[0].label, value: matches[0].value });
+            }
+            // 0 matches: placeholder-only or Ajax not finished — keep waiting.
+          }
           if (Date.now() > deadline) {
-            return reject(new Error('select options timeout ' + sel));
+            var miss = new Error('PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY');
+            miss.code = 'PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY';
+            return reject(miss);
+          }
+          setTimeout(tick, CONTROL_READY_POLL_MS);
+        })();
+      });
+    }
+    /**
+     * Wait until exactly one visible, enabled radio matches name+value.
+     * Hidden/template radios do NOT count as ready. Duplicates fail closed.
+     */
+    function waitForExactVisibleRadio(name, expectedValue, timeoutMs) {
+      var expected = String(expectedValue || '').trim();
+      var deadline = Date.now() + (timeoutMs || CONTROL_READY_TIMEOUT_MS);
+      // Product 262 shelfmonth uses the exact governed radio name selector.
+      var radioSel =
+        String(name) === 'shelfmonth'
+          ? 'input[name="shelfmonth"]'
+          : 'input[name="' + String(name).replace(/"/g, '') + '"]';
+      return new Promise(function(resolve, reject) {
+        (function tick() {
+          var all = document.querySelectorAll(radioSel);
+          var matches = Array.prototype.filter.call(all, function(el) {
+            return (
+              String(el.value || '') === expected &&
+              el.disabled !== true &&
+              el.offsetParent !== null
+            );
+          });
+          if (matches.length > 1) {
+            var amb = new Error('PORTAL_SHELFLIFE_TARGET_AMBIGUOUS');
+            amb.code = 'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS';
+            return reject(amb);
+          }
+          if (matches.length === 1) {
+            return resolve(matches[0]);
+          }
+          // 0 matches (missing, hidden, or wrong value) — keep waiting.
+          if (Date.now() > deadline) {
+            var miss = new Error('PORTAL_SHELFLIFE_TARGET_NOT_READY');
+            miss.code = 'PORTAL_SHELFLIFE_TARGET_NOT_READY';
+            return reject(miss);
           }
           setTimeout(tick, CONTROL_READY_POLL_MS);
         })();
@@ -119,30 +176,42 @@ function createInPageFillScript() {
         })();
       });
     }
+    var proven = { permission: null, shelfRadio: null };
     async function waitRequiredDependentControls() {
       var fields = plan.fields || [];
       var timeoutMs = readyTimeoutMs();
-      var needsPermission = fields.some(function(f) { return f && f.fill && f.key === 'permissionPurpose'; });
-      var needsShelf = fields.some(function(f) { return f && f.fill && f.key === 'shelfmonth'; });
+      var permissionField = fields.find(function(f) { return f && f.fill && f.key === 'permissionPurpose'; });
+      var shelfField = fields.find(function(f) { return f && f.fill && f.key === 'shelfmonth'; });
       var needsUpload = fields.some(function(f) { return f && f.fill && f.key === 'uploadAttachment'; });
 
-      if (needsPermission) {
+      if (permissionField) {
         try {
-          await waitForElement('#permissionPurpose', timeoutMs);
+          proven.permission = await waitForExactSelectOption(
+            '#permissionPurpose',
+            permissionField.expected,
+            timeoutMs,
+          );
         } catch (e) {
-          failControl('PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING', 'permissionPurpose');
-        }
-        try {
-          await waitForSelectOptions('#permissionPurpose', timeoutMs);
-        } catch (e) {
-          failControl('PORTAL_PERMISSION_PURPOSE_NOT_READY', 'permissionPurpose');
+          var pCode = String(e && (e.code || e.message) || '');
+          if (pCode.indexOf('PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS') >= 0) {
+            failControl('PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS', 'permissionPurpose');
+          }
+          failControl('PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY', 'permissionPurpose');
         }
       }
-      if (needsShelf) {
+      if (shelfField) {
         try {
-          await waitForElement('input[name="shelfmonth"]', timeoutMs);
+          proven.shelfRadio = await waitForExactVisibleRadio(
+            'shelfmonth',
+            shelfField.expected,
+            timeoutMs,
+          );
         } catch (e) {
-          failControl('PORTAL_SHELFLIFE_CONTROL_MISSING', 'shelfmonth');
+          var sCode = String(e && (e.code || e.message) || '');
+          if (sCode.indexOf('PORTAL_SHELFLIFE_TARGET_AMBIGUOUS') >= 0) {
+            failControl('PORTAL_SHELFLIFE_TARGET_AMBIGUOUS', 'shelfmonth');
+          }
+          failControl('PORTAL_SHELFLIFE_TARGET_NOT_READY', 'shelfmonth');
         }
       }
       if (needsUpload) {
@@ -167,19 +236,29 @@ function createInPageFillScript() {
       }
       result.filled.push(step.key);
     }
-    // After classification, wait for required dependent controls before filling them.
+    // After classification, wait for EXACT governed dependent targets before filling.
     await waitRequiredDependentControls();
     for (const field of (plan.fields || [])) {
       if (!field.fill || field.key === 'type' || field.key === 'categoryId' || field.key === 'subTypeId') continue;
       if (field.key === 'permissionPurpose') {
-        const opts = optionsOf('#permissionPurpose');
-        const expected = String(field.expected || '').trim().toLowerCase();
-        const matches = opts.filter(function(o) {
-          return String(o.label || '').trim().toLowerCase() === expected;
+        var provenPerm = proven.permission;
+        if (!provenPerm || provenPerm.value == null) {
+          failControl('PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY', 'permissionPurpose');
+        }
+        setSelectByValue('#permissionPurpose', provenPerm.value);
+        var afterOpts = optionsOf('#permissionPurpose');
+        var afterSel = afterOpts.filter(function(o) {
+          return String(o.value) === String(provenPerm.value);
         });
-        if (matches.length !== 1) throw new Error('permissionPurpose match count ' + matches.length);
-        setSelectByValue('#permissionPurpose', matches[0].value);
-        result.permission = { label: matches[0].label, value: matches[0].value };
+        var expectedNorm = String(field.expected || '').trim().toLowerCase();
+        var afterLabel = afterSel[0] ? String(afterSel[0].label || '').trim() : '';
+        if (
+          afterSel.length !== 1 ||
+          afterLabel.toLowerCase() !== expectedNorm
+        ) {
+          failControl('PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY', 'permissionPurpose');
+        }
+        result.permission = { label: afterLabel, value: String(provenPerm.value) };
         result.filled.push('permissionPurpose');
         continue;
       }
@@ -215,20 +294,21 @@ function createInPageFillScript() {
         continue;
       }
       if (field.key === 'shelfmonth') {
-        const expected = String(field.expected || '').trim();
-        const selector = 'input[name="shelfmonth"][value="' + expected.replace(/"/g, '\\\\"') + '"]';
-        const matches = Array.prototype.filter.call(
-          document.querySelectorAll(selector),
-          function(el) {
-            return !el.disabled && el.offsetParent !== null;
-          },
-        );
-        if (matches.length !== 1) {
-          throw new Error('shelfmonth match count ' + matches.length + ' for ' + expected);
+        var radio = proven.shelfRadio;
+        if (!radio) {
+          failControl('PORTAL_SHELFLIFE_TARGET_NOT_READY', 'shelfmonth');
         }
-        matches[0].checked = true;
-        matches[0].dispatchEvent(new Event('change', { bubbles: true }));
-        if (!matches[0].checked) {
+        var expectedShelf = String(field.expected || '').trim();
+        if (
+          String(radio.value || '') !== expectedShelf ||
+          radio.disabled === true ||
+          radio.offsetParent === null
+        ) {
+          failControl('PORTAL_SHELFLIFE_TARGET_NOT_READY', 'shelfmonth');
+        }
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!radio.checked) {
           throw new Error('shelfmonth not checked after fill');
         }
         result.filled.push('shelfmonth');
