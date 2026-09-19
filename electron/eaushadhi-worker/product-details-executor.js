@@ -72,19 +72,55 @@ function phaseLog(phases, id, detail) {
 function classifyFillFormFailure(error) {
   const msg = String(error?.message || error || "");
   const code = String(error?.code || "").trim();
+  const humanUpload =
+    "Approved Product Copy could not be applied to the portal upload control.";
+
   if (code === "APPROVED_COPY_NOT_APPLIED" || /APPROVED_COPY_NOT_APPLIED/.test(msg)) {
     return {
       code: "APPROVED_COPY_NOT_APPLIED",
       message: "Approved product copy was not proven on the upload control.",
     };
   }
-  if (/approved_local_path_missing_for_upload/.test(msg)) {
+  if (
+    code === "APPROVED_COPY_LOCAL_PATH_MISSING" ||
+    /approved_local_path_missing_for_upload/.test(msg)
+  ) {
     return {
       code: "APPROVED_COPY_LOCAL_PATH_MISSING",
       message: "Approved product copy local path was missing for upload.",
     };
   }
-  if (/uploadAttachment_input_missing/.test(msg)) {
+  if (
+    code === "APPROVED_COPY_LOCAL_FILE_MISSING" ||
+    /APPROVED_COPY_LOCAL_FILE_MISSING/.test(msg)
+  ) {
+    return { code: "APPROVED_COPY_LOCAL_FILE_MISSING", message: humanUpload };
+  }
+  if (
+    code === "APPROVED_COPY_LOCAL_FILE_NOT_REGULAR" ||
+    /APPROVED_COPY_LOCAL_FILE_NOT_REGULAR/.test(msg)
+  ) {
+    return { code: "APPROVED_COPY_LOCAL_FILE_NOT_REGULAR", message: humanUpload };
+  }
+  if (
+    code === "APPROVED_COPY_LOCAL_FILE_EMPTY" ||
+    /APPROVED_COPY_LOCAL_FILE_EMPTY/.test(msg)
+  ) {
+    return { code: "APPROVED_COPY_LOCAL_FILE_EMPTY", message: humanUpload };
+  }
+  if (
+    code === "APPROVED_COPY_LOCAL_FILE_READ_FAILED" ||
+    /APPROVED_COPY_LOCAL_FILE_READ_FAILED/.test(msg)
+  ) {
+    return { code: "APPROVED_COPY_LOCAL_FILE_READ_FAILED", message: humanUpload };
+  }
+  if (
+    code === "APPROVED_COPY_SET_INPUT_FILES_FAILED" ||
+    /APPROVED_COPY_SET_INPUT_FILES_FAILED/.test(msg)
+  ) {
+    return { code: "APPROVED_COPY_SET_INPUT_FILES_FAILED", message: humanUpload };
+  }
+  if (code === "UPLOAD_ATTACHMENT_INPUT_MISSING" || /uploadAttachment_input_missing/.test(msg)) {
     return {
       code: "UPLOAD_ATTACHMENT_INPUT_MISSING",
       message: "Portal #uploadAttachment input was missing.",
