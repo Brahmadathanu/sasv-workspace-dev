@@ -32,6 +32,7 @@ const {
 const PHASE = Object.freeze({
   PRECHECK: "PRECHECK",
   RUN_BEGIN: "RUN_BEGIN",
+  RUN_RESUME: "RUN_RESUME",
   FORM_FILLED: "FORM_FILLED",
   SAVE_REQUESTED: "SAVE_REQUESTED",
   SAVE_CONFIRMED: "SAVE_CONFIRMED",
@@ -42,6 +43,18 @@ const PHASE = Object.freeze({
   PORTAL_VERIFIED_MARKED: "PORTAL_VERIFIED_MARKED",
 });
 
+const RESUME_ACTION = Object.freeze({
+  CONTINUE_EXISTING_RUN: "CONTINUE_EXISTING_RUN",
+  READ_ONLY_RECONCILE_EXACT_ONE: "READ_ONLY_RECONCILE_EXACT_ONE",
+  STOP_NO_ACTIVE_RUN: "STOP_NO_ACTIVE_RUN",
+  STOP_ACTIVE_RUN_AMBIGUOUS: "STOP_ACTIVE_RUN_AMBIGUOUS",
+  STOP_DUPLICATE_AMBIGUOUS: "STOP_DUPLICATE_AMBIGUOUS",
+  STOP_DUPLICATE_SEARCH_INCOMPLETE: "STOP_DUPLICATE_SEARCH_INCOMPLETE",
+  STOP_DUPLICATE_COVERAGE_UNPROVEN: "STOP_DUPLICATE_COVERAGE_UNPROVEN",
+  STOP_CONFLICTING_REFS: "STOP_CONFLICTING_REFS",
+  STOP: "STOP",
+});
+
 const globalSaveMutex = createSaveMutex();
 
 function phaseLog(phases, id, detail) {
@@ -50,6 +63,18 @@ function phaseLog(phases, id, detail) {
     at: new Date().toISOString(),
     detail: detail || null,
   });
+}
+
+/**
+ * Server-returned workflow row version after mark_entered only.
+ * Never infer +1 client-side; never fall back to begin/resume version.
+ */
+function extractEnteredWorkflowRowVersion(enteredResult) {
+  const raw =
+    enteredResult?.workflow_row_version ?? enteredResult?.workflowRowVersion ?? null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) return null;
+  return n;
 }
 
 function assertPageGuards(pageState) {
@@ -78,20 +103,31 @@ function assertPageGuards(pageState) {
   return { ok: true };
 }
 
-function buildPreviewModel({ productId, content, fieldGate, duplicate, pageGuard, contentHash, workflowRowVersion }) {
+function buildPreviewModel({
+  productId,
+  content,
+  fieldGate,
+  duplicate,
+  pageGuard,
+  contentHash,
+  workflowRowVersion,
+  resumeMode = false,
+  resumeEnabled = false,
+  resumeMessage = null,
+}) {
   const blockers = [];
   if (Number(productId) !== FIRST_CONTROLLED_PRODUCT_ID) {
     blockers.push("PRODUCT_LOCK_REJECTED");
   }
   if (fieldGate && !fieldGate.ok) blockers.push(fieldGate.code || "FIELD_GOVERNANCE_INCOMPLETE");
-  if (duplicate && duplicate.ok === false) blockers.push(duplicate.outcome);
+  if (duplicate && duplicate.ok === false && !resumeMode) blockers.push(duplicate.outcome);
   if (pageGuard && pageGuard.ok === false) blockers.push(pageGuard.code);
   if (!contentHash) blockers.push("CONTENT_HASH_MISSING");
 
   return {
     productId: FIRST_CONTROLLED_PRODUCT_ID,
     productName: EXPECTED_PORTAL_PRODUCT_NAME,
-    operation: "Create Product Details only",
+    operation: resumeMode ? "Resume/reconcile Product Details" : "Create Product Details only",
     warning:
       "Karpooradi Thailam\nProduct 262\nProduct Details only\nWill write to Government e-Aushadhi portal\nWill NOT add Composition\nWill NOT final-submit",
     lifecyclePath: "NOT_STARTED -> IN_PROGRESS -> ENTERED -> PORTAL_VERIFIED (stop)",
@@ -103,8 +139,54 @@ function buildPreviewModel({ productId, content, fieldGate, duplicate, pageGuard
     approvedFileName: EXPECTED_APPROVED_COPY_NAME,
     contentHash: contentHash || null,
     workflowRowVersion: workflowRowVersion || null,
-    startEnabled: blockers.length === 0,
+    startEnabled: resumeMode ? false : blockers.length === 0,
+    resumeEnabled: resumeMode ? resumeEnabled === true && blockers.length === 0 : false,
+    resumeMessage: resumeMessage || null,
     blockers,
+  };
+}
+
+function normalizePortalRef(value) {
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function extractPortalIdFromDuplicateMatch(match) {
+  if (!match || typeof match !== "object") return null;
+  const raw = match.id != null ? match.id : match.product_id;
+  if (raw == null) return null;
+  const text = String(raw).trim();
+  if (!text || text === "262" || text === String(FIRST_CONTROLLED_PRODUCT_ID)) return null;
+  return text;
+}
+
+function buildExpectedCompare(preflight) {
+  const permissionField = (preflight.fillPlan.fields || []).find((f) => f.key === "permissionPurpose");
+  const permissionResolved = permissionField?.resolved || null;
+  return {
+    name: EXPECTED_PORTAL_PRODUCT_NAME,
+    type: preflight.fillPlan.fields.find((f) => f.key === "type")?.expected,
+    categoryId: preflight.fillPlan.fields.find((f) => f.key === "categoryId")?.expected,
+    subTypeId: preflight.fillPlan.fields.find((f) => f.key === "subTypeId")?.expected,
+    permissionPurpose: {
+      label:
+        permissionResolved?.resolvedLabel ||
+        permissionResolved?.label ||
+        permissionField?.expected ||
+        null,
+      value:
+        permissionResolved?.resolvedPortalValue ||
+        permissionResolved?.value ||
+        null,
+    },
+    compositionTitle: preflight.fillPlan.fields.find((f) => f.key === "compositionTitle")?.expected,
+    disease: preflight.fillPlan.fields.find((f) => f.key === "disease")?.expected,
+    indications: preflight.fillPlan.fields.find((f) => f.key === "indications")?.expected,
+    drugs: preflight.fillPlan.fields.find((f) => f.key === "drugs")?.expected,
+    drugsValue: preflight.fillPlan.fields.find((f) => f.key === "drugsValue")?.expected,
+    remarks: preflight.fillPlan.fields.find((f) => f.key === "remarks")?.expected,
+    shelfmonth: preflight.fillPlan.fields.find((f) => f.key === "shelfmonth")?.expected,
+    attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
   };
 }
 
@@ -437,7 +519,7 @@ async function executeProductDetails(input = {}, adapters = {}) {
       };
     }
 
-    await adapters.markEntered({
+    const enteredResult = await adapters.markEntered({
       runId,
       expectedWorkflowRowVersion: beginResult.workflow_row_version || workflowRowVersion,
       expectedContentHash: contentHash,
@@ -454,6 +536,23 @@ async function executeProductDetails(input = {}, adapters = {}) {
     });
     phaseLog(phases, PHASE.ENTERED_MARKED, portalProductId);
 
+    const enteredWorkflowRowVersion = extractEnteredWorkflowRowVersion(enteredResult);
+    if (enteredWorkflowRowVersion == null) {
+      return {
+        ok: false,
+        code: "ENTERED_ROW_VERSION_UNPROVEN",
+        message:
+          "mark_entered succeeded but did not return a workflow row version; portal_verified refused.",
+        phases,
+        runId,
+        portalProductId,
+        runBegun: true,
+        mutated: true,
+        requiresReadOnlyReconciliation: true,
+        inventedFailureRpcCalled: false,
+      };
+    }
+
     phaseLog(phases, PHASE.REREAD_REQUESTED, portalProductId);
     if (typeof adapters.reread !== "function") {
       return {
@@ -469,33 +568,7 @@ async function executeProductDetails(input = {}, adapters = {}) {
     const retained = await adapters.reread({ portalProductId });
     phaseLog(phases, PHASE.REREAD_RECEIVED, "GetproductDataUpdate");
 
-    const permissionField = (preflight.fillPlan.fields || []).find((f) => f.key === "permissionPurpose");
-    const permissionResolved = permissionField?.resolved || null;
-    const expectedCompare = {
-      name: EXPECTED_PORTAL_PRODUCT_NAME,
-      type: preflight.fillPlan.fields.find((f) => f.key === "type")?.expected,
-      categoryId: preflight.fillPlan.fields.find((f) => f.key === "categoryId")?.expected,
-      subTypeId: preflight.fillPlan.fields.find((f) => f.key === "subTypeId")?.expected,
-      permissionPurpose: {
-        label:
-          permissionResolved?.resolvedLabel ||
-          permissionResolved?.label ||
-          permissionField?.expected ||
-          null,
-        value:
-          permissionResolved?.resolvedPortalValue ||
-          permissionResolved?.value ||
-          null,
-      },
-      compositionTitle: preflight.fillPlan.fields.find((f) => f.key === "compositionTitle")?.expected,
-      disease: preflight.fillPlan.fields.find((f) => f.key === "disease")?.expected,
-      indications: preflight.fillPlan.fields.find((f) => f.key === "indications")?.expected,
-      drugs: preflight.fillPlan.fields.find((f) => f.key === "drugs")?.expected,
-      drugsValue: preflight.fillPlan.fields.find((f) => f.key === "drugsValue")?.expected,
-      remarks: preflight.fillPlan.fields.find((f) => f.key === "remarks")?.expected,
-      shelfmonth: preflight.fillPlan.fields.find((f) => f.key === "shelfmonth")?.expected,
-      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
-    };
+    const expectedCompare = buildExpectedCompare(preflight);
 
     const compareResult = compareProductDetailsReread(expectedCompare, retained, {
       approvedCopyRereadUnavailable: true,
@@ -532,8 +605,7 @@ async function executeProductDetails(input = {}, adapters = {}) {
 
     await adapters.markPortalVerified({
       runId,
-      expectedWorkflowRowVersion:
-        beginResult.workflow_row_version || workflowRowVersion,
+      expectedWorkflowRowVersion: enteredWorkflowRowVersion,
       expectedContentHash: contentHash,
       compareReport: toMarkPortalVerifiedReport(compareResult),
     });
@@ -557,31 +629,816 @@ async function executeProductDetails(input = {}, adapters = {}) {
 }
 
 /**
- * Resume safety: never auto-create. Read-only reconciliation only.
+ * Resume safety: never auto-create. Classifies continue vs reconcile vs stop.
  */
 function planResumeAction(context = {}) {
-  return {
+  const base = {
     mayCreate: false,
-    action: "READ_ONLY_RECONCILE",
-    useRunResume: context.runStatus === "RUNNING" || context.runStatus === "ENTERED",
-    steps: [
-      "reconcile_known_portal_id_if_any",
-      "exact_name_duplicate_search",
-      "inspect_server_run_state",
-      "verify_content_hash",
-      "never_auto_create",
-    ],
-    message: "Resume must reconcile read-only; create is forbidden.",
+    useRunResume: false,
+    resumeEnabled: false,
+    continueCreateOnSameRun: false,
   };
+
+  const entryStatus =
+    context.entryStatus != null ? String(context.entryStatus).toUpperCase() : null;
+  const activeRunCount = Number(
+    context.activeRunCount ?? context.active_run_count ?? 0,
+  );
+  const activeRun = context.activeRun || context.active_run || null;
+  const runStatusRaw =
+    activeRun?.run_status ??
+    activeRun?.runStatus ??
+    context.runStatus ??
+    null;
+  const runStatus = runStatusRaw != null ? String(runStatusRaw).toUpperCase() : null;
+  const workflowPortalRef = normalizePortalRef(
+    context.workflowPortalRef ??
+      context.workflow_portal_ref ??
+      context.portalProductRef ??
+      null,
+  );
+  const runPortalRef = normalizePortalRef(
+    activeRun?.portal_product_ref ?? activeRun?.portalProductRef ?? null,
+  );
+  const duplicateOutcome =
+    context.duplicateOutcome ??
+    context.duplicate?.outcome ??
+    (context.duplicateSearch
+      ? evaluateDuplicateGuard(context.duplicateSearch).outcome
+      : null);
+
+  if (activeRunCount === 0) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_NO_ACTIVE_RUN,
+      code: "RESUME_STOP_NO_ACTIVE_RUN",
+      message: "No active worker run to resume or reconcile.",
+    };
+  }
+
+  if (activeRunCount > 1) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_ACTIVE_RUN_AMBIGUOUS,
+      code: "RESUME_STOP_ACTIVE_RUN_AMBIGUOUS",
+      message: "Multiple active worker runs; manual reconciliation required.",
+    };
+  }
+
+  if (workflowPortalRef && runPortalRef && workflowPortalRef !== runPortalRef) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_CONFLICTING_REFS,
+      code: "RESUME_STOP_CONFLICTING_REFS",
+      message: "Workflow and active-run portal refs conflict.",
+    };
+  }
+
+  if (duplicateOutcome === DUPLICATE_OUTCOME.AMBIGUOUS) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_DUPLICATE_AMBIGUOUS,
+      code: "RESUME_STOP_DUPLICATE_AMBIGUOUS",
+      message: "Ambiguous duplicate search; resume/reconcile blocked.",
+    };
+  }
+
+  if (duplicateOutcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_DUPLICATE_SEARCH_INCOMPLETE,
+      code: "RESUME_STOP_DUPLICATE_SEARCH_INCOMPLETE",
+      message: "Duplicate search incomplete; resume/reconcile blocked.",
+    };
+  }
+
+  if (duplicateOutcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_DUPLICATE_COVERAGE_UNPROVEN,
+      code: "RESUME_STOP_DUPLICATE_COVERAGE_UNPROVEN",
+      message: "Duplicate search coverage unproven; resume/reconcile blocked.",
+    };
+  }
+
+  if (
+    entryStatus === "IN_PROGRESS" &&
+    activeRunCount === 1 &&
+    runStatus === "RUNNING" &&
+    !workflowPortalRef &&
+    !runPortalRef &&
+    duplicateOutcome === DUPLICATE_OUTCOME.NONE
+  ) {
+    return {
+      ...base,
+      action: RESUME_ACTION.CONTINUE_EXISTING_RUN,
+      useRunResume: true,
+      resumeEnabled: true,
+      continueCreateOnSameRun: true,
+      code: "RESUME_CONTINUE_EXISTING_RUN",
+      message:
+        "Interrupted Product Details run detected. Resume/reconcile the existing run.",
+    };
+  }
+
+  if (
+    duplicateOutcome === DUPLICATE_OUTCOME.EXACT_ONE &&
+    activeRunCount === 1
+  ) {
+    return {
+      ...base,
+      action: RESUME_ACTION.READ_ONLY_RECONCILE_EXACT_ONE,
+      resumeEnabled: true,
+      code: "RESUME_READ_ONLY_RECONCILE_EXACT_ONE",
+      message:
+        "Exact portal duplicate found; reconcile read-only against the existing portal product.",
+    };
+  }
+
+  return {
+    ...base,
+    action: RESUME_ACTION.STOP,
+    code: "RESUME_STOP",
+    message: "Resume/reconcile is not available for the current state.",
+  };
+}
+
+/**
+ * Resume/reconcile preflight — gates Resume action without mutating RPCs.
+ */
+function assessProductDetailsResumePreflight(input = {}) {
+  const productId = Number(input.productId);
+  const content = input.content || null;
+  const phases = [];
+  const authorityMode = input.authorityMode === true;
+  phaseLog(phases, PHASE.PRECHECK, "resume_begin");
+
+  if (productId !== FIRST_CONTROLLED_PRODUCT_ID) {
+    return {
+      ok: false,
+      code: "PRODUCT_LOCK_REJECTED",
+      phases,
+      preview: buildPreviewModel({
+        productId,
+        content,
+        resumeMode: true,
+        resumeEnabled: false,
+        resumeMessage: "Product lock rejected.",
+      }),
+    };
+  }
+
+  if (!authorityMode) {
+    return {
+      ok: false,
+      code: "AUTHORITY_MODE_REQUIRED",
+      message: "Resume preflight requires authoritative server evidence.",
+      phases,
+    };
+  }
+
+  const entryStatus =
+    input.entryStatus != null ? String(input.entryStatus).toUpperCase() : null;
+  if (!entryStatus) {
+    return { ok: false, code: "ENTRY_STATUS_UNKNOWN", phases };
+  }
+  const reconcileOnly = entryStatus === "ENTERED";
+  if (entryStatus !== "IN_PROGRESS" && !reconcileOnly) {
+    return {
+      ok: false,
+      code: "ENTRY_NOT_RESUMABLE",
+      message: `entry_status ${entryStatus} is not resumable.`,
+      phases,
+    };
+  }
+
+  const activeRunCount = Number(input.activeRunCount ?? 0);
+  const activeRun = input.activeRun || null;
+  const runId = activeRun?.run_id ?? activeRun?.runId ?? null;
+  if (activeRunCount !== 1 || !runId) {
+    return {
+      ok: false,
+      code: "ACTIVE_RUN_INVALID",
+      message: "Resume requires exactly one active run with run_id.",
+      phases,
+    };
+  }
+
+  const resumePlan =
+    input.resumePlan ||
+    planResumeAction({
+      entryStatus,
+      activeRunCount,
+      activeRun,
+      workflowPortalRef: input.workflowPortalRef,
+      duplicateOutcome: input.duplicateSearch
+        ? evaluateDuplicateGuard(input.duplicateSearch).outcome
+        : input.duplicateOutcome,
+      duplicateSearch: input.duplicateSearch,
+    });
+
+  if (resumePlan.resumeEnabled !== true) {
+    return {
+      ok: false,
+      code: resumePlan.code || "RESUME_NOT_ENABLED",
+      message: resumePlan.message || "Resume/reconcile is not enabled.",
+      phases,
+      resumePlan,
+      preview: buildPreviewModel({
+        productId,
+        content,
+        resumeMode: true,
+        resumeEnabled: false,
+        resumeMessage: resumePlan.message,
+      }),
+    };
+  }
+
+  if (resumePlan.action === RESUME_ACTION.CONTINUE_EXISTING_RUN) {
+    const runStatus = String(activeRun.run_status || activeRun.runStatus || "").toUpperCase();
+    const wfRef = normalizePortalRef(input.workflowPortalRef);
+    const runRef = normalizePortalRef(
+      activeRun.portal_product_ref ?? activeRun.portalProductRef,
+    );
+    const duplicate = input.duplicateSearch
+      ? evaluateDuplicateGuard(input.duplicateSearch)
+      : { outcome: input.duplicateOutcome };
+    if (
+      runStatus !== "RUNNING" ||
+      wfRef ||
+      runRef ||
+      duplicate.outcome !== DUPLICATE_OUTCOME.NONE
+    ) {
+      return {
+        ok: false,
+        code: "CONTINUE_PATH_BLOCKED",
+        message: "Continue-existing-run path preconditions not met.",
+        phases,
+        resumePlan,
+      };
+    }
+  }
+
+  if (resumePlan.action === RESUME_ACTION.READ_ONLY_RECONCILE_EXACT_ONE) {
+    const duplicate = input.duplicateSearch
+      ? evaluateDuplicateGuard(input.duplicateSearch)
+      : null;
+    const portalId = extractPortalIdFromDuplicateMatch(duplicate?.matches?.[0]);
+    if (duplicate?.outcome !== DUPLICATE_OUTCOME.EXACT_ONE || !portalId) {
+      return {
+        ok: false,
+        code: "EXACT_ONE_RECONCILE_BLOCKED",
+        message: "Exact-one reconcile requires one proven portal product id.",
+        phases,
+        resumePlan,
+      };
+    }
+  }
+
+  if (input.reviewStatus == null || String(input.reviewStatus).trim() === "") {
+    return { ok: false, code: "WORKFLOW_STATUS_UNKNOWN", phases, resumePlan };
+  }
+  if (String(input.reviewStatus).toUpperCase() !== "VERIFIED") {
+    return { ok: false, code: "WORKFLOW_NOT_VERIFIED", phases, resumePlan };
+  }
+  if (input.classificationVerified !== true) {
+    return { ok: false, code: "CLASSIFICATION_NOT_VERIFIED", phases, resumePlan };
+  }
+  if (input.isReadyForEntry !== true) {
+    return { ok: false, code: "NOT_READY", phases, resumePlan };
+  }
+  if (input.contentHashMatchesRunStart === false) {
+    return {
+      ok: false,
+      code: "CONTENT_HASH_DRIFT",
+      message: "Content hash differs from the active run start hash.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (!input.pageState) {
+    return { ok: false, code: "PAGE_STATE_UNKNOWN", phases, resumePlan };
+  }
+  if (!input.duplicateSearch) {
+    return { ok: false, code: "DUPLICATE_SEARCH_UNKNOWN", phases, resumePlan };
+  }
+
+  const allowOverrides = input.allowTestFieldGovernanceOverrides === true;
+  const gateOptions = {
+    approvedFileName: input.approvedFileName,
+    fieldGovernanceOverrides: allowOverrides ? input.fieldGovernanceOverrides || null : null,
+  };
+  const fieldGate = assessRequiredFieldGate(content, gateOptions);
+  const duplicate = evaluateDuplicateGuard(input.duplicateSearch);
+  const pageGuard = assertPageGuards(input.pageState);
+  const preview = buildPreviewModel({
+    productId,
+    content,
+    fieldGate,
+    duplicate,
+    pageGuard,
+    contentHash: input.contentHash || content?.content_hash || null,
+    workflowRowVersion: input.workflowRowVersion || content?.versions?.workflow_row_version,
+    resumeMode: true,
+    resumeEnabled: true,
+    resumeMessage: resumePlan.message,
+  });
+
+  const ok =
+    fieldGate.ok &&
+    pageGuard.ok === true &&
+    Boolean(preview.contentHash) &&
+    resumePlan.resumeEnabled === true;
+
+  return {
+    ok,
+    code: ok ? "RESUME_PREFLIGHT_PASS" : preview.blockers[0] || "RESUME_PREFLIGHT_BLOCKED",
+    message: ok
+      ? "Resume preflight passed (Resume still requires explicit user confirmation)."
+      : resumePlan.message || "Resume preflight blocked.",
+    phases,
+    fieldGate,
+    duplicate,
+    pageGuard,
+    preview,
+    fillPlan: buildFillPlan(content, gateOptions),
+    resumePlan,
+  };
+}
+
+/**
+ * Execute interrupted-run resume/reconcile using injected adapters only.
+ * Must never call run_begin — resume adapters must expose runResume instead.
+ */
+async function executeProductDetailsResume(input = {}, adapters = {}) {
+  return globalSaveMutex.runExclusive(async () => {
+    const phases = [];
+
+    if (typeof adapters.runBegin === "function") {
+      return {
+        ok: false,
+        code: "RESUME_HAS_RUN_BEGIN",
+        message: "Resume execution structurally refuses runBegin adapter.",
+        phases,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+
+    if (typeof adapters.runResume !== "function") {
+      return {
+        ok: false,
+        code: "RUN_RESUME_ADAPTER_MISSING",
+        message: "run_resume adapter not provided.",
+        phases,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+
+    const preflightInput =
+      input.allowTestFieldGovernanceOverrides === true
+        ? { ...input, resume: true }
+        : {
+            ...input,
+            resume: true,
+            fieldGovernanceOverrides: null,
+            allowTestFieldGovernanceOverrides: false,
+          };
+    const preflight = assessProductDetailsResumePreflight(preflightInput);
+    phaseLog(phases, PHASE.PRECHECK, preflight.code);
+    if (!preflight.ok) {
+      return {
+        ok: false,
+        code: preflight.code,
+        message: preflight.message,
+        phases,
+        preflight,
+        resumePlan: preflight.resumePlan,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+
+    if (input.userConfirmed !== true) {
+      return {
+        ok: false,
+        code: "USER_CONFIRMATION_REQUIRED",
+        message: "Explicit Resume confirmation is required.",
+        phases,
+        preflight,
+        resumePlan: preflight.resumePlan,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+
+    const activeRun = input.activeRun || null;
+    const runId = activeRun?.run_id ?? activeRun?.runId ?? null;
+    const startContentHash =
+      activeRun?.start_content_hash ?? activeRun?.startContentHash ?? null;
+    const contentHash = input.finalContentHash || input.contentHash;
+    const workflowRowVersion = input.workflowRowVersion;
+    const resumePlan = preflight.resumePlan;
+    const entryStatus = String(input.entryStatus || "").toUpperCase();
+    const runStatus = String(
+      activeRun?.run_status ?? activeRun?.runStatus ?? "",
+    ).toUpperCase();
+
+    if (
+      startContentHash &&
+      contentHash &&
+      String(startContentHash) !== String(contentHash)
+    ) {
+      return {
+        ok: false,
+        code: "CONTENT_HASH_DRIFT",
+        message: "Content hash changed since run start; refusing run_resume.",
+        phases,
+        runId,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+
+    phaseLog(phases, PHASE.RUN_RESUME, "before_resume_mutation");
+    let resumeResult;
+    try {
+      resumeResult = await adapters.runResume({
+        runId,
+        expectedWorkflowRowVersion: workflowRowVersion,
+        expectedContentHash: contentHash,
+      });
+    } catch (error) {
+      const msg = String(error?.message || error || "");
+      if (/content.*(changed|drift|hash)/i.test(msg)) {
+        return {
+          ok: false,
+          code: "CONTENT_HASH_DRIFT",
+          message: msg,
+          phases,
+          runId,
+          mutated: false,
+          runBegun: false,
+          runResumed: false,
+        };
+      }
+      return {
+        ok: false,
+        code: "RUN_RESUME_FAILED",
+        message: msg || "run_resume failed.",
+        phases,
+        runId,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+
+    const resumedRunId =
+      resumeResult?.run_id ?? resumeResult?.runId ?? runId ?? null;
+    if (!resumedRunId) {
+      return {
+        ok: false,
+        code: "RUN_RESUME_FAILED",
+        message: "run_resume did not return run_id.",
+        phases,
+        mutated: false,
+        runBegun: false,
+        runResumed: false,
+      };
+    }
+
+    let portalProductId = null;
+
+    if (resumePlan.action === RESUME_ACTION.CONTINUE_EXISTING_RUN) {
+      if (typeof adapters.fillForm === "function") {
+        const permissionOpts = input.permissionOptions || [];
+        const permissionField = (preflight.fillPlan.fields || []).find(
+          (f) => f.key === "permissionPurpose",
+        );
+        if (permissionField?.fill) {
+          const resolved = resolvePermissionPurposeByExactLabel(
+            permissionField.expected,
+            permissionOpts,
+          );
+          if (!resolved.ok) {
+            return {
+              ok: false,
+              code: resolved.code,
+              message:
+                "Permission Purpose exact-label resolution failed during resume; stop without Save.",
+              phases,
+              runId: resumedRunId,
+              runBegun: false,
+              runResumed: true,
+              mutated: false,
+              requiresReadOnlyReconciliation: true,
+            };
+          }
+          permissionField.resolved = resolved;
+        }
+        const fillResult = await adapters.fillForm({
+          fillPlan: preflight.fillPlan,
+          classificationSteps: buildDependentClassificationSteps(preflight.fillPlan),
+          permissionResolution: permissionField?.resolved || null,
+        });
+        const approvedApplied =
+          fillResult?.approvedCopyProof?.applied === true ||
+          (typeof adapters.proveAttachment === "function" &&
+            (await adapters.proveAttachment())?.applied === true);
+        if (!approvedApplied) {
+          return {
+            ok: false,
+            code: "APPROVED_COPY_NOT_APPLIED",
+            message: "Approved product copy was not proven on the upload control.",
+            phases,
+            runId: resumedRunId,
+            runBegun: false,
+            runResumed: true,
+            mutated: false,
+            requiresReadOnlyReconciliation: true,
+          };
+        }
+        phaseLog(phases, PHASE.FORM_FILLED, "resume_ok");
+      }
+
+      phaseLog(phases, PHASE.SAVE_REQUESTED, "SaveData_once_resume");
+      if (typeof adapters.saveOnce !== "function") {
+        return {
+          ok: false,
+          code: "SAVE_ADAPTER_MISSING",
+          phases,
+          runId: resumedRunId,
+          runBegun: false,
+          runResumed: true,
+          mutated: false,
+          requiresReadOnlyReconciliation: true,
+        };
+      }
+      const saveObservation = await adapters.saveOnce();
+      const saveClassified = classifySaveOutcome(saveObservation);
+      phaseLog(phases, PHASE.SAVE_CONFIRMED, saveClassified.outcome);
+
+      if (saveClassified.outcome !== SAVE_OUTCOME.SUCCESS) {
+        return {
+          ok: false,
+          code:
+            saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS
+              ? "SAVE_AMBIGUOUS"
+              : "SAVE_FAILED",
+          message:
+            saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS
+              ? "Save outcome ambiguous during resume; reconcile read-only."
+              : "Save failed during resume; reconcile read-only.",
+          phases,
+          runId: resumedRunId,
+          runBegun: false,
+          runResumed: true,
+          mutated: saveObservation?.invoked === true,
+          portalProductId: saveClassified.portalProductId,
+          requiresReadOnlyReconciliation: true,
+          inventedFailureRpcCalled: false,
+        };
+      }
+
+      portalProductId = saveClassified.portalProductId;
+      if (
+        !portalProductId ||
+        String(portalProductId).trim() === "" ||
+        String(portalProductId).trim() === "262"
+      ) {
+        return {
+          ok: false,
+          code: "PORTAL_ID_UNPROVEN",
+          message: "Save did not prove a portal product id during resume.",
+          phases,
+          runId: resumedRunId,
+          runBegun: false,
+          runResumed: true,
+          mutated: true,
+          portalProductId: null,
+          requiresReadOnlyReconciliation: true,
+          inventedFailureRpcCalled: false,
+        };
+      }
+    } else if (resumePlan.action === RESUME_ACTION.READ_ONLY_RECONCILE_EXACT_ONE) {
+      portalProductId = extractPortalIdFromDuplicateMatch(
+        preflight.duplicate?.matches?.[0],
+      );
+      if (!portalProductId) {
+        return {
+          ok: false,
+          code: "RESUME_STOP",
+          message: "Cannot safely reconcile: portal id missing from exact-one match.",
+          phases,
+          runId: resumedRunId,
+          runBegun: false,
+          runResumed: true,
+          mutated: false,
+        };
+      }
+    } else {
+      return {
+        ok: false,
+        code: preflight.code || "RESUME_STOP",
+        message: preflight.message || "Resume action blocked at execute boundary.",
+        phases,
+        runId: resumedRunId,
+        runBegun: false,
+        runResumed: true,
+        mutated: false,
+      };
+    }
+
+    const shouldMarkEntered =
+      resumePlan.action === RESUME_ACTION.CONTINUE_EXISTING_RUN ||
+      (resumePlan.action === RESUME_ACTION.READ_ONLY_RECONCILE_EXACT_ONE &&
+        runStatus === "RUNNING" &&
+        entryStatus === "IN_PROGRESS");
+
+    let portalVerifiedWorkflowRowVersion = null;
+
+    if (shouldMarkEntered) {
+      if (typeof adapters.markEntered !== "function") {
+        return {
+          ok: false,
+          code: "MARK_ENTERED_ADAPTER_MISSING",
+          phases,
+          runId: resumedRunId,
+          portalProductId,
+          runBegun: false,
+          runResumed: true,
+          mutated: resumePlan.action === RESUME_ACTION.CONTINUE_EXISTING_RUN,
+          requiresReadOnlyReconciliation: true,
+        };
+      }
+      const enteredResult = await adapters.markEntered({
+        runId: resumedRunId,
+        expectedWorkflowRowVersion:
+          resumeResult?.workflow_row_version ?? workflowRowVersion,
+        expectedContentHash: contentHash,
+        portalProductRef: portalProductId,
+        enteredAudit: {
+          phase: resumePlan.action,
+          resume: true,
+          approvedCopyFileName: EXPECTED_APPROVED_COPY_NAME,
+        },
+      });
+      phaseLog(phases, PHASE.ENTERED_MARKED, portalProductId);
+
+      portalVerifiedWorkflowRowVersion = extractEnteredWorkflowRowVersion(enteredResult);
+      if (portalVerifiedWorkflowRowVersion == null) {
+        return {
+          ok: false,
+          code: "ENTERED_ROW_VERSION_UNPROVEN",
+          message:
+            "mark_entered succeeded but did not return a workflow row version; portal_verified refused.",
+          phases,
+          runId: resumedRunId,
+          portalProductId,
+          runBegun: false,
+          runResumed: true,
+          mutated: true,
+          requiresReadOnlyReconciliation: true,
+          inventedFailureRpcCalled: false,
+        };
+      }
+    } else if (
+      resumePlan.action === RESUME_ACTION.READ_ONLY_RECONCILE_EXACT_ONE &&
+      entryStatus === "IN_PROGRESS" &&
+      runStatus === "RUNNING" &&
+      !portalProductId
+    ) {
+      return {
+        ok: false,
+        code: "RESUME_STOP",
+        message: "Cannot safely mark ENTERED during exact-one reconcile.",
+        phases,
+        runId: resumedRunId,
+        portalProductId,
+        runBegun: false,
+        runResumed: true,
+        mutated: false,
+      };
+    } else {
+      // Already ENTERED (or reconcile without markEntered): use trusted current
+      // resume/preflight version — never invent +1 or reuse a prior IN_PROGRESS guess.
+      portalVerifiedWorkflowRowVersion =
+        extractEnteredWorkflowRowVersion(resumeResult) ??
+        extractEnteredWorkflowRowVersion({
+          workflow_row_version: workflowRowVersion,
+        });
+      if (portalVerifiedWorkflowRowVersion == null) {
+        return {
+          ok: false,
+          code: "ENTERED_ROW_VERSION_UNPROVEN",
+          message:
+            "Trusted current workflow row version missing for portal_verified after ENTERED reconcile.",
+          phases,
+          runId: resumedRunId,
+          portalProductId,
+          runBegun: false,
+          runResumed: true,
+          mutated: false,
+        };
+      }
+    }
+
+    phaseLog(phases, PHASE.REREAD_REQUESTED, portalProductId);
+    if (typeof adapters.reread !== "function") {
+      return {
+        ok: false,
+        code: "REREAD_ADAPTER_MISSING",
+        phases,
+        runId: resumedRunId,
+        portalProductId,
+        runBegun: false,
+        runResumed: true,
+        mutated: shouldMarkEntered,
+      };
+    }
+    const retained = await adapters.reread({ portalProductId });
+    phaseLog(phases, PHASE.REREAD_RECEIVED, "GetproductDataUpdate");
+
+    const expectedCompare = buildExpectedCompare(preflight);
+    const compareResult = compareProductDetailsReread(expectedCompare, retained, {
+      approvedCopyRereadUnavailable: true,
+    });
+    phaseLog(phases, PHASE.COMPARE_COMPLETE, compareResult.overall);
+
+    if (compareResult.overall !== OVERALL_COMPARE.MATCH) {
+      return {
+        ok: false,
+        code: `COMPARE_${compareResult.overall}`,
+        message: "Retained reread compare did not MATCH; portal_verified not marked.",
+        phases,
+        runId: resumedRunId,
+        portalProductId,
+        compareResult,
+        markPortalVerifiedReport: toMarkPortalVerifiedReport(compareResult),
+        runBegun: false,
+        runResumed: true,
+        mutated: shouldMarkEntered,
+      };
+    }
+
+    if (typeof adapters.markPortalVerified !== "function") {
+      return {
+        ok: false,
+        code: "MARK_PORTAL_VERIFIED_ADAPTER_MISSING",
+        phases,
+        runId: resumedRunId,
+        portalProductId,
+        compareResult,
+        runBegun: false,
+        runResumed: true,
+        mutated: shouldMarkEntered,
+      };
+    }
+
+    await adapters.markPortalVerified({
+      runId: resumedRunId,
+      expectedWorkflowRowVersion: portalVerifiedWorkflowRowVersion,
+      expectedContentHash: contentHash,
+      compareReport: toMarkPortalVerifiedReport(compareResult),
+    });
+    phaseLog(phases, PHASE.PORTAL_VERIFIED_MARKED, "stop_before_composition");
+
+    return {
+      ok: true,
+      code: "PORTAL_VERIFIED",
+      message: "Product Details portal-verified via resume/reconcile. Stopped before Composition.",
+      phases,
+      runId: resumedRunId,
+      portalProductId,
+      compareResult,
+      resumePlan,
+      runBegun: false,
+      runResumed: true,
+      mutated: true,
+      compositionExecuted: false,
+      submitProductExecuted: false,
+      inventedFailureRpcCalled: false,
+    };
+  });
 }
 
 module.exports = {
   PHASE,
+  RESUME_ACTION,
   FIRST_CONTROLLED_PRODUCT_ID,
   EXPECTED_PORTAL_PRODUCT_NAME,
   assessProductDetailsPreflight,
   assessProductDetailsPreflightForTest,
+  assessProductDetailsResumePreflight,
   executeProductDetails,
+  executeProductDetailsResume,
   planResumeAction,
   assertPageGuards,
   buildPreviewModel,

@@ -63,6 +63,12 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       accessToken,
       userConfirmed: options?.userConfirmed === true,
     }),
+  resumeProductDetails: (productId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:product-details-resume", {
+      productId,
+      accessToken,
+      userConfirmed: options?.userConfirmed === true,
+    }),
   capturePortalContract: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
   openCaptureFolder: (accessToken) =>

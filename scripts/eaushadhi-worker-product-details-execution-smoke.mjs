@@ -14,7 +14,9 @@ const {
   FIRST_CONTROLLED_PRODUCT_ID,
   EXPECTED_PORTAL_PRODUCT_NAME,
   assessProductDetailsPreflight,
+  assessProductDetailsResumePreflight,
   executeProductDetails,
+  executeProductDetailsResume,
   planResumeAction,
   assertPageGuards,
 } = require(join(root, "electron/eaushadhi-worker/product-details-executor.js"));
@@ -899,9 +901,101 @@ assert(
   "preview lists FIELD_GOVERNANCE_INCOMPLETE",
 );
 
-const resume = planResumeAction({ runStatus: "RUNNING" });
-assert(resume.mayCreate === false, "resume never auto-creates");
-assert(resume.action === "READ_ONLY_RECONCILE", "resume is read-only reconcile");
+const resumeContinuePlan = planResumeAction({
+  entryStatus: "IN_PROGRESS",
+  activeRunCount: 1,
+  activeRun: { run_status: "RUNNING" },
+  duplicateOutcome: DUPLICATE_OUTCOME.NONE,
+});
+assert(resumeContinuePlan.mayCreate === false, "resume never auto-creates");
+assert(
+  resumeContinuePlan.action === "CONTINUE_EXISTING_RUN",
+  "IN_PROGRESS + 1 RUNNING + NONE => CONTINUE_EXISTING_RUN",
+);
+assert(resumeContinuePlan.resumeEnabled === true, "continue path enables resume");
+
+const exactOnePlan = planResumeAction({
+  activeRunCount: 1,
+  duplicateOutcome: DUPLICATE_OUTCOME.EXACT_ONE,
+});
+assert(
+  exactOnePlan.action === "READ_ONLY_RECONCILE_EXACT_ONE",
+  "exact-one duplicate => READ_ONLY_RECONCILE_EXACT_ONE",
+);
+assert(exactOnePlan.resumeEnabled === true, "exact-one reconcile enables resume");
+
+const inProgressStartBlocked = assessProductDetailsPreflight({
+  productId: 262,
+  content: baseContent({ entry_status: "IN_PROGRESS" }),
+  contentHash: "hash-karpooradi-smoke-1",
+  duplicateSearch: noneDuplicate,
+  pageState: readyPage,
+  reviewStatus: "VERIFIED",
+  classificationVerified: true,
+  isReadyForEntry: true,
+  authorityMode: true,
+  entryStatus: "IN_PROGRESS",
+  fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+  allowTestFieldGovernanceOverrides: true,
+});
+assert(inProgressStartBlocked.ok === false, "IN_PROGRESS without resume blocks ordinary start");
+assert(
+  inProgressStartBlocked.code === "ENTRY_NOT_STARTABLE",
+  "IN_PROGRESS start preflight => ENTRY_NOT_STARTABLE",
+);
+
+const resumeRunId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+const resumeBaseInput = {
+  productId: 262,
+  content: baseContent({ entry_status: "IN_PROGRESS" }),
+  contentHash: "hash-karpooradi-smoke-1",
+  finalContentHash: "hash-karpooradi-smoke-1",
+  workflowRowVersion: 7,
+  entryStatus: "IN_PROGRESS",
+  activeRunCount: 1,
+  activeRun: {
+    run_id: resumeRunId,
+    run_status: "RUNNING",
+    start_content_hash: "hash-karpooradi-smoke-1",
+  },
+  duplicateSearch: noneDuplicate,
+  pageState: readyPage,
+  reviewStatus: "VERIFIED",
+  classificationVerified: true,
+  isReadyForEntry: true,
+  authorityMode: true,
+  userConfirmed: true,
+  fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+  allowTestFieldGovernanceOverrides: true,
+  permissionOptions: [{ label: "Regular", value: "7" }],
+  approvedFileName: EXPECTED_APPROVED_COPY_NAME,
+};
+
+const resumePreflightOk = assessProductDetailsResumePreflight(resumeBaseInput);
+assert(resumePreflightOk.ok === true, "continue resume preflight passes offline");
+assert(resumePreflightOk.preview?.resumeEnabled === true, "resume preflight preview enables resume");
+
+const resumeNoActiveRun = assessProductDetailsResumePreflight({
+  ...resumeBaseInput,
+  activeRunCount: 0,
+  activeRun: null,
+});
+assert(resumeNoActiveRun.ok === false, "activeRunCount 0 blocks resume preflight");
+assert(
+  resumeNoActiveRun.code === "ACTIVE_RUN_INVALID",
+  "zero active runs => ACTIVE_RUN_INVALID",
+);
+
+const resumeAmbiguousRuns = planResumeAction({ activeRunCount: 2, activeRun: { run_status: "RUNNING" } });
+assert(
+  resumeAmbiguousRuns.action === "STOP_ACTIVE_RUN_AMBIGUOUS",
+  "activeRunCount > 1 blocks resume plan",
+);
+const resumeAmbiguousPreflight = assessProductDetailsResumePreflight({
+  ...resumeBaseInput,
+  activeRunCount: 2,
+});
+assert(resumeAmbiguousPreflight.ok === false, "assessProductDetailsResumePreflight blocks >1 active run");
 
 const mutex = createSaveMutex();
 const saveOk = classifySaveOutcome({
@@ -1048,7 +1142,7 @@ const success = await executeProductDetails(successInput, {
       hiddenIdAfter: "7788",
     };
   },
-  markEntered: async () => ({ ok: true }),
+  markEntered: async () => ({ ok: true, workflow_row_version: 8 }),
   reread: async () => ({
     name: "Karpooradi Thailam",
     type: "1",
@@ -1080,6 +1174,10 @@ assert(success.inventedFailureRpcCalled === false, "no invented failure RPC on s
 assert(runBeginCalls === 1, "run_begin called once via mock");
 assert(saveCalls === 1, "SaveData invoked exactly once");
 assert(
+  markPortalVerifiedArgs?.expectedWorkflowRowVersion === 8,
+  "Start markPortalVerified uses ENTERED row version (not begin version 7)",
+);
+assert(
   markPortalVerifiedArgs?.compareReport?.equal === true,
   "mark_portal_verified receives equal compare report",
 );
@@ -1088,6 +1186,197 @@ assert(
     markPortalVerifiedArgs.compareReport.items.length > 0,
   "mark_portal_verified compare report has items",
 );
+
+{
+  let resumeRunBeginCalls = 0;
+  let resumeRunResumeCalls = 0;
+  let resumeSaveCalls = 0;
+  let resumeMarkEnteredArgs = null;
+  let resumeMarkPortalVerifiedArgs = null;
+  const resumeHasRunBegin = await executeProductDetailsResume(resumeBaseInput, {
+    runBegin: async () => {
+      resumeRunBeginCalls += 1;
+      return { run_id: resumeRunId };
+    },
+    runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 7 }),
+  });
+  assert(resumeHasRunBegin.code === "RESUME_HAS_RUN_BEGIN", "runBegin adapter => RESUME_HAS_RUN_BEGIN");
+  assert(resumeRunBeginCalls === 0, "runBegin never invoked when structurally refused");
+  assert(resumeHasRunBegin.mutated === false, "RESUME_HAS_RUN_BEGIN does not mutate");
+
+  const resumeDrift = await executeProductDetailsResume(
+    {
+      ...resumeBaseInput,
+      finalContentHash: "drifted-after-start",
+      activeRun: {
+        ...resumeBaseInput.activeRun,
+        start_content_hash: "hash-karpooradi-smoke-1",
+      },
+    },
+    {
+      runResume: async () => {
+        throw new Error("must not resume on drift");
+      },
+    },
+  );
+  assert(resumeDrift.code === "CONTENT_HASH_DRIFT", "resume content hash drift before mutation");
+  assert(resumeDrift.mutated === false, "hash drift resume does not mutate");
+
+  const ambiguousDuplicate = {
+    source: "LoadProductDataforLegacy",
+    searchApplied: true,
+    searchTerm: "Karpooradi Thailam",
+    totalCount: 2,
+    rows: [{ name: "Karpooradi Thailam", id: "9001" }, { name: "Karpooradi Thailam", id: "9002" }],
+    coverageComplete: true,
+  };
+  let ambiguousMutated = false;
+  const resumeAmbiguousExec = await executeProductDetailsResume(
+    {
+      ...resumeBaseInput,
+      duplicateSearch: ambiguousDuplicate,
+    },
+    {
+      runResume: async () => {
+        ambiguousMutated = true;
+        return { run_id: resumeRunId };
+      },
+      fillForm: async () => {
+        ambiguousMutated = true;
+      },
+    },
+  );
+  assert(resumeAmbiguousExec.ok === false, "ambiguous duplicate blocks resume execute");
+  assert(ambiguousMutated === false, "ambiguous duplicate execute does not mutate");
+
+  const noAttachment = await executeProductDetailsResume(resumeBaseInput, {
+    runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+  });
+  assert(
+    noAttachment.code === "APPROVED_COPY_NOT_APPLIED",
+    "fillForm without approved proof => APPROVED_COPY_NOT_APPLIED",
+  );
+  assert(noAttachment.runResumed === true, "run_resume may succeed before attachment proof fails");
+
+  assert(
+    filenameMatchesGoverned("WRONG_NAME.pdf") === false,
+    "wrong approved copy name fails governed filename match",
+  );
+
+  resumeRunResumeCalls = 0;
+  resumeSaveCalls = 0;
+  resumeMarkEnteredArgs = null;
+  resumeMarkPortalVerifiedArgs = null;
+  const resumeSuccess = await executeProductDetailsResume(resumeBaseInput, {
+    runResume: async (args) => {
+      resumeRunResumeCalls += 1;
+      assert(args.runId === resumeRunId, "runResume receives exact runId");
+      return { run_id: resumeRunId, workflow_row_version: 7 };
+    },
+    fillForm: async () => ({
+      ok: true,
+      approvedCopyProof: { applied: true, fileName: EXPECTED_APPROVED_COPY_NAME },
+    }),
+    saveOnce: async () => {
+      resumeSaveCalls += 1;
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: true,
+        portalProductId: "7788",
+        hiddenIdBefore: null,
+        hiddenIdAfter: "7788",
+      };
+    },
+    markEntered: async (args) => {
+      resumeMarkEnteredArgs = args;
+      return { ok: true, workflow_row_version: 8 };
+    },
+    reread: async () => ({
+      name: "Karpooradi Thailam",
+      type: "1",
+      categoryId: "10",
+      subTypeId: "31",
+      permissionPurpose: { label: "Regular", value: "7" },
+      compositionTitle: "For 10 mL",
+      disease: "Sandhirujah, Śōpham",
+      indications: ["99"],
+      drugs: "NO",
+      remarks: GOVERNANCE_OVERRIDES.remarks,
+      shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    }),
+    markPortalVerified: async (args) => {
+      resumeMarkPortalVerifiedArgs = args;
+      return { ok: true };
+    },
+  });
+  assert(resumeSuccess.ok === true, "CONTINUE resume path reaches PORTAL_VERIFIED");
+  assert(resumeSuccess.code === "PORTAL_VERIFIED", "resume terminal code is PORTAL_VERIFIED");
+  assert(resumeSuccess.compositionExecuted === false, "resume success never executes Composition");
+  assert(resumeSuccess.submitProductExecuted === false, "resume success never executes submitProduct");
+  assert(resumeSuccess.runBegun === false, "resume path never calls run_begin");
+  assert(resumeSuccess.runResumed === true, "resume path reports runResumed");
+  assert(resumeRunResumeCalls === 1, "runResume called exactly once");
+  assert(resumeSaveCalls === 1, "resume CONTINUE calls saveOnce once");
+  assert(resumeMarkEnteredArgs?.runId === resumeRunId, "markEntered uses same runId");
+  assert(resumeMarkPortalVerifiedArgs?.runId === resumeRunId, "markPortalVerified uses same runId");
+  assert(
+    resumeMarkPortalVerifiedArgs?.expectedWorkflowRowVersion === 8,
+    "Resume markPortalVerified uses ENTERED row version (not resume version 7)",
+  );
+
+  const exactOneDuplicate = {
+    source: "LoadProductDataforLegacy",
+    searchApplied: true,
+    searchTerm: "Karpooradi Thailam",
+    totalCount: 1,
+    rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+    coverageComplete: true,
+  };
+  let exactOneSaveCalls = 0;
+  let exactOnePortalArgs = null;
+  const exactOneResume = await executeProductDetailsResume(
+    {
+      ...resumeBaseInput,
+      duplicateSearch: exactOneDuplicate,
+    },
+    {
+      runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 7 }),
+      saveOnce: async () => {
+        exactOneSaveCalls += 1;
+        throw new Error("saveOnce must not run on EXACT_ONE reconcile");
+      },
+      markEntered: async () => ({ ok: true, workflow_row_version: 8 }),
+      reread: async () => ({
+        name: "Karpooradi Thailam",
+        type: "1",
+        categoryId: "10",
+        subTypeId: "31",
+        permissionPurpose: { label: "Regular", value: "7" },
+        compositionTitle: "For 10 mL",
+        disease: "Sandhirujah, Śōpham",
+        indications: ["99"],
+        drugs: "NO",
+        remarks: GOVERNANCE_OVERRIDES.remarks,
+        shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+        attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+      }),
+      markPortalVerified: async (args) => {
+        exactOnePortalArgs = args;
+        return { ok: true };
+      },
+    },
+  );
+  assert(exactOneResume.ok === true, "EXACT_ONE reconcile can complete without Save");
+  assert(exactOneSaveCalls === 0, "EXACT_ONE reconcile does not call saveOnce");
+  assert(
+    exactOnePortalArgs?.expectedWorkflowRowVersion === 8,
+    "EXACT_ONE markPortalVerified uses ENTERED returned row version",
+  );
+}
 
 const drift = await executeProductDetails(
   { ...successInput, finalContentHash: "drifted" },
@@ -1138,7 +1427,7 @@ const mismatch = await executeProductDetails(successInput, {
     hiddenIdBefore: null,
     hiddenIdAfter: "7788",
   }),
-  markEntered: async () => ({ ok: true }),
+  markEntered: async () => ({ ok: true, workflow_row_version: 8 }),
   reread: async () => ({
     name: "Wrong Name",
     type: "1",
@@ -1159,6 +1448,142 @@ const mismatch = await executeProductDetails(successInput, {
 });
 assert(mismatch.code === "COMPARE_MISMATCH", "mismatch does not mark portal_verified");
 assert(mismatch.compareResult?.overall === OVERALL_COMPARE.MISMATCH, "overall MISMATCH");
+
+// --- ENTERED workflow row-version propagation regressions ---
+{
+  let startPortalArgs = null;
+  let startPortalCalls = 0;
+  const startRowPropagation = await executeProductDetails(
+    { ...successInput, workflowRowVersion: 6 },
+    {
+      runBegin: async () => ({ run_id: "run-rv-start", workflow_row_version: 6 }),
+      fillForm: async () => ({ ok: true }),
+      saveOnce: async () => ({
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: true,
+        portalProductId: "7788",
+        hiddenIdBefore: null,
+        hiddenIdAfter: "7788",
+      }),
+      markEntered: async () => ({ ok: true, workflow_row_version: 7 }),
+      reread: async () => ({
+        name: "Karpooradi Thailam",
+        type: "1",
+        categoryId: "10",
+        subTypeId: "31",
+        permissionPurpose: { label: "Regular", value: "7" },
+        compositionTitle: "For 10 mL",
+        disease: "Sandhirujah, Śōpham",
+        indications: ["99"],
+        drugs: "NO",
+        remarks: GOVERNANCE_OVERRIDES.remarks,
+        shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+        attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+      }),
+      markPortalVerified: async (args) => {
+        startPortalCalls += 1;
+        startPortalArgs = args;
+        return { ok: true };
+      },
+    },
+  );
+  assert(startRowPropagation.ok === true, "Start row-version regression reaches PORTAL_VERIFIED");
+  assert(startPortalCalls === 1, "Start portal verified called once");
+  assert(
+    startPortalArgs?.expectedWorkflowRowVersion === 7,
+    "Start: begin=6 entered=7 => portal verified receives 7",
+  );
+
+  let resumePortalArgs = null;
+  const resumeRowPropagation = await executeProductDetailsResume(resumeBaseInput, {
+    runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+    fillForm: async () => ({
+      ok: true,
+      approvedCopyProof: { applied: true, fileName: EXPECTED_APPROVED_COPY_NAME },
+    }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: "7788",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "7788",
+    }),
+    markEntered: async () => ({ ok: true, workflow_row_version: 7 }),
+    reread: async () => ({
+      name: "Karpooradi Thailam",
+      type: "1",
+      categoryId: "10",
+      subTypeId: "31",
+      permissionPurpose: { label: "Regular", value: "7" },
+      compositionTitle: "For 10 mL",
+      disease: "Sandhirujah, Śōpham",
+      indications: ["99"],
+      drugs: "NO",
+      remarks: GOVERNANCE_OVERRIDES.remarks,
+      shelfmonth: GOVERNANCE_OVERRIDES.shelfmonth,
+      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    }),
+    markPortalVerified: async (args) => {
+      resumePortalArgs = args;
+      return { ok: true };
+    },
+  });
+  assert(resumeRowPropagation.ok === true, "Resume row-version regression reaches PORTAL_VERIFIED");
+  assert(
+    resumePortalArgs?.expectedWorkflowRowVersion === 7,
+    "Resume: resume=6 entered=7 => portal verified receives 7",
+  );
+  assert(resumePortalArgs?.runId === resumeRunId, "Resume row-version path keeps same run_id");
+
+  let missingVersionPortalCalls = 0;
+  const missingEnteredVersion = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-rv-missing", workflow_row_version: 6 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => ({
+      invoked: true,
+      invokeCount: 1,
+      httpOk: true,
+      businessSuccess: true,
+      portalProductId: "7788",
+      hiddenIdBefore: null,
+      hiddenIdAfter: "7788",
+    }),
+    markEntered: async () => ({ ok: true }),
+    reread: async () => {
+      throw new Error("reread must not run when ENTERED row version unproven");
+    },
+    markPortalVerified: async () => {
+      missingVersionPortalCalls += 1;
+      throw new Error("markPortalVerified must not run when ENTERED row version unproven");
+    },
+  });
+  assert(
+    missingEnteredVersion.code === "ENTERED_ROW_VERSION_UNPROVEN",
+    "missing entered workflow row version fail-closes",
+  );
+  assert(missingVersionPortalCalls === 0, "missing entered version does not call markPortalVerified");
+
+  const executorSrcRv = readFileSync(
+    join(root, "electron/eaushadhi-worker/product-details-executor.js"),
+    "utf8",
+  );
+  assert(
+    !/workflow_row_version\s*\+\s*1|workflowRowVersion\s*\+\s*1/.test(executorSrcRv),
+    "executor does not client-side +1 workflow row version",
+  );
+  assert(
+    executorSrcRv.includes("ENTERED_ROW_VERSION_UNPROVEN"),
+    "executor defines ENTERED_ROW_VERSION_UNPROVEN fail-closed code",
+  );
+  assert(
+    executorSrcRv.includes("extractEnteredWorkflowRowVersion"),
+    "executor uses extractEnteredWorkflowRowVersion helper",
+  );
+}
 
 const compareMatch = compareProductDetailsReread(
   {
@@ -1281,6 +1706,14 @@ assert(
   "IPC start forwards only userConfirmed",
 );
 assert(
+  ipcSrc.includes("PRODUCT_DETAILS_RESUME") || ipcSrc.includes("product-details-resume"),
+  "IPC defines PRODUCT_DETAILS_RESUME channel",
+);
+assert(
+  /product-details-resume[\s\S]*userConfirmed: payload\?\.userConfirmed === true/.test(ipcSrc),
+  "IPC resume forwards only userConfirmed",
+);
+assert(
   /product-details-preview[\s\S]*previewProductDetailsExecution\(productId, accessToken, \{\}\)/.test(
     ipcSrc,
   ),
@@ -1290,15 +1723,27 @@ assert(
 const preloadSrc = readFileSync(join(root, "preload.js"), "utf8");
 assert(preloadSrc.includes("previewProductDetails:"), "preload exposes previewProductDetails");
 assert(preloadSrc.includes("startProductDetails:"), "preload exposes startProductDetails");
+assert(preloadSrc.includes("resumeProductDetails:"), "preload exposes resumeProductDetails");
 assert(
   preloadSrc.includes("userConfirmed: options?.userConfirmed === true"),
   "preload start sends only userConfirmed",
+);
+assert(
+  /resumeProductDetails:[\s\S]*userConfirmed: options\?\.userConfirmed === true/.test(preloadSrc),
+  "preload resume sends only userConfirmed",
 );
 assert(!preloadSrc.includes("...(options"), "preload does not spread renderer options");
 assert(!/evaluate\s*:/.test(preloadSrc), "preload does not expose evaluate");
 
 const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
 assert(controlSrc.includes("Start Product Details"), "Review UI has Start Product Details");
+assert(controlSrc.includes("btnWorkerProductDetailsResume"), "Review UI has Resume Product Details button");
+assert(controlSrc.includes("productDetailsConfirmBackdrop"), "Review UI has productDetailsConfirm modal");
+assert(controlSrc.includes("resumeWorkerProductDetails"), "Review UI imports resumeWorkerProductDetails");
+assert(
+  !/async function submitWorkerProductDetailsStart[\s\S]*?window\.confirm/.test(controlSrc),
+  "Start flow does not use window.confirm",
+);
 assert(controlSrc.includes("will NOT add Composition"), "warning mentions no Composition");
 assert(!controlSrc.includes("submitProduct"), "UI does not reference submitProduct");
 assert(!/Enter Product/.test(controlSrc), "UI does not expose Enter Product");
@@ -1350,6 +1795,18 @@ const malicious = {
 };
 const sanitized = sanitizeRendererCommand(malicious);
 assert(sanitized.userConfirmed === true, "sanitize keeps userConfirmed");
+const resumeSpoof = sanitizeRendererCommand({
+  run_id: resumeRunId,
+  workflowRowVersion: 999,
+  contentHash: "forged-hash",
+  userConfirmed: true,
+});
+assert(resumeSpoof.forbiddenPresent.includes("run_id"), "sanitize strips run_id");
+assert(
+  resumeSpoof.forbiddenPresent.includes("workflowRowVersion"),
+  "sanitize strips workflowRowVersion",
+);
+assert(resumeSpoof.forbiddenPresent.includes("contentHash"), "sanitize strips contentHash");
 assert(
   sanitized.forbiddenPresent.includes("content") &&
     sanitized.forbiddenPresent.includes("adapters") &&
@@ -2048,6 +2505,9 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   assert(liveAdapterSrc.includes(RUN_BEGIN_RPC), "live adapters declare run_begin RPC");
   assert(liveAdapterSrc.includes(MARK_ENTERED_RPC), "live adapters declare mark_entered RPC");
   assert(liveAdapterSrc.includes(MARK_PORTAL_VERIFIED_RPC), "live adapters declare mark_portal_verified RPC");
+  assert(liveAdapterSrc.includes('mode === "resume"'), "live adapters branch on resume mode");
+  assert(/if \(mode === "resume"\)[\s\S]*runResume/.test(liveAdapterSrc), "resume mode exposes runResume");
+  assert(liveAdapterSrc.includes("APPROVED_COPY_NOT_APPLIED"), "fillForm enforces APPROVED_COPY_NOT_APPLIED");
   assert(liveAdapterSrc.includes("GetproductDataUpdate"), "reread uses GetproductDataUpdate");
   assert(!/submitProduct\s*\(/.test(liveAdapterSrc), "live adapters never call submitProduct(");
   assert(!/composition/i.test(liveAdapterSrc) || liveAdapterSrc.includes("compositionTitle"), "no Composition mutation adapter");
@@ -2198,7 +2658,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     },
     markEntered: async () => {
       order.push("entered");
-      return { ok: true };
+      return { ok: true, workflow_row_version: 8 };
     },
     reread: async () => {
       order.push("reread");
@@ -2412,7 +2872,18 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   );
   assert(controlSrcPhaseA.includes("Will NOT add Composition"), "UI confirm mentions no Composition");
   assert(controlSrcPhaseA.includes("Will NOT final-submit"), "UI confirm mentions no final-submit");
-  assert(controlSrcPhaseA.includes("Product 262"), "UI confirm mentions Product 262");
+  assert(
+    controlSrcPhaseA.includes("Product ${FIRST_CONTROLLED_PRODUCT_ID}"),
+    "UI confirm mentions Product 262 via FIRST_CONTROLLED_PRODUCT_ID",
+  );
+  assert(
+    controlSrcPhaseA.includes("APPROVED_PRODUCT_COPY_V01"),
+    "UI confirm mentions governed V01 approved copy attachment",
+  );
+  assert(
+    controlSrcPhaseA.includes("openProductDetailsConfirmModal"),
+    "UI uses governed modal instead of window.confirm",
+  );
 }
 
 if (failed) {

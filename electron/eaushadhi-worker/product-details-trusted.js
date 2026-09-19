@@ -15,7 +15,9 @@ const {
 } = require("./product-details-field-map");
 const {
   assessProductDetailsPreflight,
+  assessProductDetailsResumePreflight,
   executeProductDetails,
+  executeProductDetailsResume,
   planResumeAction,
 } = require("./product-details-executor");
 const { evaluateDuplicateGuard, DUPLICATE_OUTCOME } = require("./portal-duplicate-guard");
@@ -59,6 +61,17 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "portalProductRef",
   "buildAdapters",
   "approvedLocalPath",
+  "runId",
+  "run_id",
+  "activeRun",
+  "active_run",
+  "activeRunCount",
+  "resume",
+  "resumeEnabled",
+  "portalProductRef",
+  "portal_product_ref",
+  "startContentHash",
+  "start_content_hash",
 ]);
 
 /**
@@ -488,6 +501,27 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     missing.push("entry_status");
   }
 
+  const activeRunCount = Number(preflight?.active_run_count ?? 0);
+  let activeRun = null;
+  if (preflight?.active_run && typeof preflight.active_run === "object") {
+    const raw = preflight.active_run;
+    activeRun = {
+      run_id: raw.run_id ?? null,
+      run_status: raw.run_status ?? null,
+      start_content_hash: raw.start_content_hash ?? null,
+      start_payload_hash: raw.start_payload_hash ?? null,
+      current_workflow_row_version: raw.current_workflow_row_version ?? null,
+      portal_product_ref: raw.portal_product_ref ?? null,
+      started_at: raw.started_at ?? null,
+    };
+  }
+  const contentHashMatchesRunStart =
+    activeRun && contentHash
+      ? String(activeRun.start_content_hash || "") === String(contentHash)
+      : activeRun
+        ? false
+        : null;
+
   const workerState =
     typeof deps.getWorkerState === "function" ? deps.getWorkerState() : null;
   if (workerState == null) missing.push("worker_state");
@@ -617,6 +651,9 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       duplicateSearch,
       permissionOptions,
       approvedFileName,
+      activeRunCount,
+      activeRun,
+      contentHashMatchesRunStart,
     };
   }
 
@@ -640,10 +677,23 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     approvedFileName,
     approvedResolved,
     approvedLocalPath: approvedResolution?.localPath || null,
+    activeRunCount,
+    activeRun,
+    contentHashMatchesRunStart,
+    workflowPortalRef: preflight?.portal_product_ref ?? null,
   };
 }
 
-function buildTrustedExecutorInput(authority, { userConfirmed = false } = {}) {
+function buildTrustedExecutorInput(authority, { userConfirmed = false, resume = false } = {}) {
+  const duplicateOutcome = evaluateDuplicateGuard(authority.duplicateSearch).outcome;
+  const resumePlan = planResumeAction({
+    entryStatus: authority.entryStatus,
+    activeRunCount: authority.activeRunCount,
+    activeRun: authority.activeRun,
+    workflowPortalRef: authority.workflowPortalRef,
+    duplicateOutcome,
+    duplicateSearch: authority.duplicateSearch,
+  });
   return {
     productId: FIRST_CONTROLLED_PRODUCT_ID,
     content: authority.content,
@@ -656,10 +706,17 @@ function buildTrustedExecutorInput(authority, { userConfirmed = false } = {}) {
     classificationVerified: authority.classificationVerified === true,
     isReadyForEntry: authority.isReadyForEntry === true,
     duplicateSearch: authority.duplicateSearch,
+    duplicateOutcome,
     pageState: authority.pageState,
     permissionOptions: authority.permissionOptions,
     approvedFileName: authority.approvedFileName,
+    activeRun: authority.activeRun || null,
+    activeRunCount: authority.activeRunCount ?? 0,
+    contentHashMatchesRunStart: authority.contentHashMatchesRunStart,
+    workflowPortalRef: authority.workflowPortalRef ?? null,
+    resumePlan,
     userConfirmed: userConfirmed === true,
+    resume: resume === true,
     authorityMode: true,
     // Explicitly never accept overrides on the trusted path.
     allowTestFieldGovernanceOverrides: false,
@@ -669,13 +726,16 @@ function buildTrustedExecutorInput(authority, { userConfirmed = false } = {}) {
 function applyLiveArmGate(assessment, liveArmed) {
   const result = { ...assessment, liveArmed: liveArmed === true };
   if (result.preview) {
+    const extraBlockers =
+      liveArmed === true ? [] : ["LIVE_EXECUTION_NOT_ARMED"];
     result.preview = {
       ...result.preview,
       startEnabled: result.preview.startEnabled === true && liveArmed === true,
+      resumeEnabled: result.preview.resumeEnabled === true && liveArmed === true,
       blockers:
         liveArmed === true
           ? result.preview.blockers || []
-          : [...(result.preview.blockers || []), "LIVE_EXECUTION_NOT_ARMED"],
+          : [...(result.preview.blockers || []), ...extraBlockers],
     };
   }
   return result;
@@ -713,14 +773,50 @@ async function runTrustedProductDetailsPreview(deps = {}) {
     );
   }
 
-  const assessment = assessProductDetailsPreflight(
-    buildTrustedExecutorInput(authority, { userConfirmed: false }),
-  );
+  const executorInput = buildTrustedExecutorInput(authority, { userConfirmed: false });
+  const assessment = assessProductDetailsPreflight(executorInput);
+  const resumePlan = executorInput.resumePlan;
+  assessment.resumePlan = resumePlan;
+
+  const entryUpper = String(authority.entryStatus).toUpperCase();
+  if (
+    (entryUpper === "IN_PROGRESS" || entryUpper === "ENTERED") &&
+    resumePlan.resumeEnabled === true
+  ) {
+    const resumeAssessment = assessProductDetailsResumePreflight({
+      ...executorInput,
+      resume: true,
+    });
+    assessment.preview = {
+      ...(resumeAssessment.preview || assessment.preview),
+      startEnabled: false,
+      resumeEnabled: resumeAssessment.preview?.resumeEnabled === true,
+      resumeMessage:
+        resumeAssessment.preview?.resumeMessage ||
+        resumePlan.message ||
+        "Interrupted Product Details run detected. Resume/reconcile the existing run.",
+      blockers: resumeAssessment.preview?.blockers || assessment.preview?.blockers || [],
+    };
+    assessment.resumePreflight = resumeAssessment;
+    assessment.ok = resumeAssessment.ok === true ? assessment.ok : false;
+    if (!resumeAssessment.ok) {
+      assessment.code = resumeAssessment.code || assessment.code;
+      assessment.message = resumeAssessment.message || assessment.message;
+    }
+  } else if (resumePlan) {
+    assessment.preview = {
+      ...assessment.preview,
+      resumeEnabled: false,
+      resumeMessage: resumePlan.message || null,
+    };
+  }
+
   assessment.authority = {
     source: "trusted_main_process",
     contentHash: authority.contentHash,
     workflowRowVersion: authority.workflowRowVersion,
     duplicateOutcome: evaluateDuplicateGuard(authority.duplicateSearch).outcome,
+    activeRunCount: authority.activeRunCount,
     requireEditPermission: false,
   };
   return applyLiveArmGate(assessment, liveArmed);
@@ -801,7 +897,7 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
       runBegun: false,
     };
   }
-  const adapters = await deps.buildAdapters({ authority, input });
+  const adapters = await deps.buildAdapters({ authority, input, mode: "start" });
   if (!adapters || typeof adapters !== "object" || adapters.__fromRenderer === true) {
     return {
       ok: false,
@@ -816,6 +912,116 @@ async function runTrustedProductDetailsStart(deps = {}, command = {}) {
   return executeProductDetails(input, adapters);
 }
 
+/**
+ * Production resume/reconcile: fresh authoritative preflight, then optional execute.
+ */
+async function runTrustedProductDetailsResume(deps = {}, command = {}) {
+  const liveArmed = deps.liveArmed === true;
+  const userConfirmed = command.userConfirmed === true;
+
+  const resumeDeps = {
+    ...deps,
+    requireEditPermission: true,
+  };
+
+  if (!liveArmed) {
+    const authority = await collectAuthoritativeProductDetailsContext(resumeDeps);
+    return {
+      ok: false,
+      code: "LIVE_EXECUTION_NOT_ARMED",
+      message:
+        "Live Product Details resume is implemented but disarmed. No run_resume / SaveData / mark_* will run until separate live approval arms it.",
+      inventedFailureRpcCalled: false,
+      mutated: false,
+      runBegun: false,
+      runResumed: false,
+      resumePlan: planResumeAction({
+        entryStatus: authority.entryStatus,
+        activeRunCount: authority.activeRunCount,
+        activeRun: authority.activeRun,
+        workflowPortalRef: authority.workflowPortalRef,
+        duplicateOutcome: authority.duplicateSearch
+          ? evaluateDuplicateGuard(authority.duplicateSearch).outcome
+          : null,
+      }),
+      authorityCode: authority.code,
+      authorityMissing: authority.missing || [],
+      requireEditPermission: true,
+      preflight: authority.ok
+        ? assessProductDetailsResumePreflight(
+            buildTrustedExecutorInput(authority, { userConfirmed: false, resume: true }),
+          )
+        : null,
+    };
+  }
+
+  if (!userConfirmed) {
+    return {
+      ok: false,
+      code: "USER_CONFIRMATION_REQUIRED",
+      message: "Explicit Resume confirmation is required.",
+      inventedFailureRpcCalled: false,
+      mutated: false,
+      runBegun: false,
+      runResumed: false,
+      requireEditPermission: true,
+    };
+  }
+
+  const authority = await collectAuthoritativeProductDetailsContext(resumeDeps);
+  if (!authority.ok) {
+    return {
+      ok: false,
+      code: authority.code,
+      message: authority.message,
+      missing: authority.missing || [],
+      inventedFailureRpcCalled: false,
+      mutated: false,
+      runBegun: false,
+      runResumed: false,
+      requireEditPermission: true,
+    };
+  }
+
+  const input = buildTrustedExecutorInput(authority, { userConfirmed: true, resume: true });
+  if (typeof deps.buildAdapters !== "function") {
+    return {
+      ok: false,
+      code: "ADAPTERS_NOT_BUILT",
+      message: "Trusted adapters were not constructed by main process.",
+      inventedFailureRpcCalled: false,
+      mutated: false,
+      runBegun: false,
+      runResumed: false,
+    };
+  }
+  const adapters = await deps.buildAdapters({ authority, input, mode: "resume" });
+  if (!adapters || typeof adapters !== "object" || adapters.__fromRenderer === true) {
+    return {
+      ok: false,
+      code: "ADAPTERS_REJECTED",
+      message: "Renderer-origin adapters are forbidden.",
+      inventedFailureRpcCalled: false,
+      mutated: false,
+      runBegun: false,
+      runResumed: false,
+    };
+  }
+  if (typeof adapters.runBegin === "function") {
+    return {
+      ok: false,
+      code: "RESUME_HAS_RUN_BEGIN",
+      message: "Resume adapters must not include runBegin.",
+      inventedFailureRpcCalled: false,
+      mutated: false,
+      runBegun: false,
+      runResumed: false,
+    };
+  }
+
+  return executeProductDetailsResume(input, adapters);
+}
+
 module.exports = {
   RENDERER_FORBIDDEN_OPTION_KEYS,
   DUPLICATE_OUTCOME,
@@ -824,6 +1030,7 @@ module.exports = {
   buildTrustedExecutorInput,
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
+  runTrustedProductDetailsResume,
   measureConnectedPageState,
   enumerateLivePermissionOptions,
   runLiveDuplicateSearch,
