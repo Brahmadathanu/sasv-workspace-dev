@@ -72,12 +72,40 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "portal_product_ref",
   "startContentHash",
   "start_content_hash",
+  "resumeSourceReady",
+  "compositionReviewComplete",
+  "classificationReviewComplete",
+  "dossierReady",
+  "openBlockers",
+  "openPortalIssues",
 ]);
 
 /**
- * Optional trusted diagnostic hook. Never throws into preview control flow.
- * Renderer must never supply this; only main-process deps may.
+ * Resume-source readiness independent of entry_status / is_ready_for_entry.
+ * Ordinary Start still uses is_ready_for_entry (NOT_STARTED-only).
  */
+function computeResumeSourceReady(src = {}) {
+  const reviewOk =
+    String(src.reviewStatus ?? src.review_status ?? "").toUpperCase() === "VERIFIED";
+  const compositionOk =
+    src.compositionReviewComplete === true || src.composition_review_complete === true;
+  const classificationOk =
+    src.classificationReviewComplete === true ||
+    src.classification_review_complete === true;
+  const dossierOk = src.dossierReady === true || src.dossier_ready === true;
+  const blockers = Number(src.openBlockers ?? src.open_blockers);
+  const portalIssues = Number(src.openPortalIssues ?? src.open_portal_issues);
+  return (
+    reviewOk &&
+    compositionOk &&
+    classificationOk &&
+    dossierOk &&
+    Number.isFinite(blockers) &&
+    blockers === 0 &&
+    Number.isFinite(portalIssues) &&
+    portalIssues === 0
+  );
+}
 function notifyPreviewStageFailure(deps, stage, code, error) {
   if (typeof deps?.reportPreviewStageFailure !== "function") return;
   try {
@@ -491,6 +519,23 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     missing.push("is_ready_for_entry");
   }
 
+  const compositionReviewComplete = preflight?.composition_review_complete === true;
+  const classificationReviewComplete =
+    preflight?.classification_review_complete === true;
+  const dossierReady = preflight?.dossier_ready === true;
+  const openBlockers =
+    preflight?.open_blockers != null ? Number(preflight.open_blockers) : null;
+  const openPortalIssues =
+    preflight?.open_portal_issues != null ? Number(preflight.open_portal_issues) : null;
+  const resumeSourceReady = computeResumeSourceReady({
+    reviewStatus,
+    compositionReviewComplete,
+    classificationReviewComplete,
+    dossierReady,
+    openBlockers,
+    openPortalIssues,
+  });
+
   const entryStatus =
     content?.entry_status != null
       ? String(content.entry_status)
@@ -654,6 +699,12 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       activeRunCount,
       activeRun,
       contentHashMatchesRunStart,
+      resumeSourceReady,
+      compositionReviewComplete,
+      classificationReviewComplete,
+      dossierReady,
+      openBlockers,
+      openPortalIssues,
     };
   }
 
@@ -681,6 +732,12 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     activeRun,
     contentHashMatchesRunStart,
     workflowPortalRef: preflight?.portal_product_ref ?? null,
+    resumeSourceReady: resumeSourceReady === true,
+    compositionReviewComplete: compositionReviewComplete === true,
+    classificationReviewComplete: classificationReviewComplete === true,
+    dossierReady: dossierReady === true,
+    openBlockers,
+    openPortalIssues,
   };
 }
 
@@ -705,6 +762,12 @@ function buildTrustedExecutorInput(authority, { userConfirmed = false, resume = 
     reviewStatus: authority.reviewStatus,
     classificationVerified: authority.classificationVerified === true,
     isReadyForEntry: authority.isReadyForEntry === true,
+    resumeSourceReady: authority.resumeSourceReady === true,
+    compositionReviewComplete: authority.compositionReviewComplete === true,
+    classificationReviewComplete: authority.classificationReviewComplete === true,
+    dossierReady: authority.dossierReady === true,
+    openBlockers: authority.openBlockers,
+    openPortalIssues: authority.openPortalIssues,
     duplicateSearch: authority.duplicateSearch,
     duplicateOutcome,
     pageState: authority.pageState,
@@ -787,21 +850,37 @@ async function runTrustedProductDetailsPreview(deps = {}) {
       ...executorInput,
       resume: true,
     });
-    assessment.preview = {
-      ...(resumeAssessment.preview || assessment.preview),
-      startEnabled: false,
-      resumeEnabled: resumeAssessment.preview?.resumeEnabled === true,
-      resumeMessage:
-        resumeAssessment.preview?.resumeMessage ||
-        resumePlan.message ||
-        "Interrupted Product Details run detected. Resume/reconcile the existing run.",
-      blockers: resumeAssessment.preview?.blockers || assessment.preview?.blockers || [],
-    };
     assessment.resumePreflight = resumeAssessment;
-    assessment.ok = resumeAssessment.ok === true ? assessment.ok : false;
-    if (!resumeAssessment.ok) {
+    if (resumeAssessment.ok === true) {
+      assessment.ok = true;
+      assessment.code = "RESUME_PREFLIGHT_PASS";
+      assessment.message =
+        resumeAssessment.message ||
+        "Interrupted Product Details run detected. Resume/reconcile the existing run.";
+      assessment.preview = {
+        ...(resumeAssessment.preview || assessment.preview),
+        startEnabled: false,
+        resumeEnabled: true,
+        resumeMessage:
+          resumeAssessment.preview?.resumeMessage ||
+          resumePlan.message ||
+          "Interrupted Product Details run detected. Resume/reconcile the existing run.",
+        blockers: resumeAssessment.preview?.blockers || [],
+      };
+    } else {
+      assessment.ok = false;
       assessment.code = resumeAssessment.code || assessment.code;
       assessment.message = resumeAssessment.message || assessment.message;
+      assessment.preview = {
+        ...(resumeAssessment.preview || assessment.preview),
+        startEnabled: false,
+        resumeEnabled: false,
+        resumeMessage:
+          resumeAssessment.preview?.resumeMessage ||
+          resumePlan.message ||
+          assessment.message,
+        blockers: resumeAssessment.preview?.blockers || assessment.preview?.blockers || [],
+      };
     }
   } else if (resumePlan) {
     assessment.preview = {
@@ -1038,4 +1117,5 @@ module.exports = {
   createInPagePermissionOptionsProbe,
   createInPageDuplicateSearchProbe,
   applyLiveArmGate,
+  computeResumeSourceReady,
 };

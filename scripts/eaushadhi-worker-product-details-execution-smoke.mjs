@@ -962,7 +962,14 @@ const resumeBaseInput = {
   pageState: readyPage,
   reviewStatus: "VERIFIED",
   classificationVerified: true,
-  isReadyForEntry: true,
+  // After run_begin, ordinary is_ready_for_entry is false (NOT_STARTED-only).
+  isReadyForEntry: false,
+  resumeSourceReady: true,
+  compositionReviewComplete: true,
+  classificationReviewComplete: true,
+  dossierReady: true,
+  openBlockers: 0,
+  openPortalIssues: 0,
   authorityMode: true,
   userConfirmed: true,
   fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
@@ -973,8 +980,69 @@ const resumeBaseInput = {
 
 const resumePreflightOk = assessProductDetailsResumePreflight(resumeBaseInput);
 assert(resumePreflightOk.ok === true, "continue resume preflight passes offline");
+assert(resumePreflightOk.code === "RESUME_PREFLIGHT_PASS", "resume preflight code is RESUME_PREFLIGHT_PASS");
 assert(resumePreflightOk.preview?.resumeEnabled === true, "resume preflight preview enables resume");
+assert(
+  resumePreflightOk.preview?.startEnabled !== true,
+  "resume preflight keeps Start disabled",
+);
 
+{
+  const notReadyOrdinary = assessProductDetailsPreflight({
+    ...resumeBaseInput,
+    entryStatus: "NOT_STARTED",
+    content: baseContent({ entry_status: "NOT_STARTED" }),
+    isReadyForEntry: false,
+    authorityMode: true,
+  });
+  assert(notReadyOrdinary.code === "NOT_READY", "ordinary Start still requires isReadyForEntry=true");
+
+  const compositionBlocked = assessProductDetailsResumePreflight({
+    ...resumeBaseInput,
+    compositionReviewComplete: false,
+    resumeSourceReady: false,
+  });
+  assert(
+    compositionBlocked.code === "COMPOSITION_REVIEW_INCOMPLETE",
+    "composition incomplete blocks resume",
+  );
+
+  const dossierBlocked = assessProductDetailsResumePreflight({
+    ...resumeBaseInput,
+    dossierReady: false,
+    resumeSourceReady: false,
+  });
+  assert(dossierBlocked.code === "DOSSIER_NOT_READY", "dossier not ready blocks resume");
+
+  const blockersBlocked = assessProductDetailsResumePreflight({
+    ...resumeBaseInput,
+    openBlockers: 1,
+    resumeSourceReady: false,
+  });
+  assert(blockersBlocked.code === "OPEN_BLOCKERS", "open blockers block resume");
+
+  const portalIssuesBlocked = assessProductDetailsResumePreflight({
+    ...resumeBaseInput,
+    openPortalIssues: 2,
+    resumeSourceReady: false,
+  });
+  assert(portalIssuesBlocked.code === "OPEN_PORTAL_ISSUES", "open portal issues block resume");
+
+  const classBlocked = assessProductDetailsResumePreflight({
+    ...resumeBaseInput,
+    classificationVerified: false,
+  });
+  assert(
+    classBlocked.code === "CLASSIFICATION_NOT_VERIFIED",
+    "classification not verified blocks resume",
+  );
+
+  const hashDrift = assessProductDetailsResumePreflight({
+    ...resumeBaseInput,
+    contentHashMatchesRunStart: false,
+  });
+  assert(hashDrift.code === "CONTENT_HASH_DRIFT", "content hash drift blocks resume");
+}
 const resumeNoActiveRun = assessProductDetailsResumePreflight({
   ...resumeBaseInput,
   activeRunCount: 0,
@@ -1895,6 +1963,14 @@ function makeTrustedDeps(overrides = {}) {
           is_ready_for_entry: true,
           review_status: "VERIFIED",
           eligible: true,
+          composition_review_complete: true,
+          classification_review_complete: true,
+          dossier_ready: true,
+          open_blockers: 0,
+          open_portal_issues: 0,
+          active_run_count: 0,
+          active_run: null,
+          portal_product_ref: null,
         };
       }
       if (name === "rpc_eaushadhi_worker_content_get") {
@@ -1946,6 +2022,117 @@ assert(
   permissionEditFlags.length >= 1 && permissionEditFlags.every((v) => v === false),
   "Preview permission RPC uses p_edit=false",
 );
+
+{
+  const { computeResumeSourceReady } = require(join(
+    root,
+    "electron/eaushadhi-worker/product-details-trusted.js",
+  ));
+  assert(
+    computeResumeSourceReady({
+      reviewStatus: "VERIFIED",
+      compositionReviewComplete: true,
+      classificationReviewComplete: true,
+      dossierReady: true,
+      openBlockers: 0,
+      openPortalIssues: 0,
+    }) === true,
+    "computeResumeSourceReady true when source gates pass",
+  );
+  assert(
+    computeResumeSourceReady({
+      reviewStatus: "VERIFIED",
+      compositionReviewComplete: true,
+      classificationReviewComplete: true,
+      dossierReady: true,
+      openBlockers: 0,
+      openPortalIssues: 0,
+      // entry_status / is_ready_for_entry intentionally absent
+    }) === true,
+    "computeResumeSourceReady ignores is_ready_for_entry / entry_status",
+  );
+
+  mutatingRpcNames = [];
+  const inProgressContent = baseContent({
+    entry_status: "IN_PROGRESS",
+    product: {
+      portal_product_name: "Karpooradi Thailam",
+      canonical_product_name: "Karpooradi Thailam",
+      review_status: "VERIFIED",
+    },
+    classification: {
+      review_status: "VERIFIED",
+      is_verified: true,
+      product_type: { portal_option_value: "1", label: "Ayurveda" },
+      product_category: { portal_option_value: "10", label: "Thailam" },
+      product_subtype: { portal_option_value: "31", label: "-" },
+    },
+    details: {
+      portal_remarks: GOVERNANCE_OVERRIDES.remarks,
+      portal_shelfmonth_route: GOVERNANCE_OVERRIDES.shelfmonth,
+    },
+    is_ready_for_entry: false,
+  });
+  const resumePreview = await runTrustedProductDetailsPreview(
+    makeTrustedDeps({
+      liveArmed: true,
+      callRpc: async (name, args) => {
+        mutatingRpcNames.push(name);
+        if (name === "rpc_eaushadhi_require_permission") return { ok: true };
+        if (name === "rpc_eaushadhi_worker_preflight") {
+          return {
+            workflow_row_version: 6,
+            entry_status: "IN_PROGRESS",
+            is_ready_for_entry: false,
+            review_status: "VERIFIED",
+            eligible: false,
+            composition_review_complete: true,
+            classification_review_complete: true,
+            dossier_ready: true,
+            open_blockers: 0,
+            open_portal_issues: 0,
+            active_run_count: 1,
+            active_run: {
+              run_id: resumeRunId,
+              run_status: "RUNNING",
+              start_content_hash: "hash-karpooradi-smoke-1",
+              start_payload_hash: "payload-1",
+              current_workflow_row_version: 6,
+              portal_product_ref: null,
+              started_at: "2026-09-19T00:00:00Z",
+            },
+            portal_product_ref: null,
+          };
+        }
+        if (name === "rpc_eaushadhi_worker_content_get") {
+          return {
+            ...inProgressContent,
+            content_hash: "hash-karpooradi-smoke-1",
+          };
+        }
+        throw new Error(`unexpected rpc ${name}`);
+      },
+      resolveApprovedCopy: async () => ({
+        ok: true,
+        localPath: "C:\\tmp\\EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf",
+        fileName: EXPECTED_APPROVED_COPY_NAME,
+      }),
+    }),
+  );
+  assert(
+    resumePreview.code === "RESUME_PREFLIGHT_PASS",
+    "IN_PROGRESS + isReadyForEntry=false => RESUME_PREFLIGHT_PASS (not ENTRY_NOT_STARTABLE)",
+  );
+  assert(resumePreview.ok === true, "resume preview ok is true");
+  assert(resumePreview.preview?.startEnabled !== true, "resume preview keeps Start disabled");
+  assert(resumePreview.preview?.resumeEnabled === true, "resume preview enables Resume");
+  assert(
+    String(resumePreview.message || "").includes("Interrupted") ||
+      String(resumePreview.preview?.resumeMessage || "").includes("Interrupted"),
+    "resume preview exposes interrupted-run human message",
+  );
+  assert(!mutatingRpcNames.includes("rpc_eaushadhi_worker_run_begin"), "resume preview never run_begin");
+}
 
 const forgedPreview = await runTrustedProductDetailsPreview({
   ...makeTrustedDeps({ requireEditPermission: true }),
