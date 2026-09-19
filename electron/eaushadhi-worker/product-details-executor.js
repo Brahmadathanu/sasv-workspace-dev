@@ -66,6 +66,37 @@ function phaseLog(phases, id, detail) {
 }
 
 /**
+ * Map known fill/attachment adapter failures to structured executor codes.
+ * Prevents expected attachment failures from escaping as generic Worker IPC failed.
+ */
+function classifyFillFormFailure(error) {
+  const msg = String(error?.message || error || "");
+  const code = String(error?.code || "").trim();
+  if (code === "APPROVED_COPY_NOT_APPLIED" || /APPROVED_COPY_NOT_APPLIED/.test(msg)) {
+    return {
+      code: "APPROVED_COPY_NOT_APPLIED",
+      message: "Approved product copy was not proven on the upload control.",
+    };
+  }
+  if (/approved_local_path_missing_for_upload/.test(msg)) {
+    return {
+      code: "APPROVED_COPY_LOCAL_PATH_MISSING",
+      message: "Approved product copy local path was missing for upload.",
+    };
+  }
+  if (/uploadAttachment_input_missing/.test(msg)) {
+    return {
+      code: "UPLOAD_ATTACHMENT_INPUT_MISSING",
+      message: "Portal #uploadAttachment input was missing.",
+    };
+  }
+  return {
+    code: "FILL_FORM_FAILED",
+    message: "Product Details form fill failed before Save.",
+  };
+}
+
+/**
  * Server-returned workflow row version after mark_entered only.
  * Never infer +1 client-side; never fall back to begin/resume version.
  */
@@ -438,11 +469,26 @@ async function executeProductDetails(input = {}, adapters = {}) {
         }
         permissionField.resolved = resolved;
       }
-      await adapters.fillForm({
-        fillPlan: preflight.fillPlan,
-        classificationSteps: buildDependentClassificationSteps(preflight.fillPlan),
-        permissionResolution: permissionField?.resolved || null,
-      });
+      try {
+        await adapters.fillForm({
+          fillPlan: preflight.fillPlan,
+          classificationSteps: buildDependentClassificationSteps(preflight.fillPlan),
+          permissionResolution: permissionField?.resolved || null,
+        });
+      } catch (error) {
+        const classified = classifyFillFormFailure(error);
+        return {
+          ok: false,
+          code: classified.code,
+          message: classified.message,
+          phases,
+          runId,
+          runBegun: true,
+          mutated: true,
+          requiresReadOnlyReconciliation: true,
+          inventedFailureRpcCalled: false,
+        };
+      }
       phaseLog(phases, PHASE.FORM_FILLED, "ok");
     }
 
@@ -1186,11 +1232,28 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
           }
           permissionField.resolved = resolved;
         }
-        const fillResult = await adapters.fillForm({
-          fillPlan: preflight.fillPlan,
-          classificationSteps: buildDependentClassificationSteps(preflight.fillPlan),
-          permissionResolution: permissionField?.resolved || null,
-        });
+        let fillResult;
+        try {
+          fillResult = await adapters.fillForm({
+            fillPlan: preflight.fillPlan,
+            classificationSteps: buildDependentClassificationSteps(preflight.fillPlan),
+            permissionResolution: permissionField?.resolved || null,
+          });
+        } catch (error) {
+          const classified = classifyFillFormFailure(error);
+          return {
+            ok: false,
+            code: classified.code,
+            message: classified.message,
+            phases,
+            runId: resumedRunId,
+            runBegun: false,
+            runResumed: true,
+            mutated: true,
+            requiresReadOnlyReconciliation: true,
+            inventedFailureRpcCalled: false,
+          };
+        }
         const approvedApplied =
           fillResult?.approvedCopyProof?.applied === true ||
           (typeof adapters.proveAttachment === "function" &&
@@ -1204,7 +1267,7 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
             runId: resumedRunId,
             runBegun: false,
             runResumed: true,
-            mutated: false,
+            mutated: true,
             requiresReadOnlyReconciliation: true,
           };
         }
