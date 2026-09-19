@@ -259,6 +259,91 @@ assert(
   "cache entry stores lineage metadata",
 );
 assert(
+  entryOk?.projection_source === "PERSISTED_EXACT_RUN",
+  "Product top-level payload builds cache entry with exact lineage",
+);
+
+const skuEnvelopeEntry = buildQcExplainCacheEntry({
+  summary_status: "READY",
+  sku: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+    projection_source: "PERSISTED_EXACT_RUN",
+    sku_id: 12,
+  },
+  product: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+    projection_source: "PERSISTED_EXACT_RUN",
+    product_id: 74,
+  },
+});
+assert(
+  skuEnvelopeEntry?.period_start === "2026-09-01" &&
+    skuEnvelopeEntry?.valuation_date === "2026-09-01" &&
+    skuEnvelopeEntry?.refresh_run_id === 85 &&
+    skuEnvelopeEntry?.projection_source === "PERSISTED_EXACT_RUN",
+  "SKU envelope with no top-level lineage builds cache entry from nested SKU",
+);
+assert(
+  isQcExplainCacheEntryReusable(skuEnvelopeEntry, exactSkuTuple),
+  "valid exact SKU cache entry reusable for matching exact tuple",
+);
+assert(
+  !isQcExplainCacheEntryReusable(skuEnvelopeEntry, exactSkuRun108),
+  "exact SKU cache entry rejected for a different run",
+);
+
+const productFallbackEntry = buildQcExplainCacheEntry({
+  summary_status: "READY",
+  product: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+    projection_source: "PERSISTED_EXACT_RUN",
+  },
+});
+assert(
+  productFallbackEntry?.valuation_date === "2026-09-01" &&
+    productFallbackEntry?.refresh_run_id === 85 &&
+    productFallbackEntry?.period_start === "2026-09-01",
+  "nested Product supplies response metadata only when higher-priority lineage absent",
+);
+
+const topLevelWinsEntry = buildQcExplainCacheEntry({
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  projection_source: "PERSISTED_EXACT_RUN",
+  sku: {
+    period_start: "2026-09-10",
+    valuation_date: "2026-09-10",
+    refresh_run_id: 108,
+    projection_source: "CONTROLLED_PRE_REFRESH_FALLBACK",
+  },
+});
+assert(
+  topLevelWinsEntry?.refresh_run_id === 85 &&
+    topLevelWinsEntry?.valuation_date === "2026-09-01" &&
+    topLevelWinsEntry?.projection_source === "PERSISTED_EXACT_RUN",
+  "top-level response lineage wins over nested SKU (no request-tuple fill)",
+);
+
+const blankLineageEntry = buildQcExplainCacheEntry({
+  summary_status: "READY",
+  sku: { sku_id: 12 },
+  product: { product_id: 74 },
+});
+assert(
+  blankLineageEntry?.valuation_date == null &&
+    blankLineageEntry?.refresh_run_id == null &&
+    !isQcExplainCacheEntryReusable(blankLineageEntry, exactSkuTuple),
+  "blank lineage still fails closed",
+);
+
+assert(
   isQcExplainCacheEntryReusable(entryOk, exactSkuTuple),
   "exact cache reusable when lineage matches",
 );

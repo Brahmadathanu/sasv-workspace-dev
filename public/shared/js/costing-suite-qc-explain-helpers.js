@@ -563,12 +563,30 @@ export function isQcExplainCacheEntryReusable(cacheEntry, tuple = {}) {
 
 export function buildQcExplainCacheEntry(payload) {
   if (!payload || typeof payload !== "object") return null;
+  const nestedSku = extractNestedSkuQcExplain(payload);
+  const nestedProduct = extractNestedProductQcExplain(payload);
   return {
     payload,
-    period_start: pickFirstDefined(payload.period_start),
-    valuation_date: pickFirstDefined(payload.valuation_date),
-    refresh_run_id: pickFirstDefined(payload.refresh_run_id),
-    projection_source: pickFirstDefined(payload.projection_source),
+    period_start: pickFirstDefined(
+      payload.period_start,
+      nestedSku?.period_start,
+      nestedProduct?.period_start,
+    ),
+    valuation_date: pickFirstDefined(
+      payload.valuation_date,
+      nestedSku?.valuation_date,
+      nestedProduct?.valuation_date,
+    ),
+    refresh_run_id: pickFirstDefined(
+      payload.refresh_run_id,
+      nestedSku?.refresh_run_id,
+      nestedProduct?.refresh_run_id,
+    ),
+    projection_source: pickFirstDefined(
+      payload.projection_source,
+      nestedSku?.projection_source,
+      nestedProduct?.projection_source,
+    ),
     cached_at: Date.now(),
   };
 }
