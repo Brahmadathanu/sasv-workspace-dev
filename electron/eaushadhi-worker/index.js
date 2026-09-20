@@ -32,6 +32,8 @@ const {
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
   runTrustedProductDetailsResume,
+  runTrustedAmbiguousSaveReconcile,
+  runTrustedPortalProjectionRebase,
   measureConnectedPageState,
   enumerateLivePermissionOptions,
   runLiveDuplicateSearch,
@@ -997,6 +999,52 @@ function createEaushadhiWorker({
     });
   }
 
+  async function reconcileAmbiguousSaveProductDetailsExecution(
+    rawProductId,
+    rawAccessToken,
+    rawOptions = {},
+  ) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
+    if (id !== PD_PRODUCT_ID) {
+      return {
+        ok: false,
+        code: "PRODUCT_LOCK_REJECTED",
+        message: `Ambiguous-save reconciliation accepts only product_id ${PD_PRODUCT_ID}.`,
+        inventedFailureRpcCalled: false,
+        rebaseEligible: false,
+      };
+    }
+    return runTrustedAmbiguousSaveReconcile(buildProductDetailsTrustedDeps(accessToken), {
+      userConfirmed: command.userConfirmed === true,
+      correlationId: command.correlationId,
+    });
+  }
+
+  async function rebasePortalProjectionProductDetailsExecution(
+    rawProductId,
+    rawAccessToken,
+    rawOptions = {},
+  ) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
+    if (id !== PD_PRODUCT_ID) {
+      return {
+        ok: false,
+        code: "PRODUCT_LOCK_REJECTED",
+        message: `Portal projection rebase accepts only product_id ${PD_PRODUCT_ID}.`,
+        inventedFailureRpcCalled: false,
+        rebased: false,
+      };
+    }
+    return runTrustedPortalProjectionRebase(buildProductDetailsTrustedDeps(accessToken), {
+      userConfirmed: command.userConfirmed === true,
+      correlationId: command.correlationId,
+    });
+  }
+
   async function requireViewPermission(accessToken) {
     try {
       await rpcCall(accessToken, "rpc_eaushadhi_require_permission", { p_edit: false });
@@ -1141,6 +1189,8 @@ function createEaushadhiWorker({
     previewProductDetailsExecution,
     startProductDetailsExecution,
     resumeProductDetailsExecution,
+    reconcileAmbiguousSaveProductDetailsExecution,
+    rebasePortalProjectionProductDetailsExecution,
     capturePortalContract,
     openLastCaptureFolder,
   };

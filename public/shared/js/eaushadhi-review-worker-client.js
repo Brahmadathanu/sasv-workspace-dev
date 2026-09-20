@@ -65,6 +65,34 @@ export async function resumeWorkerProductDetails(productId, accessToken, options
   });
 }
 
+export async function reconcileAmbiguousSaveProductDetails(productId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.reconcileAmbiguousSaveProductDetails !== "function") {
+    return {
+      ok: false,
+      errorKind: "UNSUPPORTED_WORKER_ACTION",
+      message: "Ambiguous-save reconciliation is not available in this app build.",
+    };
+  }
+  return window.eaushadhiWorkerAPI.reconcileAmbiguousSaveProductDetails(productId, accessToken, {
+    userConfirmed: options?.userConfirmed === true,
+  });
+}
+
+export async function rebasePortalProjectionProductDetails(productId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.rebasePortalProjectionProductDetails !== "function") {
+    return {
+      ok: false,
+      errorKind: "UNSUPPORTED_WORKER_ACTION",
+      message: "Portal projection rebase is not available in this app build.",
+    };
+  }
+  return window.eaushadhiWorkerAPI.rebasePortalProjectionProductDetails(productId, accessToken, {
+    userConfirmed: options?.userConfirmed === true,
+  });
+}
+
 export async function captureWorkerPortalContract(accessToken) {
   if (!workerApiAvailable()) return unsupported();
   return window.eaushadhiWorkerAPI.capturePortalContract(accessToken);

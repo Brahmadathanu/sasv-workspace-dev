@@ -2457,6 +2457,69 @@ assert(
     noAttachment.code === "APPROVED_COPY_NOT_APPLIED",
     "fillForm without approved proof => APPROVED_COPY_NOT_APPLIED",
   );
+
+  // Resume path also requires the trusted AMBIGUOUS marker before SAVE_AMBIGUOUS.
+  {
+    let resumeAmbSaves = 0;
+    let resumeAmbEntered = 0;
+    const resumeAmbAdapters = (markSaveAmbiguous) => ({
+      runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+      fillForm: async () => ({
+        filled: ["permissionPurpose"],
+        approvedCopyProof: { applied: true, fileName: EXPECTED_APPROVED_COPY_NAME },
+      }),
+      saveOnce: async () => {
+        resumeAmbSaves += 1;
+        return {
+          invoked: true,
+          invokeCount: 1,
+          httpOk: true,
+          businessSuccess: null,
+          portalProductId: null,
+        };
+      },
+      markEntered: async () => {
+        resumeAmbEntered += 1;
+        return { ok: true, workflow_row_version: 7 };
+      },
+      ...(markSaveAmbiguous ? { markSaveAmbiguous } : {}),
+    });
+
+    const resumeMarkerCalls = [];
+    const resumeAmb = await executeProductDetailsResume(
+      resumeBaseInput,
+      resumeAmbAdapters(async (args) => {
+        resumeMarkerCalls.push(args);
+        return { ok: true };
+      }),
+    );
+    assert(resumeAmb.code === "SAVE_AMBIGUOUS", "resume ambiguous save stops");
+    assert(resumeAmb.markerOk === true, "resume ambiguous save marks the run");
+    assert(resumeMarkerCalls.length === 1, "resume marker called exactly once");
+    assert(
+      resumeMarkerCalls[0]?.runId === resumeRunId,
+      "resume marker uses the existing server run_id",
+    );
+    assert(
+      resumeMarkerCalls[0]?.saveEvidence?.outcome === "AMBIGUOUS",
+      "resume marker evidence carries AMBIGUOUS outcome",
+    );
+    assert(resumeAmbSaves === 1, "resume ambiguous save does not retry SaveData");
+    assert(resumeAmbEntered === 0, "resume ambiguous save never marks ENTERED");
+
+    resumeAmbSaves = 0;
+    resumeAmbEntered = 0;
+    const resumeMarkerMissing = await executeProductDetailsResume(
+      resumeBaseInput,
+      resumeAmbAdapters(null),
+    );
+    assert(
+      resumeMarkerMissing.code === "SAVE_AMBIGUOUS_MARKER_MISSING",
+      "resume missing marker adapter fails closed",
+    );
+    assert(resumeAmbSaves === 1, "resume missing marker does not retry SaveData");
+    assert(resumeAmbEntered === 0, "resume missing marker never marks ENTERED");
+  }
   assert(noAttachment.runResumed === true, "run_resume may succeed before attachment proof fails");
 
   assert(
@@ -2880,6 +2943,34 @@ assert(!indexSrc.includes("rpc_eaushadhi_worker_run_begin"), "index source does 
 assert(!/mark_entered|mark_portal_verified/.test(indexSrc), "index source does not embed mark_* RPC names");
 assert(indexSrc.includes("runTrustedProductDetailsPreview"), "preview uses trusted orchestration");
 assert(indexSrc.includes("runTrustedProductDetailsStart"), "start uses trusted orchestration");
+assert(
+  indexSrc.includes("reconcileAmbiguousSaveProductDetailsExecution") &&
+    indexSrc.includes("runTrustedAmbiguousSaveReconcile"),
+  "index exposes reconcileAmbiguousSaveProductDetailsExecution via trusted orchestration",
+);
+assert(
+  indexSrc.includes("rebasePortalProjectionProductDetailsExecution") &&
+    indexSrc.includes("runTrustedPortalProjectionRebase"),
+  "index exposes rebasePortalProjectionProductDetailsExecution via trusted orchestration",
+);
+assert(
+  !/mark_save_ambiguous|rebase_portal_projection/.test(indexSrc),
+  "index source does not embed reconcile/rebase RPC names",
+);
+{
+  const reconcileWrapper = indexSrc.slice(
+    indexSrc.indexOf("async function reconcileAmbiguousSaveProductDetailsExecution"),
+    indexSrc.indexOf("async function requireViewPermission"),
+  );
+  assert(
+    (reconcileWrapper.match(/sanitizeRendererCommand\(rawOptions\)/g) || []).length === 2,
+    "reconcile and rebase wrappers both sanitize renderer options",
+  );
+  assert(
+    !/rawOptions\./.test(reconcileWrapper) && !/\.\.\.rawOptions/.test(reconcileWrapper),
+    "reconcile/rebase wrappers never read raw renderer options directly",
+  );
+}
 assert(indexSrc.includes("resolveApprovedProductCopyFile"), "index wires trusted approved-copy resolver");
 assert(!indexSrc.includes("evidence?.approved_product_copy_present === true"), "index no longer treats metadata alone as resolved");
 assert(!indexSrc.includes("options.adapters"), "index does not accept renderer adapters");
@@ -2919,11 +3010,65 @@ assert(
   ),
   "IPC preview forwards empty options object",
 );
+assert(
+  CHANNELS.PRODUCT_DETAILS_RECONCILE_AMBIGUOUS ===
+    "eaushadhi-worker:product-details-reconcile-ambiguous",
+  "IPC defines PRODUCT_DETAILS_RECONCILE_AMBIGUOUS channel",
+);
+assert(
+  CHANNELS.PRODUCT_DETAILS_REBASE_PORTAL === "eaushadhi-worker:product-details-rebase-portal",
+  "IPC defines PRODUCT_DETAILS_REBASE_PORTAL channel",
+);
+assert(
+  /reconcileAmbiguousSaveProductDetailsExecution\(productId, accessToken, \{\s*userConfirmed: payload\?\.userConfirmed === true,/.test(
+    ipcSrc,
+  ),
+  "IPC reconcile forwards only userConfirmed",
+);
+assert(
+  /rebasePortalProjectionProductDetailsExecution\(productId, accessToken, \{\s*userConfirmed: payload\?\.userConfirmed === true,/.test(
+    ipcSrc,
+  ),
+  "IPC rebase forwards only userConfirmed",
+);
 
 const preloadSrc = readFileSync(join(root, "preload.js"), "utf8");
 assert(preloadSrc.includes("previewProductDetails:"), "preload exposes previewProductDetails");
 assert(preloadSrc.includes("startProductDetails:"), "preload exposes startProductDetails");
 assert(preloadSrc.includes("resumeProductDetails:"), "preload exposes resumeProductDetails");
+assert(
+  preloadSrc.includes("reconcileAmbiguousSaveProductDetails:"),
+  "preload exposes reconcileAmbiguousSaveProductDetails",
+);
+assert(
+  preloadSrc.includes("rebasePortalProjectionProductDetails:"),
+  "preload exposes rebasePortalProjectionProductDetails",
+);
+assert(
+  /reconcileAmbiguousSaveProductDetails:[\s\S]*?userConfirmed: options\?\.userConfirmed === true/.test(
+    preloadSrc,
+  ),
+  "preload reconcile forwards only explicit userConfirmed",
+);
+assert(
+  /rebasePortalProjectionProductDetails:[\s\S]*?userConfirmed: options\?\.userConfirmed === true/.test(
+    preloadSrc,
+  ),
+  "preload rebase forwards only explicit userConfirmed",
+);
+{
+  // Preload must forward productId / accessToken / userConfirmed only.
+  const reconcileBlock = preloadSrc.slice(
+    preloadSrc.indexOf("reconcileAmbiguousSaveProductDetails:"),
+    preloadSrc.indexOf("capturePortalContract:"),
+  );
+  assert(
+    !/(runId|run_id|contentHash|workflowRowVersion|duplicateSearch|saveEvidence|reconciliationEvidence|save_outcome)/.test(
+      reconcileBlock,
+    ),
+    "preload reconcile/rebase forward no governance or evidence fields",
+  );
+}
 assert(
   preloadSrc.includes("userConfirmed: options?.userConfirmed === true"),
   "preload start sends only userConfirmed",
@@ -3919,6 +4064,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   assert(noPortalIdRun.requiresReadOnlyReconciliation === true, "missing portal id requires reconcile");
 
   markEnteredCalls = 0;
+  let fakeIdMarkerCalls = [];
   const fakeInternalId = await executeProductDetails(successInput, {
     runBegin: async () => ({ run_id: "run-fake-262", workflow_row_version: 7 }),
     fillForm: async () => ({ ok: true }),
@@ -3931,6 +4077,10 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       hiddenIdBefore: null,
       hiddenIdAfter: "262",
     }),
+    markSaveAmbiguous: async (args) => {
+      fakeIdMarkerCalls.push(args);
+      return { ok: true };
+    },
     markEntered: async () => {
       markEnteredCalls += 1;
     },
@@ -3942,6 +4092,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   assert(markEnteredCalls === 0, "renderer/internal 262 id never marks ENTERED");
 
   let saveRetry = 0;
+  let ambMarkerCalls = [];
   const ambSave = await executeProductDetails(successInput, {
     runBegin: async () => ({ run_id: "run-amb-1", workflow_row_version: 7 }),
     fillForm: async () => ({ ok: true }),
@@ -3957,10 +4108,123 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
         hiddenIdAfter: null,
       };
     },
+    markSaveAmbiguous: async (args) => {
+      ambMarkerCalls.push(args);
+      return { ok: true };
+    },
   });
   assert(ambSave.code === "SAVE_AMBIGUOUS", "ambiguous save stops");
   assert(saveRetry === 1, "ambiguous save does not retry SaveData");
   assert(ambSave.requiresReadOnlyReconciliation === true, "ambiguous save requires reconcile");
+  assert(ambSave.markerOk === true, "ambiguous save reports marker written");
+  assert(ambSave.lastSaveOutcome === "AMBIGUOUS", "ambiguous save reports lastSaveOutcome");
+
+  // AMBIGUOUS marker: trusted ids only, exactly once, bounded evidence.
+  assert(ambMarkerCalls.length === 1, "markSaveAmbiguous called exactly once");
+  {
+    const call = ambMarkerCalls[0] || {};
+    assert(call.runId === "run-amb-1", "marker uses server run_id from run_begin");
+    assert(
+      call.expectedWorkflowRowVersion === 7,
+      "marker uses trusted workflow row version",
+    );
+    assert(
+      call.expectedContentHash === "hash-karpooradi-smoke-1",
+      "marker uses trusted content hash",
+    );
+    const evidence = call.saveEvidence || {};
+    assert(evidence.outcome === "AMBIGUOUS", "marker evidence carries AMBIGUOUS outcome");
+    assert(typeof evidence.reason === "string" && evidence.reason.length > 0, "marker evidence carries classifier reason");
+    assert(evidence.invokeCount === 1, "marker evidence carries invokeCount");
+    assert(evidence.httpOk === true, "marker evidence carries httpOk category");
+    const evidenceKeys = Object.keys(evidence);
+    assert(
+      !evidenceKeys.some((k) => /html|cookie|token|body|header|response/i.test(k)),
+      "marker evidence carries no html/cookie/token/body fields",
+    );
+    assert(
+      !/<|document\.|Set-Cookie|Bearer /i.test(JSON.stringify(evidence)),
+      "marker evidence has no markup, cookie or bearer material",
+    );
+  }
+
+  // Missing marker adapter is fail-closed: never reported as plain SAVE_AMBIGUOUS.
+  let noMarkerSaves = 0;
+  let noMarkerEntered = 0;
+  const missingMarker = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-amb-missing", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => {
+      noMarkerSaves += 1;
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: null,
+        portalProductId: null,
+      };
+    },
+    markEntered: async () => {
+      noMarkerEntered += 1;
+    },
+  });
+  assert(
+    missingMarker.code === "SAVE_AMBIGUOUS_MARKER_MISSING",
+    "missing markSaveAmbiguous adapter fails closed",
+  );
+  assert(missingMarker.markerOk === false, "missing marker reports markerOk false");
+  assert(noMarkerSaves === 1, "missing marker never retries SaveData");
+  assert(noMarkerEntered === 0, "missing marker never marks ENTERED");
+  assert(
+    missingMarker.requiresReadOnlyReconciliation === true,
+    "missing marker requires read-only reconcile",
+  );
+  assert(
+    missingMarker.inventedFailureRpcCalled === false,
+    "missing marker invents no failure RPC",
+  );
+
+  // Marker failure is fail-closed with no SaveData retry and no ENTERED.
+  let failMarkerSaves = 0;
+  let failMarkerEntered = 0;
+  let failMarkerCalls = 0;
+  const markerFailed = await executeProductDetails(successInput, {
+    runBegin: async () => ({ run_id: "run-amb-fail", workflow_row_version: 7 }),
+    fillForm: async () => ({ ok: true }),
+    saveOnce: async () => {
+      failMarkerSaves += 1;
+      return {
+        invoked: true,
+        invokeCount: 1,
+        httpOk: true,
+        businessSuccess: null,
+        portalProductId: null,
+      };
+    },
+    markSaveAmbiguous: async () => {
+      failMarkerCalls += 1;
+      throw new Error("mark_save_ambiguous rejected");
+    },
+    markEntered: async () => {
+      failMarkerEntered += 1;
+    },
+  });
+  assert(
+    markerFailed.code === "SAVE_AMBIGUOUS_MARKER_FAILED",
+    "marker throw => SAVE_AMBIGUOUS_MARKER_FAILED",
+  );
+  assert(failMarkerCalls === 1, "failed marker is not retried");
+  assert(failMarkerSaves === 1, "marker failure never retries SaveData");
+  assert(failMarkerEntered === 0, "marker failure never marks ENTERED");
+  assert(markerFailed.markerOk === false, "marker failure reports markerOk false");
+  assert(
+    markerFailed.requiresReadOnlyReconciliation === true,
+    "marker failure requires read-only reconcile",
+  );
+  assert(
+    markerFailed.inventedFailureRpcCalled === false,
+    "marker failure invents no failure RPC",
+  );
 
   let order = [];
   await executeProductDetails(successInput, {
@@ -4212,6 +4476,329 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     controlSrcPhaseA.includes("openProductDetailsConfirmModal"),
     "UI uses governed modal instead of window.confirm",
   );
+}
+
+// --- Trusted ambiguous-save reconcile + portal projection rebase -----------
+{
+  const {
+    runTrustedAmbiguousSaveReconcile,
+    runTrustedPortalProjectionRebase,
+    REBASE_PORTAL_PROJECTION_RPC,
+    PORTAL_TEXT_GET_RPC,
+  } = require(join(root, "electron/eaushadhi-worker/product-details-trusted.js"));
+
+  const ambRunId = "11111111-2222-3333-4444-555555555555";
+  const ambContent = baseContent({
+    entry_status: "IN_PROGRESS",
+    content_hash: "hash-karpooradi-smoke-1",
+    product: {
+      portal_product_name: "Karpooradi Thailam",
+      canonical_product_name: "Karpooradi Thailam",
+      review_status: "VERIFIED",
+    },
+    classification: {
+      review_status: "VERIFIED",
+      is_verified: true,
+      product_type: { portal_option_value: "1", label: "Ayurveda" },
+      product_category: { portal_option_value: "10", label: "Thailam" },
+      product_subtype: { portal_option_value: "31", label: "-" },
+    },
+    details: {
+      portal_remarks: GOVERNANCE_OVERRIDES.remarks,
+      portal_shelfmonth_route: GOVERNANCE_OVERRIDES.shelfmonth,
+    },
+    is_ready_for_entry: false,
+  });
+
+  function makeReconcileDeps({
+    portalText = { portal_review_status: "VERIFIED", selected_portal_text: "Sandhirujah" },
+    duplicateSearch = noneDuplicate,
+    activeRunCount = 1,
+    rebaseReturn = { run_id: ambRunId, workflow_row_version: 7 },
+    rebaseThrows = null,
+    rpcLog = [],
+  } = {}) {
+    return makeTrustedDeps({
+      liveArmed: true,
+      searchDuplicates: async () => ({ ok: true, searchResponse: duplicateSearch }),
+      callRpc: async (name, args) => {
+        rpcLog.push({ name, args });
+        if (name === "rpc_eaushadhi_require_permission") return { ok: true };
+        if (name === "rpc_eaushadhi_worker_preflight") {
+          return {
+            workflow_row_version: 7,
+            entry_status: "IN_PROGRESS",
+            is_ready_for_entry: false,
+            review_status: "VERIFIED",
+            composition_review_complete: true,
+            classification_review_complete: true,
+            dossier_ready: true,
+            open_blockers: 0,
+            open_portal_issues: 0,
+            active_run_count: activeRunCount,
+            active_run:
+              activeRunCount === 1
+                ? {
+                    run_id: ambRunId,
+                    run_status: "RUNNING",
+                    start_content_hash: "hash-karpooradi-smoke-1",
+                    current_workflow_row_version: 7,
+                    portal_product_ref: null,
+                  }
+                : null,
+            portal_product_ref: null,
+          };
+        }
+        if (name === "rpc_eaushadhi_worker_content_get") return ambContent;
+        if (name === PORTAL_TEXT_GET_RPC) return portalText;
+        if (name === REBASE_PORTAL_PROJECTION_RPC) {
+          if (rebaseThrows) throw new Error(rebaseThrows);
+          return rebaseReturn;
+        }
+        throw new Error(`unexpected rpc ${name}`);
+      },
+      buildAdapters: async () => {
+        throw new Error("reconcile/rebase must never build adapters");
+      },
+    });
+  }
+
+  assert(
+    PORTAL_TEXT_GET_RPC === "rpc_eaushadhi_product_portal_text_get",
+    "trusted reconcile reads the portal projection via portal_text_get",
+  );
+  assert(
+    REBASE_PORTAL_PROJECTION_RPC === "rpc_eaushadhi_worker_run_rebase_portal_projection",
+    "trusted rebase calls rpc_eaushadhi_worker_run_rebase_portal_projection",
+  );
+
+  // Reconcile is read-only: no fill, no Save, no run_begin / run_resume.
+  {
+    const rpcLog = [];
+    const reconcile = await runTrustedAmbiguousSaveReconcile(
+      makeReconcileDeps({ rpcLog }),
+      { userConfirmed: true },
+    );
+    assert(reconcile.ok === true, "reconcile with duplicate NONE succeeds");
+    assert(reconcile.duplicateOutcome === "NONE", "reconcile reports duplicate NONE");
+    assert(reconcile.coverageComplete === true, "reconcile proves duplicate coverage");
+    assert(reconcile.rebaseEligible === true, "duplicate NONE makes rebase eligible");
+    assert(reconcile.runId === ambRunId, "reconcile reports the existing run_id");
+    assert(reconcile.workflowRowVersion === 7, "reconcile reports trusted row version");
+    assert(reconcile.mutated === false, "reconcile never mutates");
+    assert(
+      reconcile.filled === false && reconcile.saved === false,
+      "reconcile performs no fill and no Save",
+    );
+    const names = rpcLog.map((c) => c.name);
+    assert(
+      !names.some((n) => /run_begin|run_resume|mark_entered|mark_portal_verified|rebase/.test(n)),
+      "reconcile calls no run_begin / run_resume / mark_* / rebase RPC",
+    );
+    assert(names.includes(PORTAL_TEXT_GET_RPC), "reconcile proves portal projection via RPC");
+    assert(
+      rpcLog
+        .filter((c) => c.name === "rpc_eaushadhi_require_permission")
+        .every((c) => c.args?.p_edit === false),
+      "reconcile stays on read-only permission",
+    );
+  }
+
+  // Unverified portal projection blocks reconcile.
+  {
+    const blocked = await runTrustedAmbiguousSaveReconcile(
+      makeReconcileDeps({
+        portalText: { portal_review_status: "DRAFT", selected_portal_text: "Sandhirujah" },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      blocked.ok === false && blocked.code === "PORTAL_PROJECTION_NOT_VERIFIED",
+      "reconcile blocked while portal projection is not VERIFIED",
+    );
+    assert(blocked.rebaseEligible === false, "unverified projection is not rebase eligible");
+  }
+
+  // Exact duplicate blocks reconcile and keeps rebase unavailable.
+  {
+    const exactOne = {
+      source: "LoadProductDataforLegacy",
+      searchApplied: true,
+      searchTerm: "Karpooradi Thailam",
+      totalCount: 1,
+      rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+      coverageComplete: true,
+    };
+    const blocked = await runTrustedAmbiguousSaveReconcile(
+      makeReconcileDeps({ duplicateSearch: exactOne }),
+      { userConfirmed: true },
+    );
+    assert(
+      blocked.ok === false && blocked.code === "RECONCILE_DUPLICATE_NOT_NONE",
+      "reconcile blocked when an exact duplicate exists",
+    );
+    assert(blocked.rebaseEligible === false, "exact duplicate is not rebase eligible");
+  }
+
+  assert(
+    (await runTrustedAmbiguousSaveReconcile(makeReconcileDeps(), {})).code ===
+      "USER_CONFIRMATION_REQUIRED",
+    "reconcile requires explicit user confirmation",
+  );
+
+  // Rebase: single mutating RPC, bounded evidence, same run_id, no resume.
+  {
+    const rpcLog = [];
+    const rebase = await runTrustedPortalProjectionRebase(makeReconcileDeps({ rpcLog }), {
+      userConfirmed: true,
+    });
+    assert(rebase.ok === true, "rebase succeeds after duplicate NONE");
+    assert(rebase.code === "PORTAL_PROJECTION_REBASED", "rebase reports rebased code");
+    assert(rebase.rebased === true, "rebase reports rebased true");
+    assert(rebase.resumeAvailable === true, "rebase leaves Resume available");
+    assert(rebase.runResumed !== true, "rebase never resumes the run itself");
+    assert(rebase.runId === ambRunId, "rebase preserves the same run_id");
+    assert(rebase.contentHash === "hash-karpooradi-smoke-1", "rebase refreshes content hash");
+
+    const names = rpcLog.map((c) => c.name);
+    assert(
+      !names.some((n) => /run_begin/.test(n)),
+      "rebase never calls run_begin",
+    );
+    assert(
+      !names.some((n) => /run_resume|mark_entered|mark_portal_verified|mark_save_ambiguous/.test(n)),
+      "rebase never calls run_resume or mark_* RPCs",
+    );
+    const rebaseCalls = rpcLog.filter((c) => c.name === REBASE_PORTAL_PROJECTION_RPC);
+    assert(rebaseCalls.length === 1, "rebase calls the rebase RPC exactly once");
+    const args = rebaseCalls[0].args || {};
+    assert(args.p_run_id === ambRunId, "rebase sends the authoritative run_id");
+    assert(args.p_expected_workflow_row_version === 7, "rebase sends trusted row version");
+    const evidence = args.p_reconciliation_evidence || {};
+    assert(
+      evidence.source === "LoadProductDataforLegacy" &&
+        evidence.duplicate_outcome === "NONE" &&
+        evidence.coverage_complete === true,
+      "rebase evidence carries only proven duplicate-search facts",
+    );
+    assert(
+      !Object.prototype.hasOwnProperty.call(evidence, "save_outcome"),
+      "rebase evidence has no save_outcome key",
+    );
+    assert(
+      Object.keys(evidence).length === 3,
+      "rebase evidence is exactly source + duplicate_outcome + coverage_complete",
+    );
+  }
+
+  // A different returned run_id is refused rather than adopted.
+  {
+    const mismatch = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({ rebaseReturn: { run_id: "99999999-0000-0000-0000-000000000000" } }),
+      { userConfirmed: true },
+    );
+    assert(
+      mismatch.ok === false && mismatch.code === "REBASE_RUN_ID_MISMATCH",
+      "rebase refuses a different returned run_id",
+    );
+    assert(mismatch.rebased === false, "run_id mismatch does not claim rebased");
+  }
+
+  // Server rejection surfaces structured, never as a silent success.
+  {
+    const failedRebase = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({ rebaseThrows: "run is not marked AMBIGUOUS" }),
+      { userConfirmed: true },
+    );
+    assert(
+      failedRebase.ok === false && failedRebase.code === "REBASE_PORTAL_PROJECTION_FAILED",
+      "server-enforced rebase rejection is structured",
+    );
+    assert(
+      failedRebase.resumeAvailable === false,
+      "failed rebase does not offer Resume",
+    );
+  }
+
+  // Rebase needs exactly one active run.
+  {
+    const noRun = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({ activeRunCount: 0 }),
+      { userConfirmed: true },
+    );
+    assert(
+      noRun.ok === false && noRun.code === "ACTIVE_RUN_INVALID",
+      "rebase requires exactly one active run",
+    );
+    assert(noRun.rebased === false, "no active run never rebases");
+  }
+
+  assert(
+    (await runTrustedPortalProjectionRebase(makeReconcileDeps(), {})).code ===
+      "USER_CONFIRMATION_REQUIRED",
+    "rebase requires explicit user confirmation",
+  );
+
+  // Renderer cannot forge run ids, duplicate evidence or a save outcome.
+  {
+    const forged = sanitizeRendererCommand({
+      userConfirmed: true,
+      run_id: "forged-run",
+      runId: "forged-run",
+      duplicateSearch: noneDuplicate,
+      save_outcome: "SUCCESS",
+      last_save_outcome: "SUCCESS",
+      lastSaveOutcome: "SUCCESS",
+      saveEvidence: { html: "<b>x</b>" },
+      reconciliationEvidence: { duplicate_outcome: "NONE" },
+      rebaseEvidence: { coverage_complete: true },
+      markSaveAmbiguous: () => {},
+      duplicate_outcome: "NONE",
+      coverage_complete: true,
+    });
+    assert(Object.keys(forged).length === 3, "sanitize returns only the allowed command shape");
+    assert(forged.userConfirmed === true, "sanitize keeps userConfirmed for reconcile/rebase");
+    for (const key of [
+      "run_id",
+      "runId",
+      "duplicateSearch",
+      "save_outcome",
+      "last_save_outcome",
+      "lastSaveOutcome",
+      "saveEvidence",
+      "reconciliationEvidence",
+      "rebaseEvidence",
+      "markSaveAmbiguous",
+      "duplicate_outcome",
+      "coverage_complete",
+    ]) {
+      assert(
+        forged.forbiddenPresent.includes(key) && forged[key] === undefined,
+        `sanitize strips forged ${key}`,
+      );
+    }
+  }
+
+  // Client-side transliteration must stay out of the portal fill path.
+  {
+    const fillPathSrc = createInPageFillScript();
+    assert(
+      !/\u015A|\u015B|transliterat/i.test(fillPathSrc),
+      "fill script has no client-side transliteration helper",
+    );
+    assert(
+      !/replace\([^)]*\u015A[^)]*\)/.test(fillPathSrc),
+      "fill script does not rewrite diacritics into ASCII digraphs",
+    );
+    const dbFillSrc = readFileSync(
+      join(root, "electron/eaushadhi-worker/portal-dom-fill.js"),
+      "utf8",
+    );
+    assert(
+      !/transliterat/i.test(dbFillSrc),
+      "portal-dom-fill has no transliteration helper",
+    );
+  }
 }
 
 if (failed) {

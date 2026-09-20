@@ -20,6 +20,7 @@ const RUN_BEGIN_RPC = "rpc_eaushadhi_worker_run_begin";
 const RUN_RESUME_RPC = "rpc_eaushadhi_worker_run_resume";
 const MARK_ENTERED_RPC = "rpc_eaushadhi_worker_mark_entered";
 const MARK_PORTAL_VERIFIED_RPC = "rpc_eaushadhi_worker_mark_portal_verified";
+const MARK_SAVE_AMBIGUOUS_RPC = "rpc_eaushadhi_worker_mark_save_ambiguous";
 const APPROVED_COPY_MIME_TYPE = "application/pdf";
 
 /**
@@ -423,6 +424,26 @@ function buildProductDetailsLiveAdapters(deps = {}) {
       return observation;
     },
 
+    /**
+     * Record an AMBIGUOUS Save outcome on the active run before the executor
+     * reports SAVE_AMBIGUOUS. Evidence is the bounded category payload built
+     * by the executor — never HTML, cookies or tokens.
+     */
+    async markSaveAmbiguous(args = {}) {
+      log({
+        phase: "product-details-save-ambiguous",
+        productId: FIRST_CONTROLLED_PRODUCT_ID,
+        detail: "mark_save_ambiguous",
+        reason: args.saveEvidence?.reason || null,
+      });
+      return callRpc(MARK_SAVE_AMBIGUOUS_RPC, {
+        p_run_id: args.runId,
+        p_expected_workflow_row_version: Number(args.expectedWorkflowRowVersion),
+        p_expected_content_hash: args.expectedContentHash,
+        p_save_evidence: args.saveEvidence || {},
+      });
+    },
+
     async markEntered(args = {}) {
       const portalRef = args.portalProductRef != null ? String(args.portalProductRef).trim() : "";
       if (!portalRef) {
@@ -523,4 +544,5 @@ module.exports = {
   RUN_RESUME_RPC,
   MARK_ENTERED_RPC,
   MARK_PORTAL_VERIFIED_RPC,
+  MARK_SAVE_AMBIGUOUS_RPC,
 };

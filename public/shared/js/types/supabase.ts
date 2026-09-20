@@ -41312,6 +41312,32 @@ export type Database = {
           status: string
         }[]
       }
+      // Hand-added ahead of the next `npm run sync-db` regeneration.
+      rpc_eaushadhi_product_portal_text_get: {
+        Args: { p_product_id: number }
+        Returns: {
+          canonical_text: string
+          generation_version: number
+          portal_review_notes: string
+          portal_review_status: string
+          product_id: number
+          reviewed_at: string
+          reviewed_by: string
+          row_version: number
+          selected_portal_text: string
+          suggested_portal_text: string
+        }[]
+      }
+      rpc_eaushadhi_product_portal_text_save: {
+        Args: {
+          p_expected_row_version: number
+          p_portal_text: string
+          p_product_id: number
+          p_reason?: string
+          p_verify?: boolean
+        }
+        Returns: unknown
+      }
       rpc_eaushadhi_product_queue: {
         Args: never
         Returns: {

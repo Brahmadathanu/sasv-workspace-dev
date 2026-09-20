@@ -22,6 +22,11 @@ const {
 } = require("./product-details-executor");
 const { evaluateDuplicateGuard, DUPLICATE_OUTCOME } = require("./portal-duplicate-guard");
 
+/** Read-only portal projection authority (Product Details diseases text). */
+const PORTAL_TEXT_GET_RPC = "rpc_eaushadhi_product_portal_text_get";
+/** Server-enforced rebase of an existing run onto the verified projection. */
+const REBASE_PORTAL_PROJECTION_RPC = "rpc_eaushadhi_worker_run_rebase_portal_projection";
+
 const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "content",
   "contentHash",
@@ -79,6 +84,17 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "dossierReady",
   "openBlockers",
   "openPortalIssues",
+  // Ambiguous-save reconciliation / portal projection rebase evidence —
+  // server truth only, never renderer-supplied.
+  "reconciliationEvidence",
+  "saveEvidence",
+  "lastSaveOutcome",
+  "last_save_outcome",
+  "save_outcome",
+  "markSaveAmbiguous",
+  "rebaseEvidence",
+  "duplicate_outcome",
+  "coverage_complete",
 ]);
 
 /**
@@ -1137,6 +1153,322 @@ async function runTrustedProductDetailsResume(deps = {}, command = {}) {
   }
 }
 
+/** Supabase RPCs may return a single row or a one-row array. */
+function firstRpcRow(payload) {
+  if (Array.isArray(payload)) return payload[0] || null;
+  return payload && typeof payload === "object" ? payload : null;
+}
+
+/**
+ * Portal projection must be VERIFIED with a non-empty selected text before any
+ * ambiguous-save reconciliation or rebase is offered. Read-only.
+ */
+async function assertPortalProjectionVerified(callRpc, productId) {
+  if (typeof callRpc !== "function") {
+    return {
+      ok: false,
+      code: "PORTAL_PROJECTION_UNKNOWN",
+      message: "Portal projection authority is unavailable.",
+    };
+  }
+  let row;
+  try {
+    row = firstRpcRow(await callRpc(PORTAL_TEXT_GET_RPC, { p_product_id: productId }));
+  } catch (error) {
+    return {
+      ok: false,
+      code: "PORTAL_PROJECTION_UNKNOWN",
+      message: error?.message || "Portal projection could not be read.",
+    };
+  }
+  const status = String(
+    row?.portal_review_status ?? row?.portalReviewStatus ?? "",
+  ).toUpperCase();
+  const selected = String(
+    row?.selected_portal_text ?? row?.selectedPortalText ?? "",
+  ).trim();
+  if (status !== "VERIFIED" || !selected) {
+    return {
+      ok: false,
+      code: "PORTAL_PROJECTION_NOT_VERIFIED",
+      message:
+        "Portal projection is not VERIFIED; reconciliation and rebase remain blocked.",
+    };
+  }
+  return { ok: true, portalReviewStatus: "VERIFIED" };
+}
+
+/** Coverage proof for the exact-name duplicate search. */
+function duplicateCoverageComplete(duplicateSearch) {
+  const src = duplicateSearch || {};
+  if (src.coverageComplete === true) return true;
+  const total = Number(src.totalCount);
+  return src.searchApplied === true && Number.isFinite(total) && total === 0;
+}
+
+/**
+ * Evaluate the fresh duplicate authority for reconcile/rebase.
+ * Both paths require DUPLICATE_OUTCOME.NONE with proven coverage.
+ */
+function assessFreshDuplicateNone(authority) {
+  const duplicate = evaluateDuplicateGuard(authority.duplicateSearch);
+  const coverageComplete = duplicateCoverageComplete(authority.duplicateSearch);
+  if (duplicate.ok !== true || duplicate.outcome !== DUPLICATE_OUTCOME.NONE) {
+    return {
+      ok: false,
+      code: "RECONCILE_DUPLICATE_NOT_NONE",
+      message:
+        duplicate.message ||
+        "Duplicate search did not prove NONE; reconciliation is blocked.",
+      duplicateOutcome: duplicate.outcome || null,
+      coverageComplete,
+    };
+  }
+  if (!coverageComplete) {
+    return {
+      ok: false,
+      code: "RECONCILE_COVERAGE_UNPROVEN",
+      message: "Duplicate search coverage is unproven; reconciliation is blocked.",
+      duplicateOutcome: duplicate.outcome,
+      coverageComplete: false,
+    };
+  }
+  return {
+    ok: true,
+    duplicateOutcome: DUPLICATE_OUTCOME.NONE,
+    coverageComplete: true,
+  };
+}
+
+/**
+ * Read-only reconciliation after an AMBIGUOUS Save.
+ * Never fills, never Saves, never run_begin / run_resume, never mark_*.
+ */
+async function runTrustedAmbiguousSaveReconcile(deps = {}, command = {}) {
+  const sanitized = sanitizeRendererCommand(command);
+  const blockedShape = {
+    mutated: false,
+    runBegun: false,
+    runResumed: false,
+    filled: false,
+    saved: false,
+    rebaseEligible: false,
+    inventedFailureRpcCalled: false,
+  };
+
+  if (sanitized.userConfirmed !== true) {
+    return {
+      ok: false,
+      code: "USER_CONFIRMATION_REQUIRED",
+      message: "Explicit reconciliation confirmation is required.",
+      ...blockedShape,
+    };
+  }
+
+  // Reconciliation is read-only: never request edit permission.
+  const authority = await collectAuthoritativeProductDetailsContext({
+    ...deps,
+    requireEditPermission: false,
+  });
+  try {
+    if (!authority.ok) {
+      return {
+        ok: false,
+        code: authority.code,
+        message: authority.message,
+        missing: authority.missing || [],
+        ...blockedShape,
+      };
+    }
+
+    const portal = await assertPortalProjectionVerified(
+      deps.callRpc,
+      FIRST_CONTROLLED_PRODUCT_ID,
+    );
+    if (!portal.ok) {
+      return { ok: false, code: portal.code, message: portal.message, ...blockedShape };
+    }
+
+    const duplicate = assessFreshDuplicateNone(authority);
+    if (!duplicate.ok) {
+      return {
+        ok: false,
+        code: duplicate.code,
+        message: duplicate.message,
+        duplicateOutcome: duplicate.duplicateOutcome,
+        coverageComplete: duplicate.coverageComplete,
+        ...blockedShape,
+      };
+    }
+
+    return {
+      ok: true,
+      code: "RECONCILE_DUPLICATE_NONE",
+      message:
+        "Read-only reconciliation proved no portal duplicate. Rebase the existing run authority when ready.",
+      duplicateOutcome: DUPLICATE_OUTCOME.NONE,
+      coverageComplete: true,
+      runId: authority.activeRun?.run_id ?? null,
+      workflowRowVersion: authority.workflowRowVersion,
+      ...blockedShape,
+      rebaseEligible: true,
+    };
+  } finally {
+    invokeApprovedCopyCleanup(authority);
+  }
+}
+
+/**
+ * Rebase an existing ambiguous-save run onto the verified portal projection.
+ * Calls exactly one mutating RPC. Never fills, Saves, run_begin or run_resume;
+ * Resume stays a separate, manual user action.
+ */
+async function runTrustedPortalProjectionRebase(deps = {}, command = {}) {
+  const sanitized = sanitizeRendererCommand(command);
+  const blockedShape = {
+    mutated: false,
+    runBegun: false,
+    runResumed: false,
+    filled: false,
+    saved: false,
+    rebased: false,
+    resumeAvailable: false,
+    inventedFailureRpcCalled: false,
+  };
+
+  if (sanitized.userConfirmed !== true) {
+    return {
+      ok: false,
+      code: "USER_CONFIRMATION_REQUIRED",
+      message: "Explicit rebase confirmation is required.",
+      ...blockedShape,
+    };
+  }
+
+  const authority = await collectAuthoritativeProductDetailsContext({
+    ...deps,
+    requireEditPermission: true,
+  });
+  let refreshed = null;
+  try {
+    if (!authority.ok) {
+      return {
+        ok: false,
+        code: authority.code,
+        message: authority.message,
+        missing: authority.missing || [],
+        ...blockedShape,
+      };
+    }
+
+    const activeRun = authority.activeRun || null;
+    const runId = activeRun?.run_id ?? activeRun?.runId ?? null;
+    if (Number(authority.activeRunCount) !== 1 || !runId) {
+      return {
+        ok: false,
+        code: "ACTIVE_RUN_INVALID",
+        message: "Rebase requires exactly one active run with run_id.",
+        ...blockedShape,
+      };
+    }
+
+    const portal = await assertPortalProjectionVerified(
+      deps.callRpc,
+      FIRST_CONTROLLED_PRODUCT_ID,
+    );
+    if (!portal.ok) {
+      return {
+        ok: false,
+        code: portal.code,
+        message: portal.message,
+        runId,
+        ...blockedShape,
+      };
+    }
+
+    const duplicate = assessFreshDuplicateNone(authority);
+    if (!duplicate.ok) {
+      return {
+        ok: false,
+        code: duplicate.code,
+        message: duplicate.message,
+        duplicateOutcome: duplicate.duplicateOutcome,
+        coverageComplete: duplicate.coverageComplete,
+        runId,
+        ...blockedShape,
+      };
+    }
+
+    // Only proven read-only duplicate evidence travels to the server.
+    // The AMBIGUOUS marker itself is server state — never asserted from here.
+    const reconciliationEvidence = {
+      source: "LoadProductDataforLegacy",
+      duplicate_outcome: "NONE",
+      coverage_complete: true,
+    };
+
+    let rebaseResult;
+    try {
+      rebaseResult = await deps.callRpc(REBASE_PORTAL_PROJECTION_RPC, {
+        p_run_id: runId,
+        p_expected_workflow_row_version: Number(authority.workflowRowVersion),
+        p_reconciliation_evidence: reconciliationEvidence,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        code: "REBASE_PORTAL_PROJECTION_FAILED",
+        message: error?.message || "Portal projection rebase failed.",
+        runId,
+        requiresReadOnlyReconciliation: true,
+        ...blockedShape,
+      };
+    }
+
+    const returnedRow = firstRpcRow(rebaseResult);
+    const returnedRunId = returnedRow?.run_id ?? returnedRow?.runId ?? null;
+    if (!returnedRunId || String(returnedRunId) !== String(runId)) {
+      return {
+        ok: false,
+        code: "REBASE_RUN_ID_MISMATCH",
+        message: "Rebase did not return the same active run_id; refusing to continue.",
+        runId,
+        requiresReadOnlyReconciliation: true,
+        ...blockedShape,
+      };
+    }
+
+    // Refresh authority so the caller sees post-rebase content/version truth.
+    refreshed = await collectAuthoritativeProductDetailsContext({
+      ...deps,
+      requireEditPermission: false,
+    });
+
+    return {
+      ok: true,
+      code: "PORTAL_PROJECTION_REBASED",
+      message:
+        "Run authority rebased onto the verified portal projection. Resume Product Details manually when you are ready.",
+      runId,
+      contentHash: refreshed?.contentHash ?? authority.contentHash,
+      workflowRowVersion: refreshed?.workflowRowVersion ?? null,
+      duplicateOutcome: DUPLICATE_OUTCOME.NONE,
+      coverageComplete: true,
+      mutated: true,
+      runBegun: false,
+      runResumed: false,
+      filled: false,
+      saved: false,
+      rebased: true,
+      resumeAvailable: true,
+      inventedFailureRpcCalled: false,
+    };
+  } finally {
+    invokeApprovedCopyCleanup(authority);
+    if (refreshed) invokeApprovedCopyCleanup(refreshed);
+  }
+}
+
 module.exports = {
   RENDERER_FORBIDDEN_OPTION_KEYS,
   DUPLICATE_OUTCOME,
@@ -1146,6 +1478,10 @@ module.exports = {
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
   runTrustedProductDetailsResume,
+  runTrustedAmbiguousSaveReconcile,
+  runTrustedPortalProjectionRebase,
+  PORTAL_TEXT_GET_RPC,
+  REBASE_PORTAL_PROJECTION_RPC,
   measureConnectedPageState,
   enumerateLivePermissionOptions,
   runLiveDuplicateSearch,

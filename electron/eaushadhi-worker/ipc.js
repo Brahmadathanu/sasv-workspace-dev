@@ -18,6 +18,9 @@ const CHANNELS = Object.freeze({
   PRODUCT_DETAILS_PREVIEW: "eaushadhi-worker:product-details-preview",
   PRODUCT_DETAILS_START: "eaushadhi-worker:product-details-start",
   PRODUCT_DETAILS_RESUME: "eaushadhi-worker:product-details-resume",
+  PRODUCT_DETAILS_RECONCILE_AMBIGUOUS:
+    "eaushadhi-worker:product-details-reconcile-ambiguous",
+  PRODUCT_DETAILS_REBASE_PORTAL: "eaushadhi-worker:product-details-rebase-portal",
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
@@ -128,6 +131,28 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
       return worker.resumeProductDetailsExecution(productId, accessToken, {
+        userConfirmed: payload?.userConfirmed === true,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.PRODUCT_DETAILS_RECONCILE_AMBIGUOUS,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.reconcileAmbiguousSaveProductDetailsExecution(productId, accessToken, {
+        userConfirmed: payload?.userConfirmed === true,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.PRODUCT_DETAILS_REBASE_PORTAL,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.rebasePortalProjectionProductDetailsExecution(productId, accessToken, {
         userConfirmed: payload?.userConfirmed === true,
       });
     }),
