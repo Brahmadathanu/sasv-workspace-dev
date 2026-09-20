@@ -20,7 +20,7 @@ const {
   executeProductDetailsResume,
   planResumeAction,
 } = require("./product-details-executor");
-const { evaluateDuplicateGuard, DUPLICATE_OUTCOME } = require("./portal-duplicate-guard");
+const { evaluateDuplicateGuard, DUPLICATE_OUTCOME, MAX_LIST_ROWS } = require("./portal-duplicate-guard");
 
 /** Read-only portal projection authority (Product Details diseases text). */
 const PORTAL_TEXT_GET_RPC = "rpc_eaushadhi_product_portal_text_get";
@@ -254,33 +254,33 @@ function createInPagePermissionOptionsProbe() {
 /**
  * Read-only duplicate search via the proven DataTable list POST:
  * POST ../admin/LoadProductDataforLegacy?pageno&length&search&order&licenseid
- * with no business request body (query-string transport).
+ * with blank transport search and no business request body.
  *
  * Does NOT call window.LoadProductDataforLegacy even if it exists.
  * Does NOT infer NONE from visible table rows.
+ * Does NOT use successive pageno>0 pagination (not contract-proven).
  * License comes from document.getElementById("licenseid"), matching portal source.
+ * targetName is local exact-comparison authority only — never written to search=.
  */
 function createInPageDuplicateSearchProbe() {
-  return async (searchTerm) => {
-    const term = String(searchTerm || "").trim();
+  return async (targetName) => {
+    const resolvedTarget = String(targetName || "").trim() || "Karpooradi Thailam";
     const endpointRel = "../admin/LoadProductDataforLegacy";
-    if (!term) {
-      return {
-        source: "LoadProductDataforLegacy",
-        searchApplied: false,
-        searchTerm: term,
-        totalCount: null,
-        rows: null,
-        mechanism: "datatable_list_post",
-        usedGlobalWindowFn: false,
-      };
-    }
+    const maxListRows = 500;
 
     function extract(payload) {
       const obj = payload && typeof payload === "object" ? payload : null;
       if (!obj) {
-        return { totalCount: null, rows: null };
+        return { totalCount: null, rows: null, businessFailure: false };
       }
+      const status = obj.status;
+      const statusText =
+        status == null ? "" : String(status).trim().toLowerCase();
+      const businessFailure =
+        status === 0 ||
+        status === false ||
+        statusText === "0" ||
+        statusText === "false";
       const rowsRaw = Array.isArray(obj.aaData)
         ? obj.aaData
         : Array.isArray(obj.statusData)
@@ -312,7 +312,26 @@ function createInPageDuplicateSearchProbe() {
       return {
         totalCount: Number.isFinite(totalCount) ? totalCount : null,
         rows: rows,
+        businessFailure: businessFailure,
+        portalStatus: status,
+        portalMessage: obj.message != null ? String(obj.message) : null,
       };
+    }
+
+    function baseEvidence(extra) {
+      return Object.assign(
+        {
+          source: "LoadProductDataforLegacy",
+          mechanism: "datatable_list_post",
+          transportSearch: "",
+          transportSearchBlank: true,
+          targetName: resolvedTarget,
+          localExactEvaluation: true,
+          usedGlobalWindowFn: false,
+          globalWindowFnPresent: typeof window.LoadProductDataforLegacy === "function",
+        },
+        extra || {},
+      );
     }
 
     function buildListUrl(params) {
@@ -358,78 +377,206 @@ function createInPageDuplicateSearchProbe() {
     const licenseEl = document.getElementById("licenseid");
     const licenseid =
       licenseEl && licenseEl.value != null ? String(licenseEl.value) : "";
-    const baseParams = {
+    const blankParams = {
       pageno: 0,
       length: 10,
-      search: term,
+      search: "",
       order: "1,null",
       licenseid: licenseid,
     };
 
+    let pageFetches = 0;
     let firstPayload;
     try {
-      firstPayload = await postList(baseParams);
+      firstPayload = await postList(blankParams);
+      pageFetches += 1;
     } catch (error) {
-      return {
-        source: "LoadProductDataforLegacy",
-        searchApplied: false,
-        searchTerm: term,
+      return baseEvidence({
         totalCount: null,
         rows: null,
-        mechanism: "datatable_list_post",
-        usedGlobalWindowFn: false,
+        coverageComplete: false,
+        pageFetches: pageFetches,
         reason: "list_request_failed",
         error: String(error && error.message ? error.message : error),
-      };
+      });
+    }
+
+    if (!firstPayload || typeof firstPayload !== "object") {
+      return baseEvidence({
+        totalCount: null,
+        rows: null,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "malformed_response",
+      });
     }
 
     let extracted = extract(firstPayload);
-    if (
-      Number.isFinite(extracted.totalCount) &&
-      extracted.totalCount > 0 &&
-      (!Array.isArray(extracted.rows) || extracted.rows.length < extracted.totalCount)
-    ) {
-      try {
-        const fullPayload = await postList({
-          pageno: 0,
-          length: extracted.totalCount,
-          search: term,
-          order: "1,null",
-          licenseid: licenseid,
-        });
-        extracted = extract(fullPayload);
-      } catch (error) {
-        return {
-          source: "LoadProductDataforLegacy",
-          searchApplied: true,
-          searchTerm: term,
-          totalCount: extracted.totalCount,
-          rows: extracted.rows,
-          coverageComplete: false,
-          mechanism: "datatable_list_post",
-          usedGlobalWindowFn: false,
-          reason: "coverage_refetch_failed",
-          error: String(error && error.message ? error.message : error),
-        };
-      }
+    if (extracted.businessFailure) {
+      return baseEvidence({
+        totalCount: null,
+        rows: null,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "portal_business_failure",
+        portalStatus: extracted.portalStatus,
+        portalMessage: extracted.portalMessage,
+      });
+    }
+    if (!Number.isFinite(extracted.totalCount) || extracted.totalCount < 0) {
+      return baseEvidence({
+        totalCount: extracted.totalCount,
+        rows: extracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "total_count_unavailable",
+      });
+    }
+    if (!Array.isArray(extracted.rows)) {
+      return baseEvidence({
+        totalCount: extracted.totalCount,
+        rows: null,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "rows_missing",
+      });
+    }
+    if (extracted.rows.length > extracted.totalCount) {
+      return baseEvidence({
+        totalCount: extracted.totalCount,
+        rows: extracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "rows_exceed_total_count",
+      });
     }
 
-    const coverageComplete =
-      Number.isFinite(extracted.totalCount) &&
-      Array.isArray(extracted.rows) &&
-      extracted.totalCount === extracted.rows.length;
+    if (extracted.totalCount === 0) {
+      if (extracted.rows.length !== 0) {
+        return baseEvidence({
+          totalCount: 0,
+          rows: extracted.rows,
+          coverageComplete: false,
+          pageFetches: pageFetches,
+          reason: "total_zero_with_rows",
+        });
+      }
+      return baseEvidence({
+        totalCount: 0,
+        rows: [],
+        coverageComplete: true,
+        pageFetches: pageFetches,
+      });
+    }
 
-    return {
-      source: "LoadProductDataforLegacy",
-      searchApplied: true,
-      searchTerm: term,
-      totalCount: extracted.totalCount,
-      rows: extracted.rows,
-      coverageComplete: coverageComplete,
-      mechanism: "datatable_list_post",
-      usedGlobalWindowFn: false,
-      globalWindowFnPresent: typeof window.LoadProductDataforLegacy === "function",
-    };
+    if (extracted.rows.length === extracted.totalCount) {
+      return baseEvidence({
+        totalCount: extracted.totalCount,
+        rows: extracted.rows,
+        coverageComplete: true,
+        pageFetches: pageFetches,
+      });
+    }
+
+    if (extracted.totalCount > maxListRows) {
+      return baseEvidence({
+        totalCount: extracted.totalCount,
+        rows: extracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "total_count_over_bound",
+        maxListRows: maxListRows,
+      });
+    }
+
+    const firstTotal = extracted.totalCount;
+    let fullPayload;
+    try {
+      fullPayload = await postList({
+        pageno: 0,
+        length: firstTotal,
+        search: "",
+        order: "1,null",
+        licenseid: licenseid,
+      });
+      pageFetches += 1;
+    } catch (error) {
+      return baseEvidence({
+        totalCount: firstTotal,
+        rows: extracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "full_refetch_failed",
+        error: String(error && error.message ? error.message : error),
+      });
+    }
+
+    if (!fullPayload || typeof fullPayload !== "object") {
+      return baseEvidence({
+        totalCount: firstTotal,
+        rows: extracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "malformed_response",
+      });
+    }
+
+    const fullExtracted = extract(fullPayload);
+    if (fullExtracted.businessFailure) {
+      return baseEvidence({
+        totalCount: firstTotal,
+        rows: extracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "portal_business_failure",
+        portalStatus: fullExtracted.portalStatus,
+        portalMessage: fullExtracted.portalMessage,
+      });
+    }
+    if (!Number.isFinite(fullExtracted.totalCount)) {
+      return baseEvidence({
+        totalCount: firstTotal,
+        rows: fullExtracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "total_count_unavailable",
+      });
+    }
+    if (fullExtracted.totalCount !== firstTotal) {
+      return baseEvidence({
+        totalCount: fullExtracted.totalCount,
+        rows: fullExtracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "total_count_changed",
+        firstTotalCount: firstTotal,
+      });
+    }
+    if (!Array.isArray(fullExtracted.rows)) {
+      return baseEvidence({
+        totalCount: firstTotal,
+        rows: null,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "rows_missing",
+      });
+    }
+    if (fullExtracted.rows.length !== firstTotal) {
+      return baseEvidence({
+        totalCount: firstTotal,
+        rows: fullExtracted.rows,
+        coverageComplete: false,
+        pageFetches: pageFetches,
+        reason: "full_refetch_incomplete",
+      });
+    }
+
+    return baseEvidence({
+      totalCount: firstTotal,
+      rows: fullExtracted.rows,
+      coverageComplete: true,
+      pageFetches: pageFetches,
+    });
   };
 }
 
@@ -474,23 +621,27 @@ async function enumerateLivePermissionOptions(page) {
   };
 }
 
-async function runLiveDuplicateSearch(page, searchTerm) {
+async function runLiveDuplicateSearch(page, targetName) {
   if (!page || typeof page.evaluate !== "function") {
     return {
       ok: false,
       searchResponse: {
         source: "LoadProductDataforLegacy",
-        searchApplied: false,
-        searchTerm,
+        mechanism: "datatable_list_post",
+        transportSearch: "",
+        transportSearchBlank: true,
+        targetName: targetName || EXPECTED_PORTAL_PRODUCT_NAME,
+        localExactEvaluation: true,
         totalCount: null,
         rows: null,
+        coverageComplete: false,
         reason: "page_unavailable",
       },
     };
   }
   const searchResponse = await page.evaluate(
     createInPageDuplicateSearchProbe(),
-    searchTerm || EXPECTED_PORTAL_PRODUCT_NAME,
+    targetName || EXPECTED_PORTAL_PRODUCT_NAME,
   );
   return { ok: true, searchResponse };
 }
@@ -1289,12 +1440,16 @@ async function assertPortalProjectionVerified(callRpc, productId) {
   return { ok: true, portalReviewStatus: "VERIFIED" };
 }
 
-/** Coverage proof for the exact-name duplicate search. */
+/** Coverage proof for blank-list local exact-name duplicate search. */
 function duplicateCoverageComplete(duplicateSearch) {
   const src = duplicateSearch || {};
-  if (src.coverageComplete === true) return true;
-  const total = Number(src.totalCount);
-  return src.searchApplied === true && Number.isFinite(total) && total === 0;
+  if (src.coverageComplete !== true) return false;
+  if (src.localExactEvaluation !== true) return false;
+  if (src.transportSearchBlank !== true) return false;
+  if (String(src.transportSearch ?? "").trim() !== "") return false;
+  const source = String(src.source || "").toLowerCase();
+  if (!/loadproductdataforlegacy/.test(source)) return false;
+  return true;
 }
 
 /**
@@ -1689,4 +1844,5 @@ module.exports = {
   createInPageDuplicateSearchProbe,
   applyLiveArmGate,
   computeResumeSourceReady,
+  MAX_LIST_ROWS,
 };

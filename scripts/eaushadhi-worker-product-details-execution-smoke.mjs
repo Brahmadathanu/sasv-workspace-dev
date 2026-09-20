@@ -36,10 +36,12 @@ const {
 const {
   evaluateDuplicateGuard,
   DUPLICATE_OUTCOME,
+  MAX_LIST_ROWS,
   normalizeLoadProductDataforLegacyResponse,
   buildLoadProductDataforLegacyListParams,
   buildLoadProductDataforLegacyListUrl,
   buildLoadProductDataforLegacyListBody,
+  isPortalListBusinessFailure,
 } = require(join(root, "electron/eaushadhi-worker/portal-duplicate-guard.js"));
 const {
   createInPageDuplicateSearchProbe,
@@ -126,14 +128,24 @@ function baseContent(extra = {}) {
   };
 }
 
-const noneDuplicate = {
-  source: "LoadProductDataforLegacy",
-  searchApplied: true,
-  searchTerm: "Karpooradi Thailam",
-  totalCount: 0,
-  rows: [],
-  coverageComplete: true,
-};
+function blankListEvidence(extra = {}) {
+  return {
+    source: "LoadProductDataforLegacy",
+    mechanism: "datatable_list_post",
+    transportSearch: "",
+    transportSearchBlank: true,
+    targetName: "Karpooradi Thailam",
+    localExactEvaluation: true,
+    totalCount: 0,
+    rows: [],
+    coverageComplete: true,
+    pageFetches: 1,
+    usedGlobalWindowFn: false,
+    ...extra,
+  };
+}
+
+const noneDuplicate = blankListEvidence();
 
 const readyPage = {
   workerState: "READY",
@@ -276,37 +288,87 @@ const permOk = resolvePermissionPurposeByExactLabel("For Sale", [
 ]);
 assert(permOk.ok === true && permOk.resolvedPortalValue === "7", "2B exact unique label resolves");
 
+assert(MAX_LIST_ROWS === 500, "MAX_LIST_ROWS is 500");
+
 assert(
-  evaluateDuplicateGuard({
-    source: "LoadProductDataforLegacy",
-    searchApplied: true,
-    searchTerm: "Karpooradi Thailam",
-    totalCount: 5,
-    rows: [{ name: "Other" }],
-  }).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 5,
+      rows: [{ name: "Other" }],
+      coverageComplete: false,
+    }),
+  ).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
   "visible-page incompleteness vs TotalCount is COVERAGE_UNPROVEN",
 );
 assert(
   evaluateDuplicateGuard({
-    searchApplied: true,
-    searchTerm: "Karpooradi Thailam",
+    transportSearchBlank: true,
+    targetName: "Karpooradi Thailam",
+    localExactEvaluation: true,
     totalCount: 0,
     rows: [],
+    coverageComplete: true,
   }).outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE,
   "missing LoadProductDataforLegacy source is SEARCH_INCOMPLETE",
 );
 assert(
-  evaluateDuplicateGuard({
-    ...noneDuplicate,
-    totalCount: 1,
-    rows: [{ name: "Karpooradi Thailam", id: "9001" }],
-    coverageComplete: true,
-  }).outcome === DUPLICATE_OUTCOME.EXACT_ONE,
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 1,
+      rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+      coverageComplete: true,
+    }),
+  ).outcome === DUPLICATE_OUTCOME.EXACT_ONE,
   "exact one duplicate refuses create",
 );
 assert(
   evaluateDuplicateGuard(noneDuplicate).outcome === DUPLICATE_OUTCOME.NONE,
-  "coverage-proven empty search is NONE",
+  "coverage-proven empty catalog is NONE",
+);
+assert(
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 3,
+      rows: [
+        { name: "Other A", id: 1 },
+        { name: "Other B", id: 2 },
+        { name: "Other C", id: 3 },
+      ],
+    }),
+  ).outcome === DUPLICATE_OUTCOME.NONE,
+  "nonzero catalog with zero exact Karpooradi is NONE",
+);
+assert(
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 2,
+      rows: [
+        { name: "Karpooradi Thailam", id: 1 },
+        { name: "Karpooradi Thailam", id: 2 },
+      ],
+    }),
+  ).outcome === DUPLICATE_OUTCOME.AMBIGUOUS,
+  "two exact Karpooradi matches are AMBIGUOUS",
+);
+assert(
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 2,
+      rows: [
+        { name: "Karpooradi Thailam Extra", id: 1 },
+        { name: "X Karpooradi Thailam", id: 2 },
+      ],
+    }),
+  ).outcome === DUPLICATE_OUTCOME.NONE,
+  "substring / near-match names are not exact duplicates",
+);
+assert(
+  isPortalListBusinessFailure({ status: 0 }) === true &&
+    isPortalListBusinessFailure({ status: "0" }) === true &&
+    isPortalListBusinessFailure({ status: false }) === true &&
+    isPortalListBusinessFailure({ status: "false" }) === true &&
+    isPortalListBusinessFailure({ status: "1" }) === false,
+  "portal business-failure helper covers 0/false variants",
 );
 
 {
@@ -352,11 +414,11 @@ assert(
   );
 }
 
-const listParams = buildLoadProductDataforLegacyListParams("Karpooradi Thailam", {
+const listParams = buildLoadProductDataforLegacyListParams({
   length: 10,
   licenseid: "L1",
 });
-assert(listParams.search === "Karpooradi Thailam", "list params apply exact search term");
+assert(listParams.search === "", "list params default transport search is blank");
 assert(listParams.pageno === 0, "list params default pageno is 0");
 assert(listParams.length === 10, "list params default length is 10");
 assert(listParams.order === "1,null", "list params default order is 1,null");
@@ -364,24 +426,20 @@ const listUrl = buildLoadProductDataforLegacyListUrl("../admin/LoadProductDatafo
 assert(listUrl.includes("LoadProductDataforLegacy?"), "list URL uses query string");
 assert(/[?&]pageno=0(?:&|$)/.test(listUrl), "list URL encodes pageno=0");
 assert(/[?&]length=10(?:&|$)/.test(listUrl), "list URL encodes length");
-assert(
-  listUrl.includes(`search=${encodeURIComponent("Karpooradi Thailam")}`) ||
-    listUrl.includes("search=Karpooradi+Thailam"),
-  "list URL encodes exact Karpooradi Thailam search",
-);
+assert(/[?&]search=(?:&|$)/.test(listUrl) || listUrl.includes("search="), "list URL encodes blank search");
+assert(!listUrl.includes("Karpooradi"), "list URL does not put governed target into search");
 assert(
   /[?&]order=1%2Cnull(?:&|$)/.test(listUrl) || /[?&]order=1,null(?:&|$)/.test(listUrl),
   "list URL encodes order=1,null",
 );
 assert(/[?&]licenseid=L1(?:&|$)/.test(listUrl), "list URL encodes licenseid");
 assert(
-  buildLoadProductDataforLegacyListBody("Karpooradi Thailam", { length: 10 }).search ===
-    "Karpooradi Thailam",
-  "deprecated listBody helper still returns param object",
+  buildLoadProductDataforLegacyListBody("Karpooradi Thailam", { length: 10 }).search === "",
+  "legacy first-arg searchTerm is ignored for transport; search stays blank",
 );
 assert(
-  buildLoadProductDataforLegacyListBody("Karpooradi Thailam").pageno === 0 &&
-    buildLoadProductDataforLegacyListBody("Karpooradi Thailam").order === "1,null",
+  buildLoadProductDataforLegacyListBody({}).pageno === 0 &&
+    buildLoadProductDataforLegacyListBody({}).order === "1,null",
   "deprecated listBody helper inherits native pageno/order defaults",
 );
 
@@ -390,6 +448,9 @@ const normalizedList = normalizeLoadProductDataforLegacyResponse(
   "Karpooradi Thailam",
 );
 assert(normalizedList.mechanism === "datatable_list_post", "normalize marks datatable list mechanism");
+assert(normalizedList.transportSearchBlank === true, "normalize asserts blank transport");
+assert(normalizedList.targetName === "Karpooradi Thailam", "normalize keeps local targetName");
+assert(normalizedList.localExactEvaluation === true, "normalize asserts local exact evaluation");
 assert(normalizedList.coverageComplete === true, "empty TotalCount=0 coverage is complete");
 assert(
   evaluateDuplicateGuard(normalizedList).outcome === DUPLICATE_OUTCOME.NONE,
@@ -422,11 +483,7 @@ assert(
     },
     "Karpooradi Thailam",
   );
-  const portalFailOutcome = evaluateDuplicateGuard({
-    ...portalFail,
-    searchApplied: true,
-    source: "LoadProductDataforLegacy",
-  });
+  const portalFailOutcome = evaluateDuplicateGuard(portalFail);
   assert(
     portalFailOutcome.outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE ||
       portalFailOutcome.outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
@@ -434,6 +491,18 @@ assert(
   );
   assert(portalFailOutcome.outcome !== DUPLICATE_OUTCOME.NONE, "portal status=0 response never NONE");
 }
+assert(
+  evaluateDuplicateGuard(
+    normalizeLoadProductDataforLegacyResponse({ status: 0, message: "fail" }, "Karpooradi Thailam"),
+  ).outcome !== DUPLICATE_OUTCOME.NONE,
+  "portal status numeric 0 => never NONE",
+);
+assert(
+  evaluateDuplicateGuard(
+    normalizeLoadProductDataforLegacyResponse({ status: false }, "Karpooradi Thailam"),
+  ).outcome !== DUPLICATE_OUTCOME.NONE,
+  "portal status false => never NONE",
+);
 
 const probeSrc = createInPageDuplicateSearchProbe.toString();
 assert(!/LoadProductDataforLegacy\s*\(/.test(probeSrc), "probe source never invokes LoadProductDataforLegacy(");
@@ -448,12 +517,12 @@ assert(probeSrc.includes('contentType: "application/json"'), "probe sets applica
 assert(!probeSrc.includes("application/x-www-form-urlencoded"), "probe does not use form-urlencoded body");
 assert(probeSrc.includes("pageno: 0"), "probe baseParams use pageno 0");
 assert(probeSrc.includes('order: "1,null"'), "probe baseParams use order 1,null");
-assert(!probeSrc.includes("pageno: 1"), "probe no longer hardcodes pageno 1");
-assert(!probeSrc.includes('order: "asc"'), "probe no longer hardcodes order asc");
-assert(
-  !probeSrc.includes('"Karpooradi"') || probeSrc.includes("Karpooradi Thailam"),
-  "probe keeps full governed search term Karpooradi Thailam",
-);
+assert(probeSrc.includes('search: ""'), "probe uses blank transport search");
+assert(!/\bpageno:\s*[1-9]/.test(probeSrc), "probe has no pageno>0 production logic");
+assert(probeSrc.includes("maxListRows = 500") || probeSrc.includes("500"), "probe encodes MAX_LIST_ROWS=500");
+assert(probeSrc.includes("transportSearchBlank"), "probe asserts transportSearchBlank");
+assert(probeSrc.includes("localExactEvaluation"), "probe asserts localExactEvaluation");
+assert(probeSrc.includes("targetName"), "probe carries local targetName");
 {
   const posts = [];
   const fakeDoc = {
@@ -462,7 +531,6 @@ assert(
       return null;
     },
   };
-  // Global symbol exists but must remain unused for license authority.
   const prevJq = globalThis.jQuery;
   const prevLic = globalThis.licenseId;
   const prevFn = globalThis.LoadProductDataforLegacy;
@@ -478,19 +546,16 @@ assert(
     ajax({ url, type, data, contentType, dataType, success }) {
       posts.push({ url, type, data, contentType, dataType });
       const parsed = new URL(String(url), "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
-      const search = parsed.searchParams.get("search") || "";
+      assert(parsed.searchParams.get("search") === "", "mock list transport search is blank");
       const length = Number(parsed.searchParams.get("length") || 10);
       const all = [
         { name: "Other Product", id: 1 },
         { name: "Karpooradi Thailam", id: 2 },
       ];
-      const matches = all.filter(
-        (r) => String(r.name).toLowerCase() === String(search).toLowerCase(),
-      );
-      const total = matches.length;
       success({
-        TotalCount: total,
-        aaData: matches.slice(0, length),
+        TotalCount: all.length,
+        aaData: all.slice(0, length),
+        status: "1",
       });
     },
   };
@@ -519,12 +584,15 @@ assert(
     "duplicate-search URL includes encoded length",
   );
   assert(
-    posts.every(
-      (p) =>
-        String(p.url).includes(`search=${encodeURIComponent("Karpooradi Thailam")}`) ||
-        String(p.url).includes("search=Karpooradi+Thailam"),
-    ),
-    "exact search term Karpooradi Thailam in query URL",
+    posts.every((p) => {
+      const u = new URL(String(p.url), "https://www.e-aushadhi.gov.in/admin/x");
+      return u.searchParams.get("search") === "";
+    }),
+    "transport search query is blank",
+  );
+  assert(
+    posts.every((p) => !String(p.url).includes("Karpooradi")),
+    "governed target name is not in transport search URL",
   );
   assert(
     posts.every(
@@ -552,9 +620,13 @@ assert(
   );
   assert(probeResult.usedGlobalWindowFn === false, "probe reports global window fn unused");
   assert(probeResult.mechanism === "datatable_list_post", "probe result uses datatable mechanism");
-  assert(probeResult.searchApplied === true, "probe applied search");
+  assert(probeResult.transportSearchBlank === true, "probe asserts blank transport");
+  assert(probeResult.targetName === "Karpooradi Thailam", "probe keeps local targetName");
+  assert(probeResult.localExactEvaluation === true, "probe asserts local exact evaluation");
+  assert(probeResult.coverageComplete === true, "one-page full coverage completes");
   const guarded = evaluateDuplicateGuard(probeResult);
   assert(guarded.outcome === DUPLICATE_OUTCOME.EXACT_ONE, "exact single match => EXACT_ONE");
+  assert(guarded.totalCount === 2, "TotalCount is catalog size, not exact-match count");
 }
 
 {
@@ -581,9 +653,8 @@ assert(
       const length = Number(parsed.searchParams.get("length") || 10);
       const all = [
         { name: "Karpooradi Thailam", id: 2 },
-        { name: "Karpooradi Thailam Extra", id: 3 },
+        { name: "Other Oil", id: 3 },
       ];
-      // First call uses default length=10 but intentionally returns an incomplete page.
       if (posts.length === 1) {
         success({
           TotalCount: all.length,
@@ -610,29 +681,245 @@ assert(
     globalThis.window = prevWindow;
     globalThis.LoadProductDataforLegacy = prevFn;
   }
-  assert(posts.length === 2, "coverage refetch issues second list POST when page incomplete");
+  assert(posts.length === 2, "incomplete first page triggers exactly one full refetch");
   const first = new URL(String(posts[0].url), "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
   const second = new URL(String(posts[1].url), "https://www.e-aushadhi.gov.in/admin/addproductforlegacy");
   assert(first.searchParams.get("pageno") === "0", "coverage first request pageno=0");
   assert(second.searchParams.get("pageno") === "0", "coverage refetch pageno remains 0");
   assert(first.searchParams.get("order") === "1,null", "coverage first request order=1,null");
   assert(second.searchParams.get("order") === "1,null", "coverage refetch order remains 1,null");
-  assert(first.searchParams.get("search") === "Karpooradi Thailam", "coverage first search exact");
-  assert(second.searchParams.get("search") === "Karpooradi Thailam", "coverage refetch search unchanged");
+  assert(first.searchParams.get("search") === "", "coverage first search blank");
+  assert(second.searchParams.get("search") === "", "coverage refetch search blank");
   assert(first.searchParams.get("licenseid") === "DOM-COV-3", "coverage first licenseid from DOM");
   assert(second.searchParams.get("licenseid") === "DOM-COV-3", "coverage refetch licenseid unchanged");
   assert(first.searchParams.get("length") === "10", "coverage first length=10");
-  assert(second.searchParams.get("length") === "2", "coverage refetch only length changes to totalCount");
+  assert(second.searchParams.get("length") === "2", "coverage refetch length=TotalCount");
   assert(
     posts.every((p) => p.data === undefined || p.data === null),
     "coverage refetch posts have no business body",
   );
   assert(coverageProbe.coverageComplete === true, "coverage refetch completes when full page returned");
+  assert(coverageProbe.pageFetches === 2, "coverage probe reports two page fetches");
   assert(
-    evaluateDuplicateGuard(coverageProbe).outcome === DUPLICATE_OUTCOME.AMBIGUOUS ||
-      evaluateDuplicateGuard(coverageProbe).outcome === DUPLICATE_OUTCOME.EXACT_ONE,
-    "coverage-complete multi-row result is classified (not NONE from incompleteness)",
+    evaluateDuplicateGuard(coverageProbe).outcome === DUPLICATE_OUTCOME.EXACT_ONE,
+    "coverage-complete catalog with one exact Karpooradi => EXACT_ONE",
   );
+}
+
+{
+  const posts = [];
+  const prevJq = globalThis.jQuery;
+  const prevDoc = globalThis.document;
+  const prevWindow = globalThis.window;
+  globalThis.document = {
+    getElementById(id) {
+      if (id === "licenseid") return { value: "DOM-BOUND" };
+      return null;
+    },
+  };
+  globalThis.window = globalThis;
+  globalThis.jQuery = {
+    ajax({ url, success }) {
+      posts.push(url);
+      success({
+        TotalCount: MAX_LIST_ROWS + 1,
+        data: [{ name: "Other", id: 1 }],
+        status: "1",
+      });
+    },
+  };
+  let overBound;
+  try {
+    overBound = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+  } finally {
+    globalThis.jQuery = prevJq;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWindow;
+  }
+  assert(posts.length === 1, "TotalCount over MAX_LIST_ROWS does not refetch");
+  assert(overBound.coverageComplete === false, "over-bound coverage is incomplete");
+  assert(overBound.reason === "total_count_over_bound", "over-bound reason recorded");
+  assert(
+    evaluateDuplicateGuard(overBound).outcome !== DUPLICATE_OUTCOME.NONE,
+    "over-bound partial catalog never NONE",
+  );
+}
+
+{
+  const posts = [];
+  const prevJq = globalThis.jQuery;
+  const prevDoc = globalThis.document;
+  const prevWindow = globalThis.window;
+  globalThis.document = {
+    getElementById(id) {
+      if (id === "licenseid") return { value: "DOM-CHANGED" };
+      return null;
+    },
+  };
+  globalThis.window = globalThis;
+  globalThis.jQuery = {
+    ajax({ url, success }) {
+      posts.push(url);
+      if (posts.length === 1) {
+        success({
+          TotalCount: 3,
+          data: [{ name: "A", id: 1 }],
+          status: "1",
+        });
+        return;
+      }
+      success({
+        TotalCount: 4,
+        data: [
+          { name: "A", id: 1 },
+          { name: "B", id: 2 },
+          { name: "C", id: 3 },
+          { name: "D", id: 4 },
+        ],
+        status: "1",
+      });
+    },
+  };
+  let changed;
+  try {
+    changed = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+  } finally {
+    globalThis.jQuery = prevJq;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWindow;
+  }
+  assert(posts.length === 2, "changed TotalCount still issues full refetch");
+  assert(changed.coverageComplete === false, "changed TotalCount coverage incomplete");
+  assert(changed.reason === "total_count_changed", "changed TotalCount reason recorded");
+  assert(
+    evaluateDuplicateGuard(changed).outcome !== DUPLICATE_OUTCOME.NONE,
+    "changed TotalCount never NONE",
+  );
+}
+
+{
+  const posts = [];
+  const prevJq = globalThis.jQuery;
+  const prevDoc = globalThis.document;
+  const prevWindow = globalThis.window;
+  globalThis.document = {
+    getElementById(id) {
+      if (id === "licenseid") return { value: "DOM-INCOMPLETE" };
+      return null;
+    },
+  };
+  globalThis.window = globalThis;
+  globalThis.jQuery = {
+    ajax({ url, success }) {
+      posts.push(url);
+      if (posts.length === 1) {
+        success({
+          TotalCount: 3,
+          data: [{ name: "A", id: 1 }],
+          status: "1",
+        });
+        return;
+      }
+      success({
+        TotalCount: 3,
+        data: [{ name: "A", id: 1 }, { name: "B", id: 2 }],
+        status: "1",
+      });
+    },
+  };
+  let incomplete;
+  try {
+    incomplete = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+  } finally {
+    globalThis.jQuery = prevJq;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWindow;
+  }
+  assert(incomplete.coverageComplete === false, "incomplete second rows coverage incomplete");
+  assert(incomplete.reason === "full_refetch_incomplete", "incomplete second rows reason recorded");
+  assert(
+    evaluateDuplicateGuard(incomplete).outcome !== DUPLICATE_OUTCOME.NONE,
+    "incomplete second rows never NONE",
+  );
+}
+
+{
+  const posts = [];
+  const prevJq = globalThis.jQuery;
+  const prevDoc = globalThis.document;
+  const prevWindow = globalThis.window;
+  globalThis.document = {
+    getElementById(id) {
+      if (id === "licenseid") return { value: "DOM-MISSING-ROWS" };
+      return null;
+    },
+  };
+  globalThis.window = globalThis;
+  globalThis.jQuery = {
+    ajax({ url, success }) {
+      posts.push(url);
+      if (posts.length === 1) {
+        success({
+          TotalCount: 2,
+          data: [{ name: "A", id: 1 }],
+          status: "1",
+        });
+        return;
+      }
+      success({
+        TotalCount: 2,
+        status: "1",
+      });
+    },
+  };
+  let missingRows;
+  try {
+    missingRows = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+  } finally {
+    globalThis.jQuery = prevJq;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWindow;
+  }
+  assert(missingRows.coverageComplete === false, "missing second rows coverage incomplete");
+  assert(missingRows.reason === "rows_missing", "missing second rows reason recorded");
+  assert(
+    evaluateDuplicateGuard(missingRows).outcome !== DUPLICATE_OUTCOME.NONE,
+    "missing second rows never NONE",
+  );
+}
+
+{
+  for (const status of [0, "0", false, "false"]) {
+    const prevJq = globalThis.jQuery;
+    const prevDoc = globalThis.document;
+    const prevWindow = globalThis.window;
+    globalThis.document = {
+      getElementById(id) {
+        if (id === "licenseid") return { value: "DOM-BIZ-FAIL" };
+        return null;
+      },
+    };
+    globalThis.window = globalThis;
+    globalThis.jQuery = {
+      ajax({ success }) {
+        success({ status, message: "Something went wrong" });
+      },
+    };
+    let bizFail;
+    try {
+      bizFail = await createInPageDuplicateSearchProbe()("Karpooradi Thailam");
+    } finally {
+      globalThis.jQuery = prevJq;
+      globalThis.document = prevDoc;
+      globalThis.window = prevWindow;
+    }
+    assert(bizFail.coverageComplete === false, `portal status=${String(status)} coverage incomplete`);
+    assert(bizFail.reason === "portal_business_failure", `portal status=${String(status)} reason`);
+    assert(
+      evaluateDuplicateGuard(bizFail).outcome !== DUPLICATE_OUTCOME.NONE,
+      `portal status=${String(status)} never NONE`,
+    );
+  }
 }
 
 {
@@ -662,7 +949,7 @@ assert(
     return {
       ok: true,
       async json() {
-        return { TotalCount: 0, aaData: [] };
+        return { TotalCount: 0, aaData: [], status: "1" };
       },
     };
   };
@@ -694,12 +981,11 @@ assert(
     "fetch fallback uses order=1,null",
   );
   assert(
-    fetches.every(
-      (f) =>
-        f.url.includes(`search=${encodeURIComponent("Karpooradi Thailam")}`) ||
-        f.url.includes("search=Karpooradi+Thailam"),
-    ),
-    "fetch fallback keeps exact search Karpooradi Thailam",
+    fetches.every((f) => {
+      const u = new URL(f.url, "https://www.e-aushadhi.gov.in/admin/x");
+      return u.searchParams.get("search") === "";
+    }),
+    "fetch fallback transport search is blank",
   );
   assert(
     fetches.every((f) => f.url.includes("licenseid=DOM-FETCH-9")),
@@ -721,7 +1007,8 @@ assert(
     fetches.every((f) => !String(f.opts.headers?.["Content-Type"] || "").includes("form-urlencoded")),
     "fetch fallback does not use form-urlencoded",
   );
-  assert(fetchProbe.searchApplied === true, "fetch fallback marks search applied");
+  assert(fetchProbe.transportSearchBlank === true, "fetch fallback asserts blank transport");
+  assert(fetchProbe.targetName === "Karpooradi Thailam", "fetch fallback keeps targetName");
   assert(
     evaluateDuplicateGuard(fetchProbe).outcome === DUPLICATE_OUTCOME.NONE,
     "fetch fallback zero complete result => NONE",
@@ -729,28 +1016,31 @@ assert(
 }
 
 {
-  const failed = evaluateDuplicateGuard({
-    source: "LoadProductDataforLegacy",
-    searchApplied: false,
-    searchTerm: "Karpooradi Thailam",
-    totalCount: null,
-    rows: null,
-    reason: "list_request_failed",
-  });
-  assert(
-    failed.outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE,
-    "request failure => SEARCH_INCOMPLETE",
+  const failed = evaluateDuplicateGuard(
+    blankListEvidence({
+      coverageComplete: false,
+      totalCount: null,
+      rows: null,
+      reason: "list_request_failed",
+    }),
   );
+  assert(
+    failed.outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE ||
+      failed.outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+    "request failure => fail-closed",
+  );
+  assert(failed.outcome !== DUPLICATE_OUTCOME.NONE, "request failure is not NONE");
 }
 
 {
-  const malformed = evaluateDuplicateGuard({
-    source: "LoadProductDataforLegacy",
-    searchApplied: true,
-    searchTerm: "Karpooradi Thailam",
-    totalCount: null,
-    rows: null,
-  });
+  const malformed = evaluateDuplicateGuard(
+    blankListEvidence({
+      coverageComplete: false,
+      totalCount: null,
+      rows: null,
+      reason: "malformed_response",
+    }),
+  );
   assert(
     malformed.outcome === DUPLICATE_OUTCOME.SEARCH_INCOMPLETE ||
       malformed.outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
@@ -760,15 +1050,34 @@ assert(
 }
 
 assert(
-  evaluateDuplicateGuard({
-    source: "LoadProductDataforLegacy",
-    searchApplied: true,
-    searchTerm: "Karpooradi Thailam",
-    totalCount: 2,
-    rows: [{ name: "Karpooradi Thailam" }],
-    coverageComplete: false,
-  }).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 2,
+      rows: [{ name: "Karpooradi Thailam" }],
+      coverageComplete: false,
+    }),
+  ).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
   "incomplete page vs total => COVERAGE_UNPROVEN",
+);
+assert(
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 0,
+      rows: [{ name: "X" }],
+      coverageComplete: true,
+    }),
+  ).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+  "TotalCount=0 with nonempty rows => blocked",
+);
+assert(
+  evaluateDuplicateGuard(
+    blankListEvidence({
+      totalCount: 1,
+      rows: [{ name: "A" }, { name: "B" }],
+      coverageComplete: true,
+    }),
+  ).outcome === DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+  "rows > TotalCount => blocked",
 );
 
 assert(filenameMatchesGoverned(EXPECTED_APPROVED_COPY_NAME), "exact V01 approved filename passes");
@@ -2422,14 +2731,10 @@ assert(
   assert(resumeDrift.code === "CONTENT_HASH_DRIFT", "resume content hash drift before mutation");
   assert(resumeDrift.mutated === false, "hash drift resume does not mutate");
 
-  const ambiguousDuplicate = {
-    source: "LoadProductDataforLegacy",
-    searchApplied: true,
-    searchTerm: "Karpooradi Thailam",
+  const ambiguousDuplicate = blankListEvidence({
     totalCount: 2,
     rows: [{ name: "Karpooradi Thailam", id: "9001" }, { name: "Karpooradi Thailam", id: "9002" }],
-    coverageComplete: true,
-  };
+  });
   let ambiguousMutated = false;
   const resumeAmbiguousExec = await executeProductDetailsResume(
     {
@@ -2591,14 +2896,10 @@ assert(
     "Resume markPortalVerified uses ENTERED row version (not resume version 7)",
   );
 
-  const exactOneDuplicate = {
-    source: "LoadProductDataforLegacy",
-    searchApplied: true,
-    searchTerm: "Karpooradi Thailam",
+  const exactOneDuplicate = blankListEvidence({
     totalCount: 1,
     rows: [{ name: "Karpooradi Thailam", id: "9001" }],
-    coverageComplete: true,
-  };
+  });
   let exactOneSaveCalls = 0;
   let exactOnePortalArgs = null;
   const exactOneResume = await executeProductDetailsResume(
@@ -3212,14 +3513,7 @@ function makeTrustedDeps(overrides = {}) {
     page: {
       evaluate: async (fn, arg) => {
         if (typeof fn === "function" && fn.constructor.name === "AsyncFunction") {
-          return {
-            source: "LoadProductDataforLegacy",
-            searchApplied: true,
-            searchTerm: "Karpooradi Thailam",
-            totalCount: 0,
-            rows: [],
-            coverageComplete: true,
-          };
+          return blankListEvidence();
         }
         const result = fn(arg);
         if (result && result.origin) return { ...readyPage, ...result, workerState: undefined };
@@ -4393,14 +4687,10 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   const blockedPreflight = await executeProductDetails(
     {
       ...successInput,
-      duplicateSearch: {
-        source: "LoadProductDataforLegacy",
-        searchApplied: true,
-        searchTerm: "Karpooradi Thailam",
+      duplicateSearch: blankListEvidence({
         totalCount: 1,
         rows: [{ name: "Karpooradi Thailam" }],
-        coverageComplete: true,
-      },
+      }),
     },
     {
       runBegin: async () => {
@@ -4651,14 +4941,10 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
 
   // Exact duplicate blocks reconcile and keeps rebase unavailable.
   {
-    const exactOne = {
-      source: "LoadProductDataforLegacy",
-      searchApplied: true,
-      searchTerm: "Karpooradi Thailam",
+    const exactOne = blankListEvidence({
       totalCount: 1,
       rows: [{ name: "Karpooradi Thailam", id: "9001" }],
-      coverageComplete: true,
-    };
+    });
     const blocked = await runTrustedAmbiguousSaveReconcile(
       makeReconcileDeps({ duplicateSearch: exactOne }),
       { userConfirmed: true },
