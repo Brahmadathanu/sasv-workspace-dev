@@ -1713,25 +1713,27 @@ assert(
 {
   const fillSrc = createInPageFillScript();
   assert(
-    fillSrc.includes("waitForElement") && fillSrc.includes("waitForSelectOptions"),
-    "fill script defines waitForElement and waitForSelectOptions",
+    fillSrc.includes("waitForExactSelectOption") && fillSrc.includes("waitForExactVisibleRadio"),
+    "fill script defines exact-target wait helpers",
   );
   assert(
     fillSrc.includes("waitRequiredDependentControls") &&
-      fillSrc.includes("PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING") &&
-      fillSrc.includes("PORTAL_PERMISSION_PURPOSE_NOT_READY") &&
-      fillSrc.includes("PORTAL_SHELFLIFE_CONTROL_MISSING") &&
-      fillSrc.includes("PORTAL_REQUIRED_CONTROL_MISSING"),
-    "fill script waits for required dependent controls with structured codes",
+      fillSrc.includes("PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY") &&
+      fillSrc.includes("PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS") &&
+      fillSrc.includes("PORTAL_SHELFLIFE_TARGET_NOT_READY") &&
+      fillSrc.includes("PORTAL_SHELFLIFE_TARGET_AMBIGUOUS"),
+    "fill script waits for exact governed targets with structured codes",
+  );
+  assert(
+    !fillSrc.includes("waitForSelectOptions"),
+    "generic waitForSelectOptions is no longer used for permission readiness",
   );
   assert(
     CONTROL_READY_TIMEOUT_MS === 8000 && CONTROL_READY_POLL_MS === 50,
     "bounded control readiness timeout is 8s with ~50ms poll",
   );
-  assert(fillSrc.includes('input[name="shelfmonth"]'), "shelfmonth uses exact radio name selector");
   assert(
-    (regularPlan.fields || []).find((f) => f.key === "shelfmonth")?.expected === "RegularAsPerClause" ||
-      GOVERNANCE_OVERRIDES.shelfmonth === "RegularAsPerClause",
+    GOVERNANCE_OVERRIDES.shelfmonth === "RegularAsPerClause",
     "exact governed shelfmonth route remains unchanged",
   );
   const liveAdaptersSrcUnchanged = readFileSync(
@@ -1741,32 +1743,41 @@ assert(
   assert(
     liveAdaptersSrcUnchanged.includes("prepareApprovedCopyFilePayload") &&
       !/setInputFiles\(\s*localPath\s*\)/.test(liveAdaptersSrcUnchanged),
-    "upload FilePayload code unchanged",
+    "FilePayload implementation unchanged",
   );
   assert(
     liveAdaptersSrcUnchanged.includes("proof.name !== EXPECTED_APPROVED_COPY_NAME"),
     "attachment strict proof unchanged",
+  );
+  const executorSrc = readFileSync(
+    join(root, "electron/eaushadhi-worker/product-details-executor.js"),
+    "utf8",
+  );
+  assert(
+    executorSrc.includes("PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY") &&
+      executorSrc.includes("permissionPurpose match count") &&
+      executorSrc.includes("shelfmonth match count"),
+    "legacy match-count failures map to structured target codes (not FILL_FORM_FAILED)",
   );
 
   function makeOption(value, label) {
     return { value: String(value), textContent: String(label), label: String(label) };
   }
   function makeSelect(id, options) {
-    const el = {
+    return {
       id,
       options: options.slice(),
       value: "",
       dispatchEvent() {},
     };
-    return el;
   }
-  function makeRadio(value) {
+  function makeRadio(value, { hidden = false, disabled = false } = {}) {
     return {
       name: "shelfmonth",
       value: String(value),
       checked: false,
-      disabled: false,
-      offsetParent: {},
+      disabled,
+      offsetParent: hidden ? null : {},
       dispatchEvent() {},
     };
   }
@@ -1819,60 +1830,27 @@ assert(
     ],
   };
 
-  // 1. permissionPurpose initially absent, appears after delay
-  {
-    let perm = null;
-    let shelf = null;
-    let upload = null;
-    const radios = [];
-    const restore = installFakeDom({
+  function shelfDom(perm, radios, upload) {
+    return {
       query(sel) {
         if (sel === "#permissionPurpose") return perm;
-        if (sel === 'input[name="shelfmonth"]') return shelf;
         if (sel === "#uploadAttachment") return upload;
-        if (sel.startsWith('input[name="shelfmonth"][value=')) {
-          const m = /value="([^"]+)"/.exec(sel);
-          return radios.find((r) => r.value === m?.[1]) || null;
+        if (sel === 'input[name="shelfmonth"]') {
+          return radios.find((r) => r.offsetParent !== null) || radios[0] || null;
         }
         return null;
       },
       queryAll(sel) {
-        if (sel.startsWith('input[name="shelfmonth"][value=')) {
-          const m = /value="([^"]+)"/.exec(sel);
-          return radios.filter((r) => r.value === m?.[1] && !r.disabled && r.offsetParent);
-        }
-        if (sel === 'input[name="shelfmonth"]') return radios;
+        if (sel === 'input[name="shelfmonth"]') return radios.slice();
         return [];
       },
-    });
-    try {
-      setTimeout(() => {
-        perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
-        shelf = makeRadio("RegularAsPerClause");
-        radios.push(shelf);
-        upload = makeFileInput();
-      }, 80);
-      const result = await runFill(dependentPlan);
-      assert(
-        result.filled.includes("permissionPurpose") && result.filled.includes("shelfmonth"),
-        "permissionPurpose initially absent, appears after delay: fill waits and succeeds",
-      );
-      assert(result.permission?.label === "Regular", "delayed permissionPurpose exact Regular match succeeds");
-    } finally {
-      restore();
-    }
+    };
   }
 
-  // 2. permissionPurpose never appears
+  // 1. permission select exists with only --Select-- => NOT ready
   {
-    const restore = installFakeDom({
-      query() {
-        return null;
-      },
-      queryAll() {
-        return [];
-      },
-    });
+    const perm = makeSelect("permissionPurpose", [makeOption("", "--Select--")]);
+    const restore = installFakeDom(shelfDom(perm, [], null));
     let code = null;
     try {
       await runFill({
@@ -1885,74 +1863,55 @@ assert(
       restore();
     }
     assert(
-      code === "PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING",
-      "permissionPurpose never appears => PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING",
+      code === "PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY",
+      "permission select with only --Select-- => TARGET_NOT_READY",
     );
-    let saveCalls = 0;
-    const mapped = await executeProductDetailsResume(resumeBaseInput, {
-      runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
-      fillForm: async () => {
-        const err = new Error("PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING");
-        err.code = "PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING";
-        throw err;
-      },
-      saveOnce: async () => {
-        saveCalls += 1;
-      },
-    });
-    assert(
-      mapped.code === "PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING" && saveCalls === 0,
-      "PORTAL_PERMISSION_PURPOSE_CONTROL_MISSING: SaveData = 0",
-    );
-    assert(mapped.runBegun === false && mapped.runId === resumeRunId, "no second run_begin; same run preserved");
   }
 
-  // 3. permissionPurpose exists but options initially empty, later populated
+  // 2. placeholder first, Regular appears later => waits then succeeds
   {
-    const perm = makeSelect("permissionPurpose", []);
-    let shelf = makeRadio("RegularAsPerClause");
-    const radios = [shelf];
+    const perm = makeSelect("permissionPurpose", [makeOption("", "--Select--")]);
+    const shelf = makeRadio("RegularAsPerClause");
     const upload = makeFileInput();
-    const restore = installFakeDom({
-      query(sel) {
-        if (sel === "#permissionPurpose") return perm;
-        if (sel === 'input[name="shelfmonth"]') return shelf;
-        if (sel === "#uploadAttachment") return upload;
-        return null;
-      },
-      queryAll(sel) {
-        if (sel.startsWith('input[name="shelfmonth"][value=')) {
-          const m = /value="([^"]+)"/.exec(sel);
-          return radios.filter((r) => r.value === m?.[1] && r.offsetParent);
-        }
-        return [];
-      },
-    });
+    const restore = installFakeDom(shelfDom(perm, [shelf], upload));
     try {
       setTimeout(() => {
-        perm.options = [makeOption("7", "Regular")];
+        perm.options = [makeOption("", "--Select--"), makeOption("7", "Regular")];
       }, 80);
+      const result = await runFill(dependentPlan);
+      assert(
+        result.permission?.label === "Regular" && result.filled.includes("permissionPurpose"),
+        "placeholder first, Regular appears later: waits then succeeds",
+      );
+    } finally {
+      restore();
+    }
+  }
+
+  // 3. exactly one Regular => succeeds
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const shelf = makeRadio("RegularAsPerClause");
+    const upload = makeFileInput();
+    const restore = installFakeDom(shelfDom(perm, [shelf], upload));
+    try {
       const result = await runFill(dependentPlan);
       assert(
         result.permission?.value === "7" && result.filled.includes("permissionPurpose"),
-        "permissionPurpose options initially empty, later populated: waits and exact Regular match succeeds",
+        "exactly one Regular => succeeds",
       );
     } finally {
       restore();
     }
   }
 
-  // 4. permissionPurpose options never populate
+  // 4. duplicate Regular options => TARGET_AMBIGUOUS
   {
-    const perm = makeSelect("permissionPurpose", []);
-    const restore = installFakeDom({
-      query(sel) {
-        return sel === "#permissionPurpose" ? perm : null;
-      },
-      queryAll() {
-        return [];
-      },
-    });
+    const perm = makeSelect("permissionPurpose", [
+      makeOption("7", "Regular"),
+      makeOption("8", "Regular"),
+    ]);
+    const restore = installFakeDom(shelfDom(perm, [], null));
     let code = null;
     try {
       await runFill({
@@ -1965,76 +1924,61 @@ assert(
       restore();
     }
     assert(
-      code === "PORTAL_PERMISSION_PURPOSE_NOT_READY",
-      "permissionPurpose options never populate => PORTAL_PERMISSION_PURPOSE_NOT_READY",
+      code === "PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS",
+      "duplicate Regular options => TARGET_AMBIGUOUS",
+    );
+  }
+
+  // 5. Regular never appears => TARGET_NOT_READY, SaveData = 0
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("", "--Select--")]);
+    const restore = installFakeDom(shelfDom(perm, [], null));
+    let code = null;
+    try {
+      await runFill({
+        ...dependentPlan,
+        fields: [{ key: "permissionPurpose", fill: true, expected: "Regular" }],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+    } finally {
+      restore();
+    }
+    assert(
+      code === "PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY",
+      "Regular never appears => TARGET_NOT_READY",
     );
     let saveCalls = 0;
     const mapped = await executeProductDetailsResume(resumeBaseInput, {
       runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
       fillForm: async () => {
-        const err = new Error("PORTAL_PERMISSION_PURPOSE_NOT_READY");
-        err.code = "PORTAL_PERMISSION_PURPOSE_NOT_READY";
+        const err = new Error("PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY");
+        err.code = "PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY";
         throw err;
       },
       saveOnce: async () => {
         saveCalls += 1;
       },
+      markEntered: async () => {
+        throw new Error("markEntered must not run");
+      },
+      markPortalVerified: async () => {
+        throw new Error("markPortalVerified must not run");
+      },
     });
     assert(
-      mapped.code === "PORTAL_PERMISSION_PURPOSE_NOT_READY" && saveCalls === 0,
-      "PORTAL_PERMISSION_PURPOSE_NOT_READY: SaveData = 0",
+      mapped.code === "PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY" && saveCalls === 0,
+      "TARGET_NOT_READY permission: SaveData = 0",
     );
+    assert(mapped.code !== "FILL_FORM_FAILED", "no generic FILL_FORM_FAILED for permission target failure");
+    assert(mapped.runBegun === false && mapped.runId === resumeRunId, "no second run_begin; same run preserved");
   }
 
-  // 5. shelfmonth initially absent, appears later
+  // 6. shelf radio exists hidden with RegularAsPerClause => NOT ready
   {
     const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
-    let shelf = null;
-    const radios = [];
-    const upload = makeFileInput();
-    const restore = installFakeDom({
-      query(sel) {
-        if (sel === "#permissionPurpose") return perm;
-        if (sel === 'input[name="shelfmonth"]') return shelf;
-        if (sel === "#uploadAttachment") return upload;
-        return null;
-      },
-      queryAll(sel) {
-        if (sel.startsWith('input[name="shelfmonth"][value=')) {
-          const m = /value="([^"]+)"/.exec(sel);
-          return radios.filter((r) => r.value === m?.[1] && r.offsetParent);
-        }
-        return [];
-      },
-    });
-    try {
-      setTimeout(() => {
-        shelf = makeRadio("RegularAsPerClause");
-        radios.push(shelf);
-      }, 80);
-      const result = await runFill(dependentPlan);
-      assert(
-        result.filled.includes("shelfmonth") && shelf.checked === true,
-        "shelfmonth initially absent, appears later: fill waits and succeeds",
-      );
-      assert(shelf.value === "RegularAsPerClause", "exact governed shelfmonth route remains unchanged");
-    } finally {
-      restore();
-    }
-  }
-
-  // 6. shelfmonth never appears
-  {
-    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
-    const restore = installFakeDom({
-      query(sel) {
-        if (sel === "#permissionPurpose") return perm;
-        return null;
-      },
-      queryAll() {
-        return [];
-      },
-    });
+    const hidden = makeRadio("RegularAsPerClause", { hidden: true });
+    const restore = installFakeDom(shelfDom(perm, [hidden], null));
     let code = null;
     try {
       await runFill({
@@ -2049,13 +1993,100 @@ assert(
     } finally {
       restore();
     }
-    assert(code === "PORTAL_SHELFLIFE_CONTROL_MISSING", "shelfmonth never appears => PORTAL_SHELFLIFE_CONTROL_MISSING");
+    assert(
+      code === "PORTAL_SHELFLIFE_TARGET_NOT_READY",
+      "hidden RegularAsPerClause radio => TARGET_NOT_READY",
+    );
+  }
+
+  // 7. hidden first, becomes visible later => waits then succeeds
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const shelf = makeRadio("RegularAsPerClause", { hidden: true });
+    const upload = makeFileInput();
+    const restore = installFakeDom(shelfDom(perm, [shelf], upload));
+    try {
+      setTimeout(() => {
+        shelf.offsetParent = {};
+      }, 80);
+      const result = await runFill(dependentPlan);
+      assert(
+        result.filled.includes("shelfmonth") && shelf.checked === true,
+        "hidden first, becomes visible later: waits then succeeds",
+      );
+    } finally {
+      restore();
+    }
+  }
+
+  // 8. exactly one visible enabled RegularAsPerClause => succeeds
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const shelf = makeRadio("RegularAsPerClause");
+    const upload = makeFileInput();
+    const restore = installFakeDom(shelfDom(perm, [shelf], upload));
+    try {
+      const result = await runFill(dependentPlan);
+      assert(
+        result.filled.includes("shelfmonth") && shelf.value === "RegularAsPerClause",
+        "exactly one visible enabled RegularAsPerClause => succeeds",
+      );
+    } finally {
+      restore();
+    }
+  }
+
+  // 9. duplicate visible exact radios => TARGET_AMBIGUOUS
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const a = makeRadio("RegularAsPerClause");
+    const b = makeRadio("RegularAsPerClause");
+    const restore = installFakeDom(shelfDom(perm, [a, b], null));
+    let code = null;
+    try {
+      await runFill({
+        ...dependentPlan,
+        fields: [
+          { key: "permissionPurpose", fill: true, expected: "Regular" },
+          { key: "shelfmonth", fill: true, expected: "RegularAsPerClause" },
+        ],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+    } finally {
+      restore();
+    }
+    assert(code === "PORTAL_SHELFLIFE_TARGET_AMBIGUOUS", "duplicate visible exact radios => TARGET_AMBIGUOUS");
+  }
+
+  // 10. exact visible shelf target never appears => TARGET_NOT_READY, SaveData = 0
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const restore = installFakeDom(shelfDom(perm, [], null));
+    let code = null;
+    try {
+      await runFill({
+        ...dependentPlan,
+        fields: [
+          { key: "permissionPurpose", fill: true, expected: "Regular" },
+          { key: "shelfmonth", fill: true, expected: "RegularAsPerClause" },
+        ],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+    } finally {
+      restore();
+    }
+    assert(
+      code === "PORTAL_SHELFLIFE_TARGET_NOT_READY",
+      "exact visible shelf target never appears => TARGET_NOT_READY",
+    );
     let saveCalls = 0;
     const mapped = await executeProductDetailsResume(resumeBaseInput, {
       runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
       fillForm: async () => {
-        const err = new Error("PORTAL_SHELFLIFE_CONTROL_MISSING");
-        err.code = "PORTAL_SHELFLIFE_CONTROL_MISSING";
+        const err = new Error("PORTAL_SHELFLIFE_TARGET_NOT_READY");
+        err.code = "PORTAL_SHELFLIFE_TARGET_NOT_READY";
         throw err;
       },
       saveOnce: async () => {
@@ -2063,12 +2094,45 @@ assert(
       },
     });
     assert(
-      mapped.code === "PORTAL_SHELFLIFE_CONTROL_MISSING" && saveCalls === 0,
-      "PORTAL_SHELFLIFE_CONTROL_MISSING: SaveData = 0",
+      mapped.code === "PORTAL_SHELFLIFE_TARGET_NOT_READY" && saveCalls === 0,
+      "shelf TARGET_NOT_READY: SaveData = 0",
+    );
+    assert(mapped.code !== "FILL_FORM_FAILED", "no generic FILL_FORM_FAILED for shelf target failure");
+  }
+
+  // 11. legacy match-count messages map to structured codes
+  {
+    let saveCalls = 0;
+    const legacyPerm = await executeProductDetailsResume(resumeBaseInput, {
+      runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+      fillForm: async () => {
+        throw new Error("permissionPurpose match count 0");
+      },
+      saveOnce: async () => {
+        saveCalls += 1;
+      },
+    });
+    assert(
+      legacyPerm.code === "PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY" && saveCalls === 0,
+      "legacy permissionPurpose match count 0 maps to TARGET_NOT_READY not FILL_FORM_FAILED",
+    );
+    saveCalls = 0;
+    const legacyShelf = await executeProductDetailsResume(resumeBaseInput, {
+      runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
+      fillForm: async () => {
+        throw new Error("shelfmonth match count 0 for RegularAsPerClause");
+      },
+      saveOnce: async () => {
+        saveCalls += 1;
+      },
+    });
+    assert(
+      legacyShelf.code === "PORTAL_SHELFLIFE_TARGET_NOT_READY" && saveCalls === 0,
+      "legacy shelfmonth match count 0 maps to TARGET_NOT_READY not FILL_FORM_FAILED",
     );
   }
 
-  // 9. successful required-control readiness allows attachment stage to execute
+  // 12. successful exact target readiness reaches FilePayload attachment stage
   {
     let attachmentStageReached = false;
     let saveCalls = 0;
@@ -2112,26 +2176,9 @@ assert(
     });
     assert(
       attachmentStageReached === true && saveCalls === 1,
-      "successful required-control readiness allows attachment stage then SaveData once",
+      "successful exact target readiness reaches FilePayload attachment then SaveData once",
     );
-    assert(result.runId === resumeRunId && result.runBegun !== true, "resume keeps same run; no second run_begin");
-  }
-
-  // 13. no SaveData before required controls proven
-  {
-    let saveCalls = 0;
-    await executeProductDetailsResume(resumeBaseInput, {
-      runResume: async () => ({ run_id: resumeRunId, workflow_row_version: 6 }),
-      fillForm: async () => {
-        const err = new Error("PORTAL_REQUIRED_CONTROL_MISSING");
-        err.code = "PORTAL_REQUIRED_CONTROL_MISSING";
-        throw err;
-      },
-      saveOnce: async () => {
-        saveCalls += 1;
-      },
-    });
-    assert(saveCalls === 0, "no SaveData before all required controls + attachment are proven");
+    assert(result.runId === resumeRunId && result.runBegun !== true, "same existing run; no second run_begin");
   }
 }
 

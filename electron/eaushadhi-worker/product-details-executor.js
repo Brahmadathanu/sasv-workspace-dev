@@ -145,12 +145,54 @@ function classifyFillFormFailure(error) {
     };
   }
   if (
+    code === "PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY" ||
+    /PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY/.test(msg) ||
+    /permissionPurpose match count\s*0/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY",
+      message:
+        "Portal Permission Purpose exact target (Regular) did not become ready after classification.",
+    };
+  }
+  if (
+    code === "PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS" ||
+    /PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS/.test(msg) ||
+    /permissionPurpose match count\s*[2-9]/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS",
+      message: "Portal Permission Purpose exact target matched more than one option.",
+    };
+  }
+  if (
     code === "PORTAL_SHELFLIFE_CONTROL_MISSING" ||
     /PORTAL_SHELFLIFE_CONTROL_MISSING/.test(msg)
   ) {
     return {
       code: "PORTAL_SHELFLIFE_CONTROL_MISSING",
       message: "Portal Shelf Life control did not become available after classification.",
+    };
+  }
+  if (
+    code === "PORTAL_SHELFLIFE_TARGET_NOT_READY" ||
+    /PORTAL_SHELFLIFE_TARGET_NOT_READY/.test(msg) ||
+    /shelfmonth match count\s*0/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_SHELFLIFE_TARGET_NOT_READY",
+      message:
+        "Portal Shelf Life exact target (RegularAsPerClause) did not become visible and enabled.",
+    };
+  }
+  if (
+    code === "PORTAL_SHELFLIFE_TARGET_AMBIGUOUS" ||
+    /PORTAL_SHELFLIFE_TARGET_AMBIGUOUS/.test(msg) ||
+    /shelfmonth match count\s*[2-9]/.test(msg)
+  ) {
+    return {
+      code: "PORTAL_SHELFLIFE_TARGET_AMBIGUOUS",
+      message: "Portal Shelf Life exact target matched more than one visible radio.",
     };
   }
   if (
