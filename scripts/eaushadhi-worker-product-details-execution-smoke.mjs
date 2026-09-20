@@ -5041,6 +5041,270 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     }
   }
 
+  // Durable ambiguous-save recovery visibility from trusted Preview.
+  {
+    const {
+      deriveAmbiguousSaveRecoverable,
+      runTrustedProductDetailsPreview: previewForRecovery,
+      sanitizeRendererCommand,
+    } = require(join(root, "electron/eaushadhi-worker/product-details-trusted.js"));
+
+    const recoveryRunId = "f558a1ef-6d93-4214-afa7-2e92d84d7c81";
+    const recoveryContent = baseContent({
+      entry_status: "IN_PROGRESS",
+      content_hash: "hash-karpooradi-smoke-1",
+      product: {
+        portal_product_name: "Karpooradi Thailam",
+        canonical_product_name: "Karpooradi Thailam",
+        review_status: "VERIFIED",
+      },
+      classification: {
+        review_status: "VERIFIED",
+        is_verified: true,
+        product_type: { portal_option_value: "1", label: "Ayurveda" },
+        product_category: { portal_option_value: "10", label: "Thailam" },
+        product_subtype: { portal_option_value: "31", label: "-" },
+      },
+      details: {
+        portal_remarks: GOVERNANCE_OVERRIDES.remarks,
+        portal_shelfmonth_route: GOVERNANCE_OVERRIDES.shelfmonth,
+      },
+      is_ready_for_entry: false,
+    });
+
+    function makeRecoveryDeps({
+      lastSaveOutcome = "AMBIGUOUS",
+      runStatus = "RUNNING",
+      entryStatus = "IN_PROGRESS",
+      activeRunCount = 1,
+      workflowPortalRef = null,
+      runPortalRef = null,
+      includeActiveRun = true,
+      preflightThrows = null,
+      rpcLog = [],
+    } = {}) {
+      return makeTrustedDeps({
+        liveArmed: false,
+        callRpc: async (name, args) => {
+          rpcLog.push({ name, args });
+          if (name === "rpc_eaushadhi_require_permission") return { ok: true };
+          if (name === "rpc_eaushadhi_worker_preflight") {
+            if (preflightThrows) throw new Error(preflightThrows);
+            return {
+              workflow_row_version: 6,
+              entry_status: entryStatus,
+              is_ready_for_entry: false,
+              review_status: "VERIFIED",
+              composition_review_complete: true,
+              classification_review_complete: true,
+              dossier_ready: true,
+              open_blockers: 0,
+              open_portal_issues: 0,
+              portal_product_ref: workflowPortalRef,
+              active_run_count: activeRunCount,
+              active_run:
+                includeActiveRun && activeRunCount === 1
+                  ? {
+                      run_id: recoveryRunId,
+                      run_status: runStatus,
+                      start_content_hash: "hash-karpooradi-smoke-1",
+                      start_payload_hash: "payload-1",
+                      current_workflow_row_version: 6,
+                      portal_product_ref: runPortalRef,
+                      started_at: "2026-09-20T00:00:00Z",
+                      last_save_outcome: lastSaveOutcome,
+                      last_save_observed_at: "2026-09-20T01:00:00Z",
+                    }
+                  : null,
+            };
+          }
+          if (name === "rpc_eaushadhi_worker_content_get") {
+            return {
+              ...recoveryContent,
+              entry_status: entryStatus,
+              content_hash: "hash-karpooradi-smoke-1",
+            };
+          }
+          throw new Error(`unexpected rpc ${name}`);
+        },
+      });
+    }
+
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 1,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: null,
+        activeRun: {
+          run_status: "RUNNING",
+          last_save_outcome: "AMBIGUOUS",
+          portal_product_ref: null,
+        },
+      }) === true,
+      "deriveAmbiguousSaveRecoverable true for RUNNING+AMBIGUOUS+IN_PROGRESS",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: false,
+        activeRunCount: 1,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: null,
+        activeRun: {
+          run_status: "RUNNING",
+          last_save_outcome: "AMBIGUOUS",
+          portal_product_ref: null,
+        },
+      }) === false,
+      "derive requires successfully obtained preflight",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 1,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: null,
+        activeRun: {
+          run_status: "RUNNING",
+          last_save_outcome: "SUCCESS",
+          portal_product_ref: null,
+        },
+      }) === false,
+      "non-AMBIGUOUS last_save_outcome is not recoverable",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 2,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: null,
+        activeRun: {
+          run_status: "RUNNING",
+          last_save_outcome: "AMBIGUOUS",
+          portal_product_ref: null,
+        },
+      }) === false,
+      ">1 active run is not recoverable",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 0,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: null,
+        activeRun: null,
+      }) === false,
+      "no active run is not recoverable",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 1,
+        entryStatus: "ENTERED",
+        workflowPortalRef: null,
+        activeRun: {
+          run_status: "RUNNING",
+          last_save_outcome: "AMBIGUOUS",
+          portal_product_ref: null,
+        },
+      }) === false,
+      "ENTERED workflow is not ambiguous-save recoverable",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 1,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: null,
+        activeRun: {
+          run_status: "ENTERED",
+          last_save_outcome: "AMBIGUOUS",
+          portal_product_ref: null,
+        },
+      }) === false,
+      "ENTERED run_status is not ambiguous-save recoverable",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 1,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: "999",
+        activeRun: {
+          run_status: "RUNNING",
+          last_save_outcome: "AMBIGUOUS",
+          portal_product_ref: null,
+        },
+      }) === false,
+      "workflow portal ref blocks recovery",
+    );
+    assert(
+      deriveAmbiguousSaveRecoverable({
+        preflightObtained: true,
+        activeRunCount: 1,
+        entryStatus: "IN_PROGRESS",
+        workflowPortalRef: null,
+        activeRun: {
+          run_status: "RUNNING",
+          last_save_outcome: "AMBIGUOUS",
+          portal_product_ref: "999",
+        },
+      }) === false,
+      "run portal ref blocks recovery",
+    );
+
+    const recoveryRpcLog = [];
+    const recoveryPreview = await previewForRecovery(
+      makeRecoveryDeps({ rpcLog: recoveryRpcLog }),
+    );
+    assert(
+      recoveryPreview.ambiguousSaveRecoverable === true &&
+        recoveryPreview.preview?.ambiguousSaveRecoverable === true,
+      "Preview exposes durable ambiguousSaveRecoverable after AMBIGUOUS preflight",
+    );
+    assert(
+      !recoveryRpcLog.some((c) =>
+        /run_begin|run_resume|mark_entered|mark_portal|SaveData|rebase/i.test(c.name),
+      ),
+      "recovery Preview never mutates run / SaveData / rebase",
+    );
+
+    const noMarker = await previewForRecovery(
+      makeRecoveryDeps({ lastSaveOutcome: null }),
+    );
+    assert(
+      noMarker.ambiguousSaveRecoverable === false &&
+        noMarker.preview?.ambiguousSaveRecoverable === false,
+      "missing durable marker keeps recovery flag false",
+    );
+
+    const preflightFail = await previewForRecovery(
+      makeRecoveryDeps({ preflightThrows: "preflight down" }),
+    );
+    assert(
+      preflightFail.ambiguousSaveRecoverable === false,
+      "preflight failure keeps durable recovery flag false",
+    );
+
+    const forgedCmd = sanitizeRendererCommand({
+      userConfirmed: true,
+      lastSaveOutcome: "AMBIGUOUS",
+      last_save_outcome: "AMBIGUOUS",
+      save_outcome: "AMBIGUOUS",
+      ambiguousSaveRecoverable: true,
+    });
+    assert(
+      forgedCmd.lastSaveOutcome === undefined &&
+        forgedCmd.last_save_outcome === undefined &&
+        forgedCmd.save_outcome === undefined,
+      "sanitize strips forged save-outcome recovery keys",
+    );
+    assert(
+      forgedCmd.ambiguousSaveRecoverable === undefined,
+      "sanitize does not accept renderer ambiguousSaveRecoverable",
+    );
+  }
+
   // Client-side transliteration must stay out of the portal fill path.
   {
     const fillPathSrc = createInPageFillScript();

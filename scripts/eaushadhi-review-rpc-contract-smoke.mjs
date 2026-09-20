@@ -581,6 +581,28 @@ assert(!/suggested_product_/.test(classificationMigration), "worker payload neve
 assert(!/rpc_eaushadhi_worker_run_begin/.test(classificationMigration), "classification payload migration has no run_begin");
 assert(!/mark_submitted/.test(classificationMigration), "classification payload migration has no SUBMITTED");
 
+const preflightLastSaveMigration = readFileSync(
+  join(root, "supabase/migrations/20260920120000_eaushadhi_preflight_last_save_outcome.sql"),
+  "utf8",
+);
+assert(
+  preflightLastSaveMigration.includes("rpc_eaushadhi_worker_preflight"),
+  "preflight last_save migration replaces worker preflight",
+);
+assert(
+  /'last_save_outcome',\s*v_run\.last_save_outcome/.test(preflightLastSaveMigration) &&
+    /'last_save_observed_at',\s*v_run\.last_save_observed_at/.test(preflightLastSaveMigration),
+  "preflight active_run includes last_save_outcome and last_save_observed_at",
+);
+assert(
+  !/'last_save_evidence'/.test(preflightLastSaveMigration),
+  "preflight migration does not expose last_save_evidence",
+);
+assert(
+  /v_eligible\s*:=\s*v_has_readiness[\s\S]{0,160}NOT_STARTED/.test(preflightLastSaveMigration),
+  "preflight migration keeps NOT_STARTED Start eligibility",
+);
+
 if (failed) {
   console.error(`\n${failed} RPC contract assertion(s) failed`);
   process.exit(1);

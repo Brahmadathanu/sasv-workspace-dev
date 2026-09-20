@@ -97,6 +97,59 @@ const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "coverage_complete",
 ]);
 
+/** Empty / null portal product refs only — never invent entered proof. */
+function portalRefIsEmpty(ref) {
+  if (ref == null) return true;
+  const text = String(ref).trim();
+  return text === "" || text.toLowerCase() === "null";
+}
+
+/**
+ * Durable ambiguous-save recovery eligibility from trusted preflight authority only.
+ * Requires successfully obtained preflight (`preflightObtained === true`).
+ * Never trusts renderer SAVE_AMBIGUOUS / local history / save evidence blobs.
+ */
+function deriveAmbiguousSaveRecoverable(authority = {}) {
+  if (!authority || authority.preflightObtained !== true) return false;
+  if (Number(authority.activeRunCount) !== 1) return false;
+  const run = authority.activeRun;
+  if (!run || typeof run !== "object") return false;
+  if (String(run.run_status ?? run.runStatus ?? "").toUpperCase() !== "RUNNING") {
+    return false;
+  }
+  if (
+    String(run.last_save_outcome ?? run.lastSaveOutcome ?? "").toUpperCase() !==
+    "AMBIGUOUS"
+  ) {
+    return false;
+  }
+  if (String(authority.entryStatus ?? authority.entry_status ?? "").toUpperCase() !== "IN_PROGRESS") {
+    return false;
+  }
+  if (!portalRefIsEmpty(authority.workflowPortalRef ?? authority.workflow_portal_ref)) {
+    return false;
+  }
+  if (!portalRefIsEmpty(run.portal_product_ref ?? run.portalProductRef)) {
+    return false;
+  }
+  return true;
+}
+
+function attachAmbiguousSaveRecoverable(assessment, authority) {
+  const flag = deriveAmbiguousSaveRecoverable(authority) === true;
+  const next = assessment && typeof assessment === "object" ? assessment : {};
+  next.ambiguousSaveRecoverable = flag;
+  if (next.preview && typeof next.preview === "object") {
+    next.preview = { ...next.preview, ambiguousSaveRecoverable: flag };
+  } else {
+    next.preview = {
+      ...(next.preview && typeof next.preview === "object" ? next.preview : {}),
+      ambiguousSaveRecoverable: flag,
+    };
+  }
+  return next;
+}
+
 /**
  * Resume-source readiness independent of entry_status / is_ready_for_entry.
  * Ordinary Start still uses is_ready_for_entry (NOT_STARTED-only).
@@ -494,7 +547,8 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       missing: ["preflight"],
     };
   }
-  if (!preflight || typeof preflight !== "object") {
+  const preflightObtained = !!(preflight && typeof preflight === "object");
+  if (!preflightObtained) {
     missing.push("preflight");
   }
 
@@ -503,6 +557,36 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       ? Number(preflight.workflow_row_version)
       : null;
   if (!Number.isInteger(workflowRowVersion)) missing.push("workflow_row_version");
+
+  // Parse active-run markers as soon as preflight is obtained so later probe
+  // failures can still fail-closed-derive durable recovery visibility.
+  const activeRunCountEarly = Number(preflight?.active_run_count ?? 0);
+  let activeRunEarly = null;
+  if (preflight?.active_run && typeof preflight.active_run === "object") {
+    const raw = preflight.active_run;
+    activeRunEarly = {
+      run_id: raw.run_id ?? null,
+      run_status: raw.run_status ?? null,
+      start_content_hash: raw.start_content_hash ?? null,
+      start_payload_hash: raw.start_payload_hash ?? null,
+      current_workflow_row_version: raw.current_workflow_row_version ?? null,
+      portal_product_ref: raw.portal_product_ref ?? null,
+      started_at: raw.started_at ?? null,
+      last_save_outcome: raw.last_save_outcome ?? null,
+      last_save_observed_at: raw.last_save_observed_at ?? null,
+    };
+  }
+  const entryStatusEarly =
+    preflight?.entry_status != null ? String(preflight.entry_status) : null;
+  const workflowPortalRefEarly = preflight?.portal_product_ref ?? null;
+  const preflightRecoverySlice = {
+    preflightObtained,
+    preflight: preflightObtained ? preflight : null,
+    activeRunCount: preflightObtained ? activeRunCountEarly : 0,
+    activeRun: preflightObtained ? activeRunEarly : null,
+    entryStatus: entryStatusEarly,
+    workflowPortalRef: workflowPortalRefEarly,
+  };
 
   let content = null;
   if (Number.isInteger(workflowRowVersion)) {
@@ -517,6 +601,7 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
         code: "AUTHORITATIVE_EVIDENCE_MISSING",
         message: error?.message || "content_get failed.",
         missing: ["content_get"],
+        ...preflightRecoverySlice,
       };
     }
   }
@@ -574,20 +659,8 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     missing.push("entry_status");
   }
 
-  const activeRunCount = Number(preflight?.active_run_count ?? 0);
-  let activeRun = null;
-  if (preflight?.active_run && typeof preflight.active_run === "object") {
-    const raw = preflight.active_run;
-    activeRun = {
-      run_id: raw.run_id ?? null,
-      run_status: raw.run_status ?? null,
-      start_content_hash: raw.start_content_hash ?? null,
-      start_payload_hash: raw.start_payload_hash ?? null,
-      current_workflow_row_version: raw.current_workflow_row_version ?? null,
-      portal_product_ref: raw.portal_product_ref ?? null,
-      started_at: raw.started_at ?? null,
-    };
-  }
+  const activeRunCount = preflightObtained ? activeRunCountEarly : Number(preflight?.active_run_count ?? 0);
+  const activeRun = preflightObtained ? activeRunEarly : null;
   const contentHashMatchesRunStart =
     activeRun && contentHash
       ? String(activeRun.start_content_hash || "") === String(contentHash)
@@ -611,6 +684,9 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
         code: "PAGE_PROBE_FAILED",
         message: "Product Details page probe failed.",
         missing: ["page_state"],
+        ...preflightRecoverySlice,
+        entryStatus,
+        workflowPortalRef: workflowPortalRefEarly,
       };
     }
   } else {
@@ -640,6 +716,9 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
         code: "DUPLICATE_SEARCH_FAILED",
         message: "Product Details duplicate search failed.",
         missing: ["duplicate_search"],
+        ...preflightRecoverySlice,
+        entryStatus,
+        workflowPortalRef: workflowPortalRefEarly,
       };
     }
   }
@@ -663,6 +742,9 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
         code: "PERMISSION_OPTIONS_FAILED",
         message: "Product Details permission options probe failed.",
         missing: ["permission_options"],
+        ...preflightRecoverySlice,
+        entryStatus,
+        workflowPortalRef: workflowPortalRefEarly,
       };
     }
   } else {
@@ -700,6 +782,9 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
         code: "APPROVED_COPY_RESOLUTION_FAILED",
         message: "Approved product copy resolution failed.",
         missing: ["approved_copy"],
+        ...preflightRecoverySlice,
+        entryStatus,
+        workflowPortalRef: workflowPortalRefEarly,
       };
     }
     approvedResolved = approvedResolution?.ok === true;
@@ -712,6 +797,7 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       code: "AUTHORITATIVE_EVIDENCE_MISSING",
       message: `Authoritative evidence incomplete: ${missing.join(", ")}.`,
       missing,
+      preflightObtained,
       preflight,
       content,
       contentHash,
@@ -733,6 +819,7 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       dossierReady,
       openBlockers,
       openPortalIssues,
+      workflowPortalRef: workflowPortalRefEarly,
     };
   }
 
@@ -741,6 +828,7 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     code: "AUTHORITY_COLLECTED",
     productId,
     requireEditPermission,
+    preflightObtained: true,
     preflight,
     content,
     contentHash,
@@ -762,7 +850,7 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
     activeRunCount,
     activeRun,
     contentHashMatchesRunStart,
-    workflowPortalRef: preflight?.portal_product_ref ?? null,
+    workflowPortalRef: workflowPortalRefEarly,
     resumeSourceReady: resumeSourceReady === true,
     compositionReviewComplete: compositionReviewComplete === true,
     classificationReviewComplete: classificationReviewComplete === true,
@@ -848,22 +936,25 @@ async function runTrustedProductDetailsPreview(deps = {}) {
   try {
     if (!authority.ok) {
       return applyLiveArmGate(
-        {
-          ok: false,
-          code: authority.code,
-          message: authority.message,
-          missing: authority.missing || [],
-          authority,
-          preview: {
-            productId: FIRST_CONTROLLED_PRODUCT_ID,
-            productName: EXPECTED_PORTAL_PRODUCT_NAME,
-            startEnabled: false,
-            blockers: [authority.code, ...(authority.missing || [])],
-            governanceBlockers: [],
-            contentHash: authority.contentHash || null,
-            workflowRowVersion: authority.workflowRowVersion || null,
+        attachAmbiguousSaveRecoverable(
+          {
+            ok: false,
+            code: authority.code,
+            message: authority.message,
+            missing: authority.missing || [],
+            authority,
+            preview: {
+              productId: FIRST_CONTROLLED_PRODUCT_ID,
+              productName: EXPECTED_PORTAL_PRODUCT_NAME,
+              startEnabled: false,
+              blockers: [authority.code, ...(authority.missing || [])],
+              governanceBlockers: [],
+              contentHash: authority.contentHash || null,
+              workflowRowVersion: authority.workflowRowVersion || null,
+            },
           },
-        },
+          authority,
+        ),
         liveArmed,
       );
     }
@@ -930,7 +1021,7 @@ async function runTrustedProductDetailsPreview(deps = {}) {
       activeRunCount: authority.activeRunCount,
       requireEditPermission: false,
     };
-    return applyLiveArmGate(assessment, liveArmed);
+    return applyLiveArmGate(attachAmbiguousSaveRecoverable(assessment, authority), liveArmed);
   } finally {
     // Preview never uploads — release downloaded temp copy after assessment.
     invokeApprovedCopyCleanup(authority);
@@ -1581,6 +1672,8 @@ module.exports = {
   sanitizeRendererCommand,
   collectAuthoritativeProductDetailsContext,
   buildTrustedExecutorInput,
+  deriveAmbiguousSaveRecoverable,
+  attachAmbiguousSaveRecoverable,
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
   runTrustedProductDetailsResume,
