@@ -168,4 +168,54 @@ ok(migrationSql.includes("is distinct from 'VERIFIED'"), "35. backfill skips VER
   );
 }
 
+// Durable ambiguous-save recovery visibility (post-restart).
+{
+  const preflightMigrationPath = join(
+    root,
+    "supabase/migrations/20260920120000_eaushadhi_preflight_last_save_outcome.sql",
+  );
+  const preflightSql = readFileSync(preflightMigrationPath, "utf8");
+  ok(
+    preflightSql.includes("rpc_eaushadhi_worker_preflight") &&
+      /'last_save_outcome',\s*v_run\.last_save_outcome/.test(preflightSql) &&
+      /'last_save_observed_at',\s*v_run\.last_save_observed_at/.test(preflightSql),
+    "preflight migration exposes last_save_outcome + last_save_observed_at on active_run",
+  );
+  ok(
+    !/'last_save_evidence'/.test(preflightSql),
+    "preflight migration does not expose last_save_evidence",
+  );
+  ok(
+    /v_eligible\s*:=\s*v_has_readiness[\s\S]*NOT_STARTED/.test(preflightSql),
+    "preflight Start eligibility remains NOT_STARTED-only",
+  );
+  ok(trustedSrc.includes("deriveAmbiguousSaveRecoverable"), "trusted derive helper present");
+  ok(trustedSrc.includes("ambiguousSaveRecoverable"), "trusted preview exposes ambiguousSaveRecoverable");
+  ok(
+    /last_save_outcome:\s*raw\.last_save_outcome/.test(trustedSrc) &&
+      /last_save_observed_at:\s*raw\.last_save_observed_at/.test(trustedSrc),
+    "trusted active_run maps last_save_outcome and last_save_observed_at",
+  );
+  ok(
+    controlSrc.includes("trustedAmbiguousRecovery") &&
+      controlSrc.includes("ambiguousSaveRecoverable") &&
+      controlSrc.includes("sameSessionAmbiguous"),
+    "renderer showReconcile uses trusted Preview recovery + same-session OR",
+  );
+  ok(
+    /showReconcile\s*=\s*[\s\S]{0,120}portalTextVerified[\s\S]{0,120}trustedAmbiguousRecovery[\s\S]{0,80}sameSessionAmbiguous/.test(
+      controlSrc,
+    ),
+    "Reconcile visibility requires portal VERIFIED and trusted or same-session AMBIGUOUS",
+  );
+  ok(
+    !/showReconcile\s*=\s*saveAmbiguous\s*&&\s*portalTextVerified/.test(controlSrc),
+    "Reconcile visibility no longer depends only on in-memory SAVE_AMBIGUOUS",
+  );
+  ok(
+    !/auto.?reconcil|onProductLoad[\s\S]{0,80}reconcileAmbiguous/i.test(controlSrc),
+    "no auto-reconcile on product load",
+  );
+}
+
 console.log("\nPortal diseases projection contract smoke passed");

@@ -2403,8 +2403,12 @@ function renderEntryDryRunCard() {
     pdPreview?.preview?.warning ||
     "This action will write Product Details to the Government e-Aushadhi portal. It will NOT add Composition and will NOT final-submit the product.";
   const portalTextVerified = isPortalDiseasesVerified(state.portalTextRow);
-  const saveAmbiguous = lastWorkerResultIsSaveAmbiguous();
-  const showReconcile = saveAmbiguous && portalTextVerified;
+  const trustedAmbiguousRecovery =
+    pdPreview?.preview?.ambiguousSaveRecoverable === true ||
+    pdPreview?.ambiguousSaveRecoverable === true;
+  const sameSessionAmbiguous = lastWorkerResultIsSaveAmbiguous();
+  const showReconcile =
+    portalTextVerified && (trustedAmbiguousRecovery || sameSessionAmbiguous);
   const showRebase = showReconcile && reconcileIsNoneReady(state.workerReconcileResult);
   const rebaseDone = state.workerRebaseResult?.ok === true;
   const reconcileDisabled = !available || busy;
