@@ -174,6 +174,7 @@ import {
   previewWorkerProductDetails,
   rebasePortalProjectionProductDetails,
   reconcileAmbiguousSaveProductDetails,
+  recoverAmbiguousSaveExactOneProductDetails,
   resumeWorkerProductDetails,
   startWorkerProductDetails,
   stopWorkerBrowser,
@@ -258,6 +259,7 @@ const state = {
   workerProductDetailsResult: null,
   workerReconcileResult: null,
   workerRebaseResult: null,
+  workerExactOneRecoveryResult: null,
   workerCaptureResult: null,
   loadGen: 0,
   busy: false,
@@ -2406,12 +2408,17 @@ function renderEntryDryRunCard() {
   const trustedAmbiguousRecovery =
     pdPreview?.preview?.ambiguousSaveRecoverable === true ||
     pdPreview?.ambiguousSaveRecoverable === true;
+  const trustedExactOneRecovery =
+    pdPreview?.preview?.ambiguousSaveExactOneRecoverable === true ||
+    pdPreview?.ambiguousSaveExactOneRecoverable === true;
   const sameSessionAmbiguous = lastWorkerResultIsSaveAmbiguous();
   const showReconcile =
     portalTextVerified && (trustedAmbiguousRecovery || sameSessionAmbiguous);
+  const showExactOneRecovery = portalTextVerified && trustedExactOneRecovery;
   const showRebase = showReconcile && reconcileIsNoneReady(state.workerReconcileResult);
   const rebaseDone = state.workerRebaseResult?.ok === true;
   const reconcileDisabled = !available || busy;
+  const exactOneRecoveryDisabled = !available || busy;
   return `
     <div class="section-card worker-entry-dryrun-card">
       <h3>First controlled entry readiness</h3>
@@ -2460,6 +2467,19 @@ function renderEntryDryRunCard() {
           : `<p class="muted-note" id="workerPortalTextGate">Portal projection must be VERIFIED in Product Details before ambiguous-save reconciliation is offered.</p>`
       }
       ${
+        showExactOneRecovery
+          ? `<div class="action-row">
+        <button type="button" class="icon-btn with-label primary" id="btnWorkerRecoverExactOneIdentity" data-edit-action="true" ${
+          exactOneRecoveryDisabled ? `data-force-disabled="true"` : ""
+        }>Recover Saved Portal Identity</button>
+      </div>
+      <p class="muted-note">No Save will occur; existing portal product will be reread and adopted only if exact governed comparison matches.</p>
+      <p class="muted-note" id="workerExactOneRecoveryResult">${escapeHtml(
+        workerExactOneRecoverySummary(state.workerExactOneRecoveryResult),
+      )}</p>`
+          : ""
+      }
+      ${
         showReconcile
           ? `<div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnWorkerReconcileAmbiguous" data-edit-action="true" ${
@@ -2504,6 +2524,15 @@ function reconcileIsNoneReady(result) {
 function workerReconcileSummary(result) {
   if (!result) {
     return "Read-only reconciliation has not been run for the ambiguous save.";
+  }
+  return [result.code || (result.ok === true ? "OK" : "BLOCKED"), result.message || ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function workerExactOneRecoverySummary(result) {
+  if (!result) {
+    return "Recover Saved Portal Identity has not been run.";
   }
   return [result.code || (result.ok === true ? "OK" : "BLOCKED"), result.message || ""]
     .filter(Boolean)
@@ -2754,6 +2783,50 @@ async function submitWorkerRebasePortalProjection() {
         result?.message || "Run authority rebased. Resume Product Details when ready.",
         "success",
       );
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
+async function submitWorkerRecoverExactOneIdentity() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (!isPortalDiseasesVerified(state.portalTextRow)) {
+    showToast("Verify the portal projection before recovering the saved portal identity.", "info");
+    return;
+  }
+  const pdPreview = state.workerProductDetailsPreview;
+  const recoverable =
+    pdPreview?.preview?.ambiguousSaveExactOneRecoverable === true ||
+    pdPreview?.ambiguousSaveExactOneRecoverable === true;
+  if (!recoverable) {
+    showToast("Recover Saved Portal Identity is only available for trusted EXACT_ONE recovery state.", "info");
+    return;
+  }
+  const ok = window.confirm(
+    "Recover Saved Portal Identity for Product 262?\n\nNo Save will occur; existing portal product will be reread and adopted only if exact governed comparison matches.",
+  );
+  if (!ok) return;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await recoverAmbiguousSaveExactOneProductDetails(
+      state.selectedProductId,
+      token,
+      { userConfirmed: true },
+    );
+    state.workerExactOneRecoveryResult = result;
+    if (result?.code === "LIVE_EXECUTION_NOT_ARMED") {
+      showToast(result.message || "Live execution is disarmed.", "info");
+    } else if (result?.ok === false) {
+      showToast(result.message || "Identity recovery blocked.", "error");
+    } else if (result?.ok === true) {
+      showToast(result.message || "Portal identity adopted and verified.", "success");
     }
   } catch (error) {
     showToast(userMessageForError(error), "error");
@@ -3161,6 +3234,7 @@ async function openProduct(productId) {
       state.workerProductDetailsResult = null;
       state.workerReconcileResult = null;
       state.workerRebaseResult = null;
+      state.workerExactOneRecoveryResult = null;
     }
     state.selectedProductId = Number(productId);
     state.queueRow = findQueueRow(state.queue, productId);
@@ -3243,6 +3317,7 @@ async function backToQueue() {
   state.workerProductDetailsResult = null;
   state.workerReconcileResult = null;
   state.workerRebaseResult = null;
+  state.workerExactOneRecoveryResult = null;
   state.portalTextRow = null;
   state.portalTextDraft = null;
   state.portalTextSaveStatus = "";
@@ -4987,6 +5062,9 @@ function wireEvents() {
     }
     if (event.target.id === "btnWorkerRebasePortalProjection") {
       void submitWorkerRebasePortalProjection();
+    }
+    if (event.target.id === "btnWorkerRecoverExactOneIdentity") {
+      void submitWorkerRecoverExactOneIdentity();
     }
   });
   $("tab-readiness")?.addEventListener("input", (event) => {

@@ -21,6 +21,8 @@ const CHANNELS = Object.freeze({
   PRODUCT_DETAILS_RECONCILE_AMBIGUOUS:
     "eaushadhi-worker:product-details-reconcile-ambiguous",
   PRODUCT_DETAILS_REBASE_PORTAL: "eaushadhi-worker:product-details-rebase-portal",
+  PRODUCT_DETAILS_RECOVER_AMBIGUOUS_EXACT_ONE:
+    "eaushadhi-worker:product-details-recover-ambiguous-exact-one",
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
@@ -155,6 +157,21 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
       return worker.rebasePortalProjectionProductDetailsExecution(productId, accessToken, {
         userConfirmed: payload?.userConfirmed === true,
       });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.PRODUCT_DETAILS_RECOVER_AMBIGUOUS_EXACT_ONE,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.recoverAmbiguousSaveExactOneProductDetailsExecution(
+        productId,
+        accessToken,
+        {
+          userConfirmed: payload?.userConfirmed === true,
+        },
+      );
     }),
   );
 

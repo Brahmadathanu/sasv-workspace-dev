@@ -93,6 +93,28 @@ export async function rebasePortalProjectionProductDetails(productId, accessToke
   });
 }
 
+export async function recoverAmbiguousSaveExactOneProductDetails(
+  productId,
+  accessToken,
+  options,
+) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.recoverAmbiguousSaveExactOneProductDetails !== "function") {
+    return {
+      ok: false,
+      errorKind: "UNSUPPORTED_WORKER_ACTION",
+      message: "Ambiguous-save EXACT_ONE identity recovery is not available in this app build.",
+    };
+  }
+  return window.eaushadhiWorkerAPI.recoverAmbiguousSaveExactOneProductDetails(
+    productId,
+    accessToken,
+    {
+      userConfirmed: options?.userConfirmed === true,
+    },
+  );
+}
+
 export async function captureWorkerPortalContract(accessToken) {
   if (!workerApiAvailable()) return unsupported();
   return window.eaushadhiWorkerAPI.capturePortalContract(accessToken);

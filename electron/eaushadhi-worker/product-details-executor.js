@@ -16,7 +16,7 @@ const {
   resolvePermissionPurposeByExactLabel,
   buildFillPlan,
 } = require("./product-details-field-map");
-const { evaluateDuplicateGuard, DUPLICATE_OUTCOME } = require("./portal-duplicate-guard");
+const { evaluateDuplicateGuard, DUPLICATE_OUTCOME, deriveExactOnePortalProductId } = require("./portal-duplicate-guard");
 const { buildDependentClassificationSteps } = require("./portal-dom-fill");
 const {
   createSaveMutex,
@@ -53,6 +53,8 @@ const RESUME_ACTION = Object.freeze({
   STOP_DUPLICATE_SEARCH_INCOMPLETE: "STOP_DUPLICATE_SEARCH_INCOMPLETE",
   STOP_DUPLICATE_COVERAGE_UNPROVEN: "STOP_DUPLICATE_COVERAGE_UNPROVEN",
   STOP_CONFLICTING_REFS: "STOP_CONFLICTING_REFS",
+  STOP_AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY:
+    "STOP_AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
   STOP: "STOP",
 });
 
@@ -362,11 +364,16 @@ function normalizePortalRef(value) {
 
 function extractPortalIdFromDuplicateMatch(match) {
   if (!match || typeof match !== "object") return null;
-  const raw = match.id != null ? match.id : match.product_id;
-  if (raw == null) return null;
-  const text = String(raw).trim();
-  if (!text || text === "262" || text === String(FIRST_CONTROLLED_PRODUCT_ID)) return null;
-  return text;
+  // Authoritative identity: hid* parsed from edit HTML (or pre-attached portalProductId from guard).
+  if (match.portalProductId != null) {
+    const pre = String(match.portalProductId).trim();
+    if (pre && pre !== "0" && pre !== "-1" && pre !== "262" && pre !== String(FIRST_CONTROLLED_PRODUCT_ID)) {
+      return pre;
+    }
+  }
+  const derived = deriveExactOnePortalProductId(match);
+  if (derived.ok && derived.portalProductId) return String(derived.portalProductId);
+  return null;
 }
 
 function buildExpectedCompare(preflight) {
@@ -982,6 +989,29 @@ function planResumeAction(context = {}) {
       action: RESUME_ACTION.STOP_DUPLICATE_COVERAGE_UNPROVEN,
       code: "RESUME_STOP_DUPLICATE_COVERAGE_UNPROVEN",
       message: "Duplicate search coverage unproven; resume/reconcile blocked.",
+    };
+  }
+
+  const lastSaveOutcome = String(
+    activeRun?.last_save_outcome ??
+      activeRun?.lastSaveOutcome ??
+      context.lastSaveOutcome ??
+      context.last_save_outcome ??
+      "",
+  ).toUpperCase();
+
+  // Ambiguous-save + EXACT_ONE must use dedicated identity recovery — never ordinary Resume/SaveData.
+  if (
+    lastSaveOutcome === "AMBIGUOUS" &&
+    duplicateOutcome === DUPLICATE_OUTCOME.EXACT_ONE &&
+    activeRunCount === 1
+  ) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY,
+      code: "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+      message:
+        "Ambiguous Save left an exact portal identity. Use Recover Saved Portal Identity — ordinary Resume is blocked.",
     };
   }
 

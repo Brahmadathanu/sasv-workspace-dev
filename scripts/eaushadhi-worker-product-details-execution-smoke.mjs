@@ -315,7 +315,13 @@ assert(
   evaluateDuplicateGuard(
     blankListEvidence({
       totalCount: 1,
-      rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+      rows: [
+        {
+          name: "Karpooradi Thailam",
+          id: "9001",
+          edit: '<input type="hidden" id="hid1" value="9001" />',
+        },
+      ],
       coverageComplete: true,
     }),
   ).outcome === DUPLICATE_OUTCOME.EXACT_ONE,
@@ -2898,7 +2904,13 @@ assert(
 
   const exactOneDuplicate = blankListEvidence({
     totalCount: 1,
-    rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+    rows: [
+      {
+        name: "Karpooradi Thailam",
+        id: "9001",
+        edit: '<input type="hidden" id="hid1" value="9001" />',
+      },
+    ],
   });
   let exactOneSaveCalls = 0;
   let exactOnePortalArgs = null;
@@ -3264,12 +3276,17 @@ assert(
     indexSrc.indexOf("async function requireViewPermission"),
   );
   assert(
-    (reconcileWrapper.match(/sanitizeRendererCommand\(rawOptions\)/g) || []).length === 2,
-    "reconcile and rebase wrappers both sanitize renderer options",
+    (reconcileWrapper.match(/sanitizeRendererCommand\(rawOptions\)/g) || []).length === 3,
+    "reconcile, rebase, and exact-one recovery wrappers all sanitize renderer options",
   );
   assert(
     !/rawOptions\./.test(reconcileWrapper) && !/\.\.\.rawOptions/.test(reconcileWrapper),
-    "reconcile/rebase wrappers never read raw renderer options directly",
+    "reconcile/rebase/recovery wrappers never read raw renderer options directly",
+  );
+  assert(
+    reconcileWrapper.includes("recoverAmbiguousSaveExactOneProductDetailsExecution") &&
+      reconcileWrapper.includes("runTrustedAmbiguousSaveExactOneRecovery"),
+    "index exposes recoverAmbiguousSaveExactOneProductDetailsExecution via trusted orchestration",
   );
 }
 assert(indexSrc.includes("resolveApprovedProductCopyFile"), "index wires trusted approved-copy resolver");
@@ -3386,10 +3403,16 @@ assert(controlSrc.includes("Start Product Details"), "Review UI has Start Produc
 assert(controlSrc.includes("btnWorkerProductDetailsResume"), "Review UI has Resume Product Details button");
 assert(controlSrc.includes("productDetailsConfirmBackdrop"), "Review UI has productDetailsConfirm modal");
 assert(controlSrc.includes("resumeWorkerProductDetails"), "Review UI imports resumeWorkerProductDetails");
-assert(
-  !/async function submitWorkerProductDetailsStart[\s\S]*?window\.confirm/.test(controlSrc),
-  "Start flow does not use window.confirm",
-);
+{
+  const startFn = controlSrc.slice(
+    controlSrc.indexOf("async function submitWorkerProductDetailsStart"),
+    controlSrc.indexOf("async function submitWorkerProductDetailsResume"),
+  );
+  assert(
+    !startFn.includes("window.confirm"),
+    "Start flow does not use window.confirm",
+  );
+}
 assert(controlSrc.includes("will NOT add Composition"), "warning mentions no Composition");
 assert(!controlSrc.includes("submitProduct"), "UI does not reference submitProduct");
 assert(!/Enter Product/.test(controlSrc), "UI does not expose Enter Product");
@@ -4943,7 +4966,13 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   {
     const exactOne = blankListEvidence({
       totalCount: 1,
-      rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+      rows: [
+        {
+          name: "Karpooradi Thailam",
+          id: "9001",
+          edit: '<input type="hidden" id="hid1" value="9001" />',
+        },
+      ],
     });
     const blocked = await runTrustedAmbiguousSaveReconcile(
       makeReconcileDeps({ duplicateSearch: exactOne }),

@@ -81,6 +81,12 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       accessToken,
       userConfirmed: options?.userConfirmed === true,
     }),
+  recoverAmbiguousSaveExactOneProductDetails: (productId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:product-details-recover-ambiguous-exact-one", {
+      productId,
+      accessToken,
+      userConfirmed: options?.userConfirmed === true,
+    }),
   capturePortalContract: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
   openCaptureFolder: (accessToken) =>

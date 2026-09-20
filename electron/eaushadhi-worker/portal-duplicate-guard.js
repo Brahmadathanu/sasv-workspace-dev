@@ -12,6 +12,9 @@ const { EXPECTED_PORTAL_PRODUCT_NAME } = require("./product-details-field-map");
 /** Upper bound for full-list refetch (pageno=0, length=TotalCount). */
 const MAX_LIST_ROWS = 500;
 
+/** Bound retained list-row edit HTML (never execute). */
+const MAX_EDIT_HTML_CHARS = 8000;
+
 const DUPLICATE_OUTCOME = Object.freeze({
   NONE: "NONE",
   EXACT_ONE: "EXACT_ONE",
@@ -19,6 +22,107 @@ const DUPLICATE_OUTCOME = Object.freeze({
   SEARCH_INCOMPLETE: "SEARCH_INCOMPLETE",
   COVERAGE_UNPROVEN: "COVERAGE_UNPROVEN",
 });
+
+const FORBIDDEN_PORTAL_PRODUCT_IDS = Object.freeze(["0", "-1", "262"]);
+
+/**
+ * Bound string-only edit HTML from a list row. Never evaluates HTML/JS.
+ * @param {unknown} edit
+ * @returns {string|null}
+ */
+function boundEditHtml(edit) {
+  if (typeof edit !== "string") return null;
+  if (!edit) return "";
+  return edit.length > MAX_EDIT_HTML_CHARS ? edit.slice(0, MAX_EDIT_HTML_CHARS) : edit;
+}
+
+/**
+ * Parse hidden hid* input values from edit HTML via regex only.
+ * Requires exactly one hid* element that yields a non-blank value.
+ * @param {unknown} edit
+ * @returns {{ ok: boolean, reason?: string, values: string[], portalProductId?: string|null }}
+ */
+function extractHidValuesFromEditHtml(edit) {
+  if (typeof edit !== "string") {
+    return { ok: false, reason: "edit_missing", values: [] };
+  }
+  if (!edit.trim()) {
+    return { ok: false, reason: "edit_blank", values: [] };
+  }
+
+  const hidIds = [];
+  const idRe = /id\s*=\s*['"](hid\d+)['"]/gi;
+  let idMatch;
+  while ((idMatch = idRe.exec(edit)) !== null) {
+    hidIds.push(idMatch[1]);
+  }
+  if (hidIds.length === 0) {
+    return { ok: false, reason: "hid_input_missing", values: [] };
+  }
+
+  const values = [];
+  for (const hidId of hidIds) {
+    const escaped = hidId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const reValueAfterId = new RegExp(
+      `id\\s*=\\s*['"]${escaped}['"][^>]*value\\s*=\\s*['"]([^'"]*)['"]`,
+      "i",
+    );
+    const reValueBeforeId = new RegExp(
+      `value\\s*=\\s*['"]([^'"]*)['"][^>]*id\\s*=\\s*['"]${escaped}['"]`,
+      "i",
+    );
+    const m = edit.match(reValueAfterId) || edit.match(reValueBeforeId);
+    if (!m) {
+      return { ok: false, reason: "hid_value_missing", values: [] };
+    }
+    values.push(String(m[1]).trim());
+  }
+
+  if (values.length !== 1) {
+    return { ok: false, reason: "hid_value_count_not_one", values };
+  }
+
+  const portalProductId = values[0];
+  if (!portalProductId) {
+    return { ok: false, reason: "hid_value_blank", values };
+  }
+  if (FORBIDDEN_PORTAL_PRODUCT_IDS.includes(portalProductId)) {
+    return { ok: false, reason: "hid_value_forbidden", values, portalProductId };
+  }
+
+  return { ok: true, values, portalProductId };
+}
+
+/**
+ * Source-proven EXACT_ONE portal product id from edit HTML hid* only.
+ * Never treats top-level row.id / row.product_id as authoritative.
+ * @param {object|null|undefined} match
+ */
+function deriveExactOnePortalProductId(match) {
+  if (!match || typeof match !== "object") {
+    return { ok: false, reason: "match_missing", portalProductId: null, values: [] };
+  }
+  return extractHidValuesFromEditHtml(match.edit);
+}
+
+/**
+ * Normalize one list row while preserving bounded edit HTML for hid* recovery.
+ */
+function normalizeListRow(row) {
+  if (row == null) return { name: "", edit: null };
+  if (typeof row === "string") return { name: row, edit: null };
+  if (Array.isArray(row)) return { name: String(row[1] || row[0] || ""), edit: null };
+  const edit = boundEditHtml(row.edit);
+  const out = {
+    name: String(row.name || row.product_name || row.ProductName || ""),
+    edit,
+  };
+  // Retain top-level ids only as non-authoritative diagnostics.
+  if (row.id != null) out.id = row.id;
+  else if (row.product_id != null) out.id = row.product_id;
+  if (row.product_id != null) out.product_id = row.product_id;
+  return out;
+}
 
 /**
  * Portal business-failure detector for list responses.
@@ -167,12 +271,26 @@ function evaluateDuplicateGuard(searchResponse, expectedName = EXPECTED_PORTAL_P
     };
   }
   if (classified.outcome === "EXACT_ONE") {
+    const match = classified.matches[0] || null;
+    const idParse = deriveExactOnePortalProductId(match);
+    const matches = classified.matches.map((row, index) => {
+      if (index !== 0 || !row || typeof row !== "object") return row;
+      if (!idParse.ok) return row;
+      return { ...row, portalProductId: idParse.portalProductId };
+    });
     return {
       ok: false,
       outcome: DUPLICATE_OUTCOME.EXACT_ONE,
-      matches: classified.matches,
+      matches,
       totalCount: coverage.totalCount,
-      message: "Exact portal product already exists; refusing duplicate create.",
+      portalProductId: idParse.ok ? idParse.portalProductId : null,
+      portalProductIdParse: {
+        ok: idParse.ok === true,
+        reason: idParse.reason || null,
+      },
+      message: idParse.ok
+        ? "Exact portal product already exists; refusing duplicate create."
+        : "Exact portal name match found, but hid* portal product id is unproven; refusing create.",
     };
   }
   return {
@@ -240,17 +358,7 @@ function normalizeLoadProductDataforLegacyResponse(raw, targetName) {
         : payload.totalCount != null
           ? Number(payload.totalCount)
           : null;
-  const rows = Array.isArray(rowsRaw)
-    ? rowsRaw.map((row) => {
-        if (row == null) return { name: "" };
-        if (typeof row === "string") return { name: row };
-        if (Array.isArray(row)) return { name: String(row[1] || row[0] || "") };
-        return {
-          name: String(row.name || row.product_name || row.ProductName || ""),
-          id: row.id != null ? row.id : row.product_id,
-        };
-      })
-    : null;
+  const rows = Array.isArray(rowsRaw) ? rowsRaw.map(normalizeListRow) : null;
   const finiteTotal = Number.isFinite(totalCount) ? totalCount : null;
   const coverageComplete =
     finiteTotal != null &&
@@ -324,10 +432,16 @@ function buildLoadProductDataforLegacyListBody(transportSearchOrOptions, options
 
 module.exports = {
   MAX_LIST_ROWS,
+  MAX_EDIT_HTML_CHARS,
   DUPLICATE_OUTCOME,
+  FORBIDDEN_PORTAL_PRODUCT_IDS,
   isPortalListBusinessFailure,
   assessSearchCoverage,
   evaluateDuplicateGuard,
+  boundEditHtml,
+  extractHidValuesFromEditHtml,
+  deriveExactOnePortalProductId,
+  normalizeListRow,
   normalizeLoadProductDataforLegacyResponse,
   buildLoadProductDataforLegacyListParams,
   buildLoadProductDataforLegacyListUrl,
