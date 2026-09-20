@@ -1438,11 +1438,117 @@ async function runTrustedPortalProjectionRebase(deps = {}, command = {}) {
       };
     }
 
-    // Refresh authority so the caller sees post-rebase content/version truth.
-    refreshed = await collectAuthoritativeProductDetailsContext({
-      ...deps,
-      requireEditPermission: false,
-    });
+    const returnedContentHash =
+      returnedRow?.content_hash != null
+        ? String(returnedRow.content_hash)
+        : returnedRow?.contentHash != null
+          ? String(returnedRow.contentHash)
+          : null;
+
+    // Rebase already mutated server state. Fresh authority must prove the
+    // post-rebase run identity/hash before Resume is advertised. Never fall
+    // back to pre-rebase hash, never retry rebase, never auto-Resume.
+    const refreshBlocked = {
+      ...blockedShape,
+      mutated: true,
+      rebased: false,
+      resumeAvailable: false,
+      requiresReadOnlyReconciliation: true,
+      runId,
+      message:
+        "Portal projection rebase completed on the server, but fresh authority could not be proven. Reload authority before Resume. Do not retry rebase automatically.",
+    };
+
+    try {
+      refreshed = await collectAuthoritativeProductDetailsContext({
+        ...deps,
+        requireEditPermission: false,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        code: "REBASE_AUTHORITY_REFRESH_FAILED",
+        ...refreshBlocked,
+        message:
+          error?.message ||
+          refreshBlocked.message,
+      };
+    }
+
+    if (!refreshed || refreshed.ok !== true) {
+      return {
+        ok: false,
+        code: "REBASE_AUTHORITY_REFRESH_FAILED",
+        ...refreshBlocked,
+        refreshCode: refreshed?.code || null,
+        missing: refreshed?.missing || [],
+      };
+    }
+
+    if (Number(refreshed.activeRunCount) !== 1) {
+      return {
+        ok: false,
+        code: "REBASE_AUTHORITY_REFRESH_FAILED",
+        ...refreshBlocked,
+        refreshCode: "ACTIVE_RUN_INVALID",
+        message:
+          "Portal projection rebase completed, but refreshed authority does not show exactly one active run.",
+      };
+    }
+
+    const refreshedRunId =
+      refreshed.activeRun?.run_id ?? refreshed.activeRun?.runId ?? null;
+    if (!refreshedRunId || String(refreshedRunId) !== String(runId)) {
+      return {
+        ok: false,
+        code: "REBASE_AUTHORITY_REFRESH_FAILED",
+        ...refreshBlocked,
+        refreshCode: "REBASE_RUN_ID_MISMATCH",
+        message:
+          "Portal projection rebase completed, but refreshed active run_id does not match the pre-rebase run.",
+      };
+    }
+
+    if (String(refreshed.entryStatus || "").toUpperCase() !== "IN_PROGRESS") {
+      return {
+        ok: false,
+        code: "REBASE_AUTHORITY_REFRESH_FAILED",
+        ...refreshBlocked,
+        refreshCode: "ENTRY_STATUS_INVALID",
+        message:
+          "Portal projection rebase completed, but refreshed workflow is not IN_PROGRESS.",
+      };
+    }
+
+    const refreshedHash =
+      refreshed.contentHash != null && String(refreshed.contentHash).trim() !== ""
+        ? String(refreshed.contentHash)
+        : null;
+    if (!refreshedHash) {
+      return {
+        ok: false,
+        code: "REBASE_AUTHORITY_REFRESH_FAILED",
+        ...refreshBlocked,
+        refreshCode: "CONTENT_HASH_MISSING",
+        message:
+          "Portal projection rebase completed, but refreshed content hash is missing.",
+      };
+    }
+
+    if (
+      returnedContentHash &&
+      String(returnedContentHash).trim() !== "" &&
+      String(returnedContentHash) !== refreshedHash
+    ) {
+      return {
+        ok: false,
+        code: "REBASE_AUTHORITY_REFRESH_FAILED",
+        ...refreshBlocked,
+        refreshCode: "CONTENT_HASH_MISMATCH",
+        message:
+          "Portal projection rebase completed, but refreshed content hash does not match the rebase RPC result.",
+      };
+    }
 
     return {
       ok: true,
@@ -1450,8 +1556,8 @@ async function runTrustedPortalProjectionRebase(deps = {}, command = {}) {
       message:
         "Run authority rebased onto the verified portal projection. Resume Product Details manually when you are ready.",
       runId,
-      contentHash: refreshed?.contentHash ?? authority.contentHash,
-      workflowRowVersion: refreshed?.workflowRowVersion ?? null,
+      contentHash: refreshedHash,
+      workflowRowVersion: refreshed.workflowRowVersion ?? null,
       duplicateOutcome: DUPLICATE_OUTCOME.NONE,
       coverageComplete: true,
       mutated: true,

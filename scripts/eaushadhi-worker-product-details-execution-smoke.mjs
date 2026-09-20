@@ -4514,17 +4514,38 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     portalText = { portal_review_status: "VERIFIED", selected_portal_text: "Sandhirujah" },
     duplicateSearch = noneDuplicate,
     activeRunCount = 1,
-    rebaseReturn = { run_id: ambRunId, workflow_row_version: 7 },
+    rebaseReturn = {
+      run_id: ambRunId,
+      workflow_row_version: 7,
+      content_hash: "hash-karpooradi-smoke-1",
+    },
     rebaseThrows = null,
     rpcLog = [],
+    // After rebase RPC succeeds, subsequent authority collection can be overridden.
+    afterRebase = null,
   } = {}) {
+    let rebaseCompleted = false;
     return makeTrustedDeps({
       liveArmed: true,
-      searchDuplicates: async () => ({ ok: true, searchResponse: duplicateSearch }),
+      searchDuplicates: async () => {
+        if (rebaseCompleted && afterRebase?.duplicateSearch) {
+          return { ok: true, searchResponse: afterRebase.duplicateSearch };
+        }
+        if (rebaseCompleted && afterRebase?.searchDuplicatesThrows) {
+          throw new Error(afterRebase.searchDuplicatesThrows);
+        }
+        return { ok: true, searchResponse: duplicateSearch };
+      },
       callRpc: async (name, args) => {
         rpcLog.push({ name, args });
         if (name === "rpc_eaushadhi_require_permission") return { ok: true };
         if (name === "rpc_eaushadhi_worker_preflight") {
+          if (rebaseCompleted && afterRebase?.preflightThrows) {
+            throw new Error(afterRebase.preflightThrows);
+          }
+          if (rebaseCompleted && afterRebase?.preflight) {
+            return afterRebase.preflight;
+          }
           return {
             workflow_row_version: 7,
             entry_status: "IN_PROGRESS",
@@ -4549,10 +4570,19 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
             portal_product_ref: null,
           };
         }
-        if (name === "rpc_eaushadhi_worker_content_get") return ambContent;
+        if (name === "rpc_eaushadhi_worker_content_get") {
+          if (rebaseCompleted && afterRebase?.contentThrows) {
+            throw new Error(afterRebase.contentThrows);
+          }
+          if (rebaseCompleted && afterRebase?.content) {
+            return afterRebase.content;
+          }
+          return ambContent;
+        }
         if (name === PORTAL_TEXT_GET_RPC) return portalText;
         if (name === REBASE_PORTAL_PROJECTION_RPC) {
           if (rebaseThrows) throw new Error(rebaseThrows);
+          rebaseCompleted = true;
           return rebaseReturn;
         }
         throw new Error(`unexpected rpc ${name}`);
@@ -4718,6 +4748,238 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       failedRebase.resumeAvailable === false,
       "failed rebase does not offer Resume",
     );
+  }
+
+  // Post-rebase authority refresh must fail closed (no pre-rebase hash fallback).
+  {
+    const rpcLog = [];
+    const refreshFalse = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({
+        rpcLog,
+        afterRebase: {
+          preflight: {
+            workflow_row_version: null,
+            entry_status: "IN_PROGRESS",
+            active_run_count: 1,
+            active_run: {
+              run_id: ambRunId,
+              run_status: "RUNNING",
+              start_content_hash: "hash-karpooradi-smoke-1",
+            },
+          },
+        },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      refreshFalse.ok === false && refreshFalse.code === "REBASE_AUTHORITY_REFRESH_FAILED",
+      "refresh ok:false after rebase fails closed",
+    );
+    assert(refreshFalse.resumeAvailable === false, "refresh ok:false does not advertise Resume");
+    assert(refreshFalse.rebased !== true, "refresh ok:false does not claim rebased success");
+    assert(
+      rpcLog.filter((c) => c.name === REBASE_PORTAL_PROJECTION_RPC).length === 1,
+      "refresh ok:false does not retry rebase",
+    );
+    assert(
+      !rpcLog.some((c) => /run_begin|run_resume/.test(c.name)),
+      "refresh ok:false never calls run_begin/run_resume",
+    );
+  }
+
+  {
+    const rpcLog = [];
+    const refreshThrow = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({
+        rpcLog,
+        afterRebase: { preflightThrows: "authority probe failed after rebase" },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      refreshThrow.ok === false && refreshThrow.code === "REBASE_AUTHORITY_REFRESH_FAILED",
+      "refresh throw after rebase fails closed",
+    );
+    assert(refreshThrow.resumeAvailable === false, "refresh throw does not advertise Resume");
+    assert(
+      rpcLog.filter((c) => c.name === REBASE_PORTAL_PROJECTION_RPC).length === 1,
+      "refresh throw does not retry rebase",
+    );
+  }
+
+  {
+    const multi = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({
+        afterRebase: {
+          preflight: {
+            workflow_row_version: 7,
+            entry_status: "IN_PROGRESS",
+            is_ready_for_entry: false,
+            review_status: "VERIFIED",
+            composition_review_complete: true,
+            classification_review_complete: true,
+            dossier_ready: true,
+            open_blockers: 0,
+            open_portal_issues: 0,
+            active_run_count: 2,
+            active_run: null,
+            portal_product_ref: null,
+          },
+        },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      multi.ok === false && multi.code === "REBASE_AUTHORITY_REFRESH_FAILED",
+      "refreshed active run count not exactly 1 fails closed",
+    );
+    assert(multi.resumeAvailable === false, "multi active run does not advertise Resume");
+  }
+
+  {
+    const wrongRun = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({
+        afterRebase: {
+          preflight: {
+            workflow_row_version: 7,
+            entry_status: "IN_PROGRESS",
+            is_ready_for_entry: false,
+            review_status: "VERIFIED",
+            composition_review_complete: true,
+            classification_review_complete: true,
+            dossier_ready: true,
+            open_blockers: 0,
+            open_portal_issues: 0,
+            active_run_count: 1,
+            active_run: {
+              run_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+              run_status: "RUNNING",
+              start_content_hash: "hash-karpooradi-smoke-1",
+              current_workflow_row_version: 7,
+              portal_product_ref: null,
+            },
+            portal_product_ref: null,
+          },
+        },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      wrongRun.ok === false && wrongRun.code === "REBASE_AUTHORITY_REFRESH_FAILED",
+      "refreshed run_id mismatch fails closed",
+    );
+    assert(wrongRun.resumeAvailable === false, "run_id mismatch does not advertise Resume");
+  }
+
+  {
+    const entered = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({
+        afterRebase: {
+          preflight: {
+            workflow_row_version: 7,
+            entry_status: "ENTERED",
+            is_ready_for_entry: false,
+            review_status: "VERIFIED",
+            composition_review_complete: true,
+            classification_review_complete: true,
+            dossier_ready: true,
+            open_blockers: 0,
+            open_portal_issues: 0,
+            active_run_count: 1,
+            active_run: {
+              run_id: ambRunId,
+              run_status: "RUNNING",
+              start_content_hash: "hash-karpooradi-smoke-1",
+              current_workflow_row_version: 7,
+              portal_product_ref: null,
+            },
+            portal_product_ref: null,
+          },
+          content: baseContent({
+            entry_status: "ENTERED",
+            content_hash: "hash-karpooradi-smoke-1",
+            product: {
+              portal_product_name: "Karpooradi Thailam",
+              canonical_product_name: "Karpooradi Thailam",
+              review_status: "VERIFIED",
+            },
+            classification: {
+              review_status: "VERIFIED",
+              is_verified: true,
+              product_type: { portal_option_value: "1", label: "Ayurveda" },
+              product_category: { portal_option_value: "10", label: "Thailam" },
+              product_subtype: { portal_option_value: "31", label: "-" },
+            },
+            details: {
+              portal_remarks: GOVERNANCE_OVERRIDES.remarks,
+              portal_shelfmonth_route: GOVERNANCE_OVERRIDES.shelfmonth,
+            },
+            is_ready_for_entry: false,
+          }),
+        },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      entered.ok === false && entered.code === "REBASE_AUTHORITY_REFRESH_FAILED",
+      "refreshed entry status not IN_PROGRESS fails closed",
+    );
+    assert(entered.resumeAvailable === false, "non-IN_PROGRESS refresh does not advertise Resume");
+  }
+
+  {
+    const missingHash = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({
+        afterRebase: {
+          content: baseContent({
+            entry_status: "IN_PROGRESS",
+            content_hash: "",
+            product: {
+              portal_product_name: "Karpooradi Thailam",
+              canonical_product_name: "Karpooradi Thailam",
+              review_status: "VERIFIED",
+            },
+            classification: {
+              review_status: "VERIFIED",
+              is_verified: true,
+              product_type: { portal_option_value: "1", label: "Ayurveda" },
+              product_category: { portal_option_value: "10", label: "Thailam" },
+              product_subtype: { portal_option_value: "31", label: "-" },
+            },
+            details: {
+              portal_remarks: GOVERNANCE_OVERRIDES.remarks,
+              portal_shelfmonth_route: GOVERNANCE_OVERRIDES.shelfmonth,
+            },
+            is_ready_for_entry: false,
+          }),
+        },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      missingHash.ok === false && missingHash.code === "REBASE_AUTHORITY_REFRESH_FAILED",
+      "refreshed content hash missing fails closed",
+    );
+    assert(missingHash.resumeAvailable === false, "missing hash does not advertise Resume");
+  }
+
+  {
+    const hashMismatch = await runTrustedPortalProjectionRebase(
+      makeReconcileDeps({
+        rebaseReturn: {
+          run_id: ambRunId,
+          workflow_row_version: 7,
+          content_hash: "hash-from-rebase-rpc",
+        },
+      }),
+      { userConfirmed: true },
+    );
+    assert(
+      hashMismatch.ok === false && hashMismatch.code === "REBASE_AUTHORITY_REFRESH_FAILED",
+      "rebase RPC hash vs refreshed hash mismatch fails closed",
+    );
+    assert(hashMismatch.resumeAvailable === false, "hash mismatch does not advertise Resume");
+    assert(hashMismatch.rebased !== true, "hash mismatch does not claim rebased success");
   }
 
   // Rebase needs exactly one active run.

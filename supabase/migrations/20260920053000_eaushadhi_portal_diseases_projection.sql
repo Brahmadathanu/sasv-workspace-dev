@@ -386,6 +386,7 @@ declare
   v_old_selected text;
   v_old_status text;
   v_old_notes text;
+  v_event_kind text;
 begin
   v_user := public.rpc_eaushadhi_require_permission(true);
   v_text := nullif(btrim(p_portal_text), '');
@@ -477,6 +478,14 @@ begin
   where product_id = p_product_id
   returning * into v_row;
 
+  -- audit_event.action permits only INSERT|UPDATE|DELETE.
+  -- Semantic portal-text intent lives under event_kind in JSON payloads.
+  v_event_kind :=
+    case when p_verify
+      then 'VERIFY_PORTAL_DISEASES_TEXT'
+      else 'SAVE_PORTAL_DISEASES_TEXT'
+    end;
+
   insert into regulatory.audit_event(
     entity_schema, entity_table, entity_key, action,
     old_data, new_data, actor_user_id, application_name, occurred_at
@@ -485,13 +494,15 @@ begin
     'regulatory',
     'eaushadhi_product_review',
     p_product_id::text,
-    case when p_verify then 'VERIFY_PORTAL_DISEASES_TEXT' else 'SAVE_PORTAL_DISEASES_TEXT' end,
+    'UPDATE',
     jsonb_build_object(
+      'event_kind', v_event_kind,
       'selected_portal_text', v_old_selected,
       'portal_review_status', v_old_status,
       'portal_review_notes', v_old_notes
     ),
     jsonb_build_object(
+      'event_kind', v_event_kind,
       'canonical_text', v_row.selected_diseases_conditions_text,
       'suggested_portal_text', v_row.suggested_diseases_conditions_portal_text,
       'selected_portal_text', v_row.selected_diseases_conditions_portal_text,

@@ -134,4 +134,38 @@ ok(
 );
 ok(migrationSql.includes("is distinct from 'VERIFIED'"), "35. backfill skips VERIFIED rows");
 
+// Audit vocabulary: action column is INSERT|UPDATE|DELETE only.
+{
+  const portalSaveFn = migrationSql.slice(
+    migrationSql.indexOf("create or replace function public.rpc_eaushadhi_product_portal_text_save"),
+    migrationSql.indexOf("create or replace function public.rpc_eaushadhi_worker_mark_save_ambiguous"),
+  );
+  ok(
+    /'UPDATE'/.test(portalSaveFn) &&
+      /v_event_kind/.test(portalSaveFn) &&
+      /'event_kind',\s*v_event_kind/.test(portalSaveFn),
+    "portal-text audit writes action=UPDATE with event_kind",
+  );
+  ok(
+    /VERIFY_PORTAL_DISEASES_TEXT/.test(portalSaveFn) &&
+      /SAVE_PORTAL_DISEASES_TEXT/.test(portalSaveFn),
+    "semantic VERIFY/SAVE kinds remain under event_kind JSON",
+  );
+  ok(
+    !/p_product_id::text,\s*case when p_verify then 'VERIFY_PORTAL_DISEASES_TEXT'/.test(portalSaveFn),
+    "portal-text audit does not put custom verbs in action column",
+  );
+
+  const auditActionAfterEntityKey = [
+    ...migrationSql.matchAll(
+      /insert into regulatory\.audit_event[\s\S]{0,400}?::text,\s*'([A-Z_]+)'/g,
+    ),
+  ].map((m) => m[1]);
+  ok(auditActionAfterEntityKey.length >= 3, "migration has expected audit_event inserts");
+  ok(
+    auditActionAfterEntityKey.every((a) => ["INSERT", "UPDATE", "DELETE"].includes(a)),
+    `all audit_event.action literals are INSERT|UPDATE|DELETE (got ${auditActionAfterEntityKey.join(",")})`,
+  );
+}
+
 console.log("\nPortal diseases projection contract smoke passed");
