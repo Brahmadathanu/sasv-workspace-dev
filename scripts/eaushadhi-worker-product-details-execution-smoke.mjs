@@ -1717,6 +1717,26 @@ assert(
     "fill script defines exact-target wait helpers",
   );
   assert(
+    fillSrc.includes("isExactRadioTargetReady") &&
+      fillSrc.includes("collectExactValueRadios") &&
+      fillSrc.includes("resolveUniqueExactReadyRadio"),
+    "fill script defines uniqueness-before-readiness shelf radio helpers",
+  );
+  assert(
+    !/\.offsetParent\b/.test(fillSrc),
+    "fill script no longer uses offsetParent for shelf radio readiness/fill",
+  );
+  assert(
+    fillSrc.includes("#permissionPurpose") &&
+      /waitForExactSelectOption\(\s*'#permissionPurpose'/.test(fillSrc),
+    "Permission Purpose exact wait targets #permissionPurpose (not purposeApply)",
+  );
+  assert(
+    !/waitForExactSelectOption\(\s*'#purposeApply'/.test(fillSrc) &&
+      !/waitForExactSelectOption\(\s*"#purposeApply"/.test(fillSrc),
+    "purposeApply is not used as Permission Purpose select",
+  );
+  assert(
     fillSrc.includes("waitRequiredDependentControls") &&
       fillSrc.includes("PORTAL_PERMISSION_PURPOSE_TARGET_NOT_READY") &&
       fillSrc.includes("PORTAL_PERMISSION_PURPOSE_TARGET_AMBIGUOUS") &&
@@ -1771,13 +1791,33 @@ assert(
       dispatchEvent() {},
     };
   }
-  function makeRadio(value, { hidden = false, disabled = false } = {}) {
+  function makeRadio(
+    value,
+    {
+      hidden = false,
+      disabled = false,
+      disconnected = false,
+      display = null,
+      visibility = null,
+      offsetParentNull = false,
+      id = "",
+    } = {},
+  ) {
+    const cssDisplay = display != null ? display : hidden ? "none" : "block";
+    const cssVisibility = visibility != null ? visibility : "visible";
     return {
+      tagName: "INPUT",
+      type: "radio",
+      id: String(id || ""),
       name: "shelfmonth",
       value: String(value),
       checked: false,
       disabled,
-      offsetParent: hidden ? null : {},
+      hidden: hidden === true,
+      isConnected: disconnected ? false : true,
+      offsetParent: offsetParentNull || hidden ? null : {},
+      __display: cssDisplay,
+      __visibility: cssVisibility,
       dispatchEvent() {},
     };
   }
@@ -1806,7 +1846,14 @@ assert(
         return one ? [one] : [];
       },
     };
-    globalThis.window = globalThis;
+    globalThis.window = {
+      getComputedStyle(el) {
+        return {
+          display: el && el.__display != null ? el.__display : "block",
+          visibility: el && el.__visibility != null ? el.__visibility : "visible",
+        };
+      },
+    };
     return () => {
       globalThis.document = prevDocument;
       globalThis.window = prevWindow;
@@ -1835,9 +1882,7 @@ assert(
       query(sel) {
         if (sel === "#permissionPurpose") return perm;
         if (sel === "#uploadAttachment") return upload;
-        if (sel === 'input[name="shelfmonth"]') {
-          return radios.find((r) => r.offsetParent !== null) || radios[0] || null;
-        }
+        if (sel === 'input[name="shelfmonth"]') return radios[0] || null;
         return null;
       },
       queryAll(sel) {
@@ -1974,7 +2019,7 @@ assert(
     assert(mapped.runBegun === false && mapped.runId === resumeRunId, "no second run_begin; same run preserved");
   }
 
-  // 6. shelf radio exists hidden with RegularAsPerClause => NOT ready
+  // 6. shelf radio exists CSS-hidden with RegularAsPerClause => NOT ready
   {
     const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
     const hidden = makeRadio("RegularAsPerClause", { hidden: true });
@@ -1995,11 +2040,11 @@ assert(
     }
     assert(
       code === "PORTAL_SHELFLIFE_TARGET_NOT_READY",
-      "hidden RegularAsPerClause radio => TARGET_NOT_READY",
+      "CSS-hidden RegularAsPerClause radio => TARGET_NOT_READY",
     );
   }
 
-  // 7. hidden first, becomes visible later => waits then succeeds
+  // 7. CSS-hidden first, becomes ready later => waits then succeeds
   {
     const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
     const shelf = makeRadio("RegularAsPerClause", { hidden: true });
@@ -2007,12 +2052,15 @@ assert(
     const restore = installFakeDom(shelfDom(perm, [shelf], upload));
     try {
       setTimeout(() => {
+        shelf.hidden = false;
+        shelf.__display = "block";
+        shelf.__visibility = "visible";
         shelf.offsetParent = {};
       }, 80);
       const result = await runFill(dependentPlan);
       assert(
         result.filled.includes("shelfmonth") && shelf.checked === true,
-        "hidden first, becomes visible later: waits then succeeds",
+        "CSS-hidden first, becomes ready later: waits then succeeds",
       );
     } finally {
       restore();
@@ -2028,12 +2076,63 @@ assert(
     try {
       const result = await runFill(dependentPlan);
       assert(
-        result.filled.includes("shelfmonth") && shelf.value === "RegularAsPerClause",
+        result.filled.includes("shelfmonth") &&
+          shelf.value === "RegularAsPerClause" &&
+          shelf.checked === true,
         "exactly one visible enabled RegularAsPerClause => succeeds",
       );
     } finally {
       restore();
     }
+  }
+
+  // A. offsetParent null but CSS-ready exact radio => readiness passes (false-negative class)
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const shelf = makeRadio("RegularAsPerClause", {
+      id: "regular",
+      offsetParentNull: true,
+      hidden: false,
+      display: "block",
+      visibility: "visible",
+    });
+    assert(shelf.offsetParent === null, "fixture A has offsetParent null");
+    const upload = makeFileInput();
+    const restore = installFakeDom(shelfDom(perm, [shelf], upload));
+    try {
+      const result = await runFill(dependentPlan);
+      assert(
+        result.filled.includes("shelfmonth") &&
+          shelf.checked === true &&
+          shelf.value === "RegularAsPerClause",
+        "A: offsetParent-null but CSS-ready RegularAsPerClause passes and is checked",
+      );
+    } finally {
+      restore();
+    }
+  }
+
+  // C. exact target disabled => NOT_READY
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const shelf = makeRadio("RegularAsPerClause", { disabled: true });
+    const restore = installFakeDom(shelfDom(perm, [shelf], null));
+    let code = null;
+    try {
+      await runFill({
+        ...dependentPlan,
+        fields: [
+          { key: "permissionPurpose", fill: true, expected: "Regular" },
+          { key: "shelfmonth", fill: true, expected: "RegularAsPerClause" },
+        ],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+    } finally {
+      restore();
+    }
+    assert(code === "PORTAL_SHELFLIFE_TARGET_NOT_READY", "C: disabled exact radio => NOT_READY");
+    assert(shelf.checked !== true, "C: disabled exact radio is not selected");
   }
 
   // 9. duplicate visible exact radios => TARGET_AMBIGUOUS
@@ -2057,6 +2156,108 @@ assert(
       restore();
     }
     assert(code === "PORTAL_SHELFLIFE_TARGET_AMBIGUOUS", "duplicate visible exact radios => TARGET_AMBIGUOUS");
+  }
+
+  // D2. two exact-value candidates, one ready + one not ready => still AMBIGUOUS
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const ready = makeRadio("RegularAsPerClause", { id: "regular" });
+    const notReady = makeRadio("RegularAsPerClause", { id: "regular-hidden", hidden: true });
+    const restore = installFakeDom(shelfDom(perm, [ready, notReady], null));
+    let code = null;
+    let msg = "";
+    try {
+      await runFill({
+        ...dependentPlan,
+        fields: [
+          { key: "permissionPurpose", fill: true, expected: "Regular" },
+          { key: "shelfmonth", fill: true, expected: "RegularAsPerClause" },
+        ],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+      msg = String(error && error.message || "");
+    } finally {
+      restore();
+    }
+    assert(
+      code === "PORTAL_SHELFLIFE_TARGET_AMBIGUOUS",
+      "D2: one-ready + one-not-ready exact duplicates => AMBIGUOUS",
+    );
+    assert(/exactValueCount=2/.test(msg), "D2: diagnostics report exactValueCount=2");
+    assert(ready.checked !== true && notReady.checked !== true, "D2: neither duplicate selected");
+  }
+
+  // E. wrong governed value only (Applyforaccessofshelflife) => NOT_READY, never selected
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const wrong = makeRadio("Applyforaccessofshelflife", { id: "applyaccess" });
+    const restore = installFakeDom(shelfDom(perm, [wrong], null));
+    let code = null;
+    try {
+      await runFill({
+        ...dependentPlan,
+        fields: [
+          { key: "permissionPurpose", fill: true, expected: "Regular" },
+          { key: "shelfmonth", fill: true, expected: "RegularAsPerClause" },
+        ],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+    } finally {
+      restore();
+    }
+    assert(code === "PORTAL_SHELFLIFE_TARGET_NOT_READY", "E: Applyforaccessofshelflife only => NOT_READY");
+    assert(wrong.checked !== true, "E: Applyforaccessofshelflife never selected");
+  }
+
+  // K. one exact candidate becomes two during polling => AMBIGUOUS, never pick arbitrarily
+  {
+    const perm = makeSelect("permissionPurpose", [makeOption("7", "Regular")]);
+    const first = makeRadio("RegularAsPerClause", { id: "regular", hidden: true });
+    const radios = [first];
+    const restore = installFakeDom(shelfDom(perm, radios, null));
+    let code = null;
+    try {
+      setTimeout(() => {
+        first.hidden = false;
+        first.__display = "block";
+        first.__visibility = "visible";
+        radios.push(makeRadio("RegularAsPerClause", { id: "regular-dup" }));
+      }, 80);
+      await runFill({
+        ...dependentPlan,
+        fields: [
+          { key: "permissionPurpose", fill: true, expected: "Regular" },
+          { key: "shelfmonth", fill: true, expected: "RegularAsPerClause" },
+        ],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+    } finally {
+      restore();
+    }
+    assert(
+      code === "PORTAL_SHELFLIFE_TARGET_AMBIGUOUS",
+      "K: exact candidate becomes duplicate during poll => AMBIGUOUS",
+    );
+    assert(first.checked !== true, "K: never picks the first candidate after ambiguity appears");
+  }
+
+  // J. scope isolation: Permission Purpose path unchanged; helper is radio-only
+  {
+    const permFnStart = fillSrc.indexOf("function waitForExactSelectOption");
+    const radioReadyStart = fillSrc.indexOf("function isExactRadioTargetReady");
+    assert(permFnStart >= 0 && radioReadyStart > permFnStart, "J: helper ordering intact");
+    const permFnBody = fillSrc.slice(permFnStart, radioReadyStart);
+    assert(
+      !permFnBody.includes("isExactRadioTargetReady") && !/\.offsetParent\b/.test(permFnBody),
+      "J: waitForExactSelectOption does not use shelf radio readiness helper or offsetParent",
+    );
+    assert(
+      /waitForExactSelectOption\(\s*'#permissionPurpose',\s*permissionField\.expected/.test(fillSrc),
+      "J: Permission Purpose still waits on #permissionPurpose with expected Regular label",
+    );
   }
 
   // 10. exact visible shelf target never appears => TARGET_NOT_READY, SaveData = 0
@@ -2098,6 +2299,10 @@ assert(
       "shelf TARGET_NOT_READY: SaveData = 0",
     );
     assert(mapped.code !== "FILL_FORM_FAILED", "no generic FILL_FORM_FAILED for shelf target failure");
+    assert(
+      !String(mapped.message || "").includes("approvedCopy") && saveCalls === 0,
+      "H: shelf NOT_READY never reaches SaveData / approved-copy continuation",
+    );
   }
 
   // 11. legacy match-count messages map to structured codes

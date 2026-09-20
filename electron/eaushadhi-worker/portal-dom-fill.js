@@ -124,38 +124,115 @@ function createInPageFillScript() {
       });
     }
     /**
-     * Wait until exactly one visible, enabled radio matches name+value.
-     * Hidden/template radios do NOT count as ready. Duplicates fail closed.
+     * Narrow readiness for governed exact-value radios (Shelf Life).
+     * Exact-value uniqueness is evaluated separately BEFORE this helper.
+     * Intentionally omits legacy layout-parent heuristics and Playwright actionability.
+     */
+    function isExactRadioTargetReady(el) {
+      if (!el) return false;
+      var tag = String(el.tagName || '').toLowerCase();
+      if (tag && tag !== 'input') return false;
+      var type = String(el.type || '').toLowerCase();
+      if (type && type !== 'radio') return false;
+      if (el.isConnected === false) return false;
+      if (el.disabled === true) return false;
+      if (el.hidden === true) return false;
+      var win = typeof window !== 'undefined' ? window : null;
+      var style = win && typeof win.getComputedStyle === 'function' ? win.getComputedStyle(el) : null;
+      if (style) {
+        if (String(style.display || '') === 'none') return false;
+        if (String(style.visibility || '') === 'hidden') return false;
+      }
+      return true;
+    }
+    function shelfRadioSel(name) {
+      return String(name) === 'shelfmonth'
+        ? 'input[name="shelfmonth"]'
+        : 'input[name="' + String(name).replace(/"/g, '') + '"]';
+    }
+    function collectExactValueRadios(name, expectedValue) {
+      var expected = String(expectedValue || '').trim();
+      var all = document.querySelectorAll(shelfRadioSel(name));
+      var sameName = Array.prototype.slice.call(all);
+      var exact = sameName.filter(function(el) {
+        return String(el.value || '') === expected;
+      });
+      return { sameName: sameName, exact: exact, expected: expected };
+    }
+    function describeExactRadioCandidates(exact) {
+      var parts = [];
+      var limit = Math.min(exact.length, 3);
+      for (var i = 0; i < limit; i++) {
+        var el = exact[i];
+        var win = typeof window !== 'undefined' ? window : null;
+        var style = win && typeof win.getComputedStyle === 'function' ? win.getComputedStyle(el) : null;
+        parts.push(
+          'cand' + i +
+            '{id=' + String(el && el.id != null ? el.id : '') +
+            ',value=' + String(el && el.value != null ? el.value : '') +
+            ',disabled=' + String(el && el.disabled === true) +
+            ',connected=' + String(el && el.isConnected !== false) +
+            ',hidden=' + String(el && el.hidden === true) +
+            ',display=' + String(style && style.display != null ? style.display : '') +
+            ',visibility=' + String(style && style.visibility != null ? style.visibility : '') +
+            ',ready=' + String(isExactRadioTargetReady(el)) +
+            '}'
+        );
+      }
+      return parts.join(';');
+    }
+    function shelfRadioDiag(name, expected, collected) {
+      return (
+        'name=' + String(name) +
+        ' expected=' + String(expected) +
+        ' sameNameCount=' + String(collected.sameName.length) +
+        ' exactValueCount=' + String(collected.exact.length) +
+        (collected.exact.length ? ' ' + describeExactRadioCandidates(collected.exact) : '')
+      );
+    }
+    function resolveUniqueExactReadyRadio(name, expectedValue) {
+      var collected = collectExactValueRadios(name, expectedValue);
+      if (collected.exact.length > 1) {
+        var amb = new Error(
+          'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS ' + shelfRadioDiag(name, collected.expected, collected)
+        );
+        amb.code = 'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS';
+        throw amb;
+      }
+      if (collected.exact.length === 1 && isExactRadioTargetReady(collected.exact[0])) {
+        return collected.exact[0];
+      }
+      return null;
+    }
+    /**
+     * Wait until exactly one exact-value radio exists and that unique candidate is ready.
+     * Exact-value duplicates fail closed as AMBIGUOUS before readiness is considered.
      */
     function waitForExactVisibleRadio(name, expectedValue, timeoutMs) {
       var expected = String(expectedValue || '').trim();
       var deadline = Date.now() + (timeoutMs || CONTROL_READY_TIMEOUT_MS);
-      // Product 262 shelfmonth uses the exact governed radio name selector.
-      var radioSel =
-        String(name) === 'shelfmonth'
-          ? 'input[name="shelfmonth"]'
-          : 'input[name="' + String(name).replace(/"/g, '') + '"]';
       return new Promise(function(resolve, reject) {
         (function tick() {
-          var all = document.querySelectorAll(radioSel);
-          var matches = Array.prototype.filter.call(all, function(el) {
-            return (
-              String(el.value || '') === expected &&
-              el.disabled !== true &&
-              el.offsetParent !== null
-            );
-          });
-          if (matches.length > 1) {
-            var amb = new Error('PORTAL_SHELFLIFE_TARGET_AMBIGUOUS');
-            amb.code = 'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS';
-            return reject(amb);
+          try {
+            var collected = collectExactValueRadios(name, expected);
+            if (collected.exact.length > 1) {
+              var amb = new Error(
+                'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS ' + shelfRadioDiag(name, expected, collected)
+              );
+              amb.code = 'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS';
+              return reject(amb);
+            }
+            if (collected.exact.length === 1 && isExactRadioTargetReady(collected.exact[0])) {
+              return resolve(collected.exact[0]);
+            }
+          } catch (e) {
+            return reject(e);
           }
-          if (matches.length === 1) {
-            return resolve(matches[0]);
-          }
-          // 0 matches (missing, hidden, or wrong value) — keep waiting.
           if (Date.now() > deadline) {
-            var miss = new Error('PORTAL_SHELFLIFE_TARGET_NOT_READY');
+            var collectedLate = collectExactValueRadios(name, expected);
+            var miss = new Error(
+              'PORTAL_SHELFLIFE_TARGET_NOT_READY ' + shelfRadioDiag(name, expected, collectedLate)
+            );
             miss.code = 'PORTAL_SHELFLIFE_TARGET_NOT_READY';
             return reject(miss);
           }
@@ -209,8 +286,10 @@ function createInPageFillScript() {
         } catch (e) {
           var sCode = String(e && (e.code || e.message) || '');
           if (sCode.indexOf('PORTAL_SHELFLIFE_TARGET_AMBIGUOUS') >= 0) {
+            if (e && e.code === 'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS') throw e;
             failControl('PORTAL_SHELFLIFE_TARGET_AMBIGUOUS', 'shelfmonth');
           }
+          if (e && e.code === 'PORTAL_SHELFLIFE_TARGET_NOT_READY') throw e;
           failControl('PORTAL_SHELFLIFE_TARGET_NOT_READY', 'shelfmonth');
         }
       }
@@ -294,23 +373,35 @@ function createInPageFillScript() {
         continue;
       }
       if (field.key === 'shelfmonth') {
-        var radio = proven.shelfRadio;
-        if (!radio) {
+        var expectedShelf = String(field.expected || '').trim();
+        var radio = null;
+        try {
+          radio = resolveUniqueExactReadyRadio('shelfmonth', expectedShelf);
+        } catch (e) {
+          if (e && e.code === 'PORTAL_SHELFLIFE_TARGET_AMBIGUOUS') throw e;
+          if (e && e.code === 'PORTAL_SHELFLIFE_TARGET_NOT_READY') throw e;
           failControl('PORTAL_SHELFLIFE_TARGET_NOT_READY', 'shelfmonth');
         }
-        var expectedShelf = String(field.expected || '').trim();
-        if (
-          String(radio.value || '') !== expectedShelf ||
-          radio.disabled === true ||
-          radio.offsetParent === null
-        ) {
-          failControl('PORTAL_SHELFLIFE_TARGET_NOT_READY', 'shelfmonth');
+        if (!radio) {
+          var collectedFill = collectExactValueRadios('shelfmonth', expectedShelf);
+          var missFill = new Error(
+            'PORTAL_SHELFLIFE_TARGET_NOT_READY ' + shelfRadioDiag('shelfmonth', expectedShelf, collectedFill)
+          );
+          missFill.code = 'PORTAL_SHELFLIFE_TARGET_NOT_READY';
+          throw missFill;
         }
         radio.checked = true;
         radio.dispatchEvent(new Event('change', { bubbles: true }));
-        if (!radio.checked) {
-          throw new Error('shelfmonth not checked after fill');
+        if (radio.checked !== true) {
+          var collectedProof = collectExactValueRadios('shelfmonth', expectedShelf);
+          var missProof = new Error(
+            'PORTAL_SHELFLIFE_TARGET_NOT_READY post-check failed ' +
+              shelfRadioDiag('shelfmonth', expectedShelf, collectedProof)
+          );
+          missProof.code = 'PORTAL_SHELFLIFE_TARGET_NOT_READY';
+          throw missProof;
         }
+        proven.shelfRadio = radio;
         result.filled.push('shelfmonth');
       }
     }
