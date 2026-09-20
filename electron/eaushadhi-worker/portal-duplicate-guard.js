@@ -2,11 +2,15 @@
 
 /**
  * Read-only duplicate guard for Karpooradi Product Details create.
- * Uses LoadProductDataforLegacy search response coverage — never visible-page inference alone.
+ * Uses LoadProductDataforLegacy blank-search full-list coverage + local exact
+ * classification — never visible-page inference alone.
  */
 
 const { classifyLookupMatches, namesEqualExact, normalizeLookupName } = require("./lookup-equality");
 const { EXPECTED_PORTAL_PRODUCT_NAME } = require("./product-details-field-map");
+
+/** Upper bound for full-list refetch (pageno=0, length=TotalCount). */
+const MAX_LIST_ROWS = 500;
 
 const DUPLICATE_OUTCOME = Object.freeze({
   NONE: "NONE",
@@ -17,13 +21,28 @@ const DUPLICATE_OUTCOME = Object.freeze({
 });
 
 /**
+ * Portal business-failure detector for list responses.
+ * Fail closed on status 0 / "0" / false / "false".
+ */
+function isPortalListBusinessFailure(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const status = payload.status;
+  if (status === 0 || status === false) return true;
+  if (status == null) return false;
+  const text = String(status).trim().toLowerCase();
+  return text === "0" || text === "false";
+}
+
+function transportSearchIsBlank(res) {
+  if (res?.transportSearchBlank === true) return true;
+  if (Object.prototype.hasOwnProperty.call(res || {}, "transportSearch")) {
+    return String(res.transportSearch ?? "").trim() === "";
+  }
+  return false;
+}
+
+/**
  * @param {object} searchResponse
- * @param {string} [searchResponse.searchTerm]
- * @param {boolean} [searchResponse.searchApplied]
- * @param {number|null} [searchResponse.totalCount] TotalCount from list response
- * @param {Array} [searchResponse.rows] aaData / result rows for this search
- * @param {boolean} [searchResponse.coverageComplete] Explicit full-result coverage flag
- * @param {string} [searchResponse.source] Must identify LoadProductDataforLegacy
  */
 function assessSearchCoverage(searchResponse) {
   const res = searchResponse && typeof searchResponse === "object" ? searchResponse : null;
@@ -38,19 +57,26 @@ function assessSearchCoverage(searchResponse) {
       reason: "search_source_not_loadproductdataforlegacy",
     };
   }
-  if (res.searchApplied !== true) {
+  if (!transportSearchIsBlank(res)) {
     return {
       ok: false,
       outcome: DUPLICATE_OUTCOME.SEARCH_INCOMPLETE,
-      reason: "exact_search_not_applied",
+      reason: "transport_search_not_blank",
     };
   }
-  const expected = normalizeLookupName(res.searchTerm || EXPECTED_PORTAL_PRODUCT_NAME);
-  if (!namesEqualExact(expected, EXPECTED_PORTAL_PRODUCT_NAME)) {
+  if (res.localExactEvaluation !== true) {
     return {
       ok: false,
       outcome: DUPLICATE_OUTCOME.SEARCH_INCOMPLETE,
-      reason: "search_term_not_karpooradi",
+      reason: "local_exact_evaluation_not_asserted",
+    };
+  }
+  const targetName = res.targetName || res.searchTerm || EXPECTED_PORTAL_PRODUCT_NAME;
+  if (!namesEqualExact(normalizeLookupName(targetName), EXPECTED_PORTAL_PRODUCT_NAME)) {
+    return {
+      ok: false,
+      outcome: DUPLICATE_OUTCOME.SEARCH_INCOMPLETE,
+      reason: "target_name_not_karpooradi",
     };
   }
   if (!Array.isArray(res.rows)) {
@@ -71,12 +97,34 @@ function assessSearchCoverage(searchResponse) {
       reason: "total_count_unavailable",
     };
   }
-  if (total === 0) {
-    return { ok: true, outcome: DUPLICATE_OUTCOME.NONE, totalCount: 0, rows: [] };
+  if (res.coverageComplete !== true) {
+    return {
+      ok: false,
+      outcome: DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+      reason: res.reason || "result_page_incomplete_vs_total_count",
+      totalCount: total,
+      rowCount: res.rows.length,
+    };
   }
-  const coverageComplete =
-    res.coverageComplete === true || total === res.rows.length;
-  if (!coverageComplete) {
+  if (total === 0 && res.rows.length !== 0) {
+    return {
+      ok: false,
+      outcome: DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+      reason: "total_zero_with_rows",
+      totalCount: total,
+      rowCount: res.rows.length,
+    };
+  }
+  if (res.rows.length > total) {
+    return {
+      ok: false,
+      outcome: DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
+      reason: "rows_exceed_total_count",
+      totalCount: total,
+      rowCount: res.rows.length,
+    };
+  }
+  if (total > 0 && res.rows.length !== total) {
     return {
       ok: false,
       outcome: DUPLICATE_OUTCOME.COVERAGE_UNPROVEN,
@@ -85,14 +133,11 @@ function assessSearchCoverage(searchResponse) {
       rowCount: res.rows.length,
     };
   }
-  return { ok: true, totalCount: total, rows: res.rows };
+  return { ok: true, totalCount: total, rows: res.rows, targetName };
 }
 
 function evaluateDuplicateGuard(searchResponse, expectedName = EXPECTED_PORTAL_PRODUCT_NAME) {
-  const coverage = assessSearchCoverage({
-    ...(searchResponse || {}),
-    searchTerm: searchResponse?.searchTerm || expectedName,
-  });
+  const coverage = assessSearchCoverage(searchResponse || {});
   if (!coverage.ok) {
     return {
       ok: false,
@@ -108,25 +153,17 @@ function evaluateDuplicateGuard(searchResponse, expectedName = EXPECTED_PORTAL_P
     };
   }
 
-  if (coverage.outcome === DUPLICATE_OUTCOME.NONE || coverage.totalCount === 0) {
-    return {
-      ok: true,
-      outcome: DUPLICATE_OUTCOME.NONE,
-      matches: [],
-      totalCount: 0,
-      message: "Exact-name duplicate search proved no match.",
-    };
-  }
-
   const classified = classifyLookupMatches(coverage.rows, expectedName);
   if (classified.outcome === "NONE") {
-    // Rows present for search but none exact after normalization → treat as NONE only if total covered.
     return {
       ok: true,
       outcome: DUPLICATE_OUTCOME.NONE,
       matches: [],
       totalCount: coverage.totalCount,
-      message: "Search coverage complete; no exact-name match.",
+      message:
+        coverage.totalCount === 0
+          ? "Blank-list coverage proved empty catalog; no exact-name match."
+          : "Blank-list coverage complete; no exact-name match for Karpooradi Thailam.",
     };
   }
   if (classified.outcome === "EXACT_ONE") {
@@ -150,17 +187,40 @@ function evaluateDuplicateGuard(searchResponse, expectedName = EXPECTED_PORTAL_P
 /**
  * Normalize LoadProductDataforLegacy list response into duplicate-guard input.
  * Accepts DataTable-style TotalCount / aaData payloads only.
+ * Does not set coverageComplete from a single page alone for non-zero catalogs
+ * unless rows.length === TotalCount.
  */
-function normalizeLoadProductDataforLegacyResponse(raw, searchTerm) {
+function normalizeLoadProductDataforLegacyResponse(raw, targetName) {
+  const resolvedTarget = targetName || EXPECTED_PORTAL_PRODUCT_NAME;
   const payload = raw && typeof raw === "object" ? raw : null;
   if (!payload) {
     return {
       source: "LoadProductDataforLegacy",
-      searchApplied: false,
-      searchTerm: searchTerm || EXPECTED_PORTAL_PRODUCT_NAME,
+      mechanism: "datatable_list_post",
+      transportSearch: "",
+      transportSearchBlank: true,
+      targetName: resolvedTarget,
+      localExactEvaluation: true,
       totalCount: null,
       rows: null,
+      coverageComplete: false,
       reason: "response_not_object",
+    };
+  }
+  if (isPortalListBusinessFailure(payload)) {
+    return {
+      source: "LoadProductDataforLegacy",
+      mechanism: "datatable_list_post",
+      transportSearch: "",
+      transportSearchBlank: true,
+      targetName: resolvedTarget,
+      localExactEvaluation: true,
+      totalCount: null,
+      rows: null,
+      coverageComplete: false,
+      reason: "portal_business_failure",
+      portalStatus: payload.status,
+      portalMessage: payload.message != null ? String(payload.message) : null,
     };
   }
   const rowsRaw = Array.isArray(payload.aaData)
@@ -191,38 +251,56 @@ function normalizeLoadProductDataforLegacyResponse(raw, searchTerm) {
         };
       })
     : null;
+  const finiteTotal = Number.isFinite(totalCount) ? totalCount : null;
   const coverageComplete =
-    Number.isFinite(totalCount) && Array.isArray(rows) && totalCount === rows.length;
+    finiteTotal != null &&
+    Array.isArray(rows) &&
+    ((finiteTotal === 0 && rows.length === 0) ||
+      (finiteTotal > 0 && rows.length === finiteTotal));
   return {
     source: "LoadProductDataforLegacy",
-    searchApplied: true,
-    searchTerm: searchTerm || EXPECTED_PORTAL_PRODUCT_NAME,
-    totalCount: Number.isFinite(totalCount) ? totalCount : null,
+    mechanism: "datatable_list_post",
+    transportSearch: "",
+    transportSearchBlank: true,
+    targetName: resolvedTarget,
+    localExactEvaluation: true,
+    totalCount: finiteTotal,
     rows,
     coverageComplete,
-    mechanism: "datatable_list_post",
   };
 }
 
 /**
  * Query params for the proven read-only list endpoint (portal DataTable path).
- * Live portal places these on the URL query string — not in the POST body.
- * Does not invoke window.LoadProductDataforLegacy.
+ * Transport search defaults to blank. targetName is never written into search.
  */
-function buildLoadProductDataforLegacyListParams(searchTerm, options = {}) {
+function buildLoadProductDataforLegacyListParams(transportSearchOrOptions, options = {}) {
+  let transportSearch = "";
+  let opts = options;
+  if (
+    transportSearchOrOptions != null &&
+    typeof transportSearchOrOptions === "object" &&
+    !Array.isArray(transportSearchOrOptions)
+  ) {
+    opts = transportSearchOrOptions;
+    transportSearch =
+      opts.transportSearch != null ? String(opts.transportSearch) : "";
+  } else if (typeof transportSearchOrOptions === "string") {
+    // Legacy callers passed searchTerm as first arg — ignore as transport; blank only.
+    transportSearch = "";
+    opts = options;
+  }
   return {
-    pageno: options.pageno != null ? Number(options.pageno) : 0,
-    length: options.length != null ? Number(options.length) : 10,
-    search: String(searchTerm || EXPECTED_PORTAL_PRODUCT_NAME),
-    order: options.order || "1,null",
-    licenseid: options.licenseid != null ? String(options.licenseid) : "",
+    pageno: opts.pageno != null ? Number(opts.pageno) : 0,
+    length: opts.length != null ? Number(opts.length) : 10,
+    search: String(transportSearch),
+    order: opts.order || "1,null",
+    licenseid: opts.licenseid != null ? String(opts.licenseid) : "",
   };
 }
 
 /**
  * Build the relative list URL with encoded query parameters.
- * @param {string} [baseRelativeUrl]
- * @param {object} params from buildLoadProductDataforLegacyListParams
  */
 function buildLoadProductDataforLegacyListUrl(
   baseRelativeUrl = "../admin/LoadProductDataforLegacy",
@@ -240,12 +318,14 @@ function buildLoadProductDataforLegacyListUrl(
 }
 
 /** @deprecated Use buildLoadProductDataforLegacyListParams — list inputs are query params, not body. */
-function buildLoadProductDataforLegacyListBody(searchTerm, options = {}) {
-  return buildLoadProductDataforLegacyListParams(searchTerm, options);
+function buildLoadProductDataforLegacyListBody(transportSearchOrOptions, options = {}) {
+  return buildLoadProductDataforLegacyListParams(transportSearchOrOptions, options);
 }
 
 module.exports = {
+  MAX_LIST_ROWS,
   DUPLICATE_OUTCOME,
+  isPortalListBusinessFailure,
   assessSearchCoverage,
   evaluateDuplicateGuard,
   normalizeLoadProductDataforLegacyResponse,
