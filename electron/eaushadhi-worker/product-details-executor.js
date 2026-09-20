@@ -36,6 +36,7 @@ const PHASE = Object.freeze({
   FORM_FILLED: "FORM_FILLED",
   SAVE_REQUESTED: "SAVE_REQUESTED",
   SAVE_CONFIRMED: "SAVE_CONFIRMED",
+  SAVE_AMBIGUOUS_MARKED: "SAVE_AMBIGUOUS_MARKED",
   ENTERED_MARKED: "ENTERED_MARKED",
   REREAD_REQUESTED: "REREAD_REQUESTED",
   REREAD_RECEIVED: "REREAD_RECEIVED",
@@ -208,6 +209,69 @@ function classifyFillFormFailure(error) {
     code: "FILL_FORM_FAILED",
     message: "Product Details form fill failed before Save.",
   };
+}
+
+const SAVE_AMBIGUOUS_MARKER_CODE = Object.freeze({
+  MISSING: "SAVE_AMBIGUOUS_MARKER_MISSING",
+  FAILED: "SAVE_AMBIGUOUS_MARKER_FAILED",
+});
+
+/**
+ * Bounded, non-sensitive save evidence for the trusted AMBIGUOUS marker.
+ * Category fields only — never HTML, response bodies, cookies or tokens.
+ */
+function buildBoundedSaveEvidence(saveClassified, saveObservation, phase) {
+  const obs = saveObservation && typeof saveObservation === "object" ? saveObservation : {};
+  const invokeCount = Number(obs.invokeCount);
+  const httpStatus = Number(obs.status);
+  const tri = (value) => (value === true ? true : value === false ? false : null);
+  return {
+    phase: phase || null,
+    outcome: saveClassified?.outcome || null,
+    reason: saveClassified?.reason || null,
+    invoked: obs.invoked === true,
+    invokeCount: Number.isFinite(invokeCount) ? invokeCount : null,
+    settled: obs.settled === true,
+    httpOk: tri(obs.httpOk),
+    httpStatus: Number.isInteger(httpStatus) ? httpStatus : null,
+    businessSuccess: tri(obs.businessSuccess),
+    businessFailure: tri(obs.businessFailure),
+    portalProductIdPresent: Boolean(saveClassified?.portalProductId),
+  };
+}
+
+/**
+ * Trusted live adapters MUST provide markSaveAmbiguous. AMBIGUOUS is never
+ * reported to the caller unless the server-side marker was written first.
+ * Never retries SaveData; never marks ENTERED.
+ */
+async function markSaveAmbiguousOrFail(adapters, args) {
+  if (typeof adapters?.markSaveAmbiguous !== "function") {
+    return {
+      ok: false,
+      code: SAVE_AMBIGUOUS_MARKER_CODE.MISSING,
+      message:
+        "Ambiguous Save cannot be recorded: markSaveAmbiguous adapter is missing. Reconcile read-only.",
+    };
+  }
+  let result;
+  try {
+    result = await adapters.markSaveAmbiguous(args);
+  } catch (error) {
+    return {
+      ok: false,
+      code: SAVE_AMBIGUOUS_MARKER_CODE.FAILED,
+      message: String(error?.message || error || "mark_save_ambiguous failed."),
+    };
+  }
+  if (result && typeof result === "object" && result.ok === false) {
+    return {
+      ok: false,
+      code: SAVE_AMBIGUOUS_MARKER_CODE.FAILED,
+      message: String(result.message || "mark_save_ambiguous did not succeed."),
+    };
+  }
+  return { ok: true, result: result ?? null };
 }
 
 /**
@@ -622,17 +686,57 @@ async function executeProductDetails(input = {}, adapters = {}) {
     const saveClassified = classifySaveOutcome(saveObservation);
     phaseLog(phases, PHASE.SAVE_CONFIRMED, saveClassified.outcome);
 
+    if (saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS) {
+      const marker = await markSaveAmbiguousOrFail(adapters, {
+        runId,
+        expectedWorkflowRowVersion:
+          beginResult.workflow_row_version || workflowRowVersion,
+        expectedContentHash: contentHash,
+        saveEvidence: buildBoundedSaveEvidence(
+          saveClassified,
+          saveObservation,
+          PHASE.SAVE_CONFIRMED,
+        ),
+      });
+      if (!marker.ok) {
+        return {
+          ok: false,
+          code: marker.code,
+          message: marker.message,
+          phases,
+          runId,
+          runBegun: true,
+          mutated: saveObservation?.invoked === true,
+          portalProductId: saveClassified.portalProductId,
+          requiresReadOnlyReconciliation: true,
+          markerOk: false,
+          lastSaveOutcome: "AMBIGUOUS",
+          inventedFailureRpcCalled: false,
+        };
+      }
+      phaseLog(phases, PHASE.SAVE_AMBIGUOUS_MARKED, saveClassified.reason);
+      return {
+        ok: false,
+        code: "SAVE_AMBIGUOUS",
+        message: "Save outcome ambiguous; no retry create; reconcile read-only.",
+        phases,
+        runId,
+        runBegun: true,
+        mutated: saveObservation?.invoked === true,
+        portalProductId: saveClassified.portalProductId,
+        requiresReadOnlyReconciliation: true,
+        markerOk: true,
+        lastSaveOutcome: "AMBIGUOUS",
+        // Intentionally no mark_failed RPC — none is supported in worker API.
+        inventedFailureRpcCalled: false,
+      };
+    }
+
     if (saveClassified.outcome !== SAVE_OUTCOME.SUCCESS) {
       return {
         ok: false,
-        code:
-          saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS
-            ? "SAVE_AMBIGUOUS"
-            : "SAVE_FAILED",
-        message:
-          saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS
-            ? "Save outcome ambiguous; no retry create; reconcile read-only."
-            : "Save failed; no retry create.",
+        code: "SAVE_FAILED",
+        message: "Save failed; no retry create.",
         phases,
         runId,
         runBegun: true,
@@ -1405,17 +1509,58 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
       const saveClassified = classifySaveOutcome(saveObservation);
       phaseLog(phases, PHASE.SAVE_CONFIRMED, saveClassified.outcome);
 
+      if (saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS) {
+        const marker = await markSaveAmbiguousOrFail(adapters, {
+          runId: resumedRunId,
+          expectedWorkflowRowVersion:
+            resumeResult?.workflow_row_version ?? workflowRowVersion,
+          expectedContentHash: contentHash,
+          saveEvidence: buildBoundedSaveEvidence(
+            saveClassified,
+            saveObservation,
+            PHASE.RUN_RESUME,
+          ),
+        });
+        if (!marker.ok) {
+          return {
+            ok: false,
+            code: marker.code,
+            message: marker.message,
+            phases,
+            runId: resumedRunId,
+            runBegun: false,
+            runResumed: true,
+            mutated: saveObservation?.invoked === true,
+            portalProductId: saveClassified.portalProductId,
+            requiresReadOnlyReconciliation: true,
+            markerOk: false,
+            lastSaveOutcome: "AMBIGUOUS",
+            inventedFailureRpcCalled: false,
+          };
+        }
+        phaseLog(phases, PHASE.SAVE_AMBIGUOUS_MARKED, saveClassified.reason);
+        return {
+          ok: false,
+          code: "SAVE_AMBIGUOUS",
+          message: "Save outcome ambiguous during resume; reconcile read-only.",
+          phases,
+          runId: resumedRunId,
+          runBegun: false,
+          runResumed: true,
+          mutated: saveObservation?.invoked === true,
+          portalProductId: saveClassified.portalProductId,
+          requiresReadOnlyReconciliation: true,
+          markerOk: true,
+          lastSaveOutcome: "AMBIGUOUS",
+          inventedFailureRpcCalled: false,
+        };
+      }
+
       if (saveClassified.outcome !== SAVE_OUTCOME.SUCCESS) {
         return {
           ok: false,
-          code:
-            saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS
-              ? "SAVE_AMBIGUOUS"
-              : "SAVE_FAILED",
-          message:
-            saveClassified.outcome === SAVE_OUTCOME.AMBIGUOUS
-              ? "Save outcome ambiguous during resume; reconcile read-only."
-              : "Save failed during resume; reconcile read-only.",
+          code: "SAVE_FAILED",
+          message: "Save failed during resume; reconcile read-only.",
           phases,
           runId: resumedRunId,
           runBegun: false,
@@ -1652,6 +1797,8 @@ async function executeProductDetailsResume(input = {}, adapters = {}) {
 module.exports = {
   PHASE,
   RESUME_ACTION,
+  SAVE_AMBIGUOUS_MARKER_CODE,
+  buildBoundedSaveEvidence,
   FIRST_CONTROLLED_PRODUCT_ID,
   EXPECTED_PORTAL_PRODUCT_NAME,
   assessProductDetailsPreflight,

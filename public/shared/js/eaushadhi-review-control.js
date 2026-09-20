@@ -48,11 +48,16 @@ import {
   compositionIsComplete,
   customActionDraftRows,
   composeActionsDraft,
+  DEFAULT_IN_PROGRESS_PORTAL_REASON,
   detailsDraftFromReview,
   detailsDirty,
+  isPortalDiseasesVerified,
+  portalDiseasesCharsetOk,
   portalFieldsDraftFromRow,
   portalFieldsDirty,
   portalFieldsSaveReady,
+  portalTextDraftFromRow,
+  portalTextEditableValue,
   PORTAL_SHELFMONTH_ROUTE_OPTIONS,
   displayText,
   DOCUMENT_PURPOSE,
@@ -134,6 +139,7 @@ import {
   fetchProductQueue,
   fetchDocumentUploadContract,
   fetchProductClassificationOptions,
+  fetchProductPortalText,
   correctWorkingSourceLine,
   fetchSourceIssueContext,
   loadProductWorkspace,
@@ -151,6 +157,7 @@ import {
   saveProductClassificationReview,
   saveProductReview,
   saveProductDossierPortalFields,
+  saveProductPortalText,
   signedApprovedProductCopyUrl,
   uploadApprovedProductCopyObject,
   verifyProduct,
@@ -165,6 +172,8 @@ import {
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
   previewWorkerProductDetails,
+  rebasePortalProjectionProductDetails,
+  reconcileAmbiguousSaveProductDetails,
   resumeWorkerProductDetails,
   startWorkerProductDetails,
   stopWorkerBrowser,
@@ -222,6 +231,9 @@ const state = {
   portalFieldsDraft: null,
   portalFieldsBaseline: null,
   portalFieldsSaveStatus: "",
+  portalTextRow: null,
+  portalTextDraft: null,
+  portalTextSaveStatus: "",
   classification: null,
   classificationDraft: null,
   classificationBaseline: null,
@@ -244,6 +256,8 @@ const state = {
   workerDryRunResult: null,
   workerProductDetailsPreview: null,
   workerProductDetailsResult: null,
+  workerReconcileResult: null,
+  workerRebaseResult: null,
   workerCaptureResult: null,
   loadGen: 0,
   busy: false,
@@ -388,6 +402,74 @@ function portalFieldsEditable() {
   return canWrite() && normalizeEntryStatus(state.queueRow?.entry_status) === "NOT_STARTED";
 }
 
+const CANONICAL_DISEASES_LOCK_STATUSES = Object.freeze([
+  "IN_PROGRESS",
+  "ENTERED",
+  "PORTAL_VERIFIED",
+  "SUBMITTED",
+]);
+
+function canonicalDiseasesLocked() {
+  return CANONICAL_DISEASES_LOCK_STATUSES.includes(
+    normalizeEntryStatus(state.queueRow?.entry_status),
+  );
+}
+
+function portalTextReasonRequired() {
+  return normalizeEntryStatus(state.queueRow?.entry_status) === "IN_PROGRESS";
+}
+
+function newPortalTextDraft(row) {
+  const fresh = portalTextDraftFromRow(row);
+  return {
+    ...fresh,
+    editableText: portalTextEditableValue(fresh),
+    reason:
+      safeText(fresh.portalReviewNotes) ||
+      (portalTextReasonRequired() ? DEFAULT_IN_PROGRESS_PORTAL_REASON : ""),
+  };
+}
+
+function portalTextDirty(draft, row) {
+  if (!draft) return false;
+  const baseline = newPortalTextDraft(row);
+  return (
+    safeText(draft.editableText) !== safeText(baseline.editableText) ||
+    safeText(draft.reason) !== safeText(baseline.reason)
+  );
+}
+
+function portalTextBlockingReason() {
+  const draft = state.portalTextDraft;
+  if (!draft) return "Portal text is unavailable for this product.";
+  if (draft.rowVersion == null) {
+    return "Portal text row version is unavailable. Refresh the product before saving.";
+  }
+  const text = safeText(draft.editableText);
+  if (!text) return "Portal text is required.";
+  if (!portalDiseasesCharsetOk(text)) {
+    return "Portal text contains characters the portal rejects. Allowed: A-Z a-z 0-9 space , ; : / @ . ' -";
+  }
+  if (portalTextReasonRequired() && !safeText(draft.reason)) {
+    return "A reason is required while portal entry is IN_PROGRESS.";
+  }
+  return "";
+}
+
+function syncPortalTextUi() {
+  const hint = portalTextBlockingReason();
+  const ok = !hint && canWrite();
+  ["btnVerifyPortalDiseases", "btnSavePortalDiseases"].forEach((id) => {
+    const btn = $(id);
+    if (!btn) return;
+    btn.disabled = !ok || state.busy;
+    btn.dataset.forceDisabled = ok ? "false" : "true";
+    if (hint) btn.title = hint;
+    else btn.removeAttribute("title");
+  });
+  setHintEl("portalDiseasesHint", hint);
+}
+
 function syncDetailsVerifyUi() {
   const btn = $("btnVerifyDetails");
   if (!btn) return;
@@ -513,6 +595,7 @@ function patchAutosaveEl(id, status) {
   else el.removeAttribute("aria-live");
   if (id === "detailsAutosave") syncDetailsVerifyUi();
   if (id === "portalFieldsAutosave") syncPortalFieldsUi();
+  if (id === "portalTextAutosave") syncPortalTextUi();
   if (id === "actionsAutosave") syncActionsVerifyUi();
   if (id === "classificationAutosave") syncClassificationVerifyUi();
   if (String(id).startsWith("line-save-")) syncLineVerifyUi(String(id).slice("line-save-".length));
@@ -1028,10 +1111,18 @@ function renderDetails() {
   const host = $("tab-details");
   const draft = state.detailsDraft || detailsDraftFromReview(state.review);
   const portalDraft = state.portalFieldsDraft || portalFieldsDraftFromRow(state.dossierPortalFields);
+  const portalTextDraft = state.portalTextDraft || newPortalTextDraft(state.portalTextRow);
   const review = state.review || {};
   const locked = isVerifiedStatus(review.review_status);
   const portalEditable = portalFieldsEditable();
   const portalDisable = portalEditable ? "" : " disabled";
+  const canonicalLocked = canonicalDiseasesLocked();
+  const portalTextStatus = portalTextDraft.portalReviewStatus || "PENDING";
+  const portalTextChipClass =
+    portalTextStatus === "REVIEW_REQUIRED" ? "warning" : reviewStatusChipClass(portalTextStatus);
+  const portalTextHint = portalTextBlockingReason();
+  const portalReasonRequired = portalTextReasonRequired();
+  const portalTextAvailable = state.portalTextRow != null;
   const suggested = review.suggested_permission_purpose_label
     ? `Suggested: ${review.suggested_permission_purpose_label}`
     : "";
@@ -1138,8 +1229,52 @@ function renderDetails() {
       </div>
       <div class="form-field">
         <label for="fldDiseases">Diseases / Conditions</label>
-        <textarea id="fldDiseases" class="sasv-control" rows="3" data-edit-action="true"${disable}>${escapeHtml(draft.diseasesConditions || "")}</textarea>
+        <textarea id="fldDiseases" class="sasv-control" rows="3" data-edit-action="true"${disable}${
+          canonicalLocked ? " readonly" : ""
+        }>${escapeHtml(draft.diseasesConditions || "")}</textarea>
+        ${
+          canonicalLocked
+            ? `<span class="muted-note">Canonical text is locked after portal entry began (${escapeHtml(normalizeEntryStatus(state.queueRow?.entry_status))}). Correct the portal projection below instead.</span>`
+            : ""
+        }
       </div>
+    </div>
+    <div class="section-card" id="portalDiseasesCard">
+      <div class="section-title-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <h3 class="section-title" style="margin:0">e-Aushadhi Portal Text</h3>
+        ${chip(portalTextChipClass, displayText(portalTextStatus, "PENDING"))}
+      </div>
+      <p class="muted-note">Portal-safe projection of Diseases / Conditions. The canonical text above is preserved; only this projection is typed into the Government portal.</p>
+      ${
+        portalTextAvailable
+          ? `
+      <div class="form-field">
+        <label for="fldPortalDiseases">Portal Diseases / Conditions</label>
+        <textarea id="fldPortalDiseases" class="sasv-control" rows="3" data-edit-action="true" placeholder="Portal-safe text">${escapeHtml(portalTextDraft.editableText || "")}</textarea>
+        <span class="muted-note">Canonical: ${escapeHtml(displayText(portalTextDraft.canonicalText || draft.diseasesConditions))}</span>
+        ${
+          safeText(portalTextDraft.suggestedPortalText)
+            ? `<span class="muted-note">Suggested: ${escapeHtml(portalTextDraft.suggestedPortalText)}</span>`
+            : ""
+        }
+        <span class="muted-note">Generation version: ${escapeHtml(displayText(portalTextDraft.generationVersion))}</span>
+      </div>
+      <div class="form-field">
+        <label for="fldPortalDiseasesReason">Reason${portalReasonRequired ? " (required)" : ""}</label>
+        <textarea id="fldPortalDiseasesReason" class="sasv-control" rows="2" data-edit-action="true">${escapeHtml(portalTextDraft.reason || "")}</textarea>
+      </div>
+      ${autosaveHtml(state.portalTextSaveStatus, "portalTextAutosave")}
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label primary" id="btnVerifyPortalDiseases" data-edit-action="true"${
+          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
+        }>Accept &amp; Verify Portal Text</button>
+        <button type="button" class="icon-btn with-label" id="btnSavePortalDiseases" data-edit-action="true"${
+          portalTextHint ? ` data-force-disabled="true" title="${escapeHtml(portalTextHint)}"` : ""
+        }>Save for Review</button>
+      </div>
+      <p class="disabled-reason" id="portalDiseasesHint"${portalTextHint ? "" : " hidden"}>${escapeHtml(portalTextHint)}</p>`
+          : `<p class="muted-note">Portal projection is not available for this product yet.</p>`
+      }
     </div>
     <div class="section-card">
       <h3 class="section-title">Portal entry fields</h3>
@@ -1206,6 +1341,7 @@ function renderDetails() {
       el.dataset.forceDisabled = "true";
     });
   }
+  syncPortalTextUi();
   applyPermissionUi();
 }
 
@@ -2169,7 +2305,7 @@ function productDetailsConfirmBodyHtml(mode) {
   return `${resumeNote}
     <p><strong>Karpooradi Thailam</strong> (Product ${FIRST_CONTROLLED_PRODUCT_ID})</p>
     <ul>
-      <li>Product Details only — will write to the Government e-Aushadhi portal</li>
+      <li>Product Details only - will write to the Government e-Aushadhi portal</li>
       <li>Will NOT add Composition</li>
       <li>Will NOT final-submit the product</li>
       <li>Will attach governed approved copy: ${escapeHtml(PRODUCT_DETAILS_APPROVED_COPY_V01)}</li>
@@ -2266,6 +2402,12 @@ function renderEntryDryRunCard() {
   const warning =
     pdPreview?.preview?.warning ||
     "This action will write Product Details to the Government e-Aushadhi portal. It will NOT add Composition and will NOT final-submit the product.";
+  const portalTextVerified = isPortalDiseasesVerified(state.portalTextRow);
+  const saveAmbiguous = lastWorkerResultIsSaveAmbiguous();
+  const showReconcile = saveAmbiguous && portalTextVerified;
+  const showRebase = showReconcile && reconcileIsNoneReady(state.workerReconcileResult);
+  const rebaseDone = state.workerRebaseResult?.ok === true;
+  const reconcileDisabled = !available || busy;
   return `
     <div class="section-card worker-entry-dryrun-card">
       <h3>First controlled entry readiness</h3>
@@ -2308,7 +2450,60 @@ function renderEntryDryRunCard() {
           ? `${state.workerProductDetailsResult.code || ""} ${state.workerProductDetailsResult.message || ""}`.trim()
           : "Start remains blocked until preview clears every gate and live execution is armed.",
       )}</p>
+      ${
+        portalTextVerified
+          ? ""
+          : `<p class="muted-note" id="workerPortalTextGate">Portal projection must be VERIFIED in Product Details before ambiguous-save reconciliation is offered.</p>`
+      }
+      ${
+        showReconcile
+          ? `<div class="action-row">
+        <button type="button" class="icon-btn with-label" id="btnWorkerReconcileAmbiguous" data-edit-action="true" ${
+          reconcileDisabled ? `data-force-disabled="true"` : ""
+        }>Reconcile Ambiguous Save</button>
+        ${
+          showRebase
+            ? `<button type="button" class="icon-btn with-label" id="btnWorkerRebasePortalProjection" data-edit-action="true" ${
+                reconcileDisabled ? `data-force-disabled="true"` : ""
+              }>Rebase existing run authority</button>`
+            : ""
+        }
+      </div>
+      <p class="muted-note" id="workerReconcileResult">${escapeHtml(workerReconcileSummary(state.workerReconcileResult))}</p>
+      ${
+        rebaseDone
+          ? `<p class="muted-note" id="workerRebaseResult">${escapeHtml(
+              state.workerRebaseResult?.message ||
+                "Run authority rebased onto the verified portal projection.",
+            )} Resume Product Details is now available - start it manually when you are ready.</p>`
+          : ""
+      }`
+          : ""
+      }
     </div>`;
+}
+
+function lastWorkerResultIsSaveAmbiguous() {
+  const result = state.workerProductDetailsResult;
+  if (!result) return false;
+  return String(result.code || result.errorKind || "").toUpperCase() === "SAVE_AMBIGUOUS";
+}
+
+function reconcileIsNoneReady(result) {
+  if (!result || result.ok !== true) return false;
+  const outcome = String(
+    result.outcome ?? result.reconcileOutcome ?? result.duplicateOutcome ?? result.code ?? "",
+  ).toUpperCase();
+  return outcome.includes("NONE");
+}
+
+function workerReconcileSummary(result) {
+  if (!result) {
+    return "Read-only reconciliation has not been run for the ambiguous save.";
+  }
+  return [result.code || (result.ok === true ? "OK" : "BLOCKED"), result.message || ""]
+    .filter(Boolean)
+    .join(" ");
 }
 
 async function submitWorkerConnect() {
@@ -2504,6 +2699,67 @@ async function submitWorkerProductDetailsResume() {
   }
 }
 
+async function submitWorkerReconcileAmbiguousSave() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (!isPortalDiseasesVerified(state.portalTextRow)) {
+    showToast("Verify the portal projection before reconciling the ambiguous save.", "info");
+    return;
+  }
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await reconcileAmbiguousSaveProductDetails(state.selectedProductId, token, {
+      userConfirmed: true,
+    });
+    state.workerReconcileResult = result;
+    state.workerRebaseResult = null;
+    if (result?.ok === false) {
+      showToast(result.message || "Ambiguous-save reconciliation blocked.", "error");
+    } else {
+      showToast(result?.message || "Read-only reconciliation complete.", "success");
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
+async function submitWorkerRebasePortalProjection() {
+  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (!reconcileIsNoneReady(state.workerReconcileResult)) {
+    showToast("Rebase becomes available after reconciliation proves no portal duplicate.", "info");
+    return;
+  }
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    const result = await rebasePortalProjectionProductDetails(state.selectedProductId, token, {
+      userConfirmed: true,
+    });
+    state.workerRebaseResult = result;
+    if (result?.ok === false) {
+      showToast(result.message || "Portal projection rebase blocked.", "error");
+    } else {
+      // Resume stays manual: never auto-resume after a rebase.
+      showToast(
+        result?.message || "Run authority rebased. Resume Product Details when ready.",
+        "success",
+      );
+    }
+  } catch (error) {
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
 async function sessionAccessToken() {
   const {
     data: { session },
@@ -2665,6 +2921,7 @@ function selectWorkflowTab(next, { focusTab = false } = {}) {
   if (state.tab === "details") {
     syncDetailsDraftFromForm();
     syncClassificationDraftFromForm();
+    syncPortalTextDraftFromForm();
     void flushDetailsAutosave();
     void flushClassificationAutosave();
   }
@@ -2711,6 +2968,19 @@ function syncPortalFieldsDraftFromForm() {
   syncPortalFieldsUi();
 }
 
+function syncPortalTextDraftFromForm() {
+  if (!state.portalTextDraft) return;
+  const textEl = $("fldPortalDiseases");
+  const reasonEl = $("fldPortalDiseasesReason");
+  if (!textEl && !reasonEl) return;
+  state.portalTextDraft = {
+    ...state.portalTextDraft,
+    editableText: textEl ? textEl.value : state.portalTextDraft.editableText,
+    reason: reasonEl ? reasonEl.value : state.portalTextDraft.reason,
+  };
+  syncPortalTextUi();
+}
+
 function syncClassificationDraftFromForm() {
   if (!state.classificationDraft) return;
   const subtypeId = optionId($("fldClassSubtype")?.value);
@@ -2740,6 +3010,7 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.copy = payload.copy || null;
   state.classification = payload.classification || null;
   state.dossierPortalFields = payload.dossierPortalFields || null;
+  state.portalTextRow = payload.portalText || null;
   state.classificationOptions = payload.classificationOptions || {
     PRODUCT_TYPE: [],
     PRODUCT_CATEGORY: [],
@@ -2760,6 +3031,7 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
     state.lineSaveStatus = new Map();
     state.detailsSaveStatus = "";
     state.portalFieldsSaveStatus = "";
+    state.portalTextSaveStatus = "";
     state.classificationSaveStatus = "";
     state.actionsSaveStatus = "";
     state.copyPick = null;
@@ -2791,6 +3063,18 @@ function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
     state.portalFieldsDraft = freshPortalFields;
   }
   state.portalFieldsBaseline = freshPortalFields;
+
+  const freshPortalText = newPortalTextDraft(state.portalTextRow);
+  if (preserveDrafts && portalTextDirty(state.portalTextDraft, state.portalTextRow)) {
+    state.portalTextDraft = {
+      ...state.portalTextDraft,
+      ...freshPortalText,
+      editableText: state.portalTextDraft.editableText,
+      reason: state.portalTextDraft.reason,
+    };
+  } else {
+    state.portalTextDraft = freshPortalText;
+  }
 
   const freshClassification = classificationDraftFromReview(state.classification);
   if (
@@ -2871,6 +3155,8 @@ async function openProduct(productId) {
       state.workerDryRunResult = null;
       state.workerProductDetailsPreview = null;
       state.workerProductDetailsResult = null;
+      state.workerReconcileResult = null;
+      state.workerRebaseResult = null;
     }
     state.selectedProductId = Number(productId);
     state.queueRow = findQueueRow(state.queue, productId);
@@ -2951,6 +3237,11 @@ async function backToQueue() {
   state.workerDryRunResult = null;
   state.workerProductDetailsPreview = null;
   state.workerProductDetailsResult = null;
+  state.workerReconcileResult = null;
+  state.workerRebaseResult = null;
+  state.portalTextRow = null;
+  state.portalTextDraft = null;
+  state.portalTextSaveStatus = "";
   state.promoteNotes = "";
   state.promoteNotesOrigin = "unset";
   state.verifyNotes = "";
@@ -3265,6 +3556,78 @@ function queuePortalFieldsAutosave(immediate) {
 
 async function flushPortalFieldsAutosave() {
   if (flushDebounced(autosaveTimers, "portalFields")) await autosavePortalFields();
+}
+
+async function refreshPortalTextFromServer(result) {
+  let row = null;
+  if (result && typeof result === "object") {
+    if (result.selected_portal_text !== undefined || result.canonical_text !== undefined) {
+      row = result;
+    } else if (result.selected_diseases_conditions_portal_text !== undefined) {
+      // portal_text_save returns the product_review row; normalize to get-RPC shape.
+      row = {
+        product_id: result.product_id,
+        canonical_text: result.selected_diseases_conditions_text,
+        suggested_portal_text: result.suggested_diseases_conditions_portal_text,
+        selected_portal_text: result.selected_diseases_conditions_portal_text,
+        generation_version: result.diseases_conditions_portal_generation_version,
+        portal_review_status: result.diseases_conditions_portal_review_status,
+        portal_review_notes: result.diseases_conditions_portal_review_notes,
+        row_version: result.row_version,
+        reviewed_by: result.diseases_conditions_portal_reviewed_by,
+        reviewed_at: result.diseases_conditions_portal_reviewed_at,
+      };
+    }
+  }
+  if (!row) {
+    row = await fetchProductPortalText(state.selectedProductId).catch(() => null);
+  }
+  if (!row) return;
+  state.portalTextRow = { ...(state.portalTextRow || {}), ...row };
+  state.portalTextDraft = newPortalTextDraft(state.portalTextRow);
+}
+
+async function persistPortalText(verify) {
+  const draft = state.portalTextDraft;
+  if (!draft) return null;
+  state.portalTextSaveStatus = "saving";
+  patchAutosaveEl("portalTextAutosave", "saving");
+  const result = await saveProductPortalText({
+    productId: state.selectedProductId,
+    expectedRowVersion: draft.rowVersion,
+    portalText: safeText(draft.editableText),
+    verify,
+    reason: safeText(draft.reason) || null,
+  });
+  await refreshPortalTextFromServer(result);
+  state.portalTextSaveStatus = "saved";
+  patchAutosaveEl("portalTextAutosave", "saved");
+  return result;
+}
+
+async function submitPortalText(verify) {
+  syncPortalTextDraftFromForm();
+  const blocked = portalTextBlockingReason();
+  if (blocked) {
+    showToast(blocked, "error");
+    return;
+  }
+  await runMutation(async () => {
+    try {
+      await persistPortalText(verify);
+    } catch (err) {
+      const stale = err instanceof EaushadhiRpcError && err.kind === ERROR_KIND.STALE;
+      state.portalTextSaveStatus = stale ? "stale" : "failed";
+      patchAutosaveEl("portalTextAutosave", state.portalTextSaveStatus);
+      if (stale) await refreshPortalTextFromServer(null);
+      throw err;
+    }
+    showToast(
+      verify ? "Portal text verified." : "Portal text saved for review.",
+      "success",
+    );
+    renderDetails();
+  });
 }
 
 async function persistClassification(verify) {
@@ -4355,6 +4718,8 @@ function wireEvents() {
   $("tab-details")?.addEventListener("click", (event) => {
     if (event.target.id === "btnVerifyDetails") submitDetails(true);
     if (event.target.id === "btnReopenDetails") openReopen("details", event.target);
+    if (event.target.id === "btnVerifyPortalDiseases") void submitPortalText(true);
+    if (event.target.id === "btnSavePortalDiseases") void submitPortalText(false);
     if (event.target.id === "btnVerifyClassification") void submitClassification(true);
     if (event.target.id === "btnReopenClassification") openReopen("classification", event.target);
     const boolBtn = event.target.closest("[data-bool-value]");
@@ -4418,6 +4783,11 @@ function wireEvents() {
     if (["fldPortalRemarks", "fldPortalShelfmonthRoute"].includes(event.target.id)) {
       syncPortalFieldsDraftFromForm();
       queuePortalFieldsAutosave(false);
+      return;
+    }
+    if (["fldPortalDiseases", "fldPortalDiseasesReason"].includes(event.target.id)) {
+      // Portal projection has no autosave: it is saved only by its explicit buttons.
+      syncPortalTextDraftFromForm();
       return;
     }
     syncDetailsDraftFromForm();
@@ -4608,6 +4978,12 @@ function wireEvents() {
     if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
     if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();
     if (event.target.id === "btnWorkerProductDetailsResume") submitWorkerProductDetailsResume();
+    if (event.target.id === "btnWorkerReconcileAmbiguous") {
+      void submitWorkerReconcileAmbiguousSave();
+    }
+    if (event.target.id === "btnWorkerRebasePortalProjection") {
+      void submitWorkerRebasePortalProjection();
+    }
   });
   $("tab-readiness")?.addEventListener("input", (event) => {
     if (event.target.id === "fldPromoteNotes") {

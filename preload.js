@@ -69,6 +69,18 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       accessToken,
       userConfirmed: options?.userConfirmed === true,
     }),
+  reconcileAmbiguousSaveProductDetails: (productId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:product-details-reconcile-ambiguous", {
+      productId,
+      accessToken,
+      userConfirmed: options?.userConfirmed === true,
+    }),
+  rebasePortalProjectionProductDetails: (productId, accessToken, options) =>
+    ipcRenderer.invoke("eaushadhi-worker:product-details-rebase-portal", {
+      productId,
+      accessToken,
+      userConfirmed: options?.userConfirmed === true,
+    }),
   capturePortalContract: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
   openCaptureFolder: (accessToken) =>

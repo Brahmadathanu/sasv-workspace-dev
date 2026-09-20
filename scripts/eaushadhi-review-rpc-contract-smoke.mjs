@@ -59,11 +59,27 @@ const requiredRpcs = [
   "rpc_eaushadhi_worker_content_get",
   "rpc_eaushadhi_product_dossier_portal_fields_get",
   "rpc_eaushadhi_product_dossier_portal_fields_save",
+  "rpc_eaushadhi_product_portal_text_get",
+  "rpc_eaushadhi_product_portal_text_save",
 ];
 
 for (const name of requiredRpcs) {
   assert(apiSrc.includes(`"${name}"`), `adapter calls ${name}`);
 }
+
+assert(
+  !apiSrc.includes("rpc_eaushadhi_worker_run_rebase_portal_projection"),
+  "renderer API does not call rebase RPC",
+);
+assert(
+  !apiSrc.includes("rpc_eaushadhi_worker_mark_save_ambiguous"),
+  "renderer API does not call SAVE_AMBIGUOUS marker RPC",
+);
+assert(
+  !apiSrc.includes("rpc_eaushadhi_worker_payload_get_legacy_v1") &&
+    !apiSrc.includes("rpc_eaushadhi_verify_product_legacy_v1"),
+  "renderer API does not call sealed legacy payload/verify RPCs",
+);
 
 assert(
   apiSrc.includes("p_product_id: id") &&

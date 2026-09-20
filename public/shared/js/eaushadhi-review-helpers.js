@@ -1191,6 +1191,49 @@ export function portalFieldsSaveReady(draft) {
   );
 }
 
+// Characters the e-Aushadhi portal accepts in the Diseases / Conditions field.
+export const PORTAL_DISEASES_CHARSET_RE = /^[A-Za-z0-9 ,;:/@.'-]+$/;
+
+export const DEFAULT_IN_PROGRESS_PORTAL_REASON =
+  "Portal compatibility correction after native validation rejected Unicode diacritics; canonical text preserved.";
+
+export function portalTextDraftFromRow(row) {
+  const source = row || {};
+  return {
+    canonicalText: source.canonical_text ?? "",
+    suggestedPortalText: source.suggested_portal_text ?? "",
+    selectedPortalText: source.selected_portal_text ?? "",
+    generationVersion: source.generation_version ?? null,
+    portalReviewStatus: normalizeReviewStatus(source.portal_review_status) || "PENDING",
+    portalReviewNotes: source.portal_review_notes ?? "",
+    rowVersion: source.row_version ?? null,
+    reviewedBy: source.reviewed_by ?? null,
+    reviewedAt: source.reviewed_at ?? null,
+  };
+}
+
+export function isPortalDiseasesVerified(row) {
+  const source = row || {};
+  const status = normalizeReviewStatus(
+    source.portal_review_status ?? source.portalReviewStatus,
+  );
+  const selected = safeText(source.selected_portal_text ?? source.selectedPortalText);
+  return status === "VERIFIED" && selected !== "";
+}
+
+export function portalDiseasesCharsetOk(text) {
+  const value = safeText(text);
+  if (!value) return false;
+  return PORTAL_DISEASES_CHARSET_RE.test(value);
+}
+
+export function portalTextEditableValue(draft) {
+  const source = draft || {};
+  if (safeText(source.selectedPortalText)) return source.selectedPortalText;
+  if (safeText(source.suggestedPortalText)) return source.suggestedPortalText;
+  return "";
+}
+
 export function lineDraftFromRow(row) {
   const source = row || {};
   return {
