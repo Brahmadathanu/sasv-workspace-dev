@@ -2300,6 +2300,12 @@ const PRODUCT_DETAILS_APPROVED_COPY_V01 =
   "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf";
 
 function productDetailsConfirmBodyHtml(mode) {
+  if (mode === "recover") {
+    return `<p><strong>Karpooradi Thailam</strong> already exists in e-Aushadhi.</p>
+      <p>No Save will occur.</p>
+      <p>The existing portal record will be reread and adopted only if all governed Product Details fields match exactly.</p>
+      <p>No Composition or final Submit will occur.</p>`;
+  }
   const resumeNote =
     mode === "resume"
       ? "<p>An interrupted Product Details run was detected. Confirming will resume/reconcile the existing run on the same worker run id.</p>"
@@ -2330,19 +2336,26 @@ function closeProductDetailsConfirm(accepted) {
 }
 
 function openProductDetailsConfirmModal({ mode, trigger }) {
-  const normalizedMode = mode === "resume" ? "resume" : "start";
+  const normalizedMode = mode === "resume" || mode === "recover" ? mode : "start";
   const title = $("productDetailsConfirmTitle");
   const body = $("productDetailsConfirmBody");
   const okBtn = $("productDetailsConfirmOk");
   if (title) {
     title.textContent =
-      normalizedMode === "resume"
+      normalizedMode === "recover"
+        ? "Recover Saved Portal Identity"
+        : normalizedMode === "resume"
         ? "Resume Karpooradi Product Details"
         : "Start Product Details";
   }
   if (body) body.innerHTML = productDetailsConfirmBodyHtml(normalizedMode);
   if (okBtn) {
-    okBtn.textContent = normalizedMode === "resume" ? "Resume & Continue" : "Confirm & Start";
+    okBtn.textContent =
+      normalizedMode === "recover"
+        ? "Confirm & Recover"
+        : normalizedMode === "resume"
+          ? "Resume & Continue"
+          : "Confirm & Start";
   }
   state.productDetailsConfirm = {
     open: true,
@@ -2476,7 +2489,8 @@ function renderEntryDryRunCard() {
       <p class="muted-note">No Save will occur; existing portal product will be reread and adopted only if exact governed comparison matches.</p>
       <p class="muted-note" id="workerExactOneRecoveryResult">${escapeHtml(
         workerExactOneRecoverySummary(state.workerExactOneRecoveryResult),
-      )}</p>`
+      )}</p>
+      ${workerExactOneRecoveryMismatchHtml(state.workerExactOneRecoveryResult)}`
           : ""
       }
       ${
@@ -2537,6 +2551,34 @@ function workerExactOneRecoverySummary(result) {
   return [result.code || (result.ok === true ? "OK" : "BLOCKED"), result.message || ""]
     .filter(Boolean)
     .join(" ");
+}
+
+function formatRecoveryMismatchValue(value) {
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (value && typeof value === "object") {
+    return `label=${String(value.label ?? "")}; value=${String(value.value ?? "")}`;
+  }
+  return value == null ? "null" : String(value);
+}
+
+function workerExactOneRecoveryMismatchHtml(result) {
+  const items = Array.isArray(result?.compareMismatches)
+    ? result.compareMismatches.slice(0, 12)
+    : [];
+  if (!items.length) return "";
+  return `<div class="muted-note" id="workerExactOneRecoveryMismatches">
+    <strong>Governed field mismatches</strong>
+    <ul>${items
+      .map(
+        (item) => `<li>
+          <strong>${escapeHtml(item?.path || "unknown")}</strong><br>
+          Expected: ${escapeHtml(formatRecoveryMismatchValue(item?.expected))}<br>
+          Actual: ${escapeHtml(formatRecoveryMismatchValue(item?.actual))}<br>
+          Result: ${escapeHtml(item?.result || "MISMATCH")}
+        </li>`,
+      )
+      .join("")}</ul>
+  </div>`;
 }
 
 async function submitWorkerConnect() {
@@ -2813,9 +2855,10 @@ async function submitWorkerRecoverExactOneIdentity() {
     showToast("Recover Saved Portal Identity is only available for trusted EXACT_ONE recovery state.", "info");
     return;
   }
-  const ok = window.confirm(
-    "Recover Saved Portal Identity for Product 262?\n\nNo Save will occur; existing portal product will be reread and adopted only if exact governed comparison matches.",
-  );
+  const ok = await openProductDetailsConfirmModal({
+    mode: "recover",
+    trigger: $("btnWorkerRecoverExactOneIdentity"),
+  });
   if (!ok) return;
   state.busy = true;
   syncWorkerToolbarUi();

@@ -518,6 +518,57 @@ function ok(cond, msg) {
   ok(result.workflowRowVersion === 4, "post-adopt workflow row version returned");
 }
 
+// --- pre-adoption compare mismatch is bounded, diagnostic, and non-mutating ---
+{
+  let adoptionCalls = 0;
+  let markCalls = 0;
+  const mismatch = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return {
+            portal_review_status: "VERIFIED",
+            selected_portal_text: "Sandhirujah, ÅšÅpham",
+          };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          adoptionCalls += 1;
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async ({ portalProductId }) => ({
+          ...matchingReread(portalProductId),
+          indications: ["wrong-value"],
+          indicationLabels: ["A harmless display label"],
+        }),
+        markPortalVerified: async () => {
+          markCalls += 1;
+          throw new Error("portal verification must not run after mismatch");
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(mismatch.ok === false && mismatch.code === "RECOVERY_COMPARE_MISMATCH", "compare mismatch blocks recovery");
+  ok(adoptionCalls === 0 && markCalls === 0, "compare mismatch causes no adoption or portal verification mutation");
+  ok(mismatch.adopted !== true && mismatch.mutated !== true, "compare mismatch reports no mutation");
+  ok(!Object.hasOwn(mismatch, "compareResult"), "raw compare result is not exposed");
+  ok(!Object.hasOwn(mismatch, "candidateId") && !Object.hasOwn(mismatch, "runId"), "candidate and run identifiers are not exposed on mismatch");
+  ok(
+    Array.isArray(mismatch.compareMismatches) &&
+      mismatch.compareMismatches.some((item) => item.path === "indications") &&
+      mismatch.compareMismatches.every(
+        (item) =>
+          JSON.stringify(Object.keys(item).sort()) ===
+          JSON.stringify(["actual", "expected", "path", "result"]),
+      ),
+    "mismatch returns only bounded whitelisted diagnostic fields",
+  );
+}
+
 // --- missing save evidence blocks recovery before adopt ---
 {
   const authority = buildAuthority({

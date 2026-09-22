@@ -2075,6 +2075,89 @@ function assessRecoveryAttachmentEligibility(authority) {
   };
 }
 
+const RECOVERY_COMPARE_DIAGNOSTIC_PATHS = new Set([
+  "product.name",
+  "type",
+  "categoryId",
+  "subTypeId",
+  "permissionPurpose",
+  "compositionTitle",
+  "disease",
+  "indications",
+  "drugs",
+  "drugsValue",
+  "remarks",
+  "shelfmonth",
+  "attachment.fileName",
+]);
+const RECOVERY_COMPARE_DIAGNOSTIC_MAX_ITEMS = 12;
+const RECOVERY_COMPARE_DIAGNOSTIC_MAX_ARRAY = 12;
+const RECOVERY_COMPARE_DIAGNOSTIC_MAX_STRING = 256;
+
+function sanitizeRecoveryCompareString(value) {
+  const text = String(value);
+  if (
+    /<[^>]*>/.test(text) ||
+    /https?:\/\//i.test(text) ||
+    /\b(?:bearer|cookie|token)\b/i.test(text) ||
+    /^[a-z]:[\\/]/i.test(text) ||
+    /^\\\\/.test(text) ||
+    /^\/(?:home|users?|var|tmp|etc)\//i.test(text)
+  ) {
+    return "[REDACTED]";
+  }
+  return text.length > RECOVERY_COMPARE_DIAGNOSTIC_MAX_STRING
+    ? `${text.slice(0, RECOVERY_COMPARE_DIAGNOSTIC_MAX_STRING)}…`
+    : text;
+}
+
+function sanitizeRecoveryCompareValue(value, path) {
+  if (value == null || typeof value === "boolean" || typeof value === "number") {
+    return value ?? null;
+  }
+  if (typeof value === "string") return sanitizeRecoveryCompareString(value);
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, RECOVERY_COMPARE_DIAGNOSTIC_MAX_ARRAY)
+      .filter(
+        (item) =>
+          item == null ||
+          typeof item === "string" ||
+          typeof item === "number" ||
+          typeof item === "boolean",
+      )
+      .map((item) => sanitizeRecoveryCompareValue(item, path));
+  }
+  if (path === "permissionPurpose" && typeof value === "object") {
+    return {
+      label: sanitizeRecoveryCompareValue(value.label ?? null, path),
+      value: sanitizeRecoveryCompareValue(value.value ?? null, path),
+    };
+  }
+  return "[UNAVAILABLE]";
+}
+
+function sanitizeRecoveryCompareMismatches(compareResult) {
+  const items = Array.isArray(compareResult?.items) ? compareResult.items : [];
+  return items
+    .filter(
+      (item) =>
+        item &&
+        item.result !== "MATCH" &&
+        RECOVERY_COMPARE_DIAGNOSTIC_PATHS.has(String(item.path || "")),
+    )
+    .slice(0, RECOVERY_COMPARE_DIAGNOSTIC_MAX_ITEMS)
+    .map((item) => {
+      const path = String(item.path);
+      return {
+        path,
+        expected: sanitizeRecoveryCompareValue(item.expected, path),
+        actual: sanitizeRecoveryCompareValue(item.actual, path),
+        result: sanitizeRecoveryCompareString(item.result || "MISMATCH"),
+      };
+    });
+}
+
 /**
  * Recover Product 262 after Save succeeded without a captured portal id,
  * when blank-list EXACT_ONE proves a single hid* identity.
@@ -2347,9 +2430,7 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
         ok: false,
         code: `RECOVERY_COMPARE_${compare1.overall}`,
         message: "Governed Product Details compare did not MATCH before adoption.",
-        candidateId,
-        runId,
-        compareResult: compare1,
+        compareMismatches: sanitizeRecoveryCompareMismatches(compare1),
         ...blockedShape,
       };
     }
@@ -2482,9 +2563,7 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
         code: `RECOVERY_POST_ADOPT_COMPARE_${compare2.overall}`,
         message:
           "Post-adoption compare did not MATCH; run remains ENTERED without PORTAL_VERIFIED.",
-        candidateId,
-        runId,
-        compareResult: compare2,
+        compareMismatches: sanitizeRecoveryCompareMismatches(compare2),
         mutated: true,
         adopted: true,
         entryStatus: "ENTERED",
@@ -2564,6 +2643,7 @@ module.exports = {
   assessRecoveryAttachmentEligibility,
   proveGovernedApprovedCopyV01,
   proveTrustedAmbiguousSaveAttachmentEvidence,
+  sanitizeRecoveryCompareMismatches,
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
   runTrustedProductDetailsResume,
