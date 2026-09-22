@@ -15,6 +15,7 @@ const {
   EXPECTED_PORTAL_PRODUCT_NAME,
   assessProductDetailsPreflight,
   assessProductDetailsResumePreflight,
+  assessExactOneIdentityRecoveryPreflight,
   executeProductDetails,
   executeProductDetailsResume,
   planResumeAction,
@@ -1501,6 +1502,79 @@ const resumeAmbiguousPreflight = assessProductDetailsResumePreflight({
 });
 assert(resumeAmbiguousPreflight.ok === false, "assessProductDetailsResumePreflight blocks >1 active run");
 
+{
+  const PROVEN_HID =
+    "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNG8atnUB3i77xOliuhhG1VsNyCEv7W0";
+  const exactOneAmbiguousDup = {
+    source: "LoadProductDataforLegacy",
+    mechanism: "datatable_list_post",
+    transportSearch: "",
+    transportSearchBlank: true,
+    targetName: "Karpooradi Thailam",
+    localExactEvaluation: true,
+    totalCount: 1,
+    coverageComplete: true,
+    rows: [
+      {
+        name: "Karpooradi Thailam",
+        edit: `<button class="edit_productdata">Edit</button><input type="hidden" id="hid1" value="${PROVEN_HID}" />`,
+      },
+    ],
+  };
+  const recoveryResumeInput = {
+    ...resumeBaseInput,
+    content: baseContent({
+      entry_status: "IN_PROGRESS",
+      details: {
+        permission_purpose_label: "Regular",
+        composition_title: "For 10 mL",
+        diseases_conditions: "Sandhirujah, Śōpham",
+        combined_restricted_declaration: "NO",
+        portal_remarks: GOVERNANCE_OVERRIDES.remarks,
+        portal_shelfmonth_route: GOVERNANCE_OVERRIDES.shelfmonth,
+      },
+    }),
+    activeRun: {
+      ...resumeBaseInput.activeRun,
+      last_save_outcome: "AMBIGUOUS",
+      last_save_observed_at: "2026-09-20T00:00:00Z",
+      portal_product_ref: null,
+    },
+    duplicateSearch: exactOneAmbiguousDup,
+    contentHashMatchesRunStart: true,
+    fieldGovernanceOverrides: null,
+    allowTestFieldGovernanceOverrides: false,
+  };
+  const ordinaryResumeBlocked = assessProductDetailsResumePreflight({
+    ...recoveryResumeInput,
+    resume: true,
+  });
+  assert(
+    ordinaryResumeBlocked.ok === false,
+    "AMBIGUOUS+EXACT_ONE ordinary Resume preflight blocked",
+  );
+  assert(
+    ordinaryResumeBlocked.code === "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+    "ordinary Resume blocked with AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+  );
+  const recoveryPreflight = assessExactOneIdentityRecoveryPreflight(recoveryResumeInput);
+  assert(
+    recoveryPreflight.ok === true,
+    "identity recovery preflight proceeds despite ordinary Resume blocked",
+  );
+  assert(
+    recoveryPreflight.code === "RECOVERY_PREFLIGHT_PASS",
+    "identity recovery preflight pass code",
+  );
+  assert(
+    recoveryPreflight.fieldGate?.ok === true && Boolean(recoveryPreflight.fillPlan),
+    "recovery preflight produces fieldGate/fillPlan without resumeEnabled",
+  );
+  assert(
+    recoveryPreflight.ordinaryResumeBlocked === true,
+    "recovery preflight keeps ordinary Resume documented as blocked",
+  );
+}
 const mutex = createSaveMutex();
 const saveOk = classifySaveOutcome({
   invoked: true,

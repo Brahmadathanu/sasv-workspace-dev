@@ -21,17 +21,29 @@ const {
 } = require("../electron/eaushadhi-worker/portal-duplicate-guard.js");
 const {
   planResumeAction,
+  assessProductDetailsResumePreflight,
+  assessExactOneIdentityRecoveryPreflight,
   RESUME_ACTION,
+  PHASE,
 } = require("../electron/eaushadhi-worker/product-details-executor.js");
+const {
+  EXPECTED_APPROVED_COPY_NAME,
+} = require("../electron/eaushadhi-worker/product-details-field-map.js");
 const {
   deriveAmbiguousSaveRecoverable,
   deriveAmbiguousSaveExactOneRecoverable,
   runTrustedAmbiguousSaveExactOneRecovery,
+  assessRecoveryAttachmentEligibility,
   ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC,
+  PORTAL_TEXT_GET_RPC,
+  buildTrustedExecutorInput,
 } = require("../electron/eaushadhi-worker/product-details-trusted.js");
 
 const PROVEN_HID =
   "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNG8atnUB3i77xOliuhhG1VsNyCEv7W0";
+const APPROVED_V01 = EXPECTED_APPROVED_COPY_NAME;
+const REMARKS = "recovery-smoke-remarks";
+const SHELF = "RegularAsPerClause";
 
 function editHtml(hidValue, hidId = "hid1") {
   return `<button class="edit_productdata">Edit</button><input type="hidden" id="${hidId}" value="${hidValue}" />`;
@@ -48,6 +60,132 @@ function blankCoverage(rows) {
     totalCount: rows.length,
     rows,
     coverageComplete: true,
+  };
+}
+
+const readyPage = {
+  workerState: "READY",
+  origin: "https://www.e-aushadhi.gov.in",
+  path: "/admin/addproductforlegacy",
+  actiontype: "add",
+  hiddenId: "",
+  staleEditState: false,
+  saveDataAvailable: true,
+};
+
+function recoveryContent() {
+  return {
+    content_hash: "hash1",
+    entry_status: "IN_PROGRESS",
+    versions: { workflow_row_version: 3 },
+    product: {
+      portal_product_name: "Karpooradi Thailam",
+      canonical_product_name: "Karpooradi Thailam",
+      review_status: "VERIFIED",
+    },
+    classification: {
+      review_status: "VERIFIED",
+      is_verified: true,
+      product_type: { portal_option_value: "1", label: "Ayurveda" },
+      product_category: { portal_option_value: "10", label: "Thailam" },
+      product_subtype: { portal_option_value: "31", label: "-" },
+    },
+    details: {
+      permission_purpose_label: "Regular",
+      composition_title: "For 10 mL",
+      diseases_conditions: "Sandhirujah, Śōpham",
+      combined_restricted_declaration: "NO",
+      portal_remarks: REMARKS,
+      portal_shelfmonth_route: SHELF,
+    },
+    actions: [{ portal_option_value: "99", label: "Musculoskeletal System (Bones &Joints)" }],
+    evidence: {
+      approved_product_copy_present: true,
+      original_file_name: APPROVED_V01,
+    },
+  };
+}
+
+function saveEvidenceFields(overrides = {}) {
+  return {
+    last_save_evidence_outcome: "AMBIGUOUS",
+    last_save_invoked: true,
+    last_save_invoke_count: 1,
+    last_save_settled: true,
+    last_save_business_success: true,
+    last_save_phase: PHASE.SAVE_CONFIRMED,
+    ...overrides,
+  };
+}
+
+function buildAuthority(overrides = {}) {
+  const content = recoveryContent();
+  const activeRun = {
+    run_id: "run-1",
+    run_status: "RUNNING",
+    last_save_outcome: "AMBIGUOUS",
+    last_save_observed_at: "2026-09-20T00:00:00Z",
+    portal_product_ref: null,
+    start_content_hash: "hash1",
+    ...saveEvidenceFields(),
+  };
+  return {
+    ok: true,
+    code: "AUTHORITY_COLLECTED",
+    productId: 262,
+    preflightObtained: true,
+    content,
+    contentHash: "hash1",
+    workflowRowVersion: 3,
+    reviewStatus: "VERIFIED",
+    classificationVerified: true,
+    isReadyForEntry: false,
+    entryStatus: "IN_PROGRESS",
+    pageState: readyPage,
+    duplicateSearch: blankCoverage([
+      { name: "Karpooradi Thailam", edit: editHtml(PROVEN_HID) },
+    ]),
+    permissionOptions: [{ value: "7", label: "Regular" }],
+    approvedFileName: APPROVED_V01,
+    approvedResolved: true,
+    approvedLocalPath: `C:\\tmp\\${APPROVED_V01}`,
+    activeRunCount: 1,
+    activeRun,
+    contentHashMatchesRunStart: true,
+    workflowPortalRef: null,
+    resumeSourceReady: true,
+    compositionReviewComplete: true,
+    classificationReviewComplete: true,
+    dossierReady: true,
+    openBlockers: 0,
+    openPortalIssues: 0,
+    ...overrides,
+    activeRun: { ...activeRun, ...(overrides.activeRun || {}) },
+  };
+}
+
+function matchingReread(portalProductId) {
+  return {
+    ok: true,
+    source: "GetproductDataUpdate",
+    requestedId: portalProductId,
+    loadedHiddenId: portalProductId,
+    hiddenId: portalProductId,
+    idMatch: true,
+    name: "Karpooradi Thailam",
+    type: "1",
+    categoryId: "10",
+    subTypeId: "31",
+    permissionPurpose: { label: "Regular", value: "7" },
+    compositionTitle: "For 10 mL",
+    disease: "Sandhirujah, Śōpham",
+    indications: ["99"],
+    drugs: "NO",
+    drugsValue: null,
+    remarks: REMARKS,
+    shelfmonth: SHELF,
+    attachmentFileName: null,
+    attachmentRereadUnavailable: true,
   };
 }
 
@@ -75,18 +213,10 @@ function ok(cond, msg) {
     "no top-level id required",
   );
 
+  ok(extractHidValuesFromEditHtml("").ok === false, "blank edit blocked");
+  ok(extractHidValuesFromEditHtml("<div>no hid</div>").ok === false, "missing hid blocked");
   ok(
-    extractHidValuesFromEditHtml("").ok === false,
-    "blank edit blocked",
-  );
-  ok(
-    extractHidValuesFromEditHtml("<div>no hid</div>").ok === false,
-    "missing hid blocked",
-  );
-  ok(
-    extractHidValuesFromEditHtml(
-      editHtml("a", "hid1") + editHtml("b", "hid2"),
-    ).ok === false,
+    extractHidValuesFromEditHtml(editHtml("a", "hid1") + editHtml("b", "hid2")).ok === false,
     "multiple hid blocked",
   );
   for (const bad of ["0", "-1", "262", ""]) {
@@ -102,12 +232,7 @@ function ok(cond, msg) {
   const normalized = normalizeLoadProductDataforLegacyResponse({
     status: 1,
     TotalCount: 1,
-    aaData: [
-      {
-        name: "Karpooradi Thailam",
-        edit: editHtml(PROVEN_HID),
-      },
-    ],
+    aaData: [{ name: "Karpooradi Thailam", edit: editHtml(PROVEN_HID) }],
   });
   ok(typeof normalized.rows[0].edit === "string", "normalize preserves edit HTML");
   const guard = evaluateDuplicateGuard({
@@ -213,72 +338,240 @@ function ok(cond, msg) {
   );
 }
 
-// --- recovery orchestration: no SaveData/fill/upload/run_resume; adopt + reread ---
+// --- recovery preflight proceeds despite ordinary Resume blocked ---
+{
+  const authority = buildAuthority();
+  const executorInput = buildTrustedExecutorInput(authority, {
+    userConfirmed: true,
+    resume: false,
+  });
+  const resumeBlocked = assessProductDetailsResumePreflight({
+    ...executorInput,
+    resume: true,
+  });
+  ok(resumeBlocked.ok === false, "ordinary Resume preflight remains blocked");
+  ok(
+    resumeBlocked.resumePlan?.code ===
+      "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY" ||
+      resumeBlocked.code === "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY" ||
+      resumeBlocked.resumePlan?.resumeEnabled !== true,
+    "ordinary Resume block code/plan preserved",
+  );
+
+  const recoveryPf = assessExactOneIdentityRecoveryPreflight(executorInput);
+  ok(recoveryPf.ok === true, "recovery preflight proceeds despite Resume blocked");
+  ok(recoveryPf.code === "RECOVERY_PREFLIGHT_PASS", "recovery preflight pass code");
+  ok(recoveryPf.fieldGate?.ok === true, "recovery fieldGate produced");
+  ok(recoveryPf.pageGuard?.ok === true, "recovery pageGuard produced");
+  ok(Boolean(recoveryPf.fillPlan), "recovery fillPlan produced");
+  ok(
+    recoveryPf.ordinaryResumeBlocked === true &&
+      recoveryPf.ordinaryResumeBlockCode ===
+        "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+    "recovery documents ordinary Resume remains blocked",
+  );
+  ok(recoveryPf.resumePlan?.resumeEnabled !== true, "recovery does not enable resume");
+
+  const missingHashProof = assessExactOneIdentityRecoveryPreflight({
+    ...executorInput,
+    contentHashMatchesRunStart: null,
+  });
+  ok(
+    missingHashProof.ok === false && missingHashProof.code === "CONTENT_HASH_DRIFT",
+    "recovery requires affirmative active-run content hash proof",
+  );
+}
+
+// --- attachment evidence: V01 + server save proof ---
+{
+  const good = assessRecoveryAttachmentEligibility(buildAuthority());
+  ok(good.ok === true, "attachment eligible when V01 + save evidence proven");
+
+  const noV01 = assessRecoveryAttachmentEligibility(
+    buildAuthority({ approvedResolved: false, approvedLocalPath: null }),
+  );
+  ok(
+    noV01.ok === false && noV01.code === "ATTACHMENT_EVIDENCE_UNPROVEN",
+    "missing V01 => ATTACHMENT_EVIDENCE_UNPROVEN",
+  );
+
+  const noSave = assessRecoveryAttachmentEligibility(
+    buildAuthority({
+      activeRun: {
+        ...saveEvidenceFields({ last_save_invoked: false }),
+      },
+    }),
+  );
+  ok(
+    noSave.ok === false && noSave.code === "ATTACHMENT_EVIDENCE_UNPROVEN",
+    "false save invoked => ATTACHMENT_EVIDENCE_UNPROVEN",
+  );
+
+  const missingPhase = assessRecoveryAttachmentEligibility(
+    buildAuthority({
+      activeRun: { ...saveEvidenceFields({ last_save_phase: null }) },
+    }),
+  );
+  ok(
+    missingPhase.ok === false && missingPhase.code === "ATTACHMENT_EVIDENCE_UNPROVEN",
+    "missing save phase => ATTACHMENT_EVIDENCE_UNPROVEN",
+  );
+
+  const badCount = assessRecoveryAttachmentEligibility(
+    buildAuthority({
+      activeRun: { ...saveEvidenceFields({ last_save_invoke_count: 2 }) },
+    }),
+  );
+  ok(
+    badCount.ok === false && badCount.code === "ATTACHMENT_EVIDENCE_UNPROVEN",
+    "invokeCount!=1 => ATTACHMENT_EVIDENCE_UNPROVEN",
+  );
+}
+
+// --- full recovery path: EXACT_ONE -> reread -> compare -> adopt -> reread -> mark verified ---
 {
   const calls = [];
-  const auth = {
-    ok: true,
-    code: "AUTHORITY_COLLECTED",
-    productId: 262,
-    preflightObtained: true,
-    content: {
-      product: { portal_product_name: "Karpooradi Thailam" },
-      details: {},
-      content_hash: "hash1",
-      versions: { workflow_row_version: 3 },
-    },
-    contentHash: "hash1",
-    workflowRowVersion: 3,
-    reviewStatus: "VERIFIED",
-    classificationVerified: true,
-    isReadyForEntry: false,
-    entryStatus: "IN_PROGRESS",
-    pageState: { ok: true, role: "add_product", staleEditState: false },
-    duplicateSearch: blankCoverage([
-      { name: "Karpooradi Thailam", edit: editHtml(PROVEN_HID) },
-    ]),
-    permissionOptions: [{ value: "1", label: "License" }],
-    approvedFileName: "EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf",
-    approvedResolved: true,
-    approvedLocalPath: "C:\\tmp\\EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf",
-    activeRunCount: 1,
-    activeRun: {
-      run_id: "run-1",
-      run_status: "RUNNING",
-      last_save_outcome: "AMBIGUOUS",
-      last_save_observed_at: "2026-09-20T00:00:00Z",
-      portal_product_ref: null,
-      start_content_hash: "hash1",
-    },
-    contentHashMatchesRunStart: true,
-    workflowPortalRef: null,
-    resumeSourceReady: true,
-    compositionReviewComplete: true,
-    classificationReviewComplete: true,
-    dossierReady: true,
-    openBlockers: 0,
-    openPortalIssues: 0,
-  };
+  const authority = buildAuthority();
+  const rereadCalls = [];
+  const adapterCalls = [];
 
-  // Patch collect via deps: recovery uses collectAuthoritative — supply mock deps.
-  // We call runTrusted with buildAdapters + callRpc; authority collected internally.
-  // Instead unit-test the RPC name constant + a minimal adapter path by monkeypatching
-  // through a local require of the function with injected deps that short-circuit
-  // collectAuthoritative is not injectable — so assert adapter refusals via disarmed path.
+  const result = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => authority,
+      callRpc: async (name, args) => {
+        calls.push({ name, args });
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return {
+            portal_review_status: "VERIFIED",
+            selected_portal_text: "Sandhirujah, Śōpham",
+          };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          return {
+            run_id: "run-1",
+            workflow_row_version: 4,
+            portal_product_ref: PROVEN_HID,
+            run_status: "ENTERED",
+            entry_status: "ENTERED",
+            content_hash: "hash1",
+            last_save_outcome: "AMBIGUOUS",
+          };
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async ({ portalProductId }) => {
+          rereadCalls.push(portalProductId);
+          adapterCalls.push("reread");
+          return matchingReread(portalProductId);
+        },
+        markPortalVerified: async (args) => {
+          adapterCalls.push("markPortalVerified");
+          calls.push({ name: "markPortalVerified", args });
+          return { ok: true };
+        },
+        saveOnce: async () => {
+          adapterCalls.push("saveOnce");
+          throw new Error("SaveData must not be called");
+        },
+        fillForm: async () => {
+          adapterCalls.push("fillForm");
+          throw new Error("fill must not be called");
+        },
+        uploadApprovedCopy: async () => {
+          adapterCalls.push("upload");
+          throw new Error("upload must not be called");
+        },
+        runResume: async () => {
+          adapterCalls.push("runResume");
+          throw new Error("run_resume must not be called");
+        },
+        runBegin: async () => {
+          adapterCalls.push("runBegin");
+          throw new Error("run_begin must not be called");
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+
+  ok(result.ok === true && result.code === "PORTAL_VERIFIED", "full recovery reaches PORTAL_VERIFIED");
+  ok(result.adopted === true, "adoption occurred");
+  ok(result.saved !== true && result.filled !== true && result.uploaded !== true, "no fill/save/upload");
+  ok(result.runResumed !== true && result.runBegun !== true, "no run_resume/run_begin");
+  ok(rereadCalls.length === 2, "reread before and after adoption");
+  ok(
+    adapterCalls.filter((c) => c === "reread").length === 2 &&
+      adapterCalls.includes("markPortalVerified") &&
+      !adapterCalls.includes("saveOnce") &&
+      !adapterCalls.includes("fillForm") &&
+      !adapterCalls.includes("upload") &&
+      !adapterCalls.includes("runResume"),
+    "no SaveData/run_resume/fill/upload in recovery",
+  );
+  ok(
+    calls.some((c) => c.name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC),
+    "adoption RPC invoked",
+  );
+  ok(result.candidateId === PROVEN_HID, "adopted hid candidate");
+  ok(result.workflowRowVersion === 4, "post-adopt workflow row version returned");
+}
+
+// --- missing save evidence blocks recovery before adopt ---
+{
+  const authority = buildAuthority({
+    activeRun: { ...saveEvidenceFields({ last_save_business_success: false }) },
+  });
+  const blocked = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => authority,
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return {
+            portal_review_status: "VERIFIED",
+            selected_portal_text: "Sandhirujah",
+          };
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async () => {
+          throw new Error("reread must not run");
+        },
+        markPortalVerified: async () => {
+          throw new Error("mark must not run");
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(
+    blocked.code === "ATTACHMENT_EVIDENCE_UNPROVEN",
+    "recovery refuses when save evidence false",
+  );
+  ok(blocked.adopted !== true && blocked.mutated !== true, "no mutation without attachment proof");
+}
+
+// --- disarmed path ---
+{
   const disarmed = await runTrustedAmbiguousSaveExactOneRecovery(
     { liveArmed: false, callRpc: async () => ({}) },
     { userConfirmed: true },
   );
   ok(disarmed.code === "LIVE_EXECUTION_NOT_ARMED", "disarmed recovery does not mutate");
   ok(disarmed.saved !== true && disarmed.runResumed !== true, "no Save/resume when disarmed");
+}
 
-  ok(
-    ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC ===
-      "rpc_eaushadhi_worker_adopt_ambiguous_save_identity",
-    "adoption RPC name",
-  );
+ok(
+  ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC ===
+    "rpc_eaushadhi_worker_adopt_ambiguous_save_identity",
+  "adoption RPC name",
+);
 
-  // Source contracts
+// --- migration / source contracts ---
+{
   const migration = fs.readFileSync(
     path.join(
       root,
@@ -298,6 +591,58 @@ function ok(cond, msg) {
     !/create or replace function[^\n]*mark_entered/i.test(migration),
     "does not redefine mark_entered",
   );
+  ok(
+    /v_payload\s*:=\s*public\.rpc_eaushadhi_worker_content_get\s*\(/.test(migration),
+    "adoption RPC calls worker_content_get",
+  );
+  ok(
+    /v_current_hash\s*:=\s*v_payload->>'content_hash'/.test(migration),
+    "current hash from content_get payload",
+  );
+  ok(
+    !/v_current_hash\s*:=\s*v_run\.start_content_hash/.test(migration),
+    "does not assign current hash from start hash",
+  );
+  ok(
+    /current_workflow_row_version\s*=\s*v_workflow\.row_version\s*\+\s*1/.test(migration),
+    "run current_workflow_row_version increments",
+  );
+  ok(
+    /entered_by\s*=\s*v_actor/.test(migration) && /updated_by\s*=\s*v_actor/.test(migration),
+    "actor entered/updated fields are set",
+  );
+  ok(
+    /'last_save_evidence_outcome'/.test(migration) &&
+      /'last_save_invoked'/.test(migration) &&
+      /'last_save_invoke_count'/.test(migration) &&
+      /'last_save_settled'/.test(migration) &&
+      /'last_save_business_success'/.test(migration) &&
+      /'last_save_phase'/.test(migration),
+    "preflight exposes bounded save-evidence category fields",
+  );
+  ok(
+    !/'last_save_evidence',\s*v_run\.last_save_evidence/.test(migration),
+    "preflight does not expose full last_save_evidence blob",
+  );
+  ok(
+    /Retain historical last_save_outcome/i.test(migration),
+    "does not clear historical last_save_outcome",
+  );
+
+  const trusted = fs.readFileSync(
+    path.join(root, "electron/eaushadhi-worker/product-details-trusted.js"),
+    "utf8",
+  );
+  ok(
+    trusted.includes("assessExactOneIdentityRecoveryPreflight"),
+    "recovery uses dedicated recovery preflight",
+  );
+  ok(
+    !/runTrustedAmbiguousSaveExactOneRecovery[\s\S]*assessProductDetailsResumePreflight\(/.test(
+      trusted,
+    ),
+    "recovery function does not call resume preflight",
+  );
 
   const preload = fs.readFileSync(path.join(root, "preload.js"), "utf8");
   ok(
@@ -316,9 +661,6 @@ function ok(cond, msg) {
     "UI copy exact",
   );
   ok(ui.includes("ambiguousSaveExactOneRecoverable"), "hard refresh reconstructs via preview flag");
-
-  // Keep auth referenced for future expansion without unused-lint in node
-  ok(auth.activeRunCount === 1 && calls.length === 0, "fixture authority ready");
 }
 
 if (failed > 0) {

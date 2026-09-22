@@ -603,6 +603,46 @@ assert(
   "preflight migration keeps NOT_STARTED Start eligibility",
 );
 
+const adoptIdentityMigration = readFileSync(
+  join(root, "supabase/migrations/20260920161931_eaushadhi_adopt_ambiguous_save_identity.sql"),
+  "utf8",
+);
+assert(
+  adoptIdentityMigration.includes("rpc_eaushadhi_worker_adopt_ambiguous_save_identity"),
+  "adopt ambiguous-save identity migration present",
+);
+assert(
+  /v_payload\s*:=\s*public\.rpc_eaushadhi_worker_content_get\s*\(/.test(adoptIdentityMigration),
+  "adopt migration calls worker_content_get for fresh hash",
+);
+assert(
+  /v_current_hash\s*:=\s*v_payload->>'content_hash'/.test(adoptIdentityMigration),
+  "adopt migration reads content_hash from content_get payload",
+);
+assert(
+  !/v_current_hash\s*:=\s*v_run\.start_content_hash/.test(adoptIdentityMigration),
+  "adopt migration does not assign current hash from start_content_hash",
+);
+assert(
+  /'last_save_evidence_outcome'/.test(adoptIdentityMigration) &&
+    /'last_save_invoked'/.test(adoptIdentityMigration) &&
+    /'last_save_invoke_count'/.test(adoptIdentityMigration) &&
+    /'last_save_settled'/.test(adoptIdentityMigration) &&
+    /'last_save_business_success'/.test(adoptIdentityMigration) &&
+    /'last_save_phase'/.test(adoptIdentityMigration),
+  "adopt migration preflight exposes bounded save-evidence category fields",
+);
+assert(
+  !/'last_save_evidence',\s*v_run\.last_save_evidence/.test(adoptIdentityMigration),
+  "adopt migration preflight does not expose full last_save_evidence blob",
+);
+assert(
+  /current_workflow_row_version\s*=\s*v_workflow\.row_version\s*\+\s*1/.test(
+    adoptIdentityMigration,
+  ),
+  "adopt migration increments run current_workflow_row_version",
+);
+
 if (failed) {
   console.error(`\n${failed} RPC contract assertion(s) failed`);
   process.exit(1);

@@ -16,10 +16,18 @@ const {
 const {
   assessProductDetailsPreflight,
   assessProductDetailsResumePreflight,
+  assessExactOneIdentityRecoveryPreflight,
   executeProductDetails,
   executeProductDetailsResume,
   planResumeAction,
+  PHASE: EXECUTOR_PHASE,
 } = require("./product-details-executor");
+
+/** Controlled Product Details SaveData evidence phases stored by the executor. */
+const RECOVERY_ATTACHMENT_SAVE_PHASES = new Set([
+  EXECUTOR_PHASE.SAVE_CONFIRMED,
+  EXECUTOR_PHASE.RUN_RESUME,
+]);
 const { evaluateDuplicateGuard, DUPLICATE_OUTCOME, MAX_LIST_ROWS, deriveExactOnePortalProductId } = require("./portal-duplicate-guard");
 const {
   compareProductDetailsReread,
@@ -762,6 +770,33 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       started_at: raw.started_at ?? null,
       last_save_outcome: raw.last_save_outcome ?? null,
       last_save_observed_at: raw.last_save_observed_at ?? null,
+      // Bounded preflight save-proof fields only (never last_save_evidence blob).
+      last_save_evidence_outcome: raw.last_save_evidence_outcome ?? null,
+      last_save_invoked:
+        raw.last_save_invoked === true
+          ? true
+          : raw.last_save_invoked === false
+            ? false
+            : null,
+      last_save_invoke_count:
+        raw.last_save_invoke_count != null &&
+        Number.isFinite(Number(raw.last_save_invoke_count))
+          ? Number(raw.last_save_invoke_count)
+          : null,
+      last_save_settled:
+        raw.last_save_settled === true
+          ? true
+          : raw.last_save_settled === false
+            ? false
+            : null,
+      last_save_business_success:
+        raw.last_save_business_success === true
+          ? true
+          : raw.last_save_business_success === false
+            ? false
+            : null,
+      last_save_phase:
+        raw.last_save_phase != null ? String(raw.last_save_phase) : null,
     };
   }
   const entryStatusEarly =
@@ -1907,6 +1942,67 @@ async function runTrustedPortalProjectionRebase(deps = {}, command = {}) {
 }
 
 /**
+ * Current governed approved copy must resolve exactly as V01.
+ * File resolution alone is never treated as fill-time Save proof.
+ */
+function proveGovernedApprovedCopyV01(authority) {
+  return (
+    authority?.approvedResolved === true &&
+    Boolean(authority?.approvedLocalPath) &&
+    String(authority?.approvedFileName || "") === EXPECTED_APPROVED_COPY_NAME
+  );
+}
+
+/**
+ * Recovery attachment eligibility requires trusted server active-run save proof
+ * from preflight bounded fields (never renderer input / never full evidence blob).
+ *
+ * This is recovery evidence derived from the controlled executor invariant:
+ * SaveData is reached only after fill/upload proof succeeded on that run.
+ */
+function proveTrustedAmbiguousSaveAttachmentEvidence(activeRun) {
+  const run = activeRun && typeof activeRun === "object" ? activeRun : {};
+  const outcome = String(run.last_save_evidence_outcome || "").toUpperCase();
+  const phase = String(run.last_save_phase || "");
+  const invokeCount = Number(run.last_save_invoke_count);
+  return (
+    outcome === "AMBIGUOUS" &&
+    run.last_save_invoked === true &&
+    invokeCount === 1 &&
+    run.last_save_settled === true &&
+    run.last_save_business_success === true &&
+    RECOVERY_ATTACHMENT_SAVE_PHASES.has(phase)
+  );
+}
+
+/**
+ * BOTH A (current V01 resolve) and B (trusted ambiguous save evidence) required
+ * before recovery may treat attachment as proven for reread-unavailable compare.
+ */
+function assessRecoveryAttachmentEligibility(authority) {
+  const v01Ok = proveGovernedApprovedCopyV01(authority);
+  const saveProofOk = proveTrustedAmbiguousSaveAttachmentEvidence(
+    authority?.activeRun,
+  );
+  if (!v01Ok || !saveProofOk) {
+    return {
+      ok: false,
+      code: "ATTACHMENT_EVIDENCE_UNPROVEN",
+      message:
+        "Recovery attachment requires current governed V01 resolution plus trusted server active-run last_save evidence (AMBIGUOUS, invoked, invokeCount=1, settled, businessSuccess, controlled Product Details phase). File resolution alone is not fill-time proof.",
+      v01Resolved: v01Ok,
+      saveEvidenceProven: saveProofOk,
+    };
+  }
+  return {
+    ok: true,
+    code: "ATTACHMENT_EVIDENCE_PROVEN",
+    v01Resolved: true,
+    saveEvidenceProven: true,
+  };
+}
+
+/**
  * Recover Product 262 after Save succeeded without a captured portal id,
  * when blank-list EXACT_ONE proves a single hid* identity.
  *
@@ -1946,7 +2042,11 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
     };
   }
 
-  const authority = await collectAuthoritativeProductDetailsContext({
+  const collectAuthority =
+    typeof deps.collectAuthoritativeProductDetailsContext === "function"
+      ? deps.collectAuthoritativeProductDetailsContext
+      : collectAuthoritativeProductDetailsContext;
+  const authority = await collectAuthority({
     ...deps,
     requireEditPermission: true,
   });
@@ -2014,20 +2114,19 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
       };
     }
 
-    // Attachment: allow reread-unavailable MATCH only when governed approved copy
-    // still resolves for this product (fill-time contract still available). Never invent.
-    const fillTimeApprovedCopyProven =
-      authority.approvedResolved === true &&
-      Boolean(authority.approvedLocalPath) &&
-      String(authority.approvedFileName || "") === EXPECTED_APPROVED_COPY_NAME;
-    if (!fillTimeApprovedCopyProven) {
+    // Attachment eligibility: BOTH current governed V01 resolution AND trusted
+    // server active-run ambiguous-save evidence. Never treat file resolve alone
+    // as fill-time proof. Narrow to this recovery path only.
+    const attachmentEvidence = assessRecoveryAttachmentEligibility(authority);
+    if (!attachmentEvidence.ok) {
       return {
         ok: false,
         code: "ATTACHMENT_EVIDENCE_UNPROVEN",
-        message:
-          "Approved-copy fill-time evidence is not available for attachment compare; identity recovery stopped without weakening compare.",
+        message: attachmentEvidence.message,
         candidateId,
         runId,
+        v01Resolved: attachmentEvidence.v01Resolved,
+        saveEvidenceProven: attachmentEvidence.saveEvidenceProven,
         ...blockedShape,
       };
     }
@@ -2060,28 +2159,27 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
         ...blockedShape,
       };
     }
-    // Structural refusal of mutation paths this recovery must never touch.
-    if (
-      typeof adapters.saveOnce === "function" &&
-      adapters.__forceAllowSaveOnce === true
-    ) {
-      /* no-op: saveOnce exists on shared adapters but must not be called */
-    }
 
-    const preflight = assessProductDetailsResumePreflight(
-      buildTrustedExecutorInput(authority, { userConfirmed: true, resume: true }),
+    // Dedicated recovery preflight — must NOT depend on resumePlan.resumeEnabled.
+    // Ordinary Resume remains blocked with AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY.
+    const preflight = assessExactOneIdentityRecoveryPreflight(
+      buildTrustedExecutorInput(authority, { userConfirmed: true, resume: false }),
     );
-    // Resume plan for AMBIGUOUS+EXACT_ONE is intentionally blocked; still need field gate.
-    const fieldGateOk = preflight.fieldGate?.ok === true;
-    const pageOk = preflight.pageGuard?.ok === true;
-    if (!fieldGateOk || !pageOk || !preflight.fillPlan) {
+    if (
+      preflight.ok !== true ||
+      preflight.fieldGate?.ok !== true ||
+      preflight.pageGuard?.ok !== true ||
+      !preflight.fillPlan
+    ) {
       return {
         ok: false,
         code: "RECOVERY_PREFLIGHT_BLOCKED",
         message:
           preflight.message ||
-          "Identity recovery preflight blocked (fields/page).",
+          "Identity recovery preflight blocked (fields/page/fill/hash/source).",
         preflightCode: preflight.code || null,
+        ordinaryResumeBlocked: preflight.ordinaryResumeBlocked === true,
+        ordinaryResumeBlockCode: preflight.ordinaryResumeBlockCode || null,
         candidateId,
         runId,
         ...blockedShape,
@@ -2164,6 +2262,10 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
       attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
     };
 
+    // Recovery-only: attachment reread-unavailable MATCH is allowed only after
+    // assessRecoveryAttachmentEligibility proved V01 + server save evidence.
+    // Derived from controlled executor invariant (SaveData after fill/upload),
+    // not from current file resolution alone as "fill-time proof."
     const compare1 = compareProductDetailsReread(expectedCompare, reread1, {
       approvedCopyRereadUnavailable: true,
     });
@@ -2386,6 +2488,9 @@ module.exports = {
   deriveAmbiguousSaveRecoverable,
   deriveAmbiguousSaveExactOneRecoverable,
   attachAmbiguousSaveRecoverable,
+  assessRecoveryAttachmentEligibility,
+  proveGovernedApprovedCopyV01,
+  proveTrustedAmbiguousSaveAttachmentEvidence,
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
   runTrustedProductDetailsResume,

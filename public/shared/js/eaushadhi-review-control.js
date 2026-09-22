@@ -1,4 +1,4 @@
-﻿import { supabase } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 import { showToast } from "./toast.js";
