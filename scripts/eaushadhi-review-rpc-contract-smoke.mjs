@@ -643,6 +643,20 @@ assert(
   "adopt migration increments run current_workflow_row_version",
 );
 
+const adoptIdentityAclMigration = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20260922090000_eaushadhi_adopt_ambiguous_save_identity_acl.sql",
+  ),
+  "utf8",
+);
+assert(
+  /revoke\s+all\s+on\s+function\s+public\.rpc_eaushadhi_worker_adopt_ambiguous_save_identity\s*\(\s*uuid\s*,\s*bigint\s*,\s*text\s*,\s*text\s*,\s*jsonb\s*\)\s+from\s+anon\s*;/i.test(
+    adoptIdentityAclMigration,
+  ),
+  "adopt identity ACL migration explicitly revokes anon execute",
+);
+
 if (failed) {
   console.error(`\n${failed} RPC contract assertion(s) failed`);
   process.exit(1);
