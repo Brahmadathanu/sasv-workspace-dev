@@ -2607,13 +2607,9 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
       code: "PORTAL_VERIFIED",
       message:
         "Ambiguous-save portal identity adopted and portal-verified. Stopped before Composition.",
-      candidateId,
-      portalProductId: candidateId,
-      runId,
       workflowRowVersion: enteredRowVersion,
       duplicateOutcome: DUPLICATE_OUTCOME.EXACT_ONE,
       coverageComplete: true,
-      compareResult: compare2,
       mutated: true,
       adopted: true,
       runBegun: false,
