@@ -1477,7 +1477,15 @@ function assessExactOneIdentityRecoveryPreflight(input = {}) {
 
   return {
     ok,
-    code: ok ? "RECOVERY_PREFLIGHT_PASS" : fieldGate.code || pageGuard.code || "RECOVERY_PREFLIGHT_BLOCKED",
+    code: ok
+      ? "RECOVERY_PREFLIGHT_PASS"
+      : fieldGate.ok !== true
+        ? fieldGate.code || "FIELD_GOVERNANCE_INCOMPLETE"
+        : pageGuard.ok !== true
+          ? pageGuard.code || "PAGE_GUARD_BLOCKED"
+          : duplicate.outcome !== DUPLICATE_OUTCOME.EXACT_ONE
+            ? `RECOVERY_DUPLICATE_${duplicate.outcome || "UNKNOWN"}`
+            : "RECOVERY_PREFLIGHT_BLOCKED",
     message: ok
       ? "Identity recovery preflight passed (ordinary Resume remains blocked)."
       : "Identity recovery preflight blocked.",
