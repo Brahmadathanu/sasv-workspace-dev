@@ -155,18 +155,22 @@ function deriveAmbiguousSaveRecoverable(authority = {}) {
  * Trusted EXACT_ONE identity-recovery eligibility.
  * Requires durable AMBIGUOUS save state plus fresh blank-list EXACT_ONE with hid* id.
  */
-function deriveAmbiguousSaveExactOneRecoverable(authority = {}) {
+function deriveAmbiguousSaveExactOneRecoverable(authority = {}, duplicateAssessment = null) {
   if (!deriveAmbiguousSaveRecoverable(authority)) return false;
-  const duplicate = evaluateDuplicateGuard(authority.duplicateSearch);
+  const duplicate = duplicateAssessment || evaluateDuplicateGuard(authority.duplicateSearch);
   if (duplicate.outcome !== DUPLICATE_OUTCOME.EXACT_ONE) return false;
   if (!duplicateCoverageComplete(authority.duplicateSearch)) return false;
   const idParse = deriveExactOnePortalProductId(duplicate.matches?.[0]);
   return idParse.ok === true && Boolean(idParse.portalProductId);
 }
 
-function attachAmbiguousSaveRecoverable(assessment, authority) {
+function attachAmbiguousSaveRecoverable(
+  assessment,
+  authority,
+  { exactOneEligible = false, exactOneReady = false } = {},
+) {
   const flag = deriveAmbiguousSaveRecoverable(authority) === true;
-  const exactOneFlag = deriveAmbiguousSaveExactOneRecoverable(authority) === true;
+  const exactOneFlag = exactOneEligible === true && exactOneReady === true;
   const next = assessment && typeof assessment === "object" ? assessment : {};
   next.ambiguousSaveRecoverable = flag;
   next.ambiguousSaveExactOneRecoverable = exactOneFlag;
@@ -1083,8 +1087,12 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
   };
 }
 
-function buildTrustedExecutorInput(authority, { userConfirmed = false, resume = false } = {}) {
-  const duplicateOutcome = evaluateDuplicateGuard(authority.duplicateSearch).outcome;
+function buildTrustedExecutorInput(
+  authority,
+  { userConfirmed = false, resume = false, duplicateAssessment = null } = {},
+) {
+  const duplicateOutcome =
+    duplicateAssessment?.outcome || evaluateDuplicateGuard(authority.duplicateSearch).outcome;
   const resumePlan = planResumeAction({
     entryStatus: authority.entryStatus,
     activeRunCount: authority.activeRunCount,
@@ -1182,14 +1190,73 @@ async function runTrustedProductDetailsPreview(deps = {}) {
       );
     }
 
-    const executorInput = buildTrustedExecutorInput(authority, { userConfirmed: false });
-    const assessment = assessProductDetailsPreflight(executorInput);
-    const resumePlan = executorInput.resumePlan;
-    assessment.resumePlan = resumePlan;
-
+    const duplicateAssessment = evaluateDuplicateGuard(authority.duplicateSearch);
+    const executorInput = buildTrustedExecutorInput(authority, {
+      userConfirmed: false,
+      duplicateAssessment,
+    });
     const entryUpper = String(authority.entryStatus).toUpperCase();
+    const resumePlan = executorInput.resumePlan;
+    const exactOneRecoveryEligible = deriveAmbiguousSaveExactOneRecoverable(
+      authority,
+      duplicateAssessment,
+    );
+    let exactOneRecoveryReady = false;
+    let assessment;
+
+    if (entryUpper === "NOT_STARTED") {
+      assessment = assessProductDetailsPreflight(executorInput);
+      assessment.resumePlan = resumePlan;
+    } else if (entryUpper === "IN_PROGRESS" && exactOneRecoveryEligible) {
+      const recoveryAssessment = assessExactOneIdentityRecoveryPreflight(executorInput);
+      exactOneRecoveryReady = recoveryAssessment.ok === true;
+      const recoveryCode = recoveryAssessment.code || "RECOVERY_PREFLIGHT_BLOCKED";
+      assessment = {
+        ...recoveryAssessment,
+        resumePlan,
+        ordinaryResumeBlocked: true,
+        ordinaryResumeBlockCode:
+          "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+        preview: {
+          productId: FIRST_CONTROLLED_PRODUCT_ID,
+          productName: EXPECTED_PORTAL_PRODUCT_NAME,
+          operation: "Recover Saved Portal Identity",
+          contentHash: authority.contentHash || null,
+          workflowRowVersion: authority.workflowRowVersion || null,
+          startEnabled: false,
+          resumeEnabled: false,
+          recoveryEnabled: exactOneRecoveryReady,
+          resumeMessage:
+            resumePlan.message ||
+            "Ordinary Resume is blocked; use Recover Saved Portal Identity only after recovery preflight passes.",
+          ordinaryResumeBlockCode:
+            "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+          blockers: exactOneRecoveryReady ? [] : [recoveryCode],
+        },
+      };
+    } else {
+      const blockedCode = resumePlan?.code || "ENTRY_NOT_RESUMABLE";
+      assessment = {
+        ok: false,
+        code: blockedCode,
+        message: resumePlan?.message || `entry_status ${entryUpper || "unknown"} is not resumable.`,
+        resumePlan,
+        preview: {
+          productId: FIRST_CONTROLLED_PRODUCT_ID,
+          productName: EXPECTED_PORTAL_PRODUCT_NAME,
+          startEnabled: false,
+          resumeEnabled: false,
+          resumeMessage: resumePlan?.message || null,
+          blockers: [blockedCode],
+          contentHash: authority.contentHash || null,
+          workflowRowVersion: authority.workflowRowVersion || null,
+        },
+      };
+    }
+
     if (
       (entryUpper === "IN_PROGRESS" || entryUpper === "ENTERED") &&
+      exactOneRecoveryEligible !== true &&
       resumePlan.resumeEnabled === true
     ) {
       const resumeAssessment = assessProductDetailsResumePreflight({
@@ -1228,7 +1295,7 @@ async function runTrustedProductDetailsPreview(deps = {}) {
           blockers: resumeAssessment.preview?.blockers || assessment.preview?.blockers || [],
         };
       }
-    } else if (resumePlan) {
+    } else if (entryUpper !== "NOT_STARTED" && exactOneRecoveryEligible !== true && resumePlan) {
       assessment.preview = {
         ...assessment.preview,
         resumeEnabled: false,
@@ -1240,11 +1307,17 @@ async function runTrustedProductDetailsPreview(deps = {}) {
       source: "trusted_main_process",
       contentHash: authority.contentHash,
       workflowRowVersion: authority.workflowRowVersion,
-      duplicateOutcome: evaluateDuplicateGuard(authority.duplicateSearch).outcome,
+      duplicateOutcome: duplicateAssessment.outcome,
       activeRunCount: authority.activeRunCount,
       requireEditPermission: false,
     };
-    return applyLiveArmGate(attachAmbiguousSaveRecoverable(assessment, authority), liveArmed);
+    return applyLiveArmGate(
+      attachAmbiguousSaveRecoverable(assessment, authority, {
+        exactOneEligible: exactOneRecoveryEligible,
+        exactOneReady: exactOneRecoveryReady,
+      }),
+      liveArmed,
+    );
   } finally {
     // Preview never uploads — release downloaded temp copy after assessment.
     invokeApprovedCopyCleanup(authority);

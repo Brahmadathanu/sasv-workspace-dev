@@ -2644,7 +2644,13 @@ async function submitWorkerProductDetailsPreview() {
     const token = await sessionAccessToken();
     const result = await previewWorkerProductDetails(state.selectedProductId, token);
     state.workerProductDetailsPreview = result;
-    if (result?.ok === false || result?.preview?.startEnabled !== true) {
+    const recoveryReady =
+      result?.ok === true &&
+      (result?.code === "RECOVERY_PREFLIGHT_PASS" ||
+        result?.preview?.ambiguousSaveExactOneRecoverable === true);
+    if (recoveryReady) {
+      showToast("Recovery preview ready.", "success");
+    } else if (result?.ok === false || result?.preview?.startEnabled !== true) {
       showToast(result?.message || "Product Details Start remains blocked.", "info");
     } else {
       showToast("Product Details preview ready.", "success");

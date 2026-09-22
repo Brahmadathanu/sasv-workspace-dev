@@ -5470,10 +5470,20 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       runPortalRef = null,
       includeActiveRun = true,
       preflightThrows = null,
+      duplicateSearch = noneDuplicate,
+      pageState = readyPage,
       rpcLog = [],
     } = {}) {
       return makeTrustedDeps({
         liveArmed: false,
+        measurePageState: async () => ({ ok: true, pageState }),
+        searchDuplicates: async () => ({ ok: true, searchResponse: duplicateSearch }),
+        resolveApprovedCopy: async () => ({
+          ok: true,
+          localPath:
+            "C:\\tmp\\EAUSHADHI_P0262_KARPOORADI_THAILAM_APPROVED_PRODUCT_COPY_V01.pdf",
+          fileName: EXPECTED_APPROVED_COPY_NAME,
+        }),
         callRpc: async (name, args) => {
           rpcLog.push({ name, args });
           if (name === "rpc_eaushadhi_require_permission") return { ok: true };
@@ -5658,6 +5668,136 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       "recovery Preview never mutates run / SaveData / rebase",
     );
 
+    const provenHid =
+      "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNG8atnUB3i77xOliuhhG1VsNyCEv7W0";
+    const exactOneRecoveryDuplicate = blankListEvidence({
+      totalCount: 1,
+      rows: [
+        {
+          name: EXPECTED_PORTAL_PRODUCT_NAME,
+          edit: `<button class="edit_productdata">Edit</button><input type="hidden" id="hid1" value="${provenHid}" />`,
+        },
+      ],
+    });
+    const recoveryReadyRpcLog = [];
+    const recoveryReadyPreview = await previewForRecovery(
+      makeRecoveryDeps({
+        duplicateSearch: exactOneRecoveryDuplicate,
+        rpcLog: recoveryReadyRpcLog,
+      }),
+    );
+    assert(
+      recoveryReadyPreview.ok === true &&
+        recoveryReadyPreview.code === "RECOVERY_PREFLIGHT_PASS",
+      "AMBIGUOUS+EXACT_ONE Preview routes to recovery preflight, not Start preflight",
+    );
+    assert(
+      recoveryReadyPreview.preview?.startEnabled === false,
+      "recovery-ready Preview keeps Start disabled",
+    );
+    assert(
+      recoveryReadyPreview.preview?.resumeEnabled === false,
+      "recovery-ready Preview keeps ordinary Resume disabled",
+    );
+    assert(
+      recoveryReadyPreview.resumePlan?.code ===
+        "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY" &&
+        recoveryReadyPreview.preview?.ordinaryResumeBlockCode ===
+          "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+      "recovery-ready Preview preserves ordinary Resume block code",
+    );
+    assert(
+      recoveryReadyPreview.ambiguousSaveExactOneRecoverable === true &&
+        recoveryReadyPreview.preview?.ambiguousSaveExactOneRecoverable === true,
+      "trusted exact-one recovery flag is true only after recovery preflight passes",
+    );
+    assert(
+      recoveryReadyRpcLog.filter((c) => c.name === "rpc_eaushadhi_worker_preflight")
+        .length === 1 &&
+        recoveryReadyRpcLog.filter((c) => c.name === "rpc_eaushadhi_worker_content_get")
+          .length === 1,
+      "recovery Preview collects authoritative preflight/content context once",
+    );
+    assert(
+      !recoveryReadyRpcLog.some((c) =>
+        /run_begin|run_resume|adopt|mark_|SaveData|fill|upload/i.test(c.name),
+      ),
+      "recovery-ready Preview performs no SaveData/run/adoption/mark/fill/upload mutation",
+    );
+
+    const incompleteCoverage = await previewForRecovery(
+      makeRecoveryDeps({
+        duplicateSearch: {
+          ...exactOneRecoveryDuplicate,
+          coverageComplete: false,
+          totalCount: 2,
+        },
+      }),
+    );
+    assert(
+      incompleteCoverage.ok === false &&
+        incompleteCoverage.ambiguousSaveExactOneRecoverable === false,
+      "incomplete duplicate coverage remains blocked from recovery",
+    );
+
+    const malformedHid = await previewForRecovery(
+      makeRecoveryDeps({
+        duplicateSearch: blankListEvidence({
+          totalCount: 1,
+          rows: [
+            {
+              name: EXPECTED_PORTAL_PRODUCT_NAME,
+              edit: '<button class="edit_productdata">Edit</button><input type="hidden" id="hid1" value="0" />',
+            },
+          ],
+        }),
+      }),
+    );
+    assert(
+      malformedHid.ok === false && malformedHid.ambiguousSaveExactOneRecoverable === false,
+      "malformed hid remains blocked from recovery",
+    );
+
+    const multipleMatches = await previewForRecovery(
+      makeRecoveryDeps({
+        duplicateSearch: blankListEvidence({
+          totalCount: 2,
+          rows: [
+            { name: EXPECTED_PORTAL_PRODUCT_NAME, edit: `<input id="hid1" value="${provenHid}" />` },
+            { name: EXPECTED_PORTAL_PRODUCT_NAME, edit: `<input id="hid2" value="${provenHid}A" />` },
+          ],
+        }),
+      }),
+    );
+    assert(
+      multipleMatches.ok === false && multipleMatches.ambiguousSaveExactOneRecoverable === false,
+      "multiple exact matches remain blocked from recovery",
+    );
+
+    const staleEditPreview = await previewForRecovery(
+      makeRecoveryDeps({
+        duplicateSearch: exactOneRecoveryDuplicate,
+        pageState: { ...readyPage, staleEditState: true },
+      }),
+    );
+    assert(
+      staleEditPreview.code === "STALE_EDIT_STATE" &&
+        staleEditPreview.ambiguousSaveExactOneRecoverable === false,
+      "recovery Preview reports stale Edit page-guard code",
+    );
+
+    const nonAddPreview = await previewForRecovery(
+      makeRecoveryDeps({
+        duplicateSearch: exactOneRecoveryDuplicate,
+        pageState: { ...readyPage, actiontype: "edit" },
+      }),
+    );
+    assert(
+      nonAddPreview.code === "NOT_ADD_MODE" &&
+        nonAddPreview.ambiguousSaveExactOneRecoverable === false,
+      "recovery Preview reports non-Add page-guard code",
+    );
+
     const noMarker = await previewForRecovery(
       makeRecoveryDeps({ lastSaveOutcome: null }),
     );
@@ -5693,6 +5833,16 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       "sanitize does not accept renderer ambiguousSaveRecoverable",
     );
   }
+
+  const previewSubmitSource = controlSrc.slice(
+    controlSrc.indexOf("async function submitWorkerProductDetailsPreview"),
+    controlSrc.indexOf("async function submitWorkerProductDetailsStart"),
+  );
+  assert(
+    previewSubmitSource.includes('result?.code === "RECOVERY_PREFLIGHT_PASS"') &&
+      previewSubmitSource.includes('showToast("Recovery preview ready.", "success")'),
+    "renderer treats trusted recovery-ready Preview as success",
+  );
 
   // Client-side transliteration must stay out of the portal fill path.
   {
