@@ -15,6 +15,7 @@ const {
   EXPECTED_PORTAL_PRODUCT_NAME,
   assessProductDetailsPreflight,
   assessProductDetailsResumePreflight,
+  assessExactOneIdentityRecoveryPreflight,
   executeProductDetails,
   executeProductDetailsResume,
   planResumeAction,
@@ -315,7 +316,13 @@ assert(
   evaluateDuplicateGuard(
     blankListEvidence({
       totalCount: 1,
-      rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+      rows: [
+        {
+          name: "Karpooradi Thailam",
+          id: "9001",
+          edit: '<input type="hidden" id="hid1" value="9001" />',
+        },
+      ],
       coverageComplete: true,
     }),
   ).outcome === DUPLICATE_OUTCOME.EXACT_ONE,
@@ -1495,6 +1502,79 @@ const resumeAmbiguousPreflight = assessProductDetailsResumePreflight({
 });
 assert(resumeAmbiguousPreflight.ok === false, "assessProductDetailsResumePreflight blocks >1 active run");
 
+{
+  const PROVEN_HID =
+    "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNG8atnUB3i77xOliuhhG1VsNyCEv7W0";
+  const exactOneAmbiguousDup = {
+    source: "LoadProductDataforLegacy",
+    mechanism: "datatable_list_post",
+    transportSearch: "",
+    transportSearchBlank: true,
+    targetName: "Karpooradi Thailam",
+    localExactEvaluation: true,
+    totalCount: 1,
+    coverageComplete: true,
+    rows: [
+      {
+        name: "Karpooradi Thailam",
+        edit: `<button class="edit_productdata">Edit</button><input type="hidden" id="hid1" value="${PROVEN_HID}" />`,
+      },
+    ],
+  };
+  const recoveryResumeInput = {
+    ...resumeBaseInput,
+    content: baseContent({
+      entry_status: "IN_PROGRESS",
+      details: {
+        permission_purpose_label: "Regular",
+        composition_title: "For 10 mL",
+        diseases_conditions: "Sandhirujah, Śōpham",
+        combined_restricted_declaration: "NO",
+        portal_remarks: GOVERNANCE_OVERRIDES.remarks,
+        portal_shelfmonth_route: GOVERNANCE_OVERRIDES.shelfmonth,
+      },
+    }),
+    activeRun: {
+      ...resumeBaseInput.activeRun,
+      last_save_outcome: "AMBIGUOUS",
+      last_save_observed_at: "2026-09-20T00:00:00Z",
+      portal_product_ref: null,
+    },
+    duplicateSearch: exactOneAmbiguousDup,
+    contentHashMatchesRunStart: true,
+    fieldGovernanceOverrides: null,
+    allowTestFieldGovernanceOverrides: false,
+  };
+  const ordinaryResumeBlocked = assessProductDetailsResumePreflight({
+    ...recoveryResumeInput,
+    resume: true,
+  });
+  assert(
+    ordinaryResumeBlocked.ok === false,
+    "AMBIGUOUS+EXACT_ONE ordinary Resume preflight blocked",
+  );
+  assert(
+    ordinaryResumeBlocked.code === "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+    "ordinary Resume blocked with AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+  );
+  const recoveryPreflight = assessExactOneIdentityRecoveryPreflight(recoveryResumeInput);
+  assert(
+    recoveryPreflight.ok === true,
+    "identity recovery preflight proceeds despite ordinary Resume blocked",
+  );
+  assert(
+    recoveryPreflight.code === "RECOVERY_PREFLIGHT_PASS",
+    "identity recovery preflight pass code",
+  );
+  assert(
+    recoveryPreflight.fieldGate?.ok === true && Boolean(recoveryPreflight.fillPlan),
+    "recovery preflight produces fieldGate/fillPlan without resumeEnabled",
+  );
+  assert(
+    recoveryPreflight.ordinaryResumeBlocked === true,
+    "recovery preflight keeps ordinary Resume documented as blocked",
+  );
+}
 const mutex = createSaveMutex();
 const saveOk = classifySaveOutcome({
   invoked: true,
@@ -2898,7 +2978,13 @@ assert(
 
   const exactOneDuplicate = blankListEvidence({
     totalCount: 1,
-    rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+    rows: [
+      {
+        name: "Karpooradi Thailam",
+        id: "9001",
+        edit: '<input type="hidden" id="hid1" value="9001" />',
+      },
+    ],
   });
   let exactOneSaveCalls = 0;
   let exactOnePortalArgs = null;
@@ -3264,12 +3350,17 @@ assert(
     indexSrc.indexOf("async function requireViewPermission"),
   );
   assert(
-    (reconcileWrapper.match(/sanitizeRendererCommand\(rawOptions\)/g) || []).length === 2,
-    "reconcile and rebase wrappers both sanitize renderer options",
+    (reconcileWrapper.match(/sanitizeRendererCommand\(rawOptions\)/g) || []).length === 3,
+    "reconcile, rebase, and exact-one recovery wrappers all sanitize renderer options",
   );
   assert(
     !/rawOptions\./.test(reconcileWrapper) && !/\.\.\.rawOptions/.test(reconcileWrapper),
-    "reconcile/rebase wrappers never read raw renderer options directly",
+    "reconcile/rebase/recovery wrappers never read raw renderer options directly",
+  );
+  assert(
+    reconcileWrapper.includes("recoverAmbiguousSaveExactOneProductDetailsExecution") &&
+      reconcileWrapper.includes("runTrustedAmbiguousSaveExactOneRecovery"),
+    "index exposes recoverAmbiguousSaveExactOneProductDetailsExecution via trusted orchestration",
   );
 }
 assert(indexSrc.includes("resolveApprovedProductCopyFile"), "index wires trusted approved-copy resolver");
@@ -3386,10 +3477,16 @@ assert(controlSrc.includes("Start Product Details"), "Review UI has Start Produc
 assert(controlSrc.includes("btnWorkerProductDetailsResume"), "Review UI has Resume Product Details button");
 assert(controlSrc.includes("productDetailsConfirmBackdrop"), "Review UI has productDetailsConfirm modal");
 assert(controlSrc.includes("resumeWorkerProductDetails"), "Review UI imports resumeWorkerProductDetails");
-assert(
-  !/async function submitWorkerProductDetailsStart[\s\S]*?window\.confirm/.test(controlSrc),
-  "Start flow does not use window.confirm",
-);
+{
+  const startFn = controlSrc.slice(
+    controlSrc.indexOf("async function submitWorkerProductDetailsStart"),
+    controlSrc.indexOf("async function submitWorkerProductDetailsResume"),
+  );
+  assert(
+    !startFn.includes("window.confirm"),
+    "Start flow does not use window.confirm",
+  );
+}
 assert(controlSrc.includes("will NOT add Composition"), "warning mentions no Composition");
 assert(!controlSrc.includes("submitProduct"), "UI does not reference submitProduct");
 assert(!/Enter Product/.test(controlSrc), "UI does not expose Enter Product");
@@ -4943,7 +5040,13 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   {
     const exactOne = blankListEvidence({
       totalCount: 1,
-      rows: [{ name: "Karpooradi Thailam", id: "9001" }],
+      rows: [
+        {
+          name: "Karpooradi Thailam",
+          id: "9001",
+          edit: '<input type="hidden" id="hid1" value="9001" />',
+        },
+      ],
     });
     const blocked = await runTrustedAmbiguousSaveReconcile(
       makeReconcileDeps({ duplicateSearch: exactOne }),

@@ -16,7 +16,7 @@ const {
   resolvePermissionPurposeByExactLabel,
   buildFillPlan,
 } = require("./product-details-field-map");
-const { evaluateDuplicateGuard, DUPLICATE_OUTCOME } = require("./portal-duplicate-guard");
+const { evaluateDuplicateGuard, DUPLICATE_OUTCOME, deriveExactOnePortalProductId } = require("./portal-duplicate-guard");
 const { buildDependentClassificationSteps } = require("./portal-dom-fill");
 const {
   createSaveMutex,
@@ -53,6 +53,8 @@ const RESUME_ACTION = Object.freeze({
   STOP_DUPLICATE_SEARCH_INCOMPLETE: "STOP_DUPLICATE_SEARCH_INCOMPLETE",
   STOP_DUPLICATE_COVERAGE_UNPROVEN: "STOP_DUPLICATE_COVERAGE_UNPROVEN",
   STOP_CONFLICTING_REFS: "STOP_CONFLICTING_REFS",
+  STOP_AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY:
+    "STOP_AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
   STOP: "STOP",
 });
 
@@ -362,11 +364,16 @@ function normalizePortalRef(value) {
 
 function extractPortalIdFromDuplicateMatch(match) {
   if (!match || typeof match !== "object") return null;
-  const raw = match.id != null ? match.id : match.product_id;
-  if (raw == null) return null;
-  const text = String(raw).trim();
-  if (!text || text === "262" || text === String(FIRST_CONTROLLED_PRODUCT_ID)) return null;
-  return text;
+  // Authoritative identity: hid* parsed from edit HTML (or pre-attached portalProductId from guard).
+  if (match.portalProductId != null) {
+    const pre = String(match.portalProductId).trim();
+    if (pre && pre !== "0" && pre !== "-1" && pre !== "262" && pre !== String(FIRST_CONTROLLED_PRODUCT_ID)) {
+      return pre;
+    }
+  }
+  const derived = deriveExactOnePortalProductId(match);
+  if (derived.ok && derived.portalProductId) return String(derived.portalProductId);
+  return null;
 }
 
 function buildExpectedCompare(preflight) {
@@ -985,6 +992,29 @@ function planResumeAction(context = {}) {
     };
   }
 
+  const lastSaveOutcome = String(
+    activeRun?.last_save_outcome ??
+      activeRun?.lastSaveOutcome ??
+      context.lastSaveOutcome ??
+      context.last_save_outcome ??
+      "",
+  ).toUpperCase();
+
+  // Ambiguous-save + EXACT_ONE must use dedicated identity recovery — never ordinary Resume/SaveData.
+  if (
+    lastSaveOutcome === "AMBIGUOUS" &&
+    duplicateOutcome === DUPLICATE_OUTCOME.EXACT_ONE &&
+    activeRunCount === 1
+  ) {
+    return {
+      ...base,
+      action: RESUME_ACTION.STOP_AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY,
+      code: "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
+      message:
+        "Ambiguous Save left an exact portal identity. Use Recover Saved Portal Identity — ordinary Resume is blocked.",
+    };
+  }
+
   if (
     entryStatus === "IN_PROGRESS" &&
     activeRunCount === 1 &&
@@ -1270,6 +1300,195 @@ function assessProductDetailsResumePreflight(input = {}) {
     preview,
     fillPlan: buildFillPlan(content, gateOptions),
     resumePlan,
+  };
+}
+
+/**
+ * Read-only preflight for AMBIGUOUS+EXACT_ONE identity recovery.
+ * Uses the same authoritative gates as Resume (field/page/fill/hash/source)
+ * but MUST NOT depend on resumePlan.resumeEnabled — ordinary Resume stays blocked.
+ */
+function assessExactOneIdentityRecoveryPreflight(input = {}) {
+  const productId = Number(input.productId);
+  const content = input.content || null;
+  const phases = [];
+  phaseLog(phases, PHASE.PRECHECK, "exact_one_identity_recovery_begin");
+
+  if (productId !== FIRST_CONTROLLED_PRODUCT_ID) {
+    return { ok: false, code: "PRODUCT_LOCK_REJECTED", phases };
+  }
+  if (input.authorityMode !== true) {
+    return {
+      ok: false,
+      code: "AUTHORITY_MODE_REQUIRED",
+      message: "Identity recovery preflight requires authoritative server evidence.",
+      phases,
+    };
+  }
+
+  const entryStatus =
+    input.entryStatus != null ? String(input.entryStatus).toUpperCase() : null;
+  if (entryStatus !== "IN_PROGRESS") {
+    return {
+      ok: false,
+      code: "ENTRY_NOT_RECOVERABLE",
+      message: `entry_status ${entryStatus || "unknown"} is not recoverable.`,
+      phases,
+    };
+  }
+
+  const activeRunCount = Number(input.activeRunCount ?? 0);
+  const activeRun = input.activeRun || null;
+  const runId = activeRun?.run_id ?? activeRun?.runId ?? null;
+  if (activeRunCount !== 1 || !runId) {
+    return {
+      ok: false,
+      code: "ACTIVE_RUN_INVALID",
+      message: "Identity recovery requires exactly one active run with run_id.",
+      phases,
+    };
+  }
+
+  const duplicateOutcome =
+    input.duplicateOutcome ??
+    (input.duplicateSearch
+      ? evaluateDuplicateGuard(input.duplicateSearch).outcome
+      : null);
+  const resumePlan =
+    input.resumePlan ||
+    planResumeAction({
+      entryStatus,
+      activeRunCount,
+      activeRun,
+      workflowPortalRef: input.workflowPortalRef,
+      duplicateOutcome,
+      duplicateSearch: input.duplicateSearch,
+    });
+
+  // Ordinary Resume must remain blocked for this state.
+  if (
+    resumePlan.code !== "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY" &&
+    resumePlan.action !==
+      RESUME_ACTION.STOP_AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY
+  ) {
+    return {
+      ok: false,
+      code: "RECOVERY_STATE_MISMATCH",
+      message:
+        "Identity recovery preflight expects ordinary Resume to be blocked as AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (resumePlan.resumeEnabled === true) {
+    return {
+      ok: false,
+      code: "RECOVERY_RESUME_STILL_ENABLED",
+      message: "Identity recovery refused: ordinary Resume must stay disabled.",
+      phases,
+      resumePlan,
+    };
+  }
+
+  if (input.reviewStatus == null || String(input.reviewStatus).trim() === "") {
+    return { ok: false, code: "WORKFLOW_STATUS_UNKNOWN", phases, resumePlan };
+  }
+  if (String(input.reviewStatus).toUpperCase() !== "VERIFIED") {
+    return { ok: false, code: "WORKFLOW_NOT_VERIFIED", phases, resumePlan };
+  }
+  if (input.classificationVerified !== true) {
+    return { ok: false, code: "CLASSIFICATION_NOT_VERIFIED", phases, resumePlan };
+  }
+  if (input.compositionReviewComplete !== true) {
+    return {
+      ok: false,
+      code: "COMPOSITION_REVIEW_INCOMPLETE",
+      message: "Composition review is incomplete; recovery blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (input.dossierReady !== true) {
+    return {
+      ok: false,
+      code: "DOSSIER_NOT_READY",
+      message: "Dossier is not ready; recovery blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (Number(input.openBlockers) !== 0) {
+    return {
+      ok: false,
+      code: "OPEN_BLOCKERS",
+      message: "Open blockers remain; recovery blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (Number(input.openPortalIssues) !== 0) {
+    return {
+      ok: false,
+      code: "OPEN_PORTAL_ISSUES",
+      message: "Open portal issues remain; recovery blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (input.resumeSourceReady !== true) {
+    return {
+      ok: false,
+      code: "SOURCE_NOT_READY",
+      message: "Source readiness is not proven; recovery blocked.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (input.contentHashMatchesRunStart !== true) {
+    return {
+      ok: false,
+      code: "CONTENT_HASH_DRIFT",
+      message: "Content hash match to the active run start is not proven.",
+      phases,
+      resumePlan,
+    };
+  }
+  if (!input.pageState) {
+    return { ok: false, code: "PAGE_STATE_UNKNOWN", phases, resumePlan };
+  }
+  if (!input.duplicateSearch) {
+    return { ok: false, code: "DUPLICATE_SEARCH_UNKNOWN", phases, resumePlan };
+  }
+
+  const allowOverrides = input.allowTestFieldGovernanceOverrides === true;
+  const gateOptions = {
+    approvedFileName: input.approvedFileName,
+    fieldGovernanceOverrides: allowOverrides ? input.fieldGovernanceOverrides || null : null,
+  };
+  const fieldGate = assessRequiredFieldGate(content, gateOptions);
+  const duplicate = evaluateDuplicateGuard(input.duplicateSearch);
+  const pageGuard = assertPageGuards(input.pageState);
+  const fillPlan = buildFillPlan(content, gateOptions);
+  const ok =
+    fieldGate.ok === true &&
+    pageGuard.ok === true &&
+    Boolean(content?.content_hash || input.contentHash) &&
+    duplicate.outcome === DUPLICATE_OUTCOME.EXACT_ONE;
+
+  return {
+    ok,
+    code: ok ? "RECOVERY_PREFLIGHT_PASS" : fieldGate.code || pageGuard.code || "RECOVERY_PREFLIGHT_BLOCKED",
+    message: ok
+      ? "Identity recovery preflight passed (ordinary Resume remains blocked)."
+      : "Identity recovery preflight blocked.",
+    phases,
+    fieldGate,
+    duplicate,
+    pageGuard,
+    fillPlan,
+    resumePlan,
+    ordinaryResumeBlocked: true,
+    ordinaryResumeBlockCode: "AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY",
   };
 }
 
@@ -1804,6 +2023,7 @@ module.exports = {
   assessProductDetailsPreflight,
   assessProductDetailsPreflightForTest,
   assessProductDetailsResumePreflight,
+  assessExactOneIdentityRecoveryPreflight,
   executeProductDetails,
   executeProductDetailsResume,
   planResumeAction,

@@ -34,6 +34,7 @@ const {
   runTrustedProductDetailsResume,
   runTrustedAmbiguousSaveReconcile,
   runTrustedPortalProjectionRebase,
+  runTrustedAmbiguousSaveExactOneRecovery,
   measureConnectedPageState,
   enumerateLivePermissionOptions,
   runLiveDuplicateSearch,
@@ -1045,6 +1046,29 @@ function createEaushadhiWorker({
     });
   }
 
+  async function recoverAmbiguousSaveExactOneProductDetailsExecution(
+    rawProductId,
+    rawAccessToken,
+    rawOptions = {},
+  ) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    const command = sanitizeRendererCommand(rawOptions);
+    if (id !== PD_PRODUCT_ID) {
+      return {
+        ok: false,
+        code: "PRODUCT_LOCK_REJECTED",
+        message: `Ambiguous-save EXACT_ONE identity recovery accepts only product_id ${PD_PRODUCT_ID}.`,
+        inventedFailureRpcCalled: false,
+        adopted: false,
+      };
+    }
+    return runTrustedAmbiguousSaveExactOneRecovery(buildProductDetailsTrustedDeps(accessToken), {
+      userConfirmed: command.userConfirmed === true,
+      correlationId: command.correlationId,
+    });
+  }
+
   async function requireViewPermission(accessToken) {
     try {
       await rpcCall(accessToken, "rpc_eaushadhi_require_permission", { p_edit: false });
@@ -1191,6 +1215,7 @@ function createEaushadhiWorker({
     resumeProductDetailsExecution,
     reconcileAmbiguousSaveProductDetailsExecution,
     rebasePortalProjectionProductDetailsExecution,
+    recoverAmbiguousSaveExactOneProductDetailsExecution,
     capturePortalContract,
     openLastCaptureFolder,
   };

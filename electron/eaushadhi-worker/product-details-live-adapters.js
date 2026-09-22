@@ -257,6 +257,9 @@ function createInPageRereadScript() {
       return {
         ok: true,
         source: 'GetproductDataUpdate',
+        requestedId: id,
+        loadedHiddenId: fields.hiddenId,
+        idMatch: fields.hiddenId === id,
         portalProductId: id,
         loadUrl: loadState.url || null,
         attachmentRereadUnavailable: true,
@@ -276,6 +279,25 @@ function createInPageRereadScript() {
         attachmentFileName: null,
         hiddenId: fields.hiddenId,
         actiontype: fields.actiontype,
+        retained: {
+          name: fields.name,
+          type: fields.type,
+          categoryId: fields.categoryId,
+          subTypeId: fields.subTypeId,
+          permissionPurpose: fields.permissionPurpose,
+          compositionTitle: fields.compositionTitle,
+          disease: fields.disease,
+          indications: fields.indications,
+          drugs: fields.drugs,
+          drugsValue: fields.drugsValue,
+          remarks: fields.remarks,
+          shelfmonth: fields.shelfmonth,
+          month: fields.month,
+          attachmentFileName: null,
+          attachmentRereadUnavailable: true,
+          hiddenId: fields.hiddenId,
+          actiontype: fields.actiontype,
+        },
       };
     } finally {
       XMLHttpRequest.prototype.open = origOpen;
@@ -486,7 +508,40 @@ function buildProductDetailsLiveAdapters(deps = {}) {
       if (!retained || retained.ok !== true) {
         throw new Error(retained?.reason || "reread_failed");
       }
-      return retained;
+      const loadedHiddenId =
+        retained.loadedHiddenId != null
+          ? String(retained.loadedHiddenId)
+          : retained.hiddenId != null
+            ? String(retained.hiddenId)
+            : null;
+      return {
+        ...retained,
+        requestedId: id,
+        loadedHiddenId,
+        idMatch: loadedHiddenId === id,
+        retained:
+          retained.retained && typeof retained.retained === "object"
+            ? retained.retained
+            : {
+                name: retained.name,
+                type: retained.type,
+                categoryId: retained.categoryId,
+                subTypeId: retained.subTypeId,
+                permissionPurpose: retained.permissionPurpose,
+                compositionTitle: retained.compositionTitle,
+                disease: retained.disease,
+                indications: retained.indications,
+                drugs: retained.drugs,
+                drugsValue: retained.drugsValue,
+                remarks: retained.remarks,
+                shelfmonth: retained.shelfmonth,
+                month: retained.month,
+                attachmentFileName: retained.attachmentFileName,
+                attachmentRereadUnavailable: retained.attachmentRereadUnavailable === true,
+                hiddenId: loadedHiddenId,
+                actiontype: retained.actiontype,
+              },
+      };
     },
 
     async markPortalVerified(args = {}) {

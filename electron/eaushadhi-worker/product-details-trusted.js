@@ -16,16 +16,32 @@ const {
 const {
   assessProductDetailsPreflight,
   assessProductDetailsResumePreflight,
+  assessExactOneIdentityRecoveryPreflight,
   executeProductDetails,
   executeProductDetailsResume,
   planResumeAction,
+  PHASE: EXECUTOR_PHASE,
 } = require("./product-details-executor");
-const { evaluateDuplicateGuard, DUPLICATE_OUTCOME, MAX_LIST_ROWS } = require("./portal-duplicate-guard");
+
+/** Controlled Product Details SaveData evidence phases stored by the executor. */
+const RECOVERY_ATTACHMENT_SAVE_PHASES = new Set([
+  EXECUTOR_PHASE.SAVE_CONFIRMED,
+  EXECUTOR_PHASE.RUN_RESUME,
+]);
+const { evaluateDuplicateGuard, DUPLICATE_OUTCOME, MAX_LIST_ROWS, deriveExactOnePortalProductId } = require("./portal-duplicate-guard");
+const {
+  compareProductDetailsReread,
+  toMarkPortalVerifiedReport,
+  OVERALL_COMPARE,
+} = require("./compare");
 
 /** Read-only portal projection authority (Product Details diseases text). */
 const PORTAL_TEXT_GET_RPC = "rpc_eaushadhi_product_portal_text_get";
 /** Server-enforced rebase of an existing run onto the verified projection. */
 const REBASE_PORTAL_PROJECTION_RPC = "rpc_eaushadhi_worker_run_rebase_portal_projection";
+/** Adopt EXACT_ONE portal identity after AMBIGUOUS Save (no mark_entered). */
+const ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC =
+  "rpc_eaushadhi_worker_adopt_ambiguous_save_identity";
 
 const RENDERER_FORBIDDEN_OPTION_KEYS = Object.freeze([
   "content",
@@ -135,16 +151,36 @@ function deriveAmbiguousSaveRecoverable(authority = {}) {
   return true;
 }
 
+/**
+ * Trusted EXACT_ONE identity-recovery eligibility.
+ * Requires durable AMBIGUOUS save state plus fresh blank-list EXACT_ONE with hid* id.
+ */
+function deriveAmbiguousSaveExactOneRecoverable(authority = {}) {
+  if (!deriveAmbiguousSaveRecoverable(authority)) return false;
+  const duplicate = evaluateDuplicateGuard(authority.duplicateSearch);
+  if (duplicate.outcome !== DUPLICATE_OUTCOME.EXACT_ONE) return false;
+  if (!duplicateCoverageComplete(authority.duplicateSearch)) return false;
+  const idParse = deriveExactOnePortalProductId(duplicate.matches?.[0]);
+  return idParse.ok === true && Boolean(idParse.portalProductId);
+}
+
 function attachAmbiguousSaveRecoverable(assessment, authority) {
   const flag = deriveAmbiguousSaveRecoverable(authority) === true;
+  const exactOneFlag = deriveAmbiguousSaveExactOneRecoverable(authority) === true;
   const next = assessment && typeof assessment === "object" ? assessment : {};
   next.ambiguousSaveRecoverable = flag;
+  next.ambiguousSaveExactOneRecoverable = exactOneFlag;
   if (next.preview && typeof next.preview === "object") {
-    next.preview = { ...next.preview, ambiguousSaveRecoverable: flag };
+    next.preview = {
+      ...next.preview,
+      ambiguousSaveRecoverable: flag,
+      ambiguousSaveExactOneRecoverable: exactOneFlag,
+    };
   } else {
     next.preview = {
       ...(next.preview && typeof next.preview === "object" ? next.preview : {}),
       ambiguousSaveRecoverable: flag,
+      ambiguousSaveExactOneRecoverable: exactOneFlag,
     };
   }
   return next;
@@ -300,13 +336,22 @@ function createInPageDuplicateSearchProbe() {
               : null;
       const rows = Array.isArray(rowsRaw)
         ? rowsRaw.map(function (row) {
-            if (row == null) return { name: "" };
-            if (typeof row === "string") return { name: row };
-            if (Array.isArray(row)) return { name: String(row[1] || row[0] || "") };
-            return {
+            if (row == null) return { name: "", edit: null };
+            if (typeof row === "string") return { name: row, edit: null };
+            if (Array.isArray(row)) return { name: String(row[1] || row[0] || ""), edit: null };
+            var editRaw = row.edit;
+            var edit = null;
+            if (typeof editRaw === "string") {
+              edit = editRaw.length > 8000 ? editRaw.slice(0, 8000) : editRaw;
+            }
+            var out = {
               name: String(row.name || row.product_name || row.ProductName || ""),
-              id: row.id != null ? row.id : row.product_id,
+              edit: edit,
             };
+            if (row.id != null) out.id = row.id;
+            else if (row.product_id != null) out.id = row.product_id;
+            if (row.product_id != null) out.product_id = row.product_id;
+            return out;
           })
         : null;
       return {
@@ -725,6 +770,33 @@ async function collectAuthoritativeProductDetailsContext(deps = {}) {
       started_at: raw.started_at ?? null,
       last_save_outcome: raw.last_save_outcome ?? null,
       last_save_observed_at: raw.last_save_observed_at ?? null,
+      // Bounded preflight save-proof fields only (never last_save_evidence blob).
+      last_save_evidence_outcome: raw.last_save_evidence_outcome ?? null,
+      last_save_invoked:
+        raw.last_save_invoked === true
+          ? true
+          : raw.last_save_invoked === false
+            ? false
+            : null,
+      last_save_invoke_count:
+        raw.last_save_invoke_count != null &&
+        Number.isFinite(Number(raw.last_save_invoke_count))
+          ? Number(raw.last_save_invoke_count)
+          : null,
+      last_save_settled:
+        raw.last_save_settled === true
+          ? true
+          : raw.last_save_settled === false
+            ? false
+            : null,
+      last_save_business_success:
+        raw.last_save_business_success === true
+          ? true
+          : raw.last_save_business_success === false
+            ? false
+            : null,
+      last_save_phase:
+        raw.last_save_phase != null ? String(raw.last_save_phase) : null,
     };
   }
   const entryStatusEarly =
@@ -1487,6 +1559,54 @@ function assessFreshDuplicateNone(authority) {
 }
 
 /**
+ * Fresh blank-list EXACT_ONE with one valid hid* portal id.
+ */
+function assessFreshDuplicateExactOne(authority) {
+  const duplicate = evaluateDuplicateGuard(authority.duplicateSearch);
+  const coverageComplete = duplicateCoverageComplete(authority.duplicateSearch);
+  if (duplicate.outcome !== DUPLICATE_OUTCOME.EXACT_ONE) {
+    return {
+      ok: false,
+      code: "RECOVERY_DUPLICATE_NOT_EXACT_ONE",
+      message:
+        duplicate.message ||
+        "Duplicate search did not prove EXACT_ONE; identity recovery is blocked.",
+      duplicateOutcome: duplicate.outcome || null,
+      coverageComplete,
+    };
+  }
+  if (!coverageComplete) {
+    return {
+      ok: false,
+      code: "RECOVERY_COVERAGE_UNPROVEN",
+      message: "Duplicate search coverage is unproven; identity recovery is blocked.",
+      duplicateOutcome: duplicate.outcome,
+      coverageComplete: false,
+    };
+  }
+  const idParse = deriveExactOnePortalProductId(duplicate.matches?.[0]);
+  if (!idParse.ok || !idParse.portalProductId) {
+    return {
+      ok: false,
+      code: "RECOVERY_PORTAL_ID_UNPROVEN",
+      message:
+        "EXACT_ONE match did not yield exactly one valid hid* portal product id.",
+      duplicateOutcome: DUPLICATE_OUTCOME.EXACT_ONE,
+      coverageComplete: true,
+      parseReason: idParse.reason || null,
+    };
+  }
+  return {
+    ok: true,
+    duplicateOutcome: DUPLICATE_OUTCOME.EXACT_ONE,
+    coverageComplete: true,
+    portalProductId: String(idParse.portalProductId),
+    match: duplicate.matches?.[0] || null,
+    exactMatchCount: 1,
+  };
+}
+
+/**
  * Read-only reconciliation after an AMBIGUOUS Save.
  * Never fills, never Saves, never run_begin / run_resume, never mark_*.
  */
@@ -1821,6 +1941,544 @@ async function runTrustedPortalProjectionRebase(deps = {}, command = {}) {
   }
 }
 
+/**
+ * Current governed approved copy must resolve exactly as V01.
+ * File resolution alone is never treated as fill-time Save proof.
+ */
+function proveGovernedApprovedCopyV01(authority) {
+  return (
+    authority?.approvedResolved === true &&
+    Boolean(authority?.approvedLocalPath) &&
+    String(authority?.approvedFileName || "") === EXPECTED_APPROVED_COPY_NAME
+  );
+}
+
+/**
+ * Recovery attachment eligibility requires trusted server active-run save proof
+ * from preflight bounded fields (never renderer input / never full evidence blob).
+ *
+ * This is recovery evidence derived from the controlled executor invariant:
+ * SaveData is reached only after fill/upload proof succeeded on that run.
+ */
+function proveTrustedAmbiguousSaveAttachmentEvidence(activeRun) {
+  const run = activeRun && typeof activeRun === "object" ? activeRun : {};
+  const outcome = String(run.last_save_evidence_outcome || "").toUpperCase();
+  const phase = String(run.last_save_phase || "");
+  const invokeCount = Number(run.last_save_invoke_count);
+  return (
+    outcome === "AMBIGUOUS" &&
+    run.last_save_invoked === true &&
+    invokeCount === 1 &&
+    run.last_save_settled === true &&
+    run.last_save_business_success === true &&
+    RECOVERY_ATTACHMENT_SAVE_PHASES.has(phase)
+  );
+}
+
+/**
+ * BOTH A (current V01 resolve) and B (trusted ambiguous save evidence) required
+ * before recovery may treat attachment as proven for reread-unavailable compare.
+ */
+function assessRecoveryAttachmentEligibility(authority) {
+  const v01Ok = proveGovernedApprovedCopyV01(authority);
+  const saveProofOk = proveTrustedAmbiguousSaveAttachmentEvidence(
+    authority?.activeRun,
+  );
+  if (!v01Ok || !saveProofOk) {
+    return {
+      ok: false,
+      code: "ATTACHMENT_EVIDENCE_UNPROVEN",
+      message:
+        "Recovery attachment requires current governed V01 resolution plus trusted server active-run last_save evidence (AMBIGUOUS, invoked, invokeCount=1, settled, businessSuccess, controlled Product Details phase). File resolution alone is not fill-time proof.",
+      v01Resolved: v01Ok,
+      saveEvidenceProven: saveProofOk,
+    };
+  }
+  return {
+    ok: true,
+    code: "ATTACHMENT_EVIDENCE_PROVEN",
+    v01Resolved: true,
+    saveEvidenceProven: true,
+  };
+}
+
+/**
+ * Recover Product 262 after Save succeeded without a captured portal id,
+ * when blank-list EXACT_ONE proves a single hid* identity.
+ *
+ * Never SaveData / fill / upload / run_begin / run_resume.
+ * Adopts via dedicated RPC, then reread+compare → mark_portal_verified → PORTAL_VERIFIED.
+ */
+async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) {
+  const sanitized = sanitizeRendererCommand(command);
+  const liveArmed = deps.liveArmed === true;
+  const blockedShape = {
+    mutated: false,
+    runBegun: false,
+    runResumed: false,
+    filled: false,
+    saved: false,
+    uploaded: false,
+    adopted: false,
+    inventedFailureRpcCalled: false,
+  };
+
+  if (sanitized.userConfirmed !== true) {
+    return {
+      ok: false,
+      code: "USER_CONFIRMATION_REQUIRED",
+      message: "Explicit Recover Saved Portal Identity confirmation is required.",
+      ...blockedShape,
+    };
+  }
+
+  if (!liveArmed) {
+    return {
+      ok: false,
+      code: "LIVE_EXECUTION_NOT_ARMED",
+      message:
+        "Identity recovery is implemented but disarmed. No adopt / reread / mark_* will run until live execution is armed.",
+      ...blockedShape,
+    };
+  }
+
+  const collectAuthority =
+    typeof deps.collectAuthoritativeProductDetailsContext === "function"
+      ? deps.collectAuthoritativeProductDetailsContext
+      : collectAuthoritativeProductDetailsContext;
+  const authority = await collectAuthority({
+    ...deps,
+    requireEditPermission: true,
+  });
+  let postAdoptAuthority = null;
+  try {
+    if (!authority.ok) {
+      return {
+        ok: false,
+        code: authority.code,
+        message: authority.message,
+        missing: authority.missing || [],
+        ...blockedShape,
+      };
+    }
+
+    if (Number(authority.productId) !== FIRST_CONTROLLED_PRODUCT_ID) {
+      return {
+        ok: false,
+        code: "PRODUCT_LOCK_REJECTED",
+        message: `Identity recovery accepts only product_id ${FIRST_CONTROLLED_PRODUCT_ID}.`,
+        ...blockedShape,
+      };
+    }
+
+    if (!deriveAmbiguousSaveRecoverable(authority)) {
+      return {
+        ok: false,
+        code: "RECOVERY_STATE_INVALID",
+        message:
+          "Identity recovery requires one RUNNING IN_PROGRESS run with durable AMBIGUOUS save and empty portal refs.",
+        ...blockedShape,
+      };
+    }
+
+    const portal = await assertPortalProjectionVerified(
+      deps.callRpc,
+      FIRST_CONTROLLED_PRODUCT_ID,
+    );
+    if (!portal.ok) {
+      return { ok: false, code: portal.code, message: portal.message, ...blockedShape };
+    }
+
+    const duplicate = assessFreshDuplicateExactOne(authority);
+    if (!duplicate.ok) {
+      return {
+        ok: false,
+        code: duplicate.code,
+        message: duplicate.message,
+        duplicateOutcome: duplicate.duplicateOutcome,
+        coverageComplete: duplicate.coverageComplete,
+        parseReason: duplicate.parseReason || null,
+        ...blockedShape,
+      };
+    }
+
+    const candidateId = duplicate.portalProductId;
+    const activeRun = authority.activeRun;
+    const runId = activeRun?.run_id ?? activeRun?.runId ?? null;
+    if (!runId) {
+      return {
+        ok: false,
+        code: "ACTIVE_RUN_INVALID",
+        message: "Identity recovery requires an active run_id.",
+        ...blockedShape,
+      };
+    }
+
+    // Attachment eligibility: BOTH current governed V01 resolution AND trusted
+    // server active-run ambiguous-save evidence. Never treat file resolve alone
+    // as fill-time proof. Narrow to this recovery path only.
+    const attachmentEvidence = assessRecoveryAttachmentEligibility(authority);
+    if (!attachmentEvidence.ok) {
+      return {
+        ok: false,
+        code: "ATTACHMENT_EVIDENCE_UNPROVEN",
+        message: attachmentEvidence.message,
+        candidateId,
+        runId,
+        v01Resolved: attachmentEvidence.v01Resolved,
+        saveEvidenceProven: attachmentEvidence.saveEvidenceProven,
+        ...blockedShape,
+      };
+    }
+
+    if (typeof deps.buildAdapters !== "function") {
+      return {
+        ok: false,
+        code: "ADAPTERS_NOT_BUILT",
+        message: "Trusted adapters were not constructed by main process.",
+        ...blockedShape,
+      };
+    }
+    const adapters = await deps.buildAdapters({
+      authority,
+      mode: "resume",
+    });
+    if (!adapters || typeof adapters !== "object" || adapters.__fromRenderer === true) {
+      return {
+        ok: false,
+        code: "ADAPTERS_REJECTED",
+        message: "Renderer-origin adapters are forbidden.",
+        ...blockedShape,
+      };
+    }
+    if (typeof adapters.reread !== "function" || typeof adapters.markPortalVerified !== "function") {
+      return {
+        ok: false,
+        code: "RECOVERY_ADAPTERS_MISSING",
+        message: "Identity recovery requires reread and markPortalVerified adapters.",
+        ...blockedShape,
+      };
+    }
+
+    // Dedicated recovery preflight — must NOT depend on resumePlan.resumeEnabled.
+    // Ordinary Resume remains blocked with AMBIGUOUS_SAVE_EXACT_ONE_REQUIRES_IDENTITY_RECOVERY.
+    const preflight = assessExactOneIdentityRecoveryPreflight(
+      buildTrustedExecutorInput(authority, { userConfirmed: true, resume: false }),
+    );
+    if (
+      preflight.ok !== true ||
+      preflight.fieldGate?.ok !== true ||
+      preflight.pageGuard?.ok !== true ||
+      !preflight.fillPlan
+    ) {
+      return {
+        ok: false,
+        code: "RECOVERY_PREFLIGHT_BLOCKED",
+        message:
+          preflight.message ||
+          "Identity recovery preflight blocked (fields/page/fill/hash/source).",
+        preflightCode: preflight.code || null,
+        ordinaryResumeBlocked: preflight.ordinaryResumeBlocked === true,
+        ordinaryResumeBlockCode: preflight.ordinaryResumeBlockCode || null,
+        candidateId,
+        runId,
+        ...blockedShape,
+      };
+    }
+
+    // --- Native reread before adoption ---
+    let reread1;
+    try {
+      reread1 = await adapters.reread({ portalProductId: candidateId });
+    } catch (error) {
+      return {
+        ok: false,
+        code: "RECOVERY_REREAD_FAILED",
+        message: error?.message || "Native GetproductDataUpdate reread failed.",
+        candidateId,
+        runId,
+        ...blockedShape,
+      };
+    }
+    if (
+      reread1?.ok !== true ||
+      reread1.idMatch !== true ||
+      String(reread1.requestedId || "") !== String(candidateId) ||
+      String(reread1.loadedHiddenId || reread1.hiddenId || "") !== String(candidateId)
+    ) {
+      return {
+        ok: false,
+        code: "RECOVERY_REREAD_ID_MISMATCH",
+        message: "Reread did not prove loaded #id equals candidate hid* id.",
+        candidateId,
+        requestedId: reread1?.requestedId || null,
+        loadedHiddenId: reread1?.loadedHiddenId || reread1?.hiddenId || null,
+        runId,
+        ...blockedShape,
+      };
+    }
+    if (String(reread1.name || "").trim() !== EXPECTED_PORTAL_PRODUCT_NAME) {
+      return {
+        ok: false,
+        code: "RECOVERY_REREAD_NAME_MISMATCH",
+        message: "Reread product name is not exact Karpooradi Thailam.",
+        candidateId,
+        loadedName: reread1.name || null,
+        runId,
+        ...blockedShape,
+      };
+    }
+
+    const expectedCompare = {
+      name: EXPECTED_PORTAL_PRODUCT_NAME,
+      type: preflight.fillPlan.fields.find((f) => f.key === "type")?.expected,
+      categoryId: preflight.fillPlan.fields.find((f) => f.key === "categoryId")?.expected,
+      subTypeId: preflight.fillPlan.fields.find((f) => f.key === "subTypeId")?.expected,
+      permissionPurpose: (() => {
+        const permissionField = (preflight.fillPlan.fields || []).find(
+          (f) => f.key === "permissionPurpose",
+        );
+        const permissionResolved = permissionField?.resolved || null;
+        return {
+          label:
+            permissionResolved?.resolvedLabel ||
+            permissionResolved?.label ||
+            permissionField?.expected ||
+            null,
+          value:
+            permissionResolved?.resolvedPortalValue ||
+            permissionResolved?.value ||
+            null,
+        };
+      })(),
+      compositionTitle: preflight.fillPlan.fields.find((f) => f.key === "compositionTitle")
+        ?.expected,
+      disease: preflight.fillPlan.fields.find((f) => f.key === "disease")?.expected,
+      indications: preflight.fillPlan.fields.find((f) => f.key === "indications")?.expected,
+      drugs: preflight.fillPlan.fields.find((f) => f.key === "drugs")?.expected,
+      drugsValue: preflight.fillPlan.fields.find((f) => f.key === "drugsValue")?.expected,
+      remarks: preflight.fillPlan.fields.find((f) => f.key === "remarks")?.expected,
+      shelfmonth: preflight.fillPlan.fields.find((f) => f.key === "shelfmonth")?.expected,
+      attachmentFileName: EXPECTED_APPROVED_COPY_NAME,
+    };
+
+    // Recovery-only: attachment reread-unavailable MATCH is allowed only after
+    // assessRecoveryAttachmentEligibility proved V01 + server save evidence.
+    // Derived from controlled executor invariant (SaveData after fill/upload),
+    // not from current file resolution alone as "fill-time proof."
+    const compare1 = compareProductDetailsReread(expectedCompare, reread1, {
+      approvedCopyRereadUnavailable: true,
+    });
+    if (compare1.overall !== OVERALL_COMPARE.MATCH || compare1.equal !== true) {
+      return {
+        ok: false,
+        code: `RECOVERY_COMPARE_${compare1.overall}`,
+        message: "Governed Product Details compare did not MATCH before adoption.",
+        candidateId,
+        runId,
+        compareResult: compare1,
+        ...blockedShape,
+      };
+    }
+
+    const recoveryEvidence = {
+      source: "LoadProductDataforLegacy",
+      duplicate_outcome: "EXACT_ONE",
+      coverage_complete: true,
+      exact_match_count: 1,
+      portal_product_ref: candidateId,
+      reread_source: "GetproductDataUpdate",
+      reread_id_match: true,
+      compare_equal: true,
+      compare_report: toMarkPortalVerifiedReport(compare1),
+    };
+
+    let adoptResult;
+    try {
+      adoptResult = await deps.callRpc(ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC, {
+        p_run_id: runId,
+        p_expected_workflow_row_version: Number(authority.workflowRowVersion),
+        p_expected_content_hash: String(authority.contentHash),
+        p_portal_product_ref: candidateId,
+        p_recovery_evidence: recoveryEvidence,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        code: "ADOPT_AMBIGUOUS_SAVE_IDENTITY_FAILED",
+        message: error?.message || "Adoption RPC failed.",
+        candidateId,
+        runId,
+        ...blockedShape,
+      };
+    }
+
+    const adoptRow = firstRpcRow(adoptResult) || adoptResult;
+    const adoptedRunId = adoptRow?.run_id ?? adoptRow?.runId ?? null;
+    const enteredRowVersion =
+      adoptRow?.workflow_row_version != null
+        ? Number(adoptRow.workflow_row_version)
+        : adoptRow?.workflowRowVersion != null
+          ? Number(adoptRow.workflowRowVersion)
+          : null;
+    if (!adoptedRunId || String(adoptedRunId) !== String(runId)) {
+      return {
+        ok: false,
+        code: "ADOPT_RUN_ID_MISMATCH",
+        message: "Adoption RPC did not return the same run_id.",
+        candidateId,
+        runId,
+        mutated: true,
+        adopted: false,
+        runBegun: false,
+        runResumed: false,
+        filled: false,
+        saved: false,
+        uploaded: false,
+        inventedFailureRpcCalled: false,
+      };
+    }
+    if (!Number.isFinite(enteredRowVersion)) {
+      return {
+        ok: false,
+        code: "ADOPT_ROW_VERSION_UNPROVEN",
+        message: "Adoption RPC did not return workflow row version.",
+        candidateId,
+        runId,
+        mutated: true,
+        adopted: true,
+        runBegun: false,
+        runResumed: false,
+        filled: false,
+        saved: false,
+        uploaded: false,
+        inventedFailureRpcCalled: false,
+      };
+    }
+
+    // Fresh post-adoption reread + compare
+    let reread2;
+    try {
+      reread2 = await adapters.reread({ portalProductId: candidateId });
+    } catch (error) {
+      return {
+        ok: false,
+        code: "RECOVERY_POST_ADOPT_REREAD_FAILED",
+        message: error?.message || "Post-adoption reread failed.",
+        candidateId,
+        runId,
+        mutated: true,
+        adopted: true,
+        runBegun: false,
+        runResumed: false,
+        filled: false,
+        saved: false,
+        uploaded: false,
+        inventedFailureRpcCalled: false,
+      };
+    }
+    if (
+      reread2?.ok !== true ||
+      reread2.idMatch !== true ||
+      String(reread2.loadedHiddenId || reread2.hiddenId || "") !== String(candidateId)
+    ) {
+      return {
+        ok: false,
+        code: "RECOVERY_POST_ADOPT_ID_MISMATCH",
+        message: "Post-adoption reread id proof failed; remaining ENTERED without PORTAL_VERIFIED.",
+        candidateId,
+        runId,
+        mutated: true,
+        adopted: true,
+        entryStatus: "ENTERED",
+        runBegun: false,
+        runResumed: false,
+        filled: false,
+        saved: false,
+        uploaded: false,
+        inventedFailureRpcCalled: false,
+      };
+    }
+
+    const compare2 = compareProductDetailsReread(expectedCompare, reread2, {
+      approvedCopyRereadUnavailable: true,
+    });
+    if (compare2.overall !== OVERALL_COMPARE.MATCH || compare2.equal !== true) {
+      return {
+        ok: false,
+        code: `RECOVERY_POST_ADOPT_COMPARE_${compare2.overall}`,
+        message:
+          "Post-adoption compare did not MATCH; run remains ENTERED without PORTAL_VERIFIED.",
+        candidateId,
+        runId,
+        compareResult: compare2,
+        mutated: true,
+        adopted: true,
+        entryStatus: "ENTERED",
+        runBegun: false,
+        runResumed: false,
+        filled: false,
+        saved: false,
+        uploaded: false,
+        inventedFailureRpcCalled: false,
+      };
+    }
+
+    try {
+      await adapters.markPortalVerified({
+        runId,
+        expectedWorkflowRowVersion: enteredRowVersion,
+        expectedContentHash: String(authority.contentHash),
+        compareReport: toMarkPortalVerifiedReport(compare2),
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        code: "MARK_PORTAL_VERIFIED_FAILED",
+        message: error?.message || "mark_portal_verified failed after adoption.",
+        candidateId,
+        runId,
+        mutated: true,
+        adopted: true,
+        entryStatus: "ENTERED",
+        runBegun: false,
+        runResumed: false,
+        filled: false,
+        saved: false,
+        uploaded: false,
+        inventedFailureRpcCalled: false,
+      };
+    }
+
+    return {
+      ok: true,
+      code: "PORTAL_VERIFIED",
+      message:
+        "Ambiguous-save portal identity adopted and portal-verified. Stopped before Composition.",
+      candidateId,
+      portalProductId: candidateId,
+      runId,
+      workflowRowVersion: enteredRowVersion,
+      duplicateOutcome: DUPLICATE_OUTCOME.EXACT_ONE,
+      coverageComplete: true,
+      compareResult: compare2,
+      mutated: true,
+      adopted: true,
+      runBegun: false,
+      runResumed: false,
+      filled: false,
+      saved: false,
+      uploaded: false,
+      compositionExecuted: false,
+      submitProductExecuted: false,
+      inventedFailureRpcCalled: false,
+    };
+  } finally {
+    invokeApprovedCopyCleanup(authority);
+    if (postAdoptAuthority) invokeApprovedCopyCleanup(postAdoptAuthority);
+  }
+}
+
 module.exports = {
   RENDERER_FORBIDDEN_OPTION_KEYS,
   DUPLICATE_OUTCOME,
@@ -1828,14 +2486,20 @@ module.exports = {
   collectAuthoritativeProductDetailsContext,
   buildTrustedExecutorInput,
   deriveAmbiguousSaveRecoverable,
+  deriveAmbiguousSaveExactOneRecoverable,
   attachAmbiguousSaveRecoverable,
+  assessRecoveryAttachmentEligibility,
+  proveGovernedApprovedCopyV01,
+  proveTrustedAmbiguousSaveAttachmentEvidence,
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
   runTrustedProductDetailsResume,
   runTrustedAmbiguousSaveReconcile,
   runTrustedPortalProjectionRebase,
+  runTrustedAmbiguousSaveExactOneRecovery,
   PORTAL_TEXT_GET_RPC,
   REBASE_PORTAL_PROJECTION_RPC,
+  ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC,
   measureConnectedPageState,
   enumerateLivePermissionOptions,
   runLiveDuplicateSearch,
