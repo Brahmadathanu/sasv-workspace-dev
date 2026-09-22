@@ -245,7 +245,7 @@ function resolvePermissionPurposeByExactLabel(governedLabel, liveOptions) {
 function indicationValues(content) {
   const actions = Array.isArray(content?.actions) ? content.actions : [];
   return actions
-    .map((item) => String(item?.portal_option_value || item?.label || "").trim())
+    .map((item) => String(item?.portal_option_value || "").trim())
     .filter(Boolean);
 }
 
@@ -427,8 +427,18 @@ function buildFillPlan(content, options = {}) {
     }
 
     if (spec.key === "indications") {
+      const actions = Array.isArray(content?.actions) ? content.actions : [];
       const values = indicationValues(content);
-      if (!values.length) {
+      const missingPortalValues = actions.filter(
+        (item) => !String(item?.portal_option_value || "").trim(),
+      );
+      if (missingPortalValues.length > 0) {
+        blockers.push({
+          key: "indications",
+          code: "INDICATION_PORTAL_VALUE_MISSING",
+          message: "Every governed action requires a portal_option_value.",
+        });
+      } else if (!values.length) {
         blockers.push({
           key: "indications",
           code: "INDICATIONS_EMPTY",
@@ -439,7 +449,7 @@ function buildFillPlan(content, options = {}) {
         ...spec,
         governed: true,
         expected: values,
-        fill: values.length > 0,
+        fill: values.length > 0 && missingPortalValues.length === 0,
       });
       continue;
     }

@@ -344,13 +344,28 @@ function createInPageFillScript() {
       if (field.key === 'indications') {
         const el = q('select#indications');
         if (!el) throw new Error('missing indications');
-        const wanted = (field.expected || []).map(String);
-        Array.from(el.options).forEach(function(o) {
-          o.selected = wanted.indexOf(String(o.value)) >= 0 || wanted.indexOf(String(o.textContent || '').trim()) >= 0;
+        const wanted = (field.expected || []).map(function(value) { return String(value).trim(); }).filter(Boolean);
+        const options = Array.from(el.options);
+        const missing = wanted.filter(function(value) {
+          return !options.some(function(option) { return String(option.value).trim() === value; });
+        });
+        if (missing.length > 0) {
+          failControl('PORTAL_INDICATION_OPTION_NOT_READY', 'indications');
+        }
+        options.forEach(function(o) {
+          o.selected = wanted.indexOf(String(o.value).trim()) >= 0;
         });
         el.dispatchEvent(new Event('change', { bubbles: true }));
         if (window.jQuery) {
           try { window.jQuery(el).trigger('change'); } catch (e) {}
+        }
+        const selected = options.filter(function(o) { return o.selected; })
+          .map(function(o) { return String(o.value).trim(); })
+          .filter(Boolean)
+          .sort();
+        const expected = wanted.slice().sort();
+        if (JSON.stringify(selected) !== JSON.stringify(expected)) {
+          failControl('PORTAL_INDICATION_VALUE_MISMATCH', 'indications');
         }
         result.filled.push('indications');
         continue;

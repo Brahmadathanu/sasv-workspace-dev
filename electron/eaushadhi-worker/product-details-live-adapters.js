@@ -176,6 +176,14 @@ function createInPageRereadScript() {
         .map(function(o) { return String(o.textContent || o.label || '').trim(); })
         .filter(Boolean);
     }
+    function multiSelectedValues(sel) {
+      var el = document.querySelector(sel);
+      if (!el || !el.options) return [];
+      return Array.prototype.filter.call(el.options, function(o) { return o.selected; })
+        .map(function(o) { return String(o.value == null ? '' : o.value).trim(); })
+        .filter(Boolean)
+        .sort();
+    }
     function snapshotFields() {
       var shelf = document.querySelector('input[name="shelfmonth"]:checked');
       var drugsYes = document.getElementById('drug_yes');
@@ -195,7 +203,8 @@ function createInPageRereadScript() {
         },
         compositionTitle: val('#compositionTitle'),
         disease: val('#disease'),
-        indications: multiSelectedLabels('select#indications'),
+        indications: multiSelectedValues('select#indications'),
+        indicationLabels: multiSelectedLabels('select#indications'),
         drugs: drugs,
         drugsValue: val('#drugsValue'),
         remarks: val('#remarks'),
@@ -271,6 +280,7 @@ function createInPageRereadScript() {
         compositionTitle: fields.compositionTitle,
         disease: fields.disease,
         indications: fields.indications,
+        indicationLabels: fields.indicationLabels,
         drugs: fields.drugs,
         drugsValue: fields.drugsValue,
         remarks: fields.remarks,
@@ -288,6 +298,7 @@ function createInPageRereadScript() {
           compositionTitle: fields.compositionTitle,
           disease: fields.disease,
           indications: fields.indications,
+          indicationLabels: fields.indicationLabels,
           drugs: fields.drugs,
           drugsValue: fields.drugsValue,
           remarks: fields.remarks,
@@ -531,6 +542,7 @@ function buildProductDetailsLiveAdapters(deps = {}) {
                 compositionTitle: retained.compositionTitle,
                 disease: retained.disease,
                 indications: retained.indications,
+                indicationLabels: retained.indicationLabels,
                 drugs: retained.drugs,
                 drugsValue: retained.drugsValue,
                 remarks: retained.remarks,

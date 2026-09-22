@@ -514,8 +514,137 @@ function ok(cond, msg) {
     calls.some((c) => c.name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC),
     "adoption RPC invoked",
   );
-  ok(result.candidateId === PROVEN_HID, "adopted hid candidate");
   ok(result.workflowRowVersion === 4, "post-adopt workflow row version returned");
+  ok(!Object.hasOwn(result, "compareResult"), "successful renderer result exposes no raw compare result");
+  ok(
+    !Object.hasOwn(result, "candidateId") &&
+      !Object.hasOwn(result, "portalProductId") &&
+      !Object.hasOwn(result, "runId"),
+    "successful renderer result exposes no portal or run identifiers",
+  );
+  ok(
+    !JSON.stringify(result).includes('"items"'),
+    "successful renderer result contains no raw compare items",
+  );
+  const verifiedCall = calls.find((call) => call.name === "markPortalVerified");
+  ok(
+    verifiedCall?.args?.compareReport?.equal === true &&
+      Array.isArray(verifiedCall?.args?.compareReport?.items) &&
+      verifiedCall.args.compareReport.items.length > 0 &&
+      verifiedCall.args.compareReport.items.every((item) => item.result === "MATCH"),
+    "mark_portal_verified receives the full trusted MATCH report internally",
+  );
+}
+
+// --- pre-adoption compare mismatch is bounded, diagnostic, and non-mutating ---
+{
+  let adoptionCalls = 0;
+  let markCalls = 0;
+  const mismatch = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return {
+            portal_review_status: "VERIFIED",
+            selected_portal_text: "Sandhirujah, ÅšÅpham",
+          };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          adoptionCalls += 1;
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async ({ portalProductId }) => ({
+          ...matchingReread(portalProductId),
+          indications: ["wrong-value"],
+          indicationLabels: ["A harmless display label"],
+        }),
+        markPortalVerified: async () => {
+          markCalls += 1;
+          throw new Error("portal verification must not run after mismatch");
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(mismatch.ok === false && mismatch.code === "RECOVERY_COMPARE_MISMATCH", "compare mismatch blocks recovery");
+  ok(adoptionCalls === 0 && markCalls === 0, "compare mismatch causes no adoption or portal verification mutation");
+  ok(mismatch.adopted !== true && mismatch.mutated !== true, "compare mismatch reports no mutation");
+  ok(!Object.hasOwn(mismatch, "compareResult"), "raw compare result is not exposed");
+  ok(!Object.hasOwn(mismatch, "candidateId") && !Object.hasOwn(mismatch, "runId"), "candidate and run identifiers are not exposed on mismatch");
+  ok(
+    Array.isArray(mismatch.compareMismatches) &&
+      mismatch.compareMismatches.some((item) => item.path === "indications") &&
+      mismatch.compareMismatches.every(
+        (item) =>
+          JSON.stringify(Object.keys(item).sort()) ===
+          JSON.stringify(["actual", "expected", "path", "result"]),
+      ),
+    "mismatch returns only bounded whitelisted diagnostic fields",
+  );
+}
+
+// --- post-adoption compare mismatch is bounded and never portal-verified ---
+{
+  let rereadCount = 0;
+  let adoptionCalls = 0;
+  let markCalls = 0;
+  const mismatch = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return {
+            portal_review_status: "VERIFIED",
+            selected_portal_text: "Sandhirujah, ÅšÅpham",
+          };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          adoptionCalls += 1;
+          return {
+            run_id: "run-1",
+            workflow_row_version: 4,
+            portal_product_ref: PROVEN_HID,
+            run_status: "ENTERED",
+            entry_status: "ENTERED",
+            content_hash: "hash1",
+            last_save_outcome: "AMBIGUOUS",
+          };
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async ({ portalProductId }) => {
+          rereadCount += 1;
+          const retained = matchingReread(portalProductId);
+          return rereadCount === 1
+            ? retained
+            : { ...retained, indications: ["post-adopt-wrong-value"] };
+        },
+        markPortalVerified: async () => {
+          markCalls += 1;
+          throw new Error("portal verification must not run after post-adopt mismatch");
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(
+    mismatch.ok === false && mismatch.code === "RECOVERY_POST_ADOPT_COMPARE_MISMATCH",
+    "post-adoption compare mismatch remains fail-closed",
+  );
+  ok(adoptionCalls === 1 && rereadCount === 2, "post-adoption mismatch occurs only after adoption and second reread");
+  ok(markCalls === 0, "post-adoption mismatch never calls mark_portal_verified");
+  ok(!Object.hasOwn(mismatch, "compareResult"), "post-adoption mismatch exposes no raw compare result");
+  ok(
+    Array.isArray(mismatch.compareMismatches) &&
+      mismatch.compareMismatches.some((item) => item.path === "indications"),
+    "post-adoption mismatch exposes bounded compareMismatches",
+  );
 }
 
 // --- missing save evidence blocks recovery before adopt ---

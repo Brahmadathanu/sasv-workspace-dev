@@ -416,7 +416,7 @@ function compareProductDetailsReread(expected, retained, options = {}) {
     expInd,
     actInd,
     JSON.stringify(expInd) === JSON.stringify(actInd) ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
-    "exact_set_sorted",
+    "exact_portal_value_set_sorted",
   );
 
   push(

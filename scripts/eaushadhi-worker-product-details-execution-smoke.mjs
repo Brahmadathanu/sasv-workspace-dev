@@ -26,6 +26,7 @@ const {
   PORTAL_SHELFMONTH_ROUTE_VALUES,
   assessRequiredFieldGate,
   buildFillPlan,
+  indicationValues,
   resolvePermissionPurposeByExactLabel,
   rejectKuzhambuSubtype,
 } = require(join(root, "electron/eaushadhi-worker/product-details-field-map.js"));
@@ -46,6 +47,7 @@ const {
 } = require(join(root, "electron/eaushadhi-worker/portal-duplicate-guard.js"));
 const {
   createInPageDuplicateSearchProbe,
+  sanitizeRecoveryCompareMismatches,
 } = require(join(root, "electron/eaushadhi-worker/product-details-trusted.js"));
 const {
   resolveApprovedProductCopyFile,
@@ -1702,6 +1704,34 @@ const successInput = {
   approvedFileName: EXPECTED_APPROVED_COPY_NAME,
 };
 
+assert(
+  JSON.stringify(
+    indicationValues({ actions: [{ portal_option_value: " 99 ", label: "Display label differs" }] }),
+  ) === JSON.stringify(["99"]),
+  "indications derive exclusively from trimmed portal option values",
+);
+assert(
+  indicationValues({ actions: [{ label: "Label-only indication" }] }).length === 0,
+  "indication labels are never accepted as governed portal values",
+);
+{
+  const missingIndicationValue = assessRequiredFieldGate(
+    baseContent({ actions: [{ label: "Label-only indication" }] }),
+    {
+      fieldGovernanceOverrides: GOVERNANCE_OVERRIDES,
+      allowTestFieldGovernanceOverrides: true,
+      permissionOptions: [{ label: "Regular", value: "7" }],
+    },
+  );
+  assert(
+    missingIndicationValue.ok === false &&
+      missingIndicationValue.blockers.some(
+        (blocker) => blocker.code === "INDICATION_PORTAL_VALUE_MISSING",
+      ),
+    "missing governed indication portal value fail-closes the field gate",
+  );
+}
+
 const success = await executeProductDetails(successInput, {
   runBegin: async () => {
     runBeginCalls += 1;
@@ -2254,6 +2284,58 @@ assert(
     // eslint-disable-next-line no-new-func
     const fill = new Function(createInPageFillScript())();
     return fill(plan);
+  }
+
+  {
+    const indicationSelect = makeSelect("indications", [
+      makeOption("99", "Label deliberately differs from value"),
+      makeOption("101", "Second indication"),
+    ]);
+    const restore = installFakeDom({
+      query(sel) {
+        return sel === "select#indications" ? indicationSelect : null;
+      },
+    });
+    try {
+      const result = await runFill({
+        classificationSteps: [],
+        fields: [{ key: "indications", fill: true, expected: ["99"] }],
+      });
+      assert(result.filled.includes("indications"), "fill applies governed indication values");
+      assert(
+        indicationSelect.options[0].selected === true &&
+          indicationSelect.options[1].selected !== true,
+        "fill selects only the exact matching indication option.value",
+      );
+    } finally {
+      restore();
+    }
+  }
+
+  {
+    const indicationSelect = makeSelect("indications", [
+      makeOption("not-99", "99"),
+    ]);
+    const restore = installFakeDom({
+      query(sel) {
+        return sel === "select#indications" ? indicationSelect : null;
+      },
+    });
+    let code = null;
+    try {
+      await runFill({
+        classificationSteps: [],
+        fields: [{ key: "indications", fill: true, expected: ["99"] }],
+      });
+    } catch (error) {
+      code = error.code || error.message;
+    } finally {
+      restore();
+    }
+    assert(
+      code === "PORTAL_INDICATION_OPTION_NOT_READY",
+      "fill never accepts a visible indication label as an option value fallback",
+    );
   }
 
   const dependentPlan = {
@@ -3269,6 +3351,94 @@ const compareMatch = compareProductDetailsReread(
 );
 assert(compareMatch.overall === OVERALL_COMPARE.MATCH, "14. remarks/shelfmonth compare on reread MATCH");
 assert(toMarkPortalVerifiedReport(compareMatch).equal === true, "portal_verified report equal");
+
+{
+  const expected = {
+    name: "Karpooradi Thailam",
+    type: "1",
+    categoryId: "10",
+    subTypeId: "31",
+    indications: ["99", "101"],
+    drugs: "NO",
+  };
+  const reordered = compareProductDetailsReread(expected, {
+    name: "Karpooradi Thailam",
+    type: "1",
+    categoryId: "10",
+    subTypeId: "31",
+    indications: ["101", "99"],
+    indicationLabels: ["Different display label", "Another label"],
+    drugs: "NO",
+  });
+  assert(reordered.overall === OVERALL_COMPARE.MATCH, "indication values compare as an order-independent exact set");
+  assert(
+    reordered.items.find((item) => item.path === "indications")?.normalization_applied ===
+      "exact_portal_value_set_sorted",
+    "indication compare reports exact portal-value set normalization",
+  );
+  const labelInsteadOfValue = compareProductDetailsReread(expected, {
+    name: "Karpooradi Thailam",
+    type: "1",
+    categoryId: "10",
+    subTypeId: "31",
+    indications: ["Different display label", "Another label"],
+    drugs: "NO",
+  });
+  assert(
+    labelInsteadOfValue.overall === OVERALL_COMPARE.MISMATCH,
+    "indication labels cannot satisfy the retained portal-value contract",
+  );
+}
+
+{
+  const unsafeItems = Array.from({ length: 16 }, (_, index) => ({
+    path: index === 0 ? "indications" : "remarks",
+    expected:
+      index === 0
+        ? Array.from({ length: 20 }, (_unused, i) => String(i))
+        : index === 4
+          ? "x".repeat(400)
+          : `expected-${index}`,
+    actual:
+      index === 1
+        ? "<script>alert(1)</script>"
+        : index === 2
+          ? "https://example.invalid/secret"
+          : index === 3
+            ? "C:\\Users\\person\\secret.pdf"
+            : { nested: { secret: "must not escape" } },
+    result: "MISMATCH",
+  }));
+  unsafeItems.push({ path: "candidateId", expected: "x", actual: "y", result: "MISMATCH" });
+  unsafeItems.push({ path: "remarks", expected: "x", actual: "x", result: "MATCH" });
+  const bounded = sanitizeRecoveryCompareMismatches({ items: unsafeItems });
+  assert(bounded.length === 12, "recovery mismatch diagnostics are capped at 12 items");
+  assert(
+    bounded.every(
+      (item) =>
+        JSON.stringify(Object.keys(item).sort()) ===
+        JSON.stringify(["actual", "expected", "path", "result"]),
+    ),
+    "recovery mismatch diagnostics expose only bounded contract keys",
+  );
+  assert(bounded[0].expected.length === 12, "recovery mismatch arrays are capped at 12 values");
+  assert(
+    bounded[4].expected.length === 257 && bounded[4].expected.endsWith("…"),
+    "recovery mismatch strings are truncated to the bounded display limit",
+  );
+  assert(
+    bounded[1].actual === "[REDACTED]" &&
+      bounded[2].actual === "[REDACTED]" &&
+      bounded[3].actual === "[REDACTED]",
+    "recovery mismatch diagnostics redact HTML, URLs, and absolute paths",
+  );
+  assert(
+    bounded.slice(4).every((item) => item.actual === "[UNAVAILABLE]"),
+    "recovery mismatch diagnostics do not expose arbitrary nested objects",
+  );
+  assert(!bounded.some((item) => item.path === "candidateId"), "non-whitelisted mismatch paths are omitted");
+  assert(bounded.every((item) => item.result !== "MATCH"), "recovery diagnostics include non-MATCH items only");
+}
 
 {
   const emptyFileInput = compareProductDetailsReread(
@@ -4679,7 +4849,13 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     assert(rereadSrc.includes("GetproductDataUpdate"), "reread observes GetproductDataUpdate");
     assert(!rereadSrc.includes("setTimeout(r, 400)"), "reread no longer relies on fixed 400ms sleep alone");
 
-    async function runRereadHarness({ settleDelayMs, httpStatus, returnedHiddenId, requestedId }) {
+    async function runRereadHarness({
+      settleDelayMs,
+      httpStatus,
+      returnedHiddenId,
+      requestedId,
+      indicationOptions = [],
+    }) {
       const prev = {
         XMLHttpRequest: globalThis.XMLHttpRequest,
         document: globalThis.document,
@@ -4722,7 +4898,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
           if (sel === "#month") return { value: "-1" };
           if (sel === "#actiontype" || sel === '[name="actiontype"]') return { value: "edit" };
           if (sel === 'input[name="shelfmonth"]:checked') return { value: "RegularAsPerClause" };
-          if (sel === "select#indications") return { options: [] };
+          if (sel === "select#indications") return { options: indicationOptions };
           return null;
         },
         getElementById(id) {
@@ -4759,6 +4935,27 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     });
     assert(slowOk.ok === true, "slow async GetproductDataUpdate is awaited to completion");
     assert(slowOk.hiddenId === "9001", "requested portal id proven on reread snapshot");
+
+    const selectedIndications = await runRereadHarness({
+      settleDelayMs: 20,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+      indicationOptions: [
+        { selected: true, value: "101", textContent: "Second label" },
+        { selected: false, value: "777", textContent: "Unselected label" },
+        { selected: true, value: "99", textContent: "First label" },
+      ],
+    });
+    assert(
+      JSON.stringify(selectedIndications.indications) === JSON.stringify(["101", "99"]),
+      "reread snapshots selected indication option values",
+    );
+    assert(
+      JSON.stringify(selectedIndications.indicationLabels) ===
+        JSON.stringify(["Second label", "First label"]),
+      "reread keeps indication labels as diagnostics only",
+    );
 
     const timedOut = await runRereadHarness({
       settleDelayMs: 20000,
@@ -4834,6 +5031,18 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
 
   const fillSrc = createInPageFillScript();
   assert(fillSrc.includes("setSelectByValue"), "fill script uses exact select value sets");
+  assert(
+    fillSrc.includes("PORTAL_INDICATION_OPTION_NOT_READY"),
+    "fill fails closed when an expected indication option value is unavailable",
+  );
+  assert(
+    fillSrc.includes("PORTAL_INDICATION_VALUE_MISMATCH"),
+    "fill verifies the exact selected indication value set",
+  );
+  assert(
+    !fillSrc.includes("wanted.indexOf(String(o.textContent"),
+    "fill never falls back from indication values to visible labels",
+  );
   assert(!/submitProduct/.test(fillSrc), "fill script has no submitProduct");
   assert(!/SaveComposition|addcomposition/i.test(fillSrc), "fill script has no Composition mutation");
 
@@ -4862,6 +5071,59 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   assert(
     controlSrcPhaseA.includes("openProductDetailsConfirmModal"),
     "UI uses governed modal instead of window.confirm",
+  );
+  const recoverySubmitSource = controlSrcPhaseA.slice(
+    controlSrcPhaseA.indexOf("async function submitWorkerRecoverExactOneIdentity"),
+    controlSrcPhaseA.indexOf("async function submitWorkerPortalProjectionRebase"),
+  );
+  assert(
+    recoverySubmitSource.includes("openProductDetailsConfirmModal") &&
+      /mode:\s*["']recover["']/.test(recoverySubmitSource),
+    "recovery uses the in-page governed confirmation modal",
+  );
+  assert(!recoverySubmitSource.includes("window.confirm"), "recovery does not use a browser confirm dialog");
+  assert(
+    recoverySubmitSource.includes("userConfirmed: true"),
+    "confirmed recovery submits the trusted recovery request once",
+  );
+  assert(
+    controlSrcPhaseA.includes("Recover Saved Portal Identity") &&
+      controlSrcPhaseA.includes("Confirm & Recover"),
+    "recovery modal has explicit recovery title and primary action",
+  );
+  for (const requiredCopy of [
+    "Karpooradi Thailam</strong> already exists in e-Aushadhi.",
+    "No Save will occur.",
+    "The existing portal record will be reread and adopted only if all governed Product Details fields match exactly.",
+    "No Composition or final Submit will occur.",
+  ]) {
+    assert(controlSrcPhaseA.includes(requiredCopy), `recovery modal preserves exact copy: ${requiredCopy}`);
+  }
+  assert(
+    controlSrcPhaseA.includes('"Resume & Continue"') &&
+      controlSrcPhaseA.includes('"Confirm & Start"') &&
+      controlSrcPhaseA.includes("An interrupted Product Details run was detected."),
+    "existing Start and Resume modal behavior remains present",
+  );
+  assert(
+    controlSrcPhaseA.includes(
+      '$("productDetailsConfirmClose")?.addEventListener("click", () => closeProductDetailsConfirm(false))',
+    ) &&
+      controlSrcPhaseA.includes(
+        '$("productDetailsConfirmCancel")?.addEventListener("click", () => closeProductDetailsConfirm(false))',
+      ) &&
+      controlSrcPhaseA.includes(
+        'if (event.target.id === "productDetailsConfirmBackdrop") closeProductDetailsConfirm(false)',
+      ) &&
+      /productDetailsConfirmDialog[\s\S]*event\.key === "Escape"[\s\S]*closeProductDetailsConfirm\(false\)/.test(
+        controlSrcPhaseA,
+      ),
+    "close, Cancel, backdrop, and Escape resolve the modal false before any recovery call",
+  );
+  assert(
+    controlSrcPhaseA.includes("workerExactOneRecoveryMismatchHtml") &&
+      controlSrcPhaseA.includes("formatRecoveryMismatchValue"),
+    "renderer provides compact mismatch diagnostics",
   );
 }
 
