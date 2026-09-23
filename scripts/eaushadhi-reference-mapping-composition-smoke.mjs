@@ -22,6 +22,18 @@ const mappingHelperSource = fs.readFileSync(path.join(root, "public/shared/js/ea
 const mappingHelpers = await import(`data:text/javascript;base64,${Buffer.from(mappingHelperSource).toString("base64")}`);
 
 assert.match(migration, /'REFERENCE'/);
+assert.match(
+  migration,
+  /returns table\(\s*portal_option_id bigint,\s*external_id text,\s*label text,\s*domain_code text,\s*is_active boolean\s*\)/,
+);
+assert.match(
+  migration,
+  /select\s+po\.id,\s*po\.external_id,\s*po\.label,\s*po\.domain_code,\s*po\.is_active\s+from regulatory\.portal_option po/,
+);
+assert.match(
+  migration,
+  /p_domain_code not in \('INGREDIENT_TYPE','INGREDIENT_FORM','PART_USED','MEASUREMENT_UNIT','REFERENCE'\)/,
+);
 assert.match(migration, /\('28','Sahasrayoga'\)/);
 assert.doesNotMatch(migration, /\('-1',/);
 assert.match(migration, /'REFERENCE_WORK',\s*'SAHASRAYOGAM'/);

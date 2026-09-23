@@ -668,6 +668,18 @@ const referenceMappingMigration = readFileSync(
   join(root, "supabase/migrations/20260923115648_eaushadhi_reference_mapping_composition_bootstrap.sql"),
   "utf8",
 );
+assert(
+  /returns table\(\s*portal_option_id bigint,\s*external_id text,\s*label text,\s*domain_code text,\s*is_active boolean\s*\)/.test(referenceMappingMigration),
+  "portal_options preserves its deployed OUT-column order",
+);
+assert(
+  /select\s+po\.id,\s*po\.external_id,\s*po\.label,\s*po\.domain_code,\s*po\.is_active\s+from regulatory\.portal_option po/.test(referenceMappingMigration),
+  "portal_options preserves its deployed SELECT order",
+);
+assert(
+  /p_domain_code not in \('INGREDIENT_TYPE','INGREDIENT_FORM','PART_USED','MEASUREMENT_UNIT','REFERENCE'\)/.test(referenceMappingMigration),
+  "portal_options allowlist includes REFERENCE",
+);
 assert(/'REFERENCE_WORK',\s*'SAHASRAYOGAM'/.test(referenceMappingMigration), "canonical reference work is seeded");
 assert(referenceMappingMigration.includes("('28','Sahasrayoga')"), "Sahasrayoga portal value 28 is seeded");
 assert(!referenceMappingMigration.includes("('-1',"), "REFERENCE placeholder -1 is not seeded");

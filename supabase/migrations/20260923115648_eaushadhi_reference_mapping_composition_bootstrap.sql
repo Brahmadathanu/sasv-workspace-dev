@@ -166,7 +166,7 @@ $seed$;
 
 create or replace function public.rpc_eaushadhi_portal_options(p_domain_code text)
 returns table(
-  portal_option_id bigint, domain_code text, external_id text, label text, is_active boolean
+  portal_option_id bigint, external_id text, label text, domain_code text, is_active boolean
 )
 language plpgsql security definer
 set search_path to 'public', 'regulatory', 'extensions', 'pg_temp'
@@ -178,7 +178,7 @@ begin
     raise exception 'Unsupported portal option domain: %', p_domain_code using errcode = '22023';
   end if;
   return query
-  select po.id, po.domain_code, po.external_id, po.label, po.is_active
+  select po.id, po.external_id, po.label, po.domain_code, po.is_active
   from regulatory.portal_option po
   where po.portal_code = 'E_AUSHADHI'
     and po.domain_code = p_domain_code
