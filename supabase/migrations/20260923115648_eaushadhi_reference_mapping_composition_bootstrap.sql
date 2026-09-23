@@ -286,6 +286,7 @@ as $function$
 declare
   v_actor uuid;
   v_mapping regulatory.term_portal_mapping%rowtype;
+  v_original_option regulatory.portal_option%rowtype;
   v_option regulatory.portal_option%rowtype;
 begin
   v_actor := public.rpc_eaushadhi_require_permission(true);
@@ -307,6 +308,8 @@ begin
                    and ct.domain_code = 'REFERENCE_WORK' and ct.is_active = true) then
     raise exception 'Mapping controlled term must be an active REFERENCE_WORK term' using errcode = '22023';
   end if;
+  select * into v_original_option from regulatory.portal_option
+  where id = v_mapping.portal_option_id;
   select * into strict v_option from regulatory.portal_option
   where id = p_portal_option_id;
   if v_option.portal_code <> 'E_AUSHADHI' or v_option.domain_code <> 'REFERENCE'
@@ -317,6 +320,22 @@ begin
   set portal_option_id = v_option.id,
       mapping_status = 'VERIFIED',
       mapping_reason = coalesce(nullif(btrim(p_mapping_reason), ''), m.mapping_reason),
+      match_basis = case
+        when v_option.id = v_mapping.portal_option_id then m.match_basis
+        else 'MANUAL'
+      end,
+      comparison_evidence = case
+        when v_option.id = v_mapping.portal_option_id then m.comparison_evidence
+        else coalesce(m.comparison_evidence, '{}'::jsonb) || jsonb_build_object(
+          'original_suggested_portal_option_id', v_original_option.id,
+          'original_suggested_external_id', v_original_option.external_id,
+          'original_suggested_label', v_original_option.label,
+          'verified_portal_option_id', v_option.id,
+          'verified_external_id', v_option.external_id,
+          'verified_label', v_option.label,
+          'verification_mode', 'MANUAL_SELECTION'
+        )
+      end,
       verified_by = v_actor,
       verified_at = now()
   where m.id = v_mapping.id;

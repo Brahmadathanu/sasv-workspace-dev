@@ -15,7 +15,18 @@ export function referenceMatchLabel(value) {
 }
 
 export function referenceMappingReady(mapping) {
-  return mapping?.mapping_status === "VERIFIED" && String(mapping?.portal_external_id || "").trim() !== "";
+  return mapping?.reference_ready === true;
+}
+
+export function referenceMappingPresentation(mapping) {
+  const ready = referenceMappingReady(mapping);
+  const status = String(mapping?.mapping_status || "").trim().toUpperCase();
+  if (ready) return { ready: true, label: "Verified", reviewable: false };
+  if (status === "VERIFIED") {
+    return { ready: false, label: "Verified — not currently usable", reviewable: false };
+  }
+  if (status === "DRAFT") return { ready: false, label: "Suggested", reviewable: true };
+  return { ready: false, label: "Unavailable", reviewable: false };
 }
 
 export function associateReferenceMappingsByLine(lines, mappings) {

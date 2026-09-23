@@ -137,7 +137,7 @@ import {
 import {
   associateReferenceMappingsByLine,
   referenceMatchLabel,
-  referenceMappingReady,
+  referenceMappingPresentation,
 } from "./eaushadhi-reference-mapping.js";
 import {
   EaushadhiRpcError,
@@ -1438,7 +1438,7 @@ function renderComposition() {
       });
       const resolved = state.resolvedSourceByLine.get(String(id));
       const reference = row.referenceMapping || null;
-      const referenceReady = referenceMappingReady(reference);
+      const referencePresentation = referenceMappingPresentation(reference);
       const isReferenceActionOwner = reference && state.lines.find(
         (item) => item.referenceMapping?.mapping_id === reference.mapping_id,
       )?.source_composition_line_id === row.source_composition_line_id;
@@ -1448,8 +1448,8 @@ function renderComposition() {
         <div><span class="muted-note">e-Aushadhi Projection</span><strong>${escapeHtml(reference.portal_label || "Not selected")}</strong></div>
         <div><span class="muted-note">Portal Value</span><strong>${escapeHtml(reference.portal_external_id || "-")}</strong></div>
         <div><span class="muted-note">Match Basis</span><strong>${escapeHtml(referenceMatchLabel(reference.match_basis))}</strong></div>
-        <div><span class="muted-note">Status</span>${chip(referenceReady ? "success" : "warning", referenceReady ? "Verified" : "Suggested")}</div>
-        ${isReferenceActionOwner && !referenceReady ? `<button type="button" class="icon-btn with-label" data-reference-review="${escapeHtml(reference.mapping_id)}" data-edit-action="true">Review Reference Mapping</button>` : ""}
+        <div><span class="muted-note">Status</span>${chip(referencePresentation.ready ? "success" : "warning", referencePresentation.label)}</div>
+        ${isReferenceActionOwner && referencePresentation.reviewable ? `<button type="button" class="icon-btn with-label" data-reference-review="${escapeHtml(reference.mapping_id)}" data-edit-action="true">Review Reference Mapping</button>` : ""}
       </section>` : `<section class="reference-mapping-block is-blocked"><strong>Reference mapping unavailable</strong></section>`;
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="working-source-block">

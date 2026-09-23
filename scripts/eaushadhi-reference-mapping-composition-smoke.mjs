@@ -46,6 +46,21 @@ assert.match(migration, /return v_payload \|\| jsonb_build_object\('content_hash
 assert.doesNotMatch(migration, /return jsonb_build_object\('payload',\s*v_payload/);
 assert.match(migration, /mapping_status,\s*mapping_reason, match_basis, comparison_evidence\s*\)[\s\S]*?'DRAFT'/);
 assert.doesNotMatch(migration, /insert into regulatory\.term_portal_mapping[\s\S]{0,1200}verified_by/);
+assert.match(migration, /when v_option\.id = v_mapping\.portal_option_id then m\.match_basis/);
+assert.match(migration, /when v_option\.id = v_mapping\.portal_option_id then m\.comparison_evidence/);
+assert.match(migration, /else 'MANUAL'/);
+for (const field of [
+  "original_suggested_portal_option_id",
+  "original_suggested_external_id",
+  "original_suggested_label",
+  "verified_portal_option_id",
+  "verified_external_id",
+  "verified_label",
+  "MANUAL_SELECTION",
+]) assert.match(migration, new RegExp(field));
+assert.match(migration, /v_original_option\.label/);
+assert.match(migration, /v_option\.label/);
+assert.doesNotMatch(migration, /p_(?:portal_label|match_basis|comparison_evidence)/);
 
 assert.match(api, /fetchPortalOptions\("REFERENCE"\)/);
 assert.match(api, /rpc_eaushadhi_reference_mapping_verify/);
@@ -81,6 +96,30 @@ assert.equal(mappingHelpers.associateReferenceMappingsByLine(
   [{ source_composition_line_id: 999 }],
   [{ mapping_id: 10, source_composition_line_ids: [929] }],
 )[0].referenceMapping, null);
+
+assert.equal(mappingHelpers.referenceMappingReady({
+  mapping_status: "DRAFT",
+  portal_external_id: "28",
+  reference_ready: false,
+}), false);
+assert.equal(mappingHelpers.referenceMappingReady({
+  mapping_status: "VERIFIED",
+  portal_external_id: "",
+  reference_ready: true,
+}), true);
+assert.deepEqual(mappingHelpers.referenceMappingPresentation({
+  mapping_status: "DRAFT",
+  reference_ready: false,
+}), { ready: false, label: "Suggested", reviewable: true });
+assert.deepEqual(mappingHelpers.referenceMappingPresentation({
+  mapping_status: "VERIFIED",
+  reference_ready: true,
+}), { ready: true, label: "Verified", reviewable: false });
+assert.deepEqual(mappingHelpers.referenceMappingPresentation({
+  mapping_status: "VERIFIED",
+  reference_ready: false,
+}), { ready: false, label: "Verified — not currently usable", reviewable: false });
+assert.match(control, /isReferenceActionOwner && referencePresentation\.reviewable/);
 
 assert.deepEqual(assessCompositionLineAuthority({
   review_status: "VERIFIED",

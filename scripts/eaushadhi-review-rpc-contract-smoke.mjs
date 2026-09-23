@@ -694,6 +694,29 @@ assert(
   "reference getter exposes deterministic line association",
 );
 assert(
+  /when v_option\.id = v_mapping\.portal_option_id then m\.match_basis/.test(referenceMappingMigration) &&
+    /when v_option\.id = v_mapping\.portal_option_id then m\.comparison_evidence/.test(referenceMappingMigration),
+  "verifying the suggested option preserves its match basis and comparison evidence",
+);
+assert(
+  /else 'MANUAL'/.test(referenceMappingMigration) &&
+    /'verification_mode', 'MANUAL_SELECTION'/.test(referenceMappingMigration),
+  "changing the suggested option records a manual-selection basis",
+);
+assert(
+  /'original_suggested_portal_option_id', v_original_option\.id/.test(referenceMappingMigration) &&
+    /'original_suggested_external_id', v_original_option\.external_id/.test(referenceMappingMigration) &&
+    /'original_suggested_label', v_original_option\.label/.test(referenceMappingMigration) &&
+    /'verified_portal_option_id', v_option\.id/.test(referenceMappingMigration) &&
+    /'verified_external_id', v_option\.external_id/.test(referenceMappingMigration) &&
+    /'verified_label', v_option\.label/.test(referenceMappingMigration),
+  "manual verification evidence uses server-resolved original and selected portal identities",
+);
+assert(
+  !/p_(?:portal_label|match_basis|comparison_evidence)/.test(referenceMappingMigration),
+  "renderer cannot supply reference labels, basis, or structured evidence",
+);
+assert(
   /alter function public\.rpc_eaushadhi_reference_mapping_(?:get|verify)[\s\S]*owner to postgres/.test(referenceMappingMigration),
   "reference mapping RPC ownership remains postgres",
 );
