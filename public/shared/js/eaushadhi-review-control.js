@@ -136,17 +136,26 @@ import {
 } from "./eaushadhi-review-helpers.js";
 import {
   associateReferenceMappingsByLine,
+  dedupeCanonicalReferenceMappings,
+  filterReferenceDictionary,
   referenceMatchLabel,
-  referenceMappingPresentation,
+  referenceGovernanceLabel,
 } from "./eaushadhi-reference-mapping.js";
 import {
+  createReferenceAliasDraft,
+  createReferencePortalMappingDraft,
+  createReferenceWork,
   EaushadhiRpcError,
+  fetchReferenceAliasCandidates,
+  fetchReferenceDictionary,
+  fetchReferenceWorkOptions,
   fetchProductQueue,
   fetchDocumentUploadContract,
   fetchProductClassificationOptions,
   fetchProductPortalText,
   correctWorkingSourceLine,
   fetchSourceIssueContext,
+  verifyReferenceAlias,
   verifyReferenceMapping,
   loadProductWorkspace,
   loadSessionCatalogs,
@@ -198,6 +207,7 @@ const access = {
 };
 
 const state = {
+  surface: "queue",
   queue: [],
   queueView: {
     search: "",
@@ -231,6 +241,25 @@ const state = {
   review: null,
   lines: [],
   referenceMappings: [],
+  referenceDictionary: {
+    loaded: false,
+    loading: false,
+    error: null,
+    rows: [],
+    search: "",
+    statusFilter: "all",
+  },
+  referenceWorkOptions: [],
+  referenceWorkOptionsLoaded: false,
+  referenceAliasCandidates: [],
+  referenceDialog: {
+    kind: null,
+    sourceText: null,
+    mappingId: null,
+    controlledTermId: null,
+    portalMappingId: null,
+    trigger: null,
+  },
   actions: [],
   evidence: null,
   issues: [],
@@ -345,8 +374,10 @@ function canWrite() {
 }
 
 function setAppMode(mode) {
+  state.surface = mode;
   document.body.classList.toggle("ea-mode-queue", mode === "queue");
   document.body.classList.toggle("ea-mode-product", mode === "product");
+  document.body.classList.toggle("ea-mode-reference-dictionary", mode === "reference-dictionary");
 }
 
 function isProductMode() {
@@ -1438,21 +1469,12 @@ function renderComposition() {
       });
       const resolved = state.resolvedSourceByLine.get(String(id));
       const reference = row.referenceMapping || null;
-      const referencePresentation = referenceMappingPresentation(reference);
-      const isReferenceActionOwner = reference && state.lines.find(
-        (item) => item.referenceMapping?.mapping_id === reference.mapping_id,
-      )?.source_composition_line_id === row.source_composition_line_id;
-      const referenceBlock = reference ? `<section class="reference-mapping-block" data-reference-mapping-id="${escapeHtml(reference.mapping_id)}">
-        <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.raw_reference_text || reference.source_reference_examples?.[0] || "-")}</strong></div>
-        <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(reference.canonical_label)}</strong></div>
-        <div><span class="muted-note">e-Aushadhi Projection</span><strong>${escapeHtml(reference.portal_label || "Not selected")}</strong></div>
-        <div><span class="muted-note">Portal Value</span><strong>${escapeHtml(reference.portal_external_id || "-")}</strong></div>
-        <div><span class="muted-note">Match Basis</span><strong>${escapeHtml(referenceMatchLabel(reference.match_basis))}</strong></div>
-        <div class="reference-mapping-status"><span class="muted-note">Status</span><div class="reference-mapping-status-row">
-          ${chip(referencePresentation.ready ? "success" : "warning", referencePresentation.label)}
-          ${isReferenceActionOwner && referencePresentation.reviewable ? `<button type="button" class="icon-btn with-label reference-mapping-review-btn" data-reference-review="${escapeHtml(reference.mapping_id)}" data-edit-action="true">Review mapping</button>` : ""}
-        </div></div>
-      </section>` : `<section class="reference-mapping-block is-blocked"><strong>Reference mapping unavailable</strong></section>`;
+      const referenceBlock = `<section class="reference-mapping-block${reference ? "" : " is-blocked"}"${reference ? ` data-reference-mapping-id="${escapeHtml(reference.mapping_id)}"` : ""}>
+        <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.raw_reference_text || reference?.source_reference_examples?.[0] || "-")}</strong></div>
+        <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(reference?.canonical_label || "Not mapped")}</strong></div>
+        <div><span class="muted-note">e-Aushadhi Projection</span><strong>${escapeHtml(reference?.portal_label && reference?.portal_external_id ? `${reference.portal_label} / ${reference.portal_external_id}` : "Not mapped")}</strong></div>
+        <div><span class="muted-note">Reference Governance</span>${chip(reference?.reference_ready === true ? "success" : "warning", referenceGovernanceLabel(reference))}</div>
+      </section>`;
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="working-source-block">
           <span class="working-source-label">Working source</span>
@@ -1523,68 +1545,284 @@ function renderComposition() {
   applyPermissionUi();
 }
 
-function referenceMappingContext(sourceCompositionLineIds) {
-  const affectedLineCount = new Set(
-    (sourceCompositionLineIds || [])
-      .filter((value) => value != null && String(value).trim() !== "")
-      .map((value) => String(value).trim()),
-  ).size;
-  return affectedLineCount === 0
-    ? "Shared mapping"
-    : `Shared mapping &middot; Applies to ${affectedLineCount} composition line${affectedLineCount === 1 ? "" : "s"}`;
+function dictionaryStatusLabel(status) {
+  const value = String(status || "").toUpperCase();
+  if (value === "VERIFIED") return "Verified";
+  if (value === "DRAFT") return "Suggested";
+  return "Mapping required";
 }
 
-function openReferenceMappingReview(mappingId) {
-  const mapping = state.referenceMappings.find((item) => idsEqual(item.mapping_id, mappingId));
-  if (!mapping || mapping.mapping_status !== "DRAFT") return;
+function usageText(row) {
+  return `${Number(row?.line_count || 0)} composition lines / ${Number(row?.product_count || 0)} products`;
+}
+
+function referenceWorkOptionHtml(selectedId) {
+  const selected = String(selectedId ?? "");
+  return `<option value="">Select canonical Reference Work</option>${state.referenceWorkOptions.map((option) => {
+    const id = option.controlled_term_id;
+    return `<option value="${escapeHtml(id)}"${String(id) === selected ? " selected" : ""}>${escapeHtml(option.label)}${option.code ? ` / ${escapeHtml(option.code)}` : ""}</option>`;
+  }).join("")}`;
+}
+
+function dictionaryRows() {
+  return filterReferenceDictionary(state.referenceDictionary.rows, state.referenceDictionary);
+}
+
+function renderReferenceDictionary() {
+  const rows = dictionaryRows();
+  const allRows = state.referenceDictionary.rows;
+  const summary = $("referenceDictionarySummary");
+  if (summary) summary.innerHTML = [
+    ["Distinct source references", allRows.length],
+    ["Mapping required", allRows.filter((row) => row.reference_ready !== true).length],
+    ["Ready", allRows.filter((row) => row.reference_ready === true).length],
+  ].map(([label, value]) => `<div><span class="muted-note">${label}</span><strong>${value}</strong></div>`).join("");
+
+  const filters = $("referenceDictionaryFilters");
+  if (filters) filters.innerHTML = [
+    ["all", "All"], ["mapping-required", "Mapping required"], ["suggested", "Suggested"], ["ready", "Ready"],
+  ].map(([value, label]) => `<button type="button" role="radio" aria-checked="${state.referenceDictionary.statusFilter === value}" data-reference-filter="${value}">${label}</button>`).join("");
+
+  const status = $("referenceDictionaryStatus");
+  if (status) {
+    status.textContent = state.referenceDictionary.loading
+      ? "Loading Reference Dictionary..."
+      : state.referenceDictionary.error || `${rows.length} of ${allRows.length} source references shown.`;
+    status.className = state.referenceDictionary.error ? "ea-autosave is-failed" : "muted-note";
+  }
+
+  const sourceHost = $("sourceReferenceDictionaryRows");
+  if (sourceHost) sourceHost.innerHTML = rows.length ? rows.map((row) => {
+    const aliasStatus = String(row.alias_mapping_status || "").toUpperCase();
+    const action = !row.alias_mapping_id
+      ? `<button type="button" class="icon-btn with-label" data-reference-source-create="${escapeHtml(row.source_reference_text)}" data-edit-action="true">Create/review source mapping</button>`
+      : aliasStatus === "DRAFT"
+        ? `<button type="button" class="icon-btn with-label" data-reference-source-review="${escapeHtml(row.alias_mapping_id)}" data-source-text="${escapeHtml(row.source_reference_text)}" data-edit-action="true">Review source mapping</button>`
+        : "";
+    return `<article class="reference-dictionary-card" data-source-reference="${escapeHtml(row.source_reference_text)}">
+      <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.source_reference_text)}</strong></div>
+      <div><span class="muted-note">Usage</span><strong>${escapeHtml(usageText(row))}</strong></div>
+      <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(row.canonical_label || "Not mapped")}</strong></div>
+      <div><span class="muted-note">Source to Canonical</span>${chip(row.source_to_canonical_ready === true ? "success" : "warning", dictionaryStatusLabel(row.alias_mapping_status))}</div>
+      <div><span class="muted-note">Overall</span>${chip(row.reference_ready === true ? "success" : "warning", row.reference_ready === true ? "Ready" : "Mapping required")}</div>
+      ${action ? `<div class="reference-dictionary-actions">${action}</div>` : ""}
+    </article>`;
+  }).join("") : `<div class="empty-state">No source references match the current filters.</div>`;
+
+  const canonicalHost = $("canonicalReferenceMappingRows");
+  const canonicalRows = dedupeCanonicalReferenceMappings(rows);
+  if (canonicalHost) canonicalHost.innerHTML = canonicalRows.length ? canonicalRows.map((row) => {
+    const portalStatus = String(row.portal_mapping_status || "").toUpperCase();
+    const action = !row.portal_mapping_id
+      ? `<button type="button" class="icon-btn with-label" data-reference-portal-create="${escapeHtml(row.canonical_term_id)}" data-edit-action="true">Create/review portal mapping</button>`
+      : portalStatus === "DRAFT"
+        ? `<button type="button" class="icon-btn with-label" data-reference-portal-review="${escapeHtml(row.portal_mapping_id)}" data-canonical-term-id="${escapeHtml(row.canonical_term_id)}" data-edit-action="true">Review portal mapping</button>`
+        : "";
+    const portal = row.portal_label && row.portal_external_id ? `${row.portal_label} / ${row.portal_external_id}` : "Not mapped";
+    return `<article class="reference-dictionary-card" data-canonical-term-id="${escapeHtml(row.canonical_term_id)}">
+      <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(row.canonical_label)}</strong></div>
+      <div><span class="muted-note">e-Aushadhi Reference</span><strong>${escapeHtml(portal)}</strong></div>
+      <div><span class="muted-note">Canonical to Portal</span>${chip(row.canonical_to_portal_ready === true ? "success" : "warning", dictionaryStatusLabel(row.portal_mapping_status))}</div>
+      <div><span class="muted-note">Source wordings</span><strong>${Number(row.source_alias_count || 0)}</strong></div>
+      ${action ? `<div class="reference-dictionary-actions">${action}</div>` : ""}
+    </article>`;
+  }).join("") : `<div class="empty-state">No canonical Reference Works match the current filters.</div>`;
+  applyPermissionUi();
+}
+
+async function loadReferenceDictionary({ force = false } = {}) {
+  if (state.referenceDictionary.loading || (state.referenceDictionary.loaded && !force)) return;
+  state.referenceDictionary.loading = true;
+  state.referenceDictionary.error = null;
+  renderReferenceDictionary();
+  try {
+    state.referenceDictionary.rows = await fetchReferenceDictionary();
+    state.referenceDictionary.loaded = true;
+  } catch (error) {
+    state.referenceDictionary.error = error.message || "Reference Dictionary could not be loaded.";
+    throw error;
+  } finally {
+    state.referenceDictionary.loading = false;
+    renderReferenceDictionary();
+  }
+}
+
+async function openReferenceDictionary() {
+  if (isProductMode()) {
+    if (!confirmLeaveDirty()) return;
+    await flushAllLineAutosaves();
+    await flushDetailsAutosave();
+    await flushClassificationAutosave();
+    await flushActionsAutosave();
+    state.selectedProductId = null;
+  }
+  setAppMode("reference-dictionary");
+  renderReferenceDictionary();
+  await loadReferenceDictionary();
+  $("referenceDictionarySearch")?.focus();
+}
+
+function closeReferenceDialog(dialog, trigger) {
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    trigger?.focus?.();
+  }, { once: true });
+}
+
+function showReferenceDialog({ title, body, confirmLabel, onConfirm, trigger }) {
   const dialog = document.createElement("dialog");
-  dialog.className = "sasv-modal reference-mapping-modal";
-  const examples = (mapping.source_reference_examples || []).map((value) => escapeHtml(value)).join("<br>");
-  const sharedMappingContext = referenceMappingContext(mapping.source_composition_line_ids);
-  const suggestedOption = [mapping.portal_label, mapping.portal_external_id]
-    .filter((value) => value != null && String(value).trim() !== "")
-    .map((value) => escapeHtml(value))
-    .join(" &middot; ") || "-";
-  dialog.innerHTML = `<form method="dialog" class="modal-card">
-    <h2>Review Reference Mapping</h2>
-    <p class="reference-mapping-context">${sharedMappingContext}</p>
-    <dl class="reference-review-summary">
-      <dt>Source citation</dt><dd>${examples || "-"}</dd>
-      <dt>Canonical reference work</dt><dd>${escapeHtml(mapping.canonical_label)}</dd>
-      <dt>Suggested e-Aushadhi option</dt><dd>${suggestedOption}</dd>
-      <dt>Match basis</dt><dd>${escapeHtml(referenceMatchLabel(mapping.match_basis))}</dd>
-    </dl>
-    <label for="referencePortalOption">e-Aushadhi Reference option</label>
-    <select id="referencePortalOption" class="sasv-control" aria-describedby="referencePortalOptionHelp">
-      ${optionHtml(state.catalogs.portalOptions.REFERENCE, mapping.portal_option_id)}
-    </select>
-    <p id="referencePortalOptionHelp" class="reference-mapping-helper">Changing the suggested option will be recorded as a manual mapping.</p>
+  dialog.className = "sasv-modal reference-dictionary-modal";
+  dialog.innerHTML = `<form method="dialog" class="modal-card reference-dictionary-modal-card">
+    <h2>${escapeHtml(title)}</h2>${body}
     <div class="modal-actions">
-      <button type="button" class="icon-btn with-label primary" data-reference-confirm>Confirm &amp; verify</button>
+      <button type="button" class="icon-btn with-label primary" data-reference-dialog-confirm data-edit-action="true">${escapeHtml(confirmLabel)}</button>
       <button type="submit" class="icon-btn with-label">Cancel</button>
     </div>
   </form>`;
-  dialog.addEventListener("close", () => dialog.remove(), { once: true });
-  dialog.querySelector("[data-reference-confirm]")?.addEventListener("click", async (event) => {
+  closeReferenceDialog(dialog, trigger);
+  dialog.querySelector("[data-reference-dialog-confirm]")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
     try {
-      await verifyReferenceMapping({
-        mappingId: mapping.mapping_id,
-        expectedStatus: mapping.mapping_status,
-        portalOptionId: optionId(dialog.querySelector("#referencePortalOption")?.value),
-        mappingReason: mapping.mapping_reason,
-      });
+      await onConfirm(dialog);
       dialog.close();
-      await reloadSelected({ preserveDrafts: true, restoreComposition: true });
-      showToast("Reference mapping verified.", "success");
     } catch (error) {
       button.disabled = false;
       toastError(error);
     }
   });
   document.body.append(dialog);
+  applyPermissionUi();
   dialog.showModal();
+  dialog.querySelector("select, input, button")?.focus();
+  return dialog;
+}
+
+async function ensureReferenceWorkOptions() {
+  if (state.referenceWorkOptionsLoaded) return;
+  state.referenceWorkOptions = await fetchReferenceWorkOptions();
+  state.referenceWorkOptionsLoaded = true;
+}
+
+async function openSourceAliasCreate(row, trigger, selectedTermId = null) {
+  const [candidates] = await Promise.all([
+    fetchReferenceAliasCandidates(row.source_reference_text),
+    ensureReferenceWorkOptions(),
+  ]);
+  state.referenceAliasCandidates = candidates;
+  const suggestedId = selectedTermId || candidates[0]?.canonical_term_id || null;
+  const candidateHtml = candidates.slice(0, 10).map((item) =>
+    `<li><strong>${escapeHtml(item.canonical_label)}</strong> / ${escapeHtml(referenceMatchLabel(item.match_basis))} / score ${escapeHtml(item.similarity_score)}</li>`,
+  ).join("");
+  const dialog = showReferenceDialog({
+    title: "Create Source Reference Mapping",
+    trigger,
+    confirmLabel: "Create draft",
+    body: `<div class="reference-dialog-summary">
+      <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.source_reference_text)}</strong></div>
+      <div><span class="muted-note">Usage</span><strong>${escapeHtml(usageText(row))}</strong></div>
+    </div>
+    <div><span class="muted-note">Candidate guidance (diagnostic only)</span><ul class="reference-candidates">${candidateHtml || "<li>No suggested candidates.</li>"}</ul></div>
+    <label for="referenceCanonicalOption">Canonical Reference Work</label>
+    <select id="referenceCanonicalOption" class="sasv-control">${referenceWorkOptionHtml(suggestedId)}</select>
+    <button type="button" class="icon-btn with-label" data-reference-work-add>Add canonical Reference Work</button>`,
+    onConfirm: async (root) => {
+      await createReferenceAliasDraft(row.source_reference_text, root.querySelector("#referenceCanonicalOption")?.value);
+      await loadReferenceDictionary({ force: true });
+      showToast("Global source mapping draft created.", "success");
+    },
+  });
+  dialog.querySelector("[data-reference-work-add]")?.addEventListener("click", () => {
+    const resumeTrigger = trigger;
+    dialog.close();
+    openReferenceWorkCreate(row, resumeTrigger);
+  });
+}
+
+function openReferenceWorkCreate(sourceRow, trigger) {
+  showReferenceDialog({
+    title: "Add Canonical Reference Work",
+    trigger,
+    confirmLabel: "Create",
+    body: `<label for="newReferenceWorkLabel">Reference Work</label>
+      <input id="newReferenceWorkLabel" class="sasv-control" type="text" aria-describedby="newReferenceWorkHelp" />
+      <p id="newReferenceWorkHelp" class="reference-mapping-helper">Creates a reusable global canonical Reference Work. It does not create an e-Aushadhi portal mapping automatically.</p>`,
+    onConfirm: async (root) => {
+      const created = await createReferenceWork(root.querySelector("#newReferenceWorkLabel")?.value);
+      state.referenceWorkOptions = await fetchReferenceWorkOptions();
+      state.referenceWorkOptionsLoaded = true;
+      showToast("Canonical Reference Work created. Continue to create the source mapping draft.", "success");
+      setTimeout(() => void openSourceAliasCreate(sourceRow, trigger, created?.controlled_term_id), 0);
+    },
+  });
+}
+
+async function openSourceAliasReview(row, trigger) {
+  await ensureReferenceWorkOptions();
+  showReferenceDialog({
+    title: "Review Source Reference Mapping",
+    trigger,
+    confirmLabel: "Confirm & verify",
+    body: `<div class="reference-dialog-summary">
+      <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.source_reference_text)}</strong></div>
+      <div><span class="muted-note">Usage</span><strong>${escapeHtml(usageText(row))}</strong></div>
+      <div><span class="muted-note">Suggested canonical Reference Work</span><strong>${escapeHtml(row.canonical_label)}</strong></div>
+      <div><span class="muted-note">Match Basis</span><strong>${escapeHtml(referenceMatchLabel(row.alias_match_basis))}</strong></div>
+    </div>
+    <label for="referenceCanonicalOption">Canonical Reference Work</label>
+    <select id="referenceCanonicalOption" class="sasv-control" aria-describedby="referenceCanonicalHelp">${referenceWorkOptionHtml(row.canonical_term_id)}</select>
+    <p id="referenceCanonicalHelp" class="reference-mapping-helper">Changing the suggested Reference Work will be recorded as a manual mapping.</p>`,
+    onConfirm: async (root) => {
+      await verifyReferenceAlias(row.alias_mapping_id, row.alias_mapping_status, root.querySelector("#referenceCanonicalOption")?.value);
+      await loadReferenceDictionary({ force: true });
+      showToast("Global source mapping verified.", "success");
+    },
+  });
+}
+
+function portalOptionText(row) {
+  return row.portal_label && row.portal_external_id ? `${row.portal_label} / ${row.portal_external_id}` : "Not selected";
+}
+
+function openPortalDraftCreate(row, trigger) {
+  showReferenceDialog({
+    title: "Create e-Aushadhi Reference Mapping",
+    trigger,
+    confirmLabel: "Create draft",
+    body: `<div class="reference-dialog-summary"><div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(row.canonical_label)}</strong></div></div>
+      <label for="referencePortalOption">e-Aushadhi Reference option</label>
+      <select id="referencePortalOption" class="sasv-control" aria-describedby="referencePortalDraftHelp">${optionHtml(state.catalogs.portalOptions.REFERENCE, null)}</select>
+      <p id="referencePortalDraftHelp" class="reference-mapping-helper">Creates a global draft mapping. Verification is a separate step.</p>`,
+    onConfirm: async (root) => {
+      await createReferencePortalMappingDraft(row.canonical_term_id, root.querySelector("#referencePortalOption")?.value);
+      await loadReferenceDictionary({ force: true });
+      showToast("Global portal mapping draft created.", "success");
+    },
+  });
+}
+
+function openPortalMappingReview(row, trigger) {
+  showReferenceDialog({
+    title: "Review e-Aushadhi Reference Mapping",
+    trigger,
+    confirmLabel: "Confirm & verify",
+    body: `<div class="reference-dialog-summary">
+      <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(row.canonical_label)}</strong></div>
+      <div><span class="muted-note">Suggested e-Aushadhi option</span><strong>${escapeHtml(portalOptionText(row))}</strong></div>
+    </div>
+    <label for="referencePortalOption">e-Aushadhi Reference option</label>
+    <select id="referencePortalOption" class="sasv-control" aria-describedby="referencePortalHelp">${optionHtml(state.catalogs.portalOptions.REFERENCE, row.portal_option_id)}</select>
+    <p id="referencePortalHelp" class="reference-mapping-helper">Changing the suggested option will be recorded as a manual mapping.</p>`,
+    onConfirm: async (root) => {
+      await verifyReferenceMapping({
+        mappingId: row.portal_mapping_id,
+        expectedStatus: row.portal_mapping_status,
+        portalOptionId: root.querySelector("#referencePortalOption")?.value,
+      });
+      await loadReferenceDictionary({ force: true });
+      showToast("Global portal mapping verified.", "success");
+    },
+  });
 }
 
 function modalFocusables(dialogId) {
@@ -4732,13 +4970,53 @@ function wireEvents() {
   });
   $("refreshBtn")?.addEventListener("click", async () => {
     try {
-      if (state.selectedProductId) await reloadSelected({ preserveDrafts: true });
+      if (state.surface === "reference-dictionary") await loadReferenceDictionary({ force: true });
+      else if (state.selectedProductId) await reloadSelected({ preserveDrafts: true });
       else await refreshQueue();
     } catch (err) {
       toastError(err);
     }
   });
   $("backToQueueBtn")?.addEventListener("click", backToQueue);
+  $("openReferenceDictionaryBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
+  $("openReferenceDictionaryFromCompositionBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
+  $("backFromReferenceDictionaryBtn")?.addEventListener("click", () => {
+    setAppMode("queue");
+    $("openReferenceDictionaryBtn")?.focus();
+  });
+  $("refreshReferenceDictionaryBtn")?.addEventListener("click", () => void loadReferenceDictionary({ force: true }).catch(toastError));
+  $("referenceDictionarySearch")?.addEventListener("input", (event) => {
+    state.referenceDictionary.search = event.target.value || "";
+    renderReferenceDictionary();
+  });
+  $("referenceDictionaryFilters")?.addEventListener("click", (event) => {
+    const filter = event.target.closest("[data-reference-filter]");
+    if (!filter) return;
+    state.referenceDictionary.statusFilter = filter.dataset.referenceFilter;
+    renderReferenceDictionary();
+  });
+  $("referenceDictionaryPanel")?.addEventListener("click", (event) => {
+    const sourceCreate = event.target.closest("[data-reference-source-create]");
+    const sourceReview = event.target.closest("[data-reference-source-review]");
+    const portalCreate = event.target.closest("[data-reference-portal-create]");
+    const portalReview = event.target.closest("[data-reference-portal-review]");
+    if (sourceCreate) {
+      const row = state.referenceDictionary.rows.find((item) => item.source_reference_text === sourceCreate.dataset.referenceSourceCreate);
+      if (row) void openSourceAliasCreate(row, sourceCreate).catch(toastError);
+    }
+    if (sourceReview) {
+      const row = state.referenceDictionary.rows.find((item) => String(item.alias_mapping_id) === sourceReview.dataset.referenceSourceReview);
+      if (row) void openSourceAliasReview(row, sourceReview).catch(toastError);
+    }
+    if (portalCreate) {
+      const row = state.referenceDictionary.rows.find((item) => String(item.canonical_term_id) === portalCreate.dataset.referencePortalCreate);
+      if (row) openPortalDraftCreate(row, portalCreate);
+    }
+    if (portalReview) {
+      const row = state.referenceDictionary.rows.find((item) => String(item.portal_mapping_id) === portalReview.dataset.referencePortalReview);
+      if (row) openPortalMappingReview(row, portalReview);
+    }
+  });
   $("queueSearch")?.addEventListener("input", (event) => {
     const value = event.target.value || "";
     clearTimeout(searchTimer);
@@ -5098,12 +5376,10 @@ function wireEvents() {
     const resolve = event.target.closest("[data-source-resolve]");
     const correct = event.target.closest("[data-source-correct]");
     const reopen = event.target.closest("[data-line-reopen]");
-    const referenceReview = event.target.closest("[data-reference-review]");
     if (verify) submitLine(verify.dataset.lineVerify, true);
     if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
     if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
     if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
-    if (referenceReview) openReferenceMappingReview(referenceReview.dataset.referenceReview);
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {

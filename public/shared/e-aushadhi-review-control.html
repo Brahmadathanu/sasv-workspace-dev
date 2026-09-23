@@ -46,6 +46,9 @@
     <div id="mainPanel">
       <section id="queuePanel">
         <div class="queue-controls">
+          <div class="queue-global-actions">
+            <button id="openReferenceDictionaryBtn" type="button" class="icon-btn with-label">Reference Dictionary</button>
+          </div>
           <div id="kpiStrip" class="kpi-strip" aria-label="Queue summary"></div>
 
           <div class="search-card">
@@ -103,6 +106,36 @@
         </div>
       </section>
 
+      <section id="referenceDictionaryPanel" aria-labelledby="referenceDictionaryTitle">
+        <div class="reference-dictionary-controls">
+          <div class="reference-dictionary-header">
+            <button id="backFromReferenceDictionaryBtn" type="button" class="icon-btn with-label">Back to queue</button>
+            <div>
+              <h2 id="referenceDictionaryTitle">Global Reference Dictionary</h2>
+              <p class="muted-note">Govern reusable source, canonical, and e-Aushadhi Reference terminology.</p>
+            </div>
+            <button id="refreshReferenceDictionaryBtn" type="button" class="icon-btn with-label">Refresh</button>
+          </div>
+          <div id="referenceDictionarySummary" class="reference-dictionary-summary" aria-label="Reference dictionary summary"></div>
+          <div class="reference-dictionary-filterbar">
+            <label class="visually-hidden" for="referenceDictionarySearch">Search Reference Dictionary</label>
+            <input id="referenceDictionarySearch" class="sasv-control" type="search" placeholder="Search source, canonical, or portal wording" />
+            <div id="referenceDictionaryFilters" class="lens-pills compact" role="radiogroup" aria-label="Reference status filter"></div>
+          </div>
+        </div>
+        <div id="referenceDictionaryScroll" class="workspace-scroll reference-dictionary-scroll">
+          <div id="referenceDictionaryStatus" role="status" aria-live="polite"></div>
+          <section aria-labelledby="sourceReferenceDictionaryTitle">
+            <h3 id="sourceReferenceDictionaryTitle">Source Reference Dictionary</h3>
+            <div id="sourceReferenceDictionaryRows" class="reference-dictionary-grid"></div>
+          </section>
+          <section aria-labelledby="canonicalReferenceMappingsTitle">
+            <h3 id="canonicalReferenceMappingsTitle">Canonical to e-Aushadhi Reference Mappings</h3>
+            <div id="canonicalReferenceMappingRows" class="reference-dictionary-grid"></div>
+          </section>
+        </div>
+      </section>
+
       <section id="workspacePanel">
         <div class="product-controls">
           <div class="product-header">
@@ -142,6 +175,7 @@
             </div>
             <div class="composition-action-bar">
               <p id="compositionActionHint" class="keyboard-hint">Changes save automatically. Verify when the section is correct.</p>
+              <button type="button" id="openReferenceDictionaryFromCompositionBtn" class="icon-btn with-label">Open Reference Dictionary</button>
               <button type="button" id="btnVerifyReviewedLines" class="icon-btn with-label" data-edit-action="true">Verify reviewed lines</button>
             </div>
             <div class="secondary-lenses composition-lens-row">
