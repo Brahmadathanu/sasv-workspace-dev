@@ -134,11 +134,14 @@ begin
 
   if not exists (
     select 1 from regulatory.term_portal_mapping
-    where controlled_term_id = v_term_id and portal_code = 'E_AUSHADHI' and is_active = true
+    where controlled_term_id = v_term_id and portal_code = 'E_AUSHADHI'
+      and mapping_status in ('DRAFT', 'VERIFIED')
+      and (effective_from is null or effective_from <= now())
+      and (effective_to is null or effective_to > now())
   ) then
     insert into regulatory.term_portal_mapping (
       controlled_term_id, portal_code, portal_option_id, mapping_status,
-      mapping_reason, match_basis, comparison_evidence, is_active
+      mapping_reason, match_basis, comparison_evidence
     ) values (
       v_term_id, 'E_AUSHADHI', v_option_id, 'DRAFT',
       'Parent-work/transliteration projection from source reference "Sahasrayōgam - Sujanapriya" to the portal-controlled parent-work option "Sahasrayoga". Source subsection remains retained separately.',
@@ -150,8 +153,7 @@ begin
         'normalized_canonical', 'sahasrayogam',
         'normalized_portal', 'sahasrayoga',
         'source_subsection', 'Sujanapriya'
-      ),
-      true
+      )
     );
   end if;
 
@@ -191,7 +193,9 @@ returns trigger language plpgsql
 set search_path to 'regulatory', 'pg_temp'
 as $function$
 begin
-  if new.is_active = true and new.mapping_status = 'VERIFIED'
+  if new.mapping_status = 'VERIFIED'
+     and (new.effective_from is null or new.effective_from <= now())
+     and (new.effective_to is null or new.effective_to > now())
      and exists (select 1 from regulatory.controlled_term ct
                  where ct.id = new.controlled_term_id and ct.domain_code = 'REFERENCE_WORK')
      and exists (select 1 from regulatory.portal_option po
@@ -199,8 +203,10 @@ begin
      and exists (
        select 1 from regulatory.term_portal_mapping m
        where m.controlled_term_id = new.controlled_term_id
-         and m.portal_code = 'E_AUSHADHI' and m.is_active = true
-         and m.mapping_status = 'VERIFIED' and m.id <> new.id
+         and m.portal_code = 'E_AUSHADHI'
+         and m.mapping_status = 'VERIFIED' and m.id is distinct from new.id
+         and (m.effective_from is null or m.effective_from <= now())
+         and (m.effective_to is null or m.effective_to > now())
      ) then
     raise exception 'Only one active VERIFIED E_AUSHADHI REFERENCE mapping is allowed per canonical term'
       using errcode = '23505';
@@ -217,7 +223,8 @@ for each row execute function regulatory.enforce_one_verified_reference_mapping(
 create or replace function public.rpc_eaushadhi_reference_mapping_get(p_product_id integer)
 returns table(
   canonical_term_id bigint, canonical_code text, canonical_label text,
-  source_reference_examples text[], mapping_id bigint, mapping_status text,
+  source_composition_line_ids bigint[], source_reference_examples text[],
+  source_reference_by_line jsonb, mapping_id bigint, mapping_status text,
   portal_option_id bigint, portal_external_id text, portal_label text,
   mapping_reason text, match_basis text, comparison_evidence jsonb,
   verified_by uuid, verified_at timestamptz, reference_ready boolean
@@ -229,12 +236,16 @@ begin
   perform public.rpc_eaushadhi_require_permission(false);
   return query
   select ct.id, ct.code, ct.label,
+    array_agg(distinct scl.id order by scl.id),
     array_agg(distinct scl.raw_reference_text order by scl.raw_reference_text)
       filter (where nullif(btrim(scl.raw_reference_text), '') is not null),
+    jsonb_object_agg(scl.id::text, scl.raw_reference_text),
     m.id, m.mapping_status, po.id, po.external_id, po.label,
     m.mapping_reason, m.match_basis, m.comparison_evidence,
     m.verified_by, m.verified_at,
-    (m.mapping_status = 'VERIFIED' and m.is_active and po.is_active
+    (m.mapping_status = 'VERIFIED' and po.is_active
+      and (m.effective_from is null or m.effective_from <= now())
+      and (m.effective_to is null or m.effective_to > now())
       and po.domain_code = 'REFERENCE' and po.portal_code = 'E_AUSHADHI')
   from regulatory.eaushadhi_line_review lr
   join regulatory.source_composition_line scl on scl.id = lr.source_composition_line_id
@@ -243,7 +254,10 @@ begin
     select candidate.*
     from regulatory.term_portal_mapping candidate
     where candidate.controlled_term_id = ct.id
-      and candidate.portal_code = 'E_AUSHADHI' and candidate.is_active = true
+      and candidate.portal_code = 'E_AUSHADHI'
+      and candidate.mapping_status in ('DRAFT', 'VERIFIED')
+      and (candidate.effective_from is null or candidate.effective_from <= now())
+      and (candidate.effective_to is null or candidate.effective_to > now())
     order by (candidate.mapping_status = 'VERIFIED') desc, candidate.id desc
     limit 1
   ) m on true
@@ -251,7 +265,8 @@ begin
   where lr.product_id = p_product_id and ct.domain_code = 'REFERENCE_WORK'
   group by ct.id, ct.code, ct.label, m.id, m.mapping_status, po.id, po.external_id,
     po.label, m.mapping_reason, m.match_basis, m.comparison_evidence,
-    m.verified_by, m.verified_at, m.is_active, po.is_active, po.domain_code, po.portal_code;
+    m.verified_by, m.verified_at, m.effective_from, m.effective_to,
+    po.is_active, po.domain_code, po.portal_code;
 end
 $function$;
 
@@ -282,8 +297,10 @@ begin
   if v_mapping.mapping_status <> 'DRAFT' then
     raise exception 'Only a DRAFT reference mapping may transition to VERIFIED' using errcode = '22023';
   end if;
-  if v_mapping.portal_code <> 'E_AUSHADHI' or not v_mapping.is_active then
-    raise exception 'Mapping is not an active E_AUSHADHI mapping' using errcode = '22023';
+  if v_mapping.portal_code <> 'E_AUSHADHI'
+     or (v_mapping.effective_from is not null and v_mapping.effective_from > now())
+     or (v_mapping.effective_to is not null and v_mapping.effective_to <= now()) then
+    raise exception 'Mapping is not a current E_AUSHADHI mapping' using errcode = '22023';
   end if;
   if not exists (select 1 from regulatory.controlled_term ct
                  where ct.id = v_mapping.controlled_term_id
@@ -348,7 +365,10 @@ begin
     select candidate.*
     from regulatory.term_portal_mapping candidate
     where candidate.controlled_term_id = ct.id
-      and candidate.portal_code = 'E_AUSHADHI' and candidate.is_active = true
+      and candidate.portal_code = 'E_AUSHADHI'
+      and candidate.mapping_status in ('DRAFT', 'VERIFIED')
+      and (candidate.effective_from is null or candidate.effective_from <= now())
+      and (candidate.effective_to is null or candidate.effective_to > now())
     order by (candidate.mapping_status = 'VERIFIED') desc, candidate.id desc
     limit 1
   ) m on true
@@ -381,7 +401,7 @@ begin
   from jsonb_array_elements(coalesce(v_payload->'composition', '[]'::jsonb))
        with ordinality line(value, ordinality);
   v_hash := regulatory.eaushadhi_worker_content_hash(v_hash_payload);
-  return jsonb_build_object('payload', v_payload, 'content_hash', v_hash);
+  return v_payload || jsonb_build_object('content_hash', v_hash);
 end
 $function$;
 

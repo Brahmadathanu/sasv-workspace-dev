@@ -135,6 +135,7 @@ import {
   workflowStageComplete,
 } from "./eaushadhi-review-helpers.js";
 import {
+  associateReferenceMappingsByLine,
   referenceMatchLabel,
   referenceMappingReady,
 } from "./eaushadhi-reference-mapping.js";
@@ -3199,12 +3200,7 @@ function syncClassificationDraftFromForm() {
 function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.review = payload.review;
   state.referenceMappings = payload.referenceMappings || [];
-  const soleReference = state.referenceMappings.length === 1 ? state.referenceMappings[0] : null;
-  state.lines = (payload.lines || []).map((line) => ({
-    ...line,
-    raw_reference_text: line.raw_reference_text || soleReference?.source_reference_examples?.[0] || "",
-    referenceMapping: soleReference,
-  }));
+  state.lines = associateReferenceMappingsByLine(payload.lines, state.referenceMappings);
   state.actions = payload.actions || [];
   state.evidence = payload.evidence;
   state.issues = payload.issues || [];

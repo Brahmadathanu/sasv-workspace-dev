@@ -9,6 +9,10 @@ import { readFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const referenceMigration = readFileSync(
+  join(root, "supabase/migrations/20260923115648_eaushadhi_reference_mapping_composition_bootstrap.sql"),
+  "utf8",
+);
 
 const {
   FIRST_CONTROLLED_PRODUCT_ID,
@@ -86,6 +90,15 @@ function assert(cond, msg) {
     console.log("OK", msg);
   }
 }
+
+assert(
+  /return v_payload \|\| jsonb_build_object\('content_hash', v_hash\)/.test(referenceMigration),
+  "reference migration preserves flat worker_content_get payload plus content_hash",
+);
+assert(
+  !/return jsonb_build_object\('payload',\s*v_payload/.test(referenceMigration),
+  "reference migration does not wrap worker_content_get under payload",
+);
 
 const GOVERNANCE_OVERRIDES = Object.freeze({
   remarks: "smoke-governed-remarks",

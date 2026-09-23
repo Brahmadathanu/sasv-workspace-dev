@@ -18,6 +18,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260923115648_eaushadhi_reference_mapping_composition_bootstrap.sql"), "utf8");
 const api = fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-review-api.js"), "utf8");
 const control = fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
+const mappingHelperSource = fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-reference-mapping.js"), "utf8");
+const mappingHelpers = await import(`data:text/javascript;base64,${Buffer.from(mappingHelperSource).toString("base64")}`);
 
 assert.match(migration, /'REFERENCE'/);
 assert.match(migration, /\('28','Sahasrayoga'\)/);
@@ -33,6 +35,17 @@ assert.match(migration, /Only a DRAFT reference mapping may transition to VERIFI
 assert.match(migration, /trg_one_verified_reference_mapping/);
 assert.match(migration, /case when m\.mapping_status = 'VERIFIED' and po\.is_active then po\.external_id end/);
 assert.match(migration, /jsonb_build_object\('portal_value'/);
+assert.doesNotMatch(migration, /(?:m|candidate|v_mapping|new)\.is_active/);
+assert.doesNotMatch(migration, /comparison_evidence\s*,\s*is_active/);
+assert.match(migration, /mapping_status in \('DRAFT', 'VERIFIED'\)/);
+assert.match(migration, /effective_from is null/);
+assert.match(migration, /effective_to is null/);
+assert.match(migration, /source_composition_line_ids bigint\[\]/);
+assert.match(migration, /source_reference_by_line jsonb/);
+assert.match(migration, /return v_payload \|\| jsonb_build_object\('content_hash', v_hash\)/);
+assert.doesNotMatch(migration, /return jsonb_build_object\('payload',\s*v_payload/);
+assert.match(migration, /mapping_status,\s*mapping_reason, match_basis, comparison_evidence\s*\)[\s\S]*?'DRAFT'/);
+assert.doesNotMatch(migration, /insert into regulatory\.term_portal_mapping[\s\S]{0,1200}verified_by/);
 
 assert.match(api, /fetchPortalOptions\("REFERENCE"\)/);
 assert.match(api, /rpc_eaushadhi_reference_mapping_verify/);
@@ -41,6 +54,33 @@ assert.match(control, /Canonical Reference Work/);
 assert.match(control, /Review Reference Mapping/);
 assert.match(control, /referenceMatchLabel/);
 assert.equal((control.match(/data-reference-review=/g) || []).length, 1);
+
+const mappings = [
+  {
+    mapping_id: 10,
+    canonical_code: "WORK_A",
+    source_composition_line_ids: [929, 930],
+    source_reference_by_line: { 929: "Work A - One", 930: "Work A - Two" },
+  },
+  {
+    mapping_id: 20,
+    canonical_code: "WORK_B",
+    source_composition_line_ids: [931, 940],
+    source_reference_by_line: { 931: "Work B - One", 940: "Work B - Two" },
+  },
+];
+const associated = mappingHelpers.associateReferenceMappingsByLine([
+  { source_composition_line_id: 929 },
+  { source_composition_line_id: 930 },
+  { source_composition_line_id: 931 },
+  { source_composition_line_id: 999 },
+], mappings);
+assert.deepEqual(associated.map((line) => line.referenceMapping?.mapping_id ?? null), [10, 10, 20, null]);
+assert.deepEqual(associated.map((line) => line.raw_reference_text), ["Work A - One", "Work A - Two", "Work B - One", ""]);
+assert.equal(mappingHelpers.associateReferenceMappingsByLine(
+  [{ source_composition_line_id: 999 }],
+  [{ mapping_id: 10, source_composition_line_ids: [929] }],
+)[0].referenceMapping, null);
 
 assert.deepEqual(assessCompositionLineAuthority({
   review_status: "VERIFIED",
