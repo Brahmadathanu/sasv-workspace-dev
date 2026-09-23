@@ -189,6 +189,13 @@ function matchingReread(portalProductId) {
   };
 }
 
+function shelfmonthUnprovenError(evidence = {}) {
+  const error = new Error("SHELFMONTH_REREAD_UNPROVEN");
+  error.code = "SHELFMONTH_REREAD_UNPROVEN";
+  error.shelfmonthEvidence = evidence;
+  return error;
+}
+
 let failed = 0;
 function ok(cond, msg) {
   if (!cond) {
@@ -587,6 +594,61 @@ function ok(cond, msg) {
   );
 }
 
+// --- unproven response shelfmonth stops before adoption ---
+{
+  let adoptionCalls = 0;
+  let markCalls = 0;
+  const blocked = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return {
+            portal_review_status: "VERIFIED",
+            selected_portal_text: "Sandhirujah, ÅšÅpham",
+          };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) adoptionCalls += 1;
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async () => {
+          throw shelfmonthUnprovenError({
+            source: "forged-source",
+            responseValue: null,
+            domCheckedValue: "RegularAsPerClause",
+            responseMonth: -1,
+            domMonth: "-1",
+            rawResponse: { token: "must-not-escape" },
+          });
+        },
+        markPortalVerified: async () => {
+          markCalls += 1;
+          throw new Error("markPortalVerified must not run");
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(blocked.code === "SHELFMONTH_REREAD_UNPROVEN", "unproven shelfmonth has a specific pre-adoption blocker");
+  ok(adoptionCalls === 0 && markCalls === 0, "unproven first reread causes no adoption or portal verification");
+  ok(blocked.mutated !== true && blocked.adopted !== true, "unproven first reread retains non-mutating flags");
+  ok(
+    JSON.stringify(Object.keys(blocked.shelfmonthEvidence).sort()) ===
+      JSON.stringify(["domCheckedValue", "domMonth", "responseMonth", "responseValue", "source"]),
+    "pre-adoption blocker exposes bounded shelfmonth evidence only",
+  );
+  ok(
+    !Object.hasOwn(blocked, "candidateId") &&
+      !Object.hasOwn(blocked, "runId") &&
+      !Object.hasOwn(blocked, "requestedId") &&
+      !Object.hasOwn(blocked, "loadedHiddenId") &&
+      !JSON.stringify(blocked).includes("must-not-escape"),
+    "new pre-adoption blocker exposes no ids or raw response content",
+  );
+}
+
 // --- post-adoption compare mismatch is bounded and never portal-verified ---
 {
   let rereadCount = 0;
@@ -644,6 +706,74 @@ function ok(cond, msg) {
     Array.isArray(mismatch.compareMismatches) &&
       mismatch.compareMismatches.some((item) => item.path === "indications"),
     "post-adoption mismatch exposes bounded compareMismatches",
+  );
+}
+
+// --- post-adoption unproven response shelfmonth remains ENTERED ---
+{
+  let rereadCount = 0;
+  let adoptionCalls = 0;
+  let markCalls = 0;
+  const blocked = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return {
+            portal_review_status: "VERIFIED",
+            selected_portal_text: "Sandhirujah, ÅšÅpham",
+          };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          adoptionCalls += 1;
+          return {
+            run_id: "run-1",
+            workflow_row_version: 4,
+            portal_product_ref: PROVEN_HID,
+            run_status: "ENTERED",
+            entry_status: "ENTERED",
+            content_hash: "hash1",
+            last_save_outcome: "AMBIGUOUS",
+          };
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async ({ portalProductId }) => {
+          rereadCount += 1;
+          if (rereadCount === 1) return matchingReread(portalProductId);
+          throw shelfmonthUnprovenError({
+            responseValue: null,
+            domCheckedValue: null,
+            responseMonth: null,
+            domMonth: "-1",
+          });
+        },
+        markPortalVerified: async () => {
+          markCalls += 1;
+          throw new Error("markPortalVerified must not run");
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(
+    blocked.code === "RECOVERY_POST_ADOPT_SHELFMONTH_REREAD_UNPROVEN",
+    "post-adoption shelfmonth blocker is specific",
+  );
+  ok(adoptionCalls === 1 && rereadCount === 2, "post-adoption blocker follows adoption and second reread");
+  ok(markCalls === 0, "post-adoption shelfmonth blocker does not portal-verify");
+  ok(
+    blocked.mutated === true && blocked.adopted === true && blocked.entryStatus === "ENTERED",
+    "post-adoption shelfmonth blocker remains ENTERED with accurate mutation flags",
+  );
+  ok(
+    !Object.hasOwn(blocked, "candidateId") &&
+      !Object.hasOwn(blocked, "runId") &&
+      JSON.stringify(Object.keys(blocked.shelfmonthEvidence).sort()) ===
+        JSON.stringify(["domCheckedValue", "domMonth", "responseMonth", "responseValue", "source"]),
+    "post-adoption blocker exposes bounded evidence without identifiers",
   );
 }
 

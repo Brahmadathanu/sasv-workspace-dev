@@ -2158,6 +2158,27 @@ function sanitizeRecoveryCompareMismatches(compareResult) {
     });
 }
 
+function sanitizeShelfmonthRereadEvidence(evidence) {
+  const source = evidence && typeof evidence === "object" ? evidence : {};
+  const boundedPrimitive = (value) => {
+    if (value == null) return null;
+    if (typeof value === "number" || typeof value === "boolean") return value;
+    if (typeof value === "string") return value.slice(0, 128);
+    return null;
+  };
+  return {
+    source: "GetproductDataUpdate_response",
+    responseValue:
+      source.responseValue === "RegularAsPerClause" ||
+      source.responseValue === "Applyforaccessofshelflife"
+        ? source.responseValue
+        : null,
+    domCheckedValue: boundedPrimitive(source.domCheckedValue),
+    responseMonth: boundedPrimitive(source.responseMonth),
+    domMonth: boundedPrimitive(source.domMonth),
+  };
+}
+
 /**
  * Recover Product 262 after Save succeeded without a captured portal id,
  * when blank-list EXACT_ONE proves a single hid* identity.
@@ -2347,6 +2368,16 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
     try {
       reread1 = await adapters.reread({ portalProductId: candidateId });
     } catch (error) {
+      if (error?.code === "SHELFMONTH_REREAD_UNPROVEN") {
+        return {
+          ok: false,
+          code: "SHELFMONTH_REREAD_UNPROVEN",
+          message:
+            "Portal reread did not prove the saved shelf-life route from GetproductDataUpdate.",
+          shelfmonthEvidence: sanitizeShelfmonthRereadEvidence(error.shelfmonthEvidence),
+          ...blockedShape,
+        };
+      }
       return {
         ok: false,
         code: "RECOVERY_REREAD_FAILED",
@@ -2515,6 +2546,24 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
     try {
       reread2 = await adapters.reread({ portalProductId: candidateId });
     } catch (error) {
+      if (error?.code === "SHELFMONTH_REREAD_UNPROVEN") {
+        return {
+          ok: false,
+          code: "RECOVERY_POST_ADOPT_SHELFMONTH_REREAD_UNPROVEN",
+          message:
+            "Post-adoption portal reread could not prove the saved shelf-life route; workflow remains ENTERED without PORTAL_VERIFIED.",
+          shelfmonthEvidence: sanitizeShelfmonthRereadEvidence(error.shelfmonthEvidence),
+          mutated: true,
+          adopted: true,
+          entryStatus: "ENTERED",
+          runBegun: false,
+          runResumed: false,
+          filled: false,
+          saved: false,
+          uploaded: false,
+          inventedFailureRpcCalled: false,
+        };
+      }
       return {
         ok: false,
         code: "RECOVERY_POST_ADOPT_REREAD_FAILED",

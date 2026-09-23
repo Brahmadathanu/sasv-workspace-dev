@@ -86,6 +86,29 @@ function prepareApprovedCopyFilePayload(localPath) {
   };
 }
 
+function boundedShelfmonthDiagnostic(value) {
+  if (value == null) return null;
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "string") return value.slice(0, 128);
+  return null;
+}
+
+function sanitizeShelfmonthEvidence(evidence) {
+  const source = evidence && typeof evidence === "object" ? evidence : {};
+  const responseValue =
+    source.responseValue === "RegularAsPerClause" ||
+    source.responseValue === "Applyforaccessofshelflife"
+      ? source.responseValue
+      : null;
+  return {
+    source: "GetproductDataUpdate_response",
+    responseValue,
+    domCheckedValue: boundedShelfmonthDiagnostic(source.domCheckedValue),
+    responseMonth: boundedShelfmonthDiagnostic(source.responseMonth),
+    domMonth: boundedShelfmonthDiagnostic(source.domMonth),
+  };
+}
+
 function createInPageRereadScript() {
   return `async function __sasvRereadProductDetails(portalProductId) {
     var id = String(portalProductId == null ? '' : portalProductId).trim();
@@ -102,9 +125,50 @@ function createInPageRereadScript() {
       status: null,
       url: null,
       error: null,
+      responseObserved: false,
+      responseParsed: false,
+      responseShelfmonth: null,
+      responseMonth: null,
     };
     function looksLikeGetUpdate(url) {
       return /GetproductDataUpdate|getproductdataupdate/i.test(String(url || ''));
+    }
+    function normalizeRecognizedShelfmonth(value) {
+      if (typeof value !== 'string') return null;
+      var normalized = value.trim();
+      if (
+        normalized !== 'RegularAsPerClause' &&
+        normalized !== 'Applyforaccessofshelflife'
+      ) return null;
+      return normalized;
+    }
+    function boundedPrimitive(value) {
+      if (value == null) return null;
+      if (typeof value === 'number' || typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value.slice(0, 128);
+      return null;
+    }
+    function observeResponseData(data) {
+      loadState.responseObserved = true;
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return;
+      loadState.responseParsed = true;
+      loadState.responseShelfmonth = normalizeRecognizedShelfmonth(data.shelfmonth);
+      loadState.responseMonth = boundedPrimitive(data.month);
+    }
+    function observeXhrResponse(xhr) {
+      loadState.responseObserved = true;
+      var data = null;
+      if (Object.prototype.toString.call(xhr.response) === '[object Object]') {
+        data = xhr.response;
+      } else {
+        try {
+          data = JSON.parse(String(xhr.responseText || ''));
+        } catch (error) {
+          data = null;
+        }
+      }
+      observeResponseData(data);
+      data = null;
     }
     var origOpen = XMLHttpRequest.prototype.open;
     var origSend = XMLHttpRequest.prototype.send;
@@ -119,6 +183,7 @@ function createInPageRereadScript() {
           loadState.url = xhr.__sasvRereadUrl;
           loadState.status = xhr.status;
           loadState.httpOk = xhr.status >= 200 && xhr.status < 300;
+          if (loadState.httpOk) observeXhrResponse(xhr);
           loadState.settled = true;
         });
         xhr.addEventListener('error', function() {
@@ -140,7 +205,25 @@ function createInPageRereadScript() {
           loadState.url = url;
           loadState.status = res.status;
           loadState.httpOk = res.ok === true;
-          loadState.settled = true;
+          if (!loadState.httpOk) {
+            loadState.settled = true;
+            return res;
+          }
+          loadState.responseObserved = true;
+          try {
+            var clone = res.clone();
+            Promise.resolve(clone.json()).then(function(data) {
+              observeResponseData(data);
+              data = null;
+            }).catch(function() {
+              loadState.responseParsed = false;
+            }).then(function() {
+              loadState.settled = true;
+            });
+          } catch (error) {
+            loadState.responseParsed = false;
+            loadState.settled = true;
+          }
           return res;
         }).catch(function(err) {
           loadState.error = String(err && err.message ? err.message : err);
@@ -208,8 +291,8 @@ function createInPageRereadScript() {
         drugs: drugs,
         drugsValue: val('#drugsValue'),
         remarks: val('#remarks'),
-        shelfmonth: shelf ? String(shelf.value) : null,
-        month: val('#month'),
+        domCheckedShelfmonth: shelf ? boundedPrimitive(String(shelf.value)) : null,
+        domMonth: boundedPrimitive(val('#month')),
         // Browser file inputs do not expose retained uploaded filenames after edit load.
         attachmentFileName: null,
         attachmentRereadUnavailable: true,
@@ -263,6 +346,22 @@ function createInPageRereadScript() {
         };
       }
 
+      var responseShelfmonth = normalizeRecognizedShelfmonth(loadState.responseShelfmonth);
+      var shelfmonthEvidence = {
+        source: 'GetproductDataUpdate_response',
+        responseValue: responseShelfmonth,
+        domCheckedValue: fields.domCheckedShelfmonth,
+        responseMonth: boundedPrimitive(loadState.responseMonth),
+        domMonth: fields.domMonth,
+      };
+      if (!responseShelfmonth) {
+        return {
+          ok: false,
+          reason: 'SHELFMONTH_REREAD_UNPROVEN',
+          shelfmonthEvidence: shelfmonthEvidence,
+        };
+      }
+
       return {
         ok: true,
         source: 'GetproductDataUpdate',
@@ -284,8 +383,9 @@ function createInPageRereadScript() {
         drugs: fields.drugs,
         drugsValue: fields.drugsValue,
         remarks: fields.remarks,
-        shelfmonth: fields.shelfmonth,
-        month: fields.month,
+        shelfmonth: responseShelfmonth,
+        month: loadState.responseMonth != null ? loadState.responseMonth : fields.domMonth,
+        shelfmonthEvidence: shelfmonthEvidence,
         attachmentFileName: null,
         hiddenId: fields.hiddenId,
         actiontype: fields.actiontype,
@@ -302,8 +402,9 @@ function createInPageRereadScript() {
           drugs: fields.drugs,
           drugsValue: fields.drugsValue,
           remarks: fields.remarks,
-          shelfmonth: fields.shelfmonth,
-          month: fields.month,
+          shelfmonth: responseShelfmonth,
+          month: loadState.responseMonth != null ? loadState.responseMonth : fields.domMonth,
+          shelfmonthEvidence: shelfmonthEvidence,
           attachmentFileName: null,
           attachmentRereadUnavailable: true,
           hiddenId: fields.hiddenId,
@@ -517,6 +618,12 @@ function buildProductDetailsLiveAdapters(deps = {}) {
         ok: retained?.ok === true,
       });
       if (!retained || retained.ok !== true) {
+        if (retained?.reason === "SHELFMONTH_REREAD_UNPROVEN") {
+          const error = new Error("SHELFMONTH_REREAD_UNPROVEN");
+          error.code = "SHELFMONTH_REREAD_UNPROVEN";
+          error.shelfmonthEvidence = sanitizeShelfmonthEvidence(retained.shelfmonthEvidence);
+          throw error;
+        }
         throw new Error(retained?.reason || "reread_failed");
       }
       const loadedHiddenId =
@@ -527,6 +634,7 @@ function buildProductDetailsLiveAdapters(deps = {}) {
             : null;
       return {
         ...retained,
+        shelfmonthEvidence: sanitizeShelfmonthEvidence(retained.shelfmonthEvidence),
         requestedId: id,
         loadedHiddenId,
         idMatch: loadedHiddenId === id,
@@ -548,6 +656,7 @@ function buildProductDetailsLiveAdapters(deps = {}) {
                 remarks: retained.remarks,
                 shelfmonth: retained.shelfmonth,
                 month: retained.month,
+                shelfmonthEvidence: sanitizeShelfmonthEvidence(retained.shelfmonthEvidence),
                 attachmentFileName: retained.attachmentFileName,
                 attachmentRereadUnavailable: retained.attachmentRereadUnavailable === true,
                 hiddenId: loadedHiddenId,
