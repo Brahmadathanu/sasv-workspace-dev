@@ -1448,8 +1448,10 @@ function renderComposition() {
         <div><span class="muted-note">e-Aushadhi Projection</span><strong>${escapeHtml(reference.portal_label || "Not selected")}</strong></div>
         <div><span class="muted-note">Portal Value</span><strong>${escapeHtml(reference.portal_external_id || "-")}</strong></div>
         <div><span class="muted-note">Match Basis</span><strong>${escapeHtml(referenceMatchLabel(reference.match_basis))}</strong></div>
-        <div><span class="muted-note">Status</span>${chip(referencePresentation.ready ? "success" : "warning", referencePresentation.label)}</div>
-        ${isReferenceActionOwner && referencePresentation.reviewable ? `<button type="button" class="icon-btn with-label" data-reference-review="${escapeHtml(reference.mapping_id)}" data-edit-action="true">Review Reference Mapping</button>` : ""}
+        <div class="reference-mapping-status"><span class="muted-note">Status</span><div class="reference-mapping-status-row">
+          ${chip(referencePresentation.ready ? "success" : "warning", referencePresentation.label)}
+          ${isReferenceActionOwner && referencePresentation.reviewable ? `<button type="button" class="icon-btn with-label reference-mapping-review-btn" data-reference-review="${escapeHtml(reference.mapping_id)}" data-edit-action="true">Review mapping</button>` : ""}
+        </div></div>
       </section>` : `<section class="reference-mapping-block is-blocked"><strong>Reference mapping unavailable</strong></section>`;
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="working-source-block">
@@ -1521,27 +1523,44 @@ function renderComposition() {
   applyPermissionUi();
 }
 
+function referenceMappingContext(sourceCompositionLineIds) {
+  const affectedLineCount = new Set(
+    (sourceCompositionLineIds || [])
+      .filter((value) => value != null && String(value).trim() !== "")
+      .map((value) => String(value).trim()),
+  ).size;
+  return affectedLineCount === 0
+    ? "Shared mapping"
+    : `Shared mapping &middot; Applies to ${affectedLineCount} composition line${affectedLineCount === 1 ? "" : "s"}`;
+}
+
 function openReferenceMappingReview(mappingId) {
   const mapping = state.referenceMappings.find((item) => idsEqual(item.mapping_id, mappingId));
   if (!mapping || mapping.mapping_status !== "DRAFT") return;
   const dialog = document.createElement("dialog");
   dialog.className = "sasv-modal reference-mapping-modal";
   const examples = (mapping.source_reference_examples || []).map((value) => escapeHtml(value)).join("<br>");
+  const sharedMappingContext = referenceMappingContext(mapping.source_composition_line_ids);
+  const suggestedOption = [mapping.portal_label, mapping.portal_external_id]
+    .filter((value) => value != null && String(value).trim() !== "")
+    .map((value) => escapeHtml(value))
+    .join(" &middot; ") || "-";
   dialog.innerHTML = `<form method="dialog" class="modal-card">
     <h2>Review Reference Mapping</h2>
+    <p class="reference-mapping-context">${sharedMappingContext}</p>
     <dl class="reference-review-summary">
-      <dt>Internal canonical wording</dt><dd>${escapeHtml(mapping.canonical_label)}</dd>
-      <dt>Source examples</dt><dd>${examples || "-"}</dd>
-      <dt>Suggested e-Aushadhi wording</dt><dd>${escapeHtml(mapping.portal_label || "-")}</dd>
-      <dt>Portal value</dt><dd>${escapeHtml(mapping.portal_external_id || "-")}</dd>
+      <dt>Source citation</dt><dd>${examples || "-"}</dd>
+      <dt>Canonical reference work</dt><dd>${escapeHtml(mapping.canonical_label)}</dd>
+      <dt>Suggested e-Aushadhi option</dt><dd>${suggestedOption}</dd>
       <dt>Match basis</dt><dd>${escapeHtml(referenceMatchLabel(mapping.match_basis))}</dd>
     </dl>
-    <label for="referencePortalOption">Governed REFERENCE option</label>
-    <select id="referencePortalOption" class="sasv-control">
+    <label for="referencePortalOption">e-Aushadhi Reference option</label>
+    <select id="referencePortalOption" class="sasv-control" aria-describedby="referencePortalOptionHelp">
       ${optionHtml(state.catalogs.portalOptions.REFERENCE, mapping.portal_option_id)}
     </select>
+    <p id="referencePortalOptionHelp" class="reference-mapping-helper">Changing the suggested option will be recorded as a manual mapping.</p>
     <div class="modal-actions">
-      <button type="button" class="icon-btn with-label primary" data-reference-confirm>Verify mapping</button>
+      <button type="button" class="icon-btn with-label primary" data-reference-confirm>Confirm &amp; verify</button>
       <button type="submit" class="icon-btn with-label">Cancel</button>
     </div>
   </form>`;
