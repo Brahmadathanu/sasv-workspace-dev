@@ -3353,6 +3353,44 @@ assert(compareMatch.overall === OVERALL_COMPARE.MATCH, "14. remarks/shelfmonth c
 assert(toMarkPortalVerifiedReport(compareMatch).equal === true, "portal_verified report equal");
 
 {
+  const evidence = {
+    source: "GetproductDataUpdate_response",
+    responseValue: null,
+    domCheckedValue: null,
+    responseMonth: -1,
+    domMonth: "-1",
+  };
+  const special = compareProductDetailsReread(
+    { name: "Karpooradi Thailam", type: "1", categoryId: "10", subTypeId: "31", shelfmonth: "RegularAsPerClause", indications: [], drugs: "NO" },
+    { name: "Karpooradi Thailam", type: "1", categoryId: "10", subTypeId: "31", shelfmonth: null, indications: [], drugs: "NO" },
+    { trustedShelfmonthRereadUnavailable: true, trustedShelfmonthEvidence: evidence },
+  );
+  assert(special.equal === false, "trusted unavailable compare remains truthfully equal=false");
+  assert(
+    special.overall === OVERALL_COMPARE.MATCH_WITH_TRUSTED_UNAVAILABLE &&
+      special.verificationAcceptable === true,
+    "trusted unavailable compare has distinct acceptable overall result",
+  );
+  const report = toMarkPortalVerifiedReport(special);
+  const shelfItem = report.items.find((item) => item.path === "shelfmonth");
+  assert(
+    report.equal === false &&
+      report.overall === "MATCH_WITH_TRUSTED_UNAVAILABLE" &&
+      shelfItem?.result === "PORTAL_REREAD_UNAVAILABLE_TRUSTED" &&
+      JSON.stringify(shelfItem.evidence) === JSON.stringify(evidence),
+    "mark report preserves the special result and exact bounded evidence",
+  );
+  const strict = compareProductDetailsReread(
+    { name: "Karpooradi Thailam", type: "1", categoryId: "10", subTypeId: "31", shelfmonth: "RegularAsPerClause", indications: [], drugs: "NO" },
+    { name: "Karpooradi Thailam", type: "1", categoryId: "10", subTypeId: "31", shelfmonth: null, indications: [], drugs: "NO" },
+  );
+  assert(
+    strict.overall === OVERALL_COMPARE.MISMATCH && strict.verificationAcceptable === false,
+    "default shelfmonth compare remains strict",
+  );
+}
+
+{
   const expected = {
     name: "Karpooradi Thailam",
     type: "1",
@@ -3708,6 +3746,14 @@ const malicious = {
 };
 const sanitized = sanitizeRendererCommand(malicious);
 assert(sanitized.userConfirmed === true, "sanitize keeps userConfirmed");
+const rendererShelfmonthFlag = sanitizeRendererCommand({
+  userConfirmed: true,
+  allowTrustedShelfmonthUnavailable: true,
+});
+assert(
+  !Object.hasOwn(rendererShelfmonthFlag, "allowTrustedShelfmonthUnavailable"),
+  "renderer cannot arm trusted shelfmonth reread-unavailable mode",
+);
 const resumeSpoof = sanitizeRendererCommand({
   run_id: resumeRunId,
   workflowRowVersion: 999,
@@ -4701,10 +4747,15 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
 
   let saveRetry = 0;
   let ambMarkerCalls = [];
+  const ambiguousOrder = [];
   const ambSave = await executeProductDetails(successInput, {
     runBegin: async () => ({ run_id: "run-amb-1", workflow_row_version: 7 }),
-    fillForm: async () => ({ ok: true }),
+    fillForm: async () => {
+      ambiguousOrder.push("fill-complete");
+      return { ok: true };
+    },
     saveOnce: async () => {
+      ambiguousOrder.push("save-once");
       saveRetry += 1;
       return {
         invoked: true,
@@ -4717,6 +4768,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       };
     },
     markSaveAmbiguous: async (args) => {
+      ambiguousOrder.push("ambiguous-evidence");
       ambMarkerCalls.push(args);
       return { ok: true };
     },
@@ -4726,6 +4778,10 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   assert(ambSave.requiresReadOnlyReconciliation === true, "ambiguous save requires reconcile");
   assert(ambSave.markerOk === true, "ambiguous save reports marker written");
   assert(ambSave.lastSaveOutcome === "AMBIGUOUS", "ambiguous save reports lastSaveOutcome");
+  assert(
+    ambiguousOrder.join(",") === "fill-complete,save-once,ambiguous-evidence",
+    "fill completes before SaveData and ambiguous evidence is created only afterward",
+  );
 
   // AMBIGUOUS marker: trusted ids only, exactly once, bounded evidence.
   assert(ambMarkerCalls.length === 1, "markSaveAmbiguous called exactly once");
@@ -4906,6 +4962,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       responseAsText = false,
       domShelfmonth = null,
       domMonth = "-1",
+      allowTrustedShelfmonthUnavailable = false,
     }) {
       const prev = {
         XMLHttpRequest: globalThis.XMLHttpRequest,
@@ -4978,7 +5035,7 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       try {
         // eslint-disable-next-line no-new-func
         const fn = new Function(`${rereadSrc}; return __sasvRereadProductDetails;`)();
-        return await fn(requestedId);
+        return await fn(requestedId, allowTrustedShelfmonthUnavailable);
       } finally {
         globalThis.XMLHttpRequest = prev.XMLHttpRequest;
         globalThis.document = prev.document;
@@ -5078,6 +5135,28 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
         monthAlone.shelfmonthEvidence?.responseMonth === -1 &&
         monthAlone.shelfmonthEvidence?.domMonth === "-1",
       "month=-1 and a checked DOM radio remain diagnostic and never infer shelfmonth",
+    );
+    const recoveryOnlyUnavailable = await runRereadHarness({
+      settleDelayMs: 20,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+      responseData: { shelfmonth: null, month: -1 },
+      domShelfmonth: null,
+      domMonth: "-1",
+      allowTrustedShelfmonthUnavailable: true,
+    });
+    assert(
+      recoveryOnlyUnavailable.ok === true &&
+        recoveryOnlyUnavailable.shelfmonth === null &&
+        recoveryOnlyUnavailable.shelfmonthRereadUnavailable === true &&
+        recoveryOnlyUnavailable.loadedHiddenId === "9001",
+      "recovery-only reread returns a null shelfmonth snapshot only after HTTP and exact id proof",
+    );
+    assert(
+      JSON.stringify(Object.keys(recoveryOnlyUnavailable.shelfmonthEvidence).sort()) ===
+        JSON.stringify(["domCheckedValue", "domMonth", "responseMonth", "responseValue", "source"]),
+      "recovery-only reread exposes exact five-key shelfmonth evidence",
     );
 
     const selectedIndications = await runRereadHarness({
