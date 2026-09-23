@@ -61,7 +61,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 Work-pack percentages and the overall percentage are tracking indicators. They must be updated only when milestone evidence changes. WP-11 is excluded from overall completion.
 
 ## Current repository/live anchors
-- Main at programme-control creation: `c34429f68498252c70b566f282f29d5519d3fb3d`
+- Current main: `d54b2b17e519c5f28c3ea1dc6229ec18a65ffe4d` (programme-control documentation merged)
 - WP-02 client feature branch: `feat/eaushadhi-global-reference-dictionary-client`
 - WP-02 client feature head awaiting bounded corrections: `c4dad91eb2f5e0fa7f31971b48e9b0ecafb804ef`
 - Composition live arm remains OFF.
