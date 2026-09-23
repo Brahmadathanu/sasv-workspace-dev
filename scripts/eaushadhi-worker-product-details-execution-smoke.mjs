@@ -4523,6 +4523,53 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
   assert(adapterBuildOk === true && adapterBuildError == null, "live adapters construct under offline mocks when armed");
   assert(adapterBuildError == null, "no portal call is made during adapter-construction test");
 
+  {
+    const adapters = buildProductDetailsLiveAdapters({
+      page: {
+        evaluate: async () => ({
+          ok: false,
+          reason: "SHELFMONTH_REREAD_UNPROVEN",
+          portalProductId: "must-not-escape",
+          hiddenId: "must-not-escape",
+          rawResponse: { token: "must-not-escape" },
+          shelfmonthEvidence: {
+            source: "forged-source",
+            responseValue: null,
+            domCheckedValue: "RegularAsPerClause",
+            responseMonth: -1,
+            domMonth: "-1",
+            extra: "must-not-escape",
+          },
+        }),
+        $: async () => null,
+      },
+      callRpc: async () => {
+        throw new Error("structured reread failure must not call RPC");
+      },
+    });
+    let structuredError = null;
+    try {
+      await adapters.reread({ portalProductId: "9001" });
+    } catch (error) {
+      structuredError = error;
+    }
+    assert(
+      structuredError?.code === "SHELFMONTH_REREAD_UNPROVEN",
+      "live adapter preserves structured shelfmonth reread failure code",
+    );
+    assert(
+      JSON.stringify(Object.keys(structuredError?.shelfmonthEvidence || {}).sort()) ===
+        JSON.stringify(["domCheckedValue", "domMonth", "responseMonth", "responseValue", "source"]),
+      "live adapter propagates bounded shelfmonth evidence only",
+    );
+    assert(
+      !Object.hasOwn(structuredError || {}, "portalProductId") &&
+        !Object.hasOwn(structuredError || {}, "hiddenId") &&
+        !JSON.stringify(structuredError?.shelfmonthEvidence).includes("must-not-escape"),
+      "structured adapter error carries no raw reread result or identifiers",
+    );
+  }
+
   const liveAdapterSrc = readFileSync(
     join(root, "electron/eaushadhi-worker/product-details-live-adapters.js"),
     "utf8",
@@ -4855,6 +4902,10 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
       returnedHiddenId,
       requestedId,
       indicationOptions = [],
+      responseData = { shelfmonth: "RegularAsPerClause", month: -1 },
+      responseAsText = false,
+      domShelfmonth = null,
+      domMonth = "-1",
     }) {
       const prev = {
         XMLHttpRequest: globalThis.XMLHttpRequest,
@@ -4872,6 +4923,13 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
         send() {
           setTimeout(() => {
             this.status = httpStatus;
+            if (responseAsText) {
+              this.response = null;
+              this.responseText = JSON.stringify(responseData);
+            } else {
+              this.response = responseData;
+              this.responseText = "";
+            }
             if (this._loadend) this._loadend();
           }, settleDelayMs);
         }
@@ -4895,9 +4953,11 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
           if (sel === "#disease") return { value: "Sandhirujah, Śōpham" };
           if (sel === "#drugsValue") return { value: "" };
           if (sel === "#remarks") return { value: "x" };
-          if (sel === "#month") return { value: "-1" };
+          if (sel === "#month") return { value: domMonth };
           if (sel === "#actiontype" || sel === '[name="actiontype"]') return { value: "edit" };
-          if (sel === 'input[name="shelfmonth"]:checked') return { value: "RegularAsPerClause" };
+          if (sel === 'input[name="shelfmonth"]:checked') {
+            return domShelfmonth == null ? null : { value: domShelfmonth };
+          }
           if (sel === "select#indications") return { options: indicationOptions };
           return null;
         },
@@ -4935,6 +4995,90 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     });
     assert(slowOk.ok === true, "slow async GetproductDataUpdate is awaited to completion");
     assert(slowOk.hiddenId === "9001", "requested portal id proven on reread snapshot");
+    assert(
+      slowOk.shelfmonth === "RegularAsPerClause" &&
+        slowOk.retained.shelfmonth === "RegularAsPerClause",
+      "XHR response object supplies authoritative RegularAsPerClause",
+    );
+    assert(
+      slowOk.shelfmonthEvidence?.responseValue === "RegularAsPerClause" &&
+        slowOk.shelfmonthEvidence?.domCheckedValue === null,
+      "unchecked DOM radio remains diagnostic while response authority succeeds",
+    );
+
+    const applyAccess = await runRereadHarness({
+      settleDelayMs: 20,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+      responseData: { shelfmonth: "Applyforaccessofshelflife", month: 12 },
+    });
+    assert(
+      applyAccess.ok === true && applyAccess.shelfmonth === "Applyforaccessofshelflife",
+      "XHR response object supplies authoritative Applyforaccessofshelflife",
+    );
+
+    const responseTextValue = await runRereadHarness({
+      settleDelayMs: 20,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+      responseAsText: true,
+    });
+    assert(
+      responseTextValue.ok === true && responseTextValue.shelfmonth === "RegularAsPerClause",
+      "XHR JSON responseText supplies authoritative shelfmonth",
+    );
+
+    for (const [label, responseData] of [
+      ["null", { shelfmonth: null, month: -1 }],
+      ["blank", { shelfmonth: "  ", month: -1 }],
+      ["absent", { month: -1 }],
+      ["numeric", { shelfmonth: 1, month: -1 }],
+      ["object", { shelfmonth: { value: "RegularAsPerClause" }, month: -1 }],
+      ["unknown", { shelfmonth: "regularasperclause", month: -1 }],
+    ]) {
+      const unproven = await runRereadHarness({
+        settleDelayMs: 20,
+        httpStatus: 200,
+        returnedHiddenId: "9001",
+        requestedId: "9001",
+        responseData,
+        domShelfmonth: "RegularAsPerClause",
+        domMonth: "-1",
+      });
+      assert(
+        unproven.ok === false && unproven.reason === "SHELFMONTH_REREAD_UNPROVEN",
+        `${label} response shelfmonth fails closed`,
+      );
+      assert(
+        JSON.stringify(Object.keys(unproven.shelfmonthEvidence).sort()) ===
+          JSON.stringify(["domCheckedValue", "domMonth", "responseMonth", "responseValue", "source"]),
+        `${label} failure exposes bounded shelfmonth evidence only`,
+      );
+      assert(
+        !Object.hasOwn(unproven, "response") &&
+          !Object.hasOwn(unproven, "responseText") &&
+          !JSON.stringify(unproven).includes("arbitrary-secret"),
+        `${label} failure exposes no raw response body`,
+      );
+    }
+
+    const monthAlone = await runRereadHarness({
+      settleDelayMs: 20,
+      httpStatus: 200,
+      returnedHiddenId: "9001",
+      requestedId: "9001",
+      responseData: { month: -1, arbitrary: "arbitrary-secret" },
+      domShelfmonth: "RegularAsPerClause",
+      domMonth: "-1",
+    });
+    assert(
+      monthAlone.reason === "SHELFMONTH_REREAD_UNPROVEN" &&
+        monthAlone.shelfmonthEvidence?.responseMonth === -1 &&
+        monthAlone.shelfmonthEvidence?.domMonth === "-1",
+      "month=-1 and a checked DOM radio remain diagnostic and never infer shelfmonth",
+    );
 
     const selectedIndications = await runRereadHarness({
       settleDelayMs: 20,
@@ -4974,6 +5118,103 @@ assert(concurrentSecond?.code === "SAVE_MUTEX_BUSY", "save mutex blocks concurre
     assert(
       wrongId.ok === false && wrongId.reason === "reread_requested_id_mismatch",
       "wrong returned id => reread failure",
+    );
+
+    async function runFetchReread({ cloneReject = false, responseData }) {
+      const prev = {
+        XMLHttpRequest: globalThis.XMLHttpRequest,
+        document: globalThis.document,
+        window: globalThis.window,
+      };
+      let originalConsumed = false;
+      let cloneCalls = 0;
+      class IdleXHR {}
+      IdleXHR.prototype.open = function() {};
+      IdleXHR.prototype.send = function() {};
+      globalThis.XMLHttpRequest = IdleXHR;
+      globalThis.document = {
+        querySelector(sel) {
+          if (sel === "#id") return { value: "9001" };
+          if (sel === "#name") return { value: "Karpooradi Thailam" };
+          if (sel === "#type") return { value: "120" };
+          if (sel === "#categoryId") return { value: "278" };
+          if (sel === "#subTypeId") return { value: "274" };
+          if (sel === "#permissionPurpose") {
+            return { value: "7", selectedIndex: 0, options: [{ textContent: "Regular" }] };
+          }
+          if (sel === "#compositionTitle") return { value: "For 10 mL" };
+          if (sel === "#disease") return { value: "Sandhirujah" };
+          if (sel === "#drugsValue") return { value: "" };
+          if (sel === "#remarks") return { value: "x" };
+          if (sel === "#month") return { value: "-1" };
+          if (sel === "#actiontype" || sel === '[name="actiontype"]') return { value: "edit" };
+          if (sel === 'input[name="shelfmonth"]:checked') return null;
+          if (sel === "select#indications") return { options: [] };
+          return null;
+        },
+        getElementById(id) {
+          if (id === "drug_no") return { checked: true };
+          if (id === "drug_yes") return { checked: false };
+          if (id === "id") return { value: "9001" };
+          return null;
+        },
+      };
+      const response = {
+        ok: true,
+        status: 200,
+        clone() {
+          cloneCalls += 1;
+          return {
+            async json() {
+              if (cloneReject) throw new Error("clone parse failed");
+              return responseData;
+            },
+          };
+        },
+        async json() {
+          originalConsumed = true;
+          return responseData;
+        },
+      };
+      globalThis.window = {
+        fetch: async () => response,
+        GetproductDataUpdate() {
+          void globalThis.window
+            .fetch("../admin/GetproductDataUpdate")
+            .then((res) => res.json());
+        },
+      };
+      try {
+        // eslint-disable-next-line no-new-func
+        const fn = new Function(`${rereadSrc}; return __sasvRereadProductDetails;`)();
+        const result = await fn("9001");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return { result, originalConsumed, cloneCalls };
+      } finally {
+        globalThis.XMLHttpRequest = prev.XMLHttpRequest;
+        globalThis.document = prev.document;
+        globalThis.window = prev.window;
+      }
+    }
+
+    const fetchOk = await runFetchReread({
+      responseData: { shelfmonth: "RegularAsPerClause", month: -1 },
+    });
+    assert(fetchOk.cloneCalls === 1, "fetch observer inspects exactly one response clone");
+    assert(fetchOk.originalConsumed === true, "fetch observer leaves the original response consumable");
+    assert(
+      fetchOk.result.ok === true && fetchOk.result.shelfmonth === "RegularAsPerClause",
+      "fetch clone supplies authoritative shelfmonth",
+    );
+
+    const fetchParseFail = await runFetchReread({
+      cloneReject: true,
+      responseData: { shelfmonth: "RegularAsPerClause", month: -1 },
+    });
+    assert(fetchParseFail.originalConsumed === true, "clone parse failure does not alter portal response consumption");
+    assert(
+      fetchParseFail.result.reason === "SHELFMONTH_REREAD_UNPROVEN",
+      "fetch clone parse failure leaves shelfmonth unproven",
     );
   }
 
