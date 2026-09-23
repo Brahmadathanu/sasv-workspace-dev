@@ -88,7 +88,7 @@ function prepareApprovedCopyFilePayload(localPath) {
 
 function boundedShelfmonthDiagnostic(value) {
   if (value == null) return null;
-  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "number") return value;
   if (typeof value === "string") return value.slice(0, 128);
   return null;
 }
@@ -110,7 +110,7 @@ function sanitizeShelfmonthEvidence(evidence) {
 }
 
 function createInPageRereadScript() {
-  return `async function __sasvRereadProductDetails(portalProductId) {
+  return `async function __sasvRereadProductDetails(portalProductId, allowTrustedShelfmonthUnavailable) {
     var id = String(portalProductId == null ? '' : portalProductId).trim();
     if (!id) {
       return { ok: false, reason: 'portal_id_missing' };
@@ -354,7 +354,7 @@ function createInPageRereadScript() {
         responseMonth: boundedPrimitive(loadState.responseMonth),
         domMonth: fields.domMonth,
       };
-      if (!responseShelfmonth) {
+      if (!responseShelfmonth && allowTrustedShelfmonthUnavailable !== true) {
         return {
           ok: false,
           reason: 'SHELFMONTH_REREAD_UNPROVEN',
@@ -384,6 +384,7 @@ function createInPageRereadScript() {
         drugsValue: fields.drugsValue,
         remarks: fields.remarks,
         shelfmonth: responseShelfmonth,
+        shelfmonthRereadUnavailable: !responseShelfmonth,
         month: loadState.responseMonth != null ? loadState.responseMonth : fields.domMonth,
         shelfmonthEvidence: shelfmonthEvidence,
         attachmentFileName: null,
@@ -403,6 +404,7 @@ function createInPageRereadScript() {
           drugsValue: fields.drugsValue,
           remarks: fields.remarks,
           shelfmonth: responseShelfmonth,
+          shelfmonthRereadUnavailable: !responseShelfmonth,
           month: loadState.responseMonth != null ? loadState.responseMonth : fields.domMonth,
           shelfmonthEvidence: shelfmonthEvidence,
           attachmentFileName: null,
@@ -598,18 +600,22 @@ function buildProductDetailsLiveAdapters(deps = {}) {
       });
     },
 
-    async reread({ portalProductId } = {}) {
+    async reread({ portalProductId, allowTrustedShelfmonthUnavailable = false } = {}) {
       const id = portalProductId != null ? String(portalProductId).trim() : "";
       if (!id) {
         throw new Error("reread_refused_missing_portal_product_id");
       }
       const retained = await page.evaluate(
-        async ({ source, id: pid }) => {
+        async ({ source, id: pid, allowTrustedUnavailable }) => {
           // eslint-disable-next-line no-new-func
           const fn = new Function(source)();
-          return fn(pid);
+          return fn(pid, allowTrustedUnavailable === true);
         },
-        { source: createInPageRereadScript(), id },
+        {
+          source: createInPageRereadScript(),
+          id,
+          allowTrustedUnavailable: allowTrustedShelfmonthUnavailable === true,
+        },
       );
       log({
         phase: "product-details-reread",
@@ -638,6 +644,8 @@ function buildProductDetailsLiveAdapters(deps = {}) {
         requestedId: id,
         loadedHiddenId,
         idMatch: loadedHiddenId === id,
+        shelfmonthRereadUnavailable:
+          retained.shelfmonthRereadUnavailable === true,
         retained:
           retained.retained && typeof retained.retained === "object"
             ? retained.retained
@@ -655,6 +663,8 @@ function buildProductDetailsLiveAdapters(deps = {}) {
                 drugsValue: retained.drugsValue,
                 remarks: retained.remarks,
                 shelfmonth: retained.shelfmonth,
+                shelfmonthRereadUnavailable:
+                  retained.shelfmonthRereadUnavailable === true,
                 month: retained.month,
                 shelfmonthEvidence: sanitizeShelfmonthEvidence(retained.shelfmonthEvidence),
                 attachmentFileName: retained.attachmentFileName,

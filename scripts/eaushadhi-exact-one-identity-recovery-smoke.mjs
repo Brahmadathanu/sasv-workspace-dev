@@ -189,6 +189,22 @@ function matchingReread(portalProductId) {
   };
 }
 
+function trustedUnavailableReread(portalProductId, evidenceOverrides = {}) {
+  return {
+    ...matchingReread(portalProductId),
+    shelfmonth: null,
+    shelfmonthRereadUnavailable: true,
+    shelfmonthEvidence: {
+      source: "GetproductDataUpdate_response",
+      responseValue: null,
+      domCheckedValue: null,
+      responseMonth: -1,
+      domMonth: "-1",
+      ...evidenceOverrides,
+    },
+  };
+}
+
 function shelfmonthUnprovenError(evidence = {}) {
   const error = new Error("SHELFMONTH_REREAD_UNPROVEN");
   error.code = "SHELFMONTH_REREAD_UNPROVEN";
@@ -540,6 +556,143 @@ function ok(cond, msg) {
       verifiedCall.args.compareReport.items.length > 0 &&
       verifiedCall.args.compareReport.items.every((item) => item.result === "MATCH"),
     "mark_portal_verified receives the full trusted MATCH report internally",
+  );
+}
+
+// --- pre-adoption compare mismatch is bounded, diagnostic, and non-mutating ---
+{
+  const rpcCalls = [];
+  const rereadArgs = [];
+  let verifiedArgs = null;
+  const special = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name, args) => {
+        rpcCalls.push({ name, args });
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return { portal_review_status: "VERIFIED", selected_portal_text: "Sandhirujah, ÅšÅpham" };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          return { run_id: "run-1", workflow_row_version: 4, content_hash: "hash1" };
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async (args) => {
+          rereadArgs.push(args);
+          return trustedUnavailableReread(args.portalProductId);
+        },
+        markPortalVerified: async (args) => {
+          verifiedArgs = args;
+          return { ok: true };
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(special.ok === true && special.code === "PORTAL_VERIFIED", "valid trusted unavailable first and second rereads portal-verify");
+  ok(
+    rereadArgs.length === 2 && rereadArgs.every((args) => args.allowTrustedShelfmonthUnavailable === true),
+    "both recovery rereads independently arm the trusted adapter-only mode",
+  );
+  const adoptCall = rpcCalls.find((call) => call.name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC);
+  ok(
+    adoptCall?.args?.p_recovery_evidence?.compare_equal === false &&
+      adoptCall.args.p_recovery_evidence.compare_overall === "MATCH_WITH_TRUSTED_UNAVAILABLE" &&
+      adoptCall.args.p_recovery_evidence.compare_verification_acceptable === true,
+    "special adoption evidence is truthful and verification-acceptable",
+  );
+  ok(
+    verifiedArgs?.compareReport?.equal === false &&
+      verifiedArgs.compareReport.overall === "MATCH_WITH_TRUSTED_UNAVAILABLE" &&
+      verifiedArgs.compareReport.items.some(
+        (item) => item.result === "PORTAL_REREAD_UNAVAILABLE_TRUSTED",
+      ),
+    "mark_portal_verified receives the full special trusted report internally",
+  );
+}
+
+for (const invalidAt of [1, 2]) {
+  let rereadCount = 0;
+  let adoptionCalls = 0;
+  let markCalls = 0;
+  const result = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return { portal_review_status: "VERIFIED", selected_portal_text: "Sandhirujah, ÅšÅpham" };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          adoptionCalls += 1;
+          return { run_id: "run-1", workflow_row_version: 4, content_hash: "hash1" };
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async ({ portalProductId }) => {
+          rereadCount += 1;
+          return trustedUnavailableReread(
+            portalProductId,
+            rereadCount === invalidAt ? { domCheckedValue: "RegularAsPerClause" } : {},
+          );
+        },
+        markPortalVerified: async () => {
+          markCalls += 1;
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  if (invalidAt === 1) {
+    ok(
+      result.code === "RECOVERY_COMPARE_MISMATCH" && adoptionCalls === 0 && markCalls === 0,
+      "invalid first trusted-unavailable proof blocks adoption",
+    );
+  } else {
+    ok(
+      result.code === "RECOVERY_POST_ADOPT_COMPARE_MISMATCH" &&
+        result.entryStatus === "ENTERED" && adoptionCalls === 1 && markCalls === 0,
+      "invalid second trusted-unavailable proof remains ENTERED without portal verification",
+    );
+  }
+}
+
+// --- adoption-returned content hash must match before the second reread/transition ---
+{
+  let rereadCount = 0;
+  let markCalls = 0;
+  const blocked = await runTrustedAmbiguousSaveExactOneRecovery(
+    {
+      liveArmed: true,
+      collectAuthoritativeProductDetailsContext: async () => buildAuthority(),
+      callRpc: async (name) => {
+        if (name === PORTAL_TEXT_GET_RPC) {
+          return { portal_review_status: "VERIFIED", selected_portal_text: "Sandhirujah, ÅšÅpham" };
+        }
+        if (name === ADOPT_AMBIGUOUS_SAVE_IDENTITY_RPC) {
+          return { run_id: "run-1", workflow_row_version: 4, content_hash: "changed-hash" };
+        }
+        throw new Error(`unexpected RPC ${name}`);
+      },
+      buildAdapters: async () => ({
+        reread: async ({ portalProductId }) => {
+          rereadCount += 1;
+          return matchingReread(portalProductId);
+        },
+        markPortalVerified: async () => {
+          markCalls += 1;
+        },
+      }),
+    },
+    { userConfirmed: true },
+  );
+  ok(blocked.code === "ADOPT_CONTENT_HASH_MISMATCH", "adoption-returned hash mismatch has a specific blocker");
+  ok(
+    blocked.entryStatus === "ENTERED" && blocked.adopted === true && rereadCount === 1 && markCalls === 0,
+    "hash mismatch remains ENTERED and prevents second reread/mark_portal_verified",
   );
 }
 

@@ -657,6 +657,101 @@ assert(
   "adopt identity ACL migration explicitly revokes anon execute",
 );
 
+const trustedShelfmonthMigration = readFileSync(
+  join(root, "supabase/migrations/20260923084119_eaushadhi_p262_trusted_shelfmonth_unavailable.sql"),
+  "utf8",
+);
+for (const token of [
+  "MATCH_WITH_TRUSTED_UNAVAILABLE",
+  "PORTAL_REREAD_UNAVAILABLE_TRUSTED",
+  "RegularAsPerClause",
+  "GetproductDataUpdate_response",
+  "last_save_evidence",
+  "SAVE_CONFIRMED",
+  "RUN_RESUME",
+  "jsonb_object_keys",
+]) {
+  assert(trustedShelfmonthMigration.includes(token), `trusted shelfmonth migration validates ${token}`);
+}
+assert(
+  (trustedShelfmonthMigration.match(/create or replace function public\.rpc_eaushadhi_worker_(?:adopt_ambiguous_save_identity|mark_portal_verified)/g) || []).length === 2,
+  "forward migration replaces both lifecycle RPCs",
+);
+for (const signature of [
+  "rpc_eaushadhi_worker_adopt_ambiguous_save_identity\\(uuid,bigint,text,text,jsonb\\)",
+  "rpc_eaushadhi_worker_mark_portal_verified\\(uuid,bigint,text,jsonb\\)",
+]) {
+  assert(
+    new RegExp(`revoke all on function public\\.${signature} from anon;`, "i").test(trustedShelfmonthMigration) &&
+      new RegExp(`revoke all on function public\\.${signature} from public;`, "i").test(trustedShelfmonthMigration) &&
+      new RegExp(`grant execute on function public\\.${signature} to authenticated, service_role;`, "i").test(trustedShelfmonthMigration),
+    `${signature} has closed ACL and authenticated/service_role execute`,
+  );
+}
+assert(
+  /v_special[\s\S]*v_exception_count<>1 or v_shelfmonth_count<>1/.test(trustedShelfmonthMigration),
+  "server contract requires exactly one exceptional and one shelfmonth item",
+);
+assert(
+  /jsonb_typeof\(v_item->'actual'\)\s*<>\s*'null'/.test(trustedShelfmonthMigration) &&
+    /array\['domCheckedValue','domMonth','responseMonth','responseValue','source'\]/.test(trustedShelfmonthMigration),
+  "server contract rejects non-null actual and extra/missing exceptional evidence keys",
+);
+assert(
+  /v_run\.last_save_outcome is distinct from 'AMBIGUOUS'[\s\S]*invokeCount[\s\S]*businessSuccess[\s\S]*SAVE_CONFIRMED/.test(trustedShelfmonthMigration),
+  "special mode independently requires strong durable save evidence",
+);
+
+function acceptsServerCompareContract(report, save) {
+  if (!report || !Array.isArray(report.items) || report.items.length === 0) return false;
+  if (report.equal === true) return report.items.every((item) => item.result === "MATCH");
+  if (
+    report.equal !== false ||
+    report.overall !== "MATCH_WITH_TRUSTED_UNAVAILABLE" ||
+    report.verificationAcceptable !== true
+  ) return false;
+  const exceptional = report.items.filter(
+    (item) => item.result === "PORTAL_REREAD_UNAVAILABLE_TRUSTED",
+  );
+  const shelfItems = report.items.filter((item) => item.path === "shelfmonth");
+  const item = exceptional[0];
+  const evidence = item?.evidence;
+  const keys = evidence && typeof evidence === "object" ? Object.keys(evidence).sort() : [];
+  const primitive = (value) => value == null || typeof value === "string" || typeof value === "number";
+  return (
+    exceptional.length === 1 && shelfItems.length === 1 &&
+    report.items.every((entry) => entry === item || entry.result === "MATCH") &&
+    item?.path === "shelfmonth" && item?.expected === "RegularAsPerClause" && item?.actual === null &&
+    keys.join(",") === "domCheckedValue,domMonth,responseMonth,responseValue,source" &&
+    evidence.source === "GetproductDataUpdate_response" && evidence.responseValue === null &&
+    evidence.domCheckedValue === null && primitive(evidence.responseMonth) && primitive(evidence.domMonth) &&
+    save?.outcome === "AMBIGUOUS" && save?.invoked === true && save?.invokeCount === 1 &&
+    save?.settled === true && save?.businessSuccess === true &&
+    ["SAVE_CONFIRMED", "RUN_RESUME"].includes(save?.phase)
+  );
+}
+const ordinaryReport = { equal: true, items: [{ path: "name", result: "MATCH" }] };
+const strongSave = { outcome: "AMBIGUOUS", invoked: true, invokeCount: 1, settled: true, businessSuccess: true, phase: "SAVE_CONFIRMED" };
+const specialItem = {
+  path: "shelfmonth", expected: "RegularAsPerClause", actual: null,
+  result: "PORTAL_REREAD_UNAVAILABLE_TRUSTED",
+  evidence: { source: "GetproductDataUpdate_response", responseValue: null, domCheckedValue: null, responseMonth: -1, domMonth: "-1" },
+};
+const specialReport = { equal: false, overall: "MATCH_WITH_TRUSTED_UNAVAILABLE", verificationAcceptable: true, items: [{ path: "name", result: "MATCH" }, specialItem] };
+assert(acceptsServerCompareContract(ordinaryReport, null), "old all-MATCH report remains structurally accepted");
+assert(acceptsServerCompareContract(specialReport, strongSave), "exact special report remains structurally accepted");
+for (const [label, report, save] of [
+  ["duplicate exception", { ...specialReport, items: [...specialReport.items, specialItem] }, strongSave],
+  ["wrong path", { ...specialReport, items: [{ ...specialItem, path: "remarks" }] }, strongSave],
+  ["wrong expected", { ...specialReport, items: [{ ...specialItem, expected: "Applyforaccessofshelflife" }] }, strongSave],
+  ["non-null actual", { ...specialReport, items: [{ ...specialItem, actual: "RegularAsPerClause" }] }, strongSave],
+  ["extra evidence key", { ...specialReport, items: [{ ...specialItem, evidence: { ...specialItem.evidence, extra: true } }] }, strongSave],
+  ["weak save evidence", specialReport, { ...strongSave, invoked: false }],
+  ["wrong phase", specialReport, { ...strongSave, phase: "SAVE_STARTED" }],
+]) {
+  assert(!acceptsServerCompareContract(report, save), `${label} is structurally rejected`);
+}
+
 if (failed) {
   console.error(`\n${failed} RPC contract assertion(s) failed`);
   process.exit(1);

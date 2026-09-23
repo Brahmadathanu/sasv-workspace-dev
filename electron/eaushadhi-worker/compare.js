@@ -6,6 +6,7 @@ const COMPARE_RESULT = Object.freeze({
   MATCH: "MATCH",
   MISMATCH: "MISMATCH",
   UNAVAILABLE: "UNAVAILABLE",
+  PORTAL_REREAD_UNAVAILABLE_TRUSTED: "PORTAL_REREAD_UNAVAILABLE_TRUSTED",
 });
 
 function normalizeText(value) {
@@ -319,6 +320,7 @@ const OVERALL_COMPARE = Object.freeze({
   MATCH: "MATCH",
   MISMATCH: "MISMATCH",
   INCOMPLETE: "INCOMPLETE",
+  MATCH_WITH_TRUSTED_UNAVAILABLE: "MATCH_WITH_TRUSTED_UNAVAILABLE",
 });
 
 /**
@@ -343,6 +345,7 @@ function compareProductDetailsReread(expected, retained, options = {}) {
     return {
       overall: OVERALL_COMPARE.INCOMPLETE,
       equal: false,
+      verificationAcceptable: false,
       items: [
         {
           path: "retained",
@@ -395,7 +398,7 @@ function compareProductDetailsReread(expected, retained, options = {}) {
     );
   }
 
-  for (const key of ["compositionTitle", "disease", "remarks", "shelfmonth"]) {
+  for (const key of ["compositionTitle", "disease", "remarks"]) {
     if (expected?.[key] == null || expected?.[key] === "") continue;
     push(
       key,
@@ -403,6 +406,58 @@ function compareProductDetailsReread(expected, retained, options = {}) {
       retained?.[key],
       textsEqual(expected?.[key], retained?.[key]) ? COMPARE_RESULT.MATCH : COMPARE_RESULT.MISMATCH,
     );
+  }
+
+  if (expected?.shelfmonth != null && expected?.shelfmonth !== "") {
+    const trustedEvidence = options?.trustedShelfmonthEvidence;
+    const trustedEvidenceKeys =
+      trustedEvidence && typeof trustedEvidence === "object" && !Array.isArray(trustedEvidence)
+        ? Object.keys(trustedEvidence).sort()
+        : [];
+    const boundedDiagnostic = (value) =>
+      value == null ||
+      (typeof value === "number" && Number.isFinite(value)) ||
+      (typeof value === "string" && value.length <= 128);
+    const trustedUnavailable =
+      options?.trustedShelfmonthRereadUnavailable === true &&
+      expected.shelfmonth === "RegularAsPerClause" &&
+      (retained?.shelfmonth == null || retained.shelfmonth === "") &&
+      trustedEvidence &&
+      typeof trustedEvidence === "object" &&
+      trustedEvidenceKeys.join(",") ===
+        "domCheckedValue,domMonth,responseMonth,responseValue,source" &&
+      trustedEvidence.source === "GetproductDataUpdate_response" &&
+      trustedEvidence.responseValue === null &&
+      trustedEvidence.domCheckedValue === null &&
+      boundedDiagnostic(trustedEvidence.responseMonth) &&
+      boundedDiagnostic(trustedEvidence.domMonth);
+    if (trustedUnavailable) {
+      items.push({
+        path: "shelfmonth",
+        expected: "RegularAsPerClause",
+        actual: null,
+        result: COMPARE_RESULT.PORTAL_REREAD_UNAVAILABLE_TRUSTED,
+        match: false,
+        normalization_applied: "trusted_portal_reread_unavailable",
+        reason: "PORTAL_REREAD_UNAVAILABLE_TRUSTED",
+        evidence: {
+          source: trustedEvidence.source,
+          responseValue: trustedEvidence.responseValue ?? null,
+          domCheckedValue: trustedEvidence.domCheckedValue ?? null,
+          responseMonth: trustedEvidence.responseMonth ?? null,
+          domMonth: trustedEvidence.domMonth ?? null,
+        },
+      });
+    } else {
+      push(
+        "shelfmonth",
+        expected.shelfmonth,
+        retained?.shelfmonth,
+        textsEqual(expected.shelfmonth, retained?.shelfmonth)
+          ? COMPARE_RESULT.MATCH
+          : COMPARE_RESULT.MISMATCH,
+      );
+    }
   }
 
   const expInd = Array.isArray(expected?.indications)
@@ -483,13 +538,24 @@ function compareProductDetailsReread(expected, retained, options = {}) {
 
   const hasUnavailable = items.some((i) => i.result === COMPARE_RESULT.UNAVAILABLE);
   const hasMismatch = items.some((i) => i.result === COMPARE_RESULT.MISMATCH);
+  const trustedUnavailableCount = items.filter(
+    (i) => i.result === COMPARE_RESULT.PORTAL_REREAD_UNAVAILABLE_TRUSTED,
+  ).length;
   let overall = OVERALL_COMPARE.MATCH;
   if (hasMismatch) overall = OVERALL_COMPARE.MISMATCH;
   else if (hasUnavailable) overall = OVERALL_COMPARE.INCOMPLETE;
+  else if (trustedUnavailableCount === 1) {
+    overall = OVERALL_COMPARE.MATCH_WITH_TRUSTED_UNAVAILABLE;
+  } else if (trustedUnavailableCount > 1) {
+    overall = OVERALL_COMPARE.MISMATCH;
+  }
 
   return {
     overall,
     equal: overall === OVERALL_COMPARE.MATCH,
+    verificationAcceptable:
+      overall === OVERALL_COMPARE.MATCH ||
+      overall === OVERALL_COMPARE.MATCH_WITH_TRUSTED_UNAVAILABLE,
     items,
   };
 }
@@ -497,12 +563,17 @@ function compareProductDetailsReread(expected, retained, options = {}) {
 function toMarkPortalVerifiedReport(compareResult) {
   const items = Array.isArray(compareResult?.items) ? compareResult.items : [];
   return {
-    equal: compareResult?.overall === OVERALL_COMPARE.MATCH,
+    equal: compareResult?.equal === true,
+    overall: compareResult?.overall,
+    verificationAcceptable: compareResult?.verificationAcceptable === true,
     items: items.map((item) => ({
       path: item.path,
       expected: item.expected,
       actual: item.actual,
       result: item.result === COMPARE_RESULT.MATCH ? "MATCH" : item.result,
+      ...(item.result === COMPARE_RESULT.PORTAL_REREAD_UNAVAILABLE_TRUSTED
+        ? { evidence: item.evidence }
+        : {}),
     })),
   };
 }

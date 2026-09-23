@@ -2049,6 +2049,76 @@ function proveTrustedAmbiguousSaveAttachmentEvidence(activeRun) {
 }
 
 /**
+ * Product-262-only controlled-flow verification acceptability for the one
+ * field the portal cannot authoritatively reread. This does not prove portal
+ * shelf-life retention or DOM equality and never infers a value from month.
+ */
+function assessTrustedShelfmonthRereadUnavailable({
+  authority,
+  expectedShelfmonth,
+  reread,
+  candidateId,
+} = {}) {
+  const run = authority?.activeRun || {};
+  const evidence = reread?.shelfmonthEvidence;
+  const evidenceKeys =
+    evidence && typeof evidence === "object" && !Array.isArray(evidence)
+      ? Object.keys(evidence).sort()
+      : [];
+  const exactEvidenceKeys = [
+    "domCheckedValue",
+    "domMonth",
+    "responseMonth",
+    "responseValue",
+    "source",
+  ];
+  const diagnosticOk = (value) =>
+    value == null ||
+    (typeof value === "number" && Number.isFinite(value)) ||
+    (typeof value === "string" && value.length <= 128);
+  const idProven =
+    reread?.ok === true &&
+    reread?.idMatch === true &&
+    String(reread?.requestedId || "") === String(candidateId || "") &&
+    String(reread?.loadedHiddenId || reread?.hiddenId || "") ===
+      String(candidateId || "");
+  const strongSaveEvidence =
+    String(run.last_save_outcome || "").toUpperCase() === "AMBIGUOUS" &&
+    proveTrustedAmbiguousSaveAttachmentEvidence(run);
+  const ok =
+    Number(authority?.productId) === FIRST_CONTROLLED_PRODUCT_ID &&
+    expectedShelfmonth === "RegularAsPerClause" &&
+    idProven &&
+    reread?.shelfmonth == null &&
+    reread?.shelfmonthRereadUnavailable === true &&
+    evidenceKeys.length === exactEvidenceKeys.length &&
+    evidenceKeys.every((key, index) => key === exactEvidenceKeys[index]) &&
+    evidence?.source === "GetproductDataUpdate_response" &&
+    evidence?.responseValue === null &&
+    evidence?.domCheckedValue === null &&
+    diagnosticOk(evidence?.responseMonth) &&
+    diagnosticOk(evidence?.domMonth) &&
+    strongSaveEvidence &&
+    authority?.contentHashMatchesRunStart === true &&
+    Boolean(authority?.contentHash);
+  return {
+    ok,
+    code: ok
+      ? "TRUSTED_SHELFMONTH_REREAD_UNAVAILABLE_ACCEPTABLE"
+      : "TRUSTED_SHELFMONTH_REREAD_UNAVAILABLE_REJECTED",
+    evidence: ok
+      ? {
+          source: evidence.source,
+          responseValue: null,
+          domCheckedValue: null,
+          responseMonth: evidence.responseMonth ?? null,
+          domMonth: evidence.domMonth ?? null,
+        }
+      : null,
+  };
+}
+
+/**
  * BOTH A (current V01 resolve) and B (trusted ambiguous save evidence) required
  * before recovery may treat attachment as proven for reread-unavailable compare.
  */
@@ -2162,7 +2232,7 @@ function sanitizeShelfmonthRereadEvidence(evidence) {
   const source = evidence && typeof evidence === "object" ? evidence : {};
   const boundedPrimitive = (value) => {
     if (value == null) return null;
-    if (typeof value === "number" || typeof value === "boolean") return value;
+    if (typeof value === "number" && Number.isFinite(value)) return value;
     if (typeof value === "string") return value.slice(0, 128);
     return null;
   };
@@ -2366,7 +2436,10 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
     // --- Native reread before adoption ---
     let reread1;
     try {
-      reread1 = await adapters.reread({ portalProductId: candidateId });
+      reread1 = await adapters.reread({
+        portalProductId: candidateId,
+        allowTrustedShelfmonthUnavailable: true,
+      });
     } catch (error) {
       if (error?.code === "SHELFMONTH_REREAD_UNPROVEN") {
         return {
@@ -2453,10 +2526,18 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
     // assessRecoveryAttachmentEligibility proved V01 + server save evidence.
     // Derived from controlled executor invariant (SaveData after fill/upload),
     // not from current file resolution alone as "fill-time proof."
+    const shelfmonthAssessment1 = assessTrustedShelfmonthRereadUnavailable({
+      authority,
+      expectedShelfmonth: expectedCompare.shelfmonth,
+      reread: reread1,
+      candidateId,
+    });
     const compare1 = compareProductDetailsReread(expectedCompare, reread1, {
       approvedCopyRereadUnavailable: true,
+      trustedShelfmonthRereadUnavailable: shelfmonthAssessment1.ok,
+      trustedShelfmonthEvidence: shelfmonthAssessment1.evidence,
     });
-    if (compare1.overall !== OVERALL_COMPARE.MATCH || compare1.equal !== true) {
+    if (compare1.verificationAcceptable !== true) {
       return {
         ok: false,
         code: `RECOVERY_COMPARE_${compare1.overall}`,
@@ -2474,7 +2555,9 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
       portal_product_ref: candidateId,
       reread_source: "GetproductDataUpdate",
       reread_id_match: true,
-      compare_equal: true,
+      compare_equal: compare1.equal === true,
+      compare_overall: compare1.overall,
+      compare_verification_acceptable: compare1.verificationAcceptable === true,
       compare_report: toMarkPortalVerifiedReport(compare1),
     };
 
@@ -2540,11 +2623,35 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
         inventedFailureRpcCalled: false,
       };
     }
+    const adoptedContentHash = adoptRow?.content_hash ?? adoptRow?.contentHash ?? null;
+    if (
+      adoptedContentHash == null ||
+      String(adoptedContentHash) !== String(authority.contentHash)
+    ) {
+      return {
+        ok: false,
+        code: "ADOPT_CONTENT_HASH_MISMATCH",
+        message:
+          "Adoption returned a content hash different from the original governed authority; remaining ENTERED without PORTAL_VERIFIED.",
+        mutated: true,
+        adopted: true,
+        entryStatus: "ENTERED",
+        runBegun: false,
+        runResumed: false,
+        filled: false,
+        saved: false,
+        uploaded: false,
+        inventedFailureRpcCalled: false,
+      };
+    }
 
     // Fresh post-adoption reread + compare
     let reread2;
     try {
-      reread2 = await adapters.reread({ portalProductId: candidateId });
+      reread2 = await adapters.reread({
+        portalProductId: candidateId,
+        allowTrustedShelfmonthUnavailable: true,
+      });
     } catch (error) {
       if (error?.code === "SHELFMONTH_REREAD_UNPROVEN") {
         return {
@@ -2603,10 +2710,18 @@ async function runTrustedAmbiguousSaveExactOneRecovery(deps = {}, command = {}) 
       };
     }
 
+    const shelfmonthAssessment2 = assessTrustedShelfmonthRereadUnavailable({
+      authority,
+      expectedShelfmonth: expectedCompare.shelfmonth,
+      reread: reread2,
+      candidateId,
+    });
     const compare2 = compareProductDetailsReread(expectedCompare, reread2, {
       approvedCopyRereadUnavailable: true,
+      trustedShelfmonthRereadUnavailable: shelfmonthAssessment2.ok,
+      trustedShelfmonthEvidence: shelfmonthAssessment2.evidence,
     });
-    if (compare2.overall !== OVERALL_COMPARE.MATCH || compare2.equal !== true) {
+    if (compare2.verificationAcceptable !== true) {
       return {
         ok: false,
         code: `RECOVERY_POST_ADOPT_COMPARE_${compare2.overall}`,
@@ -2688,6 +2803,7 @@ module.exports = {
   assessRecoveryAttachmentEligibility,
   proveGovernedApprovedCopyV01,
   proveTrustedAmbiguousSaveAttachmentEvidence,
+  assessTrustedShelfmonthRereadUnavailable,
   sanitizeRecoveryCompareMismatches,
   runTrustedProductDetailsPreview,
   runTrustedProductDetailsStart,
