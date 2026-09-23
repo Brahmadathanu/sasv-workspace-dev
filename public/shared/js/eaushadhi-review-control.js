@@ -135,6 +135,11 @@ import {
   workflowStageComplete,
 } from "./eaushadhi-review-helpers.js";
 import {
+  associateReferenceMappingsByLine,
+  referenceMatchLabel,
+  referenceMappingPresentation,
+} from "./eaushadhi-reference-mapping.js";
+import {
   EaushadhiRpcError,
   fetchProductQueue,
   fetchDocumentUploadContract,
@@ -142,6 +147,7 @@ import {
   fetchProductPortalText,
   correctWorkingSourceLine,
   fetchSourceIssueContext,
+  verifyReferenceMapping,
   loadProductWorkspace,
   loadSessionCatalogs,
   promoteVerifiedFormulation,
@@ -214,6 +220,7 @@ const state = {
       INGREDIENT_FORM: [],
       PART_USED: [],
       MEASUREMENT_UNIT: [],
+      REFERENCE: [],
     },
     permissionPurposeOptions: [],
     pharmacologicalActionOptions: [],
@@ -223,6 +230,7 @@ const state = {
   queueRow: null,
   review: null,
   lines: [],
+  referenceMappings: [],
   actions: [],
   evidence: null,
   issues: [],
@@ -1429,6 +1437,20 @@ function renderComposition() {
         canEdit: canWrite(),
       });
       const resolved = state.resolvedSourceByLine.get(String(id));
+      const reference = row.referenceMapping || null;
+      const referencePresentation = referenceMappingPresentation(reference);
+      const isReferenceActionOwner = reference && state.lines.find(
+        (item) => item.referenceMapping?.mapping_id === reference.mapping_id,
+      )?.source_composition_line_id === row.source_composition_line_id;
+      const referenceBlock = reference ? `<section class="reference-mapping-block" data-reference-mapping-id="${escapeHtml(reference.mapping_id)}">
+        <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.raw_reference_text || reference.source_reference_examples?.[0] || "-")}</strong></div>
+        <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(reference.canonical_label)}</strong></div>
+        <div><span class="muted-note">e-Aushadhi Projection</span><strong>${escapeHtml(reference.portal_label || "Not selected")}</strong></div>
+        <div><span class="muted-note">Portal Value</span><strong>${escapeHtml(reference.portal_external_id || "-")}</strong></div>
+        <div><span class="muted-note">Match Basis</span><strong>${escapeHtml(referenceMatchLabel(reference.match_basis))}</strong></div>
+        <div><span class="muted-note">Status</span>${chip(referencePresentation.ready ? "success" : "warning", referencePresentation.label)}</div>
+        ${isReferenceActionOwner && referencePresentation.reviewable ? `<button type="button" class="icon-btn with-label" data-reference-review="${escapeHtml(reference.mapping_id)}" data-edit-action="true">Review Reference Mapping</button>` : ""}
+      </section>` : `<section class="reference-mapping-block is-blocked"><strong>Reference mapping unavailable</strong></section>`;
       return `<article class="line-card${hasBlocker ? " has-blocker" : hasError ? " has-error" : ""}${locked ? " is-verified" : ""}" data-line-id="${escapeHtml(id)}">
         <div class="working-source-block">
           <span class="working-source-label">Working source</span>
@@ -1459,6 +1481,7 @@ function renderComposition() {
         }
         <span class="portal-mapping-label">Portal mapping</span>
         <div class="portal-fields">${fields}</div>
+        ${referenceBlock}
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
           <input id="${escapeHtml(notesId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${locked ? " disabled" : ""} />
@@ -1496,6 +1519,53 @@ function renderComposition() {
     })
     .join("");
   applyPermissionUi();
+}
+
+function openReferenceMappingReview(mappingId) {
+  const mapping = state.referenceMappings.find((item) => idsEqual(item.mapping_id, mappingId));
+  if (!mapping || mapping.mapping_status !== "DRAFT") return;
+  const dialog = document.createElement("dialog");
+  dialog.className = "sasv-modal reference-mapping-modal";
+  const examples = (mapping.source_reference_examples || []).map((value) => escapeHtml(value)).join("<br>");
+  dialog.innerHTML = `<form method="dialog" class="modal-card">
+    <h2>Review Reference Mapping</h2>
+    <dl class="reference-review-summary">
+      <dt>Internal canonical wording</dt><dd>${escapeHtml(mapping.canonical_label)}</dd>
+      <dt>Source examples</dt><dd>${examples || "-"}</dd>
+      <dt>Suggested e-Aushadhi wording</dt><dd>${escapeHtml(mapping.portal_label || "-")}</dd>
+      <dt>Portal value</dt><dd>${escapeHtml(mapping.portal_external_id || "-")}</dd>
+      <dt>Match basis</dt><dd>${escapeHtml(referenceMatchLabel(mapping.match_basis))}</dd>
+    </dl>
+    <label for="referencePortalOption">Governed REFERENCE option</label>
+    <select id="referencePortalOption" class="sasv-control">
+      ${optionHtml(state.catalogs.portalOptions.REFERENCE, mapping.portal_option_id)}
+    </select>
+    <div class="modal-actions">
+      <button type="button" class="icon-btn with-label primary" data-reference-confirm>Verify mapping</button>
+      <button type="submit" class="icon-btn with-label">Cancel</button>
+    </div>
+  </form>`;
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  dialog.querySelector("[data-reference-confirm]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await verifyReferenceMapping({
+        mappingId: mapping.mapping_id,
+        expectedStatus: mapping.mapping_status,
+        portalOptionId: optionId(dialog.querySelector("#referencePortalOption")?.value),
+        mappingReason: mapping.mapping_reason,
+      });
+      dialog.close();
+      await reloadSelected({ preserveDrafts: true, restoreComposition: true });
+      showToast("Reference mapping verified.", "success");
+    } catch (error) {
+      button.disabled = false;
+      toastError(error);
+    }
+  });
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 function modalFocusables(dialogId) {
@@ -3129,7 +3199,8 @@ function syncClassificationDraftFromForm() {
 
 function applyWorkspacePayload(payload, { preserveDrafts = false } = {}) {
   state.review = payload.review;
-  state.lines = payload.lines || [];
+  state.referenceMappings = payload.referenceMappings || [];
+  state.lines = associateReferenceMappingsByLine(payload.lines, state.referenceMappings);
   state.actions = payload.actions || [];
   state.evidence = payload.evidence;
   state.issues = payload.issues || [];
@@ -5008,10 +5079,12 @@ function wireEvents() {
     const resolve = event.target.closest("[data-source-resolve]");
     const correct = event.target.closest("[data-source-correct]");
     const reopen = event.target.closest("[data-line-reopen]");
+    const referenceReview = event.target.closest("[data-reference-review]");
     if (verify) submitLine(verify.dataset.lineVerify, true);
     if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
     if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
     if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
+    if (referenceReview) openReferenceMappingReview(referenceReview.dataset.referenceReview);
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {

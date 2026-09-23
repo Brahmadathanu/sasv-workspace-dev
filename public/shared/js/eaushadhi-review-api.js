@@ -92,6 +92,30 @@ export async function fetchReviewQueue(productId) {
   );
 }
 
+export async function fetchReferenceMappings(productId) {
+  return asArray(
+    await callRpc("rpc_eaushadhi_reference_mapping_get", {
+      p_product_id: Number(optionId(productId)),
+    }),
+  );
+}
+
+export async function verifyReferenceMapping({
+  mappingId,
+  expectedStatus,
+  portalOptionId,
+  mappingReason = null,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_reference_mapping_verify", {
+      p_mapping_id: Number(mappingId),
+      p_expected_status: expectedStatus,
+      p_portal_option_id: Number(portalOptionId),
+      p_mapping_reason: mappingReason,
+    }),
+  );
+}
+
 export async function saveLineReview({
   sourceCompositionLineId,
   expectedRowVersion,
@@ -552,6 +576,7 @@ export async function loadSessionCatalogs() {
     formOptions,
     partOptions,
     unitOptions,
+    referenceOptions,
     permissionPurposeOptions,
     pharmacologicalActionOptions,
   ] = await Promise.all([
@@ -559,6 +584,7 @@ export async function loadSessionCatalogs() {
     fetchPortalOptions("INGREDIENT_FORM"),
     fetchPortalOptions("PART_USED"),
     fetchPortalOptions("MEASUREMENT_UNIT"),
+    fetchPortalOptions("REFERENCE"),
     fetchPermissionPurposeOptions(),
     fetchPharmacologicalActionOptions(),
   ]);
@@ -568,6 +594,7 @@ export async function loadSessionCatalogs() {
       INGREDIENT_FORM: formOptions,
       PART_USED: partOptions,
       MEASUREMENT_UNIT: unitOptions,
+      REFERENCE: referenceOptions,
     },
     permissionPurposeOptions,
     pharmacologicalActionOptions,
@@ -716,6 +743,7 @@ export async function loadProductWorkspace(productId) {
     classificationTypeOptions,
     dossierPortalFields,
     portalText,
+    referenceMappings,
   ] = await Promise.all([
     fetchProductReview(id),
     fetchReviewQueue(id),
@@ -732,6 +760,7 @@ export async function loadProductWorkspace(productId) {
     fetchProductClassificationOptions("PRODUCT_TYPE"),
     fetchProductDossierPortalFields(id).catch(() => null),
     fetchProductPortalText(id).catch(() => null),
+    fetchReferenceMappings(id),
   ]);
   const typeId =
     optionId(classification?.selected_product_type_option_id) ??
@@ -755,6 +784,7 @@ export async function loadProductWorkspace(productId) {
     classification,
     dossierPortalFields,
     portalText,
+    referenceMappings,
     classificationOptions: {
       PRODUCT_TYPE: classificationTypeOptions,
       PRODUCT_CATEGORY: classificationCategoryOptions,

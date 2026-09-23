@@ -61,6 +61,8 @@ const requiredRpcs = [
   "rpc_eaushadhi_product_dossier_portal_fields_save",
   "rpc_eaushadhi_product_portal_text_get",
   "rpc_eaushadhi_product_portal_text_save",
+  "rpc_eaushadhi_reference_mapping_get",
+  "rpc_eaushadhi_reference_mapping_verify",
 ];
 
 for (const name of requiredRpcs) {
@@ -660,6 +662,63 @@ assert(
 const trustedShelfmonthMigration = readFileSync(
   join(root, "supabase/migrations/20260923084119_eaushadhi_p262_trusted_shelfmonth_unavailable.sql"),
   "utf8",
+);
+
+const referenceMappingMigration = readFileSync(
+  join(root, "supabase/migrations/20260923115648_eaushadhi_reference_mapping_composition_bootstrap.sql"),
+  "utf8",
+);
+assert(/'REFERENCE_WORK',\s*'SAHASRAYOGAM'/.test(referenceMappingMigration), "canonical reference work is seeded");
+assert(referenceMappingMigration.includes("('28','Sahasrayoga')"), "Sahasrayoga portal value 28 is seeded");
+assert(!referenceMappingMigration.includes("('-1',"), "REFERENCE placeholder -1 is not seeded");
+assert(referenceMappingMigration.includes("PARENT_WORK_TRANSLITERATION_MATCH"), "reference mapping retains non-exact match basis");
+assert(referenceMappingMigration.includes("rpc_eaushadhi_require_permission(true)"), "reference verify requires edit permission");
+assert(/revoke all on function public\.rpc_eaushadhi_reference_mapping_verify\(bigint,text,bigint,text\) from public, anon;/.test(referenceMappingMigration), "reference verify closes PUBLIC and anon ACL");
+assert(
+  !/(?:m|candidate|v_mapping|new)\.is_active/.test(referenceMappingMigration),
+  "reference migration does not depend on nonexistent term_portal_mapping.is_active",
+);
+assert(
+  /mapping_status in \('DRAFT', 'VERIFIED'\)/.test(referenceMappingMigration) &&
+    /effective_from is null/.test(referenceMappingMigration) &&
+    /effective_to is null/.test(referenceMappingMigration),
+  "current reference mappings use lifecycle status and effective window",
+);
+assert(
+  /return v_payload \|\| jsonb_build_object\('content_hash', v_hash\)/.test(referenceMappingMigration) &&
+    !/return jsonb_build_object\('payload',\s*v_payload/.test(referenceMappingMigration),
+  "worker_content_get retains its flat external contract",
+);
+assert(
+  /source_composition_line_ids bigint\[\]/.test(referenceMappingMigration),
+  "reference getter exposes deterministic line association",
+);
+assert(
+  /when v_option\.id = v_mapping\.portal_option_id then m\.match_basis/.test(referenceMappingMigration) &&
+    /when v_option\.id = v_mapping\.portal_option_id then m\.comparison_evidence/.test(referenceMappingMigration),
+  "verifying the suggested option preserves its match basis and comparison evidence",
+);
+assert(
+  /else 'MANUAL'/.test(referenceMappingMigration) &&
+    /'verification_mode', 'MANUAL_SELECTION'/.test(referenceMappingMigration),
+  "changing the suggested option records a manual-selection basis",
+);
+assert(
+  /'original_suggested_portal_option_id', v_original_option\.id/.test(referenceMappingMigration) &&
+    /'original_suggested_external_id', v_original_option\.external_id/.test(referenceMappingMigration) &&
+    /'original_suggested_label', v_original_option\.label/.test(referenceMappingMigration) &&
+    /'verified_portal_option_id', v_option\.id/.test(referenceMappingMigration) &&
+    /'verified_external_id', v_option\.external_id/.test(referenceMappingMigration) &&
+    /'verified_label', v_option\.label/.test(referenceMappingMigration),
+  "manual verification evidence uses server-resolved original and selected portal identities",
+);
+assert(
+  !/p_(?:portal_label|match_basis|comparison_evidence)/.test(referenceMappingMigration),
+  "renderer cannot supply reference labels, basis, or structured evidence",
+);
+assert(
+  /alter function public\.rpc_eaushadhi_reference_mapping_(?:get|verify)[\s\S]*owner to postgres/.test(referenceMappingMigration),
+  "reference mapping RPC ownership remains postgres",
 );
 for (const token of [
   "MATCH_WITH_TRUSTED_UNAVAILABLE",
