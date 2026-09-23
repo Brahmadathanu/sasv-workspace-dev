@@ -61,6 +61,8 @@ const requiredRpcs = [
   "rpc_eaushadhi_product_dossier_portal_fields_save",
   "rpc_eaushadhi_product_portal_text_get",
   "rpc_eaushadhi_product_portal_text_save",
+  "rpc_eaushadhi_reference_mapping_get",
+  "rpc_eaushadhi_reference_mapping_verify",
 ];
 
 for (const name of requiredRpcs) {
@@ -661,6 +663,17 @@ const trustedShelfmonthMigration = readFileSync(
   join(root, "supabase/migrations/20260923084119_eaushadhi_p262_trusted_shelfmonth_unavailable.sql"),
   "utf8",
 );
+
+const referenceMappingMigration = readFileSync(
+  join(root, "supabase/migrations/20260923115648_eaushadhi_reference_mapping_composition_bootstrap.sql"),
+  "utf8",
+);
+assert(referenceMappingMigration.includes("'REFERENCE_WORK',\n  'SAHASRAYOGAM'"), "canonical reference work is seeded");
+assert(referenceMappingMigration.includes("('28','Sahasrayoga')"), "Sahasrayoga portal value 28 is seeded");
+assert(!referenceMappingMigration.includes("('-1',"), "REFERENCE placeholder -1 is not seeded");
+assert(referenceMappingMigration.includes("PARENT_WORK_TRANSLITERATION_MATCH"), "reference mapping retains non-exact match basis");
+assert(referenceMappingMigration.includes("rpc_eaushadhi_require_permission(true)"), "reference verify requires edit permission");
+assert(/revoke all on function public\.rpc_eaushadhi_reference_mapping_verify\(bigint,text,bigint,text\) from public, anon;/.test(referenceMappingMigration), "reference verify closes PUBLIC and anon ACL");
 for (const token of [
   "MATCH_WITH_TRUSTED_UNAVAILABLE",
   "PORTAL_REREAD_UNAVAILABLE_TRUSTED",

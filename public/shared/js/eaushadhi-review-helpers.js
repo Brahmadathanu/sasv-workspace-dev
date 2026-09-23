@@ -11,6 +11,7 @@ export const PORTAL_DOMAINS = Object.freeze([
   "INGREDIENT_FORM",
   "PART_USED",
   "MEASUREMENT_UNIT",
+  "REFERENCE",
 ]);
 
 export const WORKSPACE_TABS = Object.freeze([

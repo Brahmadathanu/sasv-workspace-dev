@@ -915,6 +915,38 @@ body.sasv-eaushadhi-review .portal-fields {
   gap: 6px 8px;
 }
 
+body.sasv-eaushadhi-review .reference-mapping-block {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-block > div {
+  display: grid;
+  gap: 3px;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-modal .modal-card {
+  width: min(620px, calc(100vw - 32px));
+  display: grid;
+  gap: 14px;
+}
+
+body.sasv-eaushadhi-review .reference-review-summary {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(220px, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .reference-review-summary dt { color: var(--muted, #64748b); }
+body.sasv-eaushadhi-review .reference-review-summary dd { margin: 0; font-weight: 600; }
+
 body.sasv-eaushadhi-review .portal-field label {
   font-size: var(--sasv-text-xs);
 }
