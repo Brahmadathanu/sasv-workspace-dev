@@ -931,10 +931,36 @@ body.sasv-eaushadhi-review .reference-mapping-block > div {
   gap: 3px;
 }
 
+body.sasv-eaushadhi-review .reference-mapping-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-review-btn {
+  width: auto;
+  min-height: 0;
+  justify-self: start;
+  padding: 4px 8px;
+  border-color: var(--border, #dbe3ea);
+  background: #fff;
+  color: var(--sasv-text);
+  font-size: var(--sasv-text-xs);
+}
+
 body.sasv-eaushadhi-review .reference-mapping-modal .modal-card {
   width: min(620px, calc(100vw - 32px));
   display: grid;
   gap: 14px;
+}
+
+body.sasv-eaushadhi-review .reference-mapping-context,
+body.sasv-eaushadhi-review .reference-mapping-helper {
+  margin: 0;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
 }
 
 body.sasv-eaushadhi-review .reference-review-summary {
@@ -1199,6 +1225,13 @@ body.sasv-eaushadhi-review .action-vocab-item {
   }
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: 1fr;
+  }
+  body.sasv-eaushadhi-review .reference-review-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  body.sasv-eaushadhi-review .reference-review-summary dd + dt {
+    margin-top: 8px;
   }
   body.sasv-eaushadhi-review .product-header,
   body.sasv-eaushadhi-review .ea-copy-head {
