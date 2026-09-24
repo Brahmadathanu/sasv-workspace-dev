@@ -453,14 +453,14 @@ assert(controlSrc.includes("does not log out of e-Aushadhi"), "controller keeps 
 assert((htmlSrc.match(/id="btnWorkerCapture"/g) || []).length === 1, "exactly one Capture button");
 assert((htmlSrc.match(/id="btnWorkerOpenCapture"/g) || []).length === 1, "exactly one Open Capture Folder button");
 assert((htmlSrc.match(/id="workerBrowserStatus"/g) || []).length === 1, "exactly one worker status node");
-assert((htmlSrc.match(/id="btnWorkerMore"/g) || []).length === 1, "exactly one More button");
+assert((htmlSrc.match(/id="btnWorkerMenuTrigger"/g) || []).length === 1, "exactly one compact worker trigger");
 assert((htmlSrc.match(/id="eaWorkerMenu"/g) || []).length === 1, "exactly one worker overflow menu");
 assert(!htmlSrc.includes("<span>Worker</span>"), "status is not the old two-column Worker chip");
 assert(htmlSrc.includes("Browser:"), "status copy is compact Browser: label");
 assert(!controlSrc.includes("Auth required"), "header does not invent Auth required");
-assert(htmlSrc.includes('aria-haspopup="menu"'), "More exposes aria-haspopup=menu");
-assert(htmlSrc.includes('aria-controls="eaWorkerMenu"'), "More points at the worker menu");
-assert(htmlSrc.includes('aria-expanded="false"'), "More starts collapsed");
+assert(htmlSrc.includes('aria-haspopup="menu"'), "worker trigger exposes aria-haspopup=menu");
+assert(htmlSrc.includes('aria-controls="eaWorkerMenu"'), "worker trigger points at the worker menu");
+assert(htmlSrc.includes('aria-expanded="false"'), "worker trigger starts collapsed");
 assert(htmlSrc.includes('role="menu"'), "overflow uses role=menu");
 assert(htmlSrc.includes('role="menuitem"'), "overflow actions use menuitem semantics");
 assert(
@@ -470,10 +470,11 @@ assert(
 );
 assert(controlSrc.includes("isConnectPrimaryState"), "Connect vs Stop visibility is state-dependent");
 assert(controlSrc.includes('"FAILED"'), "FAILED keeps Connect as the primary header action");
-assert(controlSrc.includes("placeWorkerStop(connectPrimary)"), "Stop is a single node moved between header and overflow");
+assert(!controlSrc.includes("placeWorkerStop"), "worker actions are not dynamically relocated");
+assert(controlSrc.includes("syncWorkerActionVisibility(connectPrimary)"), "Connect vs Stop menu visibility is synchronized in place");
 assert(controlSrc.includes('event.key !== "Escape"') || controlSrc.includes('event.key === "Escape"'), "Escape closes the overflow menu");
 assert(controlSrc.includes("toolbar.contains"), "outside click closes the overflow menu");
-assert(controlSrc.includes('restoreFocus: true'), "Escape returns focus to More");
+assert(controlSrc.includes('restoreFocus: true'), "Escape returns focus to the compact worker trigger");
 assert((htmlSrc.match(/id="btnWorkerFoundation"/g) || []).length === 0, "Foundation Check is not in static header HTML");
 assert(htmlSrc.indexOf('id="eaWorkerToolbar"') < htmlSrc.indexOf('id="refreshBtn"'), "worker toolbar is left of Refresh");
 assert(htmlSrc.indexOf('id="eaWorkerMenu"') < htmlSrc.indexOf('id="refreshBtn"'), "worker menu is left of Refresh");

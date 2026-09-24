@@ -36,23 +36,26 @@ body.sasv-eaushadhi-review .header-actions {
 
 body.sasv-eaushadhi-review .ea-worker-toolbar {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sasv-space-2);
-  padding-right: var(--sasv-space-2);
-  margin-right: 2px;
-  border-right: 1px solid var(--sasv-border);
+  display: block;
 }
 
-body.sasv-eaushadhi-review .ea-worker-status-chip {
-  min-width: 0;
+body.sasv-eaushadhi-review .ea-worker-trigger {
+  min-height: var(--sasv-control-md);
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  pointer-events: none;
+  padding: 6px 10px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+  color: var(--sasv-text);
+  font: inherit;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  cursor: pointer;
 }
 
-body.sasv-eaushadhi-review .ea-worker-status-chip::before {
+body.sasv-eaushadhi-review .ea-worker-trigger::before {
   content: "";
   width: 0.45em;
   height: 0.45em;
@@ -61,9 +64,16 @@ body.sasv-eaushadhi-review .ea-worker-status-chip::before {
   flex-shrink: 0;
 }
 
-body.sasv-eaushadhi-review #btnWorkerMore {
-  letter-spacing: 0.08em;
-  font-weight: var(--sasv-fw-semibold);
+body.sasv-eaushadhi-review .ea-worker-trigger[data-tone="success"] { color: var(--sasv-success); }
+body.sasv-eaushadhi-review .ea-worker-trigger[data-tone="warning"] { color: var(--sasv-warning); }
+body.sasv-eaushadhi-review .ea-worker-trigger[data-tone="danger"] { color: var(--sasv-danger); }
+
+body.sasv-eaushadhi-review .ea-worker-trigger-caret {
+  transition: transform 120ms ease;
+}
+
+body.sasv-eaushadhi-review .ea-worker-trigger[aria-expanded="true"] .ea-worker-trigger-caret {
+  transform: rotate(180deg);
 }
 
 body.sasv-eaushadhi-review .ea-worker-menu {
@@ -96,6 +106,15 @@ body.sasv-eaushadhi-review .ea-worker-menuitem {
   line-height: var(--sasv-lh-tight);
   text-align: left;
   cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .ea-worker-menu-status {
+  padding: 6px 10px;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 body.sasv-eaushadhi-review .ea-worker-menuitem:hover:not(:disabled) {
@@ -1024,8 +1043,7 @@ body.sasv-eaushadhi-review .reference-dictionary-summary {
   gap: 8px;
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-summary > div,
-body.sasv-eaushadhi-review .reference-dictionary-card {
+body.sasv-eaushadhi-review .reference-dictionary-summary > div {
   border: 1px solid var(--border, #dbe3ea);
   border-radius: 10px;
   background: #fff;
@@ -1033,7 +1051,6 @@ body.sasv-eaushadhi-review .reference-dictionary-card {
 }
 
 body.sasv-eaushadhi-review .reference-dictionary-summary > div,
-body.sasv-eaushadhi-review .reference-dictionary-card > div,
 body.sasv-eaushadhi-review .reference-dialog-summary > div {
   display: grid;
   gap: 3px;
@@ -1048,20 +1065,52 @@ body.sasv-eaushadhi-review .reference-dictionary-scroll {
   gap: 18px;
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-  gap: 10px;
+body.sasv-eaushadhi-review .reference-dictionary-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-card {
-  display: grid;
-  gap: 10px;
+body.sasv-eaushadhi-review #mainPanel > section[hidden] {
+  display: none !important;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-table th,
+body.sasv-eaushadhi-review .reference-dictionary-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sasv-border);
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 body.sasv-eaushadhi-review .reference-dictionary-actions {
-  align-self: end;
-  justify-items: start;
+  width: 18%;
 }
 
 body.sasv-eaushadhi-review .reference-dictionary-modal .modal-card {
@@ -1347,6 +1396,48 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .reference-dictionary-summary,
   body.sasv-eaushadhi-review .reference-dialog-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-filterbar {
+    align-items: stretch;
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-filterbar > input,
+  body.sasv-eaushadhi-review .reference-dictionary-filterbar > .lens-pills {
+    flex: 1 1 100%;
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-table,
+  body.sasv-eaushadhi-review .reference-dictionary-table tbody,
+  body.sasv-eaushadhi-review .reference-dictionary-table tr,
+  body.sasv-eaushadhi-review .reference-dictionary-table td {
+    display: block;
+    width: 100%;
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-table tr {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--sasv-border);
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-table td {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1fr);
+    gap: 10px;
+    padding: 5px 0;
+    border: 0;
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-table td::before {
+    content: attr(data-label);
+    color: var(--sasv-text-muted);
+    font-size: var(--sasv-text-xs);
+    font-weight: var(--sasv-fw-semibold);
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-table td.empty-state {
+    display: block;
   }
   body.sasv-eaushadhi-review .reference-dictionary-modal .modal-card {
     padding: 16px 18px;
