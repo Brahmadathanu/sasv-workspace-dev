@@ -1724,7 +1724,7 @@ function bindRequiredReferenceSelection(dialog, selector, feedbackSelector) {
   const sync = () => {
     const selectedId = positiveReferenceSelectionId(select?.value);
     const valid = selectedId !== null;
-    if (confirm) confirm.disabled = !valid;
+    if (confirm) confirm.disabled = !valid || !canWrite();
     select?.setAttribute("aria-invalid", valid ? "false" : "true");
     if (feedback) feedback.hidden = valid;
   };

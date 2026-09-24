@@ -171,6 +171,8 @@ assert.match(portalDraftFlow, /required[\s\S]*?requirePositiveReferenceSelection
 assert.equal((portalDraftFlow.match(/await createReferencePortalMappingDraft\(/g) || []).length, 1);
 assert.match(control, /bindRequiredReferenceSelection\(dialog, "#referenceCanonicalOption"/);
 assert.match(control, /bindRequiredReferenceSelection\(dialog, "#referencePortalOption"/);
+const requiredSelectionBinder = control.match(/function bindRequiredReferenceSelection[\s\S]*?\n}/)?.[0] || "";
+assert.match(requiredSelectionBinder, /confirm\.disabled = !valid \|\| !canWrite\(\)/);
 
 assert.doesNotMatch(control, /data-reference-review=|isReferenceActionOwner|openReferenceMappingReview/);
 assert.doesNotMatch(control, /suggested_reference_work_term_id|selected_reference_work_term_id/);
