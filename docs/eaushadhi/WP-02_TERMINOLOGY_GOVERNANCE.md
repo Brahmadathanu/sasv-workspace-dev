@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Final visual acceptance correction: move the Reference Dictionary entry into the global header before the Browser control, remove the Reference Dictionary summary KPIs, reduce the dictionary title scale, collapse status filters into a left-side Filter drawer/button, and match the queue search field's green-tinted treatment. No Reference verification until this final shell pass is merged, synced, and visually accepted.
+Implement the frozen final visual acceptance pass: move the Reference Dictionary entry into the global header before the Browser control, remove the Reference Dictionary summary KPIs, reduce the dictionary title scale, collapse status filters into an icon-only funnel popover to the left of the search field, and match the queue search field's green-tinted treatment. No Reference verification until this final shell pass is merged, synced, and visually accepted.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
