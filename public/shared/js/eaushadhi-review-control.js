@@ -137,7 +137,9 @@ import {
 import {
   associateReferenceMappingsByLine,
   dedupeCanonicalReferenceMappings,
+  filterCanonicalReferenceMappings,
   filterReferenceDictionary,
+  positiveReferenceSelectionId,
   referenceMatchLabel,
   referenceGovernanceLabel,
 } from "./eaushadhi-reference-mapping.js";
@@ -1610,7 +1612,10 @@ function renderReferenceDictionary() {
   }).join("") : `<div class="empty-state">No source references match the current filters.</div>`;
 
   const canonicalHost = $("canonicalReferenceMappingRows");
-  const canonicalRows = dedupeCanonicalReferenceMappings(rows);
+  const canonicalRows = filterCanonicalReferenceMappings(
+    dedupeCanonicalReferenceMappings(state.referenceDictionary.rows),
+    state.referenceDictionary,
+  );
   if (canonicalHost) canonicalHost.innerHTML = canonicalRows.length ? canonicalRows.map((row) => {
     const portalStatus = String(row.portal_mapping_status || "").toUpperCase();
     const action = !row.portal_mapping_id
@@ -1698,6 +1703,35 @@ function showReferenceDialog({ title, body, confirmLabel, onConfirm, trigger }) 
   return dialog;
 }
 
+function requirePositiveReferenceSelection(root, selector, feedbackSelector, message) {
+  const select = root.querySelector(selector);
+  const feedback = root.querySelector(feedbackSelector);
+  const selectedId = positiveReferenceSelectionId(select?.value);
+  const valid = selectedId !== null;
+  select?.setAttribute("aria-invalid", valid ? "false" : "true");
+  if (feedback) feedback.hidden = valid;
+  if (!valid) {
+    select?.focus();
+    throw new Error(message);
+  }
+  return selectedId;
+}
+
+function bindRequiredReferenceSelection(dialog, selector, feedbackSelector) {
+  const select = dialog.querySelector(selector);
+  const confirm = dialog.querySelector("[data-reference-dialog-confirm]");
+  const feedback = dialog.querySelector(feedbackSelector);
+  const sync = () => {
+    const selectedId = positiveReferenceSelectionId(select?.value);
+    const valid = selectedId !== null;
+    if (confirm) confirm.disabled = !valid;
+    select?.setAttribute("aria-invalid", valid ? "false" : "true");
+    if (feedback) feedback.hidden = valid;
+  };
+  select?.addEventListener("change", sync);
+  sync();
+}
+
 async function ensureReferenceWorkOptions() {
   if (state.referenceWorkOptionsLoaded) return;
   state.referenceWorkOptions = await fetchReferenceWorkOptions();
@@ -1724,14 +1758,22 @@ async function openSourceAliasCreate(row, trigger, selectedTermId = null) {
     </div>
     <div><span class="muted-note">Candidate guidance (diagnostic only)</span><ul class="reference-candidates">${candidateHtml || "<li>No suggested candidates.</li>"}</ul></div>
     <label for="referenceCanonicalOption">Canonical Reference Work</label>
-    <select id="referenceCanonicalOption" class="sasv-control">${referenceWorkOptionHtml(suggestedId)}</select>
+    <select id="referenceCanonicalOption" class="sasv-control" required aria-describedby="referenceCanonicalRequired">${referenceWorkOptionHtml(suggestedId)}</select>
+    <p id="referenceCanonicalRequired" class="disabled-reason" hidden>Select a canonical Reference Work before creating the draft.</p>
     <button type="button" class="icon-btn with-label" data-reference-work-add>Add canonical Reference Work</button>`,
     onConfirm: async (root) => {
-      await createReferenceAliasDraft(row.source_reference_text, root.querySelector("#referenceCanonicalOption")?.value);
+      const controlledTermId = requirePositiveReferenceSelection(
+        root,
+        "#referenceCanonicalOption",
+        "#referenceCanonicalRequired",
+        "Select a canonical Reference Work before creating the draft.",
+      );
+      await createReferenceAliasDraft(row.source_reference_text, controlledTermId);
       await loadReferenceDictionary({ force: true });
       showToast("Global source mapping draft created.", "success");
     },
   });
+  bindRequiredReferenceSelection(dialog, "#referenceCanonicalOption", "#referenceCanonicalRequired");
   dialog.querySelector("[data-reference-work-add]")?.addEventListener("click", () => {
     const resumeTrigger = trigger;
     dialog.close();
@@ -1791,14 +1833,22 @@ function openPortalDraftCreate(row, trigger) {
     confirmLabel: "Create draft",
     body: `<div class="reference-dialog-summary"><div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(row.canonical_label)}</strong></div></div>
       <label for="referencePortalOption">e-Aushadhi Reference option</label>
-      <select id="referencePortalOption" class="sasv-control" aria-describedby="referencePortalDraftHelp">${optionHtml(state.catalogs.portalOptions.REFERENCE, null)}</select>
-      <p id="referencePortalDraftHelp" class="reference-mapping-helper">Creates a global draft mapping. Verification is a separate step.</p>`,
+      <select id="referencePortalOption" class="sasv-control" required aria-describedby="referencePortalDraftHelp referencePortalRequired">${optionHtml(state.catalogs.portalOptions.REFERENCE, null)}</select>
+      <p id="referencePortalDraftHelp" class="reference-mapping-helper">Creates a global draft mapping. Verification is a separate step.</p>
+      <p id="referencePortalRequired" class="disabled-reason" hidden>Select an e-Aushadhi Reference option before creating the draft.</p>`,
     onConfirm: async (root) => {
-      await createReferencePortalMappingDraft(row.canonical_term_id, root.querySelector("#referencePortalOption")?.value);
+      const portalOptionId = requirePositiveReferenceSelection(
+        root,
+        "#referencePortalOption",
+        "#referencePortalRequired",
+        "Select an e-Aushadhi Reference option before creating the draft.",
+      );
+      await createReferencePortalMappingDraft(row.canonical_term_id, portalOptionId);
       await loadReferenceDictionary({ force: true });
       showToast("Global portal mapping draft created.", "success");
     },
   });
+  bindRequiredReferenceSelection(dialog, "#referencePortalOption", "#referencePortalRequired");
 }
 
 function openPortalMappingReview(row, trigger) {

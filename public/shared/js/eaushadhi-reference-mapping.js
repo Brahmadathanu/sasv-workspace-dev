@@ -35,6 +35,12 @@ export function referenceGovernanceLabel(mapping) {
     : "Global reference mapping required";
 }
 
+export function positiveReferenceSelectionId(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const selectedId = Number(value);
+  return Number.isInteger(selectedId) && selectedId > 0 ? selectedId : null;
+}
+
 export function filterReferenceDictionary(rows, { search = "", statusFilter = "all" } = {}) {
   const needle = String(search || "").trim().toLowerCase();
   const status = String(statusFilter || "all").trim().toLowerCase();
@@ -47,12 +53,30 @@ export function filterReferenceDictionary(rows, { search = "", statusFilter = "a
       row?.portal_external_id,
     ].some((value) => String(value || "").toLowerCase().includes(needle));
     if (!searchMatch) return false;
-    if (status === "ready") return row?.reference_ready === true;
-    if (status === "mapping-required") return row?.reference_ready !== true;
-    if (status === "suggested") {
-      return String(row?.alias_mapping_status || "").toUpperCase() === "DRAFT" ||
-        String(row?.portal_mapping_status || "").toUpperCase() === "DRAFT";
-    }
+    if (status === "ready") return row?.source_to_canonical_ready === true;
+    if (status === "mapping-required") return row?.source_to_canonical_ready !== true;
+    if (status === "suggested") return String(row?.alias_mapping_status || "").toUpperCase() === "DRAFT";
+    return true;
+  });
+}
+
+export function filterCanonicalReferenceMappings(
+  rows,
+  { search = "", statusFilter = "all" } = {},
+) {
+  const needle = String(search || "").trim().toLowerCase();
+  const status = String(statusFilter || "all").trim().toLowerCase();
+  return (Array.isArray(rows) ? rows : []).filter((row) => {
+    const searchMatch = !needle || [
+      row?.canonical_code,
+      row?.canonical_label,
+      row?.portal_label,
+      row?.portal_external_id,
+    ].some((value) => String(value || "").toLowerCase().includes(needle));
+    if (!searchMatch) return false;
+    if (status === "ready") return row?.canonical_to_portal_ready === true;
+    if (status === "mapping-required") return row?.canonical_to_portal_ready !== true;
+    if (status === "suggested") return String(row?.portal_mapping_status || "").toUpperCase() === "DRAFT";
     return true;
   });
 }
