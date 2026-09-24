@@ -78,44 +78,14 @@ assert.match(api, /fetchPortalOptions\("REFERENCE"\)/);
 assert.match(api, /rpc_eaushadhi_reference_mapping_verify/);
 assert.match(control, /Source Reference/);
 assert.match(control, /Canonical Reference Work/);
-assert.match(control, /Review Reference Mapping/);
-assert.match(control, /referenceMatchLabel/);
-assert.equal((control.match(/data-reference-review=/g) || []).length, 1);
-assert.match(control, /<div class="reference-mapping-status">[\s\S]*?<div class="reference-mapping-status-row">[\s\S]*?data-reference-review=/);
-assert.doesNotMatch(control, /<\/div>\s*\$\{isReferenceActionOwner && referencePresentation\.reviewable \? `<button[^>]*data-reference-review=/);
-assert.match(control, /reference-mapping-review-btn[^>]*data-reference-review=[\s\S]*?>Review mapping<\/button>/);
-assert.match(control, /isReferenceActionOwner && referencePresentation\.reviewable/);
-
-const contextFunctionSource = control.match(/function referenceMappingContext\(sourceCompositionLineIds\) \{[\s\S]*?\n\}/)?.[0];
-assert.ok(contextFunctionSource, "reference mapping context formatter must remain testable and bounded");
-const referenceMappingContext = Function(`"use strict"; ${contextFunctionSource}; return referenceMappingContext;`)();
-assert.equal(referenceMappingContext([929, " 929 ", "930", 929, "  ", null, undefined]), "Shared mapping &middot; Applies to 2 composition lines");
-assert.equal(referenceMappingContext([929]), "Shared mapping &middot; Applies to 1 composition line");
-assert.equal(referenceMappingContext([null, "", "  "]), "Shared mapping");
-
-for (const label of [
-  "Source citation",
-  "Canonical reference work",
-  "Suggested e-Aushadhi option",
-  "Match basis",
-  "e-Aushadhi Reference option",
-]) assert.match(control, new RegExp(label));
-assert.match(control, /\.join\(" &middot; "\)/);
-assert.match(control, /optionHtml\(state\.catalogs\.portalOptions\.REFERENCE, mapping\.portal_option_id\)/);
-assert.match(control, /Changing the suggested option will be recorded as a manual mapping\./);
-assert.match(control, /data-reference-confirm>Confirm &amp; verify<\/button>/);
-assert.match(control, /aria-describedby="referencePortalOptionHelp"/);
-
-const reviewFunction = control.slice(
-  control.indexOf("function openReferenceMappingReview"),
-  control.indexOf("function modalFocusables"),
-);
-const confirmHandlerIndex = reviewFunction.indexOf('querySelector("[data-reference-confirm]")?.addEventListener("click"');
-const verifyCallIndex = reviewFunction.indexOf("await verifyReferenceMapping(");
-const showModalIndex = reviewFunction.indexOf("dialog.showModal()");
-assert.ok(confirmHandlerIndex >= 0 && verifyCallIndex > confirmHandlerIndex, "verification must stay inside the explicit confirmation handler");
-assert.ok(showModalIndex > verifyCallIndex, "opening the modal must not invoke verification before the explicit handler");
-assert.equal((reviewFunction.match(/verifyReferenceMapping\(/g) || []).length, 1);
+assert.match(control, /Reference Governance/);
+assert.match(control, /referenceGovernanceLabel\(reference\)/);
+assert.doesNotMatch(control, /data-reference-review=/);
+assert.doesNotMatch(control, /isReferenceActionOwner/);
+assert.doesNotMatch(control, /suggested_reference_work_term_id|selected_reference_work_term_id/);
+assert.equal(mappingHelpers.referenceGovernanceLabel({ reference_ready: true }), "Verified globally");
+assert.equal(mappingHelpers.referenceGovernanceLabel({ reference_ready: false }), "Global reference mapping required");
+assert.equal(mappingHelpers.referenceGovernanceLabel(null), "Global reference mapping required");
 
 const mappings = [
   {

@@ -100,6 +100,48 @@ export async function fetchReferenceMappings(productId) {
   );
 }
 
+export async function fetchReferenceDictionary() {
+  return asArray(await callRpc("rpc_eaushadhi_reference_dictionary_get"));
+}
+
+export async function fetchReferenceAliasCandidates(sourceText) {
+  return asArray(await callRpc("rpc_eaushadhi_reference_alias_candidates", {
+    p_source_reference_text: String(sourceText || "").trim(),
+  }));
+}
+
+export async function createReferenceAliasDraft(sourceText, controlledTermId) {
+  return asFirst(await callRpc("rpc_eaushadhi_reference_alias_draft_create", {
+    p_source_reference_text: String(sourceText || "").trim(),
+    p_controlled_term_id: Number(optionId(controlledTermId)),
+  }));
+}
+
+export async function verifyReferenceAlias(mappingId, expectedStatus, controlledTermId) {
+  return asFirst(await callRpc("rpc_eaushadhi_reference_alias_verify", {
+    p_alias_mapping_id: Number(mappingId),
+    p_expected_status: expectedStatus,
+    p_controlled_term_id: Number(optionId(controlledTermId)),
+  }));
+}
+
+export async function fetchReferenceWorkOptions() {
+  return asArray(await callRpc("rpc_eaushadhi_reference_work_options"));
+}
+
+export async function createReferenceWork(label) {
+  return asFirst(await callRpc("rpc_eaushadhi_reference_work_create", {
+    p_label: String(label || "").trim(),
+  }));
+}
+
+export async function createReferencePortalMappingDraft(controlledTermId, portalOptionId) {
+  return asFirst(await callRpc("rpc_eaushadhi_reference_portal_mapping_draft_create", {
+    p_controlled_term_id: Number(optionId(controlledTermId)),
+    p_portal_option_id: Number(optionId(portalOptionId)),
+  }));
+}
+
 export async function verifyReferenceMapping({
   mappingId,
   expectedStatus,

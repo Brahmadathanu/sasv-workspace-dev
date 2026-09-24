@@ -63,6 +63,13 @@ const requiredRpcs = [
   "rpc_eaushadhi_product_portal_text_save",
   "rpc_eaushadhi_reference_mapping_get",
   "rpc_eaushadhi_reference_mapping_verify",
+  "rpc_eaushadhi_reference_dictionary_get",
+  "rpc_eaushadhi_reference_alias_candidates",
+  "rpc_eaushadhi_reference_alias_draft_create",
+  "rpc_eaushadhi_reference_alias_verify",
+  "rpc_eaushadhi_reference_work_options",
+  "rpc_eaushadhi_reference_work_create",
+  "rpc_eaushadhi_reference_portal_mapping_draft_create",
 ];
 
 for (const name of requiredRpcs) {

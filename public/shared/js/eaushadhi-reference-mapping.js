@@ -29,6 +29,86 @@ export function referenceMappingPresentation(mapping) {
   return { ready: false, label: "Unavailable", reviewable: false };
 }
 
+export function referenceGovernanceLabel(mapping) {
+  return mapping?.reference_ready === true
+    ? "Verified globally"
+    : "Global reference mapping required";
+}
+
+export function positiveReferenceSelectionId(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const selectedId = Number(value);
+  return Number.isInteger(selectedId) && selectedId > 0 ? selectedId : null;
+}
+
+export function filterReferenceDictionary(rows, { search = "", statusFilter = "all" } = {}) {
+  const needle = String(search || "").trim().toLowerCase();
+  const status = String(statusFilter || "all").trim().toLowerCase();
+  return (Array.isArray(rows) ? rows : []).filter((row) => {
+    const searchMatch = !needle || [
+      row?.source_reference_text,
+      row?.canonical_code,
+      row?.canonical_label,
+      row?.portal_label,
+      row?.portal_external_id,
+    ].some((value) => String(value || "").toLowerCase().includes(needle));
+    if (!searchMatch) return false;
+    if (status === "ready") return row?.source_to_canonical_ready === true;
+    if (status === "mapping-required") return row?.source_to_canonical_ready !== true;
+    if (status === "suggested") return String(row?.alias_mapping_status || "").toUpperCase() === "DRAFT";
+    return true;
+  });
+}
+
+export function filterCanonicalReferenceMappings(
+  rows,
+  { search = "", statusFilter = "all" } = {},
+) {
+  const needle = String(search || "").trim().toLowerCase();
+  const status = String(statusFilter || "all").trim().toLowerCase();
+  return (Array.isArray(rows) ? rows : []).filter((row) => {
+    const searchMatch = !needle || [
+      row?.canonical_code,
+      row?.canonical_label,
+      row?.portal_label,
+      row?.portal_external_id,
+    ].some((value) => String(value || "").toLowerCase().includes(needle));
+    if (!searchMatch) return false;
+    if (status === "ready") return row?.canonical_to_portal_ready === true;
+    if (status === "mapping-required") return row?.canonical_to_portal_ready !== true;
+    if (status === "suggested") return String(row?.portal_mapping_status || "").toUpperCase() === "DRAFT";
+    return true;
+  });
+}
+
+export function dedupeCanonicalReferenceMappings(rows) {
+  const byTerm = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const termId = String(row?.canonical_term_id ?? "").trim();
+    if (!termId) continue;
+    const current = byTerm.get(termId);
+    if (!current) {
+      byTerm.set(termId, { ...row, source_alias_count: 1 });
+      continue;
+    }
+    current.source_alias_count += 1;
+    if (!current.portal_mapping_id && row?.portal_mapping_id) {
+      Object.assign(current, {
+        portal_mapping_id: row.portal_mapping_id,
+        portal_mapping_status: row.portal_mapping_status,
+        portal_option_id: row.portal_option_id,
+        portal_external_id: row.portal_external_id,
+        portal_label: row.portal_label,
+        alias_match_basis: row.alias_match_basis,
+        canonical_to_portal_ready: row.canonical_to_portal_ready,
+      });
+    }
+  }
+  return [...byTerm.values()].sort((a, b) =>
+    String(a.canonical_label || "").localeCompare(String(b.canonical_label || "")),
+  );
+}
+
 export function associateReferenceMappingsByLine(lines, mappings) {
   const byLine = new Map();
   for (const mapping of Array.isArray(mappings) ? mappings : []) {

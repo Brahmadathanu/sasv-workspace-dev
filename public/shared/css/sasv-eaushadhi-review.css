@@ -182,6 +182,11 @@ body.sasv-eaushadhi-review.ea-mode-queue #workspacePanel {
   display: none !important;
 }
 
+body.sasv-eaushadhi-review.ea-mode-queue #referenceDictionaryPanel,
+body.sasv-eaushadhi-review.ea-mode-product #referenceDictionaryPanel {
+  display: none !important;
+}
+
 body.sasv-eaushadhi-review.ea-mode-product #workspacePanel {
   display: flex;
   flex: 1;
@@ -190,8 +195,18 @@ body.sasv-eaushadhi-review.ea-mode-product #workspacePanel {
   overflow: hidden;
 }
 
-body.sasv-eaushadhi-review.ea-mode-product #queuePanel {
+body.sasv-eaushadhi-review.ea-mode-product #queuePanel,
+body.sasv-eaushadhi-review.ea-mode-reference-dictionary #queuePanel,
+body.sasv-eaushadhi-review.ea-mode-reference-dictionary #workspacePanel {
   display: none !important;
+}
+
+body.sasv-eaushadhi-review.ea-mode-reference-dictionary #referenceDictionaryPanel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 body.sasv-eaushadhi-review .queue-controls,
@@ -973,6 +988,102 @@ body.sasv-eaushadhi-review .reference-review-summary {
 body.sasv-eaushadhi-review .reference-review-summary dt { color: var(--muted, #64748b); }
 body.sasv-eaushadhi-review .reference-review-summary dd { margin: 0; font-weight: 600; }
 
+body.sasv-eaushadhi-review .queue-global-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-controls {
+  flex-shrink: 0;
+  display: grid;
+  gap: 12px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-header,
+body.sasv-eaushadhi-review .reference-dictionary-filterbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-header > div {
+  flex: 1;
+  min-width: 220px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-header h2,
+body.sasv-eaushadhi-review .reference-dictionary-header p {
+  margin: 0;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-summary > div,
+body.sasv-eaushadhi-review .reference-dictionary-card {
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-summary > div,
+body.sasv-eaushadhi-review .reference-dictionary-card > div,
+body.sasv-eaushadhi-review .reference-dialog-summary > div {
+  display: grid;
+  gap: 3px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-filterbar > input {
+  flex: 1 1 280px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-scroll {
+  display: grid;
+  gap: 18px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 10px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-card {
+  display: grid;
+  gap: 10px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-actions {
+  align-self: end;
+  justify-items: start;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-modal .modal-card {
+  width: min(620px, calc(100vw - 32px));
+  padding: 22px 26px;
+  display: grid;
+  gap: 16px;
+}
+
+body.sasv-eaushadhi-review .reference-dialog-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 16px;
+}
+
+body.sasv-eaushadhi-review .reference-candidates {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  color: var(--sasv-text-muted);
+  font-size: var(--sasv-text-sm);
+}
+
 body.sasv-eaushadhi-review .portal-field label {
   font-size: var(--sasv-text-xs);
 }
@@ -1232,6 +1343,13 @@ body.sasv-eaushadhi-review .action-vocab-item {
   }
   body.sasv-eaushadhi-review .reference-review-summary dd + dt {
     margin-top: 8px;
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-summary,
+  body.sasv-eaushadhi-review .reference-dialog-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.sasv-eaushadhi-review .reference-dictionary-modal .modal-card {
+    padding: 16px 18px;
   }
   body.sasv-eaushadhi-review .product-header,
   body.sasv-eaushadhi-review .ea-copy-head {
