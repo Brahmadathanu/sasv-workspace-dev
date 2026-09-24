@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Second visual verification passed for the full-page Reference Dictionary and compact browser menu. One bounded queue-shell refinement remains: remove the redundant queue KPI strip while retaining the existing status lenses/counts. No Reference verification until this final visual cleanup is merged and rechecked.
+Implement the frozen final queue-shell cleanup: remove the redundant queue KPI strip and its dead queueKpis/renderKpis code while retaining review lenses, row count, system/class filters, Reference Dictionary summary, and all governance behavior. No Reference verification until merged/synced and visually rechecked.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
