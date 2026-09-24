@@ -22,6 +22,53 @@ assert.match(css, /ea-mode-reference-dictionary #referenceDictionaryPanel/);
 assert.match(css, /ea-mode-reference-dictionary #queuePanel/);
 assert.match(css, /ea-mode-reference-dictionary #workspacePanel/);
 
+const mainPanel = html.match(/<div id="mainPanel">([\s\S]*?)<script type="module"/)?.[1] || "";
+const topLevelSurfaces = [...mainPanel.matchAll(/\n      <section id="(queuePanel|referenceDictionaryPanel|workspacePanel)"/g)].map((match) => match[1]);
+assert.deepEqual(topLevelSurfaces, ["queuePanel", "referenceDictionaryPanel", "workspacePanel"]);
+assert.match(html, /<section id="queuePanel">/);
+assert.match(html, /<section id="referenceDictionaryPanel"[^>]*aria-hidden="true"[^>]*inert[^>]*hidden/);
+assert.match(html, /<section id="workspacePanel"[^>]*aria-hidden="true"[^>]*inert[^>]*hidden/);
+const modeAuthority = control.match(/function setAppMode\(mode\)[\s\S]*?\n}/)?.[0] || "";
+assert.match(modeAuthority, /queue:\s*"queuePanel"/);
+assert.match(modeAuthority, /product:\s*"workspacePanel"/);
+assert.match(modeAuthority, /"reference-dictionary":\s*"referenceDictionaryPanel"/);
+assert.match(modeAuthority, /panel\.hidden = !active/);
+assert.match(modeAuthority, /panel\.inert = !active/);
+assert.match(modeAuthority, /panel\.removeAttribute\("aria-hidden"\)/);
+assert.match(modeAuthority, /panel\.setAttribute\("aria-hidden", "true"\)/);
+assert.match(control, /async function initPage\(\) \{\s*setAppMode\("queue"\)/);
+assert.match(control, /backFromReferenceDictionaryBtn[\s\S]*?closeWorkerMenu\(\)[\s\S]*?setAppMode\("queue"\)[\s\S]*?openReferenceDictionaryBtn[^\n]*focus/);
+assert.match(css, /#mainPanel > section\[hidden\][\s\S]*?display: none !important/);
+
+for (const heading of [
+  "Source Reference", "Usage", "Canonical Reference Work", "Source to Canonical", "Overall", "Action",
+  "e-Aushadhi Reference", "Canonical to Portal", "Source wordings",
+]) assert.match(html, new RegExp(`<th scope="col">${heading}</th>`));
+assert.equal((html.match(/class="reference-dictionary-table"/g) || []).length, 2);
+assert.doesNotMatch(control, /<article class="reference-dictionary-card"/);
+assert.doesNotMatch(html, /reference-dictionary-grid/);
+assert.match(css, /ea-mode-reference-dictionary #referenceDictionaryPanel[\s\S]*?display: flex[\s\S]*?flex: 1/);
+assert.match(css, /reference-dictionary-scroll[\s\S]*?display: grid/);
+assert.match(css, /@media \(max-width: 720px\)[\s\S]*?reference-dictionary-table td::before[\s\S]*?content: attr\(data-label\)/);
+
+assert.equal((html.match(/id="btnWorkerMenuTrigger"/g) || []).length, 1);
+assert.doesNotMatch(html, /id="btnWorkerMore"|id="eaWorkerStatusChip"/);
+assert.match(html, /id="btnWorkerMenuTrigger"[^>]*aria-haspopup="menu"[^>]*aria-controls="eaWorkerMenu"[^>]*aria-expanded="false"/);
+assert.match(html, /id="btnWorkerMenuTrigger"[\s\S]*?Browser:[\s\S]*?id="workerBrowserStatus"/);
+for (const id of ["btnWorkerConnect", "btnWorkerRecheckLogin", "btnWorkerStop", "btnWorkerCapture", "btnWorkerOpenCapture"]) {
+  assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1);
+  assert.match(html, new RegExp(`id="${id}"[^>]*role="menuitem"`));
+}
+assert.doesNotMatch(control, /placeWorkerStop/);
+assert.match(control, /syncWorkerActionVisibility\(connectPrimary\)/);
+assert.match(control, /target\.closest\("#btnWorkerMenuTrigger"\)[\s\S]*?toggleWorkerMenu\(\)/);
+assert.match(control, /openWorkerMenu\(\)[\s\S]*?querySelector\('\.ea-worker-menuitem:not\(\[hidden\]\):not\(:disabled\):not\(\[aria-disabled="true"\]\)'\)\?\.focus\(\)/);
+assert.match(control, /event\.key === "Escape"[\s\S]*?closeWorkerMenu\(\{ restoreFocus: true \}\)/);
+assert.match(control, /toolbar\.contains\(node\)[\s\S]*?closeWorkerMenu\(\)/);
+assert.match(control, /event\.key !== "ArrowDown" && event\.key !== "ArrowUp"/);
+const workerTriggerFlow = control.match(/if \(target\.closest\("#btnWorkerMenuTrigger"\)\)[\s\S]*?return;/)?.[0] || "";
+assert.doesNotMatch(workerTriggerFlow, /submitWorker(?:Connect|RecheckLogin|Stop|Capture|OpenCapture)/);
+
 const workspaceLoader = api.slice(api.indexOf("export async function loadProductWorkspace"));
 assert.doesNotMatch(workspaceLoader, /fetchReferenceDictionary/);
 assert.match(control, /async function openReferenceDictionary\(\)[\s\S]*?loadReferenceDictionary\(\)/);

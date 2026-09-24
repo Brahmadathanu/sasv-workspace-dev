@@ -376,10 +376,25 @@ function canWrite() {
 }
 
 function setAppMode(mode) {
+  const surfaces = {
+    queue: "queuePanel",
+    product: "workspacePanel",
+    "reference-dictionary": "referenceDictionaryPanel",
+  };
+  if (!Object.hasOwn(surfaces, mode)) throw new Error(`Unknown application surface: ${mode}`);
   state.surface = mode;
   document.body.classList.toggle("ea-mode-queue", mode === "queue");
   document.body.classList.toggle("ea-mode-product", mode === "product");
   document.body.classList.toggle("ea-mode-reference-dictionary", mode === "reference-dictionary");
+  Object.entries(surfaces).forEach(([surface, panelId]) => {
+    const panel = $(panelId);
+    if (!panel) return;
+    const active = surface === mode;
+    panel.hidden = !active;
+    panel.inert = !active;
+    if (active) panel.removeAttribute("aria-hidden");
+    else panel.setAttribute("aria-hidden", "true");
+  });
 }
 
 function isProductMode() {
@@ -1601,15 +1616,15 @@ function renderReferenceDictionary() {
       : aliasStatus === "DRAFT"
         ? `<button type="button" class="icon-btn with-label" data-reference-source-review="${escapeHtml(row.alias_mapping_id)}" data-source-text="${escapeHtml(row.source_reference_text)}" data-edit-action="true">Review source mapping</button>`
         : "";
-    return `<article class="reference-dictionary-card" data-source-reference="${escapeHtml(row.source_reference_text)}">
-      <div><span class="muted-note">Source Reference</span><strong>${escapeHtml(row.source_reference_text)}</strong></div>
-      <div><span class="muted-note">Usage</span><strong>${escapeHtml(usageText(row))}</strong></div>
-      <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(row.canonical_label || "Not mapped")}</strong></div>
-      <div><span class="muted-note">Source to Canonical</span>${chip(row.source_to_canonical_ready === true ? "success" : "warning", dictionaryStatusLabel(row.alias_mapping_status))}</div>
-      <div><span class="muted-note">Overall</span>${chip(row.reference_ready === true ? "success" : "warning", row.reference_ready === true ? "Ready" : "Mapping required")}</div>
-      ${action ? `<div class="reference-dictionary-actions">${action}</div>` : ""}
-    </article>`;
-  }).join("") : `<div class="empty-state">No source references match the current filters.</div>`;
+    return `<tr data-source-reference="${escapeHtml(row.source_reference_text)}">
+      <td data-label="Source Reference"><strong>${escapeHtml(row.source_reference_text)}</strong></td>
+      <td data-label="Usage">${escapeHtml(usageText(row))}</td>
+      <td data-label="Canonical Reference Work">${escapeHtml(row.canonical_label || "Not mapped")}</td>
+      <td data-label="Source to Canonical">${chip(row.source_to_canonical_ready === true ? "success" : "warning", dictionaryStatusLabel(row.alias_mapping_status))}</td>
+      <td data-label="Overall">${chip(row.reference_ready === true ? "success" : "warning", row.reference_ready === true ? "Ready" : "Mapping required")}</td>
+      <td data-label="Action" class="reference-dictionary-actions">${action}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="6" class="empty-state">No source references match the current filters.</td></tr>`;
 
   const canonicalHost = $("canonicalReferenceMappingRows");
   const canonicalRows = filterCanonicalReferenceMappings(
@@ -1624,14 +1639,14 @@ function renderReferenceDictionary() {
         ? `<button type="button" class="icon-btn with-label" data-reference-portal-review="${escapeHtml(row.portal_mapping_id)}" data-canonical-term-id="${escapeHtml(row.canonical_term_id)}" data-edit-action="true">Review portal mapping</button>`
         : "";
     const portal = row.portal_label && row.portal_external_id ? `${row.portal_label} / ${row.portal_external_id}` : "Not mapped";
-    return `<article class="reference-dictionary-card" data-canonical-term-id="${escapeHtml(row.canonical_term_id)}">
-      <div><span class="muted-note">Canonical Reference Work</span><strong>${escapeHtml(row.canonical_label)}</strong></div>
-      <div><span class="muted-note">e-Aushadhi Reference</span><strong>${escapeHtml(portal)}</strong></div>
-      <div><span class="muted-note">Canonical to Portal</span>${chip(row.canonical_to_portal_ready === true ? "success" : "warning", dictionaryStatusLabel(row.portal_mapping_status))}</div>
-      <div><span class="muted-note">Source wordings</span><strong>${Number(row.source_alias_count || 0)}</strong></div>
-      ${action ? `<div class="reference-dictionary-actions">${action}</div>` : ""}
-    </article>`;
-  }).join("") : `<div class="empty-state">No canonical Reference Works match the current filters.</div>`;
+    return `<tr data-canonical-term-id="${escapeHtml(row.canonical_term_id)}">
+      <td data-label="Canonical Reference Work"><strong>${escapeHtml(row.canonical_label)}</strong></td>
+      <td data-label="e-Aushadhi Reference">${escapeHtml(portal)}</td>
+      <td data-label="Canonical to Portal">${chip(row.canonical_to_portal_ready === true ? "success" : "warning", dictionaryStatusLabel(row.portal_mapping_status))}</td>
+      <td data-label="Source wordings">${Number(row.source_alias_count || 0)}</td>
+      <td data-label="Action" class="reference-dictionary-actions">${action}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="5" class="empty-state">No canonical Reference Works match the current filters.</td></tr>`;
   applyPermissionUi();
 }
 
@@ -2485,7 +2500,7 @@ let lastWorkerToolbarKey = "";
 
 function closeWorkerMenu({ restoreFocus = false } = {}) {
   const menu = $("eaWorkerMenu");
-  const more = $("btnWorkerMore");
+  const more = $("btnWorkerMenuTrigger");
   workerMenuOpen = false;
   if (menu) menu.hidden = true;
   if (more) more.setAttribute("aria-expanded", "false");
@@ -2494,7 +2509,7 @@ function closeWorkerMenu({ restoreFocus = false } = {}) {
 
 function positionWorkerMenu() {
   const menu = $("eaWorkerMenu");
-  const more = $("btnWorkerMore");
+  const more = $("btnWorkerMenuTrigger");
   if (!menu || !more || menu.hidden) return;
   const rect = more.getBoundingClientRect();
   menu.style.top = `${Math.round(rect.bottom + 4)}px`;
@@ -2504,12 +2519,13 @@ function positionWorkerMenu() {
 
 function openWorkerMenu() {
   const menu = $("eaWorkerMenu");
-  const more = $("btnWorkerMore");
+  const more = $("btnWorkerMenuTrigger");
   if (!menu || !more) return;
   workerMenuOpen = true;
   menu.hidden = false;
   more.setAttribute("aria-expanded", "true");
   positionWorkerMenu();
+  menu.querySelector('.ea-worker-menuitem:not([hidden]):not(:disabled):not([aria-disabled="true"])')?.focus();
 }
 
 function toggleWorkerMenu() {
@@ -2527,30 +2543,14 @@ function setMenuActionDisabled(el, disabled) {
 const STOP_BROWSER_HINT =
   "Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi.";
 
-function placeWorkerStop(connectPrimary) {
+function syncWorkerActionVisibility(connectPrimary) {
   const stop = $("btnWorkerStop");
-  const menu = $("eaWorkerMenu");
-  const more = $("btnWorkerMore");
   const connect = $("btnWorkerConnect");
-  if (!stop || !menu || !more || !connect) return;
+  if (!stop || !connect) return;
   connect.hidden = !connectPrimary;
+  stop.hidden = connectPrimary;
   stop.title = STOP_BROWSER_HINT;
   stop.setAttribute("aria-label", STOP_BROWSER_HINT);
-  if (connectPrimary) {
-    menu.insertBefore(stop, menu.firstChild);
-    stop.hidden = false;
-    stop.setAttribute("role", "menuitem");
-    stop.classList.add("ea-worker-menuitem");
-    stop.classList.remove("with-label");
-    stop.textContent = "Stop Browser";
-  } else {
-    more.parentNode.insertBefore(stop, more);
-    stop.hidden = false;
-    stop.removeAttribute("role");
-    stop.classList.remove("ea-worker-menuitem");
-    stop.classList.add("with-label");
-    stop.textContent = "Stop";
-  }
 }
 
 function captureToolbarTitle() {
@@ -2583,16 +2583,13 @@ function syncWorkerToolbarUi() {
   const toolbarKey = `${available ? "electron" : "pwa"}:${workerState || "none"}`;
   if (toolbarKey !== lastWorkerToolbarKey) closeWorkerMenu();
   lastWorkerToolbarKey = toolbarKey;
-  placeWorkerStop(connectPrimary);
+  syncWorkerActionVisibility(connectPrimary);
   const recheck = $("btnWorkerRecheckLogin");
   if (recheck) recheck.hidden = !recheckVisible;
   const statusEl = $("workerBrowserStatus");
   if (statusEl) statusEl.textContent = toolbarWorkerStatusText();
-  const chip = $("eaWorkerStatusChip");
-  if (chip) {
-    const tone = workerStatusTone(workerState, available);
-    chip.className = `sasv-chip chip ${tone} ea-worker-status-chip`;
-  }
+  const trigger = $("btnWorkerMenuTrigger");
+  if (trigger) trigger.dataset.tone = workerStatusTone(workerState, available);
   setMenuActionDisabled($("btnWorkerConnect"), connectDisabled);
   setMenuActionDisabled($("btnWorkerRecheckLogin"), recheckDisabled);
   setMenuActionDisabled($("btnWorkerStop"), stopDisabled);
@@ -4977,7 +4974,7 @@ function wireEvents() {
   $("eaWorkerToolbar")?.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : event.target?.parentElement;
     if (!target) return;
-    if (target.closest("#btnWorkerMore")) {
+    if (target.closest("#btnWorkerMenuTrigger")) {
       event.preventDefault();
       event.stopPropagation();
       toggleWorkerMenu();
@@ -5003,9 +5000,19 @@ function wireEvents() {
     closeWorkerMenu();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !workerMenuOpen) return;
+    if (!workerMenuOpen) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeWorkerMenu({ restoreFocus: true });
+      return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const items = [...$("eaWorkerMenu").querySelectorAll('.ea-worker-menuitem:not([hidden]):not(:disabled):not([aria-disabled="true"])')];
+    if (!items.length) return;
     event.preventDefault();
-    closeWorkerMenu({ restoreFocus: true });
+    const current = items.indexOf(document.activeElement);
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    items[(current + direction + items.length) % items.length].focus();
   });
   window.addEventListener("resize", () => {
     if (workerMenuOpen) positionWorkerMenu();
@@ -5031,6 +5038,7 @@ function wireEvents() {
   $("openReferenceDictionaryBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
   $("openReferenceDictionaryFromCompositionBtn")?.addEventListener("click", () => void openReferenceDictionary().catch(toastError));
   $("backFromReferenceDictionaryBtn")?.addEventListener("click", () => {
+    closeWorkerMenu();
     setAppMode("queue");
     $("openReferenceDictionaryBtn")?.focus();
   });

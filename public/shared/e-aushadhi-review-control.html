@@ -16,15 +16,16 @@
         </div>
       </div>
       <div class="header-actions">
-        <div id="eaWorkerToolbar" class="ea-worker-toolbar" role="group" aria-label="e-Aushadhi browser worker">
-          <div id="eaWorkerStatusChip" class="sasv-chip chip neutral ea-worker-status-chip" aria-live="polite">
+        <div id="eaWorkerToolbar" class="ea-worker-toolbar">
+          <button type="button" class="ea-worker-trigger" id="btnWorkerMenuTrigger" title="Portal browser controls" aria-label="Portal browser controls" aria-haspopup="menu" aria-controls="eaWorkerMenu" aria-expanded="false">
             <span class="ea-worker-status-copy">Browser: <span id="workerBrowserStatus">Disconnected</span></span>
-          </div>
-          <button type="button" class="icon-btn with-label" id="btnWorkerConnect" title="Connect Browser" aria-label="Connect Browser" data-edit-action="true">Connect</button>
-          <button type="button" class="icon-btn with-label" id="btnWorkerRecheckLogin" title="Recheck Login" aria-label="Recheck Login" data-edit-action="true" hidden>Recheck Login</button>
-          <button type="button" class="icon-btn with-label" id="btnWorkerStop" title="Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi." aria-label="Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi." data-edit-action="true" hidden>Stop</button>
-          <button type="button" class="icon-btn" id="btnWorkerMore" title="Browser worker actions" aria-label="Browser worker actions" aria-haspopup="menu" aria-controls="eaWorkerMenu" aria-expanded="false">...</button>
+            <span class="ea-worker-trigger-caret" aria-hidden="true">&#9662;</span>
+          </button>
           <div id="eaWorkerMenu" class="ea-worker-menu" role="menu" hidden>
+            <div class="ea-worker-menu-status" role="presentation">Portal browser actions</div>
+            <button type="button" class="ea-worker-menuitem" id="btnWorkerConnect" role="menuitem" title="Connect Browser" aria-label="Connect Browser" data-edit-action="true">Connect</button>
+            <button type="button" class="ea-worker-menuitem" id="btnWorkerRecheckLogin" role="menuitem" title="Recheck Login" aria-label="Recheck Login" data-edit-action="true" hidden>Recheck Login</button>
+            <button type="button" class="ea-worker-menuitem" id="btnWorkerStop" role="menuitem" title="Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi." aria-label="Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi." data-edit-action="true" hidden>Stop Browser</button>
             <button type="button" class="ea-worker-menuitem" id="btnWorkerCapture" role="menuitem" title="Capture Portal Contract" aria-label="Capture Portal Contract" data-edit-action="true">Capture Portal Contract</button>
             <button type="button" class="ea-worker-menuitem" id="btnWorkerOpenCapture" role="menuitem" title="Open Capture Folder" aria-label="Open Capture Folder" data-edit-action="true">Open Capture Folder</button>
           </div>
@@ -106,7 +107,7 @@
         </div>
       </section>
 
-      <section id="referenceDictionaryPanel" aria-labelledby="referenceDictionaryTitle">
+      <section id="referenceDictionaryPanel" aria-labelledby="referenceDictionaryTitle" aria-hidden="true" inert hidden>
         <div class="reference-dictionary-controls">
           <div class="reference-dictionary-header">
             <button id="backFromReferenceDictionaryBtn" type="button" class="icon-btn with-label">Back to queue</button>
@@ -127,16 +128,26 @@
           <div id="referenceDictionaryStatus" role="status" aria-live="polite"></div>
           <section aria-labelledby="sourceReferenceDictionaryTitle">
             <h3 id="sourceReferenceDictionaryTitle">Source Reference Dictionary</h3>
-            <div id="sourceReferenceDictionaryRows" class="reference-dictionary-grid"></div>
+            <div class="reference-dictionary-table-wrap">
+              <table class="reference-dictionary-table">
+                <thead><tr><th scope="col">Source Reference</th><th scope="col">Usage</th><th scope="col">Canonical Reference Work</th><th scope="col">Source to Canonical</th><th scope="col">Overall</th><th scope="col">Action</th></tr></thead>
+                <tbody id="sourceReferenceDictionaryRows"></tbody>
+              </table>
+            </div>
           </section>
           <section aria-labelledby="canonicalReferenceMappingsTitle">
             <h3 id="canonicalReferenceMappingsTitle">Canonical to e-Aushadhi Reference Mappings</h3>
-            <div id="canonicalReferenceMappingRows" class="reference-dictionary-grid"></div>
+            <div class="reference-dictionary-table-wrap">
+              <table class="reference-dictionary-table">
+                <thead><tr><th scope="col">Canonical Reference Work</th><th scope="col">e-Aushadhi Reference</th><th scope="col">Canonical to Portal</th><th scope="col">Source wordings</th><th scope="col">Action</th></tr></thead>
+                <tbody id="canonicalReferenceMappingRows"></tbody>
+              </table>
+            </div>
           </section>
         </div>
       </section>
 
-      <section id="workspacePanel">
+      <section id="workspacePanel" aria-hidden="true" inert hidden>
         <div class="product-controls">
           <div class="product-header">
             <button id="backToQueueBtn" type="button" class="icon-btn with-label">Back to queue</button>
