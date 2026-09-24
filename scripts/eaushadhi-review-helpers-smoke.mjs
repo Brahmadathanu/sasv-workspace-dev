@@ -69,7 +69,6 @@ import {
   productDetailsVerifyPendingCopy,
   provenanceLabel,
   proposeQuantityText,
-  queueKpis,
   resetQueueRenderCount,
   resolveFieldProvenance,
   shouldAppendQueueChunk,
@@ -226,7 +225,6 @@ assert(
   filterQueueRows(queue, { reviewLens: "verified", systemLens: "siddha" }).length === 0,
   "combined lenses can empty the queue",
 );
-assert(queueKpis(queue).ready === 1, "KPI ready count");
 assert(formatVerifiedTotal(4, 12) === "4 / 12", "verified/total format");
 assert(QUEUE_RENDER_CHUNK === 40, "queue chunk size is 40");
 assert(resetQueueRenderCount(133) === 40, "reset render count uses first chunk");

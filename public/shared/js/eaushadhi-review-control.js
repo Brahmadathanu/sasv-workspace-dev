@@ -103,7 +103,6 @@ import {
   productDetailsVerifyPendingCopy,
   promoteUnavailableReason,
   provenanceLabel,
-  queueKpis,
   resetQueueRenderCount,
   resolveClassificationSubtypeMode,
   resolveFieldProvenance,
@@ -704,29 +703,6 @@ function resetQueueChunkAndScroll() {
 function syncSearchClear() {
   const clear = $("queueSearchClear");
   if (clear) clear.hidden = !safeText(state.queueView.search);
-}
-
-function renderKpis() {
-  const host = $("kpiStrip");
-  if (!host) return;
-  const kpis = queueKpis(state.queue);
-  const items = [
-    ["all", "products", "Products", kpis.products, "is-products"],
-    ["pending", "pending", "Pending", kpis.pending, "is-pending"],
-    ["in_review", "in_review", "In Review", kpis.inReview, "is-in-review"],
-    ["verified", "verified", "Verified", kpis.verified, "is-verified"],
-    ["blocked", "blocked", "Blocked", kpis.blocked, "is-blocked"],
-    ["ready", "ready", "Ready", kpis.ready, "is-ready"],
-  ];
-  host.innerHTML = items
-    .map(([lens, key, label, value, tone]) => {
-      const active = state.queueView.reviewLens === lens;
-      return `<button type="button" class="kpi ${tone}${active ? " is-active" : ""}" data-review-lens="${escapeHtml(lens)}" data-kpi="${escapeHtml(key)}" aria-pressed="${active ? "true" : "false"}" tabindex="-1">
-        <span class="kpi-label">${escapeHtml(label)}</span>
-        <span class="kpi-value">${escapeHtml(String(value))}</span>
-      </button>`;
-    })
-    .join("");
 }
 
 function renderLensGroup(hostId, items, current, attr, { role = "radio" } = {}) {
@@ -3626,7 +3602,6 @@ async function refreshQueue({ silent = false } = {}) {
   if (state.selectedProductId) {
     state.queueRow = findQueueRow(state.queue, state.selectedProductId);
   }
-  renderKpis();
   renderLenses();
   if (!isProductMode()) renderQueue();
   if (isProductMode()) renderProductHeader();
@@ -3771,7 +3746,6 @@ async function backToQueue() {
   state.preservedAfterStale = false;
   $("staleBanner").hidden = true;
   setAppMode("queue");
-  renderKpis();
   renderLenses();
   syncSearchClear();
   const search = $("queueSearch");
@@ -4952,7 +4926,6 @@ async function openCurrentCopy() {
 }
 
 function applyQueueFilterChange() {
-  renderKpis();
   renderLenses();
   renderQueue({ resetChunk: true });
 }
@@ -5104,12 +5077,6 @@ function wireEvents() {
     syncSearchClear();
     applyQueueFilterChange();
     $("queueSearch")?.focus();
-  });
-  $("kpiStrip")?.addEventListener("click", (event) => {
-    const btn = event.target.closest("[data-review-lens]");
-    if (!btn) return;
-    state.queueView.reviewLens = btn.dataset.reviewLens || "all";
-    applyQueueFilterChange();
   });
   $("reviewLenses")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-review-lens]");
@@ -5719,7 +5686,6 @@ async function loadAccessState() {
 async function initPage() {
   setAppMode("queue");
   renderLenses();
-  renderKpis();
   wireEvents();
   try {
     await loadAccessState();
@@ -5745,7 +5711,6 @@ async function initPage() {
     ]);
     state.queue = queueRows;
     state.catalogs = catalogs;
-    renderKpis();
     renderLenses();
     renderQueue({ resetChunk: true });
     setStatus("");

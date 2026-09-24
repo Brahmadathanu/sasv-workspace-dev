@@ -1043,24 +1043,6 @@ export function verifyProductUnavailableReason(args = {}) {
   return "Verify Product internally becomes available after composition is complete and blocking issues are cleared.";
 }
 
-export function queueKpis(rows) {
-  const list = Array.isArray(rows) ? rows : [];
-  return {
-    products: list.length,
-    pending: list.filter((row) =>
-      ["PENDING", ""].includes(normalizeReviewStatus(row?.review_status)),
-    ).length,
-    inReview: list.filter(
-      (row) => normalizeReviewStatus(row?.review_status) === "IN_REVIEW",
-    ).length,
-    verified: list.filter(
-      (row) => normalizeReviewStatus(row?.review_status) === "VERIFIED",
-    ).length,
-    blocked: list.filter((row) => toInt(row?.open_blockers) > 0).length,
-    ready: list.filter((row) => row?.is_ready_for_entry === true).length,
-  };
-}
-
 export function reviewStatusChipClass(status) {
   const value = normalizeReviewStatus(status);
   if (value === "VERIFIED") return "success";
