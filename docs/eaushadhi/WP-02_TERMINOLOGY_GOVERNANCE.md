@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
 **Architecture state:** PURPLE  
-**Progress:** 97%
+**Progress:** 98%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Final visual acceptance implementation is independently audited and ready to merge. After merge, safely sync/restart the operational checkout and perform the final visual acceptance check. No Reference verification until that visual gate passes.
+Final visual shell is merged. Safely fast-forward the operational checkout, restart Electron, and perform the final visual acceptance check. If accepted, freeze the WP-02 shell and proceed immediately to deliberate global Reference verification.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
