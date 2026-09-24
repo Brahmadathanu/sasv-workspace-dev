@@ -33,8 +33,14 @@ assert.match(html, /id="systemLenses"/);
 assert.match(html, /id="classLenses"/);
 assert.match(html, /id="queueTableWrap"[\s\S]*?id="queueTbody"/);
 assert.match(html, /id="workspacePanel"/);
-assert.match(html, /id="openReferenceDictionaryBtn"[^>]*>Reference Dictionary</);
-assert.match(html, /id="referenceDictionarySummary"/);
+assert.equal((html.match(/id="openReferenceDictionaryBtn"/g) || []).length, 1);
+const headerActions = html.match(/<div class="header-actions">([\s\S]*?)<\/div>\s*<\/div>/)?.[1] || "";
+assert.match(headerActions, /id="openReferenceDictionaryBtn"[^>]*>Reference Dictionary</);
+assert.ok(headerActions.indexOf('id="openReferenceDictionaryBtn"') < headerActions.indexOf('id="eaWorkerToolbar"'));
+assert.doesNotMatch(html, /queue-global-actions/);
+assert.doesNotMatch(css, /queue-global-actions/);
+assert.doesNotMatch(html, /id="referenceDictionarySummary"|reference-dictionary-summary/);
+assert.doesNotMatch(control, /referenceDictionarySummary|Distinct source references/);
 assert.match(html, /<section id="referenceDictionaryPanel"/);
 assert.match(html, /Source Reference Dictionary/);
 assert.match(html, /Canonical to e-Aushadhi Reference Mappings/);
@@ -58,9 +64,43 @@ assert.match(modeAuthority, /panel\.hidden = !active/);
 assert.match(modeAuthority, /panel\.inert = !active/);
 assert.match(modeAuthority, /panel\.removeAttribute\("aria-hidden"\)/);
 assert.match(modeAuthority, /panel\.setAttribute\("aria-hidden", "true"\)/);
+assert.match(modeAuthority, /dictionaryActive = mode === "reference-dictionary"/);
+assert.match(modeAuthority, /dictionaryButton\.disabled = dictionaryActive/);
+assert.match(modeAuthority, /dictionaryButton\.setAttribute\("aria-disabled", String\(dictionaryActive\)\)/);
 assert.match(control, /async function initPage\(\) \{\s*setAppMode\("queue"\)/);
 assert.match(control, /backFromReferenceDictionaryBtn[\s\S]*?closeWorkerMenu\(\)[\s\S]*?setAppMode\("queue"\)[\s\S]*?openReferenceDictionaryBtn[^\n]*focus/);
 assert.match(css, /#mainPanel > section\[hidden\][\s\S]*?display: none !important/);
+
+assert.equal((html.match(/id="referenceDictionaryFilterBtn"/g) || []).length, 1);
+const filterTrigger = html.match(/<button id="referenceDictionaryFilterBtn"[\s\S]*?<\/button>/)?.[0] || "";
+assert.match(filterTrigger, /class="icon-btn"/);
+assert.match(filterTrigger, /title="Filter Reference Dictionary"/);
+assert.match(filterTrigger, /aria-label="Filter Reference Dictionary"/);
+assert.match(filterTrigger, /aria-haspopup="menu"/);
+assert.match(filterTrigger, /aria-controls="referenceDictionaryFilterMenu"/);
+assert.match(filterTrigger, /aria-expanded="false"/);
+assert.match(filterTrigger, /ea-icon-filter/);
+assert.doesNotMatch(filterTrigger.replace(/<svg[\s\S]*?<\/svg>/, ""), />\s*Filter[^<]*</);
+assert.equal((html.match(/id="referenceDictionaryFilterMenu"/g) || []).length, 1);
+const filterMenu = html.match(/<div id="referenceDictionaryFilterMenu"[\s\S]*?<\/div>/)?.[0] || "";
+assert.match(filterMenu, /role="menu"[^>]*hidden/);
+for (const [value, label] of [["all", "All"], ["mapping-required", "Mapping required"], ["suggested", "Suggested"], ["ready", "Ready"]]) {
+  assert.match(filterMenu, new RegExp(`role="menuitemradio"[^>]*data-reference-filter="${value}"[^>]*>${label}<`));
+}
+assert.match(control, /state\.referenceDictionary\.statusFilter = value/);
+assert.match(control, /option\.dataset\.referenceFilter === state\.referenceDictionary\.statusFilter/);
+assert.match(control, /openReferenceDictionaryFilterMenu\(\)[\s\S]*?menu\.hidden = false[\s\S]*?aria-expanded", "true"/);
+assert.doesNotMatch(control.match(/function openReferenceDictionaryFilterMenu\(\)[\s\S]*?\n}/)?.[0] || "", /fetch|rpc|create|verify|save/i);
+assert.match(control, /event\.key === "Escape"[\s\S]*?closeReferenceDictionaryFilterMenu\(\{ restoreFocus: true \}\)/);
+assert.match(control, /referenceDictionaryFilterMenuOpen[\s\S]*?closest\("\.reference-dictionary-filter-control"\)[\s\S]*?closeReferenceDictionaryFilterMenu\(\)/);
+assert.match(control, /event\.key !== "ArrowDown" && event\.key !== "ArrowUp"[\s\S]*?items\[\(current \+ direction \+ items\.length\) % items\.length\]\.focus\(\)/);
+assert.match(control, /selectReferenceDictionaryFilter[\s\S]*?statusFilter = value[\s\S]*?closeReferenceDictionaryFilterMenu\(\{ restoreFocus: true \}\)[\s\S]*?renderReferenceDictionary\(\)/);
+assert.equal((html.match(/id="referenceDictionarySearch"/g) || []).length, 1);
+assert.match(html, /reference-dictionary-filterbar[\s\S]*?referenceDictionaryFilterBtn[\s\S]*?class="search-wrap input-with-icon"[\s\S]*?ea-icon-search[\s\S]*?id="referenceDictionarySearch"/);
+assert.match(control, /referenceDictionarySearch[^\n]*addEventListener\("input"[\s\S]*?state\.referenceDictionary\.search[\s\S]*?renderReferenceDictionary\(\)/);
+assert.match(control, /const allRows = state\.referenceDictionary\.rows[\s\S]*?rows\.length[^\n]*allRows\.length[^\n]*source references shown/);
+assert.match(css, /reference-dictionary-header h2[\s\S]*?font-size: var\(--sasv-text-lg\)[\s\S]*?font-weight: var\(--sasv-fw-semibold\)/);
+assert.doesNotMatch(css, /reference-dictionary-summary/);
 
 for (const heading of [
   "Source Reference", "Usage", "Canonical Reference Work", "Source to Canonical", "Overall", "Action",

@@ -16,6 +16,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <button id="openReferenceDictionaryBtn" type="button" class="icon-btn with-label">Reference Dictionary</button>
         <div id="eaWorkerToolbar" class="ea-worker-toolbar">
           <button type="button" class="ea-worker-trigger" id="btnWorkerMenuTrigger" title="Portal browser controls" aria-label="Portal browser controls" aria-haspopup="menu" aria-controls="eaWorkerMenu" aria-expanded="false">
             <span class="ea-worker-status-copy">Browser: <span id="workerBrowserStatus">Disconnected</span></span>
@@ -47,9 +48,6 @@
     <div id="mainPanel">
       <section id="queuePanel">
         <div class="queue-controls">
-          <div class="queue-global-actions">
-            <button id="openReferenceDictionaryBtn" type="button" class="icon-btn with-label">Reference Dictionary</button>
-          </div>
           <div class="search-card">
             <div class="search-wrap input-with-icon">
               <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -109,17 +107,34 @@
         <div class="reference-dictionary-controls">
           <div class="reference-dictionary-header">
             <button id="backFromReferenceDictionaryBtn" type="button" class="icon-btn with-label">Back to queue</button>
-            <div>
+            <div class="reference-dictionary-title-block">
               <h2 id="referenceDictionaryTitle">Global Reference Dictionary</h2>
               <p class="muted-note">Govern reusable source, canonical, and e-Aushadhi Reference terminology.</p>
             </div>
             <button id="refreshReferenceDictionaryBtn" type="button" class="icon-btn with-label">Refresh</button>
           </div>
-          <div id="referenceDictionarySummary" class="reference-dictionary-summary" aria-label="Reference dictionary summary"></div>
           <div class="reference-dictionary-filterbar">
+            <div class="reference-dictionary-filter-control">
+              <button id="referenceDictionaryFilterBtn" type="button" class="icon-btn" title="Filter Reference Dictionary" aria-label="Filter Reference Dictionary" aria-haspopup="menu" aria-controls="referenceDictionaryFilterMenu" aria-expanded="false">
+                <svg class="ea-icon ea-icon-filter" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path d="M2 3h12l-4.7 5.2v4.2l-2.6 1.3V8.2L2 3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <div id="referenceDictionaryFilterMenu" class="reference-dictionary-filter-menu" role="menu" aria-label="Reference status filter" hidden>
+                <button type="button" role="menuitemradio" aria-checked="true" data-reference-filter="all">All</button>
+                <button type="button" role="menuitemradio" aria-checked="false" data-reference-filter="mapping-required">Mapping required</button>
+                <button type="button" role="menuitemradio" aria-checked="false" data-reference-filter="suggested">Suggested</button>
+                <button type="button" role="menuitemradio" aria-checked="false" data-reference-filter="ready">Ready</button>
+              </div>
+            </div>
             <label class="visually-hidden" for="referenceDictionarySearch">Search Reference Dictionary</label>
-            <input id="referenceDictionarySearch" class="sasv-control" type="search" placeholder="Search source, canonical, or portal wording" />
-            <div id="referenceDictionaryFilters" class="lens-pills compact" role="radiogroup" aria-label="Reference status filter"></div>
+            <div class="search-wrap input-with-icon">
+              <svg class="ea-icon ea-icon-search" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+              </svg>
+              <input id="referenceDictionarySearch" type="search" placeholder="Search source, canonical, or portal wording" />
+            </div>
           </div>
         </div>
         <div id="referenceDictionaryScroll" class="workspace-scroll reference-dictionary-scroll">
