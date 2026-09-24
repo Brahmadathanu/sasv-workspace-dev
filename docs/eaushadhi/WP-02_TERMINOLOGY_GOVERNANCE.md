@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
 **Architecture state:** PURPLE  
-**Progress:** 97%
+**Progress:** 95%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Final queue KPI cleanup is merged. Safely sync/restart the operational checkout and perform one quick visual confirmation that the queue KPI strip is gone and the previously accepted Reference Dictionary/worker shell remain intact. Then proceed to deliberate global Reference verification.
+Final visual acceptance correction: move the Reference Dictionary entry into the global header before the Browser control, remove the Reference Dictionary summary KPIs, reduce the dictionary title scale, collapse status filters into a left-side Filter drawer/button, and match the queue search field's green-tinted treatment. No Reference verification until this final shell pass is merged, synced, and visually accepted.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
