@@ -44,7 +44,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 |---|---|---:|---:|---|
 | WP-00 | Programme Control & Architecture | DONE | 100% | Documentation control plane established |
 | WP-01 | Licensed Product Registry & Source Consolidation | YELLOW | 25% | Definitive source/gap inventory |
-| WP-02 | Global Terminology Governance | PURPLE | 92% | Merge audited shell correction, re-sync, visually verify, then deliberate global verification |
+| WP-02 | Global Terminology Governance | PURPLE | 94% | Operational sync/restart and second visual verification, then deliberate global verification |
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 35% | Stable data/gap/manual-entry contract and operator UI |
@@ -56,7 +56,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-11 | Post-Closure Enhancements / Parked Backlog | PARKED | N/A | Scope sink; not part of closure percentage |
 
 ### Programme completion baseline
-**37% — milestone-based tracking baseline, not an effort/time estimate.**
+**38% — milestone-based tracking baseline, not an effort/time estimate.**
 
 Work-pack percentages and the overall percentage are tracking indicators. They must be updated only when milestone evidence changes. WP-11 is excluded from overall completion.
 
