@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
 **Architecture state:** PURPLE  
-**Progress:** 94%
+**Progress:** 93%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Shell correction is merged to main. Safely fast-forward the operational checkout, restart Electron, and perform the second visual verification. No Reference verification until the corrected UI is visually accepted.
+Second visual verification passed for the full-page Reference Dictionary and compact browser menu. One bounded queue-shell refinement remains: remove the redundant queue KPI strip while retaining the existing status lenses/counts. No Reference verification until this final visual cleanup is merged and rechecked.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
