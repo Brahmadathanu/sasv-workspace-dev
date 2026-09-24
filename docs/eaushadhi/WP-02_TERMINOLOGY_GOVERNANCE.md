@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
-**Architecture state:** GREEN  
-**Progress:** 88%
+**Architecture state:** PURPLE  
+**Progress:** 92%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
@@ -26,7 +26,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [x] ChatGPT independent re-audit.
 - [x] Merge to main completed at `2b7ef2e2aba8cd60b65737b47de4b1f372676ba4`; remote feature branch deleted. Local feature worktree retained safely because `.tmp-smoke-userdata/` is untracked.
 - [x] Operational checkout safely fast-forwarded to main and Electron restarted without worker/portal/Reference/Composition mutation.
-- [~] Visual client verification identified a layout blocker; corrected shell architecture is now frozen for implementation: Reference Dictionary as a structurally exclusive full-page surface, browser-worker controls consolidated behind one compact trigger.
+- [x] Corrected shell architecture implemented and independently audited: Reference Dictionary is structurally exclusive/full-page, compact tables replace record cards, and browser-worker controls are consolidated behind one trigger.
 
 ## Governance verification milestones
 - [ ] Verify `Sahasrayōgam - Sujanapriya → Sahasrayōgam` once globally.
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Implement the frozen client-shell correction on an isolated feature branch/worktree. Reference Dictionary must become structurally exclusive via hidden/aria-hidden/inert, and browser-worker controls must be consolidated behind one compact trigger. No Reference verification until the corrected UI is visually accepted.
+Merge the independently audited shell-correction feature branch to current main, then safely sync/restart the operational checkout and perform a second visual verification. No Reference verification until that corrected UI is visually accepted.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
