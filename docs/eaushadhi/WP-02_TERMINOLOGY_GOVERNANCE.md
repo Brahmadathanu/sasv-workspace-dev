@@ -1,6 +1,6 @@
 # WP-02 — Global Terminology Governance
 
-**Architecture state:** PURPLE  
+**Architecture state:** YELLOW  
 **Progress:** 99%
 
 ## Objective
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Final shell is operationally synced and visually accepted; shell is now frozen for WP-02. Live pre-verification state is confirmed: alias 1 `Sahasrayōgam - Sujanapriya → Sahasrayōgam` is DRAFT; alias 2 `Sahasrayōgam - Vaidyapriya → Sahasrayōgam` remains DRAFT; canonical portal mapping 28 `Sahasrayōgam → Sahasrayoga / external 28` remains DRAFT. Verify alias 1 first, prove the resulting state, then verify mapping 28 separately.
+Before the first production Reference verification, simplify the Dictionary interaction model into one consolidated source-reference table with row-click/keyboard-open in-page review modal. Preserve the two independent governance layers (source→canonical and canonical→portal) and their separate verification actions; remove the standalone canonical-mapping table and ACTION column. Live pre-verification state remains unchanged: alias 1 and alias 2 are DRAFT; portal mapping 28 is DRAFT.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
