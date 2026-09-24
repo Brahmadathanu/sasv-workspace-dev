@@ -61,7 +61,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 Work-pack percentages and the overall percentage are tracking indicators. They must be updated only when milestone evidence changes. WP-11 is excluded from overall completion.
 
 ## Current repository/live anchors
-- Current main: `9b6fe22db67e006dafe1480a7ceaa16de407ae52` (WP-02 operational sync completed; tracking update follows)
+- Operational runtime synced to code/docs state: `9b6fe22db67e006dafe1480a7ceaa16de407ae52`. Later programme-tracking commits are documentation-only and do not require Electron resync.
 - WP-02 client feature branch: `feat/eaushadhi-global-reference-dictionary-client`
 - WP-02 client feature head awaiting bounded corrections: `c4dad91eb2f5e0fa7f31971b48e9b0ecafb804ef`
 - Composition live arm remains OFF.
