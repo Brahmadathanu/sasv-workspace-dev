@@ -233,83 +233,6 @@ body.sasv-eaushadhi-review .product-controls {
   flex-shrink: 0;
 }
 
-body.sasv-eaushadhi-review .kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
-  margin: 0 0 8px;
-  overflow: visible;
-}
-
-body.sasv-eaushadhi-review.sasv-module .kpi {
-  flex: 0 1 auto;
-  min-width: 0;
-  min-height: 32px;
-  padding: 5px 8px 5px 10px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  border: 1px solid var(--sasv-border);
-  border-left-width: 3px;
-  border-radius: var(--sasv-radius-sm);
-  background: var(--sasv-surface);
-  cursor: pointer;
-  appearance: none;
-  font: inherit;
-  text-align: left;
-}
-
-body.sasv-eaushadhi-review .kpi .kpi-label {
-  font-size: var(--sasv-text-xs);
-  font-weight: var(--sasv-fw-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--sasv-text-muted);
-  line-height: var(--sasv-lh-tight);
-}
-
-body.sasv-eaushadhi-review .kpi .kpi-value {
-  font-size: var(--sasv-text-md);
-  font-weight: var(--sasv-fw-semibold);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--sasv-lh-tight);
-}
-
-body.sasv-eaushadhi-review .kpi.is-products {
-  border-left-color: var(--sasv-action-primary);
-}
-
-body.sasv-eaushadhi-review .kpi.is-pending {
-  border-left-color: var(--sasv-text-muted);
-}
-
-body.sasv-eaushadhi-review .kpi.is-in-review {
-  border-left-color: var(--sasv-warning);
-}
-
-body.sasv-eaushadhi-review .kpi.is-verified {
-  border-left-color: var(--sasv-success);
-}
-
-body.sasv-eaushadhi-review .kpi.is-blocked {
-  border-left-color: var(--sasv-danger);
-}
-
-body.sasv-eaushadhi-review .kpi.is-ready {
-  border-left-color: var(--sasv-success);
-}
-
-body.sasv-eaushadhi-review .kpi.is-active {
-  background: var(--sasv-action-primary-soft);
-  border-color: var(--sasv-action-primary-soft-border);
-}
-
-body.sasv-eaushadhi-review .kpi:hover {
-  border-color: var(--sasv-action-primary-soft-border);
-}
-
 body.sasv-eaushadhi-review .search-card {
   display: flex;
   align-items: center;
@@ -1350,9 +1273,6 @@ body.sasv-eaushadhi-review .action-vocab-item {
 }
 
 @media (max-width: 980px) {
-  body.sasv-eaushadhi-review .kpi-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
   body.sasv-eaushadhi-review .portal-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1376,9 +1296,6 @@ body.sasv-eaushadhi-review .action-vocab-item {
     border-right: none;
     padding-right: 0;
     margin-right: 0;
-  }
-  body.sasv-eaushadhi-review .kpi-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   body.sasv-eaushadhi-review .issue-row {
     grid-template-columns: 1fr;

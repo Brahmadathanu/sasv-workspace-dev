@@ -11,8 +11,30 @@ const api = read("public/shared/js/eaushadhi-review-api.js");
 const css = read("public/shared/css/sasv-eaushadhi-review.css");
 const helperSource = read("public/shared/js/eaushadhi-reference-mapping.js");
 const helpers = await import(`data:text/javascript;base64,${Buffer.from(helperSource).toString("base64")}`);
+const reviewHelperSource = read("public/shared/js/eaushadhi-review-helpers.js");
+const reviewHelpers = await import(`data:text/javascript;base64,${Buffer.from(reviewHelperSource).toString("base64")}`);
 
+assert.doesNotMatch(html, /id="kpiStrip"/);
+assert.doesNotMatch(control, /renderKpis|kpiStrip|data-kpi|queueKpis/);
+assert.equal("queueKpis" in reviewHelpers, false);
+assert.doesNotMatch(css, /body\.sasv-eaushadhi-review[^\n{]*\.kpi(?:-strip|\s|\.|:|\{)/);
+assert.match(html, /id="reviewLenses"/);
+assert.deepEqual(
+  reviewHelpers.REVIEW_LENSES.map((item) => item.label),
+  ["All", "Pending", "In Review", "Verified", "Blocked", "Ready"],
+);
+assert.match(control, /reviewLenses[\s\S]*?addEventListener\("click"[\s\S]*?state\.queueView\.reviewLens[\s\S]*?applyQueueFilterChange/);
+assert.match(control, /reviewLenses[\s\S]*?addEventListener\("keydown"[\s\S]*?handleRovingKey/);
+assert.match(control, /reviewLens:\s*state\.queueView\.reviewLens/);
+assert.match(control, /function filteredQueue\(\)[\s\S]*?filterQueueRows/);
+assert.match(html, /id="queueRowCount"/);
+assert.match(control, /queueRowCount[\s\S]*?formatShowingCount/);
+assert.match(html, /id="systemLenses"/);
+assert.match(html, /id="classLenses"/);
+assert.match(html, /id="queueTableWrap"[\s\S]*?id="queueTbody"/);
+assert.match(html, /id="workspacePanel"/);
 assert.match(html, /id="openReferenceDictionaryBtn"[^>]*>Reference Dictionary</);
+assert.match(html, /id="referenceDictionarySummary"/);
 assert.match(html, /<section id="referenceDictionaryPanel"/);
 assert.match(html, /Source Reference Dictionary/);
 assert.match(html, /Canonical to e-Aushadhi Reference Mappings/);
