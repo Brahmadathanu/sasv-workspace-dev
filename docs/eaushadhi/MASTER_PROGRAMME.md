@@ -44,7 +44,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 |---|---|---:|---:|---|
 | WP-00 | Programme Control & Architecture | DONE | 100% | Documentation control plane established |
 | WP-01 | Licensed Product Registry & Source Consolidation | YELLOW | 25% | Definitive source/gap inventory |
-| WP-02 | Global Terminology Governance | PURPLE | 98% | Operational sync/restart and final visual acceptance, then deliberate global verification |
+| WP-02 | Global Terminology Governance | PURPLE | 99% | Verify Sujanapriya source alias, prove state, then verify canonical portal mapping and inherited readiness |
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 35% | Stable data/gap/manual-entry contract and operator UI |
