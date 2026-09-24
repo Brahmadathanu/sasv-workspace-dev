@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
 **Architecture state:** PURPLE  
-**Progress:** 98%
+**Progress:** 99%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Final visual shell is merged. Safely fast-forward the operational checkout, restart Electron, and perform the final visual acceptance check. If accepted, freeze the WP-02 shell and proceed immediately to deliberate global Reference verification.
+Final shell is operationally synced and visually accepted; shell is now frozen for WP-02. Live pre-verification state is confirmed: alias 1 `Sahasrayōgam - Sujanapriya → Sahasrayōgam` is DRAFT; alias 2 `Sahasrayōgam - Vaidyapriya → Sahasrayōgam` remains DRAFT; canonical portal mapping 28 `Sahasrayōgam → Sahasrayoga / external 28` remains DRAFT. Verify alias 1 first, prove the resulting state, then verify mapping 28 separately.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
