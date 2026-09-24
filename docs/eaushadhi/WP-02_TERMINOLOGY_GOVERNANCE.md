@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
 **Architecture state:** PURPLE  
-**Progress:** 85%
+**Progress:** 90%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
@@ -25,7 +25,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [x] Add required-selection validation before source/portal draft RPC calls.
 - [x] ChatGPT independent re-audit.
 - [x] Merge to main completed at `2b7ef2e2aba8cd60b65737b47de4b1f372676ba4`; remote feature branch deleted. Local feature worktree retained safely because `.tmp-smoke-userdata/` is untracked.
-- [ ] Operational checkout sync/restart.
+- [x] Operational checkout safely fast-forwarded to main and Electron restarted without worker/portal/Reference/Composition mutation.
 - [ ] Visual client verification.
 
 ## Governance verification milestones
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Safely sync the operational checkout to current main and restart/reload the client for visual verification. Do not perform any Reference verification until the rendered global dictionary is inspected.
+Manual visual verification of the rendered Global Reference Dictionary. Do not perform any Reference verification until the UI is inspected and explicitly accepted.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
