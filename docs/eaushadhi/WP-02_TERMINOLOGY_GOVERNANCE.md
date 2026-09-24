@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
-**Architecture state:** BLUE  
-**Progress:** 70%
+**Architecture state:** PURPLE  
+**Progress:** 85%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
@@ -21,10 +21,10 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 
 ## Client milestones
 - [x] Initial Global Reference Dictionary client implemented on feature branch `feat/eaushadhi-global-reference-dictionary-client`, head `c4dad91eb2f5e0fa7f31971b48e9b0ecafb804ef`.
-- [ ] Correct canonical-section filtering so it is independent from source-row filtering.
-- [ ] Add required-selection validation before source/portal draft RPC calls.
-- [ ] ChatGPT independent re-audit.
-- [ ] Merge/cleanup.
+- [x] Correct canonical-section filtering so it is independent from source-row filtering.
+- [x] Add required-selection validation before source/portal draft RPC calls.
+- [x] ChatGPT independent re-audit.
+- [x] Merge to main completed at `2b7ef2e2aba8cd60b65737b47de4b1f372676ba4`; remote feature branch deleted. Local feature worktree retained safely because `.tmp-smoke-userdata/` is untracked.
 - [ ] Operational checkout sync/restart.
 - [ ] Visual client verification.
 
@@ -36,7 +36,7 @@ Provide reusable global canonical-to-source and canonical-to-portal governance s
 - [ ] WP closure audit.
 
 ## Current gate
-Apply the two bounded client corrections on the existing feature branch; do not widen scope.
+Safely sync the operational checkout to current main and restart/reload the client for visual verification. Do not perform any Reference verification until the rendered global dictionary is inspected.
 
 ## Prohibited until gate changes
 No Composition portal mutation. No QC Register mutation. No final Submit.
