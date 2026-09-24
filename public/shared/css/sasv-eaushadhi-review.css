@@ -930,27 +930,21 @@ body.sasv-eaushadhi-review .reference-review-summary {
 body.sasv-eaushadhi-review .reference-review-summary dt { color: var(--muted, #64748b); }
 body.sasv-eaushadhi-review .reference-review-summary dd { margin: 0; font-weight: 600; }
 
-body.sasv-eaushadhi-review .queue-global-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-}
-
 body.sasv-eaushadhi-review .reference-dictionary-controls {
   flex-shrink: 0;
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 body.sasv-eaushadhi-review .reference-dictionary-header,
 body.sasv-eaushadhi-review .reference-dictionary-filterbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-header > div {
+body.sasv-eaushadhi-review .reference-dictionary-title-block {
   flex: 1;
   min-width: 220px;
 }
@@ -960,27 +954,69 @@ body.sasv-eaushadhi-review .reference-dictionary-header p {
   margin: 0;
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+body.sasv-eaushadhi-review .reference-dictionary-header h2 {
+  font-size: var(--sasv-text-lg);
+  font-weight: var(--sasv-fw-semibold);
+  line-height: var(--sasv-lh-tight);
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-summary > div {
-  border: 1px solid var(--border, #dbe3ea);
-  border-radius: 10px;
-  background: #fff;
-  padding: 12px;
+body.sasv-eaushadhi-review .reference-dictionary-header p {
+  margin-top: 2px;
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-summary > div,
 body.sasv-eaushadhi-review .reference-dialog-summary > div {
   display: grid;
   gap: 3px;
 }
 
-body.sasv-eaushadhi-review .reference-dictionary-filterbar > input {
+body.sasv-eaushadhi-review .reference-dictionary-filterbar > .search-wrap {
   flex: 1 1 280px;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-filter-control {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+body.sasv-eaushadhi-review #referenceDictionaryFilterBtn.is-active {
+  color: var(--sasv-action-primary);
+  border-color: var(--sasv-action-primary);
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-filter-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+  box-shadow: var(--sasv-shadow-md, 0 8px 24px rgb(15 23 42 / 12%));
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-filter-menu[hidden] {
+  display: none !important;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-filter-menu button {
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--sasv-radius-sm);
+  background: transparent;
+  color: var(--sasv-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .reference-dictionary-filter-menu button:hover,
+body.sasv-eaushadhi-review .reference-dictionary-filter-menu button:focus-visible,
+body.sasv-eaushadhi-review .reference-dictionary-filter-menu button[aria-checked="true"] {
+  background: var(--sasv-action-primary-soft);
+  color: var(--sasv-action-primary);
 }
 
 body.sasv-eaushadhi-review .reference-dictionary-scroll {
@@ -1310,16 +1346,14 @@ body.sasv-eaushadhi-review .action-vocab-item {
   body.sasv-eaushadhi-review .reference-review-summary dd + dt {
     margin-top: 8px;
   }
-  body.sasv-eaushadhi-review .reference-dictionary-summary,
   body.sasv-eaushadhi-review .reference-dialog-summary {
     grid-template-columns: minmax(0, 1fr);
   }
   body.sasv-eaushadhi-review .reference-dictionary-filterbar {
     align-items: stretch;
   }
-  body.sasv-eaushadhi-review .reference-dictionary-filterbar > input,
-  body.sasv-eaushadhi-review .reference-dictionary-filterbar > .lens-pills {
-    flex: 1 1 100%;
+  body.sasv-eaushadhi-review .reference-dictionary-filterbar > .search-wrap {
+    flex: 1 1 calc(100% - var(--sasv-control-md) - 8px);
   }
   body.sasv-eaushadhi-review .reference-dictionary-table,
   body.sasv-eaushadhi-review .reference-dictionary-table tbody,

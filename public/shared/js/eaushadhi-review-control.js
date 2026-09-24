@@ -382,6 +382,13 @@ function setAppMode(mode) {
   };
   if (!Object.hasOwn(surfaces, mode)) throw new Error(`Unknown application surface: ${mode}`);
   state.surface = mode;
+  const dictionaryButton = $("openReferenceDictionaryBtn");
+  if (dictionaryButton) {
+    const dictionaryActive = mode === "reference-dictionary";
+    dictionaryButton.disabled = dictionaryActive;
+    dictionaryButton.setAttribute("aria-disabled", String(dictionaryActive));
+  }
+  if (mode !== "reference-dictionary") closeReferenceDictionaryFilterMenu();
   document.body.classList.toggle("ea-mode-queue", mode === "queue");
   document.body.classList.toggle("ea-mode-product", mode === "product");
   document.body.classList.toggle("ea-mode-reference-dictionary", mode === "reference-dictionary");
@@ -1561,20 +1568,62 @@ function dictionaryRows() {
   return filterReferenceDictionary(state.referenceDictionary.rows, state.referenceDictionary);
 }
 
+let referenceDictionaryFilterMenuOpen = false;
+
+function referenceDictionaryFilterItems() {
+  return [...$("referenceDictionaryFilterMenu")?.querySelectorAll('[role="menuitemradio"]') || []];
+}
+
+function closeReferenceDictionaryFilterMenu({ restoreFocus = false } = {}) {
+  const menu = $("referenceDictionaryFilterMenu");
+  const trigger = $("referenceDictionaryFilterBtn");
+  if (menu) menu.hidden = true;
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+  referenceDictionaryFilterMenuOpen = false;
+  if (restoreFocus) trigger?.focus();
+}
+
+function openReferenceDictionaryFilterMenu() {
+  closeWorkerMenu();
+  const menu = $("referenceDictionaryFilterMenu");
+  const trigger = $("referenceDictionaryFilterBtn");
+  if (!menu || !trigger) return;
+  menu.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  referenceDictionaryFilterMenuOpen = true;
+  const items = referenceDictionaryFilterItems();
+  (items.find((item) => item.getAttribute("aria-checked") === "true") || items[0])?.focus();
+}
+
+function toggleReferenceDictionaryFilterMenu() {
+  if (referenceDictionaryFilterMenuOpen) closeReferenceDictionaryFilterMenu({ restoreFocus: true });
+  else openReferenceDictionaryFilterMenu();
+}
+
+function selectReferenceDictionaryFilter(value) {
+  if (!["all", "mapping-required", "suggested", "ready"].includes(value)) return;
+  state.referenceDictionary.statusFilter = value;
+  closeReferenceDictionaryFilterMenu({ restoreFocus: true });
+  renderReferenceDictionary();
+}
+
 function renderReferenceDictionary() {
   const rows = dictionaryRows();
   const allRows = state.referenceDictionary.rows;
-  const summary = $("referenceDictionarySummary");
-  if (summary) summary.innerHTML = [
-    ["Distinct source references", allRows.length],
-    ["Mapping required", allRows.filter((row) => row.reference_ready !== true).length],
-    ["Ready", allRows.filter((row) => row.reference_ready === true).length],
-  ].map(([label, value]) => `<div><span class="muted-note">${label}</span><strong>${value}</strong></div>`).join("");
-
-  const filters = $("referenceDictionaryFilters");
-  if (filters) filters.innerHTML = [
-    ["all", "All"], ["mapping-required", "Mapping required"], ["suggested", "Suggested"], ["ready", "Ready"],
-  ].map(([value, label]) => `<button type="button" role="radio" aria-checked="${state.referenceDictionary.statusFilter === value}" data-reference-filter="${value}">${label}</button>`).join("");
+  const filterLabels = { all: "All", "mapping-required": "Mapping required", suggested: "Suggested", ready: "Ready" };
+  const activeFilterLabel = filterLabels[state.referenceDictionary.statusFilter] || filterLabels.all;
+  const filterButton = $("referenceDictionaryFilterBtn");
+  if (filterButton) {
+    const label = state.referenceDictionary.statusFilter === "all"
+      ? "Filter Reference Dictionary"
+      : `Filter Reference Dictionary: ${activeFilterLabel}`;
+    filterButton.title = label;
+    filterButton.setAttribute("aria-label", label);
+    filterButton.classList.toggle("is-active", state.referenceDictionary.statusFilter !== "all");
+  }
+  $("referenceDictionaryFilterMenu")?.querySelectorAll("[data-reference-filter]").forEach((option) => {
+    option.setAttribute("aria-checked", String(option.dataset.referenceFilter === state.referenceDictionary.statusFilter));
+  });
 
   const status = $("referenceDictionaryStatus");
   if (status) {
@@ -4950,6 +4999,7 @@ function wireEvents() {
     if (target.closest("#btnWorkerMenuTrigger")) {
       event.preventDefault();
       event.stopPropagation();
+      closeReferenceDictionaryFilterMenu();
       toggleWorkerMenu();
       return;
     }
@@ -4971,6 +5021,38 @@ function wireEvents() {
     const node = event.target instanceof Element ? event.target : event.target?.parentElement;
     if (toolbar && node && toolbar.contains(node)) return;
     closeWorkerMenu();
+  });
+  $("referenceDictionaryFilterBtn")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleReferenceDictionaryFilterMenu();
+  });
+  $("referenceDictionaryFilterMenu")?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-reference-filter]");
+    if (!option) return;
+    selectReferenceDictionaryFilter(option.dataset.referenceFilter);
+  });
+  document.addEventListener("click", (event) => {
+    if (!referenceDictionaryFilterMenuOpen) return;
+    const control = event.target instanceof Element
+      ? event.target.closest(".reference-dictionary-filter-control")
+      : null;
+    if (!control) closeReferenceDictionaryFilterMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!referenceDictionaryFilterMenuOpen) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeReferenceDictionaryFilterMenu({ restoreFocus: true });
+      return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const items = referenceDictionaryFilterItems();
+    if (!items.length) return;
+    event.preventDefault();
+    const current = items.indexOf(document.activeElement);
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    items[(current + direction + items.length) % items.length].focus();
   });
   document.addEventListener("keydown", (event) => {
     if (!workerMenuOpen) return;
@@ -5018,12 +5100,6 @@ function wireEvents() {
   $("refreshReferenceDictionaryBtn")?.addEventListener("click", () => void loadReferenceDictionary({ force: true }).catch(toastError));
   $("referenceDictionarySearch")?.addEventListener("input", (event) => {
     state.referenceDictionary.search = event.target.value || "";
-    renderReferenceDictionary();
-  });
-  $("referenceDictionaryFilters")?.addEventListener("click", (event) => {
-    const filter = event.target.closest("[data-reference-filter]");
-    if (!filter) return;
-    state.referenceDictionary.statusFilter = filter.dataset.referenceFilter;
     renderReferenceDictionary();
   });
   $("referenceDictionaryPanel")?.addEventListener("click", (event) => {
