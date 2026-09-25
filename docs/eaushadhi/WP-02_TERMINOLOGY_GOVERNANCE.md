@@ -1,6 +1,6 @@
 # WP-02 — Global Terminology Governance
 
-**Architecture state:** YELLOW  
+**Architecture state:** GREEN  
 **Progress:** 98%
 
 ## Objective
