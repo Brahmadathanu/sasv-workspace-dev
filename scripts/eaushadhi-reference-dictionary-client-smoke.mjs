@@ -43,7 +43,7 @@ assert.doesNotMatch(html, /id="referenceDictionarySummary"|reference-dictionary-
 assert.doesNotMatch(control, /referenceDictionarySummary|Distinct source references/);
 assert.match(html, /<section id="referenceDictionaryPanel"/);
 assert.match(html, /Source Reference Dictionary/);
-assert.match(html, /Canonical to e-Aushadhi Reference Mappings/);
+assert.doesNotMatch(html, /Canonical to e-Aushadhi Reference Mappings/);
 assert.doesNotMatch(html.match(/id="workspaceTabs"[\s\S]*?<\/div>/)?.[0] || "", /Reference Dictionary/);
 assert.match(control, /classList\.toggle\("ea-mode-reference-dictionary", mode === "reference-dictionary"\)/);
 assert.match(css, /ea-mode-reference-dictionary #referenceDictionaryPanel/);
@@ -103,10 +103,14 @@ assert.match(css, /reference-dictionary-header h2[\s\S]*?font-size: var\(--sasv-
 assert.doesNotMatch(css, /reference-dictionary-summary/);
 
 for (const heading of [
-  "Source Reference", "Usage", "Canonical Reference Work", "Source to Canonical", "Overall", "Action",
-  "e-Aushadhi Reference", "Canonical to Portal", "Source wordings",
+  "Source Reference", "Usage", "Canonical Reference Work", "Source Mapping",
+  "e-Aushadhi Reference", "Portal Mapping", "Overall",
 ]) assert.match(html, new RegExp(`<th scope="col">${heading}</th>`));
-assert.equal((html.match(/class="reference-dictionary-table"/g) || []).length, 2);
+for (const removedHeading of ["Action", "Source to Canonical", "Canonical to Portal", "Source wordings"]) {
+  assert.doesNotMatch(html, new RegExp(`<th scope="col">${removedHeading}</th>`));
+}
+assert.equal((html.match(/class="reference-dictionary-table"/g) || []).length, 1);
+assert.doesNotMatch(html, /Canonical to e-Aushadhi Reference Mappings/);
 assert.doesNotMatch(control, /<article class="reference-dictionary-card"/);
 assert.doesNotMatch(html, /reference-dictionary-grid/);
 assert.match(css, /ea-mode-reference-dictionary #referenceDictionaryPanel[\s\S]*?display: flex[\s\S]*?flex: 1/);
@@ -158,98 +162,34 @@ assert.equal(helpers.filterReferenceDictionary(fixture, { search: "sahasrayoga" 
 assert.equal(helpers.filterReferenceDictionary(fixture, { search: "28" }).length, 3);
 assert.equal(helpers.filterReferenceDictionary(fixture, { statusFilter: "mapping-required" }).length, 33);
 assert.equal(helpers.filterReferenceDictionary(fixture, { statusFilter: "suggested" }).length, 2);
-assert.equal(helpers.dedupeCanonicalReferenceMappings(fixture).length, 1);
-assert.equal(helpers.dedupeCanonicalReferenceMappings(fixture)[0].source_alias_count, 2);
-
-const canonicalFixture = [
-  {
-    source_reference_text: "Source A",
-    alias_mapping_status: "DRAFT",
-    source_to_canonical_ready: false,
-    canonical_term_id: 28,
-    canonical_code: "SAHASRAYOGAM",
-    canonical_label: "Sahasrayogam",
-    portal_mapping_status: "VERIFIED",
-    portal_label: "Sahasrayoga",
-    portal_external_id: "28",
-    canonical_to_portal_ready: true,
-  },
-  {
-    source_reference_text: "Source B",
-    alias_mapping_status: "VERIFIED",
-    source_to_canonical_ready: true,
-    canonical_term_id: 28,
-    canonical_code: "SAHASRAYOGAM",
-    canonical_label: "Sahasrayogam",
-    portal_mapping_status: "VERIFIED",
-    portal_label: "Sahasrayoga",
-    portal_external_id: "28",
-    canonical_to_portal_ready: true,
-  },
-  {
-    source_reference_text: "Source C",
-    alias_mapping_status: "VERIFIED",
-    source_to_canonical_ready: true,
-    canonical_term_id: 29,
-    canonical_code: "ASHTANGAH",
-    canonical_label: "Ashtangahridayam",
-    portal_mapping_status: "DRAFT",
-    portal_label: "Ashtanga Hridaya",
-    portal_external_id: "29",
-    canonical_to_portal_ready: false,
-  },
+const overallFixture = [
+  { source_reference_text: "Ready", reference_ready: true, alias_mapping_status: "VERIFIED", portal_mapping_status: "VERIFIED" },
+  { source_reference_text: "Alias suggestion", reference_ready: false, alias_mapping_status: "DRAFT", portal_mapping_status: null },
+  { source_reference_text: "Portal suggestion", reference_ready: false, alias_mapping_status: "VERIFIED", portal_mapping_status: "DRAFT" },
+  { source_reference_text: "Missing", reference_ready: false, alias_mapping_status: null, portal_mapping_status: null },
 ];
-const allCanonicalRows = helpers.dedupeCanonicalReferenceMappings(canonicalFixture);
-assert.equal(allCanonicalRows.find((row) => row.canonical_term_id === 28).source_alias_count, 2);
-assert.equal(
-  helpers.dedupeCanonicalReferenceMappings(
-    helpers.filterReferenceDictionary(canonicalFixture, { search: "Source A" }),
-  )[0].source_alias_count,
-  1,
-);
-assert.equal(
-  helpers.filterCanonicalReferenceMappings(allCanonicalRows, { search: "Source A" }).length,
-  0,
-);
-assert.equal(
-  helpers.filterCanonicalReferenceMappings(allCanonicalRows, { statusFilter: "suggested" }).length,
-  1,
-);
-assert.equal(
-  helpers.filterCanonicalReferenceMappings(allCanonicalRows, { statusFilter: "suggested" })[0].canonical_term_id,
-  29,
-);
-assert.equal(
-  helpers.filterCanonicalReferenceMappings(allCanonicalRows, { statusFilter: "ready" })[0].canonical_term_id,
-  28,
-);
-assert.equal(
-  helpers.filterCanonicalReferenceMappings(allCanonicalRows, { statusFilter: "mapping-required" })[0].canonical_term_id,
-  29,
-);
-assert.equal(helpers.filterCanonicalReferenceMappings(allCanonicalRows, { search: "ASHTANGAH" }).length, 1);
-assert.equal(helpers.filterCanonicalReferenceMappings(allCanonicalRows, { search: "Ashtangahridayam" }).length, 1);
-assert.equal(helpers.filterCanonicalReferenceMappings(allCanonicalRows, { search: "Ashtanga Hridaya" }).length, 1);
-assert.equal(helpers.filterCanonicalReferenceMappings(allCanonicalRows, { search: "29" }).length, 1);
+assert.deepEqual(helpers.filterReferenceDictionary(overallFixture, { statusFilter: "ready" }).map((row) => row.source_reference_text), ["Ready"]);
+assert.deepEqual(helpers.filterReferenceDictionary(overallFixture, { statusFilter: "mapping-required" }).map((row) => row.source_reference_text), ["Alias suggestion", "Portal suggestion", "Missing"]);
+assert.deepEqual(helpers.filterReferenceDictionary(overallFixture, { statusFilter: "suggested" }).map((row) => row.source_reference_text), ["Alias suggestion", "Portal suggestion"]);
+assert.equal("dedupeCanonicalReferenceMappings" in helpers, false);
+assert.equal("filterCanonicalReferenceMappings" in helpers, false);
 assert.equal(helpers.positiveReferenceSelectionId(""), null);
 assert.equal(helpers.positiveReferenceSelectionId(null), null);
 assert.equal(helpers.positiveReferenceSelectionId("0"), null);
 assert.equal(helpers.positiveReferenceSelectionId("28"), 28);
 
 assert.match(control, /Number\(row\?\.line_count \|\| 0\).*Number\(row\?\.product_count \|\| 0\)/s);
-assert.match(control, /data-reference-source-create=/);
-assert.match(control, /data-reference-source-review=/);
-assert.match(control, /data-reference-portal-create=/);
-assert.match(control, /data-reference-portal-review=/);
-const sourceRender = control.slice(control.indexOf("const sourceHost"), control.indexOf("const canonicalHost"));
-assert.doesNotMatch(sourceRender, /data-reference-portal-(?:create|review)/);
-assert.match(sourceRender, /!row\.alias_mapping_id[\s\S]*?Create\/review source mapping/);
-assert.match(sourceRender, /aliasStatus === "DRAFT"[\s\S]*?Review source mapping/);
-const canonicalRender = control.slice(control.indexOf("const canonicalHost"), control.indexOf("applyPermissionUi();", control.indexOf("const canonicalHost")));
-assert.match(canonicalRender, /dedupeCanonicalReferenceMappings\(state\.referenceDictionary\.rows\)/);
-assert.match(canonicalRender, /filterCanonicalReferenceMappings/);
-assert.match(canonicalRender, /!row\.portal_mapping_id[\s\S]*?Create\/review portal mapping/);
-assert.match(canonicalRender, /portalStatus === "DRAFT"[\s\S]*?Review portal mapping/);
+assert.match(control, /<tr class="reference-dictionary-row" tabindex="0" data-reference-source=/);
+assert.match(control, /data-label="Source Mapping"/);
+assert.match(control, /data-label="Portal Mapping"/);
+assert.match(control, /data-label="Overall" class="reference-dictionary-overall"/);
+assert.doesNotMatch(control, /data-reference-(?:source|portal)-(?:create|review)=/);
+assert.match(control, /reference-dictionary-row[\s\S]*?reference-row-chevron/);
+assert.match(control, /event\.target\.closest\("tr\[data-reference-source\]"\)[\s\S]*?openReferenceReview/);
+assert.match(control, /event\.key !== "Enter" && event\.key !== " "/);
+assert.match(control, /event\.key === " "[\s\S]*?event\.preventDefault\(\)/);
+assert.match(css, /\.reference-dictionary-row:hover/);
+assert.match(css, /\.reference-dictionary-row:focus-visible/);
 
 for (const rpc of [
   "rpc_eaushadhi_reference_dictionary_get",
@@ -266,22 +206,44 @@ assert.match(api, /rpc_eaushadhi_reference_portal_mapping_draft_create", \{\s*p_
 assert.doesNotMatch(api, /p_(?:canonical_label|portal_label|match_basis|comparison_evidence|line_count|product_count|verified_by|verified_at)/);
 
 assert.match(control, /Candidate guidance \(diagnostic only\)/);
-assert.match(control, /createReferenceAliasDraft[\s\S]*?loadReferenceDictionary\(\{ force: true \}\)/);
-assert.doesNotMatch(control.match(/async function openSourceAliasCreate[\s\S]*?function openReferenceWorkCreate/)?.[0] || "", /verifyReferenceAlias/);
 assert.match(control, /Changing the suggested Reference Work will be recorded as a manual mapping\./);
-assert.match(control, /Creates a reusable global canonical Reference Work\. It does not create an e-Aushadhi portal mapping automatically\./);
+assert.match(control, /Creates a reusable canonical work only\. The source draft still requires a separate action\./);
 assert.match(control, /Creates a global draft mapping\. Verification is a separate step\./);
 assert.match(control, /Changing the suggested option will be recorded as a manual mapping\./);
-const sourceDraftFlow = control.match(/async function openSourceAliasCreate[\s\S]*?function openReferenceWorkCreate/)?.[0] || "";
-const portalDraftFlow = control.match(/function openPortalDraftCreate[\s\S]*?function openPortalMappingReview/)?.[0] || "";
-assert.match(sourceDraftFlow, /required[\s\S]*?requirePositiveReferenceSelection[\s\S]*?createReferenceAliasDraft/);
-assert.equal((sourceDraftFlow.match(/await createReferenceAliasDraft\(/g) || []).length, 1);
-assert.match(portalDraftFlow, /required[\s\S]*?requirePositiveReferenceSelection[\s\S]*?createReferencePortalMappingDraft/);
-assert.equal((portalDraftFlow.match(/await createReferencePortalMappingDraft\(/g) || []).length, 1);
-assert.match(control, /bindRequiredReferenceSelection\(dialog, "#referenceCanonicalOption"/);
-assert.match(control, /bindRequiredReferenceSelection\(dialog, "#referencePortalOption"/);
+assert.match(control, /Review Reference Mapping/);
+assert.match(control, /Section A - Source Reference Mapping/);
+assert.match(control, /Section B - Shared Canonical to e-Aushadhi Mapping/);
+assert.match(control, /Shared mapping: applies to every source wording resolving to this canonical Reference Work\./);
+assert.doesNotMatch(control, /Verify All/);
+for (const action of ["source-draft", "source-verify", "portal-draft", "portal-verify"]) {
+  assert.match(control, new RegExp(`data-reference-${action}`));
+}
+const reviewHandler = control.match(/async function handleReferenceReviewAction[\s\S]*?\n}/)?.[0] || "";
+assert.match(reviewHandler, /createReferenceAliasDraft/);
+assert.match(reviewHandler, /verifyReferenceAlias/);
+assert.match(reviewHandler, /createReferencePortalMappingDraft/);
+assert.match(reviewHandler, /verifyReferenceMapping/);
+assert.doesNotMatch(reviewHandler, /Verify All|Promise\.all/);
+assert.match(control, /bindRequiredReferenceSelection\(dialog, selector, feedbackSelector, buttonSelector\)/);
 const requiredSelectionBinder = control.match(/function bindRequiredReferenceSelection[\s\S]*?\n}/)?.[0] || "";
 assert.match(requiredSelectionBinder, /confirm\.disabled = !valid \|\| !canWrite\(\)/);
+const refreshFlow = control.match(/async function refreshReferenceReviewAfterMutation[\s\S]*?\n}/)?.[0] || "";
+assert.match(refreshFlow, /loadReferenceDictionary\(\{ force: true \}\)/);
+assert.match(refreshFlow, /currentReferenceReviewRow\(\)/);
+assert.match(refreshFlow, /renderReferenceReviewDialog\(freshRow, \{ focusSection \}\)/);
+assert.match(control, /referenceReviewSource = row\.source_reference_text/);
+assert.match(control, /row\.source_reference_text === referenceReviewSource/);
+assert.match(control, /await ensureReferenceWorkOptions\(\)/);
+assert.match(control, /await fetchReferenceAliasCandidates\(row\.source_reference_text\)/);
+assert.match(control, /referenceReviewSelectedCanonicalId = created\?\.controlled_term_id \|\| null/);
+assert.doesNotMatch(control, /referenceAliasCandidates:|referenceDialog:/);
+assert.match(control, /focusSection: "#referenceSourceSectionTitle"/);
+assert.match(control, /focusSection: "#referencePortalSectionTitle"/);
+assert.match(control, /data-edit-action="true"/);
+assert.match(control, /applyPermissionUi\(\)/);
+const openFlow = control.match(/async function openReferenceReview[\s\S]*?\n}/)?.[0] || "";
+assert.doesNotMatch(openFlow, /createReference|verifyReference|\.rpc\(/);
+assert.match(openFlow, /handleReferenceReviewAction\(event\)\.catch\(toastError\)/);
 
 assert.doesNotMatch(control, /data-reference-review=|isReferenceActionOwner|openReferenceMappingReview/);
 assert.doesNotMatch(control, /suggested_reference_work_term_id|selected_reference_work_term_id/);
