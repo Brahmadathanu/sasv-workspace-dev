@@ -1095,21 +1095,37 @@ body.sasv-eaushadhi-review .reference-row-chevron {
 }
 
 body.sasv-eaushadhi-review .reference-dictionary-modal .modal-card {
-  width: min(920px, calc(100vw - 32px));
-  max-height: min(860px, calc(100vh - 32px));
-  overflow-y: auto;
+  width: min(1200px, calc(100vw - 40px));
+  height: min(760px, calc(100vh - 40px));
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: hidden;
   padding: 22px 26px;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 16px;
 }
 
 body.sasv-eaushadhi-review [data-reference-review-body] {
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px 18px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.sasv-eaushadhi-review .reference-review-identity {
+  grid-column: 1 / -1;
 }
 
 body.sasv-eaushadhi-review .reference-review-section {
   display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--sasv-border);
@@ -1133,6 +1149,7 @@ body.sasv-eaushadhi-review .reference-shared-note {
 body.sasv-eaushadhi-review .reference-section-actions {
   display: flex;
   justify-content: flex-end;
+  margin-top: auto;
 }
 
 body.sasv-eaushadhi-review .reference-work-create {
@@ -1385,6 +1402,24 @@ body.sasv-eaushadhi-review .action-vocab-item {
   }
   body.sasv-eaushadhi-review .line-head {
     grid-template-columns: auto 1fr auto;
+  }
+}
+
+@media (max-width: 960px) {
+  body.sasv-eaushadhi-review [data-reference-review-body] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  body.sasv-eaushadhi-review .reference-review-identity {
+    grid-column: 1;
+  }
+  body.sasv-eaushadhi-review .reference-review-section {
+    min-height: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
   }
 }
 
