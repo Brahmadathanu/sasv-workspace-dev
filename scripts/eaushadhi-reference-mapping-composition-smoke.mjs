@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 const {
   COMPOSITION_LIVE_ARM_DEFAULT,
   assessCompositionLineAuthority,
+  assessCompositionSnapshotAuthority,
   assessFirstLineBootstrap,
   classifyCompositionUnitname,
   compositionLiveArmEnabled,
@@ -18,6 +19,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260923115648_eaushadhi_reference_mapping_composition_bootstrap.sql"), "utf8");
 const api = fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-review-api.js"), "utf8");
 const control = fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
+const compositionContractSource = fs.readFileSync(path.join(root, "electron/eaushadhi-worker/composition-contract.js"), "utf8");
 const mappingHelperSource = fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-reference-mapping.js"), "utf8");
 const mappingHelpers = await import(`data:text/javascript;base64,${Buffer.from(mappingHelperSource).toString("base64")}`);
 
@@ -137,14 +139,101 @@ assert.deepEqual(mappingHelpers.referenceMappingPresentation({
   reference_ready: false,
 }), { ready: false, label: "Verified — not currently usable", reviewable: false });
 
-assert.deepEqual(assessCompositionLineAuthority({
+const governedReadyLine = () => ({
   review_status: "VERIFIED",
-  reference: { mapping_status: "DRAFT", portal_value: null },
-}).ready, false);
-assert.deepEqual(assessCompositionLineAuthority({
+  reference: {
+    reference_ready: true,
+    source_to_canonical_ready: true,
+    canonical_to_portal_ready: true,
+    alias_mapping_status: "VERIFIED",
+    portal_mapping_status: "VERIFIED",
+    portal_value: "28",
+  },
+});
+const assessReferenceOverride = (referenceOverride, lineOverride = {}) => {
+  const line = governedReadyLine();
+  return assessCompositionLineAuthority({
+    ...line,
+    ...lineOverride,
+    reference: { ...line.reference, ...referenceOverride },
+  });
+};
+
+assert.deepEqual(assessCompositionLineAuthority(governedReadyLine()), {
+  ready: true,
+  blockers: [],
+});
+assert.deepEqual(
+  assessReferenceOverride({}, { review_status: "IN_REVIEW" }).blockers,
+  ["LINE_REVIEW_NOT_VERIFIED"],
+);
+assert.deepEqual(assessReferenceOverride({ alias_mapping_status: "DRAFT" }).blockers, [
+  "REFERENCE_ALIAS_NOT_VERIFIED",
+]);
+assert.deepEqual(assessReferenceOverride({ portal_mapping_status: "DRAFT" }).blockers, [
+  "REFERENCE_PORTAL_NOT_VERIFIED",
+]);
+assert.deepEqual(assessReferenceOverride({ source_to_canonical_ready: false }).blockers, [
+  "REFERENCE_SOURCE_MAPPING_NOT_READY",
+]);
+assert.deepEqual(assessReferenceOverride({ canonical_to_portal_ready: false }).blockers, [
+  "REFERENCE_PORTAL_MAPPING_NOT_READY",
+]);
+assert.deepEqual(assessReferenceOverride({ reference_ready: false }).blockers, [
+  "REFERENCE_NOT_READY",
+]);
+for (const portalValue of [undefined, null, "", "   ", 28]) {
+  assert.deepEqual(assessReferenceOverride({ portal_value: portalValue }).blockers, [
+    "REFERENCE_PORTAL_VALUE_MISSING",
+  ]);
+}
+assert.equal(assessCompositionLineAuthority({
   review_status: "VERIFIED",
   reference: { mapping_status: "VERIFIED", portal_value: "28" },
-}).ready, true);
+}).ready, false);
+assert.equal(assessCompositionLineAuthority({
+  review_status: "VERIFIED",
+  reference: { source_text: "Sahasrayōgam - Sujanapriya" },
+}).ready, false);
+assert.deepEqual(assessReferenceOverride({ portal_value: undefined, portal_label: "Sahasrayoga" }).blockers, [
+  "REFERENCE_PORTAL_VALUE_MISSING",
+]);
+
+const snapshotPass = assessCompositionSnapshotAuthority({
+  currentContentHash: "governed-hash-1",
+  expectedContentHash: "governed-hash-1",
+  compositionLines: [governedReadyLine(), governedReadyLine()],
+});
+assert.deepEqual(snapshotPass, { ready: true, blockers: [], lineFailures: [] });
+assert.deepEqual(assessCompositionSnapshotAuthority({
+  expectedContentHash: "governed-hash-1",
+  compositionLines: [governedReadyLine()],
+}).blockers, ["CONTENT_HASH_MISSING"]);
+assert.deepEqual(assessCompositionSnapshotAuthority({
+  currentContentHash: "governed-hash-1",
+  compositionLines: [governedReadyLine()],
+}).blockers, ["EXPECTED_CONTENT_HASH_MISSING"]);
+assert.deepEqual(assessCompositionSnapshotAuthority({
+  currentContentHash: "governed-hash-2",
+  expectedContentHash: "governed-hash-1",
+  compositionLines: [governedReadyLine()],
+}).blockers, ["CONTENT_HASH_DRIFT"]);
+assert.deepEqual(assessCompositionSnapshotAuthority({
+  currentContentHash: "governed-hash-1",
+  expectedContentHash: "governed-hash-1",
+  compositionLines: null,
+}).blockers, ["COMPOSITION_LINES_INVALID"]);
+const failedLine = governedReadyLine();
+failedLine.reference.alias_mapping_status = "DRAFT";
+assert.deepEqual(assessCompositionSnapshotAuthority({
+  currentContentHash: "governed-hash-1",
+  expectedContentHash: "governed-hash-1",
+  compositionLines: [governedReadyLine(), failedLine],
+}), {
+  ready: false,
+  blockers: ["COMPOSITION_LINE_AUTHORITY_FAILED"],
+  lineFailures: [{ index: 1, blockers: ["REFERENCE_ALIAS_NOT_VERIFIED"] }],
+});
 
 assert.equal(parseCompositionRowId("<a onclick=\"GetCompositionDataUpdate('abc_12')\">Edit</a>").rowId, "abc_12");
 assert.equal(parseCompositionRowId("<a onclick=\"unknown('12')\">Edit</a>").code, "ROW_ID_CONTRACT_UNPROVEN");
@@ -157,5 +246,9 @@ assert.equal(assessFirstLineBootstrap({ editMarkup: "GetCompositionDataUpdate('7
 assert.equal(COMPOSITION_LIVE_ARM_DEFAULT, false);
 assert.equal(compositionLiveArmEnabled({ EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
 assert.doesNotMatch(`${migration}\n${api}\n${control}`, /DeleteCompositionData/);
+assert.doesNotMatch(
+  compositionContractSource,
+  /SaveCompositionData|DeleteCompositionData|AddCompositionData|(?<!Get)CompositionDataUpdate/,
+);
 
 console.log("eaushadhi reference mapping + composition bootstrap smoke: PASS");
