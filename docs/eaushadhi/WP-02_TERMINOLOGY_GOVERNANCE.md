@@ -1,7 +1,7 @@
 # WP-02 — Global Terminology Governance
 
-**Architecture state:** GREEN  
-**Progress:** 98%
+**Architecture state:** PURPLE  
+**Progress:** 99%
 
 ## Objective
 Provide reusable global canonical-to-source and canonical-to-portal governance so portal terminology is consistent across products while canonical SASV terminology remains reusable.
