@@ -47,3 +47,13 @@ Non-blocking improvements are moved to WP-11/PARKED_BACKLOG rather than expandin
 ## DEC-012 — Colleague-facing UX threshold
 **Status:** ACTIVE  
 The workflow must be operationally usable before WP-09. Cosmetic/value-add refinements that do not block safe/efficient operation may remain for WP-10/WP-11.
+
+
+## 2026-09-25 — WP-02 Global Terminology Governance closed
+- Accepted the consolidated source-centric Reference Dictionary and two-stage review modal.
+- Verified global alias 1: `Sahasrayōgam - Sujanapriya → Sahasrayōgam`.
+- Verified shared portal mapping 28: `Sahasrayōgam → Sahasrayoga / 28`.
+- Independently proved inherited readiness for all 1,477 Sujanapriya lines across 85 products.
+- Kept alias 2 `Sahasrayōgam - Vaidyapriya` DRAFT; its 32 lines across 10 products remain not ready, proving source aliases remain independently governed.
+- Proved Product 262 / Karpooradi Thailam lines 929–931 are Reference-ready without per-line Reference edits.
+- Composition live execution remains disarmed; content-hash coverage for the effective Reference value must be re-audited before live Composition resumes.
