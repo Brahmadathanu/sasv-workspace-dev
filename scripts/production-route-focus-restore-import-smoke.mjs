@@ -54,8 +54,8 @@ assert(
   "closeModal blurs focused descendant before aria-hidden",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v326"/.test(swSrc),
-  "SW bumped to hub-cache-v326",
+  /CACHE_NAME = "hub-cache-v327"/.test(swSrc),
+  "SW bumped to hub-cache-v327",
 );
 
 if (failed) {

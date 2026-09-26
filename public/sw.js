@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v326"; // Materials / Stores Explain exact-run client identity + cache
+const CACHE_NAME = "hub-cache-v327"; // Dashboard summary zero-or-one client cardinality
 
 const PRECACHE = [
   // Hub shell
