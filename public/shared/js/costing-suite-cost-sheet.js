@@ -30,7 +30,9 @@ import {
   MATERIALS_STORES_OVERHEAD_LINE_LABEL,
   MATERIALS_STORES_OVERHEAD_LINE_LABEL_NORMALIZED,
   MS_CALCULATION_FORMULA_ORDER,
+  MS_EXACT_RUN_UNAVAILABLE_MESSAGE,
   buildMsExplainCacheEntry,
+  buildMsExplainSelectedRunRpcArgs,
   extractMsCalculationBlock,
   extractMsProductRm,
   extractMsProductSkus,
@@ -43,8 +45,11 @@ import {
   formatMsQuantity,
   formatMsStatusLabel,
   formatMsWorkloadSharePercent,
+  hasCompleteMsExplainExactIdentity,
   isBlankMsValue,
   isMsExplainCacheEntryReusable,
+  isMsExplainExactResponseAgreement,
+  isMsExplainPersistedExactRunUnavailable,
   msExplainRequestIdentity,
   normalizeMsExplainRpcPayload,
   pickFirstDefinedMs,
@@ -3794,24 +3799,36 @@ export function createCostSheetController(deps) {
 
   function getMsExplainTuple(row) {
     if (!row || typeof row !== "object") return null;
-    const period_start = String(
-      row.period_start ||
-        (typeof getActivePeriodStart === "function"
-          ? getActivePeriodStart()
-          : "") ||
-        "",
-    ).trim();
+    const period_start = String(row.period_start ?? "").trim();
     const product_id = Number(row.product_id);
     if (!period_start || !Number.isFinite(product_id)) return null;
+    const request_mode =
+      String(row.request_mode || "").trim() === "current" ? "current" : "exact";
+    const valuationRaw = String(
+      row.valuation_date ?? row.valuationDate ?? "",
+    ).trim();
+    const valuation_date = valuationRaw || null;
+    const runRaw = pickFirstDefinedMs(row.refresh_run_id, row.refreshRunId);
+    const runNum = Number(runRaw);
+    const refresh_run_id =
+      runRaw == null || runRaw === "" || !Number.isFinite(runNum)
+        ? null
+        : runNum;
     const skuRaw = row.sku_id;
-    if (skuRaw == null || skuRaw === "") {
-      return { period_start, product_id, sku_id: null };
+    let sku_id = null;
+    if (skuRaw != null && skuRaw !== "") {
+      const skuNum = Number(skuRaw);
+      sku_id = Number.isFinite(skuNum) ? skuNum : null;
+      if (sku_id == null) return null;
     }
-    const sku_id = Number(skuRaw);
-    if (!Number.isFinite(sku_id)) {
-      return { period_start, product_id, sku_id: null };
-    }
-    return { period_start, product_id, sku_id };
+    return {
+      period_start,
+      product_id,
+      sku_id,
+      valuation_date,
+      refresh_run_id,
+      request_mode,
+    };
   }
 
   function msExplainCacheKey(tuple) {
@@ -3821,15 +3838,12 @@ export function createCostSheetController(deps) {
   function msExplainRowRequestIdentity(row) {
     const tuple = getMsExplainTuple(row);
     if (!tuple) return null;
+    const cacheKey = msExplainCacheKey(tuple);
+    if (!cacheKey) return null;
     const label = normalizeCostSheetDisplayLabel(row.line_label ?? "")
       .trim()
       .toLowerCase();
-    return `${msExplainCacheKey(tuple)}|${label || MATERIALS_STORES_OVERHEAD_LINE_LABEL_NORMALIZED}`;
-  }
-
-  function currentMsRunIdFromRow(row) {
-    if (!row) return null;
-    return pickFirstDefinedMs(row.refresh_run_id, row.refreshRunId);
+    return `${cacheKey}|${label || MATERIALS_STORES_OVERHEAD_LINE_LABEL_NORMALIZED}`;
   }
 
   function isMsExplainResponseCurrent(row, requestIdentity) {
@@ -3840,17 +3854,41 @@ export function createCostSheetController(deps) {
       currentExplainTraceabilityRow,
     );
     if (!currentIdentity || currentIdentity !== requestIdentity) return false;
-    return Boolean(costSheetExplainContent.querySelector("#cpMaterialsStoresExplainHost"));
+    const currentTuple = getMsExplainTuple(currentExplainTraceabilityRow);
+    const requestTuple = getMsExplainTuple(row);
+    if (!currentTuple || !requestTuple) return false;
+    if (
+      currentTuple.request_mode !== requestTuple.request_mode ||
+      currentTuple.period_start !== requestTuple.period_start ||
+      currentTuple.product_id !== requestTuple.product_id ||
+      currentTuple.sku_id !== requestTuple.sku_id
+    ) {
+      return false;
+    }
+    if (currentTuple.request_mode === "exact") {
+      if (
+        currentTuple.valuation_date !== requestTuple.valuation_date ||
+        currentTuple.refresh_run_id !== requestTuple.refresh_run_id
+      ) {
+        return false;
+      }
+    }
+    return Boolean(
+      costSheetExplainContent.querySelector("#cpMaterialsStoresExplainHost"),
+    );
   }
 
   async function loadSkuMaterialsStoresExplain(tuple) {
     if (!tuple || typeof costingRpc !== "function") return null;
+    const selectedRunArgs = buildMsExplainSelectedRunRpcArgs(tuple);
+    if (selectedRunArgs == null) return null;
     const { data, error } = await costingRpc(
       "rpc_get_sku_materials_stores_explain",
       {
         p_period_start: tuple.period_start,
         p_product_id: tuple.product_id,
         p_sku_id: tuple.sku_id,
+        ...selectedRunArgs,
       },
     );
     if (error) throw error;
@@ -3859,11 +3897,14 @@ export function createCostSheetController(deps) {
 
   async function loadProductMaterialsStoresExplain(tuple) {
     if (!tuple || typeof costingRpc !== "function") return null;
+    const selectedRunArgs = buildMsExplainSelectedRunRpcArgs(tuple);
+    if (selectedRunArgs == null) return null;
     const { data, error } = await costingRpc(
       "rpc_get_product_materials_stores_explain",
       {
         p_period_start: tuple.period_start,
         p_product_id: tuple.product_id,
+        ...selectedRunArgs,
       },
     );
     if (error) throw error;
@@ -3932,8 +3973,35 @@ export function createCostSheetController(deps) {
     </section>`;
   }
 
-  function renderMsExplainEmptyStatus(summaryStatus) {
-    const status = String(summaryStatus || "UNKNOWN").trim().toUpperCase();
+  function renderMsExplainEmptyStatus(payloadOrStatus) {
+    let summaryStatus = "";
+    let projection = "";
+    if (payloadOrStatus && typeof payloadOrStatus === "object") {
+      summaryStatus = String(payloadOrStatus.summary_status || "")
+        .trim()
+        .toUpperCase();
+      projection = String(payloadOrStatus.projection_source || "")
+        .trim()
+        .toUpperCase();
+    } else {
+      summaryStatus = String(payloadOrStatus || "UNKNOWN").trim().toUpperCase();
+    }
+    if (isMsExplainPersistedExactRunUnavailable(payloadOrStatus)) {
+      return renderMsExplainStateMessage(
+        MS_EXACT_RUN_UNAVAILABLE_MESSAGE,
+        "cp-ms-explain-empty",
+      );
+    }
+    if (
+      summaryStatus === "NO_TRACE_DATA" &&
+      projection === "PERSISTED_EXACT_RUN_UNAVAILABLE"
+    ) {
+      return renderMsExplainStateMessage(
+        MS_EXACT_RUN_UNAVAILABLE_MESSAGE,
+        "cp-ms-explain-empty",
+      );
+    }
+    const status = summaryStatus;
     if (status === "NO_CURRENT_SUCCESSFUL_RUN") {
       return renderMsExplainStateMessage(
         "No current successful costing run is available for Materials / Stores allocation explanation on the selected period, product and SKU.",
@@ -4004,7 +4072,7 @@ export function createCostSheetController(deps) {
     const summaryStatus = String(payload.summary_status || "")
       .trim()
       .toUpperCase();
-    const emptyOnly = renderMsExplainEmptyStatus(summaryStatus);
+    const emptyOnly = renderMsExplainEmptyStatus(payload);
     if (emptyOnly) return emptyOnly;
 
     const productRm = extractMsProductRm(payload) || {};
@@ -4045,7 +4113,7 @@ export function createCostSheetController(deps) {
     const summaryStatus = String(payload.summary_status || "")
       .trim()
       .toUpperCase();
-    const emptyOnly = renderMsExplainEmptyStatus(summaryStatus);
+    const emptyOnly = renderMsExplainEmptyStatus(payload);
     if (emptyOnly) return emptyOnly;
 
     const sku = extractMsSkuBlock(payload) || {};
@@ -4269,21 +4337,36 @@ export function createCostSheetController(deps) {
       return;
     }
 
+    if (
+      tuple.request_mode === "exact" &&
+      !hasCompleteMsExplainExactIdentity(tuple)
+    ) {
+      replaceMsExplainHost(
+        renderMsExplainStateMessage(
+          "Materials / Stores allocation explanation is unavailable because the exact costing context is incomplete.",
+        ),
+      );
+      return;
+    }
+
     if (!isMsExplainResponseCurrent(row, requestIdentity)) return;
 
     const cacheKey = msExplainCacheKey(tuple);
     const cached = msExplainCache.get(cacheKey);
-    const currentRunId = currentMsRunIdFromRow(row);
-    if (cached && isMsExplainCacheEntryReusable(cached, currentRunId)) {
+    if (cached && isMsExplainCacheEntryReusable(cached, tuple)) {
       if (!isMsExplainResponseCurrent(row, requestIdentity)) return;
-      replaceMsExplainHost(
-        renderMsExplainSection(cached.payload, {
-          usedSkuRpc: tuple.sku_id != null,
-        }),
-      );
-      return;
+      if (!isMsExplainExactResponseAgreement(cached.payload, tuple)) {
+        msExplainCache.delete(cacheKey);
+      } else {
+        replaceMsExplainHost(
+          renderMsExplainSection(cached.payload, {
+            usedSkuRpc: tuple.sku_id != null,
+          }),
+        );
+        return;
+      }
     }
-    if (cached && !isMsExplainCacheEntryReusable(cached, currentRunId)) {
+    if (cached && !isMsExplainCacheEntryReusable(cached, tuple)) {
       msExplainCache.delete(cacheKey);
     }
 
@@ -4301,6 +4384,14 @@ export function createCostSheetController(deps) {
         replaceMsExplainHost(
           renderMsExplainStateMessage(
             "Materials / Stores allocation explanation is unavailable for this selection.",
+          ),
+        );
+        return;
+      }
+      if (!isMsExplainExactResponseAgreement(payload, tuple)) {
+        replaceMsExplainHost(
+          renderMsExplainStateMessage(
+            "Materials / Stores allocation explanation could not be validated for this exact costing run.",
           ),
         );
         return;
@@ -4350,19 +4441,20 @@ export function createCostSheetController(deps) {
       return false;
     }
     const valuationDate =
-      normalizePrintableDateOnly(
-        row.valuation_date ??
-          row.valuationDate ??
-          currentPrintableExactRunContext?.valuationDate,
-      ) || undefined;
-    const refreshRunRaw =
-      row.refresh_run_id ??
-      row.refreshRunId ??
-      currentPrintableExactRunContext?.refreshRunId;
+      normalizePrintableDateOnly(row.valuation_date ?? row.valuationDate) ||
+      undefined;
+    const refreshRunRaw = row.refresh_run_id ?? row.refreshRunId;
     const refreshRunNum = Number(refreshRunRaw);
     const refreshRunId = Number.isFinite(refreshRunNum)
       ? refreshRunNum
       : undefined;
+    if (!valuationDate || refreshRunId == null) {
+      showToast?.(
+        "SKU Materials / Stores Explain needs the complete costing run from this queue row.",
+        "warning",
+      );
+      return false;
+    }
     await openCostSheetExplainDrawer({
       periodStart,
       valuationDate,
@@ -4408,6 +4500,7 @@ export function createCostSheetController(deps) {
       product_name: row.product_name,
       refresh_run_id: row.refresh_run_id,
       valuation_date: row.valuation_date,
+      request_mode: "current",
     };
     setCostSheetExplainHeader(synthetic, {
       lineLabel: MATERIALS_STORES_OVERHEAD_LINE_LABEL,
@@ -4674,7 +4767,10 @@ export function createCostSheetController(deps) {
     }
 
     setCostSheetExplainHeader(row, params);
-    if (isQualityControlOverheadExplainLine(row)) {
+    if (
+      isQualityControlOverheadExplainLine(row) ||
+      isMaterialsStoresOverheadExplainLine(row)
+    ) {
       row.request_mode = "exact";
     }
     currentExplainTraceabilityRow = row;

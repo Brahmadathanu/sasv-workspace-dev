@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v325"; // QC Explain exact-run client identity + cache
+const CACHE_NAME = "hub-cache-v326"; // Materials / Stores Explain exact-run client identity + cache
 
 const PRECACHE = [
   // Hub shell
