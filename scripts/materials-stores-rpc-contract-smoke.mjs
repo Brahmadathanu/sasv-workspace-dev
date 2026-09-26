@@ -293,6 +293,73 @@ assert(
     !queueSrc.includes("MS_OVERHEAD_CALCULATION"),
   "queue controller does not own Explain lineage scrub",
 );
+assert(
+  /openProductMaterialsStoresExplainFromQueue[\s\S]*?request_mode:\s*"current"/.test(
+    costSheetSrc,
+  ),
+  "queue Product-only is request_mode current",
+);
+assert(
+  costSheetSrc.includes("isMaterialsStoresOverheadExplainLine(row)") &&
+    costSheetSrc.includes('row.request_mode = "exact"'),
+  "queue SKU/full Cost Sheet Materials / Stores path pins request_mode exact",
+);
+const skuQueueFn =
+  /function openSkuMaterialsStoresExplainFromQueue[\s\S]*?function openProductMaterialsStoresExplainFromQueue/.exec(
+    costSheetSrc,
+  )?.[0] || "";
+assert(
+  skuQueueFn.length > 0 &&
+    !skuQueueFn.includes("currentPrintableExactRunContext"),
+  "queue SKU cannot borrow currentPrintableExactRunContext",
+);
+assert(
+  /openSkuMaterialsStoresExplainFromQueue[\s\S]*?complete costing run from this queue row[\s\S]*?return false/.test(
+    costSheetSrc,
+  ),
+  "incomplete queue SKU tuple fails closed",
+);
+assert(
+  costSheetSrc.includes("getMonthlyAllocationDriverTuple") &&
+    /getMonthlyAllocationDriverTuple[\s\S]*?valuation_date[\s\S]*?refresh_run_id[\s\S]*?sku_id/.test(
+      costSheetSrc,
+    ) &&
+    costSheetSrc.includes("p_valuation_date: tuple.valuation_date") &&
+    costSheetSrc.includes("p_refresh_run_id: tuple.refresh_run_id"),
+  "Monthly Allocation Driver remains aligned to exact drawer tuple",
+);
+assert(
+  /loadSkuMaterialsStoresExplain[\s\S]*?buildMsExplainSelectedRunRpcArgs/.test(
+    costSheetSrc,
+  ) &&
+    /loadProductMaterialsStoresExplain[\s\S]*?buildMsExplainSelectedRunRpcArgs/.test(
+      costSheetSrc,
+    ) &&
+    !costSheetSrc.includes("retry period-only"),
+  "exact failure does not retry period-only",
+);
+assert(
+  /rpc_get_product_materials_stores_explain:\s*\{[\s\S]*?p_refresh_run_id\?:\s*number[\s\S]*?p_valuation_date\?:\s*string/.test(
+    typesSrc,
+  ) &&
+    /rpc_get_sku_materials_stores_explain:\s*\{[\s\S]*?p_refresh_run_id\?:\s*number[\s\S]*?p_sku_id:\s*number[\s\S]*?p_valuation_date\?:\s*string/.test(
+      typesSrc,
+    ),
+  "generated types have both optional exact args",
+);
+assert(
+  !costSheetSrc.includes("20260919103110") &&
+    !helpersSrc.includes(
+      "materials_stores_explain_optional_exact_run_read_contract",
+    ),
+  "no SQL/migration parity strings",
+);
+assert(
+  /CACHE_NAME = "hub-cache-v326"/.test(
+    readFileSync(join(root, "public/sw.js"), "utf8"),
+  ),
+  "SW current generation is v326",
+);
 
 if (failed) {
   console.error(`FAILED materials-stores-rpc-contract-smoke (${failed})`);

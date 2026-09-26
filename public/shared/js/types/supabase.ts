@@ -42998,7 +42998,12 @@ export type Database = {
         }[]
       }
       rpc_get_product_materials_stores_explain: {
-        Args: { p_period_start: string; p_product_id: number }
+        Args: {
+          p_period_start: string
+          p_product_id: number
+          p_refresh_run_id?: number
+          p_valuation_date?: string
+        }
         Returns: Json
       }
       rpc_get_product_qc_explain: {
@@ -43250,7 +43255,13 @@ export type Database = {
         }[]
       }
       rpc_get_sku_materials_stores_explain: {
-        Args: { p_period_start: string; p_product_id: number; p_sku_id: number }
+        Args: {
+          p_period_start: string
+          p_product_id: number
+          p_refresh_run_id?: number
+          p_sku_id: number
+          p_valuation_date?: string
+        }
         Returns: Json
       }
       rpc_get_sku_qc_explain: {

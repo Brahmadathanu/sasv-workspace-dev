@@ -474,45 +474,277 @@ export function mergeMsActionCodeOptions(knownCodes = [], serverCodes = []) {
   return out;
 }
 
-export function msExplainRequestIdentity({
-  period_start,
-  product_id,
-  sku_id = null,
-} = {}) {
-  const period = String(period_start || "").trim();
-  const productId = Number(product_id);
-  if (!period || !Number.isFinite(productId)) return null;
-  if (sku_id == null || sku_id === "") {
-    return `${period}|${productId}|product`;
-  }
-  const skuId = Number(sku_id);
-  if (!Number.isFinite(skuId)) return null;
-  return `${period}|${productId}|${skuId}`;
+function normalizeMsExplainPeriod(period_start) {
+  return String(period_start || "").trim();
 }
 
-export function isMsExplainCacheEntryReusable(cacheEntry, currentRunId) {
+function normalizeMsExplainValuationDate(valuation_date) {
+  return String(valuation_date || "").trim();
+}
+
+function normalizeMsExplainRefreshRunId(refresh_run_id) {
+  if (isBlankMsValue(refresh_run_id)) return null;
+  const n = Number(refresh_run_id);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeMsExplainProductId(product_id) {
+  const n = Number(product_id);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeMsExplainSkuId(sku_id) {
+  if (sku_id == null || sku_id === "") return null;
+  const n = Number(sku_id);
+  return Number.isFinite(n) ? n : null;
+}
+
+function msExplainSkuOrProductToken(sku_id) {
+  if (sku_id == null || sku_id === "") return "product";
+  const n = Number(sku_id);
+  if (!Number.isFinite(n)) return null;
+  return String(n);
+}
+
+/**
+ * Complete exact Materials / Stores identity.
+ * SKU requests also require a finite sku_id.
+ */
+export function hasCompleteMsExplainExactIdentity(tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return false;
+  if (String(tuple.request_mode || "").trim() !== "exact") return false;
+  const period = normalizeMsExplainPeriod(tuple.period_start);
+  const productId = normalizeMsExplainProductId(tuple.product_id);
+  const valuationDate = normalizeMsExplainValuationDate(tuple.valuation_date);
+  const refreshRunId = normalizeMsExplainRefreshRunId(tuple.refresh_run_id);
+  if (!period || productId == null || !valuationDate || refreshRunId == null) {
+    return false;
+  }
+  if (tuple.sku_id != null && tuple.sku_id !== "") {
+    return normalizeMsExplainSkuId(tuple.sku_id) != null;
+  }
+  return true;
+}
+
+/**
+ * Selected-run RPC args.
+ * current → {}; exact complete → both args; exact incomplete → null.
+ */
+export function buildMsExplainSelectedRunRpcArgs(tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return {};
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode !== "exact") return {};
+  if (!hasCompleteMsExplainExactIdentity(tuple)) return null;
+  return {
+    p_valuation_date: normalizeMsExplainValuationDate(tuple.valuation_date),
+    p_refresh_run_id: normalizeMsExplainRefreshRunId(tuple.refresh_run_id),
+  };
+}
+
+/**
+ * Cache / stale-paint identity.
+ * Exact: period|valuation|run|product|sku-or-product
+ * Current: period|current|product|sku-or-product
+ * Incomplete exact → null.
+ */
+export function msExplainRequestIdentity(tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return null;
+  const period = normalizeMsExplainPeriod(tuple.period_start);
+  const productId = normalizeMsExplainProductId(tuple.product_id);
+  if (!period || productId == null) return null;
+  const skuToken = msExplainSkuOrProductToken(tuple.sku_id);
+  if (skuToken == null) return null;
+
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode === "exact") {
+    if (!hasCompleteMsExplainExactIdentity(tuple)) return null;
+    const valuationDate = normalizeMsExplainValuationDate(tuple.valuation_date);
+    const refreshRunId = normalizeMsExplainRefreshRunId(tuple.refresh_run_id);
+    return `${period}|${valuationDate}|${refreshRunId}|${productId}|${skuToken}`;
+  }
+  if (mode === "current") {
+    return `${period}|current|${productId}|${skuToken}`;
+  }
+  return null;
+}
+
+/**
+ * Fail-closed cache reuse.
+ * Exact: cached period, valuation_date, and refresh_run_id must match.
+ * Current: known source run must match cached run; blank never reusable.
+ */
+export function isMsExplainCacheEntryReusable(cacheEntry, tuple = {}) {
   if (!cacheEntry || typeof cacheEntry !== "object") return false;
   if (cacheEntry.payload == null) return false;
-  if (isBlankMsValue(currentRunId)) return true;
-  if (isBlankMsValue(cacheEntry.refresh_run_id)) return true;
-  return Number(cacheEntry.refresh_run_id) === Number(currentRunId);
+  if (!tuple || typeof tuple !== "object") return false;
+
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode === "exact") {
+    if (!hasCompleteMsExplainExactIdentity(tuple)) return false;
+    const cachedPeriod = normalizeMsExplainPeriod(cacheEntry.period_start);
+    const cachedVal = normalizeMsExplainValuationDate(cacheEntry.valuation_date);
+    const cachedRun = normalizeMsExplainRefreshRunId(cacheEntry.refresh_run_id);
+    if (!cachedPeriod || !cachedVal || cachedRun == null) return false;
+    return (
+      cachedPeriod === normalizeMsExplainPeriod(tuple.period_start) &&
+      cachedVal === normalizeMsExplainValuationDate(tuple.valuation_date) &&
+      cachedRun === normalizeMsExplainRefreshRunId(tuple.refresh_run_id)
+    );
+  }
+
+  if (mode === "current") {
+    const knownRun = normalizeMsExplainRefreshRunId(tuple.refresh_run_id);
+    if (knownRun == null) return false;
+    const cachedRun = normalizeMsExplainRefreshRunId(cacheEntry.refresh_run_id);
+    if (cachedRun == null) return false;
+    return cachedRun === knownRun;
+  }
+
+  return false;
+}
+
+function nestedMsSkuOnly(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  return coerceNestedMsObject(payload.sku);
+}
+
+function agreedMsSkuListLineage(payload) {
+  const skus = extractMsProductSkus(payload);
+  if (!skus.length) return null;
+  const period = normalizeMsExplainPeriod(skus[0].period_start);
+  const valuationDate = normalizeMsExplainValuationDate(skus[0].valuation_date);
+  const refreshRunId = normalizeMsExplainRefreshRunId(skus[0].refresh_run_id);
+  if (!period || !valuationDate || refreshRunId == null) return null;
+  for (const sku of skus) {
+    if (
+      normalizeMsExplainPeriod(sku.period_start) !== period ||
+      normalizeMsExplainValuationDate(sku.valuation_date) !== valuationDate ||
+      normalizeMsExplainRefreshRunId(sku.refresh_run_id) !== refreshRunId
+    ) {
+      return null;
+    }
+  }
+  const projection = pickFirstDefinedMs(
+    ...skus.map((sku) => sku.projection_source),
+  );
+  const allSameProjection = skus.every(
+    (sku) =>
+      normalizeMsCode(sku.projection_source).toUpperCase() ===
+      normalizeMsCode(projection).toUpperCase(),
+  );
+  return {
+    period_start: period,
+    valuation_date: valuationDate,
+    refresh_run_id: refreshRunId,
+    projection_source: allSameProjection ? projection : null,
+  };
 }
 
 export function buildMsExplainCacheEntry(payload) {
   if (!payload || typeof payload !== "object") return null;
-  const sku = extractMsSkuBlock(payload);
+  const nestedSku = nestedMsSkuOnly(payload);
+  const productRm = extractMsProductRm(payload);
+  const agreedSkus = agreedMsSkuListLineage(payload);
   return {
     payload,
+    period_start: pickFirstDefinedMs(
+      payload.period_start,
+      nestedSku?.period_start,
+      productRm?.period_start,
+      agreedSkus?.period_start,
+    ),
+    valuation_date: pickFirstDefinedMs(
+      payload.valuation_date,
+      nestedSku?.valuation_date,
+      productRm?.valuation_date,
+      agreedSkus?.valuation_date,
+    ),
     refresh_run_id: pickFirstDefinedMs(
       payload.refresh_run_id,
-      sku?.refresh_run_id,
+      nestedSku?.refresh_run_id,
+      productRm?.refresh_run_id,
+      agreedSkus?.refresh_run_id,
     ),
     projection_source: pickFirstDefinedMs(
       payload.projection_source,
-      sku?.projection_source,
+      nestedSku?.projection_source,
+      productRm?.projection_source,
+      agreedSkus?.projection_source,
     ),
     cached_at: Date.now(),
   };
+}
+
+function msExplainLineageMatches(candidate, tuple) {
+  if (!candidate || typeof candidate !== "object" || !tuple) return false;
+  const period = normalizeMsExplainPeriod(candidate.period_start);
+  const valuationDate = normalizeMsExplainValuationDate(candidate.valuation_date);
+  const refreshRunId = normalizeMsExplainRefreshRunId(candidate.refresh_run_id);
+  if (!period || !valuationDate || refreshRunId == null) return false;
+  return (
+    period === normalizeMsExplainPeriod(tuple.period_start) &&
+    valuationDate === normalizeMsExplainValuationDate(tuple.valuation_date) &&
+    refreshRunId === normalizeMsExplainRefreshRunId(tuple.refresh_run_id)
+  );
+}
+
+/**
+ * Exact-mode response lineage agreement.
+ * Current mode does not impose historical matching.
+ * Exact unavailable is valid when top-level lineage matches.
+ */
+export function isMsExplainExactResponseAgreement(payload, tuple = {}) {
+  if (!tuple || typeof tuple !== "object") return false;
+  const mode = String(tuple.request_mode || "").trim();
+  if (mode !== "exact") return true;
+  if (!hasCompleteMsExplainExactIdentity(tuple)) return false;
+  if (!payload || typeof payload !== "object") return false;
+
+  const summaryStatus = normalizeMsCode(
+    pickFirstDefinedMs(payload.summary_status),
+  ).toUpperCase();
+  const projection = normalizeMsCode(
+    pickFirstDefinedMs(payload.projection_source),
+  ).toUpperCase();
+  if (
+    summaryStatus === "NO_TRACE_DATA" &&
+    projection === "PERSISTED_EXACT_RUN_UNAVAILABLE"
+  ) {
+    return msExplainLineageMatches(payload, tuple);
+  }
+
+  if (!msExplainLineageMatches(payload, tuple)) return false;
+
+  const isSkuRequest = normalizeMsExplainSkuId(tuple.sku_id) != null;
+  if (isSkuRequest) {
+    const sku = nestedMsSkuOnly(payload);
+    return msExplainLineageMatches(sku, tuple);
+  }
+
+  const productRm = extractMsProductRm(payload);
+  if (!msExplainLineageMatches(productRm, tuple)) return false;
+  const skus = extractMsProductSkus(payload);
+  if (!Array.isArray(payload.skus) && typeof payload.skus !== "string") {
+    return false;
+  }
+  return skus.every((sku) => msExplainLineageMatches(sku, tuple));
+}
+
+export const MS_EXACT_RUN_UNAVAILABLE_MESSAGE =
+  "No persisted Materials / Stores allocation evidence is available for this requested exact costing run.";
+
+export function isMsExplainPersistedExactRunUnavailable(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const summaryStatus = normalizeMsCode(
+    pickFirstDefinedMs(payload.summary_status),
+  ).toUpperCase();
+  const projection = normalizeMsCode(
+    pickFirstDefinedMs(payload.projection_source),
+  ).toUpperCase();
+  return (
+    summaryStatus === "NO_TRACE_DATA" &&
+    projection === "PERSISTED_EXACT_RUN_UNAVAILABLE"
+  );
 }
 
 export function isMaterialsStoresActionQueueLens(lensId) {

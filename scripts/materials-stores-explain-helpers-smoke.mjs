@@ -15,7 +15,9 @@ import {
   MS_OVERHEAD_SOURCE_LINEAGE,
   MS_OVERHEAD_SOURCE_NOTE,
   MATERIALS_STORES_OVERHEAD_LINE_LABEL,
+  MS_EXACT_RUN_UNAVAILABLE_MESSAGE,
   buildMsExplainCacheEntry,
+  buildMsExplainSelectedRunRpcArgs,
   clampMsQueuePagination,
   coerceNestedMsObject,
   containsObsoleteMsSalesShareWording,
@@ -31,7 +33,10 @@ import {
   formatMsRouteLabel,
   formatMsStatusLabel,
   formatMsWorkloadSharePercent,
+  hasCompleteMsExplainExactIdentity,
   isMsExplainCacheEntryReusable,
+  isMsExplainExactResponseAgreement,
+  isMsExplainPersistedExactRunUnavailable,
   mergeMsActionCodeOptions,
   msActionRowIdentity,
   msExplainRequestIdentity,
@@ -246,25 +251,371 @@ const codes = mergeMsActionCodeOptions(MS_KNOWN_ACTION_CODES, [
 assert(codes.includes("FUTURE_MS_CODE"), "unknown codes append");
 assert(codes[0] === MS_KNOWN_ACTION_CODES[0], "seed codes first");
 
+const exactSkuTuple = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: 12,
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  request_mode: "exact",
+};
+const exactSkuRun108 = {
+  ...exactSkuTuple,
+  valuation_date: "2026-09-10",
+  refresh_run_id: 108,
+};
+const exactProductTuple = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: null,
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  request_mode: "exact",
+};
+const currentProductTuple = {
+  period_start: "2026-09-01",
+  product_id: 74,
+  sku_id: null,
+  valuation_date: "2026-09-10",
+  refresh_run_id: 108,
+  request_mode: "current",
+};
+const currentNoFreshness = {
+  ...currentProductTuple,
+  valuation_date: null,
+  refresh_run_id: null,
+};
+const exactIncomplete = {
+  ...exactSkuTuple,
+  refresh_run_id: null,
+};
+
+assert(hasCompleteMsExplainExactIdentity(exactSkuTuple), "exact SKU complete");
 assert(
-  msExplainRequestIdentity({
-    period_start: "2026-07-01",
-    product_id: 1,
-    sku_id: 2,
-  }) === "2026-07-01|1|2",
-  "SKU explain identity",
+  hasCompleteMsExplainExactIdentity(exactProductTuple),
+  "exact Product complete",
 );
 assert(
-  msExplainRequestIdentity({
-    period_start: "2026-07-01",
-    product_id: 1,
-  }) === "2026-07-01|1|product",
-  "Product explain identity",
+  !hasCompleteMsExplainExactIdentity(exactIncomplete),
+  "incomplete exact refused",
+);
+assert(
+  buildMsExplainSelectedRunRpcArgs(exactIncomplete) === null,
+  "incomplete exact refuses fetch",
+);
+
+const exactSkuArgs = buildMsExplainSelectedRunRpcArgs(exactSkuTuple);
+assert(
+  exactSkuArgs?.p_valuation_date === "2026-09-01" &&
+    exactSkuArgs?.p_refresh_run_id === 85 &&
+    Object.keys(exactSkuArgs).length === 2,
+  "exact SKU sends both exact args",
+);
+const exactProductArgs = buildMsExplainSelectedRunRpcArgs(exactProductTuple);
+assert(
+  exactProductArgs?.p_valuation_date === "2026-09-01" &&
+    exactProductArgs?.p_refresh_run_id === 85 &&
+    Object.keys(exactProductArgs).length === 2,
+  "exact Product sends both exact args",
+);
+const currentArgs = buildMsExplainSelectedRunRpcArgs(currentProductTuple);
+assert(
+  currentArgs &&
+    Object.keys(currentArgs).length === 0 &&
+    !("p_valuation_date" in currentArgs) &&
+    !("p_refresh_run_id" in currentArgs),
+  "current Product sends neither exact arg",
+);
+assert(
+  !("p_valuation_date" in (exactSkuArgs || {})) ||
+    ("p_refresh_run_id" in exactSkuArgs && "p_valuation_date" in exactSkuArgs),
+  "helper never emits only one exact arg",
+);
+
+assert(
+  msExplainRequestIdentity(exactSkuTuple) ===
+    "2026-09-01|2026-09-01|85|74|12",
+  "exact SKU identity",
+);
+assert(
+  msExplainRequestIdentity(exactSkuRun108) ===
+    "2026-09-01|2026-09-10|108|74|12",
+  "exact Run108 identity",
+);
+assert(
+  msExplainRequestIdentity(exactSkuTuple) !==
+    msExplainRequestIdentity(exactSkuRun108),
+  "Run85 identity differs from Run108",
+);
+assert(
+  msExplainRequestIdentity(exactProductTuple) ===
+    "2026-09-01|2026-09-01|85|74|product",
+  "exact Product identity",
+);
+assert(
+  msExplainRequestIdentity(exactProductTuple) !==
+    msExplainRequestIdentity(exactSkuTuple),
+  "Product identity differs from SKU",
+);
+assert(
+  msExplainRequestIdentity(currentProductTuple) ===
+    "2026-09-01|current|74|product",
+  "current identity uses current sentinel",
+);
+assert(
+  msExplainRequestIdentity(currentProductTuple) !==
+    msExplainRequestIdentity(exactProductTuple),
+  "exact identity differs from current",
+);
+assert(
+  msExplainRequestIdentity(exactIncomplete) === null,
+  "incomplete exact identity is null",
+);
+assert(
+  `${msExplainRequestIdentity(exactSkuTuple)}|materials / stores overhead` !==
+    `${msExplainRequestIdentity(exactSkuRun108)}|materials / stores overhead`,
+  "stale Run85 cannot paint Run108",
+);
+assert(
+  `${msExplainRequestIdentity(currentProductTuple)}|materials / stores overhead` !==
+    `${msExplainRequestIdentity(exactProductTuple)}|materials / stores overhead`,
+  "current cannot paint exact",
+);
+
+const exactCache = buildMsExplainCacheEntry({
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  projection_source: "PERSISTED_EXACT_RUN",
+});
+assert(
+  isMsExplainCacheEntryReusable(exactCache, exactSkuTuple),
+  "exact cache reusable when lineage matches",
+);
+assert(
+  !isMsExplainCacheEntryReusable(
+    { payload: {}, valuation_date: "2026-09-01", refresh_run_id: 85 },
+    exactSkuTuple,
+  ),
+  "exact cache missing period rejected",
+);
+assert(
+  !isMsExplainCacheEntryReusable(
+    {
+      payload: {},
+      period_start: "2026-09-01",
+      refresh_run_id: 85,
+    },
+    exactSkuTuple,
+  ),
+  "exact cache missing date rejected",
+);
+assert(
+  !isMsExplainCacheEntryReusable(
+    {
+      payload: {},
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-01",
+    },
+    exactSkuTuple,
+  ),
+  "exact cache missing run rejected",
+);
+assert(
+  !isMsExplainCacheEntryReusable(
+    {
+      payload: {},
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-01",
+      refresh_run_id: 108,
+    },
+    exactSkuTuple,
+  ),
+  "exact cache mismatched run rejected",
+);
+
+const currentEntry = buildMsExplainCacheEntry({
+  refresh_run_id: 108,
+  projection_source: "PERSISTED_EXACT_RUN",
+});
+assert(
+  isMsExplainCacheEntryReusable(currentEntry, currentProductTuple),
+  "current cache reusable when known run matches",
+);
+assert(
+  !isMsExplainCacheEntryReusable(currentEntry, {
+    ...currentProductTuple,
+    refresh_run_id: 85,
+  }),
+  "current cache mismatch rejected",
+);
+assert(
+  !isMsExplainCacheEntryReusable(
+    { payload: {}, refresh_run_id: null },
+    currentProductTuple,
+  ),
+  "current blank cache run rejected",
+);
+assert(
+  !isMsExplainCacheEntryReusable(currentEntry, currentNoFreshness),
+  "current with no reliable source run does not reuse",
+);
+assert(
+  Object.keys(buildMsExplainSelectedRunRpcArgs(currentProductTuple)).length ===
+    0,
+  "cache metadata never becomes query identity",
+);
+
+const skuEnvelope = buildMsExplainCacheEntry({
+  summary_status: "READY",
+  sku: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+    projection_source: "PERSISTED_EXACT_RUN",
+  },
+});
+assert(
+  skuEnvelope?.period_start === "2026-09-01" &&
+    skuEnvelope?.valuation_date === "2026-09-01" &&
+    skuEnvelope?.refresh_run_id === 85,
+  "nested SKU supplies cache lineage when top-level absent",
+);
+
+const mixedSkus = buildMsExplainCacheEntry({
+  skus: [
+    {
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-01",
+      refresh_run_id: 85,
+    },
+    {
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-10",
+      refresh_run_id: 108,
+    },
+  ],
+});
+assert(
+  mixedSkus?.refresh_run_id == null && mixedSkus?.valuation_date == null,
+  "disagreeing SKU list does not manufacture cache lineage",
+);
+
+const skuSuccess = {
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  projection_source: "PERSISTED_EXACT_RUN",
+  summary_status: "READY",
+  sku: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+    sku_id: 12,
+  },
+};
+assert(
+  isMsExplainExactResponseAgreement(skuSuccess, exactSkuTuple),
+  "exact SKU top-level and nested lineage required and matching",
+);
+assert(
+  !isMsExplainExactResponseAgreement(
+    {
+      ...skuSuccess,
+      sku: { valuation_date: "2026-09-01", refresh_run_id: 85 },
+    },
+    exactSkuTuple,
+  ),
+  "nested SKU lineage required",
+);
+assert(
+  !isMsExplainExactResponseAgreement(
+    { sku: skuSuccess.sku, projection_source: "PERSISTED_EXACT_RUN" },
+    exactSkuTuple,
+  ),
+  "exact SKU top-level lineage required",
+);
+
+const productSuccess = {
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  projection_source: "PERSISTED_EXACT_RUN",
+  summary_status: "READY",
+  product_rm: {
+    period_start: "2026-09-01",
+    valuation_date: "2026-09-01",
+    refresh_run_id: 85,
+  },
+  skus: [
+    {
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-01",
+      refresh_run_id: 85,
+      sku_id: 12,
+    },
+  ],
+};
+assert(
+  isMsExplainExactResponseAgreement(productSuccess, exactProductTuple),
+  "exact Product top-level, product_rm, and SKU rows match",
+);
+assert(
+  !isMsExplainExactResponseAgreement(
+    { ...productSuccess, product_rm: { period_start: "2026-09-01" } },
+    exactProductTuple,
+  ),
+  "product_rm lineage required",
+);
+assert(
+  !isMsExplainExactResponseAgreement(
+    {
+      ...productSuccess,
+      skus: [
+        productSuccess.skus[0],
+        {
+          period_start: "2026-09-01",
+          valuation_date: "2026-09-10",
+          refresh_run_id: 108,
+        },
+      ],
+    },
+    exactProductTuple,
+  ),
+  "mixed-run SKU list rejected",
+);
+
+const unavailable = {
+  period_start: "2026-09-01",
+  valuation_date: "2026-09-01",
+  refresh_run_id: 85,
+  summary_status: "NO_TRACE_DATA",
+  projection_source: "PERSISTED_EXACT_RUN_UNAVAILABLE",
+};
+assert(
+  isMsExplainPersistedExactRunUnavailable(unavailable),
+  "unavailable detector",
+);
+assert(
+  isMsExplainExactResponseAgreement(unavailable, exactSkuTuple),
+  "PERSISTED_EXACT_RUN_UNAVAILABLE with matching lineage accepted",
+);
+assert(
+  MS_EXACT_RUN_UNAVAILABLE_MESSAGE.includes(
+    "No persisted Materials / Stores allocation evidence",
+  ) && costSheetSrc.includes("MS_EXACT_RUN_UNAVAILABLE_MESSAGE"),
+  "unavailable state renders truthful copy",
+);
+assert(
+  isMsExplainExactResponseAgreement(
+    { summary_status: "NO_TRACE_DATA" },
+    currentProductTuple,
+  ),
+  "ordinary current NO_TRACE_DATA is not rejected as exact mismatch",
 );
 
 const entry = buildMsExplainCacheEntry(skuPayload);
 assert(entry?.payload, "cache entry built");
-assert(isMsExplainCacheEntryReusable(entry, null) === true, "cache reusable");
 
 assert(
   msActionRowIdentity({
