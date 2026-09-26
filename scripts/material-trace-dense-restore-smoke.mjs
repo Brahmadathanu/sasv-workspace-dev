@@ -386,8 +386,8 @@ assert(
 );
 assert(/Stage-05|stage05|STAGE05/.test(stage05Smoke), "Stage-05 smoke retained");
 assert(
-  /CACHE_NAME = "hub-cache-v326"/.test(swSrc),
-  "SW cache name remains hub-cache-v326",
+  /CACHE_NAME = "hub-cache-v327"/.test(swSrc),
+  "SW cache name remains hub-cache-v327",
 );
 
 if (failed) {

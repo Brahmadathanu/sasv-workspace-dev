@@ -587,9 +587,9 @@ export function createControlCenterController(deps) {
     const { data, error } = await costingFrom("v_costing_pricing_dashboard_summary")
       .select("*")
       .eq("period_start", periodStart)
-      .limit(1);
+      .maybeSingle();
     if (error) throw error;
-    DASHBOARD_SUMMARY = data?.[0] || null;
+    DASHBOARD_SUMMARY = data || null;
   }
 
   async function loadBusinessKpiSummary(periodStart) {
@@ -598,9 +598,9 @@ export function createControlCenterController(deps) {
     )
       .select("*")
       .eq("period_start", periodStart)
-      .limit(1);
+      .maybeSingle();
     if (error) throw error;
-    BUSINESS_KPI_SUMMARY = data?.[0] || null;
+    BUSINESS_KPI_SUMMARY = data || null;
   }
 
   async function loadControlDashboardSummary(periodStart) {
@@ -609,9 +609,9 @@ export function createControlCenterController(deps) {
     )
       .select("*")
       .eq("period_start", periodStart)
-      .limit(1);
+      .maybeSingle();
     if (error) throw error;
-    CONTROL_DASHBOARD_SUMMARY = data?.[0] || null;
+    CONTROL_DASHBOARD_SUMMARY = data || null;
   }
 
   async function loadControlAuditSnapshot(periodStart) {
