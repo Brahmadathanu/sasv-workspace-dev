@@ -48,6 +48,21 @@ Non-blocking improvements are moved to WP-11/PARKED_BACKLOG rather than expandin
 **Status:** ACTIVE  
 The workflow must be operationally usable before WP-09. Cosmetic/value-add refinements that do not block safe/efficient operation may remain for WP-10/WP-11.
 
+## DEC-013 — Composition READY is a server contract
+**Status:** ACTIVE  
+WP-05 Composition READY v1 is the sole server-to-WP-06 input boundary. A portal row or portal stage status cannot make an unready server line authoritative. READY requires VERIFIED governed line data, valid selected portal projections, global Reference readiness, blocker-free state, current version authority and a fresh server-generated execution snapshot/hash.
+
+## DEC-014 — Verified Composition corrections are lifecycle-specific
+**Status:** ACTIVE  
+A VERIFIED Composition line stays locked against ordinary editing. Before portal entry starts, correction uses the governed Reopen path. After entry starts, ordinary Reopen is unavailable and only an explicitly authorized post-entry reconciliation path may correct the bounded governed projection. Reconciliation preserves VERIFIED status, records before/after audit evidence and increments version authority.
+
+## DEC-015 — Composition portal mutations require an explicit WP-06 gate
+**Status:** ACTIVE  
+Portal evidence gathering and a controlled bootstrap do not create standing permission to continue portal mutation. Every further Composition Save must be explicitly opened by WP-06 under fresh server governance, durable run/progress evidence, exact page/list classification, at-most-once mutation and native reread/semantic proof.
+
+## DEC-016 — No client-side execution hash authority
+**Status:** ACTIVE  
+The authoritative Composition execution hash is server-generated. Effective Reference portal value and governed Ingredient Form changes participate in `content_hash`. Client JavaScript must not calculate or substitute an execution hash.
 
 ## 2026-09-25 — WP-02 Global Terminology Governance closed
 - Accepted the consolidated source-centric Reference Dictionary and two-stage review modal.
@@ -56,4 +71,16 @@ The workflow must be operationally usable before WP-09. Cosmetic/value-add refin
 - Independently proved inherited readiness for all 1,477 Sujanapriya lines across 85 products.
 - Kept alias 2 `Sahasrayōgam - Vaidyapriya` DRAFT; its 32 lines across 10 products remain not ready, proving source aliases remain independently governed.
 - Proved Product 262 / Karpooradi Thailam lines 929–931 are Reference-ready without per-line Reference edits.
-- Composition live execution remains disarmed; content-hash coverage for the effective Reference value must be re-audited before live Composition resumes.
+- Composition live execution remained disarmed.
+
+## 2026-09-27 — Product 262 Composition governance reconciliation
+- Re-audited effective Reference content-hash participation and preserved server-only hash authority.
+- Proved native Composition list/reread/save, hidden row identity, unit/value and Reference-value semantics through the controlled Karpooradi bootstrap.
+- Added and repository-versioned the bounded Product-262 post-entry Ingredient Form reconciliation RPC.
+- Added lifecycle-aware client reconciliation UI and hardened VERIFIED Composition ordinary-field locking.
+- Reconciled and audited line 929 Ajamōdā from AS PER TEXT / 2 to LIQUID KWATH / 60.
+- Reconciled and audited line 930 Karpūra from AS PER TEXT / 2 to SOLID / 66.
+- Reconciled and audited line 931 Kēram from AS PER TEXT / 2 to OIL / 61.
+- Final line row_versions are 8/8/8; product workflow row_version is 11 and remains PORTAL_VERIFIED.
+- Live portal Composition remains intentionally partial with only the Ajamōdā bootstrap row.
+- No further Composition portal mutation is authorized until WP-06 explicitly opens the next durable execution gate.

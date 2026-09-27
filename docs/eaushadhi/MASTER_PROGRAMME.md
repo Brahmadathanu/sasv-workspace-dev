@@ -47,8 +47,8 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-02 | Global Terminology Governance | DONE | 100% | Closed: global Reference authority verified; Sujanapriya + shared portal mapping proven; Vaidyapriya remains independently DRAFT |
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
-| WP-05 | Composition Data Completion, Verification & UX | YELLOW | 35% | Stable data/gap/manual-entry contract and operator UI |
-| WP-06 | Composition Portal Execution | YELLOW | 20% | Durable executor after WP-05 contract freeze |
+| WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
+| WP-06 | Composition Portal Execution | YELLOW | 45% | Freeze durable Composition-specific run/executor lifecycle around the READY v1 input before any further portal mutation |
 | WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
@@ -56,7 +56,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-11 | Post-Closure Enhancements / Parked Backlog | PARKED | N/A | Scope sink; not part of closure percentage |
 
 ### Programme completion baseline
-**40% — milestone-based tracking baseline, not an effort/time estimate.**
+**44% — milestone-based tracking baseline, not an effort/time estimate.**
 
 Work-pack percentages and the overall percentage are tracking indicators. They must be updated only when milestone evidence changes. WP-11 is excluded from overall completion.
 
@@ -65,8 +65,13 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Final WP-02 live Reference state: alias 1 Sujanapriya VERIFIED; alias 2 Vaidyapriya DRAFT; portal mapping 28 `Sahasrayōgam → Sahasrayoga / 28` VERIFIED.
 - Inherited-readiness proof: Sujanapriya 1,477/1,477 lines across 85/85 products ready; Vaidyapriya 0/32 lines across 0/10 products ready.
 - Product 262 / Karpooradi Thailam lines 929–931 are Reference-ready through global governance with no per-line Reference authority.
-- Composition live arm remains OFF.
-- Before live Composition execution resumes, re-audit/test final Composition content-hash coverage for the effective Reference value.
+- Composition READY v1 input contract is frozen in WP-05 and is the only accepted server input boundary for WP-06.
+- Product 262 governed Ingredient Forms are reconciled and audited: line 929 Ajamōdā = LIQUID KWATH / 60, line 930 Karpūra = SOLID / 66, line 931 Kēram = OIL / 61; all remain VERIFIED at line row_version 8 and product workflow row_version 11.
+- Product 262 live portal Composition currently contains only the controlled Ajamōdā bootstrap row; Karpūra and Kēram have not been entered.
+- Native Composition list/reread/save semantics, row identity, Reference value, unit value and first-line bootstrap evidence are proven.
+- Server-side content-hash coverage has been re-audited for effective Reference value and governed Ingredient Form changes. JavaScript hashing remains prohibited.
+- Composition live arm remains OFF: `COMPOSITION_LIVE_ARM_DEFAULT=false`.
+- No further Composition portal mutation is authorized until WP-06 explicitly opens the next mutation gate under its durable run/executor contract.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:
