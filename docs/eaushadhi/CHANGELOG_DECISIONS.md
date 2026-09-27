@@ -104,3 +104,17 @@ A successful/ambiguous Save does not itself complete the line or stage. Fresh co
 - Frozen durable states SAVE_ARMED, SAVE_CONFIRMED, SAVE_AMBIGUOUS, SAVE_REJECTED and ROW_VERIFIED.
 - Frozen the one-save-at-most-once rule, no automatic retry after uncertainty, and separate final exact-set PORTAL_VERIFIED proof.
 - Kept Composition live arm OFF pending server foundation implementation and audit.
+
+
+## 2026-09-27 — WP-06 Composition server lifecycle foundation implemented
+- Deployed independent `regulatory.eaushadhi_composition_stage` and `regulatory.eaushadhi_composition_run` tables.
+- Deployed read-only Composition execution preflight plus bounded arm, Save-outcome, row-verification and final-stage verification RPCs.
+- V1 remains restricted to Product 262 and derives target projection from fresh server authority.
+- Hardened arm evidence to require exact portal identity and bind planner counts to the exact list evidence.
+- Hardened row verification to require explicit native reread success, exact row identity, current governed target semantics and planner/list count agreement.
+- Hardened final exact-set verification and preserved the previous stage status in audit evidence.
+- Active-run uniqueness permits at most one SAVE_ARMED/SAVE_CONFIRMED/SAVE_AMBIGUOUS run per product.
+- Product Details workflow remains independent and unchanged; Product 262 stays PORTAL_VERIFIED at workflow row_version 11.
+- No Product 262 Composition stage/run row was instantiated during deployment; no SAVE_ARMED authority or portal mutation occurred.
+- Repository migrations exactly version the live foundation and hardening migrations.
+- Composition live arm remains OFF; next gate is trusted executor/adapters and client orchestration.
