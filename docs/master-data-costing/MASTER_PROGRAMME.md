@@ -25,7 +25,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - Progressive disclosure keeps normal tasks prominent while specialist/audit detail remains reachable.
 
 ## Work-pack inventory
-- [~] WP-1 — Repository Programme Control Plane
+- [x] WP-1 — Repository Programme Control Plane
 - [ ] WP00 — Authoritative Current-State Inventory
 - [ ] WP01 — Canonical Product/SKU Completeness Contract
 - [ ] WP02 — Product + SKU Lifecycle Redesign
@@ -47,13 +47,13 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-WP-1 — Repository Programme Control Plane
+WP00 — Authoritative Current-State Inventory
 
 ## Active gate
-WP-1-G2 — Control-plane document creation and verification
+WP00-G0 — entry criteria / start current-state inventory
 
 ## Overall completion progress
-0 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite is in progress.
+0 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite is completed and post-merge verified.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -66,4 +66,4 @@ WP-1-G2 — Control-plane document creation and verification
 None.
 
 ## Immediate next action
-Verify the complete WP-1 document set against completion criteria, then independently audit the feature diff before merge approval.
+Start WP0 by inspecting live Supabase and current repository architecture and build the authoritative Product/SKU Costing Foundation Dependency Matrix; do not redesign yet.
