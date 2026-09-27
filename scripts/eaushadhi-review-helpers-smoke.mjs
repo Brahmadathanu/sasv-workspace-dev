@@ -66,6 +66,9 @@ import {
   nextRovingIndex,
   openErrorOrBlockerCount,
   parseOptionalNumericQuantity,
+  preEntryReopenAvailability,
+  PRE_ENTRY_REOPEN_STARTED_REASON,
+  PRE_ENTRY_REOPEN_STATUS_UNAVAILABLE_REASON,
   productDetailsVerifyPendingCopy,
   provenanceLabel,
   proposeQuantityText,
@@ -646,6 +649,35 @@ assert(
 assert(
   canReopenReviewedSection({ reviewStatus: "IN_REVIEW", canEdit: true }) === false,
   "reopen is not used for in-review rows",
+);
+
+const reopenReady = preEntryReopenAvailability({
+  reviewStatus: "VERIFIED",
+  canEdit: true,
+  entryStatus: "NOT_STARTED",
+});
+assert(reopenReady.visible === true && reopenReady.enabled === true && reopenReady.reason == null, "explicit NOT_STARTED permits pre-entry reopen");
+assert(
+  preEntryReopenAvailability({ reviewStatus: "VERIFIED", canEdit: true, entryStatus: " not_started " }).enabled === true,
+  "explicit normalized NOT_STARTED permits pre-entry reopen",
+);
+for (const entryStatus of ["PORTAL_VERIFIED", "IN_PROGRESS", "ENTERED", "SUBMITTED", "OTHER"]) {
+  const result = preEntryReopenAvailability({ reviewStatus: "VERIFIED", canEdit: true, entryStatus });
+  assert(result.visible === true && result.enabled === false, `${entryStatus} disables pre-entry reopen`);
+  assert(result.reason === PRE_ENTRY_REOPEN_STARTED_REASON, `${entryStatus} uses post-entry reason`);
+}
+for (const entryStatus of [null, undefined, "", "   "]) {
+  const result = preEntryReopenAvailability({ reviewStatus: "VERIFIED", canEdit: true, entryStatus });
+  assert(result.visible === true && result.enabled === false, "missing entry status fails closed");
+  assert(result.reason === PRE_ENTRY_REOPEN_STATUS_UNAVAILABLE_REASON, "missing entry status has accurate reason");
+}
+assert(
+  preEntryReopenAvailability({ reviewStatus: "IN_REVIEW", canEdit: true, entryStatus: "NOT_STARTED" }).visible === false,
+  "non-verified review does not expose reopen",
+);
+assert(
+  preEntryReopenAvailability({ reviewStatus: "VERIFIED", canEdit: false, entryStatus: "NOT_STARTED" }).enabled === false,
+  "view-only user cannot reopen",
 );
 
 const completeDraft = {

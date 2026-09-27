@@ -27,7 +27,6 @@ import {
   canVerifyProductWorkflow,
   canCorrectWorkingSourceLine,
   canEditReviewedSection,
-  canReopenReviewedSection,
   canSubmitSourceResolution,
   canSubmitWorkingSourceCorrection,
   canVerifyActionSet,
@@ -96,6 +95,7 @@ import {
   nextRovingIndex,
   normalizeEntryStatus,
   normalizeReviewStatus,
+  preEntryReopenAvailability,
   openErrorOrBlockerCount,
   optionId,
   parseOptionalNumericQuantity,
@@ -453,6 +453,36 @@ function syncPortalFieldsUi() {
 
 function portalFieldsEditable() {
   return canWrite() && normalizeEntryStatus(state.queueRow?.entry_status) === "NOT_STARTED";
+}
+
+function currentPreEntryReopenAvailability(kind, lineId = null) {
+  let reviewStatus = null;
+  if (kind === "line") {
+    reviewStatus = state.lines.find((row) =>
+      idsEqual(row?.source_composition_line_id, lineId),
+    )?.review_status;
+  } else if (kind === "details") {
+    reviewStatus = state.review?.review_status;
+  } else if (kind === "classification") {
+    reviewStatus = state.classification?.review_status;
+  } else if (kind === "actions") {
+    reviewStatus = state.actionsReviewStatus;
+  }
+  const entryStatus = state.queueRow?.entry_status;
+  return preEntryReopenAvailability({
+    reviewStatus,
+    canEdit: canWrite(),
+    entryStatus,
+  });
+}
+
+function preEntryReopenButton({ kind, lineId = null, id, label, dataAttribute = "" }) {
+  const availability = currentPreEntryReopenAvailability(kind, lineId);
+  if (!availability.visible) return "";
+  const disabled = availability.enabled
+    ? ""
+    : ` disabled aria-disabled="true" data-force-disabled="true" title="${escapeHtml(availability.reason)}"`;
+  return `<button type="button" class="icon-btn with-label ea-reopen-btn" id="${escapeHtml(id)}" data-edit-action="true"${dataAttribute}${disabled}>${escapeHtml(label)}</button>`;
 }
 
 const CANONICAL_DISEASES_LOCK_STATUSES = Object.freeze([
@@ -1224,12 +1254,11 @@ function renderDetails() {
           classLocked
             ? `${chip("success", "Verified")}
         ${
-          canReopenReviewedSection({
-            reviewStatus: state.classification?.review_status,
-            canEdit: canWrite(),
+          preEntryReopenButton({
+            kind: "classification",
+            id: "btnReopenClassification",
+            label: "Reopen Portal Classification",
           })
-            ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenClassification" data-edit-action="true">Reopen Portal Classification</button>`
-            : ""
         }`
             : `<button type="button" class="icon-btn with-label primary" id="btnVerifyClassification" data-edit-action="true"${
                 classVerifyOk ? "" : " data-force-disabled=\"true\""
@@ -1350,9 +1379,11 @@ function renderDetails() {
           locked
             ? `${chip("success", "Verified")}
         ${
-          canReopenReviewedSection({ reviewStatus: review.review_status, canEdit: canWrite() })
-            ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenDetails" data-edit-action="true">Reopen Product Details</button>`
-            : ""
+          preEntryReopenButton({
+            kind: "details",
+            id: "btnReopenDetails",
+            label: "Reopen Product Details",
+          })
         }`
             : `<button type="button" class="icon-btn with-label primary" id="btnVerifyDetails" data-edit-action="true"${
                 detailsVerifyOk ? "" : " data-force-disabled=\"true\""
@@ -1503,9 +1534,13 @@ function renderComposition() {
             locked
               ? `${chip("success", "Verified")} ${lockNoteHtml()}
           ${
-            canReopenReviewedSection({ reviewStatus: row.review_status, canEdit: canWrite() })
-              ? `<button type="button" class="icon-btn with-label ea-reopen-btn" data-edit-action="true" id="btn-reopen-${escapeHtml(id)}" data-line-reopen="${escapeHtml(id)}">Reopen for correction</button>`
-              : ""
+            preEntryReopenButton({
+              kind: "line",
+              lineId: id,
+              id: `btn-reopen-${id}`,
+              label: "Reopen for correction",
+              dataAttribute: ` data-line-reopen="${escapeHtml(id)}"`,
+            })
           }`
               : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
                   lineVerifyOk ? "" : " data-force-disabled=\"true\""
@@ -2376,12 +2411,11 @@ function renderActions() {
           locked
             ? `${chip("success", "Verified")}
         ${
-          canReopenReviewedSection({
-            reviewStatus: state.actionsReviewStatus,
-            canEdit: canWrite(),
+          preEntryReopenButton({
+            kind: "actions",
+            id: "btnReopenActions",
+            label: "Reopen Actions",
           })
-            ? `<button type="button" class="icon-btn with-label ea-reopen-btn" id="btnReopenActions" data-edit-action="true">Reopen Actions</button>`
-            : ""
         }`
             : `<button type="button" class="icon-btn with-label" id="btnAddAction" data-edit-action="true">Add custom action</button>
         <button type="button" class="icon-btn with-label primary" id="btnVerifyActions" data-edit-action="true"${
@@ -4579,6 +4613,11 @@ function closeReopen() {
 }
 
 function openReopen(kind, trigger, lineId = null) {
+  const availability = currentPreEntryReopenAvailability(kind, lineId);
+  if (!availability.enabled) {
+    if (availability.reason) showToast(availability.reason, "info");
+    return false;
+  }
   state.reopen = {
     open: true,
     kind,
@@ -4591,6 +4630,7 @@ function openReopen(kind, trigger, lineId = null) {
   renderReopenBody();
   $("reopenDialog")?.focus();
   requestAnimationFrame(() => $("fldReopenReason")?.focus());
+  return true;
 }
 
 async function submitReopen() {
@@ -4598,6 +4638,12 @@ async function submitReopen() {
   if (!reason) return;
   const kind = state.reopen.kind;
   const lineId = state.reopen.lineId;
+  const availability = currentPreEntryReopenAvailability(kind, lineId);
+  if (!availability.enabled) {
+    closeReopen();
+    showToast(availability.reason || "This pre-entry correction action is unavailable.", "info");
+    return;
+  }
   await runMutation(async () => {
     if (kind === "line") {
       const draft = state.lineDrafts.get(String(lineId));

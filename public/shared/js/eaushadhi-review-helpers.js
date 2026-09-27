@@ -494,6 +494,25 @@ export function canReopenReviewedSection({ reviewStatus, canEdit } = {}) {
   return canEdit === true && isVerifiedStatus(reviewStatus);
 }
 
+export const PRE_ENTRY_REOPEN_STARTED_REASON =
+  "Portal entry has already started. This pre-entry correction action is no longer available.";
+export const PRE_ENTRY_REOPEN_STATUS_UNAVAILABLE_REASON =
+  "Portal entry status is unavailable. This pre-entry correction action cannot be used.";
+
+export function preEntryReopenAvailability({ reviewStatus, canEdit, entryStatus } = {}) {
+  const visible = canEdit === true && isVerifiedStatus(reviewStatus);
+  const rawEntryStatus = safeText(entryStatus);
+  const enabled =
+    visible && Boolean(rawEntryStatus) && normalizeEntryStatus(rawEntryStatus) === "NOT_STARTED";
+  let reason = null;
+  if (visible && !enabled) {
+    reason = rawEntryStatus
+      ? PRE_ENTRY_REOPEN_STARTED_REASON
+      : PRE_ENTRY_REOPEN_STATUS_UNAVAILABLE_REASON;
+  }
+  return { visible, enabled, reason };
+}
+
 export function workingActionReviewStatus(rows) {
   const list = Array.isArray(rows) ? rows : [];
   if (!list.length) return "PENDING";
