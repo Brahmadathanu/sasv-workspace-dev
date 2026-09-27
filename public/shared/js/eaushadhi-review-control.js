@@ -28,6 +28,7 @@ import {
   canCorrectWorkingSourceLine,
   canEditReviewedSection,
   canSubmitSourceResolution,
+  canSubmitPostEntryIngredientFormReconcile,
   canSubmitWorkingSourceCorrection,
   canVerifyActionSet,
   canVerifyClassification,
@@ -50,6 +51,7 @@ import {
   DEFAULT_IN_PROGRESS_PORTAL_REASON,
   detailsDraftFromReview,
   detailsDirty,
+  eligibleIngredientFormReconcileOptions,
   isPortalDiseasesVerified,
   portalDiseasesCharsetOk,
   portalFieldsDraftFromRow,
@@ -96,6 +98,7 @@ import {
   normalizeEntryStatus,
   normalizeReviewStatus,
   preEntryReopenAvailability,
+  postEntryIngredientFormReconcileAvailability,
   openErrorOrBlockerCount,
   optionId,
   parseOptionalNumericQuantity,
@@ -162,6 +165,7 @@ import {
   registerApprovedProductCopy,
   removeApprovedProductCopyObject,
   reopenLineReview,
+  reconcilePostEntryLineIngredientForm,
   reopenProductActions,
   reopenProductClassification,
   reopenProductReview,
@@ -312,6 +316,13 @@ const state = {
     open: false,
     kind: null,
     lineId: null,
+    reason: "",
+    trigger: null,
+  },
+  postEntryReconcile: {
+    open: false,
+    lineId: null,
+    targetIngredientFormOptionId: null,
     reason: "",
     trigger: null,
   },
@@ -483,6 +494,35 @@ function preEntryReopenButton({ kind, lineId = null, id, label, dataAttribute = 
     ? ""
     : ` disabled aria-disabled="true" data-force-disabled="true" title="${escapeHtml(availability.reason)}"`;
   return `<button type="button" class="icon-btn with-label ea-reopen-btn" id="${escapeHtml(id)}" data-edit-action="true"${dataAttribute}${disabled}>${escapeHtml(label)}</button>`;
+}
+
+function currentPostEntryIngredientFormReconcile(lineId) {
+  const id = String(lineId || "");
+  const line = state.lines.find((row) => idsEqual(row?.source_composition_line_id, id));
+  const draft = state.lineDrafts.get(id) || (line ? lineDraftFromRow(line) : null);
+  const queueRow = state.queueRow;
+  const availability = postEntryIngredientFormReconcileAvailability({
+    productId: state.selectedProductId,
+    reviewStatus: line?.review_status,
+    canEdit: canWrite(),
+    entryStatus: queueRow?.entry_status,
+    lineRowVersion: draft?.rowVersion,
+    workflowRowVersion: queueRow?.workflow_row_version,
+  });
+  return {
+    line,
+    draft,
+    availability,
+    options: eligibleIngredientFormReconcileOptions(
+      state.catalogs.portalOptions.INGREDIENT_FORM,
+    ),
+  };
+}
+
+function postEntryIngredientFormReconcileButton(lineId) {
+  const authority = currentPostEntryIngredientFormReconcile(lineId);
+  if (!authority.availability.visible) return "";
+  return `<button type="button" class="icon-btn with-label" data-edit-action="true" id="btn-reconcile-${escapeHtml(lineId)}" data-line-reconcile="${escapeHtml(lineId)}">Reconcile mapping</button>`;
 }
 
 const CANONICAL_DISEASES_LOCK_STATUSES = Object.freeze([
@@ -1541,7 +1581,8 @@ function renderComposition() {
               label: "Reopen for correction",
               dataAttribute: ` data-line-reopen="${escapeHtml(id)}"`,
             })
-          }`
+          }
+          ${postEntryIngredientFormReconcileButton(id)}`
               : `<button type="button" class="icon-btn with-label primary" data-edit-action="true" data-line-verify="${escapeHtml(id)}"${
                   lineVerifyOk ? "" : " data-force-disabled=\"true\""
                 } title="${escapeHtml(lineVerifyHint || "Confirm the reviewed portal mapping as correct.")}">Verify line</button>
@@ -3778,6 +3819,9 @@ async function reloadSelected({
       const resolveBtn = focusLineId
         ? document.getElementById(`btn-resolve-${focusLineId}`)
         : null;
+      const reconcileBtn = focusLineId
+        ? document.getElementById(`btn-reconcile-${focusLineId}`)
+        : null;
       const card = focusLineId
         ? document.querySelector(`.line-card[data-line-id="${focusLineId}"]`)
         : null;
@@ -3786,7 +3830,9 @@ async function reloadSelected({
           ? correctBtn
           : focusControl === "resolve"
             ? resolveBtn
-            : resolveBtn || correctBtn;
+            : focusControl === "reconcile"
+              ? reconcileBtn
+              : resolveBtn || correctBtn;
       (preferred || card?.querySelector("select") || card)?.focus?.();
     });
   }
@@ -3832,6 +3878,13 @@ async function backToQueue() {
   state.issues = [];
   state.detailsDraft = null;
   state.lineDrafts = new Map();
+  state.postEntryReconcile = {
+    open: false,
+    lineId: null,
+    targetIngredientFormOptionId: null,
+    reason: "",
+    trigger: null,
+  };
   state.preservedAfterStale = false;
   $("staleBanner").hidden = true;
   setAppMode("queue");
@@ -3853,6 +3906,7 @@ async function backToQueue() {
 
 async function handleStale(err) {
   state.preservedAfterStale = true;
+  if (state.postEntryReconcile.open) closePostEntryReconcile();
   showToast(err.message, "warning", 6400);
   try {
     await reloadSelected({ preserveDrafts: true });
@@ -4581,6 +4635,154 @@ function reopenCopy(kind) {
     body: "Pharmacological actions have already been verified. Reopening will return the section to In Review.",
     confirm: "Reopen Actions",
   };
+}
+
+function ingredientFormOptionDisplay(option, fallbackId = null) {
+  if (!option) return fallbackId ? `Option ${fallbackId}` : "Not selected";
+  const label = displayText(option.label, `Option ${fallbackId || ""}`);
+  const externalId = safeText(option.external_id);
+  return externalId ? `${label} / ${externalId}` : label;
+}
+
+function syncPostEntryReconcileConfirm(authority = null) {
+  const current = authority || currentPostEntryIngredientFormReconcile(
+    state.postEntryReconcile.lineId,
+  );
+  const targetId = state.postEntryReconcile.targetIngredientFormOptionId;
+  const targetEligible = current.options.some((option) =>
+    idsEqual(option.portal_option_id ?? option.id, targetId),
+  );
+  const ok = targetEligible && canSubmitPostEntryIngredientFormReconcile({
+    availability: current.availability,
+    currentIngredientFormOptionId: current.draft?.ingredientFormOptionId,
+    targetIngredientFormOptionId: targetId,
+    reason: state.postEntryReconcile.reason,
+  });
+  const button = $("postEntryReconcileConfirm");
+  if (button) {
+    button.disabled = !ok || state.busy;
+    button.dataset.forceDisabled = ok ? "false" : "true";
+  }
+  return ok;
+}
+
+function renderPostEntryReconcileBody() {
+  const host = $("postEntryReconcileBody");
+  if (!host) return;
+  const authority = currentPostEntryIngredientFormReconcile(
+    state.postEntryReconcile.lineId,
+  );
+  const currentId = authority.draft?.ingredientFormOptionId;
+  const currentOption = (state.catalogs.portalOptions.INGREDIENT_FORM || []).find(
+    (option) => idsEqual(option.portal_option_id ?? option.id, currentId),
+  );
+  host.innerHTML = `
+    <div class="form-field">
+      <span class="muted-note">Ingredient name</span>
+      <strong>${escapeHtml(sourceFieldDisplay(authority.line?.raw_ingredient_name))}</strong>
+    </div>
+    <div class="form-field">
+      <span class="muted-note">Current Ingredient Form</span>
+      <strong>${escapeHtml(ingredientFormOptionDisplay(currentOption, currentId))}</strong>
+    </div>
+    <div class="form-field">
+      <label for="fldPostEntryIngredientForm">Proposed Ingredient Form</label>
+      <select id="fldPostEntryIngredientForm" class="sasv-control" data-edit-action="true" required>
+        ${optionHtml(authority.options, state.postEntryReconcile.targetIngredientFormOptionId)}
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="fldPostEntryReconcileReason">Reason</label>
+      <textarea id="fldPostEntryReconcileReason" class="sasv-control" rows="3" data-edit-action="true" required>${escapeHtml(state.postEntryReconcile.reason)}</textarea>
+    </div>
+    <p class="muted-note">Post-entry reconciliation updates the governed Composition mapping only. It does not modify the e-Aushadhi portal.</p>`;
+  syncPostEntryReconcileConfirm(authority);
+  applyPermissionUi();
+}
+
+function closePostEntryReconcile() {
+  const trigger = state.postEntryReconcile.trigger;
+  state.postEntryReconcile = {
+    open: false,
+    lineId: null,
+    targetIngredientFormOptionId: null,
+    reason: "",
+    trigger: null,
+  };
+  const backdrop = $("postEntryReconcileBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  trigger?.focus?.();
+}
+
+function openPostEntryReconcile(lineId, trigger) {
+  const authority = currentPostEntryIngredientFormReconcile(lineId);
+  if (!authority.availability.enabled || !authority.line || !authority.draft) {
+    showToast(authority.availability.reason || "This reconciliation action is unavailable.", "info");
+    return false;
+  }
+  if (!authority.options.length) {
+    showToast("No governed Ingredient Form options are currently available.", "info");
+    return false;
+  }
+  state.postEntryReconcile = {
+    open: true,
+    lineId: String(lineId),
+    targetIngredientFormOptionId: null,
+    reason: "",
+    trigger: trigger || null,
+  };
+  $("postEntryReconcileBackdrop").hidden = false;
+  renderPostEntryReconcileBody();
+  $("postEntryReconcileDialog")?.focus();
+  requestAnimationFrame(() => $("fldPostEntryIngredientForm")?.focus());
+  return true;
+}
+
+async function submitPostEntryReconcile() {
+  const lineId = state.postEntryReconcile.lineId;
+  const authority = currentPostEntryIngredientFormReconcile(lineId);
+  const targetId = state.postEntryReconcile.targetIngredientFormOptionId;
+  const reason = safeText(state.postEntryReconcile.reason);
+  const targetEligible = authority.options.some((option) =>
+    idsEqual(option.portal_option_id ?? option.id, targetId),
+  );
+  const canSubmit = targetEligible && canSubmitPostEntryIngredientFormReconcile({
+    availability: authority.availability,
+    currentIngredientFormOptionId: authority.draft?.ingredientFormOptionId,
+    targetIngredientFormOptionId: targetId,
+    reason,
+  });
+  if (!canSubmit) {
+    showToast(
+      authority.availability.reason || "Choose a different governed Ingredient Form and provide a reason.",
+      "info",
+    );
+    return;
+  }
+  await runMutation(async () => {
+    try {
+      await reconcilePostEntryLineIngredientForm({
+        sourceCompositionLineId: authority.line.source_composition_line_id,
+        expectedLineRowVersion: authority.draft.rowVersion,
+        expectedWorkflowRowVersion: state.queueRow.workflow_row_version,
+        ingredientFormOptionId: targetId,
+        reason,
+      });
+    } catch (err) {
+      if (!(err instanceof EaushadhiRpcError && err.kind === ERROR_KIND.STALE)) {
+        closePostEntryReconcile();
+        await reloadSelected({ restoreComposition: true, focusLineId: lineId });
+      }
+      throw err;
+    }
+    closePostEntryReconcile();
+    showToast("Ingredient Form mapping reconciled.", "success");
+    await reloadSelected({
+      restoreComposition: true,
+      focusLineId: lineId,
+      focusControl: "reconcile",
+    });
+  });
 }
 
 function renderReopenBody() {
@@ -5521,10 +5723,12 @@ function wireEvents() {
     const resolve = event.target.closest("[data-source-resolve]");
     const correct = event.target.closest("[data-source-correct]");
     const reopen = event.target.closest("[data-line-reopen]");
+    const reconcile = event.target.closest("[data-line-reconcile]");
     if (verify) submitLine(verify.dataset.lineVerify, true);
     if (resolve) openSourceResolve(resolve.dataset.sourceResolve, resolve);
     if (correct) openSourceCorrect(correct.dataset.sourceCorrect, correct);
     if (reopen) openReopen("line", reopen, reopen.dataset.lineReopen);
+    if (reconcile) openPostEntryReconcile(reconcile.dataset.lineReconcile, reconcile);
   });
 
   $("tab-actions")?.addEventListener("click", (event) => {
@@ -5697,6 +5901,23 @@ function wireEvents() {
     }
   });
 
+  $("postEntryReconcileClose")?.addEventListener("click", closePostEntryReconcile);
+  $("postEntryReconcileCancel")?.addEventListener("click", closePostEntryReconcile);
+  $("postEntryReconcileConfirm")?.addEventListener("click", submitPostEntryReconcile);
+  $("postEntryReconcileBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "postEntryReconcileBackdrop") closePostEntryReconcile();
+  });
+  $("postEntryReconcileBody")?.addEventListener("change", (event) => {
+    if (event.target.id !== "fldPostEntryIngredientForm") return;
+    state.postEntryReconcile.targetIngredientFormOptionId = optionId(event.target.value);
+    syncPostEntryReconcileConfirm();
+  });
+  $("postEntryReconcileBody")?.addEventListener("input", (event) => {
+    if (event.target.id !== "fldPostEntryReconcileReason") return;
+    state.postEntryReconcile.reason = event.target.value || "";
+    syncPostEntryReconcileConfirm();
+  });
+
   $("verifyReviewedClose")?.addEventListener("click", closeVerifyReviewed);
   $("verifyReviewedCancel")?.addEventListener("click", closeVerifyReviewed);
   $("verifyReviewedConfirm")?.addEventListener("click", submitVerifyReviewed);
@@ -5746,6 +5967,15 @@ function wireEvents() {
         return;
       }
       trapModalTab(event, "reopenDialog");
+      return;
+    }
+    if (state.postEntryReconcile.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePostEntryReconcile();
+        return;
+      }
+      trapModalTab(event, "postEntryReconcileDialog");
       return;
     }
     if (state.verifyReviewed.open) {

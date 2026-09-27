@@ -421,6 +421,24 @@ export async function reopenLineReview({
   );
 }
 
+export async function reconcilePostEntryLineIngredientForm({
+  sourceCompositionLineId,
+  expectedLineRowVersion,
+  expectedWorkflowRowVersion,
+  ingredientFormOptionId,
+  reason,
+} = {}) {
+  return asFirst(
+    await callRpc("rpc_eaushadhi_post_entry_reconcile_line_ingredient_form", {
+      p_source_composition_line_id: Number(sourceCompositionLineId),
+      p_expected_line_row_version: Number(expectedLineRowVersion),
+      p_expected_workflow_row_version: Number(expectedWorkflowRowVersion),
+      p_ingredient_form_option_id: Number(ingredientFormOptionId),
+      p_reason: reason,
+    }),
+  );
+}
+
 export async function reopenProductReview({
   productId,
   expectedRowVersion,

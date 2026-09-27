@@ -20,6 +20,7 @@ import {
   canEditReviewedSection,
   canReopenReviewedSection,
   canSubmitSourceResolution,
+  canSubmitPostEntryIngredientFormReconcile,
   canSubmitWorkingSourceCorrection,
   classificationDirty,
   classificationDraftFromReview,
@@ -35,6 +36,7 @@ import {
   DOCUMENT_PURPOSE,
   ERROR_KIND,
   effectiveOptionId,
+  eligibleIngredientFormReconcileOptions,
   evidenceFileExtension,
   evidenceFileNameMatchesExpected,
   evidenceFileTypeMatchesExtension,
@@ -48,6 +50,7 @@ import {
   isNonstandardQuantityText,
   isVerifiedStatus,
   isFillEligibleClassificationOption,
+  isEligibleIngredientFormReconcileOption,
   issuesForLine,
   lineDirty,
   lineDraftFromRow,
@@ -67,6 +70,8 @@ import {
   openErrorOrBlockerCount,
   parseOptionalNumericQuantity,
   preEntryReopenAvailability,
+  postEntryIngredientFormReconcileAvailability,
+  POST_ENTRY_COMPOSITION_RECONCILIATION_V1_PRODUCT_ID,
   PRE_ENTRY_REOPEN_STARTED_REASON,
   PRE_ENTRY_REOPEN_STATUS_UNAVAILABLE_REASON,
   productDetailsVerifyPendingCopy,
@@ -679,6 +684,56 @@ assert(
   preEntryReopenAvailability({ reviewStatus: "VERIFIED", canEdit: false, entryStatus: "NOT_STARTED" }).enabled === false,
   "view-only user cannot reopen",
 );
+
+assert(POST_ENTRY_COMPOSITION_RECONCILIATION_V1_PRODUCT_ID === 262, "post-entry reconciliation is explicitly Product 262 only");
+for (const entryStatus of ["IN_PROGRESS", "ENTERED", "PORTAL_VERIFIED"]) {
+  const result = postEntryIngredientFormReconcileAvailability({
+    productId: 262, reviewStatus: "VERIFIED", canEdit: true, entryStatus,
+    lineRowVersion: 4, workflowRowVersion: 8,
+  });
+  assert(result.visible === true && result.enabled === true, `${entryStatus} permits eligible post-entry reconciliation`);
+}
+for (const entryStatus of ["NOT_STARTED", "SUBMITTED", "UNKNOWN", "", null, undefined]) {
+  const result = postEntryIngredientFormReconcileAvailability({
+    productId: 262, reviewStatus: "VERIFIED", canEdit: true, entryStatus,
+    lineRowVersion: 4, workflowRowVersion: 8,
+  });
+  assert(result.visible === false && result.enabled === false, `${String(entryStatus)} fails closed for post-entry reconciliation`);
+}
+for (const override of [
+  { productId: 261 }, { reviewStatus: "IN_REVIEW" }, { canEdit: false },
+  { lineRowVersion: null }, { lineRowVersion: 0 },
+  { workflowRowVersion: null }, { workflowRowVersion: 0 },
+]) {
+  const result = postEntryIngredientFormReconcileAvailability({
+    productId: 262, reviewStatus: "VERIFIED", canEdit: true,
+    entryStatus: "PORTAL_VERIFIED", lineRowVersion: 4, workflowRowVersion: 8,
+    ...override,
+  });
+  assert(result.enabled === false, `post-entry reconciliation rejects ${JSON.stringify(override)}`);
+}
+
+const ingredientFormOptions = [
+  { portal_option_id: 64, external_id: "60", label: "LIQUID KWATH", domain_code: "INGREDIENT_FORM", is_active: true },
+  { portal_option_id: 65, external_id: "61", label: "OIL", domain_code: "INGREDIENT_FORM", is_active: false },
+  { portal_option_id: 66, external_id: "62", label: "WRONG DOMAIN", domain_code: "PART_USED", is_active: true },
+  { portal_option_id: 67, external_id: "", label: "BLANK EXTERNAL", domain_code: "INGREDIENT_FORM", is_active: true },
+  { portal_option_id: 68, external_id: "-1", label: "UNUSABLE", domain_code: "INGREDIENT_FORM", is_active: true },
+  { portal_option_id: 69, external_id: "65", label: "-", domain_code: "INGREDIENT_FORM", is_active: true },
+];
+assert(isEligibleIngredientFormReconcileOption(ingredientFormOptions[0]) === true, "active governed Ingredient Form option is eligible");
+for (const option of ingredientFormOptions.slice(1)) {
+  assert(isEligibleIngredientFormReconcileOption(option) === false, `unusable Ingredient Form option ${option.portal_option_id} is excluded`);
+}
+assert(eligibleIngredientFormReconcileOptions(ingredientFormOptions).length === 1, "Ingredient Form reconciliation catalog is narrowly filtered");
+const reconciliationAvailability = postEntryIngredientFormReconcileAvailability({
+  productId: 262, reviewStatus: "VERIFIED", canEdit: true,
+  entryStatus: "PORTAL_VERIFIED", lineRowVersion: 4, workflowRowVersion: 8,
+});
+assert(canSubmitPostEntryIngredientFormReconcile({ availability: reconciliationAvailability, currentIngredientFormOptionId: 20, targetIngredientFormOptionId: 20, reason: "Reason" }) === false, "no-op Ingredient Form reconciliation cannot submit");
+assert(canSubmitPostEntryIngredientFormReconcile({ availability: reconciliationAvailability, currentIngredientFormOptionId: 20, targetIngredientFormOptionId: -1, reason: "Reason" }) === false, "invalid Ingredient Form target cannot submit");
+assert(canSubmitPostEntryIngredientFormReconcile({ availability: reconciliationAvailability, currentIngredientFormOptionId: 20, targetIngredientFormOptionId: 64, reason: " " }) === false, "blank reconciliation reason cannot submit");
+assert(canSubmitPostEntryIngredientFormReconcile({ availability: reconciliationAvailability, currentIngredientFormOptionId: 20, targetIngredientFormOptionId: 64, reason: "Governed correction" }) === true, "changed governed target with reason can submit");
 
 const completeDraft = {
   ingredientTypeOptionId: 1,
