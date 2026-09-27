@@ -13,6 +13,8 @@ This file is the scope sink for useful but non-blocking discoveries. Items stay 
 - Additional dashboard/analytics polish not required for pipeline operation.
 - Future Therapeutic Guide functionality and richer canonical-data reuse.
 - Non-blocking keyboard/productivity refinements after the core operator workflows are usable.
+- Post-entry reconciliation modal vertical-spacing/visual-rhythm polish; functional authority and validation are already correct.
+- Verified-state force-disable parity outside Composition: Product Details, Portal Classification, Pharmacological Actions and portal dossier fields showed related lifecycle-lock risks. These are not part of the current WP-05/WP-06 Composition gate; promote them into their owning WP (WP-03/WP-04 or WP-10 acceptance hardening) before those surfaces are declared operationally accepted if the issue remains reproducible.
 
 ## Promotion rule
 An item may leave this backlog only when ChatGPT documents:
