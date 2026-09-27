@@ -412,7 +412,76 @@ assert(!/Verify \$\{eligible\} reviewed lines/.test(controlSrc), "zero-count ver
   const useIdx = renderFn.indexOf("lineVerifyPendingCopy");
   assert(declIdx !== -1 && useIdx !== -1 && declIdx < useIdx, "renderComposition declares saveStatus before first verify use");
   assert((renderFn.match(/const saveStatus =/g) || []).length === 1, "renderComposition has exactly one saveStatus declaration");
+  assert(
+    /const lockedControlAttrs = locked\s*\? ' disabled aria-disabled="true" data-force-disabled="true"'\s*: ""/.test(renderFn),
+    "VERIFIED Composition controls have persistent lifecycle lock attributes",
+  );
+  assert(
+    /<select[^>]*data-draft-key="\$\{escapeHtml\(spec\.draftKey\)\}"\$\{lockedControlAttrs\}>/.test(renderFn),
+    "all four governed Composition selects consume the persistent lifecycle lock",
+  );
+  for (const domain of ["INGREDIENT_TYPE", "INGREDIENT_FORM", "PART_USED", "MEASUREMENT_UNIT"]) {
+    assert(renderFn.includes(`${domain}:`), `${domain} remains in the locked governed Composition field set`);
+  }
+  assert(
+    /<input[^>]*data-draft-key="reviewNotes"[^>]*\$\{lockedControlAttrs\}/.test(renderFn),
+    "VERIFIED Composition Notes consumes the persistent lifecycle lock",
+  );
+  assert(
+    renderFn.includes('const locked = isVerifiedStatus(row.review_status)') &&
+      renderFn.includes(': "";'),
+    "IN_REVIEW rerender naturally omits lifecycle lock attributes",
+  );
 }
+assert(
+  /function applyPermissionUi\(\)[\s\S]*el\.disabled = !canWrite\(\) \|\| state\.busy \|\| el\.dataset\.forceDisabled === "true"/.test(controlSrc),
+  "permission refresh preserves view-only, busy, and persistent force-disable authority",
+);
+{
+  const changeStart = controlSrc.indexOf('$("tab-composition")?.addEventListener("change"');
+  const inputStart = controlSrc.indexOf('$("tab-composition")?.addEventListener("input"', changeStart);
+  const focusoutStart = controlSrc.indexOf('$("tab-composition")?.addEventListener("focusout"', inputStart);
+  const clickStart = controlSrc.indexOf('$("tab-composition")?.addEventListener("click"', focusoutStart);
+  const changeHandler = controlSrc.slice(changeStart, inputStart);
+  const inputHandler = controlSrc.slice(inputStart, focusoutStart);
+  const focusoutHandler = controlSrc.slice(focusoutStart, clickStart);
+  const changeGuard = changeHandler.indexOf("if (!row || isVerifiedStatus(row.review_status))");
+  assert(changeGuard !== -1, "Composition mapping change fails closed for VERIFIED or missing rows");
+  assert(
+    changeGuard < changeHandler.indexOf("draft[key] =") &&
+      changeGuard < changeHandler.indexOf("resolveFieldProvenance") &&
+      changeGuard < changeHandler.indexOf("queueLineAutosave") &&
+      changeGuard < changeHandler.indexOf("syncLineVerifyUi"),
+    "Composition mapping guard precedes draft, provenance, autosave, and verify-state mutation",
+  );
+  assert(
+    changeHandler.includes('el.value = key === "reviewNotes" ? draft.reviewNotes || "" : draft[key] || "";') &&
+      /if \(!row \|\| isVerifiedStatus\(row\.review_status\)\) \{[\s\S]*return;/.test(changeHandler),
+    "rejected Composition mapping events restore the unchanged draft value",
+  );
+  const inputGuard = inputHandler.indexOf("if (!row || isVerifiedStatus(row.review_status))");
+  assert(inputGuard !== -1, "Composition Notes input fails closed for VERIFIED or missing rows");
+  assert(
+    inputGuard < inputHandler.indexOf("draft.reviewNotes =") &&
+      inputGuard < inputHandler.indexOf("queueLineAutosave"),
+    "Composition Notes input guard precedes draft mutation and autosave",
+  );
+  assert(
+    inputHandler.includes('if (draft) el.value = draft.reviewNotes || "";'),
+    "rejected Composition Notes input restores the unchanged draft value",
+  );
+  const focusoutGuard = focusoutHandler.indexOf("if (!row || isVerifiedStatus(row.review_status)) return;");
+  assert(focusoutGuard !== -1, "Composition Notes focusout fails closed for VERIFIED or missing rows");
+  assert(
+    focusoutGuard < focusoutHandler.indexOf("flushDebounced") &&
+      focusoutGuard < focusoutHandler.indexOf("autosaveLine"),
+    "Composition Notes focusout guard precedes autosave flush and execution",
+  );
+}
+assert(
+  controlSrc.includes("if (!verify && row && isVerifiedStatus(row.review_status)) return null;"),
+  "persistLine retains its final VERIFIED ordinary-save guard",
+);
 assert(controlSrc.includes("data-bool-key=\"combinedRestricted\""), "restricted declarations use one combined control");
 assert(controlSrc.includes("data-action-vocab-toggle"), "actions vocabulary is a multi-select checklist");
 assert(!/\b46\b/.test(controlSrc), "pharmacological action terms are not hard-coded as 46");

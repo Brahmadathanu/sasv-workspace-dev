@@ -1480,6 +1480,9 @@ function renderComposition() {
         .slice()
         .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
       const locked = isVerifiedStatus(row.review_status);
+      const lockedControlAttrs = locked
+        ? ' disabled aria-disabled="true" data-force-disabled="true"'
+        : "";
       const fields = specs
         .map((spec) => {
           const selectedNow = draft[spec.draftKey];
@@ -1493,7 +1496,7 @@ function renderComposition() {
           });
           return `<div class="portal-field form-field">
             <label for="${escapeHtml(fieldId)}">${escapeHtml(labels[spec.domain] || spec.domain)}</label>
-            <select id="${escapeHtml(fieldId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}"${locked ? " disabled" : ""}>
+            <select id="${escapeHtml(fieldId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="${escapeHtml(spec.draftKey)}"${lockedControlAttrs}>
               ${optionHtml(state.catalogs.portalOptions[spec.domain], selectedNow)}
             </select>
             ${provenanceChipHtml(id, spec.draftKey, provenance)}
@@ -1568,7 +1571,7 @@ function renderComposition() {
         ${referenceBlock}
         <div class="line-notes-row">
           <label class="visually-hidden" for="${escapeHtml(notesId)}">Notes</label>
-          <input id="${escapeHtml(notesId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${locked ? " disabled" : ""} />
+          <input id="${escapeHtml(notesId)}" class="sasv-control" data-edit-action="true" data-line-id="${escapeHtml(id)}" data-draft-key="reviewNotes" value="${escapeHtml(draft.reviewNotes || "")}" placeholder="Notes" aria-label="Notes"${lockedControlAttrs} />
           ${autosaveHtml(saveStatus, `line-save-${id}`)}
           ${
             locked
@@ -5679,10 +5682,14 @@ function wireEvents() {
     const lineId = el.dataset.lineId;
     const key = el.dataset.draftKey;
     if (!lineId || !key) return;
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
     const draft = state.lineDrafts.get(String(lineId));
     if (!draft) return;
+    if (!row || isVerifiedStatus(row.review_status)) {
+      el.value = key === "reviewNotes" ? draft.reviewNotes || "" : draft[key] || "";
+      return;
+    }
     draft[key] = key === "reviewNotes" ? el.value : optionId(el.value);
-    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
     const spec = portalFieldSpecs().find((item) => item.draftKey === key);
     if (row && spec) {
       const chipEl = document.querySelector(`[data-prov-for="${lineId}-${key}"]`);
@@ -5704,15 +5711,24 @@ function wireEvents() {
   $("tab-composition")?.addEventListener("input", (event) => {
     const el = event.target;
     if (el.dataset.draftKey !== "reviewNotes") return;
-    const draft = state.lineDrafts.get(String(el.dataset.lineId));
+    const lineId = el.dataset.lineId;
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+    const draft = state.lineDrafts.get(String(lineId));
+    if (!row || isVerifiedStatus(row.review_status)) {
+      if (draft) el.value = draft.reviewNotes || "";
+      return;
+    }
     if (draft) draft.reviewNotes = el.value;
-    queueLineAutosave(el.dataset.lineId, false);
+    queueLineAutosave(lineId, false);
   });
   $("tab-composition")?.addEventListener("focusout", (event) => {
     const el = event.target;
     if (el.dataset.draftKey !== "reviewNotes") return;
-    flushDebounced(autosaveTimers, `line:${el.dataset.lineId}`);
-    void autosaveLine(el.dataset.lineId);
+    const lineId = el.dataset.lineId;
+    const row = state.lines.find((item) => idsEqual(item.source_composition_line_id, lineId));
+    if (!row || isVerifiedStatus(row.review_status)) return;
+    flushDebounced(autosaveTimers, `line:${lineId}`);
+    void autosaveLine(lineId);
   });
   $("tab-composition")?.addEventListener("click", (event) => {
     if (event.target.id === "btnClearCompositionFilters") {
