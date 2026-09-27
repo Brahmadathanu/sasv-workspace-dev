@@ -216,6 +216,36 @@ assert(controlSrc.includes("Regulatory purpose"), "existing Product Details sect
 assert(controlSrc.includes("Verify Portal Classification"), "Verify action exists");
 assert(controlSrc.includes("Reopen Portal Classification"), "Reopen action exists");
 assert(controlSrc.includes("openReopen(\"classification\""), "classification uses reopen modal");
+assert(helpersSrc.includes("preEntryReopenAvailability"), "shared pre-entry reopen availability helper exists");
+assert(
+  helpersSrc.includes("Boolean(rawEntryStatus)") && helpersSrc.includes('normalizeEntryStatus(rawEntryStatus) === "NOT_STARTED"'),
+  "pre-entry reopen requires explicit nonblank NOT_STARTED lifecycle evidence",
+);
+assert(controlSrc.includes("currentPreEntryReopenAvailability"), "controller centralizes pre-entry reopen authority");
+for (const kind of ["line", "details", "classification", "actions"]) {
+  assert(controlSrc.includes(`kind: "${kind}"`), `${kind} reopen uses shared lifecycle renderer`);
+}
+assert(
+  controlSrc.includes('disabled aria-disabled="true" data-force-disabled="true"'),
+  "post-entry reopen buttons remain visible with native disabled semantics",
+);
+assert(
+  helpersSrc.includes("Portal entry status is unavailable. This pre-entry correction action cannot be used.") &&
+    controlSrc.includes("escapeHtml(availability.reason)"),
+  "missing lifecycle evidence has a bounded disabled reason",
+);
+assert(
+  /function openReopen[\s\S]*currentPreEntryReopenAvailability\(kind, lineId\)[\s\S]*if \(!availability\.enabled\)[\s\S]*return false/.test(controlSrc),
+  "openReopen blocks stale or direct post-entry invocation",
+);
+assert(
+  /async function submitReopen[\s\S]*currentPreEntryReopenAvailability\(kind, lineId\)[\s\S]*if \(!availability\.enabled\)[\s\S]*return;[\s\S]*await runMutation/.test(controlSrc),
+  "submitReopen rechecks lifecycle before any reopen RPC",
+);
+assert(
+  controlSrc.includes('normalizeEntryStatus(state.queueRow?.entry_status) === "NOT_STARTED"'),
+  "existing portalFieldsEditable NOT_STARTED gate remains",
+);
 assert(controlSrc.includes("queueClassificationAutosave(true)"), "dropdown edits trigger immediate autosave");
 assert(controlSrc.includes("queueClassificationAutosave(false)"), "notes use debounced autosave");
 assert(controlSrc.includes("persistClassification(false)"), "ordinary dropdown edit saves with p_verify=false");
