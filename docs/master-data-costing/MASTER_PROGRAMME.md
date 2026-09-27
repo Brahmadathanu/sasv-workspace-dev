@@ -26,7 +26,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 
 ## Work-pack inventory
 - [x] WP-1 — Repository Programme Control Plane
-- [ ] WP00 — Authoritative Current-State Inventory
+- [~] WP00 — Authoritative Current-State Inventory
 - [ ] WP01 — Canonical Product/SKU Completeness Contract
 - [ ] WP02 — Product + SKU Lifecycle Redesign
 - [ ] WP03 — Creation-Time Guided Completeness
@@ -50,10 +50,10 @@ IN PROGRESS
 WP00 — Authoritative Current-State Inventory
 
 ## Active gate
-WP00-G0 — entry criteria / start current-state inventory
+WP00-G1 — authoritative dependency and client-surface audit
 
 ## Overall completion progress
-0 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite is completed and post-merge verified.
+0 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite is completed and post-merge verified; WP00 is in progress.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -66,4 +66,4 @@ WP00-G0 — entry criteria / start current-state inventory
 None.
 
 ## Immediate next action
-Start WP0 by inspecting live Supabase and current repository architecture and build the authoritative Product/SKU Costing Foundation Dependency Matrix; do not redesign yet.
+Complete unresolved WP00 ownership/client-surface cells and representative Product/SKU end-to-end proof, consolidate the canonical dependency matrix, then independently audit WP00 before any exit to WP01. Do not redesign yet.
