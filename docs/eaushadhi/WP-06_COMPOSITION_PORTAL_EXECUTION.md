@@ -1,7 +1,7 @@
 # WP-06 — Composition Portal Execution
 
 **Architecture state:** GREEN  
-**Progress:** 50%
+**Progress:** 55%
 
 ## Objective
 Safely execute verified server Composition data into the portal and record durable server-side progress/evidence.
@@ -252,7 +252,7 @@ The execution snapshot is server authoritative.
 - [x] First-line bootstrap contract designed offline.
 - [x] Freeze Composition READY input contract from WP-05.
 - [x] Freeze durable server lifecycle/run model specialized for Composition execution.
-- [ ] Implement Composition stage/run server foundation.
+- [x] Implement Composition stage/run server foundation.
 - [ ] Implement live Composition executor while arm remains default OFF.
 - [x] Controlled first-line bootstrap on Karpooradi.
 - [x] Prove row edit-ID and unitname/reread value semantics.
@@ -262,9 +262,21 @@ The execution snapshot is server authoritative.
 - [ ] WP closure audit.
 
 ## Current gate
-Implement and independently audit the Composition-specific stage/run server foundation exactly as frozen above.
+Implement the trusted Composition executor/adapters and client orchestration against the now-live server lifecycle, while keeping the live arm default OFF.
 
-Until that server foundation is live and audited:
+The server foundation is live and repository-versioned through migrations:
+- `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
+- `20260927120326_eaushadhi_composition_execution_lifecycle_hardening.sql`
+
+Live post-migration audit proved:
+- Product 262 Product Details workflow remains `PORTAL_VERIFIED` at row_version 11;
+- Product 262 has no Composition stage row yet;
+- Product 262 has no Composition run row yet;
+- no `SAVE_ARMED` authority has been opened;
+- public Composition RPC execution is restricted to authenticated/service_role;
+- active-run uniqueness and evidence-binding guards are live.
+
+Until the trusted executor/adapters are implemented and audited:
 
 - do not manually continue Karpūra or Kēram portal entry;
 - do not invoke native Composition Save/Update/Delete;
