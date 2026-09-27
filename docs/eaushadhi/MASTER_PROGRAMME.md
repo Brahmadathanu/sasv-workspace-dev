@@ -48,7 +48,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
-| WP-06 | Composition Portal Execution | YELLOW | 45% | Freeze durable Composition-specific run/executor lifecycle around the READY v1 input before any further portal mutation |
+| WP-06 | Composition Portal Execution | GREEN | 50% | Composition-specific stage/run lifecycle frozen; implement server lifecycle foundation while live arm remains OFF |
 | WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
@@ -56,7 +56,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-11 | Post-Closure Enhancements / Parked Backlog | PARKED | N/A | Scope sink; not part of closure percentage |
 
 ### Programme completion baseline
-**44% — milestone-based tracking baseline, not an effort/time estimate.**
+**45% — milestone-based tracking baseline, not an effort/time estimate.**
 
 Work-pack percentages and the overall percentage are tracking indicators. They must be updated only when milestone evidence changes. WP-11 is excluded from overall completion.
 
@@ -70,8 +70,10 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Product 262 live portal Composition currently contains only the controlled Ajamōdā bootstrap row; Karpūra and Kēram have not been entered.
 - Native Composition list/reread/save semantics, row identity, Reference value, unit value and first-line bootstrap evidence are proven.
 - Server-side content-hash coverage has been re-audited for effective Reference value and governed Ingredient Form changes. JavaScript hashing remains prohibited.
+- The existing `regulatory.eaushadhi_worker_run` / product-level `entry_status` lifecycle is Product-Details execution authority and MUST NOT be reused for Composition.
+- WP-06 now has a frozen Composition-specific stage/run lifecycle: independent stage state, one target line per run, durable SAVE_ARMED authority, one Save at most once, explicit save outcome, fresh list/reread semantic proof, and separate final stage PORTAL_VERIFIED evidence.
 - Composition live arm remains OFF: `COMPOSITION_LIVE_ARM_DEFAULT=false`.
-- No further Composition portal mutation is authorized until WP-06 explicitly opens the next mutation gate under its durable run/executor contract.
+- No further Composition portal mutation is authorized until the frozen server lifecycle foundation is implemented and audited.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:

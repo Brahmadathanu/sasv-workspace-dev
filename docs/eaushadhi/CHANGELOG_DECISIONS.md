@@ -64,6 +64,18 @@ Portal evidence gathering and a controlled bootstrap do not create standing perm
 **Status:** ACTIVE  
 The authoritative Composition execution hash is server-generated. Effective Reference portal value and governed Ingredient Form changes participate in `content_hash`. Client JavaScript must not calculate or substitute an execution hash.
 
+## DEC-017 — Composition execution lifecycle is stage-specific
+**Status:** ACTIVE  
+The existing `eaushadhi_worker_run` and product-level `entry_status` lifecycle is Product Details execution authority and must not be reused for Composition. WP-06 owns an independent Composition-stage state and Composition-run model so Product Details, Composition and QC remain independently auditable.
+
+## DEC-018 — One Composition run authorizes one Save target
+**Status:** ACTIVE  
+A Composition run binds exactly one missing governed source line and one fresh content hash. Only durable `SAVE_ARMED` server state authorizes the trusted executor to issue at most one native Save. Save uncertainty is recorded as AMBIGUOUS and never auto-retried.
+
+## DEC-019 — Composition row verification precedes final stage verification
+**Status:** ACTIVE  
+A successful/ambiguous Save does not itself complete the line or stage. Fresh complete list evidence, bounded row identity, native reread and exact semantic comparison must prove the target row before the run becomes ROW_VERIFIED. Composition stage becomes PORTAL_VERIFIED only through a separate final exact-set proof with no active run.
+
 ## 2026-09-25 — WP-02 Global Terminology Governance closed
 - Accepted the consolidated source-centric Reference Dictionary and two-stage review modal.
 - Verified global alias 1: `Sahasrayōgam - Sujanapriya → Sahasrayōgam`.
@@ -84,3 +96,11 @@ The authoritative Composition execution hash is server-generated. Effective Refe
 - Final line row_versions are 8/8/8; product workflow row_version is 11 and remains PORTAL_VERIFIED.
 - Live portal Composition remains intentionally partial with only the Ajamōdā bootstrap row.
 - No further Composition portal mutation is authorized until WP-06 explicitly opens the next durable execution gate.
+
+## 2026-09-27 — WP-06 Composition execution lifecycle frozen
+- Audited the existing worker lifecycle and confirmed it is coupled to Product Details product-level `entry_status`; Product 262 already has a historical PORTAL_VERIFIED Product Details run.
+- Rejected reuse of that lifecycle for Composition to preserve independent portal-stage state.
+- Frozen a Composition-specific stage state plus one-target-per-run lifecycle.
+- Frozen durable states SAVE_ARMED, SAVE_CONFIRMED, SAVE_AMBIGUOUS, SAVE_REJECTED and ROW_VERIFIED.
+- Frozen the one-save-at-most-once rule, no automatic retry after uncertainty, and separate final exact-set PORTAL_VERIFIED proof.
+- Kept Composition live arm OFF pending server foundation implementation and audit.
