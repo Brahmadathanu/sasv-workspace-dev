@@ -45,6 +45,7 @@ const requiredRpcs = [
   "rpc_eaushadhi_resolve_source_issue",
   "rpc_eaushadhi_correct_working_source_line",
   "rpc_eaushadhi_reopen_line_review",
+  "rpc_eaushadhi_post_entry_reconcile_line_ingredient_form",
   "rpc_eaushadhi_reopen_product_review",
   "rpc_eaushadhi_reopen_product_actions",
   "rpc_eaushadhi_reopen_product_classification",
@@ -246,6 +247,30 @@ assert(
   controlSrc.includes('normalizeEntryStatus(state.queueRow?.entry_status) === "NOT_STARTED"'),
   "existing portalFieldsEditable NOT_STARTED gate remains",
 );
+assert(helpersSrc.includes("POST_ENTRY_COMPOSITION_RECONCILIATION_V1_PRODUCT_ID = 262"), "post-entry reconciliation mirrors Product 262-only server scope");
+assert(helpersSrc.includes("postEntryIngredientFormReconcileAvailability"), "post-entry reconciliation uses a pure availability helper");
+assert(helpersSrc.includes("canSubmitPostEntryIngredientFormReconcile"), "post-entry reconciliation uses a pure confirmation helper");
+const ingredientFilterStart = helpersSrc.indexOf("function isEligibleIngredientFormReconcileOption");
+const ingredientFilterEnd = helpersSrc.indexOf("\nexport function ", ingredientFilterStart + 1);
+const ingredientFilterSrc = helpersSrc.slice(ingredientFilterStart, ingredientFilterEnd);
+assert(ingredientFilterSrc.includes('=== "INGREDIENT_FORM"'), "reconciliation option filter requires INGREDIENT_FORM domain");
+assert(ingredientFilterSrc.includes("option.is_active === true"), "reconciliation option filter requires active option");
+assert(ingredientFilterSrc.includes('externalId !== "-1"'), "reconciliation option filter rejects external -1");
+assert(!ingredientFilterSrc.includes("fill_eligible"), "reconciliation option filter has no fill_eligible dependency");
+assert(
+  /reconcilePostEntryLineIngredientForm[\s\S]*rpc_eaushadhi_post_entry_reconcile_line_ingredient_form[\s\S]*p_source_composition_line_id:[\s\S]*p_expected_line_row_version:[\s\S]*p_expected_workflow_row_version:[\s\S]*p_ingredient_form_option_id:[\s\S]*p_reason:/.test(apiSrc),
+  "post-entry reconciliation wrapper sends the exact bounded RPC arguments",
+);
+assert(controlSrc.includes("postEntryReconcile:"), "post-entry reconciliation has dedicated state");
+assert(!/state\.reopen[\s\S]{0,120}reconcilePostEntryLineIngredientForm/.test(controlSrc), "post-entry reconciliation does not overload reopen state");
+assert(htmlSrc.includes('id="postEntryReconcileDialog"') && htmlSrc.includes("Reconcile post-entry Ingredient Form"), "dedicated reconciliation modal shell exists");
+assert(controlSrc.includes('data-line-reconcile="${escapeHtml(lineId)}"'), "eligible Composition line renders Reconcile mapping action");
+assert(controlSrc.includes("currentPostEntryIngredientFormReconcile(lineId)"), "modal-open path resolves current reconciliation authority");
+assert(/async function submitPostEntryReconcile[\s\S]*currentPostEntryIngredientFormReconcile\(lineId\)[\s\S]*targetEligible[\s\S]*reconcilePostEntryLineIngredientForm/.test(controlSrc), "submit reruns lifecycle and eligible-target authority before RPC");
+assert(/reconcilePostEntryLineIngredientForm\(\{[\s\S]*sourceCompositionLineId: authority\.line\.source_composition_line_id[\s\S]*expectedLineRowVersion: authority\.draft\.rowVersion[\s\S]*expectedWorkflowRowVersion: state\.queueRow\.workflow_row_version/.test(controlSrc), "submit uses current line and workflow versions");
+assert(controlSrc.includes('focusControl: "reconcile"'), "success restores focus to reconciled line action");
+assert(controlSrc.includes("Post-entry reconciliation updates the governed Composition mapping only. It does not modify the e-Aushadhi portal."), "modal explicitly denies portal mutation");
+assert(!/SaveCompositionData|AddCompositionData|DeleteCompositionData|GetCompositionDataUpdate/.test(apiSrc + helpersSrc), "client reconciliation adds no native Composition mutation surface");
 assert(controlSrc.includes("queueClassificationAutosave(true)"), "dropdown edits trigger immediate autosave");
 assert(controlSrc.includes("queueClassificationAutosave(false)"), "notes use debounced autosave");
 assert(controlSrc.includes("persistClassification(false)"), "ordinary dropdown edit saves with p_verify=false");

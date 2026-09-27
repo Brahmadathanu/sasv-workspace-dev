@@ -51,6 +51,86 @@ export const CANONICAL_PROMOTE_NOTES =
 export const CANONICAL_VERIFY_NOTES =
   "Internally verified after completion of Product Details, Pharmacological Action, Composition, Approved Formulation and Approved Product Copy review.";
 export const FIRST_CONTROLLED_PRODUCT_ID = 262;
+export const POST_ENTRY_COMPOSITION_RECONCILIATION_V1_PRODUCT_ID = 262;
+
+const POST_ENTRY_COMPOSITION_RECONCILIATION_STATUSES = Object.freeze([
+  "IN_PROGRESS",
+  "ENTERED",
+  "PORTAL_VERIFIED",
+]);
+
+function isPositiveInteger(value) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0;
+}
+
+export function postEntryIngredientFormReconcileAvailability({
+  productId,
+  reviewStatus,
+  canEdit,
+  entryStatus,
+  lineRowVersion,
+  workflowRowVersion,
+} = {}) {
+  const rawEntryStatus = safeText(entryStatus);
+  let reason = "";
+  if (Number(productId) !== POST_ENTRY_COMPOSITION_RECONCILIATION_V1_PRODUCT_ID) {
+    reason = "Post-entry Ingredient Form reconciliation is not available for this product.";
+  } else if (normalizeReviewStatus(reviewStatus) !== "VERIFIED") {
+    reason = "The Composition line must remain verified.";
+  } else if (canEdit !== true) {
+    reason = "Edit permission is required to reconcile this mapping.";
+  } else if (!rawEntryStatus) {
+    reason = "Portal entry status is unavailable. Reconciliation cannot continue.";
+  } else if (!POST_ENTRY_COMPOSITION_RECONCILIATION_STATUSES.includes(rawEntryStatus.toUpperCase())) {
+    reason = "Post-entry reconciliation is unavailable in the current lifecycle state.";
+  } else if (!isPositiveInteger(lineRowVersion)) {
+    reason = "The current Composition line version is unavailable.";
+  } else if (!isPositiveInteger(workflowRowVersion)) {
+    reason = "The current workflow version is unavailable.";
+  }
+  const enabled = !reason;
+  return { visible: enabled, enabled, reason };
+}
+
+export function isEligibleIngredientFormReconcileOption(option) {
+  if (!option || typeof option !== "object") return false;
+  const id = Number(option.portal_option_id ?? option.id);
+  const externalId = safeText(option.external_id);
+  return (
+    Number.isInteger(id) &&
+    id > 0 &&
+    safeText(option.domain_code).toUpperCase() === "INGREDIENT_FORM" &&
+    option.is_active === true &&
+    Boolean(externalId) &&
+    externalId !== "-1" &&
+    !isDashOrBlankPortalOptionLabel(option.label)
+  );
+}
+
+export function eligibleIngredientFormReconcileOptions(options) {
+  return (Array.isArray(options) ? options : []).filter(
+    isEligibleIngredientFormReconcileOption,
+  );
+}
+
+export function canSubmitPostEntryIngredientFormReconcile({
+  availability,
+  currentIngredientFormOptionId,
+  targetIngredientFormOptionId,
+  reason,
+} = {}) {
+  const currentId = optionId(currentIngredientFormOptionId);
+  const targetId = optionId(targetIngredientFormOptionId);
+  const targetNumber = Number(targetId);
+  return (
+    availability?.enabled === true &&
+    Number.isInteger(targetNumber) &&
+    targetNumber > 0 &&
+    !idsEqual(currentId, targetId) &&
+    Boolean(safeText(reason))
+  );
+}
 
 export function isFirstControlledEntryProduct(productId) {
   return Number(productId) === FIRST_CONTROLLED_PRODUCT_ID;
