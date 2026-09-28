@@ -50,10 +50,10 @@ IN PROGRESS
 WP00 — Authoritative Current-State Inventory
 
 ## Active gate
-WP00-G1 — authoritative dependency and client-surface audit
+WP00-G3 — documentation diff audit and merge gate
 
 ## Overall completion progress
-0 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite is completed and post-merge verified; WP00 is in progress.
+0 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite is completed and post-merge verified. WP00 authoritative inventory, representative proof and independent matrix audit are complete; documentation merge/post-merge proof remains before WP00 can close.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -63,7 +63,7 @@ WP00-G1 — authoritative dependency and client-surface audit
 - No Product/Costing redesign before WP0 closes.
 
 ## Major unresolved blockers
-None.
+None blocking WP00. One evidence-backed missing client surface is parked for later work: the server-governed regional Marketing evidence-acceptance contract has no current-main client write/remediation path found.
 
 ## Immediate next action
-Complete unresolved WP00 ownership/client-surface cells and representative Product/SKU end-to-end proof, consolidate the canonical dependency matrix, then independently audit WP00 before any exit to WP01. Do not redesign yet.
+Independently audit the docs-only WP00 matrix branch against current main. If clean and explicitly approved, merge it, perform post-merge proof, record final WP00 handover and only then enter WP01. Do not redesign yet.
