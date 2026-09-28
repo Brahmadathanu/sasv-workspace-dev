@@ -26,8 +26,8 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 
 ## Work-pack inventory
 - [x] WP-1 — Repository Programme Control Plane
-- [~] WP00 — Authoritative Current-State Inventory
-- [ ] WP01 — Canonical Product/SKU Completeness Contract
+- [x] WP00 — Authoritative Current-State Inventory
+- [~] WP01 — Canonical Product/SKU Completeness Contract
 - [ ] WP02 — Product + SKU Lifecycle Redesign
 - [ ] WP03 — Creation-Time Guided Completeness
 - [ ] WP04 — Central Master Data / Costing Readiness Control Centre
@@ -47,13 +47,13 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-WP00 — Authoritative Current-State Inventory
+WP01 — Canonical Product/SKU Completeness Contract
 
 ## Active gate
-WP00-G3 — documentation diff audit and merge gate
+WP01-G1 — canonical completeness vocabulary and server-contract derivation
 
 ## Overall completion progress
-0 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite is completed and post-merge verified. WP00 authoritative inventory, representative proof and independent matrix audit are complete; documentation merge/post-merge proof remains before WP00 can close.
+1 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite and WP00 are completed and verified; WP01 has entered its first contract-derivation gate.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -66,4 +66,4 @@ WP00-G3 — documentation diff audit and merge gate
 None blocking WP00. One evidence-backed missing client surface is parked for later work: the server-governed regional Marketing evidence-acceptance contract has no current-main client write/remediation path found.
 
 ## Immediate next action
-Independently audit the docs-only WP00 matrix branch against current main. If clean and explicitly approved, merge it, perform post-merge proof, record final WP00 handover and only then enter WP01. Do not redesign yet.
+Begin WP01 from the audited WP00 dependency matrix: derive the canonical server-authoritative completeness vocabulary, status dimensions and missing/review metadata without implementing client redesign or inventing row-existence rules.
