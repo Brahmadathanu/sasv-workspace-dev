@@ -116,20 +116,20 @@ None. WP00 is evidence gathering only. WP01 will define the completeness contrac
 - [x] Dependency-matrix consolidation
 - [x] Focused verification
 - [x] Independent audit
-- [~] Documentation merge/post-merge proof
-- [ ] Final handover to WP01
+- [x] Documentation merge/post-merge proof
+- [x] Final handover to WP01
 
 ## Current Gate
-`WP00-G3 — documentation diff audit and merge gate`
+`WP00-G4 — post-merge proof and WP01 handover`
 
 ## Gate Status
-[~] IN PROGRESS
+[x] COMPLETED AND VERIFIED
 
 ## Required to close
-Persist the audited matrix/proof to the controlled docs branch; independently verify the branch diff is docs-only and complete; obtain explicit merge approval; merge and post-merge verify; then record final WP00 handover to WP01.
+None. WP00 evidence, matrix, representative proof, independent audit, documentation merge and post-merge proof are complete.
 
 ## Next gate
-`WP00-G4 — post-merge proof and WP01 handover`
+`WP01-G1 — canonical completeness vocabulary and server-contract derivation`
 
 ## Server changes
 None. All Supabase work in WP00 has been read-only inspection.
@@ -159,4 +159,14 @@ Premature assumptions; treating row absence as incompleteness where a governed r
 Canonical dependency matrix complete; representative Product/SKU proof complete; unresolved cells either resolved or explicitly classified; independent audit passes; WP00 documentation is merged/post-merge verified; handover to WP01 is current.
 
 ## Final handover
-Not yet complete.
+WP00 is complete and verified. The audited canonical dependency matrix above is the required input authority for WP01.
+
+Post-merge proof:
+- Matrix merge commit: `7c3fdd005c66a116928171b005574633055ab781`.
+- Parent 1: `a1ed951fe6780f243c65094b3169b45196d4a259`.
+- Parent 2: `7fd168b199756a40f42d698cb125f8da26a20ab8`.
+- Merge changed only `docs/master-data-costing/MASTER_PROGRAMME.md` and `docs/master-data-costing/WP-00-CURRENT-STATE-INVENTORY.md`.
+- Current main was verified at the merge SHA after merge.
+- No server/client/migration/e-Aushadhi mutation occurred in WP00.
+
+WP01 must derive its completeness vocabulary and contract from server resolver semantics represented in this matrix. It must not reduce completeness to raw row-existence checks, must preserve structural foundation versus contextual evidence quality, must preserve all seven canonical driver elements, and must distinguish current projection from persisted exact-run evidence.
