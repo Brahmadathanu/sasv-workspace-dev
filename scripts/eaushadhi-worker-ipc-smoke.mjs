@@ -36,12 +36,24 @@ assert(badId === "PREFLIGHT_DENIED", "non-integer productId rejected");
 
 const { CHANNELS } = require(join(root, "electron/eaushadhi-worker/ipc.js"));
 assert(CHANNELS.RECHECK_LOGIN === "eaushadhi-worker:recheck-login", "recheck IPC channel is narrow");
+assert(CHANNELS.COMPOSITION_PREVIEW === "eaushadhi-worker:composition-preview", "Composition preview channel is bounded");
+assert(CHANNELS.COMPOSITION_START_LINE === "eaushadhi-worker:composition-start-line", "Composition start-line channel is bounded");
+assert(CHANNELS.COMPOSITION_RECOVER_RUN === "eaushadhi-worker:composition-recover-run", "Composition recovery channel is bounded");
+assert(CHANNELS.COMPOSITION_VERIFY_STAGE === "eaushadhi-worker:composition-verify-stage", "Composition stage verification channel is bounded");
 assert(!Object.values(CHANNELS).some((name) => /evaluate|execute|run-script/i.test(name)), "no generic evaluate IPC");
 
 const preloadSrc = readFileSync(join(root, "preload.js"), "utf8");
 assert(preloadSrc.includes("recheckLogin:"), "preload exposes recheckLogin only");
 assert(preloadSrc.includes("eaushadhi-worker:recheck-login"), "preload maps the recheck channel");
 assert(!/evaluate\s*:/.test(preloadSrc), "preload does not expose evaluate");
+for (const method of ["previewComposition:", "startCompositionLine:", "recoverCompositionRun:", "verifyCompositionStage:"]) {
+  assert(preloadSrc.includes(method), `preload exposes bounded ${method}`);
+}
+const compositionBlock = preloadSrc.slice(
+  preloadSrc.indexOf("previewComposition:"),
+  preloadSrc.indexOf("capturePortalContract:"),
+);
+assert(!/(plannerReport|pageIdentityEvidence|portalListEvidence|target_projection|rpcName|scriptSource)/.test(compositionBlock), "preload exposes no Composition evidence/RPC/script authority");
 
 assert(validateAccessToken("a".repeat(20)).length === 20, "token accepted");
 let badToken = null;
