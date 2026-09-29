@@ -66,4 +66,4 @@ WP01-G1 — canonical completeness vocabulary and server-contract derivation
 None blocking WP00. One evidence-backed missing client surface is parked for later work: the server-governed regional Marketing evidence-acceptance contract has no current-main client write/remediation path found.
 
 ## Immediate next action
-Begin WP01 from the audited WP00 dependency matrix: derive the canonical server-authoritative completeness vocabulary, status dimensions and missing/review metadata without implementing client redesign or inventing row-existence rules.
+Continue WP01-G1/G2 from the audited WP00 matrix: map every dependency into the evidence-backed multidimensional contract, define aggregate status/remediation/evidence-context semantics, and independently audit the result before deciding whether a dedicated server resolver is required. No client redesign or row-existence checklist.
