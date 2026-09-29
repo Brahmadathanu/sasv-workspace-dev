@@ -164,7 +164,7 @@ The G3 architecture above is approved as the working WP01 server-contract direct
 - [x] Design/contract gate where applicable
 - [x] Implementation gate where applicable
 - [x] Focused verification
-- [ ] Independent audit
+- [x] Independent audit
 - [ ] Merge/post-merge proof where applicable
 - [ ] Final handover
 
@@ -172,10 +172,10 @@ The G3 architecture above is approved as the working WP01 server-contract direct
 `WP01-G5 — independent audit and server-contract closure`
 
 ## Gate Status
-[~] IN PROGRESS
+[x] COMPLETED AND VERIFIED
 
 ## Required to close
-Independently audit the implemented server composition against the approved G1–G4 contract. Required audit items: shared/global driver-policy defect semantics and deduplication; dependency owner/remediation routes; LIVE_AS_OF latest-success evidence pinning; EXACT_RUN immutability/non-substitution; ACL/search-path/permission boundary; representative READY/REVIEW_REQUIRED/BLOCKED/incomplete regressions. Correct any REQUIRED NOW defect, then mark Independent audit complete. Reconcile this branch with current main before merge. Client work remains excluded from WP01.
+Independent audit is complete and PASS. Reconcile the WP01 documentation branch with current main, prove no Product/Costing overlap from moved main, merge only after explicit approval, then run post-merge verification and close WP01.
 
 ## Next gate
 `WP01-G5C — repository reconciliation, merge/post-merge proof and WP01 closure`
@@ -324,6 +324,36 @@ Security:
 Audit discovery: the first scheme normalization treated live `RESOLVED_POLICY` as BLOCKED and regional no-review rows as UNKNOWN; representative READY regression caught this and migration `wp01_readiness_scheme_regional_status_semantics` corrected the semantics before closure.
 
 **Gate remains open for independent audit.** `shared_issues` is still empty. The audit must decide and prove whether global/shared driver-policy defects require deduplicated shared-issue composition, and verify no dependency/owner/route contract has been misclassified. Do not close WP01-G5 before that audit.
+
+### G5 independent audit — shared/global issues and closure proof
+Live migration:
+- `20260929134520 wp01_readiness_shared_global_driver_issues`
+
+Independent audit conclusions:
+- The G3/G4 rule that global driver-policy defects must not be represented as hundreds of independent SKU defects is now implemented through `costing.fn_product_sku_readiness_shared_issues(valuation_date)`.
+- The helper evaluates the seven canonical registry elements and invokes the existing specialised policy resolvers for Direct Labour, Production Overhead, QA/QC, Materials/Stores and Marketing. Administrative and Finance/Admin use their approved effective envelope because they intentionally have no specialised workload policy table.
+- The helper emits only defective global dependencies into `shared_issues`; healthy global policies are not repeated in every SKU payload. Current 2026-09-10 proof returns `[]`, consistent with all seven registry rows being approved/active/client-ready/data-quality-ready/cutover-active and all specialised resolvers resolving.
+- Any emitted shared global issue fails the evidence aggregate closed to BLOCKED and therefore overall severity to BLOCKER. This prevents a global policy failure being hidden by otherwise healthy SKU evidence.
+- Shared helper ACL: anon=false, authenticated=false, service_role=true. Public readiness RPC remains anon=false/authenticated=true/service_role=true and permission-gated.
+- Security advisor continues to report only the expected generic warning that the intentionally authenticated public RPC is SECURITY DEFINER; internal readiness helpers are not exposed. No readiness-specific performance advisor finding was returned.
+
+Representative post-audit regression remains:
+- SKU2 READY / READY / READY;
+- SKU1798 foundation RESOLVED, evidence REVIEW_REQUIRED, overall REVIEW_REQUIRED;
+- SKU1400 foundation BLOCKED, overall BLOCKER;
+- SKU114 incomplete/no-snapshot remains visible and BLOCKED;
+- exact Run114 remains pinned to Run114; LIVE_AS_OF Sep-2026 evidence remains pinned to latest successful Run115 and excludes failed Run116.
+
+Repository-governance reconciliation also found and corrected documentation drift before closure:
+- MASTER active gate/immediate action updated from implementation to independent audit;
+- WP01 Current Gate corrected from stale G1 to G5;
+- implementation and focused-verification milestones marked complete;
+- PARKED_BACKLOG now records SEC-P01 and the regional-Marketing client-surface gap;
+- DEC-006 locks multidimensional server-authoritative readiness;
+- DEC-007 locks LIVE_AS_OF latest-success evidence pinning and EXACT_RUN immutability/non-substitution.
+
+**Independent server-contract audit result: PASS.**
+No REQUIRED NOW server-contract defect remains from the G5 audit. Repository branch reconciliation against current main is still required before merge because main advanced independently while WP01 was open.
 
 ## Client changes
 None.
