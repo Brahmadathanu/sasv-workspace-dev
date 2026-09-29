@@ -293,6 +293,38 @@ Verified properties:
 
 Repository reconciliation: while this branch was open, `main` advanced independently to `73219fa4f0c723be14b4d2b1b1b4ff5e8b059988` through e-Aushadhi-only files. No Product/Costing/WP01 overlap was found. Reconcile against current main before final WP01 merge.
 
+### G5 extended composition checkpoint — seven drivers, scheme and regional evidence
+Additional live migrations:
+- `20260929090402 wp01_readiness_driver_evidence_helpers`
+- `20260929090700 wp01_readiness_driver_evidence_composition`
+- `20260929091214 wp01_readiness_public_rpc_driver_enrichment`
+- `20260929091416 wp01_readiness_scheme_regional_status_semantics`
+
+Contract extension:
+- all seven canonical driver families are now emitted from persisted run evidence: Direct Labour, Production Overhead, Quality Control Overhead, Materials / Stores Overhead, Administrative Overhead, Finance/Admin Overhead, Marketing Expense;
+- selected-scheme evidence and regional-Marketing evidence are included without reimplementing their allocation formulas;
+- regional Marketing preserves raw/effective acceptance semantics from `v_regional_marketing_evidence_review_queue`;
+- absence from the regional review queue is represented as `NOT_REQUIRED`, not as a defect;
+- selected-scheme `RESOLVED_POLICY` and `DEFAULT_NO_SCHEME` are governed successful outcomes; they are not incorrectly collapsed to BLOCKED;
+- LIVE_AS_OF now pins persisted evidence to the latest SUCCESS refresh run for the governed period/valuation context. As of this checkpoint that is Run115 for Sep-2026 / valuation 2026-09-10. Failed Run116 is excluded;
+- EXACT_RUN remains pinned to the requested run, proven with SKU1798 / Run114.
+
+Regression after correction:
+- SKU2: foundation RESOLVED, evidence READY, outcome READY, overall READY, evidence run115.
+- SKU1798: foundation RESOLVED, evidence REVIEW_REQUIRED, outcome REVIEW_REQUIRED, overall REVIEW_REQUIRED, evidence run115.
+- SKU1400: lifecycle inactive, foundation BLOCKED, evidence REVIEW_REQUIRED, overall BLOCKER.
+- SKU114: lifecycle active, no downstream control snapshot, foundation BLOCKED and explicit missing prerequisites remain visible; evidence BLOCKED.
+- SKU1798 exact Run114: Product master UNKNOWN (not current-substituted), foundation RESOLVED, evidence REVIEW_REQUIRED, outcome REVIEW_REQUIRED, evidence run114.
+
+Security:
+- public RPC: anon EXECUTE false; authenticated true; permission-gated by `module:costing-control-center`.
+- internal helper functions in `costing`: anon false, authenticated false, service_role only.
+- advisor warning on the public RPC is the expected generic authenticated SECURITY DEFINER warning; the RPC contains the explicit permission check and fixed search path. No anonymous execution remains.
+
+Audit discovery: the first scheme normalization treated live `RESOLVED_POLICY` as BLOCKED and regional no-review rows as UNKNOWN; representative READY regression caught this and migration `wp01_readiness_scheme_regional_status_semantics` corrected the semantics before closure.
+
+**Gate remains open for independent audit.** `shared_issues` is still empty. The audit must decide and prove whether global/shared driver-policy defects require deduplicated shared-issue composition, and verify no dependency/owner/route contract has been misclassified. Do not close WP01-G5 before that audit.
+
 ## Client changes
 None.
 
