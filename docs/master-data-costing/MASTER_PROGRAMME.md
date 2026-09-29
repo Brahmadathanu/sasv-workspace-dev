@@ -50,7 +50,7 @@ IN PROGRESS
 WP01 — Canonical Product/SKU Completeness Contract
 
 ## Active gate
-WP01-G1 — canonical completeness vocabulary and server-contract derivation
+WP01-G4 — implementation-ready server contract and source-authority proof
 
 ## Overall completion progress
 1 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite and WP00 are completed and verified; WP01 has entered its first contract-derivation gate.
@@ -66,4 +66,4 @@ WP01-G1 — canonical completeness vocabulary and server-contract derivation
 None blocking WP00. One evidence-backed missing client surface is parked for later work: the server-governed regional Marketing evidence-acceptance contract has no current-main client write/remediation path found.
 
 ## Immediate next action
-Continue WP01-G1/G2 from the audited WP00 matrix: map every dependency into the evidence-backed multidimensional contract, define aggregate status/remediation/evidence-context semantics, and independently audit the result before deciding whether a dedicated server resolver is required. No client redesign or row-existence checklist.
+Complete WP01-G4: specify the read-only parameterized Product/SKU readiness composition RPC/function, prove each dependency source authority plus permission/security pattern and exact-run source availability, then implement only after the contract is implementation-ready. No client redesign.
