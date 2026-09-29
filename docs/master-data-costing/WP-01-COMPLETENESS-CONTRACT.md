@@ -112,12 +112,56 @@ The eventual server authority should return one Product/SKU summary plus depende
 
 The client may group/filter/render this contract but must not infer missing dependencies, downgrade/upgrade severity, or reproduce resolver precedence.
 
+### Independent contract audit — G3
+
+#### Findings
+1. **Product and SKU master summaries must remain separate.** Product `uom_base/conversion_to_base` and SKU `pack_size/uom` are different grains with different remediation targets. The contract must expose `product_master_foundation_status` and `sku_master_foundation_status`; an optional combined presentation status may be derived server-side but cannot replace either source status.
+2. **LIVE_AS_OF requires an explicit period when period-derived evidence is included.** `costing.v_sku_commercial_sales_basis` is keyed by `period_start` and joins the period's governed `valuation_date`. A canonical live request therefore requires `sku_id + period_start + valuation_date/as_of_date` (with server validation of context coherence), not an unqualified "current" flag.
+3. **Existing costing control is downstream snapshot authority, not lifecycle readiness authority.** `costing.v_sku_costing_control_status` intentionally composes the latest persisted material/prime/manufacturing/internal-loaded/pricing/cost-sheet snapshots. It is excellent for final costing outcome/remediation but cannot diagnose a newly created SKU before those snapshots exist.
+4. **Applicability must be determined by the composition authority from authoritative resolver semantics.** The client must not decide that scheme, route/workload, regional evidence or a driver sub-foundation is applicable.
+5. **Global driver policy state should be referenced, not duplicated as independent SKU defects.** The seven registry elements remain visible in dependency detail, but shared global failures carry shared scope/owner identifiers so remediation can deduplicate them.
+6. **Structural status vocabulary survives audit with one refinement:** dependency-level status is `RESOLVED | BLOCKED | NOT_APPLICABLE | UNKNOWN`; Product/SKU structural summary omits `NOT_APPLICABLE` because those master dimensions themselves are applicable for an existing SKU.
+7. **Evidence-quality status remains `READY | REVIEW_REQUIRED | BLOCKED | NOT_APPLICABLE | UNKNOWN` at dependency level.** Summary uses `READY | REVIEW_REQUIRED | BLOCKED | UNKNOWN`.
+8. **Raw/effective status separation is required only where a real acceptance/override authority exists.** Do not fabricate an `effective_status` field for dependencies that have no such mechanism; use null/equal-by-contract semantics explicitly.
+9. **Exact-run is a separate evidence mode.** Live resolvers must not be back-used as proof of historical exact-run state. Exact-run requests must compose immutable/frozen run-scoped authorities.
+
+#### Server-authority decision
+**Approved architectural direction: create a separate read-only Product/SKU readiness composition authority; do not extend `costing.v_sku_costing_control_status` into this role.**
+
+Rationale:
+- lifecycle/readiness must work before a costing run exists;
+- several foundations are effective-dated and resolver-driven;
+- commercial evidence requires explicit period + valuation context;
+- final costing outcome already has a mature snapshot control authority that should be consumed, not rewritten;
+- one composition boundary prevents the client from reproducing resolver precedence.
+
+The preferred interface shape is a **parameterized server function/RPC**, not a plain unparameterized view, because the contract requires explicit `sku_id`, `period_start` and `valuation/as_of date` and must validate context coherence. The function should be read-only and security-invoker unless live permission evidence later proves a different controlled pattern is required.
+
+A two-part payload is preferred:
+- **summary** — identity/lifecycle, Product master status, SKU master status, costing-foundation status, evidence-quality status, downstream costing outcome when available, overall severity and context;
+- **dependencies[]** — stable dependency codes with grain/scope, applicability, raw/effective status where meaningful, resolution source, reason/note, owner/remediation route, source authority and evidence identifiers.
+
+The composition function must call/reuse existing authoritative resolvers/projections. It must not copy their precedence logic into a second implementation.
+
+#### Context contract — refined
+For `LIVE_AS_OF`:
+- required: `sku_id`, `period_start`, `valuation_date` (or a server-resolved valuation date from the governed period with equality validation);
+- Product route/BOM/batch/commercial policies resolve against the governed valuation/as-of date;
+- period-derived commercial evidence resolves for the explicit period;
+- downstream costing outcome may be attached only when the available persisted control evidence matches the requested context; otherwise report it as unavailable/UNKNOWN rather than borrowing another period.
+
+For `EXACT_RUN`:
+- required: `refresh_run_id` and `sku_id`;
+- period/valuation context is taken from the immutable run context;
+- dependency evidence must come from run-scoped/frozen authorities where available;
+- live resolver output must never overwrite or masquerade as exact-run evidence.
+
 ## Approved design / contract
-Not yet approved.
+The G3 architecture above is approved as the working WP01 server-contract direction, subject to implementation-detail verification and regression proof before WP01 closure.
 
 ## Milestones
 - [x] Current-state/audit gate
-- [~] Design/contract gate where applicable
+- [x] Design/contract gate where applicable
 - [ ] Implementation gate where applicable
 - [ ] Focused verification
 - [ ] Independent audit
@@ -131,10 +175,10 @@ Not yet approved.
 [~] IN PROGRESS
 
 ## Required to close
-Independently audit the dependency mapping, aggregation rules and candidate result shape against live resolver semantics and the approved WP00 matrix; resolve any over-generalisation; decide whether to compose existing authorities through a dedicated server resolver/view/RPC or extend an existing authority. No client implementation before that decision.
+Specify the implementation-ready function/RPC contract and source-authority map, verify permissions/security pattern and exact-run source availability, then implement and regression-test the read-only server composition authority. Client work remains excluded from WP01.
 
 ## Next gate
-`WP01-G3 — independent contract audit and server-authority decision`
+`WP01-G4 — implementation-ready server contract and source-authority proof`
 
 ## Server changes
 None.
