@@ -175,10 +175,96 @@ The G3 architecture above is approved as the working WP01 server-contract direct
 [~] IN PROGRESS
 
 ## Required to close
-Specify the implementation-ready function/RPC contract and source-authority map, verify permissions/security pattern and exact-run source availability, then implement and regression-test the read-only server composition authority. Client work remains excluded from WP01.
+Implement the approved read-only composition RPC, run security/performance advisors, verify LIVE_AS_OF and EXACT_RUN context handling, regression-test READY/REVIEW_REQUIRED/BLOCKED plus incomplete/no-snapshot behaviour, document exact SQL/migration/repository evidence, and independently audit before merge. Client work remains excluded from WP01.
 
 ## Next gate
-`WP01-G4 — implementation-ready server contract and source-authority proof`
+`WP01-G5 — server composition authority implementation and regression proof`
+
+### G4 implementation-ready server contract and source-authority proof
+
+#### Public boundary
+Create one read-only authenticated RPC in `public`, provisionally:
+`public.rpc_get_product_sku_readiness(p_sku_id bigint, p_period_start date, p_context_type text default 'LIVE_AS_OF', p_refresh_run_id bigint default null) returns jsonb`.
+
+Final naming may be adjusted at implementation, but overloading must be avoided.
+
+**Permission:** `public.require_permission('module:costing-control-center', false)` is the proven current read/control convention and is the initial approved permission boundary. Do not expose internal `costing.fn_*` resolvers directly to authenticated users.
+
+**Security:** existing protected read RPCs use `SECURITY DEFINER` with fixed `search_path = public, costing, pg_temp`, explicit module permission checks, and restricted EXECUTE grants. Because several required specialist resolvers are themselves restricted `SECURITY DEFINER` functions executable only by postgres/service_role, a pure security-invoker public wrapper cannot compose them for authenticated clients. Therefore the G3 preference for security-invoker is superseded by live evidence: use the established controlled `SECURITY DEFINER` read-RPC pattern, revoke PUBLIC execution, grant only authenticated/service_role as required, and run security advisors after DDL.
+
+#### Input/context validation
+**LIVE_AS_OF**
+- require `p_sku_id` and month-normalized `p_period_start`;
+- derive the governed valuation date from `costing.cost_periods` / the semantics already exposed by `rpc_get_cost_period_valuation_context`;
+- reject missing period/valuation context rather than silently substituting `current_date`;
+- return the resolved period/valuation context in the payload;
+- downstream persisted costing outcome is attached only if its period/valuation context matches; otherwise outcome is `UNKNOWN` with a context-mismatch/unavailable reason.
+
+**EXACT_RUN**
+- require `p_sku_id` and `p_refresh_run_id`;
+- derive period/valuation from `costing.costing_refresh_run`, consistent with `rpc_get_costing_refresh_context`;
+- if a supplied `p_period_start` conflicts with the run context, fail closed;
+- require run-context integrity to be suitable for exact evidence; legacy/unverified or mismatched context must be reported explicitly;
+- read run-scoped frozen/snapshot authorities by `refresh_run_id + period_start + valuation_date + sku_id`; never invoke live resolvers as historical proof.
+
+#### Source-authority map
+| Dependency | LIVE_AS_OF authority | EXACT_RUN authority/proof | Contract treatment |
+| --- | --- | --- | --- |
+| Product lifecycle/base UOM | `public.products` joined through SKU | frozen identity fields where present plus run context; lifecycle-at-run is not inferred if not frozen | Product master summary; exact mode must label non-frozen lifecycle fields unavailable rather than current |
+| SKU lifecycle/pack UOM | `public.product_skus` | frozen SKU identity/pack fields in run snapshots where present | SKU master summary |
+| PM-BOM revision | `public.plm_sku_bom_revision_as_of(sku, valuation_date)` | run-scoped PM/material snapshots and frozen BOM lineage | Structural dependency |
+| Batch-size reference | existing governed batch-size effective-dated authority consumed by costing/route workload | run-scoped workload/allocation snapshots where frozen | Structural dependency; implementation must call existing resolver/source, not duplicate precedence |
+| Manufacturing route | `costing.fn_product_process_route_readiness(valuation_date)`, filtered to Product | run-scoped direct-labour/production-overhead/workload snapshots plus frozen route lineage where available | Structural foundation for live; exact mode reports only frozen evidence available |
+| MRP | `costing.fn_resolve_sku_mrp_as_of` | `costing.sku_costing_control_status_snapshot` MRP policy/resolution columns | Structural commercial dependency |
+| Selling/GST | `costing.fn_resolve_sku_selling_price_policy_as_of` | `costing.sku_costing_control_status_snapshot` selling-policy/resolution columns | Structural commercial dependency |
+| Scheme | `costing.fn_resolve_selected_scheme_policy_as_of` per applicable region | exact snapshot scheme-context/frozen pricing evidence | Governed fallback such as DEFAULT_NO_SCHEME is resolved |
+| Common commercial basis | `costing.v_sku_commercial_sales_basis` for requested period/valuation | run-scoped allocation snapshots | Evidence-quality dependency |
+| Regional commercial basis | governed regional assumption/default resolvers and period context | `sku_regional_marketing_allocation_basis_snapshot` | Evidence-quality dependency |
+| Direct Labour | driver registry/policy resolver + route/workload authority | `sku_direct_labour_allocation_snapshot` | Global policy + SKU evidence, deduplicated remediation scope |
+| Production Overhead | driver registry/policy resolver + route/workload authority | `sku_production_overhead_allocation_snapshot` / `sku_overhead_allocation_snapshot` | Global policy + SKU evidence |
+| QA/QC | driver registry/effective policy + governed allocation evidence | `sku_overhead_allocation_snapshot` | Global policy + SKU evidence |
+| Materials/Stores | driver registry/effective policy + governed allocation evidence | `sku_overhead_allocation_snapshot` | Global policy + SKU evidence |
+| Administrative Overhead | approved driver envelope + common sales basis | `sku_admin_finance_overhead_allocation_snapshot` | Global policy + contextual evidence |
+| Finance/Admin Overhead | approved driver envelope + common sales basis | `sku_admin_finance_overhead_allocation_snapshot` | Global policy + contextual evidence |
+| Marketing Expense | effective Marketing policy + regional evidence/acceptance authorities | `sku_marketing_expense_allocation_snapshot`, regional basis/allocation snapshots, acceptance lineage | Preserve raw/effective review semantics |
+| Material rates | live material-cost authority for requested governed context where available | run-scoped material/RM/PM snapshots | Evidence quality/downstream outcome; not Product master |
+| Final costing outcome | matching-context persisted control evidence only | `costing.sku_costing_control_status_snapshot` keyed by exact run/context/SKU | Consume authoritative status/severity/remediation |
+
+#### Exact-run coverage conclusion
+Exact-run support is feasible without historical reconstruction. The live schema contains run-keyed snapshots for final control status and all seven driver/allocation families, including:
+- direct labour;
+- production overhead;
+- combined QA/QC + Materials/Stores overhead;
+- Administrative + Finance/Admin overhead;
+- Marketing and regional Marketing evidence;
+- final SKU costing-control status.
+
+`costing.sku_costing_control_status_snapshot` additionally freezes `valuation_date`, `refresh_run_id`, MRP policy identity/resolution, selling-price policy identity/resolution and scheme-context metadata.
+
+Where a lifecycle/master attribute was never frozen in the run, exact mode must return `UNKNOWN/NOT_FROZEN_IN_RUN` for that historical dimension rather than joining today's mutable master and presenting it as historical fact.
+
+#### Payload contract
+Return a single JSON object:
+- `context`: context type, SKU, Product, period, valuation date, refresh run when applicable, context-integrity status;
+- `lifecycle`: current lifecycle only for LIVE_AS_OF; exact mode marks non-frozen lifecycle evidence unavailable;
+- `summary`: `product_master_foundation_status`, `sku_master_foundation_status`, `costing_foundation_status`, `evidence_quality_status`, `costing_outcome_status`, `overall_severity`;
+- `dependencies`: ordered array of stable dependency objects;
+- `shared_issues`: deduplicated global/system-scope defects (not repeated as independent SKU remediation);
+- `downstream_control`: matching-context authoritative costing-control status when available.
+
+Each dependency object carries:
+`dependency_code`, `label`, `scope`, `dimension`, `applicability`, `raw_status`, nullable `effective_status`, `resolution_source`, `reason_code`, `note`, `owner_module`, `recommended_ui_route`, `authority`, `evidence_ids`, and effective/context dates as applicable.
+
+#### Implementation guardrails
+- read-only: no INSERT/UPDATE/DELETE, no refresh side effects;
+- no resolver-precedence duplication;
+- no use of `current_date` to silently fill governed valuation context;
+- no direct authenticated EXECUTE grants on internal specialist resolvers;
+- fixed search_path and explicit permission check;
+- revoke PUBLIC EXECUTE on the new RPC before granting intended roles;
+- no service-role exposure in client code;
+- security + performance advisors after DDL;
+- regression proof against READY SKU2, REVIEW_REQUIRED SKU1798, BLOCKED SKU1400, plus a newly created/incomplete SKU if a safe existing candidate can be identified without mutation.
 
 ## Server changes
 None.
