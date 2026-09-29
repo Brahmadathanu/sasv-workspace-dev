@@ -165,20 +165,20 @@ The G3 architecture above is approved as the working WP01 server-contract direct
 - [x] Implementation gate where applicable
 - [x] Focused verification
 - [x] Independent audit
-- [ ] Merge/post-merge proof where applicable
-- [ ] Final handover
+- [x] Merge/post-merge proof where applicable
+- [x] Final handover
 
 ## Current Gate
-`WP01-G5 — independent audit and server-contract closure`
+`WP01-CLOSED — canonical completeness contract merged and post-merge verified`
 
 ## Gate Status
 [x] COMPLETED AND VERIFIED
 
 ## Required to close
-Independent audit is complete and PASS. Reconcile the WP01 documentation branch with current main, prove no Product/Costing overlap from moved main, merge only after explicit approval, then run post-merge verification and close WP01.
+PR #21 merged after explicit approval at main merge SHA `819c06c3c06389f50b90c4185e2af39d68ae3797`. Post-merge Git proof showed no file delta between reconciled head and main. Live server post-merge regression reconfirmed SKU2 READY, SKU1798 REVIEW_REQUIRED, SKU1400 BLOCKER, SKU114 incomplete BLOCKER, LIVE evidence Run115, EXACT_RUN 114 pinned to Run114, and shared global issues empty.
 
 ## Next gate
-`WP01-G5C — repository reconciliation, merge/post-merge proof and WP01 closure`
+`WP02-G1 — current lifecycle surface and contract-consumption design`
 
 ### G4 implementation-ready server contract and source-authority proof
 
@@ -377,3 +377,10 @@ All work-pack objectives and required verification gates pass; documentation and
 
 ## Final handover
 Not started.
+
+## Final handover
+WP01 is completed and verified. PR #21 merged at `819c06c3c06389f50b90c4185e2af39d68ae3797` after explicit approval. The reconciled head was `d92116f69af3821d6e4655d825b050fb8f79a1f3`, based on current-main `73219fa4f0c723be14b4d2b1b1b4ff5e8b059988`; moved-main changes were e-Aushadhi-only with zero programme overlap.
+
+Post-merge runtime proof: LIVE_AS_OF Sep-2026 uses successful evidence Run115; SKU2 READY, SKU1798 REVIEW_REQUIRED with structural foundation RESOLVED, SKU1400 BLOCKER, SKU114 incomplete/no-snapshot BLOCKER; EXACT_RUN SKU1798/Run114 remains pinned to Run114; `shared_issues=[]` at valuation 2026-09-10.
+
+Handover to WP02: consume this server contract; do not rebuild readiness precedence or severity in the client. Preserve lifecycle as an independent dimension and keep incomplete/new SKUs visible with guided remediation.
