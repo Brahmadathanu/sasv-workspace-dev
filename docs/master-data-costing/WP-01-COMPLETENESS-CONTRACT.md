@@ -162,23 +162,23 @@ The G3 architecture above is approved as the working WP01 server-contract direct
 ## Milestones
 - [x] Current-state/audit gate
 - [x] Design/contract gate where applicable
-- [ ] Implementation gate where applicable
-- [ ] Focused verification
+- [x] Implementation gate where applicable
+- [x] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof where applicable
 - [ ] Final handover
 
 ## Current Gate
-`WP01-G1 — canonical completeness vocabulary and server-contract derivation`
+`WP01-G5 — independent audit and server-contract closure`
 
 ## Gate Status
 [~] IN PROGRESS
 
 ## Required to close
-Implement the approved read-only composition RPC, run security/performance advisors, verify LIVE_AS_OF and EXACT_RUN context handling, regression-test READY/REVIEW_REQUIRED/BLOCKED plus incomplete/no-snapshot behaviour, document exact SQL/migration/repository evidence, and independently audit before merge. Client work remains excluded from WP01.
+Independently audit the implemented server composition against the approved G1–G4 contract. Required audit items: shared/global driver-policy defect semantics and deduplication; dependency owner/remediation routes; LIVE_AS_OF latest-success evidence pinning; EXACT_RUN immutability/non-substitution; ACL/search-path/permission boundary; representative READY/REVIEW_REQUIRED/BLOCKED/incomplete regressions. Correct any REQUIRED NOW defect, then mark Independent audit complete. Reconcile this branch with current main before merge. Client work remains excluded from WP01.
 
 ## Next gate
-`WP01-G5 — server composition authority implementation and regression proof`
+`WP01-G5C — repository reconciliation, merge/post-merge proof and WP01 closure`
 
 ### G4 implementation-ready server contract and source-authority proof
 
