@@ -28,3 +28,15 @@
 ## 2026-09-27 — DEC-005 — WP-1
 **Decision:** No new top-level Product/Costing module before WP5/WP7/WP8 evidence establishes the need.
 **Status:** LOCKED
+
+## 2026-09-29 — DEC-006 — WP01
+**Decision:** Product/SKU readiness is a multidimensional server-authoritative composition, not a sequential lifecycle ladder or client checklist.
+**Reason:** Live resolver/snapshot evidence proves lifecycle, structural foundation, evidence quality and final costing outcome are orthogonal; governed fallback can be structurally resolved while remaining REVIEW_REQUIRED.
+**Impact:** WP01 server contract and later WP02–WP04 client consumption.
+**Status:** LOCKED
+
+## 2026-09-29 — DEC-007 — WP01
+**Decision:** LIVE_AS_OF persisted evidence is pinned to the latest SUCCESS refresh run matching the governed period/valuation context; failed runs are excluded. EXACT_RUN remains pinned to the explicitly requested immutable run and never substitutes current mutable master evidence for fields not frozen in that run.
+**Reason:** Run115 is the latest successful Sep-2026 / 2026-09-10 context while Run116 failed; exact Run114 proof must remain Run114.
+**Impact:** Readiness context integrity and historical auditability.
+**Status:** LOCKED
