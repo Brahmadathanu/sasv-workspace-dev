@@ -50,10 +50,10 @@ IN PROGRESS
 WP02 — Product + SKU Lifecycle Redesign
 
 ## Active gate
-WP02-G2 — lifecycle surface and WP01 contract-consumption design
+WP02-G3 — implementation planning / isolated implementation
 
 ## Overall completion progress
-2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 is active with G1 current-state audit completed and G2 design/contract in progress.
+2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 G1 and G2 are completed and G3 implementation planning is active.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -62,9 +62,12 @@ WP02-G2 — lifecycle surface and WP01 contract-consumption design
 - No new top-level module until later IA audit proves it is required.
 - No Product/Costing redesign before WP0 closes.
 - WP01 readiness is multidimensional and server-authoritative; clients consume the canonical contract rather than recomputing it.
+- Product detail is the Product/SKU lifecycle anchor; SKU master, activation and readiness remain separate.
+- Product Master readiness uses LIVE_AS_OF only for an explicit server-governed period.
+- Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No blocker to WP02-G2. One evidence-backed missing client surface remains parked for later work: the server-governed regional Marketing evidence-acceptance contract has no current-main client write/remediation path found.
+No architectural blocker to WP02-G3. One REQUIRED NOW implementation dependency exists: the canonical readiness read authorization and latest-governed-period context must be made available to Manage Products without granting specialist Costing Control Center access. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work.
 
 ## Immediate next action
-Complete and independently audit WP02-G2: freeze the Product-detail child-SKU lifecycle surface and exact consumption of `rpc_get_product_sku_readiness`. Do not begin client implementation until G2 closes.
+Produce and independently audit the WP02-G3 implementation plan against DEC-008–DEC-010, then implement on an isolated feature branch/worktree from verified current main. No merge without focused verification and independent diff audit.
