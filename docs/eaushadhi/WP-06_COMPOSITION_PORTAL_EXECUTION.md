@@ -1,7 +1,7 @@
 # WP-06 — Composition Portal Execution
 
 **Architecture state:** GREEN  
-**Progress:** 55%
+**Progress:** 65%
 
 ## Objective
 Safely execute verified server Composition data into the portal and record durable server-side progress/evidence.
@@ -13,7 +13,7 @@ WP-06 consumes only fresh server-governed snapshots that satisfy that contract. 
 
 ## Existing portal contract
 - Page: `/admin/addcomposition`.
-- Save is per line via native `SaveCompositionData`.
+- Save is per line through the native page function `SaveData()`, which issues `POST /admin/SaveCompositionData`.
 - Required fields include ingredient name, botanical name, ingredient type, reference, ingredient form, part used, quantity and unit.
 - Reference placeholder `-1` is rejected.
 - Native list/reread endpoints captured.
@@ -128,7 +128,7 @@ A successful arm stores the full bounded evidence and returns one run ID plus th
 
 ### 5. One-save-at-most-once rule
 
-The live executor may invoke native `SaveCompositionData` only when:
+The live executor may invoke native `SaveData()` only when:
 
 - Composition live arm is explicitly enabled by trusted Electron code;
 - a current `SAVE_ARMED` run exists;
@@ -253,7 +253,7 @@ The execution snapshot is server authoritative.
 - [x] Freeze Composition READY input contract from WP-05.
 - [x] Freeze durable server lifecycle/run model specialized for Composition execution.
 - [x] Implement Composition stage/run server foundation.
-- [ ] Implement live Composition executor while arm remains default OFF.
+- [x] Implement trusted Composition executor/adapters/client orchestration while arm remains default OFF.
 - [x] Controlled first-line bootstrap on Karpooradi.
 - [x] Prove row edit-ID and unitname/reread value semantics.
 - [ ] Continue remaining lines under the durable WP-06 mutation gate with no normal Update/Delete.
@@ -262,7 +262,7 @@ The execution snapshot is server authoritative.
 - [ ] WP closure audit.
 
 ## Current gate
-Implement the trusted Composition executor/adapters and client orchestration against the now-live server lifecycle, while keeping the live arm default OFF.
+Run controlled runtime/read-only acceptance of the merged trusted Composition executor with live mutation still disarmed. Confirm preview/page identity/list coverage/reread/normalization/UI behavior against the actual Product 262 Composition page before any proposal to enable live mutation.
 
 The server foundation is live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
@@ -276,9 +276,25 @@ Live post-migration audit proved:
 - public Composition RPC execution is restricted to authenticated/service_role;
 - active-run uniqueness and evidence-binding guards are live.
 
-Until the trusted executor/adapters are implemented and audited:
+The trusted executor/adapters are now merged and independently audited. The current acceptance boundary remains read-only because `COMPOSITION_LIVE_ARM_DEFAULT=false`.
+
+Until runtime/read-only acceptance is closed and a separate live-arm gate is explicitly opened:
 
 - do not manually continue Karpūra or Kēram portal entry;
 - do not invoke native Composition Save/Update/Delete;
 - keep `COMPOSITION_LIVE_ARM_DEFAULT=false`;
 - do not touch QC Register or final Submit.
+
+
+## Trusted executor merge evidence — 2026-09-29
+- Feature branch: `feat/eaushadhi-composition-trusted-executor`.
+- Initial feature commit: `462e2174aff55829b8318c104edebb7c3df5c84d`.
+- Native Save contract correction: `e5d96452c80bd384710317afedb0c412a6f99599`.
+- Merge commit: `3611cb29e8166bfcf924c7c01aa59229b2128720`.
+- Native mutation binding is explicitly: page function `SaveData()` → observed exact `POST /admin/SaveCompositionData`; no direct handcrafted production POST was added.
+- Trusted request/response observers are installed before invoking `SaveData()`; business success requires parsed response `status == "1"`.
+- Exact ADD mode is required before invocation.
+- One-save-at-most-once, AMBIGUOUS no-retry, interrupted SAVE_ARMED recovery, and final exact-set verification are implemented.
+- Renderer receives bounded commands/projections only; no generic RPC/page-evaluate bridge is exposed.
+- Production live arm remains hard false even when the environment variable is `"true"`.
+- Post-merge live audit: Product 262 Product Details workflow remains PORTAL_VERIFIED at row_version 11; Composition stage rows = 0; Composition run rows = 0.

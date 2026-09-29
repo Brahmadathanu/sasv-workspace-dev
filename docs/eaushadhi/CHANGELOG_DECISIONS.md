@@ -118,3 +118,16 @@ A successful/ambiguous Save does not itself complete the line or stage. Fresh co
 - No Product 262 Composition stage/run row was instantiated during deployment; no SAVE_ARMED authority or portal mutation occurred.
 - Repository migrations exactly version the live foundation and hardening migrations.
 - Composition live arm remains OFF; next gate is trusted executor/adapters and client orchestration.
+
+
+## 2026-09-29 — WP-06 trusted Composition executor merged
+- Implemented dedicated Composition executor, live adapters, bounded native normalizer, IPC/preload/client orchestration and read-only UI projection.
+- Preserved one canonical `COMPOSITION_LIVE_ARM_DEFAULT=false` authority; environment `"true"` alone cannot arm execution.
+- Corrected the native portal contract during independent audit: the page mutation function is `SaveData()`, while `/admin/SaveCompositionData` is the HTTP endpoint it calls.
+- Trusted request/response observers are installed before the one allowed `SaveData()` invocation; CONFIRMED requires exactly one matching POST, settled HTTP success, parsed bounded JSON and business `status == "1"`.
+- Local native validation rejection with no matching request is REJECTED; invoked uncertainty remains AMBIGUOUS and is never auto-retried.
+- Exact ADD mode is required before invocation; update/delete remain prohibited.
+- Interrupted SAVE_ARMED recovery is read-only and deterministic: exact-present → AMBIGUOUS then verification; conclusively absent → REJECTED; uncertain/conflicting → AMBIGUOUS and stop.
+- Feature commits: `462e2174aff55829b8318c104edebb7c3df5c84d`, correction `e5d96452c80bd384710317afedb0c412a6f99599`; merged at `3611cb29e8166bfcf924c7c01aa59229b2128720`.
+- Post-merge live audit confirmed Product 262 workflow still PORTAL_VERIFIED at row_version 11 with zero Composition stage rows and zero Composition run rows.
+- Next gate is controlled runtime/read-only acceptance with live mutation still disarmed; no Karpūra/Kēram portal entry is yet authorized.
