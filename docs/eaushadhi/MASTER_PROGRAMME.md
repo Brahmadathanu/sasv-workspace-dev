@@ -48,7 +48,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
-| WP-06 | Composition Portal Execution | GREEN | 55% | Server stage/run lifecycle live and versioned; implement trusted executor/adapters while live arm remains OFF |
+| WP-06 | Composition Portal Execution | PURPLE | 65% | Trusted executor merged/audited with live arm OFF; run controlled runtime/read-only acceptance before any live-arm gate |
 | WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
@@ -56,7 +56,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-11 | Post-Closure Enhancements / Parked Backlog | PARKED | N/A | Scope sink; not part of closure percentage |
 
 ### Programme completion baseline
-**45% — milestone-based tracking baseline, not an effort/time estimate.**
+**46% — milestone-based tracking baseline, not an effort/time estimate.**
 
 Work-pack percentages and the overall percentage are tracking indicators. They must be updated only when milestone evidence changes. WP-11 is excluded from overall completion.
 
@@ -73,8 +73,9 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - The existing `regulatory.eaushadhi_worker_run` / product-level `entry_status` lifecycle is Product-Details execution authority and MUST NOT be reused for Composition.
 - WP-06 now has a frozen Composition-specific stage/run lifecycle: independent stage state, one target line per run, durable SAVE_ARMED authority, one Save at most once, explicit save outcome, fresh list/reread semantic proof, and separate final stage PORTAL_VERIFIED evidence.
 - Composition stage/run server authority is live and repository-versioned; Product 262 currently has no Composition stage/run rows and no SAVE_ARMED authority.
+- Trusted Composition executor/adapters/client orchestration are merged at `3611cb29e8166bfcf924c7c01aa59229b2128720`; native mutation is correctly bound to page `SaveData()` while observing `POST /admin/SaveCompositionData`.
 - Composition live arm remains OFF: `COMPOSITION_LIVE_ARM_DEFAULT=false`.
-- No further Composition portal mutation is authorized until the trusted Composition executor/adapters and orchestration are implemented and audited against the live server lifecycle.
+- No further Composition portal mutation is authorized until controlled runtime/read-only acceptance is completed and a separate live-arm gate is explicitly opened.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:
