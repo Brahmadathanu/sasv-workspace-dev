@@ -27,8 +27,8 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 ## Work-pack inventory
 - [x] WP-1 — Repository Programme Control Plane
 - [x] WP00 — Authoritative Current-State Inventory
-- [~] WP01 — Canonical Product/SKU Completeness Contract
-- [ ] WP02 — Product + SKU Lifecycle Redesign
+- [x] WP02 — Product + SKU Lifecycle Redesign
+- [~] WP02 — Product + SKU Lifecycle Redesign
 - [ ] WP03 — Creation-Time Guided Completeness
 - [ ] WP04 — Central Master Data / Costing Readiness Control Centre
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
