@@ -50,10 +50,10 @@ IN PROGRESS
 WP01 — Canonical Product/SKU Completeness Contract
 
 ## Active gate
-WP01-G5 — independent audit and server-contract closure
+WP02-G1 — current lifecycle surface and contract-consumption design
 
 ## Overall completion progress
-1 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite and WP00 are completed and verified; WP01 server composition is implemented and regression-proven, with independent audit/closure still in progress.
+2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 is now the active work pack.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -66,4 +66,4 @@ WP01-G5 — independent audit and server-contract closure
 None blocking WP00. One evidence-backed missing client surface is parked for later work: the server-governed regional Marketing evidence-acceptance contract has no current-main client write/remediation path found.
 
 ## Immediate next action
-Independently audit the implemented WP01 readiness authority against the approved contract: shared/global issue semantics, dependency ownership/remediation routes, context integrity, ACLs and representative regressions. Correct any REQUIRED NOW defect before WP01 closure; reconcile the diverged branch with current main before merge. No client redesign.
+Begin WP02 from the closed WP01 server contract: audit the current Product + SKU lifecycle surfaces and define how lifecycle UI consumes server-authoritative readiness without duplicating resolver logic. No implementation before the WP02 design gate is approved.
