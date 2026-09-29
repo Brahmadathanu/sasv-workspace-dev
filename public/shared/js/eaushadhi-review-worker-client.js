@@ -115,6 +115,33 @@ export async function recoverAmbiguousSaveExactOneProductDetails(
   );
 }
 
+export async function previewWorkerComposition(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.previewComposition !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.previewComposition(productId, accessToken);
+}
+
+export async function startWorkerCompositionLine(productId, sourceCompositionLineId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.startCompositionLine(productId, sourceCompositionLineId, accessToken, {
+    userConfirmed: options?.userConfirmed === true,
+  });
+}
+
+export async function recoverWorkerCompositionRun(productId, runId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.recoverCompositionRun(productId, runId, accessToken, {
+    userConfirmed: options?.userConfirmed === true,
+  });
+}
+
+export async function verifyWorkerCompositionStage(productId, accessToken, options) {
+  if (!workerApiAvailable()) return unsupported();
+  return window.eaushadhiWorkerAPI.verifyCompositionStage(productId, accessToken, {
+    userConfirmed: options?.userConfirmed === true,
+  });
+}
+
 export async function captureWorkerPortalContract(accessToken) {
   if (!workerApiAvailable()) return unsupported();
   return window.eaushadhiWorkerAPI.capturePortalContract(accessToken);

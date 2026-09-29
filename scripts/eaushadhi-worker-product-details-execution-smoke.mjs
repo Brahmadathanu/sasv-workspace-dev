@@ -3673,7 +3673,7 @@ assert(
   // Preload must forward productId / accessToken / userConfirmed only.
   const reconcileBlock = preloadSrc.slice(
     preloadSrc.indexOf("reconcileAmbiguousSaveProductDetails:"),
-    preloadSrc.indexOf("capturePortalContract:"),
+    preloadSrc.indexOf("previewComposition:"),
   );
   assert(
     !/(runId|run_id|contentHash|workflowRowVersion|duplicateSearch|saveEvidence|reconciliationEvidence|save_outcome)/.test(
