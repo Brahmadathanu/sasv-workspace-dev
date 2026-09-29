@@ -269,6 +269,30 @@ Each dependency object carries:
 ## Server changes
 None.
 
+### G5 implementation checkpoint — server boundary live, contract completion still in progress
+Live migrations:
+- `20260929073632 wp01_product_sku_readiness_composition_rpc`
+- `20260929073856 wp01_product_sku_readiness_rpc_acl_hardening`
+
+Implemented public boundary:
+`public.rpc_get_product_sku_readiness(bigint,date,text,bigint) returns jsonb`.
+
+Verified properties:
+- read-only `STABLE SECURITY DEFINER` with fixed `search_path = public, costing, pg_temp`;
+- explicit `require_permission('module:costing-control-center', false)`;
+- EXECUTE ACL is postgres/authenticated/service_role only; `anon_exec=false`;
+- LIVE_AS_OF derives governed valuation date from the requested costing period and rejects missing context;
+- EXACT_RUN derives immutable period/valuation context from `costing_refresh_run`;
+- exact-run SKU1798/Run114 reports context `CONSISTENT`, Product historical master `UNKNOWN` rather than current-master substitution, and REVIEW_REQUIRED downstream outcome;
+- live regression: SKU2 => READY/RESOLVED, SKU1798 => REVIEW_REQUIRED with structural foundation RESOLVED, SKU1400 => lifecycle inactive + structural BLOCKED;
+- active/no-snapshot regression: SKU114 Rasnadi Choornam is visible immediately and reports BLOCKED foundations (missing PM-BOM, MRP and selling policy) with no downstream snapshot.
+- initial unauthenticated SQL call failed closed with `Not authenticated`, confirming the permission boundary.
+- security advisor exposed an explicit anon EXECUTE inherited/default grant after the first migration; the second migration removed it and ACL proof now reports `anon_exec=false`.
+
+**G5 is not complete.** The first implementation establishes and proves the composition boundary, but the locked G4 contract also requires scheme/regional evidence and all seven driver families in dependency detail/shared-issue output. Those must be added and regression-audited before G5 closure. Do not treat the current RPC as the final WP01 contract yet.
+
+Repository reconciliation: while this branch was open, `main` advanced independently to `73219fa4f0c723be14b4d2b1b1b4ff5e8b059988` through e-Aushadhi-only files. No Product/Costing/WP01 overlap was found. Reconcile against current main before final WP01 merge.
+
 ## Client changes
 None.
 
