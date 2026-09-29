@@ -19,6 +19,9 @@ const {
   normalizeCompositionReread,
   normalizeNativeCompositionList,
 } = require("../electron/eaushadhi-worker/composition-native-normalizer.js");
+const {
+  buildCompositionLiveAdapters,
+} = require("../electron/eaushadhi-worker/composition-live-adapters.js");
 
 const HASH = "a".repeat(64);
 const REF = "portal-262";
@@ -137,7 +140,10 @@ function fakeDeps(authorities, options = {}) {
     fillTarget: async (target) => calls.push(["fillTarget", target]),
     invokeSaveOnce: async () => {
       calls.push(["invokeSaveOnce"]);
-      return options.saveObservation || { invoked: true, invokeCount: 1, settled: true, transportSuccess: true, businessSuccess: true, httpStatus: 200 };
+      return options.saveObservation || {
+        invoked: true, invokeCount: 1, settled: true, transportSuccess: true,
+        businessSuccess: true, responseParsed: true, matchingRequestCount: 1, httpStatus: 200,
+      };
     },
     recordSave: async (input) => {
       calls.push(["recordSave", input]);
@@ -266,6 +272,81 @@ for (const [label, mutate, code] of [
 assert.equal(classifySave({ invoked: false, invokeCount: 0 }).outcome, "REJECTED");
 assert.equal(classifySave({ invoked: true, invokeCount: 1, settled: true, noMutationProven: true }).outcome, "REJECTED");
 assert.equal(classifySave({ invoked: true, invokeCount: 1, settled: true }).outcome, "AMBIGUOUS");
+assert.equal(classifySave({ invoked: true, invokeCount: 1, settled: true, transportSuccess: true, httpStatus: 200 }).outcome, "AMBIGUOUS");
+assert.equal(classifySave({ invoked: true, invokeCount: 1, settled: true, transportSuccess: true, businessSuccess: true, responseParsed: true, matchingRequestCount: 1 }).outcome, "CONFIRMED");
+assert.equal(classifySave({ invoked: true, invokeCount: 1, settled: false, matchingRequestCount: 1 }).outcome, "AMBIGUOUS");
+assert.equal(classifySave({ invoked: true, invokeCount: 1, settled: true, transportSuccess: true, businessSuccess: false, responseParsed: false, matchingRequestCount: 1 }).outcome, "AMBIGUOUS");
+assert.equal(classifySave({ invoked: true, invokeCount: 1, settled: true, transportSuccess: true, businessSuccess: true, responseParsed: true, matchingRequestCount: 2 }).outcome, "AMBIGUOUS");
+
+function nativeSaveHarness({ actionMode = "add", returnedFalse = false, requests = 1, body = '{"status":"1"}', httpOk = true } = {}) {
+  const handlers = { request: new Set(), response: new Set() };
+  const events = [];
+  let invocationCount = 0;
+  const request = () => ({
+    url: () => "https://www.e-aushadhi.gov.in/admin/SaveCompositionData",
+    method: () => "POST",
+  });
+  const response = (req) => ({
+    request: () => req,
+    text: async () => body,
+    ok: () => httpOk,
+    status: () => httpOk ? 200 : 500,
+  });
+  const page = {
+    on(name, handler) { events.push(`on:${name}`); handlers[name].add(handler); },
+    off(name, handler) { handlers[name].delete(handler); },
+    async evaluate(fn) {
+      const source = String(fn);
+      if (!source.includes("const returned = window.SaveData()")) {
+        return { actionMode, saveAvailable: true };
+      }
+      events.push("invoke:SaveData");
+      invocationCount += 1;
+      if (actionMode !== "add") return { invoked: false, returnedFalse: false };
+      if (!returnedFalse) {
+        queueMicrotask(() => {
+          for (let index = 0; index < requests; index += 1) {
+            const req = request();
+            for (const handler of handlers.request) handler(req);
+            for (const handler of handlers.response) handler(response(req));
+          }
+        });
+      }
+      return { invoked: true, returnedFalse };
+    },
+  };
+  return { page, events, invocationCount: () => invocationCount };
+}
+
+// Native SaveData contract: observer first, exact endpoint, bounded business result.
+{
+  const harness = nativeSaveHarness();
+  const adapters = buildCompositionLiveAdapters({ page: harness.page, callRpc: async () => ({}), liveArmed: true });
+  const observed = await adapters.invokeSaveOnce(runId);
+  assert.equal(harness.invocationCount(), 1);
+  assert.ok(harness.events.indexOf("on:request") < harness.events.indexOf("invoke:SaveData"));
+  assert.ok(harness.events.indexOf("on:response") < harness.events.indexOf("invoke:SaveData"));
+  assert.equal(observed.matchingRequestCount, 1);
+  assert.equal(classifySave(observed).outcome, "CONFIRMED");
+}
+{
+  const harness = nativeSaveHarness({ returnedFalse: true, requests: 0 });
+  const observed = await buildCompositionLiveAdapters({ page: harness.page, callRpc: async () => ({}), liveArmed: true }).invokeSaveOnce(runId);
+  assert.equal(observed.rejectionReason, "NATIVE_SAVE_VALIDATION_REJECTED");
+  assert.equal(classifySave(observed).outcome, "REJECTED");
+}
+{
+  const harness = nativeSaveHarness({ requests: 2 });
+  const observed = await buildCompositionLiveAdapters({ page: harness.page, callRpc: async () => ({}), liveArmed: true }).invokeSaveOnce(runId);
+  assert.equal(observed.matchingRequestCount, 2);
+  assert.equal(classifySave(observed).outcome, "AMBIGUOUS");
+}
+{
+  const harness = nativeSaveHarness({ actionMode: "edit" });
+  const observed = await buildCompositionLiveAdapters({ page: harness.page, callRpc: async () => ({}), liveArmed: true }).invokeSaveOnce(runId);
+  assert.equal(observed.rejectionReason, "NATIVE_ACTION_MODE_NOT_ADD");
+  assert.equal(harness.invocationCount(), 0);
+}
 
 const activeRun = (status) => ({
   run_id: runId,
@@ -359,6 +440,14 @@ assert.doesNotMatch(files.executor, /eaushadhi_worker_run_begin|eaushadhi_worker
 assert.doesNotMatch(`${files.executor}\n${files.adapter}`, /QC Register|final Submit|submitProduct/);
 assert.doesNotMatch(files.normalizer, /SaveCompositionData|UpdateCompositionData|DeleteCompositionData|\.rpc\(|page\.evaluate|createHash/);
 assert.doesNotMatch(files.adapter, /UpdateCompositionData|DeleteCompositionData|AddCompositionData/);
+assert.match(files.adapter, /typeof window\.SaveData === "function"/);
+assert.match(files.adapter, /const returned = window\.SaveData\(\)/);
+assert.doesNotMatch(files.adapter, /window\.SaveCompositionData\s*\(/);
+assert.match(files.adapter, /SAVE_ENDPOINT_PATH = "\/admin\/SaveCompositionData"/);
+assert.doesNotMatch(files.adapter, /fetch\([^)]*SaveCompositionData/);
+assert.ok(files.adapter.indexOf('page.on("request", onRequest)') < files.adapter.indexOf("const returned = window.SaveData()"));
+assert.match(files.adapter, /request\.method\(\) === "POST"/);
+assert.match(files.adapter, /measured\.actionMode !== "add"/);
 assert.match(files.adapter, /LIST_MAX_ROWS = 50/);
 assert.match(files.adapter, /rpc_eaushadhi_composition_execution_preflight/);
 assert.match(files.adapter, /rpc_eaushadhi_composition_run_arm/);

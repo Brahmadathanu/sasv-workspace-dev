@@ -8,6 +8,8 @@ const EXPECTED_ROUTE = "/admin/addcomposition";
 const LIST_INITIAL_LENGTH = 10;
 const LIST_MAX_ROWS = 50;
 const REFERENCE_WAIT_MS = 5000;
+const SAVE_OBSERVE_TIMEOUT_MS = 8000;
+const SAVE_ENDPOINT_PATH = "/admin/SaveCompositionData";
 
 function rpcArgs(input) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
@@ -42,13 +44,15 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
         "#compositionid", "#CompositionId", "#hdnCompositionId",
         "input[name='compositionid']", "input[name='id']",
       ]);
+      const actionMode = read(["#actiontype", "input[name='actiontype']"]);
       return {
         origin: url.origin,
         route: url.pathname.toLowerCase(),
         productToken,
         portalRef,
         staleEdit: Boolean(editId && editId !== "0" && editId !== "-1"),
-        saveAvailable: typeof window.SaveCompositionData === "function",
+        actionMode,
+        saveAvailable: typeof window.SaveData === "function",
         expectedOrigin,
         expectedRoute,
       };
@@ -63,6 +67,7 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
       !productMatches ||
       String(measured.portalRef ?? "") !== expectedRef ||
       measured.staleEdit ||
+      (requireSaveCapability && measured.actionMode !== "add") ||
       (requireSaveCapability && measured.saveAvailable !== true)
     ) return { ok: false, code: "COMPOSITION_PAGE_IDENTITY_FAILED", measured };
     return {
@@ -230,18 +235,95 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
   async function invokeSaveOnce(runId) {
     if (liveArmed !== true) return { invoked: false, invokeCount: 0, settled: true, noMutationProven: true };
     writeLog({ phase: "composition-save", runId, productId: PRODUCT_ID });
-    return page.evaluate(async () => {
-      if (typeof window.SaveCompositionData !== "function") return { invoked: false, invokeCount: 0, settled: true, noMutationProven: true };
-      let returned;
+    const capability = await page.evaluate(() => ({
+      actionMode: String(document.querySelector("#actiontype")?.value ?? document.querySelector("input[name='actiontype']")?.value ?? ""),
+      saveAvailable: typeof window.SaveData === "function",
+    }));
+    if (capability.actionMode !== "add") {
+      return { invoked: false, invokeCount: 0, settled: true, noMutationProven: true, rejectionReason: "NATIVE_ACTION_MODE_NOT_ADD" };
+    }
+    if (capability.saveAvailable !== true) {
+      return { invoked: false, invokeCount: 0, settled: true, noMutationProven: true, rejectionReason: "NATIVE_SAVE_UNAVAILABLE" };
+    }
+
+    const matchingRequests = [];
+    const matchingResponses = [];
+    const isNativeSave = (request) => {
       try {
-        returned = window.SaveCompositionData();
-        if (returned && typeof returned.then === "function") returned = await returned;
-        const success = returned === true || returned?.success === true || returned?.status === true || returned?.status === 1;
-        return { invoked: true, invokeCount: 1, settled: true, transportSuccess: true, businessSuccess: success };
+        const url = new URL(request.url());
+        return request.method() === "POST" && url.origin === EXPECTED_ORIGIN && url.pathname === SAVE_ENDPOINT_PATH;
       } catch {
-        return { invoked: true, invokeCount: 1, settled: true, transportSuccess: false, businessSuccess: false };
+        return false;
       }
-    });
+    };
+    const onRequest = (request) => {
+      if (isNativeSave(request)) matchingRequests.push(request);
+    };
+    const onResponse = (response) => {
+      if (isNativeSave(response.request())) matchingResponses.push(response);
+    };
+    page.on("request", onRequest);
+    page.on("response", onResponse);
+
+    let invocation;
+    try {
+      invocation = await page.evaluate(() => {
+        const actionMode = String(document.querySelector("#actiontype")?.value ?? document.querySelector("input[name='actiontype']")?.value ?? "");
+        if (actionMode !== "add" || typeof window.SaveData !== "function") {
+          return { invoked: false, returnedFalse: false };
+        }
+        const returned = window.SaveData();
+        return { invoked: true, returnedFalse: returned === false };
+      });
+      const deadline = Date.now() + SAVE_OBSERVE_TIMEOUT_MS;
+      while (Date.now() < deadline && matchingResponses.length === 0 && matchingRequests.length <= 1) {
+        if (invocation?.returnedFalse === true && matchingRequests.length === 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      if (matchingResponses.length > 0) await new Promise((resolve) => setTimeout(resolve, 50));
+    } finally {
+      page.off("request", onRequest);
+      page.off("response", onResponse);
+    }
+
+    if (invocation?.invoked !== true) {
+      return { invoked: false, invokeCount: 0, settled: true, noMutationProven: true, rejectionReason: "NATIVE_ACTION_MODE_NOT_ADD" };
+    }
+    if (invocation.returnedFalse === true && matchingRequests.length === 0) {
+      return {
+        invoked: true, invokeCount: 1, settled: true, transportSuccess: false,
+        businessSuccess: false, responseParsed: false, matchingRequestCount: 0,
+        noMutationProven: true, rejectionReason: "NATIVE_SAVE_VALIDATION_REJECTED",
+      };
+    }
+    if (matchingRequests.length !== 1 || matchingResponses.length !== 1) {
+      return {
+        invoked: true, invokeCount: 1, settled: false, transportSuccess: false,
+        businessSuccess: false, responseParsed: false, matchingRequestCount: matchingRequests.length,
+      };
+    }
+    const response = matchingResponses[0];
+    let payload;
+    let responseParsed = false;
+    try {
+      const raw = await response.text();
+      if (raw.length <= 8192) {
+        payload = JSON.parse(raw);
+        responseParsed = payload != null && typeof payload === "object";
+      }
+    } catch {
+      responseParsed = false;
+    }
+    return {
+      invoked: true,
+      invokeCount: 1,
+      settled: true,
+      transportSuccess: response.ok() === true,
+      httpStatus: response.status(),
+      responseParsed,
+      businessSuccess: responseParsed && String(payload.status) === "1",
+      matchingRequestCount: 1,
+    };
   }
 
   async function rereadRow(rowId) {

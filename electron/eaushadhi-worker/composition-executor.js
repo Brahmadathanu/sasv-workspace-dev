@@ -109,17 +109,19 @@ function validateArmedResponse(armed, authority, requestedTarget) {
 
 function classifySave(observation) {
   if (!observation || observation.invoked !== true || Number(observation.invokeCount) !== 1) {
-    return { outcome: "REJECTED", reason: "SAVE_NOT_INVOKED" };
+    return { outcome: "REJECTED", reason: observation?.rejectionReason || "SAVE_NOT_INVOKED" };
   }
   if (
     observation.settled === true &&
     observation.transportSuccess === true &&
-    observation.businessSuccess === true
+    observation.businessSuccess === true &&
+    observation.responseParsed === true &&
+    Number(observation.matchingRequestCount) === 1
   ) {
     return { outcome: "CONFIRMED", reason: "NATIVE_SUCCESS_CONFIRMED" };
   }
   if (observation.noMutationProven === true) {
-    return { outcome: "REJECTED", reason: "NATIVE_NO_MUTATION_PROVEN" };
+    return { outcome: "REJECTED", reason: observation.rejectionReason || "NATIVE_NO_MUTATION_PROVEN" };
   }
   return { outcome: "AMBIGUOUS", reason: "SAVE_EFFECT_UNCERTAIN" };
 }
@@ -133,6 +135,8 @@ function saveEvidence(observation, classification) {
     settled: observation?.settled === true,
     transportSuccess: observation?.transportSuccess === true,
     businessSuccess: observation?.businessSuccess === true,
+    responseParsed: observation?.responseParsed === true,
+    matchingRequestCount: Number(observation?.matchingRequestCount) || 0,
     httpStatus: Number.isInteger(Number(observation?.httpStatus))
       ? Number(observation.httpStatus)
       : null,
