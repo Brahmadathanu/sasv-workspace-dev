@@ -16,13 +16,13 @@ As defined by the approved programme handoff; refine only from audited live arch
 No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi changes.
 
 ## Current-state findings
-Not started.
+Audit started from the closed WP01 server-authoritative readiness contract. Current repository and live lifecycle surfaces must be inventoried before design.
 
 ## Approved design / contract
 Not yet approved.
 
 ## Milestones
-- [ ] Current-state/audit gate
+- [~] Current-state/audit gate
 - [ ] Design/contract gate where applicable
 - [ ] Implementation gate where applicable
 - [ ] Focused verification
@@ -31,16 +31,16 @@ Not yet approved.
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G0 — entry criteria / not started`
+`WP02-G1 — current lifecycle surface and contract-consumption audit`
 
 ## Gate Status
-[ ] NOT STARTED
+[~] IN PROGRESS
 
 ## Required to close
-Entry criteria must be satisfied and the work pack explicitly started.
+Inventory the current Product/SKU lifecycle server and client surfaces, creation/edit/activation paths, and existing readiness/remediation consumption. Prove where lifecycle and readiness are currently conflated or disconnected. No redesign implementation in G1.
 
 ## Next gate
-To be determined from evidence when this WP becomes active.
+`WP02-G2 — lifecycle/redesign contract` after G1 evidence is documented and independently checked.
 
 ## Server changes
 None.
