@@ -4,6 +4,15 @@ const { buildOfflineCompositionExecutionPlan, PLAN_CODE } = require("./compositi
 
 const PRODUCT_ID = 262;
 const ACTIVE_RUNS = new Set(["SAVE_ARMED", "SAVE_CONFIRMED", "SAVE_AMBIGUOUS"]);
+const PAGE_IDENTITY_FAILURE_CODES = new Set([
+  "WORKER_NOT_READY",
+  "COMPOSITION_WRONG_ORIGIN",
+  "COMPOSITION_WRONG_ROUTE",
+  "COMPOSITION_PRODUCT_TOKEN_MISSING",
+  "COMPOSITION_PORTAL_TOKEN_MISMATCH",
+  "COMPOSITION_MUTATION_MODE_NOT_ADD",
+  "COMPOSITION_NATIVE_SAVE_UNAVAILABLE",
+]);
 
 function fail(code, message, extra = {}) {
   return { ok: false, code, message, mutated: false, ...extra };
@@ -16,6 +25,11 @@ function upper(value) {
 function sourceId(value) {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function boundedPageIdentityFailureCode(value) {
+  const code = String(value ?? "");
+  return PAGE_IDENTITY_FAILURE_CODES.has(code) ? code : "COMPOSITION_PAGE_IDENTITY_FAILED";
 }
 
 function boundedRun(run) {
@@ -41,7 +55,11 @@ function targetFromContent(content, targetId) {
 
 function validateAuthority(authority) {
   if (!authority || authority.ok !== true) {
-    return fail(authority?.code || "COMPOSITION_AUTHORITY_UNAVAILABLE", authority?.message || "Composition authority is unavailable.");
+    return fail(
+      authority?.code || "COMPOSITION_AUTHORITY_UNAVAILABLE",
+      authority?.message || "Composition authority is unavailable.",
+      { pageIdentityDiagnostics: authority?.pageIdentityDiagnostics || null },
+    );
   }
   const preflight = authority.preflight;
   const content = authority.content;
@@ -86,6 +104,7 @@ function previewProjection(authority, planner, liveArmed) {
     activeRun: boundedRun(authority.preflight.active_run),
     workflowRowVersion: Number(authority.preflight.workflow_row_version),
     contentHash: authority.preflight.content_hash,
+    pageIdentityDiagnostics: authority.pageIdentityDiagnostics || null,
     startEnabled: false,
     recoveryEnabled: false,
     stageVerifyEnabled: false,
@@ -268,6 +287,49 @@ function createCompositionExecutor() {
       });
       if (!validateArmedResponse(armed, collected.authority, targetId)) {
         return fail("ARM_RESPONSE_INVALID", "Server SAVE_ARMED response failed trusted validation.");
+      }
+      const identityRecheck = await deps.recheckMutationIdentity(armed.portal_product_ref);
+      if (!identityRecheck?.ok) {
+        const identityFailureCode = boundedPageIdentityFailureCode(identityRecheck?.code);
+        let rejected;
+        try {
+          rejected = await deps.recordSave({
+            runId: armed.run_id,
+            expectedStageRowVersion: Number(armed.stage_row_version),
+            expectedContentHash: armed.content_hash,
+            outcome: "REJECTED",
+            saveEvidence: {
+              outcome: "REJECTED",
+              reason: "POST_ARM_IDENTITY_RECHECK_FAILED",
+              identityFailureCode,
+              invoked: false,
+              invokeCount: 0,
+              settled: true,
+              noMutationProven: true,
+            },
+          });
+        } catch {
+          return fail(
+            "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED",
+            "Composition identity changed after SAVE_ARMED and the no-mutation rejection could not be recorded; the active run requires recovery.",
+            { runStatus: "SAVE_ARMED" },
+          );
+        }
+        if (upper(rejected?.run_status) !== "SAVE_REJECTED") {
+          return fail(
+            "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED",
+            "Composition identity changed after SAVE_ARMED but the server did not confirm SAVE_REJECTED; the active run requires recovery.",
+            { runStatus: upper(rejected?.run_status) || "SAVE_ARMED" },
+          );
+        }
+        return fail(
+          identityFailureCode,
+          "Composition page identity changed after SAVE_ARMED.",
+          {
+            pageIdentityDiagnostics: identityRecheck?.diagnostics || null,
+            runStatus: "SAVE_REJECTED",
+          },
+        );
       }
       await deps.fillTarget(armed.target_projection);
       const guard = saveGuards.get(armed.run_id) || { invoked: false, invokeCount: 0 };
