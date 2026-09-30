@@ -9,7 +9,7 @@ const types = readFileSync(join(root, "public/shared/js/types/supabase.ts"), "ut
 const migration = readFileSync(
   join(
     root,
-    "supabase/migrations/20260930133000_wp02_manage_products_readiness_read_access.sql",
+    "supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql",
   ),
   "utf8",
 );

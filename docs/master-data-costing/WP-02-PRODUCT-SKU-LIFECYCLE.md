@@ -172,7 +172,7 @@ The remaining G3 close step is the independent implementation-diff audit. Focuse
 `WP02-G4 — focused verification` after the implementation-diff audit passes.
 
 ## Server changes
-Applied live and committed as `supabase/migrations/20260930133000_wp02_manage_products_readiness_read_access.sql`:
+Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql`:
 - `rpc_get_product_sku_readiness` keeps its live composition and now accepts `module:manage-products` view or `module:costing-control-center` view.
 - New `rpc_get_latest_governed_cost_period_start()` returns `max(period_start)` from `costing.cost_periods`, or null.
 - Both functions are `STABLE SECURITY DEFINER` with `search_path = public, costing, pg_temp`. Execute is granted to `authenticated` and `service_role`, and revoked from `PUBLIC` and `anon`.
