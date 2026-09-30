@@ -137,6 +137,10 @@ function fakeDeps(authorities, options = {}) {
         target_projection: structuredClone(governed.find((item) => item.source_composition_line_id === input.targetSourceCompositionLineId)),
       };
     },
+    recheckMutationIdentity: async (portalProductRef) => {
+      calls.push(["recheckMutationIdentity", portalProductRef]);
+      return options.identityRecheck || { ok: true };
+    },
     fillTarget: async (target) => calls.push(["fillTarget", target]),
     invokeSaveOnce: async () => {
       calls.push(["invokeSaveOnce"]);
@@ -192,6 +196,23 @@ const completeRows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "r
   assert.deepEqual(deps.calls.map(([name]) => name), ["loadAuthority"]);
 }
 
+// Failed preview exposes only the bounded identity diagnostic selected by the executor.
+{
+  const diagnostics = {
+    productid: { present: true, length: 10, blank: false },
+    productidEqualsServerPortalRef: false,
+    producthidEqualsServerPortalRef: true,
+    actionMode: "EDIT_OR_UPDATE",
+    id: { present: true, length: 4, blank: false, classification: "NONBLANK" },
+  };
+  const deps = fakeDeps([{ ok: false, code: "COMPOSITION_PORTAL_TOKEN_MISMATCH", pageIdentityDiagnostics: diagnostics }]);
+  const result = await createCompositionExecutor().preview(deps);
+  assert.equal(result.code, "COMPOSITION_PORTAL_TOKEN_MISMATCH");
+  assert.deepEqual(result.pageIdentityDiagnostics, diagnostics);
+  assert.equal(result.mutated, false);
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(REF));
+}
+
 // Production disarm stops before authority, arm, fill, or Save.
 {
   const executor = createCompositionExecutor();
@@ -241,7 +262,7 @@ for (const [label, mutate, code] of [
   assert.equal(result.mutated, true);
   assert.equal(result.invokeCount, 1);
   const names = deps.calls.map(([name]) => name);
-  assert.deepEqual(names, ["loadAuthority", "armRun", "fillTarget", "invokeSaveOnce", "recordSave", "loadAuthority", "rereadRow", "verifyRow"]);
+  assert.deepEqual(names, ["loadAuthority", "armRun", "recheckMutationIdentity", "fillTarget", "invokeSaveOnce", "recordSave", "loadAuthority", "rereadRow", "verifyRow"]);
   assert.equal(deps.calls.find(([name]) => name === "fillTarget")[1].ingredient_name, "Karpura");
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "CONFIRMED");
   assert.equal(names.filter((name) => name === "invokeSaveOnce").length, 1);
@@ -316,6 +337,149 @@ function nativeSaveHarness({ actionMode = "add", returnedFalse = false, requests
     },
   };
   return { page, events, invocationCount: () => invocationCount };
+}
+
+// Durable arm is followed by a fresh full mutation identity recheck before fill or Save.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    identityRecheck: {
+      ok: false,
+      code: "COMPOSITION_PORTAL_TOKEN_MISMATCH",
+      diagnostics: { productidEqualsServerPortalRef: false },
+    },
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_PORTAL_TOKEN_MISMATCH");
+  assert.equal(result.pageIdentityDiagnostics.productidEqualsServerPortalRef, false);
+  assert.equal(deps.calls.some(([name]) => name === "fillTarget"), false);
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+  assert.equal(deps.calls.some(([name]) => name === "recordSave"), false);
+}
+
+function pageIdentityHarness({
+  origin = "https://www.e-aushadhi.gov.in",
+  route = "/admin/addcomposition",
+  productid = REF,
+  productidPresent = true,
+  producthid = "262",
+  producthidPresent = true,
+  id = "stale-edit-row",
+  idPresent = true,
+  actiontype = "edit",
+  actiontypePresent = true,
+  saveAvailable = false,
+} = {}) {
+  const calls = [];
+  const page = {
+    async evaluate(fn, input) {
+      const source = String(fn);
+      if (source.includes('productid: read("#productid")')) {
+        calls.push(["measure"]);
+        return {
+          origin,
+          route,
+          productid: { present: productidPresent, value: productid },
+          producthid: { present: producthidPresent, value: producthid },
+          id: { present: idPresent, value: id },
+          actiontype: { present: actiontypePresent, value: actiontype },
+          saveAvailable,
+        };
+      }
+      if (source.includes("LoadCompositionData")) {
+        calls.push(["list", input.portalProductRef]);
+        return {
+          settled: true,
+          success: true,
+          httpStatus: 200,
+          page: 0,
+          requestedLength: input.length,
+          totalCount: 0,
+          rows: [],
+        };
+      }
+      throw new Error("UNEXPECTED_PAGE_EVALUATION");
+    },
+  };
+  const callRpc = async (name) => {
+    calls.push(["rpc", name]);
+    if (name === "rpc_eaushadhi_require_permission") return { allowed: true };
+    if (name === "rpc_eaushadhi_composition_execution_preflight") {
+      return { product_id: 262, workflow_row_version: 11, portal_product_ref: REF, ready: true, content_hash: HASH };
+    }
+    if (name === "rpc_eaushadhi_worker_content_get") {
+      return { product_id: 262, workflow_row_version: 11, content_hash: HASH, composition: [] };
+    }
+    throw new Error("UNEXPECTED_RPC");
+  };
+  return { page, callRpc, calls };
+}
+
+async function loadIdentityAuthority(options, request = {}) {
+  const harness = pageIdentityHarness(options);
+  const adapter = buildCompositionLiveAdapters({
+    page: harness.page,
+    callRpc: harness.callRpc,
+    getWorkerState: () => "READY",
+    liveArmed: false,
+  });
+  return { result: await adapter.loadAuthority(request), harness };
+}
+
+// Native page identity: #productid is the sole opaque transport authority.
+{
+  const { result, harness } = await loadIdentityAuthority();
+  assert.equal(result.ok, true);
+  assert.deepEqual(harness.calls.find(([name]) => name === "list"), ["list", REF]);
+  assert.equal(result.pageIdentityDiagnostics.productidEqualsServerPortalRef, true);
+  assert.equal(result.pageIdentityDiagnostics.producthidEqualsProduct262, true);
+  assert.equal(result.pageIdentityDiagnostics.actionMode, "EDIT_OR_UPDATE");
+  assert.equal(result.pageIdentityDiagnostics.id.classification, "NONBLANK");
+  assert.doesNotMatch(JSON.stringify(result.pageIdentityDiagnostics), new RegExp(REF));
+  assert.deepEqual(
+    harness.calls.filter(([kind]) => kind === "rpc").map(([, name]) => name),
+    [
+      "rpc_eaushadhi_require_permission",
+      "rpc_eaushadhi_composition_execution_preflight",
+      "rpc_eaushadhi_worker_content_get",
+    ],
+  );
+  assert.equal(harness.calls.some(([kind]) => kind === "save"), false);
+}
+{
+  const { result } = await loadIdentityAuthority({ productid: "262", producthid: REF });
+  assert.equal(result.code, "COMPOSITION_PORTAL_TOKEN_MISMATCH");
+  assert.equal(result.pageIdentityDiagnostics.producthidEqualsServerPortalRef, true);
+}
+{
+  const { result } = await loadIdentityAuthority({ productidPresent: false, productid: "" });
+  assert.equal(result.code, "COMPOSITION_PRODUCT_TOKEN_MISSING");
+}
+{
+  const { result } = await loadIdentityAuthority({ origin: "https://example.invalid" });
+  assert.equal(result.code, "COMPOSITION_WRONG_ORIGIN");
+}
+{
+  const { result } = await loadIdentityAuthority({ route: "/admin/addproduct" });
+  assert.equal(result.code, "COMPOSITION_WRONG_ROUTE");
+}
+{
+  const { result } = await loadIdentityAuthority({}, { requireSaveCapability: true, requireEditPermission: true });
+  assert.equal(result.code, "COMPOSITION_MUTATION_MODE_NOT_ADD");
+}
+{
+  const { result } = await loadIdentityAuthority(
+    { actiontype: "add", id: "", saveAvailable: false },
+    { requireSaveCapability: true, requireEditPermission: true },
+  );
+  assert.equal(result.code, "COMPOSITION_NATIVE_SAVE_UNAVAILABLE");
+}
+{
+  const { result } = await loadIdentityAuthority(
+    { actiontype: "add", id: "", saveAvailable: true },
+    { requireSaveCapability: true, requireEditPermission: true },
+  );
+  assert.equal(result.ok, true);
 }
 
 // Native SaveData contract: observer first, exact endpoint, bounded business result.
@@ -447,7 +611,14 @@ assert.match(files.adapter, /SAVE_ENDPOINT_PATH = "\/admin\/SaveCompositionData"
 assert.doesNotMatch(files.adapter, /fetch\([^)]*SaveCompositionData/);
 assert.ok(files.adapter.indexOf('page.on("request", onRequest)') < files.adapter.indexOf("const returned = window.SaveData()"));
 assert.match(files.adapter, /request\.method\(\) === "POST"/);
-assert.match(files.adapter, /measured\.actionMode !== "add"/);
+assert.match(files.adapter, /actiontype !== "add"/);
+assert.match(files.adapter, /productid: read\("#productid"\)/);
+assert.match(files.adapter, /producthid: read\("#producthid"\)/);
+assert.match(files.adapter, /id: read\("#id"\)/);
+assert.match(files.adapter, /actiontype: read\("#actiontype"\)/);
+assert.doesNotMatch(files.adapter, /#portalProductRef|#hdnPortalProductRef|input\[name=['"]portalProductRef['"]\]/);
+assert.doesNotMatch(files.adapter, /Number\(productToken\)/);
+assert.match(files.adapter, /captureCompleteList\(identity\.transportToken\)/);
 assert.match(files.adapter, /LIST_MAX_ROWS = 50/);
 assert.match(files.adapter, /rpc_eaushadhi_composition_execution_preflight/);
 assert.match(files.adapter, /rpc_eaushadhi_composition_run_arm/);

@@ -41,7 +41,11 @@ function targetFromContent(content, targetId) {
 
 function validateAuthority(authority) {
   if (!authority || authority.ok !== true) {
-    return fail(authority?.code || "COMPOSITION_AUTHORITY_UNAVAILABLE", authority?.message || "Composition authority is unavailable.");
+    return fail(
+      authority?.code || "COMPOSITION_AUTHORITY_UNAVAILABLE",
+      authority?.message || "Composition authority is unavailable.",
+      { pageIdentityDiagnostics: authority?.pageIdentityDiagnostics || null },
+    );
   }
   const preflight = authority.preflight;
   const content = authority.content;
@@ -86,6 +90,7 @@ function previewProjection(authority, planner, liveArmed) {
     activeRun: boundedRun(authority.preflight.active_run),
     workflowRowVersion: Number(authority.preflight.workflow_row_version),
     contentHash: authority.preflight.content_hash,
+    pageIdentityDiagnostics: authority.pageIdentityDiagnostics || null,
     startEnabled: false,
     recoveryEnabled: false,
     stageVerifyEnabled: false,
@@ -268,6 +273,14 @@ function createCompositionExecutor() {
       });
       if (!validateArmedResponse(armed, collected.authority, targetId)) {
         return fail("ARM_RESPONSE_INVALID", "Server SAVE_ARMED response failed trusted validation.");
+      }
+      const identityRecheck = await deps.recheckMutationIdentity(armed.portal_product_ref);
+      if (!identityRecheck?.ok) {
+        return fail(
+          identityRecheck?.code || "COMPOSITION_PAGE_IDENTITY_FAILED",
+          "Composition page identity changed after SAVE_ARMED.",
+          { pageIdentityDiagnostics: identityRecheck?.diagnostics || null },
+        );
       }
       await deps.fillTarget(armed.target_projection);
       const guard = saveGuards.get(armed.run_id) || { invoked: false, invokeCount: 0 };
