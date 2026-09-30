@@ -42648,6 +42648,19 @@ export type Database = {
           reason: string
         }[]
       }
+      rpc_get_latest_governed_cost_period_start: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      rpc_get_product_sku_readiness: {
+        Args: {
+          p_context_type?: string
+          p_period_start: string
+          p_refresh_run_id?: number
+          p_sku_id: number
+        }
+        Returns: Json
+      }
       rpc_get_cost_period_valuation_context: {
         Args: { p_period_start: string }
         Returns: {

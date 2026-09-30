@@ -153,46 +153,51 @@ Audit checks:
 ## Milestones
 - [x] Current-state/audit gate
 - [x] Design/contract gate
-- [~] Implementation gate
+- [~] Implementation gate — code is on the isolated branch; independent diff audit still required
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G3 — implementation planning / isolated implementation`
+`WP02-G3 — implementation on the isolated branch, awaiting independent diff audit`
 
 ## Gate Status
-[~] IN PROGRESS
+[~] IN PROGRESS — isolated implementation is complete on the feature branch; merge remains blocked on the diff audit and WP02-G4.
 
 ## Required to close
-Follow the mandatory client workflow:
-1. produce implementation plan against the approved G2 contract;
-2. independently audit that plan before mutation;
-3. use an isolated feature branch/worktree from verified current main;
-4. implement the narrow server read-access/context support and Product-detail SKU lifecycle UI;
-5. add focused tests proving RPC-only mutations, permission behavior, lifecycle separation and readiness rendering;
-6. commit/push and independently audit the diff before merge approval.
+The remaining G3 close step is the independent implementation-diff audit. Focused verification is the next gate after that audit.
 
 ## Next gate
-`WP02-G4 — focused verification` after implementation is complete and its implementation-diff audit passes.
+`WP02-G4 — focused verification` after the implementation-diff audit passes.
 
 ## Server changes
-None yet in WP02. G3 is authorized to make only the narrow read-only access/context changes required by the approved design. Existing Product/SKU lifecycle mutation RPCs and activation guards are reused unchanged.
+Applied live and committed as `supabase/migrations/20260930133000_wp02_manage_products_readiness_read_access.sql`:
+- `rpc_get_product_sku_readiness` keeps its live composition and now accepts `module:manage-products` view or `module:costing-control-center` view.
+- New `rpc_get_latest_governed_cost_period_start()` returns `max(period_start)` from `costing.cost_periods`, or null.
+- Both functions are `STABLE SECURITY DEFINER` with `search_path = public, costing, pg_temp`. Execute is granted to `authenticated` and `service_role`, and revoked from `PUBLIC` and `anon`.
+- SKU writer RPCs and Product/SKU guard functions were not changed.
+- Child SKU listing uses existing authenticated SELECT on `public.product_skus`. No list RPC was created.
 
 ## Client changes
-None yet. G3 will modify the existing Manage Products surface; no new top-level module is approved.
+Manage Products now has the saved-Product `SKUs & readiness` surface in `manage-products.html` and `js/products.js`.
+- Create, pack/UOM/sample update, and activate/deactivate use only the three existing SKU writer RPCs.
+- New SKUs are created inactive. Pack save does not send an active flag.
+- Readiness calls `LIVE_AS_OF` with a null refresh-run id and the server period.
+- Product `unsaved` and SKU `skuDirty` are separate.
+- Service worker cache is `hub-cache-v328`.
 
 ## Tests / verification
-- Verified current main SHA: `142c7fe5850af24efb2634582b354103e2d92845`.
-- Verified live Product/SKU counts and lifecycle-gap counts directly from Supabase.
-- Verified live definitions/signatures and audit behavior of SKU create/update/activate RPCs.
-- Verified Product/SKU lifecycle guard functions.
-- Verified WP01 readiness RPC definition and its LIVE_AS_OF / EXACT_RUN semantics.
-- Verified readiness RPC currently requires Costing Control Center view permission.
-- Verified live permission mismatch: 3 Manage Products users versus 1 overlapping Costing Control Center user.
-- Verified current governed period inventory and latest governed period.
-- Verified current-main Product client permission/governance/error/busy-state patterns.
+- Verified current main SHA at implementation start: `738ca09ff5490c0c17ee8544da4c7690f9e6a171`.
+- Earlier G1/G2 live Product/SKU, readiness, and period evidence remains as recorded above from main `142c7fe5850af24efb2634582b354103e2d92845`.
+- Live readiness identity arguments matched `p_sku_id bigint, p_period_start date, p_context_type text, p_refresh_run_id bigint`, and the authorization anchor was exactly `perform public.require_permission('module:costing-control-center',false);`.
+- After apply, readiness still contains the enrich helper, `LIVE_AS_OF`, and `EXACT_RUN`; `require_permission` is gone; both view modules are present. New period RPC ACL is `postgres`, `authenticated`, and `service_role` only. Security advisors did not name either function.
+- Live child-SKU UOM values are `g`, `mL`, and `Nos`. The SKU UOM picker uses that live set. This is required for pack identity and was not guessed from Product base UOM (`Kg`, `L`, `Nos`).
+- `scripts/product-sku-lifecycle-smoke.mjs`: PASS.
+- Materials/Stores, QC, Trace launch, remediation foundation, dense restore, progressive density, production-route focus, and dashboard cardinality smokes: PASS.
+- e-Aushadhi Product Details execution smoke and Composition offline-plan smoke: PASS.
+- `node --check` on the new/modified MJS files and `public/sw.js`: PASS.
+- `node --check js/products.js` fails before parsing because the file is a browser module and the package is not `"type": "module"`. The same source checked as a temporary `.mjs` copy: PASS.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.
@@ -204,6 +209,8 @@ Permission broadening must stay limited to status/remediation reads; Product and
 
 ## Parked discoveries
 None added in G2. Regional Marketing evidence acceptance remains parked under the programme backlog for WP04/later IA placement.
+
+G3 required-now detail: the SKU pack UOM picker must offer the live `product_skus.uom` values `g`, `mL`, and `Nos`. No future dependency, parked item, or out-of-scope functional change was added.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.

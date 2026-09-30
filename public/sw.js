@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v327"; // Dashboard summary zero-or-one client cardinality
+const CACHE_NAME = "hub-cache-v328"; // Product SKU lifecycle readiness on Manage Products
 
 const PRECACHE = [
   // Hub shell

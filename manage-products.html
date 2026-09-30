@@ -538,6 +538,45 @@
       #modalBox.type-warning .modal-title {
         color: var(--sasv-warning);
       }
+      #skuLifecycleSection {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--sasv-border);
+      }
+      .sku-lifecycle-header,
+      .sku-master-actions,
+      .sku-master-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .sku-master-grid > div {
+        flex: 1 1 140px;
+      }
+      #skuList {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0;
+      }
+      #skuList li {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid var(--sasv-border);
+        border-radius: 4px;
+        margin-bottom: 6px;
+        cursor: pointer;
+      }
+      #skuList li[aria-selected="true"] {
+        outline: 2px solid var(--sasv-focus, var(--sasv-border));
+      }
+      .sku-period-label,
+      .sku-readiness-note {
+        color: var(--sasv-text-muted, inherit);
+      }
     </style>
   </head>
   <body class="sasv-module sasv-module--app" data-theme="system">
@@ -940,6 +979,64 @@
 
           <!-- Save/Delete moved to inline controls; footer buttons removed -->
         </form>
+
+        <section id="skuLifecycleSection" hidden aria-labelledby="skuLifecycleHeading">
+          <div class="sku-lifecycle-header">
+            <h2 id="skuLifecycleHeading">SKUs &amp; readiness</h2>
+            <div id="skuCountSummary" class="pill">0 active / 0 total</div>
+            <button id="skuAddBtn" class="btn secondary" type="button" hidden>
+              Add SKU
+            </button>
+          </div>
+          <p id="skuPeriodLabel" class="sku-period-label">
+            Governed readiness period: unavailable
+          </p>
+          <ul id="skuList" role="listbox" aria-label="Child SKUs"></ul>
+          <div id="skuDetail" hidden>
+            <fieldset id="skuMasterFields">
+              <legend>SKU master</legend>
+              <div class="sku-master-grid">
+                <div>
+                  <label for="skuPackSize">Pack size</label>
+                  <input id="skuPackSize" type="number" min="0" step="any" />
+                </div>
+                <div>
+                  <label for="skuUom">UOM</label>
+                  <select id="skuUom">
+                    <option value="">-- Select --</option>
+                    <option>g</option>
+                    <option>mL</option>
+                    <option>Nos</option>
+                  </select>
+                </div>
+                <label class="sku-sample-label">
+                  <input id="skuIsSample" type="checkbox" />
+                  Sample
+                </label>
+              </div>
+              <div class="sku-master-actions">
+                <button id="skuSaveBtn" class="btn primary" type="button" hidden>
+                  Save SKU
+                </button>
+                <button id="skuCreateBtn" class="btn primary" type="button" hidden>
+                  Create SKU
+                </button>
+                <button id="skuCancelBtn" class="btn secondary" type="button" hidden>
+                  Cancel
+                </button>
+                <button id="skuToggleActiveBtn" class="btn secondary" type="button" hidden>
+                  Activate
+                </button>
+              </div>
+            </fieldset>
+            <section id="skuReadinessPanel" aria-labelledby="skuReadinessHeading">
+              <h3 id="skuReadinessHeading">Readiness &amp; remediation</h3>
+              <div id="skuReadiness" aria-live="polite">
+                Readiness unavailable
+              </div>
+            </section>
+          </div>
+        </section>
       </div>
     </div>
 

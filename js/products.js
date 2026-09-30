@@ -64,6 +64,7 @@ let allProducts = [];
 let filtered = [];
 let selectedId = null;
 let unsaved = false;
+let skuDirty = false;
 let editing = false;
 let previousSelectedId = null;
 let inNewMode = false;
@@ -274,6 +275,7 @@ function applyAccessChrome() {
 
   updateClassificationState();
   updateDirtyIcons();
+  syncSkuAccessChrome();
 }
 
 async function loadProductMasterAccess() {
@@ -791,7 +793,7 @@ function applyFilter() {
 
 async function loadDetails(id) {
   let loaded = false;
-  if (unsaved) {
+  if (unsaved || skuDirty) {
     const ok = await showModal(
       "You have unsaved changes. Discard?",
       "Discard",
@@ -814,6 +816,7 @@ async function loadDetails(id) {
     if (isLltCheckbox) isLltCheckbox.checked = false;
     if (leadTimeInput) leadTimeInput.value = "";
     unsaved = false;
+    clearSkuState();
     applyAccessChrome();
     return true;
   }
@@ -876,6 +879,7 @@ async function loadDetails(id) {
     unsaved = false;
     loaded = true;
     applyAccessChrome();
+    await loadChildSkus(id);
   } finally {
     hideLoading();
   }
@@ -1120,7 +1124,7 @@ if (newInlineBtn) {
       return;
     }
     if (writeBusy) return;
-    if (unsaved) {
+    if (unsaved || skuDirty) {
       const ok = await showModal(
         "You have unsaved changes. Discard and create a new product?",
         "Discard",
@@ -1141,6 +1145,7 @@ if (newInlineBtn) {
     if (isLltCheckbox) isLltCheckbox.checked = false;
     if (leadTimeInput) leadTimeInput.value = "";
     unsaved = false;
+    clearSkuState();
     setEditing(true);
     if (itemInput) itemInput.focus();
   });
@@ -1155,7 +1160,7 @@ if (inlineDeleteBtn) {
     if (writeBusy) return;
     if (!selectedId) return;
 
-    if (unsaved) {
+    if (unsaved || skuDirty) {
       await showModal(
         "Save or cancel your edits before deactivating this product.",
         "OK",
@@ -1399,14 +1404,451 @@ async function loadSeasonProfiles() {
   });
 }
 
+const skuLifecycleSection = document.getElementById("skuLifecycleSection");
+const skuCountSummary = document.getElementById("skuCountSummary");
+const skuPeriodLabel = document.getElementById("skuPeriodLabel");
+const skuList = document.getElementById("skuList");
+const skuDetail = document.getElementById("skuDetail");
+const skuAddBtn = document.getElementById("skuAddBtn");
+const skuPackSize = document.getElementById("skuPackSize");
+const skuUom = document.getElementById("skuUom");
+const skuIsSample = document.getElementById("skuIsSample");
+const skuSaveBtn = document.getElementById("skuSaveBtn");
+const skuCreateBtn = document.getElementById("skuCreateBtn");
+const skuCancelBtn = document.getElementById("skuCancelBtn");
+const skuToggleActiveBtn = document.getElementById("skuToggleActiveBtn");
+const skuReadiness = document.getElementById("skuReadiness");
+
+let skuRows = [];
+let selectedSkuId = null;
+let skuDraft = null;
+let governedPeriodStart = null;
+const skuReadinessById = new Map();
+
+function clearSkuState() {
+  skuRows = [];
+  selectedSkuId = null;
+  skuDraft = null;
+  skuDirty = false;
+  governedPeriodStart = null;
+  skuReadinessById.clear();
+  if (skuList) skuList.innerHTML = "";
+  if (skuDetail) skuDetail.hidden = true;
+  if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
+  renderSkuSummary();
+  syncSkuAccessChrome();
+}
+
+function syncSkuAccessChrome() {
+  const show = !!selectedId && !inNewMode;
+  if (skuLifecycleSection) skuLifecycleSection.hidden = !show;
+  const canEdit = canWriteModule();
+  if (skuAddBtn) skuAddBtn.hidden = !show || !canEdit;
+  const drafting = skuDraft === "new" || !!selectedSkuId;
+  if (skuPackSize) skuPackSize.disabled = !canEdit || writeBusy || !drafting;
+  if (skuUom) skuUom.disabled = !canEdit || writeBusy || !drafting;
+  if (skuIsSample) skuIsSample.disabled = !canEdit || writeBusy || !drafting;
+  if (skuCreateBtn) skuCreateBtn.hidden = !(show && canEdit && skuDraft === "new");
+  if (skuSaveBtn) skuSaveBtn.hidden = !(show && canEdit && selectedSkuId && skuDirty);
+  if (skuCancelBtn) skuCancelBtn.hidden = !(show && canEdit && (skuDraft === "new" || skuDirty));
+  if (skuToggleActiveBtn) {
+    const row = currentSkuRow();
+    skuToggleActiveBtn.hidden = !(show && canEdit && row && skuDraft !== "new");
+    skuToggleActiveBtn.textContent = row && row.is_active ? "Deactivate" : "Activate";
+    skuToggleActiveBtn.disabled = writeBusy;
+  }
+}
+
+function currentSkuRow() {
+  return skuRows.find((row) => String(row.id) === String(selectedSkuId)) || null;
+}
+
+function renderSkuSummary() {
+  const total = skuRows.length;
+  const active = skuRows.filter((row) => row.is_active).length;
+  if (skuCountSummary) skuCountSummary.textContent = `${active} active / ${total} total`;
+  if (skuPeriodLabel) {
+    skuPeriodLabel.textContent = governedPeriodStart
+      ? `Governed readiness period: ${governedPeriodStart}`
+      : "Governed readiness period: unavailable";
+  }
+}
+
+function readinessBadgeLabel(severity) {
+  if (severity === "READY") return "Ready";
+  if (severity === "REVIEW_REQUIRED") return "Review required";
+  if (severity === "BLOCKER" || severity === "BLOCKED") return "Blocked";
+  return "Unavailable";
+}
+
+function readinessBadgeClass(severity) {
+  if (severity === "READY") return "badge badge-pass";
+  if (severity === "REVIEW_REQUIRED") return "badge badge-warn";
+  if (severity === "BLOCKER" || severity === "BLOCKED") return "badge badge-fail";
+  return "badge badge-neutral";
+}
+
+function markSkuDirty() {
+  if (!canWriteModule()) return;
+  skuDirty = true;
+  syncSkuAccessChrome();
+}
+
+async function loadGovernedPeriodStart() {
+  governedPeriodStart = null;
+  const { data, error } = await supabase.rpc(
+    "rpc_get_latest_governed_cost_period_start",
+  );
+  if (error) {
+    console.error(error);
+    renderSkuSummary();
+    return null;
+  }
+  governedPeriodStart = data || null;
+  renderSkuSummary();
+  return governedPeriodStart;
+}
+
+async function loadChildSkus(productId) {
+  skuDirty = false;
+  skuDraft = null;
+  selectedSkuId = null;
+  skuReadinessById.clear();
+  const { data, error } = await supabase
+    .from("product_skus")
+    .select("id, product_id, pack_size, uom, is_sample, is_active")
+    .eq("product_id", productId);
+  if (error) {
+    skuRows = [];
+    surfaceRpcError(error, "Unable to load SKUs.");
+    renderSkuList();
+    return;
+  }
+  skuRows = data || [];
+  await loadGovernedPeriodStart();
+  renderSkuList();
+}
+
+function renderSkuList() {
+  if (!skuList) return;
+  skuList.innerHTML = "";
+  renderSkuSummary();
+  skuRows.forEach((row) => {
+    const item = document.createElement("li");
+    item.setAttribute("role", "option");
+    item.tabIndex = 0;
+    item.setAttribute(
+      "aria-selected",
+      String(row.id) === String(selectedSkuId) ? "true" : "false",
+    );
+    const identity = document.createElement("span");
+    identity.textContent = `SKU ${row.id}`;
+    const pack = document.createElement("span");
+    pack.textContent = `${row.pack_size ?? "—"} ${row.uom || ""}`.trim();
+    const sample = document.createElement("span");
+    sample.textContent = row.is_sample ? "Sample" : "Standard";
+    const active = document.createElement("span");
+    active.className = row.is_active ? "badge badge-active" : "badge badge-inactive";
+    active.textContent = row.is_active ? "Active" : "Inactive";
+    const readiness = document.createElement("span");
+    const severity = skuReadinessById.get(String(row.id))?.summary?.overall_severity;
+    readiness.className = readinessBadgeClass(severity);
+    readiness.textContent = readinessBadgeLabel(severity);
+    item.append(identity, pack, sample, active, readiness);
+    item.addEventListener("click", () => selectSku(row.id));
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectSku(row.id);
+      }
+    });
+    skuList.appendChild(item);
+  });
+  syncSkuAccessChrome();
+}
+
+async function confirmDiscardSku() {
+  if (!skuDirty) return true;
+  return showModal("You have unsaved SKU changes. Discard?", "Discard", "Cancel");
+}
+
+async function selectSku(skuId) {
+  if (String(skuId) === String(selectedSkuId) && skuDraft !== "new") return;
+  if (!(await confirmDiscardSku())) return;
+  skuDraft = String(skuId);
+  selectedSkuId = skuId;
+  skuDirty = false;
+  const row = currentSkuRow();
+  if (skuPackSize) skuPackSize.value = row?.pack_size ?? "";
+  if (skuUom) skuUom.value = row?.uom || "";
+  if (skuIsSample) skuIsSample.checked = !!row?.is_sample;
+  if (skuDetail) skuDetail.hidden = false;
+  renderSkuList();
+  await loadSelectedSkuReadiness();
+}
+
+function beginNewSku() {
+  skuDraft = "new";
+  selectedSkuId = null;
+  skuDirty = false;
+  if (skuPackSize) skuPackSize.value = "";
+  if (skuUom) skuUom.value = "";
+  if (skuIsSample) skuIsSample.checked = false;
+  if (skuDetail) skuDetail.hidden = false;
+  if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
+  renderSkuList();
+}
+
+async function loadSelectedSkuReadiness() {
+  if (!skuReadiness) return;
+  const row = currentSkuRow();
+  if (!row || !governedPeriodStart) {
+    skuReadiness.textContent = "Readiness unavailable";
+    return;
+  }
+  skuReadiness.textContent = "Loading readiness…";
+  const { data, error } = await supabase.rpc("rpc_get_product_sku_readiness", {
+    p_sku_id: row.id,
+    p_period_start: governedPeriodStart,
+    p_context_type: "LIVE_AS_OF",
+    p_refresh_run_id: null,
+  });
+  if (error) {
+    skuReadinessById.delete(String(row.id));
+    skuReadiness.textContent = "Readiness unavailable";
+    surfaceRpcError(error, "Readiness unavailable.");
+    renderSkuList();
+    if (skuDetail) skuDetail.hidden = false;
+    return;
+  }
+  const payload = data && typeof data === "object" ? data : null;
+  if (!payload) {
+    skuReadiness.textContent = "Readiness unavailable";
+    return;
+  }
+  skuReadinessById.set(String(row.id), payload);
+  renderSkuReadiness(payload);
+  renderSkuList();
+  if (skuDetail) skuDetail.hidden = false;
+}
+
+function appendLine(parent, label, value) {
+  const line = document.createElement("p");
+  const strong = document.createElement("strong");
+  strong.textContent = `${label}: `;
+  line.appendChild(strong);
+  line.appendChild(document.createTextNode(value ?? "Unavailable"));
+  parent.appendChild(line);
+}
+
+function renderSkuReadiness(payload) {
+  if (!skuReadiness) return;
+  skuReadiness.innerHTML = "";
+  const summary = payload.summary || {};
+  const severity = summary.overall_severity;
+  const badge = document.createElement("span");
+  badge.className = readinessBadgeClass(severity);
+  badge.textContent = readinessBadgeLabel(severity);
+  skuReadiness.appendChild(badge);
+  const lifecycleText =
+    typeof payload.lifecycle === "string"
+      ? payload.lifecycle
+      : payload.lifecycle?.state || payload.lifecycle?.status || "Unavailable";
+  appendLine(skuReadiness, "Lifecycle", lifecycleText);
+  appendLine(skuReadiness, "Product master foundation", summary.product_master_foundation_status);
+  appendLine(skuReadiness, "SKU master foundation", summary.sku_master_foundation_status);
+  appendLine(skuReadiness, "Costing foundation", summary.costing_foundation_status);
+  appendLine(skuReadiness, "Evidence quality", summary.evidence_quality_status);
+  appendLine(skuReadiness, "Costing outcome", summary.costing_outcome_status);
+  appendLine(skuReadiness, "Recommended route", payload.downstream_control?.recommended_route || payload.summary?.recommended_route);
+  const dependencies = Array.isArray(payload.dependencies) ? payload.dependencies : [];
+  dependencies.forEach((issue) => {
+    appendLine(
+      skuReadiness,
+      "Dependency",
+      [issue.dimension || issue.dependency, issue.status || issue.severity, issue.reason, issue.note]
+        .filter(Boolean)
+        .join(" — "),
+    );
+  });
+  const shared = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
+  shared.forEach((issue) => {
+    appendLine(
+      skuReadiness,
+      "Issue",
+      [issue.reason, issue.note].filter(Boolean).join(" — ") || "Unavailable",
+    );
+  });
+}
+
+function skuFormValues() {
+  return {
+    p_pack_size: skuPackSize && skuPackSize.value !== "" ? Number(skuPackSize.value) : null,
+    p_uom: skuUom ? skuUom.value : "",
+    p_is_sample: !!(skuIsSample && skuIsSample.checked),
+  };
+}
+
+function requireSkuGovernance(actionLabel) {
+  return promptGovernance({
+    title: actionLabel,
+    message: "A business reason is required. An approval reference is optional.",
+    confirmLabel: actionLabel,
+    danger: false,
+  });
+}
+
+async function createSku() {
+  if (!canWriteModule() || !selectedId || writeBusy) return;
+  const values = skuFormValues();
+  if (values.p_pack_size === null || !values.p_uom) {
+    showToast("Pack size and UOM are required.");
+    return;
+  }
+  const governance = await requireSkuGovernance("save");
+  if (!governance) return;
+  writeBusy = true;
+  syncSkuAccessChrome();
+  showLoading();
+  try {
+    const { data, error } = await supabase.rpc("rpc_create_product_sku", {
+      p_product_id: selectedId,
+      p_pack_size: values.p_pack_size,
+      p_uom: values.p_uom,
+      p_is_sample: values.p_is_sample,
+      p_is_active: false,
+      p_reason: governance.reason,
+      p_approval_reference: governance.approvalReference || null,
+    });
+    if (error) {
+      surfaceRpcError(error, "Unable to create SKU.");
+      return;
+    }
+    const created = Array.isArray(data) ? data[0] : data;
+    skuDirty = false;
+    skuDraft = null;
+    await loadChildSkus(selectedId);
+    if (created && created.id) await selectSku(created.id);
+    showToast("SKU created inactive. Activate it as a separate action when the product is active.", 6000);
+  } finally {
+    writeBusy = false;
+    hideLoading();
+    syncSkuAccessChrome();
+  }
+}
+
+async function saveSkuPack() {
+  if (!canWriteModule() || !selectedSkuId || writeBusy || skuDraft === "new") return;
+  const values = skuFormValues();
+  const governance = await requireSkuGovernance("save");
+  if (!governance) return;
+  writeBusy = true;
+  syncSkuAccessChrome();
+  showLoading();
+  try {
+    const { error } = await supabase.rpc("rpc_update_product_sku", {
+      p_sku_id: selectedSkuId,
+      p_pack_size: values.p_pack_size,
+      p_uom: values.p_uom,
+      p_is_sample: values.p_is_sample,
+      p_reason: governance.reason,
+      p_approval_reference: governance.approvalReference || null,
+    });
+    if (error) {
+      surfaceRpcError(error, "Unable to save SKU.");
+      return;
+    }
+    const keepId = selectedSkuId;
+    skuDirty = false;
+    await loadChildSkus(selectedId);
+    await selectSku(keepId);
+    showToast("SKU master saved.", 4000);
+  } finally {
+    writeBusy = false;
+    hideLoading();
+    syncSkuAccessChrome();
+  }
+}
+
+async function toggleSkuActive() {
+  const row = currentSkuRow();
+  if (!canWriteModule() || !row || writeBusy || skuDraft === "new") return;
+  const nextActive = !row.is_active;
+  const governance = await requireSkuGovernance("save");
+  if (!governance) return;
+  writeBusy = true;
+  syncSkuAccessChrome();
+  showLoading();
+  try {
+    const { error } = await supabase.rpc("rpc_set_product_sku_active", {
+      p_sku_id: row.id,
+      p_is_active: nextActive,
+      p_reason: governance.reason,
+      p_approval_reference: governance.approvalReference || null,
+    });
+    if (error) {
+      surfaceRpcError(error, "Unable to change SKU active state.");
+      return;
+    }
+    const keepId = row.id;
+    skuDirty = false;
+    await loadChildSkus(selectedId);
+    await selectSku(keepId);
+    showToast(nextActive ? "SKU activated." : "SKU deactivated.", 4000);
+  } finally {
+    writeBusy = false;
+    hideLoading();
+    syncSkuAccessChrome();
+  }
+}
+
+if (skuAddBtn) {
+  skuAddBtn.addEventListener("click", async () => {
+    if (!canWriteModule()) return;
+    if (!(await confirmDiscardSku())) return;
+    beginNewSku();
+  });
+}
+if (skuCreateBtn) skuCreateBtn.addEventListener("click", () => createSku());
+if (skuSaveBtn) skuSaveBtn.addEventListener("click", () => saveSkuPack());
+if (skuCancelBtn) {
+  skuCancelBtn.addEventListener("click", async () => {
+    if (!(await confirmDiscardSku())) return;
+    skuDirty = false;
+    if (skuDraft === "new") {
+      skuDraft = null;
+      if (skuDetail) skuDetail.hidden = true;
+      renderSkuList();
+      return;
+    }
+    const row = currentSkuRow();
+    if (skuPackSize) skuPackSize.value = row?.pack_size ?? "";
+    if (skuUom) skuUom.value = row?.uom || "";
+    if (skuIsSample) skuIsSample.checked = !!row?.is_sample;
+    syncSkuAccessChrome();
+  });
+}
+if (skuToggleActiveBtn) skuToggleActiveBtn.addEventListener("click", () => toggleSkuActive());
+[skuPackSize, skuUom, skuIsSample].forEach((control) => {
+  if (!control) return;
+  control.addEventListener("input", markSkuDirty);
+  control.addEventListener("change", markSkuDirty);
+});
+
 mountModuleHome(homeBtn);
 homeBtn.addEventListener("click", async () => {
   if (
-    unsaved &&
+    (unsaved || skuDirty) &&
     !(await showModal("You have unsaved changes. Leave anyway?", "Yes", "No"))
   )
     return;
   window.location.href = "index.html";
+});
+
+window.addEventListener("beforeunload", (event) => {
+  if (!unsaved && !skuDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
