@@ -151,6 +151,8 @@ function fakeDeps(authorities, options = {}) {
     },
     recordSave: async (input) => {
       calls.push(["recordSave", input]);
+      if (options.recordSaveError) throw options.recordSaveError;
+      if (options.recordSaveResult) return structuredClone(options.recordSaveResult);
       return { run_id: input.runId, run_status: `SAVE_${input.outcome}`, stage_row_version: 4 };
     },
     rereadRow: async (id) => {
@@ -352,9 +354,41 @@ function nativeSaveHarness({ actionMode = "add", returnedFalse = false, requests
   const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_PORTAL_TOKEN_MISMATCH");
   assert.equal(result.pageIdentityDiagnostics.productidEqualsServerPortalRef, false);
+  assert.equal(result.runStatus, "SAVE_REJECTED");
   assert.equal(deps.calls.some(([name]) => name === "fillTarget"), false);
   assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
-  assert.equal(deps.calls.some(([name]) => name === "recordSave"), false);
+  const records = deps.calls.filter(([name]) => name === "recordSave");
+  assert.equal(records.length, 1);
+  assert.equal(records[0][1].outcome, "REJECTED");
+  assert.equal(records[0][1].expectedStageRowVersion, 3);
+  assert.equal(records[0][1].expectedContentHash, HASH);
+  assert.deepEqual(records[0][1].saveEvidence, {
+    outcome: "REJECTED",
+    reason: "POST_ARM_IDENTITY_RECHECK_FAILED",
+    identityFailureCode: "COMPOSITION_PORTAL_TOKEN_MISMATCH",
+    invoked: false,
+    invokeCount: 0,
+    settled: true,
+    noMutationProven: true,
+  });
+  assert.doesNotMatch(JSON.stringify(records[0][1].saveEvidence), new RegExp(REF));
+  assert.ok(deps.calls.findIndex(([name]) => name === "recordSave") < deps.calls.length);
+}
+
+// Failure to record the no-mutation rejection stays fail-closed and requires recovery.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    identityRecheck: { ok: false, code: "COMPOSITION_WRONG_ROUTE", diagnostics: { actionMode: "ADD" } },
+    recordSaveError: new Error("offline smoke rejection"),
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED");
+  assert.equal(result.runStatus, "SAVE_ARMED");
+  assert.match(result.message, /requires recovery/i);
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.some(([name]) => name === "fillTarget"), false);
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
 }
 
 function pageIdentityHarness({
