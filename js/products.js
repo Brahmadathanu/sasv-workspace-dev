@@ -1724,11 +1724,28 @@ function renderSkuReadiness(payload) {
   const dependencies = Array.isArray(payload.dependencies) ? payload.dependencies : [];
   dependencies.forEach((issue) => {
     const status = issue.effective_status || issue.raw_status || "Unavailable";
-    if (status === "READY") return;
+    if (
+      status === "READY" ||
+      status === "RESOLVED" ||
+      status === "NOT_REQUIRED" ||
+      issue.applicability === "NOT_REQUIRED"
+    ) {
+      return;
+    }
     appendLine(
       skuReadiness,
       issue.label || "Dependency",
       [status, issue.reason_code, issue.note, issue.recommended_ui_route]
+        .filter(Boolean)
+        .join(" — "),
+    );
+  });
+  const sharedIssues = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
+  sharedIssues.forEach((issue) => {
+    appendLine(
+      skuReadiness,
+      issue.issue_code || issue.dependency_code || "Shared issue",
+      [issue.status, issue.reason_code, issue.scope, issue.owner_module, issue.recommended_ui_route]
         .filter(Boolean)
         .join(" — "),
     );

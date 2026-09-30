@@ -163,13 +163,13 @@ Audit checks:
 `WP02-G3 — client corrections after independent diff audit; still in progress`
 
 ## Gate Status
-[~] IN PROGRESS — the first independent diff audit passed the server access contract. Client corrections for readiness field mapping, per-SKU badges, create `sku_id`, and action-specific governance remain on this branch for a second audit. Do not advance to WP02-G4 yet.
+[~] IN PROGRESS — the second independent audit passed the server contract and the earlier client corrections. The final remediation-rendering correction is on this branch: satisfied dependencies stay off the remediation list, and server `shared_issues` are shown as supplied. Do not advance to WP02-G4 until this correction is audited.
 
 ## Required to close
-The remaining G3 close step is a second independent audit of the corrected client diff. Focused verification stays the next gate after that audit.
+The remaining G3 close step is an independent audit of the remediation-rendering correction. Focused verification stays the next gate after that audit.
 
 ## Next gate
-`WP02-G4 — focused verification` after a second independent audit of the corrected client diff passes.
+`WP02-G4 — focused verification` after the remediation-rendering correction is independently audited.
 
 ## Server changes
 Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql`:
@@ -200,6 +200,7 @@ Manage Products now has the saved-Product `SKUs & readiness` surface in `manage-
 - `node --check js/products.js` fails before parsing because the file is a browser module and the package is not `"type": "module"`. The same source checked as a temporary `.mjs` copy: PASS.
 - Independent live audit of the applied server contract passed for a Manage Products viewer without Costing Control Center permission: latest governed period `2026-09-01`, readiness valuation `2026-09-10`, successful evidence run 115. The migration was not changed for the client correction.
 - Client correction smoke covers the verified payload fields, per-SKU readiness loading, `sku_id` reselection, and distinct create/update/activate/deactivate governance confirmations.
+- After the second independent audit, remediation rendering now hides READY, RESOLVED, and NOT_REQUIRED dependencies, including `applicability === "NOT_REQUIRED"`, and displays server `shared_issues` without a client aggregate.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.

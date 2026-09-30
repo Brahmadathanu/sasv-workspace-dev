@@ -145,6 +145,22 @@ assert(
   products.includes("Pack size must be greater than zero.") && html.includes('min="0.000001"'),
   "invalid pack size is rejected before governance",
 );
+assert(renderSource.includes("payload.shared_issues"), "renderer consumes payload.shared_issues");
+assert(renderSource.includes("issue.issue_code"), "renderer uses shared issue_code");
+assert(renderSource.includes("issue.status"), "renderer uses shared-issue status");
+assert(renderSource.includes("issue.reason_code"), "renderer uses shared-issue reason_code");
+assert(renderSource.includes("issue.recommended_ui_route"), "renderer uses shared-issue recommended_ui_route");
+assert(renderSource.includes('status === "READY"'), "dependency READY is suppressed");
+assert(renderSource.includes('status === "RESOLVED"'), "dependency RESOLVED is suppressed");
+assert(renderSource.includes('status === "NOT_REQUIRED"'), "dependency NOT_REQUIRED is suppressed");
+assert(renderSource.includes('issue.applicability === "NOT_REQUIRED"'), "NOT_REQUIRED applicability is suppressed");
+assert(!renderSource.includes('status === "BLOCKED"'), "BLOCKED dependencies remain renderable");
+assert(!renderSource.includes('status === "REVIEW_REQUIRED"'), "REVIEW_REQUIRED dependencies remain renderable");
+assert(!renderSource.includes('status === "UNKNOWN"'), "UNKNOWN dependencies remain renderable");
+assert(
+  !/overall_severity\s*=/.test(renderSource),
+  "no local overall-readiness calculation is introduced",
+);
 
 if (failed) {
   console.error(`FAILED product-sku-lifecycle-smoke (${failed})`);
