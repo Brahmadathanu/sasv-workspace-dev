@@ -10,55 +10,200 @@ See MASTER_PROGRAMME.md and the approved programme handoff. This file is the dur
 All prerequisite work packs in MASTER_PROGRAMME.md are completed and verified.
 
 ## Scope
-As defined by the approved programme handoff; refine only from audited live architecture and explicit decisions.
+Product detail is the lifecycle anchor. Governed child-SKU create/update/activate/deactivate actions belong under the Product lifecycle surface. Per-SKU WP01 readiness/remediation is shown separately and consumed from the canonical server contract. Activation remains explicit and independent from readiness.
 
 ## Explicit exclusions
-No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi changes.
+No work belonging to later gates; no guessed data; no unrelated/e-Aushadhi changes; no direct table writes; no client-side duplicate readiness authority; no exact-run/history browser in Product Master; no mutation of downstream effective-dated evidence.
 
 ## Current-state findings
-Not started.
+### WP02-G1 — current lifecycle surface / contract-consumption audit
+- Entry criteria are satisfied: WP00 and WP01 are completed and verified; current main is `142c7fe5850af24efb2634582b354103e2d92845`.
+- Current Product client `js/products.js` already uses governed Product mutation RPCs:
+  - `rpc_create_product`
+  - `rpc_update_product`
+  Product deactivation is implemented as a governed Product update to status `Inactive`.
+- Current Product client does not expose child-SKU lifecycle management and does not consume the WP01 readiness RPC.
+- Live server already exposes the governed child-SKU lifecycle RPCs required by WP02:
+  - `rpc_create_product_sku(p_product_id, p_pack_size, p_uom, p_is_active, p_is_sample, p_reason, p_approval_reference)`
+  - `rpc_update_product_sku(p_sku_id, p_pack_size, p_uom, p_is_sample, p_reason, p_approval_reference)`
+  - `rpc_set_product_sku_active(p_sku_id, p_is_active, p_reason, p_approval_reference)`
+- Live server already exposes the canonical WP01 readiness contract:
+  - `rpc_get_product_sku_readiness(p_sku_id, p_period_start, p_context_type, p_refresh_run_id)`
+- Live server enforces Product/SKU activation consistency through:
+  - `fn_guard_active_sku_requires_active_product`
+  - `fn_guard_product_inactivation_requires_no_active_skus`
+  Therefore an active SKU cannot belong to an inactive Product, and a Product cannot be inactivated while any child SKU remains active.
+- Live lifecycle inventory at G1:
+  - Products: 1,342 total = 639 Active + 703 Inactive.
+  - SKUs: 1,793 total = 637 Active + 1,156 Inactive.
+  - 54 Active Products have no SKU at all.
+  - 179 Active Products have no Active SKU.
+  - 0 Inactive Products have an Active SKU.
+- These counts prove that Product Active, presence of SKU, presence of Active SKU, and WP01 readiness are distinct conditions. Existing data must not be auto-normalised or activation inferred from completeness.
+- No server lifecycle mutation gap was found for Product/SKU create/update/activation. The missing piece is the Product lifecycle client surface and correct consumption of the already-governed readiness contract.
+
+### WP02-G2 additional evidence
+- `rpc_create_product_sku` requires `module:manage-products` edit permission, positive pack size, nonblank UOM and business reason; it prevents duplicate Product + pack-size + UOM identities and writes `product_sku_master_audit`.
+- `rpc_update_product_sku` edits pack size, UOM and sample flag only; it does not change activation. It requires a business reason, prevents duplicate Product + pack-size + UOM identities and writes an UPDATE audit event.
+- `rpc_set_product_sku_active` is the dedicated lifecycle transition authority. It requires a business reason and writes ACTIVATE/DEACTIVATE audit events.
+- The current Product client already has the reusable module permission model, governance-reason/approval-reference modal, busy/loading state and RPC error surfacing required by SKU lifecycle actions.
+- `rpc_get_product_sku_readiness` currently requires `module:costing-control-center` view permission. Live permissions prove this cannot be assumed for Product users: three users currently have `module:manage-products`, while only one of those also has `module:costing-control-center`.
+- The readiness RPC returns status/remediation metadata rather than monetary costing values. Its LIVE_AS_OF result includes lifecycle, identity, dimension summaries, dependency statuses/reason codes/owner routes, shared issues and downstream control status.
+- LIVE_AS_OF requires an explicit governed `period_start`; it resolves valuation date and latest SUCCESS refresh context server-side. Product Master must not synthesize valuation dates or refresh-run identity.
+- Current governed cost periods are 2026-03, 2026-06, 2026-07, 2026-08 and 2026-09; latest governed period by `period_start` is 2026-09-01 with valuation date 2026-09-10.
+- EXACT_RUN is intentionally excluded from Product Master WP02. Exact historical evidence remains a specialist costing/audit concern.
 
 ## Approved design / contract
-Not yet approved.
+### Product-detail information architecture
+1. Keep the existing two-pane Manage Products surface and existing Product list/search as the page anchor.
+2. The right-side Product detail remains the Product master editor.
+3. Add a distinct **SKUs & readiness** section below Product master fields for an existing selected Product.
+4. Hide the SKU section while creating a new unsaved Product because no Product identity exists yet.
+5. The section header shows active/total SKU count and an **Add SKU** action when the user has Manage Products edit permission.
+6. Render one compact row/card per child SKU. The collapsed summary shows:
+   - SKU identity / ID;
+   - pack size + UOM;
+   - Sample marker when applicable;
+   - lifecycle badge: Active or Inactive;
+   - readiness badge: READY, REVIEW_REQUIRED, BLOCKER/blocked, or UNKNOWN from the server contract;
+   - governed readiness period label.
+7. Selecting/expanding a SKU reveals two deliberately separate groups:
+   - **SKU master** — pack size, UOM and Sample; edit/save/cancel controls.
+   - **Readiness & remediation** — server-provided dimension statuses and applicable dependency issues/actions.
+8. Do not render activation as an editable checkbox beside pack fields. Activation/deactivation is a separate governed lifecycle action.
+
+### SKU mutation/action contract
+9. Create SKU only through `rpc_create_product_sku`.
+10. Default a newly created SKU to **Inactive** in the WP02 Product lifecycle UI. Activation is a subsequent explicit action. This avoids silently making an incomplete SKU operational while still allowing creation-time completion work in WP03.
+11. Update SKU master only through `rpc_update_product_sku`; editable fields are pack size, UOM and Sample exactly matching the server contract.
+12. Activate/deactivate only through `rpc_set_product_sku_active`.
+13. Every SKU create/update/activate/deactivate action uses the existing governance modal:
+   - business reason required;
+   - approval reference optional;
+   - explicit confirmation text naming the Product/SKU and target change.
+14. Client soft validation may check obvious blank/positive values for UX, but server validation and duplicate prevention remain authoritative.
+15. After a successful SKU mutation, reload child SKUs and readiness for the selected Product. Do not patch a derived readiness state locally.
+
+### Product lifecycle interaction
+16. Product Active/Inactive remains independent from child readiness.
+17. Product inactivation is not cascaded. If active child SKUs exist, the UI explains that they must be individually deactivated first and leaves the server guard authoritative.
+18. Product activation does not activate any child SKU.
+19. SKU activation against an inactive Product is not bypassed; surface the server guard error and guide the user to activate the Product deliberately if appropriate.
+20. Existing data with Active Product + zero/no-active SKU is displayed as-is; WP02 does not auto-repair historical state.
+
+### Readiness consumption contract
+21. Product Master consumes the existing WP01 readiness authority; it does not calculate dependency precedence or aggregate readiness in JavaScript.
+22. Product Master uses `LIVE_AS_OF` only:
+   - `p_context_type = 'LIVE_AS_OF'`;
+   - `p_refresh_run_id = null`;
+   - explicit governed `p_period_start`.
+23. Default readiness context is the **latest governed costing period by `period_start`**, resolved from server-governed cost-period data. The client must not derive a valuation date or latest-success run itself.
+24. Show the period on the SKU section so readiness is never presented as timeless.
+25. Render server fields, not reinterpreted client states:
+   - lifecycle Product/SKU state;
+   - `product_master_foundation_status`;
+   - `sku_master_foundation_status`;
+   - `costing_foundation_status`;
+   - `evidence_quality_status`;
+   - `costing_outcome_status`;
+   - `overall_severity`;
+   - dependency `raw_status`/`effective_status`, reason/note and recommended route when present.
+26. The primary row badge follows server `overall_severity`; labels may be humanized, but severity must never be upgraded/downgraded.
+27. Dependency remediation may be shown as guidance/navigation only. WP02 does not implement downstream specialist editors.
+
+### Readiness authorization contract
+28. A Product user with `module:manage-products` view permission must be able to read the Product/SKU readiness status needed by this lifecycle surface even when they do not have Costing Control Center access.
+29. Do **not** grant Manage Products users Costing Control Center module permission.
+30. G3 must make the narrowest server authorization change that preserves the single canonical WP01 readiness implementation. The preferred implementation is to allow the existing canonical readiness RPC to authorize either:
+   - `module:costing-control-center` view; or
+   - `module:manage-products` view.
+31. This permission broadening is limited to the readiness RPC, which exposes status/remediation metadata and no monetary costing values. Costing mutation/approval APIs and specialist modules remain unchanged.
+32. The Product client uses only LIVE_AS_OF even though the canonical RPC supports EXACT_RUN.
+
+### Period-context acquisition
+33. G3 must provide a server-governed way for Manage Products to obtain the latest governed costing `period_start`; it must not hard-code September 2026 or derive a month from the browser clock.
+34. Prefer a small read-only RPC/projection that returns the latest governed period identity for lifecycle-readiness consumption, protected by Manage Products view permission. It must not expose valuation mutation or refresh controls.
+35. If an existing server endpoint is proven to provide the same contract with appropriate authorization, reuse it instead of adding a duplicate.
+
+### Permissions and UX
+36. Existing `module:manage-products` permission continues to control the surface:
+   - view permission: browse Products, child SKUs and readiness;
+   - edit permission: Product and SKU create/update/lifecycle actions.
+37. View-only users see lifecycle/readiness but no SKU mutation actions.
+38. A readiness load failure does not hide the SKU itself. Show lifecycle/master identity and a clear `Readiness unavailable`/UNKNOWN state; never imply READY.
+39. Product/SKU mutation busy state disables conflicting actions until completion.
+40. Unsaved Product edits and SKU edits are separate edit states. Switching Product or leaving the page must protect either dirty state from accidental loss.
+
+## Independent G2 design audit
+PASS with one REQUIRED NOW server access dependency captured above.
+
+Audit checks:
+- No direct `product_skus` mutation is introduced.
+- Existing SKU RPC field boundaries are preserved.
+- Activation is kept separate from master editing and readiness.
+- No automatic Product↔SKU activation cascade is introduced.
+- No existing lifecycle inconsistency is auto-rewritten.
+- Readiness aggregation remains server-authoritative.
+- LIVE_AS_OF context remains explicit and period-scoped.
+- EXACT_RUN/history is not leaked into a general Product lifecycle UX.
+- Manage Products permission is not replaced with Costing Control Center permission.
+- Required readiness visibility is solved at the narrow RPC authorization boundary rather than by duplicating server logic.
+- Product-detail architecture introduces no new top-level module and does not pre-empt WP04's central readiness/control-centre scope.
 
 ## Milestones
-- [ ] Current-state/audit gate
-- [ ] Design/contract gate where applicable
-- [ ] Implementation gate where applicable
+- [x] Current-state/audit gate
+- [x] Design/contract gate
+- [~] Implementation gate
 - [ ] Focused verification
 - [ ] Independent audit
-- [ ] Merge/post-merge proof where applicable
+- [ ] Merge/post-merge proof
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G0 — entry criteria / not started`
+`WP02-G3 — implementation planning / isolated implementation`
 
 ## Gate Status
-[ ] NOT STARTED
+[~] IN PROGRESS
 
 ## Required to close
-Entry criteria must be satisfied and the work pack explicitly started.
+Follow the mandatory client workflow:
+1. produce implementation plan against the approved G2 contract;
+2. independently audit that plan before mutation;
+3. use an isolated feature branch/worktree from verified current main;
+4. implement the narrow server read-access/context support and Product-detail SKU lifecycle UI;
+5. add focused tests proving RPC-only mutations, permission behavior, lifecycle separation and readiness rendering;
+6. commit/push and independently audit the diff before merge approval.
 
 ## Next gate
-To be determined from evidence when this WP becomes active.
+`WP02-G4 — focused verification` after implementation is complete and its implementation-diff audit passes.
 
 ## Server changes
-None.
+None yet in WP02. G3 is authorized to make only the narrow read-only access/context changes required by the approved design. Existing Product/SKU lifecycle mutation RPCs and activation guards are reused unchanged.
 
 ## Client changes
-None.
+None yet. G3 will modify the existing Manage Products surface; no new top-level module is approved.
 
 ## Tests / verification
-None.
+- Verified current main SHA: `142c7fe5850af24efb2634582b354103e2d92845`.
+- Verified live Product/SKU counts and lifecycle-gap counts directly from Supabase.
+- Verified live definitions/signatures and audit behavior of SKU create/update/activate RPCs.
+- Verified Product/SKU lifecycle guard functions.
+- Verified WP01 readiness RPC definition and its LIVE_AS_OF / EXACT_RUN semantics.
+- Verified readiness RPC currently requires Costing Control Center view permission.
+- Verified live permission mismatch: 3 Manage Products users versus 1 overlapping Costing Control Center user.
+- Verified current governed period inventory and latest governed period.
+- Verified current-main Product client permission/governance/error/busy-state patterns.
 
 ## Decisions created
-None.
+- DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.
+- DEC-009 — Manage Products consumes WP01 readiness as LIVE_AS_OF for a server-governed period; no client recomputation and no EXACT_RUN Product-Master browser.
+- DEC-010 — Manage Products readiness visibility is authorized narrowly at the canonical readiness read boundary; Costing Control Center module permission is not granted merely to support Product lifecycle readiness.
 
 ## Risks
-Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
+Permission broadening must stay limited to status/remediation reads; Product and SKU dirty-state interactions must not cause data loss; client must not turn UNKNOWN into READY; downstream remediation navigation must not imply Product Master owns specialist mutations.
 
 ## Parked discoveries
-None.
+None added in G2. Regional Marketing evidence acceptance remains parked under the programme backlog for WP04/later IA placement.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.

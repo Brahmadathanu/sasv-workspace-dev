@@ -27,8 +27,8 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 ## Work-pack inventory
 - [x] WP-1 — Repository Programme Control Plane
 - [x] WP00 — Authoritative Current-State Inventory
-- [~] WP01 — Canonical Product/SKU Completeness Contract
-- [ ] WP02 — Product + SKU Lifecycle Redesign
+- [x] WP01 — Canonical Product/SKU Completeness Contract
+- [~] WP02 — Product + SKU Lifecycle Redesign
 - [ ] WP03 — Creation-Time Guided Completeness
 - [ ] WP04 — Central Master Data / Costing Readiness Control Centre
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
@@ -47,13 +47,13 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-WP01 — Canonical Product/SKU Completeness Contract
+WP02 — Product + SKU Lifecycle Redesign
 
 ## Active gate
-WP02-G1 — current lifecycle surface and contract-consumption design
+WP02-G3 — implementation planning / isolated implementation
 
 ## Overall completion progress
-2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 is now the active work pack.
+2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 G1 and G2 are completed and G3 implementation planning is active.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -61,9 +61,13 @@ WP02-G1 — current lifecycle surface and contract-consumption design
 - Review states are not converted to Ready without evidence.
 - No new top-level module until later IA audit proves it is required.
 - No Product/Costing redesign before WP0 closes.
+- WP01 readiness is multidimensional and server-authoritative; clients consume the canonical contract rather than recomputing it.
+- Product detail is the Product/SKU lifecycle anchor; SKU master, activation and readiness remain separate.
+- Product Master readiness uses LIVE_AS_OF only for an explicit server-governed period.
+- Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-None blocking WP00. One evidence-backed missing client surface is parked for later work: the server-governed regional Marketing evidence-acceptance contract has no current-main client write/remediation path found.
+No architectural blocker to WP02-G3. One REQUIRED NOW implementation dependency exists: the canonical readiness read authorization and latest-governed-period context must be made available to Manage Products without granting specialist Costing Control Center access. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work.
 
 ## Immediate next action
-Begin WP02 from the closed WP01 server contract: audit the current Product + SKU lifecycle surfaces and define how lifecycle UI consumes server-authoritative readiness without duplicating resolver logic. No implementation before the WP02 design gate is approved.
+Produce and independently audit the WP02-G3 implementation plan against DEC-008–DEC-010, then implement on an isolated feature branch/worktree from verified current main. No merge without focused verification and independent diff audit.
