@@ -1509,7 +1509,10 @@ async function loadGovernedPeriodStart() {
   return governedPeriodStart;
 }
 
+let skuLoadGeneration = 0;
+
 async function loadChildSkus(productId) {
+  const generation = ++skuLoadGeneration;
   skuDirty = false;
   skuDraft = null;
   selectedSkuId = null;
@@ -1518,6 +1521,7 @@ async function loadChildSkus(productId) {
     .from("product_skus")
     .select("id, product_id, pack_size, uom, is_sample, is_active")
     .eq("product_id", productId);
+  if (generation !== skuLoadGeneration) return;
   if (error) {
     skuRows = [];
     surfaceRpcError(error, "Unable to load SKUs.");
@@ -1525,7 +1529,43 @@ async function loadChildSkus(productId) {
     return;
   }
   skuRows = data || [];
+  renderSkuList();
   await loadGovernedPeriodStart();
+  if (generation !== skuLoadGeneration) return;
+  await loadAllSkuReadiness(generation);
+}
+
+async function fetchSkuReadiness(skuId, options = {}) {
+  if (!governedPeriodStart || skuId == null) return null;
+  const { data, error } = await supabase.rpc("rpc_get_product_sku_readiness", {
+    p_sku_id: skuId,
+    p_period_start: governedPeriodStart,
+    p_context_type: "LIVE_AS_OF",
+    p_refresh_run_id: null,
+  });
+  if (error) {
+    console.error(error);
+    if (options.surfaceError) surfaceRpcError(error, "Readiness unavailable.");
+    return null;
+  }
+  return data && typeof data === "object" ? data : null;
+}
+
+async function loadAllSkuReadiness(generation) {
+  if (!governedPeriodStart || skuRows.length === 0) {
+    renderSkuList();
+    return;
+  }
+  const rows = skuRows.slice();
+  const results = await Promise.all(
+    rows.map(async (row) => fetchSkuReadiness(row.id)),
+  );
+  if (generation !== skuLoadGeneration) return;
+  results.forEach((payload, index) => {
+    const skuId = String(rows[index].id);
+    if (payload) skuReadinessById.set(skuId, payload);
+    else skuReadinessById.delete(skuId);
+  });
   renderSkuList();
 }
 
@@ -1584,7 +1624,7 @@ async function selectSku(skuId) {
   if (skuIsSample) skuIsSample.checked = !!row?.is_sample;
   if (skuDetail) skuDetail.hidden = false;
   renderSkuList();
-  await loadSelectedSkuReadiness();
+  await showSelectedSkuReadiness();
 }
 
 function beginNewSku() {
@@ -1599,31 +1639,25 @@ function beginNewSku() {
   renderSkuList();
 }
 
-async function loadSelectedSkuReadiness() {
+async function showSelectedSkuReadiness() {
   if (!skuReadiness) return;
   const row = currentSkuRow();
   if (!row || !governedPeriodStart) {
     skuReadiness.textContent = "Readiness unavailable";
     return;
   }
-  skuReadiness.textContent = "Loading readiness…";
-  const { data, error } = await supabase.rpc("rpc_get_product_sku_readiness", {
-    p_sku_id: row.id,
-    p_period_start: governedPeriodStart,
-    p_context_type: "LIVE_AS_OF",
-    p_refresh_run_id: null,
-  });
-  if (error) {
-    skuReadinessById.delete(String(row.id));
-    skuReadiness.textContent = "Readiness unavailable";
-    surfaceRpcError(error, "Readiness unavailable.");
-    renderSkuList();
-    if (skuDetail) skuDetail.hidden = false;
+  const cached = skuReadinessById.get(String(row.id));
+  if (cached) {
+    renderSkuReadiness(cached);
     return;
   }
-  const payload = data && typeof data === "object" ? data : null;
+  skuReadiness.textContent = "Loading readiness…";
+  const payload = await fetchSkuReadiness(row.id, { surfaceError: true });
   if (!payload) {
+    skuReadinessById.delete(String(row.id));
     skuReadiness.textContent = "Readiness unavailable";
+    renderSkuList();
+    if (skuDetail) skuDetail.hidden = false;
     return;
   }
   skuReadinessById.set(String(row.id), payload);
@@ -1645,38 +1679,58 @@ function renderSkuReadiness(payload) {
   if (!skuReadiness) return;
   skuReadiness.innerHTML = "";
   const summary = payload.summary || {};
+  const lifecycle =
+    payload.lifecycle && typeof payload.lifecycle === "object" ? payload.lifecycle : {};
   const severity = summary.overall_severity;
   const badge = document.createElement("span");
   badge.className = readinessBadgeClass(severity);
   badge.textContent = readinessBadgeLabel(severity);
   skuReadiness.appendChild(badge);
-  const lifecycleText =
-    typeof payload.lifecycle === "string"
-      ? payload.lifecycle
-      : payload.lifecycle?.state || payload.lifecycle?.status || "Unavailable";
-  appendLine(skuReadiness, "Lifecycle", lifecycleText);
+  appendLine(skuReadiness, "Product lifecycle", lifecycle.product_status || "Unavailable");
+  appendLine(
+    skuReadiness,
+    "SKU lifecycle",
+    lifecycle.sku_is_active === true
+      ? "Active"
+      : lifecycle.sku_is_active === false
+        ? "Inactive"
+        : "Unavailable",
+  );
+  appendLine(
+    skuReadiness,
+    "Sample",
+    lifecycle.sku_is_sample === true
+      ? "Yes"
+      : lifecycle.sku_is_sample === false
+        ? "No"
+        : "Unavailable",
+  );
   appendLine(skuReadiness, "Product master foundation", summary.product_master_foundation_status);
   appendLine(skuReadiness, "SKU master foundation", summary.sku_master_foundation_status);
   appendLine(skuReadiness, "Costing foundation", summary.costing_foundation_status);
   appendLine(skuReadiness, "Evidence quality", summary.evidence_quality_status);
   appendLine(skuReadiness, "Costing outcome", summary.costing_outcome_status);
-  appendLine(skuReadiness, "Recommended route", payload.downstream_control?.recommended_route || payload.summary?.recommended_route);
+  appendLine(skuReadiness, "Overall severity", summary.overall_severity);
+  const control = payload.downstream_control || {};
+  if (control.control_note) appendLine(skuReadiness, "Control note", control.control_note);
+  if (control.control_severity) appendLine(skuReadiness, "Control severity", control.control_severity);
+  if (control.cost_sheet_status) appendLine(skuReadiness, "Cost sheet", control.cost_sheet_status);
+  if (control.first_control_status) {
+    appendLine(skuReadiness, "First control", control.first_control_status);
+  }
+  if (control.recommended_ui_route) {
+    appendLine(skuReadiness, "Recommended route", control.recommended_ui_route);
+  }
   const dependencies = Array.isArray(payload.dependencies) ? payload.dependencies : [];
   dependencies.forEach((issue) => {
+    const status = issue.effective_status || issue.raw_status || "Unavailable";
+    if (status === "READY") return;
     appendLine(
       skuReadiness,
-      "Dependency",
-      [issue.dimension || issue.dependency, issue.status || issue.severity, issue.reason, issue.note]
+      issue.label || "Dependency",
+      [status, issue.reason_code, issue.note, issue.recommended_ui_route]
         .filter(Boolean)
         .join(" — "),
-    );
-  });
-  const shared = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
-  shared.forEach((issue) => {
-    appendLine(
-      skuReadiness,
-      "Issue",
-      [issue.reason, issue.note].filter(Boolean).join(" — ") || "Unavailable",
     );
   });
 }
@@ -1689,23 +1743,41 @@ function skuFormValues() {
   };
 }
 
-function requireSkuGovernance(actionLabel) {
-  return promptGovernance({
-    title: actionLabel,
-    message: "A business reason is required. An approval reference is optional.",
-    confirmLabel: actionLabel,
-    danger: false,
-  });
+function skuPackIdentity(packSize, uom, isSample) {
+  const pack = `${packSize ?? "—"} ${uom || ""}`.trim();
+  return isSample ? `${pack} (sample)` : pack;
+}
+
+function selectedProductLabel() {
+  return loadedProductSnapshot?.item || itemInput?.value || `Product ${selectedId}`;
+}
+
+function skuMasterValidationMessage(values) {
+  if (!values.p_uom) return "UOM is required.";
+  if (
+    values.p_pack_size === null ||
+    Number.isNaN(values.p_pack_size) ||
+    values.p_pack_size <= 0
+  ) {
+    return "Pack size must be greater than zero.";
+  }
+  return "";
 }
 
 async function createSku() {
   if (!canWriteModule() || !selectedId || writeBusy) return;
   const values = skuFormValues();
-  if (values.p_pack_size === null || !values.p_uom) {
-    showToast("Pack size and UOM are required.");
+  const invalid = skuMasterValidationMessage(values);
+  if (invalid) {
+    showToast(invalid);
     return;
   }
-  const governance = await requireSkuGovernance("save");
+  const governance = await promptGovernance({
+    title: "Create SKU",
+    confirmLabel: "Create SKU",
+    danger: false,
+    message: `Create an inactive SKU for "${selectedProductLabel()}"?\n\nPack: ${skuPackIdentity(values.p_pack_size, values.p_uom, values.p_is_sample)}\nSample: ${values.p_is_sample ? "Yes" : "No"}\n\nA business reason is required. An approval reference is optional.`,
+  });
   if (!governance) return;
   writeBusy = true;
   syncSkuAccessChrome();
@@ -1725,10 +1797,11 @@ async function createSku() {
       return;
     }
     const created = Array.isArray(data) ? data[0] : data;
+    const createdSkuId = created && created.sku_id;
     skuDirty = false;
     skuDraft = null;
     await loadChildSkus(selectedId);
-    if (created && created.id) await selectSku(created.id);
+    if (createdSkuId != null) await selectSku(createdSkuId);
     showToast("SKU created inactive. Activate it as a separate action when the product is active.", 6000);
   } finally {
     writeBusy = false;
@@ -1740,7 +1813,17 @@ async function createSku() {
 async function saveSkuPack() {
   if (!canWriteModule() || !selectedSkuId || writeBusy || skuDraft === "new") return;
   const values = skuFormValues();
-  const governance = await requireSkuGovernance("save");
+  const invalid = skuMasterValidationMessage(values);
+  if (invalid) {
+    showToast(invalid);
+    return;
+  }
+  const governance = await promptGovernance({
+    title: "Update SKU",
+    confirmLabel: "Update SKU",
+    danger: false,
+    message: `Update SKU ${selectedSkuId}?\n\nPack: ${skuPackIdentity(values.p_pack_size, values.p_uom, values.p_is_sample)}\nSample: ${values.p_is_sample ? "Yes" : "No"}\n\nA business reason is required. An approval reference is optional.`,
+  });
   if (!governance) return;
   writeBusy = true;
   syncSkuAccessChrome();
@@ -1773,8 +1856,20 @@ async function saveSkuPack() {
 async function toggleSkuActive() {
   const row = currentSkuRow();
   if (!canWriteModule() || !row || writeBusy || skuDraft === "new") return;
+  if (skuDirty) {
+    showToast("Save or cancel SKU master edits before changing active state.");
+    return;
+  }
   const nextActive = !row.is_active;
-  const governance = await requireSkuGovernance("save");
+  const packIdentity = skuPackIdentity(row.pack_size, row.uom, row.is_sample);
+  const governance = await promptGovernance({
+    title: nextActive ? "Activate SKU" : "Deactivate SKU",
+    confirmLabel: nextActive ? "Activate SKU" : "Deactivate SKU",
+    danger: !nextActive,
+    message: nextActive
+      ? `Activate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Active.\n\nA business reason is required. An approval reference is optional.`
+      : `Deactivate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Inactive.\n\nA business reason is required. An approval reference is optional.`,
+  });
   if (!governance) return;
   writeBusy = true;
   syncSkuAccessChrome();

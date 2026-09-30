@@ -50,7 +50,7 @@ IN PROGRESS
 WP02 — Product + SKU Lifecycle Redesign
 
 ## Active gate
-WP02-G3 — implementation on the isolated branch, awaiting independent diff audit
+WP02-G3 — client corrections after independent diff audit; still in progress
 
 ## Overall completion progress
 2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 G1 and G2 are completed. G3 implementation is on the isolated branch and is not merged.
@@ -70,4 +70,4 @@ WP02-G3 — implementation on the isolated branch, awaiting independent diff aud
 No architectural blocker remains inside WP02-G3. The narrow readiness read authorization and latest-governed-period RPC are applied. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work.
 
 ## Immediate next action
-Independently audit the WP02-G3 implementation diff. Do not merge until that audit and WP02-G4 focused verification pass.
+Independent ChatGPT audit of the WP02-G3 client corrections. The first audit passed the server access contract and found client rendering, badge, create-identity, and governance-confirmation defects. Do not advance to WP02-G4 until the corrected diff is audited again.

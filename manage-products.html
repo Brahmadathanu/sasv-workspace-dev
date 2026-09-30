@@ -998,7 +998,13 @@
               <div class="sku-master-grid">
                 <div>
                   <label for="skuPackSize">Pack size</label>
-                  <input id="skuPackSize" type="number" min="0" step="any" />
+                  <input
+                    id="skuPackSize"
+                    type="number"
+                    min="0.000001"
+                    step="any"
+                    placeholder="Greater than zero"
+                  />
                 </div>
                 <div>
                   <label for="skuUom">UOM</label>

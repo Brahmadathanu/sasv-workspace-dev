@@ -116,6 +116,36 @@ assert(types.includes("rpc_get_product_sku_readiness:"), "types include the read
 assert(types.includes("rpc_get_latest_governed_cost_period_start:"), "types include the period RPC");
 assert(!types.includes("rpc_list_product_skus"), "types do not add a SKU list RPC");
 
+const renderSource = products.slice(
+  products.indexOf("function renderSkuReadiness"),
+  products.indexOf("function skuPackIdentity"),
+);
+assert(renderSource.includes("lifecycle.product_status"), "renderer uses product_status");
+assert(renderSource.includes("lifecycle.sku_is_active"), "renderer uses sku_is_active");
+assert(renderSource.includes("issue.raw_status"), "renderer uses dependency raw_status");
+assert(renderSource.includes("issue.effective_status"), "renderer supports effective_status");
+assert(renderSource.includes("issue.reason_code"), "renderer uses reason_code");
+assert(renderSource.includes("issue.recommended_ui_route"), "renderer uses recommended_ui_route");
+assert(!renderSource.includes("recommended_route"), "renderer does not use recommended_route");
+assert(!renderSource.includes("lifecycle.state") && !renderSource.includes("lifecycle.status"), "renderer does not use invented lifecycle aliases");
+assert(products.includes("created.sku_id") && !products.includes("created.id"), "new SKU reselection uses sku_id");
+assert(
+  products.includes("function loadAllSkuReadiness") &&
+    products.includes("rows.map(async (row) => fetchSkuReadiness(row.id))") &&
+    products.includes("skuReadinessById.get(String(row.id))"),
+  "all child SKU rows load readiness and selection reuses it",
+);
+assert(products.includes('title: "Create SKU"') && products.includes("Create an inactive SKU"), "create has its own governance confirmation");
+assert(products.includes('title: "Update SKU"') && products.includes("Update SKU ${selectedSkuId}"), "update has its own governance confirmation");
+assert(products.includes('title: nextActive ? "Activate SKU" : "Deactivate SKU"'), "activate and deactivate have distinct governance titles");
+assert(products.includes("will become Active") && products.includes("will become Inactive"), "lifecycle confirmations name the target state");
+assert(products.includes("danger: !nextActive"), "deactivation uses danger treatment");
+assert(!products.includes('requireSkuGovernance("save")'), "SKU actions do not share a generic save confirmation");
+assert(
+  products.includes("Pack size must be greater than zero.") && html.includes('min="0.000001"'),
+  "invalid pack size is rejected before governance",
+);
+
 if (failed) {
   console.error(`FAILED product-sku-lifecycle-smoke (${failed})`);
   process.exit(1);

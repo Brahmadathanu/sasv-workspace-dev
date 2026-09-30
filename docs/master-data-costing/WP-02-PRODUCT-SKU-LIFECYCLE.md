@@ -153,23 +153,23 @@ Audit checks:
 ## Milestones
 - [x] Current-state/audit gate
 - [x] Design/contract gate
-- [~] Implementation gate — code is on the isolated branch; independent diff audit still required
+- [~] Implementation gate — client corrections after the first diff audit; another audit is still required
 - [ ] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G3 — implementation on the isolated branch, awaiting independent diff audit`
+`WP02-G3 — client corrections after independent diff audit; still in progress`
 
 ## Gate Status
-[~] IN PROGRESS — isolated implementation is complete on the feature branch; merge remains blocked on the diff audit and WP02-G4.
+[~] IN PROGRESS — the first independent diff audit passed the server access contract. Client corrections for readiness field mapping, per-SKU badges, create `sku_id`, and action-specific governance remain on this branch for a second audit. Do not advance to WP02-G4 yet.
 
 ## Required to close
-The remaining G3 close step is the independent implementation-diff audit. Focused verification is the next gate after that audit.
+The remaining G3 close step is a second independent audit of the corrected client diff. Focused verification stays the next gate after that audit.
 
 ## Next gate
-`WP02-G4 — focused verification` after the implementation-diff audit passes.
+`WP02-G4 — focused verification` after a second independent audit of the corrected client diff passes.
 
 ## Server changes
 Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql`:
@@ -198,6 +198,8 @@ Manage Products now has the saved-Product `SKUs & readiness` surface in `manage-
 - e-Aushadhi Product Details execution smoke and Composition offline-plan smoke: PASS.
 - `node --check` on the new/modified MJS files and `public/sw.js`: PASS.
 - `node --check js/products.js` fails before parsing because the file is a browser module and the package is not `"type": "module"`. The same source checked as a temporary `.mjs` copy: PASS.
+- Independent live audit of the applied server contract passed for a Manage Products viewer without Costing Control Center permission: latest governed period `2026-09-01`, readiness valuation `2026-09-10`, successful evidence run 115. The migration was not changed for the client correction.
+- Client correction smoke covers the verified payload fields, per-SKU readiness loading, `sku_id` reselection, and distinct create/update/activate/deactivate governance confirmations.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.
