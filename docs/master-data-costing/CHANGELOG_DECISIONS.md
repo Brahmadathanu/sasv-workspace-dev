@@ -58,3 +58,10 @@
 **Reason:** Live permissions prove legitimate Manage Products users do not necessarily have Costing Control Center permission. The readiness RPC exposes status/remediation metadata, not monetary costing values, and Product lifecycle requires this information.
 **Impact:** Narrow G3 server authorization adjustment for readiness consumption.
 **Status:** LOCKED
+
+
+## 2026-10-01 — DEC-011 — Autonomous gate-based client implementation
+**Decision:** Routine bounded client work no longer requires a separate ChatGPT approval between planning/analysis and implementation. ChatGPT freezes one complete bounded work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push; ChatGPT audits the actual pushed GitHub implementation, may request one consolidated correction pass, and explicitly approves merge/cleanup.
+**High-risk exception:** Architecture, database/schema/RPC contracts, authentication/permissions, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business-rule decisions, and security-sensitive behavior retain a separate Plan → ChatGPT review → Implementation gate.
+**Preserved controls:** dedicated task branch/worktree, no direct main implementation, no invented backend contracts, server truth remains authoritative, no unrelated refactoring, targeted checks/tests, no merge/version/tag/release/publish without explicit approval.
+**Status:** LOCKED

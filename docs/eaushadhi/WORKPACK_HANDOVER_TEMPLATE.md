@@ -60,7 +60,12 @@ Do not rely on conversational memory if repository/live evidence differs.
 ChatGPT.
 
 ## Client responsibility
-Cursor/Codex only through ChatGPT Plan → audit → Implementation → independent audit → merge authorization.
+Routine bounded work: ChatGPT freezes one complete work package → Cursor/Codex autonomously analyze/implement/test/self-review/fix/commit/push → ChatGPT independent GitHub audit → at most one consolidated correction pass → final verification → explicit merge/cleanup approval.
+
+High-risk work: separate Plan → ChatGPT review → autonomous implementation within the approved plan → GitHub audit → correction if required → explicit merge approval.
+
+## Current execution state
+PLAN / AUTONOMOUS IMPLEMENTATION / VERIFICATION / CORRECTION / MERGE-CLEANUP
 
 ## Downstream outputs
 - ...

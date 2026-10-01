@@ -70,4 +70,9 @@ WP02-G4 — focused verification
 No architectural blocker remains inside WP02-G3. The narrow readiness read authorization and latest-governed-period RPC are applied. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work. Logged-in Manage Products verification is still required before WP02-G4 can close.
 
 ## Immediate next action
-Finish WP02-G4 focused verification against current main `23fb63f8c2704d158fd1da2b0ec8850f7307ad0a`. Do not merge until that verification is complete and independently accepted.
+Finish WP02-G4 focused verification. Authenticated Manage Products use already confirmed live SKU and readiness data. The remaining layout correction is the full-height Product form that pushes the SKU section down. Do not merge until that correction is visually confirmed and independently accepted.
+
+## Client development operating model
+Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
+
+High-risk work retains a separate Plan → ChatGPT review → Implementation gate. Existing WP-specific plan gates remain valid when they involve architecture, authorization/permissions, database/schema/RPC contracts, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business rules, or security-sensitive behavior.
