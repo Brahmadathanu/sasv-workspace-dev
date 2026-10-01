@@ -27,6 +27,10 @@ function sourceId(value) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
+function workflowVersion(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
 function boundedPageIdentityFailureCode(value) {
   const code = String(value ?? "");
   return PAGE_IDENTITY_FAILURE_CODES.has(code) ? code : "COMPOSITION_PAGE_IDENTITY_FAILED";
@@ -64,7 +68,13 @@ function validateAuthority(authority) {
   const preflight = authority.preflight;
   const content = authority.content;
   if (sourceId(preflight?.product_id) !== PRODUCT_ID) return fail("PRODUCT_LOCK_REJECTED", "Composition V1 accepts only Product 262.");
-  if (Number(preflight?.workflow_row_version) !== Number(content?.workflow_row_version)) {
+  const preflightWorkflowVersion = workflowVersion(preflight?.workflow_row_version);
+  const contentWorkflowVersion = workflowVersion(content?.versions?.workflow_row_version);
+  if (
+    preflightWorkflowVersion === null ||
+    contentWorkflowVersion === null ||
+    preflightWorkflowVersion !== contentWorkflowVersion
+  ) {
     return fail("WORKFLOW_VERSION_MISMATCH", "Composition workflow authority changed.");
   }
   if (!preflight?.content_hash || preflight.content_hash !== content?.content_hash) {
