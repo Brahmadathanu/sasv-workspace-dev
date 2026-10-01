@@ -18,7 +18,11 @@ const {
 const {
   normalizeCompositionReread,
   normalizeNativeCompositionList,
+  parseNativeCompositionRowId,
 } = require("../electron/eaushadhi-worker/composition-native-normalizer.js");
+const {
+  parseCompositionRowId,
+} = require("../electron/eaushadhi-worker/composition-contract.js");
 const {
   buildCompositionLiveAdapters,
 } = require("../electron/eaushadhi-worker/composition-live-adapters.js");
@@ -174,6 +178,72 @@ function fakeDeps(authorities, options = {}) {
 
 assert.equal(COMPOSITION_LIVE_ARM_DEFAULT, false);
 assert.equal(isCompositionLiveArmedFor(262, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+
+const parsedId = (markup) => parseCompositionRowId(markup);
+const provenId = (markup, expected = "row-a") => {
+  const result = parsedId(markup);
+  assert.equal(result.ok, true);
+  assert.equal(result.code, "ROW_ID_CONTRACT_PROVEN");
+  assert.equal(result.rowId, expected);
+};
+const unprovenId = (markup) => {
+  const result = parsedId(markup);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "ROW_ID_CONTRACT_UNPROVEN");
+  assert.equal(result.rowId, null);
+};
+
+// Bounded native Composition row identity contracts.
+provenId("<a onclick=\"GetCompositionDataUpdate('row-a')\">Edit</a>");
+provenId('<a onclick="GetCompositionDataUpdate(\'row-a\')">Edit</a>');
+provenId('<a data-composition-id="row-a">Edit</a>');
+provenId("<a data-composition-id='row-a'>Edit</a>");
+provenId('<input type="hidden" name="hid1" id="hid1" value="row-a">');
+provenId("<input type='hidden' name='hid1' id='hid1' value='row-a'>");
+provenId('<input value="row-a" id="hid1" type="hidden" name="hid1">');
+provenId("<input id='hid12' value='row-a' name='hid12' type='hidden'>");
+provenId('<input type="hidden" id="hid123" value="row-a">');
+unprovenId('<input type="hidden" id="HID1" value="row-a">');
+unprovenId('<input type="hidden" id="Hid1" value="row-a">');
+assert.equal(parseNativeCompositionRowId({ edit: '<input type="hidden" id="hid1" value="row-a">' }).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({ delete: '<input type="hidden" name="hid1" value="row-a">' }).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<input type="hidden" name="hid1" value="row-a">',
+}).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<input type="hidden" id="hid1" value="row-b">',
+}).code, "ROW_ID_CONTRACT_UNPROVEN");
+provenId('<a onclick="GetCompositionDataUpdate(\'row-a\')"><input type="hidden" id="hid1" value="row-a"></a>');
+unprovenId('<a onclick="GetCompositionDataUpdate(\'row-a\')"><input type="hidden" id="hid1" value="row-b"></a>');
+unprovenId('<input type="hidden" id="other1" name="other1" value="row-a">');
+unprovenId('<input type="text" id="hid1" name="hid1" value="row-a">');
+unprovenId('<input type="hidden" id="hid1" name="hid2" value="row-a">');
+unprovenId('<input type="hidden" id="hid1" value="">');
+unprovenId('<input type="hidden" id="hid1" value="row a">');
+unprovenId(`<input type="hidden" id="hid1" value="${"a".repeat(97)}">`);
+unprovenId('<input type="hidden" id="hid1" value="row-a"><input type="hidden" id="hid2" value="row-b">');
+unprovenId('<input type="hidden" id="hid1" id="hid1" value="row-a">');
+unprovenId('<input type="hidden" id="hid1" value="row-a" id=hid2>');
+unprovenId('<input type="hidden" id="hid1" value="row-a" ID=hid2>');
+unprovenId('<input type="hidden" name="hid1" value="row-a" name=hid2>');
+unprovenId('<input type="hidden" id="hid1" value="row-a" value=row-b>');
+unprovenId('<input type="hidden" id="hid1" value="row-a" type=text>');
+unprovenId('<input type="hidden" id=hid1 value="row-a">');
+unprovenId('<input type="hidden" id="hid1" value=row-a>');
+unprovenId("1 Ajamoda Apium leptophyllum");
+unprovenId("Ajamoda");
+unprovenId(`<input type="hidden" id="hid1" value="row-a">${"x".repeat(2049)}`);
+assert.equal(parseNativeCompositionRowId({ srno: 1, ingredientName: "Ajamoda" }).code, "ROW_ID_CONTRACT_UNPROVEN");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<a data-composition-id="row-a">Delete</a>',
+}).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<a data-composition-id="row-b">Delete</a>',
+}).code, "ROW_ID_CONTRACT_UNPROVEN");
 
 const aRowNative = { edit: "<a onclick=\"GetCompositionDataUpdate('row-a')\">Edit</a>", delete: "" };
 const normalizedReread = normalizeCompositionReread(rawReread(governed[0], "row-a"), "row-a");
@@ -403,6 +473,7 @@ function pageIdentityHarness({
   actiontype = "edit",
   actiontypePresent = true,
   saveAvailable = false,
+  listRows = [],
 } = {}) {
   const calls = [];
   const page = {
@@ -428,8 +499,8 @@ function pageIdentityHarness({
           httpStatus: 200,
           page: 0,
           requestedLength: input.length,
-          totalCount: 0,
-          rows: [],
+          totalCount: listRows.length,
+          rows: structuredClone(listRows),
         };
       }
       throw new Error("UNEXPECTED_PAGE_EVALUATION");
@@ -458,6 +529,18 @@ async function loadIdentityAuthority(options, request = {}) {
     liveArmed: false,
   });
   return { result: await adapter.loadAuthority(request), harness };
+}
+
+// Ambiguous native identity fails before any reread request is attempted.
+{
+  const { result, harness } = await loadIdentityAuthority({
+    listRows: [{
+      edit: '<input type="hidden" id="hid1" value="row-a">',
+      delete: '<input type="hidden" id="hid1" value="row-b">',
+    }],
+  });
+  assert.equal(result.code, "ROW_ID_CONTRACT_UNPROVEN");
+  assert.equal(harness.calls.some(([name]) => name === "reread"), false);
 }
 
 // Native page identity: #productid is the sole opaque transport authority.
@@ -637,6 +720,7 @@ assert.equal((`${files.contract}\n${files.arm}`.match(/const COMPOSITION_LIVE_AR
 assert.doesNotMatch(files.executor, /eaushadhi_worker_run_begin|eaushadhi_worker_mark_entered|eaushadhi_worker_mark_portal_verified|createHash|node:crypto/);
 assert.doesNotMatch(`${files.executor}\n${files.adapter}`, /QC Register|final Submit|submitProduct/);
 assert.doesNotMatch(files.normalizer, /SaveCompositionData|UpdateCompositionData|DeleteCompositionData|\.rpc\(|page\.evaluate|createHash/);
+assert.doesNotMatch(files.contract, /DOMParser|createElement|innerHTML|eval\s*\(|Function\s*\(/);
 assert.doesNotMatch(files.adapter, /UpdateCompositionData|DeleteCompositionData|AddCompositionData/);
 assert.match(files.adapter, /typeof window\.SaveData === "function"/);
 assert.match(files.adapter, /const returned = window\.SaveData\(\)/);

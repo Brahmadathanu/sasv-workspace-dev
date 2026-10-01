@@ -3,6 +3,9 @@ const ALLOWED_EDIT_SHAPES = [
   /GetCompositionDataUpdate\(\s*['"]([A-Za-z0-9_-]{1,96})['"]\s*\)/g,
   /data-composition-id\s*=\s*['"]([A-Za-z0-9_-]{1,96})['"]/g,
 ];
+const INPUT_TAG = /<input\b[^>]*>/gi;
+const ATTRIBUTE_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*/;
+const HIDDEN_ROW_KEY = /^hid\d+$/;
 
 const COMPOSITION_LIVE_ARM_DEFAULT = false;
 
@@ -75,6 +78,55 @@ function parseCompositionRowId(editMarkup) {
   for (const pattern of ALLOWED_EDIT_SHAPES) {
     pattern.lastIndex = 0;
     for (let match = pattern.exec(editMarkup); match; match = pattern.exec(editMarkup)) ids.push(match[1]);
+  }
+  INPUT_TAG.lastIndex = 0;
+  for (let tagMatch = INPUT_TAG.exec(editMarkup); tagMatch; tagMatch = INPUT_TAG.exec(editMarkup)) {
+    const tag = tagMatch[0];
+    const names = new Set();
+    const attributes = new Map();
+    let cursor = 6;
+    let invalid = false;
+    while (cursor < tag.length - 1) {
+      while (/\s/.test(tag[cursor] || "")) cursor += 1;
+      if (tag[cursor] === "/" || tag[cursor] === ">") break;
+      const nameMatch = tag.slice(cursor).match(ATTRIBUTE_NAME);
+      if (!nameMatch) {
+        invalid = true;
+        break;
+      }
+      const attributeName = nameMatch[0].toLowerCase();
+      if (names.has(attributeName)) {
+        invalid = true;
+        break;
+      }
+      names.add(attributeName);
+      cursor += nameMatch[0].length;
+      while (/\s/.test(tag[cursor] || "")) cursor += 1;
+      if (tag[cursor] !== "=") continue;
+      cursor += 1;
+      while (/\s/.test(tag[cursor] || "")) cursor += 1;
+      const quote = tag[cursor];
+      if (quote === '"' || quote === "'") {
+        const end = tag.indexOf(quote, cursor + 1);
+        if (end < 0) {
+          invalid = true;
+          break;
+        }
+        attributes.set(attributeName, tag.slice(cursor + 1, end));
+        cursor = end + 1;
+      } else {
+        while (cursor < tag.length - 1 && !/\s|>/.test(tag[cursor])) cursor += 1;
+      }
+    }
+    if (invalid || String(attributes.get("type") || "").toLowerCase() !== "hidden") continue;
+    const id = attributes.get("id") || "";
+    const name = attributes.get("name") || "";
+    const idIsRowKey = HIDDEN_ROW_KEY.test(id);
+    const nameIsRowKey = HIDDEN_ROW_KEY.test(name);
+    if (!idIsRowKey && !nameIsRowKey) continue;
+    if (idIsRowKey && nameIsRowKey && id !== name) continue;
+    const value = attributes.get("value") || "";
+    if (OPAQUE_ID.test(value)) ids.push(value);
   }
   const unique = [...new Set(ids)].filter((value) => OPAQUE_ID.test(value));
   return unique.length === 1
