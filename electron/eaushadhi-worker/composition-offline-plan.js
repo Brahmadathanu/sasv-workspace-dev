@@ -37,6 +37,14 @@ function canonicalizeQuantity(value) {
   return fractional ? `${integer}.${fractional}` : integer;
 }
 
+function canonicalizeGovernedQuantity(value) {
+  if (typeof value === "string") return canonicalizeQuantity(value);
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const text = String(value);
+  if (!PLAIN_DECIMAL.test(text)) return null;
+  return canonicalizeQuantity(text);
+}
+
 function normalizeAuditId(value) {
   if (Number.isSafeInteger(value) && value > 0) return { value, key: String(value) };
   if (typeof value === "string" && /^[1-9]\d*$/.test(value)) {
@@ -58,7 +66,7 @@ function projectGovernedLine(line) {
     ingredientTypeValue: normalizeControlledValue(line?.ingredient_type?.portal_option_value),
     ingredientFormValue: normalizeControlledValue(line?.ingredient_form?.portal_option_value),
     partUsedValue: normalizeControlledValue(line?.part_used?.portal_option_value),
-    quantity: canonicalizeQuantity(line?.quantity_value),
+    quantity: canonicalizeGovernedQuantity(line?.quantity_value),
     measurementUnitValue: normalizeControlledValue(line?.measurement?.portal_option_value),
     measurementUnitLabel:
       line?.measurement?.label == null ? null : normalizeText(line.measurement.label),
@@ -496,6 +504,7 @@ function buildOfflineCompositionExecutionPlan({
 module.exports = {
   PLAN_CODE,
   buildOfflineCompositionExecutionPlan,
+  canonicalizeGovernedQuantity,
   canonicalizeQuantity,
   normalizeText,
 };

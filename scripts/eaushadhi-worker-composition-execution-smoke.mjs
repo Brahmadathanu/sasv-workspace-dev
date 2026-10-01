@@ -31,7 +31,7 @@ const HASH = "a".repeat(64);
 const REF = "portal-262";
 const runId = "11111111-1111-4111-8111-111111111111";
 
-const line = (id, name, form) => ({
+const line = (id, name, form, quantity = 1) => ({
   source_composition_line_id: id,
   review_status: "VERIFIED",
   ingredient_name: name,
@@ -39,7 +39,7 @@ const line = (id, name, form) => ({
   ingredient_type: { portal_option_value: "1" },
   ingredient_form: { portal_option_value: form },
   part_used: { portal_option_value: "113" },
-  quantity_value: "1",
+  quantity_value: quantity,
   measurement: { portal_option_value: "9", label: "ML" },
   reference: {
     reference_ready: true,
@@ -51,7 +51,7 @@ const line = (id, name, form) => ({
     portal_label: "Sahasrayoga",
   },
 });
-const governed = [line(929, "Ajamoda", "60"), line(930, "Karpura", "66"), line(931, "Keram", "61")];
+const governed = [line(929, "Ajamoda", "60", 10), line(930, "Karpura", "66", 1.67), line(931, "Keram", "61", 10)];
 const portalRow = (source, id) => ({
   portalRowId: id,
   ingredientName: source.ingredient_name,
@@ -59,7 +59,7 @@ const portalRow = (source, id) => ({
   ingredientTypeValue: source.ingredient_type.portal_option_value,
   ingredientFormValue: source.ingredient_form.portal_option_value,
   partUsedValue: source.part_used.portal_option_value,
-  quantity: source.quantity_value,
+  quantity: String(source.quantity_value),
   measurement: { representation: "VALUE", value: source.measurement.portal_option_value },
   reference: { representation: "VALUE", value: source.reference.portal_value },
 });
