@@ -162,16 +162,12 @@
         padding: 10px;
         box-sizing: border-box;
       }
-      /* Make the form inside details distribute spacing responsively
-         so it adapts to available vertical space without leaving large
-         empty gaps. The gap grows with viewport height but clamps to
-         sensible bounds. */
+      /* Field spacing stays compact and responsive. The form uses its
+         content height so SKUs & readiness can follow immediately. */
       .details form {
         display: flex;
         flex-direction: column;
         gap: clamp(8px, 1.6vh, 18px);
-        height: 100%;
-        min-height: 0;
       }
       /* Reduce default label margins so spacing is controlled by gap */
       .details label {

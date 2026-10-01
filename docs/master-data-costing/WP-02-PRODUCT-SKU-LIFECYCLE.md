@@ -165,7 +165,7 @@ Audit checks:
 ## Gate Status
 [x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, before the branch sync with current main.
 
-[~] WP02-G4 IN PROGRESS — focused verification. G4 stays open until the automated checks, source review, and any reachable logged-in Manage Products pass are recorded.
+[~] WP02-G4 IN PROGRESS — focused verification. Authenticated use confirmed live SKU and readiness data. The full-height Product form that left a blank gap above `SKUs & readiness` is corrected. G4 stays open until a person confirms that layout visually.
 
 ## Required to close
 Complete the focused verification set against the synced branch. Keep G4 in progress if authenticated UI verification cannot be performed. Do not merge from this gate.
@@ -205,6 +205,7 @@ Manage Products now has the saved-Product `SKUs & readiness` surface in `manage-
 - After the second independent audit, remediation rendering now hides READY, RESOLVED, and NOT_REQUIRED dependencies, including `applicability === "NOT_REQUIRED"`, and displays server `shared_issues` without a client aggregate.
 - Independent ChatGPT audit marked WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, recorded before the branch sync. Current main at that check was `23fb63f8c2704d158fd1da2b0ec8850f7307ad0a` and touched only e-Aushadhi composition files, with no WP02 path overlap.
 - WP02-G4 automated and source checks against the synced branch passed: lifecycle smoke, Materials/Stores, QC, trace launch, remediation foundation, dense restore, progressive density, production-route focus, dashboard cardinality, both required e-Aushadhi smokes, and the syntax checks. Read-only catalog confirmation found migration `20260930073040`, both view permissions on the readiness RPC, the period RPC, the SKU writers, and both activation guards. Latest governed period on the server is `2026-09-01`. No authenticated user session was available, so a live `LIVE_AS_OF` caller and the logged-in Manage Products pass were not repeated. G4 stays in progress for that UI verification.
+- Later authenticated visual verification on the feature branch proved the SKU section loads live data: 3 active / 5 total, governed period `2026-09-01`, and Ready and Blocked badges. The defect was `.details form { height: 100% }`, which stretched the Product form to the pane and pushed `SKUs & readiness` below a large blank area. That forced height is removed so the form keeps its content height. G4 remains in progress until a person confirms the corrected layout.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.
