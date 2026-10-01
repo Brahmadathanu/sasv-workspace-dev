@@ -153,23 +153,25 @@ Audit checks:
 ## Milestones
 - [x] Current-state/audit gate
 - [x] Design/contract gate
-- [~] Implementation gate — client corrections after the first diff audit; another audit is still required
-- [ ] Focused verification
+- [x] Implementation gate — WP02-G3 completed and verified at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`
+- [~] Focused verification
 - [ ] Independent audit
 - [ ] Merge/post-merge proof
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G3 — final remediation rendering implemented; awaiting independent ChatGPT verification`
+`WP02-G4 — focused verification`
 
 ## Gate Status
-[~] IN PROGRESS — the second independent audit passed the server contract and the earlier client corrections. The final remediation-rendering correction is on this branch: satisfied dependencies stay off the remediation list, and server `shared_issues` are shown as supplied. Do not advance to WP02-G4 until this correction is audited.
+[x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, before the branch sync with current main.
+
+[~] WP02-G4 IN PROGRESS — focused verification. G4 stays open until the automated checks, source review, and any reachable logged-in Manage Products pass are recorded.
 
 ## Required to close
-The remaining G3 close step is an independent audit of the remediation-rendering correction. Focused verification stays the next gate after that audit.
+Complete the focused verification set against the synced branch. Keep G4 in progress if authenticated UI verification cannot be performed. Do not merge from this gate.
 
 ## Next gate
-`WP02-G4 — focused verification` after the remediation-rendering correction is independently audited.
+The next existing gate after G4 is independent audit of the verification evidence, then merge/post-merge proof. Do not enter that gate from this verification pass.
 
 ## Server changes
 Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql`:
@@ -201,6 +203,7 @@ Manage Products now has the saved-Product `SKUs & readiness` surface in `manage-
 - Independent live audit of the applied server contract passed for a Manage Products viewer without Costing Control Center permission: latest governed period `2026-09-01`, readiness valuation `2026-09-10`, successful evidence run 115. The migration was not changed for the client correction.
 - Client correction smoke covers the verified payload fields, per-SKU readiness loading, `sku_id` reselection, and distinct create/update/activate/deactivate governance confirmations.
 - After the second independent audit, remediation rendering now hides READY, RESOLVED, and NOT_REQUIRED dependencies, including `applicability === "NOT_REQUIRED"`, and displays server `shared_issues` without a client aggregate.
+- Independent ChatGPT audit marked WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, recorded before the branch sync. Current main at that check was `23fb63f8c2704d158fd1da2b0ec8850f7307ad0a` and touched only e-Aushadhi composition files, with no WP02 path overlap.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.

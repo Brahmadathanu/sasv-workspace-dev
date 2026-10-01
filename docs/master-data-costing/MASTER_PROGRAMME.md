@@ -50,10 +50,10 @@ IN PROGRESS
 WP02 — Product + SKU Lifecycle Redesign
 
 ## Active gate
-WP02-G3 — final remediation rendering implemented; awaiting independent ChatGPT verification
+WP02-G4 — focused verification
 
 ## Overall completion progress
-2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 G1 and G2 are completed. The final WP02-G3 remediation-rendering correction is on the isolated branch and is not merged.
+2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified. WP02-G3 is completed and verified at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`. WP02-G4 focused verification is in progress and is not merged.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -67,7 +67,7 @@ WP02-G3 — final remediation rendering implemented; awaiting independent ChatGP
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No architectural blocker remains inside WP02-G3. The narrow readiness read authorization and latest-governed-period RPC are applied. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work.
+No architectural blocker remains inside WP02-G3. The narrow readiness read authorization and latest-governed-period RPC are applied. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work. Logged-in Manage Products verification is still required before WP02-G4 can close.
 
 ## Immediate next action
-Independent ChatGPT verification of the final WP02-G3 remediation rendering. Satisfied dependencies are omitted from remediation, and server `shared_issues` are shown as supplied. Do not advance to WP02-G4 until that verification passes.
+Finish WP02-G4 focused verification against current main `23fb63f8c2704d158fd1da2b0ec8850f7307ad0a`. Do not merge until that verification is complete and independently accepted.
