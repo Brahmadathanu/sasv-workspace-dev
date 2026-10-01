@@ -12,18 +12,44 @@ Investigate → plan → confirm contract → implement through connected tools 
 Do not pass server/database implementation to Cursor/Codex unless the programme documentation is explicitly amended by the user and ChatGPT.
 
 ## 3. Client workflow
-1. ChatGPT investigates current repo/live contracts.
-2. ChatGPT issues Plan Mode prompt.
-3. Cursor/Codex returns plan.
-4. ChatGPT audits/corrects plan.
-5. ChatGPT issues Implementation Mode prompt.
-6. Cursor/Codex works in an isolated feature branch/worktree.
-7. Cursor/Codex returns evidence.
-8. ChatGPT independently verifies pushed GitHub code/diff/tests.
-9. If satisfactory, ChatGPT authorizes merge/cleanup.
-10. Final main/live/operational state is independently verified.
 
-Never implement client work directly on main.
+### Routine bounded client work
+1. ChatGPT investigates current repo/live contracts and freezes one complete bounded work package.
+2. Cursor/Codex works autonomously within that approved scope: analyze internally → implement → run targeted checks/tests → self-review its diff → fix issues it finds → rerun checks → commit → push the dedicated task branch → report completion.
+3. Cursor/Codex must not stop merely to ask whether it may continue after analysis, editing, linting, testing, or self-review.
+4. ChatGPT independently verifies the pushed GitHub code/diff/tests.
+5. If needed, ChatGPT issues one consolidated correction pass on the same branch.
+6. ChatGPT performs final verification and explicitly authorizes merge/cleanup.
+7. Final main/live/operational state is independently verified.
+
+### High-risk client work
+Retain a separate Plan → ChatGPT review → Implementation gate when work involves architecture changes, database/schema/RPC contracts, authentication/permissions, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business-rule decisions, or security-sensitive behavior.
+
+After ChatGPT approves the high-risk plan, Cursor/Codex should still execute the implementation autonomously within that approved scope through self-review, tests, commit, push, and completion report.
+
+### Agent stop conditions
+Cursor/Codex should stop and request human guidance only when:
+- requirements are genuinely ambiguous;
+- materially different business/UX behaviours are possible;
+- an undocumented backend contract would have to be invented;
+- production data or security behaviour may be affected;
+- scope must broaden materially;
+- tests reveal a business-rule contradiction;
+- a visual/UX decision genuinely requires human judgment;
+- merge to main is required;
+- version/tag/release/publishing is required.
+
+### Completion report
+Every completed client work package must report:
+- branch;
+- commit SHA;
+- changed files;
+- checks/tests performed and results;
+- self-review outcome;
+- unresolved items;
+- any human verification still required.
+
+Never implement client work directly on main. Never merge, version, tag, release, or publish without explicit approval.
 
 ## 4. Operational checkout safety
 Persistent operational checkout:

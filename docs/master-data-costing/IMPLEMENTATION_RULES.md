@@ -8,19 +8,23 @@
 - Do not duplicate server business logic in the client.
 
 ## Client responsibility
-1. ChatGPT architecture/contract.
-2. Cursor PLAN mode.
-3. Independent ChatGPT plan audit.
-4. Isolated feature branch/worktree.
-5. Cursor implementation.
-6. Tests.
-7. Commit/push.
-8. Independent ChatGPT diff/code audit.
-9. Correct on the same branch if required.
-10. Explicit merge approval.
-11. Merge to current main.
-12. Post-merge verification.
-13. Branch/worktree cleanup.
+
+### Routine bounded client work
+1. ChatGPT freezes one complete bounded work package.
+2. Cursor/Codex autonomously analyze internally, implement, run targeted checks/tests, self-review the diff, fix issues found, rerun checks, commit, and push from an isolated feature branch/worktree.
+3. Cursor/Codex reports branch, commit SHA, changed files, checks/results, self-review outcome, unresolved items, and required human verification.
+4. ChatGPT independently audits the pushed GitHub diff/code/tests.
+5. If required, ChatGPT issues one consolidated correction pass on the same branch.
+6. ChatGPT performs final verification and explicitly authorizes merge.
+7. Merge to current main, post-merge verification, and branch/worktree cleanup follow only after approval.
+
+### High-risk client work
+Use a separate Cursor/Codex PLAN → independent ChatGPT plan audit → autonomous implementation gate for architecture changes, database/schema/RPC contracts, authentication/permissions, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business-rule decisions, or security-sensitive behavior.
+
+### Agent stop conditions
+Cursor/Codex stops for human guidance only when requirements are genuinely ambiguous, materially different business/UX behaviours are possible, an undocumented backend contract would have to be invented, production/security behaviour may be affected, scope must broaden materially, tests reveal a business-rule contradiction, a genuinely judgmental visual/UX decision is required, merge to main is required, or version/tag/release/publishing is required.
+
+Never merge, version, tag, release, or publish without explicit approval.
 
 ## Branch discipline
 - Never implement directly on main.

@@ -11,7 +11,8 @@ The server is the authoritative preparation and governance layer. The portal is 
 - ChatGPT owns server/database planning and implementation.
 - Cursor/Codex are client implementation workers only.
 - Cursor/Codex must never independently redefine server contracts, lifecycle rules, work-pack scope, cross-work-pack dependencies, or architecture.
-- Client work follows: ChatGPT Plan prompt → Cursor/Codex plan → ChatGPT audit → Cursor/Codex implementation on isolated feature branch/worktree → ChatGPT independent audit → merge/cleanup authorization → final verification.
+- Routine bounded client work follows an autonomous gate-based model: ChatGPT freezes one complete work package → Cursor/Codex analyzes/implements/tests/self-reviews/fixes/commits/pushes on an isolated task branch/worktree → ChatGPT independently audits the pushed GitHub implementation → one consolidated correction pass only if required → final verification → explicit merge/cleanup authorization.
+- High-risk client work retains a separate Plan → ChatGPT review → Implementation gate for architecture, database/schema/RPC contracts, authentication/permissions, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business rules, or security-sensitive behavior.
 - Direct client edits on main are prohibited.
 - Operational checkout must not be destructively reset/cleaned.
 - Protected WIP branches must not be disturbed.
