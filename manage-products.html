@@ -20,12 +20,14 @@
 
       .sidebar {
         position: relative;
-        width: 30%;
+        width: clamp(240px, 22vw, 300px);
+        flex: 0 0 auto;
         border: 1px solid var(--sasv-border);
-        border-radius: 4px;
+        border-radius: var(--sasv-radius-md, 8px);
         padding: 10px;
         box-sizing: border-box;
         overflow-y: auto;
+        background: var(--sasv-surface);
       }
       .sidebar input {
         /* search input lives inside .search-row which is sticky */
@@ -154,36 +156,25 @@
       }
 
       .details {
-        flex: 1;
-        margin-left: 20px;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        margin-left: 12px;
         overflow-y: auto;
         border: 1px solid var(--sasv-border);
-        border-radius: 4px;
-        padding: 10px;
+        border-radius: var(--sasv-radius-md, 8px);
+        padding: 12px;
         box-sizing: border-box;
+        background: var(--sasv-surface);
       }
-      /* Field spacing stays compact and responsive. The form uses its
-         content height so SKUs & readiness can follow immediately. */
       .details form {
         display: flex;
         flex-direction: column;
-        gap: clamp(8px, 1.6vh, 18px);
-      }
-      /* Reduce default label margins so spacing is controlled by gap */
-      .details label {
-        display: block;
-        margin: 0;
-        padding-top: 6px;
-        font-weight: 400;
-      }
-      /* Slightly reduce vertical whitespace for inputs to pack them neatly */
-      .details input,
-      .details select {
-        padding: 8px 10px;
+        gap: 12px;
       }
       .details label {
         display: block;
-        margin: 14px 0 8px;
+        margin: 0 0 4px;
         font-weight: 400;
       }
       .details input,
@@ -217,7 +208,7 @@
         flex-wrap: wrap; /* allow wrapping when viewport narrows */
       }
       .control-row > label {
-        flex: 0 0 320px; /* fixed label column so controls align vertically */
+        flex: 1 1 220px; /* label wraps with its control on narrow screens */
         margin: 0;
       }
 
@@ -534,44 +525,166 @@
       #modalBox.type-warning .modal-title {
         color: var(--sasv-warning);
       }
+      .mp-context {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .mp-context h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        line-height: 1.3;
+      }
+      .mp-context-mal {
+        margin: 2px 0 0;
+        color: var(--sasv-text-muted);
+        font-size: 0.9rem;
+      }
+      .mp-context-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .mp-card {
+        border: 1px solid var(--sasv-border);
+        border-radius: var(--sasv-radius-md, 8px);
+        background: var(--sasv-surface-soft, var(--sasv-surface));
+        padding: 12px;
+      }
+      .mp-card + .mp-card,
       #skuLifecycleSection {
-        margin-top: 16px;
-        padding-top: 12px;
-        border-top: 1px solid var(--sasv-border);
+        margin-top: 12px;
+      }
+      .mp-card h3,
+      .mp-group-title {
+        margin: 0 0 8px;
+        font-size: 0.95rem;
+      }
+      .mp-field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .mp-measure-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
       }
       .sku-lifecycle-header,
       .sku-master-actions,
-      .sku-master-grid {
+      .sku-master-grid,
+      .mp-sku-lifecycle-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
         align-items: center;
       }
+      #skuToggleActiveBtn.danger {
+        color: var(--sasv-danger);
+        border-color: var(--sasv-danger);
+      }
       .sku-master-grid > div {
         flex: 1 1 140px;
+      }
+      .mp-sku-head,
+      #skuList li {
+        display: grid;
+        grid-template-columns: 0.7fr 1.3fr 0.8fr 0.9fr 1.1fr;
+        gap: 8px;
+        align-items: center;
+      }
+      .mp-sku-head {
+        padding: 0 8px 6px;
+        color: var(--sasv-text-muted);
+        font-size: 12px;
+        font-weight: 600;
       }
       #skuList {
         list-style: none;
         padding: 0;
-        margin: 8px 0;
+        margin: 0;
       }
       #skuList li {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
         padding: 8px;
         border: 1px solid var(--sasv-border);
         border-radius: 4px;
         margin-bottom: 6px;
         cursor: pointer;
+        background: var(--sasv-surface);
       }
       #skuList li[aria-selected="true"] {
-        outline: 2px solid var(--sasv-focus, var(--sasv-border));
+        background: var(--sasv-selection-soft);
+        font-weight: 600;
+        box-shadow: inset 0 0 0 2px var(--sasv-focus-ring, var(--sasv-border));
+      }
+      .mp-readiness-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px 12px;
+        margin: 8px 0 0;
+      }
+      .mp-readiness-grid dt {
+        margin: 0;
+        color: var(--sasv-text-muted);
+        font-size: 12px;
+      }
+      .mp-readiness-grid dd {
+        margin: 0 0 4px;
+      }
+      .mp-readiness-control,
+      .mp-remediation {
+        margin-top: 12px;
+      }
+      .mp-remediation-item {
+        margin: 0 0 8px;
       }
       .sku-period-label,
       .sku-readiness-note {
         color: var(--sasv-text-muted, inherit);
+        margin: 0;
+      }
+      @media (max-width: 1080px) {
+        .container {
+          flex-direction: column;
+          overflow: hidden;
+        }
+        .sidebar {
+          width: 100%;
+          max-height: 16rem;
+          margin: 0;
+        }
+        .details {
+          margin-left: 0;
+          margin-top: 12px;
+        }
+        .mp-sku-head {
+          display: none;
+        }
+        #skuList li {
+          grid-template-columns: 1fr 1fr;
+        }
+        #skuList li > [data-label]::before {
+          content: attr(data-label);
+          display: block;
+          font-size: 11px;
+          font-weight: 400;
+          color: var(--sasv-text-muted);
+        }
+        .mp-readiness-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        .mp-field-grid,
+        .mp-measure-grid,
+        .mp-readiness-grid,
+        #skuList li {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -672,16 +785,13 @@
       </div>
 
       <div class="details">
-        <form id="productForm">
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              gap: 12px;
-            "
-          >
-            <label for="itemInput">Name</label>
+        <div id="productContext" class="mp-context">
+          <div>
+            <h2 id="productContextName">Select a product</h2>
+            <p id="productContextMalayalam" class="mp-context-mal" hidden></p>
+          </div>
+          <div class="mp-context-actions">
+            <span id="productContextStatus" class="badge" hidden></span>
             <div style="display: flex; gap: 8px; align-items: center">
               <button
                 id="saveIconBtn"
@@ -840,153 +950,137 @@
               </button>
             </div>
           </div>
-          <input type="text" id="itemInput" required />
+        </div>
+        <form id="productForm">
+          <section class="mp-card" aria-labelledby="productMasterHeading">
+            <h2 id="productMasterHeading" class="mp-group-title">Product master</h2>
+            <h3 class="mp-group-title">Identity</h3>
+            <div class="mp-field-grid">
+              <div>
+                <label for="itemInput">Name</label>
+                <input type="text" id="itemInput" required />
+              </div>
+              <div>
+                <label for="malInput">Malayalam Name</label>
+                <input type="text" id="malInput" required />
+              </div>
+              <div>
+                <label for="statusSelect">Status</label>
+                <select id="statusSelect" required>
+                  <option value="">-- Select --</option>
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+              </div>
+            </div>
 
-          <label for="malInput">Malayalam Name</label>
-          <input type="text" id="malInput" required />
+            <h3 class="mp-group-title">Classification</h3>
+            <div class="mp-field-grid">
+              <div>
+                <label for="categorySelect">Category</label>
+                <select id="categorySelect" required>
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+              <div>
+                <label for="subcategorySelect">Sub-category</label>
+                <select id="subcategorySelect" required>
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+              <div>
+                <label for="groupSelect">Product Group</label>
+                <select id="groupSelect" required>
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+              <div>
+                <label for="subgroupSelect">Sub-group</label>
+                <select id="subgroupSelect" required>
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
 
-          <div style="display: flex; gap: 12px">
-            <div style="flex: 1">
-              <label for="categorySelect">Category</label>
-              <select id="categorySelect" required>
-                <option value="">-- Select --</option>
-              </select>
+            <h3 class="mp-group-title">Measure</h3>
+            <div class="mp-measure-grid">
+              <div>
+                <label for="uomBaseSelect">UOM Base</label>
+                <select id="uomBaseSelect">
+                  <option value="">-- none --</option>
+                  <option>Kg</option>
+                  <option>L</option>
+                  <option>Nos</option>
+                </select>
+              </div>
+              <div>
+                <label for="conversionInput">Conversion To Base</label>
+                <input
+                  type="number"
+                  id="conversionInput"
+                  step="0.000001"
+                  min="0"
+                  placeholder="e.g. 0.5"
+                />
+              </div>
             </div>
-            <div style="flex: 1">
-              <label for="subcategorySelect">Sub-category</label>
-              <select id="subcategorySelect" required>
-                <option value="">-- Select --</option>
-              </select>
-            </div>
-          </div>
 
-          <div style="display: flex; gap: 12px">
-            <div style="flex: 1">
-              <label for="groupSelect">Product Group</label>
-              <select id="groupSelect" required>
-                <option value="">-- Select --</option>
+            <h3 class="mp-group-title">Planning</h3>
+            <div class="row control-row">
+              <label style="margin: 0">Is a seasonal product?</label>
+              <input type="checkbox" id="isSeasonalCheckbox" aria-label="Is seasonal" />
+              <select id="seasonProfileSelect" style="flex: 1; min-width: 180px">
+                <option value="">-- Select profile --</option>
               </select>
+              <a href="manage-season-profiles.html" target="_blank">Manage profiles</a>
             </div>
-            <div style="flex: 1">
-              <label for="subgroupSelect">Sub-group</label>
-              <select id="subgroupSelect" required>
-                <option value="">-- Select --</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 12px; align-items: end">
-            <div style="flex: 1">
-              <label for="statusSelect">Status</label>
-              <select id="statusSelect" required>
-                <option value="">-- Select --</option>
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
-            </div>
-            <div style="flex: 1">
-              <label for="uomBaseSelect">UOM Base</label>
-              <select id="uomBaseSelect">
-                <option value="">-- none --</option>
-                <option>Kg</option>
-                <option>L</option>
-                <option>Nos</option>
-              </select>
-            </div>
-            <div style="width: 180px">
-              <label for="conversionInput">Conversion To Base</label>
+            <div class="row control-row">
+              <label style="margin: 0">Is a Long Lead Time product?</label>
+              <input
+                type="checkbox"
+                id="isLltCheckbox"
+                aria-label="Is a long lead time product"
+              />
               <input
                 type="number"
-                id="conversionInput"
-                step="0.000001"
+                id="leadTimeMonths"
                 min="0"
-                placeholder="e.g. 0.5"
+                step="1"
+                placeholder="Manufacturing lead time in months e.g. 2"
+                style="flex: 1; min-width: 120px"
               />
             </div>
-          </div>
-
-          <div
-            class="row control-row"
-            style="
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              margin-top: 10px;
-            "
-          >
-            <label style="margin: 0">Is a seasonal product?</label>
-            <input
-              type="checkbox"
-              id="isSeasonalCheckbox"
-              aria-label="Is seasonal"
-            />
-            <select id="seasonProfileSelect" style="flex: 1; min-width: 180px">
-              <option value="">-- Select profile --</option>
-            </select>
-            <a href="manage-season-profiles.html" target="_blank"
-              >Manage profiles</a
-            >
-          </div>
-
-          <div
-            class="row control-row"
-            style="
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              margin-top: 10px;
-            "
-          >
-            <label style="margin: 0">Is a Long Lead Time product?</label>
-            <input
-              type="checkbox"
-              id="isLltCheckbox"
-              aria-label="Is a long lead time product"
-            />
-            <input
-              type="number"
-              id="leadTimeMonths"
-              min="0"
-              step="1"
-              placeholder="Manufacturing lead time in months e.g. 2"
-              style="flex: 1; min-width: 120px"
-            />
-          </div>
-
-          <div
-            class="row control-row"
-            style="
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              margin-top: 10px;
-            "
-          >
-            <label style="margin: 0"
-              >Is a Make-to-Stock (MTS) &amp; Pack-to-order (PTO)
-              product?</label
-            >
-            <input
-              type="checkbox"
-              id="isPtoCheckbox"
-              aria-label="Is Make-to-Stock & Pack-to-order product"
-            />
-          </div>
-
-          <!-- Save/Delete moved to inline controls; footer buttons removed -->
+            <div class="row control-row">
+              <label style="margin: 0">
+                Is a Make-to-Stock (MTS) &amp; Pack-to-order (PTO) product?
+              </label>
+              <input
+                type="checkbox"
+                id="isPtoCheckbox"
+                aria-label="Is Make-to-Stock & Pack-to-order product"
+              />
+            </div>
+          </section>
         </form>
 
-        <section id="skuLifecycleSection" hidden aria-labelledby="skuLifecycleHeading">
+        <section id="skuLifecycleSection" class="mp-card" hidden aria-labelledby="skuLifecycleHeading">
           <div class="sku-lifecycle-header">
             <h2 id="skuLifecycleHeading">SKUs &amp; readiness</h2>
             <div id="skuCountSummary" class="pill">0 active / 0 total</div>
+            <p id="skuPeriodLabel" class="sku-period-label">
+              Governed readiness period: unavailable
+            </p>
             <button id="skuAddBtn" class="btn secondary" type="button" hidden>
               Add SKU
             </button>
           </div>
-          <p id="skuPeriodLabel" class="sku-period-label">
-            Governed readiness period: unavailable
-          </p>
+          <div class="mp-sku-head" aria-hidden="true">
+            <span>SKU</span>
+            <span>Pack</span>
+            <span>Type</span>
+            <span>Lifecycle</span>
+            <span>Readiness</span>
+          </div>
           <ul id="skuList" role="listbox" aria-label="Child SKUs"></ul>
           <div id="skuDetail" hidden>
             <fieldset id="skuMasterFields">
@@ -1026,11 +1120,13 @@
                 <button id="skuCancelBtn" class="btn secondary" type="button" hidden>
                   Cancel
                 </button>
-                <button id="skuToggleActiveBtn" class="btn secondary" type="button" hidden>
-                  Activate
-                </button>
               </div>
             </fieldset>
+            <div class="mp-sku-lifecycle-actions">
+              <button id="skuToggleActiveBtn" class="btn secondary" type="button" hidden>
+                Activate
+              </button>
+            </div>
             <section id="skuReadinessPanel" aria-labelledby="skuReadinessHeading">
               <h3 id="skuReadinessHeading">Readiness &amp; remediation</h3>
               <div id="skuReadiness" aria-live="polite">

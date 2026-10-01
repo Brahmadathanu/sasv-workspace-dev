@@ -38,6 +38,9 @@ const inlineDeleteBtn = document.getElementById("inlineDeleteBtn");
 const newInlineBtn = document.getElementById("newInlineBtn");
 const productCountPill = document.getElementById("productCountPill");
 const clearSearchBtn = document.getElementById("clearSearchBtn");
+const productContextName = document.getElementById("productContextName");
+const productContextMalayalam = document.getElementById("productContextMalayalam");
+const productContextStatus = document.getElementById("productContextStatus");
 const accessStatusEl = document.getElementById("accessStatus");
 const viewOnlyBanner = document.getElementById("viewOnlyBanner");
 const productMasterMain = document.getElementById("productMasterMain");
@@ -276,6 +279,32 @@ function applyAccessChrome() {
   updateClassificationState();
   updateDirtyIcons();
   syncSkuAccessChrome();
+  syncProductContext();
+}
+
+function syncProductContext() {
+  if (!productContextName) return;
+  const name = itemInput ? itemInput.value.trim() : "";
+  const malayalam = malInput ? malInput.value.trim() : "";
+  const status = statusSelect ? statusSelect.value : "";
+  if (!selectedId && !inNewMode) {
+    productContextName.textContent = "Select a product";
+  } else if (inNewMode && !name) {
+    productContextName.textContent = "New product";
+  } else {
+    productContextName.textContent = name || "Product";
+  }
+  if (productContextMalayalam) {
+    productContextMalayalam.hidden = !malayalam;
+    productContextMalayalam.textContent = malayalam;
+  }
+  if (productContextStatus) {
+    const known = status === "Active" || status === "Inactive";
+    productContextStatus.hidden = !known;
+    productContextStatus.textContent = known ? status : "";
+    productContextStatus.className =
+      status === "Active" ? "badge badge-active" : "badge badge-inactive";
+  }
 }
 
 async function loadProductMasterAccess() {
@@ -1357,10 +1386,12 @@ function updateKeyboardHighlight(lis, idx) {
   el.addEventListener("input", () => {
     unsaved = true;
     updateDirtyIcons();
+    syncProductContext();
   });
   el.addEventListener("change", () => {
     unsaved = true;
     updateDirtyIcons();
+    syncProductContext();
   });
 });
 
@@ -1455,6 +1486,7 @@ function syncSkuAccessChrome() {
     const row = currentSkuRow();
     skuToggleActiveBtn.hidden = !(show && canEdit && row && skuDraft !== "new");
     skuToggleActiveBtn.textContent = row && row.is_active ? "Deactivate" : "Activate";
+    skuToggleActiveBtn.classList.toggle("danger", !!(row && row.is_active));
     skuToggleActiveBtn.disabled = writeBusy;
   }
 }
@@ -1582,15 +1614,20 @@ function renderSkuList() {
       String(row.id) === String(selectedSkuId) ? "true" : "false",
     );
     const identity = document.createElement("span");
+    identity.dataset.label = "SKU";
     identity.textContent = `SKU ${row.id}`;
     const pack = document.createElement("span");
+    pack.dataset.label = "Pack";
     pack.textContent = `${row.pack_size ?? "—"} ${row.uom || ""}`.trim();
     const sample = document.createElement("span");
+    sample.dataset.label = "Type";
     sample.textContent = row.is_sample ? "Sample" : "Standard";
     const active = document.createElement("span");
+    active.dataset.label = "Lifecycle";
     active.className = row.is_active ? "badge badge-active" : "badge badge-inactive";
     active.textContent = row.is_active ? "Active" : "Inactive";
     const readiness = document.createElement("span");
+    readiness.dataset.label = "Readiness";
     const severity = skuReadinessById.get(String(row.id))?.summary?.overall_severity;
     readiness.className = readinessBadgeClass(severity);
     readiness.textContent = readinessBadgeLabel(severity);
@@ -1666,13 +1703,21 @@ async function showSelectedSkuReadiness() {
   if (skuDetail) skuDetail.hidden = false;
 }
 
-function appendLine(parent, label, value) {
-  const line = document.createElement("p");
+function appendDefinition(list, label, value) {
+  const term = document.createElement("dt");
+  term.textContent = label;
+  const detail = document.createElement("dd");
+  detail.textContent = value == null || value === "" ? "Unavailable" : String(value);
+  list.append(term, detail);
+}
+
+function appendRemediation(parent, title, detail) {
+  const item = document.createElement("p");
+  item.className = "mp-remediation-item";
   const strong = document.createElement("strong");
-  strong.textContent = `${label}: `;
-  line.appendChild(strong);
-  line.appendChild(document.createTextNode(value ?? "Unavailable"));
-  parent.appendChild(line);
+  strong.textContent = title;
+  item.append(strong, document.createTextNode(` — ${detail}`));
+  parent.appendChild(item);
 }
 
 function renderSkuReadiness(payload) {
@@ -1682,13 +1727,11 @@ function renderSkuReadiness(payload) {
   const lifecycle =
     payload.lifecycle && typeof payload.lifecycle === "object" ? payload.lifecycle : {};
   const severity = summary.overall_severity;
-  const badge = document.createElement("span");
-  badge.className = readinessBadgeClass(severity);
-  badge.textContent = readinessBadgeLabel(severity);
-  skuReadiness.appendChild(badge);
-  appendLine(skuReadiness, "Product lifecycle", lifecycle.product_status || "Unavailable");
-  appendLine(
-    skuReadiness,
+  const grid = document.createElement("dl");
+  grid.className = "mp-readiness-grid";
+  appendDefinition(grid, "Product lifecycle", lifecycle.product_status || "Unavailable");
+  appendDefinition(
+    grid,
     "SKU lifecycle",
     lifecycle.sku_is_active === true
       ? "Active"
@@ -1696,8 +1739,8 @@ function renderSkuReadiness(payload) {
         ? "Inactive"
         : "Unavailable",
   );
-  appendLine(
-    skuReadiness,
+  appendDefinition(
+    grid,
     "Sample",
     lifecycle.sku_is_sample === true
       ? "Yes"
@@ -1705,22 +1748,41 @@ function renderSkuReadiness(payload) {
         ? "No"
         : "Unavailable",
   );
-  appendLine(skuReadiness, "Product master foundation", summary.product_master_foundation_status);
-  appendLine(skuReadiness, "SKU master foundation", summary.sku_master_foundation_status);
-  appendLine(skuReadiness, "Costing foundation", summary.costing_foundation_status);
-  appendLine(skuReadiness, "Evidence quality", summary.evidence_quality_status);
-  appendLine(skuReadiness, "Costing outcome", summary.costing_outcome_status);
-  appendLine(skuReadiness, "Overall severity", summary.overall_severity);
+  appendDefinition(grid, "Product master foundation", summary.product_master_foundation_status);
+  appendDefinition(grid, "SKU master foundation", summary.sku_master_foundation_status);
+  appendDefinition(grid, "Costing foundation", summary.costing_foundation_status);
+  appendDefinition(grid, "Evidence quality", summary.evidence_quality_status);
+  appendDefinition(grid, "Costing outcome", summary.costing_outcome_status);
+  const severityTerm = document.createElement("dt");
+  severityTerm.textContent = "Overall severity";
+  const severityValue = document.createElement("dd");
+  const badge = document.createElement("span");
+  badge.className = readinessBadgeClass(severity);
+  badge.textContent = readinessBadgeLabel(severity);
+  severityValue.appendChild(badge);
+  grid.append(severityTerm, severityValue);
+  skuReadiness.appendChild(grid);
+
   const control = payload.downstream_control || {};
-  if (control.control_note) appendLine(skuReadiness, "Control note", control.control_note);
-  if (control.control_severity) appendLine(skuReadiness, "Control severity", control.control_severity);
-  if (control.cost_sheet_status) appendLine(skuReadiness, "Cost sheet", control.cost_sheet_status);
+  const controlGrid = document.createElement("dl");
+  controlGrid.className = "mp-readiness-grid mp-readiness-control";
+  if (control.control_note) appendDefinition(controlGrid, "Control note", control.control_note);
+  if (control.control_severity) {
+    appendDefinition(controlGrid, "Control severity", control.control_severity);
+  }
+  if (control.cost_sheet_status) {
+    appendDefinition(controlGrid, "Cost sheet", control.cost_sheet_status);
+  }
   if (control.first_control_status) {
-    appendLine(skuReadiness, "First control", control.first_control_status);
+    appendDefinition(controlGrid, "First control", control.first_control_status);
   }
   if (control.recommended_ui_route) {
-    appendLine(skuReadiness, "Recommended route", control.recommended_ui_route);
+    appendDefinition(controlGrid, "Recommended route", control.recommended_ui_route);
   }
+  if (controlGrid.childElementCount) skuReadiness.appendChild(controlGrid);
+
+  const remediation = document.createElement("div");
+  remediation.className = "mp-remediation";
   const dependencies = Array.isArray(payload.dependencies) ? payload.dependencies : [];
   dependencies.forEach((issue) => {
     const status = issue.effective_status || issue.raw_status || "Unavailable";
@@ -1732,8 +1794,8 @@ function renderSkuReadiness(payload) {
     ) {
       return;
     }
-    appendLine(
-      skuReadiness,
+    appendRemediation(
+      remediation,
       issue.label || "Dependency",
       [status, issue.reason_code, issue.note, issue.recommended_ui_route]
         .filter(Boolean)
@@ -1743,8 +1805,8 @@ function renderSkuReadiness(payload) {
   const sharedIssues = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
   sharedIssues.forEach((issue) => {
     const title = issue.issue_code || issue.dependency_code || "Shared issue";
-    appendLine(
-      skuReadiness,
+    appendRemediation(
+      remediation,
       title,
       [
         issue.issue_code && issue.dependency_code && issue.dependency_code !== issue.issue_code
@@ -1760,6 +1822,13 @@ function renderSkuReadiness(payload) {
         .join(" — "),
     );
   });
+  if (remediation.childElementCount) {
+    const heading = document.createElement("h4");
+    heading.className = "mp-group-title";
+    heading.textContent = "Remediation";
+    remediation.prepend(heading);
+    skuReadiness.appendChild(remediation);
+  }
 }
 
 function skuFormValues() {

@@ -103,7 +103,7 @@ assert(
   "product deactivation remains on rpc_update_product and surfaces server errors",
 );
 assert(!products.includes("rpc_set_product_sku_active") || !/childSku/.test(products), "product path does not deactivate child SKUs");
-assert(sw.includes('const CACHE_NAME = "hub-cache-v328"'), "service worker generation is hub-cache-v328");
+assert(sw.includes('const CACHE_NAME = "hub-cache-v329"'), "service worker generation is hub-cache-v329");
 assert(html.includes('id="skuLifecycleSection"') && html.includes("SKUs &amp; readiness"), "SKU readiness section exists");
 assert(html.includes(">SKU master<") && html.includes("Readiness &amp; remediation"), "master and readiness stay separate");
 assert(!html.includes('id="skuIsActive"'), "activation is not a master checkbox");
@@ -160,6 +160,45 @@ assert(!renderSource.includes('status === "UNKNOWN"'), "UNKNOWN dependencies rem
 assert(
   !/overall_severity\s*=/.test(renderSource),
   "no local overall-readiness calculation is introduced",
+);
+assert(renderSource.includes("mp-readiness-grid"), "readiness summary uses a definition grid");
+assert(
+  renderSource.includes("summary.product_master_foundation_status") &&
+    renderSource.includes("summary.sku_master_foundation_status") &&
+    renderSource.includes("summary.costing_foundation_status") &&
+    renderSource.includes("summary.evidence_quality_status") &&
+    renderSource.includes("summary.costing_outcome_status") &&
+    renderSource.includes("summary.overall_severity"),
+  "readiness grid uses the canonical server summary fields",
+);
+assert(
+  renderSource.includes("control.control_note") &&
+    renderSource.includes("control.control_severity") &&
+    renderSource.includes("control.cost_sheet_status") &&
+    renderSource.includes("control.first_control_status") &&
+    renderSource.includes("control.recommended_ui_route"),
+  "downstream control evidence stays visible",
+);
+assert(renderSource.includes("Remediation"), "unresolved remediation stays in its own block");
+assert(
+  products.includes('skuCreateBtn.hidden = !(show && canEdit && skuDraft === "new")'),
+  "Create SKU is available only for a new draft",
+);
+assert(
+  products.includes("skuSaveBtn.hidden = !(show && canEdit && selectedSkuId && skuDirty)"),
+  "Save SKU is shown only when an existing SKU is dirty",
+);
+assert(
+  products.includes('skuToggleActiveBtn.hidden = !(show && canEdit && row && skuDraft !== "new")'),
+  "Activate and Deactivate stay hidden for a new draft",
+);
+const skuMasterMarkup = html.slice(
+  html.indexOf('id="skuMasterFields"'),
+  html.indexOf('id="skuToggleActiveBtn"'),
+);
+assert(
+  skuMasterMarkup.includes("</fieldset>") && html.includes('id="skuToggleActiveBtn"'),
+  "lifecycle action stays outside the SKU master fieldset",
 );
 
 if (failed) {

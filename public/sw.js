@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v328"; // Product SKU lifecycle readiness on Manage Products
+const CACHE_NAME = "hub-cache-v329"; // Manage Products ERP workspace layout
 
 const PRECACHE = [
   // Hub shell

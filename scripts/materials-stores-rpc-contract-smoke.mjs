@@ -355,10 +355,10 @@ assert(
   "no SQL/migration parity strings",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v328"/.test(
+  /CACHE_NAME = "hub-cache-v329"/.test(
     readFileSync(join(root, "public/sw.js"), "utf8"),
   ),
-  "SW current generation is v328",
+  "SW current generation is v329",
 );
 
 if (failed) {

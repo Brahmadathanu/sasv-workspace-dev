@@ -617,8 +617,8 @@ assert(
 
 // Service worker (bump after successful smokes)
 assert(
-  /CACHE_NAME = "hub-cache-v328"/.test(swSrc),
-  "service worker cache name remains hub-cache-v328",
+  /CACHE_NAME = "hub-cache-v329"/.test(swSrc),
+  "service worker cache name remains hub-cache-v329",
 );
 
 await shellAsyncSkuDrawer();
