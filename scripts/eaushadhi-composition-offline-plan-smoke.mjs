@@ -9,6 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const {
   PLAN_CODE,
   buildOfflineCompositionExecutionPlan,
+  canonicalizeGovernedQuantity,
   canonicalizeQuantity,
   normalizeText,
 } = require("../electron/eaushadhi-worker/composition-offline-plan.js");
@@ -25,7 +26,7 @@ const governedLine = (id, ingredient, overrides = {}) => ({
   ingredient_type: { portal_option_value: "21" },
   ingredient_form: { portal_option_value: "25" },
   part_used: { portal_option_value: "49" },
-  quantity_value: "01.000",
+  quantity_value: 1,
   measurement: { portal_option_value: "9", label: "ML" },
   reference: {
     reference_ready: true,
@@ -53,14 +54,14 @@ const portalRow = (id, ingredient, overrides = {}) => ({
 });
 
 const governed = [
-  governedLine(929, "Ingredient A"),
-  governedLine(930, "Ingredient B"),
-  governedLine(931, "Ingredient C"),
+  governedLine(929, "Ingredient A", { quantity_value: 10 }),
+  governedLine(930, "Ingredient B", { quantity_value: 1.67 }),
+  governedLine(931, "Ingredient C", { quantity_value: 10 }),
 ];
 const portal = [
-  portalRow("p-a", "Ingredient A"),
-  portalRow("p-b", "Ingredient B"),
-  portalRow("p-c", "Ingredient C"),
+  portalRow("p-a", "Ingredient A", { quantity: "10.0" }),
+  portalRow("p-b", "Ingredient B", { quantity: "1.670" }),
+  portalRow("p-c", "Ingredient C", { quantity: "10" }),
 ];
 
 const baseInput = () => ({
@@ -96,6 +97,15 @@ assert.equal(canonicalizeQuantity("001.000"), "1");
 assert.equal(canonicalizeQuantity("+000.2500"), "0.25");
 for (const invalid of ["-1", "1 ml", "1-2", "1e3", "1,000", "NaN", "Infinity", 1]) {
   assert.equal(canonicalizeQuantity(invalid), null);
+}
+assert.equal(canonicalizeGovernedQuantity(10), "10");
+assert.equal(canonicalizeGovernedQuantity(1.67), "1.67");
+assert.equal(canonicalizeGovernedQuantity(0), "0");
+assert.equal(canonicalizeGovernedQuantity("10"), "10");
+assert.equal(canonicalizeGovernedQuantity("01.6700"), "1.67");
+assert.equal(canonicalizeGovernedQuantity("+000.250"), "0.25");
+for (const invalid of [-1, NaN, Infinity, -Infinity, 1e21, 1e-7, null, true, {}, []]) {
+  assert.equal(canonicalizeGovernedQuantity(invalid), null);
 }
 
 assert.equal(execute().code, PLAN_CODE.ALREADY_COMPLETE);
@@ -143,7 +153,10 @@ assert.equal(execute((input) => {
   input.portalListEvidence.rows[1].portalRowId = "p-a";
 }).code, PLAN_CODE.BLOCKED_DUPLICATE);
 assert.equal(execute((input) => {
-  input.portalListEvidence.rows.push(portalRow("p-a-duplicate", "Ingredient A"));
+  input.portalListEvidence.rows.push({
+    ...structuredClone(input.portalListEvidence.rows[0]),
+    portalRowId: "p-a-duplicate",
+  });
 }).code, PLAN_CODE.BLOCKED_DUPLICATE);
 
 for (const [key, value] of [
@@ -180,7 +193,11 @@ assert.equal(execute((input) => {
 
 assert.equal(execute((input) => {
   input.portalListEvidence.rows[0].quantity = "0001.0000";
+  input.governedSnapshot.composition[0].quantity_value = 1;
 }).code, PLAN_CODE.ALREADY_COMPLETE);
+assert.equal(execute((input) => {
+  input.portalListEvidence.rows[0].quantity = 10;
+}).code, PLAN_CODE.BLOCKED_PORTAL_ROW_UNPARSEABLE);
 for (const quantity of ["1 ml", "1-2", "1e3"]) {
   assert.equal(execute((input) => {
     input.portalListEvidence.rows[0].quantity = quantity;
