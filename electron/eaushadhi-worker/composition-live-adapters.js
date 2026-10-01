@@ -25,59 +25,62 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
     if (state !== "READY") return { ok: false, code: "WORKER_NOT_READY" };
     const measured = await page.evaluate(({ expectedOrigin, expectedRoute }) => {
       const url = new URL(window.location.href);
-      const read = (selectors) => {
-        for (const selector of selectors) {
-          const el = document.querySelector(selector);
-          const value = el && (el.value ?? el.getAttribute("value"));
-          if (value != null && String(value).trim()) return String(value).trim();
-        }
-        return null;
+      const read = (selector) => {
+        const el = document.querySelector(selector);
+        const value = el && (el.value ?? el.getAttribute("value"));
+        return { present: Boolean(el), value: value == null ? "" : String(value).trim() };
       };
-      const productToken = read([
-        "#productid", "#ProductId", "#hdnProductId", "input[name='productid']",
-        "input[name='ProductId']",
-      ]) || url.searchParams.get("productid") || url.searchParams.get("id");
-      const portalRef = read([
-        "#portalProductRef", "#hdnPortalProductRef", "input[name='portalProductRef']",
-      ]) || productToken;
-      const editId = read([
-        "#compositionid", "#CompositionId", "#hdnCompositionId",
-        "input[name='compositionid']", "input[name='id']",
-      ]);
-      const actionMode = read(["#actiontype", "input[name='actiontype']"]);
       return {
         origin: url.origin,
         route: url.pathname.toLowerCase(),
-        productToken,
-        portalRef,
-        staleEdit: Boolean(editId && editId !== "0" && editId !== "-1"),
-        actionMode,
+        productid: read("#productid"),
+        producthid: read("#producthid"),
+        id: read("#id"),
+        actiontype: read("#actiontype"),
         saveAvailable: typeof window.SaveData === "function",
         expectedOrigin,
         expectedRoute,
       };
     }, { expectedOrigin: EXPECTED_ORIGIN, expectedRoute: EXPECTED_ROUTE });
     const expectedRef = String(preflight?.portal_product_ref ?? "").trim();
-    const actualProduct = Number(measured.productToken);
-    const productMatches =
-      actualProduct === PRODUCT_ID || String(measured.productToken ?? "") === expectedRef;
-    if (
-      measured.origin !== EXPECTED_ORIGIN ||
-      measured.route !== EXPECTED_ROUTE ||
-      !productMatches ||
-      String(measured.portalRef ?? "") !== expectedRef ||
-      measured.staleEdit ||
-      (requireSaveCapability && measured.actionMode !== "add") ||
-      (requireSaveCapability && measured.saveAvailable !== true)
-    ) return { ok: false, code: "COMPOSITION_PAGE_IDENTITY_FAILED", measured };
+    const productid = String(measured.productid?.value ?? "").trim();
+    const producthid = String(measured.producthid?.value ?? "").trim();
+    const actiontype = String(measured.actiontype?.value ?? "").trim();
+    const id = String(measured.id?.value ?? "").trim();
+    const field = (source) => ({
+      present: source?.present === true,
+      length: String(source?.value ?? "").trim().length,
+      blank: String(source?.value ?? "").trim().length === 0,
+    });
+    const diagnostics = {
+      productid: field(measured.productid),
+      producthid: field(measured.producthid),
+      id: { ...field(measured.id), classification: !measured.id?.present ? "MISSING" : !id ? "BLANK" : id === "0" ? "ZERO" : id === "-1" ? "NEGATIVE_ONE" : "NONBLANK" },
+      actiontype: field(measured.actiontype),
+      actionMode: !measured.actiontype?.present ? "MISSING" : !actiontype ? "BLANK" : actiontype === "add" ? "ADD" : /^(edit|update)$/i.test(actiontype) ? "EDIT_OR_UPDATE" : "OTHER",
+      productidEqualsServerPortalRef: Boolean(productid && expectedRef && productid === expectedRef),
+      producthidEqualsServerPortalRef: Boolean(producthid && expectedRef && producthid === expectedRef),
+      productidEqualsProduct262: productid === String(PRODUCT_ID),
+      producthidEqualsProduct262: producthid === String(PRODUCT_ID),
+      productidEqualsProducthid: Boolean(productid && producthid && productid === producthid),
+      nativeSaveAvailable: measured.saveAvailable === true,
+    };
+    if (measured.origin !== EXPECTED_ORIGIN) return { ok: false, code: "COMPOSITION_WRONG_ORIGIN", diagnostics };
+    if (measured.route !== EXPECTED_ROUTE) return { ok: false, code: "COMPOSITION_WRONG_ROUTE", diagnostics };
+    if (!measured.productid?.present || !productid) return { ok: false, code: "COMPOSITION_PRODUCT_TOKEN_MISSING", diagnostics };
+    if (!diagnostics.productidEqualsServerPortalRef) return { ok: false, code: "COMPOSITION_PORTAL_TOKEN_MISMATCH", diagnostics };
+    if (requireSaveCapability && actiontype !== "add") return { ok: false, code: "COMPOSITION_MUTATION_MODE_NOT_ADD", diagnostics };
+    if (requireSaveCapability && measured.saveAvailable !== true) return { ok: false, code: "COMPOSITION_NATIVE_SAVE_UNAVAILABLE", diagnostics };
     return {
       ok: true,
+      transportToken: productid,
+      diagnostics,
       evidence: {
         actualRoute: measured.route,
         expectedRoute: EXPECTED_ROUTE,
         actualProductId: String(PRODUCT_ID),
         expectedProductId: String(PRODUCT_ID),
-        actualPortalProductRef: String(measured.portalRef),
+        actualPortalProductRef: productid,
         expectedPortalProductRef: expectedRef,
       },
     };
@@ -180,12 +183,12 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
       p_expected_workflow_row_version: Number(preflight.workflow_row_version),
     });
     const identity = await pageIdentity(preflight, requireSaveCapability === true);
-    if (!identity.ok) return { ok: false, code: identity.code, message: "Composition page identity failed." };
-    const portalListEvidence = await captureCompleteList(String(preflight.portal_product_ref));
+    if (!identity.ok) return { ok: false, code: identity.code, message: "Composition page identity failed.", pageIdentityDiagnostics: identity.diagnostics || null };
+    const portalListEvidence = await captureCompleteList(identity.transportToken);
     if (!portalListEvidence.coverageComplete) {
       return { ok: false, code: portalListEvidence.code || "LIST_COVERAGE_INCOMPLETE", message: "Complete Composition list was not proven." };
     }
-    return { ok: true, preflight, content, pageIdentityEvidence: identity.evidence, portalListEvidence };
+    return { ok: true, preflight, content, pageIdentityEvidence: identity.evidence, pageIdentityDiagnostics: identity.diagnostics, portalListEvidence };
   }
 
   async function fillTarget(target) {
@@ -337,6 +340,10 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
 
   return {
     loadAuthority,
+    recheckMutationIdentity: (portalProductRef) => pageIdentity(
+      { portal_product_ref: portalProductRef },
+      true,
+    ),
     fillTarget,
     invokeSaveOnce,
     rereadRow,
