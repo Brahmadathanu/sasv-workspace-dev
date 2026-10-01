@@ -4,8 +4,8 @@ const ALLOWED_EDIT_SHAPES = [
   /data-composition-id\s*=\s*['"]([A-Za-z0-9_-]{1,96})['"]/g,
 ];
 const INPUT_TAG = /<input\b[^>]*>/gi;
-const QUOTED_ATTRIBUTE = /(?:^|\s)([A-Za-z_:][A-Za-z0-9_.:-]*)\s*=\s*(['"])(.*?)\2/g;
-const HIDDEN_ROW_KEY = /^hid\d+$/i;
+const ATTRIBUTE_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*/;
+const HIDDEN_ROW_KEY = /^hid\d+$/;
 
 const COMPOSITION_LIVE_ARM_DEFAULT = false;
 
@@ -81,18 +81,44 @@ function parseCompositionRowId(editMarkup) {
   }
   INPUT_TAG.lastIndex = 0;
   for (let tagMatch = INPUT_TAG.exec(editMarkup); tagMatch; tagMatch = INPUT_TAG.exec(editMarkup)) {
+    const tag = tagMatch[0];
+    const names = new Set();
     const attributes = new Map();
-    let duplicateAttribute = false;
-    QUOTED_ATTRIBUTE.lastIndex = 0;
-    for (let match = QUOTED_ATTRIBUTE.exec(tagMatch[0]); match; match = QUOTED_ATTRIBUTE.exec(tagMatch[0])) {
-      const name = match[1].toLowerCase();
-      if (attributes.has(name)) {
-        duplicateAttribute = true;
+    let cursor = 6;
+    let invalid = false;
+    while (cursor < tag.length - 1) {
+      while (/\s/.test(tag[cursor] || "")) cursor += 1;
+      if (tag[cursor] === "/" || tag[cursor] === ">") break;
+      const nameMatch = tag.slice(cursor).match(ATTRIBUTE_NAME);
+      if (!nameMatch) {
+        invalid = true;
         break;
       }
-      attributes.set(name, match[3]);
+      const attributeName = nameMatch[0].toLowerCase();
+      if (names.has(attributeName)) {
+        invalid = true;
+        break;
+      }
+      names.add(attributeName);
+      cursor += nameMatch[0].length;
+      while (/\s/.test(tag[cursor] || "")) cursor += 1;
+      if (tag[cursor] !== "=") continue;
+      cursor += 1;
+      while (/\s/.test(tag[cursor] || "")) cursor += 1;
+      const quote = tag[cursor];
+      if (quote === '"' || quote === "'") {
+        const end = tag.indexOf(quote, cursor + 1);
+        if (end < 0) {
+          invalid = true;
+          break;
+        }
+        attributes.set(attributeName, tag.slice(cursor + 1, end));
+        cursor = end + 1;
+      } else {
+        while (cursor < tag.length - 1 && !/\s|>/.test(tag[cursor])) cursor += 1;
+      }
     }
-    if (duplicateAttribute || String(attributes.get("type") || "").toLowerCase() !== "hidden") continue;
+    if (invalid || String(attributes.get("type") || "").toLowerCase() !== "hidden") continue;
     const id = attributes.get("id") || "";
     const name = attributes.get("name") || "";
     const idIsRowKey = HIDDEN_ROW_KEY.test(id);
