@@ -165,7 +165,7 @@ Audit checks:
 ## Gate Status
 [x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, before the branch sync with current main.
 
-[~] WP02-G4 IN PROGRESS — focused verification. The high-risk Manage Products UX plan was independently approved. The ERP master-detail workspace is implemented. G4 stays open until a person confirms the wide layout, the stacked layout at about 1024px portrait, and the layout at 520px and below.
+[~] WP02-G4 IN PROGRESS — focused verification. Authenticated use superseded the persistent Product explorer rail. DEC-012 implements full-width Product selection with Product Master, SKUs, and Readiness tabs, plus bounded SKU and readiness detail. G4 stays open until a person confirms that workspace on a wide screen and at 520px.
 
 ## Required to close
 Complete the focused verification set against the synced branch. Keep G4 in progress if authenticated UI verification cannot be performed. Do not merge from this gate.
@@ -182,13 +182,13 @@ Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_pr
 - Child SKU listing uses existing authenticated SELECT on `public.product_skus`. No list RPC was created.
 
 ## Client changes
-Manage Products keeps one master-detail workspace. The Product explorer stays beside the workspace on wide screens and stacks above it at 1080px and below. The selected Product context strip is display-only. Product fields stay in Identity, Classification, Measure, and Planning groups, with the same control IDs. SKUs use a compact register, and readiness is a server-value grid with remediation kept separate.
+Manage Products is a full-width tabbed workspace. A searchable Product picker replaces the permanent Product rail and still loads the existing selected Product. Tabs are Product Master, SKUs, and Readiness. SKUs and Readiness stay unavailable until a saved Product exists. Wide layouts use registers. At 520px and below, those registers become compact cards. SKU editing and readiness detail open in bounded surfaces. Product fields stay in Identity, Classification, Measure, and Planning, with the same control IDs.
 - Create, pack/UOM/sample update, and activate/deactivate use only the three existing SKU writer RPCs.
 - New SKUs are created inactive. Pack save does not send an active flag.
 - Create SKU, Save SKU, and Activate/Deactivate stay mutually exclusive by the existing draft and dirty-state rules.
 - Readiness calls `LIVE_AS_OF` with a null refresh-run id and the server period.
 - Product `unsaved` and SKU `skuDirty` are separate.
-- Service worker cache is `hub-cache-v329`.
+- Service worker cache is `hub-cache-v330`.
 
 ## Tests / verification
 - Verified current main SHA at implementation start: `738ca09ff5490c0c17ee8544da4c7690f9e6a171`.
@@ -207,7 +207,7 @@ Manage Products keeps one master-detail workspace. The Product explorer stays be
 - Independent ChatGPT audit marked WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, recorded before the branch sync. Current main at that check was `23fb63f8c2704d158fd1da2b0ec8850f7307ad0a` and touched only e-Aushadhi composition files, with no WP02 path overlap.
 - WP02-G4 automated and source checks against the synced branch passed: lifecycle smoke, Materials/Stores, QC, trace launch, remediation foundation, dense restore, progressive density, production-route focus, dashboard cardinality, both required e-Aushadhi smokes, and the syntax checks. Read-only catalog confirmation found migration `20260930073040`, both view permissions on the readiness RPC, the period RPC, the SKU writers, and both activation guards. Latest governed period on the server is `2026-09-01`. No authenticated user session was available, so a live `LIVE_AS_OF` caller and the logged-in Manage Products pass were not repeated. G4 stays in progress for that UI verification.
 - Later authenticated visual verification on the feature branch proved the SKU section loads live data: 3 active / 5 total, governed period `2026-09-01`, and Ready and Blocked badges. The defect was `.details form { height: 100% }`, which stretched the Product form to the pane and pushed `SKUs & readiness` below a large blank area. That forced height is removed so the form keeps its content height.
-- The high-risk UX plan then passed independent ChatGPT review. This branch implements that approved Manage Products workspace: compact explorer, product context strip, grouped Product master, SKU register, separate SKU master and lifecycle actions, and a server-field readiness grid. No schema, RPC, auth, or permission contract changed. Final human visual verification of the wide, about-1024px portrait, and 520px layouts remains. G4 stays in progress.
+- The high-risk UX plan then passed independent ChatGPT review and a compact explorer was implemented. Authenticated use of that explorer, including the live Product catalog and narrow screens, showed the permanent side rail was unsuitable. DEC-012 supersedes that presentation only. The page now uses a searchable Product picker, Product Master / SKUs / Readiness tabs, desktop registers, compact cards at 520px, and bounded SKU and readiness detail. No schema, RPC, auth, or permission contract changed. Final human visual verification of the wide and 520px layouts remains. G4 stays in progress.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.

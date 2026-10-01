@@ -306,9 +306,9 @@ assert(
 
 const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
 assert(
-  /CACHE_NAME = "hub-cache-v329"/.test(swSrc) &&
+  /CACHE_NAME = "hub-cache-v330"/.test(swSrc) &&
     !swSrc.includes("hub-cache-v324"),
-  "hub-cache-v329 is current generation",
+  "hub-cache-v330 is current generation",
 );
 assert(
   !costSheetSrc.includes("20260918065615") &&

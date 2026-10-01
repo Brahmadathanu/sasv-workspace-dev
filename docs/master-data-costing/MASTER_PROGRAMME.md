@@ -67,10 +67,10 @@ WP02-G4 — focused verification
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No architectural blocker remains inside WP02-G3. The narrow readiness read authorization and latest-governed-period RPC are applied. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work. Authenticated Manage Products verification proved live SKU counts, the governed period, and Ready/Blocked badges. The high-risk Manage Products UX plan was independently approved. The ERP master-detail workspace is implemented on this branch. WP02-G4 stays open until a human confirms the wide desktop layout, the stacked layout at about 1024px portrait, and the layout at 520px and below.
+No architectural blocker remains inside WP02-G3. Authenticated verification showed the persistent Product side rail was unsuitable for the live catalog and for narrow screens. DEC-012 retires that rail in favor of full-width Product selection and Product Master, SKUs, and Readiness tabs. WP02-G4 stays open until a human confirms that tabbed workspace on a wide screen and at 520px.
 
 ## Immediate next action
-Human visual verification of the Manage Products workspace at wide desktop, about 1024px portrait, and 520px and below. Do not close WP02-G4 or merge until that confirmation and independent acceptance are complete.
+Human visual verification of the tabbed Manage Products workspace at wide desktop and at 520px. Do not close WP02-G4 or merge until that confirmation and independent acceptance are complete.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.

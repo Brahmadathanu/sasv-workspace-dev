@@ -525,13 +525,40 @@
       #modalBox.type-warning .modal-title {
         color: var(--sasv-warning);
       }
+      .container {
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px 12px 12px;
+      }
+      .details {
+        margin-left: 0;
+        width: 100%;
+        border: 0;
+        padding: 0;
+        background: transparent;
+      }
+      .mp-toolbar,
+      .mp-picker {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .mp-picker {
+        flex: 1 1 280px;
+      }
+      .mp-picker .sasv-search-select,
+      .mp-picker select {
+        min-width: min(100%, 360px);
+        flex: 1 1 240px;
+      }
       .mp-context {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: 8px;
+        margin: 0;
       }
       .mp-context h2 {
         margin: 0;
@@ -590,36 +617,84 @@
       .sku-master-grid > div {
         flex: 1 1 140px;
       }
-      .mp-sku-head,
-      #skuList li {
-        display: grid;
-        grid-template-columns: 0.7fr 1.3fr 0.8fr 0.9fr 1.1fr;
-        gap: 8px;
-        align-items: center;
+      .mp-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
       }
-      .mp-sku-head {
-        padding: 0 8px 6px;
-        color: var(--sasv-text-muted);
-        font-size: 12px;
-        font-weight: 600;
-      }
-      #skuList {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-      #skuList li {
-        padding: 8px;
-        border: 1px solid var(--sasv-border);
-        border-radius: 4px;
-        margin-bottom: 6px;
-        cursor: pointer;
-        background: var(--sasv-surface);
-      }
-      #skuList li[aria-selected="true"] {
+      .mp-tabs [role="tab"][aria-selected="true"] {
         background: var(--sasv-selection-soft);
         font-weight: 600;
-        box-shadow: inset 0 0 0 2px var(--sasv-focus-ring, var(--sasv-border));
+      }
+      .mp-panel[hidden],
+      #productMasterPanel[hidden] {
+        display: none;
+      }
+      .mp-register {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .mp-register th,
+      .mp-register td {
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--sasv-border);
+        text-align: left;
+        vertical-align: middle;
+      }
+      .mp-register tr[aria-selected="true"] {
+        background: var(--sasv-selection-soft);
+      }
+      .mp-card-list {
+        display: none;
+      }
+      .mp-sku-card {
+        border: 1px solid var(--sasv-border);
+        border-radius: var(--sasv-radius-md, 8px);
+        background: var(--sasv-surface);
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      .mp-sku-card-line,
+      .mp-sku-card-status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .mp-sku-card-line {
+        font-weight: 600;
+      }
+      .mp-sku-card-meta {
+        color: var(--sasv-text-muted);
+        margin: 2px 0;
+      }
+      .mp-surface:not([hidden]) {
+        position: fixed;
+        inset: 0;
+        z-index: 3200;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(12, 16, 23, 0.45);
+      }
+      .mp-surface[hidden] {
+        display: none;
+      }
+      .mp-surface-panel {
+        width: min(560px, 100%);
+        max-height: min(80vh, 720px);
+        overflow: auto;
+        background: var(--sasv-surface);
+        border: 1px solid var(--sasv-border);
+        border-radius: var(--sasv-radius-md, 8px);
+        padding: 10px;
+      }
+      .toast {
+        z-index: 4600;
+      }
+      #loadingOverlay {
+        z-index: 4500;
       }
       .mp-readiness-grid {
         display: grid;
@@ -648,31 +723,8 @@
         margin: 0;
       }
       @media (max-width: 1080px) {
-        .container {
-          flex-direction: column;
-          overflow: hidden;
-        }
-        .sidebar {
-          width: 100%;
-          max-height: 16rem;
-          margin: 0;
-        }
-        .details {
-          margin-left: 0;
-          margin-top: 12px;
-        }
-        .mp-sku-head {
+        .mp-col-extra {
           display: none;
-        }
-        #skuList li {
-          grid-template-columns: 1fr 1fr;
-        }
-        #skuList li > [data-label]::before {
-          content: attr(data-label);
-          display: block;
-          font-size: 11px;
-          font-weight: 400;
-          color: var(--sasv-text-muted);
         }
         .mp-readiness-grid {
           grid-template-columns: 1fr 1fr;
@@ -681,9 +733,23 @@
       @media (max-width: 520px) {
         .mp-field-grid,
         .mp-measure-grid,
-        .mp-readiness-grid,
-        #skuList li {
+        .mp-readiness-grid {
           grid-template-columns: 1fr;
+        }
+        .mp-register {
+          display: none;
+        }
+        .mp-card-list {
+          display: block;
+        }
+        .mp-surface:not([hidden]) {
+          align-items: stretch;
+          padding: 0;
+        }
+        .mp-surface-panel {
+          width: 100%;
+          max-height: 100%;
+          border-radius: 0;
         }
       }
     </style>
@@ -715,242 +781,188 @@
     </div>
 
     <div class="container" id="productMasterMain">
-      <div class="sidebar">
-        <div
-          class="search-row"
-          style="display: flex; gap: 8px; align-items: center"
-        >
-          <div class="search-input-wrap">
-            <svg
-              class="search-icon"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              id="searchInput"
-              placeholder="Search products…"
-              aria-controls="productList"
-              aria-label="Search products"
-            />
+      <div class="mp-toolbar">
+        <div class="mp-picker">
+          <label for="productPicker">Product</label>
+          <select id="productPicker" aria-label="Product">
+            <option value="">Select a product</option>
+          </select>
+          <div id="productCountPill" class="pill" title="0 products">0</div>
+        </div>
+      </div>
+      <div id="productContext" class="mp-context">
+        <div>
+          <h2 id="productContextName">Select a product</h2>
+          <p id="productContextMalayalam" class="mp-context-mal" hidden></p>
+        </div>
+        <div class="mp-context-actions">
+          <span id="productContextStatus" class="badge" hidden></span>
+          <div style="display: flex; gap: 8px; align-items: center">
             <button
-              id="clearSearchBtn"
-              class="clear-search"
+              id="saveIconBtn"
+              class="icon-btn"
               type="button"
-              title="Clear search"
-              aria-hidden="true"
+              title="Save"
+              style="display: none"
             >
+              <!-- save SVG -->
               <svg
-                width="12"
-                height="12"
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="currentColor"
-                stroke-width="2"
+                xmlns="http://www.w3.org/2000/svg"
                 aria-hidden="true"
-                focusable="false"
+              >
+                <path
+                  d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                  fill="currentColor"
+                />
+                <path d="M17 3v4a1 1 0 0 0 1 1h4" fill="currentColor" />
+                <path
+                  d="M7 11l3 3 7-7"
+                  stroke="#fff"
+                  stroke-width="1.5"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              id="cancelIconBtn"
+              class="icon-btn"
+              type="button"
+              title="Cancel"
+              style="display: none"
+            >
+              <!-- cancel SVG (cross) -->
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
               >
                 <path
                   d="M18 6L6 18M6 6l12 12"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              id="inlineDeleteBtn"
+              class="icon-btn"
+              type="button"
+              title="Deactivate product"
+              aria-label="Deactivate product"
+              style="display: none"
+            >
+              <!-- deactivate / archive-style SVG -->
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 6h18"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M8 6l1-2h6l1 2"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <rect
+                  x="7"
+                  y="6"
+                  width="10"
+                  height="13"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  fill="none"
+                />
+                <path
+                  d="M10 10v6M14 10v6"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+
+            <button
+              id="editToggleBtn"
+              class="icon-btn"
+              type="button"
+              title="Enable edit"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <button
+              id="newInlineBtn"
+              class="icon-btn"
+              type="button"
+              title="New product"
+            >
+              <!-- new (plus) SVG -->
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 5v14M5 12h14"
+                  stroke="currentColor"
+                  stroke-width="1.8"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
               </svg>
             </button>
           </div>
-          <div
-            id="productCountPill"
-            class="pill"
-            aria-hidden="false"
-            title="0 products"
-          >
-            0
-          </div>
         </div>
-        <ul
-          id="productList"
-          role="listbox"
-          aria-label="Products"
-          tabindex="0"
-        ></ul>
       </div>
-
+      <div class="mp-tabs" role="tablist" aria-label="Product workspace">
+        <button type="button" id="tabProductMaster" class="btn secondary" role="tab" aria-selected="true" aria-controls="productMasterPanel">Product Master</button>
+        <button type="button" id="tabSkus" class="btn secondary" role="tab" aria-selected="false" aria-controls="skuLifecycleSection" disabled>SKUs</button>
+        <button type="button" id="tabReadiness" class="btn secondary" role="tab" aria-selected="false" aria-controls="readinessPanel" disabled>Readiness</button>
+      </div>
       <div class="details">
-        <div id="productContext" class="mp-context">
-          <div>
-            <h2 id="productContextName">Select a product</h2>
-            <p id="productContextMalayalam" class="mp-context-mal" hidden></p>
-          </div>
-          <div class="mp-context-actions">
-            <span id="productContextStatus" class="badge" hidden></span>
-            <div style="display: flex; gap: 8px; align-items: center">
-              <button
-                id="saveIconBtn"
-                class="icon-btn"
-                type="button"
-                title="Save"
-                style="display: none"
-              >
-                <!-- save SVG -->
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                    fill="currentColor"
-                  />
-                  <path d="M17 3v4a1 1 0 0 0 1 1h4" fill="currentColor" />
-                  <path
-                    d="M7 11l3 3 7-7"
-                    stroke="#fff"
-                    stroke-width="1.5"
-                    fill="none"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                id="cancelIconBtn"
-                class="icon-btn"
-                type="button"
-                title="Cancel"
-                style="display: none"
-              >
-                <!-- cancel SVG (cross) -->
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M18 6L6 18M6 6l12 12"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                id="inlineDeleteBtn"
-                class="icon-btn"
-                type="button"
-                title="Deactivate product"
-                aria-label="Deactivate product"
-                style="display: none"
-              >
-                <!-- deactivate / archive-style SVG -->
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 6h18"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M8 6l1-2h6l1 2"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <rect
-                    x="7"
-                    y="6"
-                    width="10"
-                    height="13"
-                    rx="2"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    fill="none"
-                  />
-                  <path
-                    d="M10 10v6M14 10v6"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-
-              <button
-                id="editToggleBtn"
-                class="icon-btn"
-                type="button"
-                title="Enable edit"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"
-                    fill="currentColor"
-                  />
-                  <path
-                    d="M20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </button>
-              <button
-                id="newInlineBtn"
-                class="icon-btn"
-                type="button"
-                title="New product"
-              >
-                <!-- new (plus) SVG -->
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M12 5v14M5 12h14"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+        <section id="productMasterPanel" role="tabpanel" aria-labelledby="tabProductMaster">
         <form id="productForm">
           <section class="mp-card" aria-labelledby="productMasterHeading">
             <h2 id="productMasterHeading" class="mp-group-title">Product master</h2>
@@ -1062,28 +1074,58 @@
             </div>
           </section>
         </form>
+        </section>
 
-        <section id="skuLifecycleSection" class="mp-card" hidden aria-labelledby="skuLifecycleHeading">
+        <section id="skuLifecycleSection" class="mp-panel" role="tabpanel" hidden aria-labelledby="tabSkus">
           <div class="sku-lifecycle-header">
-            <h2 id="skuLifecycleHeading">SKUs &amp; readiness</h2>
+            <h2 id="skuLifecycleHeading">SKUs</h2>
             <div id="skuCountSummary" class="pill">0 active / 0 total</div>
-            <p id="skuPeriodLabel" class="sku-period-label">
-              Governed readiness period: unavailable
-            </p>
-            <button id="skuAddBtn" class="btn secondary" type="button" hidden>
-              Add SKU
-            </button>
+            <p id="skuPeriodLabel" class="sku-period-label">Governed readiness period: unavailable</p>
+            <button id="skuAddBtn" class="btn secondary" type="button" hidden>Add SKU</button>
           </div>
-          <div class="mp-sku-head" aria-hidden="true">
-            <span>SKU</span>
-            <span>Pack</span>
-            <span>Type</span>
-            <span>Lifecycle</span>
-            <span>Readiness</span>
-          </div>
-          <ul id="skuList" role="listbox" aria-label="Child SKUs"></ul>
-          <div id="skuDetail" hidden>
-            <fieldset id="skuMasterFields">
+          <table id="skuRegister" class="mp-register">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Pack</th>
+                <th>Type</th>
+                <th>Lifecycle</th>
+                <th>Readiness</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="skuRegisterBody"></tbody>
+          </table>
+          <div id="skuCardList" class="mp-card-list"></div>
+        </section>
+        <section id="readinessPanel" class="mp-panel" role="tabpanel" hidden aria-labelledby="tabReadiness">
+          <h2 id="readinessHeading" class="mp-group-title">Readiness</h2>
+          <table id="readinessRegister" class="mp-register">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Pack</th>
+                <th>Lifecycle</th>
+                <th class="mp-col-extra">Product master</th>
+                <th class="mp-col-extra">SKU master</th>
+                <th class="mp-col-extra">Costing</th>
+                <th class="mp-col-extra">Evidence</th>
+                <th class="mp-col-extra">Outcome</th>
+                <th>Overall</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="readinessRegisterBody"></tbody>
+          </table>
+          <div id="readinessCardList" class="mp-card-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <div id="skuDetail" class="mp-surface" hidden role="dialog" aria-modal="true" aria-labelledby="skuEditorTitle">
+      <div class="mp-surface-panel">
+        <h2 id="skuEditorTitle" class="mp-group-title">SKU</h2>
+        <fieldset id="skuMasterFields">
               <legend>SKU master</legend>
               <div class="sku-master-grid">
                 <div>
@@ -1122,19 +1164,20 @@
                 </button>
               </div>
             </fieldset>
-            <div class="mp-sku-lifecycle-actions">
+        <div class="mp-sku-lifecycle-actions">
               <button id="skuToggleActiveBtn" class="btn secondary" type="button" hidden>
                 Activate
               </button>
             </div>
-            <section id="skuReadinessPanel" aria-labelledby="skuReadinessHeading">
-              <h3 id="skuReadinessHeading">Readiness &amp; remediation</h3>
-              <div id="skuReadiness" aria-live="polite">
-                Readiness unavailable
-              </div>
-            </section>
-          </div>
-        </section>
+      </div>
+    </div>
+    <div id="readinessDetailSurface" class="mp-surface" hidden role="dialog" aria-modal="true" aria-labelledby="skuReadinessHeading">
+      <div class="mp-surface-panel">
+        <div class="sku-lifecycle-header">
+          <h2 id="skuReadinessHeading" class="mp-group-title">Readiness</h2>
+          <button id="readinessDetailClose" class="btn secondary" type="button">Close</button>
+        </div>
+        <div id="skuReadiness" aria-live="polite">Readiness unavailable</div>
       </div>
     </div>
 

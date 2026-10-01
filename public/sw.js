@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v329"; // Manage Products ERP workspace layout
+const CACHE_NAME = "hub-cache-v330"; // Manage Products tabbed workspace
 
 const PRECACHE = [
   // Hub shell

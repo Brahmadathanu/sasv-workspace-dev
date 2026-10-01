@@ -312,8 +312,8 @@ assert(
   "generated types include optional exact-run Args on filter-options and export RPCs",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v329"/.test(swSrc),
-  "current SW cache name remains hub-cache-v329",
+  /CACHE_NAME = "hub-cache-v330"/.test(swSrc),
+  "current SW cache name remains hub-cache-v330",
 );
 
 function buildTraceSelectedRunRpcArgs(state) {

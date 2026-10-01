@@ -65,3 +65,9 @@
 **High-risk exception:** Architecture, database/schema/RPC contracts, authentication/permissions, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business-rule decisions, and security-sensitive behavior retain a separate Plan → ChatGPT review → Implementation gate.
 **Preserved controls:** dedicated task branch/worktree, no direct main implementation, no invented backend contracts, server truth remains authoritative, no unrelated refactoring, targeted checks/tests, no merge/version/tag/release/publish without explicit approval.
 **Status:** LOCKED
+
+## 2026-10-01 — DEC-012 — WP02
+**Decision:** Manage Products uses full-width Product selection plus Product Master, SKUs, and Readiness tabs. The persistent Product side rail is retired. SKU and readiness deep detail use bounded focused surfaces. Small-screen registers use compact card views.
+**Reason:** Authenticated verification of the rail layout, including a live catalog of 1,342 Products and narrow screens, showed that a permanent side list plus a long stacked workspace was not usable.
+**Impact:** This supersedes only the earlier WP02 presentation choice. Product, SKU, readiness, permission, and server contracts are unchanged.
+**Status:** LOCKED

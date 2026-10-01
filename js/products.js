@@ -1,14 +1,26 @@
 // js/products.js — Gate 5.11V governed Product Master writers
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
-import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
+import {
+  mountModuleHome,
+  enhanceSearchableSelect,
+  syncSearchableSelect,
+  setSearchableSelectValue,
+} from "../public/shared/js/sasv-module-chrome.js";
 
 const MODULE_TARGET = "module:manage-products";
 
 // DOM refs
 const homeBtn = document.getElementById("homeBtn");
-const searchInput = document.getElementById("searchInput");
-const productList = document.getElementById("productList");
+const productPicker = document.getElementById("productPicker");
+const tabProductMaster = document.getElementById("tabProductMaster");
+const tabSkus = document.getElementById("tabSkus");
+const tabReadiness = document.getElementById("tabReadiness");
+const productMasterPanel = document.getElementById("productMasterPanel");
+const readinessPanel = document.getElementById("readinessPanel");
+const readinessDetailSurface = document.getElementById("readinessDetailSurface");
+const readinessDetailClose = document.getElementById("readinessDetailClose");
+const skuEditorTitle = document.getElementById("skuEditorTitle");
 const form = document.getElementById("productForm");
 const itemInput = document.getElementById("itemInput");
 const malInput = document.getElementById("malInput");
@@ -37,7 +49,6 @@ const cancelIconBtn = document.getElementById("cancelIconBtn");
 const inlineDeleteBtn = document.getElementById("inlineDeleteBtn");
 const newInlineBtn = document.getElementById("newInlineBtn");
 const productCountPill = document.getElementById("productCountPill");
-const clearSearchBtn = document.getElementById("clearSearchBtn");
 const productContextName = document.getElementById("productContextName");
 const productContextMalayalam = document.getElementById("productContextMalayalam");
 const productContextStatus = document.getElementById("productContextStatus");
@@ -71,7 +82,7 @@ let skuDirty = false;
 let editing = false;
 let previousSelectedId = null;
 let inNewMode = false;
-let keyboardIndex = -1;
+let activeTab = "master";
 let writeBusy = false;
 let loadedProductSnapshot = null;
 let classificationsWired = false;
@@ -777,47 +788,63 @@ async function fetchAllProducts() {
 
 async function loadProducts() {
   allProducts = await fetchAllProducts();
-  applyFilter();
+  filtered = allProducts.slice();
+  renderProductOptions();
+}
+
+function renderProductOptions() {
+  if (!productPicker) return;
+  const keep = selectedId ? String(selectedId) : "";
+  productPicker.replaceChildren();
+  productPicker.add(new Option("Select a product", ""));
+  allProducts.forEach((product) => {
+    productPicker.add(new Option(product.item, String(product.id)));
+  });
+  if (!productPicker._sasvSearch) {
+    enhanceSearchableSelect(productPicker, {
+      placeholder: "Search products",
+      allowEmptyOption: true,
+      debounceMs: 220,
+      clearSelectedOnBackspace: true,
+      resultCap: 40,
+    });
+  } else {
+    syncSearchableSelect(productPicker);
+  }
+  setSearchableSelectValue(productPicker, keep, true);
+  if (productCountPill) {
+    const total = allProducts.length || 0;
+    productCountPill.textContent = `${total} products`;
+    productCountPill.title = `${total} products total`;
+    productCountPill.setAttribute("aria-label", `${total} products total`);
+  }
 }
 
 function applyFilter() {
-  const term = searchInput.value.trim().toLowerCase();
-  filtered = allProducts.filter((p) => p.item.toLowerCase().includes(term));
-  productList.innerHTML = filtered
-    .map(
-      (p) =>
-        `<li role="option" id="product-${p.id}" data-id="${
-          p.id
-        }" aria-selected="${p.id === selectedId ? "true" : "false"}"${
-          p.id === selectedId ? ' class="selected"' : ""
-        }>${p.item}</li>`,
-    )
-    .join("");
-  const lis = Array.from(productList.querySelectorAll("li"));
-  if (keyboardIndex >= 0 && keyboardIndex < lis.length) {
-    updateKeyboardHighlight(lis, keyboardIndex);
-  } else {
-    productList.removeAttribute("aria-activedescendant");
-  }
-  try {
-    if (productCountPill) {
-      const total = allProducts.length || 0;
-      if (!term) {
-        productCountPill.textContent = `${total} products`;
-        productCountPill.title = `${total} products total`;
-        productCountPill.setAttribute("aria-label", `${total} products total`);
-      } else {
-        productCountPill.textContent = `${filtered.length} / ${total}`;
-        productCountPill.title = `${filtered.length} matches of ${total} products`;
-        productCountPill.setAttribute(
-          "aria-label",
-          `${filtered.length} matches of ${total} products`,
-        );
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
+  setSearchableSelectValue(productPicker, selectedId ? String(selectedId) : "", true);
+}
+
+function paintWorkspaceTabs() {
+  const savedProduct = !!selectedId && !inNewMode;
+  if (!savedProduct && activeTab !== "master") activeTab = "master";
+  if (tabSkus) tabSkus.disabled = !savedProduct;
+  if (tabReadiness) tabReadiness.disabled = !savedProduct;
+  const tabs = [
+    ["master", tabProductMaster, productMasterPanel],
+    ["skus", tabSkus, skuLifecycleSection],
+    ["readiness", tabReadiness, readinessPanel],
+  ];
+  tabs.forEach(([name, tab, panel]) => {
+    const on = activeTab === name;
+    if (tab) tab.setAttribute("aria-selected", on ? "true" : "false");
+    if (panel) panel.hidden = !on;
+  });
+}
+
+function setWorkspaceTab(tab) {
+  if ((tab === "skus" || tab === "readiness") && (!selectedId || inNewMode)) return;
+  activeTab = tab;
+  paintWorkspaceTabs();
 }
 
 async function loadDetails(id) {
@@ -1056,7 +1083,6 @@ form.addEventListener("submit", async (e) => {
         return;
       }
       showToast("Product created successfully.");
-      searchInput.value = "";
       await loadProducts();
       unsaved = false;
       inNewMode = false;
@@ -1083,7 +1109,6 @@ form.addEventListener("submit", async (e) => {
         return;
       }
       showToast("Product updated successfully.");
-      searchInput.value = "";
       await loadProducts();
       unsaved = false;
       await loadDetails(selectedId);
@@ -1249,121 +1274,44 @@ if (inlineDeleteBtn) {
   });
 }
 
-productList.addEventListener("click", async (e) => {
-  const li = e.target.closest("li");
-  if (li) {
-    const id = Number(li.dataset.id);
-    const ok = await loadDetails(id);
-    if (ok) {
-      inNewMode = false;
-      previousSelectedId = null;
-      setEditing(false);
-      keyboardIndex = -1;
-      Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-        n.classList.remove("focused"),
-      );
-      if (productList)
-        productList.setAttribute("aria-activedescendant", `product-${id}`);
+if (productPicker) {
+  productPicker.addEventListener("change", async () => {
+    const next = productPicker.value ? Number(productPicker.value) : null;
+    if (!next && !selectedId && inNewMode) return;
+    if (next && String(next) === String(selectedId) && !inNewMode) return;
+    const ok = await loadDetails(next);
+    if (!ok) {
+      setSearchableSelectValue(productPicker, selectedId ? String(selectedId) : "", true);
+      return;
     }
-  }
-});
-
-searchInput.addEventListener("input", () => {
-  keyboardIndex = -1;
-  if (productList) {
-    Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-      n.classList.remove("focused"),
-    );
-    productList.removeAttribute("aria-activedescendant");
-  }
-  try {
-    if (clearSearchBtn) {
-      if (searchInput.value && searchInput.value.trim()) {
-        clearSearchBtn.classList.add("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "false");
-      } else {
-        clearSearchBtn.classList.remove("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "true");
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  applyFilter();
-});
-
-if (clearSearchBtn) {
-  clearSearchBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    try {
-      searchInput.value = "";
-      clearSearchBtn.classList.remove("visible");
-      clearSearchBtn.setAttribute("aria-hidden", "true");
-      keyboardIndex = -1;
-      if (productList) {
-        Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-          n.classList.remove("focused"),
-        );
-        productList.removeAttribute("aria-activedescendant");
-      }
-      applyFilter();
-      searchInput.focus();
-    } catch (err) {
-      console.error(err);
-    }
+    inNewMode = false;
+    previousSelectedId = null;
+    setEditing(false);
   });
 }
 
-searchInput.addEventListener("keydown", (e) => {
-  if (!productList) return;
-  const lis = Array.from(productList.querySelectorAll("li"));
-  if (!lis.length) return;
-  if (e.key === "ArrowDown") {
-    e.preventDefault();
-    if (keyboardIndex < 0) keyboardIndex = 0;
-    else keyboardIndex = Math.min(keyboardIndex + 1, lis.length - 1);
-    updateKeyboardHighlight(lis, keyboardIndex);
-    return;
-  }
-  if (e.key === "ArrowUp") {
-    e.preventDefault();
-    if (keyboardIndex < 0) keyboardIndex = lis.length - 1;
-    else keyboardIndex = Math.max(keyboardIndex - 1, 0);
-    updateKeyboardHighlight(lis, keyboardIndex);
-    return;
-  }
-  if (e.key === "Enter") {
-    if (keyboardIndex >= 0 && keyboardIndex < lis.length) {
-      e.preventDefault();
-      const id = Number(lis[keyboardIndex].dataset.id);
-      loadDetails(id).then((ok) => {
-        if (ok) setEditing(false);
-      });
-    }
-  }
-  if (e.key === "Escape") {
-    keyboardIndex = -1;
-    Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-      n.classList.remove("focused"),
-    );
-  }
-});
+function bindWorkspaceTab(button, tab) {
+  if (!button) return;
+  button.addEventListener("click", () => setWorkspaceTab(tab));
+}
+bindWorkspaceTab(tabProductMaster, "master");
+bindWorkspaceTab(tabSkus, "skus");
+bindWorkspaceTab(tabReadiness, "readiness");
 
-function updateKeyboardHighlight(lis, idx) {
-  lis.forEach((li) => {
-    li.classList.remove("focused");
-    if (Number(li.dataset.id) !== selectedId)
-      li.setAttribute("aria-selected", "false");
+const workspaceTabs = document.querySelector(".mp-tabs");
+if (workspaceTabs) {
+  workspaceTabs.addEventListener("keydown", (event) => {
+    const order = [tabProductMaster, tabSkus, tabReadiness].filter((tab) => tab && !tab.disabled);
+    const index = order.indexOf(document.activeElement);
+    if (index < 0) return;
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const next = event.key === "ArrowRight"
+      ? order[(index + 1) % order.length]
+      : order[(index - 1 + order.length) % order.length];
+    next.focus();
+    next.click();
   });
-  if (idx >= 0 && idx < lis.length) {
-    const node = lis[idx];
-    node.classList.add("focused");
-    node.setAttribute("aria-selected", "true");
-    if (productList) productList.setAttribute("aria-activedescendant", node.id);
-    node.scrollIntoView({ block: "nearest", behavior: "auto" });
-  } else if (productList) {
-    productList.removeAttribute("aria-activedescendant");
-  }
 }
 
 [
@@ -1438,7 +1386,10 @@ async function loadSeasonProfiles() {
 const skuLifecycleSection = document.getElementById("skuLifecycleSection");
 const skuCountSummary = document.getElementById("skuCountSummary");
 const skuPeriodLabel = document.getElementById("skuPeriodLabel");
-const skuList = document.getElementById("skuList");
+const skuRegisterBody = document.getElementById("skuRegisterBody");
+const skuCardList = document.getElementById("skuCardList");
+const readinessRegisterBody = document.getElementById("readinessRegisterBody");
+const readinessCardList = document.getElementById("readinessCardList");
 const skuDetail = document.getElementById("skuDetail");
 const skuAddBtn = document.getElementById("skuAddBtn");
 const skuPackSize = document.getElementById("skuPackSize");
@@ -1463,8 +1414,12 @@ function clearSkuState() {
   skuDirty = false;
   governedPeriodStart = null;
   skuReadinessById.clear();
-  if (skuList) skuList.innerHTML = "";
+  if (skuRegisterBody) skuRegisterBody.replaceChildren();
+  if (skuCardList) skuCardList.replaceChildren();
+  if (readinessRegisterBody) readinessRegisterBody.replaceChildren();
+  if (readinessCardList) readinessCardList.replaceChildren();
   if (skuDetail) skuDetail.hidden = true;
+  if (readinessDetailSurface) readinessDetailSurface.hidden = true;
   if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
   renderSkuSummary();
   syncSkuAccessChrome();
@@ -1472,7 +1427,6 @@ function clearSkuState() {
 
 function syncSkuAccessChrome() {
   const show = !!selectedId && !inNewMode;
-  if (skuLifecycleSection) skuLifecycleSection.hidden = !show;
   const canEdit = canWriteModule();
   if (skuAddBtn) skuAddBtn.hidden = !show || !canEdit;
   const drafting = skuDraft === "new" || !!selectedSkuId;
@@ -1489,6 +1443,7 @@ function syncSkuAccessChrome() {
     skuToggleActiveBtn.classList.toggle("danger", !!(row && row.is_active));
     skuToggleActiveBtn.disabled = writeBusy;
   }
+  paintWorkspaceTabs();
 }
 
 function currentSkuRow() {
@@ -1601,45 +1556,149 @@ async function loadAllSkuReadiness(generation) {
   renderSkuList();
 }
 
+function skuPackLabel(row) {
+  return `${row?.pack_size ?? "—"} ${row?.uom || ""}`.trim();
+}
+
+function serverStatusText(value) {
+  return value == null || value === "" ? "Unavailable" : String(value);
+}
+
+function readinessDimensionHint(payload) {
+  const summary = payload?.summary;
+  if (!summary) return "";
+  return [
+    ["Product master", summary.product_master_foundation_status],
+    ["SKU master", summary.sku_master_foundation_status],
+    ["Costing", summary.costing_foundation_status],
+    ["Evidence", summary.evidence_quality_status],
+    ["Outcome", summary.costing_outcome_status],
+  ]
+    .filter(([, status]) => status === "BLOCKED" || status === "BLOCKER" || status === "REVIEW_REQUIRED")
+    .map(([label, status]) => `${label}: ${status}`)
+    .join(" · ");
+}
+
 function renderSkuList() {
-  if (!skuList) return;
-  skuList.innerHTML = "";
+  if (skuRegisterBody) skuRegisterBody.replaceChildren();
+  if (skuCardList) skuCardList.replaceChildren();
+  if (readinessRegisterBody) readinessRegisterBody.replaceChildren();
+  if (readinessCardList) readinessCardList.replaceChildren();
   renderSkuSummary();
   skuRows.forEach((row) => {
-    const item = document.createElement("li");
-    item.setAttribute("role", "option");
-    item.tabIndex = 0;
-    item.setAttribute(
-      "aria-selected",
-      String(row.id) === String(selectedSkuId) ? "true" : "false",
-    );
-    const identity = document.createElement("span");
-    identity.dataset.label = "SKU";
-    identity.textContent = `SKU ${row.id}`;
-    const pack = document.createElement("span");
-    pack.dataset.label = "Pack";
-    pack.textContent = `${row.pack_size ?? "—"} ${row.uom || ""}`.trim();
-    const sample = document.createElement("span");
-    sample.dataset.label = "Type";
-    sample.textContent = row.is_sample ? "Sample" : "Standard";
-    const active = document.createElement("span");
-    active.dataset.label = "Lifecycle";
-    active.className = row.is_active ? "badge badge-active" : "badge badge-inactive";
-    active.textContent = row.is_active ? "Active" : "Inactive";
+    const payload = skuReadinessById.get(String(row.id));
+    const summary = payload?.summary || {};
+    const severity = summary.overall_severity;
+    const selected = String(row.id) === String(selectedSkuId) && skuDraft !== "new";
+    const pack = skuPackLabel(row);
+    const typeLabel = row.is_sample ? "Sample" : "Standard";
+    const lifecycle = document.createElement("span");
+    lifecycle.className = row.is_active ? "badge badge-active" : "badge badge-inactive";
+    lifecycle.textContent = row.is_active ? "Active" : "Inactive";
     const readiness = document.createElement("span");
-    readiness.dataset.label = "Readiness";
-    const severity = skuReadinessById.get(String(row.id))?.summary?.overall_severity;
     readiness.className = readinessBadgeClass(severity);
     readiness.textContent = readinessBadgeLabel(severity);
-    item.append(identity, pack, sample, active, readiness);
-    item.addEventListener("click", () => selectSku(row.id));
-    item.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectSku(row.id);
-      }
+
+    const tr = document.createElement("tr");
+    tr.setAttribute("aria-selected", selected ? "true" : "false");
+    ["SKU " + row.id, pack, typeLabel].forEach((text) => {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      tr.appendChild(cell);
     });
-    skuList.appendChild(item);
+    const lifeCell = document.createElement("td");
+    lifeCell.appendChild(lifecycle);
+    const readyCell = document.createElement("td");
+    readyCell.appendChild(readiness);
+    const actionCell = document.createElement("td");
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "btn secondary";
+    openBtn.textContent = "Open";
+    openBtn.setAttribute("aria-label", `Open SKU ${row.id}`);
+    openBtn.addEventListener("click", () => selectSku(row.id));
+    actionCell.appendChild(openBtn);
+    tr.append(lifeCell, readyCell, actionCell);
+    if (skuRegisterBody) skuRegisterBody.appendChild(tr);
+
+    const card = document.createElement("article");
+    card.className = "mp-sku-card";
+    const line = document.createElement("div");
+    line.className = "mp-sku-card-line";
+    const skuName = document.createElement("span");
+    skuName.textContent = `SKU ${row.id}`;
+    const packName = document.createElement("span");
+    packName.textContent = pack;
+    line.append(skuName, packName);
+    const meta = document.createElement("div");
+    meta.className = "mp-sku-card-meta";
+    meta.textContent = typeLabel;
+    const statusRow = document.createElement("div");
+    statusRow.className = "mp-sku-card-status";
+    statusRow.append(lifecycle.cloneNode(true), readiness.cloneNode(true), openBtn.cloneNode(true));
+    statusRow.lastChild.addEventListener("click", () => selectSku(row.id));
+    card.append(line, meta, statusRow);
+    if (skuCardList) skuCardList.appendChild(card);
+
+    const readinessRow = document.createElement("tr");
+    readinessRow.setAttribute("aria-selected", selected ? "true" : "false");
+    [row.id, pack].forEach((text) => {
+      const cell = document.createElement("td");
+      cell.textContent = String(text);
+      readinessRow.appendChild(cell);
+    });
+    const lifeCopy = document.createElement("td");
+    lifeCopy.appendChild(lifecycle.cloneNode(true));
+    readinessRow.appendChild(lifeCopy);
+    [
+      summary.product_master_foundation_status,
+      summary.sku_master_foundation_status,
+      summary.costing_foundation_status,
+      summary.evidence_quality_status,
+      summary.costing_outcome_status,
+    ].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.className = "mp-col-extra";
+      cell.textContent = serverStatusText(value);
+      readinessRow.appendChild(cell);
+    });
+    const overallCell = document.createElement("td");
+    overallCell.appendChild(readiness.cloneNode(true));
+    const detailCell = document.createElement("td");
+    const detailBtn = document.createElement("button");
+    detailBtn.type = "button";
+    detailBtn.className = "btn secondary";
+    detailBtn.textContent = "Details";
+    detailBtn.setAttribute("aria-label", `Readiness for SKU ${row.id}`);
+    detailBtn.addEventListener("click", () => openReadinessDetail(row.id));
+    detailCell.appendChild(detailBtn);
+    readinessRow.append(overallCell, detailCell);
+    if (readinessRegisterBody) readinessRegisterBody.appendChild(readinessRow);
+
+    const readyCard = document.createElement("article");
+    readyCard.className = "mp-sku-card";
+    const readyLine = document.createElement("div");
+    readyLine.className = "mp-sku-card-line";
+    const readySku = document.createElement("span");
+    readySku.textContent = `SKU ${row.id}`;
+    const readyPack = document.createElement("span");
+    readyPack.textContent = pack;
+    readyLine.append(readySku, readyPack);
+    const readyStatus = document.createElement("div");
+    readyStatus.className = "mp-sku-card-status";
+    readyStatus.append(lifecycle.cloneNode(true), readiness.cloneNode(true));
+    readyCard.append(readyLine, readyStatus);
+    const hint = readinessDimensionHint(payload);
+    if (hint) {
+      const hintLine = document.createElement("div");
+      hintLine.className = "mp-sku-card-meta";
+      hintLine.textContent = hint;
+      readyCard.appendChild(hintLine);
+    }
+    const readyAction = detailBtn.cloneNode(true);
+    readyAction.addEventListener("click", () => openReadinessDetail(row.id));
+    readyCard.appendChild(readyAction);
+    if (readinessCardList) readinessCardList.appendChild(readyCard);
   });
   syncSkuAccessChrome();
 }
@@ -1649,31 +1708,55 @@ async function confirmDiscardSku() {
   return showModal("You have unsaved SKU changes. Discard?", "Discard", "Cancel");
 }
 
+function fillSkuMasterFields(row) {
+  if (skuPackSize) skuPackSize.value = row?.pack_size ?? "";
+  if (skuUom) skuUom.value = row?.uom || "";
+  if (skuIsSample) skuIsSample.checked = !!row?.is_sample;
+  if (skuEditorTitle) skuEditorTitle.textContent = row?.id ? `SKU ${row.id}` : "New SKU";
+}
+
 async function selectSku(skuId) {
-  if (String(skuId) === String(selectedSkuId) && skuDraft !== "new") return;
+  if (String(skuId) === String(selectedSkuId) && skuDraft !== "new") {
+    if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+    if (skuDetail) skuDetail.hidden = false;
+    return;
+  }
   if (!(await confirmDiscardSku())) return;
   skuDraft = String(skuId);
   selectedSkuId = skuId;
   skuDirty = false;
-  const row = currentSkuRow();
-  if (skuPackSize) skuPackSize.value = row?.pack_size ?? "";
-  if (skuUom) skuUom.value = row?.uom || "";
-  if (skuIsSample) skuIsSample.checked = !!row?.is_sample;
+  fillSkuMasterFields(currentSkuRow());
+  if (readinessDetailSurface) readinessDetailSurface.hidden = true;
   if (skuDetail) skuDetail.hidden = false;
+  setWorkspaceTab("skus");
   renderSkuList();
-  await showSelectedSkuReadiness();
 }
 
 function beginNewSku() {
   skuDraft = "new";
   selectedSkuId = null;
   skuDirty = false;
-  if (skuPackSize) skuPackSize.value = "";
-  if (skuUom) skuUom.value = "";
-  if (skuIsSample) skuIsSample.checked = false;
+  fillSkuMasterFields(null);
+  if (readinessDetailSurface) readinessDetailSurface.hidden = true;
   if (skuDetail) skuDetail.hidden = false;
   if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
+  setWorkspaceTab("skus");
   renderSkuList();
+}
+
+async function openReadinessDetail(skuId) {
+  if (!(String(skuId) === String(selectedSkuId) && skuDraft !== "new")) {
+    if (!(await confirmDiscardSku())) return;
+    skuDraft = String(skuId);
+    selectedSkuId = skuId;
+    skuDirty = false;
+    fillSkuMasterFields(currentSkuRow());
+  }
+  if (skuDetail) skuDetail.hidden = true;
+  if (readinessDetailSurface) readinessDetailSurface.hidden = false;
+  setWorkspaceTab("readiness");
+  renderSkuList();
+  await showSelectedSkuReadiness();
 }
 
 async function showSelectedSkuReadiness() {
@@ -2020,6 +2103,11 @@ if (skuCancelBtn) {
   });
 }
 if (skuToggleActiveBtn) skuToggleActiveBtn.addEventListener("click", () => toggleSkuActive());
+if (readinessDetailClose) {
+  readinessDetailClose.addEventListener("click", () => {
+    if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+  });
+}
 [skuPackSize, skuUom, skuIsSample].forEach((control) => {
   if (!control) return;
   control.addEventListener("input", markSkuDirty);
@@ -2075,20 +2163,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   await loadSeasonProfiles();
   await loadProducts();
   await loadDetails(null);
-
-  try {
-    if (clearSearchBtn) {
-      if (searchInput.value && searchInput.value.trim()) {
-        clearSearchBtn.classList.add("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "false");
-      } else {
-        clearSearchBtn.classList.remove("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "true");
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
 
   setEditing(false);
   applyAccessChrome();

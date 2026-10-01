@@ -103,9 +103,22 @@ assert(
   "product deactivation remains on rpc_update_product and surfaces server errors",
 );
 assert(!products.includes("rpc_set_product_sku_active") || !/childSku/.test(products), "product path does not deactivate child SKUs");
-assert(sw.includes('const CACHE_NAME = "hub-cache-v329"'), "service worker generation is hub-cache-v329");
-assert(html.includes('id="skuLifecycleSection"') && html.includes("SKUs &amp; readiness"), "SKU readiness section exists");
-assert(html.includes(">SKU master<") && html.includes("Readiness &amp; remediation"), "master and readiness stay separate");
+assert(sw.includes('const CACHE_NAME = "hub-cache-v330"'), "service worker generation is hub-cache-v330");
+assert(html.includes('id="skuLifecycleSection"') && html.includes(">SKUs<"), "SKU tab exists");
+assert(html.includes('id="productPicker"') && !html.includes('id="productList"') && !html.includes('class="sidebar"'), "product rail is no longer the rendered navigation");
+assert(html.includes('role="tablist"') && html.includes(">Product Master<") && html.includes(">Readiness<"), "workspace has three accessible tabs");
+assert(html.includes('id="tabSkus"') && html.includes("disabled"), "SKU and readiness tabs can be unavailable");
+assert(products.includes("enhanceSearchableSelect(productPicker") && products.includes("selectedId = id"), "product picker resolves through the existing selected product authority");
+assert(html.includes('id="skuRegister"') && html.includes('id="skuCardList"'), "desktop SKU register and small-screen SKU cards exist");
+assert(html.includes('id="readinessRegister"') && html.includes('id="readinessDetailSurface"'), "readiness register and bounded detail exist");
+assert(html.includes('class="mp-surface"') && !html.includes('id="skuList"'), "deep SKU and readiness detail are not an inline page stack");
+assert(
+  html.includes(">SKU master<") &&
+    html.includes('id="skuMasterFields"') &&
+    html.includes('id="readinessDetailSurface"') &&
+    html.indexOf('id="readinessDetailSurface"') > html.indexOf('id="skuToggleActiveBtn"'),
+  "SKU master and readiness detail stay separate",
+);
 assert(!html.includes('id="skuIsActive"'), "activation is not a master checkbox");
 assert(html.includes('id="skuToggleActiveBtn"'), "activation has a dedicated action");
 assert(migration.includes("rpc_get_latest_governed_cost_period_start"), "migration adds the period RPC");
