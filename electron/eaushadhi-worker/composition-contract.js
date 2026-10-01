@@ -3,6 +3,9 @@ const ALLOWED_EDIT_SHAPES = [
   /GetCompositionDataUpdate\(\s*['"]([A-Za-z0-9_-]{1,96})['"]\s*\)/g,
   /data-composition-id\s*=\s*['"]([A-Za-z0-9_-]{1,96})['"]/g,
 ];
+const INPUT_TAG = /<input\b[^>]*>/gi;
+const QUOTED_ATTRIBUTE = /(?:^|\s)([A-Za-z_:][A-Za-z0-9_.:-]*)\s*=\s*(['"])(.*?)\2/g;
+const HIDDEN_ROW_KEY = /^hid\d+$/i;
 
 const COMPOSITION_LIVE_ARM_DEFAULT = false;
 
@@ -75,6 +78,29 @@ function parseCompositionRowId(editMarkup) {
   for (const pattern of ALLOWED_EDIT_SHAPES) {
     pattern.lastIndex = 0;
     for (let match = pattern.exec(editMarkup); match; match = pattern.exec(editMarkup)) ids.push(match[1]);
+  }
+  INPUT_TAG.lastIndex = 0;
+  for (let tagMatch = INPUT_TAG.exec(editMarkup); tagMatch; tagMatch = INPUT_TAG.exec(editMarkup)) {
+    const attributes = new Map();
+    let duplicateAttribute = false;
+    QUOTED_ATTRIBUTE.lastIndex = 0;
+    for (let match = QUOTED_ATTRIBUTE.exec(tagMatch[0]); match; match = QUOTED_ATTRIBUTE.exec(tagMatch[0])) {
+      const name = match[1].toLowerCase();
+      if (attributes.has(name)) {
+        duplicateAttribute = true;
+        break;
+      }
+      attributes.set(name, match[3]);
+    }
+    if (duplicateAttribute || String(attributes.get("type") || "").toLowerCase() !== "hidden") continue;
+    const id = attributes.get("id") || "";
+    const name = attributes.get("name") || "";
+    const idIsRowKey = HIDDEN_ROW_KEY.test(id);
+    const nameIsRowKey = HIDDEN_ROW_KEY.test(name);
+    if (!idIsRowKey && !nameIsRowKey) continue;
+    if (idIsRowKey && nameIsRowKey && id !== name) continue;
+    const value = attributes.get("value") || "";
+    if (OPAQUE_ID.test(value)) ids.push(value);
   }
   const unique = [...new Set(ids)].filter((value) => OPAQUE_ID.test(value));
   return unique.length === 1
