@@ -77,7 +77,12 @@ function authority(rows, activeRun = null, overrides = {}) {
       stage: { stage_status: rows.length ? "PARTIAL" : "NOT_STARTED", row_version: 2 },
       active_run: activeRun,
     },
-    content: { product_id: 262, workflow_row_version: 11, content_hash: HASH, composition: structuredClone(governed) },
+    content: {
+      product_id: 262,
+      versions: { workflow_row_version: 11 },
+      content_hash: HASH,
+      composition: structuredClone(governed),
+    },
     pageIdentityEvidence: {
       actualRoute: "/admin/addcomposition",
       expectedRoute: "/admin/addcomposition",
@@ -266,6 +271,36 @@ const completeRows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "r
   assert.equal(result.mutationAllowed, false);
   assert.deepEqual(result.missingSourceLineIds, [930, 931]);
   assert.deepEqual(deps.calls.map(([name]) => name), ["loadAuthority"]);
+}
+
+// Workflow authority uses only matching positive-integer versions from the canonical nested content path.
+for (const [label, mutate] of [
+  ["nested mismatch", (a) => { a.content.versions.workflow_row_version = 12; }],
+  ["nested version missing", (a) => { delete a.content.versions.workflow_row_version; }],
+  ["versions object missing", (a) => { delete a.content.versions; }],
+  ["top-level-only version", (a) => {
+    delete a.content.versions;
+    a.content.workflow_row_version = 11;
+  }],
+  ["numeric string", (a) => { a.content.versions.workflow_row_version = "11"; }],
+  ["zero version", (a) => { a.content.versions.workflow_row_version = 0; }],
+  ["negative version", (a) => { a.content.versions.workflow_row_version = -1; }],
+  ["non-integer version", (a) => { a.content.versions.workflow_row_version = 11.5; }],
+]) {
+  const sample = authority(beforeRows);
+  mutate(sample);
+  const result = await createCompositionExecutor().preview(fakeDeps([sample]));
+  assert.equal(result.code, "WORKFLOW_VERSION_MISMATCH", label);
+  assert.equal(result.mutated, false, label);
+}
+
+// Content-hash authority remains an independent fail-closed gate.
+{
+  const sample = authority(beforeRows);
+  sample.content.content_hash = "b".repeat(64);
+  const result = await createCompositionExecutor().preview(fakeDeps([sample]));
+  assert.equal(result.code, "CONTENT_HASH_MISMATCH");
+  assert.equal(result.mutated, false);
 }
 
 // Failed preview exposes only the bounded identity diagnostic selected by the executor.
@@ -513,7 +548,7 @@ function pageIdentityHarness({
       return { product_id: 262, workflow_row_version: 11, portal_product_ref: REF, ready: true, content_hash: HASH };
     }
     if (name === "rpc_eaushadhi_worker_content_get") {
-      return { product_id: 262, workflow_row_version: 11, content_hash: HASH, composition: [] };
+      return { product_id: 262, versions: { workflow_row_version: 11 }, content_hash: HASH, composition: [] };
     }
     throw new Error("UNEXPECTED_RPC");
   };
