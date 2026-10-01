@@ -71,3 +71,9 @@ No architectural blocker to WP02-G3. One REQUIRED NOW implementation dependency 
 
 ## Immediate next action
 Produce and independently audit the WP02-G3 implementation plan against DEC-008–DEC-010, then implement on an isolated feature branch/worktree from verified current main. No merge without focused verification and independent diff audit.
+
+
+## Client development operating model
+Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
+
+High-risk work retains a separate Plan → ChatGPT review → Implementation gate. Existing WP-specific plan gates remain valid when they involve architecture, authorization/permissions, database/schema/RPC contracts, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business rules, or security-sensitive behavior.

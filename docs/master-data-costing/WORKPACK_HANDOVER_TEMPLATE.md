@@ -42,3 +42,10 @@ Only unresolved blockers.
 
 ## Resume instruction
 One explicit sentence describing exactly where the next chat starts.
+
+
+## Current execution state
+PLAN / AUTONOMOUS IMPLEMENTATION / VERIFICATION / CORRECTION / MERGE-CLEANUP
+
+## Client execution model
+Routine bounded work uses the autonomous gate model. High-risk work retains a separate Plan → ChatGPT review → Implementation gate. No merge/version/tag/release/publishing occurs without explicit approval.

@@ -5,8 +5,8 @@
 The server is the authoritative preparation/governance layer. Portal execution consumes verified server data.
 
 ## DEC-002 — ChatGPT architect / Cursor-Codex worker boundary
-**Status:** ACTIVE  
-ChatGPT owns architecture and all server/database planning/implementation. Cursor/Codex perform client implementation only after ChatGPT freezes the contract and audits the plan.
+**Status:** ACTIVE / WORKFLOW DETAIL SUPERSEDED BY DEC-020  
+ChatGPT owns architecture and all server/database planning/implementation. Cursor/Codex perform client implementation only within ChatGPT-frozen scope. The former requirement for a separate plan-audit step on every client task is superseded by DEC-020.
 
 ## DEC-003 — Architect-Controlled Parallelism
 **Status:** ACTIVE  
@@ -131,3 +131,14 @@ A successful/ambiguous Save does not itself complete the line or stage. Fresh co
 - Feature commits: `462e2174aff55829b8318c104edebb7c3df5c84d`, correction `e5d96452c80bd384710317afedb0c412a6f99599`; merged at `3611cb29e8166bfcf924c7c01aa59229b2128720`.
 - Post-merge live audit confirmed Product 262 workflow still PORTAL_VERIFIED at row_version 11 with zero Composition stage rows and zero Composition run rows.
 - Next gate is controlled runtime/read-only acceptance with live mutation still disarmed; no Karpūra/Kēram portal entry is yet authorized.
+
+
+## DEC-020 — Autonomous gate-based client implementation
+**Status:** ACTIVE  
+Routine bounded client work no longer requires a separate ChatGPT approval between analysis/plan and implementation. After ChatGPT freezes one complete bounded work package, Cursor/Codex may autonomously analyze internally, implement, run targeted checks/tests, self-review, fix issues found, rerun checks, commit, push the dedicated task branch, and report completion. ChatGPT then audits the actual pushed GitHub implementation, may issue one consolidated correction pass if necessary, performs final verification, and explicitly authorizes merge/cleanup.
+
+High-risk work retains a separate Plan → ChatGPT review → Implementation gate. High-risk includes architecture changes, database/schema/RPC contract changes, authentication or permissions, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business-rule decisions, and security-sensitive behavior.
+
+Cursor/Codex stops for human guidance only for genuine ambiguity, materially different business/UX choices, undocumented backend-contract invention, production/security risk, material scope broadening, business-rule contradictions, genuinely judgmental visual/UX choices, merge to main, or version/tag/release/publishing.
+
+Dedicated task branches/worktrees, no direct implementation on main, server authority, existing design language, no unrelated refactoring, no invented backend objects/routes/contracts, targeted verification, and explicit merge/release approval remain mandatory.
