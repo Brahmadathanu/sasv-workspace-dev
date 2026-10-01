@@ -50,10 +50,10 @@ IN PROGRESS
 WP02 — Product + SKU Lifecycle Redesign
 
 ## Active gate
-WP02-G3 — client corrections after independent diff audit; still in progress
+WP02-G3 — final remediation rendering implemented; awaiting independent ChatGPT verification
 
 ## Overall completion progress
-2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 G1 and G2 are completed. G3 implementation is on the isolated branch and is not merged.
+2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 G1 and G2 are completed. The final WP02-G3 remediation-rendering correction is on the isolated branch and is not merged.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -70,4 +70,4 @@ WP02-G3 — client corrections after independent diff audit; still in progress
 No architectural blocker remains inside WP02-G3. The narrow readiness read authorization and latest-governed-period RPC are applied. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work.
 
 ## Immediate next action
-Independent ChatGPT audit of the WP02-G3 client corrections. The first audit passed the server access contract and found client rendering, badge, create-identity, and governance-confirmation defects. Do not advance to WP02-G4 until the corrected diff is audited again.
+Independent ChatGPT verification of the final WP02-G3 remediation rendering. Satisfied dependencies are omitted from remediation, and server `shared_issues` are shown as supplied. Do not advance to WP02-G4 until that verification passes.

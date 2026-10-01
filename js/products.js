@@ -1742,10 +1742,20 @@ function renderSkuReadiness(payload) {
   });
   const sharedIssues = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
   sharedIssues.forEach((issue) => {
+    const title = issue.issue_code || issue.dependency_code || "Shared issue";
     appendLine(
       skuReadiness,
-      issue.issue_code || issue.dependency_code || "Shared issue",
-      [issue.status, issue.reason_code, issue.scope, issue.owner_module, issue.recommended_ui_route]
+      title,
+      [
+        issue.issue_code && issue.dependency_code && issue.dependency_code !== issue.issue_code
+          ? issue.dependency_code
+          : "",
+        issue.status,
+        issue.reason_code,
+        issue.scope,
+        issue.owner_module,
+        issue.recommended_ui_route,
+      ]
         .filter(Boolean)
         .join(" — "),
     );

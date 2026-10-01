@@ -160,7 +160,7 @@ Audit checks:
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G3 — client corrections after independent diff audit; still in progress`
+`WP02-G3 — final remediation rendering implemented; awaiting independent ChatGPT verification`
 
 ## Gate Status
 [~] IN PROGRESS — the second independent audit passed the server contract and the earlier client corrections. The final remediation-rendering correction is on this branch: satisfied dependencies stay off the remediation list, and server `shared_issues` are shown as supplied. Do not advance to WP02-G4 until this correction is audited.
