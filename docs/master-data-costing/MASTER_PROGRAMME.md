@@ -47,10 +47,10 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-None. WP03 — Creation-Time Guided Completeness is completed, verified, merged, and closed. WP02 remains completed, verified, merged, and closed.
+WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-None. WP03-G7 is completed and verified. WP04 has not started.
+WP04-G0 — Entry criteria / current-state audit is completed and verified at audit/documentation level on the unmerged documentation branch. WP04-G1 — Portfolio readiness contract is next and has not started.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-Start WP04 — Central Master Data / Costing Readiness Control Centre in a new chat. Do not start WP04 in the WP03 closure chat. Do not reopen WP02 or WP03 except for a demonstrated regression or an explicitly assigned parked item.
+Review the WP04-G0 evidence and proceed next to WP04-G1 — Portfolio readiness contract, planning/review only. G0 stops without functionality or production changes. Programme progress remains 4 of 13. Do not reopen WP02 or WP03 except for a demonstrated regression or an explicitly assigned parked item.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
