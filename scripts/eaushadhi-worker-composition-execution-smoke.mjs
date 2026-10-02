@@ -157,6 +157,7 @@ function fakeDeps(authorities, options = {}) {
     },
     verifyFilledTarget: async (target, portalProductRef) => {
       calls.push(["verifyFilledTarget", target, portalProductRef]);
+      if (options.verifyFilledError) throw options.verifyFilledError;
       return options.filledVerification || { ok: true, code: "POST_FILL_VERIFIED" };
     },
     invokeSaveOnce: async () => {
@@ -426,6 +427,66 @@ for (const [label, mutate, code] of [
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].saveEvidence.reason, "POST_FILL_VERIFICATION_FAILED");
 }
 
+// A thrown final verification is bounded and durably rejected before SaveData.
+{
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, verifyFilledError: new Error(`transport ${REF}`) });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "POST_FILL_VERIFICATION_ERROR");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "REJECTED");
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(REF));
+}
+
+// Failure to durably close a thrown verification remains SAVE_ARMED/recovery-required.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    verifyFilledError: new Error("controlled page closed"),
+    recordSaveError: new Error("record unavailable"),
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED");
+  assert.equal(result.runStatus, "SAVE_ARMED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+}
+
+// Post-Save recording failures never retry or proceed to fresh verification.
+for (const [label, saveObservation, expectedOutcome] of [
+  ["confirmed", { invoked: true, invokeCount: 1, settled: true, transportSuccess: true, businessSuccess: true, responseParsed: true, matchingRequestCount: 1 }, "CONFIRMED"],
+  ["ambiguous", { invoked: true, invokeCount: 1, settled: false, matchingRequestCount: 1 }, "AMBIGUOUS"],
+  ["rejected", { invoked: true, invokeCount: 1, settled: true, noMutationProven: true, matchingRequestCount: 0 }, "REJECTED"],
+]) {
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, saveObservation, recordSaveError: new Error(`${label} record failed`) });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED", label);
+  assert.equal(result.runStatus, "SAVE_ARMED", label);
+  assert.equal(result.saveOutcome, expectedOutcome, label);
+  assert.equal(result.saveInvoked, true, label);
+  assert.equal(result.invokeCount, 1, label);
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1, label);
+  assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1, label);
+  assert.equal(deps.calls.filter(([name]) => name === "loadAuthority").length, 1, label);
+  assert.equal(deps.calls.some(([name]) => name === "verifyRow"), false, label);
+}
+
+// A wrong durable status is recovery-required and CONFIRMED cannot verify fresh.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    recordSaveResult: { run_status: "SAVE_AMBIGUOUS", stage_row_version: 4 },
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED");
+  assert.equal(result.saveOutcome, "CONFIRMED");
+  assert.equal(result.runStatus, "SAVE_ARMED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.filter(([name]) => name === "loadAuthority").length, 1);
+  assert.equal(deps.calls.some(([name]) => name === "verifyRow"), false);
+}
+
 // Ambiguous is recorded before return and never retried.
 {
   const executor = createCompositionExecutor();
@@ -434,6 +495,21 @@ for (const [label, mutate, code] of [
   assert.equal(result.code, "SAVE_AMBIGUOUS");
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "AMBIGUOUS");
   assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1);
+}
+
+// A durably recorded REJECTED outcome stops without verification or a new run.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    saveObservation: { invoked: true, invokeCount: 1, settled: true, noMutationProven: true, matchingRequestCount: 0 },
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "SAVE_REJECTED");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1);
+  assert.equal(deps.calls.filter(([name]) => name === "loadAuthority").length, 1);
+  assert.equal(deps.calls.some(([name]) => name === "verifyRow"), false);
 }
 
 // Local run guard blocks a second Save invocation for the same server run ID.

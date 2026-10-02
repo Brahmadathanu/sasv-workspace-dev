@@ -54,6 +54,7 @@ const PRE_SAVE_FAILURE_CODES = new Set([
   "POST_FILL_NATIVE_SAVE_UNAVAILABLE",
   "POST_FILL_FIELD_MISMATCH",
   "POST_FILL_SELECT_MISMATCH",
+  "POST_FILL_VERIFICATION_ERROR",
 ]);
 
 function boundedPreSaveFailureCode(value, fallback) {
@@ -409,10 +410,19 @@ function createCompositionExecutor() {
           message: "Composition target fill failed before Save.",
         });
       }
-      const filledVerification = await deps.verifyFilledTarget(
-        armed.target_projection,
-        armed.portal_product_ref,
-      );
+      let filledVerification;
+      try {
+        filledVerification = await deps.verifyFilledTarget(
+          armed.target_projection,
+          armed.portal_product_ref,
+        );
+      } catch {
+        return rejectArmedWithoutMutation(deps, armed, {
+          reason: "POST_FILL_VERIFICATION_FAILED",
+          failureCode: "POST_FILL_VERIFICATION_ERROR",
+          message: "Composition final pre-Save verification could not complete.",
+        });
+      }
       if (!filledVerification?.ok) {
         const failureCode = boundedPreSaveFailureCode(
           filledVerification?.code,
@@ -438,13 +448,40 @@ function createCompositionExecutor() {
       }
       observation = { ...observation, invoked: true, invokeCount: guard.invokeCount };
       const classification = classifySave(observation);
-      const recorded = await deps.recordSave({
-        runId: armed.run_id,
-        expectedStageRowVersion: Number(armed.stage_row_version),
-        expectedContentHash: armed.content_hash,
-        outcome: classification.outcome,
-        saveEvidence: saveEvidence(observation, classification),
-      });
+      let recorded;
+      try {
+        recorded = await deps.recordSave({
+          runId: armed.run_id,
+          expectedStageRowVersion: Number(armed.stage_row_version),
+          expectedContentHash: armed.content_hash,
+          outcome: classification.outcome,
+          saveEvidence: saveEvidence(observation, classification),
+        });
+      } catch {
+        return fail(
+          "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED",
+          "The portal Save outcome could not be durably recorded; the active run requires recovery.",
+          {
+            saveInvoked: observation.invoked === true,
+            invokeCount: guard.invokeCount,
+            saveOutcome: classification.outcome,
+            runStatus: "SAVE_ARMED",
+          },
+        );
+      }
+      const expectedRunStatus = `SAVE_${classification.outcome}`;
+      if (upper(recorded?.run_status) !== expectedRunStatus) {
+        return fail(
+          "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED",
+          "The server did not confirm the expected durable Save outcome; the active run requires recovery.",
+          {
+            saveInvoked: observation.invoked === true,
+            invokeCount: guard.invokeCount,
+            saveOutcome: classification.outcome,
+            runStatus: "SAVE_ARMED",
+          },
+        );
+      }
       const run = {
         runId: armed.run_id,
         targetId,
