@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G2 — Information architecture/remediation model is completed and verified at requirements/design-review level after documentation corrections. G0/G1 remain complete. G3 server/client package decomposition is next and not started; implementation feasibility, governed-period integration and CSE-P01 constraints remain unresolved. Documentation branch is unmerged; no implementation is authorized.
+WP04-G3 — Server/client package decomposition is in progress: candidate S0 nonproduction proof, S1 server and C1 client plan ready for independent high-risk review. G0/G1/G2 remain complete at their documented levels. Environment, CSE compatibility, nonmonetary payload, access and full-count performance proofs are absent. Documentation branch unmerged; no implementation or production apply authorized.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G3 — Server/client package decomposition, planning only. Define exact contracts/files, feasibility, governed-context integration, payload/access/navigation boundaries, regression/performance proof and rollback strategy using reviewed G1/G2 requirements. Independent high-risk package review precedes implementation. Programme progress remains 4 of 13. Do not reopen WP02 or WP03 except for a demonstrated regression or an explicitly assigned parked item.
+WP04-G3 — Independent server/client package plan review. Review exact candidate contracts/ACL/composition, client integration and staged nonproduction/proof/apply gates; no production application before unresolved feasibility proofs. Programme progress remains 4 of 13. Do not reopen WP02 or WP03 except for a demonstrated regression or an explicitly assigned parked item.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.

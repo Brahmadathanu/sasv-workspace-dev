@@ -503,8 +503,125 @@ CSE-P01 and SEC-P02 retain their parked governance boundaries. They are implemen
 
 These are accepted planning requirements/direction, not a permanent new architecture/business/security lock. CHANGELOG_DECISIONS remains unchanged. PARKED_BACKLOG remains unchanged: Marketing editor placement is still open, and the period integration finding is a required G3 dependency recorded here, not a newly parked enhancement.
 
+## WP04-G3 — Server/client package decomposition proposal (2026-10-02)
+
+**[~] PLAN READY FOR INDEPENDENT HIGH-RISK PACKAGE REVIEW; NOT IMPLEMENTATION APPROVED.** This is an exact candidate package boundary, not deployed APIs or certified performance. G0/G1/G2 remain complete at their documented levels. Do not execute the proposed server/client changes from this plan without the next review checkpoint.
+
+### Entry and fresh bounded evidence
+Fetched main and the documentation branch before work. Main remains `47dcd80f69ca68fcca8f089bf40fa4099b376450`; branch entry `f08b82b58ae6965dbc86cfa271279aad0180fa85` is clean. WP03 remains closed. Supabase and Supabase Postgres Best Practices skills were read before live/query work. All live queries used read-only transactions and 10-second statement timeouts.
+
+Live canonical readiness, latest-governed-period, route readiness, commercial point resolver, enrich, run-evidence and shared-issue definitions exactly match the G0/G1 captured definitions. Canonical definition MD5: `0e966c3c1ab15d56420b234f5c2cef1f`; commercial point resolver MD5: `68bd9325062299eb8af1291bf4d9393b`. This checks architecture drift, not fresh readiness population totals.
+
+| Fresh finding | Package implication |
+| --- | --- |
+| Governed cost-period rows: Sep2026/2026-09-10, Aug/2026-08-07, Jul/2026-07-22, Jun/2026-06-30, Mar/2026-03-31; bounded latest-24 read | Select periods from cost_periods via controlled metadata read, not snapshot membership or browser calendar |
+| Authenticated has no SELECT on costing.cost_periods; latest-period RPC has Manage Products OR Control Center view; supplied-period valuation reader has Control Center view | Do not grant table SELECT or widen existing readers. A new controlled period-list reader is proposed |
+| Naming audit found latest/valuation/history readers, no governed-period listing or portfolio readiness reader | New read contract is high-risk server work, not a client-only task. Function-name collision check must be repeated before creating candidates |
+| Commercial point helper for SKU10/11/42/114/1795, each consumed with LIMIT1: 28.103ms, 1451 shared hit blocks, five function-scan loops, no read blocks | Existing point narrowing remains intact. Small warm sample is not a portfolio benchmark or proof of source choice |
+| Cost-period primary key; Product/SKU identities and parent FK; control exact unique index includes period+valuation+run+SKU; commercial snapshot unique run+SKU with separate legacy period+SKU | Existing indexes support identity/membership lookups, but do not establish commercial SKU+period authority across runs. No new commercial index, order, run filter or deduplication is proposed |
+| Eight Run115 note categories each have 636 nonblank notes; keyword screen flags 1 control note and 4 QC notes, others 0 | Pattern `(₹|INR|Rs[.]|amount|rate)` is a triage signal, not proof of amounts or absence. No note text was output. Review nested/free text before certifying nonmonetary payload; neither blanket pass nor silent note removal |
+
+Full readiness distributions, concurrency and optimized full-count costs remain unmeasured. G0/G1 population counts are historical observations. No N-call canonical census, broad production benchmark, mutation or branch provisioning was performed.
+
+### Package boundaries and order
+| Package | Candidate work | Preconditions / result |
+| --- | --- | --- |
+| S0 — Nonproduction equivalence/performance proof | Baseline captures and candidate composition in a separately authorized nonproduction environment; no production DDL | Required evidence before production application. Environment does not yet exist in this work session; no Supabase branch/cost accepted or fixture creation authorized here |
+| S1 — High-risk canonical composition and portfolio reads | Common LIVE_AS_OF composition, shared route/context/global work, bounded portfolio/gap/period readers and explicit ACLs | Independently reviewed SQL/package plus S0 proof, CSE compatibility, payload/access audit and rollback evidence. Conditional WP04-G4 execution only after authorization |
+| C1 — Embedded read-only readiness lens | Reviewed server contracts consumed within current Control Center shell; bounded list, scopes, context, counts, gaps and detail | S1 independently verified and API frozen; G5 client implementation after reviewed client architecture package |
+| V1 — Independent implementation audit / live verification | G6 audit; G7 authenticated permission/context/navigation/parity/performance proof | No manufactured production data; existing surfaces and WP03 regressions checked |
+
+This plan does not authorize creation of a paid development branch, installing an unreviewed database, production deployment or independent CSE/SEC remediation. If an adequate nonproduction environment cannot be established, report S0 blocked rather than applying speculative SQL to production.
+
+### Candidate S1 authority composition
+Propose **one common internal LIVE_AS_OF evaluator**, candidate name `costing.fn_product_sku_readiness_live_core`. Its typed inputs are SKU, normalized period, governed valuation, nullable selected successful run, trusted route evidence and trusted shared issues. Public callers cannot supply route/shared evidence, valuation or run overrides. It performs the existing BOM, batch, MRP, selling and commercial point lookups and constructs exactly the existing canonical identity/lifecycle/base dependencies/summary/downstream result. Do not copy severity CASE rules into a second portfolio implementation.
+
+The public single-SKU RPC retains its signature, authentication and Manage Products OR Control Center view boundary, normalization/errors and context/run resolution. LIVE_AS_OF delegates to the common core; the existing EXACT_RUN branch and its frozen inputs remain unchanged. The single reader obtains route evidence using the existing route function; portfolio obtains that function's entire result once at the governed valuation and selects the same Product record for each SKU. Preserve Active-Product route membership, missing/null route behaviour and effective family inheritance. No direct filtered replacement of route validation is proposed.
+
+Candidate `costing.fn_product_sku_readiness_enrich_with_shared` extracts the current enrich composition with an internal supplied shared-issues argument. Existing `fn_product_sku_readiness_enrich` keeps its signature and delegates after obtaining shared issues itself, preserving EXACT_RUN/public callers. Both the common live core and the existing enrich wrapper use that one extracted composition. Existing run-evidence helper and scheme/regional status resolution remain their authorities. Shared issues are evaluated once per portfolio response only when a matching SUCCESS run exists. The no-success-run path returns the exact current eight base dependencies and empty shared_issues without enrichment.
+
+Canonical global policy helper intentionally catches resolver exceptions and produces governed BLOCKED issues. Preserve those caught business/evidence states. "Fail the response" applies to unhandled assessment errors, not to rewriting canonical caught exceptions as transport failure.
+
+Context selection is once per response, under one STABLE read observation: normalized requested month, valuation from cost_periods, latest SUCCESS by period+valuation ordered finished_at DESC NULLS LAST then id DESC. Do not use the snapshot wrapper's per-period selector. Keep null requested run, nullable evidence run and canonical run/context integrity values. No changing snapshot writes, refresh executor or historical evidence.
+
+**CSE-P01 implementation stop:** preserve the commercial point-helper body and its existing point inputs and unordered LIMIT1 consumption; do not inline, index/order, deduplicate, select by run/valuation or join the entire commercial view. Moving the call into a common evaluator still changes a call site and is not automatically proven compatible. S0 must compare all candidate sets and consumed canonical status/source/warning on representative ambiguous groups, including SKU1795. Compare candidate outputs in the same observation and inspect execution plans. Successful samples do not confer a governed deterministic source. If the candidate changes consumption or requires a source-selection rule, stop S1 for a separately reviewed CSE-P01 proposal; no implicit authority decision or reproducible full-census claim.
+
+### Candidate public read contracts (names/signatures for review, not existing APIs)
+All three new readers return JSONB, are read-only/STABLE, enforce authenticated **Control Center view only** as the proposed boundary, and bound inputs/output. This is an explicit narrowing of G1's candidate OR permission for the *new* endpoints, for review: there is no Product-only portfolio consumer in accepted G2. Existing single-SKU/latest-period OR permissions stay unchanged. No new permission target or grant of module access. Product-only actors must be denied on these candidates while their existing Manage Products reads continue succeeding.
+
+| Candidate reader | Proposed arguments | Response / rules |
+| --- | --- | --- |
+| `public.rpc_get_readiness_governed_periods` | `p_before_period_start date=null`, `p_limit integer=24` | Latest-first cost_periods metadata: period_start, valuation_date (nullable), next boundary, has_more; hard max100, validate positive limit. Include missing valuation rows explicitly; no skip-to-older-good-period. No remarks/approval/actor monetary-free-text payload needed for this selector |
+| `public.rpc_get_product_sku_readiness_portfolio` | `p_period_start date` required; `p_population_scope text='OPERATIONAL'`; optional `p_overall_severities text[]`, `p_dependency_codes text[]`, `p_owner_modules text[]`, `p_route_codes text[]`, `p_search text`; `p_after_sku_id bigint=null`; `p_limit integer=50` | Normalized LIVE_AS_OF context, Product/SKU scope, observed_at, full-population statistics, matched_count, bounded page of canonical payloads and next key. Max100 rows. No caller valuation/run/context override. Each membership SKU assessed exactly once before issue filtering; page fetch includes statistics work |
+| `public.rpc_get_readiness_product_gaps` | `p_product_scope text='ACTIVE_PRODUCTS'`; `p_gap_kind text='NO_SKU'`; optional `p_search text`; `p_after_product_id bigint=null`; `p_limit integer=50` | Membership-only response labelled as such, Product scope and observation time, separate no-SKU and Active-without-active-SKU counts, matched_count, Product rows and next key. No period/readiness severity/context claim, no SKU placeholder. Independent read can succeed while assessment fails; do not combine observations into one immutable census |
+
+Proposed scope vocabulary: OPERATIONAL = Active Products + Active non-sample SKUs; ALL_EXISTING = all Products/all existing SKUs. Gap scope is separately ACTIVE_PRODUCTS or ALL_PRODUCTS. Gap kind selects NO_SKU or ACTIVE_WITHOUT_ACTIVE_SKU; counts remain independently named and overlap. The client couples scopes as reviewed in G2 but the server validates and echoes them independently.
+
+Validate population/kind enums, page bounds, nonnegative ID boundaries, filter cardinality (max32 values per array) and search length (max120). Normalize periods exactly as canonical single-SKU does. Overall severity filter accepts only READY/REVIEW_REQUIRED/BLOCKER/UNKNOWN. Unknown overall values in assessment are contract errors; unsupported filter values are request errors, not empty-success coercion. Dependency/owner/route values require a frozen server-supported metadata vocabulary in review; none is invented as client authority. Do not drop UNKNOWN entries to simplify filtering.
+
+Proposed filters: OR within each array, AND across filter categories; dependency/owner/route match applicable unresolved canonical incidences (BLOCKED/BLOCKER/REVIEW_REQUIRED/UNKNOWN using existing effective-or-raw semantics). Never match RESOLVED/READY/NOT_REQUIRED as remediation tasks. This matching contract needs explicit review; it does not change canonical severity. Search is literal case-insensitive Product-name substring or exact decimal SKU/Product ID, with escaped wildcard characters and no financial text search. Empty filters mean no issue filter. Full-population totals ignore issue/search/page filters; matched_count includes them; returned_count follows pagination. Empty population is zero successfully assessed rows only after valid auth/context, not a load error.
+
+Stable keyset pagination orders SKU or Product ID ascending, uses limit+1 only to derive has_more and returns actual returned count. The client keeps prior-page boundaries instead of downloading the full population. Independent pages can observe changes. A request-generation/context key invalidates old responses; no durable master revision token.
+
+Statistics: exact canonical overall-severity counts; dependency incidences by distinct SKU+code; owner/route buckets by distinct affected SKU; region counts explicitly SKU+region; shared issues preserve scope/code/context/authority/evidence identity and affected SKUs only where present in canonical shared_issues. No client aggregation, new severity precedence, age, priority or Product-wide readiness. Return the canonical page payload without field/value reinterpretation after server-side payload audit. Materialize common assessments once per response for counts and page; do not run the full assessor separately for every filter/bucket. Query plans must demonstrate that property, not merely use a CTE name.
+
+Unhandled context/auth/resolver/computation errors fail the entire assessment response; no partial rows, zero totals or fabricated UNKNOWN. Missing valuation is a context error. No-success-run remains a valid canonical context. Period and Product-gap readers have independent error states. No writers, persisted cache, tables/views/jobs or tracking state.
+
+### Exact candidate server artifact scope
+- Future CLI-generated migration(s) under `supabase/migrations/` for S1, using installed CLI `--help` / `migration new`; do not invent a timestamp filename in this plan or create a migration now. Separate canonical factoring/ACL from new reader definitions if atomic deployment cannot keep compatibility; review dependency order before execution.
+- Capture prechange `pg_get_functiondef`, exact signatures/ACL/search_path/owner and definition hashes in `supabase/rollback-evidence/<actual-generated-prefix>_wp04_pre.sql`. Include canonical RPC and enrich; list every newly created function/signature for rollback. Existing `20261002064432` WP02 evidence is immutable.
+- Proposed new test SQL under `supabase/tests/wp04_readiness_portfolio_contract.sql` and performance script/evidence under `scripts/wp04-readiness-server-proof.mjs` (nonproduction/read-only execution boundary documented). Repository currently has standalone smoke scripts, not a package test runner; do not imply these tests already exist.
+- After reviewed successful server package, update `supabase/notes/db-changes.md` and affected function types in `public/shared/js/types/supabase.ts` through the existing type-sync process; inspect/limit generated diff to WP04, no blanket unrelated type churn.
+- No change to route/commercial/run-evidence/shared-issue source authorities, table grants, RLS, lifecycle writers, refresh/acceptance writers, cost-period mutation or SEC-P01/02 objects.
+
+Security: public wrappers need SECURITY DEFINER only where reviewed internal/table privileges require it; explicit auth.uid plus Control Center view, fixed trusted search_path with pg_temp last and fully qualified objects. Revoke PUBLIC/anon EXECUTE; authenticated executes only public readers, never the new core/enrich internal helpers. No default PUBLIC function execution, schema grants or service-role bypass of actor checks. Preserve existing function ACLs exactly unless separately reviewed. No dynamic SQL based on filter inputs. Catalog/SQL role checks are not authenticated browser/API proof.
+
+### C1 exact client integration scope (conditional on S1)
+| File / candidate new file | Bounded change for later reviewed implementation |
+| --- | --- |
+| `public/shared/js/costing-suite-readiness.js` (new) | Controller/API adapter, validation of frozen response envelope, request generation, keyset boundaries, loading/unavailable/empty states, scopes/counts/gaps and escaped read-only detail; no business severity or financial calculations |
+| `public/shared/js/costing-suite-registry.js` | Add one `portfolio-readiness` lens to existing control-center suite; label Readiness, period-scoped; preserve all existing lens declarations |
+| `public/shared/js/costing-route-config.js` | Add candidate lens to Control Center allowlist only; dashboard remains default; same module permission and routePath |
+| `public/shared/js/costing-suite-shell.js` | Import/controller lifecycle; explicit lens load/render/detail dispatch before generic snapshot handling; delegate pagination/search/filter UI; readiness-specific governed-period selector state; response invalidation on scope/period/filter/lens/selection changes; error boundaries. Do not pass readiness rows into generic monetary detail/diagnosis fetchers or local full-catalog applyFilters |
+| `public/shared/costing-control-center.html` | Minimal hidden-by-default readiness context/scope/statistics/coverage containers and read-only detail hooks if existing shell slots are insufficient; show only for the new lens |
+| `public/shared/css/sasv-costing.css` | Scoped readiness layout/accessibility styles only if needed; shared visual redesign remains WP11 |
+| `public/sw.js` | Reviewed cache invalidation for new/changed readiness assets, one monotonic cache-name increment at client implementation; no change now |
+| `scripts/wp04-readiness-client-contract-smoke.mjs` (new) | Executable request/response, race, pagination, error, view-only and navigation-boundary tests with mocks; no writer calls or live fixture mutations |
+
+Keep the new lens outside `isControlCenterLens`'s three existing controller paths unless explicit dispatch guarantees no snapshot fallback. The existing `costing-suite-control-center.js` can remain unchanged with separate readiness controller; do not alter material acceptance or snapshot drawer/cache logic for reuse. Guard read-only detail from generic `fetchSkuDetail`, `fetchSkuSchemes`, `fetchSkuDiagnostics`, calendar-fallback `activePeriodIso` and refresh writers. Keep separate context identities for live assessment vs exact frozen caches.
+
+The readiness lens maintains its selected **governed** period using the new catalog; it must not inherit AVAILABLE_COSTING_PERIODS, snapshot/latest-summary or calendar fallback. Use latest catalog row as visible initial selection only after successful catalog read; server validates valuation. Leaving readiness restores existing lens period behaviour. Product gaps do not imply a costing period and use their membership-only observation label.
+
+Initial navigation package proposal: owner/route text only in the new readiness detail. No new maps or helper edits. G2 permitted proven navigation conditionally; G3 found Stage05 destination/context proof is not complete for this new consumer. Existing Stage05 links on existing snapshot/workbench pages remain untouched. If review requires a supported link subset, freeze each exact code/context/permission/destination journey first in a separate bounded addition. No Product Master deep-link assumption, no costing review/approval alias, no Marketing acceptance control.
+
+No `js/products.js`, Manage Products HTML, launcher registry, `main.js`, version/package/lockfile, permission target or specialist editor change is planned. No new dependency package. PWA cache update is a client artifact change, not authorization to release/publish.
+
+### Verification matrix, feasibility gates and rollback
+| Proof | Required evidence before declaring package verified |
+| --- | --- |
+| Authority parity | Same-observation single vs portfolio JSON for identity/lifecycle/context/all dimensions/dependencies/shared issues/downstream, no-run path and inactive/sample parent cases; exact EXACT_RUN preservation and immutable Run114/115 evidence; failed Run116 excluded |
+| Commercial ambiguity | All-candidate sets and consumed status/source/warning for ambiguous groups; unchanged point helper/call semantics and plan review; no latest-row selector. Stop on differences, no exclusion of affected SKUs to pass |
+| Statistical correctness | All-existing/operational memberships, SKU totals and each separate gap count; overlap; filters vs population vs returned counts; owner/route/region/shared grains, stable-fixture keyset traversal and no client totals |
+| Context and failures | Missing governed period/valuation, no success, permission denial, timeout, unexpected/null severity, malformed payload, row/envelope mismatch and delayed old-context response; no partial/UNKNOWN fallback |
+| Access/payload | Actual allowed Control Center view/edit actors, Product-only denial on new readers, preserved Product-only single read, denied/anonymous and direct-helper denial; nested note/content audit and no financial leakage; no writer invocation |
+| Performance | Nonproduction cold/warm representative all-existing and operational full-statistics + page queries, bounded concurrency; buffers/loops/materialization and request size/latency. Route/context/global once per response; measure all pre-page work. G1 <=3s page/<=5s full statistics remain goals pending measurement, not approved SLAs |
+| Existing client regression | Existing dashboard, Control Workbench/material acceptance, SKU Control Status frozen/current detail, QC/MS and Pricing/Route workflows; Manage Products creation/no-SKU/guidance/ungated activation unchanged. Target `recommended-ui-route-smoke.mjs`, material-remediation evidence/foundation, `sku-status-diagnosis-scope-smoke.mjs`, route as-of and affected tests; browser Electron/PWA view-only/denied journeys |
+
+No optimized full-count proof can be generated by this documentation gate without building a candidate in an approved environment. Full statistics may dominate a bounded page; if goals cannot be met, bring measured targets/scope changes to review rather than conceal it with a smaller page. Missing-index changes are separate high-risk additions: an index can change unordered commercial evidence consumption. No broad indexing is authorized here.
+
+Deployment proposal is staged: reviewed migration and rollback rehearsal in nonproduction → independent server proof → explicitly authorized production application → read-only live spot checks and unchanged canonical consumers → reviewed client package → G6/G7 → explicit G8 merge/closure. Reconcile current main and live definitions again at every apply point. Client must not be delivered with placeholder-success RPC responses.
+
+Rollback order: first disable/revert only the new client lens; revoke/drop the three new public readers if introduced; restore exact prechange canonical/enrich bodies and ACLs; drop new internal helpers only after dependencies are removed. Never remove existing helper/source tables, rewrite snapshots or use DROP CASCADE. Rehearse with exact generated signatures and migration-history handling before apply. Existing consumers must function after both forward and rollback paths.
+
+### Current gate classification and next checkpoint
+REQUIRED NOW: independent review of this S0/S1/C1 proposal, especially proposed Control Center-only bulk authorization (explicit difference from G1 candidate OR), exact endpoint/filter/gap semantics, period/catalog integration, common-core/enrich factoring, source/payload compatibility and environment/proof prerequisites.
+
+HIGH-RISK: new/changed RPCs, internal composition, ACLs and cross-shell architecture; all remain unapproved. FUTURE DEPENDENCY: nonproduction environment and measured proof, G4 server application, G5 client package, G6–G8. PARKED: UX/NAV/CSE/SEC items retain their assignments; period integration and payload checks are required package constraints, not new parked findings. OUT OF SCOPE: commercial authority selection, specialist/bulk writers, RLS cleanup, new module, lifecycle policy, monetary readiness or production repair.
+
+G3 is **not complete** and neither S1 nor C1 may execute. Immediate next checkpoint: **WP04-G3 — Independent server/client package plan review**. Review may accept a bounded nonproduction proof package, require corrections, or mark feasibility blocked. It must not authorize production application while CSE compatibility, payload, access and performance proofs remain absent. After reviewed G3 closure, WP04-G4 is conditional on the approved server package and its staged proof/apply gates.
+
 ## Approved design / contract
-G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new permanent decision lock; CHANGELOG_DECISIONS.md unchanged.
+G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new permanent decision lock; CHANGELOG_DECISIONS.md unchanged. G3 package proposal above is ready for independent review, not approved.
 
 ## Proposed gate sequence
 The original skeleton had unnumbered audit, contract, implementation, focused verification, independent audit, merge and handover milestones. The sequence below refines it because the audited full-live contract/performance gap needs explicit contract, IA and package gates; conditional server work remains separately reviewed.
@@ -514,7 +631,7 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G0 — Entry criteria / current-state audit | [x] COMPLETED AND VERIFIED at audit/documentation level |
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
-| WP04-G3 — Server/client package decomposition | [ ] Exact files/contracts/tests; separate high-risk plan approval before execution |
+| WP04-G3 — Server/client package decomposition | [~] Exact candidate S0/S1/C1 package proposal ready for independent high-risk review; feasibility proofs absent; no implementation |
 | WP04-G4 — High-risk server package, if required | [ ] Conditional; implement only reviewed/approved package, with canonical equivalence/performance/permission proof |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
@@ -522,16 +639,16 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G2 — Independent information-architecture/remediation-model review and closure`
+`WP04-G3 — Server/client package decomposition`
 
 ## Gate Status
-[x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections. G0/G1 remain complete. WP04 incomplete; G3 not started; branch unmerged; no implementation authorization.
+[~] IN PROGRESS — candidate package plan ready for independent review. G0/G1/G2 complete at their documented levels. WP04 incomplete; branch unmerged; no implementation or production application authorization.
 
 ## Required to close
-Satisfied for G2: proposal reviewed, corrections recorded and planning direction accepted. Server feasibility, exact API/ACL, governed-period integration, route support and implementation packages remain for G3; no live deployment is certified by G2 closure.
+Independent review of exact candidate APIs/ACL/composition/client scope, environment and proof gates; explicit disposition of commercial compatibility, nonmonetary payload and performance dependencies. No claim of executable/production-approved server package while those proofs are absent.
 
 ## Next gate
-`WP04-G3 — Server/client package decomposition`. Exact package planning only, including feasibility/context/access/performance/equivalence and rollback evidence. Separate independent high-risk package review before G4/G5 implementation.
+Immediate checkpoint: `WP04-G3 — Independent server/client package plan review`. After reviewed closure, conditional WP04-G4 server package with separately approved nonproduction proof and production-apply stages; G5 client follows verified server contract.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -557,18 +674,20 @@ None.
 6. Existing partial route maps do not establish full WP01 navigation continuity.
 7. Snapshot READY is not live READY; absence is not READY; failed refresh must not erase last-success proof.
 8. Performance measurement is bounded and single-user; no approved SLA, concurrency proof or full census yet.
-9. Existing shell snapshot/calendar period selection is not governed readiness context; G3 must define the validated path, catalog availability and stale-response protection.
+9. G3 proposes controlled period catalog and distinct readiness selector/race handling; exact contract and integration remain pending review.
+10. Candidate new endpoints use Control Center-only view while existing single-SKU/latest-period OR permissions stay unchanged; explicit bulk access review remains required.
+11. No approved nonproduction environment or full-count/CSE/payload proof exists; no speculative production apply.
 
 ## Parked discoveries
 SEC-P02 added to PARKED_BACKLOG.md; existing items unchanged. No new decision approved.
 
 ## Exit criteria / final handover
-WP04 is not complete. G0/G1/G2 remain verified at their documented audit/design-review levels. G3 is next and not started. The unmerged audit branch contains documentation only. No tag/release/merge or branch cleanup. No new live queries or production mutations in G2 proposal/review; historical audit evidence is explicitly dated.
+WP04 is not complete. G0/G1/G2 remain verified at their documented levels. G3 plan ready for independent package review; G4 onward not started. Documentation branch unmerged; no tag/release/merge or branch cleanup. G3 performed bounded read-only live definition/catalog/point-helper-plan/note-count checks; no production mutation. Older full inventory counts are historical, not newly verified.
 
-Workflow: audit → contract/plan review for high-risk → package decomposition → approved implementation → independent audit → authenticated verification → explicit merge/post-merge closure.
-WP progress: G0/G1/G2 complete at their documented levels; G3 onward not started.
+Workflow: audit → contract/plan review for high-risk → package decomposition → approved nonproduction proof → separately authorized server application → reviewed client implementation → independent audit → authenticated verification → explicit merge/post-merge closure.
+WP progress: G0/G1/G2 complete; G3 in progress, plan awaiting review.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G2 independent design review completed.
-Next: WP04-G3 server/client package decomposition, planning only.
-Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02; no new parked item.
-Locked: server readiness authority, lifecycle separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. G2 adds no permanent decision lock.
+Current gate: WP04-G3 server/client package decomposition.
+Next: WP04-G3 independent package-plan review.
+Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
+Locked: canonical server readiness authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. G3 adds no decision lock.
