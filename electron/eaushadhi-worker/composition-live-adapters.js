@@ -8,6 +8,7 @@ const EXPECTED_ROUTE = "/admin/addcomposition";
 const LIST_INITIAL_LENGTH = 10;
 const LIST_MAX_ROWS = 50;
 const REFERENCE_WAIT_MS = 5000;
+const BASE_OPTION_WAIT_MS = 5000;
 const SAVE_OBSERVE_TIMEOUT_MS = 8000;
 const SAVE_ENDPOINT_PATH = "/admin/SaveCompositionData";
 
@@ -215,24 +216,109 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
         if (options.length !== 1 || !String(value) || String(value) === "-1") throw new Error("SELECT_VALUE_UNPROVEN");
         el.value = String(value); el.dispatchEvent(new Event("change", { bubbles: true })); return el;
       };
+      const waitForSelect = async (selectors, value) => {
+        const end = Date.now() + waitMs;
+        while (Date.now() < end) {
+          const el = one(selectors);
+          const options = el ? [...el.options].filter((o) => String(o.value) === String(value)) : [];
+          if (el && !el.disabled && String(value) && String(value) !== "-1" && options.length === 1) return el;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error("BASE_OPTION_NOT_READY");
+      };
+      const typeSelectors = ["#ddlType1", "#ingredientTypeId", "select[name='ingredientTypeId']"];
+      const formSelectors = ["#ddlForm1", "#ingredientFormId", "select[name='ingredientFormId']"];
+      const partSelectors = ["#ddlPart1", "#partuseId", "select[name='partuseId']"];
+      const unitSelectors = ["#ddlUnit1", "#unitId", "select[name='unitId']"];
+      await Promise.all([
+        waitForSelect(typeSelectors, values.ingredientType),
+        waitForSelect(formSelectors, values.ingredientForm),
+        waitForSelect(partSelectors, values.partUsed),
+        waitForSelect(unitSelectors, values.measurement),
+      ]);
       text(["#txtIng1", "#ingredientName", "input[name='ingredientName']"], values.ingredientName);
       text(["#txtBotanical1", "#botanicalName", "input[name='botanicalName']"], values.scientificName);
-      select(["#ddlType1", "#ingredientTypeId", "select[name='ingredientTypeId']"], values.ingredientType);
+      select(typeSelectors, values.ingredientType);
       const reference = one(["#ddlRef1", "#referenceId", "select[name='referenceId']"]);
       const end = Date.now() + waitMs;
+      let referenceReady = false;
       while (Date.now() < end) {
-        if (reference && !reference.disabled && [...reference.options].some((o) => String(o.value) === String(values.reference))) break;
+        if (reference && !reference.disabled && [...reference.options].filter((o) => String(o.value) === String(values.reference)).length === 1) {
+          referenceReady = true;
+          break;
+        }
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
+      if (!referenceReady) throw new Error("REFERENCE_OPTION_NOT_READY");
       select(["#ddlRef1", "#referenceId", "select[name='referenceId']"], values.reference);
-      select(["#ddlForm1", "#ingredientFormId", "select[name='ingredientFormId']"], values.ingredientForm);
-      select(["#ddlPart1", "#partuseId", "select[name='partuseId']"], values.partUsed);
+      select(formSelectors, values.ingredientForm);
+      select(partSelectors, values.partUsed);
       text(["#txtQty1", "#quantity", "input[name='quantity']"], values.quantity);
-      select(["#ddlUnit1", "#unitId", "select[name='unitId']"], values.measurement);
+      select(unitSelectors, values.measurement);
       return { ok: true };
-    }, { fields, waitMs: REFERENCE_WAIT_MS });
+    }, { fields, waitMs: Math.max(REFERENCE_WAIT_MS, BASE_OPTION_WAIT_MS) });
     if (!result?.ok) throw new Error("COMPOSITION_FILL_FAILED");
     return result;
+  }
+
+  async function verifyFilledTarget(target, expectedPortalProductRef) {
+    const expected = {
+      ingredientName: String(target?.ingredient_name ?? "").normalize("NFC").trim(),
+      scientificName: String(target?.scientific_name ?? "").normalize("NFC").trim(),
+      ingredientType: String(target?.ingredient_type?.portal_option_value ?? "").trim(),
+      ingredientForm: String(target?.ingredient_form?.portal_option_value ?? "").trim(),
+      partUsed: String(target?.part_used?.portal_option_value ?? "").trim(),
+      quantity: String(target?.quantity_value ?? "").replace(/\.0+$/, "").trim(),
+      measurement: String(target?.measurement?.portal_option_value ?? "").trim(),
+      reference: String(target?.reference?.portal_value ?? "").trim(),
+    };
+    if (Object.values(expected).some((value) => !value)) return { ok: false, code: "TARGET_PROJECTION_INCOMPLETE" };
+    const preflight = { portal_product_ref: expectedPortalProductRef };
+    const identity = await pageIdentity(preflight, true);
+    if (!identity.ok) return identity;
+    return page.evaluate(({ expected: values }) => {
+      const one = (selectors) => selectors.map((s) => document.querySelector(s)).find(Boolean) || null;
+      const read = (selectors) => String(one(selectors)?.value ?? "").normalize("NFC").trim();
+      const canonicalQuantity = (value) => {
+        if (!/^\+?\d+(?:\.\d+)?$/.test(value)) return null;
+        const [whole, fraction = ""] = value.replace(/^\+/, "").split(".");
+        const integer = whole.replace(/^0+(?=\d)/, "") || "0";
+        const decimal = fraction.replace(/0+$/, "");
+        return decimal ? `${integer}.${decimal}` : integer;
+      };
+      const actual = {
+        ingredientName: read(["#txtIng1", "#ingredientName", "input[name='ingredientName']"]),
+        scientificName: read(["#txtBotanical1", "#botanicalName", "input[name='botanicalName']"]),
+        ingredientType: read(["#ddlType1", "#ingredientTypeId", "select[name='ingredientTypeId']"]),
+        ingredientForm: read(["#ddlForm1", "#ingredientFormId", "select[name='ingredientFormId']"]),
+        partUsed: read(["#ddlPart1", "#partuseId", "select[name='partuseId']"]),
+        quantity: read(["#txtQty1", "#quantity", "input[name='quantity']"]),
+        measurement: read(["#ddlUnit1", "#unitId", "select[name='unitId']"]),
+        reference: read(["#ddlRef1", "#referenceId", "select[name='referenceId']"]),
+      };
+      const selectProofs = {
+        ingredientType: ["#ddlType1", "#ingredientTypeId", "select[name='ingredientTypeId']"],
+        ingredientForm: ["#ddlForm1", "#ingredientFormId", "select[name='ingredientFormId']"],
+        partUsed: ["#ddlPart1", "#partuseId", "select[name='partuseId']"],
+        measurement: ["#ddlUnit1", "#unitId", "select[name='unitId']"],
+        reference: ["#ddlRef1", "#referenceId", "select[name='referenceId']"],
+      };
+      const unprovenSelects = Object.entries(selectProofs).filter(([key, selectors]) => {
+        const el = one(selectors);
+        return !el || el.disabled || !values[key] || values[key] === "-1" || [...el.options].filter((option) => String(option.value) === values[key]).length !== 1;
+      }).map(([key]) => key);
+      if (unprovenSelects.length) {
+        return { ok: false, code: "POST_FILL_SELECT_MISMATCH", diagnostics: { mismatchFields: unprovenSelects.slice(0, 5) } };
+      }
+      const mismatches = Object.keys(values).filter((key) =>
+        key === "quantity"
+          ? canonicalQuantity(actual[key]) !== canonicalQuantity(values[key])
+          : actual[key] !== values[key],
+      );
+      return mismatches.length
+        ? { ok: false, code: "POST_FILL_FIELD_MISMATCH", diagnostics: { mismatchFields: mismatches.slice(0, 8) } }
+        : { ok: true, code: "POST_FILL_VERIFIED" };
+    }, { expected });
   }
 
   async function invokeSaveOnce(runId) {
@@ -345,6 +431,7 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
       true,
     ),
     fillTarget,
+    verifyFilledTarget,
     invokeSaveOnce,
     rereadRow,
     armRun: (args) => callRpc("rpc_eaushadhi_composition_run_arm", rpcArgs({

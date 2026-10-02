@@ -13,12 +13,17 @@ const {
 } = require("../electron/eaushadhi-worker/composition-executor.js");
 const {
   COMPOSITION_LIVE_ARM_DEFAULT,
+  COMPOSITION_FIRST_LIVE_930_RELEASE,
   isCompositionLiveArmedFor,
 } = require("../electron/eaushadhi-worker/composition-live-arm.js");
 const {
   normalizeCompositionReread,
   normalizeNativeCompositionList,
+  parseNativeCompositionRowId,
 } = require("../electron/eaushadhi-worker/composition-native-normalizer.js");
+const {
+  parseCompositionRowId,
+} = require("../electron/eaushadhi-worker/composition-contract.js");
 const {
   buildCompositionLiveAdapters,
 } = require("../electron/eaushadhi-worker/composition-live-adapters.js");
@@ -27,7 +32,7 @@ const HASH = "a".repeat(64);
 const REF = "portal-262";
 const runId = "11111111-1111-4111-8111-111111111111";
 
-const line = (id, name, form) => ({
+const line = (id, name, form, quantity = 1) => ({
   source_composition_line_id: id,
   review_status: "VERIFIED",
   ingredient_name: name,
@@ -35,7 +40,7 @@ const line = (id, name, form) => ({
   ingredient_type: { portal_option_value: "1" },
   ingredient_form: { portal_option_value: form },
   part_used: { portal_option_value: "113" },
-  quantity_value: "1",
+  quantity_value: quantity,
   measurement: { portal_option_value: "9", label: "ML" },
   reference: {
     reference_ready: true,
@@ -47,7 +52,7 @@ const line = (id, name, form) => ({
     portal_label: "Sahasrayoga",
   },
 });
-const governed = [line(929, "Ajamoda", "60"), line(930, "Karpura", "66"), line(931, "Keram", "61")];
+const governed = [line(929, "Ajamoda", "60", 10), line(930, "Karpura", "66", 1.67), line(931, "Keram", "61", 10)];
 const portalRow = (source, id) => ({
   portalRowId: id,
   ingredientName: source.ingredient_name,
@@ -55,7 +60,7 @@ const portalRow = (source, id) => ({
   ingredientTypeValue: source.ingredient_type.portal_option_value,
   ingredientFormValue: source.ingredient_form.portal_option_value,
   partUsedValue: source.part_used.portal_option_value,
-  quantity: source.quantity_value,
+  quantity: String(source.quantity_value),
   measurement: { representation: "VALUE", value: source.measurement.portal_option_value },
   reference: { representation: "VALUE", value: source.reference.portal_value },
 });
@@ -73,7 +78,12 @@ function authority(rows, activeRun = null, overrides = {}) {
       stage: { stage_status: rows.length ? "PARTIAL" : "NOT_STARTED", row_version: 2 },
       active_run: activeRun,
     },
-    content: { product_id: 262, workflow_row_version: 11, content_hash: HASH, composition: structuredClone(governed) },
+    content: {
+      product_id: 262,
+      versions: { workflow_row_version: 11 },
+      content_hash: HASH,
+      composition: structuredClone(governed),
+    },
     pageIdentityEvidence: {
       actualRoute: "/admin/addcomposition",
       expectedRoute: "/admin/addcomposition",
@@ -141,7 +151,15 @@ function fakeDeps(authorities, options = {}) {
       calls.push(["recheckMutationIdentity", portalProductRef]);
       return options.identityRecheck || { ok: true };
     },
-    fillTarget: async (target) => calls.push(["fillTarget", target]),
+    fillTarget: async (target) => {
+      calls.push(["fillTarget", target]);
+      if (options.fillError) throw options.fillError;
+    },
+    verifyFilledTarget: async (target, portalProductRef) => {
+      calls.push(["verifyFilledTarget", target, portalProductRef]);
+      if (options.verifyFilledError) throw options.verifyFilledError;
+      return options.filledVerification || { ok: true, code: "POST_FILL_VERIFIED" };
+    },
     invokeSaveOnce: async () => {
       calls.push(["invokeSaveOnce"]);
       return options.saveObservation || {
@@ -173,7 +191,75 @@ function fakeDeps(authorities, options = {}) {
 }
 
 assert.equal(COMPOSITION_LIVE_ARM_DEFAULT, false);
-assert.equal(isCompositionLiveArmedFor(262, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(COMPOSITION_FIRST_LIVE_930_RELEASE, false);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+
+const parsedId = (markup) => parseCompositionRowId(markup);
+const provenId = (markup, expected = "row-a") => {
+  const result = parsedId(markup);
+  assert.equal(result.ok, true);
+  assert.equal(result.code, "ROW_ID_CONTRACT_PROVEN");
+  assert.equal(result.rowId, expected);
+};
+const unprovenId = (markup) => {
+  const result = parsedId(markup);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "ROW_ID_CONTRACT_UNPROVEN");
+  assert.equal(result.rowId, null);
+};
+
+// Bounded native Composition row identity contracts.
+provenId("<a onclick=\"GetCompositionDataUpdate('row-a')\">Edit</a>");
+provenId('<a onclick="GetCompositionDataUpdate(\'row-a\')">Edit</a>');
+provenId('<a data-composition-id="row-a">Edit</a>');
+provenId("<a data-composition-id='row-a'>Edit</a>");
+provenId('<input type="hidden" name="hid1" id="hid1" value="row-a">');
+provenId("<input type='hidden' name='hid1' id='hid1' value='row-a'>");
+provenId('<input value="row-a" id="hid1" type="hidden" name="hid1">');
+provenId("<input id='hid12' value='row-a' name='hid12' type='hidden'>");
+provenId('<input type="hidden" id="hid123" value="row-a">');
+unprovenId('<input type="hidden" id="HID1" value="row-a">');
+unprovenId('<input type="hidden" id="Hid1" value="row-a">');
+assert.equal(parseNativeCompositionRowId({ edit: '<input type="hidden" id="hid1" value="row-a">' }).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({ delete: '<input type="hidden" name="hid1" value="row-a">' }).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<input type="hidden" name="hid1" value="row-a">',
+}).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<input type="hidden" id="hid1" value="row-b">',
+}).code, "ROW_ID_CONTRACT_UNPROVEN");
+provenId('<a onclick="GetCompositionDataUpdate(\'row-a\')"><input type="hidden" id="hid1" value="row-a"></a>');
+unprovenId('<a onclick="GetCompositionDataUpdate(\'row-a\')"><input type="hidden" id="hid1" value="row-b"></a>');
+unprovenId('<input type="hidden" id="other1" name="other1" value="row-a">');
+unprovenId('<input type="text" id="hid1" name="hid1" value="row-a">');
+unprovenId('<input type="hidden" id="hid1" name="hid2" value="row-a">');
+unprovenId('<input type="hidden" id="hid1" value="">');
+unprovenId('<input type="hidden" id="hid1" value="row a">');
+unprovenId(`<input type="hidden" id="hid1" value="${"a".repeat(97)}">`);
+unprovenId('<input type="hidden" id="hid1" value="row-a"><input type="hidden" id="hid2" value="row-b">');
+unprovenId('<input type="hidden" id="hid1" id="hid1" value="row-a">');
+unprovenId('<input type="hidden" id="hid1" value="row-a" id=hid2>');
+unprovenId('<input type="hidden" id="hid1" value="row-a" ID=hid2>');
+unprovenId('<input type="hidden" name="hid1" value="row-a" name=hid2>');
+unprovenId('<input type="hidden" id="hid1" value="row-a" value=row-b>');
+unprovenId('<input type="hidden" id="hid1" value="row-a" type=text>');
+unprovenId('<input type="hidden" id=hid1 value="row-a">');
+unprovenId('<input type="hidden" id="hid1" value=row-a>');
+unprovenId("1 Ajamoda Apium leptophyllum");
+unprovenId("Ajamoda");
+unprovenId(`<input type="hidden" id="hid1" value="row-a">${"x".repeat(2049)}`);
+assert.equal(parseNativeCompositionRowId({ srno: 1, ingredientName: "Ajamoda" }).code, "ROW_ID_CONTRACT_UNPROVEN");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<a data-composition-id="row-a">Delete</a>',
+}).rowId, "row-a");
+assert.equal(parseNativeCompositionRowId({
+  edit: '<input type="hidden" id="hid1" value="row-a">',
+  delete: '<a data-composition-id="row-b">Delete</a>',
+}).code, "ROW_ID_CONTRACT_UNPROVEN");
 
 const aRowNative = { edit: "<a onclick=\"GetCompositionDataUpdate('row-a')\">Edit</a>", delete: "" };
 const normalizedReread = normalizeCompositionReread(rawReread(governed[0], "row-a"), "row-a");
@@ -186,6 +272,7 @@ assert.equal(normalizeNativeCompositionList({ rows: [aRowNative, aRowNative], re
 
 const beforeRows = [portalRow(governed[0], "row-a")];
 const completeRows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "row-b"), portalRow(governed[2], "row-c")];
+const after930Rows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "row-b")];
 
 // Read-only preview.
 {
@@ -195,7 +282,45 @@ const completeRows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "r
   assert.equal(result.code, "OFFLINE_MISSING");
   assert.equal(result.mutationAllowed, false);
   assert.deepEqual(result.missingSourceLineIds, [930, 931]);
+  assert.equal(result.firstLiveEligible, false);
+  assert.deepEqual(result.executionEligibleSourceLineIds, []);
   assert.deepEqual(deps.calls.map(([name]) => name), ["loadAuthority"]);
+}
+{
+  const result = await createCompositionExecutor().preview(fakeDeps([authority(beforeRows)], { liveArmed: true }));
+  assert.equal(result.firstLiveEligible, true);
+  assert.deepEqual(result.executionEligibleSourceLineIds, [930]);
+  assert.deepEqual(result.missingSourceLineIds, [930, 931]);
+}
+
+// Workflow authority uses only matching positive-integer versions from the canonical nested content path.
+for (const [label, mutate] of [
+  ["nested mismatch", (a) => { a.content.versions.workflow_row_version = 12; }],
+  ["nested version missing", (a) => { delete a.content.versions.workflow_row_version; }],
+  ["versions object missing", (a) => { delete a.content.versions; }],
+  ["top-level-only version", (a) => {
+    delete a.content.versions;
+    a.content.workflow_row_version = 11;
+  }],
+  ["numeric string", (a) => { a.content.versions.workflow_row_version = "11"; }],
+  ["zero version", (a) => { a.content.versions.workflow_row_version = 0; }],
+  ["negative version", (a) => { a.content.versions.workflow_row_version = -1; }],
+  ["non-integer version", (a) => { a.content.versions.workflow_row_version = 11.5; }],
+]) {
+  const sample = authority(beforeRows);
+  mutate(sample);
+  const result = await createCompositionExecutor().preview(fakeDeps([sample]));
+  assert.equal(result.code, "WORKFLOW_VERSION_MISMATCH", label);
+  assert.equal(result.mutated, false, label);
+}
+
+// Content-hash authority remains an independent fail-closed gate.
+{
+  const sample = authority(beforeRows);
+  sample.content.content_hash = "b".repeat(64);
+  const result = await createCompositionExecutor().preview(fakeDeps([sample]));
+  assert.equal(result.code, "CONTENT_HASH_MISMATCH");
+  assert.equal(result.mutated, false);
 }
 
 // Failed preview exposes only the bounded identity diagnostic selected by the executor.
@@ -251,23 +376,115 @@ for (const [label, mutate, code] of [
 {
   const deps = fakeDeps([authority(beforeRows)], { liveArmed: true });
   const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 999, userConfirmed: true });
-  assert.equal(result.code, "TARGET_NOT_EXACTLY_MISSING");
+  assert.equal(result.code, "COMPOSITION_FIRST_LIVE_TARGET_REJECTED");
+  assert.equal(deps.calls.length, 0);
   assert.equal(deps.calls.some(([name]) => name === "armRun"), false);
 }
 
 // Trusted injected arm exercises arm -> server projection -> one Save -> durable outcome -> verification.
 {
   const executor = createCompositionExecutor();
-  const deps = fakeDeps([authority(beforeRows), authority(completeRows)], { liveArmed: true });
+  const deps = fakeDeps([authority(beforeRows), authority(after930Rows)], { liveArmed: true });
   const result = await executor.startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true, rendererIngredientName: "FORGED" });
   assert.equal(result.code, "ROW_VERIFIED");
   assert.equal(result.mutated, true);
   assert.equal(result.invokeCount, 1);
+  assert.equal(result.matchCount, 2);
+  assert.deepEqual(result.missingSourceLineIds, [931]);
+  assert.equal(result.blockerCount, 0);
+  assert.equal(result.conflictCount, 0);
+  assert.equal(result.duplicateCount, 0);
+  assert.equal(result.extraCount, 0);
   const names = deps.calls.map(([name]) => name);
-  assert.deepEqual(names, ["loadAuthority", "armRun", "recheckMutationIdentity", "fillTarget", "invokeSaveOnce", "recordSave", "loadAuthority", "rereadRow", "verifyRow"]);
+  assert.deepEqual(names, ["loadAuthority", "armRun", "recheckMutationIdentity", "fillTarget", "verifyFilledTarget", "invokeSaveOnce", "recordSave", "loadAuthority", "rereadRow", "verifyRow"]);
   assert.equal(deps.calls.find(([name]) => name === "fillTarget")[1].ingredient_name, "Karpura");
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "CONFIRMED");
   assert.equal(names.filter((name) => name === "invokeSaveOnce").length, 1);
+  const freshPlanner = deps.calls.findLast(([name]) => name === "loadAuthority");
+  assert.ok(freshPlanner);
+  assert.equal(deps.calls.some(([name]) => name === "markStageVerified"), false);
+}
+
+// Fill failure after SAVE_ARMED is durably rejected without invoking SaveData.
+{
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, fillError: new Error("BASE_OPTION_NOT_READY") });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "BASE_OPTION_NOT_READY");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+  const record = deps.calls.find(([name]) => name === "recordSave")[1];
+  assert.equal(record.outcome, "REJECTED");
+  assert.deepEqual(record.saveEvidence, { outcome: "REJECTED", reason: "TARGET_FILL_FAILED", invoked: false, invokeCount: 0, settled: true, noMutationProven: true });
+}
+
+// Final trusted reread mismatch is durably rejected before SaveData.
+{
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, filledVerification: { ok: false, code: "POST_FILL_FIELD_MISMATCH", diagnostics: { mismatchFields: ["quantity"] } } });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "POST_FILL_FIELD_MISMATCH");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+  assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].saveEvidence.reason, "POST_FILL_VERIFICATION_FAILED");
+}
+
+// A thrown final verification is bounded and durably rejected before SaveData.
+{
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, verifyFilledError: new Error(`transport ${REF}`) });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "POST_FILL_VERIFICATION_ERROR");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "REJECTED");
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(REF));
+}
+
+// Failure to durably close a thrown verification remains SAVE_ARMED/recovery-required.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    verifyFilledError: new Error("controlled page closed"),
+    recordSaveError: new Error("record unavailable"),
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED");
+  assert.equal(result.runStatus, "SAVE_ARMED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+}
+
+// Post-Save recording failures never retry or proceed to fresh verification.
+for (const [label, saveObservation, expectedOutcome] of [
+  ["confirmed", { invoked: true, invokeCount: 1, settled: true, transportSuccess: true, businessSuccess: true, responseParsed: true, matchingRequestCount: 1 }, "CONFIRMED"],
+  ["ambiguous", { invoked: true, invokeCount: 1, settled: false, matchingRequestCount: 1 }, "AMBIGUOUS"],
+  ["rejected", { invoked: true, invokeCount: 1, settled: true, noMutationProven: true, matchingRequestCount: 0 }, "REJECTED"],
+]) {
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, saveObservation, recordSaveError: new Error(`${label} record failed`) });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED", label);
+  assert.equal(result.runStatus, "SAVE_ARMED", label);
+  assert.equal(result.saveOutcome, expectedOutcome, label);
+  assert.equal(result.saveInvoked, true, label);
+  assert.equal(result.invokeCount, 1, label);
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1, label);
+  assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1, label);
+  assert.equal(deps.calls.filter(([name]) => name === "loadAuthority").length, 1, label);
+  assert.equal(deps.calls.some(([name]) => name === "verifyRow"), false, label);
+}
+
+// A wrong durable status is recovery-required and CONFIRMED cannot verify fresh.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    recordSaveResult: { run_status: "SAVE_AMBIGUOUS", stage_row_version: 4 },
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED");
+  assert.equal(result.saveOutcome, "CONFIRMED");
+  assert.equal(result.runStatus, "SAVE_ARMED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.filter(([name]) => name === "loadAuthority").length, 1);
+  assert.equal(deps.calls.some(([name]) => name === "verifyRow"), false);
 }
 
 // Ambiguous is recorded before return and never retried.
@@ -278,6 +495,21 @@ for (const [label, mutate, code] of [
   assert.equal(result.code, "SAVE_AMBIGUOUS");
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "AMBIGUOUS");
   assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1);
+}
+
+// A durably recorded REJECTED outcome stops without verification or a new run.
+{
+  const deps = fakeDeps([authority(beforeRows)], {
+    liveArmed: true,
+    saveObservation: { invoked: true, invokeCount: 1, settled: true, noMutationProven: true, matchingRequestCount: 0 },
+  });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "SAVE_REJECTED");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
+  assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1);
+  assert.equal(deps.calls.filter(([name]) => name === "loadAuthority").length, 1);
+  assert.equal(deps.calls.some(([name]) => name === "verifyRow"), false);
 }
 
 // Local run guard blocks a second Save invocation for the same server run ID.
@@ -403,6 +635,7 @@ function pageIdentityHarness({
   actiontype = "edit",
   actiontypePresent = true,
   saveAvailable = false,
+  listRows = [],
 } = {}) {
   const calls = [];
   const page = {
@@ -428,8 +661,8 @@ function pageIdentityHarness({
           httpStatus: 200,
           page: 0,
           requestedLength: input.length,
-          totalCount: 0,
-          rows: [],
+          totalCount: listRows.length,
+          rows: structuredClone(listRows),
         };
       }
       throw new Error("UNEXPECTED_PAGE_EVALUATION");
@@ -442,7 +675,7 @@ function pageIdentityHarness({
       return { product_id: 262, workflow_row_version: 11, portal_product_ref: REF, ready: true, content_hash: HASH };
     }
     if (name === "rpc_eaushadhi_worker_content_get") {
-      return { product_id: 262, workflow_row_version: 11, content_hash: HASH, composition: [] };
+      return { product_id: 262, versions: { workflow_row_version: 11 }, content_hash: HASH, composition: [] };
     }
     throw new Error("UNEXPECTED_RPC");
   };
@@ -458,6 +691,18 @@ async function loadIdentityAuthority(options, request = {}) {
     liveArmed: false,
   });
   return { result: await adapter.loadAuthority(request), harness };
+}
+
+// Ambiguous native identity fails before any reread request is attempted.
+{
+  const { result, harness } = await loadIdentityAuthority({
+    listRows: [{
+      edit: '<input type="hidden" id="hid1" value="row-a">',
+      delete: '<input type="hidden" id="hid1" value="row-b">',
+    }],
+  });
+  assert.equal(result.code, "ROW_ID_CONTRACT_UNPROVEN");
+  assert.equal(harness.calls.some(([name]) => name === "reread"), false);
 }
 
 // Native page identity: #productid is the sole opaque transport authority.
@@ -632,11 +877,30 @@ const files = {
   ipc: fs.readFileSync(path.join(root, "electron/eaushadhi-worker/ipc.js"), "utf8"),
   preload: fs.readFileSync(path.join(root, "preload.js"), "utf8"),
   control: fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8"),
+  html: fs.readFileSync(path.join(root, "public/shared/e-aushadhi-review-control.html"), "utf8"),
+  worker: fs.readFileSync(path.join(root, "electron/eaushadhi-worker/index.js"), "utf8"),
 };
 assert.equal((`${files.contract}\n${files.arm}`.match(/const COMPOSITION_LIVE_ARM_DEFAULT = false/g) || []).length, 1);
+assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_FIRST_LIVE_930_RELEASE = false/g) || []).length, 1);
+assert.match(files.contract, /Number\(sourceCompositionLineId\) === COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID/);
+assert.match(files.worker, /sourceCompositionLineId !== 930/);
+assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID/);
+assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID[\s\S]*?deps\.liveArmed[\s\S]*?await collect\(deps/);
+assert.match(files.adapter, /BASE_OPTION_WAIT_MS = 5000/);
+assert.match(files.adapter, /Promise\.all\(\[/);
+assert.ok(files.adapter.indexOf("await Promise.all") < files.adapter.indexOf("text([\"#txtIng1\""));
+assert.ok(files.adapter.indexOf("select(typeSelectors") < files.adapter.indexOf("REFERENCE_OPTION_NOT_READY"));
+assert.match(files.adapter, /async function verifyFilledTarget/);
+assert.match(files.adapter, /POST_FILL_SELECT_MISMATCH/);
+assert.match(files.control, /executionEligibleSourceLineIds/);
+assert.match(files.control, /Enter line 930 - Karpūra/);
+assert.doesNotMatch(files.control.match(/function compositionPortalExecutionHtml\(\)[\s\S]*?function dictionaryStatusLabel/)?.[0] || "", /blockers\.join\(/);
+assert.match(files.html, /id="compositionConfirmBackdrop"/);
+assert.match(files.html, /ambiguous Save is recorded and is never retried automatically/);
 assert.doesNotMatch(files.executor, /eaushadhi_worker_run_begin|eaushadhi_worker_mark_entered|eaushadhi_worker_mark_portal_verified|createHash|node:crypto/);
 assert.doesNotMatch(`${files.executor}\n${files.adapter}`, /QC Register|final Submit|submitProduct/);
 assert.doesNotMatch(files.normalizer, /SaveCompositionData|UpdateCompositionData|DeleteCompositionData|\.rpc\(|page\.evaluate|createHash/);
+assert.doesNotMatch(files.contract, /DOMParser|createElement|innerHTML|eval\s*\(|Function\s*\(/);
 assert.doesNotMatch(files.adapter, /UpdateCompositionData|DeleteCompositionData|AddCompositionData/);
 assert.match(files.adapter, /typeof window\.SaveData === "function"/);
 assert.match(files.adapter, /const returned = window\.SaveData\(\)/);

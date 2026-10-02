@@ -196,6 +196,7 @@ import {
   recoverAmbiguousSaveExactOneProductDetails,
   resumeWorkerProductDetails,
   startWorkerProductDetails,
+  startWorkerCompositionLine,
   stopWorkerBrowser,
   workerApiAvailable,
 } from "./eaushadhi-review-worker-client.js";
@@ -293,6 +294,7 @@ const state = {
   workerRebaseResult: null,
   workerExactOneRecoveryResult: null,
   workerCompositionPreview: null,
+  workerCompositionResult: null,
   workerCaptureResult: null,
   loadGen: 0,
   busy: false,
@@ -335,6 +337,7 @@ const state = {
     trigger: null,
     resolve: null,
   },
+  compositionConfirm: { open: false, trigger: null, resolve: null },
   lineSaveStatus: new Map(),
   detailsSaveStatus: "",
   actionsSaveStatus: "",
@@ -1623,16 +1626,22 @@ function compositionPortalExecutionHtml() {
   const matches = Array.isArray(preview?.matchedSourceLineIds) ? preview.matchedSourceLineIds : [];
   const blockers = Array.isArray(preview?.blockers) ? preview.blockers : [];
   const active = preview?.activeRun;
+  const eligible = new Set(Array.isArray(preview?.executionEligibleSourceLineIds) ? preview.executionEligibleSourceLineIds.map(Number) : []);
+  const blockerText = blockers.map((item) => typeof item === "string" ? item : item?.code || item?.reason || (item?.sourceCompositionLineId ? `Line ${item.sourceCompositionLineId}` : "Blocked"));
   return `<section class="section-card composition-portal-execution" aria-labelledby="compositionPortalExecutionTitle">
     <h3 id="compositionPortalExecutionTitle">Composition portal execution</h3>
     <p class="muted-note">Read-only portal comparison. Governed Composition editing remains separate.</p>
     <div class="action-row">
       <button type="button" class="icon-btn with-label" id="btnWorkerCompositionPreview" data-edit-action="true"${state.busy ? ' data-force-disabled="true"' : ""}>Preview portal state</button>
-      ${missing.map((id) => `<button type="button" class="icon-btn with-label primary" disabled aria-disabled="true" data-composition-start-line="${escapeHtml(id)}">Enter line ${escapeHtml(id)}</button>`).join("")}
+      ${missing.map((id) => {
+        const enabled = Number(id) === 930 && eligible.has(930) && preview?.firstLiveEligible === true && canWrite() && !state.busy;
+        const label = Number(id) === 930 ? "Enter line 930 - Karpūra" : `Enter line ${id}`;
+        return `<button type="button" class="icon-btn with-label primary"${enabled ? "" : ' disabled aria-disabled="true"'} data-composition-start-line="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
+      }).join("")}
       ${active ? '<button type="button" class="icon-btn with-label" disabled aria-disabled="true">Recover active run</button>' : ""}
       <button type="button" class="icon-btn with-label" disabled aria-disabled="true">Verify Composition stage</button>
     </div>
-    <p class="muted-note"><strong>Composition live execution is not armed.</strong></p>
+    <p class="muted-note"><strong>${preview?.liveArmed === true ? "Composition live execution is armed for the trusted first-live target." : "Composition live execution is not armed."}</strong></p>
     <p class="muted-note">${preview ? escapeHtml([
       `Status ${preview.code || "unknown"}`,
       `Stage ${preview.stage?.stage_status || "NOT_STARTED"}`,
@@ -1640,7 +1649,7 @@ function compositionPortalExecutionHtml() {
       `Portal ${preview.portalCount ?? 0}`,
       `Matches ${matches.length}`,
       `Missing ${missing.length ? missing.join(", ") : "none"}`,
-      blockers.length ? `Blockers ${blockers.join(", ")}` : "",
+      blockerText.length ? `Blockers ${blockerText.join(", ")}` : "",
       active ? `Active run ${active.runStatus || "unknown"}` : "No active run",
     ].filter(Boolean).join(". ")) : "Run Preview portal state to collect fresh trusted evidence."}</p>
   </section>`;
@@ -2890,6 +2899,26 @@ function openProductDetailsConfirmModal({ mode, trigger }) {
   });
 }
 
+function closeCompositionConfirm(accepted) {
+  const { trigger, resolve } = state.compositionConfirm;
+  state.compositionConfirm = { open: false, trigger: null, resolve: null };
+  const backdrop = $("compositionConfirmBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  trigger?.focus?.();
+  if (typeof resolve === "function") resolve(accepted === true);
+}
+
+function openCompositionConfirmModal(trigger) {
+  state.compositionConfirm = { open: true, trigger: trigger || null, resolve: null };
+  const backdrop = $("compositionConfirmBackdrop");
+  if (backdrop) backdrop.hidden = false;
+  return new Promise((resolve) => {
+    state.compositionConfirm.resolve = resolve;
+    $("compositionConfirmDialog")?.focus();
+    requestAnimationFrame(() => $("compositionConfirmOk")?.focus());
+  });
+}
+
 function workerProductDetailsPreviewSummary(preview) {
   if (!preview) return "No Product Details preview yet.";
   const blockers = preview.preview?.blockers || preview.blockers || [];
@@ -3421,6 +3450,27 @@ async function submitWorkerCompositionPreview() {
       result?.ok === true ? "Composition portal preview complete." : result?.message || "Composition preview is blocked.",
       result?.ok === true ? "info" : "error",
     );
+  } finally {
+    state.busy = false;
+    renderComposition();
+  }
+}
+
+async function submitWorkerCompositionStart(trigger) {
+  const preview = state.workerCompositionPreview;
+  const eligible = Array.isArray(preview?.executionEligibleSourceLineIds)
+    && preview.executionEligibleSourceLineIds.map(Number).includes(930)
+    && preview?.firstLiveEligible === true;
+  if (!canWrite() || state.busy || !eligible || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (!(await openCompositionConfirmModal(trigger))) return;
+  state.busy = true;
+  renderComposition();
+  try {
+    const token = await sessionAccessToken();
+    const result = await startWorkerCompositionLine(state.selectedProductId, 930, token, { userConfirmed: true });
+    state.workerCompositionResult = result;
+    showToast(result?.message || (result?.ok ? "Composition line verified." : "Composition line execution stopped."), result?.ok ? "success" : "error");
+    state.workerCompositionPreview = await previewWorkerComposition(state.selectedProductId, token);
   } finally {
     state.busy = false;
     renderComposition();
@@ -5788,6 +5838,11 @@ function wireEvents() {
       void submitWorkerCompositionPreview();
       return;
     }
+    const compositionStart = event.target.closest("[data-composition-start-line]");
+    if (compositionStart && Number(compositionStart.dataset.compositionStartLine) === 930 && !compositionStart.disabled) {
+      void submitWorkerCompositionStart(compositionStart);
+      return;
+    }
     if (event.target.id === "btnClearCompositionFilters") {
       clearCompositionFilters();
       return;
@@ -6004,8 +6059,23 @@ function wireEvents() {
   $("productDetailsConfirmBackdrop")?.addEventListener("click", (event) => {
     if (event.target.id === "productDetailsConfirmBackdrop") closeProductDetailsConfirm(false);
   });
+  $("compositionConfirmClose")?.addEventListener("click", () => closeCompositionConfirm(false));
+  $("compositionConfirmCancel")?.addEventListener("click", () => closeCompositionConfirm(false));
+  $("compositionConfirmOk")?.addEventListener("click", () => closeCompositionConfirm(true));
+  $("compositionConfirmBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "compositionConfirmBackdrop") closeCompositionConfirm(false);
+  });
 
   document.addEventListener("keydown", (event) => {
+    if (state.compositionConfirm.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCompositionConfirm(false);
+        return;
+      }
+      trapModalTab(event, "compositionConfirmDialog");
+      return;
+    }
     if (state.productDetailsConfirm.open) {
       if (event.key === "Escape") {
         event.preventDefault();

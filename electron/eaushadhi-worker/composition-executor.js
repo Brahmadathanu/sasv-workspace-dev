@@ -3,6 +3,7 @@
 const { buildOfflineCompositionExecutionPlan, PLAN_CODE } = require("./composition-offline-plan");
 
 const PRODUCT_ID = 262;
+const FIRST_LIVE_SOURCE_LINE_ID = 930;
 const ACTIVE_RUNS = new Set(["SAVE_ARMED", "SAVE_CONFIRMED", "SAVE_AMBIGUOUS"]);
 const PAGE_IDENTITY_FAILURE_CODES = new Set([
   "WORKER_NOT_READY",
@@ -27,9 +28,38 @@ function sourceId(value) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
+function workflowVersion(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
 function boundedPageIdentityFailureCode(value) {
   const code = String(value ?? "");
   return PAGE_IDENTITY_FAILURE_CODES.has(code) ? code : "COMPOSITION_PAGE_IDENTITY_FAILED";
+}
+
+const PRE_SAVE_FAILURE_CODES = new Set([
+  "TARGET_PROJECTION_INCOMPLETE",
+  "BASE_OPTION_NOT_READY",
+  "FIELD_MISSING",
+  "SELECT_MISSING",
+  "SELECT_VALUE_UNPROVEN",
+  "REFERENCE_OPTION_NOT_READY",
+  "COMPOSITION_FILL_FAILED",
+  "POST_FILL_WORKER_NOT_READY",
+  "POST_FILL_WRONG_ORIGIN",
+  "POST_FILL_WRONG_ROUTE",
+  "POST_FILL_PRODUCT_TOKEN_MISSING",
+  "POST_FILL_PORTAL_TOKEN_MISMATCH",
+  "POST_FILL_MUTATION_MODE_NOT_ADD",
+  "POST_FILL_NATIVE_SAVE_UNAVAILABLE",
+  "POST_FILL_FIELD_MISMATCH",
+  "POST_FILL_SELECT_MISMATCH",
+  "POST_FILL_VERIFICATION_ERROR",
+]);
+
+function boundedPreSaveFailureCode(value, fallback) {
+  const code = String(value ?? "");
+  return PRE_SAVE_FAILURE_CODES.has(code) ? code : fallback;
 }
 
 function boundedRun(run) {
@@ -64,7 +94,13 @@ function validateAuthority(authority) {
   const preflight = authority.preflight;
   const content = authority.content;
   if (sourceId(preflight?.product_id) !== PRODUCT_ID) return fail("PRODUCT_LOCK_REJECTED", "Composition V1 accepts only Product 262.");
-  if (Number(preflight?.workflow_row_version) !== Number(content?.workflow_row_version)) {
+  const preflightWorkflowVersion = workflowVersion(preflight?.workflow_row_version);
+  const contentWorkflowVersion = workflowVersion(content?.versions?.workflow_row_version);
+  if (
+    preflightWorkflowVersion === null ||
+    contentWorkflowVersion === null ||
+    preflightWorkflowVersion !== contentWorkflowVersion
+  ) {
     return fail("WORKFLOW_VERSION_MISMATCH", "Composition workflow authority changed.");
   }
   if (!preflight?.content_hash || preflight.content_hash !== content?.content_hash) {
@@ -87,6 +123,16 @@ function planAuthority(authority) {
 }
 
 function previewProjection(authority, planner, liveArmed) {
+  const targetMissing = planner.missing.some(
+    (item) => sourceId(item?.sourceCompositionLineId) === FIRST_LIVE_SOURCE_LINE_ID,
+  );
+  const firstLiveEligible =
+    liveArmed === true &&
+    planner.ok === true &&
+    planner.code === PLAN_CODE.OFFLINE_MISSING &&
+    planner.mutationAllowed === false &&
+    targetMissing &&
+    !authority.preflight.active_run;
   return {
     ok: planner.ok === true,
     code: planner.code,
@@ -105,7 +151,10 @@ function previewProjection(authority, planner, liveArmed) {
     workflowRowVersion: Number(authority.preflight.workflow_row_version),
     contentHash: authority.preflight.content_hash,
     pageIdentityDiagnostics: authority.pageIdentityDiagnostics || null,
-    startEnabled: false,
+    firstLiveTargetSourceLineId: FIRST_LIVE_SOURCE_LINE_ID,
+    firstLiveEligible,
+    executionEligibleSourceLineIds: firstLiveEligible ? [FIRST_LIVE_SOURCE_LINE_ID] : [],
+    startEnabled: firstLiveEligible,
     recoveryEnabled: false,
     stageVerifyEnabled: false,
   };
@@ -208,6 +257,50 @@ function createCompositionExecutor() {
     return { ok: true, authority, planner: planAuthority(authority) };
   }
 
+  async function rejectArmedWithoutMutation(deps, armed, {
+    reason,
+    failureCode,
+    evidence = null,
+    message,
+    diagnostics = null,
+  }) {
+    let rejected;
+    try {
+      rejected = await deps.recordSave({
+        runId: armed.run_id,
+        expectedStageRowVersion: Number(armed.stage_row_version),
+        expectedContentHash: armed.content_hash,
+        outcome: "REJECTED",
+        saveEvidence: {
+          outcome: "REJECTED",
+          reason,
+          ...(evidence && typeof evidence === "object" ? evidence : {}),
+          invoked: false,
+          invokeCount: 0,
+          settled: true,
+          noMutationProven: true,
+        },
+      });
+    } catch {
+      return fail(
+        "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED",
+        "Composition pre-Save rejection could not be recorded; the active run requires recovery.",
+        { runStatus: "SAVE_ARMED" },
+      );
+    }
+    if (upper(rejected?.run_status) !== "SAVE_REJECTED") {
+      return fail(
+        "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED",
+        "The server did not confirm SAVE_REJECTED; the active run requires recovery.",
+        { runStatus: upper(rejected?.run_status) || "SAVE_ARMED" },
+      );
+    }
+    return fail(failureCode, message, {
+      runStatus: "SAVE_REJECTED",
+      ...(diagnostics ? { pageIdentityDiagnostics: diagnostics } : {}),
+    });
+  }
+
   async function verifyFresh(deps, run, targetProjection) {
     const fresh = await collect(deps, { requireEditPermission: true, requireSaveCapability: false });
     if (!fresh.ok) return fresh;
@@ -248,6 +341,12 @@ function createCompositionExecutor() {
       stageRowVersion: verified?.stage_row_version || null,
       targetSourceCompositionLineId: run.targetId,
       targetProjectionUsed: targetProjection != null,
+      matchCount: fresh.planner.matches.length,
+      missingSourceLineIds: fresh.planner.missing.map((item) => sourceId(item?.sourceCompositionLineId)).filter(Boolean),
+      blockerCount: fresh.planner.blockers.length,
+      conflictCount: fresh.planner.conflicts.length,
+      duplicateCount: fresh.planner.duplicates.length,
+      extraCount: fresh.planner.extras.length,
     };
   }
 
@@ -261,10 +360,12 @@ function createCompositionExecutor() {
   async function startLine(deps = {}, command = {}) {
     return exclusive(async () => {
       if (Number(deps.productId) !== PRODUCT_ID) return fail("PRODUCT_LOCK_REJECTED", "Composition V1 accepts only Product 262.");
+      const targetId = sourceId(command.sourceCompositionLineId);
+      if (targetId !== FIRST_LIVE_SOURCE_LINE_ID) {
+        return fail("COMPOSITION_FIRST_LIVE_TARGET_REJECTED", "First-live Composition execution accepts only Product 262 line 930.");
+      }
       if (deps.liveArmed !== true) return fail("COMPOSITION_LIVE_NOT_ARMED", "Composition live execution is not armed.");
       if (command.userConfirmed !== true) return fail("USER_CONFIRMATION_REQUIRED", "Explicit Composition confirmation is required.");
-      const targetId = sourceId(command.sourceCompositionLineId);
-      if (!targetId) return fail("TARGET_LINE_INVALID", "A governed source line ID is required.");
       const collected = await collect(deps, { requireEditPermission: true, requireSaveCapability: true });
       if (!collected.ok) return collected;
       if (collected.authority.preflight.active_run) return fail("ACTIVE_RUN_EXISTS", "An active Composition run already exists.");
@@ -291,47 +392,49 @@ function createCompositionExecutor() {
       const identityRecheck = await deps.recheckMutationIdentity(armed.portal_product_ref);
       if (!identityRecheck?.ok) {
         const identityFailureCode = boundedPageIdentityFailureCode(identityRecheck?.code);
-        let rejected;
-        try {
-          rejected = await deps.recordSave({
-            runId: armed.run_id,
-            expectedStageRowVersion: Number(armed.stage_row_version),
-            expectedContentHash: armed.content_hash,
-            outcome: "REJECTED",
-            saveEvidence: {
-              outcome: "REJECTED",
-              reason: "POST_ARM_IDENTITY_RECHECK_FAILED",
-              identityFailureCode,
-              invoked: false,
-              invokeCount: 0,
-              settled: true,
-              noMutationProven: true,
-            },
-          });
-        } catch {
-          return fail(
-            "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED",
-            "Composition identity changed after SAVE_ARMED and the no-mutation rejection could not be recorded; the active run requires recovery.",
-            { runStatus: "SAVE_ARMED" },
-          );
-        }
-        if (upper(rejected?.run_status) !== "SAVE_REJECTED") {
-          return fail(
-            "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED",
-            "Composition identity changed after SAVE_ARMED but the server did not confirm SAVE_REJECTED; the active run requires recovery.",
-            { runStatus: upper(rejected?.run_status) || "SAVE_ARMED" },
-          );
-        }
-        return fail(
-          identityFailureCode,
-          "Composition page identity changed after SAVE_ARMED.",
-          {
-            pageIdentityDiagnostics: identityRecheck?.diagnostics || null,
-            runStatus: "SAVE_REJECTED",
-          },
-        );
+        return rejectArmedWithoutMutation(deps, armed, {
+          reason: "POST_ARM_IDENTITY_RECHECK_FAILED",
+          failureCode: identityFailureCode,
+          evidence: { identityFailureCode },
+          message: "Composition page identity changed after SAVE_ARMED.",
+          diagnostics: identityRecheck?.diagnostics || null,
+        });
       }
-      await deps.fillTarget(armed.target_projection);
+      try {
+        await deps.fillTarget(armed.target_projection);
+      } catch (error) {
+        const failureCode = boundedPreSaveFailureCode(error?.message, "COMPOSITION_FILL_FAILED");
+        return rejectArmedWithoutMutation(deps, armed, {
+          reason: "TARGET_FILL_FAILED",
+          failureCode,
+          message: "Composition target fill failed before Save.",
+        });
+      }
+      let filledVerification;
+      try {
+        filledVerification = await deps.verifyFilledTarget(
+          armed.target_projection,
+          armed.portal_product_ref,
+        );
+      } catch {
+        return rejectArmedWithoutMutation(deps, armed, {
+          reason: "POST_FILL_VERIFICATION_FAILED",
+          failureCode: "POST_FILL_VERIFICATION_ERROR",
+          message: "Composition final pre-Save verification could not complete.",
+        });
+      }
+      if (!filledVerification?.ok) {
+        const failureCode = boundedPreSaveFailureCode(
+          filledVerification?.code,
+          "POST_FILL_FIELD_MISMATCH",
+        );
+        return rejectArmedWithoutMutation(deps, armed, {
+          reason: "POST_FILL_VERIFICATION_FAILED",
+          failureCode,
+          message: "Composition final pre-Save verification failed.",
+          diagnostics: filledVerification?.diagnostics || null,
+        });
+      }
       const guard = saveGuards.get(armed.run_id) || { invoked: false, invokeCount: 0 };
       if (guard.invoked) return fail("SAVE_ALREADY_INVOKED", "Save was already invoked for this Composition run.");
       guard.invoked = true;
@@ -345,13 +448,40 @@ function createCompositionExecutor() {
       }
       observation = { ...observation, invoked: true, invokeCount: guard.invokeCount };
       const classification = classifySave(observation);
-      const recorded = await deps.recordSave({
-        runId: armed.run_id,
-        expectedStageRowVersion: Number(armed.stage_row_version),
-        expectedContentHash: armed.content_hash,
-        outcome: classification.outcome,
-        saveEvidence: saveEvidence(observation, classification),
-      });
+      let recorded;
+      try {
+        recorded = await deps.recordSave({
+          runId: armed.run_id,
+          expectedStageRowVersion: Number(armed.stage_row_version),
+          expectedContentHash: armed.content_hash,
+          outcome: classification.outcome,
+          saveEvidence: saveEvidence(observation, classification),
+        });
+      } catch {
+        return fail(
+          "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED",
+          "The portal Save outcome could not be durably recorded; the active run requires recovery.",
+          {
+            saveInvoked: observation.invoked === true,
+            invokeCount: guard.invokeCount,
+            saveOutcome: classification.outcome,
+            runStatus: "SAVE_ARMED",
+          },
+        );
+      }
+      const expectedRunStatus = `SAVE_${classification.outcome}`;
+      if (upper(recorded?.run_status) !== expectedRunStatus) {
+        return fail(
+          "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED",
+          "The server did not confirm the expected durable Save outcome; the active run requires recovery.",
+          {
+            saveInvoked: observation.invoked === true,
+            invokeCount: guard.invokeCount,
+            saveOutcome: classification.outcome,
+            runStatus: "SAVE_ARMED",
+          },
+        );
+      }
       const run = {
         runId: armed.run_id,
         targetId,
@@ -482,6 +612,7 @@ function createCompositionExecutor() {
 }
 
 module.exports = {
+  FIRST_LIVE_SOURCE_LINE_ID,
   PRODUCT_ID,
   classifySave,
   createCompositionExecutor,
