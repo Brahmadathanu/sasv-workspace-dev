@@ -14023,5 +14023,4061 @@
     ],
     "decision_locks_added": [],
     "parked_findings_added": []
+  },
+  "identity_setup_safety_continuation": {
+    "captured_date": "2026-10-02",
+    "project_ref": "qhmoqtxpeasamtlxaoak",
+    "main_sha": "47dcd80f69ca68fcca8f089bf40fa4099b376450",
+    "base_documentation_commit": "4c6a657a1da5d5f402a7198a5e631f05b1af55b9",
+    "status": "Frozen read-only continuation completed; 32-sequence frontier resolved; resulting setup-safety review pending; no runnable/approved environment",
+    "counts": {
+      "root_hashes_rechecked": 23,
+      "root_hash_drift": 0,
+      "root_oid_drift": 0,
+      "identity_sequences_resolved": 32,
+      "identity_sequence_frontier_remaining": 0,
+      "identity_always": 5,
+      "identity_by_default": 27,
+      "baseline_relations_with_flag_checks": 96,
+      "index_flags_checked": 336,
+      "constraint_flags_checked": 640,
+      "invalid_unready_or_dead_indexes": 0,
+      "unvalidated_constraints": 0,
+      "deferrable_constraints": 1,
+      "related_roles": 15,
+      "membership_edges": 14,
+      "default_acl_rows": 6,
+      "setup_event_triggers": 6,
+      "handler_definitions_inspected": 6,
+      "query_calls": 22,
+      "max_combined_metadata_batch": 24,
+      "pass_unique_functions": 29,
+      "pass_unique_relations_types": 129
+    },
+    "root_hash_checks": [
+      {
+        "md5": "29835ce9be925dfe0afdea8133d8217a",
+        "oid": "1937367",
+        "args": "p_as_of_date date",
+        "name": "fn_product_process_route_readiness",
+        "schema": "costing"
+      },
+      {
+        "md5": "65b40f9ac648ee077641c84eaee18497",
+        "oid": "2385945",
+        "args": "p_base jsonb, p_sku_id bigint, p_period_start date, p_valuation_date date, p_refresh_run_id bigint",
+        "name": "fn_product_sku_readiness_enrich",
+        "schema": "costing"
+      },
+      {
+        "md5": "c29e8b289304e7ece6f7affcccb6ffd8",
+        "oid": "2385940",
+        "args": "p_sku_id bigint, p_period_start date, p_valuation_date date, p_refresh_run_id bigint",
+        "name": "fn_product_sku_readiness_run_evidence",
+        "schema": "costing"
+      },
+      {
+        "md5": "7467604a4929b59412181c3c7481e0e8",
+        "oid": "2386222",
+        "args": "p_valuation_date date",
+        "name": "fn_product_sku_readiness_shared_issues",
+        "schema": "costing"
+      },
+      {
+        "md5": "d48eac98fe033115d5735b37adbfa8d4",
+        "oid": "1938524",
+        "args": "p_as_of_date date",
+        "name": "fn_resolve_direct_labour_workload_policy",
+        "schema": "costing"
+      },
+      {
+        "md5": "989aa9b16d7381cd035390b78a1c7e95",
+        "oid": "1938999",
+        "args": "p_valuation_date date",
+        "name": "fn_resolve_marketing_allocation_policy",
+        "schema": "costing"
+      },
+      {
+        "md5": "f1f989960e838141786db38b018eb51c",
+        "oid": "1888618",
+        "args": "p_valuation_date date",
+        "name": "fn_resolve_materials_stores_workload_policy",
+        "schema": "costing"
+      },
+      {
+        "md5": "2b0773e1e686a5a6a4eacfe3c14da56d",
+        "oid": "1936445",
+        "args": "p_as_of_date date",
+        "name": "fn_resolve_production_overhead_workload_policy",
+        "schema": "costing"
+      },
+      {
+        "md5": "a276ecef7b4cd99002fd886abbe63141",
+        "oid": "1872849",
+        "args": "p_as_of_date date",
+        "name": "fn_resolve_qc_workload_policy",
+        "schema": "costing"
+      },
+      {
+        "md5": "641fd0f7eb7438eed53c1c6170deb0ec",
+        "oid": "1934864",
+        "args": "p_product_id integer, p_as_of_date date",
+        "name": "fn_resolve_route_family_for_product",
+        "schema": "costing"
+      },
+      {
+        "md5": "425596466bb9da9dadfc391f96350566",
+        "oid": "1701821",
+        "args": "p_scenario_code text, p_valuation_date date",
+        "name": "fn_resolve_sales_allocation_default_policy_as_of",
+        "schema": "costing"
+      },
+      {
+        "md5": "68bd9325062299eb8af1291bf4d9393b",
+        "oid": "2387118",
+        "args": "p_sku_id bigint, p_period_start date, p_valuation_date date",
+        "name": "fn_resolve_sku_commercial_sales_basis_point",
+        "schema": "costing"
+      },
+      {
+        "md5": "73b23adedd8b67814f9b1f944b772d53",
+        "oid": "1626616",
+        "args": "p_sku_id bigint, p_valuation_date date",
+        "name": "fn_resolve_sku_mrp_as_of",
+        "schema": "costing"
+      },
+      {
+        "md5": "b216b4dfdf3fbe3e7b837ceb3ee550f4",
+        "oid": "1701822",
+        "args": "p_period_start date, p_sku_id bigint, p_valuation_date date",
+        "name": "fn_resolve_sku_sales_assumption_as_of",
+        "schema": "costing"
+      },
+      {
+        "md5": "23425275b1cb28f7e005bffdd5dc0388",
+        "oid": "1645225",
+        "args": "p_sku_id bigint, p_valuation_date date",
+        "name": "fn_resolve_sku_selling_price_policy_as_of",
+        "schema": "costing"
+      },
+      {
+        "md5": "a9396f97a23cba5bbaceada07bc6448a",
+        "oid": "1936370",
+        "args": "p_product_id integer, p_as_of_date date",
+        "name": "fn_validate_effective_product_process_route",
+        "schema": "costing"
+      },
+      {
+        "md5": "7b4c99b7d4a698237806b2ca10fe24af",
+        "oid": "708697",
+        "args": "p_target text, p_mode text",
+        "name": "app_has_permission",
+        "schema": "public"
+      },
+      {
+        "md5": "655bbd0eaeb2729aa360787785a9ee27",
+        "oid": "708732",
+        "args": "p_user_id uuid, p_target text, p_mode text",
+        "name": "app_has_permission_core",
+        "schema": "public"
+      },
+      {
+        "md5": "b116953eb0715a5598388f7f6416c0c3",
+        "oid": "2177303",
+        "args": "p_sku_id bigint, p_as_of date",
+        "name": "plm_sku_bom_revision_as_of",
+        "schema": "public"
+      },
+      {
+        "md5": "d4921dbcd3029e00eef14c4bfd159e22",
+        "oid": "582580",
+        "args": "p_target text, p_need_edit boolean",
+        "name": "require_permission",
+        "schema": "public"
+      },
+      {
+        "md5": "f68761c1dd6fdf9992f79b5c3b49f362",
+        "oid": "1939070",
+        "args": "p_period_start date",
+        "name": "rpc_get_cost_period_valuation_context",
+        "schema": "public"
+      },
+      {
+        "md5": "7c58de9eb148df01ac23c4e56ecbcba8",
+        "oid": "2386539",
+        "args": "",
+        "name": "rpc_get_latest_governed_cost_period_start",
+        "schema": "public"
+      },
+      {
+        "md5": "0e966c3c1ab15d56420b234f5c2cef1f",
+        "oid": "2385931",
+        "args": "p_sku_id bigint, p_period_start date, p_context_type text, p_refresh_run_id bigint",
+        "name": "rpc_get_product_sku_readiness",
+        "schema": "public"
+      }
+    ],
+    "identity_sequences": [
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1949275",
+        "sequence_acl": null,
+        "sequence_oid": "1949274",
+        "source_table": "cost_driver_policy_cutover_acceptance",
+        "identity_mode": "a",
+        "sequence_name": "cost_driver_policy_cutover_acceptance_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1949275,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1949275",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.cost_driver_policy_cutover_acceptance"
+          }
+        ],
+        "configuration_sha256": "28e4feca22c199fe310b34b5da9912c766abc0173d011f506d9467ff0399e27b"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1937417",
+        "sequence_acl": null,
+        "sequence_oid": "1937416",
+        "source_table": "cost_driver_policy_envelope",
+        "identity_mode": "a",
+        "sequence_name": "cost_driver_policy_envelope_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1937417,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1937417",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.cost_driver_policy_envelope"
+          }
+        ],
+        "configuration_sha256": "a0cda9a9710ed2be0cc950d9b840f08789668f4e3628c1ff92ac4cd6da029165"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1872776",
+        "sequence_acl": null,
+        "sequence_oid": "1872775",
+        "source_table": "cost_pool_monthly_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "cost_pool_monthly_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1872776,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1872776",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.cost_pool_monthly_snapshot"
+          }
+        ],
+        "configuration_sha256": "fc6e4c4d18b78f7e1b01ac80f6ae8814301d5680a70a260374cf32a038c3d77a"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1937478",
+        "sequence_acl": null,
+        "sequence_oid": "1937477",
+        "source_table": "direct_labour_workload_policy",
+        "identity_mode": "d",
+        "sequence_name": "direct_labour_workload_policy_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1937478,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1937478",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.direct_labour_workload_policy"
+          }
+        ],
+        "configuration_sha256": "f0da825cb9d8079c7379d0f635d892e24bd5ab45190352d037b38a05683db0e8"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1888508",
+        "sequence_acl": null,
+        "sequence_oid": "1888507",
+        "source_table": "materials_stores_component_classification",
+        "identity_mode": "d",
+        "sequence_name": "materials_stores_component_classification_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1888508,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1888508",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.materials_stores_component_classification"
+          }
+        ],
+        "configuration_sha256": "2fa0299450a2a8a7a3cf392b0f2cacea22752e6187f58d431a6ebb678b61e316"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1888491",
+        "sequence_acl": null,
+        "sequence_oid": "1888490",
+        "source_table": "materials_stores_workload_policy",
+        "identity_mode": "d",
+        "sequence_name": "materials_stores_workload_policy_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1888491,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1888491",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.materials_stores_workload_policy"
+          }
+        ],
+        "configuration_sha256": "de5cfbd68ff151329373a4aed3ecfb7c8daa053e3654f111f64e66cddda4dc00"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "2027847",
+        "sequence_acl": null,
+        "sequence_oid": "2027846",
+        "source_table": "packing_labour_responsibility_rule",
+        "identity_mode": "d",
+        "sequence_name": "packing_labour_responsibility_rule_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 2027847,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "2027847",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.packing_labour_responsibility_rule"
+          }
+        ],
+        "configuration_sha256": "91739155a85f4566cd999df24507c9862c95f265851b641c3f033c6a31adc986"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1936465",
+        "sequence_acl": null,
+        "sequence_oid": "1936464",
+        "source_table": "product_production_overhead_workload_snapshot",
+        "identity_mode": "a",
+        "sequence_name": "product_production_overhead_workload_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1936465,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1936465",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.product_production_overhead_workload_snapshot"
+          }
+        ],
+        "configuration_sha256": "84ebeab9654e4bd29fd3e4a193e8aef940fe9b2ae5dca430941b8c7a74ffc6a0"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1873039",
+        "sequence_acl": null,
+        "sequence_oid": "1873038",
+        "source_table": "product_qc_allocation_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "product_qc_allocation_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1873039,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1873039",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.product_qc_allocation_snapshot"
+          }
+        ],
+        "configuration_sha256": "b5b5a3a6c3b80054f8d6fefd6dd2a1c5226fad5a5b4d5bb26863ca13f5779fcd"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1888526",
+        "sequence_acl": null,
+        "sequence_oid": "1888525",
+        "source_table": "product_rm_stores_workload_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "product_rm_stores_workload_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1888526,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1888526",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.product_rm_stores_workload_snapshot"
+          }
+        ],
+        "configuration_sha256": "6ef320fa15379a2b333f477914bf4245cdcf7036237ecaca0fb39848d923375c"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1936377",
+        "sequence_acl": null,
+        "sequence_oid": "1936376",
+        "source_table": "production_overhead_workload_policy",
+        "identity_mode": "d",
+        "sequence_name": "production_overhead_workload_policy_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1936377,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1936377",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.production_overhead_workload_policy"
+          }
+        ],
+        "configuration_sha256": "53b123d145d7ab2d2d9e4aec644f340777b9825aaa3d1edb2ef4c761e5f4ea3c"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1934689",
+        "sequence_acl": null,
+        "sequence_oid": "1934688",
+        "source_table": "production_route_family",
+        "identity_mode": "d",
+        "sequence_name": "production_route_family_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1934689,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1934689",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.production_route_family"
+          }
+        ],
+        "configuration_sha256": "c74cdaaeed73e1dd49478e611687d3f221ef2217058bb53c9aa604378637b02b"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1934711",
+        "sequence_acl": null,
+        "sequence_oid": "1934710",
+        "source_table": "production_route_family_product_group_map",
+        "identity_mode": "d",
+        "sequence_name": "production_route_family_product_group_map_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1934711,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1934711",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.production_route_family_product_group_map"
+          }
+        ],
+        "configuration_sha256": "a2f6b45a8dd63a702fea286c1d46207c0a9e994e31d610a54354eefb212296ce"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1936888",
+        "sequence_acl": null,
+        "sequence_oid": "1936887",
+        "source_table": "production_route_family_product_map",
+        "identity_mode": "d",
+        "sequence_name": "production_route_family_product_map_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1936888,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1936888",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.production_route_family_product_map"
+          }
+        ],
+        "configuration_sha256": "60643ab635edd32c5ca42b191ff9f6bbdc353a00fee0b167e9b8a08670ab6232"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1958161",
+        "sequence_acl": null,
+        "sequence_oid": "1958160",
+        "source_table": "production_route_family_product_subgroup_map",
+        "identity_mode": "d",
+        "sequence_name": "production_route_family_product_subgroup_map_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1958161,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1958161",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.production_route_family_product_subgroup_map"
+          }
+        ],
+        "configuration_sha256": "1287e34899c69892a17dc292fcfbb0932d32d4891d5f45c6e84982fb2348a957"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1934744",
+        "sequence_acl": null,
+        "sequence_oid": "1934743",
+        "source_table": "production_route_family_route",
+        "identity_mode": "d",
+        "sequence_name": "production_route_family_route_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1934744,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1934744",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.production_route_family_route"
+          }
+        ],
+        "configuration_sha256": "a97f923021a608503323b57f0b9bf4e647ccd3bea9dc128bc7520a06136706e7"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1934778",
+        "sequence_acl": null,
+        "sequence_oid": "1934777",
+        "source_table": "production_route_family_route_step",
+        "identity_mode": "d",
+        "sequence_name": "production_route_family_route_step_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1934778,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1934778",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.production_route_family_route_step"
+          }
+        ],
+        "configuration_sha256": "ab73d127756f92189a40e512a105679b49bea5bb8ad37f04b574b5160e5d3976"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "2299841",
+        "sequence_acl": null,
+        "sequence_oid": "2299840",
+        "source_table": "regional_marketing_evidence_acceptance",
+        "identity_mode": "d",
+        "sequence_name": "regional_marketing_evidence_acceptance_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 2299841,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "2299841",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.regional_marketing_evidence_acceptance"
+          }
+        ],
+        "configuration_sha256": "f14de04bbbf1e9211d78e2659e06c54a6d5d69e9c2b1bdf0deb7586bfb3ed996"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "2155112",
+        "sequence_acl": null,
+        "sequence_oid": "2155111",
+        "source_table": "regional_sales_allocation_default_policy",
+        "identity_mode": "d",
+        "sequence_name": "regional_sales_allocation_default_policy_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 2155112,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "2155112",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.regional_sales_allocation_default_policy"
+          }
+        ],
+        "configuration_sha256": "43794bbe2b300063436a142cd9b6e9000a7caff4ce6a62a105ab9ec11501e906"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1701786",
+        "sequence_acl": null,
+        "sequence_oid": "1701785",
+        "source_table": "sales_allocation_default_policy",
+        "identity_mode": "d",
+        "sequence_name": "sales_allocation_default_policy_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1701786,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1701786",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sales_allocation_default_policy"
+          }
+        ],
+        "configuration_sha256": "b55a1689310d5a4f33e639b56058e0a80ae2109bdb0f6c07e3abdebd57a19c7e"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1702038",
+        "sequence_acl": null,
+        "sequence_oid": "1702037",
+        "source_table": "scheme_master_context_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "scheme_master_context_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1702038,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1702038",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.scheme_master_context_snapshot"
+          }
+        ],
+        "configuration_sha256": "e2c0ffee105ae92415798368e28fb9593945d53ccfb0af5175b7673fe1d3b58c"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1888629",
+        "sequence_acl": [
+          "postgres=rwU/postgres",
+          "service_role=rU/postgres"
+        ],
+        "sequence_oid": "1888628",
+        "source_table": "sku_materials_stores_allocation_snapshot",
+        "identity_mode": "a",
+        "sequence_name": "sku_materials_stores_allocation_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1888629,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1888629",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_materials_stores_allocation_snapshot"
+          }
+        ],
+        "configuration_sha256": "e69310e1125cad87f964d550d21e02f90ad82c91c04b2bcc244146417a23345d"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1888585",
+        "sequence_acl": null,
+        "sequence_oid": "1888584",
+        "source_table": "sku_materials_stores_workload_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "sku_materials_stores_workload_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1888585,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1888585",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_materials_stores_workload_snapshot"
+          }
+        ],
+        "configuration_sha256": "7923bbd5a0f9d8cbfbc24ce0421ca82fa94d047c82c99406679afe5dcc09d87d"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1456331",
+        "sequence_acl": null,
+        "sequence_oid": "1456330",
+        "source_table": "sku_mrp_policy",
+        "identity_mode": "d",
+        "sequence_name": "sku_mrp_policy_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1456331,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1456331",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_mrp_policy"
+          }
+        ],
+        "configuration_sha256": "280f8c0bfe82284c5841fd3b11e08418f43c28b0b3517e43e9b9812bb781c949"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1888556",
+        "sequence_acl": null,
+        "sequence_oid": "1888555",
+        "source_table": "sku_pm_stores_workload_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "sku_pm_stores_workload_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1888556,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1888556",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_pm_stores_workload_snapshot"
+          }
+        ],
+        "configuration_sha256": "1b5b986e0d5cac53a2a3780ed256ab894383fc05ccfbc3a7d72cf4b66d34c4ec"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1936531",
+        "sequence_acl": null,
+        "sequence_oid": "1936530",
+        "source_table": "sku_production_overhead_allocation_snapshot",
+        "identity_mode": "a",
+        "sequence_name": "sku_production_overhead_allocation_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1936531,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1936531",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_production_overhead_allocation_snapshot"
+          }
+        ],
+        "configuration_sha256": "83c75df6d6dde1155b880020c55ca593d38eaa55b13ca0ab51ea41a4f85c40da"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1873080",
+        "sequence_acl": null,
+        "sequence_oid": "1873079",
+        "source_table": "sku_qc_allocation_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "sku_qc_allocation_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1873080,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1873080",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_qc_allocation_snapshot"
+          }
+        ],
+        "configuration_sha256": "e696491d6a7d6c79818e7838df48a6227f3eed440bf92bc18a0ee3d02433c961"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1857020",
+        "sequence_acl": [
+          "postgres=rwU/postgres",
+          "service_role=rU/postgres"
+        ],
+        "sequence_oid": "1857019",
+        "source_table": "sku_regional_commercial_sales_assumption",
+        "identity_mode": "d",
+        "sequence_name": "sku_regional_commercial_sales_assumption_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1857020,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1857020",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_regional_commercial_sales_assumption"
+          }
+        ],
+        "configuration_sha256": "415f0111a2a24a0cf01415d1a482ab9dfb16bc3b5fc9107f9005617439281bd8"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1857595",
+        "sequence_acl": null,
+        "sequence_oid": "1857594",
+        "source_table": "sku_regional_marketing_allocation_basis_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "sku_regional_marketing_allocation_basis_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1857595,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1857595",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_regional_marketing_allocation_basis_snapshot"
+          }
+        ],
+        "configuration_sha256": "41b8d48aa84075f626850a86de0a7c214ce1dc3ca695548548fc5e34484603ec"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1857698",
+        "sequence_acl": null,
+        "sequence_oid": "1857697",
+        "source_table": "sku_regional_marketing_expense_allocation_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "sku_regional_marketing_expense_allocation_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1857698,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1857698",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_regional_marketing_expense_allocation_snapshot"
+          }
+        ],
+        "configuration_sha256": "2e7909d17df71e13f4af2e9a5fb613d2d7bc7b23ab190973136bb2b860b2ee39"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "1702159",
+        "sequence_acl": null,
+        "sequence_oid": "1702158",
+        "source_table": "sku_selected_scheme_policy_context_snapshot",
+        "identity_mode": "d",
+        "sequence_name": "sku_selected_scheme_policy_context_snapshot_id_seq",
+        "source_column": "id",
+        "source_schema": "costing",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "costing",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 1702159,
+        "sequence_dependencies": [
+          {
+            "oid": "919633",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema costing"
+          },
+          {
+            "oid": "1702159",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table costing.sku_selected_scheme_policy_context_snapshot"
+          }
+        ],
+        "configuration_sha256": "10c24f6edd2bda35b42dc1e7d81d9e438a6eb5c63bd5e0a8b1eaed700ca5a8d4"
+      },
+      {
+        "config": {
+          "type": "bigint",
+          "cache": "1",
+          "cycle": false,
+          "start": "1",
+          "maximum": "9223372036854775807",
+          "minimum": "1",
+          "type_oid": "20",
+          "increment": "1"
+        },
+        "column_type": "bigint",
+        "relation_oid": "2177222",
+        "sequence_acl": [
+          "postgres=rwU/postgres",
+          "anon=rwU/postgres",
+          "authenticated=rwU/postgres",
+          "service_role=rwU/postgres"
+        ],
+        "sequence_oid": "2177221",
+        "source_table": "plm_bom_revision",
+        "identity_mode": "d",
+        "sequence_name": "plm_bom_revision_id_seq",
+        "source_column": "id",
+        "source_schema": "public",
+        "ownership_kind": "i",
+        "sequence_owner": "postgres",
+        "sequence_schema": "public",
+        "attribute_number": 1,
+        "sequence_options": null,
+        "prior_relation_oid": 2177222,
+        "sequence_dependencies": [
+          {
+            "oid": "2177222",
+            "kind": "i",
+            "class": "pg_class",
+            "subid": 1,
+            "description": "column id of table plm_bom_revision"
+          },
+          {
+            "oid": "2200",
+            "kind": "n",
+            "class": "pg_namespace",
+            "subid": 0,
+            "description": "schema public"
+          }
+        ],
+        "configuration_sha256": "bbcdb4921f9fac855967fddffcffbd588e0e4df70571c5481d7cebc41fe47924"
+      }
+    ],
+    "baseline_flag_summaries": [
+      {
+        "relation_oid": "1949275",
+        "relation": "costing.cost_driver_policy_cutover_acceptance",
+        "index_count": 4,
+        "constraint_count": 8,
+        "index_flags_sha256": "be897a47f3f91255910775db4863042723eb077ee14abf0442ad41857b81bc93",
+        "constraint_flags_sha256": "a83e6f4946ea4fc07c055588e098a49e0924676fb4c697af6c91454f4c0ffae1",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1937417",
+        "relation": "costing.cost_driver_policy_envelope",
+        "index_count": 4,
+        "constraint_count": 14,
+        "index_flags_sha256": "459515760cff09bbd9abc270a70ab6a90c6b6062f6c9039f5c0550727c6fd68a",
+        "constraint_flags_sha256": "3ba720e65e93a82852af842f59ea43096bc571f7a0f010bdeda61862c66b871b",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1937402",
+        "relation": "costing.cost_element_driver_catalog",
+        "index_count": 1,
+        "constraint_count": 4,
+        "index_flags_sha256": "948aca6e1a899f515a4b7830f8bb9ee07f8a8a1246974a82e2a90dbc542103cd",
+        "constraint_flags_sha256": "e9f33867e9298e9148567831ddec6b6d05bb5e7deca2b48e30068a01443a8d00",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920305",
+        "relation": "costing.cost_periods",
+        "index_count": 1,
+        "constraint_count": 8,
+        "index_flags_sha256": "03d9794885aedc18430a0176f5960b49b0200b158b9e39ac3db92ecc38780b46",
+        "constraint_flags_sha256": "857b16e9244a674f44a40b427e81efcf9f9da4ce25e6f1b3da55d9a7f713a523",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1872776",
+        "relation": "costing.cost_pool_monthly_snapshot",
+        "index_count": 3,
+        "constraint_count": 6,
+        "index_flags_sha256": "e24f5d9c3344ddc0fc885c0e09d2368bd0f45f49214d1706980077fcea6fa23a",
+        "constraint_flags_sha256": "da50a0f19fd7705a4fd50b2e8dd7cf9d57a04ec2e0a4184f42df7c13d3ea6869",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "952407",
+        "relation": "costing.costing_refresh_run",
+        "index_count": 5,
+        "constraint_count": 6,
+        "index_flags_sha256": "4233bdaae0e87429fc60b160fdb6c2f965a97c202f0ca8b2a47f8a78b5cbda2b",
+        "constraint_flags_sha256": "03442b6a50199778a862ccc78e051a11b55e02eb9121f1782bc1c42a03d4445d",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "952426",
+        "relation": "costing.costing_refresh_run_stage",
+        "index_count": 5,
+        "constraint_count": 5,
+        "index_flags_sha256": "34ee8d0da06f6d44ae935d50122d42908e29496c8ff9a6af8fbbb9959a36aaa0",
+        "constraint_flags_sha256": "c54ec9a47959fc771263d8204be4f238c2f7a5446bb914c4d0948ef90622df45",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1954737",
+        "relation": "costing.direct_labour_component_pool_snapshot",
+        "index_count": 3,
+        "constraint_count": 7,
+        "index_flags_sha256": "1cedf70c974b1712cb643675699c3a85bc51e286c51d07b74d512a97813e1e1b",
+        "constraint_flags_sha256": "e70259d0427ac67925869af042c31134ae9d7c51a91cbd26e7e4a313d5a91cb8",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1937478",
+        "relation": "costing.direct_labour_workload_policy",
+        "index_count": 2,
+        "constraint_count": 6,
+        "index_flags_sha256": "f55949dd07355271cd634d44ab01f4d59dc75e8b422af6f0ef43494b5527779c",
+        "constraint_flags_sha256": "85b14c954b8c7848f93c6c024b1b0138b58f35f8906da5bbe82acf69837e84d1",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920349",
+        "relation": "costing.expense_head_costing_map",
+        "index_count": 2,
+        "constraint_count": 3,
+        "index_flags_sha256": "6fcbb7e84bb88c08b4d2936f2da7bdde5787957fb30604446ff7fc38f6c6a30c",
+        "constraint_flags_sha256": "af23454da2c292a579776fe0ff79b1ec95c5c741cb7e5ae49b160922e0a4bcaf",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "941751",
+        "relation": "costing.manual_cost_pool_provisions",
+        "index_count": 5,
+        "constraint_count": 5,
+        "index_flags_sha256": "160d8de7a7839052347a39471c109b47fa79acd69f8e5108b8ef6bc0cabac3a6",
+        "constraint_flags_sha256": "348bae3c967e907dbc029ee9358ff6a6761330674eef31fea88661744c8ea529",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1938945",
+        "relation": "costing.marketing_allocation_policy",
+        "index_count": 2,
+        "constraint_count": 8,
+        "index_flags_sha256": "a3c0a844841a730963d04d4516465e7c70acb2bf55c64cdd1fc0201f7b47749a",
+        "constraint_flags_sha256": "1c0303691d1e432209e84cb5a216607524783cc176be5fbe9b78f506b20bd077",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1888508",
+        "relation": "costing.materials_stores_component_classification",
+        "index_count": 3,
+        "constraint_count": 6,
+        "index_flags_sha256": "57837c2be236bfa90f6793517753c8446ab91686e1406e5b863af4f6349509d4",
+        "constraint_flags_sha256": "47575138f9a438d40ca909c82027630717fce7a7fb610b5770275b7e5146f0f6",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1888491",
+        "relation": "costing.materials_stores_workload_policy",
+        "index_count": 3,
+        "constraint_count": 4,
+        "index_flags_sha256": "8c622f45a6b9deaa8b7a8eb941f983ed831911f4a43be66524a5b0c2df574774",
+        "constraint_flags_sha256": "4e64a38c89e4fa29a4c30ddafc44cb44da535c70c39aeccc5f4d8a4535a6aba7",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "2027847",
+        "relation": "costing.packing_labour_responsibility_rule",
+        "index_count": 2,
+        "constraint_count": 5,
+        "index_flags_sha256": "567ce523aaa6d73a94acda66565e8445b3d22b267b5932c8cbb0b93ad400899f",
+        "constraint_flags_sha256": "a4e49865944fd043da438cb9476e83dea4b3d82f58eb5910f21b1295b7941649",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1938453",
+        "relation": "costing.product_direct_labour_workload_snapshot",
+        "index_count": 4,
+        "constraint_count": 7,
+        "index_flags_sha256": "cae85bc0220199c04975810d950931cfcd6b1c94728831123de7766bf706fe30",
+        "constraint_flags_sha256": "1b31050986808619b608539edee6ab804d35d18fc13c4fdb06c67516b6fe472f",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1919498",
+        "relation": "costing.product_process_route",
+        "index_count": 8,
+        "constraint_count": 15,
+        "index_flags_sha256": "a8b6ceeaadb146cf1b6f187813efe94e563f5557176325a950a3787c74f930d3",
+        "constraint_flags_sha256": "d3690961702fb2e9e8cb80b66a7b8c664d3d9308eb990c1ae93159d03bb1dccc",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1919543",
+        "relation": "costing.product_process_route_override",
+        "index_count": 4,
+        "constraint_count": 20,
+        "index_flags_sha256": "a16acba732e9e452404fa4a4418ed6bc022a0e6f70dc41f49155e40a8092d8b5",
+        "constraint_flags_sha256": "f84b84f34dc1a3f128c3dc11cca69fe7b2c1e2aeac78aed9e897a7469a4a373e",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1936465",
+        "relation": "costing.product_production_overhead_workload_snapshot",
+        "index_count": 3,
+        "constraint_count": 7,
+        "index_flags_sha256": "079510ed111a84d2e3a7f60dd58f45302512c43a39ba1e1fac9dfcc2e2640201",
+        "constraint_flags_sha256": "3af3a16dd300947424d1a80fb9169f4b691ddaf0b299f2361e32739f4cfc0639",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1873039",
+        "relation": "costing.product_qc_allocation_snapshot",
+        "index_count": 3,
+        "constraint_count": 14,
+        "index_flags_sha256": "372dad95c47ab19693ab989b577a5c6e6ba6716008925d09aeae8f6fba5ccf91",
+        "constraint_flags_sha256": "37564c355a3a0db530243f82a1a2e8ae894c1232d5870964beee6d6967819335",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1872851",
+        "relation": "costing.product_qc_workload_snapshot",
+        "index_count": 4,
+        "constraint_count": 8,
+        "index_flags_sha256": "5879d40918095d56e8fba92f7809966d7e38154bcfda54050711fdda436e6229",
+        "constraint_flags_sha256": "95739df9e278fa29d5f4dd4cf80970d547c492e038f35affb0e29f566592a5e6",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1888526",
+        "relation": "costing.product_rm_stores_workload_snapshot",
+        "index_count": 3,
+        "constraint_count": 8,
+        "index_flags_sha256": "6434b704ee41ab024446f126c081c62c79ca4874352a8754ef5e366b250fb8ce",
+        "constraint_flags_sha256": "3fd65c7d0ea82789d0e21025026b6aadadb719c04495c8d8435c02384131f80c",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1919342",
+        "relation": "costing.production_cost_centre",
+        "index_count": 2,
+        "constraint_count": 13,
+        "index_flags_sha256": "33b71a961c5d963a90adea9c5f73c33ff7b012befeb9a19d1f2a8da6ce4566cd",
+        "constraint_flags_sha256": "f6dd47b042cb2be0870359f8bc7930eb9dc9c9ae141a7ee9bc667300c9b22ff9",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1936377",
+        "relation": "costing.production_overhead_workload_policy",
+        "index_count": 2,
+        "constraint_count": 6,
+        "index_flags_sha256": "c7141b113224f80be0747a5df94558474f704d8a6c6b6854b476c070348815c4",
+        "constraint_flags_sha256": "495d0e027ad60bdfb8f113374d48f365d55325fca4d689784a1a2142133c032b",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1919331",
+        "relation": "costing.production_resource_class",
+        "index_count": 1,
+        "constraint_count": 1,
+        "index_flags_sha256": "1b1ddce4cb829a8113b7a804287b7a7a06f9467b05b0c3754577afdd9b1e915d",
+        "constraint_flags_sha256": "4d72087cfdc7874de0584852f003c25512d9cabe7143b41d083f64351d3b3263",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1919321",
+        "relation": "costing.production_route_behaviour",
+        "index_count": 1,
+        "constraint_count": 1,
+        "index_flags_sha256": "3854c6308887ce668c87116babd72fdf2e9bbb24ea13f996c7adbb82c6242965",
+        "constraint_flags_sha256": "ed6c4f9174058bcd06aced65e7a1fb5a6e89272f664daaed1c8f483ad739e1e8",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1934689",
+        "relation": "costing.production_route_family",
+        "index_count": 3,
+        "constraint_count": 7,
+        "index_flags_sha256": "c20c2b18ab1a4639ab7d13c103df38b0795b06abb9debd49743a46c9a598ccf8",
+        "constraint_flags_sha256": "7fe3770666ec5d7c05564b655991708ef076e1f2ee15496c5805e3a1c916e738",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1934711",
+        "relation": "costing.production_route_family_product_group_map",
+        "index_count": 8,
+        "constraint_count": 10,
+        "index_flags_sha256": "4478c15c33cc355f6f3a0f26243bfe7a8ac12d0786557eb369a82d78f36e9181",
+        "constraint_flags_sha256": "1e190b37028ce5151890d36a5830b94d60d0cb01a49dade9c5d09c5f9be7879c",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1936888",
+        "relation": "costing.production_route_family_product_map",
+        "index_count": 7,
+        "constraint_count": 10,
+        "index_flags_sha256": "bddc816a81a3ecd952012047ab62e394e707eb6549c1cb2f78f9b06e8c48149c",
+        "constraint_flags_sha256": "5f442d5d51721a1188e7d0892785b129569510d8ee9c262b91ac08d78fc17935",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1958161",
+        "relation": "costing.production_route_family_product_subgroup_map",
+        "index_count": 6,
+        "constraint_count": 10,
+        "index_flags_sha256": "0a7124c9d07136e49af925364265907c725a3e2f8caea228e13c1817b24e872e",
+        "constraint_flags_sha256": "04f14047c9ef4aa4d7712af8fb412d5c9fd52af5b7dcc219e37b8af04cfc5952",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1934744",
+        "relation": "costing.production_route_family_route",
+        "index_count": 8,
+        "constraint_count": 13,
+        "index_flags_sha256": "4797eb83e5f3bb7986aa5c01ad9c90194ee75aaac7c4e20b3be6b869ee0ea564",
+        "constraint_flags_sha256": "37ab667dc5106c1383c23fa4e17168642ebf50524ffe7cc24c5eefae433ef33f",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1934778",
+        "relation": "costing.production_route_family_route_step",
+        "index_count": 3,
+        "constraint_count": 19,
+        "index_flags_sha256": "3d774374dcf5e9d5e33356eba0d16d0bd3ac7e8d5a772b59f56ace7f193bda2c",
+        "constraint_flags_sha256": "963c0e7e8ff89ef70a839a04bba3be80fa4eab4132eaf506f9d93cd20e1d07fb",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1872830",
+        "relation": "costing.qc_workload_policy",
+        "index_count": 2,
+        "constraint_count": 6,
+        "index_flags_sha256": "65f6fe8ad730073f7cc4784cabc8b6c1dfb0e6cc4ee409694a17a9bc443a80be",
+        "constraint_flags_sha256": "9e11780a0f3c8093a4d59a1805277a9e0878b00c2d096b31eb3c0075cf297d6d",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "2299841",
+        "relation": "costing.regional_marketing_evidence_acceptance",
+        "index_count": 3,
+        "constraint_count": 7,
+        "index_flags_sha256": "7f9ddfde63ced1e637e1709a356fd0e171e5b0d4a77ed883a89f0303a7b2f9fb",
+        "constraint_flags_sha256": "455fb41e8053c655828c097e6ff45eaef4e23f9a8bbc126568d0cd2ca6e87c72",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "2155112",
+        "relation": "costing.regional_sales_allocation_default_policy",
+        "index_count": 2,
+        "constraint_count": 7,
+        "index_flags_sha256": "7ccbd12eecb204617f57ec8cb089f3dff89ffaf37be3016704363ee669d6328b",
+        "constraint_flags_sha256": "62b8ac177edda4b6b5dde456027467b9793497a474f5e6ed83f55d9e3f5fca22",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1701786",
+        "relation": "costing.sales_allocation_default_policy",
+        "index_count": 5,
+        "constraint_count": 7,
+        "index_flags_sha256": "9a9101c79b48c31c584e3cef9b45ad995d560fa222fef8e136f9106b1b33a92d",
+        "constraint_flags_sha256": "ca7b22f62937b4b7251d877fc2534e32de8838bfdceb208d87df9e07bacd2e73",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "921228",
+        "relation": "costing.scheme_master",
+        "index_count": 3,
+        "constraint_count": 3,
+        "index_flags_sha256": "813a698498c1dbc38d3c380187130df8f726ae6f06f1b256ea69e4d47558bc5e",
+        "constraint_flags_sha256": "69d6e256a4418b9cabb37b32d1323a464ec5804f9b48c39939da97a83662c01a",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1702038",
+        "relation": "costing.scheme_master_context_snapshot",
+        "index_count": 4,
+        "constraint_count": 7,
+        "index_flags_sha256": "0145de41091c662a030e5e0e47b028777b50c7171b75ff4f46e8f5c17cc918ba",
+        "constraint_flags_sha256": "21a44712f647b1f63f698bda5f0fb5e0089f21b9f6ed5d1dff8d89d08605bb85",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "924628",
+        "relation": "costing.scheme_policy_rules",
+        "index_count": 8,
+        "constraint_count": 14,
+        "index_flags_sha256": "1fe4523492c91cd542487884064bc67e28e4fbf1916bcba44735731c2d0a1ba3",
+        "constraint_flags_sha256": "e5fb27580662a0cbbd5542c98482d028a700e0e8ba3af30b131f548855fed2dc",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920828",
+        "relation": "costing.sku_admin_finance_overhead_allocation_snapshot",
+        "index_count": 8,
+        "constraint_count": 8,
+        "index_flags_sha256": "7c5af06151f6d38a25799dd2919773f87d53e2af7193580b64e7943117f87971",
+        "constraint_flags_sha256": "0a62d3625c2f9582fa60d5a29d6a606ebd5e373cd597f20b3d344c8fd7ca1e0f",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "937800",
+        "relation": "costing.sku_commercial_sales_assumption",
+        "index_count": 6,
+        "constraint_count": 8,
+        "index_flags_sha256": "7e3f5c4a55c91f6a7aeacbe7be38fd03c26bb5e031fa404ec58395acff136f5e",
+        "constraint_flags_sha256": "ffd84f8da95f6932cc98e25cedb319383707c47ec878ebade8021da5d718516c",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "938289",
+        "relation": "costing.sku_costing_control_status_snapshot",
+        "index_count": 5,
+        "constraint_count": 2,
+        "index_flags_sha256": "0895c16759fe7399d535adfb03be15d3af9bc75348b20a37c4c02d784bf56fa6",
+        "constraint_flags_sha256": "f2b0ca7200bf5b5ffc6e1836824cc960a11a597b9182a93796719c51faf0ce07",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920698",
+        "relation": "costing.sku_direct_labour_allocation_snapshot",
+        "index_count": 9,
+        "constraint_count": 9,
+        "index_flags_sha256": "a24a1290e383610233d37937fc95ef2c7c06d2c1ef31182ab4bcf969e4513e3f",
+        "constraint_flags_sha256": "1035d6027a2153c4d4568493b28ce03e664a0bcce6dd5ecb7703b151f7a5d871",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920935",
+        "relation": "costing.sku_marketing_expense_allocation_snapshot",
+        "index_count": 9,
+        "constraint_count": 12,
+        "index_flags_sha256": "a5449101d4109bfc34698870c0c7f12ddaf5bcc964d3003072814ecf6d39a95f",
+        "constraint_flags_sha256": "22b7b174c40f2e7d126c043f0e0db9d0d07797653a0a7d9fdff5c8a62434a971",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1888629",
+        "relation": "costing.sku_materials_stores_allocation_snapshot",
+        "index_count": 5,
+        "constraint_count": 12,
+        "index_flags_sha256": "fb0c9f6138ea549d499ca96cfbaa5be8f6d8c21168e8d76788b93d0f83f47159",
+        "constraint_flags_sha256": "62e6f85750f30fb297fa5fbb77e99a512cd33227b5f3b706559e0ca2074687d8",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1888585",
+        "relation": "costing.sku_materials_stores_workload_snapshot",
+        "index_count": 3,
+        "constraint_count": 8,
+        "index_flags_sha256": "6e51cef53c50a33a7763a6d1d2c17eb64cbbb7676fbc2638685b5f3e793dc85f",
+        "constraint_flags_sha256": "94d130fd4ba7c199a51f8164bfe241d1cad02e6ac4534eea3cf4905a03d57eda",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1456331",
+        "relation": "costing.sku_mrp_policy",
+        "index_count": 5,
+        "constraint_count": 13,
+        "index_flags_sha256": "47335030270b5a745483358a626135203fcc1ad31fc04629e324f23bdf8ee0f8",
+        "constraint_flags_sha256": "ea467841871a28cca83772db344ae67e0a8c4b15e2c744132ff8a358d3cf69bd",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1954763",
+        "relation": "costing.sku_packing_labour_workload_snapshot",
+        "index_count": 5,
+        "constraint_count": 12,
+        "index_flags_sha256": "8e5d8cb3f86c0603800b2be76effa0cc3ecd858e3a7b670abef4fa679c96aa57",
+        "constraint_flags_sha256": "528a4f2b8ce03b89a6edb6aa0d59718cd11eeaf2a6403dca661422143d4c728f",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1888556",
+        "relation": "costing.sku_pm_stores_workload_snapshot",
+        "index_count": 3,
+        "constraint_count": 7,
+        "index_flags_sha256": "0b7a04ccf61d38beb3105a994583820044e7d45332f380c1413b0c94bd056279",
+        "constraint_flags_sha256": "171ba0d1ce5a1b687ccee2224b2c926c14a71704d7435f9b40a3f12d8c0c7cf5",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1936531",
+        "relation": "costing.sku_production_overhead_allocation_snapshot",
+        "index_count": 3,
+        "constraint_count": 7,
+        "index_flags_sha256": "b0df0c54b3fed9dbc87b41f1481840222ecdcf222b11e23d1bf12e70af8d6f87",
+        "constraint_flags_sha256": "9e0f5d15fc8ca86e96d7fe34e12603ac3919b5a2c24278b99ec13e8127614c70",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1873080",
+        "relation": "costing.sku_qc_allocation_snapshot",
+        "index_count": 3,
+        "constraint_count": 9,
+        "index_flags_sha256": "aca4ac4458b3bf0dc995a05dd2473f3b1f72c674d2e5b519cfbe22d576a75c1c",
+        "constraint_flags_sha256": "72f9e35bdb771499c29d4af1a56e25130cdf5bf6940ac2a92c771db7e80e7b01",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1857020",
+        "relation": "costing.sku_regional_commercial_sales_assumption",
+        "index_count": 7,
+        "constraint_count": 22,
+        "index_flags_sha256": "8c81b352ff2cb5e4a131bdbd9ddf1dc8372646fdee1cd57134a774d9d292b38b",
+        "constraint_flags_sha256": "62b7955c7833470c7be4e8445cb42f049abcae1c3e316a8d077d8baa9a6da5de",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1857595",
+        "relation": "costing.sku_regional_marketing_allocation_basis_snapshot",
+        "index_count": 6,
+        "constraint_count": 11,
+        "index_flags_sha256": "78f082899d9dd551e1cba9d239ecdc356056e570af1884477e956d876d968495",
+        "constraint_flags_sha256": "f25834d093a576547d96bbac2f57e0386f48744a3c676328331eeed7a389bb6f",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1857698",
+        "relation": "costing.sku_regional_marketing_expense_allocation_snapshot",
+        "index_count": 6,
+        "constraint_count": 14,
+        "index_flags_sha256": "51fbab9635ef4e4f7c9041f9271a2fae19e18d0d6c647361f24a01ac8a4bba15",
+        "constraint_flags_sha256": "24092a02a6c9c823634fd8a5b9d254885bae4e60473890eaabeeaf52c6dca4c7",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920673",
+        "relation": "costing.sku_sales_allocation_basis_snapshot",
+        "index_count": 12,
+        "constraint_count": 23,
+        "index_flags_sha256": "f3783fc10d40205810223b34dd8fcdac787f978d3385ab5a88b143e3b7075610",
+        "constraint_flags_sha256": "809fc8af2febae1c9b99210a395a1d2f760b5906cda36f15b1067b0bafc3cafc",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "921563",
+        "relation": "costing.sku_scheme_policy",
+        "index_count": 1,
+        "constraint_count": 7,
+        "index_flags_sha256": "681f548c704c978fbe4742f185a099fca91664c397e1115e592889aeb960fda1",
+        "constraint_flags_sha256": "5daa518c9c8f50b4a5939ea21552d512feae725d90dd5a1f6781f26275850e4a",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1702159",
+        "relation": "costing.sku_selected_scheme_policy_context_snapshot",
+        "index_count": 6,
+        "constraint_count": 12,
+        "index_flags_sha256": "bd3c477f5df05f46d1ac2357fdab1d6f98c126a7695df4103de88bb8390e7f83",
+        "constraint_flags_sha256": "1a6a96bed59109f543c9288e4a15722dd50af9980ec69d7f495c17c710d25952",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "921136",
+        "relation": "costing.sku_selling_price_policy",
+        "index_count": 4,
+        "constraint_count": 4,
+        "index_flags_sha256": "9b4d898fcccc65c366cd63b3d990e2ead65e28215e8aad4d6cab461ed488f426",
+        "constraint_flags_sha256": "a8f1f968b463fbdf689f2265d83f1eff606fdac786088da5ac2f95a16e5b0d4e",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "919799",
+        "relation": "costing.staff_costing_classification",
+        "index_count": 4,
+        "constraint_count": 5,
+        "index_flags_sha256": "4fbae62b30a58d1b1c74218a8d3e99f7d093d75d2bd8b65b0ca893cf1748008f",
+        "constraint_flags_sha256": "261b4624dbd4a2ebce70f28e16d553be1f46c04f99cb3fd78974a234556f2681",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "1937458",
+        "relation": "costing.v_cost_driver_policy_registry",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920619",
+        "relation": "costing.v_cost_pool_monthly_combined",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "920614",
+        "relation": "costing.v_expense_head_monthly_provision",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "2299874",
+        "relation": "costing.v_regional_marketing_evidence_review_queue",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "937825",
+        "relation": "costing.v_sku_commercial_sales_basis",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "919822",
+        "relation": "costing.v_staff_cost_pool_monthly",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "831631",
+        "relation": "hr.staff",
+        "index_count": 5,
+        "constraint_count": 11,
+        "index_flags_sha256": "58f2e1a06f4262dcf1ab566a69e207a8686fe90de0f66898795b3588ce221668",
+        "constraint_flags_sha256": "4abae010d682fe5c6bf0e3f279a44f6c8efb219533642e78d981d2d92eac1f8f",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "831576",
+        "relation": "hr.staff_category",
+        "index_count": 3,
+        "constraint_count": 5,
+        "index_flags_sha256": "b94fa89ace07fb69fcde8cd2cdd1deced76c1ba36b23b3c382a07372948877cc",
+        "constraint_flags_sha256": "b39ca43e86057196c64fc226c48c35583caf106dc71c9504e23dd7ab31979cea",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "919773",
+        "relation": "hr.staff_compensation_monthly",
+        "index_count": 4,
+        "constraint_count": 3,
+        "index_flags_sha256": "c294e32217cd033b38390a51337316e7360cba29b1c4e08b8b858342b16411cd",
+        "constraint_flags_sha256": "4c0bc168aa3dc9fbd555f1914ad2d4bbcd37091246514a3d6230e398d071bbb5",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "831594",
+        "relation": "hr.staff_status",
+        "index_count": 3,
+        "constraint_count": 5,
+        "index_flags_sha256": "f0222592976493e2c7c1b8b852a561fe11e3499df378efedb80aa5e75a745082",
+        "constraint_flags_sha256": "8e74036c5d72f76a3962c57602d7fd4822403c84ec78cd8c8646d54430fa1374",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "831613",
+        "relation": "hr.unit",
+        "index_count": 3,
+        "constraint_count": 5,
+        "index_flags_sha256": "f3e433aad9a86effde804b5783ad54f4b90756b3d89683d40412bb95ff11352f",
+        "constraint_flags_sha256": "0629a3bb30f125c46ba9479590c82b6a9912732df4279629f3e259560b449959",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18373",
+        "relation": "public.activities",
+        "index_count": 4,
+        "constraint_count": 6,
+        "index_flags_sha256": "5d6833e5482271199aef6be0055acb5bfecc644b4c5c67f861e2e8befaea17ca",
+        "constraint_flags_sha256": "9cbc11743755c119e79dd7f57e86758581a4f53548e928a3ffb86b11a1278c34",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": [
+          {
+            "oid": "109946",
+            "name": "fk_activities_kind",
+            "type": "f",
+            "validated": true,
+            "deferrable": true,
+            "no_inherit": true,
+            "relation_oid": "18373",
+            "initially_deferred": true
+          }
+        ]
+      },
+      {
+        "relation_oid": "109788",
+        "relation": "public.activity_kinds",
+        "index_count": 3,
+        "constraint_count": 3,
+        "index_flags_sha256": "34ea4368bb6c83f6a7ff098446494530192e5f41c5fba8666780d8beafae6c9a",
+        "constraint_flags_sha256": "2f85962b9628f672c9c033ac547ce957e7abadf5aeeb8de93ffa8acbb73139a1",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18380",
+        "relation": "public.areas",
+        "index_count": 2,
+        "constraint_count": 4,
+        "index_flags_sha256": "17065499069698720a339bbd3b2d69e006e843e0fd70a455a9ad7258028c86a6",
+        "constraint_flags_sha256": "44031a4717f0a0c093ae86792bea07d78fbd1df3a55b2d31e17754055c896026",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18394",
+        "relation": "public.categories",
+        "index_count": 2,
+        "constraint_count": 2,
+        "index_flags_sha256": "4e82d497e745616f7f8b6be10fb8049f23b397b5a1c30df82ebe9e01a9cfef32",
+        "constraint_flags_sha256": "5cee3efa6185fb796d7e8a690fa4f64a91cf4ed90af140ed62f78d81dd928891",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "177235",
+        "relation": "public.inv_uom",
+        "index_count": 4,
+        "constraint_count": 3,
+        "index_flags_sha256": "da391c36e70e50d1af3297c6e8aef5d52a38f43398a90114b0429f11533e04da",
+        "constraint_flags_sha256": "7c50ebeb31267b1f0b5d3f35693c8e650b07af57320912be4f0cb292f006bad2",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "177223",
+        "relation": "public.inv_uom_dimension",
+        "index_count": 2,
+        "constraint_count": 2,
+        "index_flags_sha256": "e16a7964ebbd4f3e78bde29d114a787b38020041174e6d62b82d4f264995e1e6",
+        "constraint_flags_sha256": "b9549a2e5480e27f182497b8207ce5aef2126f9471c859f7dfda608cf10798a9",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "21673",
+        "relation": "public.machine_types",
+        "index_count": 2,
+        "constraint_count": 2,
+        "index_flags_sha256": "9cebeb491c2d9e01c43a87347ca71e93566b12550c3e3e84cf4bc9be9e6e0ab4",
+        "constraint_flags_sha256": "65928e737bbebaa3fb50bd4abaed92a1ba95434e25e0d4ad1ac8c73c0ef82007",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "573895",
+        "relation": "public.permission_targets",
+        "index_count": 3,
+        "constraint_count": 2,
+        "index_flags_sha256": "f9c1281582d1e96ac821a54e8f8efd1ecd0fcef8b8d3f3c29797e64b91c816de",
+        "constraint_flags_sha256": "08461ef03eb2a140270063af8d9006cae6b12900eb42ca02e60569c53d3b5900",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18416",
+        "relation": "public.plant_machinery",
+        "index_count": 2,
+        "constraint_count": 7,
+        "index_flags_sha256": "5ad6e9985840974048a586f9c6d7ed59ab8c19616b1fb60def636707f923d273",
+        "constraint_flags_sha256": "582f6fb637c1c036a45846519114e14e20bca4252cab54703e0f41a1edec0395",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "2177222",
+        "relation": "public.plm_bom_revision",
+        "index_count": 5,
+        "constraint_count": 12,
+        "index_flags_sha256": "80b3a88522183f03922d6c8f25feb223ba12b09569808d33b991e22cfc78e95c",
+        "constraint_flags_sha256": "de7599be8281fb3578fc2374e1326884a4f63b34d3ca1da2ff8d217ce98bfb01",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "329197",
+        "relation": "public.plm_tpl_header",
+        "index_count": 2,
+        "constraint_count": 3,
+        "index_flags_sha256": "eb62e58727c7d9203e9ac5085bbd1f0bd6559c58103860a6eb9b8722608f98df",
+        "constraint_flags_sha256": "ef0c1148e331cc7460fad353e7b3f3517ea49e58d37318b5a997700f46f4d73a",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "121307",
+        "relation": "public.product_group_kinds",
+        "index_count": 3,
+        "constraint_count": 2,
+        "index_flags_sha256": "e865db45c84e36f4c2bd9d518af6a02a09863a5e97558a3295e2db530bc0b839",
+        "constraint_flags_sha256": "6bdf413145c749a41f260ce930af88c7f484c5b218ffe6b22eed614b404ad307",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18423",
+        "relation": "public.product_groups",
+        "index_count": 2,
+        "constraint_count": 4,
+        "index_flags_sha256": "fe726dec272a4986aca3f07900945c8ec3a49b309896f364eb18be653a838747",
+        "constraint_flags_sha256": "7e649558b7a1cc3393feb156ebce77ec7c71cbb5dce5f2adc9a613d77950db0f",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "30301",
+        "relation": "public.product_skus",
+        "index_count": 4,
+        "constraint_count": 3,
+        "index_flags_sha256": "562fc66c8861917c393398cf3b9248c5270d431a611fd26f6ea5f64d6de3eddc",
+        "constraint_flags_sha256": "dac7525c0a586eb4938984969e091542c261b7549709ce5059cdaa447af61eb0",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "249093",
+        "relation": "public.production_batch_size_ref",
+        "index_count": 5,
+        "constraint_count": 8,
+        "index_flags_sha256": "e3fa0ee19e797ec501258ae77da89afa939120d5240f518ac7bf358fce86e04d",
+        "constraint_flags_sha256": "aab7413c6e0a54b2787e9c6a14dfe46abaccdb29799ce4d997db54d6b04a873c",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18436",
+        "relation": "public.products",
+        "index_count": 4,
+        "constraint_count": 9,
+        "index_flags_sha256": "1778cf54c8bd874da0c002751d0f9768a563cf761b2551729ccec14b6b01da9f",
+        "constraint_flags_sha256": "9d610374bfbdefbe63a8b229210e4d2240085e69eb1c045f505f0c1191d5b5ee",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "189113",
+        "relation": "public.season_profile",
+        "index_count": 2,
+        "constraint_count": 3,
+        "index_flags_sha256": "1ff6548e0fccf5538e8936e62f14b4e7d2594ba35abf4f953957f62c8c2b3924",
+        "constraint_flags_sha256": "60aa8321de1aca61cd67df1e041c7e215380811a83b2488c5b2890fb01459166",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18449",
+        "relation": "public.sections",
+        "index_count": 2,
+        "constraint_count": 2,
+        "index_flags_sha256": "27bf7a8d769aeab9d191e551d1f4aa5131eb806fd422e5535553c47a717c8467",
+        "constraint_flags_sha256": "cbba0e415f5345b75d6a81e8c0d8c869ff1b55a1e343c2de60e72b26df54bf4b",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18455",
+        "relation": "public.sub_categories",
+        "index_count": 2,
+        "constraint_count": 3,
+        "index_flags_sha256": "37525c2feed83f19e5da4d9c07a973d8e216a679d6e7c9c44cda4bb50a2067d3",
+        "constraint_flags_sha256": "10b7fb14e4f7d0b8de7a48da2af75e64d4fa23ceb2320f7edd3d127a6e424d17",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18461",
+        "relation": "public.sub_groups",
+        "index_count": 2,
+        "constraint_count": 3,
+        "index_flags_sha256": "d0d5b6235d455a6bdf7be6ca47a4cd8f3138a4a448cfe50e1231ce25696db304",
+        "constraint_flags_sha256": "baca7ffd97e10ef16708e29433d08fdb0bf4ffd687bac5e471a3f08409cae983",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "18467",
+        "relation": "public.subsections",
+        "index_count": 2,
+        "constraint_count": 3,
+        "index_flags_sha256": "4ae05103fb5dffa66c4e2576cfb024bd1cd75324058dd543a2d2b22d72468320",
+        "constraint_flags_sha256": "eea2abe4b49bf66ba818413cb4418fdac9e9936979d67002317e7d7adc05527c",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "149415",
+        "relation": "public.tally_expenses_snapshot",
+        "index_count": 4,
+        "constraint_count": 2,
+        "index_flags_sha256": "5a243451f1d4db0070cfd84e1b71b0d63d84128606bf4bd8971b02d6e3592c8e",
+        "constraint_flags_sha256": "f7240e06560f38a54cd7efba90aeaf45811c855a17460d602c1eaeb5966c21de",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "535336",
+        "relation": "public.user_permissions_canonical",
+        "index_count": 3,
+        "constraint_count": 3,
+        "index_flags_sha256": "3a1739f5d181fd9ce348509989e01a55215403d96f210128999d9681a258e2ab",
+        "constraint_flags_sha256": "f7dc93f8d7cf896beccc40bfcdc865871dc5d87cc79ced28d411716dda9d9e66",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "939286",
+        "relation": "public.v_costing_expense_allocation_pool_options",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "941789",
+        "relation": "public.v_costing_manual_cost_pool_monthly_summary",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      },
+      {
+        "relation_oid": "941780",
+        "relation": "public.v_costing_manual_provision_pool_options",
+        "index_count": 0,
+        "constraint_count": 0,
+        "index_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "constraint_flags_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "invalid_unready_or_dead_indexes": [],
+        "unvalidated_constraints": [],
+        "deferrable_constraints": []
+      }
+    ],
+    "privilege_metadata": {
+      "roles": [
+        {
+          "oid": "6171",
+          "name": "pg_database_owner",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "6181",
+          "name": "pg_read_all_data",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "3373",
+          "name": "pg_monitor",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "4200",
+          "name": "pg_signal_backend",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "6304",
+          "name": "pg_create_subscription",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "846717",
+          "name": "supabase_privileged_role",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "16479",
+          "name": "authenticated",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "16478",
+          "name": "anon",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "16480",
+          "name": "service_role",
+          "login": false,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": true,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "10",
+          "name": "supabase_admin",
+          "login": true,
+          "inherit": true,
+          "superuser": true,
+          "bypass_rls": true,
+          "create_role": true,
+          "create_database": true
+        },
+        {
+          "oid": "16481",
+          "name": "authenticator",
+          "login": true,
+          "inherit": false,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        },
+        {
+          "oid": "16539",
+          "name": "supabase_auth_admin",
+          "login": true,
+          "inherit": false,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": true,
+          "create_database": false
+        },
+        {
+          "oid": "16594",
+          "name": "supabase_storage_admin",
+          "login": true,
+          "inherit": false,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": true,
+          "create_database": false
+        },
+        {
+          "oid": "16384",
+          "name": "postgres",
+          "login": true,
+          "inherit": true,
+          "superuser": false,
+          "bypass_rls": true,
+          "create_role": true,
+          "create_database": true
+        },
+        {
+          "oid": "205308",
+          "name": "cli_login_postgres",
+          "login": true,
+          "inherit": false,
+          "superuser": false,
+          "bypass_rls": false,
+          "create_role": false,
+          "create_database": false
+        }
+      ],
+      "schemas": [
+        {
+          "acl": [
+            "postgres=UC/postgres",
+            "authenticated=U/postgres"
+          ],
+          "oid": "831573",
+          "name": "hr",
+          "owner": "postgres"
+        },
+        {
+          "acl": [
+            "postgres=UC/postgres",
+            "authenticated=U/postgres"
+          ],
+          "oid": "919633",
+          "name": "costing",
+          "owner": "postgres"
+        },
+        {
+          "acl": [
+            "pg_database_owner=UC/pg_database_owner",
+            "=U/pg_database_owner",
+            "postgres=U/pg_database_owner",
+            "anon=U/pg_database_owner",
+            "authenticated=U/pg_database_owner",
+            "service_role=U/pg_database_owner"
+          ],
+          "oid": "2200",
+          "name": "public",
+          "owner": "pg_database_owner"
+        }
+      ],
+      "memberships": [
+        {
+          "role": "supabase_privileged_role",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "846717",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": false,
+          "inherit_option": true
+        },
+        {
+          "role": "pg_signal_backend",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "4200",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "pg_read_all_data",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "6181",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "pg_create_subscription",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "6304",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "anon",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "16478",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "authenticated",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "16479",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "service_role",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "16480",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "authenticator",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "16481",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "pg_monitor",
+          "member": "postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "3373",
+          "member_oid": "16384",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": true,
+          "inherit_option": true
+        },
+        {
+          "role": "anon",
+          "member": "authenticator",
+          "grantor": "supabase_admin",
+          "role_oid": "16478",
+          "member_oid": "16481",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": false,
+          "inherit_option": false
+        },
+        {
+          "role": "service_role",
+          "member": "authenticator",
+          "grantor": "supabase_admin",
+          "role_oid": "16480",
+          "member_oid": "16481",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": false,
+          "inherit_option": false
+        },
+        {
+          "role": "authenticated",
+          "member": "authenticator",
+          "grantor": "supabase_admin",
+          "role_oid": "16479",
+          "member_oid": "16481",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": false,
+          "inherit_option": false
+        },
+        {
+          "role": "authenticator",
+          "member": "supabase_storage_admin",
+          "grantor": "supabase_admin",
+          "role_oid": "16481",
+          "member_oid": "16594",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": false,
+          "inherit_option": false
+        },
+        {
+          "role": "postgres",
+          "member": "cli_login_postgres",
+          "grantor": "supabase_admin",
+          "role_oid": "16384",
+          "member_oid": "205308",
+          "set_option": true,
+          "grantor_oid": "10",
+          "admin_option": false,
+          "inherit_option": false
+        }
+      ],
+      "default_acls": [
+        {
+          "acl": [
+            "postgres=arwdDxtm/postgres",
+            "anon=arwdDxtm/postgres",
+            "authenticated=arwdDxtm/postgres",
+            "service_role=arwdDxtm/postgres"
+          ],
+          "oid": "16486",
+          "owner": "postgres",
+          "schema": "public",
+          "object_type": "r"
+        },
+        {
+          "acl": [
+            "postgres=X/postgres",
+            "anon=X/postgres",
+            "authenticated=X/postgres",
+            "service_role=X/postgres"
+          ],
+          "oid": "16487",
+          "owner": "postgres",
+          "schema": "public",
+          "object_type": "f"
+        },
+        {
+          "acl": [
+            "postgres=rwU/postgres",
+            "anon=rwU/postgres",
+            "authenticated=rwU/postgres",
+            "service_role=rwU/postgres"
+          ],
+          "oid": "16488",
+          "owner": "postgres",
+          "schema": "public",
+          "object_type": "S"
+        },
+        {
+          "acl": [
+            "postgres=rwU/supabase_admin",
+            "anon=rwU/supabase_admin",
+            "authenticated=rwU/supabase_admin",
+            "service_role=rwU/supabase_admin"
+          ],
+          "oid": "16489",
+          "owner": "supabase_admin",
+          "schema": "public",
+          "object_type": "S"
+        },
+        {
+          "acl": [
+            "postgres=arwdDxtm/supabase_admin",
+            "anon=arwdDxtm/supabase_admin",
+            "authenticated=arwdDxtm/supabase_admin",
+            "service_role=arwdDxtm/supabase_admin"
+          ],
+          "oid": "16490",
+          "owner": "supabase_admin",
+          "schema": "public",
+          "object_type": "r"
+        },
+        {
+          "acl": [
+            "postgres=X/supabase_admin",
+            "anon=X/supabase_admin",
+            "authenticated=X/supabase_admin",
+            "service_role=X/supabase_admin"
+          ],
+          "oid": "16491",
+          "owner": "supabase_admin",
+          "schema": "public",
+          "object_type": "f"
+        }
+      ],
+      "related_total": 15
+    },
+    "event_triggers": [
+      {
+        "acl": [
+          "=X/supabase_admin",
+          "supabase_admin=X/supabase_admin",
+          "postgres=X*/supabase_admin"
+        ],
+        "md5": "4e6d7efe4aed1b3b92063b648aa7a0cf",
+        "oid": "16617",
+        "name": "issue_pg_graphql_access",
+        "tags": [
+          "CREATE FUNCTION"
+        ],
+        "event": "ddl_command_end",
+        "owner": "supabase_admin",
+        "config": [
+          "search_path=\"\""
+        ],
+        "enabled": "O",
+        "language": "plpgsql",
+        "handler_oid": "16616",
+        "handler_args": "",
+        "handler_name": "grant_pg_graphql_access",
+        "handler_owner": "supabase_admin",
+        "handler_schema": "extensions",
+        "security_definer": false,
+        "handler_signature": "grant_pg_graphql_access()",
+        "definition_sha256": "9ec845adab4ba00bbf7740458b6c4461094697023f0f7adc693b373e2ea54f68",
+        "definition_lines": 43,
+        "classification": "Provider-managed setup handler; inspect/reconcile in target, do not clone/invoke from application bootstrap"
+      },
+      {
+        "acl": [
+          "=X/supabase_admin",
+          "supabase_admin=X/supabase_admin",
+          "postgres=X*/supabase_admin"
+        ],
+        "md5": "8da9dff6b2ae47498209d341acaeb60b",
+        "oid": "16619",
+        "name": "issue_graphql_placeholder",
+        "tags": [
+          "DROP EXTENSION"
+        ],
+        "event": "sql_drop",
+        "owner": "supabase_admin",
+        "config": [
+          "search_path=\"\""
+        ],
+        "enabled": "O",
+        "language": "plpgsql",
+        "handler_oid": "16618",
+        "handler_args": "",
+        "handler_name": "set_graphql_placeholder",
+        "handler_owner": "supabase_admin",
+        "handler_schema": "extensions",
+        "security_definer": false,
+        "handler_signature": "set_graphql_placeholder()",
+        "definition_sha256": "b0cadab880dc68f569b3e01057dc6f5acee9d05e122de6f4256130ae330bbcec",
+        "definition_lines": 54,
+        "classification": "Provider-managed setup handler; inspect/reconcile in target, do not clone/invoke from application bootstrap"
+      },
+      {
+        "acl": [
+          "=X/supabase_admin",
+          "supabase_admin=X/supabase_admin",
+          "postgres=X*/supabase_admin"
+        ],
+        "md5": "afaad7193dcf8f81e728d2bedb85e43e",
+        "oid": "16620",
+        "name": "pgrst_ddl_watch",
+        "tags": null,
+        "event": "ddl_command_end",
+        "owner": "supabase_admin",
+        "config": [
+          "search_path=\"\""
+        ],
+        "enabled": "O",
+        "language": "plpgsql",
+        "handler_oid": "16607",
+        "handler_args": "",
+        "handler_name": "pgrst_ddl_watch",
+        "handler_owner": "supabase_admin",
+        "handler_schema": "extensions",
+        "security_definer": false,
+        "handler_signature": "pgrst_ddl_watch()",
+        "definition_sha256": "2b4b5d702ddf70fbd1a05c9825f9f9016d5c0ef97dd3df5f5b012ea23d9b94b1",
+        "definition_lines": 29,
+        "classification": "Provider-managed setup handler; inspect/reconcile in target, do not clone/invoke from application bootstrap"
+      },
+      {
+        "acl": [
+          "=X/supabase_admin",
+          "supabase_admin=X/supabase_admin",
+          "postgres=X*/supabase_admin"
+        ],
+        "md5": "4357772baf5cfcd5c6d7049585b3a537",
+        "oid": "16621",
+        "name": "pgrst_drop_watch",
+        "tags": null,
+        "event": "sql_drop",
+        "owner": "supabase_admin",
+        "config": [
+          "search_path=\"\""
+        ],
+        "enabled": "O",
+        "language": "plpgsql",
+        "handler_oid": "16608",
+        "handler_args": "",
+        "handler_name": "pgrst_drop_watch",
+        "handler_owner": "supabase_admin",
+        "handler_schema": "extensions",
+        "security_definer": false,
+        "handler_signature": "pgrst_drop_watch()",
+        "definition_sha256": "3a2696133853e17a0456cbfbb233a03815f50895492143e84df983b558d76593",
+        "definition_lines": 27,
+        "classification": "Provider-managed setup handler; inspect/reconcile in target, do not clone/invoke from application bootstrap"
+      },
+      {
+        "acl": [
+          "=X/supabase_admin",
+          "supabase_admin=X*/supabase_admin",
+          "dashboard_user=X/supabase_admin"
+        ],
+        "md5": "53a44336da0ac1dd62d89dbd988e6d1d",
+        "oid": "16698",
+        "name": "issue_pg_cron_access",
+        "tags": [
+          "CREATE EXTENSION"
+        ],
+        "event": "ddl_command_end",
+        "owner": "supabase_admin",
+        "config": [
+          "search_path=\"\""
+        ],
+        "enabled": "O",
+        "language": "plpgsql",
+        "handler_oid": "16595",
+        "handler_args": "",
+        "handler_name": "grant_pg_cron_access",
+        "handler_owner": "supabase_admin",
+        "handler_schema": "extensions",
+        "security_definer": false,
+        "handler_signature": "grant_pg_cron_access()",
+        "definition_sha256": "eb3fa2e82a0135bc04a6236f93331911861c91b45d72cba5d9c03c1be2c34b4c",
+        "definition_lines": 34,
+        "classification": "Provider-managed setup handler; inspect/reconcile in target, do not clone/invoke from application bootstrap"
+      },
+      {
+        "acl": [
+          "=X/supabase_admin",
+          "supabase_admin=X*/supabase_admin",
+          "dashboard_user=X/supabase_admin"
+        ],
+        "md5": "1d06ef4fb47bb0ab6e6f8818a62013bb",
+        "oid": "16701",
+        "name": "issue_pg_net_access",
+        "tags": [
+          "CREATE EXTENSION"
+        ],
+        "event": "ddl_command_end",
+        "owner": "supabase_admin",
+        "config": [
+          "search_path=\"\""
+        ],
+        "enabled": "O",
+        "language": "plpgsql",
+        "handler_oid": "16597",
+        "handler_args": "",
+        "handler_name": "grant_pg_net_access",
+        "handler_owner": "supabase_admin",
+        "handler_schema": "extensions",
+        "security_definer": false,
+        "handler_signature": "grant_pg_net_access()",
+        "definition_sha256": "e38c4060751c9695123350596f1cb0d0c943015f3267a2a455d8efe02c711184",
+        "definition_lines": 47,
+        "classification": "Provider-managed setup handler; inspect/reconcile in target, do not clone/invoke from application bootstrap"
+      }
+    ],
+    "setup_ddl_tags_audited": [
+      "CREATE SCHEMA",
+      "ALTER SCHEMA",
+      "DROP SCHEMA",
+      "CREATE TABLE",
+      "ALTER TABLE",
+      "DROP TABLE",
+      "CREATE VIEW",
+      "ALTER VIEW",
+      "DROP VIEW",
+      "CREATE FUNCTION",
+      "ALTER FUNCTION",
+      "DROP FUNCTION",
+      "CREATE TYPE",
+      "ALTER TYPE",
+      "DROP TYPE",
+      "CREATE INDEX",
+      "ALTER INDEX",
+      "DROP INDEX",
+      "CREATE POLICY",
+      "ALTER POLICY",
+      "DROP POLICY",
+      "CREATE TRIGGER",
+      "ALTER TRIGGER",
+      "DROP TRIGGER",
+      "CREATE EXTENSION",
+      "ALTER EXTENSION",
+      "DROP EXTENSION"
+    ],
+    "query_target_ledger": [
+      {
+        "label": "root-hash-reconciliation-0",
+        "combined_target_count": 12,
+        "targets": [
+          "pg_proc:costing.fn_product_process_route_readiness(p_as_of_date date)",
+          "pg_proc:costing.fn_product_sku_readiness_enrich(p_base jsonb, p_sku_id bigint, p_period_start date, p_valuation_date date, p_refresh_run_id bigint)",
+          "pg_proc:costing.fn_product_sku_readiness_run_evidence(p_sku_id bigint, p_period_start date, p_valuation_date date, p_refresh_run_id bigint)",
+          "pg_proc:costing.fn_product_sku_readiness_shared_issues(p_valuation_date date)",
+          "pg_proc:costing.fn_resolve_direct_labour_workload_policy(p_as_of_date date)",
+          "pg_proc:costing.fn_resolve_marketing_allocation_policy(p_valuation_date date)",
+          "pg_proc:costing.fn_resolve_materials_stores_workload_policy(p_valuation_date date)",
+          "pg_proc:costing.fn_resolve_production_overhead_workload_policy(p_as_of_date date)",
+          "pg_proc:costing.fn_resolve_qc_workload_policy(p_as_of_date date)",
+          "pg_proc:costing.fn_resolve_route_family_for_product(p_product_id integer, p_as_of_date date)",
+          "pg_proc:costing.fn_resolve_sales_allocation_default_policy_as_of(p_scenario_code text, p_valuation_date date)",
+          "pg_proc:costing.fn_resolve_sku_commercial_sales_basis_point(p_sku_id bigint, p_period_start date, p_valuation_date date)"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "a38507e6212daf87ff9b80b4005dabbcbbf7a091eeb8870d19108f9c3cc06571"
+      },
+      {
+        "label": "root-hash-reconciliation-12",
+        "combined_target_count": 11,
+        "targets": [
+          "pg_proc:costing.fn_resolve_sku_mrp_as_of(p_sku_id bigint, p_valuation_date date)",
+          "pg_proc:costing.fn_resolve_sku_sales_assumption_as_of(p_period_start date, p_sku_id bigint, p_valuation_date date)",
+          "pg_proc:costing.fn_resolve_sku_selling_price_policy_as_of(p_sku_id bigint, p_valuation_date date)",
+          "pg_proc:costing.fn_validate_effective_product_process_route(p_product_id integer, p_as_of_date date)",
+          "pg_proc:public.app_has_permission(p_target text, p_mode text)",
+          "pg_proc:public.app_has_permission_core(p_user_id uuid, p_target text, p_mode text)",
+          "pg_proc:public.plm_sku_bom_revision_as_of(p_sku_id bigint, p_as_of date)",
+          "pg_proc:public.require_permission(p_target text, p_need_edit boolean)",
+          "pg_proc:public.rpc_get_cost_period_valuation_context(p_period_start date)",
+          "pg_proc:public.rpc_get_latest_governed_cost_period_start()",
+          "pg_proc:public.rpc_get_product_sku_readiness(p_sku_id bigint, p_period_start date, p_context_type text, p_refresh_run_id bigint)"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "da040940980eb850979f5e5fbde9c6956fe4cda00eca65f562ee0d693ae4f78f"
+      },
+      {
+        "label": "identity-sequence-capture-0",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.cost_driver_policy_cutover_acceptance",
+          "identity-sequence:costing.cost_driver_policy_cutover_acceptance.id",
+          "pg_class:costing.cost_driver_policy_envelope",
+          "identity-sequence:costing.cost_driver_policy_envelope.id",
+          "pg_class:costing.cost_pool_monthly_snapshot",
+          "identity-sequence:costing.cost_pool_monthly_snapshot.id",
+          "pg_class:costing.direct_labour_workload_policy",
+          "identity-sequence:costing.direct_labour_workload_policy.id",
+          "pg_class:costing.materials_stores_component_classification",
+          "identity-sequence:costing.materials_stores_component_classification.id",
+          "pg_class:costing.materials_stores_workload_policy",
+          "identity-sequence:costing.materials_stores_workload_policy.id",
+          "pg_class:costing.packing_labour_responsibility_rule",
+          "identity-sequence:costing.packing_labour_responsibility_rule.id",
+          "pg_class:costing.product_production_overhead_workload_snapshot",
+          "identity-sequence:costing.product_production_overhead_workload_snapshot.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "4bdf6b9d41ea1f10e06dab079536fa18e3d22865fdffb3e761a37dee3760d01f"
+      },
+      {
+        "label": "identity-sequence-capture-8",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.product_qc_allocation_snapshot",
+          "identity-sequence:costing.product_qc_allocation_snapshot.id",
+          "pg_class:costing.product_rm_stores_workload_snapshot",
+          "identity-sequence:costing.product_rm_stores_workload_snapshot.id",
+          "pg_class:costing.production_overhead_workload_policy",
+          "identity-sequence:costing.production_overhead_workload_policy.id",
+          "pg_class:costing.production_route_family",
+          "identity-sequence:costing.production_route_family.id",
+          "pg_class:costing.production_route_family_product_group_map",
+          "identity-sequence:costing.production_route_family_product_group_map.id",
+          "pg_class:costing.production_route_family_product_map",
+          "identity-sequence:costing.production_route_family_product_map.id",
+          "pg_class:costing.production_route_family_product_subgroup_map",
+          "identity-sequence:costing.production_route_family_product_subgroup_map.id",
+          "pg_class:costing.production_route_family_route",
+          "identity-sequence:costing.production_route_family_route.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "b6a1f9df16592ef283b5f76fabd841ec78de28f6988b01d55b804cb6aa64617b"
+      },
+      {
+        "label": "identity-sequence-capture-16",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.production_route_family_route_step",
+          "identity-sequence:costing.production_route_family_route_step.id",
+          "pg_class:costing.regional_marketing_evidence_acceptance",
+          "identity-sequence:costing.regional_marketing_evidence_acceptance.id",
+          "pg_class:costing.regional_sales_allocation_default_policy",
+          "identity-sequence:costing.regional_sales_allocation_default_policy.id",
+          "pg_class:costing.sales_allocation_default_policy",
+          "identity-sequence:costing.sales_allocation_default_policy.id",
+          "pg_class:costing.scheme_master_context_snapshot",
+          "identity-sequence:costing.scheme_master_context_snapshot.id",
+          "pg_class:costing.sku_materials_stores_allocation_snapshot",
+          "identity-sequence:costing.sku_materials_stores_allocation_snapshot.id",
+          "pg_class:costing.sku_materials_stores_workload_snapshot",
+          "identity-sequence:costing.sku_materials_stores_workload_snapshot.id",
+          "pg_class:costing.sku_mrp_policy",
+          "identity-sequence:costing.sku_mrp_policy.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "77e9c90b15ac4c9a0b3100ceb46dc1ca0353de39b4bd53fc7aefcc5d6c7bf337"
+      },
+      {
+        "label": "identity-sequence-capture-24",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.sku_pm_stores_workload_snapshot",
+          "identity-sequence:costing.sku_pm_stores_workload_snapshot.id",
+          "pg_class:costing.sku_production_overhead_allocation_snapshot",
+          "identity-sequence:costing.sku_production_overhead_allocation_snapshot.id",
+          "pg_class:costing.sku_qc_allocation_snapshot",
+          "identity-sequence:costing.sku_qc_allocation_snapshot.id",
+          "pg_class:costing.sku_regional_commercial_sales_assumption",
+          "identity-sequence:costing.sku_regional_commercial_sales_assumption.id",
+          "pg_class:costing.sku_regional_marketing_allocation_basis_snapshot",
+          "identity-sequence:costing.sku_regional_marketing_allocation_basis_snapshot.id",
+          "pg_class:costing.sku_regional_marketing_expense_allocation_snapshot",
+          "identity-sequence:costing.sku_regional_marketing_expense_allocation_snapshot.id",
+          "pg_class:costing.sku_selected_scheme_policy_context_snapshot",
+          "identity-sequence:costing.sku_selected_scheme_policy_context_snapshot.id",
+          "pg_class:public.plm_bom_revision",
+          "identity-sequence:public.plm_bom_revision.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "40fb50b3ef250ab65a5b3f70e62b5eeab0f62818af983fb960d46b3d9cfb3a75"
+      },
+      {
+        "label": "lossless-identity-config-recheck-0",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.cost_driver_policy_cutover_acceptance",
+          "identity-sequence:costing.cost_driver_policy_cutover_acceptance.id",
+          "pg_class:costing.cost_driver_policy_envelope",
+          "identity-sequence:costing.cost_driver_policy_envelope.id",
+          "pg_class:costing.cost_pool_monthly_snapshot",
+          "identity-sequence:costing.cost_pool_monthly_snapshot.id",
+          "pg_class:costing.direct_labour_workload_policy",
+          "identity-sequence:costing.direct_labour_workload_policy.id",
+          "pg_class:costing.materials_stores_component_classification",
+          "identity-sequence:costing.materials_stores_component_classification.id",
+          "pg_class:costing.materials_stores_workload_policy",
+          "identity-sequence:costing.materials_stores_workload_policy.id",
+          "pg_class:costing.packing_labour_responsibility_rule",
+          "identity-sequence:costing.packing_labour_responsibility_rule.id",
+          "pg_class:costing.product_production_overhead_workload_snapshot",
+          "identity-sequence:costing.product_production_overhead_workload_snapshot.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "d9595f3c5704a8cd664b393fd74de18e745eefa18021e65692ad5d574f99253f"
+      },
+      {
+        "label": "lossless-identity-config-recheck-1",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.product_qc_allocation_snapshot",
+          "identity-sequence:costing.product_qc_allocation_snapshot.id",
+          "pg_class:costing.product_rm_stores_workload_snapshot",
+          "identity-sequence:costing.product_rm_stores_workload_snapshot.id",
+          "pg_class:costing.production_overhead_workload_policy",
+          "identity-sequence:costing.production_overhead_workload_policy.id",
+          "pg_class:costing.production_route_family",
+          "identity-sequence:costing.production_route_family.id",
+          "pg_class:costing.production_route_family_product_group_map",
+          "identity-sequence:costing.production_route_family_product_group_map.id",
+          "pg_class:costing.production_route_family_product_map",
+          "identity-sequence:costing.production_route_family_product_map.id",
+          "pg_class:costing.production_route_family_product_subgroup_map",
+          "identity-sequence:costing.production_route_family_product_subgroup_map.id",
+          "pg_class:costing.production_route_family_route",
+          "identity-sequence:costing.production_route_family_route.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "d37aca40b3b5c2cc1fc7f86e367785262fe7d2687209009d4193b7a9d750c917"
+      },
+      {
+        "label": "lossless-identity-config-recheck-2",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.production_route_family_route_step",
+          "identity-sequence:costing.production_route_family_route_step.id",
+          "pg_class:costing.regional_marketing_evidence_acceptance",
+          "identity-sequence:costing.regional_marketing_evidence_acceptance.id",
+          "pg_class:costing.regional_sales_allocation_default_policy",
+          "identity-sequence:costing.regional_sales_allocation_default_policy.id",
+          "pg_class:costing.sales_allocation_default_policy",
+          "identity-sequence:costing.sales_allocation_default_policy.id",
+          "pg_class:costing.scheme_master_context_snapshot",
+          "identity-sequence:costing.scheme_master_context_snapshot.id",
+          "pg_class:costing.sku_materials_stores_allocation_snapshot",
+          "identity-sequence:costing.sku_materials_stores_allocation_snapshot.id",
+          "pg_class:costing.sku_materials_stores_workload_snapshot",
+          "identity-sequence:costing.sku_materials_stores_workload_snapshot.id",
+          "pg_class:costing.sku_mrp_policy",
+          "identity-sequence:costing.sku_mrp_policy.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "01f298ab5749f4f04cd16994dafa4d3688348d196ca941248d0ee451aa6acab6"
+      },
+      {
+        "label": "lossless-identity-config-recheck-3",
+        "combined_target_count": 16,
+        "targets": [
+          "pg_class:costing.sku_pm_stores_workload_snapshot",
+          "identity-sequence:costing.sku_pm_stores_workload_snapshot.id",
+          "pg_class:costing.sku_production_overhead_allocation_snapshot",
+          "identity-sequence:costing.sku_production_overhead_allocation_snapshot.id",
+          "pg_class:costing.sku_qc_allocation_snapshot",
+          "identity-sequence:costing.sku_qc_allocation_snapshot.id",
+          "pg_class:costing.sku_regional_commercial_sales_assumption",
+          "identity-sequence:costing.sku_regional_commercial_sales_assumption.id",
+          "pg_class:costing.sku_regional_marketing_allocation_basis_snapshot",
+          "identity-sequence:costing.sku_regional_marketing_allocation_basis_snapshot.id",
+          "pg_class:costing.sku_regional_marketing_expense_allocation_snapshot",
+          "identity-sequence:costing.sku_regional_marketing_expense_allocation_snapshot.id",
+          "pg_class:costing.sku_selected_scheme_policy_context_snapshot",
+          "identity-sequence:costing.sku_selected_scheme_policy_context_snapshot.id",
+          "pg_class:public.plm_bom_revision",
+          "identity-sequence:public.plm_bom_revision.id"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "8246ac403850ae82c5735b76830256882433d2f53be68c51b7c783b599df761f"
+      },
+      {
+        "label": "existing-index-constraint-flags-0",
+        "combined_target_count": 24,
+        "targets": [
+          "pg_class:costing.cost_driver_policy_cutover_acceptance",
+          "pg_class:costing.cost_driver_policy_envelope",
+          "pg_class:costing.cost_element_driver_catalog",
+          "pg_class:costing.cost_periods",
+          "pg_class:costing.cost_pool_monthly_snapshot",
+          "pg_class:costing.costing_refresh_run",
+          "pg_class:costing.costing_refresh_run_stage",
+          "pg_class:costing.direct_labour_component_pool_snapshot",
+          "pg_class:costing.direct_labour_workload_policy",
+          "pg_class:costing.expense_head_costing_map",
+          "pg_class:costing.manual_cost_pool_provisions",
+          "pg_class:costing.marketing_allocation_policy",
+          "pg_class:costing.materials_stores_component_classification",
+          "pg_class:costing.materials_stores_workload_policy",
+          "pg_class:costing.packing_labour_responsibility_rule",
+          "pg_class:costing.product_direct_labour_workload_snapshot",
+          "pg_class:costing.product_process_route",
+          "pg_class:costing.product_process_route_override",
+          "pg_class:costing.product_production_overhead_workload_snapshot",
+          "pg_class:costing.product_qc_allocation_snapshot",
+          "pg_class:costing.product_qc_workload_snapshot",
+          "pg_class:costing.product_rm_stores_workload_snapshot",
+          "pg_class:costing.production_cost_centre",
+          "pg_class:costing.production_overhead_workload_policy"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "e759a9a54feb73724a2d6bc09b59c72dcb3ccbdab472869ddb85a73b46b280ae"
+      },
+      {
+        "label": "existing-index-constraint-flags-24",
+        "combined_target_count": 24,
+        "targets": [
+          "pg_class:costing.production_resource_class",
+          "pg_class:costing.production_route_behaviour",
+          "pg_class:costing.production_route_family",
+          "pg_class:costing.production_route_family_product_group_map",
+          "pg_class:costing.production_route_family_product_map",
+          "pg_class:costing.production_route_family_product_subgroup_map",
+          "pg_class:costing.production_route_family_route",
+          "pg_class:costing.production_route_family_route_step",
+          "pg_class:costing.qc_workload_policy",
+          "pg_class:costing.regional_marketing_evidence_acceptance",
+          "pg_class:costing.regional_sales_allocation_default_policy",
+          "pg_class:costing.sales_allocation_default_policy",
+          "pg_class:costing.scheme_master",
+          "pg_class:costing.scheme_master_context_snapshot",
+          "pg_class:costing.scheme_policy_rules",
+          "pg_class:costing.sku_admin_finance_overhead_allocation_snapshot",
+          "pg_class:costing.sku_commercial_sales_assumption",
+          "pg_class:costing.sku_costing_control_status_snapshot",
+          "pg_class:costing.sku_direct_labour_allocation_snapshot",
+          "pg_class:costing.sku_marketing_expense_allocation_snapshot",
+          "pg_class:costing.sku_materials_stores_allocation_snapshot",
+          "pg_class:costing.sku_materials_stores_workload_snapshot",
+          "pg_class:costing.sku_mrp_policy",
+          "pg_class:costing.sku_packing_labour_workload_snapshot"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "46e4bb4ed6fcd1a793c06fac99d7af3d88a171a82147896b48abcecbd61f930e"
+      },
+      {
+        "label": "existing-index-constraint-flags-48",
+        "combined_target_count": 24,
+        "targets": [
+          "pg_class:costing.sku_pm_stores_workload_snapshot",
+          "pg_class:costing.sku_production_overhead_allocation_snapshot",
+          "pg_class:costing.sku_qc_allocation_snapshot",
+          "pg_class:costing.sku_regional_commercial_sales_assumption",
+          "pg_class:costing.sku_regional_marketing_allocation_basis_snapshot",
+          "pg_class:costing.sku_regional_marketing_expense_allocation_snapshot",
+          "pg_class:costing.sku_sales_allocation_basis_snapshot",
+          "pg_class:costing.sku_scheme_policy",
+          "pg_class:costing.sku_selected_scheme_policy_context_snapshot",
+          "pg_class:costing.sku_selling_price_policy",
+          "pg_class:costing.staff_costing_classification",
+          "pg_class:costing.v_cost_driver_policy_registry",
+          "pg_class:costing.v_cost_pool_monthly_combined",
+          "pg_class:costing.v_expense_head_monthly_provision",
+          "pg_class:costing.v_regional_marketing_evidence_review_queue",
+          "pg_class:costing.v_sku_commercial_sales_basis",
+          "pg_class:costing.v_staff_cost_pool_monthly",
+          "pg_class:hr.staff",
+          "pg_class:hr.staff_category",
+          "pg_class:hr.staff_compensation_monthly",
+          "pg_class:hr.staff_status",
+          "pg_class:hr.unit",
+          "pg_class:public.activities",
+          "pg_class:public.activity_kinds"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "7a0c2683423d9dd81c1c6364c7a26a112476e9d7157b2f9eb5b31124bde9c1af"
+      },
+      {
+        "label": "existing-index-constraint-flags-72",
+        "combined_target_count": 24,
+        "targets": [
+          "pg_class:public.areas",
+          "pg_class:public.categories",
+          "pg_class:public.inv_uom",
+          "pg_class:public.inv_uom_dimension",
+          "pg_class:public.machine_types",
+          "pg_class:public.permission_targets",
+          "pg_class:public.plant_machinery",
+          "pg_class:public.plm_bom_revision",
+          "pg_class:public.plm_tpl_header",
+          "pg_class:public.product_group_kinds",
+          "pg_class:public.product_groups",
+          "pg_class:public.product_skus",
+          "pg_class:public.production_batch_size_ref",
+          "pg_class:public.products",
+          "pg_class:public.season_profile",
+          "pg_class:public.sections",
+          "pg_class:public.sub_categories",
+          "pg_class:public.sub_groups",
+          "pg_class:public.subsections",
+          "pg_class:public.tally_expenses_snapshot",
+          "pg_class:public.user_permissions_canonical",
+          "pg_class:public.v_costing_expense_allocation_pool_options",
+          "pg_class:public.v_costing_manual_cost_pool_monthly_summary",
+          "pg_class:public.v_costing_manual_provision_pool_options"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "272fb8e3f24e925c10d14d674409b1aec5c577ea44a4042af330a19966000bd7"
+      },
+      {
+        "label": "event-trigger-count-only",
+        "combined_target_count": 0,
+        "targets": [],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "dba97c41c31a3b59d280bfc270529b36d10dc1b9c870cd053fddb8387f69db6d"
+      },
+      {
+        "label": "event-trigger-metadata",
+        "combined_target_count": 6,
+        "targets": [
+          "setup-event-or-handler:0",
+          "setup-event-or-handler:1",
+          "setup-event-or-handler:2",
+          "setup-event-or-handler:3",
+          "setup-event-or-handler:4",
+          "setup-event-or-handler:5"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "resolved_targets": [
+          "pg_event_trigger:16617",
+          "pg_proc:16616",
+          "pg_event_trigger:16620",
+          "pg_proc:16607",
+          "pg_event_trigger:16621",
+          "pg_proc:16608"
+        ],
+        "query_sha256": "4c6410d11c78c968af32f731f65bfd963cfcb3b5791ab0408aa071f9456a8655"
+      },
+      {
+        "label": "role-membership-count-only",
+        "combined_target_count": 8,
+        "targets": [
+          "pg_roles:postgres",
+          "pg_roles:authenticated",
+          "pg_roles:anon",
+          "pg_roles:service_role",
+          "pg_roles:authenticator",
+          "pg_roles:supabase_auth_admin",
+          "pg_roles:supabase_admin",
+          "pg_roles:pg_database_owner"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "08975fbf7f2c11adfdd8364ee1981f21e2588aa775b1b9434ae46108baccc665"
+      },
+      {
+        "label": "event-handler-definition-0",
+        "combined_target_count": 3,
+        "targets": [
+          "pg_proc:16616",
+          "pg_proc:16607",
+          "pg_proc:16608"
+        ],
+        "definition_count": 3,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "c9c147acb233e024156d667224760f1d7520834ad79e94b155f1cf3e57da1950"
+      },
+      {
+        "label": "scoped-role-schema-default-acls",
+        "combined_target_count": 18,
+        "targets": [
+          "related-role:0",
+          "related-role:1",
+          "related-role:2",
+          "related-role:3",
+          "related-role:4",
+          "related-role:5",
+          "related-role:6",
+          "related-role:7",
+          "related-role:8",
+          "related-role:9",
+          "related-role:10",
+          "related-role:11",
+          "related-role:12",
+          "related-role:13",
+          "related-role:14",
+          "pg_namespace:public",
+          "pg_namespace:costing",
+          "pg_namespace:hr"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "resolved_targets": [
+          "pg_roles:6171",
+          "pg_roles:6181",
+          "pg_roles:3373",
+          "pg_roles:4200",
+          "pg_roles:6304",
+          "pg_roles:846717",
+          "pg_roles:16479",
+          "pg_roles:16478",
+          "pg_roles:16480",
+          "pg_roles:10",
+          "pg_roles:16481",
+          "pg_roles:16539",
+          "pg_roles:16594",
+          "pg_roles:16384",
+          "pg_roles:205308",
+          "pg_namespace:831573",
+          "pg_namespace:919633",
+          "pg_namespace:2200"
+        ],
+        "query_sha256": "45b89667f9c868778005224443bc18219d7d43a4c710ccaca63985ef2f7f629c"
+      },
+      {
+        "label": "extension-setup-event-count-only",
+        "combined_target_count": 0,
+        "targets": [],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "88e635bd8e0b37a6f18d6fe415d7261d1de168eafd6110cf416b29dc2b15323b"
+      },
+      {
+        "label": "extension-setup-event-metadata",
+        "combined_target_count": 12,
+        "targets": [
+          "setup-extension-event-or-handler:0",
+          "setup-extension-event-or-handler:1",
+          "setup-extension-event-or-handler:2",
+          "setup-extension-event-or-handler:3",
+          "setup-extension-event-or-handler:4",
+          "setup-extension-event-or-handler:5",
+          "setup-extension-event-or-handler:6",
+          "setup-extension-event-or-handler:7",
+          "setup-extension-event-or-handler:8",
+          "setup-extension-event-or-handler:9",
+          "setup-extension-event-or-handler:10",
+          "setup-extension-event-or-handler:11"
+        ],
+        "definition_count": 0,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "resolved_targets": [
+          "pg_event_trigger:16617",
+          "pg_proc:16616",
+          "pg_event_trigger:16619",
+          "pg_proc:16618",
+          "pg_event_trigger:16620",
+          "pg_proc:16607",
+          "pg_event_trigger:16621",
+          "pg_proc:16608",
+          "pg_event_trigger:16698",
+          "pg_proc:16595",
+          "pg_event_trigger:16701",
+          "pg_proc:16597"
+        ],
+        "query_sha256": "f233d3979b0e1b6d1e5301d9b9b5ebd60d8899e1c38dd043310b7644f3726cf9"
+      },
+      {
+        "label": "extension-event-handler-definitions",
+        "combined_target_count": 3,
+        "targets": [
+          "pg_proc:16618",
+          "pg_proc:16595",
+          "pg_proc:16597"
+        ],
+        "definition_count": 3,
+        "read_only": true,
+        "timeout_seconds": 10,
+        "query_sha256": "77e7929b139afcac645c6ca42aa3b34dc2d41ba381c3e77b00be46a4ab4b716e"
+      }
+    ],
+    "pass_object_ledger": {
+      "functions": [
+        "1937367",
+        "2385945",
+        "2385940",
+        "2386222",
+        "1938524",
+        "1938999",
+        "1888618",
+        "1936445",
+        "1872849",
+        "1934864",
+        "1701821",
+        "2387118",
+        "1626616",
+        "1701822",
+        "1645225",
+        "1936370",
+        "708697",
+        "708732",
+        "2177303",
+        "582580",
+        "1939070",
+        "2386539",
+        "2385931",
+        "16616",
+        "16607",
+        "16608",
+        "16618",
+        "16595",
+        "16597"
+      ],
+      "relationsTypes": [
+        "pg_class:1949275",
+        "pg_class:1949274",
+        "pg_type:20",
+        "pg_class:1937417",
+        "pg_class:1937416",
+        "pg_class:1872776",
+        "pg_class:1872775",
+        "pg_class:1937478",
+        "pg_class:1937477",
+        "pg_class:1888508",
+        "pg_class:1888507",
+        "pg_class:1888491",
+        "pg_class:1888490",
+        "pg_class:2027847",
+        "pg_class:2027846",
+        "pg_class:1936465",
+        "pg_class:1936464",
+        "pg_class:1873039",
+        "pg_class:1873038",
+        "pg_class:1888526",
+        "pg_class:1888525",
+        "pg_class:1936377",
+        "pg_class:1936376",
+        "pg_class:1934689",
+        "pg_class:1934688",
+        "pg_class:1934711",
+        "pg_class:1934710",
+        "pg_class:1936888",
+        "pg_class:1936887",
+        "pg_class:1958161",
+        "pg_class:1958160",
+        "pg_class:1934744",
+        "pg_class:1934743",
+        "pg_class:1934778",
+        "pg_class:1934777",
+        "pg_class:2299841",
+        "pg_class:2299840",
+        "pg_class:2155112",
+        "pg_class:2155111",
+        "pg_class:1701786",
+        "pg_class:1701785",
+        "pg_class:1702038",
+        "pg_class:1702037",
+        "pg_class:1888629",
+        "pg_class:1888628",
+        "pg_class:1888585",
+        "pg_class:1888584",
+        "pg_class:1456331",
+        "pg_class:1456330",
+        "pg_class:1888556",
+        "pg_class:1888555",
+        "pg_class:1936531",
+        "pg_class:1936530",
+        "pg_class:1873080",
+        "pg_class:1873079",
+        "pg_class:1857020",
+        "pg_class:1857019",
+        "pg_class:1857595",
+        "pg_class:1857594",
+        "pg_class:1857698",
+        "pg_class:1857697",
+        "pg_class:1702159",
+        "pg_class:1702158",
+        "pg_class:2177222",
+        "pg_class:2177221",
+        "pg_class:1937402",
+        "pg_class:920305",
+        "pg_class:952407",
+        "pg_class:952426",
+        "pg_class:1954737",
+        "pg_class:920349",
+        "pg_class:941751",
+        "pg_class:1938945",
+        "pg_class:1938453",
+        "pg_class:1919498",
+        "pg_class:1919543",
+        "pg_class:1872851",
+        "pg_class:1919342",
+        "pg_class:1919331",
+        "pg_class:1919321",
+        "pg_class:1872830",
+        "pg_class:921228",
+        "pg_class:924628",
+        "pg_class:920828",
+        "pg_class:937800",
+        "pg_class:938289",
+        "pg_class:920698",
+        "pg_class:920935",
+        "pg_class:1954763",
+        "pg_class:920673",
+        "pg_class:921563",
+        "pg_class:921136",
+        "pg_class:919799",
+        "pg_class:1937458",
+        "pg_class:920619",
+        "pg_class:920614",
+        "pg_class:2299874",
+        "pg_class:937825",
+        "pg_class:919822",
+        "pg_class:831631",
+        "pg_class:831576",
+        "pg_class:919773",
+        "pg_class:831594",
+        "pg_class:831613",
+        "pg_class:18373",
+        "pg_class:109788",
+        "pg_class:18380",
+        "pg_class:18394",
+        "pg_class:177235",
+        "pg_class:177223",
+        "pg_class:21673",
+        "pg_class:573895",
+        "pg_class:18416",
+        "pg_class:329197",
+        "pg_class:121307",
+        "pg_class:18423",
+        "pg_class:30301",
+        "pg_class:249093",
+        "pg_class:18436",
+        "pg_class:189113",
+        "pg_class:18449",
+        "pg_class:18455",
+        "pg_class:18461",
+        "pg_class:18467",
+        "pg_class:149415",
+        "pg_class:535336",
+        "pg_class:939286",
+        "pg_class:941789",
+        "pg_class:941780"
+      ]
+    },
+    "raw_capture_sha256": "f5a9c54ef9165ea50f024d56e21099753d7157ecfce36151a455add7aea14886",
+    "operational_frontier": [
+      "Provider automatic migration/seed/hook scope before paid target creation remains unverified; source event hooks do not establish it.",
+      "No selected/provisioned test target or confirmed organization/cost.",
+      "Supported target-specific native Auth admin/sign-in mechanism and API exposure remain unestablished.",
+      "Exact executable target bootstrap/fixture package and nonproduction runtime/performance/access proof remain pending."
+    ],
+    "notes": [
+      "All sequence bigint settings use decimal strings; no last_value or nextval/setval read.",
+      "No new function/body dependency expanded beyond six approved setup-relevant event handlers.",
+      "Provider-managed handler/role metadata is an exclusion/reconciliation requirement, not authority to clone it.",
+      "Index/constraint objects are subordinate structural metadata anchored to 96 already captured tables/views; parent/new-sequence/native-type identities are counted in the pass object ledger.",
+      "The four original oversized metadata calls remain historical; all 22 continuation calls obey the frozen combined target guard.",
+      "First-hop membership metadata is scoped to baseline owners/API roles and immediate connected roles; not an exhaustive database role graph or native Auth/API access test.",
+      "Cumulative footprint is 81 function identities / 173 table-view-sequence relations / 109 types; this is across separate reviewed passes, not a reset inside one pass.",
+      "Six provider handler sources are temporary only; durable metadata stores identities/hashes/config/ACL and side-effect classification. No referenced network/cron/GraphQL operations were executed or recursively expanded.",
+      "All bigint sequence settings are decimal strings to preserve precision; no sequence current values read.",
+      "No enum/domain, source-row authority, production security fix, activation rule, or new readiness aggregation introduced."
+    ],
+    "next_gate": "WP04-G4-S0 \u2014 Independent completed-continuation / setup-safety review",
+    "server_mutations": [],
+    "client_changes": [],
+    "new_decisions": [],
+    "new_parked_findings": []
   }
 }
