@@ -888,6 +888,57 @@ This is preparation evidence, not an independently reviewed setup result. G4-S0 
 **Exact next checkpoint:** `WP04-G4-S0 — Independent bounded-capture / setup-proof package review`. That review must classify whether and how to authorize the fresh 32-sequence read-only continuation, resolve target/Auth prerequisites and freeze any concrete setup scripts. It cannot mark the environment ready or authorize writes merely because this preparation was completed or committed. Stop here before independent review, provisioning or implementation.
 
 
+## WP04-G4-S0 — Independent bounded-capture / setup-proof package review (2026-10-02)
+
+Reviewed the actual pushed preparation at `93e3154a7a00f2a611db9bc626674d760604a765`, separately from its authoring checkpoint. Fresh fetch confirms main remains `47dcd80f69ca68fcca8f089bf40fa4099b376450`; branch is clean and WP03's verified tip remains an ancestor of main. Mandatory rules/programme/handover/parked/decision/closed-WP03 inputs and the prior S0/G3 boundaries were reconciled. Supabase skill and current connector operation descriptions were checked; no database query or provider operation was needed for this review.
+
+**Review result: PASS WITH CORRECTIONS FOR ONE BOUNDED READ-ONLY CONTINUATION ONLY.** The preparation evidence and staged proof direction are accepted at audit/package-planning level after the corrections below. **HOLD:** provisioning, cost confirmation, Auth setup, bootstrap/fixture/candidate writes and production/client implementation. No environment-readiness or full-schema-closure approval. G4-S0 remains **[~] IN PROGRESS**; the resulting-package review checkpoint is complete after documentation corrections.
+
+### Evidence verification and limits
+
+- All three published files were read from the exact commit and reconciled with the local clean checkout. The manifest's 75 function MD5/SHA-256 fingerprints and 141 structural hashes were independently recomputed from the retained catalog/source capture; no mismatch. All 23 root fingerprints still reconcile to the earlier captured roots. These are dated source checks, **not a new live drift comparison**.
+- Exact signature/object uniqueness, all captured function return types, table/view row types, column types, FK targets, trigger function identities and durable discovery-path targets reconcile. Counts remain 75 functions, 87 tables, 9 views, 45 explicit sequences and 109 types, totaling 250 relations/types; 32 frontier entries match the captured 32 identity columns and count-only evidence.
+- Reconstructed the published source-reference closure: 31 functions / 54 relations (51 tables, 3 views). Inspected executable read-body candidates; the six `PERFORM` calls are the five existing policy resolvers and `public.require_permission`, already in the read closure. No table DML/dynamic EXECUTE/procedure CALL candidate in that inspected read closure. This supports the read-only classification, not runtime-equivalence, branch load-order or exhaustive native dependency proof.
+- The disclosed four oversized metadata batches remain a governance deviation. Recorded compliant rechecks show no identity/structural/extension-membership difference; the deviation is neither erased nor relabelled as fully compliant. This review adds a mandatory combined-target batch guard for the next pass.
+- Current connector inventory still does not expose an established native Auth-admin/session-test mechanism. `create_branch` explicitly describes applying all main-project migrations to a fresh target. Neither its description nor earlier empty repository baseline proves a side-effect-free or complete schema bootstrap. No actual cost, target/API state, runtime or authenticated proof was obtained.
+
+### Superseding setup corrections
+
+These corrections supersede any conflicting interpretation of S0-P1–P8 above; historical preparation evidence is preserved.
+
+| Finding | Required correction / disposition |
+| --- | --- |
+| Source OIDs are not portable target identities | OIDs identify this capture/project only. Resolve target objects by schema-qualified name and exact argument types, then obtain target OIDs. Never use captured source OIDs as branch IDs or equality proof across databases. Source policy role OIDs likewise require actual role-name resolution; no copying numeric role IDs |
+| Native and automatic row types | All 96 captured composite types are table/view row types; 13 other types are native pg_catalog base/pseudo types. Tables/views create their own row types. Do not independently CREATE TYPE for these automatic row types or reconstruct native types/managed Auth/roles. Match resulting columns/type identity/order by qualified names. Create the commercial view before its row-type-returning point helper, while creating that view's primitive/table-returning resolver prerequisites first |
+| Full bootstrap/ACL fidelity remains incomplete | Hashes/counts are evidence, not executable DDL or an effective-privilege proof. Complete owned identity sequence configuration; inspect relevant index validity/readiness and constraint validation/deferability, plus scoped default privileges and role membership affecting baseline owners/API roles. Preserve baseline semantics without enabling RLS, granting access, creating roles or repairing production as part of this audit. Actual target schema/owner/ACL/RLS/options reconciliation remains required before fixtures |
+| DDL/provider side-effect boundary | The 59 regular triggers are not an event-trigger audit. Inspect enabled setup-relevant DDL event-trigger metadata and bounded handler definitions before a future bootstrap decision. Separately review the chosen provider operation's automatic migration/seed/hook behavior **before provisioning**, not after unreviewed work has already run. If the operation cannot isolate/reconcile that automatic scope, hold it and review an alternative; do not assume the production project's empty repository migration file means empty server replay. No global event-trigger/network/cron/worker repair or disabling approved |
+| Fixture writers are exclusions from readiness execution | The Marketing repricing and HR synchronization writers are not permission to omit/disable guards during baseline reproduction. Later exact fixture scripts must specify relevant insert/update/transition-table/run-state/session-context order, expected side effects and assertions in the isolated target. Do not centralize these writers or invoke them in this continuation. Synthetic HR/expense schema support authorizes no production records or new product surface |
+| Permission/native Auth distinction | Original canonical/latest-period OR view checks remain exact. The captured valuation-context reader uses `require_permission('module:costing-control-center', false)` and remains CCC-only; Product-only canonical/latest success must not be generalized to valuation-context access. Provider role/SQL-claim simulation, captured ACLs and successful privileged catalog SQL cannot clear native Auth/API proof. Keep supported fresh-actor/session mechanism, actual API exposure and direct-helper tests open |
+| Closure and batching claims | “Read-source closure” means inspected source/catalog reachability only. The 32-sequence frontier is known, not proof that no new prerequisites can emerge. Enforce a **combined** class-qualified target-object count across all branches of each aggregate query before executing it; splitting JSON result keys does not split a metadata batch. Stop on drift, cap overflow or an unapproved newly exposed dependency |
+
+No architecture/business/evidence/security lock is added. Minimum discovered `btree_gist` / native PLpgSQL finding is retained as scoped evidence, not blanket extension-install approval. CSE-P01 remains unresolved, SEC-P01/02 remain separate, route codes stay unlinked, Marketing editing remains parked, and no WP03 regression is demonstrated.
+
+### Frozen next package — one bounded read-only continuation
+
+**Exact next action:** `WP04-G4-S0 — Identity-sequence frontier / setup-safety continuation`, directly by ChatGPT through Supabase. This review permits this read-only package only; do not perform it in the current review pass or advance into provisioning merely because its metadata is obtained.
+
+1. **Entry / source reconciliation:** fetch main first and stop on movement under the established overlap rule. Use the 32 exact schema/table/column entries in the reviewed manifest as roots; confirm current table identity-column metadata and the 23 root source hashes in bounded batches. Source OID drift requires name/signature reconciliation; definition/authority drift requires reporting before proceeding. Do not reopen WP03 without a proven regression.
+2. **Identity ownership/configuration:** discover only the 32 owned identity sequences through scoped pg_attribute/pg_depend/pg_class metadata. Discovery queries anchor at most 12 source identity columns so parent and child targets remain within the combined budget; later metadata batches may contain at most 25 combined anchored objects. Capture source sequence OIDs/qualified names/ownership/default dependencies and pg_sequence start/increment/min/max/cache/cycle/type plus owner/ACL/configuration hashes. **Do not read `last_value`, call nextval/setval or export current sequence values.**
+3. **Existing baseline setup metadata:** inspect validation/readiness/deferability flags only for already captured constraints/indexes; inspect scoped pg_default_acl/schema ACL and pg_auth_members/role-name metadata only for owners/API roles that affect this baseline. This is structural privilege evidence, not an Auth identity/permission-row export or production-security repair. Use no pg_authid/password columns, production business/Auth/secret rows, blanket role/schema dump or grant/RLS/role mutation.
+4. **DDL safety metadata:** first count enabled event triggers relevant to proposed schema/table/view/function/constraint/index/policy/trigger setup commands. Capture their event/tags/enabled/name/owner/handler identity; inspect at most **10 setup-relevant SQL/PLpgSQL handler definitions** in batches of at most 10, after sensitive-literal screening. Record native/provider handlers by identity/capability instead of executing them. If more than 10 definitions or further unrelated functions are needed, record the bounded frontier for another explicit review. No handler, dynamic SQL, network/cron/refresh/acceptance writer or provider migration operation may run.
+5. **Package output / stop:** update the manifest with fresh dated sequence/setup evidence, exact discovery paths/hashes, role/automatic-type resolution notes and any remaining frontier. Update the WP/programme gate ledger. Prepare any resulting exact bootstrap/fixture-safety proposal for independent review; mark provider replay, target/cost/Auth/executable-script prerequisites open until actually established. Stop before provisioning, Auth setup, bootstrap or candidate application.
+
+**Hard limits:** every query `BEGIN READ ONLY` plus local 10-second timeout. Definition batches <=10; metadata batches <=25 **combined class-qualified target objects**, including multiple aggregate result branches. Cap this new pass at **64 unique function signatures and 250 combined relations/types**, counting both reused and newly inspected scoped objects; retain a query/target-count ledger. Use count-only discovery before expansion where output size is uncertain. Do not reset the ledger mid-pass to evade a cap; report unresolved frontier rather than silently extending roots. No database-wide source dump or per-SKU readiness census. Raw safe definitions stay temporary; durable evidence remains hashes/identities/structural metadata. No paid target, installation, client change, production writer or repository merge.
+
+### Review closure and remaining state
+
+The resulting-package review checkpoint passes with these documentation corrections and the single read-only continuation above. Full baseline/setup closure, confirmed target/cost, native Auth mechanism, exact reviewed bootstrap/fixture scripts, nonproduction baseline/candidate proof and separate production-apply authorization remain open. No new parked item: the missing setup metadata is REQUIRED NOW for proof preparation, not an expansion of the portfolio product scope.
+
+Current gate: `WP04-G4-S0 — Bounded capture/setup-proof package review passed with corrections`.
+Exact next: `WP04-G4-S0 — Identity-sequence frontier / setup-safety continuation`.
+G0–G3 remain complete at their documented levels; G4-S0/G4 remain in progress; programme remains **4 of 13**. This review made no live database query, provisioning, Auth/config change, server/client implementation, production mutation, merge, tag or release. Documentation branch stays unmerged; DEC-014 direct server ownership and WP03's closed upstream contract remain preserved.
+
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -900,23 +951,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Bounded capture/setup-proof package prepared; independent resulting-package review next; environment/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Resulting-package review passed with corrections for one bounded read-only continuation; environment/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Bounded capture/setup-proof package prepared; independent review next`
+`WP04-G4-S0 — Bounded capture/setup-proof package review passed with corrections`
 
 ## Gate Status
-[~] IN PROGRESS — Bounded read-only capture/package preparation completed; independent resulting-package review pending. Combined 250 relation/type cap reached; 32 owned identity sequences remain a recorded frontier. G0–G3 complete at documented levels. No runnable/approved test environment, provisioning, candidate or production/client execution. Branch unmerged.
+[~] IN PROGRESS — Bounded capture/setup-proof package independently reviewed with corrections; one frozen read-only frontier/setup-safety continuation is next. Prior pass cap/frontier and batching deviation preserved. G0–G3 complete at documented levels. No runnable/approved test environment, provisioning, candidate or production/client execution. Branch unmerged.
 
 ## Required to close
-Independently review the resulting bounded-capture/setup-proof package, 32-sequence frontier and exact target/bootstrap/Auth/fixture prerequisites. Review any fresh bounded continuation separately; establish actual target/provider/cost consent and a supported native Auth mechanism before applicable execution. No environment-ready claim or privileged-SQL substitution for native Auth proof.
+Complete only the frozen identity-sequence/setup-safety continuation, then independently review its resulting exact baseline/bootstrap/fixture package and any frontier. Establish actual target/provider automatic-scope/cost consent and supported native Auth mechanism before applicable execution. Full setup closure/runtime proof remains absent; no environment-ready or privileged-SQL substitute claim.
 
 ## Next gate
-`WP04-G4-S0 — Independent bounded-capture / setup-proof package review`. Preparation is complete within its cap; full fixture/setup closure remains open. No GitHub/local-CLI prerequisite for direct server delivery.
+`WP04-G4-S0 — Identity-sequence frontier / setup-safety continuation`, under the frozen read-only limits above. Full fixture/setup closure remains open; then review the resulting package before any provisioning/writes. No GitHub/local-CLI prerequisite for direct server delivery.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -950,12 +1001,12 @@ None.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at their documented levels. G4-S0 bounded catalog capture/setup-proof package prepared; independent package review next, with full fixture/setup closure and environment readiness still open. Documentation branch unmerged; no tag/release/merge or cleanup. This preparation used bounded live read-only catalogs, no business/Auth/secret rows, installation, provisioning or mutation. Existing live business/timing observations remain dated evidence.
+WP04 incomplete. G0–G3 verified at their documented levels. G4-S0 resulting-package review passed with corrections for one bounded read-only identity-sequence/setup-safety continuation; full fixture/setup closure and environment readiness remain open. Documentation branch unmerged; no tag/release/merge or cleanup. This review used pushed documentation, retained catalog/source evidence and current connector descriptions; no new live query, installation, provisioning or mutation. Existing live observations remain dated evidence.
 
 Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their levels; G4-S0 in progress, bounded preparation complete, resulting-package review pending, environment not ready.
+WP progress: G0–G3 complete at their levels; G4-S0 in progress, resulting-package review passed with corrections, environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 bounded dependency capture/setup-proof preparation.
-Next: independent bounded-capture/setup-proof package review; no provisioning or implementation.
+Current gate: WP04-G4-S0 bounded-capture/setup-proof package review.
+Next: frozen identity-sequence frontier/setup-safety continuation; read-only, no provisioning or implementation.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.

@@ -13929,5 +13929,99 @@
       "extensionMembershipCount": 0,
       "scopeImpact": "No scope/data/mutation expansion; batching-governance deviation corrected and disclosed."
     }
+  },
+  "bounded_preparation_review": {
+    "reviewed_date": "2026-10-02",
+    "reviewed_commit": "93e3154a7a00f2a611db9bc626674d760604a765",
+    "main_sha": "47dcd80f69ca68fcca8f089bf40fa4099b376450",
+    "result": "PASS WITH CORRECTIONS FOR ONE BOUNDED READ-ONLY CONTINUATION ONLY",
+    "gate_status": "G4-S0 IN PROGRESS; resulting-package review checkpoint passed; environment not ready",
+    "checks": {
+      "errors": [],
+      "verified_function_sources": 75,
+      "verified_structural_hashes": 141,
+      "identity_frontier_entries": 32,
+      "object_counts": {
+        "functions": 75,
+        "function_definitions": 75,
+        "relations": 141,
+        "tables": 87,
+        "views": 9,
+        "captured_sequences": 45,
+        "types": 109,
+        "combined_relations_types": 250,
+        "read_functions": 31,
+        "read_relations": 54,
+        "columns": 1701,
+        "constraints": 640,
+        "triggers": 59,
+        "policies": 45,
+        "indexes": 336
+      },
+      "classifications": {
+        "managed_auth_capability": 1,
+        "fixture_or_policy_support": 42,
+        "read_authority_to_preserve": 30,
+        "fixture_side_effect_exclusion": 2
+      },
+      "native_type_schemas": {
+        "pg_catalog": 13
+      },
+      "enum_or_domain_types": [],
+      "read_source_closure_reconstructed": {
+        "functions": 31,
+        "relations": 54
+      },
+      "read_body_screen": {
+        "DML_dynamic_or_procedure_call_candidates": [],
+        "reviewed_read_only_perform_targets": [
+          "costing.fn_resolve_direct_labour_workload_policy",
+          "costing.fn_resolve_production_overhead_workload_policy",
+          "costing.fn_resolve_qc_workload_policy",
+          "costing.fn_resolve_materials_stores_workload_policy",
+          "costing.fn_resolve_marketing_allocation_policy",
+          "public.require_permission"
+        ],
+        "limitation": "Static body/call inspection; no runtime or native Auth verification"
+      }
+    },
+    "new_live_database_queries": 0,
+    "corrections": [
+      "Source OIDs and policy role OIDs are source-local; target matching uses qualified names/exact signatures and resolved role names.",
+      "Composite table/view row types are automatic; native pg_catalog types and managed Auth/roles are not exported CREATE TYPE/ROLE commands.",
+      "Identity sequence configuration, validation/readiness/deferability flags and scoped effective-privilege metadata remain setup prerequisites.",
+      "Regular triggers do not establish DDL event-trigger/provider migration/seed/hook safety; review automatic effects before provisioning or bootstrap.",
+      "Fixture writer exclusion does not permit dropping/disabling baseline guards.",
+      "Valuation-context reader remains CCC-only; Product-only canonical/latest OR permissions do not generalize to it.",
+      "Combined target budget is enforced across aggregate query branches; prior batching deviation remains disclosed."
+    ],
+    "authorized_next": "WP04-G4-S0 \u2014 Identity-sequence frontier / setup-safety continuation",
+    "next_scope": [
+      "32 exact identity-column roots and their owned sequence configuration/ownership metadata; no sequence current values.",
+      "23 original root source-hash rechecks; source identity/signature drift must reconcile.",
+      "Already captured baseline index/constraint flags plus scoped default ACL/schema ACL/role-membership metadata; no Auth/business/permission rows.",
+      "Setup-relevant enabled DDL event-trigger metadata and at most 10 handler definitions; no execution.",
+      "Update structural/hash evidence and reviewable setup proposal; report frontier and stop before writes."
+    ],
+    "next_limits": {
+      "read_only_transaction": true,
+      "statement_timeout_seconds": 10,
+      "identity_discovery_source_columns": 12,
+      "combined_metadata_target_objects_per_query": 25,
+      "function_definitions_per_query": 10,
+      "event_handler_definitions_total": 10,
+      "unique_function_signatures_per_pass": 64,
+      "combined_relations_types_per_pass": 250
+    },
+    "not_approved": [
+      "cost confirmation/provisioning",
+      "native Auth setup",
+      "bootstrap/schema/role/grant/RLS/fixture/candidate writes",
+      "production application or business-data transfer",
+      "client implementation",
+      "merge/tag/release/cleanup"
+    ],
+    "decision_locks_added": [],
+    "parked_findings_added": []
   }
 }
