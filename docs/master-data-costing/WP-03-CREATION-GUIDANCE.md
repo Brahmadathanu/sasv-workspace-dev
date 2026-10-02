@@ -189,7 +189,7 @@ The routine creation-guidance contract is frozen in `WP03-G2 — Approved creati
 - [x] WP03-G4 — Implementation — pushed
 - [x] WP03-G5 — Independent implementation audit — PASS
 - [x] WP03-G6 — Authenticated/live verification — COMPLETED AND VERIFIED
-- [ ] WP03-G7 — Merge/post-merge/documentation closure
+- [x] WP03-G7 — Merge/post-merge/documentation closure — COMPLETED AND VERIFIED
 
 ## Gate ledger
 ### WP03-G1 — Current-state / creation-flow audit
@@ -227,10 +227,12 @@ Status: [x] COMPLETED AND VERIFIED. Authenticated journeys that already exist in
 ### WP03-G7 — Merge/post-merge/documentation closure
 Closure only after explicit approval.
 
-Status: [ ] NOT STARTED
+Status: [x] COMPLETED AND VERIFIED. See `WP03-G7 — Merge / post-merge / documentation closure` below.
 
 ## Current Gate
-`WP03-G6 — Authenticated/live verification` is completed and verified. The work pack remains open until G7.
+`WP03-G7 — Merge/post-merge/documentation closure` is completed and verified.
+
+Work-pack state: **COMPLETED, VERIFIED, MERGED AND CLOSED**
 
 ## Gate Status
 [x] WP03-G1 COMPLETED AND VERIFIED
@@ -245,20 +247,22 @@ Status: [ ] NOT STARTED
 
 [x] WP03-G6 COMPLETED AND VERIFIED
 
+[x] WP03-G7 COMPLETED AND VERIFIED. Work pack COMPLETED, VERIFIED, MERGED AND CLOSED.
+
 ## Required to close
-G1 through G6 are recorded. Closing WP03 still requires G7. Do not treat this work pack as complete.
+Satisfied. G1 through G7 are recorded. This work pack is closed.
 
 ## Next gate
-`WP03-G7 — Merge/post-merge/documentation closure`
+None inside WP03. The next work pack is WP04 — Central Master Data / Costing Readiness Control Centre, and it must start in a new chat.
 
 ## Server changes
-None in this gate.
+None in WP03. No schema, RPC, or permission change.
 
 ## Client changes
-None in this gate.
+G4 changed `js/products.js`, bumped `public/sw.js` to `hub-cache-v332`, and extended `scripts/product-sku-lifecycle-smoke.mjs`. The G7 closure commit does not change application code.
 
 ## Tests / verification
-Read-only live signature, validation, foundation-predicate, inventory and period checks, plus repository inspection of `js/products.js`, `manage-products.html` and the WP01/WP02 contracts. G2 added read-only Product-field population, Malayalam nullability, and readiness route-code checks. No application tests were required because no application code changed.
+G1 and G2 were read-only. G4 and G6 automated checks passed before merge. Post-merge checks on merged `main` passed again: the lifecycle smoke, a module syntax check of `js/products.js`, `node --check public/sw.js`, and `git diff --check`. The G7 record below has the merge SHAs.
 
 ## Decisions created
 None locked. G2 preserves the existing create, activation and readiness contracts. The Malayalam-name requirement is an open high-risk decision and is not recorded as LOCKED. A proposal to default Product creation to Inactive, or to forbid Active at creation, is also not locked.
@@ -275,10 +279,10 @@ None locked. G2 preserves the existing create, activation and readiness contract
 UX-P02, broader Product / Master Data navigation, and commercial-sales LIVE_AS_OF multi-row authority remain parked. G2 adds NAV-P02: canonical `recommended_ui_route` codes have no Manage Products URL map. Display the server text. Do not invent links.
 
 ## Exit criteria
-All work-pack objectives and required verification gates pass; documentation and handover are current. The G2 contract does not meet work-pack exit.
+Met. G1 through G7 passed, the verified branch is merged, and this handover is current.
 
 ## Final handover
-Not started. The next chat starts at WP03-G3 and decomposes the routine client package. It must not implement the excluded high-risk decisions, and it must not start application implementation inside the G2 chat.
+WP03 is closed. The next chat starts WP04 — Central Master Data / Costing Readiness Control Centre. Do not implement WP04 from the WP03 closure commit. The Malayalam-name mismatch, Product status at creation, and readiness-gated activation remain unresolved and are not locked decisions.
 
 ## Repository audit record
 - Audited `main`: `f22b36ca7077fcf70943112fb0aee6380af93e8d`
@@ -592,8 +596,9 @@ No other smoke should be retargeted. Authenticated journeys listed for G6 stay o
 - `main` at implementation: `f22b36ca7077fcf70943112fb0aee6380af93e8d`, unchanged
 - Implementation commit: `1337556808dec39523c10655f1f7db1b50220f94`
 - WP03-G5 independent audit: PASS. No correction pass required.
-- Current gate: WP03-G6 completed and verified; work pack still open
-- Next gate: WP03-G7
+- WP03-G6 authenticated/live verification: COMPLETED AND VERIFIED
+- Current gate: WP03-G7 completed and verified; work pack closed
+- Next work pack: WP04, in a new chat
 
 Files changed:
 
@@ -622,7 +627,7 @@ Server changes: none. Malayalam-name requirement, Product status at creation, an
 
 An existing Manage Products edit session was used in the G4 client at `http://localhost:3000`. The served client was `hub-cache-v332` and contained the no-SKU sentence. No Product, SKU, activation, readiness evidence, or permission was changed. After the activation preview, SKU `10` was still Inactive in the database.
 
-`main` remained `f22b36ca7077fcf70943112fb0aee6380af93e8d`. The branch remains unmerged. Next gate: WP03-G7.
+`main` at G6 remained `f22b36ca7077fcf70943112fb0aee6380af93e8d`. The branch was still unmerged when G6 closed. The merge is recorded in G7.
 
 ### Journey record
 
@@ -652,4 +657,51 @@ An existing Manage Products edit session was used in the G4 client at `http://lo
 - `node --check public/sw.js`: PASS
 - `git diff --check`: PASS
 
-No G4 client defect was found. No server change was made. Programme completion remains 3 of 13. Do not start G7 in this verification commit.
+No G4 client defect was found. No server change was made. Programme completion remained 3 of 13 at the end of G6. G7 is the closure recorded below.
+
+## WP03-G7 — Merge / post-merge / documentation closure
+
+`WP03-G7 — COMPLETED AND VERIFIED`
+
+Work-pack state: **COMPLETED, VERIFIED, MERGED AND CLOSED**
+
+- Pre-merge `main`: `f22b36ca7077fcf70943112fb0aee6380af93e8d`
+- Feature branch: `feat/wp03-g4-creation-guidance`
+- Feature tip: `3894ce43798e4d9d919dfac54c8ab11aa7168733`
+- Ahead/behind at merge: 6 ahead, 0 behind. The merge base was pre-merge `main`.
+- Merge commit: `dd7da3a6fa2f447a71d92ca091f3d18921e32968`
+- Parent 1: `f22b36ca7077fcf70943112fb0aee6380af93e8d`
+- Parent 2: `3894ce43798e4d9d919dfac54c8ab11aa7168733`
+- Result: clean `git merge --no-ff`. No conflicts. History was not squashed, rewritten, tagged, or released.
+
+Files brought onto `main` by the merge:
+
+- `docs/master-data-costing/MASTER_PROGRAMME.md`
+- `docs/master-data-costing/PARKED_BACKLOG.md`
+- `docs/master-data-costing/WP-03-CREATION-GUIDANCE.md`
+- `js/products.js`
+- `public/sw.js`
+- `scripts/product-sku-lifecycle-smoke.mjs`
+
+The dirty canonical checkout was not fast-forwarded. The merge was made from a clean worktree at the pre-merge main SHA and then pushed to `origin/main`.
+
+Pre-merge checks on the feature tip and the same checks on the merge commit all passed:
+
+- `node scripts/product-sku-lifecycle-smoke.mjs`
+- `node --check` on a module copy of `js/products.js`
+- `node --check public/sw.js`
+- `git diff --check`
+
+Post-merge source still has `hub-cache-v332`, SKU create `p_is_active: false`, activation through `rpc_set_product_sku_active`, readiness `LIVE_AS_OF` with a null refresh-run id, the no-SKU sentence, canonical `UNKNOWN` kept distinct from Unavailable, and no specialist route URLs. No Product-wide READY calculation was introduced.
+
+G5 independent implementation audit: PASS. G6 authenticated/live verification: COMPLETED AND VERIFIED. No production test mutation occurred. No server, schema, RPC, or permission change occurred.
+
+These remain unresolved. Closing WP03 does not lock them:
+
+1. Malayalam name is required by the current client and is not rejected by the server.
+2. Product creation still offers an explicit Active or Inactive choice. No default-to-Inactive policy was approved.
+3. SKU activation is not gated on costing readiness being READY.
+
+UX-P01, UX-P02, NAV-P01, NAV-P02, CSE-P01, and SEC-P01 stay parked. `CHANGELOG_DECISIONS.md` was not changed. The feature branch was not deleted.
+
+The next work pack is WP04 — Central Master Data / Costing Readiness Control Centre. Start it in a new chat. This closure commit does not start WP04. Programme completion becomes 4 of 13.
