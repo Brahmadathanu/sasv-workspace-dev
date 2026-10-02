@@ -180,11 +180,11 @@ No rule of the form "SKU may activate only when canonical readiness is READY" ex
 Creation validity, master completeness, operational activation and costing readiness remain distinct. WP03 may later present readiness prominently before activation. Changing activation eligibility because of readiness would be a new high-risk business and server rule and would require an explicit Plan, independent review and implementation decision. G1 does not encode that rule.
 
 ## Approved design / contract
-Not yet approved. G2 must freeze it before any application implementation.
+The routine creation-guidance contract is frozen in `WP03-G2 — Approved creation-guidance design/contract` below. Three changes stay outside routine implementation until a separate approval: the Malayalam-name requirement, any new Product-status policy that defaults or forces Inactive at creation, and any rule that refuses SKU activation unless readiness is READY.
 
 ## Milestones
 - [x] WP03-G1 — Current-state / creation-flow audit
-- [ ] WP03-G2 — Creation-guidance design/contract
+- [x] WP03-G2 — Creation-guidance design/contract
 - [ ] WP03-G3 — Implementation package decomposition
 - [ ] WP03-G4 — Implementation
 - [ ] WP03-G5 — Independent implementation audit
@@ -200,9 +200,9 @@ Status: [x] COMPLETED AND VERIFIED from the repository and read-only live eviden
 ### WP03-G2 — Creation-guidance design/contract
 Freeze the future UX/business contract for immediately after Product creation, first SKU creation, immediately after SKU creation, readiness/remediation presentation, the period before activation, legitimate defer/partial completion, and navigation to specialist authorities.
 
-No application implementation until G2 is approved.
+No application implementation belongs in G2. The frozen contract is the input to G3.
 
-Status: [ ] NOT STARTED
+Status: [x] COMPLETED AND VERIFIED at documentation level from repository and read-only live evidence. The guidance contract is frozen. The Malayalam-name requirement change remains a separate high-risk decision and is excluded from routine implementation.
 
 ### WP03-G3 — Implementation package decomposition
 Determine exact client/server packages after G2. Prefer the current server contracts. Any newly discovered server, schema, authorization or business-rule requirement remains high-risk and requires Plan, independent review, then implementation.
@@ -230,18 +230,18 @@ Closure only after explicit approval.
 Status: [ ] NOT STARTED
 
 ## Current Gate
-`WP03-G1 — current-state / creation-flow audit` is completed and verified. The work pack remains open.
+`WP03-G2 — Creation-guidance design/contract` is completed at documentation level. The work pack remains open.
 
 ## Gate Status
 [x] WP03-G1 COMPLETED AND VERIFIED
 
-[ ] WP03-G2 NOT STARTED
+[x] WP03-G2 COMPLETED AND VERIFIED at documentation level
 
 ## Required to close
-G1 is closed by the evidence in this document. Closing WP03 still requires G2 through G7. Do not treat this work pack as complete.
+G1 and G2 are closed by the evidence and contract in this document. Closing WP03 still requires G3 through G7. Do not treat this work pack as complete.
 
 ## Next gate
-`WP03-G2 — Creation-guidance design/contract`
+`WP03-G3 — Implementation package decomposition`
 
 ## Server changes
 None in this gate.
@@ -250,10 +250,10 @@ None in this gate.
 None in this gate.
 
 ## Tests / verification
-Read-only live signature, validation, foundation-predicate, inventory and period checks, plus repository inspection of `js/products.js` and the WP01/WP02 contracts. No application tests were required because no application code changed. Results are recorded in the findings above.
+Read-only live signature, validation, foundation-predicate, inventory and period checks, plus repository inspection of `js/products.js`, `manage-products.html` and the WP01/WP02 contracts. G2 added read-only Product-field population, Malayalam nullability, and readiness route-code checks. No application tests were required because no application code changed.
 
 ## Decisions created
-None. Existing DEC-002, DEC-003, DEC-006, DEC-008 and DEC-009 already lock server-authoritative readiness, the separation of Active from costing readiness, and inactive-by-default SKU creation as a WP02 contract. This gate does not add a new decision.
+None locked. G2 preserves the existing create, activation and readiness contracts. The Malayalam-name requirement is an open high-risk decision and is not recorded as LOCKED. A proposal to default Product creation to Inactive, or to forbid Active at creation, is also not locked.
 
 ## Risks
 - A post-create screen could be mistaken for a second readiness calculator.
@@ -264,15 +264,252 @@ None. Existing DEC-002, DEC-003, DEC-006, DEC-008 and DEC-009 already lock serve
 - The existing LIVE_AS_OF performance correction could be reopened while changing presentation only.
 
 ## Parked discoveries
-UX-P02, broader Product / Master Data navigation, and commercial-sales LIVE_AS_OF multi-row authority remain parked as recorded above and in PARKED_BACKLOG.md. No new parked discovery was created by this gate beyond recording those existing items in the programme backlog.
+UX-P02, broader Product / Master Data navigation, and commercial-sales LIVE_AS_OF multi-row authority remain parked. G2 adds NAV-P02: canonical `recommended_ui_route` codes have no Manage Products URL map. Display the server text. Do not invent links.
 
 ## Exit criteria
-All work-pack objectives and required verification gates pass; documentation and handover are current. G1 evidence alone does not meet work-pack exit.
+All work-pack objectives and required verification gates pass; documentation and handover are current. The G2 contract does not meet work-pack exit.
 
 ## Final handover
-Not started. The next chat starts at WP03-G2 and must not implement application behaviour until the G2 contract is approved.
+Not started. The next chat starts at WP03-G3 and decomposes the routine client package. It must not implement the excluded high-risk decisions, and it must not start application implementation inside the G2 chat.
 
 ## Repository audit record
 - Audited `main`: `f22b36ca7077fcf70943112fb0aee6380af93e8d`
-- Documentation branch: `docs/wp03-g1-creation-guidance-audit`
-- Overlap with `docs/master-data-costing/` or Product/SKU lifecycle since the pre-gate SHA: none, because `main` had not moved.
+- G1 documentation commit: `0f01cec1e62c8a212e4cc86bdfa35eb798c6116c` on `docs/wp03-g1-creation-guidance-audit`
+- G2 documentation branch: `docs/wp03-g2-creation-guidance-contract`, based on that G1 commit
+- `main` had not moved at the G2 fetch. No overlap required reconciliation.
+
+## WP03-G2 — Approved creation-guidance design/contract
+
+This contract governs future Manage Products creation guidance. It uses the existing Products, SKUs and Readiness lenses and the existing Product, SKU and Readiness dialogs. It does not add a launcher tile or a second readiness calculator.
+
+Normative words mean: MUST and MUST NOT are binding for routine implementation; SHOULD is the preferred behaviour when more than one safe presentation exists; MAY is optional.
+
+### 1. Product create field contract
+
+| Field | Contract |
+| --- | --- |
+| Name | MUST remain mandatory. The server requires a non-blank name and rejects a duplicate `normalize_key`. |
+| Malayalam name | See the mismatch conclusion below. Until that decision is approved, routine implementation MUST NOT change either the client `required` flag or the server rule. |
+| Category, sub-category and product group | The server create RPC does not receive these as separate arguments. The client uses them to choose a subgroup. They MUST remain the client path to a valid subgroup. |
+| Sub-group | MUST remain mandatory. The server requires an existing subgroup. |
+| Status | MUST remain an explicit Active or Inactive choice. See the lifecycle conclusion below. |
+| Base UOM and conversion-to-base | MUST remain optional together at creation. Both supplied or both null is the server rule. When both are null, later canonical readiness reports Product-master foundation `BLOCKED`. The create form MUST NOT be given a new prohibition that forces these fields. |
+| PTO | Optional flag. The column defaults false and the RPC stores the supplied boolean. It is not a Product-master foundation predicate. |
+| Seasonal | Optional flag. The server stores it and does not require a season profile merely because it is true. |
+| Season profile | Conditionally required by the current client when Seasonal is checked. The server requires only that a supplied profile exists. Routine implementation SHOULD keep that client pairing. |
+| LLT | Optional flag. |
+| Manufacture lead time | Conditionally required by the current client when LLT is checked, and it must be non-negative. The server rejects a negative supplied value and allows null. Routine implementation SHOULD keep that client pairing. |
+
+Governance reason remains mandatory for the create call. Approval reference remains optional. Those are existing governance fields, not new master fields.
+
+### 2. Malayalam-name mismatch conclusion
+
+**HIGH-RISK DECISION REQUIRED. Not locked.**
+
+Evidence used:
+
+- `products.malayalam_name` is nullable. `rpc_create_product` and `rpc_update_product` do not reject a blank value. Update stores a trimmed value, which may be empty.
+- Product identity and duplicate detection use the Product name through `public.normalize_key`, not the Malayalam name.
+- Of 1342 Products, 1341 have a non-blank Malayalam name. The one blank row is Product 1060, status Inactive. All 639 Active Products have a non-blank Malayalam name.
+- Views and other modules project the column, including `v_product_details` and `v_sku_catalog_enriched`. That projection does not add a non-null rule.
+- The Manage Products form and the pre-RPC client check mark Malayalam Name required. The Product register also shows the column.
+
+The server contract treats Malayalam name as optional descriptive metadata. It is not required to create a Product identity. The browser requirement is stricter than the server and is not itself the business rule.
+
+Closing the mismatch needs a choice that this gate does not make:
+
+- making the field optional in the form, which changes what a user must type today; or
+- making the server reject a blank value, which is a new server validation rule.
+
+Neither choice is approved. Routine WP03 implementation MUST leave both sides as they are. The decision needs separate human review before any client or server change.
+
+### 3. Product create lifecycle / status treatment
+
+Product creation MUST continue to offer an explicit Active or Inactive choice, with no preselected status. That matches the live selector, which starts at `-- Select --`, and the server rule that status is only Active or Inactive.
+
+Live evidence does not justify a new rule. Product Active does not imply a SKU. The catalog already contains Active Products with no SKU, and the server accepts Active at creation.
+
+Defaulting a new Product to Inactive, or refusing Active at creation, is **HIGH-RISK DECISION REQUIRED** and is not part of this contract. Routine implementation MUST NOT add either behaviour.
+
+### 4. Post-Product-create behaviour
+
+After `rpc_create_product` returns an id, the Product MUST stay saved even if the user leaves immediately.
+
+The client MUST keep the current success sequence: toast, catalog reload, select the saved Product, and leave the Product dialog out of edit mode. It MUST NOT open a wizard that has to be finished before the Product exists.
+
+When the saved Product has no SKU, the SKUs lens MUST become the quiet next step. It uses the empty state in section 5. The existing actions are:
+
+- **Add SKU**, for an edit user, as the next structural step;
+- the existing Product dialog, already open in view mode, when the user wants to continue Product details;
+- **Close** on that dialog when the user wants to finish later. Closing MUST NOT roll back the Product.
+
+### 5. Product-with-no-SKU guidance
+
+A saved Product with no child SKU is an entity state. Canonical readiness is SKU-scoped, so this state MUST NOT call `rpc_get_product_sku_readiness` and MUST NOT show READY, REVIEW_REQUIRED, BLOCKER, BLOCKED or UNKNOWN.
+
+The SKUs lens MUST say, in substance:
+
+> Product saved. No SKU exists yet, so SKU readiness has not been assessed.
+
+An edit user MUST see the existing **Add SKU** action. A view-only user MUST see the same sentence without Add SKU, plus the view-only wording in section 14.
+
+This state is not an error and not a failed RPC.
+
+### 6. SKU create contract
+
+SKU creation MUST keep the current fields only: pack size, UOM, Sample, business reason, and optional approval reference.
+
+The create call MUST send `p_is_active: false`. The server insert MUST remain the authority, including its inactive default when the flag is omitted.
+
+The form MUST NOT add PM-BOM, route, batch size, MRP, selling policy, scheme, commercial evidence, or costing-driver fields.
+
+### 7. Post-SKU-create behaviour
+
+After a successful `rpc_create_product_sku`, the client MUST reload that Product's SKUs, select the new SKU, and request canonical LIVE_AS_OF readiness for it.
+
+The user MUST be told that the SKU was created and that its lifecycle is Inactive. The existing toast may carry that sentence. The existing Readiness lens and Readiness dialog are the only readiness surfaces. The SKU dialog MAY point to that Readiness dialog. It MUST NOT render a second copy of the dependency list.
+
+The user MAY close the dialogs and leave the SKU Inactive and incomplete.
+
+### 8. Readiness display contract
+
+For each saved SKU, Manage Products MUST render the canonical payload it already consumes:
+
+- lifecycle Active or Inactive from the SKU row;
+- `summary.overall_severity` as the primary status, without upgrading or downgrading it;
+- the dimension statuses already shown on the Readiness register;
+- the governed period label;
+- dependency and shared-issue rows that are not READY, RESOLVED or NOT_REQUIRED, using server status, reason, note, owner and route.
+
+REVIEW_REQUIRED, BLOCKER, BLOCKED and a server UNKNOWN MUST stay those values. A client failure uses section 15 and is not one of those values.
+
+### 9. Manage Products remediation treatment
+
+A dependency whose `owner_module` or `recommended_ui_route` is `MANAGE_PRODUCTS` is remediable in this module. The current examples are Product master (`PRODUCT_BASE_UOM_CONTEXT_INVALID`) and SKU master (`SKU_PACK_CONTEXT_INVALID`).
+
+For an edit user, the guidance MUST lead to the existing Product dialog or SKU dialog. The client MUST NOT re-code the server predicate. The server dependency is what classifies the issue as in-module.
+
+These rows SHOULD appear before specialist rows in the existing remediation list. That order is presentation only. It MUST NOT change severity.
+
+### 10. Specialist dependency treatment
+
+Other dependencies stay specialist. Current route codes supplied by the readiness RPC and its costing helpers are:
+
+`PM_BOM_MANAGER`, `BATCH_SIZES`, `PRODUCTION_ROUTE_MANAGER`, `MRP_GOVERNANCE`, `SELLING_SCHEME_POLICIES`, `COMMERCIAL_SALES_ASSUMPTIONS`, `DRIVER_GOVERNANCE`, `MATERIALS_STORES_ACTION_QUEUE`, `QC_ACTION_QUEUE`, `REGIONAL_MARKETING_REVIEW`.
+
+The UI MUST show the server status, reason, owner and route text, continuing the current `Resolve in:` line.
+
+Manage Products MUST NOT write specialist data and MUST NOT embed those editors. It MUST NOT build a portfolio queue.
+
+There is no client map from these codes to a page URL. A link MUST NOT be invented. Click-through is NAV-P02 and stays parked for WP08. `REGIONAL_MARKETING_REVIEW` also remains UX-P01: the server route may be shown, and the missing acceptance screen is not built here.
+
+### 11. Pre-activation guidance treatment
+
+**Activate** remains an explicit governed action through `rpc_set_product_sku_active`.
+
+The existing activation confirmation MUST show, when a canonical payload for that SKU is already loaded:
+
+- the SKU is Inactive before the action;
+- the server overall severity;
+- the governed period;
+- a plain statement that activating the SKU does not set costing readiness to READY.
+
+When no payload is loaded, the confirmation MUST say that readiness is unavailable. It MUST still allow the governed activation.
+
+The control MUST NOT be hidden or disabled because severity is BLOCKER, BLOCKED, REVIEW_REQUIRED or UNKNOWN.
+
+A hard stop that allows activation only when readiness is READY is **HIGH-RISK BUSINESS RULE — separate approval required**. It is excluded from routine WP03 implementation.
+
+### 12. Defer / resume treatment
+
+Completion in one sitting is optional. The saved Product, its SKU rows and the canonical readiness call are the only resume state. The client MUST NOT store a wizard step.
+
+On a later visit the user selects the Product and reads:
+
+- no SKU: the entity sentence in section 5;
+- one or more SKUs: each row's Inactive or Active lifecycle and that SKU's server severity;
+- a failed readiness call: section 15 on that SKU only.
+
+### 13. Multiple-SKU treatment
+
+Each SKU keeps its own lifecycle, pack identity, readiness payload and remediation.
+
+The post-Product-create hint about a first SKU applies only while the Product has zero SKUs. After that, **Add SKU** creates another Inactive SKU. Completeness MUST NOT be collapsed into one Product READY flag in JavaScript. A Product-level rollup needs a future server contract and belongs with WP04, not this lens.
+
+### 14. View-only treatment
+
+`module:manage-products` view access may inspect Products, SKUs and readiness. Edit access is required to create, save or activate.
+
+A view-only user MUST NOT see Add SKU, Create SKU, Save SKU, Activate, Product save, or Product deactivate. Owner and route text MAY be shown as description. Guidance MUST NOT say that this user can fix the issue in place.
+
+The existing view-only banner remains.
+
+### 15. Readiness-unavailable treatment
+
+If the readiness call fails, the period is missing, or the payload is empty, the SKU row MUST remain visible with its lifecycle. The readiness text MUST be `Readiness unavailable`.
+
+The UI MUST NOT replace that failure with READY, BLOCKER or a locally computed status. A retry MAY be offered by opening the existing Readiness dialog again. Server `overall_severity = UNKNOWN` is a payload value and MUST be shown as returned. It is not the label for a failed call.
+
+### 16. Period-context treatment
+
+Every SKU readiness display MUST show the period returned by `rpc_get_latest_governed_cost_period_start()`. The call MUST use `LIVE_AS_OF`, that period, and a null refresh-run id.
+
+The client MUST NOT use the browser's current month. EXACT_RUN stays out of Manage Products. The no-SKU sentence is not a readiness result and MUST NOT be given a fake period verdict. The period label MAY remain visible so a later SKU is understood to use that period.
+
+### 17. Navigation and action hierarchy
+
+Ordinary create stays on Product identity, classification, measure and planning. Costing dependencies are not shown on the create form.
+
+1. Save Product.
+2. If there is no SKU, show the entity sentence and Add SKU.
+3. Save the Inactive SKU.
+4. Show that SKU on the existing Readiness lens.
+5. In-module master issues open the existing Product or SKU dialog.
+6. Specialist issues remain text with the server route.
+7. Activate stays a separate confirmation and is not blocked by severity.
+
+### 18. Explicit exclusions
+
+- A second readiness authority or a Product-wide READY boolean.
+- Automatic Product or SKU activation.
+- A READY gate on activation.
+- Specialist editors inside Manage Products.
+- Invented route URLs.
+- WP04 queues, bulk remediation or a control centre.
+- Guessed master data used to turn a status green.
+- EXACT_RUN history in Manage Products.
+- e-Aushadhi work and WP11 visual redesign.
+- A new top-level module.
+
+### 19. High-risk decisions still requiring separate approval
+
+1. Whether Malayalam name becomes optional in the form or required on the server.
+2. Whether Product creation should default to Inactive or refuse Active.
+3. Whether SKU activation should be refused unless canonical readiness is READY.
+
+None of these is approved. None is locked in `CHANGELOG_DECISIONS.md`.
+
+### 20. Implementation boundaries for G3
+
+G3 may decompose only routine client presentation inside Manage Products that this contract already allows:
+
+- the no-SKU entity sentence and the existing Add SKU action;
+- post-create selection of the new Inactive SKU and display of the existing Readiness surface;
+- ordering of `MANAGE_PRODUCTS` remediation ahead of specialist text in the existing list;
+- activation-confirmation wording that quotes the loaded server severity and states that activation is not costing readiness;
+- view-only hiding of mutation actions;
+- the existing unavailable and period behaviour.
+
+G3 MUST treat any new RPC, schema, permission, activation eligibility, Malayalam requirement, or Product-status policy as high-risk. Those stop for a separate plan and review. G3 MUST NOT begin application edits in the same chat as this contract.
+
+### G2 classification
+
+**REQUIRED NOW**, using existing screens and RPCs: sections 4–17 except the three high-risk decisions.
+
+**HIGH-RISK DECISION REQUIRED**: section 19.
+
+**FUTURE DEPENDENCY**: WP04 portfolio rollup and control centre; NAV-P02 route-to-page links under WP08.
+
+**PARKED ENHANCEMENT**: UX-P02 to WP11; UX-P01 regional Marketing acceptance surface; CSE-P01 commercial-sales multi-row authority.
+
+**OUT OF SCOPE**: the exclusion list in section 18.
