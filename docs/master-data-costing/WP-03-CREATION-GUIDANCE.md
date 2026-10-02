@@ -185,7 +185,7 @@ The routine creation-guidance contract is frozen in `WP03-G2 — Approved creati
 ## Milestones
 - [x] WP03-G1 — Current-state / creation-flow audit
 - [x] WP03-G2 — Creation-guidance design/contract
-- [ ] WP03-G3 — Implementation package decomposition
+- [x] WP03-G3 — Implementation package decomposition
 - [ ] WP03-G4 — Implementation
 - [ ] WP03-G5 — Independent implementation audit
 - [ ] WP03-G6 — Authenticated/live verification
@@ -207,7 +207,7 @@ Status: [x] COMPLETED AND VERIFIED at documentation level from repository and re
 ### WP03-G3 — Implementation package decomposition
 Determine exact client/server packages after G2. Prefer the current server contracts. Any newly discovered server, schema, authorization or business-rule requirement remains high-risk and requires Plan, independent review, then implementation.
 
-Status: [ ] NOT STARTED
+Status: [x] COMPLETED AND VERIFIED at documentation level. Routine G4 is one client-only package. No server, permission, or business-rule change is required.
 
 ### WP03-G4 — Implementation
 Routine bounded client work may use autonomous implementation only after G2 and G3 establish the contract.
@@ -230,18 +230,20 @@ Closure only after explicit approval.
 Status: [ ] NOT STARTED
 
 ## Current Gate
-`WP03-G2 — Creation-guidance design/contract` is completed at documentation level. The work pack remains open.
+`WP03-G3 — Implementation package decomposition` is completed at documentation level. The work pack remains open. Implementation is not started.
 
 ## Gate Status
 [x] WP03-G1 COMPLETED AND VERIFIED
 
 [x] WP03-G2 COMPLETED AND VERIFIED at documentation level
 
+[x] WP03-G3 COMPLETED AND VERIFIED at documentation level
+
 ## Required to close
-G1 and G2 are closed by the evidence and contract in this document. Closing WP03 still requires G3 through G7. Do not treat this work pack as complete.
+G1, G2 and G3 are closed by the evidence and contract in this document. Closing WP03 still requires G4 through G7. Do not treat this work pack as complete.
 
 ## Next gate
-`WP03-G3 — Implementation package decomposition`
+`WP03-G4 — Implementation`
 
 ## Server changes
 None in this gate.
@@ -513,3 +515,66 @@ G3 MUST treat any new RPC, schema, permission, activation eligibility, Malayalam
 **PARKED ENHANCEMENT**: UX-P02 to WP11; UX-P01 regional Marketing acceptance surface; CSE-P01 commercial-sales multi-row authority.
 
 **OUT OF SCOPE**: the exclusion list in section 18.
+
+## WP03-G3 — Implementation package decomposition
+
+Audited `main` `f22b36ca7077fcf70943112fb0aee6380af93e8d` had not moved. This gate reads the client on the G2 commit. No application file is changed here.
+
+The routine presumption holds: G4 is client-only and reuses the existing RPCs. No new RPC, schema, permission, or business rule is required.
+
+G4 is **one package**. The gaps share `js/products.js` and one regression script.
+
+### Behaviour already satisfying G2
+
+| Requirement | Current behaviour |
+| --- | --- |
+| New SKU inactive | `createSku` sends `p_is_active: false`. |
+| Pack update | `saveSkuPack` calls `rpc_update_product_sku` and does not send `p_is_active`. |
+| Activation writer | `toggleSkuActive` calls only `rpc_set_product_sku_active`. The button is not disabled from severity. |
+| Post-create reload and selection | `createSku` calls `loadChildSkus`, then `selectSku(createdSkuId)`. `loadChildSkus` calls `loadAllSkuReadiness`, which calls canonical LIVE_AS_OF readiness for each saved SKU. The toast already says the SKU was created inactive. |
+| Readiness presentation | `renderSkuList`, `renderSkuReadiness`, `showSelectedSkuReadiness`, and `openReadinessDetail` are the only surfaces. Period text is `renderSkuSummary` / `#skuPeriodLabel`. |
+| Period | `loadGovernedPeriodStart` calls `rpc_get_latest_governed_cost_period_start`. `fetchSkuReadiness` sends `LIVE_AS_OF` and `p_refresh_run_id: null`. |
+| No readiness call without a SKU | `loadAllSkuReadiness` returns before `fetchSkuReadiness` when `skuRows.length === 0`. |
+| Specialist routes | `appendRemediation` writes `Resolve in:` plus the server route. There is no link. |
+| Remediation order | The live LIVE_AS_OF payload emits `PRODUCT_MASTER` and `SKU_MASTER` before specialist dependencies. `renderSkuReadiness` keeps that order. A client reorder is not required. |
+| View-only SKU actions | `syncSkuAccessChrome` hides Add SKU, Create SKU, Save SKU, and Activate unless `canWriteModule()`. Product save stays hidden unless the user can edit and the form is dirty. |
+| Load failure | `showSelectedSkuReadiness` sets the detail text to `Readiness unavailable` and does not mark the SKU READY. The SKU row stays in the register. |
+
+### Exact gaps for G4
+
+| Requirement | Current behaviour | Gap | File | Surface | Minimal change | Test | Risk |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| No-SKU sentence | `renderSkuList` clears the registers and paints nothing when `skuRows` is empty. | The entity sentence is missing. | `js/products.js` | `renderSkuList`, section `#skuLifecycleSection` | When a saved Product is selected and `skuRows.length === 0`, show: “Product saved. No SKU exists yet, so SKU readiness has not been assessed.” Do not call the readiness RPC. Keep Add SKU only for edit users. | Extend `scripts/product-sku-lifecycle-smoke.mjs` to require the sentence and the zero-row early return. | Routine client |
+| Server UNKNOWN versus load failure | `readinessBadgeLabel` maps every non-READY / non-review / non-blocked value, including `UNKNOWN`, to `Unavailable`. Detail failure text is already `Readiness unavailable`. | A returned `overall_severity` of `UNKNOWN` is not shown as returned. | `js/products.js` | `readinessBadgeLabel` | If severity is `UNKNOWN`, show `UNKNOWN`. Keep `Unavailable` for a missing value. Do not change the failure text. | Smoke: `UNKNOWN` branch stays distinct from `Readiness unavailable`. | Routine client |
+| In-module editor action | `appendRemediation` prints route text only. | An edit user is not led to the existing dialog. | `js/products.js` | `renderSkuReadiness` dependency loop and `appendRemediation` | When `recommended_ui_route` is `MANAGE_PRODUCTS` and `dependency_code` is `PRODUCT_MASTER`, an edit user gets a control that opens the existing Product dialog through `openSelectedProductDialog`. When the code is `SKU_MASTER`, the control calls `selectSku` for the selected SKU. View-only users get the route text only. No other route gets a control. | Smoke: those two codes are the only action map; specialist routes stay plain text. | Routine client |
+| Activation confirmation | `toggleSkuActive` says the SKU will become Active. It does not quote severity or the period. | The pre-activation sentence is missing. | `js/products.js` | `toggleSkuActive` prompt message | If `skuReadinessById` already has the SKU, append the loaded `overall_severity`, `governedPeriodStart`, and the sentence that activation does not set costing readiness. If it does not, append `Readiness unavailable` and still open the confirmation. Do not fetch, and do not disable Activate. | Smoke: the activation message includes the loaded-severity path and the unavailable path, and does not disable the button from severity. | Routine client |
+| View-only Product deactivate | `applyAccessChrome` shows `#inlineDeleteBtn` for a selected Product and only disables it when the user cannot edit. | A view-only user can still see Deactivate. | `js/products.js` | `applyAccessChrome` | Set display to `none` when `canWriteModule()` is false. | Smoke: view-only hides `#inlineDeleteBtn`. | Routine client |
+| Cache generation | `public/sw.js` is `hub-cache-v331`. `js/products.js` is cache-first. | A client edit will stay stale until the cache name changes. | `public/sw.js` and the lifecycle smoke | `CACHE_NAME` | Bump once to `hub-cache-v332` and update only the smoke that pins `hub-cache-v331`. | The lifecycle smoke asserts the new name. | Routine client |
+
+### Not in G4
+
+- HTML. The sentence and the two in-module controls can be created from the existing section and remediation item. `#skuAddBtn`, `#productDialog`, `#skuDetail`, and `#readinessDetailSurface` stay as they are.
+- CSS. Reuse `sku-period-label` or the existing remediation item. No new visual language.
+- Remediation reorder. The server array is already in the required order.
+- Opening the Readiness dialog after create. Reload, selection, the readiness call, and the inactive toast already exist. A pointer from the SKU dialog is optional and is not a G4 item.
+- Specialist URL map. NAV-P02 stays parked.
+- Malayalam name, Product status at create, and a READY gate on activation.
+- Supabase, schema, RPCs, permissions, and production data.
+
+### G4 package
+
+One branch. Touch only:
+
+- `js/products.js`
+- `public/sw.js` for the single cache bump
+- `scripts/product-sku-lifecycle-smoke.mjs`
+
+No other smoke should be retargeted. Authenticated journeys listed for G6 stay out of G4 automation: saved Product with no SKU, several SKUs, a new Inactive SKU, BLOCKER, REVIEW_REQUIRED, READY, a failed readiness load, activation with and without a loaded payload, a view-only user, and a narrow layout. Do not insert production rows for that proof.
+
+### Classification
+
+**Routine:** the six rows in the gap table.
+
+**High-risk and excluded:** Malayalam requirement, Product-status policy, readiness-gated activation, and any new server or permission contract.
+
+**Parked:** no new item. UX-P02, NAV-P01, NAV-P02, UX-P01, and CSE-P01 stay as recorded.
