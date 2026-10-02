@@ -58,7 +58,7 @@ None.
 Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
 
 ## Parked discoveries
-None.
+UX-P02 — remaining Manage Products aesthetic and interaction hardening: visual density, dialog ergonomics, narrow-layout polish, and detailed consistency with mature SASV operational modules. Parked from completed WP02. WP11 is not started.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.

@@ -154,24 +154,32 @@ Audit checks:
 - [x] Current-state/audit gate
 - [x] Design/contract gate
 - [x] Implementation gate — WP02-G3 completed and verified at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`
-- [~] Focused verification
-- [ ] Independent audit
+- [x] Focused verification
+- [x] Independent audit
 - [ ] Merge/post-merge proof
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G4 — focused verification`
+`WP02 — COMPLETED AND VERIFIED — awaiting merge`
 
 ## Gate Status
-[x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, before the branch sync with current main.
+[x] WP02-G1 COMPLETED AND VERIFIED
 
-[~] WP02-G4 IN PROGRESS — focused verification. DEC-013 client functional verification is accepted. Remaining visual and interaction polish is parked as UX-P02 for WP11. The narrow LIVE_AS_OF commercial-sales performance correction is applied and recorded below. G4 stays open until independent ChatGPT audit of the applied server evidence.
+[x] WP02-G2 COMPLETED AND VERIFIED
+
+[x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`
+
+[x] WP02-G4 COMPLETED AND VERIFIED
+
+Independent ChatGPT final audit: PASS of `b7065829a7db1fbd05822582f7b551f2712c79f0`. That audit accepted client functional verification, the LIVE_AS_OF performance optimization, full JSON parity, and EXACT_RUN parity. One authenticated canonical readiness call took about 1.8 seconds and passed the mandatory under-2-second threshold. The server performance patch did not change evidence authority, `statement_timeout`, indexes, views, authorization, or the client.
+
+Latest main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` was merged in `19c4ee11b404fd882522556aaa903a76ce08b960`. Main had not moved past that SHA. The 10 main-only paths were e-Aushadhi programme, client, and worker files. None overlapped the WP02 functional set. Post-merge regression on the synced branch passed.
 
 ## Required to close
-Complete the focused verification set against the synced branch. Keep G4 in progress if authenticated UI verification cannot be performed. Do not merge from this gate.
+Explicit human merge approval. Do not merge, version, tag, or release from this closure. WP03 is not started.
 
 ## Next gate
-The next existing gate after G4 is independent audit of the verification evidence, then merge/post-merge proof. Do not enter that gate from this verification pass.
+Merge and post-merge proof after explicit approval.
 
 ## Server changes
 Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql`:
@@ -234,7 +242,9 @@ Human functional verification of the DEC-013 catalog, lenses, and dialogs is acc
 - Independent ChatGPT audit marked WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, recorded before the branch sync. Current main at that check was `23fb63f8c2704d158fd1da2b0ec8850f7307ad0a` and touched only e-Aushadhi composition files, with no WP02 path overlap.
 - WP02-G4 automated and source checks against the synced branch passed: lifecycle smoke, Materials/Stores, QC, trace launch, remediation foundation, dense restore, progressive density, production-route focus, dashboard cardinality, both required e-Aushadhi smokes, and the syntax checks. Read-only catalog confirmation found migration `20260930073040`, both view permissions on the readiness RPC, the period RPC, the SKU writers, and both activation guards. Latest governed period on the server is `2026-09-01`. No authenticated user session was available, so a live `LIVE_AS_OF` caller and the logged-in Manage Products pass were not repeated. G4 stays in progress for that UI verification.
 - Later authenticated visual verification on the feature branch proved the SKU section loads live data: 3 active / 5 total, governed period `2026-09-01`, and Ready and Blocked badges. The defect was `.details form { height: 100% }`, which stretched the Product form to the pane and pushed `SKUs & readiness` below a large blank area. That forced height is removed so the form keeps its content height.
-- The high-risk UX plan then passed independent ChatGPT review and a compact explorer was implemented. Authenticated use of that explorer, including the live Product catalog and narrow screens, showed the permanent side rail was unsuitable. DEC-012 supersedes that presentation only. The page now uses a searchable Product picker, Product Master / SKUs / Readiness tabs, desktop registers, compact cards at 520px, and bounded SKU and readiness detail. No schema, RPC, auth, or permission contract changed. Final human visual verification of the wide and 520px layouts remains. G4 stays in progress.
+- The high-risk UX plan then passed independent ChatGPT review and a compact explorer was implemented. Authenticated use of that explorer, including the live Product catalog and narrow screens, showed the permanent side rail was unsuitable. DEC-012 supersedes that presentation only. DEC-013 then superseded the picker and tall-card presentation. Client functional verification passed.
+- Final pre-merge regression after merging main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` passed: lifecycle smoke and syntax, temporary `js/products.js` module syntax, `public/sw.js` syntax, Materials/Stores, QC, trace launch, remediation foundation, dense restore, progressive density, production-route focus restore, pricing-dashboard cardinality, and both current e-Aushadhi composition smokes. Service worker remains `hub-cache-v331`.
+- Read-only server confirmation: migrations `20260930073040` and `20261002064432` are applied. Version `20261002063319` is not applied. The commercial-sales helper ACL is `postgres` only. The readiness RPC ACL is `postgres`, `authenticated`, and `service_role`. No migration was reapplied and no database object was changed in this gate.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.
@@ -245,14 +255,24 @@ Human functional verification of the DEC-013 catalog, lenses, and dialogs is acc
 Permission broadening must stay limited to status/remediation reads; Product and SKU dirty-state interactions must not cause data loss; client must not turn UNKNOWN into READY; downstream remediation navigation must not imply Product Master owns specialist mutations.
 
 ## Parked discoveries
-Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This performance correction does not choose among those rows. The ambiguity remains and was not solved.
+### UX-P02
+Remaining Manage Products aesthetic and interaction hardening: visual density, dialog ergonomics, narrow-layout polish, and detailed consistency with mature SASV operational modules.
+
+Disposition: PARKED → WP11.
+
+Broader Product / Master Data navigation: PARKED → WP08.
+
+### Commercial-sales evidence authority
+Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period.
+
+Disposition: parked in costing/commercial-sales evidence governance. This closure does not choose a snapshot row and does not erase the finding.
 
 None added in G2. Regional Marketing evidence acceptance remains parked under the programme backlog for WP04/later IA placement.
 
-G3 required-now detail: the SKU pack UOM picker must offer the live `product_skus.uom` values `g`, `mL`, and `Nos`. No future dependency, parked item, or out-of-scope functional change was added.
+G3 required-now detail: the SKU pack UOM picker must offer the live `product_skus.uom` values `g`, `mL`, and `Nos`. No future dependency was solved inside WP02.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.
 
 ## Final handover
-Not started.
+Completed and verified, awaiting explicit merge approval. Post-merge proof is not started.

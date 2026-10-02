@@ -370,7 +370,7 @@ None.
 Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
 
 ## Parked discoveries
-None.
+Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. Parked from WP02 into costing/commercial-sales evidence governance. It does not change the WP01 contract and is not solved.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.

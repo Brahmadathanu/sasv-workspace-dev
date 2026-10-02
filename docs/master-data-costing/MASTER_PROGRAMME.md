@@ -28,7 +28,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP-1 — Repository Programme Control Plane
 - [x] WP00 — Authoritative Current-State Inventory
 - [x] WP01 — Canonical Product/SKU Completeness Contract
-- [~] WP02 — Product + SKU Lifecycle Redesign
+- [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED AND VERIFIED — awaiting merge
 - [ ] WP03 — Creation-Time Guided Completeness
 - [ ] WP04 — Central Master Data / Costing Readiness Control Centre
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
@@ -47,13 +47,13 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-WP02 — Product + SKU Lifecycle Redesign
+None. WP02 is completed and verified and is awaiting merge. WP03 is not started.
 
 ## Active gate
-WP02-G4 — focused verification
+Explicit merge approval for WP02.
 
 ## Overall completion progress
-2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified. WP02-G3 is completed and verified at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`. WP02-G4 focused verification is in progress and is not merged.
+3 of 13 substantive work packs (WP00–WP12) completed and verified. The prerequisite control plane, WP00, WP01, and WP02 are completed and verified. WP02 is the next completed substantive work pack after WP00 and WP01. It is reconciled with main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` at merge `19c4ee11b404fd882522556aaa903a76ce08b960` and is not merged.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -67,10 +67,14 @@ WP02-G4 — focused verification
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No architectural blocker remains inside WP02-G3. DEC-012 retired the permanent Product rail. DEC-013 supersedes that picker-and-card presentation with a filter-only Product catalog, Products / SKUs / Readiness lenses, focused dialogs, and compact 520px list rows. Human functional verification of that client workspace is accepted. Remaining aesthetic UX hardening is parked as UX-P02 for WP11. The LIVE_AS_OF commercial-sales point helper is applied and does not change evidence authority. Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period; that discovery stays parked. WP02-G4 stays open until independent ChatGPT audit of the applied server evidence.
+No WP02 blocker remains. These findings stay parked and do not block the merge approval:
+
+- UX-P02, remaining Manage Products aesthetic and interaction hardening: PARKED → WP11.
+- Broader Product / Master Data navigation: PARKED → WP08.
+- Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-Independent ChatGPT audit of the applied LIVE_AS_OF commercial-sales performance evidence. Do not close WP02-G4 or merge until that audit is accepted. Do not choose a commercial-sales snapshot row in this gate. Remaining aesthetic UX hardening stays parked as UX-P02 for WP11.
+Explicit human merge approval of `fix/wp02-g3-product-sku-lifecycle`. Pre-merge reconciliation is merge `19c4ee11b404fd882522556aaa903a76ce08b960` against main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89`. Do not merge, version, tag, or release until that approval. Do not start WP03.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
