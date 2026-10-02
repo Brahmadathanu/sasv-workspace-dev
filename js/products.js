@@ -229,7 +229,7 @@ function applyAccessChrome() {
   }
 
   if (inlineDeleteBtn) {
-    const showDeactivate = !!selectedId && !inNewMode;
+    const showDeactivate = !!selectedId && !inNewMode && canEdit;
     inlineDeleteBtn.style.display = showDeactivate ? "inline-block" : "none";
     inlineDeleteBtn.disabled = !canEdit || writeBusy || !showDeactivate;
     inlineDeleteBtn.title = canEdit
@@ -1529,6 +1529,7 @@ function clearSkuState() {
   if (readinessDetailSurface) readinessDetailSurface.hidden = true;
   if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
   renderSkuSummary();
+  renderNoSkuGuidance();
   syncSkuAccessChrome();
 }
 
@@ -1572,6 +1573,7 @@ function readinessBadgeLabel(severity) {
   if (severity === "READY") return "Ready";
   if (severity === "REVIEW_REQUIRED") return "Review required";
   if (severity === "BLOCKER" || severity === "BLOCKED") return "Blocked";
+  if (severity === "UNKNOWN") return "UNKNOWN";
   return "Unavailable";
 }
 
@@ -1784,7 +1786,24 @@ function renderSkuList() {
     readyLedgerRow.addEventListener("click", () => openReadinessDetail(row.id));
     if (readinessLedger) readinessLedger.appendChild(readyLedgerRow);
   });
+  renderNoSkuGuidance();
   syncSkuAccessChrome();
+}
+
+function renderNoSkuGuidance() {
+  const host = document.getElementById("skuLifecycleSection");
+  const existing = document.getElementById("skuEmptyGuidance");
+  if (existing) existing.remove();
+  const savedProduct = !!selectedId && !inNewMode;
+  if (!host || !savedProduct || skuRows.length !== 0) return;
+  const note = document.createElement("p");
+  note.id = "skuEmptyGuidance";
+  note.className = "sku-period-label";
+  note.textContent =
+    "Product saved. No SKU exists yet, so SKU readiness has not been assessed.";
+  const register = document.getElementById("skuRegister");
+  if (register) host.insertBefore(note, register);
+  else host.appendChild(note);
 }
 
 async function closeSkuDialog() {
@@ -1886,7 +1905,28 @@ function appendDefinition(list, label, value) {
   list.append(term, detail);
 }
 
-function appendRemediation(parent, title, status, note, reasonCode, route) {
+function manageProductsRemediationAction(issue) {
+  if (!canWriteModule() || issue?.recommended_ui_route !== "MANAGE_PRODUCTS") return null;
+  if (issue.dependency_code === "PRODUCT_MASTER" && selectedId) {
+    return {
+      label: "Open Product",
+      run() {
+        openSelectedProductDialog(selectedId);
+      },
+    };
+  }
+  if (issue.dependency_code === "SKU_MASTER" && selectedSkuId) {
+    return {
+      label: "Open SKU",
+      run() {
+        selectSku(selectedSkuId);
+      },
+    };
+  }
+  return null;
+}
+
+function appendRemediation(parent, title, status, note, reasonCode, route, action) {
   const item = document.createElement("div");
   item.className = "mp-remediation-item";
   const primary = document.createElement("div");
@@ -1915,6 +1955,14 @@ function appendRemediation(parent, title, status, note, reasonCode, route) {
     routeLine.className = "mp-remediation-route";
     routeLine.textContent = `Resolve in: ${route}`;
     item.appendChild(routeLine);
+  }
+  if (action && typeof action.run === "function") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn secondary";
+    button.textContent = action.label;
+    button.addEventListener("click", () => action.run());
+    item.appendChild(button);
   }
   parent.appendChild(item);
 }
@@ -1997,9 +2045,10 @@ function renderSkuReadiness(payload) {
       remediation,
       issue.label || "Dependency",
       status,
-      issue.note,
+      [issue.note, issue.owner_module].filter(Boolean).join(" · "),
       issue.reason_code,
       issue.recommended_ui_route,
+      manageProductsRemediationAction(issue),
     );
   });
   const sharedIssues = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
@@ -2020,6 +2069,7 @@ function renderSkuReadiness(payload) {
         .join(" · "),
       issue.reason_code,
       issue.recommended_ui_route,
+      manageProductsRemediationAction(issue),
     );
   });
   if (remediation.childElementCount) {
@@ -2149,6 +2199,16 @@ async function saveSkuPack() {
   }
 }
 
+function activationReadinessNotice(row) {
+  const payload = skuReadinessById.get(String(row.id));
+  const severity = payload && payload.summary ? payload.summary.overall_severity : "";
+  if (severity) {
+    const period = governedPeriodStart || "unavailable";
+    return `Current costing readiness: ${severity} for period ${period}. Activating this SKU does not set costing readiness to READY.`;
+  }
+  return "Readiness unavailable. Activating this SKU does not set costing readiness to READY.";
+}
+
 async function toggleSkuActive() {
   const row = currentSkuRow();
   if (!canWriteModule() || !row || writeBusy || skuDraft === "new") return;
@@ -2163,7 +2223,7 @@ async function toggleSkuActive() {
     confirmLabel: nextActive ? "Activate SKU" : "Deactivate SKU",
     danger: !nextActive,
     message: nextActive
-      ? `Activate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Active.\n\nA business reason is required. An approval reference is optional.`
+      ? `Activate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Active.\n\n${activationReadinessNotice(row)}\n\nA business reason is required. An approval reference is optional.`
       : `Deactivate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Inactive.\n\nA business reason is required. An approval reference is optional.`,
   });
   if (!governance) return;

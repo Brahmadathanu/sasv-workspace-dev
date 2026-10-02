@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v331"; // Manage Products catalog lenses
+const CACHE_NAME = "hub-cache-v332"; // WP03 creation guidance
 
 const PRECACHE = [
   // Hub shell
