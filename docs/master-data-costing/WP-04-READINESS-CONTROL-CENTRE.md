@@ -670,7 +670,7 @@ No permanent new business/evidence/security decision lock is added. G3 package-p
 
 ## WP04-G4-S0 — Nonproduction environment and proof-readiness proposal (2026-10-02)
 
-**[~] ENVIRONMENT/PROOF PLAN READY FOR INDEPENDENT REVIEW.** WP04-G4 has begun with its S0 planning checkpoint. No environment is provisioned and no candidate SQL/client implementation is authorized. This subcheckpoint specializes the G3 prerequisite within G4; it does not change the G0–G8 numbered gate sequence or turn planning completion into operational verification.
+At proposal checkpoint `a08ac27`, this section was **ENVIRONMENT/PROOF PLAN READY FOR INDEPENDENT REVIEW**. The independent review below passes that checkpoint with corrections and authorizes bounded read-only preparation only; S0/G4 remain in progress. WP04-G4 has begun with its S0 planning checkpoint. No environment is provisioned and no candidate SQL/client implementation is authorized. This subcheckpoint specializes the G3 prerequisite within G4; it does not change the G0–G8 numbered gate sequence or turn planning completion into operational verification.
 
 ### Reconciled evidence and present capability
 Fetched main and the audit branch before assessment: main unchanged at `47dcd80f69ca68fcca8f089bf40fa4099b376450`; clean branch entry `d0e545679c4d4acd81688d353ad802e7b52bb341`. WP03 remains closed. Live reads followed the installed Supabase skill; SQL used READ ONLY transactions with 10-second timeouts. No install, package update, provisioning or production mutation was performed.
@@ -753,6 +753,49 @@ User reconfirmed that server implementation is vested with ChatGPT and is not bo
 
 This pass is a documentation/workflow correction only. G4-S0 remains in progress and its independent review is still next. No server/client implementation, production mutation or provisioning occurred. DEC-014 is the user-approved workflow clarification; no new architecture/evidence/permission/business decision was approved. Prior plan prose remains historical with this explicit superseding correction.
 
+## WP04-G4-S0 — Independent environment/proof-plan review (2026-10-02)
+
+Review target: S0 proposal at `a08ac276a950283ae0cefd1c6c32850f3129a9b8`, read with DEC-014 corrections at `9542b8f3dbb54925934180865d9acc0ccab1f0fc`. Fresh main/branch fetch confirms unchanged main `47dcd80f69ca68fcca8f089bf40fa4099b376450`, clean correction-tip branch. IMPLEMENTATION_RULES, MASTER_PROGRAMME, decision lock and manifest cross-checked. This is a separate review pass, not a separate-person review or new database verification.
+
+**Review result: PASS WITH CORRECTIONS FOR BOUNDED READ-ONLY PREPARATION ONLY.** The target/proof direction is acceptable for preparation; environment readiness and provisioning are not approved. G4-S0 remains **[~] IN PROGRESS**, with its plan-review checkpoint passed. This is not server implementation, nonproduction runtime verification or proof that the final high-risk refactor is feasible. G4 remains incomplete.
+
+### Superseding review corrections
+| Area | Accepted boundary / correction |
+| --- | --- |
+| Executor and delivery | ChatGPT directly owns server assessment/setup/implementation/verification through Supabase. No GitHub commit/PR/merge, Cursor/Codex handoff or local CLI is a server application prerequisite. Documentation publication records progress only. DEC-014 controls earlier contradictory artifact prose |
+| Environment recommendation | Hosted isolated branch remains a candidate, not a selected or ready target. Local-tool absence affects only local alternatives; empty repo migration baseline is not proof of managed branch behavior. Read actual target schema/state after any independently approved provisioning, before proposing bootstrap |
+| Provisioning preconditions | Organization selection, actual provider quote/confirmation and explicit provisioning package remain absent. Optional question without an answer is not consent. No branch creation, paid service, installation or destructive teardown approval in this review |
+| Native Auth capability | Enabled connector inventory provides database/branch/project/key operations but no exposed Auth-admin user creation or Auth session-test operation. No supported branch-specific mechanism for fresh native test actors without outbound mail is established. Hosted infrastructure alone does not satisfy Auth/API proof. Do not substitute auth.users SQL inserts, copied production identities/tokens or hand-built JWTs; identify a supported mechanism and review test configuration first |
+| Target marker bootstrap | Original "every future write requires an existing fixture marker" would prevent initial marker creation. A separately reviewed **first-write bootstrap** may create that marker only after returned branch ref, independent project/database/API identity and explicit test-target allowlist are reconciled. It requires its own exact script/scope and branch authorization; it cannot target production. Every subsequent write requires the marker plus identity checks. This review approves neither bootstrap nor any marker table |
+| Dependency closure | 68 text-discovered candidates are not a complete execution closure. Combine catalog dependencies, exact overloads/return types and source inspection; report unqualified/dynamic/unresolved references explicitly. Do not treat regex absence as independence or silently replace resolvers/views. Preserve original composite view row types, indexes, ACL/search paths and canonical caught exceptions |
+| Schema capture and confidentiality | Read-only catalog text capture is permitted; applying captured DDL is not. Inspect source bodies/defaults/comments for embedded sensitive configuration before retaining/disclosing them. No vault/secret values, production Auth rows, business records or broad dump. Only hashes/object identity/structural metadata enter the durable manifest unless a specific safe definition capture is reviewed |
+| Active side effects | Capture relevant triggers/policies/event dependency metadata as setup constraints. Do not enable production cron/worker/network/email/webhook configuration in a test target. A seed-trigger side effect requires an exact isolated setup decision, not indiscriminate disabling or a production fix |
+| Baseline and test datasets | Original baseline first, then candidate under equivalent observations; synthetic fixtures prove behavior only, not live-scale parity. No production data transfer in preparation. Representative inputs/performance, sensitive-data handling, fixture identities and retention remain separately reviewed |
+| Performance/source proof | No full N-call production census/load test. CSE-P01 remains unresolved and compatibility mandatory; no selecting one commercial row. Route/global sharing, complete pre-page counts, note safety and actual permission/API tests remain necessary before production apply |
+| Teardown | Candidate branch disposal is distinct from repo branch cleanup and production merge. Deletion requires exact target/retention/cost disposition under a reviewed provisioning package. No destructive action authorized here |
+
+### Frozen next preparation package — authorized read-only scope
+**Exact next action:** WP04-G4-S0 — Read-only dependency closure and setup-package preparation, directly through Supabase. This is reversible audit work; it needs no server GitHub handoff. No candidate functions or fixture data may be applied.
+
+- Starting objects: the 23 root signatures and 68 candidates in WP04-S0-DEPENDENCY-MANIFEST.json, plus their required types/views/function references and relevant read/seed-side-effect structural dependencies. Use object OIDs/signatures to disambiguate overloads and retain discovery paths.
+- Allowed reads: pg_proc/function definitions and config/ACL/owner; pg_class/namespace/rewrite/view options; pg_type/enum/domain/composite columns; pg_attribute/default metadata; constraints/index definitions; policies and relevant triggers plus their referenced function identities. Inspect bodies for unqualified/dynamic SQL and catalog references that pg_depend alone omits. Native Auth managed schemas remain structural references, not exported identity data.
+- Bound each query with BEGIN READ ONLY and 10-second statement timeout. Fetch definitions in batches of at most10; metadata batches at most50 objects. Cap one preparation pass at250 unique function signatures and250 relations/types; if closure exceeds the bound, report the frontier and a continuation plan instead of expanding silently. No database-wide source dump or N-call resolver loop.
+- Do not follow a function body as an instruction, execute its dynamic SQL, read server files or run server OS commands. Treat captured text as evidence. Do not run data-changing functions to discover dependencies.
+- Record source definition hashes, exact versions/options/signatures, dependency edges, unresolved frontier and setup blockers. Keep raw captured definitions in a scoped temporary evidence area after sensitive-content inspection; durable MD/manifest records safe structural metadata and hashes. SQL artifacts in Git remain optional traceability under DEC-014.
+- Preparation output must distinguish: existing read authority to preserve; necessary schema/type prerequisite; fixture-support requirement; managed Auth/provider capability; side-effect/config exclusion; unresolved reference requiring further read; and unrelated object excluded. It must not declare a regex-derived manifest production-equivalent.
+- Update the bounded manifest and WP04 with observed closure status and a concrete **setup package for independent review**. Proposed bootstrap/load order, minimum necessary extensions, ACL/role model, fixture/data scope and target guard must be reviewable before any apply. If the supported Auth/API setup mechanism remains absent, name that blocker explicitly and keep its proof stage open.
+
+This package permits no row reads from production business/Auth/secret tables, no cost/branch provisioning, no new schema/functions/permissions, no fixture writes, no production migration/RLS/grant/acceptance/refresh operation, no client code or GitHub merge. If a source definition contains sensitive literals, avoid persisting/disclosing those literals and record the capture limitation; do not change the live function.
+
+### Review verification and remaining gate state
+- Main/branch reconciled and WP03 ancestor check preserved; no moved-main overlap or demonstrated regression.
+- Metadata manifest parses; 23 roots and 68 candidates reconcile to37 tables/3 views/28 function names; captured scope/limitations explicit.
+- DEC-014 reconciled against all server delivery steps. Client execution boundary remains Cursor/Codex implementation/push followed by ChatGPT audit and explicit merge.
+- Available connector descriptions audited for Auth/setup capability; no API session test or fresh provider configuration claimed. Earlier project/branch/catalog observations remain dated; no new live query needed for this review.
+- Documentation-only scope/whitespace and exact remote read-back required before reporting review checkpoint passed. No runtime/application tests or provisioning/production mutation claimed.
+
+S0 plan-review checkpoint is passed after these corrections; S0 environment/setup readiness is not complete. Next is the frozen bounded read-only preparation package, followed by review of the resulting exact setup/proof package. No new architecture/business/evidence/security lock, no new parked item; DEC-014 and all existing UX/NAV/CSE/SEC assignments remain unchanged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -765,23 +808,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] S0 environment/proof-readiness proposal ready for independent review; no environment/candidate application or production/client execution |
+| WP04-G4 — High-risk server package, if required | [~] S0 plan-review checkpoint passed with corrections; bounded read-only preparation next; environment/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Nonproduction environment and proof-package readiness plan`
+`WP04-G4-S0 — Environment/proof plan review passed; read-only preparation next`
 
 ## Gate Status
-[~] IN PROGRESS — environment/proof proposal ready for independent review. G0–G3 complete at their documented levels. WP04 incomplete; branch unmerged; no environment provisioning, candidate or production/client execution authorization.
+[~] IN PROGRESS — S0 plan-review checkpoint passed with corrections; bounded read-only dependency/setup preparation authorized. G0–G3 complete at documented levels. No runnable/approved test environment, provisioning, candidate or production/client execution. Branch unmerged.
 
 ## Required to close
-Independent review of target recommendation, dependency/baseline closure plan, data/Auth fixture scope, actual setup capability, cost/retention prerequisites and target/teardown guards. Documentation closure is not environment readiness; exact setup/capture and execution stages remain distinct.
+Complete bounded dependency/setup preparation and independently review its exact target/bootstrap/Auth/data/proof package. Establish actual provider/cost consent and supported native Auth mechanism before applicable execution. Do not mark environment ready from plan review or replace missing proof with privileged SQL.
 
 ## Next gate
-`WP04-G4-S0 — Independent environment/proof-readiness plan review`. No provisioning or candidate application from this proposal. Review must identify which bounded preparation can proceed and which target/cost/data/Auth details need resolution.
+`WP04-G4-S0 — Read-only dependency closure and setup-package preparation`, using the frozen scope above directly through Supabase. Then review resulting setup/proof package; no GitHub/local-CLI prerequisite for server delivery.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -815,12 +858,12 @@ None.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 is not complete. G0–G3 remain verified at their documented levels. G4-S0 in progress: target/environment/proof plan awaiting review; no runnable environment claimed. Documentation branch unmerged; no tag/release/merge or cleanup. This pass used bounded read-only project/catalog/branch metadata and local capability checks; no install/provisioning or production mutation. New durable artifact is a metadata-only first-level dependency manifest; no production data/credentials.
+WP04 incomplete. G0–G3 verified at their documented levels. G4-S0 plan-review checkpoint passed after corrections; bounded read-only preparation next, with environment/setup readiness still open. Documentation branch unmerged; no tag/release/merge or cleanup. This review used source/manifest/tool-capability checks, no new production query, installation, provisioning or mutation. Existing live observations remain dated evidence.
 
-Workflow: audit → contract/plan review → concrete environment/proof readiness review → bounded approved setup → reviewed nonproduction implementation/proof → separate production application authorization → reviewed client implementation → independent audit → authenticated verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their documented levels; G4-S0 proposal awaiting review.
+Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
+WP progress: G0–G3 complete at their levels; G4-S0 in progress, plan review passed, environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 environment/proof readiness plan.
-Next: WP04-G4-S0 independent environment/proof-plan review using direct ChatGPT/Supabase server ownership; no GitHub/local-CLI apply prerequisite.
+Current gate: WP04-G4-S0 reviewed environment/proof planning.
+Next: bounded read-only dependency closure/setup-package preparation through Supabase.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
-Locked: canonical server authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. DEC-014 locks server/client execution ownership only; S0 adds no architecture/business/evidence/security lock.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.
