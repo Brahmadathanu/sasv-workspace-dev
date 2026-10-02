@@ -1,0 +1,608 @@
+{
+  "captured_date": "2026-10-02",
+  "project_ref": "qhmoqtxpeasamtlxaoak",
+  "server_version": "17.4",
+  "authority": "Read-only live catalog evidence; not an executable schema export",
+  "scope": "23 selected readiness/period/permission/resolver roots and first-level public/costing/auth qualified-name candidates",
+  "limitations": [
+    "Text reference discovery is not complete dependency closure.",
+    "PL/pgSQL, dynamic SQL, unqualified references, view dependencies, composite result types, extensions, policies, triggers and data dependencies require separate inspection.",
+    "No production records, credentials or identity data are included.",
+    "Object existence does not authorize direct client exposure or edits."
+  ],
+  "counts": {
+    "rootFunctions": 23,
+    "firstLevelCandidates": 68,
+    "tables": 37,
+    "views": 3,
+    "functionNames": 28
+  },
+  "root_fingerprints": [
+    {
+      "md5": "29835ce9be925dfe0afdea8133d8217a",
+      "args": "p_as_of_date date",
+      "name": "fn_product_process_route_readiness",
+      "schema": "costing"
+    },
+    {
+      "md5": "65b40f9ac648ee077641c84eaee18497",
+      "args": "p_base jsonb, p_sku_id bigint, p_period_start date, p_valuation_date date, p_refresh_run_id bigint",
+      "name": "fn_product_sku_readiness_enrich",
+      "schema": "costing"
+    },
+    {
+      "md5": "c29e8b289304e7ece6f7affcccb6ffd8",
+      "args": "p_sku_id bigint, p_period_start date, p_valuation_date date, p_refresh_run_id bigint",
+      "name": "fn_product_sku_readiness_run_evidence",
+      "schema": "costing"
+    },
+    {
+      "md5": "7467604a4929b59412181c3c7481e0e8",
+      "args": "p_valuation_date date",
+      "name": "fn_product_sku_readiness_shared_issues",
+      "schema": "costing"
+    },
+    {
+      "md5": "d48eac98fe033115d5735b37adbfa8d4",
+      "args": "p_as_of_date date",
+      "name": "fn_resolve_direct_labour_workload_policy",
+      "schema": "costing"
+    },
+    {
+      "md5": "989aa9b16d7381cd035390b78a1c7e95",
+      "args": "p_valuation_date date",
+      "name": "fn_resolve_marketing_allocation_policy",
+      "schema": "costing"
+    },
+    {
+      "md5": "f1f989960e838141786db38b018eb51c",
+      "args": "p_valuation_date date",
+      "name": "fn_resolve_materials_stores_workload_policy",
+      "schema": "costing"
+    },
+    {
+      "md5": "2b0773e1e686a5a6a4eacfe3c14da56d",
+      "args": "p_as_of_date date",
+      "name": "fn_resolve_production_overhead_workload_policy",
+      "schema": "costing"
+    },
+    {
+      "md5": "a276ecef7b4cd99002fd886abbe63141",
+      "args": "p_as_of_date date",
+      "name": "fn_resolve_qc_workload_policy",
+      "schema": "costing"
+    },
+    {
+      "md5": "641fd0f7eb7438eed53c1c6170deb0ec",
+      "args": "p_product_id integer, p_as_of_date date",
+      "name": "fn_resolve_route_family_for_product",
+      "schema": "costing"
+    },
+    {
+      "md5": "425596466bb9da9dadfc391f96350566",
+      "args": "p_scenario_code text, p_valuation_date date",
+      "name": "fn_resolve_sales_allocation_default_policy_as_of",
+      "schema": "costing"
+    },
+    {
+      "md5": "68bd9325062299eb8af1291bf4d9393b",
+      "args": "p_sku_id bigint, p_period_start date, p_valuation_date date",
+      "name": "fn_resolve_sku_commercial_sales_basis_point",
+      "schema": "costing"
+    },
+    {
+      "md5": "73b23adedd8b67814f9b1f944b772d53",
+      "args": "p_sku_id bigint, p_valuation_date date",
+      "name": "fn_resolve_sku_mrp_as_of",
+      "schema": "costing"
+    },
+    {
+      "md5": "b216b4dfdf3fbe3e7b837ceb3ee550f4",
+      "args": "p_period_start date, p_sku_id bigint, p_valuation_date date",
+      "name": "fn_resolve_sku_sales_assumption_as_of",
+      "schema": "costing"
+    },
+    {
+      "md5": "23425275b1cb28f7e005bffdd5dc0388",
+      "args": "p_sku_id bigint, p_valuation_date date",
+      "name": "fn_resolve_sku_selling_price_policy_as_of",
+      "schema": "costing"
+    },
+    {
+      "md5": "a9396f97a23cba5bbaceada07bc6448a",
+      "args": "p_product_id integer, p_as_of_date date",
+      "name": "fn_validate_effective_product_process_route",
+      "schema": "costing"
+    },
+    {
+      "md5": "7b4c99b7d4a698237806b2ca10fe24af",
+      "args": "p_target text, p_mode text",
+      "name": "app_has_permission",
+      "schema": "public"
+    },
+    {
+      "md5": "655bbd0eaeb2729aa360787785a9ee27",
+      "args": "p_user_id uuid, p_target text, p_mode text",
+      "name": "app_has_permission_core",
+      "schema": "public"
+    },
+    {
+      "md5": "b116953eb0715a5598388f7f6416c0c3",
+      "args": "p_sku_id bigint, p_as_of date",
+      "name": "plm_sku_bom_revision_as_of",
+      "schema": "public"
+    },
+    {
+      "md5": "d4921dbcd3029e00eef14c4bfd159e22",
+      "args": "p_target text, p_need_edit boolean",
+      "name": "require_permission",
+      "schema": "public"
+    },
+    {
+      "md5": "f68761c1dd6fdf9992f79b5c3b49f362",
+      "args": "p_period_start date",
+      "name": "rpc_get_cost_period_valuation_context",
+      "schema": "public"
+    },
+    {
+      "md5": "7c58de9eb148df01ac23c4e56ecbcba8",
+      "args": "",
+      "name": "rpc_get_latest_governed_cost_period_start",
+      "schema": "public"
+    },
+    {
+      "md5": "0e966c3c1ab15d56420b234f5c2cef1f",
+      "args": "p_sku_id bigint, p_period_start date, p_context_type text, p_refresh_run_id bigint",
+      "name": "rpc_get_product_sku_readiness",
+      "schema": "public"
+    }
+  ],
+  "candidate_objects": [
+    {
+      "name": "uid",
+      "schema": "auth",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "cost_driver_policy_envelope",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "cost_periods",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "costing_refresh_run",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "costing_refresh_run_stage",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "direct_labour_workload_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "fn_product_process_route_readiness",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_product_sku_readiness_enrich",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_product_sku_readiness_run_evidence",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_product_sku_readiness_shared_issues",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_direct_labour_workload_policy",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_effective_product_process_route",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_effective_route_family_route",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_marketing_allocation_policy",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_materials_stores_workload_policy",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_production_overhead_workload_policy",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_qc_workload_policy",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_route_family_for_product",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_sales_allocation_default_policy_as_of",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_sku_commercial_sales_basis_point",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_sku_mrp_as_of",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_sku_sales_assumption_as_of",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_resolve_sku_selling_price_policy_as_of",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_validate_effective_product_process_route",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_validate_product_process_route",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "fn_validate_route_family_route",
+      "schema": "costing",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "marketing_allocation_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "materials_stores_workload_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "product_process_route",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "production_overhead_workload_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "production_route_family",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "production_route_family_product_group_map",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "production_route_family_product_map",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "production_route_family_product_subgroup_map",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "production_route_family_route",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "qc_workload_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sales_allocation_default_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_admin_finance_overhead_allocation_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_commercial_sales_assumption",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_costing_control_status_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_direct_labour_allocation_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_marketing_expense_allocation_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_materials_stores_allocation_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_mrp_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_production_overhead_allocation_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_qc_allocation_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_sales_allocation_basis_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_selected_scheme_policy_context_snapshot",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sku_selling_price_policy",
+      "schema": "costing",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "v_cost_driver_policy_registry",
+      "schema": "costing",
+      "relation_kind": "v",
+      "function_overloads": 0
+    },
+    {
+      "name": "v_regional_marketing_evidence_review_queue",
+      "schema": "costing",
+      "relation_kind": "v",
+      "function_overloads": 0
+    },
+    {
+      "name": "v_sku_commercial_sales_basis",
+      "schema": "costing",
+      "relation_kind": "v",
+      "function_overloads": 0
+    },
+    {
+      "name": "app_has_permission",
+      "schema": "public",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "app_has_permission_core",
+      "schema": "public",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "categories",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "plm_bom_revision",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "plm_sku_bom_revision_as_of",
+      "schema": "public",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "product_groups",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "product_skus",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "production_batch_size_ref",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "products",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "require_permission",
+      "schema": "public",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "rpc_get_cost_period_valuation_context",
+      "schema": "public",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "rpc_get_latest_governed_cost_period_start",
+      "schema": "public",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "rpc_get_product_sku_readiness",
+      "schema": "public",
+      "relation_kind": null,
+      "function_overloads": 1
+    },
+    {
+      "name": "sub_categories",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "sub_groups",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    },
+    {
+      "name": "user_permissions_canonical",
+      "schema": "public",
+      "relation_kind": "r",
+      "function_overloads": 0
+    }
+  ],
+  "permission_relation": {
+    "name": "public.user_permissions_canonical",
+    "kind": "r",
+    "rls": true,
+    "force_rls": false,
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "not_null": true
+      },
+      {
+        "name": "target",
+        "type": "text",
+        "not_null": true
+      },
+      {
+        "name": "can_view",
+        "type": "boolean",
+        "not_null": true
+      },
+      {
+        "name": "can_edit",
+        "type": "boolean",
+        "not_null": true
+      },
+      {
+        "name": "meta",
+        "type": "jsonb",
+        "not_null": false
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "not_null": true
+      }
+    ]
+  }
+}

@@ -668,6 +668,76 @@ After S0 setup/proof plan is reviewed, a bounded nonproduction implementation/pr
 
 No permanent new business/evidence/security decision lock is added. G3 package-plan acceptance is stage-bound and does not certify a final production contract. CHANGELOG_DECISIONS and PARKED_BACKLOG remain unchanged; all existing UX/NAV/CSE/SEC assignments persist.
 
+## WP04-G4-S0 — Nonproduction environment and proof-readiness proposal (2026-10-02)
+
+**[~] ENVIRONMENT/PROOF PLAN READY FOR INDEPENDENT REVIEW.** WP04-G4 has begun with its S0 planning checkpoint. No environment is provisioned and no candidate SQL/client implementation is authorized. This subcheckpoint specializes the G3 prerequisite within G4; it does not change the G0–G8 numbered gate sequence or turn planning completion into operational verification.
+
+### Reconciled evidence and present capability
+Fetched main and the audit branch before assessment: main unchanged at `47dcd80f69ca68fcca8f089bf40fa4099b376450`; clean branch entry `d0e545679c4d4acd81688d353ad802e7b52bb341`. WP03 remains closed. Live reads followed the installed Supabase skill; SQL used READ ONLY transactions with 10-second timeouts. No install, package update, provisioning or production mutation was performed.
+
+| Evidence | Consequence |
+| --- | --- |
+| Connected project sasv-workspace, ref qhmoqtxpeasamtlxaoak, ACTIVE_HEALTHY, ap-south-1; PostgreSQL 17.4 / managed build 17.4.1.45 | Proposed proof target must use compatible PostgreSQL17 and verify actual server version/config; do not assume an arbitrary older engine |
+| Development-branch list again empty | No existing branch can be selected silently |
+| Local Linux x86_64 runtime has Node/Python, no Docker/Podman/socket, Postgres/psql/initdb/pg_ctl, or Supabase CLI | Full local Supabase stack is not currently runnable. Installation/provisioning is not authorized by S0 assessment |
+| apt-cache returned no Postgres package candidates; runtime resolution found no PGlite, pg or supabase-js package | Acquisition is unverified; no package version or immediate local capability is promised. Embedded Postgres would not establish native Supabase Auth/API parity |
+| Repository baseline remote_schema.sql is empty; current helper definitions are not reconstructible from the checked-in migration chain alone | Need a reviewed, scoped live-schema baseline; do not replay all migrations blindly or modify the old baseline |
+| 23 selected root function signatures fingerprinted; 68 first-level qualified-name candidates: 37 tables, 3 views, 28 function names | Dependency closure is substantial. Manifest is discovery evidence, not executable bootstrap or a complete dependency graph |
+| user_permissions_canonical is an RLS-enabled **table**, not a view; app_has_permission delegates to its SECURITY DEFINER core; require_permission also reads it | Preserve actual table/rules and permission function chain in test baseline; do not replace authorization with a function that always returns true |
+| Installed extensions include PL/pgSQL, btree_gist, citext, pg_trgm, pgcrypto/uuid support and managed operational extensions | Inspect dependency closure to establish necessary extensions. Do not recreate cron/network/vault operations or production secrets in the proof environment |
+
+Durable evidence: [WP04-S0-DEPENDENCY-MANIFEST.json](WP04-S0-DEPENDENCY-MANIFEST.json). It contains object identities, root definition hashes, relation kinds and permission-column metadata only. Text reference discovery misses unqualified/dynamic references and transitive/view/type/policy/trigger dependencies; no claim of complete closure. Canonical and commercial hashes still match G3's captured values; no full readiness census was run.
+
+Official Supabase documentation was checked through search_docs: [Local development workflow](https://supabase.com/docs/guides/local-development/cli-workflows) requires a Docker-compatible local runtime; [Working with branches](https://supabase.com/docs/guides/deployment/branching/working-with-branches) describes separate branch instances/endpoints/Auth and ordered migrations/sample seeding. These capabilities do not establish this project's schema/data parity. Documentation examples that grant broad privileges or repair migrations are not authorization to execute them here.
+
+### Proposed target and alternatives
+**Recommended target for review:** one disposable hosted Supabase proof branch, candidate name `wp04-readiness-proof`, under the existing production project's organization. Parent ref `qhmoqtxpeasamtlxaoak`; organization from read-only metadata `mohgaandwpmpkcqpbqpj`; proposed region follows parent ap-south-1. No target branch ref exists yet. These identify a proposal, not user-approved provisioning or organization selection for cost confirmation.
+
+| Target | Fit / remaining prerequisite |
+| --- | --- |
+| Isolated hosted Supabase branch | Preferred: compatible database plus native Auth/API for complete proof. Needs explicit organization selection, cost quote/confirmation, reviewed baseline/seed/identity setup and target-fingerprint verification |
+| User-owned local Supabase with Docker | Viable alternative if supplied and approved; same schema/fixture closure and native Auth/API proof required. No existing host was supplied; do not presume access to the user's machine |
+| Standalone PostgreSQL17 | Can prove SQL behavior, plans and SQL ACLs with declared test identities, but lacks native Auth/API journeys. Cannot alone clear production application prerequisites |
+| PGlite/mocked resolvers | Useful for limited client/unit cases, not canonical runtime/performance/Auth equivalence; not a substitute for S0 |
+
+An optional environment-preference question returned no answer. Continue with the hosted-branch **planning recommendation only**; silence is not selection, cost acceptance or provisioning authorization. Before any paid target, ask/confirm the organization, obtain the provider's actual cost, repeat it to the user and use its cost-confirmation flow. Do not infer price or consent from the parent project's existence. No cost query/confirmation or branch creation occurred in this pass.
+
+### S0 execution package to review
+The proposed setup/proof boundary is staged. No stage runs merely because this document is committed.
+
+1. **Baseline/dependency manifest stage — read-only capture.** Resolve the first-level manifest transitively using catalog dependencies plus inspection of SQL/PLpgSQL/view bodies, exact signatures and return/composite types. Include route validators/resolvers and family mappings, BOM revision lookup, batch references, MRP/selling policy, commercial assumption/default resolvers, driver policy registry/resolvers, selected-scheme and regional evidence-review dependencies, run/control and permission/Auth call chain. Capture exact definitions, owners/config/ACLs, relevant types/columns, PK/FK/unique/index constraints, RLS policies and read-path trigger effects. Stop and extend the manifest for unresolved references; do not stub an authority to make setup succeed. DDL may be captured as text using read-only catalog queries; no server-side file/OS reads. Bound reads/batches and record source hashes/date.
+2. **Review bootstrap and data scope before copying.** Produce a schema-only bootstrap plan outside production migration history. Preserve authority bodies and read permissions; distinguish native managed Auth objects from application objects. Do not overwrite branch-managed auth.uid or imitate it with an always-authenticated function. Review all triggers/functions/config for automatic cron, network, webhook, email, worker or refresh effects. No production credentials, Auth users/password hashes/tokens, permission assignments, secrets, storage objects, unrelated e-Aushadhi schema/data or broad database dump. Include required cross-domain structural dependencies only by name/scope with explicit review.
+3. **Provision only after setup review and actual cost acceptance.** Verify parent project, selected organization and candidate branch name. After creation record returned branch/database/API ref; assert it differs from production and is healthy. Inspect actual baseline state before applying any bootstrap; creation/migration success does not prove canonical objects exist. No automatic GitHub/production deployment configuration or branch merge/rebase. If schema bootstrapping cannot be isolated from production-linked CLI behavior, stop.
+4. **Load a reviewed proof dataset and fresh identities in the isolated target.** Begin with synthetic behavior/edge fixtures; every synthetic value is labelled test data, never reported as a live finding. Native Auth fixture identities and their canonical permissions must be new test actors. Role cases: Control Center view-only, Control Center editor, Product-only viewer, authenticated no-module, unauthenticated, and direct-helper denial. No messages to real people or production identity writes. Creating users/configuring test Auth without outbound email requires a supported, reviewed branch-specific mechanism; it is not yet established by connector capability. If unavailable, mark Auth/API proof blocked rather than pass via privileged SQL impersonation.
+5. **Prove baseline before candidate application.** Run the original canonical RPC and latest/valuation readers with the exact captured bodies/ACLs and no candidate. Compare representative baseline output fingerprints with dated live read-only references only where the fixture actually reproduces those inputs; distinguish synthetic branch-to-branch parity from live equivalence. Verify all required schemas/types/views/constraints and native Auth/API access. A function that compiles against empty tables is not a representative baseline.
+6. **Candidate implementation/proof only after its stage is authorized.** Apply the separately reviewed S1 candidate atomically to this target. Capture pre/post hashes and forward/rollback results. Baseline/candidate comparisons must use consistent observations; immutable fixture transactions or separately cloned baseline/candidate fixtures with identical content/hashes, not two independently changing production reads. Preserve commercial candidate ambiguity and unordered consumption without choosing a new source. Run count/filter/keyset/error/context/global-caught-exception and race/client-contract cases, actual Auth/API denial checks and server payload audit.
+7. **Representative performance stage needs explicit data review.** Synthetic 1793-SKU/1342-Product scale can test work growth, but is not live workload equivalence. Review a bounded relevant data slice/representative reconstruction before any production-record transfer; retain all commercial candidates for chosen ambiguous SKU+period groups, route/policy/run distribution and required indexes. No full finance/staff/expense or production Auth export by implication. If sensitive required inputs cannot be transferred safely or source authority cannot be reproduced, mark the corresponding proof absent. Record hardware/compute/config, table cardinalities/skew, stats, cold/warm/cache observations, concurrency bound, payload sizes and all pre-page statistics work. No branch timings represented as identical production timings or an approved SLA.
+8. **Independent proof review before production.** G4 server-apply decision remains separate. No production migration, RLS/grant cleanup, specialist acceptance/refresh/writer or client launch from S0. Keep the environment available for required audit only within the approved retention/cost period; no automatic branch merge to production.
+
+### Dataset and proof matrix
+| Dataset / case | Required content and limitation |
+| --- | --- |
+| Minimal behavior fixtures | Product/SKU lifecycle partitions, samples/inactive parents, no-SKU and overlapping Active-without-active-SKU gaps; legitimate missing master foundations and absent snapshot coverage; only in isolated target |
+| Context/evidence fixtures | Governed periods including missing valuation, matching SUCCESS, failed later run and no-success case; exact history fixture distinct from current masters. Live Run114/115/116 references cannot be claimed reproduced unless relevant data/definitions match |
+| Commercial ambiguity | Multiple source rows per SKU/period, including positive and nonpositive candidate classes; assumption/default scenarios and existing point helper. Never trim to one row or create a newest-row selector to make parity deterministic |
+| Driver/Marketing/shared issues | All seven driver families, raw/effective and regional NOT_REQUIRED/acceptance metadata, shared-global affected-SKU grain and canonical caught resolver errors. No new Marketing editor, direct view grant or SEC-P02 fix |
+| Auth/ACL | Native branch identities/tokens with separate module grants; original Product-only canonical read succeeds, new readers deny; view-only has no writes and internal helpers deny direct API/SQL access. SQL claim simulation is labelled SQL-only proof |
+| Payload/text | Review every nested/free-text path, including Run115 notes flagged by prior keyword screen. No note text or financial seed data in Git. No blanket safe classification based on zero keyword matches |
+| Stable traversal / failures | Population totals vs matches vs returned rows; same-incidence filters, shared impact, zero valid population, unsupported input, timeout/malformed/context mismatch and stale responses; no client authority |
+| Performance | Representative population and resolver-cost distribution, route/global once per response and full-count plan/buffer proof. Runtime mismatches and synthetic-data limitations remain visible |
+
+### Proposed artifacts and target-safety rules
+Future reviewable artifacts under `supabase/tests/wp04/` may contain a scope manifest, schema-only bootstrap, synthetic fixtures, assertions and teardown/target guards; create only under a separately reviewed setup package. Baseline exports/representative sensitive data remain outside Git in a scoped temporary evidence area with hashes; no production records or credentials committed. The current pass adds only the metadata manifest and WP/programme documentation.
+
+Before every future write, verify an explicit test-target allowlist, returned branch ref, actual connected database identity and a fixture marker created only in that target. Refuse the production project/ref/host, unknown target or absent/mismatched marker. A client-side filename containing "test" or SQL search_path is not target proof. API URLs/keys belong to the test branch only; never use a production service-role key. Avoid production-linked CLI defaults, remote db push/reset/repair or unrestricted cleanup commands. Discover CLI flags from installed help before using them; no placeholder command recipe is presented as executable now.
+
+Teardown proposal: remove only the identified proof branch and scoped local evidence after independent review/approved retention ends. Stop if branch ref/name differs from the recorded target. No merge, production reset, DROP CASCADE or wildcard deletion; disposal does not erase durable hash/test reports. Quoted ongoing cost/retention and deletion authorization must be explicit in the provisioning package.
+
+### Readiness decision and exact next checkpoint
+S0 has a concrete target recommendation and staged setup/proof boundary, but **the environment is not runnable or approved**. REQUIRED NOW: independent review of this plan and the bounded dependency evidence, including baseline capture closure, native Auth setup capability, sensitive-data scope and target guards. HIGH-RISK: future provisioning/seed/identity/DDL/ACL/candidate writes, each isolated and stage-reviewed. FUTURE DEPENDENCY: confirmed target/organization/cost and full dependency/schema/fixture package; G4 nonproduction implementation/proof; separate production application. PARKED assignments unchanged; no new parked item. OUT OF SCOPE: broad production clone, authority/source selection, financial/security cleanup, specialist/bulk writers and client implementation.
+
+Immediate next checkpoint: **WP04-G4-S0 — Independent environment/proof-readiness plan review**. A review may approve bounded schema-only capture/package preparation while withholding provisioning and fixtures until the exact scope, native Auth mechanism and actual cost are resolved. Do not mark the test environment READY or start candidate application merely because S0 documentation passes. G4 remains incomplete and the programme remains 4 of 13.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new permanent decision lock; CHANGELOG_DECISIONS.md unchanged. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -680,23 +750,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [ ] Begin S0 environment/proof readiness plan; nonproduction proof and production application require separate stage reviews/authorization |
+| WP04-G4 — High-risk server package, if required | [~] S0 environment/proof-readiness proposal ready for independent review; no environment/candidate application or production/client execution |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G3 — Independent server/client package-plan review and closure`
+`WP04-G4-S0 — Nonproduction environment and proof-package readiness plan`
 
 ## Gate Status
-[x] COMPLETED AND VERIFIED at package-planning level after documentation corrections. G0/G1/G2 remain complete. WP04 incomplete; G4 not started; branch unmerged. No production or client execution authorization.
+[~] IN PROGRESS — environment/proof proposal ready for independent review. G0–G3 complete at their documented levels. WP04 incomplete; branch unmerged; no environment provisioning, candidate or production/client execution authorization.
 
 ## Required to close
-Satisfied for G3 planning review: corrected stage-bound package direction and explicit prerequisites recorded. No runnable representative test environment or performance/CSE/payload/access proof is certified. Those are required before later affected execution stages, not waived by closure.
+Independent review of target recommendation, dependency/baseline closure plan, data/Auth fixture scope, actual setup capability, cost/retention prerequisites and target/teardown guards. Documentation closure is not environment readiness; exact setup/capture and execution stages remain distinct.
 
 ## Next gate
-`WP04-G4-S0 — Nonproduction environment and proof-package readiness plan`, within WP04-G4 High-risk server package. Immediate scope is read-only assessment/documentation of concrete environment/proof setup, not provisioning, candidate application, production mutation or client implementation.
+`WP04-G4-S0 — Independent environment/proof-readiness plan review`. No provisioning or candidate application from this proposal. Review must identify which bounded preparation can proceed and which target/cost/data/Auth details need resolution.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -730,12 +800,12 @@ None.
 SEC-P02 added to PARKED_BACKLOG.md; existing items unchanged. No new decision approved.
 
 ## Exit criteria / final handover
-WP04 is not complete. G0/G1/G2/G3 remain verified at their documented levels. G4-S0 environment/proof readiness planning is next and not started. Documentation branch unmerged; no tag/release/merge or cleanup. G3 review used a read-only development-branch list and local source/environment checks; no provisioning or production mutation. Prior live inventory/definitions remain dated evidence.
+WP04 is not complete. G0–G3 remain verified at their documented levels. G4-S0 in progress: target/environment/proof plan awaiting review; no runnable environment claimed. Documentation branch unmerged; no tag/release/merge or cleanup. This pass used bounded read-only project/catalog/branch metadata and local capability checks; no install/provisioning or production mutation. New durable artifact is a metadata-only first-level dependency manifest; no production data/credentials.
 
-Workflow: audit → contract/plan review → concrete environment/proof readiness plan → reviewed nonproduction implementation/proof → separate production application authorization → reviewed client implementation → independent audit → authenticated verification → explicit merge/post-merge closure.
-WP progress: G0/G1/G2/G3 complete at their documented levels; G4 onward not started.
+Workflow: audit → contract/plan review → concrete environment/proof readiness review → bounded approved setup → reviewed nonproduction implementation/proof → separate production application authorization → reviewed client implementation → independent audit → authenticated verification → explicit merge/post-merge closure.
+WP progress: G0–G3 complete at their documented levels; G4-S0 proposal awaiting review.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G3 independent package-plan review completed.
-Next: WP04-G4-S0 nonproduction environment/proof readiness plan, assessment/documentation only.
+Current gate: WP04-G4-S0 environment/proof readiness plan.
+Next: WP04-G4-S0 independent environment/proof-plan review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
-Locked: canonical server authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. G3 adds no permanent decision lock.
+Locked: canonical server authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. S0 adds no decision lock.
