@@ -13,6 +13,7 @@ const {
 } = require("../electron/eaushadhi-worker/composition-executor.js");
 const {
   COMPOSITION_LIVE_ARM_DEFAULT,
+  COMPOSITION_FIRST_LIVE_930_RELEASE,
   isCompositionLiveArmedFor,
 } = require("../electron/eaushadhi-worker/composition-live-arm.js");
 const {
@@ -150,7 +151,14 @@ function fakeDeps(authorities, options = {}) {
       calls.push(["recheckMutationIdentity", portalProductRef]);
       return options.identityRecheck || { ok: true };
     },
-    fillTarget: async (target) => calls.push(["fillTarget", target]),
+    fillTarget: async (target) => {
+      calls.push(["fillTarget", target]);
+      if (options.fillError) throw options.fillError;
+    },
+    verifyFilledTarget: async (target, portalProductRef) => {
+      calls.push(["verifyFilledTarget", target, portalProductRef]);
+      return options.filledVerification || { ok: true, code: "POST_FILL_VERIFIED" };
+    },
     invokeSaveOnce: async () => {
       calls.push(["invokeSaveOnce"]);
       return options.saveObservation || {
@@ -182,7 +190,9 @@ function fakeDeps(authorities, options = {}) {
 }
 
 assert.equal(COMPOSITION_LIVE_ARM_DEFAULT, false);
-assert.equal(isCompositionLiveArmedFor(262, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(COMPOSITION_FIRST_LIVE_930_RELEASE, false);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
 
 const parsedId = (markup) => parseCompositionRowId(markup);
 const provenId = (markup, expected = "row-a") => {
@@ -261,6 +271,7 @@ assert.equal(normalizeNativeCompositionList({ rows: [aRowNative, aRowNative], re
 
 const beforeRows = [portalRow(governed[0], "row-a")];
 const completeRows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "row-b"), portalRow(governed[2], "row-c")];
+const after930Rows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "row-b")];
 
 // Read-only preview.
 {
@@ -270,7 +281,15 @@ const completeRows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "r
   assert.equal(result.code, "OFFLINE_MISSING");
   assert.equal(result.mutationAllowed, false);
   assert.deepEqual(result.missingSourceLineIds, [930, 931]);
+  assert.equal(result.firstLiveEligible, false);
+  assert.deepEqual(result.executionEligibleSourceLineIds, []);
   assert.deepEqual(deps.calls.map(([name]) => name), ["loadAuthority"]);
+}
+{
+  const result = await createCompositionExecutor().preview(fakeDeps([authority(beforeRows)], { liveArmed: true }));
+  assert.equal(result.firstLiveEligible, true);
+  assert.deepEqual(result.executionEligibleSourceLineIds, [930]);
+  assert.deepEqual(result.missingSourceLineIds, [930, 931]);
 }
 
 // Workflow authority uses only matching positive-integer versions from the canonical nested content path.
@@ -356,23 +375,55 @@ for (const [label, mutate, code] of [
 {
   const deps = fakeDeps([authority(beforeRows)], { liveArmed: true });
   const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 999, userConfirmed: true });
-  assert.equal(result.code, "TARGET_NOT_EXACTLY_MISSING");
+  assert.equal(result.code, "COMPOSITION_FIRST_LIVE_TARGET_REJECTED");
+  assert.equal(deps.calls.length, 0);
   assert.equal(deps.calls.some(([name]) => name === "armRun"), false);
 }
 
 // Trusted injected arm exercises arm -> server projection -> one Save -> durable outcome -> verification.
 {
   const executor = createCompositionExecutor();
-  const deps = fakeDeps([authority(beforeRows), authority(completeRows)], { liveArmed: true });
+  const deps = fakeDeps([authority(beforeRows), authority(after930Rows)], { liveArmed: true });
   const result = await executor.startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true, rendererIngredientName: "FORGED" });
   assert.equal(result.code, "ROW_VERIFIED");
   assert.equal(result.mutated, true);
   assert.equal(result.invokeCount, 1);
+  assert.equal(result.matchCount, 2);
+  assert.deepEqual(result.missingSourceLineIds, [931]);
+  assert.equal(result.blockerCount, 0);
+  assert.equal(result.conflictCount, 0);
+  assert.equal(result.duplicateCount, 0);
+  assert.equal(result.extraCount, 0);
   const names = deps.calls.map(([name]) => name);
-  assert.deepEqual(names, ["loadAuthority", "armRun", "recheckMutationIdentity", "fillTarget", "invokeSaveOnce", "recordSave", "loadAuthority", "rereadRow", "verifyRow"]);
+  assert.deepEqual(names, ["loadAuthority", "armRun", "recheckMutationIdentity", "fillTarget", "verifyFilledTarget", "invokeSaveOnce", "recordSave", "loadAuthority", "rereadRow", "verifyRow"]);
   assert.equal(deps.calls.find(([name]) => name === "fillTarget")[1].ingredient_name, "Karpura");
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "CONFIRMED");
   assert.equal(names.filter((name) => name === "invokeSaveOnce").length, 1);
+  const freshPlanner = deps.calls.findLast(([name]) => name === "loadAuthority");
+  assert.ok(freshPlanner);
+  assert.equal(deps.calls.some(([name]) => name === "markStageVerified"), false);
+}
+
+// Fill failure after SAVE_ARMED is durably rejected without invoking SaveData.
+{
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, fillError: new Error("BASE_OPTION_NOT_READY") });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "BASE_OPTION_NOT_READY");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+  const record = deps.calls.find(([name]) => name === "recordSave")[1];
+  assert.equal(record.outcome, "REJECTED");
+  assert.deepEqual(record.saveEvidence, { outcome: "REJECTED", reason: "TARGET_FILL_FAILED", invoked: false, invokeCount: 0, settled: true, noMutationProven: true });
+}
+
+// Final trusted reread mismatch is durably rejected before SaveData.
+{
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, filledVerification: { ok: false, code: "POST_FILL_FIELD_MISMATCH", diagnostics: { mismatchFields: ["quantity"] } } });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "POST_FILL_FIELD_MISMATCH");
+  assert.equal(result.runStatus, "SAVE_REJECTED");
+  assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
+  assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].saveEvidence.reason, "POST_FILL_VERIFICATION_FAILED");
 }
 
 // Ambiguous is recorded before return and never retried.
@@ -750,8 +801,26 @@ const files = {
   ipc: fs.readFileSync(path.join(root, "electron/eaushadhi-worker/ipc.js"), "utf8"),
   preload: fs.readFileSync(path.join(root, "preload.js"), "utf8"),
   control: fs.readFileSync(path.join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8"),
+  html: fs.readFileSync(path.join(root, "public/shared/e-aushadhi-review-control.html"), "utf8"),
+  worker: fs.readFileSync(path.join(root, "electron/eaushadhi-worker/index.js"), "utf8"),
 };
 assert.equal((`${files.contract}\n${files.arm}`.match(/const COMPOSITION_LIVE_ARM_DEFAULT = false/g) || []).length, 1);
+assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_FIRST_LIVE_930_RELEASE = false/g) || []).length, 1);
+assert.match(files.contract, /Number\(sourceCompositionLineId\) === COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID/);
+assert.match(files.worker, /sourceCompositionLineId !== 930/);
+assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID/);
+assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID[\s\S]*?deps\.liveArmed[\s\S]*?await collect\(deps/);
+assert.match(files.adapter, /BASE_OPTION_WAIT_MS = 5000/);
+assert.match(files.adapter, /Promise\.all\(\[/);
+assert.ok(files.adapter.indexOf("await Promise.all") < files.adapter.indexOf("text([\"#txtIng1\""));
+assert.ok(files.adapter.indexOf("select(typeSelectors") < files.adapter.indexOf("REFERENCE_OPTION_NOT_READY"));
+assert.match(files.adapter, /async function verifyFilledTarget/);
+assert.match(files.adapter, /POST_FILL_SELECT_MISMATCH/);
+assert.match(files.control, /executionEligibleSourceLineIds/);
+assert.match(files.control, /Enter line 930 - Karpūra/);
+assert.doesNotMatch(files.control.match(/function compositionPortalExecutionHtml\(\)[\s\S]*?function dictionaryStatusLabel/)?.[0] || "", /blockers\.join\(/);
+assert.match(files.html, /id="compositionConfirmBackdrop"/);
+assert.match(files.html, /ambiguous Save is recorded and is never retried automatically/);
 assert.doesNotMatch(files.executor, /eaushadhi_worker_run_begin|eaushadhi_worker_mark_entered|eaushadhi_worker_mark_portal_verified|createHash|node:crypto/);
 assert.doesNotMatch(`${files.executor}\n${files.adapter}`, /QC Register|final Submit|submitProduct/);
 assert.doesNotMatch(files.normalizer, /SaveCompositionData|UpdateCompositionData|DeleteCompositionData|\.rpc\(|page\.evaluate|createHash/);

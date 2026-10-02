@@ -262,7 +262,9 @@ The execution snapshot is server authoritative.
 - [ ] WP closure audit.
 
 ## Current gate
-Run controlled runtime/read-only acceptance of the merged trusted Composition executor with live mutation still disarmed. Confirm preview/page identity/list coverage/reread/normalization/UI behavior against the actual Product 262 Composition page before any proposal to enable live mutation.
+Controlled runtime/read-only acceptance PASSED on merged baseline `80c2f9e20c1226faf10036405e24048434c28b23`. The trusted planner proved matched source line `[929]` and missing source lines `[930,931]`, with no portal mutation.
+
+The current gate is the bounded first-live Product 262 / source line 930 Karpūra architecture. Its separate reviewed release constant remains false, so production execution is still impossible. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.
 
 The server foundation is live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
@@ -276,7 +278,7 @@ Live post-migration audit proved:
 - public Composition RPC execution is restricted to authenticated/service_role;
 - active-run uniqueness and evidence-binding guards are live.
 
-The trusted executor/adapters are now merged and independently audited. The current acceptance boundary remains read-only because `COMPOSITION_LIVE_ARM_DEFAULT=false`.
+The trusted executor/adapters are merged and independently audited. Read-only acceptance is complete, while mutation remains closed because `COMPOSITION_LIVE_ARM_DEFAULT=false` and `COMPOSITION_FIRST_LIVE_930_RELEASE=false`.
 
 Until runtime/read-only acceptance is closed and a separate live-arm gate is explicitly opened:
 

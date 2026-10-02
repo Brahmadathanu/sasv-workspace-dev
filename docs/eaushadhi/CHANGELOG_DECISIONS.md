@@ -142,3 +142,8 @@ High-risk work retains a separate Plan → ChatGPT review → Implementation gat
 Cursor/Codex stops for human guidance only for genuine ambiguity, materially different business/UX choices, undocumented backend-contract invention, production/security risk, material scope broadening, business-rule contradictions, genuinely judgmental visual/UX choices, merge to main, or version/tag/release/publishing.
 
 Dedicated task branches/worktrees, no direct implementation on main, server authority, existing design language, no unrelated refactoring, no invented backend objects/routes/contracts, targeted verification, and explicit merge/release approval remain mandatory.
+## 2026-10-02 — WP-06 read-only acceptance and closed first-live gate
+- Controlled read-only runtime acceptance passed on merged baseline `80c2f9e20c1226faf10036405e24048434c28b23` with matched `[929]` and missing `[930,931]`.
+- Implemented bounded Product 262 / source line 930 Karpūra first-live safety architecture, including dependent-option readiness, final trusted reread and durable no-mutation rejection closure.
+- Production mutation remains impossible: `COMPOSITION_LIVE_ARM_DEFAULT=false` and `COMPOSITION_FIRST_LIVE_930_RELEASE=false`; environment `"true"` alone cannot arm execution.
+- No Composition mutation occurred. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.
