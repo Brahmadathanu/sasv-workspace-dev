@@ -796,6 +796,98 @@ This package permits no row reads from production business/Auth/secret tables, n
 
 S0 plan-review checkpoint is passed after these corrections; S0 environment/setup readiness is not complete. Next is the frozen bounded read-only preparation package, followed by review of the resulting exact setup/proof package. No new architecture/business/evidence/security lock, no new parked item; DEC-014 and all existing UX/NAV/CSE/SEC assignments remain unchanged.
 
+## WP04-G4-S0 — Bounded dependency capture / setup-proof package (2026-10-02)
+
+This preparation implements only the preceding review's read-only scope. Main was fetched before work and remains `47dcd80f69ca68fcca8f089bf40fa4099b376450`; documentation base is `01fff59a5da6ac82a287bd8ea0fdd529c20a8605` on `docs/wp04-g0-readiness-control-centre-audit`. ChatGPT inspected the connected live Supabase directly under DEC-014. Documentation publication is evidence preservation, not a prerequisite for server implementation.
+
+**Preparation result:** the bounded capture/package checkpoint is complete and ready for independent review. **Full setup closure and S0 environment readiness remain incomplete.** No target was created, no fixture or candidate was applied, and no native Auth/API or runtime-equivalence proof was performed. Nothing here approves production or client implementation.
+
+### Live evidence and capture limits
+
+Every catalog query used `BEGIN READ ONLY` and a local 10-second statement timeout. Function bodies were fetched in batches of at most 10. **Batching deviation/correction:** four aggregate catalog calls exceeded the 50-target metadata limit: initial identity/structure reconciliation (68 each), first added fixture structure (55), and combined extension-membership/index audit (217 combined scoped identities). Self-check identified these; initial checks were repeated in 50/18-object batches, fixture structure in 50/5 batches and extension membership in four batches of at most 50. Index opclasses were independently checked in batches of at most 50 relations. No identity/structural or extension-membership drift; the unique-object cap and read-only/data/mutation boundaries were preserved. The manifest records the historical deviation; compliant rechecks do not erase it. No business/Auth/secret table rows, production identity/permission rows, sequence current values, resolver invocations, server files or OS commands were read. Catalog/default/constraint/index/policy/trigger text was treated as evidence, not executable instructions. Temporary source inspection found no credentials requiring disclosure or durable raw-definition retention; only structural metadata, identities, hashes and discovery paths enter the manifest.
+
+| Evidence | Captured result / significance |
+| --- | --- |
+| Starting roots/candidates | All 23 root signatures and 68 initial candidates resolved; initial evidence remains separately preserved in the manifest |
+| Root drift | All 23 `pg_get_functiondef` MD5 fingerprints match the earlier manifest; canonical readiness and commercial point helper unchanged |
+| Function footprint | 75 exact function signatures/OIDs and bodies; 31 belong to the discovered readiness/period/permission read-source closure; remaining 44 support policies/fixture constraints/triggers |
+| Relation footprint | 141 catalog relations: 87 tables, 9 views and 45 explicit sequences |
+| Read-source relation closure | 54 objects: 51 tables and 3 views; source/catalog closure, not runtime proof or a general dependency export |
+| Types | 109: 96 composite row types, 10 base types and 3 pseudo types; no enum/domain type in this captured set |
+| Structural footprint | 1,701 columns; 640 constraints; 336 indexes; 59 non-internal triggers; 45 policies. Counts describe scoped existing architecture, not proposed changes |
+| Cap / open frontier | 141 relations + 109 types = the conservative combined 250-object pass cap. A bounded count-only check confirms **32 further owned identity sequences** associated with the 32 captured identity columns; configuration/OIDs were not expanded past the cap |
+| Definition inspection | No dynamic `EXECUTE` detected in the 75 captured bodies. Qualified references, unqualified call candidates, CTEs, policy `is_admin()` and catalog dependencies inspected. This does not prove unrelated functions or data-dependent execution |
+| Fingerprints | Server source MD5 plus exact-text SHA-256; per-relation structural SHA-256 over scoped metadata. Manifest explains the hash format; fingerprints are not runtime-equivalence proof |
+
+`WP04-S0-DEPENDENCY-MANIFEST.json` now preserves both the first-level audit and this separate bounded capture. Exact OIDs/signatures, ACL/owner/config, relation RLS/options, type identities, resolved discovery paths, sequence structural settings, structure counts/hashes and the 32-column identity frontier are durable. Temporary source capture is not an executable schema package and is not committed as server deployment SQL.
+
+### Read authority, fixture support and exclusions
+
+The read-source closure adds `costing.fn_effective_product_process_route_steps(bigint)`, `costing.fn_regional_marketing_review_status(bigint)` and the exact 13-argument `costing.fn_regional_marketing_evidence_fingerprint(...)` beyond the initially resolved 28 functions. It also exposes route override/step/location/resource metadata, driver catalog/cutover acceptance and regional Marketing snapshot/acceptance relations. These existing authorities must be preserved; none supplies a new portfolio RPC.
+
+The three read-authority views remain `costing.v_sku_commercial_sales_basis`, `costing.v_cost_driver_policy_registry` and `costing.v_regional_marketing_evidence_review_queue`. The six additional views are **fixture support**, reached through snapshot lineage validation: `costing.v_cost_pool_monthly_combined`, `costing.v_expense_head_monthly_provision`, `costing.v_staff_cost_pool_monthly`, `public.v_costing_manual_cost_pool_monthly_summary`, `public.v_costing_manual_provision_pool_options` and `public.v_costing_expense_allocation_pool_options`. Their HR/expense/manual-pool relations are schema dependencies for faithful fixture guards; they do not authorize copying employee, compensation or financial data, new central UI fields, or implementing specialist modules.
+
+| Classification | Boundary / evidence |
+| --- | --- |
+| Read authority to preserve | Canonical single-SKU composition, period/context selectors, route validation, policy resolution, persisted run evidence and regional acceptance fingerprint/status semantics. No readiness aggregation rule or source-row selection added |
+| Schema/type prerequisite | Exact return row types, captured columns/defaults/constraints/indexes, explicit sequences and still-open identity sequence settings. `fn_resolve_sku_commercial_sales_basis_point` returns the commercial view's composite row type; table-only reconstruction is insufficient |
+| Fixture support | Exact-run pools, workload/component/packing lineage, regional/scheme evidence, cutover registry and canonical permission table structure. Inputs must be coherent synthetic test evidence; no production-row transfer approved |
+| Managed Auth/provider capability | `auth.uid()` and native managed roles/Auth/API behavior are provider capabilities. Do not reconstruct production Auth rows, fabricate sessions or blindly recreate managed roles |
+| Fixture side-effect exclusion | `costing.fn_reprice_regional_marketing_after_insert()` updates Marketing expense snapshots for affected runs; `hr.fn_sync_staff_active_status_to_costing()` updates classification/compensation when staff active status changes. No writer was invoked; neither belongs in readiness execution |
+| Context/config exclusion | Control snapshot guards read `costing.control_snapshot_*` settings; route/BOM guards read governed context flags; Marketing repricing uses transition table `new_rows`. These are existing runtime contexts, not missing relations or instructions to set production GUCs |
+| Open frontier | 32 owned identity sequence configurations remain uncaptured because the cap was reached. Fresh bounded continuation and exact fixture/bootstrap script review are required before declaring setup closed |
+| Unrelated excluded | Broad Auth/business/HR/financial datasets, vault secrets, cron/network schedules/configuration, unrelated schema dump, specialist refresh/acceptance writers and production cleanup |
+
+No table-changing SQL occurs in the inspected 31-function read-source closure. Trigger bodies that stamp `NEW`, enforce immutable/status/lineage rules, or depend on session context still constrain fixtures. Existing lifecycle guards are dependencies, not a new WP04 activation rule. There is no demonstrated WP03 regression.
+
+### Concrete setup/proof package for independent review
+
+The proposal below is an ordered package with explicit prerequisites and stop conditions. **It is not an executable apply package:** target identity/cost/Auth mechanism and identity-sequence settings are still unresolved. No provisioning, marker/bootstrap, DDL, role/grant, fixture or candidate write is authorized by this preparation.
+
+| Stage | Exact scope / order / required proof |
+| --- | --- |
+| S0-P1 — Close bounded structural frontier | Start only from the 32 relation/column entries in `identity_sequence_frontier`. Capture their owned sequence OIDs/config/dependencies in a fresh bounded read-only pass; resolve any newly exposed prerequisite before setup. Do not export `last_value` or silently add unrelated roots. Reconcile all captured root hashes again before any future apply |
+| S0-P2 — Confirm target and provider capability | Previously proposed hosted target `wp04-readiness-proof` remains a recommendation only; parent production ref is `qhmoqtxpeasamtlxaoak` and must never be the write target. Obtain actual organization selection, provider cost quote/confirmation and separately authorized provisioning if this option is chosen. Confirm how that target obtains schema independently of the empty repository baseline; generic branch behavior does not prove its returned schema |
+| S0-P3 — Resolve native Auth/API setup | Identify a supported branch-specific method for fresh test users/sign-in with no outbound email to real people. Capture API/DB/branch identity independently, provider configuration and API exposure. Existing connector inventory has not established Auth-admin/session-test support; keep this proof blocked until a supported mechanism is reviewed |
+| S0-P4 — First-write bootstrap review | Freeze the exact isolated target/project/database/API identity allowlist and proposed marker definition/script. First marker creation requires its separately reviewed bootstrap because an existing-marker prerequisite would be circular. Check returned target identity independently, explicitly reject the production ref/endpoint, and record authorization plus rollback before this first write. No target or marker name/DDL is approved here |
+| S0-P5 — Baseline schema load/reconciliation | Reconcile provider-managed Auth/roles first; if schema bootstrap is needed, create/reconcile approved schemas and required extensions, then base tables/identity/explicit sequences and exact composite types. Add constraints/indexes/policies with all referenced objects present. Build primitive/table-returning helpers, prerequisite views, view-rowtype-returning helpers, remaining read functions and trigger functions in dependency order; attach triggers before fixture data. Reconcile live owner/search_path/ACL/RLS/options and object fingerprints. Do not assume a function that compiles against empty tables represents a baseline |
+| S0-P6 — Synthetic fixture package review/load | Freeze named cases, complete FK/lineage graph, exact insert order, any required existing governed session context and expected trigger effects before writes. Create only new native test actors/canonical permission rows through the supported mechanism. Use test-only master/policy/run/pool/workload/component/region/scheme inputs with synthetic names, amounts and notes. No invented production evidence or broad clone. Preserve guards; no blanket trigger/RLS disabling or copied production actors |
+| S0-P7 — Baseline runtime/API proof | Run unchanged canonical and context readers against fixtures first. Verify full baseline outputs, permission behavior and absence of unexpected fixture side effects. Separate native Auth/API results from privileged catalog SQL. Reference dated live evidence only where the synthetic inputs actually reproduce it; synthetic parity is not a production-load or commercial-row-authority proof |
+| S0-P8 — Candidate package/proof | Only after separate review and a ready baseline, ChatGPT applies the reviewed nonproduction G4 candidate directly through Supabase. Prove same-snapshot/context equivalence, permissions/filters/count grains, failure semantics, CSE-P01 plan sensitivity and bounded performance. Reconcile captured baseline hashes/ACLs, operation records and rollback before separate production-apply review. No current candidate apply approval |
+
+**Minimum extension finding:** the inspected index opclasses require `btree_gist` (live version 1.7, schema `extensions`), alongside native `plpgsql` 1.0. The captured type/function/index footprint does not establish a requirement for pg_cron, pg_net, vault, hypopg, index_advisor, pg_trgm, citext, uuid-ossp or copying their live configuration. Review any newly discovered requirement instead of installing every production extension. Preserve exact exclusion-constraint/index behavior; do not replace it to ease fixtures.
+
+**Fixture load discipline:** all referenced tables must exist before FK attachment; actual seed order follows captured FK and trigger/lineage prerequisites. Reference hierarchies/UOM/route-location metadata precede Products/SKUs and route/policy/BOM contexts; run/period evidence and pool/workload/component lineage precede allocation/control/regional evidence; acceptance requires an exact matching synthetic fingerprint. For immutable successful-run snapshots, freeze the exact permitted initial run state and transition order in the later fixture script; do not insert arbitrary SUCCESS rows then bypass immutable guards. Any cycle, additional required guard context or fixture-only side effect needs exact script review, not a new production business rule. No trigger disabling, refresh call or fixture load happened in this pass.
+
+**Target/rollback safeguards:** every future operation after bootstrap must require both independent target identity checks and the reviewed test marker. Before a write, retain applicable definitions/ACL/options and exact transaction/rollback scope; stop on identity/hash drift. Test cleanup is confined to reviewed test objects/actors and requires its own exact scope; no production mutation or branch deletion is approved. Repository migration replay/local CLI installation is not a direct server-implementation prerequisite under DEC-014.
+
+### Permission and proof matrix
+
+Live catalog evidence confirms `authenticated`/`anon` are non-login/non-bypass-RLS roles; `service_role` and `postgres` bypass RLS. `authenticator` is non-inheriting. These privileged roles cannot stand in for native authenticated-user proof. Canonical readiness/latest-period/context functions are owned by `postgres`, SECURITY DEFINER with captured `search_path=public, costing, pg_temp`; their explicit ACLs allow postgres/authenticated/service_role, not anon. Preserve these properties for baseline comparison rather than blindly recreating managed roles or copying schema-wide default grants.
+
+Current canonical readiness/latest-period checks permit `module:manage-products` **OR** `module:costing-control-center` view. The valuation-context reader's existing permission behavior must remain exact; it is not silently replaced by the OR rule. Permission truth remains `user_permissions_canonical` under the captured helpers. Candidate new readers remain the G3 stage-bound **Control Center view-only** proposal, not an applied grant/permission change. Current `costing` schema USAGE for authenticated and direct-view exposure (including SEC-P02) does not prove a safe new portfolio endpoint.
+
+| Fresh test actor | Required proof after supported native Auth setup |
+| --- | --- |
+| Control Center viewer / editor | Read candidate only under reviewed CCC view boundary; view-only controls remain non-mutating; edit never creates bulk authority |
+| Product-only viewer | Existing canonical/latest-period behavior preserved; candidate CCC-only denial if the exact reviewed candidate retains that boundary |
+| Authenticated without module permission | Module-guard denial; do not mistake successful service-role SQL for permission proof |
+| Anonymous / missing or invalid native session | Auth/EXECUTE/module boundary failures remain failures, not server UNKNOWN |
+| Direct helper/API access | Audit exact exposed schemas and effective ACLs; no inferred access from role names. Preserve existing baseline; candidate internal helpers require their separately reviewed restriction |
+
+Fixture cases must cover inactive/sample membership, no-SKU and active-no-active-SKU gaps without fake readiness; explicit governed periods; no successful run; success followed by failure; EXACT_RUN integrity mismatch; READY/review/blocker/UNKNOWN; policy ambiguity/missing evidence; regional eligible accepted/unaccepted/ineligible/stale-fingerprint evidence; filters using the same unresolved dependency incidence; payload/text allowlist and concurrent context/race behavior. CSE-P01 must retain multiple commercial snapshot variants without picking an authoritative row. A changed call site/plan must be compared; matching one fixture does not resolve the unordered-row authority problem.
+
+No portfolio performance or live distributions were recomputed during this catalog-only pass. Prior timing/count evidence remains dated. Full selected-population counts and representative workload/concurrency proof still require the reviewed nonproduction package; synthetic fixture throughput cannot establish production equivalence.
+
+### Classification, review disposition and exact next checkpoint
+
+**REQUIRED NOW:** independent review of this resulting setup/proof package, the cap/frontier and stage prerequisites. **HIGH-RISK:** any later provisioning/cost/Auth/bootstrap/schema/ACL/fixture/candidate/production operation; none approved now. **FUTURE DEPENDENCY:** frontier continuation, confirmed isolated target, native Auth mechanism, exact bootstrap/fixture scripts, baseline and G4 candidate proof. **PARKED:** existing UX/NAV/CSE/SEC assignments unchanged. **OUT OF SCOPE:** production data transfer/mutation, new evidence authority, commercial row selection, Marketing editor, new top-level/client module, broad RLS/security repair or bulk remediation.
+
+This is preparation evidence, not an independently reviewed setup result. G4-S0 remains [~] IN PROGRESS and G4 incomplete. Programme progress remains **4 of 13**. No new architecture/business/security decision lock or new parked finding; the HR/Marketing fixture side effects are required proof-package boundaries, not programme scope expansion. DEC-014 and WP03's closed contract remain intact.
+
+**Exact next checkpoint:** `WP04-G4-S0 — Independent bounded-capture / setup-proof package review`. That review must classify whether and how to authorize the fresh 32-sequence read-only continuation, resolve target/Auth prerequisites and freeze any concrete setup scripts. It cannot mark the environment ready or authorize writes merely because this preparation was completed or committed. Stop here before independent review, provisioning or implementation.
+
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -808,23 +900,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] S0 plan-review checkpoint passed with corrections; bounded read-only preparation next; environment/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Bounded capture/setup-proof package prepared; independent resulting-package review next; environment/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Environment/proof plan review passed; read-only preparation next`
+`WP04-G4-S0 — Bounded capture/setup-proof package prepared; independent review next`
 
 ## Gate Status
-[~] IN PROGRESS — S0 plan-review checkpoint passed with corrections; bounded read-only dependency/setup preparation authorized. G0–G3 complete at documented levels. No runnable/approved test environment, provisioning, candidate or production/client execution. Branch unmerged.
+[~] IN PROGRESS — Bounded read-only capture/package preparation completed; independent resulting-package review pending. Combined 250 relation/type cap reached; 32 owned identity sequences remain a recorded frontier. G0–G3 complete at documented levels. No runnable/approved test environment, provisioning, candidate or production/client execution. Branch unmerged.
 
 ## Required to close
-Complete bounded dependency/setup preparation and independently review its exact target/bootstrap/Auth/data/proof package. Establish actual provider/cost consent and supported native Auth mechanism before applicable execution. Do not mark environment ready from plan review or replace missing proof with privileged SQL.
+Independently review the resulting bounded-capture/setup-proof package, 32-sequence frontier and exact target/bootstrap/Auth/fixture prerequisites. Review any fresh bounded continuation separately; establish actual target/provider/cost consent and a supported native Auth mechanism before applicable execution. No environment-ready claim or privileged-SQL substitution for native Auth proof.
 
 ## Next gate
-`WP04-G4-S0 — Read-only dependency closure and setup-package preparation`, using the frozen scope above directly through Supabase. Then review resulting setup/proof package; no GitHub/local-CLI prerequisite for server delivery.
+`WP04-G4-S0 — Independent bounded-capture / setup-proof package review`. Preparation is complete within its cap; full fixture/setup closure remains open. No GitHub/local-CLI prerequisite for direct server delivery.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -858,12 +950,12 @@ None.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at their documented levels. G4-S0 plan-review checkpoint passed after corrections; bounded read-only preparation next, with environment/setup readiness still open. Documentation branch unmerged; no tag/release/merge or cleanup. This review used source/manifest/tool-capability checks, no new production query, installation, provisioning or mutation. Existing live observations remain dated evidence.
+WP04 incomplete. G0–G3 verified at their documented levels. G4-S0 bounded catalog capture/setup-proof package prepared; independent package review next, with full fixture/setup closure and environment readiness still open. Documentation branch unmerged; no tag/release/merge or cleanup. This preparation used bounded live read-only catalogs, no business/Auth/secret rows, installation, provisioning or mutation. Existing live business/timing observations remain dated evidence.
 
 Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their levels; G4-S0 in progress, plan review passed, environment not ready.
+WP progress: G0–G3 complete at their levels; G4-S0 in progress, bounded preparation complete, resulting-package review pending, environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 reviewed environment/proof planning.
-Next: bounded read-only dependency closure/setup-package preparation through Supabase.
+Current gate: WP04-G4-S0 bounded dependency capture/setup-proof preparation.
+Next: independent bounded-capture/setup-proof package review; no provisioning or implementation.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.
