@@ -165,7 +165,7 @@ Audit checks:
 ## Gate Status
 [x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, before the branch sync with current main.
 
-[~] WP02-G4 IN PROGRESS — focused verification. DEC-013 supersedes the DEC-012 picker and tall-card presentation with a filter-only Product catalog, Products / SKUs / Readiness lenses, and focused dialogs. Compact list rows replace tall cards at 520px. G4 stays open until a person confirms that workspace on a wide screen and at 520px.
+[~] WP02-G4 IN PROGRESS — focused verification. DEC-013 client functional verification is accepted. Remaining visual and interaction polish is parked as UX-P02 for WP11. The narrow LIVE_AS_OF commercial-sales performance correction is applied and recorded below. G4 stays open until independent ChatGPT audit of the applied server evidence.
 
 ## Required to close
 Complete the focused verification set against the synced branch. Keep G4 in progress if authenticated UI verification cannot be performed. Do not merge from this gate.
@@ -191,7 +191,31 @@ Manage Products is a full-width Product catalog. One search field filters that c
 - Service worker cache is `hub-cache-v331`.
 
 ## Statement-timeout diagnostic
-REQUIRED-NOW, read-only, no database change. `statement_timeout` is 120000 ms. The available Postgres log window contains 17 `canceling statement due to statement timeout` events, and those log rows do not include the canceled SQL. `pg_stat_statements` shows the live Manage Products catalog select averaging about 3.5 ms (max about 49 ms) and a single PostgREST `rpc_get_product_sku_readiness` call averaging about 6.4 s (max about 8.0 s, 52 calls), which is under the timeout. Statements that call that readiness function several times in one query reach about 24–37 s. Those shapes match audit SQL, not the page, which calls readiness once per SKU. Product and child-SKU indexes already exist for id, item, status, and product_id. Any index, RPC, or timeout change is HIGH-RISK and was not made.
+Pre-change, read-only finding. The available Postgres log window contained 17 `canceling statement due to statement timeout` events, and those log rows do not include the canceled SQL. `pg_stat_statements` showed the live Manage Products catalog select averaging about 3.5 ms and a single PostgREST `rpc_get_product_sku_readiness` call averaging about 6.4 s (max about 8.0 s). The authenticated/authenticator `statement_timeout` remains 8 seconds. That setting was not changed. Product and child-SKU indexes already exist. No index was added.
+
+## LIVE_AS_OF commercial-sales performance correction
+Applied in `supabase/migrations/20261002064432_wp02_point_commercial_sales_basis.sql`. The only readiness change is the LIVE_AS_OF commercial-sales assignment. It now calls internal helper `costing.fn_resolve_sku_commercial_sales_basis_point(bigint, date, date)`. The helper filters `sku_sales_allocation_basis_snapshot` to the requested SKU and month-normalized period, joins `cost_periods` on that period, and requires `cost_periods.valuation_date` to equal the requested valuation date before either sales resolver runs. It does not query `costing.v_sku_commercial_sales_basis`, filter `refresh_run_id`, or add `ORDER BY`. The readiness assignment keeps unordered `LIMIT 1`. EXACT_RUN is unchanged. `statement_timeout`, indexes, the commercial-sales views, both resolvers, auth checks, and the client were not changed. Helper execute is limited to `postgres`. The readiness RPC keeps execute for `postgres`, `authenticated`, and `service_role`.
+
+Rollback evidence is `supabase/rollback-evidence/20261002064432_rpc_get_product_sku_readiness_pre.sql`. Restoring the unique LIVE_AS_OF lookup string and dropping the helper reproduces the pre-change readiness body. That restored body matches the captured pre-change `prosrc` md5 `5cd4d77c68e186b4ccdc416d71baea70`. Rollback was not executed because ordinary parity matched.
+
+Complete LIVE_AS_OF readiness JSON for period `2026-09-01` matched before and after apply:
+
+| SKU | Overall | Commercial | Fingerprint |
+| --- | --- | --- | --- |
+| 1 | READY | READY / SYSTEM | `d52edd1a7d2a47d052fb629ab7f42c45` |
+| 10 | BLOCKER | BLOCKED | `4c1742996303df0108800f8f9bf3fa1c` |
+| 17 | REVIEW_REQUIRED | READY / SYSTEM | `d7d0d9dbe302318b4c549d086652e0d3` |
+| 45 | REVIEW_REQUIRED | REVIEW_REQUIRED / SYSTEM | `635d19b31716ea45663f218c0f6c11ff` |
+| 147 | BLOCKER | BLOCKED | `c368c1f67deaa98e8e757a889b73c46c` |
+| 1792 | REVIEW_REQUIRED | REVIEW_REQUIRED / SYSTEM | `e065dc2663cb22de7a3ee93db0903c86` |
+| 1795 | BLOCKER | READY / SYSTEM | `d98ac1b993c9e4c4b0aa9530916d7f20` |
+
+SKU 1792 does not have a September governed assumption. Its matching result is the existing new-product default path. SKU 1795 pre and post JSON matched. The helper still returns that SKU's unordered September snapshot set with no run pin, so a later call can still land on another outcome already present in runs 85–90. No new status, source, or warning was introduced. One EXACT_RUN result for SKU 1, run 115, matched fingerprint `ee91dd3b87e6c53add5ebb5923e10fa9`.
+
+The narrow helper point lookup for SKU 1 returned 26 snapshot rows in 7.328 ms. The same SKU and period filter, shown on its own, is an index nested loop: one `cost_periods` row and 26 snapshot rows. The helper function is not inlined, so its outer plan is a function scan. One authenticated-role canonical readiness call for SKU 1, period `2026-09-01`, `LIVE_AS_OF`, completed in 1784.8 ms with the same fingerprint. Mandatory acceptance under 2 seconds passes. The preferred under-1-second target was not reached. The commercial-sales helper is no longer the dominant cost. `statement_timeout` was not raised.
+
+## Client functional verification
+Human functional verification of the DEC-013 catalog, lenses, and dialogs is accepted. Service worker cache remains `hub-cache-v331`. No client or service-worker change was made for the server-only readiness correction. Remaining aesthetic and interaction hardening is parked as UX-P02 and is reserved for WP11. Broader Product and Master Data navigation remains reserved for WP08.
 
 ## Tests / verification
 - Verified current main SHA at implementation start: `738ca09ff5490c0c17ee8544da4c7690f9e6a171`.
@@ -221,6 +245,8 @@ REQUIRED-NOW, read-only, no database change. `statement_timeout` is 120000 ms. T
 Permission broadening must stay limited to status/remediation reads; Product and SKU dirty-state interactions must not cause data loss; client must not turn UNKNOWN into READY; downstream remediation navigation must not imply Product Master owns specialist mutations.
 
 ## Parked discoveries
+Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This performance correction does not choose among those rows. The ambiguity remains and was not solved.
+
 None added in G2. Regional Marketing evidence acceptance remains parked under the programme backlog for WP04/later IA placement.
 
 G3 required-now detail: the SKU pack UOM picker must offer the live `product_skus.uom` values `g`, `mL`, and `Nos`. No future dependency, parked item, or out-of-scope functional change was added.

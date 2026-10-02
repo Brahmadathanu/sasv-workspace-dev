@@ -67,10 +67,10 @@ WP02-G4 — focused verification
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No architectural blocker remains inside WP02-G3. DEC-012 retired the permanent Product rail. DEC-013 supersedes that picker-and-card presentation with a filter-only Product catalog, Products / SKUs / Readiness lenses, focused dialogs, and compact 520px list rows. A separate read-only statement-timeout diagnostic is recorded with the implementation and does not change the database. WP02-G4 stays open until a human confirms the catalog workspace on a wide screen and at 520px.
+No architectural blocker remains inside WP02-G3. DEC-012 retired the permanent Product rail. DEC-013 supersedes that picker-and-card presentation with a filter-only Product catalog, Products / SKUs / Readiness lenses, focused dialogs, and compact 520px list rows. Human functional verification of that client workspace is accepted. Remaining aesthetic UX hardening is parked as UX-P02 for WP11. The LIVE_AS_OF commercial-sales point helper is applied and does not change evidence authority. Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period; that discovery stays parked. WP02-G4 stays open until independent ChatGPT audit of the applied server evidence.
 
 ## Immediate next action
-Human visual verification of the catalog Manage Products workspace at wide desktop and at 520px: search filters only, one click selects without opening the Product dialog, double-click or Enter opens it, Add Product opens create mode, SKU actions stay exclusive, and readiness uses the cross close. Do not close WP02-G4 or merge until that confirmation and independent acceptance are complete.
+Independent ChatGPT audit of the applied LIVE_AS_OF commercial-sales performance evidence. Do not close WP02-G4 or merge until that audit is accepted. Do not choose a commercial-sales snapshot row in this gate. Remaining aesthetic UX hardening stays parked as UX-P02 for WP11.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.

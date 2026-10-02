@@ -6,6 +6,17 @@ const products = readFileSync(join(root, "js/products.js"), "utf8");
 const html = readFileSync(join(root, "manage-products.html"), "utf8");
 const sw = readFileSync(join(root, "public/sw.js"), "utf8");
 const types = readFileSync(join(root, "public/shared/js/types/supabase.ts"), "utf8");
+const pointMigration = readFileSync(
+  join(
+    root,
+    "supabase/migrations/20261002064432_wp02_point_commercial_sales_basis.sql",
+  ),
+  "utf8",
+);
+const helperSource = pointMigration.slice(
+  pointMigration.indexOf("function costing.fn_resolve_sku_commercial_sales_basis_point"),
+  pointMigration.indexOf("do $wp02_point$"),
+);
 const migration = readFileSync(
   join(
     root,
@@ -125,6 +136,11 @@ assert(
 );
 assert(!html.includes('id="skuIsActive"'), "activation is not a master checkbox");
 assert(html.includes('id="skuToggleActiveBtn"'), "activation has a dedicated action");
+assert(helperSource.includes("sab.sku_id = p_sku_id") && helperSource.indexOf("sab.sku_id = p_sku_id") < helperSource.indexOf("fn_resolve_sku_sales_assumption_as_of"), "point helper filters the snapshot before resolver calls");
+assert(helperSource.includes("cp.valuation_date = p_valuation_date") && !helperSource.includes("refresh_run_id") && !/order\s+by/i.test(helperSource), "point helper keeps valuation date and adds no run or order authority");
+assert(!helperSource.includes("from costing.v_sku_commercial_sales_basis"), "point helper does not read the portfolio commercial-sales view");
+assert(pointMigration.includes("fn_resolve_sku_commercial_sales_basis_point(p_sku_id, v_period, v_val)") && pointMigration.includes("v_sku_commercial_sales_basis c where"), "readiness migration replaces only the LIVE_AS_OF commercial-sales lookup");
+assert(products.includes('p_context_type: "LIVE_AS_OF"') && products.includes("p_refresh_run_id: null"), "client remains LIVE_AS_OF with a null refresh-run id");
 assert(migration.includes("rpc_get_latest_governed_cost_period_start"), "migration adds the period RPC");
 assert(migration.includes("app_has_permission('module:manage-products', 'view')"), "migration allows Manage Products view");
 assert(migration.includes("max(period_start)"), "period RPC reads max period_start");
