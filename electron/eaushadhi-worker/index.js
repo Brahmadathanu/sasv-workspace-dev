@@ -929,9 +929,9 @@ function createEaushadhiWorker({
     };
   }
 
-  function buildCompositionTrustedDeps(accessToken) {
+  function buildCompositionTrustedDeps(accessToken, sourceCompositionLineId = 930) {
     const activePage = controlledPage;
-    const liveArmed = isCompositionLiveArmedFor(PD_PRODUCT_ID);
+    const liveArmed = isCompositionLiveArmedFor(PD_PRODUCT_ID, sourceCompositionLineId);
     let adapters = null;
     const getAdapters = () => {
       if (!adapters) {
@@ -950,6 +950,7 @@ function createEaushadhiWorker({
       liveArmed,
       loadAuthority: (options) => getAdapters().loadAuthority(options),
       fillTarget: (target) => getAdapters().fillTarget(target),
+      verifyFilledTarget: (target, expectedPortalProductRef) => getAdapters().verifyFilledTarget(target, expectedPortalProductRef),
       invokeSaveOnce: (runId) => getAdapters().invokeSaveOnce(runId),
       rereadRow: (rowId) => getAdapters().rereadRow(rowId),
       armRun: (args) => getAdapters().armRun(args),
@@ -965,7 +966,7 @@ function createEaushadhiWorker({
     if (id !== PD_PRODUCT_ID) {
       return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
     }
-    return compositionExecutor.preview(buildCompositionTrustedDeps(accessToken));
+    return compositionExecutor.preview(buildCompositionTrustedDeps(accessToken, 930));
   }
 
   async function startCompositionLineExecution(rawProductId, rawAccessToken, rawOptions = {}) {
@@ -975,8 +976,12 @@ function createEaushadhiWorker({
     if (id !== PD_PRODUCT_ID) {
       return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
     }
-    return compositionExecutor.startLine(buildCompositionTrustedDeps(accessToken), {
-      sourceCompositionLineId: sourceIdFromRenderer(rawOptions?.sourceCompositionLineId),
+    const sourceCompositionLineId = sourceIdFromRenderer(rawOptions?.sourceCompositionLineId);
+    if (sourceCompositionLineId !== 930) {
+      return { ok: false, code: "COMPOSITION_FIRST_LIVE_TARGET_REJECTED", message: "First-live Composition execution accepts only Product 262 line 930." };
+    }
+    return compositionExecutor.startLine(buildCompositionTrustedDeps(accessToken, sourceCompositionLineId), {
+      sourceCompositionLineId,
       userConfirmed: command.userConfirmed === true,
     });
   }

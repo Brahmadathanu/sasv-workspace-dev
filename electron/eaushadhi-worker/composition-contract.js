@@ -8,9 +8,21 @@ const ATTRIBUTE_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*/;
 const HIDDEN_ROW_KEY = /^hid\d+$/;
 
 const COMPOSITION_LIVE_ARM_DEFAULT = false;
+const COMPOSITION_FIRST_LIVE_930_RELEASE = false;
+const COMPOSITION_FIRST_LIVE_PRODUCT_ID = 262;
+const COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID = 930;
 
 function compositionLiveArmEnabled(environment = process.env) {
   return COMPOSITION_LIVE_ARM_DEFAULT && environment?.EAUSHADHI_COMPOSITION_LIVE_ARM === "true";
+}
+
+function compositionFirstLiveTargetEnabled(productId, sourceCompositionLineId, environment = process.env) {
+  return (
+    COMPOSITION_FIRST_LIVE_930_RELEASE === true &&
+    Number(productId) === COMPOSITION_FIRST_LIVE_PRODUCT_ID &&
+    Number(sourceCompositionLineId) === COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID &&
+    environment?.EAUSHADHI_COMPOSITION_LIVE_ARM === "true"
+  );
 }
 
 function assessCompositionLineAuthority(line) {
@@ -156,11 +168,15 @@ function assessFirstLineBootstrap({ editMarkup, reread, expectedUnitValue, expec
 }
 
 module.exports = {
+  COMPOSITION_FIRST_LIVE_930_RELEASE,
+  COMPOSITION_FIRST_LIVE_PRODUCT_ID,
+  COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID,
   COMPOSITION_LIVE_ARM_DEFAULT,
   assessCompositionLineAuthority,
   assessCompositionSnapshotAuthority,
   assessFirstLineBootstrap,
   classifyCompositionUnitname,
+  compositionFirstLiveTargetEnabled,
   compositionLiveArmEnabled,
   parseCompositionRowId,
 };
