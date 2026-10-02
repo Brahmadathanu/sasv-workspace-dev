@@ -738,8 +738,23 @@ S0 has a concrete target recommendation and staged setup/proof boundary, but **t
 
 Immediate next checkpoint: **WP04-G4-S0 — Independent environment/proof-readiness plan review**. A review may approve bounded schema-only capture/package preparation while withholding provisioning and fixtures until the exact scope, native Auth mechanism and actual cost are resolved. Do not mark the test environment READY or start candidate application merely because S0 documentation passes. G4 remains incomplete and the programme remains 4 of 13.
 
+## Execution ownership correction — DEC-014 (2026-10-02)
+
+User reconfirmed that server implementation is vested with ChatGPT and is not bound to GitHub; client implementation goes through Cursor/Codex and GitHub/ChatGPT audit. Mandatory source check confirms IMPLEMENTATION_RULES clearly specifies the client Git pipeline but had only generic server wording. That is now explicit in the programme rules/handover template and DEC-014.
+
+**This correction supersedes server-delivery assumptions in G3/G4-S0 above:**
+
+- ChatGPT performs server planning/review, direct Supabase implementation and live verification. No Cursor/Codex server handoff, GitHub commit/PR/merge or CLI-generated repository migration is required before an authorized server apply. Suitable native Supabase operations can be used, with their own operation/migration records where applicable.
+- The proposed `supabase/migrations/`, test-SQL and rollback files are optional traceability locations, not mandatory delivery gates. Preserve reviewed SQL, prechange definitions/ACLs, rollback and operation evidence; do not insist on installing a local CLI solely to create a repository migration. If repository migration capture is deliberately used, follow its applicable tooling convention; it does not control direct server application.
+- Local Docker/Postgres/CLI absence and the empty repository baseline constrain *local/migration-replay test alternatives*. They are not blockers to the connected live server or proof that a hosted test environment must be created through GitHub. Assess managed target/schema capability directly before assuming a branch needs repository reconstruction.
+- Nonproduction equivalence/performance/access proof remains a justified prerequisite for this high-risk canonical refactor, independently of GitHub. The hosted branch remains a proposal with unresolved target/cost/setup details, not an approved service. DEC-014 does not waive CSE compatibility, payload/access/performance proof, target/rollback checks or review before production mutation.
+- Client C1 remains a separate Cursor/Codex package against the verified server contract: isolated branch → autonomous implementation/test/self-review/push → ChatGPT independent audit → corrections/verification → explicit merge. Server-only apply does not require client merge; client launch cannot assume an unverified server contract.
+- Repository main freshness checks continue for documentation/client work and overlap reconciliation. Live Supabase remains server truth. MD updates track evidence and gates; their publication is not server deployment.
+
+This pass is a documentation/workflow correction only. G4-S0 remains in progress and its independent review is still next. No server/client implementation, production mutation or provisioning occurred. DEC-014 is the user-approved workflow clarification; no new architecture/evidence/permission/business decision was approved. Prior plan prose remains historical with this explicit superseding correction.
+
 ## Approved design / contract
-G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new permanent decision lock; CHANGELOG_DECISIONS.md unchanged. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
+G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
 ## Proposed gate sequence
 The original skeleton had unnumbered audit, contract, implementation, focused verification, independent audit, merge and handover milestones. The sequence below refines it because the audited full-live contract/performance gap needs explicit contract, IA and package gates; conditional server work remains separately reviewed.
@@ -797,7 +812,7 @@ None.
 11. No approved nonproduction environment or full-count/CSE/payload proof exists; no speculative production apply. Branch inventory is empty, local database tooling absent and repository baseline migration empty; S0 cannot assume migration replay reconstructs live architecture.
 
 ## Parked discoveries
-SEC-P02 added to PARKED_BACKLOG.md; existing items unchanged. No new decision approved.
+SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
 WP04 is not complete. G0–G3 remain verified at their documented levels. G4-S0 in progress: target/environment/proof plan awaiting review; no runnable environment claimed. Documentation branch unmerged; no tag/release/merge or cleanup. This pass used bounded read-only project/catalog/branch metadata and local capability checks; no install/provisioning or production mutation. New durable artifact is a metadata-only first-level dependency manifest; no production data/credentials.
@@ -806,6 +821,6 @@ Workflow: audit → contract/plan review → concrete environment/proof readines
 WP progress: G0–G3 complete at their documented levels; G4-S0 proposal awaiting review.
 Programme progress: 4 of 13 unchanged.
 Current gate: WP04-G4-S0 environment/proof readiness plan.
-Next: WP04-G4-S0 independent environment/proof-plan review.
+Next: WP04-G4-S0 independent environment/proof-plan review using direct ChatGPT/Supabase server ownership; no GitHub/local-CLI apply prerequisite.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
-Locked: canonical server authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. S0 adds no decision lock.
+Locked: canonical server authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. DEC-014 locks server/client execution ownership only; S0 adds no architecture/business/evidence/security lock.

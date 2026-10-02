@@ -76,6 +76,9 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 ## Immediate next action
 WP04-G4-S0 — Independent environment/proof-readiness plan review. Check target recommendation, dependency/baseline closure, native Auth/data setup, cost/retention and target guards; freeze only bounded preparation actually supported. No provisioning or candidate/production/client application from the proposal. Programme progress remains 4 of 13. Do not reopen WP02 or WP03 except for a demonstrated regression or explicitly assigned parked work.
 
+## Server development operating model
+ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
+
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
 

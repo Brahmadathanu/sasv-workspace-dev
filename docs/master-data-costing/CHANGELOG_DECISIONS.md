@@ -78,3 +78,10 @@
 **Impact:** Presentation only. Product, SKU, readiness, permission, and server contracts are unchanged.
 **Status:** LOCKED
 **Evidence:** DEC-012 remains recorded above and is not erased.
+
+## 2026-10-02 — DEC-014 — Server/client execution ownership clarification
+**Decision:** ChatGPT owns server analysis, reviewed package implementation and live verification directly through Supabase/server tools. Server implementation is not bound to GitHub commits, PRs, merges, Cursor/Codex handoff or local CLI-generated repository migrations. Client implementation remains through Cursor/Codex on an isolated branch, followed by ChatGPT audit of the actual pushed implementation and explicit merge authorization.
+**Reason:** User explicitly reconfirmed this ownership division during WP04. Prior server wording was generic; WP04's proposed CLI/repository artifact steps over-bound server delivery to the client pipeline.
+**Impact:** Clarifies execution ownership and removes artificial server Git/local-tool prerequisites. Repository MD still carries durable workflow authority; optional SQL/rollback artifacts may be retained for traceability. High-risk Plan → review → authorized application, target/rollback safeguards, Supabase operation records where applicable and live verification remain required. No particular database mutation, paid provisioning, client implementation or merge is approved by this clarification.
+**Affected:** IMPLEMENTATION_RULES, MASTER_PROGRAMME, WORKPACK_HANDOVER_TEMPLATE and WP04 server-package planning.
+**Status:** LOCKED — workflow ownership; existing readiness/business/security decisions unchanged.

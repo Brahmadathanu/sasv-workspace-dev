@@ -24,7 +24,9 @@ Decisions/rules not to reopen casually.
 Relevant deferred work only.
 
 ## Server state
-Relevant migrations, RPCs, views, data counts and live verification. State "none" when no server work occurred.
+Executor: ChatGPT via direct Supabase/server workflow.
+Relevant live project/target, reviewed server package, operation/migration record where applicable, RPCs/views, before/after definition/permission evidence, rollback, data counts and live verification. State "none" when no server work occurred.
+Optional repository SQL evidence is not a GitHub prerequisite for server application. Record server verification separately from client commit/PR/merge state.
 
 ## Repository state
 - current main SHA:
