@@ -377,7 +377,7 @@ No new business/evidence/security decision is locked by this review; CHANGELOG_D
 
 ## WP04-G2 — Information architecture / remediation model proposal (2026-10-02)
 
-**Status: [~] DESIGN PROPOSAL READY FOR INDEPENDENT REVIEW.** G2 has genuinely started; it is not completed or implementation-approved. This section proposes placement and interaction boundaries using the reviewed G1 requirements. It does not lock a new architecture decision. G0/G1 counts are dated evidence, not a fresh live census.
+At proposal checkpoint `ea0349a`, this section was **DESIGN PROPOSAL READY FOR INDEPENDENT REVIEW**. The independent review and superseding corrections below now close G2 at requirements/design-review level; implementation remains unapproved. This section proposes placement and interaction boundaries using the reviewed G1 requirements. It does not lock a new architecture decision. G0/G1 counts are dated evidence, not a fresh live census.
 
 ### Entry reconciliation and source evidence
 Fetched remote main and the documentation branch before design work. Main remains `47dcd80f69ca68fcca8f089bf40fa4099b376450`; branch entry is `e9649f1c3fbc34bbbb5dadb71796b8f15e75b849`. Working tree was clean. WP03 remains closed with no demonstrated regression.
@@ -464,8 +464,47 @@ Independent review must accept or correct: existing-module reuse vs replacement,
 
 No implementation package is frozen here. After reviewed G2 closure, the next numbered gate is WP04-G3 — Server/client package decomposition. The immediate next checkpoint is **WP04-G2 — Independent information-architecture/remediation-model review**.
 
+## WP04-G2 — Independent proposal review and closure (2026-10-02)
+
+Reviewed the pushed proposal at `ea0349a59ef37ae5cbae1dbe5a7e6415343e4929` in a separate review pass against G1's superseding corrections, IMPLEMENTATION_RULES, MASTER_PROGRAMME, decision locks, parked boundaries and current-main client source. Remote main/branch were fetched first and match the documented main and proposal tip. No additional agent or live Supabase query was used; this is an independent review checkpoint, not a claim of separate-person review or fresh database verification.
+
+**Result: PASS AFTER DOCUMENTATION CORRECTIONS — G2 COMPLETED AND VERIFIED AT REQUIREMENTS/DESIGN-REVIEW LEVEL.** Existing-module reuse is accepted as the direction for G3 planning. The exact lens/integration/API/permission implementation remains unapproved. No code or production changes are authorized by this closure. The corrections below supersede ambiguous proposal wording.
+
+| Review area | Accepted requirement / superseding correction |
+| --- | --- |
+| Placement | Plan a separate embedded readiness area within the existing Costing Control Center; retain its three existing surfaces and default entry. Exact internal lens identifier and shell integration require G3 package review. No new top-level module, launcher or Manage Products portfolio queue |
+| Overall states | G1's exact current overall values are READY, REVIEW_REQUIRED, BLOCKER and UNKNOWN. Show/count those raw values. G2's wording about a combined BLOCKED/BLOCKER overall group is not approved: dependency BLOCKED and downstream BLOCKER remain their own supplied fields; unexpected/null overall values are contract errors, not coerced states |
+| Population scopes | Operational default: Active Products with Active non-sample SKUs, plus **Active Product** gap population. All-existing option: all Products with all existing SKUs including inactive/sample, plus **all Product** gap population. Echo both scopes separately. SKU sample/severity/dependency filters never remove no-SKU Products from their Product denominator |
+| Gap facts | Report Products-without-SKU in the selected Product scope. Report Active-Products-without-active-SKU as an explicitly Active subset of that scope. These facts overlap and are not summed; inactive Products with only inactive SKUs are not invented as Active-Product gaps. No severity on Product gap rows |
+| Counts and filters | Full assessed-population totals precede issue filters; matched SKU count follows supported severity/dependency/owner/route filters; returned row count follows pagination. Gap counts remain independently Product-scoped. Owner/dependency filters are conditional on approved server support; the journey's "choose a dependency filter" is not a guarantee of an existing contract |
+| Governed period integration | Existing shell period selection is snapshot-oriented, not a proven governed-period reader. `loadAvailableCostingPeriods` reads dashboard snapshot periods; `resolveActivePeriodStart` can fall back to calendar current month. G3 must define an explicit validated readiness period path and error handling without inheriting those fallbacks. Manage Products uses `rpc_get_latest_governed_cost_period_start`; that proves latest-period reading, not a complete arbitrary-period catalog. Any missing governed-period listing contract is an explicit server-plan question, not invented in JavaScript |
+| Current versus frozen evidence | Preserve canonical LIVE_AS_OF context and period+valuation successful evidence semantics. Existing snapshot control selection and supplemental material diagnosis remain separate. No-success-run canonical early return remains intact; no synthetic enrichment or run substitution |
+| Route continuity | Stage05 mapping is partial and does not itself check destination permissions. Its production-route/pricing mappings do not preserve every period/run identity. G3 must inspect each candidate's required context and destination permission before enabling it; non-proven routes stay text. No new map, alias or URL is approved here |
+| Payload and access | Control Center view governs module entry; Product-only users retain Manage Products. Candidate bulk read permission requires G3 review. Audit nested metadata and free text server-side; conflict between exact canonical equivalence and nonmonetary scope requires review, not silent field removal or client-only masking |
+| Detail and asynchronous loads | Read-only dependencies may have several owners/routes. Do not pick a new first-live-blocker. Scope/period/filter changes must invalidate pending responses; a delayed response cannot populate the new context. Clearing the screen alone is insufficient. Separate current/frozen cache identities and existing specialist details must remain unchanged |
+| Unavailable | Fail the assessment response on context/auth/resolver/parse/context-integrity errors. UNKNOWN is only a valid server state. Independently successful snapshot or membership reads retain their own labels and cannot stand in for readiness |
+| Marketing | Accept descriptive visibility of reviewed canonical nonmonetary evidence. A new acceptance editor is excluded from the WP04 package; UX-P01 specialist placement remains for WP05–WP07 audit unless separately reassigned. Existing acceptance permission is evidence of a candidate host, not a final placement decision. SEC-P02 still blocks direct view reuse |
+| Remediation | Visibility and proven navigation only in the new area. Existing specialist/material workbench writers remain where governed. No bulk repair, central accept/edit, activation gate or issue tracking |
+| Feasibility | G3 must prove performant canonical composition, full-count work and CSE-P01 compatibility. This design closure does not certify implementability. If those cannot be satisfied, stop the affected package and report its dependency; do not substitute snapshot readiness or resolve commercial source authority silently |
+
+### G3 planning input and stop conditions
+Carry the accepted G1 requirements and corrected G2 direction into an exact server/client package plan. Identify affected contracts/files, context and Product/SKU scope resolution, response/count/error vocabulary, server payload allowlist, access checks, per-route proof, regression/performance criteria and rollback strategy. Separate high-risk server implementation from the client package and identify which client integration changes require architectural review.
+
+Specifically audit the governed-period read path, shell lens allowlists/render/load dispatch, stale-response protection, and full-population statistics work. Do not broaden the three existing control surfaces merely to accommodate readiness. No financial/specialist writer surface is added by implication.
+
+CSE-P01 and SEC-P02 retain their parked governance boundaries. They are implementation constraints where touched, not reasons to modify them in G3. No completed live census, deterministic commercial row authority, new API, ACL or production fix is claimed. G3 is planning only; no G4/G5 implementation before independent package review.
+
+### Review verification and decision treatment
+- Proposal commit, unchanged main, clean branch entry and WP03 ancestor checked.
+- Registry, route config, shell period/permission dispatch, partial route helper and Manage Products governed-period consumer cross-checked against current main.
+- G1 statistical coverage, exact severity, Product-gap scopes and source/permission constraints reconciled.
+- Review corrections and gate ledger recorded; documentation whitespace/scope checks and exact pushed-file read-back required before reporting closure.
+- No application tests or authenticated browser verification claimed; no new live reads, server/client implementation or production mutation.
+
+These are accepted planning requirements/direction, not a permanent new architecture/business/security lock. CHANGELOG_DECISIONS remains unchanged. PARKED_BACKLOG remains unchanged: Marketing editor placement is still open, and the period integration finding is a required G3 dependency recorded here, not a newly parked enhancement.
+
 ## Approved design / contract
-G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. CHANGELOG_DECISIONS.md unchanged. G2 placement/remediation proposal above awaits independent review.
+G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new permanent decision lock; CHANGELOG_DECISIONS.md unchanged.
 
 ## Proposed gate sequence
 The original skeleton had unnumbered audit, contract, implementation, focused verification, independent audit, merge and handover milestones. The sequence below refines it because the audited full-live contract/performance gap needs explicit contract, IA and package gates; conditional server work remains separately reviewed.
@@ -474,7 +513,7 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | --- | --- |
 | WP04-G0 — Entry criteria / current-state audit | [x] COMPLETED AND VERIFIED at audit/documentation level |
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
-| WP04-G2 — Control-centre information architecture / remediation model | [~] Placement/remediation proposal ready for independent review; no implementation |
+| WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [ ] Exact files/contracts/tests; separate high-risk plan approval before execution |
 | WP04-G4 — High-risk server package, if required | [ ] Conditional; implement only reviewed/approved package, with canonical equivalence/performance/permission proof |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
@@ -483,16 +522,16 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G2 — Control-centre information architecture / remediation model`
+`WP04-G2 — Independent information-architecture/remediation-model review and closure`
 
 ## Gate Status
-[~] IN PROGRESS — design proposal ready for independent review. G0/G1 remain complete. WP04 incomplete; branch unmerged; no implementation authorization.
+[x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections. G0/G1 remain complete. WP04 incomplete; G3 not started; branch unmerged; no implementation authorization.
 
 ## Required to close
-Independent review of the G2 proposal against G1 and current-main surfaces; accept/correct placement, scopes, population/context separation, remediation, Marketing, access/navigation and conditional server feasibility. No architecture lock or G2 completion before review.
+Satisfied for G2: proposal reviewed, corrections recorded and planning direction accepted. Server feasibility, exact API/ACL, governed-period integration, route support and implementation packages remain for G3; no live deployment is certified by G2 closure.
 
 ## Next gate
-Immediate checkpoint: `WP04-G2 — Independent information-architecture/remediation-model review`. After verified G2 closure: `WP04-G3 — Server/client package decomposition`, planning only with separate high-risk package approval before implementation.
+`WP04-G3 — Server/client package decomposition`. Exact package planning only, including feasibility/context/access/performance/equivalence and rollback evidence. Separate independent high-risk package review before G4/G5 implementation.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -510,7 +549,7 @@ None.
 - No application tests required for documentation-only change; no new tests mirroring docs.
 
 ## Risks and unresolved questions
-1. G1 defined membership requirements; G2 proposes an explicit operational default and all-existing option with separate Product gaps. Review is pending. Route readiness currently uses Active Products; no reinterpretation of inactive lifecycle results is approved.
+1. G1/G2 reviewed membership and operational-default/all-existing presentation with explicitly coupled Product scopes and separate gaps. Route readiness currently uses Active Products; no reinterpretation of inactive lifecycle results is approved.
 2. Can server retrieval share route/global-policy/context evaluation and preserve exact single-SKU equivalence without rebuilding business rules?
 3. How should full LIVE_AS_OF dimensions be paired with persisted outcomes and missing-run coverage, with explicit current-success selector differences?
 4. No canonical first-live-blocker scalar/priority or readiness issue-age authority exists; any proposed rule needs review.
@@ -518,17 +557,18 @@ None.
 6. Existing partial route maps do not establish full WP01 navigation continuity.
 7. Snapshot READY is not live READY; absence is not READY; failed refresh must not erase last-success proof.
 8. Performance measurement is bounded and single-user; no approved SLA, concurrency proof or full census yet.
+9. Existing shell snapshot/calendar period selection is not governed readiness context; G3 must define the validated path, catalog availability and stale-response protection.
 
 ## Parked discoveries
 SEC-P02 added to PARKED_BACKLOG.md; existing items unchanged. No new decision approved.
 
 ## Exit criteria / final handover
-WP04 is not complete. G0/G1 remain verified at their documented levels. G2 design proposal is ready for independent review; G3 onward not started. The unmerged audit branch contains documentation only. No tag/release/merge or branch cleanup. No new live queries or production mutations in this G2 proposal pass; historical audit evidence is explicitly dated.
+WP04 is not complete. G0/G1/G2 remain verified at their documented audit/design-review levels. G3 is next and not started. The unmerged audit branch contains documentation only. No tag/release/merge or branch cleanup. No new live queries or production mutations in G2 proposal/review; historical audit evidence is explicitly dated.
 
 Workflow: audit → contract/plan review for high-risk → package decomposition → approved implementation → independent audit → authenticated verification → explicit merge/post-merge closure.
-WP progress: G0/G1 complete; G2 in progress, proposal awaiting independent review.
+WP progress: G0/G1/G2 complete at their documented levels; G3 onward not started.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G2 information architecture/remediation model.
-Next: WP04-G2 independent design review; then G3 package decomposition if verified.
+Current gate: WP04-G2 independent design review completed.
+Next: WP04-G3 server/client package decomposition, planning only.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02; no new parked item.
-Locked: server readiness authority, lifecycle separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. G2 adds no decision lock.
+Locked: server readiness authority, lifecycle separation, fail-closed evidence, governed context, specialist ownership and no new top-level module without later IA evidence. G2 adds no permanent decision lock.
