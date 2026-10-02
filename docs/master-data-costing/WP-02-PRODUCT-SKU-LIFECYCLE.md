@@ -156,11 +156,11 @@ Audit checks:
 - [x] Implementation gate — WP02-G3 completed and verified at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`
 - [x] Focused verification
 - [x] Independent audit
-- [ ] Merge/post-merge proof
-- [ ] Final handover
+- [x] Merge/post-merge proof
+- [x] Final handover
 
 ## Current Gate
-`WP02 — COMPLETED AND VERIFIED — awaiting merge`
+`WP02 — COMPLETED, VERIFIED, AND MERGED`
 
 ## Gate Status
 [x] WP02-G1 COMPLETED AND VERIFIED
@@ -175,11 +175,11 @@ Independent ChatGPT final audit: PASS of `b7065829a7db1fbd05822582f7b551f2712c79
 
 Latest main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` was merged in `19c4ee11b404fd882522556aaa903a76ce08b960`. Main had not moved past that SHA. The 10 main-only paths were e-Aushadhi programme, client, and worker files. None overlapped the WP02 functional set. Post-merge regression on the synced branch passed.
 
-## Required to close
-Explicit human merge approval. Do not merge, version, tag, or release from this closure. WP03 is not started.
+## Closure
+PR #24 was explicitly approved and merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`. Post-merge proof confirmed that this merge commit has parents `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` and final WP02 feature tip `6247a7bccb862d679071f68843523156ce6e5cb3`. No additional application or database change was required after merge. WP03 remains not started.
 
 ## Next gate
-Merge and post-merge proof after explicit approval.
+WP03 — Creation-Time Guided Completeness. Start it in a fresh work-pack chat using current `main` and the durable programme documents; do not continue WP03 implementation inside this closed WP02 work pack.
 
 ## Server changes
 Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql`:
@@ -275,4 +275,4 @@ G3 required-now detail: the SKU pack UOM picker must offer the live `product_sku
 All work-pack objectives and required verification gates pass; documentation and handover are current.
 
 ## Final handover
-Completed and verified, awaiting explicit merge approval. Post-merge proof is not started.
+WP02 is COMPLETED, VERIFIED, MERGED, and CLOSED. PR #24 merged to `main` at `7948551bd48e9ab6113e21df3a2cd98946a25362`. The final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. Client functional verification, server parity/performance proof, latest-main reconciliation, independent audit, merge, and post-merge proof are complete. UX-P02 remains parked for WP11; broader Product / Master Data navigation remains parked for WP08; commercial-sales LIVE_AS_OF multi-row authority remains parked in costing/commercial-sales evidence governance. WP03 is the next work pack and must start in a fresh chat.
