@@ -188,7 +188,7 @@ The routine creation-guidance contract is frozen in `WP03-G2 — Approved creati
 - [x] WP03-G3 — Implementation package decomposition
 - [x] WP03-G4 — Implementation — pushed
 - [x] WP03-G5 — Independent implementation audit — PASS
-- [ ] WP03-G6 — Authenticated/live verification
+- [x] WP03-G6 — Authenticated/live verification — COMPLETED AND VERIFIED
 - [ ] WP03-G7 — Merge/post-merge/documentation closure
 
 ## Gate ledger
@@ -222,7 +222,7 @@ Status: [x] PASS. No correction pass was required. The audited implementation co
 ### WP03-G6 — Authenticated/live verification
 Representative creation and remediation journeys are verified.
 
-Status: [ ] IN PROGRESS. G6 is not complete.
+Status: [x] COMPLETED AND VERIFIED. Authenticated journeys that already exist in live data passed. Scenarios that would require manufacturing data or permissions stay on the G5 static proof. No production test mutation.
 
 ### WP03-G7 — Merge/post-merge/documentation closure
 Closure only after explicit approval.
@@ -230,7 +230,7 @@ Closure only after explicit approval.
 Status: [ ] NOT STARTED
 
 ## Current Gate
-`WP03-G6 — Authenticated/live verification`. G5 passed independently. G6 is not complete. The work pack remains open.
+`WP03-G6 — Authenticated/live verification` is completed and verified. The work pack remains open until G7.
 
 ## Gate Status
 [x] WP03-G1 COMPLETED AND VERIFIED
@@ -243,13 +243,13 @@ Status: [ ] NOT STARTED
 
 [x] WP03-G5 PASS. No correction pass required. `main` remained `f22b36ca7077fcf70943112fb0aee6380af93e8d`.
 
-[ ] WP03-G6 IN PROGRESS
+[x] WP03-G6 COMPLETED AND VERIFIED
 
 ## Required to close
-G1 through G5 are recorded. Closing WP03 still requires G6 and G7. Do not treat this work pack as complete.
+G1 through G6 are recorded. Closing WP03 still requires G7. Do not treat this work pack as complete.
 
 ## Next gate
-`WP03-G6 — Authenticated/live verification` remains the current gate until the authenticated checks pass. The gate after that is `WP03-G7 — Merge/post-merge/documentation closure`.
+`WP03-G7 — Merge/post-merge/documentation closure`
 
 ## Server changes
 None in this gate.
@@ -592,8 +592,8 @@ No other smoke should be retargeted. Authenticated journeys listed for G6 stay o
 - `main` at implementation: `f22b36ca7077fcf70943112fb0aee6380af93e8d`, unchanged
 - Implementation commit: `1337556808dec39523c10655f1f7db1b50220f94`
 - WP03-G5 independent audit: PASS. No correction pass required.
-- Current gate: WP03-G6, not complete
-- Next gate: complete WP03-G6, then WP03-G7
+- Current gate: WP03-G6 completed and verified; work pack still open
+- Next gate: WP03-G7
 
 Files changed:
 
@@ -618,38 +618,38 @@ Server changes: none. Malayalam-name requirement, Product status at creation, an
 
 ## WP03-G6 — Authenticated / live verification
 
-G6 is **not complete**. The automated/static checks passed. The authenticated Manage Products journeys were not run, because the G4 client opened on the login screen and no existing authenticated session was available. No user, permission, Product, SKU, activation, or readiness row was created or changed to manufacture a session or a scenario.
+`WP03-G6 — COMPLETED AND VERIFIED`
 
-### Automated / static checks
+An existing Manage Products edit session was used in the G4 client at `http://localhost:3000`. The served client was `hub-cache-v332` and contained the no-SKU sentence. No Product, SKU, activation, readiness evidence, or permission was changed. After the activation preview, SKU `10` was still Inactive in the database.
+
+`main` remained `f22b36ca7077fcf70943112fb0aee6380af93e8d`. The branch remains unmerged. Next gate: WP03-G7.
+
+### Journey record
+
+- Product `786`, no SKU: PASS — authenticated live. The SKUs lens opened, no SKU row appeared, and the text was `Product saved. No SKU exists yet, so SKU readiness has not been assessed.` No READY, UNKNOWN, BLOCKER, BLOCKED, or REVIEW_REQUIRED badge was fabricated. Add SKU was visible and was not used.
+- Product `14`: PASS — authenticated live. SKU `10` was Inactive and Blocked. SKU `11` was Active and Ready. Selecting either row left the other row unchanged. There was no Product-wide READY roll-up.
+- Product `51`: PASS — authenticated live. SKU `40` and SKU `41` were Inactive and Blocked. SKU `42` was Active and Review required. SKU `43` was Active and Ready.
+- SKU `10` inactive readiness: PASS — authenticated live. Lifecycle stayed Inactive while readiness was Blocked for period `2026-09-01`.
+- Governed period: PASS — authenticated live. The client displayed `Governed readiness period: 2026-09-01`. No browser current-month control and no EXACT_RUN control appeared.
+- READY: PASS — authenticated live, on SKU `11` and SKU `43`.
+- REVIEW_REQUIRED: PASS — authenticated live, on SKU `42`, displayed as Review required.
+- BLOCKER/BLOCKED: PASS — authenticated live. SKU `10` overall severity was Blocked, and its costing foundation was BLOCKED.
+- UNKNOWN: PASS — authenticated live where the server returned it. On SKU `10` the costing outcome and several specialist dependency rows were displayed as UNKNOWN. Overall severity for the inspected SKUs was Blocked, Review required, or Ready, so an overall UNKNOWN badge was not present. The G5 static proof still covers that badge branch.
+- Readiness detail for SKU `10`: PASS — authenticated live. Status, reason, owner, and `Resolve in:` text were shown. Specialist examples included `PM_BOM_MANAGER`, `MRP_GOVERNANCE`, `SELLING_SCHEME_POLICIES`, `COMMERCIAL_SALES_ASSUMPTIONS`, `PRODUCTION_ROUTE_MANAGER`, `QC_ACTION_QUEUE`, `MATERIALS_STORES_ACTION_QUEUE`, and `DRIVER_GOVERNANCE`.
+- Specialist routes: PASS — authenticated live. They were plain text. The readiness detail contained no hyperlinks.
+- Manage Products remediation action: NOT SAFELY REPRODUCIBLE WITHOUT MUTATION — G5 static proof retained. Product master and SKU master for SKU `10` were RESOLVED, and no Open Product or Open SKU action appeared. No base UOM or pack value was changed to manufacture one.
+- Activation confirmation, SKU `10`: PASS — authenticated live. The confirmation was titled Activate SKU and said the target would become Active, `Current costing readiness: BLOCKER for period 2026-09-01`, that activation does not set costing readiness to READY, and that a business reason is required. It was cancelled with the reason field empty. SKU `10` remained Inactive in the UI and in `product_skus.is_active`.
+- Activation confirmation when readiness is unavailable: PASS — static/automated only. Connectivity was not broken.
+- Edit-user controls: PASS — authenticated live. Add SKU was visible. The Product dialog for Product `14` showed Deactivate. The view-only banner stayed hidden. SKU `11` opened its existing dialog with Deactivate. No save or lifecycle write was submitted.
+- View-only access: NOT SAFELY REPRODUCIBLE WITHOUT PERMISSION MUTATION — G5 static proof retained. Permissions were not changed.
+- Narrow layout at 390px: PASS — authenticated live. The catalog, Products, SKUs, and Readiness lenses stayed reachable. The no-SKU sentence stayed readable. Product `14` compact rows stayed usable. Readiness detail opened and showed `Resolve in: PM_BOM_MANAGER`. Add SKU stayed visible.
+- Authenticated regression: PASS — authenticated live. Product selection, the Product dialog, SKU selection, the SKU dialog, readiness detail, and lens switching worked. Product `786` still showed no SKU after other Products had been opened. Product and SKU master stayed separate.
+
+### Automated recheck
 
 - `node scripts/product-sku-lifecycle-smoke.mjs`: PASS
 - `node --check` on a module copy of `js/products.js`: PASS
 - `node --check public/sw.js`: PASS
-- `git diff --check` before this verification record: PASS, with no whitespace errors
+- `git diff --check`: PASS
 
-### Read-only live inventory used to choose candidates
-
-These rows already existed. They were not opened in an authenticated client and they were not changed.
-
-- Saved Product with no SKU: Product `786`, Active.
-- Product with multiple SKUs: Product `14`, SKU `10` Inactive and SKU `11` Active. Product `51` also has four SKUs.
-- Latest row in `costing.cost_periods.period_start`: `2026-09-01`. `rpc_get_latest_governed_cost_period_start()` still raises `Not authenticated` for the unauthenticated SQL role, so this is not a client-displayed period.
-- Products that have a SKU and an invalid base UOM context: `0`. SKUs with invalid pack size or blank UOM: `0`.
-- `module:manage-products` permissions currently present are view-and-edit only. No view-only Manage Products permission row exists.
-
-### Journey record
-
-- Saved Product with no SKU: not authenticated-verified. Static contract remains the G4/G5 smoke proof.
-- Product with multiple SKUs: not authenticated-verified.
-- Existing Inactive SKU: not authenticated-verified. Candidate SKU `10` was not activated.
-- READY, REVIEW_REQUIRED, BLOCKER/BLOCKED, and UNKNOWN: not authenticated-verified. No live evidence was manipulated to manufacture them.
-- Governed period in the client: not authenticated-verified.
-- Readiness detail and specialist route text: not authenticated-verified.
-- Manage Products remediation action: NOT SAFELY REPRODUCIBLE WITHOUT MUTATION for the live click, because no existing SKU-bearing Product or SKU fails the foundation predicates that produce an unresolved `PRODUCT_MASTER` or `SKU_MASTER` issue. G5 static proof remains.
-- Activation confirmation with loaded readiness: not authenticated-verified. Completing activation was not attempted.
-- Activation confirmation when readiness is unavailable: PASS — static/automated only. Breaking connectivity was not done.
-- View-only access: NOT SAFELY REPRODUCIBLE WITHOUT PERMISSION MUTATION. G5 static proof remains.
-- Narrow-layout functional sanity: not authenticated-verified.
-- Existing functionality regression in the signed-in client: not authenticated-verified.
-
-No production test mutation was performed. The branch remains unmerged. The next step is to repeat the authenticated part of G6 with an existing edit session. Do not start G7.
+No G4 client defect was found. No server change was made. Programme completion remains 3 of 13. Do not start G7 in this verification commit.
