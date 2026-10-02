@@ -28,7 +28,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP-1 — Repository Programme Control Plane
 - [x] WP00 — Authoritative Current-State Inventory
 - [x] WP01 — Canonical Product/SKU Completeness Contract
-- [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED AND VERIFIED — awaiting merge
+- [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED, VERIFIED, AND MERGED
 - [ ] WP03 — Creation-Time Guided Completeness
 - [ ] WP04 — Central Master Data / Costing Readiness Control Centre
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
@@ -47,13 +47,13 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-None. WP02 is completed and verified and is awaiting merge. WP03 is not started.
+None. WP02 is completed, verified, merged, and closed. WP03 is not started.
 
 ## Active gate
-Explicit merge approval for WP02.
+WP02 closed. Next gate is WP03 initiation in a fresh work-pack chat.
 
 ## Overall completion progress
-3 of 13 substantive work packs (WP00–WP12) completed and verified. The prerequisite control plane, WP00, WP01, and WP02 are completed and verified. WP02 is the next completed substantive work pack after WP00 and WP01. It is reconciled with main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` at merge `19c4ee11b404fd882522556aaa903a76ce08b960` and is not merged.
+3 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, and WP02 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -67,14 +67,14 @@ Explicit merge approval for WP02.
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No WP02 blocker remains. These findings stay parked and do not block the merge approval:
+No WP02 blocker remains. These findings stay parked for their assigned later work and do not reopen WP02:
 
 - UX-P02, remaining Manage Products aesthetic and interaction hardening: PARKED → WP11.
 - Broader Product / Master Data navigation: PARKED → WP08.
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-Explicit human merge approval of `fix/wp02-g3-product-sku-lifecycle`. Pre-merge reconciliation is merge `19c4ee11b404fd882522556aaa903a76ce08b960` against main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89`. Do not merge, version, tag, or release until that approval. Do not start WP03.
+Start WP03 — Creation-Time Guided Completeness in a fresh work-pack chat. Re-anchor from current `main`, `MASTER_PROGRAMME.md`, the WP03 work-pack document, `IMPLEMENTATION_RULES.md`, and the programme decision ledger before any implementation. Do not reopen WP02 except for a demonstrated regression or an explicitly assigned parked item.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
