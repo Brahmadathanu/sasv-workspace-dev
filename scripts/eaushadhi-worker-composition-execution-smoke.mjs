@@ -894,6 +894,32 @@ assert.match(files.contract, /Number\(sourceCompositionLineId\) === COMPOSITION_
 assert.match(files.worker, /sourceCompositionLineId !== 930/);
 assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID/);
 assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID[\s\S]*?deps\.liveArmed[\s\S]*?await collect\(deps/);
+const trustedDepsBuilder = files.worker.match(
+  /function buildCompositionTrustedDeps\([\s\S]*?\r?\n  }\r?\n\r?\n  async function previewCompositionExecution/,
+)?.[0] || "";
+for (const dependency of [
+  "loadAuthority",
+  "recheckMutationIdentity",
+  "fillTarget",
+  "verifyFilledTarget",
+  "invokeSaveOnce",
+  "rereadRow",
+  "armRun",
+  "recordSave",
+  "verifyRow",
+  "markStageVerified",
+]) {
+  assert.match(
+    trustedDepsBuilder,
+    new RegExp(`${dependency}: \\([^)]*\\) =>\\s*getAdapters\\(\\)\\.${dependency}\\(`),
+    `production trusted dependencies must bridge ${dependency} to its live adapter`,
+  );
+}
+assert.match(
+  trustedDepsBuilder,
+  /recheckMutationIdentity: \(portalProductRef\) =>\s*getAdapters\(\)\.recheckMutationIdentity\(portalProductRef\)/,
+);
+assert.doesNotMatch(trustedDepsBuilder, /page\.evaluate|rawOptions|renderer|rpcName/);
 assert.match(files.adapter, /BASE_OPTION_WAIT_MS = 5000/);
 assert.match(files.adapter, /Promise\.all\(\[/);
 assert.ok(files.adapter.indexOf("await Promise.all") < files.adapter.indexOf("text([\"#txtIng1\""));

@@ -49,7 +49,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
-| WP-06 | Composition Portal Execution | PURPLE | 65% | Closed-gate pre-live acceptance passed; narrow Product 262 / line 930 release constant opened pending a separately authorized controlled run |
+| WP-06 | Composition Portal Execution | PURPLE | 65% | First line-930 run safely recovered to SAVE_REJECTED; trusted post-arm identity wiring correction awaits independent audit |
 | WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
@@ -73,13 +73,13 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Server-side content-hash coverage has been re-audited for effective Reference value and governed Ingredient Form changes. JavaScript hashing remains prohibited.
 - The existing `regulatory.eaushadhi_worker_run` / product-level `entry_status` lifecycle is Product-Details execution authority and MUST NOT be reused for Composition.
 - WP-06 now has a frozen Composition-specific stage/run lifecycle: independent stage state, one target line per run, durable SAVE_ARMED authority, one Save at most once, explicit save outcome, fresh list/reread semantic proof, and separate final stage PORTAL_VERIFIED evidence.
-- Composition stage/run server authority is live and repository-versioned; Product 262 currently has no Composition stage/run rows and no SAVE_ARMED authority.
+- Composition stage/run server authority is live and repository-versioned. Product 262 Composition is `PARTIAL` at stage row_version 3; its original line 930 run is durably `SAVE_REJECTED` and no active run exists.
 - Trusted Composition executor/adapters/client orchestration are merged at `3611cb29e8166bfcf924c7c01aa59229b2128720`; native mutation is correctly bound to page `SaveData()` while observing `POST /admin/SaveCompositionData`.
 - Composition live arm remains OFF: `COMPOSITION_LIVE_ARM_DEFAULT=false`.
 - Controlled read-only runtime acceptance passed on baseline `80c2f9e20c1226faf10036405e24048434c28b23`: matched `[929]`, missing `[930,931]`, with no mutation.
 - Closed-gate pre-live acceptance passed on baseline `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` with no portal mutation.
 - The first-live Product 262 / line-930 release constant is intentionally open: `COMPOSITION_FIRST_LIVE_930_RELEASE=true`. `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged, and production mutation still requires the separate exact runtime environment arm plus explicit operator confirmation.
-- No Karpūra portal Save has occurred. The next gate is one explicitly authorized controlled Karpūra run; Kēram, stage verification, QC Register and final Submit remain excluded.
+- The first controlled Karpūra attempt stopped immediately after durable `SAVE_ARMED` because production wiring omitted `recheckMutationIdentity`; it never filled fields or invoked `SaveData`. Fresh complete-list recovery proved line 930 absent and rejected the original run. The portal remains matched `[929]`, missing `[930,931]`. The next gate is independent audit of the wiring correction; Kēram, stage verification, QC Register and final Submit remain excluded.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:

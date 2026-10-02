@@ -133,6 +133,14 @@ A successful/ambiguous Save does not itself complete the line or stage. Fresh co
 - Next gate is controlled runtime/read-only acceptance with live mutation still disarmed; no Karpūra/Kēram portal entry is yet authorized.
 
 
+## 2026-10-02 — WP-06 first-live line-930 attempt safely rejected
+- The first controlled Product 262 / line 930 attempt created durable `SAVE_ARMED` authority, then failed immediately because `buildCompositionTrustedDeps()` omitted the executor-required `recheckMutationIdentity` adapter bridge.
+- The failure occurred before field fill and before `SaveData`; no Composition portal mutation occurred.
+- Trusted recovery captured a fresh complete portal list, proved line 930 absent, and changed the original run to `SAVE_REJECTED` with outcome `REJECTED`. No replacement run was created.
+- Product Details remains `PORTAL_VERIFIED` at workflow row_version 11. Composition remains `PARTIAL` at stage row_version 3.
+- Portal evidence remains matched `[929]`, missing `[930,931]`; neither Karpūra nor Kēram has been entered.
+- The trusted dependency wiring correction requires independent audit before another controlled line 930 attempt.
+
 ## DEC-020 — Autonomous gate-based client implementation
 **Status:** ACTIVE  
 Routine bounded client work no longer requires a separate ChatGPT approval between analysis/plan and implementation. After ChatGPT freezes one complete bounded work package, Cursor/Codex may autonomously analyze internally, implement, run targeted checks/tests, self-review, fix issues found, rerun checks, commit, push the dedicated task branch, and report completion. ChatGPT then audits the actual pushed GitHub implementation, may issue one consolidated correction pass if necessary, performs final verification, and explicitly authorizes merge/cleanup.

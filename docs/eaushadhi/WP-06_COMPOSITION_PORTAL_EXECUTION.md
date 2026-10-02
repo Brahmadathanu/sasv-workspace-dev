@@ -238,6 +238,14 @@ Proven:
 
 Current live portal Composition remains partial: only Ajamōdā is present. Karpūra and Kēram are not yet entered.
 
+## First controlled line-930 attempt and recovery
+
+The first controlled Product 262 / source line 930 attempt created durable `SAVE_ARMED` authority, then stopped immediately because the production trusted dependency builder omitted the executor's `recheckMutationIdentity` bridge. The failure occurred before field fill and before `SaveData`; no portal mutation occurred.
+
+Read-only recovery used a fresh complete portal list to prove line 930 absent and durably changed the original run to `SAVE_REJECTED`. Product Details remains `PORTAL_VERIFIED` at workflow row_version 11. Composition remains `PARTIAL` at stage row_version 3. The portal remains matched `[929]`, missing `[930,931]`; Karpūra and Kēram remain absent.
+
+The production trusted-dependency wiring correction must be independently audited before any new line 930 execution. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.
+
 ## Content/snapshot rule
 The execution snapshot is server authoritative.
 
