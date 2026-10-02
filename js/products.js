@@ -1,26 +1,32 @@
 // js/products.js — Gate 5.11V governed Product Master writers
 import { supabase } from "../public/shared/js/supabaseClient.js";
 import { bootstrapApp } from "../public/shared/js/appBootstrap.js";
-import {
-  mountModuleHome,
-  enhanceSearchableSelect,
-  syncSearchableSelect,
-  setSearchableSelectValue,
-} from "../public/shared/js/sasv-module-chrome.js";
+import { mountModuleHome } from "../public/shared/js/sasv-module-chrome.js";
 
 const MODULE_TARGET = "module:manage-products";
 
 // DOM refs
 const homeBtn = document.getElementById("homeBtn");
-const productPicker = document.getElementById("productPicker");
-const tabProductMaster = document.getElementById("tabProductMaster");
+const productCatalogSearch = document.getElementById("productCatalogSearch");
+const productRegisterBody = document.getElementById("productRegisterBody");
+const productLedger = document.getElementById("productLedger");
+const productRangeLabel = document.getElementById("productRangeLabel");
+const productPagePrev = document.getElementById("productPagePrev");
+const productPageNext = document.getElementById("productPageNext");
+const productDialog = document.getElementById("productDialog");
+const productDialogTitle = document.getElementById("productDialogTitle");
+const productDialogClose = document.getElementById("productDialogClose");
+const tabProducts = document.getElementById("tabProducts");
 const tabSkus = document.getElementById("tabSkus");
 const tabReadiness = document.getElementById("tabReadiness");
 const productMasterPanel = document.getElementById("productMasterPanel");
 const readinessPanel = document.getElementById("readinessPanel");
 const readinessDetailSurface = document.getElementById("readinessDetailSurface");
-const readinessDetailClose = document.getElementById("readinessDetailClose");
+const readinessDialogClose = document.getElementById("readinessDialogClose");
+const skuDialogClose = document.getElementById("skuDialogClose");
 const skuEditorTitle = document.getElementById("skuEditorTitle");
+const skuLedger = document.getElementById("skuLedger");
+const readinessLedger = document.getElementById("readinessLedger");
 const form = document.getElementById("productForm");
 const itemInput = document.getElementById("itemInput");
 const malInput = document.getElementById("malInput");
@@ -49,9 +55,6 @@ const cancelIconBtn = document.getElementById("cancelIconBtn");
 const inlineDeleteBtn = document.getElementById("inlineDeleteBtn");
 const newInlineBtn = document.getElementById("newInlineBtn");
 const productCountPill = document.getElementById("productCountPill");
-const productContextName = document.getElementById("productContextName");
-const productContextMalayalam = document.getElementById("productContextMalayalam");
-const productContextStatus = document.getElementById("productContextStatus");
 const accessStatusEl = document.getElementById("accessStatus");
 const viewOnlyBanner = document.getElementById("viewOnlyBanner");
 const productMasterMain = document.getElementById("productMasterMain");
@@ -82,7 +85,9 @@ let skuDirty = false;
 let editing = false;
 let previousSelectedId = null;
 let inNewMode = false;
-let activeTab = "master";
+let activeTab = "products";
+let catalogPage = 0;
+const PRODUCT_PAGE_SIZE = 50;
 let writeBusy = false;
 let loadedProductSnapshot = null;
 let classificationsWired = false;
@@ -294,28 +299,10 @@ function applyAccessChrome() {
 }
 
 function syncProductContext() {
-  if (!productContextName) return;
+  if (!productDialogTitle) return;
   const name = itemInput ? itemInput.value.trim() : "";
-  const malayalam = malInput ? malInput.value.trim() : "";
-  const status = statusSelect ? statusSelect.value : "";
-  if (!selectedId && !inNewMode) {
-    productContextName.textContent = "Select a product";
-  } else if (inNewMode && !name) {
-    productContextName.textContent = "New product";
-  } else {
-    productContextName.textContent = name || "Product";
-  }
-  if (productContextMalayalam) {
-    productContextMalayalam.hidden = !malayalam;
-    productContextMalayalam.textContent = malayalam;
-  }
-  if (productContextStatus) {
-    const known = status === "Active" || status === "Inactive";
-    productContextStatus.hidden = !known;
-    productContextStatus.textContent = known ? status : "";
-    productContextStatus.className =
-      status === "Active" ? "badge badge-active" : "badge badge-inactive";
-  }
+  if (inNewMode && !name) productDialogTitle.textContent = "New product";
+  else productDialogTitle.textContent = name || "Product";
 }
 
 async function loadProductMasterAccess() {
@@ -772,7 +759,7 @@ async function fetchAllProducts() {
   while (true) {
     const { data, error } = await supabase
       .from("products")
-      .select("id, item")
+      .select("id, item, malayalam_name, status")
       .order("item")
       .range(from, from + CHUNK - 1);
     if (error) {
@@ -792,45 +779,102 @@ async function loadProducts() {
   renderProductOptions();
 }
 
-function renderProductOptions() {
-  if (!productPicker) return;
-  const keep = selectedId ? String(selectedId) : "";
-  productPicker.replaceChildren();
-  productPicker.add(new Option("Select a product", ""));
-  allProducts.forEach((product) => {
-    productPicker.add(new Option(product.item, String(product.id)));
-  });
-  if (!productPicker._sasvSearch) {
-    enhanceSearchableSelect(productPicker, {
-      placeholder: "Search products",
-      allowEmptyOption: true,
-      debounceMs: 220,
-      clearSelectedOnBackspace: true,
-      resultCap: 40,
+function productStatusBadge(status) {
+  const badge = document.createElement("span");
+  badge.className =
+    status === "Active"
+      ? "badge badge-active"
+      : status === "Inactive"
+        ? "badge badge-inactive"
+        : "badge badge-neutral";
+  badge.textContent = status || "Unavailable";
+  return badge;
+}
+
+function renderProductRegister() {
+  const total = filtered.length;
+  const startIndex = catalogPage * PRODUCT_PAGE_SIZE;
+  const page = filtered.slice(startIndex, startIndex + PRODUCT_PAGE_SIZE);
+  const start = total ? startIndex + 1 : 0;
+  const end = total ? startIndex + page.length : 0;
+  if (productRangeLabel) productRangeLabel.textContent = `Showing ${start}–${end} of ${total}`;
+  if (productPagePrev) productPagePrev.disabled = catalogPage <= 0;
+  if (productPageNext) productPageNext.disabled = end >= total;
+  if (productRegisterBody) productRegisterBody.replaceChildren();
+  if (productLedger) productLedger.replaceChildren();
+  page.forEach((product) => {
+    const selected = String(product.id) === String(selectedId) && !inNewMode;
+    const tr = document.createElement("tr");
+    tr.tabIndex = 0;
+    tr.setAttribute("aria-selected", selected ? "true" : "false");
+    const nameCell = document.createElement("td");
+    nameCell.textContent = product.item || "";
+    const malayalamCell = document.createElement("td");
+    malayalamCell.textContent = product.malayalam_name || "";
+    const statusCell = document.createElement("td");
+    statusCell.appendChild(productStatusBadge(product.status));
+    tr.append(nameCell, malayalamCell, statusCell);
+    tr.addEventListener("click", () => selectProductRow(product.id));
+    tr.addEventListener("dblclick", () => openSelectedProductDialog(product.id));
+    tr.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      openSelectedProductDialog(product.id);
     });
-  } else {
-    syncSearchableSelect(productPicker);
-  }
-  setSearchableSelectValue(productPicker, keep, true);
+    if (productRegisterBody) productRegisterBody.appendChild(tr);
+    const ledgerRow = document.createElement("button");
+    ledgerRow.type = "button";
+    ledgerRow.className = "mp-ledger-row";
+    ledgerRow.setAttribute("aria-selected", selected ? "true" : "false");
+    const title = document.createElement("div");
+    title.textContent = product.item || "";
+    const sub = document.createElement("div");
+    sub.className = "mp-ledger-sub";
+    if (product.malayalam_name) sub.append(document.createTextNode(`${product.malayalam_name} · `));
+    sub.appendChild(productStatusBadge(product.status));
+    ledgerRow.append(title, sub);
+    ledgerRow.addEventListener("click", () => {
+      if (String(product.id) === String(selectedId) && !inNewMode) openSelectedProductDialog(product.id);
+      else selectProductRow(product.id);
+    });
+    if (productLedger) productLedger.appendChild(ledgerRow);
+  });
   if (productCountPill) {
-    const total = allProducts.length || 0;
-    productCountPill.textContent = `${total} products`;
-    productCountPill.title = `${total} products total`;
-    productCountPill.setAttribute("aria-label", `${total} products total`);
+    const count = allProducts.length || 0;
+    productCountPill.textContent = `${count} products`;
+    productCountPill.title = `${count} products total`;
+    productCountPill.setAttribute("aria-label", `${count} products total`);
   }
 }
 
+function applyCatalogFilter() {
+  const term = (productCatalogSearch && productCatalogSearch.value ? productCatalogSearch.value : "").trim().toLowerCase();
+  filtered = term
+    ? allProducts.filter((product) => {
+        const name = String(product.item || "").toLowerCase();
+        const malayalam = String(product.malayalam_name || "").toLowerCase();
+        return name.includes(term) || malayalam.includes(term);
+      })
+    : allProducts.slice();
+  catalogPage = 0;
+  renderProductRegister();
+}
+
+function renderProductOptions() {
+  renderProductRegister();
+}
+
 function applyFilter() {
-  setSearchableSelectValue(productPicker, selectedId ? String(selectedId) : "", true);
+  renderProductRegister();
 }
 
 function paintWorkspaceTabs() {
   const savedProduct = !!selectedId && !inNewMode;
-  if (!savedProduct && activeTab !== "master") activeTab = "master";
-  if (tabSkus) tabSkus.disabled = !savedProduct;
-  if (tabReadiness) tabReadiness.disabled = !savedProduct;
+  if (!savedProduct && activeTab !== "products") activeTab = "products";
+  if (tabSkus) tabSkus.hidden = !savedProduct;
+  if (tabReadiness) tabReadiness.hidden = !savedProduct;
   const tabs = [
-    ["master", tabProductMaster, productMasterPanel],
+    ["products", tabProducts, productMasterPanel],
     ["skus", tabSkus, skuLifecycleSection],
     ["readiness", tabReadiness, readinessPanel],
   ];
@@ -845,6 +889,48 @@ function setWorkspaceTab(tab) {
   if ((tab === "skus" || tab === "readiness") && (!selectedId || inNewMode)) return;
   activeTab = tab;
   paintWorkspaceTabs();
+}
+
+async function selectProductRow(id) {
+  if (String(id) === String(selectedId) && !inNewMode) return true;
+  const ok = await loadDetails(id);
+  if (!ok) return false;
+  inNewMode = false;
+  previousSelectedId = null;
+  setEditing(false);
+  return true;
+}
+
+async function openSelectedProductDialog(id) {
+  const ok = await selectProductRow(id);
+  if (!ok) return;
+  setEditing(false);
+  if (productDialog) productDialog.hidden = false;
+}
+
+async function closeProductDialog() {
+  if (unsaved || skuDirty) {
+    const ok = await showModal("You have unsaved changes. Discard?", "Discard", "Cancel");
+    if (!ok) return;
+    unsaved = false;
+    skuDirty = false;
+  }
+  if (inNewMode) {
+    inNewMode = false;
+    const restore = previousSelectedId;
+    previousSelectedId = null;
+    selectedId = restore;
+    if (selectedId) await loadDetails(selectedId);
+    else {
+      form.reset();
+      clearSkuState();
+      applyAccessChrome();
+    }
+  } else if (selectedId) {
+    await loadDetails(selectedId);
+  }
+  setEditing(false);
+  if (productDialog) productDialog.hidden = true;
 }
 
 async function loadDetails(id) {
@@ -1200,7 +1286,10 @@ if (newInlineBtn) {
     if (leadTimeInput) leadTimeInput.value = "";
     unsaved = false;
     clearSkuState();
+    activeTab = "products";
     setEditing(true);
+    if (productDialog) productDialog.hidden = false;
+    paintWorkspaceTabs();
     if (itemInput) itemInput.focus();
   });
 }
@@ -1274,34 +1363,54 @@ if (inlineDeleteBtn) {
   });
 }
 
-if (productPicker) {
-  productPicker.addEventListener("change", async () => {
-    const next = productPicker.value ? Number(productPicker.value) : null;
-    if (!next && !selectedId && inNewMode) return;
-    if (next && String(next) === String(selectedId) && !inNewMode) return;
-    const ok = await loadDetails(next);
-    if (!ok) {
-      setSearchableSelectValue(productPicker, selectedId ? String(selectedId) : "", true);
-      return;
-    }
-    inNewMode = false;
-    previousSelectedId = null;
-    setEditing(false);
+if (productCatalogSearch) {
+  productCatalogSearch.addEventListener("input", () => {
+    applyCatalogFilter();
   });
 }
+if (productPagePrev) {
+  productPagePrev.addEventListener("click", () => {
+    if (catalogPage <= 0) return;
+    catalogPage -= 1;
+    renderProductRegister();
+  });
+}
+if (productPageNext) {
+  productPageNext.addEventListener("click", () => {
+    if ((catalogPage + 1) * PRODUCT_PAGE_SIZE >= filtered.length) return;
+    catalogPage += 1;
+    renderProductRegister();
+  });
+}
+if (productDialogClose) productDialogClose.addEventListener("click", () => closeProductDialog());
+if (productDialog) {
+  productDialog.addEventListener("click", (event) => {
+    if (event.target === productDialog) closeProductDialog();
+  });
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const confirmOpen =
+    (modalOverlay && modalOverlay.classList.contains("show")) ||
+    (governanceModalOverlay && governanceModalOverlay.classList.contains("show"));
+  if (confirmOpen) return;
+  if (productDialog && !productDialog.hidden) closeProductDialog();
+  else if (skuDetail && !skuDetail.hidden) closeSkuDialog();
+  else if (readinessDetailSurface && !readinessDetailSurface.hidden) readinessDetailSurface.hidden = true;
+});
 
 function bindWorkspaceTab(button, tab) {
   if (!button) return;
   button.addEventListener("click", () => setWorkspaceTab(tab));
 }
-bindWorkspaceTab(tabProductMaster, "master");
+bindWorkspaceTab(tabProducts, "products");
 bindWorkspaceTab(tabSkus, "skus");
 bindWorkspaceTab(tabReadiness, "readiness");
 
 const workspaceTabs = document.querySelector(".mp-tabs");
 if (workspaceTabs) {
   workspaceTabs.addEventListener("keydown", (event) => {
-    const order = [tabProductMaster, tabSkus, tabReadiness].filter((tab) => tab && !tab.disabled);
+    const order = [tabProducts, tabSkus, tabReadiness].filter((tab) => tab && !tab.hidden);
     const index = order.indexOf(document.activeElement);
     if (index < 0) return;
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
@@ -1387,9 +1496,7 @@ const skuLifecycleSection = document.getElementById("skuLifecycleSection");
 const skuCountSummary = document.getElementById("skuCountSummary");
 const skuPeriodLabel = document.getElementById("skuPeriodLabel");
 const skuRegisterBody = document.getElementById("skuRegisterBody");
-const skuCardList = document.getElementById("skuCardList");
 const readinessRegisterBody = document.getElementById("readinessRegisterBody");
-const readinessCardList = document.getElementById("readinessCardList");
 const skuDetail = document.getElementById("skuDetail");
 const skuAddBtn = document.getElementById("skuAddBtn");
 const skuPackSize = document.getElementById("skuPackSize");
@@ -1415,9 +1522,9 @@ function clearSkuState() {
   governedPeriodStart = null;
   skuReadinessById.clear();
   if (skuRegisterBody) skuRegisterBody.replaceChildren();
-  if (skuCardList) skuCardList.replaceChildren();
+  if (skuLedger) skuLedger.replaceChildren();
   if (readinessRegisterBody) readinessRegisterBody.replaceChildren();
-  if (readinessCardList) readinessCardList.replaceChildren();
+  if (readinessLedger) readinessLedger.replaceChildren();
   if (skuDetail) skuDetail.hidden = true;
   if (readinessDetailSurface) readinessDetailSurface.hidden = true;
   if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
@@ -1581,9 +1688,9 @@ function readinessDimensionHint(payload) {
 
 function renderSkuList() {
   if (skuRegisterBody) skuRegisterBody.replaceChildren();
-  if (skuCardList) skuCardList.replaceChildren();
+  if (skuLedger) skuLedger.replaceChildren();
   if (readinessRegisterBody) readinessRegisterBody.replaceChildren();
-  if (readinessCardList) readinessCardList.replaceChildren();
+  if (readinessLedger) readinessLedger.replaceChildren();
   renderSkuSummary();
   skuRows.forEach((row) => {
     const payload = skuReadinessById.get(String(row.id));
@@ -1610,35 +1717,27 @@ function renderSkuList() {
     lifeCell.appendChild(lifecycle);
     const readyCell = document.createElement("td");
     readyCell.appendChild(readiness);
-    const actionCell = document.createElement("td");
-    const openBtn = document.createElement("button");
-    openBtn.type = "button";
-    openBtn.className = "btn secondary";
-    openBtn.textContent = "Open";
-    openBtn.setAttribute("aria-label", `Open SKU ${row.id}`);
-    openBtn.addEventListener("click", () => selectSku(row.id));
-    actionCell.appendChild(openBtn);
-    tr.append(lifeCell, readyCell, actionCell);
+    tr.append(lifeCell, readyCell);
+    tr.tabIndex = 0;
+    tr.addEventListener("click", () => selectSku(row.id));
+    tr.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      selectSku(row.id);
+    });
     if (skuRegisterBody) skuRegisterBody.appendChild(tr);
 
-    const card = document.createElement("article");
-    card.className = "mp-sku-card";
-    const line = document.createElement("div");
-    line.className = "mp-sku-card-line";
-    const skuName = document.createElement("span");
-    skuName.textContent = `SKU ${row.id}`;
-    const packName = document.createElement("span");
-    packName.textContent = pack;
-    line.append(skuName, packName);
-    const meta = document.createElement("div");
-    meta.className = "mp-sku-card-meta";
-    meta.textContent = typeLabel;
-    const statusRow = document.createElement("div");
-    statusRow.className = "mp-sku-card-status";
-    statusRow.append(lifecycle.cloneNode(true), readiness.cloneNode(true), openBtn.cloneNode(true));
-    statusRow.lastChild.addEventListener("click", () => selectSku(row.id));
-    card.append(line, meta, statusRow);
-    if (skuCardList) skuCardList.appendChild(card);
+    const skuLedgerRow = document.createElement("button");
+    skuLedgerRow.type = "button";
+    skuLedgerRow.className = "mp-ledger-row";
+    const skuTitle = document.createElement("div");
+    skuTitle.textContent = `SKU ${row.id} · ${pack}`;
+    const skuSub = document.createElement("div");
+    skuSub.className = "mp-ledger-sub";
+    skuSub.textContent = `${typeLabel} · ${row.is_active ? "Active" : "Inactive"} · ${readinessBadgeLabel(severity)}`;
+    skuLedgerRow.append(skuTitle, skuSub);
+    skuLedgerRow.addEventListener("click", () => selectSku(row.id));
+    if (skuLedger) skuLedger.appendChild(skuLedgerRow);
 
     const readinessRow = document.createElement("tr");
     readinessRow.setAttribute("aria-selected", selected ? "true" : "false");
@@ -1658,49 +1757,42 @@ function renderSkuList() {
       summary.costing_outcome_status,
     ].forEach((value) => {
       const cell = document.createElement("td");
-      cell.className = "mp-col-extra";
       cell.textContent = serverStatusText(value);
       readinessRow.appendChild(cell);
     });
     const overallCell = document.createElement("td");
     overallCell.appendChild(readiness.cloneNode(true));
-    const detailCell = document.createElement("td");
-    const detailBtn = document.createElement("button");
-    detailBtn.type = "button";
-    detailBtn.className = "btn secondary";
-    detailBtn.textContent = "Details";
-    detailBtn.setAttribute("aria-label", `Readiness for SKU ${row.id}`);
-    detailBtn.addEventListener("click", () => openReadinessDetail(row.id));
-    detailCell.appendChild(detailBtn);
-    readinessRow.append(overallCell, detailCell);
+    readinessRow.appendChild(overallCell);
+    readinessRow.tabIndex = 0;
+    readinessRow.addEventListener("click", () => openReadinessDetail(row.id));
+    readinessRow.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      openReadinessDetail(row.id);
+    });
     if (readinessRegisterBody) readinessRegisterBody.appendChild(readinessRow);
 
-    const readyCard = document.createElement("article");
-    readyCard.className = "mp-sku-card";
-    const readyLine = document.createElement("div");
-    readyLine.className = "mp-sku-card-line";
-    const readySku = document.createElement("span");
-    readySku.textContent = `SKU ${row.id}`;
-    const readyPack = document.createElement("span");
-    readyPack.textContent = pack;
-    readyLine.append(readySku, readyPack);
-    const readyStatus = document.createElement("div");
-    readyStatus.className = "mp-sku-card-status";
-    readyStatus.append(lifecycle.cloneNode(true), readiness.cloneNode(true));
-    readyCard.append(readyLine, readyStatus);
-    const hint = readinessDimensionHint(payload);
-    if (hint) {
-      const hintLine = document.createElement("div");
-      hintLine.className = "mp-sku-card-meta";
-      hintLine.textContent = hint;
-      readyCard.appendChild(hintLine);
-    }
-    const readyAction = detailBtn.cloneNode(true);
-    readyAction.addEventListener("click", () => openReadinessDetail(row.id));
-    readyCard.appendChild(readyAction);
-    if (readinessCardList) readinessCardList.appendChild(readyCard);
+    const readyLedgerRow = document.createElement("button");
+    readyLedgerRow.type = "button";
+    readyLedgerRow.className = "mp-ledger-row";
+    const readyTitle = document.createElement("div");
+    readyTitle.textContent = `SKU ${row.id} · ${pack}`;
+    const readySub = document.createElement("div");
+    readySub.className = "mp-ledger-sub";
+    readySub.textContent = `${row.is_active ? "Active" : "Inactive"} · ${readinessBadgeLabel(severity)}`;
+    readyLedgerRow.append(readyTitle, readySub);
+    readyLedgerRow.addEventListener("click", () => openReadinessDetail(row.id));
+    if (readinessLedger) readinessLedger.appendChild(readyLedgerRow);
   });
   syncSkuAccessChrome();
+}
+
+async function closeSkuDialog() {
+  if (!(await confirmDiscardSku())) return;
+  skuDirty = false;
+  if (skuDraft === "new") skuDraft = null;
+  if (skuDetail) skuDetail.hidden = true;
+  renderSkuList();
 }
 
 async function confirmDiscardSku() {
@@ -1794,12 +1886,36 @@ function appendDefinition(list, label, value) {
   list.append(term, detail);
 }
 
-function appendRemediation(parent, title, detail) {
-  const item = document.createElement("p");
+function appendRemediation(parent, title, status, note, reasonCode, route) {
+  const item = document.createElement("div");
   item.className = "mp-remediation-item";
-  const strong = document.createElement("strong");
-  strong.textContent = title;
-  item.append(strong, document.createTextNode(` — ${detail}`));
+  const primary = document.createElement("div");
+  const label = document.createElement("strong");
+  label.textContent = title;
+  const badge = document.createElement("span");
+  badge.className = readinessBadgeClass(status);
+  const known =
+    status === "READY" ||
+    status === "REVIEW_REQUIRED" ||
+    status === "BLOCKER" ||
+    status === "BLOCKED" ||
+    status == null ||
+    status === "";
+  badge.textContent = known ? readinessBadgeLabel(status) : String(status);
+  primary.append(label, document.createTextNode(" "), badge);
+  item.appendChild(primary);
+  if (note || reasonCode) {
+    const secondary = document.createElement("div");
+    secondary.className = "mp-remediation-meta";
+    secondary.textContent = [note, reasonCode].filter(Boolean).join(" · ");
+    item.appendChild(secondary);
+  }
+  if (route) {
+    const routeLine = document.createElement("div");
+    routeLine.className = "mp-remediation-route";
+    routeLine.textContent = `Resolve in: ${route}`;
+    item.appendChild(routeLine);
+  }
   parent.appendChild(item);
 }
 
@@ -1880,9 +1996,10 @@ function renderSkuReadiness(payload) {
     appendRemediation(
       remediation,
       issue.label || "Dependency",
-      [status, issue.reason_code, issue.note, issue.recommended_ui_route]
-        .filter(Boolean)
-        .join(" — "),
+      status,
+      issue.note,
+      issue.reason_code,
+      issue.recommended_ui_route,
     );
   });
   const sharedIssues = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
@@ -1891,18 +2008,18 @@ function renderSkuReadiness(payload) {
     appendRemediation(
       remediation,
       title,
+      issue.status,
       [
+        issue.scope,
+        issue.owner_module,
         issue.issue_code && issue.dependency_code && issue.dependency_code !== issue.issue_code
           ? issue.dependency_code
           : "",
-        issue.status,
-        issue.reason_code,
-        issue.scope,
-        issue.owner_module,
-        issue.recommended_ui_route,
       ]
         .filter(Boolean)
-        .join(" — "),
+        .join(" · "),
+      issue.reason_code,
+      issue.recommended_ui_route,
     );
   });
   if (remediation.childElementCount) {
@@ -2103,9 +2220,20 @@ if (skuCancelBtn) {
   });
 }
 if (skuToggleActiveBtn) skuToggleActiveBtn.addEventListener("click", () => toggleSkuActive());
-if (readinessDetailClose) {
-  readinessDetailClose.addEventListener("click", () => {
+if (skuDialogClose) skuDialogClose.addEventListener("click", () => closeSkuDialog());
+if (skuDetail) {
+  skuDetail.addEventListener("click", (event) => {
+    if (event.target === skuDetail) closeSkuDialog();
+  });
+}
+if (readinessDialogClose) {
+  readinessDialogClose.addEventListener("click", () => {
     if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+  });
+}
+if (readinessDetailSurface) {
+  readinessDetailSurface.addEventListener("click", (event) => {
+    if (event.target === readinessDetailSurface) readinessDetailSurface.hidden = true;
   });
 }
 [skuPackSize, skuUom, skuIsSample].forEach((control) => {

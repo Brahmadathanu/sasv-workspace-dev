@@ -165,7 +165,7 @@ Audit checks:
 ## Gate Status
 [x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, before the branch sync with current main.
 
-[~] WP02-G4 IN PROGRESS — focused verification. Authenticated use superseded the persistent Product explorer rail. DEC-012 implements full-width Product selection with Product Master, SKUs, and Readiness tabs, plus bounded SKU and readiness detail. G4 stays open until a person confirms that workspace on a wide screen and at 520px.
+[~] WP02-G4 IN PROGRESS — focused verification. DEC-013 supersedes the DEC-012 picker and tall-card presentation with a filter-only Product catalog, Products / SKUs / Readiness lenses, and focused dialogs. Compact list rows replace tall cards at 520px. G4 stays open until a person confirms that workspace on a wide screen and at 520px.
 
 ## Required to close
 Complete the focused verification set against the synced branch. Keep G4 in progress if authenticated UI verification cannot be performed. Do not merge from this gate.
@@ -182,13 +182,16 @@ Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_pr
 - Child SKU listing uses existing authenticated SELECT on `public.product_skus`. No list RPC was created.
 
 ## Client changes
-Manage Products is a full-width tabbed workspace. A searchable Product picker replaces the permanent Product rail and still loads the existing selected Product. Tabs are Product Master, SKUs, and Readiness. SKUs and Readiness stay unavailable until a saved Product exists. Wide layouts use registers. At 520px and below, those registers become compact cards. SKU editing and readiness detail open in bounded surfaces. Product fields stay in Identity, Classification, Measure, and Planning, with the same control IDs.
+Manage Products is a full-width Product catalog. One search field filters that catalog and does not select a Product. Lenses are Products, SKUs, and Readiness. SKUs and Readiness stay unavailable until a saved Product is selected. Selecting a Product row does not open its dialog; double-click, Enter, or a second tap on the already selected narrow row does. Add Product opens the same Product dialog in create mode. Wide layouts use registers without an Action column. At 520px and below, those registers become compact list rows. Product, SKU, and readiness work open in focused dialogs with an SVG close control. Product fields stay in Identity, Classification, Measure, and Planning, with the same control IDs.
 - Create, pack/UOM/sample update, and activate/deactivate use only the three existing SKU writer RPCs.
 - New SKUs are created inactive. Pack save does not send an active flag.
-- Create SKU, Save SKU, and Activate/Deactivate stay mutually exclusive by the existing draft and dirty-state rules.
+- Create SKU, Save SKU, and Activate/Deactivate stay mutually exclusive by the existing draft and dirty-state rules, and a page-scoped hidden rule keeps concealed actions from being painted by the shared button style.
 - Readiness calls `LIVE_AS_OF` with a null refresh-run id and the server period.
 - Product `unsaved` and SKU `skuDirty` are separate.
-- Service worker cache is `hub-cache-v330`.
+- Service worker cache is `hub-cache-v331`.
+
+## Statement-timeout diagnostic
+REQUIRED-NOW, read-only, no database change. `statement_timeout` is 120000 ms. The available Postgres log window contains 17 `canceling statement due to statement timeout` events, and those log rows do not include the canceled SQL. `pg_stat_statements` shows the live Manage Products catalog select averaging about 3.5 ms (max about 49 ms) and a single PostgREST `rpc_get_product_sku_readiness` call averaging about 6.4 s (max about 8.0 s, 52 calls), which is under the timeout. Statements that call that readiness function several times in one query reach about 24–37 s. Those shapes match audit SQL, not the page, which calls readiness once per SKU. Product and child-SKU indexes already exist for id, item, status, and product_id. Any index, RPC, or timeout change is HIGH-RISK and was not made.
 
 ## Tests / verification
 - Verified current main SHA at implementation start: `738ca09ff5490c0c17ee8544da4c7690f9e6a171`.

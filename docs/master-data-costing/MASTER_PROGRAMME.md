@@ -67,10 +67,10 @@ WP02-G4 — focused verification
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No architectural blocker remains inside WP02-G3. Authenticated verification showed the persistent Product side rail was unsuitable for the live catalog and for narrow screens. DEC-012 retires that rail in favor of full-width Product selection and Product Master, SKUs, and Readiness tabs. WP02-G4 stays open until a human confirms that tabbed workspace on a wide screen and at 520px.
+No architectural blocker remains inside WP02-G3. DEC-012 retired the permanent Product rail. DEC-013 supersedes that picker-and-card presentation with a filter-only Product catalog, Products / SKUs / Readiness lenses, focused dialogs, and compact 520px list rows. A separate read-only statement-timeout diagnostic is recorded with the implementation and does not change the database. WP02-G4 stays open until a human confirms the catalog workspace on a wide screen and at 520px.
 
 ## Immediate next action
-Human visual verification of the tabbed Manage Products workspace at wide desktop and at 520px. Do not close WP02-G4 or merge until that confirmation and independent acceptance are complete.
+Human visual verification of the catalog Manage Products workspace at wide desktop and at 520px: search filters only, one click selects without opening the Product dialog, double-click or Enter opens it, Add Product opens create mode, SKU actions stay exclusive, and readiness uses the cross close. Do not close WP02-G4 or merge until that confirmation and independent acceptance are complete.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.

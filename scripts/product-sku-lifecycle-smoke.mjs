@@ -103,14 +103,18 @@ assert(
   "product deactivation remains on rpc_update_product and surfaces server errors",
 );
 assert(!products.includes("rpc_set_product_sku_active") || !/childSku/.test(products), "product path does not deactivate child SKUs");
-assert(sw.includes('const CACHE_NAME = "hub-cache-v330"'), "service worker generation is hub-cache-v330");
-assert(html.includes('id="skuLifecycleSection"') && html.includes(">SKUs<"), "SKU tab exists");
-assert(html.includes('id="productPicker"') && !html.includes('id="productList"') && !html.includes('class="sidebar"'), "product rail is no longer the rendered navigation");
-assert(html.includes('role="tablist"') && html.includes(">Product Master<") && html.includes(">Readiness<"), "workspace has three accessible tabs");
-assert(html.includes('id="tabSkus"') && html.includes("disabled"), "SKU and readiness tabs can be unavailable");
-assert(products.includes("enhanceSearchableSelect(productPicker") && products.includes("selectedId = id"), "product picker resolves through the existing selected product authority");
-assert(html.includes('id="skuRegister"') && html.includes('id="skuCardList"'), "desktop SKU register and small-screen SKU cards exist");
-assert(html.includes('id="readinessRegister"') && html.includes('id="readinessDetailSurface"'), "readiness register and bounded detail exist");
+assert(sw.includes('const CACHE_NAME = "hub-cache-v331"'), "service worker generation is hub-cache-v331");
+assert(html.includes('id="productCatalogSearch"') && html.includes(">Products<") && html.includes(">SKUs<") && html.includes(">Readiness<"), "catalog search and three lenses exist");
+assert(!html.includes('id="productPicker"') && !html.includes('id="productList"') && !html.includes('class="sidebar"'), "product rail and picker navigation are removed");
+assert(html.includes("PRODUCT_PAGE_SIZE") || products.includes("PRODUCT_PAGE_SIZE = 50"), "product catalog rendering is bounded");
+assert(products.includes("function applyCatalogFilter") && !products.slice(products.indexOf("function applyCatalogFilter"), products.indexOf("function renderProductOptions")).includes("loadDetails"), "global search filters the catalog and does not load a product");
+assert(products.includes("function selectProductRow") && products.includes("function openSelectedProductDialog") && products.includes('event.key !== "Enter"'), "product selection and dialog activation stay separate");
+assert(html.includes('id="productDialog"') && html.includes('id="newInlineBtn"') && products.includes("productDialog.hidden = false"), "Add Product can open the product dialog");
+assert(html.includes("sasv-manage-products [hidden]") && products.includes("skuCreateBtn.hidden") && products.includes("skuSaveBtn.hidden"), "hidden SKU actions stay mutually exclusive under the module rule");
+assert(!html.includes("<th>Action</th>") && !html.includes(">Close<"), "registers have no action column and dialogs have no large Close button");
+assert(html.includes('id="skuRegister"') && html.includes('id="readinessRegister"') && html.includes('id="skuLedger"') && html.includes('id="readinessLedger"') && html.includes(".mp-ledger"), "wide registers remain and narrow compact ledger rows exist");
+assert(html.includes('id="skuDialogClose"') && html.includes('id="readinessDialogClose"') && html.includes('id="productDialogClose"'), "dialogs close with an SVG control");
+assert(html.includes('id="readinessDetailSurface"'), "readiness detail remains a dialog");
 assert(html.includes('class="mp-surface"') && !html.includes('id="skuList"'), "deep SKU and readiness detail are not an inline page stack");
 assert(
   html.includes(">SKU master<") &&

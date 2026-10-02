@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v330"; // Manage Products tabbed workspace
+const CACHE_NAME = "hub-cache-v331"; // Manage Products catalog lenses
 
 const PRECACHE = [
   // Hub shell

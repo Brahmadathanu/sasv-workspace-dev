@@ -71,3 +71,10 @@
 **Reason:** Authenticated verification of the rail layout, including a live catalog of 1,342 Products and narrow screens, showed that a permanent side list plus a long stacked workspace was not usable.
 **Impact:** This supersedes only the earlier WP02 presentation choice. Product, SKU, readiness, permission, and server contracts are unchanged.
 **Status:** LOCKED
+
+## 2026-10-02 — DEC-013 — Manage Products catalog/lens workspace
+**Decision:** Manage Products is a full-width catalog. One global Product search filters the catalog only and does not select a Product. The lenses are Products, SKUs, and Readiness. SKUs and Readiness become available only after a saved Product is selected. Single row selection is separate from the dialog that does the row's work. Registers have no permanent Action column. At 520px and below, registers become compact list rows. This supersedes the DEC-012 picker, tab labels, and tall card presentation.
+**Reason:** Authenticated use of the DEC-012 workspace showed that search selected a Product, dialog actions overlapped, and the narrow card layout was too tall.
+**Impact:** Presentation only. Product, SKU, readiness, permission, and server contracts are unchanged.
+**Status:** LOCKED
+**Evidence:** DEC-012 remains recorded above and is not erased.
