@@ -147,3 +147,9 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Implemented bounded Product 262 / source line 930 Karpūra first-live safety architecture, including dependent-option readiness, final trusted reread and durable no-mutation rejection closure.
 - Production mutation remains impossible: `COMPOSITION_LIVE_ARM_DEFAULT=false` and `COMPOSITION_FIRST_LIVE_930_RELEASE=false`; environment `"true"` alone cannot arm execution.
 - No Composition mutation occurred. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.
+
+## 2026-10-02 — WP-06 first-live line-930 release gate opened
+- Closed-gate pre-live acceptance passed on baseline `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` without portal mutation.
+- The reviewed Product 262 / source line 930 release constant is intentionally open while `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged.
+- Production mutation still requires the separate exact runtime environment arm and explicit operator confirmation. No Karpūra portal Save has occurred.
+- The next gate is one explicitly authorized controlled Karpūra run. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.

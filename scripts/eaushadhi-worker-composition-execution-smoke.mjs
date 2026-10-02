@@ -22,6 +22,7 @@ const {
   parseNativeCompositionRowId,
 } = require("../electron/eaushadhi-worker/composition-native-normalizer.js");
 const {
+  compositionLiveArmEnabled,
   parseCompositionRowId,
 } = require("../electron/eaushadhi-worker/composition-contract.js");
 const {
@@ -191,9 +192,16 @@ function fakeDeps(authorities, options = {}) {
 }
 
 assert.equal(COMPOSITION_LIVE_ARM_DEFAULT, false);
-assert.equal(COMPOSITION_FIRST_LIVE_930_RELEASE, false);
-assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(COMPOSITION_FIRST_LIVE_930_RELEASE, true);
+assert.equal(isCompositionLiveArmedFor(262, 930, {}), false);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "false" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), true);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "TRUE" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "1" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: true }), false);
 assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(isCompositionLiveArmedFor(261, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(compositionLiveArmEnabled({ EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
 
 const parsedId = (markup) => parseCompositionRowId(markup);
 const provenId = (markup, expected = "row-a") => {
@@ -881,7 +889,7 @@ const files = {
   worker: fs.readFileSync(path.join(root, "electron/eaushadhi-worker/index.js"), "utf8"),
 };
 assert.equal((`${files.contract}\n${files.arm}`.match(/const COMPOSITION_LIVE_ARM_DEFAULT = false/g) || []).length, 1);
-assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_FIRST_LIVE_930_RELEASE = false/g) || []).length, 1);
+assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_FIRST_LIVE_930_RELEASE = true/g) || []).length, 1);
 assert.match(files.contract, /Number\(sourceCompositionLineId\) === COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID/);
 assert.match(files.worker, /sourceCompositionLineId !== 930/);
 assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID/);
