@@ -7,8 +7,26 @@ const MODULE_TARGET = "module:manage-products";
 
 // DOM refs
 const homeBtn = document.getElementById("homeBtn");
-const searchInput = document.getElementById("searchInput");
-const productList = document.getElementById("productList");
+const productCatalogSearch = document.getElementById("productCatalogSearch");
+const productRegisterBody = document.getElementById("productRegisterBody");
+const productLedger = document.getElementById("productLedger");
+const productRangeLabel = document.getElementById("productRangeLabel");
+const productPagePrev = document.getElementById("productPagePrev");
+const productPageNext = document.getElementById("productPageNext");
+const productDialog = document.getElementById("productDialog");
+const productDialogTitle = document.getElementById("productDialogTitle");
+const productDialogClose = document.getElementById("productDialogClose");
+const tabProducts = document.getElementById("tabProducts");
+const tabSkus = document.getElementById("tabSkus");
+const tabReadiness = document.getElementById("tabReadiness");
+const productMasterPanel = document.getElementById("productMasterPanel");
+const readinessPanel = document.getElementById("readinessPanel");
+const readinessDetailSurface = document.getElementById("readinessDetailSurface");
+const readinessDialogClose = document.getElementById("readinessDialogClose");
+const skuDialogClose = document.getElementById("skuDialogClose");
+const skuEditorTitle = document.getElementById("skuEditorTitle");
+const skuLedger = document.getElementById("skuLedger");
+const readinessLedger = document.getElementById("readinessLedger");
 const form = document.getElementById("productForm");
 const itemInput = document.getElementById("itemInput");
 const malInput = document.getElementById("malInput");
@@ -37,7 +55,6 @@ const cancelIconBtn = document.getElementById("cancelIconBtn");
 const inlineDeleteBtn = document.getElementById("inlineDeleteBtn");
 const newInlineBtn = document.getElementById("newInlineBtn");
 const productCountPill = document.getElementById("productCountPill");
-const clearSearchBtn = document.getElementById("clearSearchBtn");
 const accessStatusEl = document.getElementById("accessStatus");
 const viewOnlyBanner = document.getElementById("viewOnlyBanner");
 const productMasterMain = document.getElementById("productMasterMain");
@@ -64,10 +81,13 @@ let allProducts = [];
 let filtered = [];
 let selectedId = null;
 let unsaved = false;
+let skuDirty = false;
 let editing = false;
 let previousSelectedId = null;
 let inNewMode = false;
-let keyboardIndex = -1;
+let activeTab = "products";
+let catalogPage = 0;
+const PRODUCT_PAGE_SIZE = 50;
 let writeBusy = false;
 let loadedProductSnapshot = null;
 let classificationsWired = false;
@@ -274,6 +294,15 @@ function applyAccessChrome() {
 
   updateClassificationState();
   updateDirtyIcons();
+  syncSkuAccessChrome();
+  syncProductContext();
+}
+
+function syncProductContext() {
+  if (!productDialogTitle) return;
+  const name = itemInput ? itemInput.value.trim() : "";
+  if (inNewMode && !name) productDialogTitle.textContent = "New product";
+  else productDialogTitle.textContent = name || "Product";
 }
 
 async function loadProductMasterAccess() {
@@ -730,7 +759,7 @@ async function fetchAllProducts() {
   while (true) {
     const { data, error } = await supabase
       .from("products")
-      .select("id, item")
+      .select("id, item, malayalam_name, status")
       .order("item")
       .range(from, from + CHUNK - 1);
     if (error) {
@@ -746,52 +775,167 @@ async function fetchAllProducts() {
 
 async function loadProducts() {
   allProducts = await fetchAllProducts();
-  applyFilter();
+  filtered = allProducts.slice();
+  renderProductOptions();
+}
+
+function productStatusBadge(status) {
+  const badge = document.createElement("span");
+  badge.className =
+    status === "Active"
+      ? "badge badge-active"
+      : status === "Inactive"
+        ? "badge badge-inactive"
+        : "badge badge-neutral";
+  badge.textContent = status || "Unavailable";
+  return badge;
+}
+
+function renderProductRegister() {
+  const total = filtered.length;
+  const startIndex = catalogPage * PRODUCT_PAGE_SIZE;
+  const page = filtered.slice(startIndex, startIndex + PRODUCT_PAGE_SIZE);
+  const start = total ? startIndex + 1 : 0;
+  const end = total ? startIndex + page.length : 0;
+  if (productRangeLabel) productRangeLabel.textContent = `Showing ${start}–${end} of ${total}`;
+  if (productPagePrev) productPagePrev.disabled = catalogPage <= 0;
+  if (productPageNext) productPageNext.disabled = end >= total;
+  if (productRegisterBody) productRegisterBody.replaceChildren();
+  if (productLedger) productLedger.replaceChildren();
+  page.forEach((product) => {
+    const selected = String(product.id) === String(selectedId) && !inNewMode;
+    const tr = document.createElement("tr");
+    tr.tabIndex = 0;
+    tr.setAttribute("aria-selected", selected ? "true" : "false");
+    const nameCell = document.createElement("td");
+    nameCell.textContent = product.item || "";
+    const malayalamCell = document.createElement("td");
+    malayalamCell.textContent = product.malayalam_name || "";
+    const statusCell = document.createElement("td");
+    statusCell.appendChild(productStatusBadge(product.status));
+    tr.append(nameCell, malayalamCell, statusCell);
+    tr.addEventListener("click", () => selectProductRow(product.id));
+    tr.addEventListener("dblclick", () => openSelectedProductDialog(product.id));
+    tr.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      openSelectedProductDialog(product.id);
+    });
+    if (productRegisterBody) productRegisterBody.appendChild(tr);
+    const ledgerRow = document.createElement("button");
+    ledgerRow.type = "button";
+    ledgerRow.className = "mp-ledger-row";
+    ledgerRow.setAttribute("aria-selected", selected ? "true" : "false");
+    const title = document.createElement("div");
+    title.textContent = product.item || "";
+    const sub = document.createElement("div");
+    sub.className = "mp-ledger-sub";
+    if (product.malayalam_name) sub.append(document.createTextNode(`${product.malayalam_name} · `));
+    sub.appendChild(productStatusBadge(product.status));
+    ledgerRow.append(title, sub);
+    ledgerRow.addEventListener("click", () => {
+      if (String(product.id) === String(selectedId) && !inNewMode) openSelectedProductDialog(product.id);
+      else selectProductRow(product.id);
+    });
+    if (productLedger) productLedger.appendChild(ledgerRow);
+  });
+  if (productCountPill) {
+    const count = allProducts.length || 0;
+    productCountPill.textContent = `${count} products`;
+    productCountPill.title = `${count} products total`;
+    productCountPill.setAttribute("aria-label", `${count} products total`);
+  }
+}
+
+function applyCatalogFilter() {
+  const term = (productCatalogSearch && productCatalogSearch.value ? productCatalogSearch.value : "").trim().toLowerCase();
+  filtered = term
+    ? allProducts.filter((product) => {
+        const name = String(product.item || "").toLowerCase();
+        const malayalam = String(product.malayalam_name || "").toLowerCase();
+        return name.includes(term) || malayalam.includes(term);
+      })
+    : allProducts.slice();
+  catalogPage = 0;
+  renderProductRegister();
+}
+
+function renderProductOptions() {
+  renderProductRegister();
 }
 
 function applyFilter() {
-  const term = searchInput.value.trim().toLowerCase();
-  filtered = allProducts.filter((p) => p.item.toLowerCase().includes(term));
-  productList.innerHTML = filtered
-    .map(
-      (p) =>
-        `<li role="option" id="product-${p.id}" data-id="${
-          p.id
-        }" aria-selected="${p.id === selectedId ? "true" : "false"}"${
-          p.id === selectedId ? ' class="selected"' : ""
-        }>${p.item}</li>`,
-    )
-    .join("");
-  const lis = Array.from(productList.querySelectorAll("li"));
-  if (keyboardIndex >= 0 && keyboardIndex < lis.length) {
-    updateKeyboardHighlight(lis, keyboardIndex);
-  } else {
-    productList.removeAttribute("aria-activedescendant");
+  renderProductRegister();
+}
+
+function paintWorkspaceTabs() {
+  const savedProduct = !!selectedId && !inNewMode;
+  if (!savedProduct && activeTab !== "products") activeTab = "products";
+  if (tabSkus) tabSkus.hidden = !savedProduct;
+  if (tabReadiness) tabReadiness.hidden = !savedProduct;
+  const tabs = [
+    ["products", tabProducts, productMasterPanel],
+    ["skus", tabSkus, skuLifecycleSection],
+    ["readiness", tabReadiness, readinessPanel],
+  ];
+  tabs.forEach(([name, tab, panel]) => {
+    const on = activeTab === name;
+    if (tab) tab.setAttribute("aria-selected", on ? "true" : "false");
+    if (panel) panel.hidden = !on;
+  });
+}
+
+function setWorkspaceTab(tab) {
+  if ((tab === "skus" || tab === "readiness") && (!selectedId || inNewMode)) return;
+  activeTab = tab;
+  paintWorkspaceTabs();
+}
+
+async function selectProductRow(id) {
+  if (String(id) === String(selectedId) && !inNewMode) return true;
+  const ok = await loadDetails(id);
+  if (!ok) return false;
+  inNewMode = false;
+  previousSelectedId = null;
+  setEditing(false);
+  return true;
+}
+
+async function openSelectedProductDialog(id) {
+  const ok = await selectProductRow(id);
+  if (!ok) return;
+  setEditing(false);
+  if (productDialog) productDialog.hidden = false;
+}
+
+async function closeProductDialog() {
+  if (unsaved || skuDirty) {
+    const ok = await showModal("You have unsaved changes. Discard?", "Discard", "Cancel");
+    if (!ok) return;
+    unsaved = false;
+    skuDirty = false;
   }
-  try {
-    if (productCountPill) {
-      const total = allProducts.length || 0;
-      if (!term) {
-        productCountPill.textContent = `${total} products`;
-        productCountPill.title = `${total} products total`;
-        productCountPill.setAttribute("aria-label", `${total} products total`);
-      } else {
-        productCountPill.textContent = `${filtered.length} / ${total}`;
-        productCountPill.title = `${filtered.length} matches of ${total} products`;
-        productCountPill.setAttribute(
-          "aria-label",
-          `${filtered.length} matches of ${total} products`,
-        );
-      }
+  if (inNewMode) {
+    inNewMode = false;
+    const restore = previousSelectedId;
+    previousSelectedId = null;
+    selectedId = restore;
+    if (selectedId) await loadDetails(selectedId);
+    else {
+      form.reset();
+      clearSkuState();
+      applyAccessChrome();
     }
-  } catch (e) {
-    console.error(e);
+  } else if (selectedId) {
+    await loadDetails(selectedId);
   }
+  setEditing(false);
+  if (productDialog) productDialog.hidden = true;
 }
 
 async function loadDetails(id) {
   let loaded = false;
-  if (unsaved) {
+  if (unsaved || skuDirty) {
     const ok = await showModal(
       "You have unsaved changes. Discard?",
       "Discard",
@@ -814,6 +958,7 @@ async function loadDetails(id) {
     if (isLltCheckbox) isLltCheckbox.checked = false;
     if (leadTimeInput) leadTimeInput.value = "";
     unsaved = false;
+    clearSkuState();
     applyAccessChrome();
     return true;
   }
@@ -876,6 +1021,7 @@ async function loadDetails(id) {
     unsaved = false;
     loaded = true;
     applyAccessChrome();
+    await loadChildSkus(id);
   } finally {
     hideLoading();
   }
@@ -1023,7 +1169,6 @@ form.addEventListener("submit", async (e) => {
         return;
       }
       showToast("Product created successfully.");
-      searchInput.value = "";
       await loadProducts();
       unsaved = false;
       inNewMode = false;
@@ -1050,7 +1195,6 @@ form.addEventListener("submit", async (e) => {
         return;
       }
       showToast("Product updated successfully.");
-      searchInput.value = "";
       await loadProducts();
       unsaved = false;
       await loadDetails(selectedId);
@@ -1120,7 +1264,7 @@ if (newInlineBtn) {
       return;
     }
     if (writeBusy) return;
-    if (unsaved) {
+    if (unsaved || skuDirty) {
       const ok = await showModal(
         "You have unsaved changes. Discard and create a new product?",
         "Discard",
@@ -1141,7 +1285,11 @@ if (newInlineBtn) {
     if (isLltCheckbox) isLltCheckbox.checked = false;
     if (leadTimeInput) leadTimeInput.value = "";
     unsaved = false;
+    clearSkuState();
+    activeTab = "products";
     setEditing(true);
+    if (productDialog) productDialog.hidden = false;
+    paintWorkspaceTabs();
     if (itemInput) itemInput.focus();
   });
 }
@@ -1155,7 +1303,7 @@ if (inlineDeleteBtn) {
     if (writeBusy) return;
     if (!selectedId) return;
 
-    if (unsaved) {
+    if (unsaved || skuDirty) {
       await showModal(
         "Save or cancel your edits before deactivating this product.",
         "OK",
@@ -1215,121 +1363,64 @@ if (inlineDeleteBtn) {
   });
 }
 
-productList.addEventListener("click", async (e) => {
-  const li = e.target.closest("li");
-  if (li) {
-    const id = Number(li.dataset.id);
-    const ok = await loadDetails(id);
-    if (ok) {
-      inNewMode = false;
-      previousSelectedId = null;
-      setEditing(false);
-      keyboardIndex = -1;
-      Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-        n.classList.remove("focused"),
-      );
-      if (productList)
-        productList.setAttribute("aria-activedescendant", `product-${id}`);
-    }
-  }
-});
-
-searchInput.addEventListener("input", () => {
-  keyboardIndex = -1;
-  if (productList) {
-    Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-      n.classList.remove("focused"),
-    );
-    productList.removeAttribute("aria-activedescendant");
-  }
-  try {
-    if (clearSearchBtn) {
-      if (searchInput.value && searchInput.value.trim()) {
-        clearSearchBtn.classList.add("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "false");
-      } else {
-        clearSearchBtn.classList.remove("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "true");
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  applyFilter();
-});
-
-if (clearSearchBtn) {
-  clearSearchBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    try {
-      searchInput.value = "";
-      clearSearchBtn.classList.remove("visible");
-      clearSearchBtn.setAttribute("aria-hidden", "true");
-      keyboardIndex = -1;
-      if (productList) {
-        Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-          n.classList.remove("focused"),
-        );
-        productList.removeAttribute("aria-activedescendant");
-      }
-      applyFilter();
-      searchInput.focus();
-    } catch (err) {
-      console.error(err);
-    }
+if (productCatalogSearch) {
+  productCatalogSearch.addEventListener("input", () => {
+    applyCatalogFilter();
   });
 }
-
-searchInput.addEventListener("keydown", (e) => {
-  if (!productList) return;
-  const lis = Array.from(productList.querySelectorAll("li"));
-  if (!lis.length) return;
-  if (e.key === "ArrowDown") {
-    e.preventDefault();
-    if (keyboardIndex < 0) keyboardIndex = 0;
-    else keyboardIndex = Math.min(keyboardIndex + 1, lis.length - 1);
-    updateKeyboardHighlight(lis, keyboardIndex);
-    return;
-  }
-  if (e.key === "ArrowUp") {
-    e.preventDefault();
-    if (keyboardIndex < 0) keyboardIndex = lis.length - 1;
-    else keyboardIndex = Math.max(keyboardIndex - 1, 0);
-    updateKeyboardHighlight(lis, keyboardIndex);
-    return;
-  }
-  if (e.key === "Enter") {
-    if (keyboardIndex >= 0 && keyboardIndex < lis.length) {
-      e.preventDefault();
-      const id = Number(lis[keyboardIndex].dataset.id);
-      loadDetails(id).then((ok) => {
-        if (ok) setEditing(false);
-      });
-    }
-  }
-  if (e.key === "Escape") {
-    keyboardIndex = -1;
-    Array.from(productList.querySelectorAll("li.focused")).forEach((n) =>
-      n.classList.remove("focused"),
-    );
-  }
+if (productPagePrev) {
+  productPagePrev.addEventListener("click", () => {
+    if (catalogPage <= 0) return;
+    catalogPage -= 1;
+    renderProductRegister();
+  });
+}
+if (productPageNext) {
+  productPageNext.addEventListener("click", () => {
+    if ((catalogPage + 1) * PRODUCT_PAGE_SIZE >= filtered.length) return;
+    catalogPage += 1;
+    renderProductRegister();
+  });
+}
+if (productDialogClose) productDialogClose.addEventListener("click", () => closeProductDialog());
+if (productDialog) {
+  productDialog.addEventListener("click", (event) => {
+    if (event.target === productDialog) closeProductDialog();
+  });
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const confirmOpen =
+    (modalOverlay && modalOverlay.classList.contains("show")) ||
+    (governanceModalOverlay && governanceModalOverlay.classList.contains("show"));
+  if (confirmOpen) return;
+  if (productDialog && !productDialog.hidden) closeProductDialog();
+  else if (skuDetail && !skuDetail.hidden) closeSkuDialog();
+  else if (readinessDetailSurface && !readinessDetailSurface.hidden) readinessDetailSurface.hidden = true;
 });
 
-function updateKeyboardHighlight(lis, idx) {
-  lis.forEach((li) => {
-    li.classList.remove("focused");
-    if (Number(li.dataset.id) !== selectedId)
-      li.setAttribute("aria-selected", "false");
+function bindWorkspaceTab(button, tab) {
+  if (!button) return;
+  button.addEventListener("click", () => setWorkspaceTab(tab));
+}
+bindWorkspaceTab(tabProducts, "products");
+bindWorkspaceTab(tabSkus, "skus");
+bindWorkspaceTab(tabReadiness, "readiness");
+
+const workspaceTabs = document.querySelector(".mp-tabs");
+if (workspaceTabs) {
+  workspaceTabs.addEventListener("keydown", (event) => {
+    const order = [tabProducts, tabSkus, tabReadiness].filter((tab) => tab && !tab.hidden);
+    const index = order.indexOf(document.activeElement);
+    if (index < 0) return;
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const next = event.key === "ArrowRight"
+      ? order[(index + 1) % order.length]
+      : order[(index - 1 + order.length) % order.length];
+    next.focus();
+    next.click();
   });
-  if (idx >= 0 && idx < lis.length) {
-    const node = lis[idx];
-    node.classList.add("focused");
-    node.setAttribute("aria-selected", "true");
-    if (productList) productList.setAttribute("aria-activedescendant", node.id);
-    node.scrollIntoView({ block: "nearest", behavior: "auto" });
-  } else if (productList) {
-    productList.removeAttribute("aria-activedescendant");
-  }
 }
 
 [
@@ -1352,10 +1443,12 @@ function updateKeyboardHighlight(lis, idx) {
   el.addEventListener("input", () => {
     unsaved = true;
     updateDirtyIcons();
+    syncProductContext();
   });
   el.addEventListener("change", () => {
     unsaved = true;
     updateDirtyIcons();
+    syncProductContext();
   });
 });
 
@@ -1399,14 +1492,770 @@ async function loadSeasonProfiles() {
   });
 }
 
+const skuLifecycleSection = document.getElementById("skuLifecycleSection");
+const skuCountSummary = document.getElementById("skuCountSummary");
+const skuPeriodLabel = document.getElementById("skuPeriodLabel");
+const skuRegisterBody = document.getElementById("skuRegisterBody");
+const readinessRegisterBody = document.getElementById("readinessRegisterBody");
+const skuDetail = document.getElementById("skuDetail");
+const skuAddBtn = document.getElementById("skuAddBtn");
+const skuPackSize = document.getElementById("skuPackSize");
+const skuUom = document.getElementById("skuUom");
+const skuIsSample = document.getElementById("skuIsSample");
+const skuSaveBtn = document.getElementById("skuSaveBtn");
+const skuCreateBtn = document.getElementById("skuCreateBtn");
+const skuCancelBtn = document.getElementById("skuCancelBtn");
+const skuToggleActiveBtn = document.getElementById("skuToggleActiveBtn");
+const skuReadiness = document.getElementById("skuReadiness");
+
+let skuRows = [];
+let selectedSkuId = null;
+let skuDraft = null;
+let governedPeriodStart = null;
+const skuReadinessById = new Map();
+
+function clearSkuState() {
+  skuRows = [];
+  selectedSkuId = null;
+  skuDraft = null;
+  skuDirty = false;
+  governedPeriodStart = null;
+  skuReadinessById.clear();
+  if (skuRegisterBody) skuRegisterBody.replaceChildren();
+  if (skuLedger) skuLedger.replaceChildren();
+  if (readinessRegisterBody) readinessRegisterBody.replaceChildren();
+  if (readinessLedger) readinessLedger.replaceChildren();
+  if (skuDetail) skuDetail.hidden = true;
+  if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+  if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
+  renderSkuSummary();
+  syncSkuAccessChrome();
+}
+
+function syncSkuAccessChrome() {
+  const show = !!selectedId && !inNewMode;
+  const canEdit = canWriteModule();
+  if (skuAddBtn) skuAddBtn.hidden = !show || !canEdit;
+  const drafting = skuDraft === "new" || !!selectedSkuId;
+  if (skuPackSize) skuPackSize.disabled = !canEdit || writeBusy || !drafting;
+  if (skuUom) skuUom.disabled = !canEdit || writeBusy || !drafting;
+  if (skuIsSample) skuIsSample.disabled = !canEdit || writeBusy || !drafting;
+  if (skuCreateBtn) skuCreateBtn.hidden = !(show && canEdit && skuDraft === "new");
+  if (skuSaveBtn) skuSaveBtn.hidden = !(show && canEdit && selectedSkuId && skuDirty);
+  if (skuCancelBtn) skuCancelBtn.hidden = !(show && canEdit && (skuDraft === "new" || skuDirty));
+  if (skuToggleActiveBtn) {
+    const row = currentSkuRow();
+    skuToggleActiveBtn.hidden = !(show && canEdit && row && skuDraft !== "new");
+    skuToggleActiveBtn.textContent = row && row.is_active ? "Deactivate" : "Activate";
+    skuToggleActiveBtn.classList.toggle("danger", !!(row && row.is_active));
+    skuToggleActiveBtn.disabled = writeBusy;
+  }
+  paintWorkspaceTabs();
+}
+
+function currentSkuRow() {
+  return skuRows.find((row) => String(row.id) === String(selectedSkuId)) || null;
+}
+
+function renderSkuSummary() {
+  const total = skuRows.length;
+  const active = skuRows.filter((row) => row.is_active).length;
+  if (skuCountSummary) skuCountSummary.textContent = `${active} active / ${total} total`;
+  if (skuPeriodLabel) {
+    skuPeriodLabel.textContent = governedPeriodStart
+      ? `Governed readiness period: ${governedPeriodStart}`
+      : "Governed readiness period: unavailable";
+  }
+}
+
+function readinessBadgeLabel(severity) {
+  if (severity === "READY") return "Ready";
+  if (severity === "REVIEW_REQUIRED") return "Review required";
+  if (severity === "BLOCKER" || severity === "BLOCKED") return "Blocked";
+  return "Unavailable";
+}
+
+function readinessBadgeClass(severity) {
+  if (severity === "READY") return "badge badge-pass";
+  if (severity === "REVIEW_REQUIRED") return "badge badge-warn";
+  if (severity === "BLOCKER" || severity === "BLOCKED") return "badge badge-fail";
+  return "badge badge-neutral";
+}
+
+function markSkuDirty() {
+  if (!canWriteModule()) return;
+  skuDirty = true;
+  syncSkuAccessChrome();
+}
+
+async function loadGovernedPeriodStart() {
+  governedPeriodStart = null;
+  const { data, error } = await supabase.rpc(
+    "rpc_get_latest_governed_cost_period_start",
+  );
+  if (error) {
+    console.error(error);
+    renderSkuSummary();
+    return null;
+  }
+  governedPeriodStart = data || null;
+  renderSkuSummary();
+  return governedPeriodStart;
+}
+
+let skuLoadGeneration = 0;
+
+async function loadChildSkus(productId) {
+  const generation = ++skuLoadGeneration;
+  skuDirty = false;
+  skuDraft = null;
+  selectedSkuId = null;
+  skuReadinessById.clear();
+  const { data, error } = await supabase
+    .from("product_skus")
+    .select("id, product_id, pack_size, uom, is_sample, is_active")
+    .eq("product_id", productId);
+  if (generation !== skuLoadGeneration) return;
+  if (error) {
+    skuRows = [];
+    surfaceRpcError(error, "Unable to load SKUs.");
+    renderSkuList();
+    return;
+  }
+  skuRows = data || [];
+  renderSkuList();
+  await loadGovernedPeriodStart();
+  if (generation !== skuLoadGeneration) return;
+  await loadAllSkuReadiness(generation);
+}
+
+async function fetchSkuReadiness(skuId, options = {}) {
+  if (!governedPeriodStart || skuId == null) return null;
+  const { data, error } = await supabase.rpc("rpc_get_product_sku_readiness", {
+    p_sku_id: skuId,
+    p_period_start: governedPeriodStart,
+    p_context_type: "LIVE_AS_OF",
+    p_refresh_run_id: null,
+  });
+  if (error) {
+    console.error(error);
+    if (options.surfaceError) surfaceRpcError(error, "Readiness unavailable.");
+    return null;
+  }
+  return data && typeof data === "object" ? data : null;
+}
+
+async function loadAllSkuReadiness(generation) {
+  if (!governedPeriodStart || skuRows.length === 0) {
+    renderSkuList();
+    return;
+  }
+  const rows = skuRows.slice();
+  const results = await Promise.all(
+    rows.map(async (row) => fetchSkuReadiness(row.id)),
+  );
+  if (generation !== skuLoadGeneration) return;
+  results.forEach((payload, index) => {
+    const skuId = String(rows[index].id);
+    if (payload) skuReadinessById.set(skuId, payload);
+    else skuReadinessById.delete(skuId);
+  });
+  renderSkuList();
+}
+
+function skuPackLabel(row) {
+  return `${row?.pack_size ?? "—"} ${row?.uom || ""}`.trim();
+}
+
+function serverStatusText(value) {
+  return value == null || value === "" ? "Unavailable" : String(value);
+}
+
+function readinessDimensionHint(payload) {
+  const summary = payload?.summary;
+  if (!summary) return "";
+  return [
+    ["Product master", summary.product_master_foundation_status],
+    ["SKU master", summary.sku_master_foundation_status],
+    ["Costing", summary.costing_foundation_status],
+    ["Evidence", summary.evidence_quality_status],
+    ["Outcome", summary.costing_outcome_status],
+  ]
+    .filter(([, status]) => status === "BLOCKED" || status === "BLOCKER" || status === "REVIEW_REQUIRED")
+    .map(([label, status]) => `${label}: ${status}`)
+    .join(" · ");
+}
+
+function renderSkuList() {
+  if (skuRegisterBody) skuRegisterBody.replaceChildren();
+  if (skuLedger) skuLedger.replaceChildren();
+  if (readinessRegisterBody) readinessRegisterBody.replaceChildren();
+  if (readinessLedger) readinessLedger.replaceChildren();
+  renderSkuSummary();
+  skuRows.forEach((row) => {
+    const payload = skuReadinessById.get(String(row.id));
+    const summary = payload?.summary || {};
+    const severity = summary.overall_severity;
+    const selected = String(row.id) === String(selectedSkuId) && skuDraft !== "new";
+    const pack = skuPackLabel(row);
+    const typeLabel = row.is_sample ? "Sample" : "Standard";
+    const lifecycle = document.createElement("span");
+    lifecycle.className = row.is_active ? "badge badge-active" : "badge badge-inactive";
+    lifecycle.textContent = row.is_active ? "Active" : "Inactive";
+    const readiness = document.createElement("span");
+    readiness.className = readinessBadgeClass(severity);
+    readiness.textContent = readinessBadgeLabel(severity);
+
+    const tr = document.createElement("tr");
+    tr.setAttribute("aria-selected", selected ? "true" : "false");
+    ["SKU " + row.id, pack, typeLabel].forEach((text) => {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      tr.appendChild(cell);
+    });
+    const lifeCell = document.createElement("td");
+    lifeCell.appendChild(lifecycle);
+    const readyCell = document.createElement("td");
+    readyCell.appendChild(readiness);
+    tr.append(lifeCell, readyCell);
+    tr.tabIndex = 0;
+    tr.addEventListener("click", () => selectSku(row.id));
+    tr.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      selectSku(row.id);
+    });
+    if (skuRegisterBody) skuRegisterBody.appendChild(tr);
+
+    const skuLedgerRow = document.createElement("button");
+    skuLedgerRow.type = "button";
+    skuLedgerRow.className = "mp-ledger-row";
+    const skuTitle = document.createElement("div");
+    skuTitle.textContent = `SKU ${row.id} · ${pack}`;
+    const skuSub = document.createElement("div");
+    skuSub.className = "mp-ledger-sub";
+    skuSub.textContent = `${typeLabel} · ${row.is_active ? "Active" : "Inactive"} · ${readinessBadgeLabel(severity)}`;
+    skuLedgerRow.append(skuTitle, skuSub);
+    skuLedgerRow.addEventListener("click", () => selectSku(row.id));
+    if (skuLedger) skuLedger.appendChild(skuLedgerRow);
+
+    const readinessRow = document.createElement("tr");
+    readinessRow.setAttribute("aria-selected", selected ? "true" : "false");
+    [row.id, pack].forEach((text) => {
+      const cell = document.createElement("td");
+      cell.textContent = String(text);
+      readinessRow.appendChild(cell);
+    });
+    const lifeCopy = document.createElement("td");
+    lifeCopy.appendChild(lifecycle.cloneNode(true));
+    readinessRow.appendChild(lifeCopy);
+    [
+      summary.product_master_foundation_status,
+      summary.sku_master_foundation_status,
+      summary.costing_foundation_status,
+      summary.evidence_quality_status,
+      summary.costing_outcome_status,
+    ].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = serverStatusText(value);
+      readinessRow.appendChild(cell);
+    });
+    const overallCell = document.createElement("td");
+    overallCell.appendChild(readiness.cloneNode(true));
+    readinessRow.appendChild(overallCell);
+    readinessRow.tabIndex = 0;
+    readinessRow.addEventListener("click", () => openReadinessDetail(row.id));
+    readinessRow.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      openReadinessDetail(row.id);
+    });
+    if (readinessRegisterBody) readinessRegisterBody.appendChild(readinessRow);
+
+    const readyLedgerRow = document.createElement("button");
+    readyLedgerRow.type = "button";
+    readyLedgerRow.className = "mp-ledger-row";
+    const readyTitle = document.createElement("div");
+    readyTitle.textContent = `SKU ${row.id} · ${pack}`;
+    const readySub = document.createElement("div");
+    readySub.className = "mp-ledger-sub";
+    readySub.textContent = `${row.is_active ? "Active" : "Inactive"} · ${readinessBadgeLabel(severity)}`;
+    readyLedgerRow.append(readyTitle, readySub);
+    readyLedgerRow.addEventListener("click", () => openReadinessDetail(row.id));
+    if (readinessLedger) readinessLedger.appendChild(readyLedgerRow);
+  });
+  syncSkuAccessChrome();
+}
+
+async function closeSkuDialog() {
+  if (!(await confirmDiscardSku())) return;
+  skuDirty = false;
+  if (skuDraft === "new") skuDraft = null;
+  if (skuDetail) skuDetail.hidden = true;
+  renderSkuList();
+}
+
+async function confirmDiscardSku() {
+  if (!skuDirty) return true;
+  return showModal("You have unsaved SKU changes. Discard?", "Discard", "Cancel");
+}
+
+function fillSkuMasterFields(row) {
+  if (skuPackSize) skuPackSize.value = row?.pack_size ?? "";
+  if (skuUom) skuUom.value = row?.uom || "";
+  if (skuIsSample) skuIsSample.checked = !!row?.is_sample;
+  if (skuEditorTitle) skuEditorTitle.textContent = row?.id ? `SKU ${row.id}` : "New SKU";
+}
+
+async function selectSku(skuId) {
+  if (String(skuId) === String(selectedSkuId) && skuDraft !== "new") {
+    if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+    if (skuDetail) skuDetail.hidden = false;
+    return;
+  }
+  if (!(await confirmDiscardSku())) return;
+  skuDraft = String(skuId);
+  selectedSkuId = skuId;
+  skuDirty = false;
+  fillSkuMasterFields(currentSkuRow());
+  if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+  if (skuDetail) skuDetail.hidden = false;
+  setWorkspaceTab("skus");
+  renderSkuList();
+}
+
+function beginNewSku() {
+  skuDraft = "new";
+  selectedSkuId = null;
+  skuDirty = false;
+  fillSkuMasterFields(null);
+  if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+  if (skuDetail) skuDetail.hidden = false;
+  if (skuReadiness) skuReadiness.textContent = "Readiness unavailable";
+  setWorkspaceTab("skus");
+  renderSkuList();
+}
+
+async function openReadinessDetail(skuId) {
+  if (!(String(skuId) === String(selectedSkuId) && skuDraft !== "new")) {
+    if (!(await confirmDiscardSku())) return;
+    skuDraft = String(skuId);
+    selectedSkuId = skuId;
+    skuDirty = false;
+    fillSkuMasterFields(currentSkuRow());
+  }
+  if (skuDetail) skuDetail.hidden = true;
+  if (readinessDetailSurface) readinessDetailSurface.hidden = false;
+  setWorkspaceTab("readiness");
+  renderSkuList();
+  await showSelectedSkuReadiness();
+}
+
+async function showSelectedSkuReadiness() {
+  if (!skuReadiness) return;
+  const row = currentSkuRow();
+  if (!row || !governedPeriodStart) {
+    skuReadiness.textContent = "Readiness unavailable";
+    return;
+  }
+  const cached = skuReadinessById.get(String(row.id));
+  if (cached) {
+    renderSkuReadiness(cached);
+    return;
+  }
+  skuReadiness.textContent = "Loading readiness…";
+  const payload = await fetchSkuReadiness(row.id, { surfaceError: true });
+  if (!payload) {
+    skuReadinessById.delete(String(row.id));
+    skuReadiness.textContent = "Readiness unavailable";
+    renderSkuList();
+    if (skuDetail) skuDetail.hidden = false;
+    return;
+  }
+  skuReadinessById.set(String(row.id), payload);
+  renderSkuReadiness(payload);
+  renderSkuList();
+  if (skuDetail) skuDetail.hidden = false;
+}
+
+function appendDefinition(list, label, value) {
+  const term = document.createElement("dt");
+  term.textContent = label;
+  const detail = document.createElement("dd");
+  detail.textContent = value == null || value === "" ? "Unavailable" : String(value);
+  list.append(term, detail);
+}
+
+function appendRemediation(parent, title, status, note, reasonCode, route) {
+  const item = document.createElement("div");
+  item.className = "mp-remediation-item";
+  const primary = document.createElement("div");
+  const label = document.createElement("strong");
+  label.textContent = title;
+  const badge = document.createElement("span");
+  badge.className = readinessBadgeClass(status);
+  const known =
+    status === "READY" ||
+    status === "REVIEW_REQUIRED" ||
+    status === "BLOCKER" ||
+    status === "BLOCKED" ||
+    status == null ||
+    status === "";
+  badge.textContent = known ? readinessBadgeLabel(status) : String(status);
+  primary.append(label, document.createTextNode(" "), badge);
+  item.appendChild(primary);
+  if (note || reasonCode) {
+    const secondary = document.createElement("div");
+    secondary.className = "mp-remediation-meta";
+    secondary.textContent = [note, reasonCode].filter(Boolean).join(" · ");
+    item.appendChild(secondary);
+  }
+  if (route) {
+    const routeLine = document.createElement("div");
+    routeLine.className = "mp-remediation-route";
+    routeLine.textContent = `Resolve in: ${route}`;
+    item.appendChild(routeLine);
+  }
+  parent.appendChild(item);
+}
+
+function renderSkuReadiness(payload) {
+  if (!skuReadiness) return;
+  skuReadiness.innerHTML = "";
+  const summary = payload.summary || {};
+  const lifecycle =
+    payload.lifecycle && typeof payload.lifecycle === "object" ? payload.lifecycle : {};
+  const severity = summary.overall_severity;
+  const grid = document.createElement("dl");
+  grid.className = "mp-readiness-grid";
+  appendDefinition(grid, "Product lifecycle", lifecycle.product_status || "Unavailable");
+  appendDefinition(
+    grid,
+    "SKU lifecycle",
+    lifecycle.sku_is_active === true
+      ? "Active"
+      : lifecycle.sku_is_active === false
+        ? "Inactive"
+        : "Unavailable",
+  );
+  appendDefinition(
+    grid,
+    "Sample",
+    lifecycle.sku_is_sample === true
+      ? "Yes"
+      : lifecycle.sku_is_sample === false
+        ? "No"
+        : "Unavailable",
+  );
+  appendDefinition(grid, "Product master foundation", summary.product_master_foundation_status);
+  appendDefinition(grid, "SKU master foundation", summary.sku_master_foundation_status);
+  appendDefinition(grid, "Costing foundation", summary.costing_foundation_status);
+  appendDefinition(grid, "Evidence quality", summary.evidence_quality_status);
+  appendDefinition(grid, "Costing outcome", summary.costing_outcome_status);
+  const severityTerm = document.createElement("dt");
+  severityTerm.textContent = "Overall severity";
+  const severityValue = document.createElement("dd");
+  const badge = document.createElement("span");
+  badge.className = readinessBadgeClass(severity);
+  badge.textContent = readinessBadgeLabel(severity);
+  severityValue.appendChild(badge);
+  grid.append(severityTerm, severityValue);
+  skuReadiness.appendChild(grid);
+
+  const control = payload.downstream_control || {};
+  const controlGrid = document.createElement("dl");
+  controlGrid.className = "mp-readiness-grid mp-readiness-control";
+  if (control.control_note) appendDefinition(controlGrid, "Control note", control.control_note);
+  if (control.control_severity) {
+    appendDefinition(controlGrid, "Control severity", control.control_severity);
+  }
+  if (control.cost_sheet_status) {
+    appendDefinition(controlGrid, "Cost sheet", control.cost_sheet_status);
+  }
+  if (control.first_control_status) {
+    appendDefinition(controlGrid, "First control", control.first_control_status);
+  }
+  if (control.recommended_ui_route) {
+    appendDefinition(controlGrid, "Recommended route", control.recommended_ui_route);
+  }
+  if (controlGrid.childElementCount) skuReadiness.appendChild(controlGrid);
+
+  const remediation = document.createElement("div");
+  remediation.className = "mp-remediation";
+  const dependencies = Array.isArray(payload.dependencies) ? payload.dependencies : [];
+  dependencies.forEach((issue) => {
+    const status = issue.effective_status || issue.raw_status || "Unavailable";
+    if (
+      status === "READY" ||
+      status === "RESOLVED" ||
+      status === "NOT_REQUIRED" ||
+      issue.applicability === "NOT_REQUIRED"
+    ) {
+      return;
+    }
+    appendRemediation(
+      remediation,
+      issue.label || "Dependency",
+      status,
+      issue.note,
+      issue.reason_code,
+      issue.recommended_ui_route,
+    );
+  });
+  const sharedIssues = Array.isArray(payload.shared_issues) ? payload.shared_issues : [];
+  sharedIssues.forEach((issue) => {
+    const title = issue.issue_code || issue.dependency_code || "Shared issue";
+    appendRemediation(
+      remediation,
+      title,
+      issue.status,
+      [
+        issue.scope,
+        issue.owner_module,
+        issue.issue_code && issue.dependency_code && issue.dependency_code !== issue.issue_code
+          ? issue.dependency_code
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      issue.reason_code,
+      issue.recommended_ui_route,
+    );
+  });
+  if (remediation.childElementCount) {
+    const heading = document.createElement("h4");
+    heading.className = "mp-group-title";
+    heading.textContent = "Remediation";
+    remediation.prepend(heading);
+    skuReadiness.appendChild(remediation);
+  }
+}
+
+function skuFormValues() {
+  return {
+    p_pack_size: skuPackSize && skuPackSize.value !== "" ? Number(skuPackSize.value) : null,
+    p_uom: skuUom ? skuUom.value : "",
+    p_is_sample: !!(skuIsSample && skuIsSample.checked),
+  };
+}
+
+function skuPackIdentity(packSize, uom, isSample) {
+  const pack = `${packSize ?? "—"} ${uom || ""}`.trim();
+  return isSample ? `${pack} (sample)` : pack;
+}
+
+function selectedProductLabel() {
+  return loadedProductSnapshot?.item || itemInput?.value || `Product ${selectedId}`;
+}
+
+function skuMasterValidationMessage(values) {
+  if (!values.p_uom) return "UOM is required.";
+  if (
+    values.p_pack_size === null ||
+    Number.isNaN(values.p_pack_size) ||
+    values.p_pack_size <= 0
+  ) {
+    return "Pack size must be greater than zero.";
+  }
+  return "";
+}
+
+async function createSku() {
+  if (!canWriteModule() || !selectedId || writeBusy) return;
+  const values = skuFormValues();
+  const invalid = skuMasterValidationMessage(values);
+  if (invalid) {
+    showToast(invalid);
+    return;
+  }
+  const governance = await promptGovernance({
+    title: "Create SKU",
+    confirmLabel: "Create SKU",
+    danger: false,
+    message: `Create an inactive SKU for "${selectedProductLabel()}"?\n\nPack: ${skuPackIdentity(values.p_pack_size, values.p_uom, values.p_is_sample)}\nSample: ${values.p_is_sample ? "Yes" : "No"}\n\nA business reason is required. An approval reference is optional.`,
+  });
+  if (!governance) return;
+  writeBusy = true;
+  syncSkuAccessChrome();
+  showLoading();
+  try {
+    const { data, error } = await supabase.rpc("rpc_create_product_sku", {
+      p_product_id: selectedId,
+      p_pack_size: values.p_pack_size,
+      p_uom: values.p_uom,
+      p_is_sample: values.p_is_sample,
+      p_is_active: false,
+      p_reason: governance.reason,
+      p_approval_reference: governance.approvalReference || null,
+    });
+    if (error) {
+      surfaceRpcError(error, "Unable to create SKU.");
+      return;
+    }
+    const created = Array.isArray(data) ? data[0] : data;
+    const createdSkuId = created && created.sku_id;
+    skuDirty = false;
+    skuDraft = null;
+    await loadChildSkus(selectedId);
+    if (createdSkuId != null) await selectSku(createdSkuId);
+    showToast("SKU created inactive. Activate it as a separate action when the product is active.", 6000);
+  } finally {
+    writeBusy = false;
+    hideLoading();
+    syncSkuAccessChrome();
+  }
+}
+
+async function saveSkuPack() {
+  if (!canWriteModule() || !selectedSkuId || writeBusy || skuDraft === "new") return;
+  const values = skuFormValues();
+  const invalid = skuMasterValidationMessage(values);
+  if (invalid) {
+    showToast(invalid);
+    return;
+  }
+  const governance = await promptGovernance({
+    title: "Update SKU",
+    confirmLabel: "Update SKU",
+    danger: false,
+    message: `Update SKU ${selectedSkuId}?\n\nPack: ${skuPackIdentity(values.p_pack_size, values.p_uom, values.p_is_sample)}\nSample: ${values.p_is_sample ? "Yes" : "No"}\n\nA business reason is required. An approval reference is optional.`,
+  });
+  if (!governance) return;
+  writeBusy = true;
+  syncSkuAccessChrome();
+  showLoading();
+  try {
+    const { error } = await supabase.rpc("rpc_update_product_sku", {
+      p_sku_id: selectedSkuId,
+      p_pack_size: values.p_pack_size,
+      p_uom: values.p_uom,
+      p_is_sample: values.p_is_sample,
+      p_reason: governance.reason,
+      p_approval_reference: governance.approvalReference || null,
+    });
+    if (error) {
+      surfaceRpcError(error, "Unable to save SKU.");
+      return;
+    }
+    const keepId = selectedSkuId;
+    skuDirty = false;
+    await loadChildSkus(selectedId);
+    await selectSku(keepId);
+    showToast("SKU master saved.", 4000);
+  } finally {
+    writeBusy = false;
+    hideLoading();
+    syncSkuAccessChrome();
+  }
+}
+
+async function toggleSkuActive() {
+  const row = currentSkuRow();
+  if (!canWriteModule() || !row || writeBusy || skuDraft === "new") return;
+  if (skuDirty) {
+    showToast("Save or cancel SKU master edits before changing active state.");
+    return;
+  }
+  const nextActive = !row.is_active;
+  const packIdentity = skuPackIdentity(row.pack_size, row.uom, row.is_sample);
+  const governance = await promptGovernance({
+    title: nextActive ? "Activate SKU" : "Deactivate SKU",
+    confirmLabel: nextActive ? "Activate SKU" : "Deactivate SKU",
+    danger: !nextActive,
+    message: nextActive
+      ? `Activate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Active.\n\nA business reason is required. An approval reference is optional.`
+      : `Deactivate SKU ${row.id} (${packIdentity})?\n\nThis lifecycle target will become Inactive.\n\nA business reason is required. An approval reference is optional.`,
+  });
+  if (!governance) return;
+  writeBusy = true;
+  syncSkuAccessChrome();
+  showLoading();
+  try {
+    const { error } = await supabase.rpc("rpc_set_product_sku_active", {
+      p_sku_id: row.id,
+      p_is_active: nextActive,
+      p_reason: governance.reason,
+      p_approval_reference: governance.approvalReference || null,
+    });
+    if (error) {
+      surfaceRpcError(error, "Unable to change SKU active state.");
+      return;
+    }
+    const keepId = row.id;
+    skuDirty = false;
+    await loadChildSkus(selectedId);
+    await selectSku(keepId);
+    showToast(nextActive ? "SKU activated." : "SKU deactivated.", 4000);
+  } finally {
+    writeBusy = false;
+    hideLoading();
+    syncSkuAccessChrome();
+  }
+}
+
+if (skuAddBtn) {
+  skuAddBtn.addEventListener("click", async () => {
+    if (!canWriteModule()) return;
+    if (!(await confirmDiscardSku())) return;
+    beginNewSku();
+  });
+}
+if (skuCreateBtn) skuCreateBtn.addEventListener("click", () => createSku());
+if (skuSaveBtn) skuSaveBtn.addEventListener("click", () => saveSkuPack());
+if (skuCancelBtn) {
+  skuCancelBtn.addEventListener("click", async () => {
+    if (!(await confirmDiscardSku())) return;
+    skuDirty = false;
+    if (skuDraft === "new") {
+      skuDraft = null;
+      if (skuDetail) skuDetail.hidden = true;
+      renderSkuList();
+      return;
+    }
+    const row = currentSkuRow();
+    if (skuPackSize) skuPackSize.value = row?.pack_size ?? "";
+    if (skuUom) skuUom.value = row?.uom || "";
+    if (skuIsSample) skuIsSample.checked = !!row?.is_sample;
+    syncSkuAccessChrome();
+  });
+}
+if (skuToggleActiveBtn) skuToggleActiveBtn.addEventListener("click", () => toggleSkuActive());
+if (skuDialogClose) skuDialogClose.addEventListener("click", () => closeSkuDialog());
+if (skuDetail) {
+  skuDetail.addEventListener("click", (event) => {
+    if (event.target === skuDetail) closeSkuDialog();
+  });
+}
+if (readinessDialogClose) {
+  readinessDialogClose.addEventListener("click", () => {
+    if (readinessDetailSurface) readinessDetailSurface.hidden = true;
+  });
+}
+if (readinessDetailSurface) {
+  readinessDetailSurface.addEventListener("click", (event) => {
+    if (event.target === readinessDetailSurface) readinessDetailSurface.hidden = true;
+  });
+}
+[skuPackSize, skuUom, skuIsSample].forEach((control) => {
+  if (!control) return;
+  control.addEventListener("input", markSkuDirty);
+  control.addEventListener("change", markSkuDirty);
+});
+
 mountModuleHome(homeBtn);
 homeBtn.addEventListener("click", async () => {
   if (
-    unsaved &&
+    (unsaved || skuDirty) &&
     !(await showModal("You have unsaved changes. Leave anyway?", "Yes", "No"))
   )
     return;
   window.location.href = "index.html";
+});
+
+window.addEventListener("beforeunload", (event) => {
+  if (!unsaved && !skuDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -1442,20 +2291,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   await loadSeasonProfiles();
   await loadProducts();
   await loadDetails(null);
-
-  try {
-    if (clearSearchBtn) {
-      if (searchInput.value && searchInput.value.trim()) {
-        clearSearchBtn.classList.add("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "false");
-      } else {
-        clearSearchBtn.classList.remove("visible");
-        clearSearchBtn.setAttribute("aria-hidden", "true");
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
 
   setEditing(false);
   applyAccessChrome();

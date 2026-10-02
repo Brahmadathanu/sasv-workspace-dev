@@ -153,46 +153,98 @@ Audit checks:
 ## Milestones
 - [x] Current-state/audit gate
 - [x] Design/contract gate
-- [~] Implementation gate
-- [ ] Focused verification
-- [ ] Independent audit
+- [x] Implementation gate — WP02-G3 completed and verified at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`
+- [x] Focused verification
+- [x] Independent audit
 - [ ] Merge/post-merge proof
 - [ ] Final handover
 
 ## Current Gate
-`WP02-G3 — implementation planning / isolated implementation`
+`WP02 — COMPLETED AND VERIFIED — awaiting merge`
 
 ## Gate Status
-[~] IN PROGRESS
+[x] WP02-G1 COMPLETED AND VERIFIED
+
+[x] WP02-G2 COMPLETED AND VERIFIED
+
+[x] WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`
+
+[x] WP02-G4 COMPLETED AND VERIFIED
+
+Independent ChatGPT final audit: PASS of `b7065829a7db1fbd05822582f7b551f2712c79f0`. That audit accepted client functional verification, the LIVE_AS_OF performance optimization, full JSON parity, and EXACT_RUN parity. One authenticated canonical readiness call took about 1.8 seconds and passed the mandatory under-2-second threshold. The server performance patch did not change evidence authority, `statement_timeout`, indexes, views, authorization, or the client.
+
+Latest main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` was merged in `19c4ee11b404fd882522556aaa903a76ce08b960`. Main had not moved past that SHA. The 10 main-only paths were e-Aushadhi programme, client, and worker files. None overlapped the WP02 functional set. Post-merge regression on the synced branch passed.
 
 ## Required to close
-Follow the mandatory client workflow:
-1. produce implementation plan against the approved G2 contract;
-2. independently audit that plan before mutation;
-3. use an isolated feature branch/worktree from verified current main;
-4. implement the narrow server read-access/context support and Product-detail SKU lifecycle UI;
-5. add focused tests proving RPC-only mutations, permission behavior, lifecycle separation and readiness rendering;
-6. commit/push and independently audit the diff before merge approval.
+Explicit human merge approval. Do not merge, version, tag, or release from this closure. WP03 is not started.
 
 ## Next gate
-`WP02-G4 — focused verification` after implementation is complete and its implementation-diff audit passes.
+Merge and post-merge proof after explicit approval.
 
 ## Server changes
-None yet in WP02. G3 is authorized to make only the narrow read-only access/context changes required by the approved design. Existing Product/SKU lifecycle mutation RPCs and activation guards are reused unchanged.
+Applied live and committed as `supabase/migrations/20260930073040_wp02_manage_products_readiness_read_access.sql`:
+- `rpc_get_product_sku_readiness` keeps its live composition and now accepts `module:manage-products` view or `module:costing-control-center` view.
+- New `rpc_get_latest_governed_cost_period_start()` returns `max(period_start)` from `costing.cost_periods`, or null.
+- Both functions are `STABLE SECURITY DEFINER` with `search_path = public, costing, pg_temp`. Execute is granted to `authenticated` and `service_role`, and revoked from `PUBLIC` and `anon`.
+- SKU writer RPCs and Product/SKU guard functions were not changed.
+- Child SKU listing uses existing authenticated SELECT on `public.product_skus`. No list RPC was created.
 
 ## Client changes
-None yet. G3 will modify the existing Manage Products surface; no new top-level module is approved.
+Manage Products is a full-width Product catalog. One search field filters that catalog and does not select a Product. Lenses are Products, SKUs, and Readiness. SKUs and Readiness stay unavailable until a saved Product is selected. Selecting a Product row does not open its dialog; double-click, Enter, or a second tap on the already selected narrow row does. Add Product opens the same Product dialog in create mode. Wide layouts use registers without an Action column. At 520px and below, those registers become compact list rows. Product, SKU, and readiness work open in focused dialogs with an SVG close control. Product fields stay in Identity, Classification, Measure, and Planning, with the same control IDs.
+- Create, pack/UOM/sample update, and activate/deactivate use only the three existing SKU writer RPCs.
+- New SKUs are created inactive. Pack save does not send an active flag.
+- Create SKU, Save SKU, and Activate/Deactivate stay mutually exclusive by the existing draft and dirty-state rules, and a page-scoped hidden rule keeps concealed actions from being painted by the shared button style.
+- Readiness calls `LIVE_AS_OF` with a null refresh-run id and the server period.
+- Product `unsaved` and SKU `skuDirty` are separate.
+- Service worker cache is `hub-cache-v331`.
+
+## Statement-timeout diagnostic
+Pre-change, read-only finding. The available Postgres log window contained 17 `canceling statement due to statement timeout` events, and those log rows do not include the canceled SQL. `pg_stat_statements` showed the live Manage Products catalog select averaging about 3.5 ms and a single PostgREST `rpc_get_product_sku_readiness` call averaging about 6.4 s (max about 8.0 s). The authenticated/authenticator `statement_timeout` remains 8 seconds. That setting was not changed. Product and child-SKU indexes already exist. No index was added.
+
+## LIVE_AS_OF commercial-sales performance correction
+Applied in `supabase/migrations/20261002064432_wp02_point_commercial_sales_basis.sql`. The only readiness change is the LIVE_AS_OF commercial-sales assignment. It now calls internal helper `costing.fn_resolve_sku_commercial_sales_basis_point(bigint, date, date)`. The helper filters `sku_sales_allocation_basis_snapshot` to the requested SKU and month-normalized period, joins `cost_periods` on that period, and requires `cost_periods.valuation_date` to equal the requested valuation date before either sales resolver runs. It does not query `costing.v_sku_commercial_sales_basis`, filter `refresh_run_id`, or add `ORDER BY`. The readiness assignment keeps unordered `LIMIT 1`. EXACT_RUN is unchanged. `statement_timeout`, indexes, the commercial-sales views, both resolvers, auth checks, and the client were not changed. Helper execute is limited to `postgres`. The readiness RPC keeps execute for `postgres`, `authenticated`, and `service_role`.
+
+Rollback evidence is `supabase/rollback-evidence/20261002064432_rpc_get_product_sku_readiness_pre.sql`. Restoring the unique LIVE_AS_OF lookup string and dropping the helper reproduces the pre-change readiness body. That restored body matches the captured pre-change `prosrc` md5 `5cd4d77c68e186b4ccdc416d71baea70`. Rollback was not executed because ordinary parity matched.
+
+Complete LIVE_AS_OF readiness JSON for period `2026-09-01` matched before and after apply:
+
+| SKU | Overall | Commercial | Fingerprint |
+| --- | --- | --- | --- |
+| 1 | READY | READY / SYSTEM | `d52edd1a7d2a47d052fb629ab7f42c45` |
+| 10 | BLOCKER | BLOCKED | `4c1742996303df0108800f8f9bf3fa1c` |
+| 17 | REVIEW_REQUIRED | READY / SYSTEM | `d7d0d9dbe302318b4c549d086652e0d3` |
+| 45 | REVIEW_REQUIRED | REVIEW_REQUIRED / SYSTEM | `635d19b31716ea45663f218c0f6c11ff` |
+| 147 | BLOCKER | BLOCKED | `c368c1f67deaa98e8e757a889b73c46c` |
+| 1792 | REVIEW_REQUIRED | REVIEW_REQUIRED / SYSTEM | `e065dc2663cb22de7a3ee93db0903c86` |
+| 1795 | BLOCKER | READY / SYSTEM | `d98ac1b993c9e4c4b0aa9530916d7f20` |
+
+SKU 1792 does not have a September governed assumption. Its matching result is the existing new-product default path. SKU 1795 pre and post JSON matched. The helper still returns that SKU's unordered September snapshot set with no run pin, so a later call can still land on another outcome already present in runs 85–90. No new status, source, or warning was introduced. One EXACT_RUN result for SKU 1, run 115, matched fingerprint `ee91dd3b87e6c53add5ebb5923e10fa9`.
+
+The narrow helper point lookup for SKU 1 returned 26 snapshot rows in 7.328 ms. The same SKU and period filter, shown on its own, is an index nested loop: one `cost_periods` row and 26 snapshot rows. The helper function is not inlined, so its outer plan is a function scan. One authenticated-role canonical readiness call for SKU 1, period `2026-09-01`, `LIVE_AS_OF`, completed in 1784.8 ms with the same fingerprint. Mandatory acceptance under 2 seconds passes. The preferred under-1-second target was not reached. The commercial-sales helper is no longer the dominant cost. `statement_timeout` was not raised.
+
+## Client functional verification
+Human functional verification of the DEC-013 catalog, lenses, and dialogs is accepted. Service worker cache remains `hub-cache-v331`. No client or service-worker change was made for the server-only readiness correction. Remaining aesthetic and interaction hardening is parked as UX-P02 and is reserved for WP11. Broader Product and Master Data navigation remains reserved for WP08.
 
 ## Tests / verification
-- Verified current main SHA: `142c7fe5850af24efb2634582b354103e2d92845`.
-- Verified live Product/SKU counts and lifecycle-gap counts directly from Supabase.
-- Verified live definitions/signatures and audit behavior of SKU create/update/activate RPCs.
-- Verified Product/SKU lifecycle guard functions.
-- Verified WP01 readiness RPC definition and its LIVE_AS_OF / EXACT_RUN semantics.
-- Verified readiness RPC currently requires Costing Control Center view permission.
-- Verified live permission mismatch: 3 Manage Products users versus 1 overlapping Costing Control Center user.
-- Verified current governed period inventory and latest governed period.
-- Verified current-main Product client permission/governance/error/busy-state patterns.
+- Verified current main SHA at implementation start: `738ca09ff5490c0c17ee8544da4c7690f9e6a171`.
+- Earlier G1/G2 live Product/SKU, readiness, and period evidence remains as recorded above from main `142c7fe5850af24efb2634582b354103e2d92845`.
+- Live readiness identity arguments matched `p_sku_id bigint, p_period_start date, p_context_type text, p_refresh_run_id bigint`, and the authorization anchor was exactly `perform public.require_permission('module:costing-control-center',false);`.
+- After apply, readiness still contains the enrich helper, `LIVE_AS_OF`, and `EXACT_RUN`; `require_permission` is gone; both view modules are present. New period RPC ACL is `postgres`, `authenticated`, and `service_role` only. Security advisors did not name either function.
+- Live child-SKU UOM values are `g`, `mL`, and `Nos`. The SKU UOM picker uses that live set. This is required for pack identity and was not guessed from Product base UOM (`Kg`, `L`, `Nos`).
+- `scripts/product-sku-lifecycle-smoke.mjs`: PASS.
+- Materials/Stores, QC, Trace launch, remediation foundation, dense restore, progressive density, production-route focus, and dashboard cardinality smokes: PASS.
+- e-Aushadhi Product Details execution smoke and Composition offline-plan smoke: PASS.
+- `node --check` on the new/modified MJS files and `public/sw.js`: PASS.
+- `node --check js/products.js` fails before parsing because the file is a browser module and the package is not `"type": "module"`. The same source checked as a temporary `.mjs` copy: PASS.
+- Independent live audit of the applied server contract passed for a Manage Products viewer without Costing Control Center permission: latest governed period `2026-09-01`, readiness valuation `2026-09-10`, successful evidence run 115. The migration was not changed for the client correction.
+- Client correction smoke covers the verified payload fields, per-SKU readiness loading, `sku_id` reselection, and distinct create/update/activate/deactivate governance confirmations.
+- After the second independent audit, remediation rendering now hides READY, RESOLVED, and NOT_REQUIRED dependencies, including `applicability === "NOT_REQUIRED"`, and displays server `shared_issues` without a client aggregate.
+- Independent ChatGPT audit marked WP02-G3 COMPLETED AND VERIFIED at `4b3a5a15e5fa74637c5ce9f3808dba04710ca1ff`, recorded before the branch sync. Current main at that check was `23fb63f8c2704d158fd1da2b0ec8850f7307ad0a` and touched only e-Aushadhi composition files, with no WP02 path overlap.
+- WP02-G4 automated and source checks against the synced branch passed: lifecycle smoke, Materials/Stores, QC, trace launch, remediation foundation, dense restore, progressive density, production-route focus, dashboard cardinality, both required e-Aushadhi smokes, and the syntax checks. Read-only catalog confirmation found migration `20260930073040`, both view permissions on the readiness RPC, the period RPC, the SKU writers, and both activation guards. Latest governed period on the server is `2026-09-01`. No authenticated user session was available, so a live `LIVE_AS_OF` caller and the logged-in Manage Products pass were not repeated. G4 stays in progress for that UI verification.
+- Later authenticated visual verification on the feature branch proved the SKU section loads live data: 3 active / 5 total, governed period `2026-09-01`, and Ready and Blocked badges. The defect was `.details form { height: 100% }`, which stretched the Product form to the pane and pushed `SKUs & readiness` below a large blank area. That forced height is removed so the form keeps its content height.
+- The high-risk UX plan then passed independent ChatGPT review and a compact explorer was implemented. Authenticated use of that explorer, including the live Product catalog and narrow screens, showed the permanent side rail was unsuitable. DEC-012 supersedes that presentation only. DEC-013 then superseded the picker and tall-card presentation. Client functional verification passed.
+- Final pre-merge regression after merging main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` passed: lifecycle smoke and syntax, temporary `js/products.js` module syntax, `public/sw.js` syntax, Materials/Stores, QC, trace launch, remediation foundation, dense restore, progressive density, production-route focus restore, pricing-dashboard cardinality, and both current e-Aushadhi composition smokes. Service worker remains `hub-cache-v331`.
+- Read-only server confirmation: migrations `20260930073040` and `20261002064432` are applied. Version `20261002063319` is not applied. The commercial-sales helper ACL is `postgres` only. The readiness RPC ACL is `postgres`, `authenticated`, and `service_role`. No migration was reapplied and no database object was changed in this gate.
 
 ## Decisions created
 - DEC-008 — Product detail is the Product/SKU lifecycle anchor; SKU master editing, lifecycle activation and readiness remain separate concepts/actions.
@@ -203,10 +255,24 @@ None yet. G3 will modify the existing Manage Products surface; no new top-level 
 Permission broadening must stay limited to status/remediation reads; Product and SKU dirty-state interactions must not cause data loss; client must not turn UNKNOWN into READY; downstream remediation navigation must not imply Product Master owns specialist mutations.
 
 ## Parked discoveries
+### UX-P02
+Remaining Manage Products aesthetic and interaction hardening: visual density, dialog ergonomics, narrow-layout polish, and detailed consistency with mature SASV operational modules.
+
+Disposition: PARKED → WP11.
+
+Broader Product / Master Data navigation: PARKED → WP08.
+
+### Commercial-sales evidence authority
+Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period.
+
+Disposition: parked in costing/commercial-sales evidence governance. This closure does not choose a snapshot row and does not erase the finding.
+
 None added in G2. Regional Marketing evidence acceptance remains parked under the programme backlog for WP04/later IA placement.
+
+G3 required-now detail: the SKU pack UOM picker must offer the live `product_skus.uom` values `g`, `mL`, and `Nos`. No future dependency was solved inside WP02.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.
 
 ## Final handover
-Not started.
+Completed and verified, awaiting explicit merge approval. Post-merge proof is not started.

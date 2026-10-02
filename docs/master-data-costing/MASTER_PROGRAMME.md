@@ -28,7 +28,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP-1 — Repository Programme Control Plane
 - [x] WP00 — Authoritative Current-State Inventory
 - [x] WP01 — Canonical Product/SKU Completeness Contract
-- [~] WP02 — Product + SKU Lifecycle Redesign
+- [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED AND VERIFIED — awaiting merge
 - [ ] WP03 — Creation-Time Guided Completeness
 - [ ] WP04 — Central Master Data / Costing Readiness Control Centre
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
@@ -47,13 +47,13 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-WP02 — Product + SKU Lifecycle Redesign
+None. WP02 is completed and verified and is awaiting merge. WP03 is not started.
 
 ## Active gate
-WP02-G3 — implementation planning / isolated implementation
+Explicit merge approval for WP02.
 
 ## Overall completion progress
-2 of 13 substantive work packs (WP0–WP12) completed. WP-1 prerequisite, WP00 and WP01 are completed and verified; WP02 G1 and G2 are completed and G3 implementation planning is active.
+3 of 13 substantive work packs (WP00–WP12) completed and verified. The prerequisite control plane, WP00, WP01, and WP02 are completed and verified. WP02 is the next completed substantive work pack after WP00 and WP01. It is reconciled with main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` at merge `19c4ee11b404fd882522556aaa903a76ce08b960` and is not merged.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -67,11 +67,14 @@ WP02-G3 — implementation planning / isolated implementation
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
 
 ## Major unresolved blockers
-No architectural blocker to WP02-G3. One REQUIRED NOW implementation dependency exists: the canonical readiness read authorization and latest-governed-period context must be made available to Manage Products without granting specialist Costing Control Center access. The regional Marketing evidence-acceptance client surface remains parked for later WP04/later IA work.
+No WP02 blocker remains. These findings stay parked and do not block the merge approval:
+
+- UX-P02, remaining Manage Products aesthetic and interaction hardening: PARKED → WP11.
+- Broader Product / Master Data navigation: PARKED → WP08.
+- Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-Produce and independently audit the WP02-G3 implementation plan against DEC-008–DEC-010, then implement on an isolated feature branch/worktree from verified current main. No merge without focused verification and independent diff audit.
-
+Explicit human merge approval of `fix/wp02-g3-product-sku-lifecycle`. Pre-merge reconciliation is merge `19c4ee11b404fd882522556aaa903a76ce08b960` against main `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89`. Do not merge, version, tag, or release until that approval. Do not start WP03.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.

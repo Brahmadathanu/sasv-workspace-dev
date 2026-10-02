@@ -353,8 +353,8 @@ assert(
 );
 
 assert(
-  /CACHE_NAME = "hub-cache-v327"/.test(swSrc),
-  "service worker cache name remains hub-cache-v327",
+  /CACHE_NAME = "hub-cache-v331"/.test(swSrc),
+  "service worker cache name remains hub-cache-v331",
 );
 
 if (failed > 0) {

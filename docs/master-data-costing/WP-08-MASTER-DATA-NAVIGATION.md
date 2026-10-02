@@ -58,7 +58,7 @@ None.
 Premature assumptions; scope drift; duplicated authority; loss of effective-dated/history semantics.
 
 ## Parked discoveries
-None.
+Broader Product / Master Data navigation, parked from completed WP02. WP08 is not started.
 
 ## Exit criteria
 All work-pack objectives and required verification gates pass; documentation and handover are current.
