@@ -186,7 +186,7 @@ The routine creation-guidance contract is frozen in `WP03-G2 — Approved creati
 - [x] WP03-G1 — Current-state / creation-flow audit
 - [x] WP03-G2 — Creation-guidance design/contract
 - [x] WP03-G3 — Implementation package decomposition
-- [ ] WP03-G4 — Implementation
+- [x] WP03-G4 — Implementation — pushed, pending independent audit
 - [ ] WP03-G5 — Independent implementation audit
 - [ ] WP03-G6 — Authenticated/live verification
 - [ ] WP03-G7 — Merge/post-merge/documentation closure
@@ -212,7 +212,7 @@ Status: [x] COMPLETED AND VERIFIED at documentation level. Routine G4 is one cli
 ### WP03-G4 — Implementation
 Routine bounded client work may use autonomous implementation only after G2 and G3 establish the contract.
 
-Status: [ ] NOT STARTED
+Status: [x] COMPLETED AND PUSHED, pending independent audit. No server change. Malayalam-name requirement, Product status at creation, and activation eligibility are unchanged.
 
 ### WP03-G5 — Independent implementation audit
 The pushed GitHub implementation is audited independently.
@@ -230,7 +230,7 @@ Closure only after explicit approval.
 Status: [ ] NOT STARTED
 
 ## Current Gate
-`WP03-G3 — Implementation package decomposition` is completed at documentation level. The work pack remains open. Implementation is not started.
+`WP03-G4 — Implementation` is completed and pushed, pending independent audit. The work pack remains open.
 
 ## Gate Status
 [x] WP03-G1 COMPLETED AND VERIFIED
@@ -239,11 +239,13 @@ Status: [ ] NOT STARTED
 
 [x] WP03-G3 COMPLETED AND VERIFIED at documentation level
 
+[x] WP03-G4 COMPLETED AND PUSHED, pending independent audit
+
 ## Required to close
-G1, G2 and G3 are closed by the evidence and contract in this document. Closing WP03 still requires G4 through G7. Do not treat this work pack as complete.
+G1 through G4 are recorded. Closing WP03 still requires G5 through G7. Do not treat this work pack as complete.
 
 ## Next gate
-`WP03-G4 — Implementation`
+`WP03-G5 — Independent implementation audit`
 
 ## Server changes
 None in this gate.
@@ -578,3 +580,33 @@ No other smoke should be retargeted. Authenticated journeys listed for G6 stay o
 **High-risk and excluded:** Malayalam requirement, Product-status policy, readiness-gated activation, and any new server or permission contract.
 
 **Parked:** no new item. UX-P02, NAV-P01, NAV-P02, UX-P01, and CSE-P01 stay as recorded.
+
+## WP03-G4 — Implementation
+
+- Branch: `feat/wp03-g4-creation-guidance`
+- Base: `3f8822df8ff9d45a4dd517884817f72a22356818`
+- `main` at implementation: `f22b36ca7077fcf70943112fb0aee6380af93e8d`, unchanged
+- Implementation commit: the tip of this branch after this section is committed
+- Current gate: G4 completed and pushed, pending independent audit
+- Next gate: WP03-G5
+
+Files changed:
+
+- `js/products.js`
+- `public/sw.js`
+- `scripts/product-sku-lifecycle-smoke.mjs`
+- `docs/master-data-costing/WP-03-CREATION-GUIDANCE.md`
+- `docs/master-data-costing/MASTER_PROGRAMME.md`
+
+Implemented:
+
+1. `renderNoSkuGuidance` shows the exact no-SKU sentence on `#skuLifecycleSection` for a saved Product with zero SKUs. It does not call readiness.
+2. `readinessBadgeLabel` returns `UNKNOWN` for canonical `UNKNOWN`. A missing value stays `Unavailable`. A failed detail call stays `Readiness unavailable`.
+3. `manageProductsRemediationAction` adds Open Product and Open SKU only when the server route is `MANAGE_PRODUCTS` and the dependency code is `PRODUCT_MASTER` or `SKU_MASTER`, and only for an edit user. Other routes stay text.
+4. `activationReadinessNotice` adds loaded severity and period, or the unavailable sentence, to the Activate confirmation. It does not fetch and does not disable Activate.
+5. Product Deactivate is shown only for an edit user with a saved Product selected.
+6. Service worker cache is `hub-cache-v332`.
+
+Tests: `node scripts/product-sku-lifecycle-smoke.mjs` passed, including the prior lifecycle assertions. `node --check` on a module copy of `js/products.js` passed. `git diff --check` is required before commit.
+
+Server changes: none. Malayalam-name requirement, Product status at creation, and activation eligibility are unchanged. No new parked item.

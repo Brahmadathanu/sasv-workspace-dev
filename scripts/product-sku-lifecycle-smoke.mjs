@@ -96,8 +96,9 @@ assert(
 );
 assert(
   products.includes('if (severity === "READY") return "Ready"') &&
+    products.includes('if (severity === "UNKNOWN") return "UNKNOWN"') &&
     products.includes('return "Unavailable"'),
-  "unknown or missing severity renders Unavailable",
+  "canonical UNKNOWN stays UNKNOWN and missing severity stays Unavailable",
 );
 assert(
   /let unsaved = false;/.test(products) && /let skuDirty = false;/.test(products),
@@ -114,7 +115,7 @@ assert(
   "product deactivation remains on rpc_update_product and surfaces server errors",
 );
 assert(!products.includes("rpc_set_product_sku_active") || !/childSku/.test(products), "product path does not deactivate child SKUs");
-assert(sw.includes('const CACHE_NAME = "hub-cache-v331"'), "service worker generation is hub-cache-v331");
+assert(sw.includes('const CACHE_NAME = "hub-cache-v332"'), "service worker generation is hub-cache-v332");
 assert(html.includes('id="productCatalogSearch"') && html.includes(">Products<") && html.includes(">SKUs<") && html.includes(">Readiness<"), "catalog search and three lenses exist");
 assert(!html.includes('id="productPicker"') && !html.includes('id="productList"') && !html.includes('class="sidebar"'), "product rail and picker navigation are removed");
 assert(html.includes("PRODUCT_PAGE_SIZE") || products.includes("PRODUCT_PAGE_SIZE = 50"), "product catalog rendering is bounded");
@@ -232,6 +233,41 @@ const skuMasterMarkup = html.slice(
 assert(
   skuMasterMarkup.includes("</fieldset>") && html.includes('id="skuToggleActiveBtn"'),
   "lifecycle action stays outside the SKU master fieldset",
+);
+assert(
+  products.includes("Product saved. No SKU exists yet, so SKU readiness has not been assessed."),
+  "saved Product with no SKU uses the entity-state sentence",
+);
+assert(
+  products.includes("if (!governedPeriodStart || skuRows.length === 0)"),
+  "readiness load returns before any call when there are no SKU rows",
+);
+assert(
+  !products.includes("productReady") && !products.includes("overallProductSeverity"),
+  "no Product-wide readiness aggregate was added",
+);
+assert(products.includes('skuReadiness.textContent = "Readiness unavailable"'), "client failure stays Readiness unavailable");
+const actionSource = products.slice(
+  products.indexOf("function manageProductsRemediationAction"),
+  products.indexOf("function appendRemediation"),
+);
+assert(actionSource.includes('recommended_ui_route !== "MANAGE_PRODUCTS"'), "in-module action requires MANAGE_PRODUCTS");
+assert(actionSource.includes('dependency_code === "PRODUCT_MASTER"') && actionSource.includes("openSelectedProductDialog"), "PRODUCT_MASTER opens the existing Product dialog");
+assert(actionSource.includes('dependency_code === "SKU_MASTER"') && actionSource.includes("selectSku"), "SKU_MASTER opens the existing SKU dialog");
+assert(!/https?:|href\s*=|\.html/.test(actionSource), "in-module action does not invent route URLs");
+const activateSource = products.slice(
+  products.indexOf("function activationReadinessNotice"),
+  products.indexOf('rpc("rpc_set_product_sku_active"'),
+);
+assert(activateSource.includes("overall_severity"), "activation confirmation quotes loaded severity");
+assert(activateSource.includes("governedPeriodStart"), "activation confirmation quotes the governed period");
+assert(activateSource.includes("Readiness unavailable. Activating this SKU does not set costing readiness to READY."), "activation confirmation has an unavailable path");
+assert(activateSource.includes("does not set costing readiness to READY"), "activation confirmation states activation is not costing readiness");
+assert(!activateSource.includes("fetchSkuReadiness") && !activateSource.includes("rpc_get_product_sku_readiness"), "activation confirmation does not fetch readiness");
+assert(!activateSource.includes("skuToggleActiveBtn.disabled"), "activation confirmation does not disable Activate from severity");
+assert(
+  products.includes("const showDeactivate = !!selectedId && !inNewMode && canEdit"),
+  "view-only users do not see Product deactivate",
 );
 
 if (failed) {
