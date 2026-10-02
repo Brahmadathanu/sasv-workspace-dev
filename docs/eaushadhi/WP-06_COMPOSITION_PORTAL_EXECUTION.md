@@ -262,9 +262,9 @@ The execution snapshot is server authoritative.
 - [ ] WP closure audit.
 
 ## Current gate
-Controlled runtime/read-only acceptance PASSED on merged baseline `80c2f9e20c1226faf10036405e24048434c28b23`. The trusted planner proved matched source line `[929]` and missing source lines `[930,931]`, with no portal mutation.
+Closed-gate pre-live acceptance PASSED on merged baseline `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89`. The trusted planner proved matched source line `[929]` and missing source lines `[930,931]`, with no portal mutation.
 
-The current gate is the bounded first-live Product 262 / source line 930 Karpūra architecture. Its separate reviewed release constant remains false, so production execution is still impossible. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.
+The reviewed first-live Product 262 / source line 930 Karpūra release constant is intentionally open. Production mutation still requires the separate exact runtime environment arm and explicit operator confirmation. No Karpūra portal Save has occurred. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded. The next gate is one explicitly authorized controlled Karpūra run.
 
 The server foundation is live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
@@ -278,9 +278,9 @@ Live post-migration audit proved:
 - public Composition RPC execution is restricted to authenticated/service_role;
 - active-run uniqueness and evidence-binding guards are live.
 
-The trusted executor/adapters are merged and independently audited. Read-only acceptance is complete, while mutation remains closed because `COMPOSITION_LIVE_ARM_DEFAULT=false` and `COMPOSITION_FIRST_LIVE_930_RELEASE=false`.
+The trusted executor/adapters are merged and independently audited. Closed-gate pre-live acceptance is complete. `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged; the narrow `COMPOSITION_FIRST_LIVE_930_RELEASE=true` gate alone cannot arm execution without the exact runtime environment arm and explicit operator confirmation.
 
-Until runtime/read-only acceptance is closed and a separate live-arm gate is explicitly opened:
+Until the explicitly authorized controlled Karpūra run:
 
 - do not manually continue Karpūra or Kēram portal entry;
 - do not invoke native Composition Save/Update/Delete;
