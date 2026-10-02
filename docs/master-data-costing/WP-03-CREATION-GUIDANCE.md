@@ -186,8 +186,8 @@ The routine creation-guidance contract is frozen in `WP03-G2 — Approved creati
 - [x] WP03-G1 — Current-state / creation-flow audit
 - [x] WP03-G2 — Creation-guidance design/contract
 - [x] WP03-G3 — Implementation package decomposition
-- [x] WP03-G4 — Implementation — pushed, pending independent audit
-- [ ] WP03-G5 — Independent implementation audit
+- [x] WP03-G4 — Implementation — pushed
+- [x] WP03-G5 — Independent implementation audit — PASS
 - [ ] WP03-G6 — Authenticated/live verification
 - [ ] WP03-G7 — Merge/post-merge/documentation closure
 
@@ -212,17 +212,17 @@ Status: [x] COMPLETED AND VERIFIED at documentation level. Routine G4 is one cli
 ### WP03-G4 — Implementation
 Routine bounded client work may use autonomous implementation only after G2 and G3 establish the contract.
 
-Status: [x] COMPLETED AND PUSHED, pending independent audit. No server change. Malayalam-name requirement, Product status at creation, and activation eligibility are unchanged.
+Status: [x] COMPLETED AND PUSHED. No server change. Malayalam-name requirement, Product status at creation, and activation eligibility are unchanged. Implementation commit `1337556808dec39523c10655f1f7db1b50220f94`.
 
 ### WP03-G5 — Independent implementation audit
 The pushed GitHub implementation is audited independently.
 
-Status: [ ] NOT STARTED
+Status: [x] PASS. No correction pass was required. The audited implementation commit is `1337556808dec39523c10655f1f7db1b50220f94` on `feat/wp03-g4-creation-guidance`. `main` remained `f22b36ca7077fcf70943112fb0aee6380af93e8d`. Files audited: `js/products.js`, `public/sw.js`, `scripts/product-sku-lifecycle-smoke.mjs`, `docs/master-data-costing/WP-03-CREATION-GUIDANCE.md`, and `docs/master-data-costing/MASTER_PROGRAMME.md`.
 
 ### WP03-G6 — Authenticated/live verification
 Representative creation and remediation journeys are verified.
 
-Status: [ ] NOT STARTED
+Status: [ ] IN PROGRESS. G6 is not complete.
 
 ### WP03-G7 — Merge/post-merge/documentation closure
 Closure only after explicit approval.
@@ -230,7 +230,7 @@ Closure only after explicit approval.
 Status: [ ] NOT STARTED
 
 ## Current Gate
-`WP03-G4 — Implementation` is completed and pushed, pending independent audit. The work pack remains open.
+`WP03-G6 — Authenticated/live verification`. G5 passed independently. G6 is not complete. The work pack remains open.
 
 ## Gate Status
 [x] WP03-G1 COMPLETED AND VERIFIED
@@ -239,13 +239,17 @@ Status: [ ] NOT STARTED
 
 [x] WP03-G3 COMPLETED AND VERIFIED at documentation level
 
-[x] WP03-G4 COMPLETED AND PUSHED, pending independent audit
+[x] WP03-G4 COMPLETED AND PUSHED at `1337556808dec39523c10655f1f7db1b50220f94`
+
+[x] WP03-G5 PASS. No correction pass required. `main` remained `f22b36ca7077fcf70943112fb0aee6380af93e8d`.
+
+[ ] WP03-G6 IN PROGRESS
 
 ## Required to close
-G1 through G4 are recorded. Closing WP03 still requires G5 through G7. Do not treat this work pack as complete.
+G1 through G5 are recorded. Closing WP03 still requires G6 and G7. Do not treat this work pack as complete.
 
 ## Next gate
-`WP03-G5 — Independent implementation audit`
+`WP03-G6 — Authenticated/live verification` remains the current gate until the authenticated checks pass. The gate after that is `WP03-G7 — Merge/post-merge/documentation closure`.
 
 ## Server changes
 None in this gate.
@@ -586,9 +590,10 @@ No other smoke should be retargeted. Authenticated journeys listed for G6 stay o
 - Branch: `feat/wp03-g4-creation-guidance`
 - Base: `3f8822df8ff9d45a4dd517884817f72a22356818`
 - `main` at implementation: `f22b36ca7077fcf70943112fb0aee6380af93e8d`, unchanged
-- Implementation commit: the tip of this branch after this section is committed
-- Current gate: G4 completed and pushed, pending independent audit
-- Next gate: WP03-G5
+- Implementation commit: `1337556808dec39523c10655f1f7db1b50220f94`
+- WP03-G5 independent audit: PASS. No correction pass required.
+- Current gate: WP03-G6, not complete
+- Next gate: complete WP03-G6, then WP03-G7
 
 Files changed:
 
@@ -610,3 +615,41 @@ Implemented:
 Tests: `node scripts/product-sku-lifecycle-smoke.mjs` passed, including the prior lifecycle assertions. `node --check` on a module copy of `js/products.js` passed. `git diff --check` is required before commit.
 
 Server changes: none. Malayalam-name requirement, Product status at creation, and activation eligibility are unchanged. No new parked item.
+
+## WP03-G6 — Authenticated / live verification
+
+G6 is **not complete**. The automated/static checks passed. The authenticated Manage Products journeys were not run, because the G4 client opened on the login screen and no existing authenticated session was available. No user, permission, Product, SKU, activation, or readiness row was created or changed to manufacture a session or a scenario.
+
+### Automated / static checks
+
+- `node scripts/product-sku-lifecycle-smoke.mjs`: PASS
+- `node --check` on a module copy of `js/products.js`: PASS
+- `node --check public/sw.js`: PASS
+- `git diff --check` before this verification record: PASS, with no whitespace errors
+
+### Read-only live inventory used to choose candidates
+
+These rows already existed. They were not opened in an authenticated client and they were not changed.
+
+- Saved Product with no SKU: Product `786`, Active.
+- Product with multiple SKUs: Product `14`, SKU `10` Inactive and SKU `11` Active. Product `51` also has four SKUs.
+- Latest row in `costing.cost_periods.period_start`: `2026-09-01`. `rpc_get_latest_governed_cost_period_start()` still raises `Not authenticated` for the unauthenticated SQL role, so this is not a client-displayed period.
+- Products that have a SKU and an invalid base UOM context: `0`. SKUs with invalid pack size or blank UOM: `0`.
+- `module:manage-products` permissions currently present are view-and-edit only. No view-only Manage Products permission row exists.
+
+### Journey record
+
+- Saved Product with no SKU: not authenticated-verified. Static contract remains the G4/G5 smoke proof.
+- Product with multiple SKUs: not authenticated-verified.
+- Existing Inactive SKU: not authenticated-verified. Candidate SKU `10` was not activated.
+- READY, REVIEW_REQUIRED, BLOCKER/BLOCKED, and UNKNOWN: not authenticated-verified. No live evidence was manipulated to manufacture them.
+- Governed period in the client: not authenticated-verified.
+- Readiness detail and specialist route text: not authenticated-verified.
+- Manage Products remediation action: NOT SAFELY REPRODUCIBLE WITHOUT MUTATION for the live click, because no existing SKU-bearing Product or SKU fails the foundation predicates that produce an unresolved `PRODUCT_MASTER` or `SKU_MASTER` issue. G5 static proof remains.
+- Activation confirmation with loaded readiness: not authenticated-verified. Completing activation was not attempted.
+- Activation confirmation when readiness is unavailable: PASS — static/automated only. Breaking connectivity was not done.
+- View-only access: NOT SAFELY REPRODUCIBLE WITHOUT PERMISSION MUTATION. G5 static proof remains.
+- Narrow-layout functional sanity: not authenticated-verified.
+- Existing functionality regression in the signed-in client: not authenticated-verified.
+
+No production test mutation was performed. The branch remains unmerged. The next step is to repeat the authenticated part of G6 with an existing edit session. Do not start G7.
