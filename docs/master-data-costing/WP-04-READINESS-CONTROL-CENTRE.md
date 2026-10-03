@@ -1319,6 +1319,46 @@ Exact next: `WP04-G4-S0 — Secure execution / target-creation package review`.
 No permanent decision lock or new parked finding. Stop after documentation publication; no cost/target/deployment/keys/users/writes. G0–G3 complete at documented levels; G4-S0/G4 in progress; programme 4 of 13; WP03 closed; audit branch unmerged.
 
 
+## WP04-G4-S0 — Secure execution / target-creation package review (2026-10-03)
+
+Entry fetch: main unchanged `b162d4932ec2bbe9ca665aadedf1827e5117de5a`, clean audit tip `21cd5d1ca1862490c84ca25f9c809386da65af32`. Reviewed the pushed preparation against IMPLEMENTATION_RULES, DEC-014, accepted harness source/README and G3/S0 proof boundaries. No live database, target endpoint, credential, cost or provisioning operation. Official hosted-runtime/pg_net/auth documentation and installed connector descriptions were inspected only. Existing offline harness acceptance is retained; no code change or new native proof.
+
+**Review disposition: planning boundaries accepted; operational readiness remains HOLD.** Standalone isolation, production exclusion, separate organization/actual-cost consent, version/default checks and separate bootstrap/fixture/proof authorization are sound. The package is not runnable yet and does not authorize creation or native Auth operations. A hidden prompt by itself does not establish a usable execution path or key provenance. The target marker, exact fixtures/assertions and private actor-ID handoff must be solved together; none may be guessed.
+
+### User steering and executor boundary
+
+The user selected **Prefer another route** when asked about running a prepared test tool on their computer, then asked whether Cursor or Codex could do it. This supersedes the manual operator-runner recommendation as the preferred next investigation. It does not select an organization, approve a paid target, supply credentials, or authorize server application. Do not require the non-coder user to write/edit Python or SQL or operate the test suite manually as the default route.
+
+Cursor/Codex can prepare and test the offline runner, and can later run a separately authorized proof package in a runtime with a supported secure credential channel. Tool/product naming does not prove that a runtime has network/secret access. A local Cursor terminal, hosted Codex task and this ChatGPT execution environment are distinct surfaces; no availability or injection capability is assumed. Never paste target secret keys into prompts/chat or use production keys. An executor's Supabase connector also does not automatically expose native Auth administration/session operations.
+
+DEC-014 remains unchanged: ChatGPT owns server plans, target selection/review, direct Supabase creation/bootstrap/schema/permissions/candidate application and live verification. Delegated test-tool development is not a transfer of server delivery. Offline wrapper implementation may follow only a separately reviewed exact plan. Any later test execution that creates synthetic Auth users is an explicitly approved target-bound test mutation, not ordinary read-only client work. Do not send a client executor broad SQL/admin access or permission to choose fixtures/business rules. The user question alone does not authorize such execution.
+
+### Review matrix
+
+| Area | Disposition / requirement |
+| --- | --- |
+| Existing harness | Reviewed offline components remain accepted; execution OFF by default. Exact wrapper, target identity, credentials, fixtures and assertions still absent |
+| Preferred execution investigation | Executor-assisted test runner; confirm one actual runtime and secure input mechanism. No manual local-run assumption and no promise of unattended execution |
+| Actor/permission handoff | Plan a private target-bound UUID exchange to ChatGPT-owned canonical permission setup; no password/session export. Exact transport and least-privilege access need review before Auth creation |
+| Evidence claims | Native sign-in/permission proof is distinct from SQL actor-claim audit. Synthetic behavior proof is distinct from live-scale performance/full evidence parity |
+| Creation / cost | Accepted staged consent boundary; organization remains unselected, quote absent, creation HOLD until viable execution capability and exact setup scope reviewed |
+| Hosted alternative | Provider docs show pg_net can POST to Edge Functions after transaction commit and Edge runtime has managed secret dictionaries. This supplies a possible invocation building block, not approved operator authentication or a test controller |
+| Additional authority | No new readiness calculation, production security repair, Marketing writer, bulk remediation or activation rule. No new top-level module |
+
+Hosted-route sources checked 2026-10-03: [pg_net](https://supabase.com/docs/guides/database/extensions/pg_net), [Edge environment](https://supabase.com/docs/guides/functions/secrets), [Edge authorization](https://supabase.com/docs/guides/functions/auth), [changelog](https://supabase.com/changelog). Relevant version constraints remain those recorded in the prior preparation; no project update or extension detection ran. pg_net is asynchronous and can cause real remote side effects after commit; it is not a harmless read or rollback-safe Auth operation. Publishable-key invocation does not itself authorize privileged tests. No net call, extension enablement, cron, controller table/function, deployment, key retrieval or verify_jwt change was performed/approved. A hosted controller/adapter would be an additional security-sensitive package needing review, not a shortcut adopted here.
+
+### Frozen exact next package — executor-assisted test-runner plan
+
+`WP04-G4-S0 — Executor-assisted test-runner plan` is the next preparation checkpoint, not implementation:
+
+1. Fetch main first and obey moved-main overlap stop. Plan reuse of the accepted Python harness; identify an actual Cursor/Codex execution surface, supported Python/network and secure target-only input route. Inspect documented capabilities without credentials, endpoint requests, installs or remote job launch. If facts about the user's executor are missing, ask one concrete runtime question; do not infer a secure channel.
+2. Produce one complete bounded executor PLAN brief: exact proposed wrapper/spec/report files, execution OFF/default behavior, immutable target/approval/case binding, modern key handling, no logging/export, native actor/session flow, ChatGPT-owned fixture handoff, precise assertions, timeouts/no unsafe retries, uncertainty recovery and separately approved cleanup. Preserve harness acceptance and authority rules; do not implement wrapper or server/controller changes during this plan.
+3. Explain exactly which steps the executor can perform and which stay direct ChatGPT/Supabase, including every native Auth side effect. Secure input availability must be evidenced before target creation. No organization/cost consent or creation inferred from a choice of executor.
+4. If no viable executor channel is supported, compare one concrete hosted alternative with explicit authorization/invocation/control-storage/adapter risks. Do not silently introduce a controller, expose admin functionality, export secrets or repeat the completed generic catalog frontier. Report the missing capability plainly.
+5. Update WP/programme with the concrete plan and stop for `WP04-G4-S0 — Executor-assisted test-runner plan review`. Only that review can approve the exact offline implementation; later target/cost/Auth/server execution remains separate.
+
+REQUIRED NOW: executor-assisted test-runner plan. FUTURE DEPENDENCY: confirmed secure runtime, reviewed wrapper/fixtures, organization/cost consent, isolated baseline/native/candidate/access/parity/performance proof. HIGH-RISK: provisioning, Auth, controller/DDL/permissions/candidate/production changes remain withheld. PARKED unchanged; no new permanent decision lock. Review completed at planning level; G4-S0/G4 remain in progress, environment not ready, programme 4 of 13, WP03 closed, branch unmerged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1331,23 +1371,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Secure execution/target-creation preparation complete; private operator route proposed; independent package review next; environment/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Setup-package review complete at planning level; user prefers executor-assisted testing; exact runner plan next; runtime/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Secure execution / target-creation package preparation completed; review pending`
+`WP04-G4-S0 — Secure execution / target-creation package review completed at planning level; operational readiness HOLD`
 
 ## Gate Status
-[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Secure execution/target-creation preparation complete; proposed operator runtime unconfirmed and independent review next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
+[~] IN PROGRESS — G0–G3 complete at documented levels. Reviewed offline harness retained; setup-package review completed. User prefers another execution route and asked about Cursor/Codex. Executor-assisted test-runner plan next; secure runtime/target/cost/bootstrap/fixtures/native proof remain open. No provisioning or server/client execution approved. Branch unmerged.
 
 ## Required to close
-Complete independent secure execution/target-creation package review and confirm practical execution route; establish a supported secure execution/creation path. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
+Establish one supported secure execution route through an exact executor-assisted runner plan/review; then reviewed offline wrapper, selected organization/actual cost consent and exact target/default/bootstrap/fixture/native proof stages. No environment-ready claim from documentation or offline mocks.
 
 ## Next gate
-`WP04-G4-S0 — Secure execution / target-creation package review`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
+`WP04-G4-S0 — Executor-assisted test-runner plan`. Planning only; stop for separate plan review before offline implementation or target creation. DEC-014 direct server ownership preserved.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1381,12 +1421,12 @@ None. Offline server-test artifacts only; no application client change.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, secure execution/target-creation preparation completed, independent package review next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this preparation queried only permitted organization metadata; no database/target/credential/cost/provisioning or server change. Existing business counts/timing observations remain dated evidence.
+WP04 incomplete. G0–G3 verified at documented audit/design/planning levels. G4-S0 setup-package review completed at planning level; environment/runtime/proof absent. Current pass inspected repository/source and official capability documentation only; no DB/endpoint/credentials/cost/provisioning/server/client mutation, merge/tag/release or cleanup. Documentation audit branch unmerged.
 
-Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, secure execution/target-creation preparation complete, independent review next, runtime unconfirmed, environment not ready.
+Workflow: ChatGPT server plan/review/direct Supabase application/verification; bounded executor test-tool plan and separately reviewed offline implementation/proof; client package later through Cursor/Codex push → ChatGPT audit → explicit merge.
+WP progress: G0–G3 complete at their documented levels; G4-S0/G4 in progress; secure execution readiness HOLD.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 secure execution/target-creation preparation complete; review pending.
-Next: secure execution/target-creation package review; no provisioning or server/client application.
-Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
-Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.
+Current gate: WP04-G4-S0 secure execution / target-creation package review complete at planning level.
+Next: WP04-G4-S0 executor-assisted test-runner plan; no implementation or paid operation.
+Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership, DEC-014 execution ownership; WP03 closed. No new architecture/business/security lock.
