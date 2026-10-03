@@ -236,8 +236,6 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
         waitForSelect(partSelectors, values.partUsed),
         waitForSelect(unitSelectors, values.measurement),
       ]);
-      text(["#txtIng1", "#ingredientName", "input[name='ingredientName']"], values.ingredientName);
-      text(["#txtBotanical1", "#botanicalName", "input[name='botanicalName']"], values.scientificName);
       select(typeSelectors, values.ingredientType);
       const reference = one(["#ddlRef1", "#referenceId", "select[name='referenceId']"]);
       const end = Date.now() + waitMs;
@@ -251,6 +249,8 @@ function buildCompositionLiveAdapters({ page, callRpc, getWorkerState, liveArmed
       }
       if (!referenceReady) throw new Error("REFERENCE_OPTION_NOT_READY");
       select(["#ddlRef1", "#referenceId", "select[name='referenceId']"], values.reference);
+      text(["#txtIng1", "#ingredientName", "input[name='ingredientName']"], values.ingredientName);
+      text(["#txtBotanical1", "#botanicalName", "input[name='botanicalName']"], values.scientificName);
       select(formSelectors, values.ingredientForm);
       select(partSelectors, values.partUsed);
       text(["#txtQty1", "#quantity", "input[name='quantity']"], values.quantity);
