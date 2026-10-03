@@ -1501,6 +1501,12 @@ Fetched main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs entry 1521a337 and f
 
 Authorize one autonomous three-file offline implementation on existing isolated feature branch: new launcher/tests plus README only, preserving accepted sources/default OFF and dirty checkout. Cursor implements/tests/self-reviews/fixes/commits/pushes, then stops for independent implementation audit. No actual prompts/credentials/network/Auth/SQL/cost/project/server/client mutation or merge/tag/release. Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged.
 
+## WP04-G4-S0 — First operator-launcher implementation audit / correction (2026-10-03)
+
+Fetched main 768992a unchanged, docs 199c529 unchanged, feature cbf1f593b04928addbc854b15bd1ffc115397efa (parent 0c627619). Exact launcher/tests/README scope, accepted components unchanged. Independent 96-test run: 95 PASS / 1 Windows-only SKIP; Cursor Windows 94 PASS / 2 symlink-privilege SKIP. No live execution. Read/reproduced findings consolidated in [review brief](WP-04-S0-OPERATOR-LAUNCHER-PLAN.md): mutable retained authority permits source-digest drift bypass; path replacement accepted by descriptor reader; malformed report raw TypeErrors and inaccurate execution labels; raw/LF spec mismatch on CRLF; targeted boundary tests missing. Launcher not accepted.
+
+One same-branch three-file consolidated offline correction approved, then independent corrected audit; original wrapper/console proof remains accepted. No credentials/native/network/server/client/target/cost/fixture/production operation, merge/tag/release. Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1513,23 +1519,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Offline wrapper and bounded Windows input proof accepted; operator-launcher offline implementation next; native/setup/server/client application withheld |
+| WP04-G4 — High-risk server package, if required | [~] Offline wrapper and bounded Windows input proof accepted; operator-launcher consolidated correction next; native/setup/server/client application withheld |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Operator-launcher plan review passed with mandatory clarifications; offline implementation authorized`
+`WP04-G4-S0 — Operator-launcher independent implementation audit; consolidated correction required`
 
 ## Gate Status
-[~] IN PROGRESS — Cursor returned plan accepted with superseding source/authority/ack/report/test clarifications. Three-file offline implementation only released; real target/native/server proof absent. Branches unmerged.
+[~] IN PROGRESS — First launcher suite passes offline but five consolidated findings remain. Launcher/live environment not accepted. Accepted upstream wrapper/console proof retained; branches unmerged.
 
 ## Required to close
-Receive pushed bounded implementation, full offline test/self-review/hash evidence and independently audit before any actual target/input/native operation.
+Fix LA-01–05 in exact launcher/tests/README scope, self-review/full offline tests/push, then independent corrected audit before any target/input/native operation.
 
 ## Next gate
-`WP04-G4-S0 — Cursor operator-launcher autonomous offline implementation`, then `WP04-G4-S0 — Operator-launcher independent implementation audit`.
+`WP04-G4-S0 — Operator-launcher consolidated offline correction`, then corrected independent implementation audit.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1568,7 +1574,7 @@ WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapp
 Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
 WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: operator-launcher plan review passed with mandatory clarifications; offline implementation authorized.
-Next: Cursor operator-launcher autonomous offline implementation, then independent implementation audit.
+Current gate: operator-launcher implementation audit; consolidated correction required.
+Next: consolidated offline correction, then corrected independent audit.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.
