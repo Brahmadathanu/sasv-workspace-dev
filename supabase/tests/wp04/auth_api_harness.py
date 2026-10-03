@@ -1,5 +1,5 @@
 """WP04 offline-reviewed components. Importing or running this file sends no requests."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import datetime as dt
 import http.client
 import json
@@ -30,6 +30,10 @@ class Target:
     # Exact separately reviewed read-only functions; candidate names never invented.
     reviewed_reads: frozenset = BASELINE_READS
 
+    def __post_init__(self):
+        object.__setattr__(self, "approved_actions", frozenset(self.approved_actions))
+        object.__setattr__(self, "reviewed_reads", frozenset(self.reviewed_reads))
+
     def validate(self, action):
         if not re.fullmatch(r'[a-z]{20}', self.project_ref or ''):
             raise HarnessError('invalid_target')
@@ -49,6 +53,44 @@ class Session:
     actor: str
     user_id: str
     token: str = field(repr=False)
+
+@dataclass(frozen=True)
+class ReadExpectation:
+    """Explicit reviewed case data; verdict never includes actual/expected payload."""
+    http_status: int
+    error_code: str | None = None
+    body_checks: tuple = ()  # ((('path', 0, 'field'), exact JSON scalar), ...)
+
+    def __post_init__(self):
+        if type(self.http_status) is not int or not 100 <= self.http_status <= 599:
+            raise HarnessError('invalid_expectation')
+        if self.error_code is not None and not isinstance(self.error_code, str):
+            raise HarnessError('invalid_expectation')
+        checks = []
+        for path, expected in self.body_checks:
+            if (type(expected) not in (str, int, float, bool, type(None))
+                    or not isinstance(path, (tuple, list))
+                    or any(type(key) not in (str, int) for key in path)):
+                raise HarnessError('invalid_expectation')
+            checks.append((tuple(path), expected))
+        object.__setattr__(self, 'body_checks', tuple(checks))
+
+    def evaluate(self, status, body):
+        if status != self.http_status:
+            return 'MISMATCH'
+        if self.error_code is not None:
+            if not isinstance(body, dict) or body.get('code') != self.error_code:
+                return 'MISMATCH'
+        for path, expected in self.body_checks:
+            value = body
+            try:
+                for key in path:
+                    value = value[key]
+            except (KeyError, IndexError, TypeError):
+                return 'MISMATCH'
+            if type(value) is not type(expected) or value != expected:
+                return 'MISMATCH'
+        return 'MATCH'
 
 class HttpsTransport:
     """Direct TLS, no proxy, no redirects/retries, bounded response; exceptions redacted."""
@@ -79,19 +121,44 @@ class HttpsTransport:
 class Harness:
     def __init__(self, target=None, *, execute=False, publishable_key=None,
                  admin_key=None, transport=None):
-        self.target = target
+        self._target = replace(target) if target is not None else None
+        self._target_binding = self._fingerprint(self._target)
         self.execute = execute
         self._public = publishable_key
         self._admin = admin_key
+        self._key_binding = (publishable_key, admin_key)
         self._transport = transport if transport is not None else HttpsTransport()
         self._actors = {}
         self._sessions = {}
+
+    @staticmethod
+    def _fingerprint(target):
+        if target is None:
+            return None
+        return (target.project_ref, target.host, target.provider_verified_ref,
+                target.database_verified_ref, target.approval_id,
+                target.approved_actions, target.expires_at, target.reviewed_reads)
+
+    @property
+    def target(self):
+        return self._target
+
+    @target.setter
+    def target(self, value):
+        raise HarnessError('target_reassignment_refused')
+
+    def _assert_binding(self):
+        if (self._fingerprint(self._target) != self._target_binding
+                or (self._public, self._admin) != self._key_binding):
+            self._sessions.clear()
+            raise HarnessError('target_or_key_binding_changed')
 
     def _request(self, action, path, headers, body=None, method='POST'):
         if not self.execute:
             raise HarnessError('execution_off')
         if self.target is None:
             raise HarnessError('target_missing')
+        self._assert_binding()
         self.target.validate(action)
         # No caller-supplied URL, query string, encoded traversal or alternate host.
         if not re.fullmatch(r'/[A-Za-z0-9_/-]+(?:\?grant_type=password)?', path):
@@ -119,6 +186,7 @@ class Harness:
         return headers
 
     def create_actor(self, actor):
+        self._assert_binding()
         if actor not in ACTORS or actor in self._actors:
             raise HarnessError('actor_refused')
         if not isinstance(self._admin, str) or not self._admin.startswith('sb_secret_'):
@@ -139,6 +207,8 @@ class Harness:
         return {'actor': actor, 'created': True}  # No identity, email or credential output.
 
     def sign_in(self, actor):
+        self._sessions.pop(actor, None)
+        self._assert_binding()
         if actor not in self._actors:
             raise HarnessError('actor_not_prepared')
         user_id, email, password = self._actors[actor]
@@ -159,7 +229,10 @@ class Harness:
         self._sessions[actor] = Session(actor, user_id, token)
         return {'actor': actor, 'session': 'native_verified'}
 
-    def read_rpc(self, qualified_name, params, *, actor=None, invalid_session=False):
+    def read_rpc(self, qualified_name, params, *, actor=None, invalid_session=False, expectation=None):
+        self._assert_binding()
+        if expectation is not None and not isinstance(expectation, ReadExpectation):
+            raise HarnessError('expectation_not_reviewed')
         if self.target is None or qualified_name not in self.target.reviewed_reads:
             raise HarnessError('read_not_reviewed')
         if not re.fullmatch(r'[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*', qualified_name):
@@ -175,8 +248,16 @@ class Harness:
         schema, name = qualified_name.split('.')
         headers['Content-Profile'] = schema
         status, data = self._request('rpc_read', '/rest/v1/rpc/' + name, headers, params)
-        # Return structural HTTP result only. No readiness computation or body/free-text leakage.
-        return {'http_status': status, 'result': 'response_received',
+        # Private exact assertion; controlled verdict only. Never infer permission from HTTP alone.
+        verdict = 'UNVERIFIED'
+        if expectation is not None:
+            try:
+                verdict = expectation.evaluate(status, data)
+            except Exception:
+                raise HarnessError('assertion_failed') from None
+            if verdict not in ('MATCH', 'MISMATCH'):
+                raise HarnessError('assertion_failed')
+        return {'http_status': status, 'result': 'response_received', 'assertion': verdict,
                 'body_shape': 'object' if isinstance(data, dict) else 'array' if isinstance(data, list) else 'other'}
 
     def forget(self):
@@ -184,6 +265,7 @@ class Harness:
         self._actors.clear()
         self._admin = None
         self._public = None
+        self._key_binding = (None, None)
         # Best-effort reference disposal, not memory zeroization or remote session revocation.
 
 

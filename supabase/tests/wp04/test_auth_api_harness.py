@@ -36,23 +36,23 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(h.HarnessError,'execution_off'):
                 h.Harness(target())._request('rpc_read','/rest/v1/rpc/x',{})
     def test_production_refused(self):
-        self.client.target=target(project_ref=h.PRODUCTION,host=h.PRODUCTION+'.supabase.co')
+        self.client=h.Harness(target(project_ref=h.PRODUCTION,host=h.PRODUCTION+'.supabase.co'),execute=True,admin_key='sb_secret_mock',transport=self.mock)
         with self.assertRaisesRegex(h.HarnessError,'production_target_refused'): self.client.create_actor('ccc_view')
         self.assertEqual(self.mock.calls,[])
     def test_unknown_host_refused(self):
         for host in [REF+'.supabase.co.evil.test','https://'+REF+'.supabase.co','127.0.0.1',REF+'.supabase.co:443']:
-            self.client.target=target(host=host)
+            self.client=h.Harness(target(host=host),execute=True,admin_key='sb_secret_mock',transport=self.mock)
             with self.assertRaises(h.HarnessError): self.client.create_actor('ccc_view')
         self.assertEqual(self.mock.calls,[])
     def test_independent_identity_required(self):
-        self.client.target=target(database_verified_ref='other')
+        self.client=h.Harness(target(database_verified_ref='other'),execute=True,admin_key='sb_secret_mock',transport=self.mock)
         with self.assertRaisesRegex(h.HarnessError,'identity_not_reconciled'): self.client.create_actor('ccc_view')
         self.assertEqual(self.mock.calls,[])
     def test_approval_required(self):
-        self.client.target=target(approved_actions=frozenset())
+        self.client=h.Harness(target(approved_actions=frozenset()),execute=True,admin_key='sb_secret_mock',transport=self.mock)
         with self.assertRaisesRegex(h.HarnessError,'operation_not_approved'): self.client.create_actor('ccc_view')
     def test_expired_approval(self):
-        self.client.target=target(expires_at=dt.datetime.now(dt.timezone.utc)-dt.timedelta(seconds=1))
+        self.client=h.Harness(target(expires_at=dt.datetime.now(dt.timezone.utc)-dt.timedelta(seconds=1)),execute=True,admin_key='sb_secret_mock',transport=self.mock)
         with self.assertRaisesRegex(h.HarnessError,'approval_expired'): self.client.create_actor('ccc_view')
     def test_redirect_refused_no_follow(self):
         self.mock.fail=(302,{'location':'https://evil.test','token':TOKEN})
@@ -100,6 +100,88 @@ class Tests(unittest.TestCase):
         self.client._transport=bad
         with self.assertRaises(h.HarnessError) as e: self.client.create_actor('ccc_view')
         self.assertEqual(str(e.exception),'transport_unavailable')
+
+    def prepared_session(self):
+        self.client.create_actor('ccc_view'); self.client.sign_in('ccc_view')
+    def test_target_reassignment_refused(self):
+        self.prepared_session(); count=len(self.mock.calls)
+        with self.assertRaisesRegex(h.HarnessError,'target_reassignment_refused'):
+            self.client.target=target(host='other.supabase.co')
+        self.assertEqual(len(self.mock.calls),count)
+    def test_private_target_drift_refused(self):
+        self.prepared_session(); count=len(self.mock.calls)
+        self.client._target=target(approval_id='different-record')
+        with self.assertRaisesRegex(h.HarnessError,'target_or_key_binding_changed'):
+            self.client.read_rpc('public.rpc_get_latest_governed_cost_period_start',{},actor='ccc_view')
+        self.assertEqual(len(self.mock.calls),count); self.assertEqual(self.client._sessions,{})
+    def test_keys_bound(self):
+        self.prepared_session(); count=len(self.mock.calls); self.client._admin='sb_secret_other'
+        with self.assertRaisesRegex(h.HarnessError,'target_or_key_binding_changed'): self.client.sign_in('ccc_view')
+        self.assertEqual(len(self.mock.calls),count); self.assertEqual(self.client._sessions,{})
+    def test_failed_signin_removes_stale_session(self):
+        self.prepared_session(); self.mock.fail=(401,{'error':'secret'})
+        with self.assertRaises(h.HarnessError): self.client.sign_in('ccc_view')
+        self.assertEqual(self.client._sessions,{})
+        count=len(self.mock.calls)
+        with self.assertRaisesRegex(h.HarnessError,'native_session_missing'):
+            self.client.read_rpc('public.rpc_get_latest_governed_cost_period_start',{},actor='ccc_view')
+        self.assertEqual(len(self.mock.calls),count)
+    def test_signin_transport_failure_removes_session(self):
+        self.prepared_session()
+        def fail(*args): raise RuntimeError('secret')
+        self.client._transport=fail
+        with self.assertRaises(h.HarnessError): self.client.sign_in('ccc_view')
+        self.assertEqual(self.client._sessions,{})
+    def test_signin_malformed_removes_session(self):
+        self.prepared_session(); self.mock.fail=(200,[])
+        with self.assertRaises(h.HarnessError): self.client.sign_in('ccc_view')
+        self.assertEqual(self.client._sessions,{})
+    def test_native_user_mismatch_removes_session(self):
+        self.prepared_session(); original=self.mock
+        def transport(host,method,path,headers,body):
+            if path=='/auth/v1/user': return 200,{'id':'different'}
+            return original(host,method,path,headers,body)
+        self.client._transport=transport
+        with self.assertRaisesRegex(h.HarnessError,'native_identity_mismatch'): self.client.sign_in('ccc_view')
+        self.assertEqual(self.client._sessions,{})
+    def test_expectation_exact_and_mismatch(self):
+        self.mock.fail=(403,{'code':'42501','message':'private'})
+        name='public.rpc_get_latest_governed_cost_period_start'
+        self.assertEqual(self.client.read_rpc(name,{},expectation=h.ReadExpectation(403,'42501'))['assertion'],'MATCH')
+        self.assertEqual(self.client.read_rpc(name,{},expectation=h.ReadExpectation(403,'wrong'))['assertion'],'MISMATCH')
+        self.assertEqual(self.client.read_rpc(name,{})['assertion'],'UNVERIFIED')
+        self.mock.fail=(200,{'error':'unexpected'})
+        self.assertEqual(self.client.read_rpc(name,{},expectation=h.ReadExpectation(200,body_checks=((('period_start',),'2026-09-01'),)))['assertion'],'MISMATCH')
+    def test_assertion_exception_redacted(self):
+        class Bad(h.ReadExpectation):
+            def evaluate(self,*args): raise RuntimeError('secret-password native-test-token')
+        with self.assertRaises(h.HarnessError) as e:
+            self.client.read_rpc('public.rpc_get_latest_governed_cost_period_start',{},expectation=Bad(200))
+        self.assertEqual(str(e.exception),'assertion_failed')
+    def test_assertion_unknown_verdict_refused(self):
+        class Bad(h.ReadExpectation):
+            def evaluate(self,*args): return 'private-text'
+        with self.assertRaisesRegex(h.HarnessError,'assertion_failed'):
+            self.client.read_rpc('public.rpc_get_latest_governed_cost_period_start',{},expectation=Bad(200))
+    def test_source_target_collections_frozen(self):
+        actions={'auth_create'}; reads=set(h.BASELINE_READS)
+        t=target(approved_actions=actions,reviewed_reads=reads); actions.add('rpc_read'); reads.add('public.writer')
+        self.assertNotIn('rpc_read',t.approved_actions); self.assertNotIn('public.writer',t.reviewed_reads)
+
+    def test_replacement_host_private_binding_refused(self):
+        self.prepared_session(); count=len(self.mock.calls); ref='tsrqponmlkjihgfedcba'
+        self.client._target=target(project_ref=ref,host=ref+'.supabase.co',provider_verified_ref=ref,database_verified_ref=ref)
+        with self.assertRaisesRegex(h.HarnessError,'target_or_key_binding_changed'):
+            self.client.read_rpc('public.rpc_get_latest_governed_cost_period_start',{},actor='ccc_view')
+        self.assertEqual(len(self.mock.calls),count)
+    def test_invalid_expectation_before_request(self):
+        with self.assertRaisesRegex(h.HarnessError,'expectation_not_reviewed'):
+            self.client.read_rpc('public.rpc_get_latest_governed_cost_period_start',{},expectation=lambda *x: 'MATCH')
+        self.assertEqual(self.mock.calls,[])
+    def test_expectation_nested_inputs_frozen(self):
+        path=['period_start']; checks=[(path,'2026-09-01')]
+        e=h.ReadExpectation(200,body_checks=checks); path.append('other'); checks.clear()
+        self.assertEqual(e.evaluate(200,{'period_start':'2026-09-01'}),'MATCH')
 
 class TransportTests(unittest.TestCase):
     def test_https_redirect_is_not_followed(self):
