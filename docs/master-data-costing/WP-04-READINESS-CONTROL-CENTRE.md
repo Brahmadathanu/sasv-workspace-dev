@@ -998,6 +998,44 @@ Current gate: `WP04-G4-S0 — Identity-sequence frontier / setup-safety continua
 Stop after this capture/documentation checkpoint. G0–G3 remain complete at documented levels; G4-S0/G4 remain in progress; programme remains **4 of 13**; documentation branch unmerged; WP03 closed; DEC-014 direct server ownership preserved.
 
 
+## WP04-G4-S0 — Independent completed-continuation / setup-safety review (2026-10-03)
+
+Reviewed the pushed continuation at `e7a8a22b63671c94321e39624273bb67dd8fcb63` in a separate review pass. Main was fetched first and remains `47dcd80f69ca68fcca8f089bf40fa4099b376450`; the documentation branch was clean. This is a separate analytical checkpoint, not a separate-person audit or a fresh live source comparison. Implementation rules, programme/handover, decisions, parked backlog, closed WP03 contract, frozen continuation limits and Supabase skill were reconciled.
+
+**Disposition: PASS for the completed bounded capture and its setup-safety proposal. HOLD environment readiness, provisioning, Auth setup, bootstrap/fixture/candidate writes and production/client implementation.** G4-S0/G4 remain [~] IN PROGRESS. The known 32-sequence structural frontier is closed; the operational frontier is not.
+
+### Independently checked evidence
+
+- Recomputed the entire retained continuation capture SHA-256 against the manifest; matched. Recomputed all 32 sequence-configuration hashes, 96 relation index/constraint flag hash pairs, six handler MD5/SHA-256 pairs and 22 query hashes; no mismatch. All 23 root MD5 values reconcile to the original fingerprints. These are dated 2026-10-02 source observations, not new live drift tests.
+- Exact 32 table/column pairs match the original frontier with unique sequence OIDs, unchanged parent OIDs and identity ownership kind `i`. Bigint settings are lossless decimal strings; the final max is `9223372036854775807`. Four provisional numeric configuration queries and four lossless rechecks are included in the 22-call history rather than omitted. Neither current sequence values nor nextval/setval were read.
+- Every recorded SQL query has BEGIN READ ONLY, local 10-second timeout and COMMIT. Ledger target identities are unique and match combined target counts; maximum 24, definition maximum three, six definitions total. Inspected SQL uses scoped catalogs and definition retrieval, with no business/Auth/secret-row query or writer invocation. Parent-anchored index/constraint flags are subordinate metadata under the frozen package, not additional schema roots. The pass retains 29 function and 129 relation/type identities; previous batching deviations remain historical and are not erased.
+- All 336 index validity/readiness/live flags and 640 constraint validation flags reconcile. The one initially deferred FK remains `public.activities.fk_activities_kind`; validation metadata does not prove fixture load order or runtime equivalence.
+- Privilege metadata matches the capture exactly. It is first-hop role/default/schema evidence, not exhaustive effective privileges, native Auth or Data API exposure. Six provider handler bodies were read as source; their conditional DDL/grant/notification effects reconcile to the documented classification. Source hooks do not prove target hooks or safe automatic provider replay.
+- Current connector descriptions still say create_branch applies main-project migrations and requires a cost-confirmation ID. get_cost requires asking for the organization; confirm_cost requires the preceding quote. No connector operation, live query, cost quote, target creation or Auth test was executed in this review.
+
+### Setup-safety disposition
+
+The continuation introduces no new readiness/evidence/business rule, permission decision, permanent architecture lock or parked finding. Existing S0-P1–P8 and superseding review safeguards remain in force. Source OIDs are not target identities; automatic row types/native types and provider roles/hooks must be reconciled rather than cloned. Broad default ACLs require exact final exposure controls in later scripts; they neither prove an exploit nor approve production remediation. Preserve native Auth proof, actual module checks, baseline trigger/constraint behavior, CSE-P01 ambiguity and the separate first-write marker review. No target-specific executable package exists yet.
+
+Do not perform more catalog capture merely to restate this completed frontier. Fresh bounded live reconciliation is required before any later authorized apply, and any newly discovered prerequisite must be reported explicitly.
+
+### Frozen next package — operational capability / target-options preparation
+
+Exact next gate: `WP04-G4-S0 — Operational capability / target-options preparation`. ChatGPT prepares this directly; GitHub/local CLI is not a server prerequisite under DEC-014. This permits research and read-only capability discovery only, in a separate pass:
+
+1. Fetch main first; stop and inspect movement under the overlap rule. Consult current official Supabase changelog/documentation and available connector descriptions for branch versus isolated-project creation, automatic migrations/seeds/hooks, schema acquisition and native test Auth/session support. Record source dates, exact supported operations and what remains unestablished. Do not infer live migration replay from the empty repository baseline or promise pre-provision inspection that the chosen provider cannot supply.
+2. Compare supported target options against the required faithful baseline, rollback, no production-data transfer, no real-recipient Auth messaging and native API tests. A supported alternative may be proposed if branch automatic scope cannot be safely established; do not silently choose one or provision it. Do not reconstruct managed Auth or forge tokens.
+3. Produce an explicit capability/prerequisite matrix and concrete proposed operation sequence, including target/organization selection, automatic side effects, cost-consent steps, independent target identity checks, first-marker review, exact bootstrap/fixture script preparation and later runtime proof. Native Auth should be assessed through documented supported operations; absent current connector support is a limitation, not proof the capability can never exist.
+4. No get_cost call until the user supplies the organization as its tool description requires; no confirm_cost, create_branch/create_project, API credential retrieval, Auth/config mutation, schema/fixture/candidate write or paid operation in this preparation. If an option needs user selection/credentials or a missing supported capability, present the concrete choice/limitation for the subsequent gate. Do not ask for cost consent on an unspecified setup.
+5. Update WP/programme evidence and stop for `WP04-G4-S0 — Operational capability / target-options review`. Do not claim environment readiness or advance into setup merely because research completes. Any production migration-history inspection needed beyond this research requires a separately frozen bounded read-only scope.
+
+**Classification:** REQUIRED NOW — capability/target-options preparation; FUTURE DEPENDENCY — selected target, supported native Auth/API mechanism, executable isolated scripts and baseline/candidate runtime proof; HIGH-RISK — provisioning/cost/Auth/DDL/ACL/fixtures/candidate/production application, all withheld; PARKED — existing UX/NAV/CSE/SEC assignments unchanged; OUT OF SCOPE — production data clone/security repair, Marketing editor/bulk writers, new client/module/routes/business rules.
+
+Current gate: `WP04-G4-S0 — Completed-continuation / setup-safety review passed; operational preparation next`.
+Exact next: `WP04-G4-S0 — Operational capability / target-options preparation`.
+No production mutation, live database query, provisioning, Auth/config/client change, merge/tag/release or cleanup occurred. G0–G3 remain complete at their documented levels; G4-S0/G4 in progress; programme **4 of 13**; WP03 closed; DEC-014 preserved. Stop after this review checkpoint.
+
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1010,23 +1048,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Frozen continuation captured; 32-sequence frontier resolved; independent setup-safety review next; environment/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Completed continuation independently reviewed; operational capability/target-options preparation next; environment/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Identity-sequence frontier / setup-safety continuation completed; review pending`
+`WP04-G4-S0 — Completed-continuation / setup-safety review passed; operational preparation next`
 
 ## Gate Status
-[~] IN PROGRESS — Frozen read-only continuation captured within its limits; 32-sequence frontier resolved and setup-safety metadata recorded. Independent resulting review pending; operational target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
+[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Operational capability/target-options preparation is next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
 
 ## Required to close
-Independently review the completed continuation/setup-safety proposal and remaining operational frontier. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
+Complete the frozen operational capability/target-options preparation and independent resulting review. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
 
 ## Next gate
-`WP04-G4-S0 — Independent completed-continuation / setup-safety review`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
+`WP04-G4-S0 — Operational capability / target-options preparation`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1060,12 +1098,12 @@ None.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels. G4-S0 frozen read-only continuation completed; 32-sequence frontier resolved, independent setup-safety review next, operational environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. This pass used 22 bounded read-only live catalog queries, with no business/Auth/secret rows, installation, provisioning or mutation. Existing business counts/timing observations remain dated evidence.
+WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, operational capability/target-options preparation next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this review made no live query or provider operation. Existing business counts/timing observations remain dated evidence.
 
 Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their levels; G4-S0 in progress, frozen continuation captured, independent review pending, environment not ready.
+WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, operational preparation next, environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 identity-sequence/setup-safety continuation.
-Next: independent completed-continuation/setup-safety review; no provisioning or implementation.
+Current gate: WP04-G4-S0 completed-continuation/setup-safety review passed.
+Next: operational capability/target-options preparation; no provisioning or implementation.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.
