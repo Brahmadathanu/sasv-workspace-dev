@@ -22,6 +22,7 @@
   "max_fixture_wait_seconds": 300,
   "handoff_directory": "UNRESOLVED_HANDOFF_DIRECTORY",
   "phase_limits": {
-    "note": "Example only. Changing execution to REVIEWED_LIVE does not make this file a live spec while unresolved placeholders remain."
+    "max_cases": 1,
+    "max_create_actors": 4
   }
 }

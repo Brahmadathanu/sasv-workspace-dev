@@ -56,7 +56,10 @@ Not enabled by this offline package.
 - No production target `qhmoqtxpeasamtlxaoak`.
 - No permission SQL writer, actor cleanup, revoke, delete or merge/tag/release from this package.
 - `forget()` drops local references only; it is not memory zeroization or remote revocation.
-- Offline tests use injected fake transport/prompt/identities only.
+- Offline tests use injected `TrustedFakeTransport` / fake prompts / synthetic identities only.
+- Spec/wrapper/harness approval compares LF-normalized file bytes to external reviewed digests.
+- Guarded live stages require an explicit one-way fixture sequence; proof before acknowledgement is refused.
 - Real Windows hidden-input demonstration, native Auth/API calls, provisioning and performance proof remain separately authorized.
+- Path confinement is fail-closed where supported; it is not claimed race-proof against a hostile local filesystem.
 
 Sources consulted earlier remain dated evidence, not a new runtime proof of this machine's private-input or network behavior.
