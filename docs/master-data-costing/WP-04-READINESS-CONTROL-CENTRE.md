@@ -1513,6 +1513,12 @@ Current main 768992a/docs entry 85ddc145 unchanged, feature b22d763331fd3c7a14fb
 
 [Targeted follow-up brief](WP-04-S0-OPERATOR-LAUNCHER-PLAN.md) authorizes existing launcher/tests/README correction only: controlled truthful failure/cancel reports and coverage/counters, complete stage failure disposal, remove live delegate/test by mocking superclass only. No native/live/input/target/cost/server/client/production operation, no accepted-source changes, no WP03 regression. Launcher remains unaccepted; paid target HOLD; programme 4 of 13; DEC-014/parked/locks unchanged.
 
+## WP04-G4-S0 — Moved-main reconciliation / correction resume (2026-10-03)
+
+Cursor correctly stopped when main moved 768992a→cc18b5744d7c21149234910aa55989eddfd309b2. Independently fetched docs d8175b8 and feature b22d763 unchanged, inspected intervening feature 0301a89 and merge cc18b574 plus full sole e-Aushadhi Composition line-931 migration diff. No WP04/readiness/costing/master-data/permissions/client/test-tool overlap. Repository evidence only; no live SQL or deployment claim.
+
+Targeted four-item correction may resume with cc18b574 as expected main, same feature head and scope, no rebase/main merge. Preserve and inspect Cursor-reported partial local launcher edits before continuation; original dirty checkout untouched. Latest [resume disposition](WP-04-S0-OPERATOR-LAUNCHER-PLAN.md) is authoritative. No new scope or live authorization. Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1532,10 +1538,10 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Corrected operator-launcher audit; targeted follow-up required`
+`WP04-G4-S0 — Targeted operator-launcher follow-up authorized after moved-main reconciliation`
 
 ## Gate Status
-[~] IN PROGRESS — b22d763 suite/improvements retained; four precise report/terminal/transport follow-ups remain. Launcher/environment not accepted; no live operation approved. Branches unmerged.
+[~] IN PROGRESS — Main cc18b574 reconciled, no WP04 overlap. Same four follow-ups from b22d763 resume; preserve partial local launcher edits. Launcher/environment unaccepted; no live operation; branches unmerged.
 
 ## Required to close
 Apply targeted same-branch launcher/tests/README follow-up, full offline tests/self-review/push, then independent re-audit. Preserve accepted sources and closed prior regressions.
@@ -1580,7 +1586,7 @@ WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapp
 Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
 WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: corrected operator-launcher audit; targeted follow-up required.
+Current gate: targeted follow-up authorized after moved-main reconciliation at cc18b574.
 Next: targeted offline follow-up, then corrected independent audit.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.

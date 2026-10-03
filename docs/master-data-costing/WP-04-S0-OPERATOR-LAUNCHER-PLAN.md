@@ -110,3 +110,14 @@ One targeted correction authorized on same feature/worktree from b22d763, launch
 Current: WP04-G4-S0 — Corrected operator-launcher audit; targeted follow-up required.
 Exact next: WP04-G4-S0 — Operator-launcher targeted offline follow-up.
 Programme 4 of 13; G4 active; WP03 closed; DEC-014/parked/locks unchanged; branches unmerged.
+
+
+## Moved-main reconciliation / targeted correction resume — 2026-10-03
+
+Cursor stopped and reported unexpected main movement from 768992a3a59a7b6809b327f6e75023e535a4bf79 to cc18b5744d7c21149234910aa55989eddfd309b2. Independently fetched actual main cc18b574, docs d8175b816746d7341237762282e1a281d340e34a and feature b22d763331fd3c7a14fbc4e9fbab39e8849e1240. Prior main remains ancestor. Inspected both intervening commits: 0301a89b79dfc354c172e595b93142a9801f4366 and merge cc18b574. Exact changed path only supabase/migrations/20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql (384 additions).
+
+Read full SQL diff: replaces rpc_eaushadhi_composition_execution_preflight and rpc_eaushadhi_composition_run_arm for Product 262 controlled line 931, using existing regulatory e-Aushadhi workflow/stage/run/audit structures. No WP04 canonical readiness/costing/master-data/client/control-centre/programme-doc/test-tool contract overlap, no new WP04 schema/grant/RLS/permission rule. This is repository overlap disposition only; live server application is not inferred from migration presence. No SQL was executed.
+
+**Resume authorized against expected main cc18b5744d7c21149234910aa55989eddfd309b2.** Same feature head b22d763 and exact four-item targeted correction remain in force. No rebase/merge onto main, frozen branch ancestry unchanged. Cursor-reported uncommitted partial operator_launcher.py edits in isolated feature worktree must be preserved, inspected against b22d763 and incorporated only if they satisfy the reviewed scope; do not reset/clean/overwrite them blindly. Dirty original checkout/local main and e-Aushadhi changes remain untouched. No correction commit/push yet per Cursor report.
+
+Fetch current main/docs/feature first; stop on any additional unexpected movement. Continue all four latest follow-ups, tests/self-review/fixes/full offline suite/hash/default checks, commit/push and return complete evidence for corrected audit. No new design/scope/native/provider/credential/production/merge authorization. Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged; branches unmerged.
