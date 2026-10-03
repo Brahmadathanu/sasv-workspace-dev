@@ -98,7 +98,7 @@ KNOWN_FAILURE_CODES = frozenset({
     "live_spec_not_ready", "stage_refused", "client_not_bound", "create_uncertain_stop",
     "export_not_ready", "pause_not_active", "pause_already_used", "fixture_wait_expired",
     "proof_not_ready", "proof_incomplete", "setup_failure_terminal",
-    "runner_internal_error",
+    "approval_binding_changed", "runner_internal_error",
     # Pass-through harness codes that may appear at public boundaries:
     "execution_off", "native_session_missing", "actor_creation_failed",
     "assertion_failed", "target_missing", "operation_not_approved",
@@ -312,6 +312,9 @@ def verify_source_artifacts(approval: ExternalApproval, harness_file: Path, wrap
         raise RunnerError("wrapper_hash_mismatch")
 
 
+ALLOWED_APPROVAL_PHASES = frozenset({"live_orchestrate", "real_https"})
+
+
 @dataclasses.dataclass(frozen=True)
 class ExternalApproval:
     expected_spec_sha256: str
@@ -321,6 +324,48 @@ class ExternalApproval:
     expires_at: dt.datetime
     approved_phases: frozenset
     approved_actions: frozenset = frozenset({"auth_create", "auth_signin", "rpc_read"})
+
+    def __post_init__(self):
+        phases = frozenset(self.approved_phases)
+        actions = frozenset(self.approved_actions)
+        if type(self.expected_spec_sha256) is not str or type(self.expected_harness_sha256) is not str:
+            raise RunnerError("approval_missing")
+        if type(self.expected_wrapper_sha256) is not str or type(self.approval_id) is not str:
+            raise RunnerError("approval_missing")
+        if not self.approval_id:
+            raise RunnerError("approval_missing")
+        if not isinstance(self.expires_at, dt.datetime) or self.expires_at.tzinfo is None:
+            raise RunnerError("approval_expired")
+        if not phases or phases - ALLOWED_APPROVAL_PHASES:
+            raise RunnerError("live_phase_not_approved")
+        if not actions or actions - ALLOWED_ACTIONS:
+            raise RunnerError("unsupported_action")
+        object.__setattr__(self, "approved_phases", phases)
+        object.__setattr__(self, "approved_actions", actions)
+        object.__setattr__(self, "_fingerprint", (
+            self.expected_spec_sha256,
+            self.expected_harness_sha256,
+            self.expected_wrapper_sha256,
+            self.approval_id,
+            self.expires_at,
+            phases,
+            actions,
+        ))
+
+    def fingerprint(self) -> tuple:
+        return (
+            self.expected_spec_sha256,
+            self.expected_harness_sha256,
+            self.expected_wrapper_sha256,
+            self.approval_id,
+            self.expires_at,
+            frozenset(self.approved_phases),
+            frozenset(self.approved_actions),
+        )
+
+    def assert_unchanged(self) -> None:
+        if self.fingerprint() != getattr(self, "_fingerprint"):
+            raise RunnerError("approval_binding_changed")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -346,27 +391,26 @@ class ValidatedSpec:
     max_fixture_wait_seconds: int
     handoff_directory: str
     phase_limits: Any
-    snapshot: tuple
 
 
-def _spec_snapshot(spec_fields: dict) -> tuple:
+def _fingerprint_spec(spec: ValidatedSpec) -> tuple:
     cases = []
-    for case in spec_fields["cases"]:
+    for case in spec.cases:
         cases.append((
             case.case_id, case.mode, case.actor, case.qualified_name,
             case.params,
             case.expectation.http_status, case.expectation.error_code,
             case.expectation.body_checks,
         ))
-    target = spec_fields["target"]
+    target = spec.target
     return (
-        spec_fields["raw_sha256"], spec_fields["execution"], spec_fields["unresolved"],
+        spec.raw_sha256, spec.execution, spec.unresolved,
         target.project_ref, target.host, target.provider_verified_ref,
         target.database_verified_ref, target.approval_id, frozenset(target.approved_actions),
         target.expires_at, frozenset(target.reviewed_reads),
-        spec_fields["fixture_revision"], spec_fields["marker"], spec_fields["actors"],
-        tuple(cases), spec_fields["max_fixture_wait_seconds"],
-        spec_fields["handoff_directory"], spec_fields["phase_limits"],
+        spec.fixture_revision, spec.marker, spec.actors,
+        tuple(cases), spec.max_fixture_wait_seconds,
+        spec.handoff_directory, spec.phase_limits,
     )
 
 
@@ -551,10 +595,13 @@ def validate_spec_document(
     project_ref = target_data["project_ref"]
     host = target_data["host"]
     approval_id = target_data["approval_id"]
+    for key in ALLOWED_TARGET_KEYS:
+        if type(target_data[key]) is not str:
+            raise RunnerError("invalid_target")
     if not unresolved:
-        if project_ref == PRODUCTION or PRODUCTION in str(host):
+        if project_ref == PRODUCTION or PRODUCTION in host:
             raise RunnerError("production_target_refused")
-        if not re.fullmatch(r"[a-z]{20}", project_ref or ""):
+        if not re.fullmatch(r"[a-z]{20}", project_ref):
             raise RunnerError("invalid_target")
         if host != project_ref + ".supabase.co":
             raise RunnerError("unknown_host_refused")
@@ -580,21 +627,19 @@ def validate_spec_document(
     handoff_directory = data["handoff_directory"]
     if type(fixture_revision) is not str or type(marker) is not str or type(handoff_directory) is not str:
         raise RunnerError("spec_collection_invalid")
-    fields = {
-        "raw_sha256": raw_sha256,
-        "execution": execution,
-        "unresolved": unresolved,
-        "target": target,
-        "fixture_revision": fixture_revision,
-        "marker": marker,
-        "actors": tuple(sorted(actors)),
-        "cases": tuple(parsed_cases),
-        "max_fixture_wait_seconds": data["max_fixture_wait_seconds"],
-        "handoff_directory": handoff_directory,
-        "phase_limits": frozen_limits,
-    }
-    snapshot = _spec_snapshot(fields)
-    return ValidatedSpec(snapshot=snapshot, **fields)
+    return ValidatedSpec(
+        raw_sha256=raw_sha256,
+        execution=execution,
+        unresolved=unresolved,
+        target=target,
+        fixture_revision=fixture_revision,
+        marker=marker,
+        actors=tuple(sorted(actors)),
+        cases=tuple(parsed_cases),
+        max_fixture_wait_seconds=data["max_fixture_wait_seconds"],
+        handoff_directory=handoff_directory,
+        phase_limits=frozen_limits,
+    )
 
 
 class TrustedFakeTransport:
@@ -828,6 +873,9 @@ class OfflineRunner:
         self._ack_verified = False
         self._terminal_failure = False
         self._reconciliation: dict[str, str] = {}
+        self._retained_spec_fingerprint: tuple | None = None
+        self._retained_approval_fingerprint: tuple | None = None
+        self._expected_case_ids: tuple[str, ...] | None = None
 
     def default_report(self) -> dict:
         return safe_report(mode="offline_wrapper", notes="default_cli_off")
@@ -841,50 +889,80 @@ class OfflineRunner:
     ) -> ValidatedSpec:
         data, digest = parse_spec_bytes(raw)
         if approval is not None:
+            approval.assert_unchanged()
             verify_source_artifacts(
                 approval,
                 self.package_dir / HARNESS_FILENAME,
                 self.package_dir / WRAPPER_FILENAME,
             )
+            self._retained_approval_fingerprint = approval.fingerprint()
         validated = validate_spec_document(data, digest, approval)
         self.spec_bytes = bytes(raw)
         self.spec = validated
         self.spec_source = source_path
+        self._retained_spec_fingerprint = _fingerprint_spec(validated)
+        self._expected_case_ids = tuple(case.case_id for case in validated.cases)
         return validated
+
+    def _assert_bindings(self, approval: ExternalApproval | None) -> None:
+        if self._retained_spec_fingerprint is None or self.spec is None:
+            raise RunnerError("spec_not_loaded")
+        if _fingerprint_spec(self.spec) != self._retained_spec_fingerprint:
+            raise RunnerError("spec_drift")
+        if approval is not None:
+            approval.assert_unchanged()
+            if self._retained_approval_fingerprint is None:
+                raise RunnerError("approval_binding_changed")
+            if approval.fingerprint() != self._retained_approval_fingerprint:
+                raise RunnerError("approval_binding_changed")
 
     def revalidate_frozen_spec(self, approval: ExternalApproval | None = None) -> ValidatedSpec:
         if self.spec is None or self.spec_bytes is None:
             raise RunnerError("spec_not_loaded")
         if self._terminal_failure:
             raise RunnerError("setup_failure_terminal")
-        # Explicit re-read contract: only the frozen bytes already supplied, optionally
-        # cross-checked against an exact source_path when provided at load time.
-        if self.spec_source is not None:
-            current = file_sha256(self.spec_source)
-            if current != self.spec.raw_sha256:
+        try:
+            self._assert_bindings(approval)
+            if self.spec_source is not None:
+                disk = self.spec_source.read_bytes()
+                disk_norm = disk.replace(b"\r\n", b"\n") if b"\r\n" in disk else disk
+                retained_norm = (
+                    self.spec_bytes.replace(b"\r\n", b"\n")
+                    if b"\r\n" in self.spec_bytes else self.spec_bytes
+                )
+                if hashlib.sha256(disk_norm).hexdigest() != self.spec.raw_sha256:
+                    raise RunnerError("spec_drift")
+                if disk_norm != retained_norm:
+                    raise RunnerError("spec_drift")
+            if approval is not None:
+                verify_source_artifacts(
+                    approval,
+                    self.package_dir / HARNESS_FILENAME,
+                    self.package_dir / WRAPPER_FILENAME,
+                )
+            data, digest = parse_spec_bytes(self.spec_bytes)
+            if digest != self.spec.raw_sha256:
+                raise RunnerError("spec_hash_mismatch")
+            validated = validate_spec_document(data, digest, approval)
+            if _fingerprint_spec(validated) != self._retained_spec_fingerprint:
                 raise RunnerError("spec_drift")
-            disk = self.spec_source.read_bytes()
-            if disk != self.spec_bytes:
-                raise RunnerError("spec_drift")
-        if approval is not None:
-            verify_source_artifacts(
-                approval,
-                self.package_dir / HARNESS_FILENAME,
-                self.package_dir / WRAPPER_FILENAME,
-            )
-        data, digest = parse_spec_bytes(self.spec_bytes)
-        if digest != self.spec.raw_sha256:
-            raise RunnerError("spec_hash_mismatch")
-        validated = validate_spec_document(data, digest, approval)
-        if validated.snapshot != self.spec.snapshot:
-            raise RunnerError("spec_drift")
-        return self.spec
+            self.spec = validated
+            return self.spec
+        except RunnerError as exc:
+            self._critical_fail(_code(exc))
+            raise
+
+    def _critical_fail(self, code: str) -> None:
+        if self.client is not None:
+            self._fail_terminal(code)
+        raise RunnerError(code)
 
     def _fail_terminal(self, code: str) -> None:
         self._terminal_failure = True
         self.stage = Stage.FAILED
+        self._ack_verified = False
+        self._paused_deadline = None
         if self.client is not None:
-            # Preserve nonsecret reconciliation metadata only.
             for label in sorted(self.create_attempted):
                 status = "confirmed" if label in self.create_confirmed else "uncertain"
                 self._reconciliation[label] = status
@@ -971,6 +1049,8 @@ class GuardedLiveOrchestrator:
         if limits["max_create_actors"] != 4:
             raise RunnerError("phase_limit_cardinality")
         for label in sorted(ACTORS):
+            self.runner.revalidate_frozen_spec(self.approval)
+            self.approval.assert_unchanged()
             if label in self.runner.create_attempted and label not in self.runner.create_confirmed:
                 self.runner._fail_terminal("create_uncertain_stop")
             self.runner.create_attempted.add(label)
@@ -1002,11 +1082,14 @@ class GuardedLiveOrchestrator:
             "fixture_revision": self.runner.spec.fixture_revision,
             "actor_uuids": mapping,
         }
-        path = write_uuid_handoff(
-            self.runner.spec.handoff_directory,
-            payload,
-            worktree_root=self.runner.worktree_root,
-        )
+        try:
+            path = write_uuid_handoff(
+                self.runner.spec.handoff_directory,
+                payload,
+                worktree_root=self.runner.worktree_root,
+            )
+        except RunnerError as exc:
+            self.runner._fail_terminal(_code(exc))
         self.runner._export_payload = payload
         self.runner.stage = Stage.EXPORTED
         return path
@@ -1035,7 +1118,13 @@ class GuardedLiveOrchestrator:
             self.runner._fail_terminal("fixture_wait_expired")
         if self.approval.expires_at <= dt.datetime.now(dt.timezone.utc):
             self.runner._fail_terminal("approval_expired")
-        validate_fixture_acknowledgement(ack, self.runner._export_payload)
+        try:
+            self.approval.assert_unchanged()
+            if self.approval.fingerprint() != self.runner._retained_approval_fingerprint:
+                raise RunnerError("approval_binding_changed")
+            validate_fixture_acknowledgement(ack, self.runner._export_payload)
+        except RunnerError as exc:
+            self.runner._fail_terminal(_code(exc))
         self.runner._ack_verified = True
         self.runner.stage = Stage.ACKED
 
@@ -1047,14 +1136,18 @@ class GuardedLiveOrchestrator:
         spec = self.runner.spec
         if client is None or spec is None:
             raise RunnerError("proof_not_ready")
+        self.approval.assert_unchanged()
         if "rpc_read" not in self.approval.approved_actions or "auth_signin" not in self.approval.approved_actions:
             raise RunnerError("live_phase_not_approved")
-        expected_ids = [case.case_id for case in spec.cases]
+        expected_ids = list(self.runner._expected_case_ids or ())
+        if expected_ids != [case.case_id for case in spec.cases]:
+            raise RunnerError("proof_incomplete")
         if len(expected_ids) > spec.phase_limits["max_cases"]:
             raise RunnerError("phase_limit_cardinality")
         results = []
         for case in spec.cases:
             self.runner.revalidate_frozen_spec(self.approval)
+            self.approval.assert_unchanged()
             kwargs = {"expectation": case.expectation}
             if case.mode == "actor":
                 kwargs["actor"] = case.actor
@@ -1063,6 +1156,8 @@ class GuardedLiveOrchestrator:
             try:
                 if case.mode == "actor":
                     client.sign_in(case.actor)
+                    self.runner.revalidate_frozen_spec(self.approval)
+                    self.approval.assert_unchanged()
                 params = _thaw_dict(case.params)
                 outcome = client.read_rpc(case.qualified_name, params, **kwargs)
             except Exception as exc:
@@ -1085,15 +1180,21 @@ class GuardedLiveOrchestrator:
         return results
 
     @staticmethod
-    def overall_from_cases(case_results: list[dict], *, setup_failure: bool, expected_case_ids: list[str] | None = None) -> str:
+    def overall_from_cases(
+        case_results: list[dict],
+        *,
+        setup_failure: bool,
+        expected_case_ids: list[str] | None = None,
+    ) -> str:
         if setup_failure:
             return "SETUP_FAILURE"
+        if expected_case_ids is None:
+            return "NOT_RUN"
         if not case_results:
             return "NOT_RUN"
-        if expected_case_ids is not None:
-            got = [item.get("case_id") for item in case_results]
-            if got != expected_case_ids:
-                return "NOT_RUN"
+        got = [item.get("case_id") for item in case_results]
+        if got != list(expected_case_ids):
+            return "NOT_RUN"
         assertions = [item.get("assertion") for item in case_results]
         if any(value == "SETUP_FAILURE" for value in assertions):
             return "SETUP_FAILURE"

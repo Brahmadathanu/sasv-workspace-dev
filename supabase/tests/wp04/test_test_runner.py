@@ -500,6 +500,123 @@ class RunnerCorrectionTests(unittest.TestCase):
         with self.assertRaisesRegex(runner.RunnerError, "expectation_status_invalid"):
             runner.validate_spec_document(data, "a" * 64)
 
+    # --- Targeted follow-up at 4de4f5e ---
+    def test_followup_wr01_dataclass_replace_zero_calls(self):
+        import dataclasses
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        before = len(transport.calls)
+        case = offline.spec.cases[0]
+        replaced_case = dataclasses.replace(case, params=runner._freeze({"unreviewed": 999}))
+        offline.spec = dataclasses.replace(offline.spec, cases=(replaced_case,))
+        with self.assertRaisesRegex(runner.RunnerError, "spec_drift"):
+            orch.create_actors()
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._admin)
+        self.assertEqual(offline.client._sessions, {})
+
+    def test_followup_wr01_approval_set_mutation_ignored(self):
+        phases = {"live_orchestrate"}
+        actions = {"auth_create", "auth_signin", "rpc_read"}
+        data = base_spec(execution="REVIEWED_LIVE", handoff_directory=str(self.handoff))
+        raw = dumps(data)
+        digest = hashlib.sha256(raw).hexdigest()
+        appr = runner.ExternalApproval(
+            expected_spec_sha256=digest,
+            expected_harness_sha256=runner.HARNESS_SHA256,
+            expected_wrapper_sha256=wrapper_digest(),
+            approval_id="offline-wrapper-test",
+            expires_at=future(),
+            approved_phases=phases,
+            approved_actions=actions,
+        )
+        phases.add("real_https")
+        actions.add("extra_action")
+        appr.assert_unchanged()
+        self.assertNotIn("real_https", appr.approved_phases)
+        self.assertNotIn("extra_action", appr.approved_actions)
+
+    def test_followup_wr01_approval_replacement_refused(self):
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        before = len(transport.calls)
+        orch.approval = approval(
+            expected_spec_sha256=digest,
+            approved_phases=frozenset({"live_orchestrate", "real_https"}),
+        )
+        with self.assertRaisesRegex(runner.RunnerError, "approval_binding_changed"):
+            orch.create_actors()
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._admin)
+
+    def test_followup_wr03_omitted_expected_coverage_not_pass(self):
+        overall = runner.GuardedLiveOrchestrator.overall_from_cases(
+            [{"case_id": "anon-period", "assertion": "MATCH"}],
+            setup_failure=False,
+        )
+        self.assertEqual(overall, "NOT_RUN")
+
+    def test_followup_wr03_invalid_ack_clears_secrets(self):
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        orch.create_actors()
+        orch.export_nonsecret_mapping()
+        orch.begin_fixture_pause()
+        with self.assertRaisesRegex(runner.RunnerError, "ack_invalid"):
+            orch.continue_after_acknowledgement({"verified": True})
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._admin)
+        self.assertFalse(offline._ack_verified)
+        with self.assertRaisesRegex(runner.RunnerError, "setup_failure_terminal"):
+            orch.run_proof_cases()
+
+    def test_followup_wr03_spec_drift_after_bind_clears_secrets(self):
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        offline.spec_bytes = dumps(base_spec(
+            execution="REVIEWED_LIVE",
+            handoff_directory=str(self.handoff),
+            fixture_revision="changed",
+        ))
+        with self.assertRaisesRegex(runner.RunnerError, "spec_hash_mismatch|spec_drift"):
+            orch.create_actors()
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._admin)
+
+    def test_followup_wr03_export_write_failure_clears_secrets(self):
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        orch.create_actors()
+        with patch.object(runner, "write_uuid_handoff", side_effect=runner.RunnerError("handoff_write_failed")):
+            with self.assertRaisesRegex(runner.RunnerError, "handoff_write_failed"):
+                orch.export_nonsecret_mapping()
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._admin)
+        self.assertEqual(offline.client._sessions, {})
+
+    def test_followup_wr06_nonstring_project_ref(self):
+        data = base_spec()
+        data["target"]["project_ref"] = 123
+        with self.assertRaisesRegex(runner.RunnerError, "invalid_target"):
+            runner.validate_spec_document(data, "a" * 64)
+
+    def test_followup_wr06_nonstring_nested_and_approval_fields(self):
+        data = base_spec()
+        data["cases"][0]["params"] = []
+        with self.assertRaisesRegex(runner.RunnerError, "case_params_invalid"):
+            runner.validate_spec_document(data, "a" * 64)
+        with self.assertRaisesRegex(runner.RunnerError, "approval_missing"):
+            runner.ExternalApproval(
+                expected_spec_sha256="a" * 64,
+                expected_harness_sha256=runner.HARNESS_SHA256,
+                expected_wrapper_sha256=wrapper_digest(),
+                approval_id="",
+                expires_at=future(),
+                approved_phases=frozenset({"live_orchestrate"}),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

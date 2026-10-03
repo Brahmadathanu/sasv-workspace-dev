@@ -59,6 +59,7 @@ Not enabled by this offline package.
 - Offline tests use injected `TrustedFakeTransport` / fake prompts / synthetic identities only.
 - Spec/wrapper/harness approval compares LF-normalized file bytes to external reviewed digests.
 - Guarded live stages require an explicit one-way fixture sequence; proof before acknowledgement is refused.
+- Reviewed case/phase identifiers are allowlisted nonsecret metadata. Regex allowlisting is not content-level secret detection.
 - Real Windows hidden-input demonstration, native Auth/API calls, provisioning and performance proof remain separately authorized.
 - Path confinement is fail-closed where supported; it is not claimed race-proof against a hostile local filesystem.
 
