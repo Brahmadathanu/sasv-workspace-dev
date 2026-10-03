@@ -1411,6 +1411,14 @@ Current gate: `WP04-G4-S0 — Independent offline test-runner implementation aud
 Exact next: `WP04-G4-S0 — Consolidated offline test-runner correction`, then corrected implementation audit.
 G0–G3 complete at documented levels; G4-S0/G4 in progress; programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged; audit and feature branches unmerged.
 
+## WP04-G4-S0 — Corrected offline test-runner audit at 4de4f5e (2026-10-03)
+
+Main b162d4932ec2bbe9ca665aadedf1827e5117de5a and audit b479dbf9e1ae1e1a8e42f70b42d3802413bf86c3 unchanged; feature advanced as reported to 4de4f5eadabc1d042c98872c3de9a7626612a80a. Exact four-file correction, original harness hashes unchanged. Independent source/test audit and fake-only repros; **60 tests run, 59 PASS / 1 Windows-only SKIP** on this host. No Windows private-input/native/production proof.
+
+**Targeted follow-up required.** WR-04 warning suppression and WR-05 prior path/root repros closed offline. Remaining WR-01/02/03/06 gaps: stored snapshot trusts replacement fields; external approval sets not defensively frozen; coverage argument optional permits subset PASS; invalid ack/spec drift retains fake credentials without terminal state; malformed target types raise raw exceptions. Exact repros/required regressions in [superseding brief](WP-04-S0-CURSOR-TEST-RUNNER-PLAN.md). Default CLI remains safe; wrapper not accepted for later live proof.
+
+Authorize one targeted same-branch four-file follow-up, preserve harness/source/current dirty checkout. Do not reopen closed fixes or expand server/client scope. Return pushed head/full suite/per-gap closure for independent audit. No live inputs/console experiment/network/Auth/SQL/cost/provisioning/cleanup/merge/tag/release. Current: corrected implementation audit, targeted follow-up required. Next: WP04-G4-S0 targeted offline test-runner correction, then corrected implementation audit. G0–G3 complete at documented levels; G4 active; programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged; branches unmerged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1423,23 +1431,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] First offline wrapper audit requires consolidated correction despite 47 tests PASS; native/setup/server/client application withheld |
+| WP04-G4 — High-risk server package, if required | [~] Corrected wrapper audit requires targeted follow-up; 59 PASS / 1 Windows-only SKIP; native/setup/server/client application withheld |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Independent offline test-runner implementation audit; correction required`
+`WP04-G4-S0 — Corrected offline test-runner audit; targeted follow-up required`
 
 ## Gate Status
-[~] IN PROGRESS — G0–G3 complete at documented levels. First wrapper at 9062d4a independently tested (47 PASS) but six grouped safety/control findings reproduced with fakes. Consolidated correction authorized, wrapper not accepted for live proof; environment/input/setup/native stages remain open. Audit/feature branches unmerged.
+[~] IN PROGRESS — Corrected wrapper 4de4f5e independently audited: 59 tests PASS / 1 Windows-only SKIP; remaining specific WR-01/02/03/06 gaps reproduced. WR-04/05 prior gaps closed offline. Targeted correction authorized; wrapper/environment/live proof unaccepted. Branches unmerged.
 
 ## Required to close
-Obtain one corrected pushed offline wrapper and independently verify each finding/regression before accepting that layer. Later private input and isolated setup/native/performance evidence remain separately authorized; environment not ready.
+Independently verify targeted correction and complete regression coverage; actual Windows input and isolated/native proof remain separately authorized.
 
 ## Next gate
-`WP04-G4-S0 — Consolidated offline test-runner correction`. Same feature branch/four-file scope, no real inputs/network; return pushed report for corrected implementation audit.
+`WP04-G4-S0 — Targeted offline test-runner correction`, then corrected implementation audit. Same scope/branch; no real inputs or network.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1473,12 +1481,12 @@ None. Offline server-test artifacts only; no application client change.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels; G4-S0/G4 in progress. First offline wrapper at 9062d4a requires correction: 47 tests passed but six grouped gaps independently reproduced. Current audit used repository/offline fake transport/input/temporary filesystem only; no real keys/native/API/DB/cost/provisioning/server/client mutation, merge/tag/release or remote cleanup. Audit and feature branches unmerged.
+WP04 incomplete. G0–G3 verified at documented levels; G4-S0/G4 active. Wrapper 4de4f5e improved but remaining targeted gaps block acceptance. Independent audit ran 60 tests (59 PASS / 1 Windows-only SKIP) and fake-only reproductions. No real input/native/API/DB/cost/provisioning/server/client mutation, merge/tag/release or remote cleanup. Branches unmerged.
 
-Workflow: Cursor consolidated offline correction/test/self-review/push → ChatGPT corrected implementation audit → separate local-input/isolated setup/native proof; ChatGPT retains direct Supabase/server ownership. Client delivery remains later.
-WP progress: G0–G3 complete at documented levels; G4-S0/G4 in progress, wrapper unaccepted/environment not ready.
+Workflow: Cursor targeted offline correction/test/push → ChatGPT re-audit → separately authorized Windows-input/isolated/native proof; DEC-014 direct server ownership retained.
+WP progress: G0–G3 complete at documented levels; G4 active; environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: independent offline test-runner implementation audit; correction required.
-Next: WP04-G4-S0 consolidated offline test-runner correction, then corrected implementation audit.
+Current gate: corrected offline wrapper audit; targeted follow-up required.
+Next: WP04-G4-S0 targeted offline test-runner correction.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
-Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No new architecture/business/security lock.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.
