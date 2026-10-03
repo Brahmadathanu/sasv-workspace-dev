@@ -1,6 +1,6 @@
 # WP04-G4-S0 — Bounded operator-launcher plan brief
 
-Status: FIRST OPERATOR-LAUNCHER IMPLEMENTATION AUDIT REQUIRES CONSOLIDATED CORRECTION; LAUNCHER NOT ACCEPTED; REAL EXECUTION WITHHELD.
+Status: CORRECTED LAUNCHER b22d763 AUDITED; TARGETED REPORT/TERMINAL/TRANSPORT FOLLOW-UP REQUIRED; LAUNCHER NOT ACCEPTED FOR LIVE USE.
 Date: 2026-10-03. Authority: [WP04](WP-04-READINESS-CONTROL-CENTRE.md), IMPLEMENTATION_RULES and DEC-014.
 
 ## Purpose and entry
@@ -86,3 +86,27 @@ One autonomous consolidated correction authorized from cbf1f593 on test/wp04-s0-
 Current: WP04-G4-S0 — Operator-launcher independent implementation audit; consolidated correction required.
 Exact next: WP04-G4-S0 — Operator-launcher consolidated offline correction.
 Accepted upstream wrapper/Windows fake-input proof retained; no WP03 regression or new parked finding/authority lock. Programme 4 of 13; G4 active; DEC-014 preserved; branches unmerged; paid target HOLD.
+
+
+## Corrected launcher re-audit at b22d763 / targeted follow-up — 2026-10-03
+
+Entry fetch: main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs 85ddc145b12e024f1397010b455b74335e5f7dd3 unchanged; feature b22d763331fd3c7a14fbc4e9fbab39e8849e1240, parent cbf1f593. Exact launcher/tests/README scope; accepted components/example unchanged. Read pushed diff/source/tests and independently ran **106 tests: 105 PASS / 1 Windows-only reparse SKIP**. Cursor Windows reports 103 PASS / 3 symlink-privilege SKIP; neither report establishes full Windows path/native proof. No real credentials/prompts/network/Auth/SQL/cost/target/production operation; fake-only local audit.
+
+Retained improvements: immutable authority plus private fingerprint/object identity, checked path↔descriptor regular-file binary reads and dangling-symlink refusal, fixed report type checks/phase enum, LF-normalized spec digest with exact byte drift, additional network-guarded tests. Independent prior file-substitution reproduction now refuses ack_read_failed; malformed report values return fixed report_value_refused; CRLF fixture passes. LA-01/02/04 improvements stand at reviewed offline scope; do not repeat their closed reproductions or broaden accepted component changes. No general race-proof or hostile-code sandbox claim.
+
+LF hashes: operator_launcher.py a04d1c613cdd11d4de6cc8711a65070b9f19aa2fb4493d0801e60ed5fd08de9d; tests 181c43b04a0b0954dace5a9c49c6b24ae895e63197d0ecda04ca041f807f1d6b; README 7a98da1bcd6e7b9380e59d17820353bddffa97e35abc150e78745174eb2499ff (independently matched pushed LF bytes). Accepted harness/wrapper unchanged.
+
+**Disposition: targeted LA-03/05 and terminal/transport follow-up required; launcher not accepted.**
+
+| Required follow-up | Exact evidence and correction |
+| --- | --- |
+| Failure/cancel reporter must not fail while handling failure | Independent main reproduction with one counted attempt and run_reviewed_sequence raising create_uncertain_stop or KeyboardInterrupt: both escape LauncherError report_value_refused. Exception handlers default execution OFF with nonzero calls, which new validator refuses. Build failure/cancel reports from retained accurate execution/phase/counter state; controlled code and meaningful exit 2/130, no traceback or secondary reporter escape, secrets disposed. Add top-level CLI tests after bind/create/wait/read/report-write failure and cancellation with existing attempted calls; never actually network |
+| Public stage-boundary disposal covers operational source failures | Independent copied temporary launcher bind with fake keys/client, actual unlink of launcher file, then prompt_keys: source_load_failed, _terminal False, stage BOUND, fake client admin and launcher secret retained. _assert_authority calls _launcher_lf_sha outside its terminal boundary; prompt_keys calls assertion before try. Ensure complete public bound/stage assertion/prompt/wait/transport/report paths catch operational Exception into fixed codes and terminal FAILED/forget; cancellation disposes then propagates or CLI emits controlled result. Test real missing file, permission/read helper errors, source drift, malformed authority fingerprint, zero additional calls and continuation refusal. No accepted source changes or remote cleanup |
+| Report integrity/coverage and counters | Independently launcher_report returns PASS with empty cases or a MISMATCH case, api_permissions NOT_RUN and no phases, given execution REVIEWED_LIVE/native ATTEMPTED/count1/notes complete. Require full trusted reviewed case IDs/order/coverage, all MATCH, complete reviewed phases and consistent setup/notes/native/API states before PASS; absent coverage cannot certify. Do not hardcode case IDs or permit a caller-supplied subset to establish authority. Distinguish actual network attempts from simulated transport calls: fake transports produce zero real network_calls; add a closed simulated/transport-attempt counter if necessary, and evaluate PASS against appropriate reviewed execution mode and complete cases rather than requiring fake network_calls>0. Native/API ATTEMPTED means only recorded attempted applicable operations, not authenticated success/full permission proof. Reject inconsistent fields and preserve fixed outward schema/errors |
+| HTTPS mock stays in tests, not a new live injection interface | New GuardedHttps._delegate accepts arbitrary callable through transport_factory when use_https=True, under a trusted HttpsTransport subclass. This widens the live callable boundary beyond frozen brief. Remove runtime delegate/use_https injection shortcut; production guarded HTTPS always delegates to accepted superclass. Test that branch by mocking the superclass __call__ within tests while socket/HTTPS guards remain active; keep accepted fake-transport path type restricted. No arbitrary callable may be promoted to reviewed live transport. Retain per-call authority drift tests including between sign-in/read |
+
+One targeted correction authorized on same feature/worktree from b22d763, launcher/tests/README only. Preserve accepted components/example and dirty checkout, no rebase/main merge. Fetch expected refs and stop/report unexpected movement. Implement all four follow-ups, retain closed regressions, self-review/fix, full fake-only suite, default CLI/hash checks, commit/push and return per-item evidence/platform skips/limits. No real input/console experiment/network/Auth/SQL/cost/target/server/client/production operation or cleanup/tag/release/merge. Stop for corrected independent implementation audit. No generic new planning/catalog/console loop required; native/environment/cost stages remain separate and paid target HOLD.
+
+Current: WP04-G4-S0 — Corrected operator-launcher audit; targeted follow-up required.
+Exact next: WP04-G4-S0 — Operator-launcher targeted offline follow-up.
+Programme 4 of 13; G4 active; WP03 closed; DEC-014/parked/locks unchanged; branches unmerged.
