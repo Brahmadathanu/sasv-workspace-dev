@@ -49,7 +49,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
-| WP-06 | Composition Portal Execution | PURPLE | 65% | First line-930 run safely recovered to SAVE_REJECTED; trusted post-arm identity wiring correction awaits independent audit |
+| WP-06 | Composition Portal Execution | PURPLE | 65% | FILL_ORDER_RESET proven; bounded native fill-order correction awaits independent audit/merge, then short exact-main preflight |
 | WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
