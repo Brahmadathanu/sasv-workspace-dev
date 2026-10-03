@@ -1452,6 +1452,41 @@ Fetched unchanged main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs entry 4a11
 
 Exact next: reconcile existing secure-execution/target-creation planning package with accepted wrapper and demonstrated console route, then separate review. Remaining runtime/network/key provenance/target identity/defaults/actor handoff/bootstrap/fixture/cost/consent dependencies remain explicit; no paid target or native operation approved. No new parked finding/lock; programme 4 of 13; WP03 closed; DEC-014 preserved.
 
+## WP04-G4-S0 — Secure execution / target-creation package reconciled (2026-10-03)
+
+Entry fetch: main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs c42ea56c06a5fa3f58012a5c5bcb1dc56a12fe94 and accepted feature 0c6276192d6dfa05f311325d50cc4dac66826d2b unchanged; clean documentation checkout. Reconciled the earlier secure-execution/target-creation package, its planning review, accepted wrapper and bounded Windows console proof. Read accepted entry/stage methods; no installed-provider invocation, live query, network/credential probe, fee inquiry or server operation. No new implementation or business decision.
+
+### Why this prerequisite exists
+
+WP04 needs server evidence that portfolio retrieval preserves canonical per-SKU readiness and permissions and avoids excessive per-SKU work. The separate proof environment is intended to test those contracts before production application. Fake-only Windows proof establishes that one local input path accepts invisible text, refuses redirected streams and supports cancellation; it is not a test of readiness or permission behavior. It removes one prerequisite only. The user operates prepared commands and observes results; they do not author code, SQL, fixtures or security policy.
+
+### Reconciled capability and remaining dependencies
+
+| Area | Established now | Required before the applicable later operation |
+| --- | --- | --- |
+| Local executor | Cursor-assisted development; CPython 3.12.4 at the recorded Windows path | Retain reviewed source/hash/runtime and trusted separate console; Cursor captured terminal never receives real input |
+| Private input | User-confirmed invisible fake text, FAKE_MATCH, cancellation; captured redirected refusal | Target-only credential provenance and actual key-entry authorization remain absent; no real keys in chat/Git/arguments/files |
+| Components | Accepted harness and GuardedLiveOrchestrator methods for actor creation, UUID-only export, bounded fixture pause, acknowledgement and exact assertions | Normal CLI intentionally OFF; no reviewed operational launch script invokes those stages. Prepare one bounded offline launch plan using accepted interfaces; do not enable the default CLI or invent a target/spec |
+| Network | Accepted bounded HTTPS transport code; no redirects/retries in its contract | Actual test-target reachability/native API compatibility remains NOT_RUN; do not infer it from successful local input. Test only in a separately authorized target-bound phase |
+| Target | Existing proposal: standalone wp04-readiness-proof, ap-south-1, production excluded | Organization still unselected; actual quote/recurrence/retention consent, creation/default scope review and independent target identity required. Earlier organization inventory is an option, not consent |
+| Baseline/fixtures | G3/S0 proof planning and dependency manifest retained | ChatGPT prepares/reviews exact baseline/permission/fixture/candidate packages, fresh source drift and compatibility checks; no complete fresh-target baseline presumed |
+| Actor handoff | Accepted UUID-only exclusive export and bounded acknowledgement mechanics | Freeze exact private artifact destination/read channel, target/spec/revision binding and canonical permission application acknowledgement. No passwords/sessions shared; no broad executor SQL permission |
+| Results | Exact assertion match differs from full payload/CSE/performance proof | Review baseline/candidate cases and complete coverage; UNVERIFIED/NOT_RUN or setup failure cannot establish parity. Synthetic tests do not replace bounded live inventory/performance evidence |
+| Recovery/lifecycle | Local forget drops references; uncertain actor creation stops | Actor/session revoke/delete and project pause/delete are separate reviewed mutations. No cleanup operation or claim of charge cessation inferred |
+
+### One concrete staged route
+
+Retain the demonstrated Windows separate-console route and accepted local components; no hosted controller or provider runtime adapter required by current evidence. ChatGPT reconciles/reviews target and server packages under DEC-014; Cursor prepares a separately reviewed local launcher using the existing accepted APIs. Launcher planning must show default OFF, no live operation without exact external approval/spec/identity/hash guards, phase-specific private prompting, UUID-only permission handoff, bounded acknowledgement, no automatic create retry, sanitized reports and failure disposal. No arbitrary Python/SQL instruction burden is placed on the user. This reconciliation approves no launcher implementation or real execution.
+
+Order: (1) review this reconciled package and freeze the bounded operational-launch/actor-handoff plan; (2) review and implement/test that launcher offline before a paid target, preserving accepted default OFF and component sources unless a separately reviewed change is necessary; (3) explicit organization selection, actual applicable quotation and cost/lifecycle consent plus reviewed creation request; (4) authorized isolated creation and independent identity/default/hook/engine checks; (5) separately reviewed ChatGPT baseline/fixture preparation and target-bound native actor/permission/read stages; (6) baseline/candidate parity/access/performance proof review before any production apply. Target-specific values/real permission assertion cases cannot be finalized before target/source evidence exists; do not fill them with guessed fixtures. Each mutation requires its applicable concrete review/authorization, not a fresh generic capability investigation.
+
+Paid target remains HOLD. No cost/project/native/server/client operation approved. Next review must identify the exact launch plan scope and private UUID handoff mechanism before asking the user for organization selection; do not repeat already closed harness/console audits, catalog capture or external research absent a concrete changed prerequisite.
+
+Classification: REQUIRED NOW — reconciled package review and bounded launch/handoff plan; FUTURE DEPENDENCY — selected target/actual cost/defaults/bootstrap/fixtures/native/parity/performance proof; HIGH-RISK — provisioning/Auth/schema/ACL/permission/fixture/candidate/production and cleanup mutations; PARKED — existing UX/NAV/CSE/SEC items unchanged; OUT OF SCOPE — production clones/security repair, Marketing/bulk/client/module/routes/business-rule changes. No new parked finding or decision lock. Programme 4 of 13; WP03 closed; DEC-014 preserved; branches unmerged.
+
+Current: WP04-G4-S0 — Secure execution / target-creation package reconciliation completed; review pending.
+Exact next: WP04-G4-S0 — Reconciled secure execution / target-creation package review.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1471,16 +1506,16 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Windows fake-only private-input proof audit passed`
+`WP04-G4-S0 — Secure execution / target-creation package reconciliation completed; review pending`
 
 ## Gate Status
-[~] IN PROGRESS — Offline wrapper accepted and bounded fake-only Windows console proof passed. Full environment/native/target/cost/fixtures/server readiness remains unproved. Branches unmerged; no live operation approved.
+[~] IN PROGRESS — Accepted offline wrapper and fake-only Windows console proof retained. Existing setup plan reconciled with actual capabilities; operational launcher/UUID handoff, target/cost/default/baseline/native proof remain open. No mutation approved; branches unmerged.
 
 ## Required to close
-Reconcile existing secure-execution/target-creation package against accepted wrapper/console route and remaining dependencies, then review before any later target/organization/cost/Auth/server operation. Console success alone does not establish runnable native proof.
+Review reconciled package and freeze exact bounded launch/actor-handoff planning scope before offline implementation or organization/cost/target actions. No repeat console proof needed absent drift.
 
 ## Next gate
-`WP04-G4-S0 — Secure execution / target-creation package reconciliation`, then reconciled package review.
+`WP04-G4-S0 — Reconciled secure execution / target-creation package review`.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1519,7 +1554,7 @@ WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapp
 Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
 WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: Windows fake-only private-input proof audit passed.
-Next: secure execution / target-creation package reconciliation, then separate review.
+Current gate: secure execution / target-creation package reconciliation completed; review pending.
+Next: reconciled secure execution / target-creation package review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.
