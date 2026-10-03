@@ -1465,16 +1465,16 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Windows private-input proof package review passed`
+`WP04-G4-S0 — Prepared Windows command handoff verification, awaiting complete Cursor evidence`
 
 ## Gate Status
-[~] IN PROGRESS — Offline wrapper accepted; console package reviewed. Cursor local temporary preparation approved; actual Windows hidden/cancellation proof and all live/native/target/server evidence remain absent. Branches unmerged.
+[~] IN PROGRESS — Cursor reports matching script hash, Python 3.12.4 and redirected refusal exit 0. Actual Windows hidden/cancel checks NOT_RUN. Exact isolated source path/hash binding and fully substituted commands not supplied; handoff not yet released. Git refs unchanged at main 768992a, docs entry 8427f99 and feature 0c627619.
 
 ## Required to close
-Verify returned Cursor paths/hashes/runtime/refusal evidence and commands before actual user fake-only console proof. Later environment/server proof remains separate.
+Obtain existing Cursor source/runtime/path/hash evidence and exact commands, verify against reviewed package, then release fake-only operator instructions. No script recreation or repeat test suite required.
 
 ## Next gate
-`WP04-G4-S0 — Cursor local fake-console materialization and command handoff`, then ChatGPT handoff verification before console execution.
+Complete `WP04-G4-S0 — Prepared Windows command handoff verification`, then fake-only actual user console proof after verified handoff.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1513,7 +1513,7 @@ WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapp
 Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
 WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: Windows private-input proof package review passed.
-Next: WP04-G4-S0 Cursor local fake-console materialization and command handoff, then handoff verification.
+Current gate: prepared Windows command handoff verification, awaiting complete Cursor evidence.
+Next: complete command handoff verification, then release fake-only console instructions.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.
