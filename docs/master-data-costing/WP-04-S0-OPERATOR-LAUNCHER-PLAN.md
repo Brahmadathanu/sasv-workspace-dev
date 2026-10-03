@@ -1,6 +1,6 @@
 # WP04-G4-S0 — Bounded operator-launcher plan brief
 
-Status: CORRECTED LAUNCHER b22d763 AUDITED; TARGETED REPORT/TERMINAL/TRANSPORT FOLLOW-UP REQUIRED; LAUNCHER NOT ACCEPTED FOR LIVE USE.
+Status: LAUNCHER 3616941 RE-AUDITED; PRIOR ERROR/DISPOSAL/DELEGATE REPROS CLOSED; ONE TRUSTED-REPORT-COVERAGE FOLLOW-UP REQUIRED; NO LIVE ACCEPTANCE.
 Date: 2026-10-03. Authority: [WP04](WP-04-READINESS-CONTROL-CENTRE.md), IMPLEMENTATION_RULES and DEC-014.
 
 ## Purpose and entry
@@ -121,3 +121,23 @@ Read full SQL diff: replaces rpc_eaushadhi_composition_execution_preflight and r
 **Resume authorized against expected main cc18b5744d7c21149234910aa55989eddfd309b2.** Same feature head b22d763 and exact four-item targeted correction remain in force. No rebase/merge onto main, frozen branch ancestry unchanged. Cursor-reported uncommitted partial operator_launcher.py edits in isolated feature worktree must be preserved, inspected against b22d763 and incorporated only if they satisfy the reviewed scope; do not reset/clean/overwrite them blindly. Dirty original checkout/local main and e-Aushadhi changes remain untouched. No correction commit/push yet per Cursor report.
 
 Fetch current main/docs/feature first; stop on any additional unexpected movement. Continue all four latest follow-ups, tests/self-review/fixes/full offline suite/hash/default checks, commit/push and return complete evidence for corrected audit. No new design/scope/native/provider/credential/production/merge authorization. Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged; branches unmerged.
+
+
+## Targeted correction re-audit at 3616941 — 2026-10-03
+
+Fetched main cc18b5744d7c21149234910aa55989eddfd309b2 and docs e63be388be1a5f772bad908720ae77ea442e005a unchanged; feature 36169410190cdccbc6ccbb6d22ee8a1630576af9, parent b22d763. Exact launcher/tests/README correction, no re-implementation or accepted-source changes. Independently read pushed diff/tests and ran **111 tests: 110 PASS / 1 Windows-only reparse SKIP**. This Linux run does not certify Windows runtime/native proof. Accepted components/example unchanged; no real keys/prompts/network/Auth/SQL/target/cost/server/client/production operation.
+
+Closure evidence: previous main-after-attempt create_uncertain_stop reproduction now returns 2 with controlled report; KeyboardInterrupt returns 130, no secondary escape. Actual temporary launcher unlink after fake client bind then public prompt_keys now source_load_failed, terminal True/stage FAILED, fake client admin and launcher secret absent. GuardedHttps delegates only to accepted superclass; arbitrary callable shortcut removed, tests mock superclass with network blocked. Fake transport calls now separate from real network_calls=0. Empty/MISMATCH/no-phase and inconsistent old PASS repros refuse. These closed paths remain accepted at offline review scope; do not reopen or repeat their implementation.
+
+LF hashes independently recorded: operator_launcher.py 3628b03ba1d5f06ef7f56fe2eaf27770f47b3022d24fdfb07f7f62111f0d6696; tests edf86269312444ed1c345b71a6231fea67f00decf8010cb4baa85ceb5c3bb548; README 58025521ccafa826b8d97d60e3d53711d3dd9899d28cdb7ed6828948a292ed32.
+
+**Disposition: one narrow report-coverage follow-up still required; launcher not accepted.** Remaining instance of existing report-integrity requirement, not a new business/security authority rule: public launcher_report(execution=REVIEWED_LIVE, native_auth=ATTEMPTED, api_permissions=ATTEMPTED, network_calls=1, overall=PASS_REVIEWED_ASSERTIONS_ONLY, notes=operator_complete, phases=all six phases, cases=[one MATCH subset-case]) returns PASS despite no trusted expected-case IDs supplied. Formatter checks nonempty/all MATCH but cannot distinguish full sequence from subset/extra/duplicate/reordered IDs. Actual run_reviewed_sequence computes overall with accepted runner coverage, which is retained; the public report boundary must also prevent a certificate without that binding as already required in b22d763 follow-up.
+
+Authorize a narrow same-branch launcher/tests/README correction from 3616941 only:
+- Bind PASS report construction to complete privately retained reviewed spec/expected case sequence, after launcher authority/spec revalidation. Generic formatter without trusted coverage must refuse PASS (or produce NOT_RUN), not accept a caller-supplied subset as authority. Keep default/failure/cancellation report construction independent of proof coverage and controlled. Do not hardcode case IDs, relax existing phase/MATCH/counter checks, modify accepted components or create another readiness/evaluator authority.
+- Test public PASS attempt with coverage absent, subset/extra/duplicate/reordered IDs and mismatched spec binding: cannot PASS. Test bound full reviewed fake sequence still passes assertions-only with zero real network calls. Retain all prior 111 tests and closed error/cancel/unlink/transport paths. No generic correction/catalog/console experiment required.
+- Implement, self-review/fix, full offline tests, accepted hashes/default checks, commit/push and return report-specific closure/skips/hashes. Fetch current refs first, stop on unexpected movement, preserve dirty original checkout, no rebase/main merge. No real credentials/prompts/network/Auth/SQL/cost/target/fixture/server/client/production operation, installation, cleanup/merge/tag/release.
+
+Current: WP04-G4-S0 — Operator-launcher targeted re-audit; trusted-report-coverage gap open.
+Exact next: WP04-G4-S0 — Operator-launcher narrow report-coverage correction, then independent re-audit.
+Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged; upstream wrapper/console proof retained; branches unmerged; paid target HOLD.
