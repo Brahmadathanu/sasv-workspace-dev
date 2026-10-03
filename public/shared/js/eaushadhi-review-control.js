@@ -1634,14 +1634,14 @@ function compositionPortalExecutionHtml() {
     <div class="action-row">
       <button type="button" class="icon-btn with-label" id="btnWorkerCompositionPreview" data-edit-action="true"${state.busy ? ' data-force-disabled="true"' : ""}>Preview portal state</button>
       ${missing.map((id) => {
-        const enabled = Number(id) === 930 && eligible.has(930) && preview?.firstLiveEligible === true && canWrite() && !state.busy;
-        const label = Number(id) === 930 ? "Enter line 930 - Karpūra" : `Enter line ${id}`;
+        const enabled = Number(id) === 931 && eligible.has(931) && preview?.controlledPhase2Eligible === true && canWrite() && !state.busy;
+        const label = Number(id) === 931 ? "Enter line 931 - Kēram" : `Enter line ${id}`;
         return `<button type="button" class="icon-btn with-label primary"${enabled ? "" : ' disabled aria-disabled="true"'} data-composition-start-line="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
       }).join("")}
       ${active ? '<button type="button" class="icon-btn with-label" disabled aria-disabled="true">Recover active run</button>' : ""}
       <button type="button" class="icon-btn with-label" disabled aria-disabled="true">Verify Composition stage</button>
     </div>
-    <p class="muted-note"><strong>${preview?.liveArmed === true ? "Composition live execution is armed for the trusted first-live target." : "Composition live execution is not armed."}</strong></p>
+    <p class="muted-note"><strong>${preview?.liveArmed === true ? "Composition live execution is armed for the trusted Phase-2 target." : "Composition live execution is not armed."}</strong></p>
     <p class="muted-note">${preview ? escapeHtml([
       `Status ${preview.code || "unknown"}`,
       `Stage ${preview.stage?.stage_status || "NOT_STARTED"}`,
@@ -3459,15 +3459,15 @@ async function submitWorkerCompositionPreview() {
 async function submitWorkerCompositionStart(trigger) {
   const preview = state.workerCompositionPreview;
   const eligible = Array.isArray(preview?.executionEligibleSourceLineIds)
-    && preview.executionEligibleSourceLineIds.map(Number).includes(930)
-    && preview?.firstLiveEligible === true;
+    && preview.executionEligibleSourceLineIds.map(Number).includes(931)
+    && preview?.controlledPhase2Eligible === true;
   if (!canWrite() || state.busy || !eligible || !isFirstControlledEntryProduct(state.selectedProductId)) return;
   if (!(await openCompositionConfirmModal(trigger))) return;
   state.busy = true;
   renderComposition();
   try {
     const token = await sessionAccessToken();
-    const result = await startWorkerCompositionLine(state.selectedProductId, 930, token, { userConfirmed: true });
+    const result = await startWorkerCompositionLine(state.selectedProductId, 931, token, { userConfirmed: true });
     state.workerCompositionResult = result;
     showToast(result?.message || (result?.ok ? "Composition line verified." : "Composition line execution stopped."), result?.ok ? "success" : "error");
     state.workerCompositionPreview = await previewWorkerComposition(state.selectedProductId, token);
@@ -5839,7 +5839,7 @@ function wireEvents() {
       return;
     }
     const compositionStart = event.target.closest("[data-composition-start-line]");
-    if (compositionStart && Number(compositionStart.dataset.compositionStartLine) === 930 && !compositionStart.disabled) {
+    if (compositionStart && Number(compositionStart.dataset.compositionStartLine) === 931 && !compositionStart.disabled) {
       void submitWorkerCompositionStart(compositionStart);
       return;
     }

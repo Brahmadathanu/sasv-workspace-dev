@@ -14,6 +14,7 @@ const {
 const {
   COMPOSITION_LIVE_ARM_DEFAULT,
   COMPOSITION_FIRST_LIVE_930_RELEASE,
+  COMPOSITION_CONTROLLED_PHASE2_931_RELEASE,
   isCompositionLiveArmedFor,
 } = require("../electron/eaushadhi-worker/composition-live-arm.js");
 const {
@@ -23,6 +24,7 @@ const {
 } = require("../electron/eaushadhi-worker/composition-native-normalizer.js");
 const {
   compositionLiveArmEnabled,
+  assessPhase2Line931ServerAuthority,
   parseCompositionRowId,
 } = require("../electron/eaushadhi-worker/composition-contract.js");
 const {
@@ -66,19 +68,56 @@ const portalRow = (source, id) => ({
   reference: { representation: "VALUE", value: source.reference.portal_value },
 });
 
+function phase2ForRows(rows, activeRun = null) {
+  const portalCount = rows.length;
+  const predecessorConfirmed = portalCount >= 2;
+  const stagePartial = portalCount > 0 && portalCount < 3;
+  const stageMatchCount = portalCount;
+  const serverGateReady =
+    stagePartial === true &&
+    stageMatchCount === 2 &&
+    predecessorConfirmed === true &&
+    !activeRun;
+  return {
+    target_source_composition_line_id: 931,
+    predecessor_source_composition_line_id: 930,
+    predecessor_row_verified_confirmed: predecessorConfirmed,
+    stage_partial: stagePartial,
+    stage_portal_match_count: stageMatchCount,
+    server_gate_ready: serverGateReady,
+  };
+}
+
 function authority(rows, activeRun = null, overrides = {}) {
+  const basePreflight = {
+    product_id: 262,
+    workflow_row_version: 11,
+    portal_product_ref: REF,
+    ready: true,
+    content_hash: HASH,
+    governed_line_count: 3,
+    stage: {
+      stage_status: rows.length ? "PARTIAL" : "NOT_STARTED",
+      row_version: 10,
+      governed_line_count: 3,
+      portal_match_count: rows.length,
+    },
+    phase2_line_931: phase2ForRows(rows, activeRun),
+    active_run: activeRun,
+  };
+  const overridePreflight = overrides.preflight || {};
+  const preflight = {
+    ...basePreflight,
+    ...overridePreflight,
+    stage: { ...basePreflight.stage, ...(overridePreflight.stage || {}) },
+    phase2_line_931: {
+      ...basePreflight.phase2_line_931,
+      ...(overridePreflight.phase2_line_931 || {}),
+    },
+  };
   return {
     ok: true,
-    preflight: {
-      product_id: 262,
-      workflow_row_version: 11,
-      portal_product_ref: REF,
-      ready: true,
-      content_hash: HASH,
-      governed_line_count: 3,
-      stage: { stage_status: rows.length ? "PARTIAL" : "NOT_STARTED", row_version: 2 },
-      active_run: activeRun,
-    },
+    preflight,
     content: {
       product_id: 262,
       versions: { workflow_row_version: 11 },
@@ -102,6 +141,7 @@ function authority(rows, activeRun = null, overrides = {}) {
       rows: structuredClone(rows),
     },
     ...overrides,
+    preflight,
   };
 }
 
@@ -176,7 +216,7 @@ function fakeDeps(authorities, options = {}) {
     },
     rereadRow: async (id) => {
       calls.push(["rereadRow", id]);
-      const target = governed.find((item) => item.source_composition_line_id === 930);
+      const target = governed.find((item) => item.source_composition_line_id === 931);
       return { ok: true, row: portalRow(target, id), evidence: rawReread(target, id) };
     },
     verifyRow: async (input) => {
@@ -192,15 +232,16 @@ function fakeDeps(authorities, options = {}) {
 }
 
 assert.equal(COMPOSITION_LIVE_ARM_DEFAULT, false);
-assert.equal(COMPOSITION_FIRST_LIVE_930_RELEASE, true);
-assert.equal(isCompositionLiveArmedFor(262, 930, {}), false);
-assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "false" }), false);
-assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), true);
-assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "TRUE" }), false);
-assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "1" }), false);
-assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: true }), false);
-assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
-assert.equal(isCompositionLiveArmedFor(261, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(COMPOSITION_FIRST_LIVE_930_RELEASE, false);
+assert.equal(COMPOSITION_CONTROLLED_PHASE2_931_RELEASE, true);
+assert.equal(isCompositionLiveArmedFor(262, 930, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 931, {}), false);
+assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "false" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), true);
+assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "TRUE" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "1" }), false);
+assert.equal(isCompositionLiveArmedFor(262, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: true }), false);
+assert.equal(isCompositionLiveArmedFor(261, 931, { EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
 assert.equal(compositionLiveArmEnabled({ EAUSHADHI_COMPOSITION_LIVE_ARM: "true" }), false);
 
 const parsedId = (markup) => parseCompositionRowId(markup);
@@ -290,15 +331,26 @@ const after930Rows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "r
   assert.equal(result.code, "OFFLINE_MISSING");
   assert.equal(result.mutationAllowed, false);
   assert.deepEqual(result.missingSourceLineIds, [930, 931]);
-  assert.equal(result.firstLiveEligible, false);
+  assert.equal(result.controlledPhase2Eligible, false);
   assert.deepEqual(result.executionEligibleSourceLineIds, []);
+  assert.equal(result.stageVerifyEnabled, false);
   assert.deepEqual(deps.calls.map(([name]) => name), ["loadAuthority"]);
 }
 {
   const result = await createCompositionExecutor().preview(fakeDeps([authority(beforeRows)], { liveArmed: true }));
-  assert.equal(result.firstLiveEligible, true);
-  assert.deepEqual(result.executionEligibleSourceLineIds, [930]);
+  assert.equal(result.controlledPhase2Eligible, false);
+  assert.deepEqual(result.executionEligibleSourceLineIds, []);
   assert.deepEqual(result.missingSourceLineIds, [930, 931]);
+}
+{
+  const result = await createCompositionExecutor().preview(fakeDeps([authority(after930Rows)], { liveArmed: true }));
+  assert.equal(result.controlledPhase2Eligible, true);
+  assert.deepEqual(result.executionEligibleSourceLineIds, [931]);
+  assert.deepEqual(result.matchedSourceLineIds, [929, 930]);
+  assert.deepEqual(result.missingSourceLineIds, [931]);
+  assert.equal(result.startEnabled, true);
+  assert.equal(result.stageVerifyEnabled, false);
+  assert.equal(result.phase2Line931.server_gate_ready, true);
 }
 
 // Workflow authority uses only matching positive-integer versions from the canonical nested content path.
@@ -348,11 +400,108 @@ for (const [label, mutate] of [
   assert.doesNotMatch(JSON.stringify(result), new RegExp(REF));
 }
 
+
+// Phase-2 server/planner eligibility rejections.
+for (const [label, mutate] of [
+  ["server_gate_ready false", (a) => { a.preflight.phase2_line_931.server_gate_ready = false; }],
+  ["predecessor false", (a) => {
+    a.preflight.phase2_line_931.predecessor_row_verified_confirmed = false;
+    a.preflight.phase2_line_931.server_gate_ready = false;
+  }],
+  ["stage_partial false", (a) => {
+    a.preflight.phase2_line_931.stage_partial = false;
+    a.preflight.phase2_line_931.server_gate_ready = false;
+  }],
+  ["portal_match_count wrong", (a) => {
+    a.preflight.phase2_line_931.stage_portal_match_count = 1;
+    a.preflight.phase2_line_931.server_gate_ready = false;
+  }],
+]) {
+  const sample = authority(after930Rows);
+  mutate(sample);
+  const deps = fakeDeps([sample], { liveArmed: true });
+  const preview = await createCompositionExecutor().preview(deps);
+  assert.equal(preview.controlledPhase2Eligible, false, label);
+  assert.deepEqual(preview.executionEligibleSourceLineIds, [], label);
+  const start = await createCompositionExecutor().startLine(fakeDeps([sample], { liveArmed: true }), {
+    sourceCompositionLineId: 931,
+    userConfirmed: true,
+  });
+  assert.equal(start.code, "COMPOSITION_CONTROLLED_TARGET_REJECTED", label);
+  assert.equal(start.mutated, false, label);
+}
+{
+  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true });
+  const preview = await createCompositionExecutor().preview(deps);
+  assert.equal(preview.controlledPhase2Eligible, false);
+  assert.deepEqual(preview.missingSourceLineIds, [930, 931]);
+  const start = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
+  assert.equal(start.code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
+}
+{
+  const sample = authority(after930Rows);
+  sample.portalListEvidence.rows = [portalRow(governed[0], "row-a"), portalRow(governed[2], "row-c")];
+  sample.portalListEvidence.totalCount = 2;
+  sample.preflight.phase2_line_931 = phase2ForRows(sample.portalListEvidence.rows);
+  const deps = fakeDeps([sample], { liveArmed: true });
+  const preview = await createCompositionExecutor().preview(deps);
+  assert.equal(preview.controlledPhase2Eligible, false);
+  const start = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
+  assert.equal(start.code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
+}
+{
+  const conflict = structuredClone(after930Rows);
+  conflict.push({ ...portalRow(governed[1], "row-x"), ingredientFormValue: "999" });
+  const sample = authority(conflict);
+  sample.preflight.phase2_line_931 = {
+    ...phase2ForRows(after930Rows),
+    server_gate_ready: true,
+    predecessor_row_verified_confirmed: true,
+    stage_partial: true,
+    stage_portal_match_count: 2,
+  };
+  const deps = fakeDeps([sample], { liveArmed: true });
+  assert.equal((await createCompositionExecutor().preview(deps)).controlledPhase2Eligible, false);
+  assert.equal((await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true })).code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
+}
+{
+  const dup = [portalRow(governed[0], "row-a"), portalRow(governed[1], "row-b"), { ...portalRow(governed[1], "row-b2") }];
+  const sample = authority(dup);
+  sample.preflight.phase2_line_931 = { ...phase2ForRows(after930Rows), server_gate_ready: true };
+  const deps = fakeDeps([sample], { liveArmed: true });
+  assert.equal((await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true })).code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
+}
+{
+  const extra = [...after930Rows, { ...portalRow(governed[0], "row-z"), ingredientName: "Extra", scientificName: "Extra sci" }];
+  const sample = authority(extra);
+  sample.preflight.phase2_line_931 = { ...phase2ForRows(after930Rows), server_gate_ready: true };
+  const deps = fakeDeps([sample], { liveArmed: true });
+  assert.equal((await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true })).code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
+}
+{
+  const sample = authority(after930Rows);
+  sample.content.composition[2].review_status = "DRAFT";
+  const deps = fakeDeps([sample], { liveArmed: true });
+  assert.equal((await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true })).code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
+}
+{
+  const deps = fakeDeps([authority(after930Rows, {
+    run_id: runId,
+    target_source_composition_line_id: 931,
+    run_status: "SAVE_ARMED",
+    current_stage_row_version: 10,
+    workflow_row_version: 11,
+    content_hash: HASH,
+  })], { liveArmed: true });
+  assert.equal((await createCompositionExecutor().preview(deps)).controlledPhase2Eligible, false);
+  assert.equal((await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true })).code, "ACTIVE_RUN_EXISTS");
+}
+
 // Production disarm stops before authority, arm, fill, or Save.
 {
   const executor = createCompositionExecutor();
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: false });
-  const result = await executor.startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: false });
+  const result = await executor.startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_LIVE_NOT_ARMED");
   assert.equal(deps.calls.length, 0);
 }
@@ -377,35 +526,41 @@ for (const [label, mutate, code] of [
 
 // Confirmation and exact missing target are required before arm.
 {
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true });
-  assert.equal((await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: false })).code, "USER_CONFIRMATION_REQUIRED");
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true });
+  assert.equal((await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: false })).code, "USER_CONFIRMATION_REQUIRED");
   assert.equal(deps.calls.length, 0);
 }
 {
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true });
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true });
   const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 999, userConfirmed: true });
-  assert.equal(result.code, "COMPOSITION_FIRST_LIVE_TARGET_REJECTED");
+  assert.equal(result.code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
   assert.equal(deps.calls.length, 0);
   assert.equal(deps.calls.some(([name]) => name === "armRun"), false);
+}
+{
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  assert.equal(result.code, "COMPOSITION_CONTROLLED_TARGET_REJECTED");
+  assert.equal(deps.calls.length, 0);
 }
 
 // Trusted injected arm exercises arm -> server projection -> one Save -> durable outcome -> verification.
 {
   const executor = createCompositionExecutor();
-  const deps = fakeDeps([authority(beforeRows), authority(after930Rows)], { liveArmed: true });
-  const result = await executor.startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true, rendererIngredientName: "FORGED" });
+  const deps = fakeDeps([authority(after930Rows), authority(completeRows)], { liveArmed: true });
+  const result = await executor.startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true, rendererIngredientName: "FORGED" });
   assert.equal(result.code, "ROW_VERIFIED");
   assert.equal(result.mutated, true);
   assert.equal(result.invokeCount, 1);
-  assert.equal(result.matchCount, 2);
-  assert.deepEqual(result.missingSourceLineIds, [931]);
+  assert.equal(result.matchCount, 3);
+  assert.deepEqual(result.missingSourceLineIds, []);
   assert.equal(result.blockerCount, 0);
   assert.equal(result.conflictCount, 0);
   assert.equal(result.duplicateCount, 0);
   assert.equal(result.extraCount, 0);
   const names = deps.calls.map(([name]) => name);
   assert.deepEqual(names, ["loadAuthority", "armRun", "recheckMutationIdentity", "fillTarget", "verifyFilledTarget", "invokeSaveOnce", "recordSave", "loadAuthority", "rereadRow", "verifyRow"]);
-  assert.equal(deps.calls.find(([name]) => name === "fillTarget")[1].ingredient_name, "Karpura");
+  assert.equal(deps.calls.find(([name]) => name === "fillTarget")[1].ingredient_name, "Keram");
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "CONFIRMED");
   assert.equal(names.filter((name) => name === "invokeSaveOnce").length, 1);
   const freshPlanner = deps.calls.findLast(([name]) => name === "loadAuthority");
@@ -415,8 +570,8 @@ for (const [label, mutate, code] of [
 
 // Fill failure after SAVE_ARMED is durably rejected without invoking SaveData.
 {
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, fillError: new Error("BASE_OPTION_NOT_READY") });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true, fillError: new Error("BASE_OPTION_NOT_READY") });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "BASE_OPTION_NOT_READY");
   assert.equal(result.runStatus, "SAVE_REJECTED");
   assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
@@ -427,8 +582,8 @@ for (const [label, mutate, code] of [
 
 // Final trusted reread mismatch is durably rejected before SaveData.
 {
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, filledVerification: { ok: false, code: "POST_FILL_FIELD_MISMATCH", diagnostics: { mismatchFields: ["quantity"] } } });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true, filledVerification: { ok: false, code: "POST_FILL_FIELD_MISMATCH", diagnostics: { mismatchFields: ["quantity"] } } });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "POST_FILL_FIELD_MISMATCH");
   assert.equal(result.runStatus, "SAVE_REJECTED");
   assert.equal(deps.calls.some(([name]) => name === "invokeSaveOnce"), false);
@@ -437,8 +592,8 @@ for (const [label, mutate, code] of [
 
 // A thrown final verification is bounded and durably rejected before SaveData.
 {
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, verifyFilledError: new Error(`transport ${REF}`) });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true, verifyFilledError: new Error(`transport ${REF}`) });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "POST_FILL_VERIFICATION_ERROR");
   assert.equal(result.runStatus, "SAVE_REJECTED");
   assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
@@ -449,12 +604,12 @@ for (const [label, mutate, code] of [
 
 // Failure to durably close a thrown verification remains SAVE_ARMED/recovery-required.
 {
-  const deps = fakeDeps([authority(beforeRows)], {
+  const deps = fakeDeps([authority(after930Rows)], {
     liveArmed: true,
     verifyFilledError: new Error("controlled page closed"),
     recordSaveError: new Error("record unavailable"),
   });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED");
   assert.equal(result.runStatus, "SAVE_ARMED");
   assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
@@ -467,8 +622,8 @@ for (const [label, saveObservation, expectedOutcome] of [
   ["ambiguous", { invoked: true, invokeCount: 1, settled: false, matchingRequestCount: 1 }, "AMBIGUOUS"],
   ["rejected", { invoked: true, invokeCount: 1, settled: true, noMutationProven: true, matchingRequestCount: 0 }, "REJECTED"],
 ]) {
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, saveObservation, recordSaveError: new Error(`${label} record failed`) });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true, saveObservation, recordSaveError: new Error(`${label} record failed`) });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED", label);
   assert.equal(result.runStatus, "SAVE_ARMED", label);
   assert.equal(result.saveOutcome, expectedOutcome, label);
@@ -482,11 +637,11 @@ for (const [label, saveObservation, expectedOutcome] of [
 
 // A wrong durable status is recovery-required and CONFIRMED cannot verify fresh.
 {
-  const deps = fakeDeps([authority(beforeRows)], {
+  const deps = fakeDeps([authority(after930Rows)], {
     liveArmed: true,
     recordSaveResult: { run_status: "SAVE_AMBIGUOUS", stage_row_version: 4 },
   });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_SAVE_OUTCOME_RECORD_FAILED");
   assert.equal(result.saveOutcome, "CONFIRMED");
   assert.equal(result.runStatus, "SAVE_ARMED");
@@ -498,8 +653,8 @@ for (const [label, saveObservation, expectedOutcome] of [
 // Ambiguous is recorded before return and never retried.
 {
   const executor = createCompositionExecutor();
-  const deps = fakeDeps([authority(beforeRows)], { liveArmed: true, saveObservation: { invoked: true, invokeCount: 1, settled: false } });
-  const result = await executor.startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const deps = fakeDeps([authority(after930Rows)], { liveArmed: true, saveObservation: { invoked: true, invokeCount: 1, settled: false } });
+  const result = await executor.startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "SAVE_AMBIGUOUS");
   assert.equal(deps.calls.find(([name]) => name === "recordSave")[1].outcome, "AMBIGUOUS");
   assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1);
@@ -507,11 +662,11 @@ for (const [label, saveObservation, expectedOutcome] of [
 
 // A durably recorded REJECTED outcome stops without verification or a new run.
 {
-  const deps = fakeDeps([authority(beforeRows)], {
+  const deps = fakeDeps([authority(after930Rows)], {
     liveArmed: true,
     saveObservation: { invoked: true, invokeCount: 1, settled: true, noMutationProven: true, matchingRequestCount: 0 },
   });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "SAVE_REJECTED");
   assert.equal(result.runStatus, "SAVE_REJECTED");
   assert.equal(deps.calls.filter(([name]) => name === "recordSave").length, 1);
@@ -523,12 +678,12 @@ for (const [label, saveObservation, expectedOutcome] of [
 // Local run guard blocks a second Save invocation for the same server run ID.
 {
   const executor = createCompositionExecutor();
-  const deps = fakeDeps([authority(beforeRows), authority(beforeRows)], {
+  const deps = fakeDeps([authority(after930Rows), authority(after930Rows)], {
     liveArmed: true,
     saveObservation: { invoked: true, invokeCount: 1, settled: false },
   });
-  assert.equal((await executor.startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true })).code, "SAVE_AMBIGUOUS");
-  assert.equal((await executor.startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true })).code, "SAVE_ALREADY_INVOKED");
+  assert.equal((await executor.startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true })).code, "SAVE_AMBIGUOUS");
+  assert.equal((await executor.startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true })).code, "SAVE_ALREADY_INVOKED");
   assert.equal(deps.calls.filter(([name]) => name === "invokeSaveOnce").length, 1);
 }
 
@@ -583,7 +738,7 @@ function nativeSaveHarness({ actionMode = "add", returnedFalse = false, requests
 
 // Durable arm is followed by a fresh full mutation identity recheck before fill or Save.
 {
-  const deps = fakeDeps([authority(beforeRows)], {
+  const deps = fakeDeps([authority(after930Rows)], {
     liveArmed: true,
     identityRecheck: {
       ok: false,
@@ -591,7 +746,7 @@ function nativeSaveHarness({ actionMode = "add", returnedFalse = false, requests
       diagnostics: { productidEqualsServerPortalRef: false },
     },
   });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_PORTAL_TOKEN_MISMATCH");
   assert.equal(result.pageIdentityDiagnostics.productidEqualsServerPortalRef, false);
   assert.equal(result.runStatus, "SAVE_REJECTED");
@@ -617,12 +772,12 @@ function nativeSaveHarness({ actionMode = "add", returnedFalse = false, requests
 
 // Failure to record the no-mutation rejection stays fail-closed and requires recovery.
 {
-  const deps = fakeDeps([authority(beforeRows)], {
+  const deps = fakeDeps([authority(after930Rows)], {
     liveArmed: true,
     identityRecheck: { ok: false, code: "COMPOSITION_WRONG_ROUTE", diagnostics: { actionMode: "ADD" } },
     recordSaveError: new Error("offline smoke rejection"),
   });
-  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 930, userConfirmed: true });
+  const result = await createCompositionExecutor().startLine(deps, { sourceCompositionLineId: 931, userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_POST_ARM_REJECTION_RECORD_FAILED");
   assert.equal(result.runStatus, "SAVE_ARMED");
   assert.match(result.message, /requires recovery/i);
@@ -1012,11 +1167,17 @@ const files = {
   worker: fs.readFileSync(path.join(root, "electron/eaushadhi-worker/index.js"), "utf8"),
 };
 assert.equal((`${files.contract}\n${files.arm}`.match(/const COMPOSITION_LIVE_ARM_DEFAULT = false/g) || []).length, 1);
-assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_FIRST_LIVE_930_RELEASE = true/g) || []).length, 1);
-assert.match(files.contract, /Number\(sourceCompositionLineId\) === COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID/);
-assert.match(files.worker, /sourceCompositionLineId !== 930/);
-assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID/);
-assert.match(files.executor, /targetId !== FIRST_LIVE_SOURCE_LINE_ID[\s\S]*?deps\.liveArmed[\s\S]*?await collect\(deps/);
+assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_LIVE_ARM_DEFAULT = false/g) || []).length, 1);
+assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_FIRST_LIVE_930_RELEASE = false/g) || []).length, 1);
+assert.equal((`${files.contract}\n${files.arm}`.match(/COMPOSITION_CONTROLLED_PHASE2_931_RELEASE = true/g) || []).length, 1);
+assert.match(files.contract, /Number\(sourceCompositionLineId\) === COMPOSITION_CONTROLLED_SOURCE_LINE_ID/);
+assert.match(files.worker, /sourceCompositionLineId !== 931/);
+assert.match(files.executor, /targetId !== CONTROLLED_SOURCE_LINE_ID/);
+assert.match(files.executor, /targetId !== CONTROLLED_SOURCE_LINE_ID[\s\S]*?deps\.liveArmed[\s\S]*?await collect\(deps/);
+assert.match(files.executor, /assessPhase2Line931ServerAuthority/);
+assert.match(files.executor, /phase2_line_931/);
+assert.doesNotMatch(files.executor, /stage\.row_version === 10|workflow_row_version === 11/);
+assert.doesNotMatch(files.contract, /stage\.row_version === 10|workflow_row_version === 11/);
 const trustedDepsBuilder = files.worker.match(
   /function buildCompositionTrustedDeps\([\s\S]*?\r?\n  }\r?\n\r?\n  async function previewCompositionExecution/,
 )?.[0] || "";
@@ -1050,7 +1211,11 @@ assert.ok(files.adapter.indexOf("select(typeSelectors") < files.adapter.indexOf(
 assert.match(files.adapter, /async function verifyFilledTarget/);
 assert.match(files.adapter, /POST_FILL_SELECT_MISMATCH/);
 assert.match(files.control, /executionEligibleSourceLineIds/);
-assert.match(files.control, /Enter line 930 - Karpūra/);
+assert.match(files.control, /Enter line 931 - Kēram/);
+assert.match(files.control, /controlledPhase2Eligible/);
+assert.doesNotMatch(files.control, /Enter line 930 - Karpūra/);
+assert.match(files.html, /source line 931 - Kēram/);
+assert.match(files.html, /Confirm &amp; enter Kēram/);
 assert.doesNotMatch(files.control.match(/function compositionPortalExecutionHtml\(\)[\s\S]*?function dictionaryStatusLabel/)?.[0] || "", /blockers\.join\(/);
 assert.match(files.html, /id="compositionConfirmBackdrop"/);
 assert.match(files.html, /ambiguous Save is recorded and is never retried automatically/);
@@ -1086,5 +1251,23 @@ for (const channel of ["composition-preview", "composition-start-line", "composi
 }
 assert.match(files.control, /Composition live execution is not armed/);
 assert.doesNotMatch(`${files.ipc}\n${files.preload}`, /page\.evaluate|rpcName|plannerReport.*payload/);
+
+
+const phase2Migration = fs.readFileSync(
+  path.join(root, "supabase/migrations/20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql"),
+  "utf8",
+);
+assert.match(phase2Migration, /phase2_line_931/);
+assert.match(phase2Migration, /target_source_composition_line_id',931/);
+assert.match(phase2Migration, /predecessor_source_composition_line_id',930/);
+assert.match(phase2Migration, /predecessor_row_verified_confirmed/);
+assert.match(phase2Migration, /run_status='ROW_VERIFIED'/);
+assert.match(phase2Migration, /save_outcome='CONFIRMED'/);
+assert.match(phase2Migration, /portal_match_count=2/);
+assert.match(phase2Migration, /stage_status='PARTIAL'/);
+assert.match(phase2Migration, /p_target_source_composition_line_id <> 931/);
+assert.match(phase2Migration, /array\[929,930\]/);
+assert.match(phase2Migration, /array\[931\]/);
+assert.match(phase2Migration, /server_gate_ready/);
 
 console.log("eaushadhi trusted Composition execution smoke: PASS");

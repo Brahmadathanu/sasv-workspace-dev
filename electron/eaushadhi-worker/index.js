@@ -929,7 +929,7 @@ function createEaushadhiWorker({
     };
   }
 
-  function buildCompositionTrustedDeps(accessToken, sourceCompositionLineId = 930) {
+  function buildCompositionTrustedDeps(accessToken, sourceCompositionLineId = 931) {
     const activePage = controlledPage;
     const liveArmed = isCompositionLiveArmedFor(PD_PRODUCT_ID, sourceCompositionLineId);
     let adapters = null;
@@ -968,7 +968,7 @@ function createEaushadhiWorker({
     if (id !== PD_PRODUCT_ID) {
       return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
     }
-    return compositionExecutor.preview(buildCompositionTrustedDeps(accessToken, 930));
+    return compositionExecutor.preview(buildCompositionTrustedDeps(accessToken, 931));
   }
 
   async function startCompositionLineExecution(rawProductId, rawAccessToken, rawOptions = {}) {
@@ -979,8 +979,12 @@ function createEaushadhiWorker({
       return { ok: false, code: "PRODUCT_LOCK_REJECTED", message: `Composition V1 accepts only product_id ${PD_PRODUCT_ID}.` };
     }
     const sourceCompositionLineId = sourceIdFromRenderer(rawOptions?.sourceCompositionLineId);
-    if (sourceCompositionLineId !== 930) {
-      return { ok: false, code: "COMPOSITION_FIRST_LIVE_TARGET_REJECTED", message: "First-live Composition execution accepts only Product 262 line 930." };
+    if (sourceCompositionLineId !== 931) {
+      return {
+        ok: false,
+        code: "COMPOSITION_CONTROLLED_TARGET_REJECTED",
+        message: "Controlled Phase-2 Composition execution accepts only Product 262 line 931.",
+      };
     }
     return compositionExecutor.startLine(buildCompositionTrustedDeps(accessToken, sourceCompositionLineId), {
       sourceCompositionLineId,
