@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "execution": "OFF",
+  "target": {
+    "project_ref": "UNRESOLVED_TARGET_REF",
+    "host": "UNRESOLVED_HOST",
+    "provider_verified_ref": "UNRESOLVED_PROVIDER_REF",
+    "database_verified_ref": "UNRESOLVED_DATABASE_REF",
+    "approval_id": "UNRESOLVED_APPROVAL_ID",
+    "expires_at": "UNRESOLVED_EXPIRY"
+  },
+  "fixture_revision": "UNRESOLVED_FIXTURE_REVISION",
+  "marker": "UNRESOLVED_MARKER",
+  "approved_actions": ["auth_create", "auth_signin", "rpc_read"],
+  "reviewed_reads": [
+    "public.rpc_get_product_sku_readiness",
+    "public.rpc_get_latest_governed_cost_period_start",
+    "public.rpc_get_cost_period_valuation_context"
+  ],
+  "actors": ["ccc_view", "ccc_edit", "product_view", "no_module"],
+  "cases": [],
+  "max_fixture_wait_seconds": 300,
+  "handoff_directory": "UNRESOLVED_HANDOFF_DIRECTORY",
+  "phase_limits": {
+    "note": "Example only. Changing execution to REVIEWED_LIVE does not make this file a live spec while unresolved placeholders remain."
+  }
+}

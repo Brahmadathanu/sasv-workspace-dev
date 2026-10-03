@@ -1,47 +1,62 @@
-# WP04 native Auth/API harness preparation
+# WP04 native Auth/API harness and offline test runner
 
-Status: consolidated offline correction complete; corrected-package review pending. 32 offline checks pass; no live evidence. No target or live runner is approved. ChatGPT owns server delivery under DEC-014. Git retains traceability, not a server-apply prerequisite.
+Status: accepted harness components unchanged; offline Cursor wrapper added for review. Native Auth/API execution remains NOT_RUN and is not approved by this README. ChatGPT owns server delivery under DEC-014.
 
-Python 3.12 standard library; no installation/dependency needed. Safe entry points from repository root:
+## Component acceptance versus wrapper verification
 
-```sh
-python supabase/tests/wp04/auth_api_harness.py
-python -m unittest discover -s supabase/tests/wp04 -p 'test_*.py' -v
+| Layer | Evidence | Meaning |
+| --- | --- | --- |
+| `auth_api_harness.py` + `test_auth_api_harness.py` | 32 offline tests | Component-level acceptance only |
+| `test_runner.py` + `test_test_runner.py` | offline wrapper boundary tests | Wrapper defaults OFF; no native proof |
+| Live Auth/API / fixtures / performance | NOT_RUN | Requires later ChatGPT target, cost, spec and phase approval |
+
+Reviewed harness SHA-256 values (unchanged):
+
+| File | SHA-256 |
+| --- | --- |
+| `auth_api_harness.py` | `3fad74acdbf82ea14c6aa05027c9e43f566e46588ceca905daa904857f7a5eed` |
+| `test_auth_api_harness.py` | `8957cb5ef8cc4e30422b7a4a0a9f1b3fca6a5b34569e3bd2efa26fcb23adbc76` |
+
+## Windows offline launch
+
+Use the verified interpreter on this machine when available:
+
+```powershell
+& "C:\Users\BRAHMADATHAN U\anaconda3\python.exe" --version
 ```
 
-The first command emits OFF/NOT_RUN with zero requests. There is intentionally no live CLI flag or credential argument. Later execution requires a separately reviewed wrapper calling these components with `execute=True`, a reviewed `Target` and controlled in-memory secret inputs. This package does not read environment variables, search for credentials, load permissions, provision resources or clean up actors.
+Expect Python 3.12.x. Do not use the WindowsApps `python3` stub. The `py` launcher may be absent.
 
-## Exact future operations
+From the repository root of this branch/worktree:
 
-1. Independently verify provider/database/API target identity, allowlisted ref/host, current approval scope/expiry and target Auth hooks/configuration. A caller-supplied Target records these checks; it cannot itself prove them. The harness copies/fixes that target record and binds all key/actor/session state to its fingerprint. Reassignment is refused; target/key/approval/read-allowlist drift refuses requests and clears sessions. Use a new instance with newly verified target-only inputs for another target. Refuse production `qhmoqtxpeasamtlxaoak`, custom/alternate hosts and unknown targets. Standard hosted target only in this version.
-2. Supply a target-only modern secret (`sb_secret_...`) for admin creation and modern publishable key for sign-in/user reads. Keys cannot be verified as belonging to a project merely from their prefix: separately verify provenance. No secret appears in CLI arguments, committed files, reports or diagnostics. Never ask the user to paste keys into chat. Supported secure injection/execution capability remains unresolved; do not retrieve credentials now.
-3. `create_actor(label)` calls POST `/auth/v1/admin/users`, with a fresh `wp04-<uuid>@example.invalid`, random password and email_confirm. It retains the returned user ID/email/password in memory. Target validation/hook review must precede creation. If that synthetic address is rejected, stop; do not substitute a real recipient or signup/invite/OTP flow.
-4. Separately authorized exact canonical-permission fixture SQL must use the fresh IDs and reviewed target/marker. This package deliberately has no permission writer. Later wrapper must privately access the in-memory actor mapping; do not print it. Existing trigger or Auth hook effects need review, not disabling.
-5. `sign_in(label)` uses POST `/auth/v1/token?grant_type=password` with publishable apikey; requires returned user ID to match, then GET `/auth/v1/user` with native user Bearer token. Every sign-in attempt first discards its prior local session; any failure leaves it absent. Native sessions come only from the Auth response. No claim simulation or JWT fabrication. Modern API keys go in apikey; no admin key in user Authorization.
-6. `read_rpc` POSTs only reviewed qualified read functions, with Content-Profile, exact supplied params and publishable key/user session. Default allowlist contains canonical readiness, latest governed period and valuation context. Anonymous omits Authorization; invalid-session uses an intentionally invalid value. Missing requested actor session stops before the call. Reviewed candidate/helper reads may be supplied later in an exact read-only allowlist, never invented from route codes.
-7. Supply a separately reviewed `ReadExpectation(http_status, error_code, body_checks)` for each exact case. Body checks are immutable paths and exact scalar values. The evaluator sees the response only in memory and returns MATCH/MISMATCH; absent expectations return UNVERIFIED. Reports contain status/body shape/controlled verdict only. Evaluator failures are sanitized. No response notes, error messages, credentials or readiness recomputation. HTTP status alone is not module-denial proof; review exact error code and payload checks against the fixture/contract. A MATCH means only the supplied checks matched; it cannot certify permissions or full payload equivalence by itself.
+```powershell
+& "C:\Users\BRAHMADATHAN U\anaconda3\python.exe" supabase/tests/wp04/auth_api_harness.py
+& "C:\Users\BRAHMADATHAN U\anaconda3\python.exe" supabase/tests/wp04/test_runner.py
+& "C:\Users\BRAHMADATHAN U\anaconda3\python.exe" supabase/tests/wp04/test_runner.py preflight
+& "C:\Users\BRAHMADATHAN U\anaconda3\python.exe" -m unittest discover -s supabase/tests/wp04 -p "test_*.py" -v
+```
 
-## Proof matrix to complete after isolated setup
+The harness and runner default commands emit OFF/NOT_RUN JSON and make zero network requests. There is intentionally no live CLI execution switch and no credential argument.
 
-| Actor/case | Existing baseline | Candidate/helper | Current result |
-| --- | --- | --- | --- |
-| CCC view | Canonical/latest/context allowed with exact fixtures | Reviewed CCC read; no mutation authority | NOT_RUN |
-| CCC edit | Same read behavior; editor does not create bulk authority | Reviewed CCC read | NOT_RUN |
-| Product view only | Canonical/latest allowed; CCC context denied | CCC-only candidate denied | NOT_RUN |
-| Authenticated no module | Exact module guard denial | Exact reviewed denial | NOT_RUN |
-| Anonymous / invalid session | Exact EXECUTE/Auth/guard failure | Exact reviewed denial | NOT_RUN |
-| Direct helper | Preserve actual baseline exposure separately | Reviewed internal-helper restriction | NOT_RUN |
+`test_runner_spec.example.json` is non-executable. It stays OFF while unresolved placeholders remain, even if `execution` is edited to `REVIEWED_LIVE`.
 
-No candidate API is implemented/assumed. Governed period, SKU, refresh context, fixture IDs, exact denial assertions and the SQL marker/fixture scripts are later reviewed inputs. Test actor labels are not permissions; loading canonical permission fixtures is required. No Product-wide READY, activation gate or commercial-row authority change.
+## Staged credential and fixture handoff (later authorization only)
 
-## Limits and disposal
+Not enabled by this offline package.
 
-Direct HTTPS uses TLS validation, ten-second timeout, no proxy/retry/redirect following and a 1 MiB response cap. Network/provider availability and secret-key compatibility must be proven later; offline mocks cannot establish them. Requests may create users even if parsing/sign-in subsequently fails: never retry blindly. Retain safe operation identifiers privately in the later execution wrapper for separately approved reconciliation.
+1. ChatGPT supplies a reviewed target-bound spec and external approval digest (spec/harness/wrapper hashes, expiry, phases). The approval digest is outside the hashed spec bytes.
+2. In a separately opened trusted local console (not the Cursor agent terminal), hidden `getpass` entry may later collect the two target-only modern keys. Redirected/agent terminals are refused. `GetPassWarning` fails closed.
+3. After separately authorized native actor creation, the wrapper may export only target ref, spec hash, fixture revision and four label-to-UUID mappings to an explicit directory outside the worktree (exclusive create, no overwrite).
+4. The user relays that nonsecret mapping to ChatGPT. ChatGPT applies fixtures and returns a nonsecret acknowledgement. The runner uses a bounded monotonic pause; it does not save passwords or sessions.
+5. Proof reads require exact expectations. UNVERIFIED is never a proof pass. MATCH means only reviewed assertions matched.
 
-`forget()` drops local references only, not memory zeroization, remote user deletion or session revocation. Cleanup is not implemented/authorized; review scoped sign-out/revocation and deletion separately. Access tokens can remain valid until expiry after deletion. No blanket cleanup, SQL rollback claim or branch merge/reset.
+## Limits
 
-Sources checked 2026-10-03: official [createUser](https://supabase.com/docs/reference/javascript/auth-admin-createuser), [signInWithPassword](https://supabase.com/docs/reference/javascript/auth-signinwithpassword), [API keys](https://supabase.com/docs/guides/getting-started/api-keys), [Auth users](https://supabase.com/docs/guides/auth/users). REST operation compatibility and no-outbound-hook behavior remain target-runtime proof. This preparation made no endpoint request.
+- No environment-variable credential loading, secret files, clipboard automation or chat secret collection.
+- No production target `qhmoqtxpeasamtlxaoak`.
+- No permission SQL writer, actor cleanup, revoke, delete or merge/tag/release from this package.
+- `forget()` drops local references only; it is not memory zeroization or remote revocation.
+- Offline tests use injected fake transport/prompt/identities only.
+- Real Windows hidden-input demonstration, native Auth/API calls, provisioning and performance proof remain separately authorized.
 
-## Correction verification
-
-The 32 offline checks include stale-session rejection after HTTP/transport/malformed/native-user failures, target/host/key/approval drift refusal before requests, frozen allowlists and expectations, exact match/mismatch/unverified outcomes, 200 unexpected-body and 403 wrong-code cases, and sanitized assertion exceptions. Original source preparation and review findings remain in the WP document. Python object internals and injected evaluators/transports are trusted test code, not a sandbox against hostile code; review the later wrapper. Key provenance, native runtime behavior, fixtures and exact test expectations remain unverified.
+Sources consulted earlier remain dated evidence, not a new runtime proof of this machine's private-input or network behavior.
