@@ -1259,6 +1259,66 @@ Exact next: `WP04-G4-S0 — Secure execution / target-creation package preparati
 Stop after this review checkpoint. No server use, credentials, provisioning/cost/Auth/fixture/client mutation, merge/tag/release or cleanup. WP03 closed; G0–G3 complete at documented levels; G4-S0/G4 in progress; programme 4 of 13; audit branch unmerged.
 
 
+## WP04-G4-S0 — Secure execution / target-creation package preparation (2026-10-03)
+
+Entry fetch: main unchanged `b162d4932ec2bbe9ca665aadedf1827e5117de5a`; clean audit tip `04004038dc61e26df5343013788efb0ab75aeef4`. Executed the frozen capability/setup preparation only. Official documentation and installed connector descriptions checked; one allowed read-only organization inventory obtained. No database or test endpoint query, credential scan/retrieval, deployment, installation, provider cost/creation, Auth/fixture/server/client mutation. Harness source remains unchanged and its reviewed offline acceptance stands.
+
+**Result:** concrete proposed route and creation/consent sequence prepared for review. **Recommendation: a private operator-run Python wrapper on a trusted computer**, using the accepted standard-library harness and hidden local credential prompts. ChatGPT supplies/owns code and direct server setup; the operator only executes a prepared verification tool and supplies target-only credentials locally. This is not a Cursor/Codex server handoff or Git prerequisite. No coding task is assigned to the user. A suitable operator runtime is not yet confirmed; no live runner is authored or approved here. Paid target remains HOLD until that practical capability is established.
+
+### Actual capabilities and rejected shortcuts
+
+| Route | Verified capability | Remaining limitation / disposition |
+| --- | --- | --- |
+| Private Python operator runner | Existing reviewed harness needs Python standard library only; target guard/modern keys/native Auth/assertions supported in components | Operator computer/Python availability, secure local key entry and exact wrapper/fixtures still need confirmation/review. Preferred because it avoids a new remote admin test endpoint and adapter |
+| Hosted Edge runtime | Official [environment guide](https://supabase.com/docs/guides/functions/secrets) documents automatic SUPABASE_URL and JSON SUPABASE_PUBLISHABLE_KEYS/SUPABASE_SECRET_KEYS dictionaries, including named default keys. Runtime can keep secrets internal | Python harness does not run unchanged in Deno. A new adapter/controller and secure invocation/operator authorization would need review; no such path is established merely by deployment |
+| Dashboard function tester | Official [dashboard quickstart](https://supabase.com/docs/guides/functions/quickstart-dashboard) supports configured requests and anon/user authorization | Tester is not administrator authorization by itself. Do not expose privileged actor creation to anon/publishable-key callers, confuse Dashboard login with a native app actor, or assume a built-in secure operator session |
+| Connector-only execution | deploy_edge_function exists; get_publishable_keys exists; no direct native Auth/admin-key/invoke/set-secret method exposed in inspected inventory | Deployment capability does not provide secure invocation or Python secret injection. Do not export provider-managed secrets through a function, SQL, logs or a public report |
+
+Official sources consulted 2026-10-03 through search_docs and official web retrieval: environment guide, dashboard quickstart and [Edge authorization](https://supabase.com/docs/guides/functions/auth). Modern keys are not JWTs; gateway verify_jwt and custom body authorization are separate. Connector deployment recommends verify_jwt enabled, with explicit documented custom-auth exceptions. No verify_jwt setting is chosen/changed in this package. Search_docs and current web environment text differ in presentation, but both expose the modern dictionaries; actual target runtime availability still needs verification. These are capabilities, not native target proof.
+
+Edge runtime remains a fallback only if an actual supported invocation path is reviewed. It is not necessary to create a new test-controller endpoint just to deliver WP04. No Edge deployment/adapter, secret export, key migration, legacy-key fallback or production runtime changes approved.
+
+### Proposed private runner contract for review
+
+- Entry point is a prepared operator tool, execution OFF by default. Future exact wrapper would take a nonsecret reviewed target/approval/case specification and prompt through `getpass` for the modern target-only secret/publishable values. No key/password/token command arguments, saved credential file, clipboard-to-chat step, environment enumeration, debug output or report response bodies. Hidden prompts retain values in memory only; OS/process terminal trust is a prerequisite, not guaranteed by getpass.
+- Supply only credentials for the selected disposable proof target from its own provider UI. Never supply production keys. Provider key provenance and independent project/database/API identity are confirmed before execution; prefix alone is not provenance. Project/approval expiry/actions/read-allowlist remain fixed. User does not edit Python, SQL or API requests.
+- Wrapper binds exact native actor creation, canonical permission fixture handoff, password/native-user confirmation and reviewed read assertions. The accepted harness's private actor mapping contains IDs and passwords; only actor UUIDs may go privately to the separately reviewed target-specific permission fixture, never passwords/tokens. No automatic permission writer or live actor ID export to chat is approved here.
+- Author exact nonsecret case/specification and private assertion flow in a separately frozen offline wrapper package after review. Runtime checks must not call Auth/admin/RPC merely to test readiness. No background refresh, persisted login, retry of uncertain actor creation, real-recipient signup/invite or cleanup by default. Local-only safe report distinguishes MATCH/MISMATCH/UNVERIFIED/NOT_RUN; a match proves its exact checks only.
+- Prefer no new dependency or interpreter installation if Python is already available. If not, report the concrete runtime prerequisite and propose a supported supervised alternative; do not silently download software or provision paid infrastructure. ChatGPT remains the server executor; operator run is the unavoidable local credential/verification step for this proposed route.
+
+This is a concrete design, not an established local credential channel in this ChatGPT session. The installed connector cannot secretly inject keys into the existing shell. Do not ask the user to paste secrets into chat or assert unattended end-to-end execution. Required human fact: availability of a trusted computer with Python for the prepared runner, or selection of an alternative supported secure execution method after its review.
+
+### Proposed target-creation request and operation sequence
+
+| Field / phase | Concrete proposal / condition |
+| --- | --- |
+| Resource | Standalone isolated Supabase project `wp04-readiness-proof`; no production parent/branch clone/restore |
+| Organization | Live allowed inventory returned **Santhigiri Ayurveda Siddha Vaidyasala**, ID `mohgaandwpmpkcqpbqpj`. This is a selectable option, not user selection/consent; even sole membership does not satisfy the cost tool's instruction to ask |
+| Region | ap-south-1, matching recorded production region; ChatGPT recommendation, no technical engine/region decision burden assigned to user |
+| Engine/build | Standard Postgres compatible with reviewed source is intended; create_project has no explicit engine/build/compute parameters. Do not promise PG17.4; verify returned build/extension defaults and compatibility, HOLD on unsupported difference |
+| Data/integrations | No production backup/Auth/business/HR/financial/storage data, GitHub deployment binding, worker/cron/webhook integration or source secret copied. No baseline schema assumed automatically present |
+| Duration | Proposed initial proof window up to 24 hours after approved setup begins; exact ongoing quote, runtime costs and end-of-window handling must be consented. No automatic deletion/pause or claim that either eliminates every charge |
+| First operations | After approval create via connector, poll health, independently reconcile returned ref/DB/API/provider identities and production exclusion; bounded target defaults/hooks/API/Auth inspection before any bootstrap or users |
+| Further operations | Separate exact marker/bootstrap/fixture/wrapper authorization, native baseline proof, reviewed candidate proof, independent proof review and separate production apply. No merge of test target into production |
+
+Order is explicit:
+
+1. Independently review this route/creation package. Resolve/confirm operator runtime and freeze exact offline wrapper before provisioning an unusable paid target. If operator route is unavailable, make one concrete supported alternative decision; do not repeat catalog capture.
+2. Ask the user to select the organization explicitly. Then get_cost for that selected organization/type project; repeat actual amount/recurrence and known additional/retention limits, call confirm_cost and obtain approval for the exact create_project request. No quoted amount, free-tier assumption or cost call in this pass.
+3. Before creation review provider default/bootstrap scope and integration exclusions from supported operation/current docs. create_project does not accept a parent ref; that avoids intentional source replay but is not a zero-side-effect guarantee. If remaining scope is unacceptable, HOLD rather than create and discover consequences later.
+4. After separately authorized creation verify status/ref/organization/region/engine/build, DB identity, API host, actual roles/hooks/default ACLs/API/Auth settings; never use source OIDs or name label as target proof. Only safe booleans/metadata, no key values, should enter the durable record. Fresh bounded live-source drift check remains required before baseline apply; no production expansion approved now.
+5. Review actual target-bound scripts/specification and future private key-entry instructions before native actors/fixtures. Exact permission/payload assertions and actor lifecycle cleanup are separate from target creation. Supply the user a prepared operator command/launcher with plain instructions, not a coding handoff. No cost/target decision authorizes arbitrary bootstrap or admin operations.
+6. Execute only applicable reviewed isolated stages; failed native Auth/API prerequisites remain setup failures/NOT_RUN, not readiness UNKNOWN. Maintain safe operation/rollback/recovery records; stop on version/hash/ACL/identity drift. Separate production apply/client delivery remain downstream.
+
+### Classification, current state and next gate
+
+REQUIRED NOW: independent secure execution/target-creation package review, including practical operator-runtime availability and exact offline wrapper scope. FUTURE DEPENDENCY: confirmed local or alternative execution capability, reviewed wrapper, explicit organization/actual cost consent, target/provider/defaults/bootstrap/fixtures/native/parity/performance proof. HIGH-RISK: creation/deployment/Auth/SQL/permissions/fixtures/candidate/production mutation remains withheld. PARKED: unchanged. OUT OF SCOPE: secret export, public admin endpoint, production clones/security repairs, new Marketing/bulk/client/module/routes/business rules.
+
+Current gate: `WP04-G4-S0 — Secure execution / target-creation package preparation completed; review pending`.
+Exact next: `WP04-G4-S0 — Secure execution / target-creation package review`.
+No permanent decision lock or new parked finding. Stop after documentation publication; no cost/target/deployment/keys/users/writes. G0–G3 complete at documented levels; G4-S0/G4 in progress; programme 4 of 13; WP03 closed; audit branch unmerged.
+
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1271,23 +1331,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Corrected offline native Auth/API harness review passed; secure execution/target-creation preparation next; environment/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Secure execution/target-creation preparation complete; private operator route proposed; independent package review next; environment/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Corrected native Auth/API harness review passed at offline component level`
+`WP04-G4-S0 — Secure execution / target-creation package preparation completed; review pending`
 
 ## Gate Status
-[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Corrected native Auth/API harness review passed at offline component level; secure execution/target-creation preparation next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
+[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Secure execution/target-creation preparation complete; proposed operator runtime unconfirmed and independent review next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
 
 ## Required to close
-Complete frozen secure execution/target-creation preparation and resulting package review; establish a supported secure execution/creation path. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
+Complete independent secure execution/target-creation package review and confirm practical execution route; establish a supported secure execution/creation path. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
 
 ## Next gate
-`WP04-G4-S0 — Secure execution / target-creation package preparation`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
+`WP04-G4-S0 — Secure execution / target-creation package review`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1321,12 +1381,12 @@ None. Offline server-test artifacts only; no application client change.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, corrected offline harness review passed, secure execution/target-creation preparation next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this review made no live query, cost/provisioning/credential operation or server change. Existing business counts/timing observations remain dated evidence.
+WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, secure execution/target-creation preparation completed, independent package review next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this preparation queried only permitted organization metadata; no database/target/credential/cost/provisioning or server change. Existing business counts/timing observations remain dated evidence.
 
 Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, corrected offline harness review passed, secure execution/target-creation preparation next, environment not ready.
+WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, secure execution/target-creation preparation complete, independent review next, runtime unconfirmed, environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 corrected native Auth/API harness review passed at offline component level.
-Next: secure execution/target-creation package preparation; no provisioning or server/client application.
+Current gate: WP04-G4-S0 secure execution/target-creation preparation complete; review pending.
+Next: secure execution/target-creation package review; no provisioning or server/client application.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.
