@@ -1427,6 +1427,15 @@ Remote main b162d4932ec2bbe9ca665aadedf1827e5117de5a and audit e49a2d9718ed26109
 
 No real input/native/network/DB/cost/provisioning/server/client operation or merge/tag/release. Current: targeted correction audit, exception-boundary gap open. Next: WP04-G4-S0 offline wrapper exception-boundary correction. G0–G3 complete at documented levels, G4 active, programme 4 of 13, WP03 closed, DEC-014/parked/locks unchanged, branches unmerged.
 
+## WP04-G4-S0 — Offline wrapper acceptance at 0c627619 (2026-10-03)
+
+Entry fetch reconciled unchanged main b162d4932ec2bbe9ca665aadedf1827e5117de5a/audit 0ba443adfa75cf039dbf6f159c5a679185ecf939 and feature 0c6276192d6dfa05f311325d50cc4dac66826d2b. Authorized three-file exception correction, total four-file feature scope, example/original harness unchanged. Independently read pushed diff/tests and reran **76 tests: 75 PASS / 1 Windows-only SKIP**. Cursor's Windows report has complementary reparse PASS/symlink-privilege SKIP; real console/path/native proof remains absent.
+
+**Offline package ACCEPTED.** WR-01–WR-06 plus targeted follow-up and exception-boundary reproduced findings close at this exact source. Missing spec file after bind independently returns spec_source_required, FAILED, fake admin/publishable/session disposal, zero calls and refused continuation. Permission/artifact/write/cancellation regressions passed. Default/preflight OFF/NOT_RUN/zero network. Exact accepted hashes and proof limits recorded in [brief](WP-04-S0-CURSOR-TEST-RUNNER-PLAN.md). No further code correction required for this scope; acceptance is not live/server/environment proof.
+
+Current gate: `WP04-G4-S0 — Corrected offline test-runner audit passed; offline package accepted`.
+Exact next: `WP04-G4-S0 — Windows private-input proof package preparation`. Prepare one source-bound fake-only separate-console instruction package, stop for package review before execution. No accepted code edits, real credentials, network/Auth/SQL/cost/provisioning/server/client operations or merge/cleanup/tag/release. Paid target HOLD. G0–G3 complete at documented levels; G4 active; programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged; feature/audit branches unmerged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1439,23 +1448,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Targeted correction at 72c0ed9 audited; narrow exception-boundary fix pending; native/setup/server/client application withheld |
+| WP04-G4 — High-risk server package, if required | [~] Offline wrapper 0c627619 accepted; Windows private-input proof preparation next; native/setup/server/client application withheld |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Targeted correction audit; exception-boundary gap open`
+`WP04-G4-S0 — Corrected offline test-runner audit passed; offline package accepted`
 
 ## Gate Status
-[~] IN PROGRESS — Wrapper 72c0ed9 closes prior exact follow-up repros; 68 PASS / 1 platform SKIP independently. Ordinary file/type failure still bypasses terminal disposal/fixed codes; narrow correction approved. Wrapper/live/environment proof unaccepted. Branches unmerged.
+[~] IN PROGRESS — Exact wrapper 0c627619 accepted offline; 75 tests PASS / 1 platform SKIP independently. All reproduced review findings closed at this scope. Windows real hidden-input/path, target/provider/cost/bootstrap/fixtures/native/performance proof absent. No live execution/merge approved; branches unmerged.
 
 ## Required to close
-Verify actual operational exception/malformed-input refusal and terminal reference disposal with independent corrected audit; later Windows input/isolated/native proof remains separate.
+Prepare/review then demonstrate fake-only actual Windows private input; later explicit organization/cost/setup/native/parity/performance proof remains separate. Offline acceptance is not environment readiness.
 
 ## Next gate
-`WP04-G4-S0 — Offline wrapper exception-boundary correction`, then corrected audit. Same branch/scope, no real inputs/network.
+`WP04-G4-S0 — Windows private-input proof package preparation`. Prepare exact fake-only instructions, stop for package review before console execution. No new implementation or paid target.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1489,12 +1498,12 @@ None. Offline server-test artifacts only; no application client change.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels; G4 active. Wrapper 72c0ed9 has 68 tests PASS / 1 platform SKIP independently, but ordinary file/type failure bypasses safe terminal disposal. Same-branch narrow exception correction authorized. Audit used fake inputs/transports and temporary local files only; no real input/native/API/DB/cost/provisioning/server/client mutation, merge/tag/release or remote cleanup. Branches unmerged.
+WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapper 0c627619 accepted after independent 76-test run (75 PASS / 1 platform SKIP) and missing-file reproduction closure. No further offline code correction required. Audit used fake inputs/transports/local temporary files only; no real credentials/native/API/DB/cost/provisioning/server/client mutation, merge/tag/release or remote cleanup. Feature/audit branches unmerged.
 
-Workflow: Cursor narrow exception correction/test/push → ChatGPT audit → separately authorized Windows-input/isolated/native proof; DEC-014 direct server ownership retained.
-WP progress: G0–G3 complete at documented levels; G4 active; wrapper not accepted/environment not ready.
+Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
+WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: targeted correction audit, exception-boundary gap open.
-Next: WP04-G4-S0 offline wrapper exception-boundary correction.
+Current gate: corrected offline wrapper audit passed; offline package accepted.
+Next: WP04-G4-S0 Windows private-input proof package preparation, then package review before execution.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.

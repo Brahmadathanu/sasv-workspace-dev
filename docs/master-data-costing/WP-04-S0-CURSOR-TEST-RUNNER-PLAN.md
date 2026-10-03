@@ -1,6 +1,6 @@
 # WP04-G4-S0 — Cursor on Windows test-runner plan
 
-Status: FIRST PUSHED OFFLINE WRAPPER AUDIT REQUIRES CONSOLIDATED CORRECTION. DEFAULT CLI SAFE; WRAPPER NOT ACCEPTED FOR LIVE USE. CORRECTION ONLY APPROVED.
+Status: CORRECTED WRAPPER ACCEPTED AT OFFLINE PACKAGE LEVEL AT 0c627619. REAL CONSOLE/NATIVE/TARGET PROOF ABSENT; NO LIVE EXECUTION APPROVED.
 Date: 2026-10-03. Durable gate authority: [WP04](WP-04-READINESS-CONTROL-CENTRE.md). Main at entry: `b162d4932ec2bbe9ca665aadedf1827e5117de5a`. Source audit tip: `e1d4f6a2651bb292c5579a00ab9eea499be162a8` on `docs/wp04-g0-readiness-control-centre-audit`.
 
 ## Purpose and ownership
@@ -162,3 +162,26 @@ Authorize one narrow correction on same branch from 72c0ed9, within existing fou
 - Regressions must use an actually missing temporary spec file, injected permission/read/artifact/write failures and malformed JSON values, not only patched RunnerError. Assert zero additional calls, FAILED, cleared fake admin/publishable/session state, safe fixed outward code and continuation refusal. Rerun existing full suite, self-review/fix, commit/push and return per-item evidence/skips. Retain previously closed regressions; no scope expansion or real keys/console experiment/network/Auth/SQL/cost/target/server/client changes, merge/tag/release.
 
 Next: `WP04-G4-S0 — Offline wrapper exception-boundary correction`, then independent corrected audit. This correction does not claim complete protection against hostile injected code or OS access; reviewed local code and filesystem are trusted prerequisites. No new parked finding or decision lock.
+
+## Exception-boundary corrected audit / offline package acceptance — 2026-10-03
+
+Main b162d4932ec2bbe9ca665aadedf1827e5117de5a and audit 0ba443adfa75cf039dbf6f159c5a679185ecf939 unchanged; feature 0c6276192d6dfa05f311325d50cc4dac66826d2b fetched independently. Three permitted files changed from 72c0ed9; total feature scope remains the four approved files; example and original harness unchanged. Read pushed diff/source/tests; independently reran **76 tests: 75 PASS / 1 Windows-only reparse SKIP** on this Linux host. Cursor reports **75 PASS / 1 symlink-privilege SKIP** on Windows with reparse test PASS. No combined claim that this is actual private-console or live provider proof.
+
+**PASSED / ACCEPTED at offline package level.** WR-01–WR-06 and their targeted exception-boundary follow-ups are closed for the reviewed offline scope. Prior regressions retained, actual missing-file/permission/artifact/write failures now use fixed codes and terminal disposal; cancellation propagates after disposal. Independently repeated actual temporary spec unlink after binding: spec_source_required, FAILED, admin/publishable references absent, zero transport calls; continuation setup_failure_terminal. Default and preflight OFF/NOT_RUN/zero network. No further generic correction or catalog loop justified by this review.
+
+Exact accepted LF blob hashes:
+- test_runner.py: 36b897a0d1f2596a99c19631bb0bf6117f7757a658de28f3b45cc1d40386abdb
+- test_test_runner.py: 1d1d272efb003ca5092b7930ceb0708deabd8dbb8452bb9f5aee4d718afd08f8
+- README.md: 5a611325543750e860e69e5342dc439b388a8914f9fec9831a45a0ee747fa59b
+- auth_api_harness.py: 3fad74acdbf82ea14c6aa05027c9e43f566e46588ceca905daa904857f7a5eed
+- test_auth_api_harness.py: 8957cb5ef8cc4e30422b7a4a0a9f1b3fca6a5b34569e3bd2efa26fcb23adbc76
+
+Acceptance is of trusted local test components and their exact reviewed assertions, not a sandbox against hostile code/OS, independent provider identity, actual hidden input/network, native permission/full-payload/CSE parity or production-scale performance. Original authority/lifecycle/DEC-014 and no live CLI remain. No merge, branch cleanup, deployment, real input or target/cost/bootstrap/Auth/fixture/server/client operation approved. Feature stays unmerged; no README edit required merely to repeat this review because WP04 controls workflow state.
+
+### Frozen next package — Windows private-input proof preparation
+
+Exact next: `WP04-G4-S0 — Windows private-input proof package preparation`. ChatGPT prepares one small reviewable Cursor-assisted command/instruction package using the accepted ConsoleCredentialAdapter only with a conspicuously fake constant. Fetch main/feature/docs first; stop on movement/overlap; bind exact accepted source/hash. Do not author a new live runner, alter accepted files, install packages, inspect stored credentials or create a target.
+
+Prepare: actual local terminal launch steps independent of agent-captured output; check all stream flags; hidden fake input and a controlled success/failure report that never prints entered text; expected warning/noninteractive refusal and interruption behavior. Use fake text explicitly, no provider key format, no production/network/Auth object or credential collection. The user only opens the prepared console and types a fake phrase later; this minimal human interaction is needed to observe physical echo behavior and is not a coding task. Explain echo observation cannot be certified from a mock/report alone.
+
+Record runtime/path evidence separately from Windows reparse mocks and prepare exact no-network boundaries. Stop for `WP04-G4-S0 — Windows private-input proof package review` before actual user-console execution. No real-key entry acceptance is inferred; later organization/actual-cost/creation/default/bootstrap/fixture/native/proof stages remain separately reviewed and authorized. Paid target remains HOLD until usable private execution path demonstrated. No additional provider research/catalog capture unless a concrete new prerequisite appears.
