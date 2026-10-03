@@ -1359,6 +1359,22 @@ Hosted-route sources checked 2026-10-03: [pg_net](https://supabase.com/docs/guid
 
 REQUIRED NOW: executor-assisted test-runner plan. FUTURE DEPENDENCY: confirmed secure runtime, reviewed wrapper/fixtures, organization/cost consent, isolated baseline/native/candidate/access/parity/performance proof. HIGH-RISK: provisioning, Auth, controller/DDL/permissions/candidate/production changes remain withheld. PARKED unchanged; no new permanent decision lock. Review completed at planning level; G4-S0/G4 remain in progress, environment not ready, programme 4 of 13, WP03 closed, branch unmerged.
 
+## WP04-G4-S0 — Executor-assisted test-runner plan (2026-10-03)
+
+Entry fetch: main unchanged `b162d4932ec2bbe9ca665aadedf1827e5117de5a`; clean audit tip `e1d4f6a2651bb292c5579a00ab9eea499be162a8`. User confirmed **Cursor on Windows**. This identifies the chosen executor surface; it does not establish Python/network/private input availability, approve an installation or select a Supabase organization/cost/target. No remote job or sub-agent launched.
+
+Prepared the complete bounded [Cursor test-runner plan](WP-04-S0-CURSOR-TEST-RUNNER-PLAN.md) for separate independent review. Official Cursor terminal/security and Python getpass documentation inspected; no credentials, endpoint request, live DB query, target provisioning/cost/Auth/SQL/client mutation or dependency installation. Accepted harness source is unchanged. No wrapper implemented and no new native proof or offline test run claimed.
+
+The plan fixes proposed wrapper/test/example-spec/README scope and an isolated future test branch based on a reviewed audit tip containing the harness. It specifies default OFF/zero requests, exact immutable target/spec/hash/expiry/case binding, no business-rule/SQL authority, strict private input and output boundaries, staged native actors/sign-in/reads and one narrowly approved noncredential UUID handoff to ChatGPT-owned fixtures. It closes the conceptual handoff gap without assuming a transport already exists: only synthetic UUIDs/target/spec revision may be relayed after separate approval; passwords/tokens remain in the running process, with pause/expiry/crash stop and no retry/restart. The user may need one private key entry and one nonsecret mapping handoff later; it is not a coding task and is not fully unattended.
+
+Cursor can perform offline tool development and help operate approved test phases, but local terminal capability is not secret injection. Proposed hidden getpass input must be verified with fake values outside agent-captured output; noninteractive/echo-warning input refuses execution. Key provenance and actual target/hook/fixture checks remain ChatGPT-owned. No paid target before viable input/runtime evidence and explicit organization/cost/setup consent. A new hosted controller is unnecessary to this proposed local route and remains unapproved.
+
+Review required: exact Cursor PLAN brief, future implementation scope, private-entry feasibility/remaining user steps, private synthetic UUID acknowledgement/reconciliation, native mutation boundaries, no unsafe retries/cleanup, assertion scope and Windows offline evidence. Runtime unresolved facts are reported in one complete Cursor plan, not guessed. This checkpoint prepares a plan for review; it does not authorize implementation, forwarding as implementation instructions or live tests.
+
+Current gate: `WP04-G4-S0 — Executor-assisted test-runner plan prepared; review pending`.
+Exact next: `WP04-G4-S0 — Executor-assisted test-runner plan review`.
+G0–G3 remain complete at documented levels; G4-S0/G4 in progress; programme 4 of 13; WP03 closed; DEC-014 preserved; parked unchanged. Three documentation files changed only. Stop after publication.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1371,23 +1387,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Setup-package review complete at planning level; user prefers executor-assisted testing; exact runner plan next; runtime/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Cursor on Windows confirmed; bounded runner plan prepared; independent review next; runtime/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Secure execution / target-creation package review completed at planning level; operational readiness HOLD`
+`WP04-G4-S0 — Executor-assisted test-runner plan prepared; review pending`
 
 ## Gate Status
-[~] IN PROGRESS — G0–G3 complete at documented levels. Reviewed offline harness retained; setup-package review completed. User prefers another execution route and asked about Cursor/Codex. Executor-assisted test-runner plan next; secure runtime/target/cost/bootstrap/fixtures/native proof remain open. No provisioning or server/client execution approved. Branch unmerged.
+[~] IN PROGRESS — G0–G3 complete at documented levels. Cursor on Windows selected as executor surface; exact bounded runner plan prepared for review. Actual runtime/private input, wrapper, target/cost/bootstrap/fixtures/native proof remain absent. No provisioning/server/client/test execution approved. Branch unmerged.
 
 ## Required to close
-Establish one supported secure execution route through an exact executor-assisted runner plan/review; then reviewed offline wrapper, selected organization/actual cost consent and exact target/default/bootstrap/fixture/native proof stages. No environment-ready claim from documentation or offline mocks.
+Review the exact runner/PLAN brief, then obtain actual nonsecret Windows/runtime/input evidence and separately reviewed offline wrapper implementation. Later organization/cost/setup/fixture/native proof stays separately authorized; environment not ready.
 
 ## Next gate
-`WP04-G4-S0 — Executor-assisted test-runner plan`. Planning only; stop for separate plan review before offline implementation or target creation. DEC-014 direct server ownership preserved.
+`WP04-G4-S0 — Executor-assisted test-runner plan review`. No implementation, credentials, live execution or paid creation in this checkpoint. DEC-014 direct server ownership preserved.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1421,12 +1437,12 @@ None. Offline server-test artifacts only; no application client change.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented audit/design/planning levels. G4-S0 setup-package review completed at planning level; environment/runtime/proof absent. Current pass inspected repository/source and official capability documentation only; no DB/endpoint/credentials/cost/provisioning/server/client mutation, merge/tag/release or cleanup. Documentation audit branch unmerged.
+WP04 incomplete. G0–G3 verified at documented levels; G4-S0/G4 in progress. Cursor on Windows confirmed and bounded executor-assisted plan prepared; independent review next, runtime/private input unverified. Repository/source and official docs inspected only; no DB/endpoint/credentials/cost/provisioning/Auth/server/client change, merge/tag/release or cleanup. Audit branch unmerged.
 
-Workflow: ChatGPT server plan/review/direct Supabase application/verification; bounded executor test-tool plan and separately reviewed offline implementation/proof; client package later through Cursor/Codex push → ChatGPT audit → explicit merge.
-WP progress: G0–G3 complete at their documented levels; G4-S0/G4 in progress; secure execution readiness HOLD.
+Workflow: ChatGPT server plan/review/direct Supabase application/verification; Cursor bounded test-tool PLAN → ChatGPT review → separately authorized offline implementation/test → separate isolated native proof; client delivery later through Cursor/Codex push → ChatGPT audit → explicit merge.
+WP progress: G0–G3 complete at their documented levels; G4-S0/G4 in progress; environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 secure execution / target-creation package review complete at planning level.
-Next: WP04-G4-S0 executor-assisted test-runner plan; no implementation or paid operation.
+Current gate: WP04-G4-S0 executor-assisted test-runner plan prepared; review pending.
+Next: WP04-G4-S0 executor-assisted test-runner plan review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
-Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership, DEC-014 execution ownership; WP03 closed. No new architecture/business/security lock.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No new architecture/business/security lock.

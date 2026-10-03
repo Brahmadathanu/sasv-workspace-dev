@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4-S0 remains in progress. Secure execution/target-creation package review complete at planning level; operational readiness HOLD. User prefers another execution route and asked about Cursor/Codex; executor-assisted test-runner plan next. ChatGPT retains direct server delivery under DEC-014. No secure runtime, target, cost consent, bootstrap/fixtures or native proof established; no provisioning/server/client execution approved. G0–G3 complete at documented levels; main b162d4932ec2bbe9ca665aadedf1827e5117de5a unchanged; audit branch unmerged.
+WP04-G4-S0 remains in progress. User confirmed Cursor on Windows; bounded executor-assisted test-runner plan prepared for independent review. Actual Python/network/private input, wrapper, target/cost/bootstrap/fixtures/native proof remain unestablished. ChatGPT retains direct server delivery under DEC-014; no provisioning/server/client/test execution approved. G0–G3 complete at documented levels; main b162d4932ec2bbe9ca665aadedf1827e5117de5a unchanged; audit branch unmerged.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4-S0 — Executor-assisted test-runner plan. Prepare one bounded plan reusing the accepted harness, establish actual runtime/secure target-only inputs and precise ChatGPT-owned fixture handoff; stop for separate plan review. Do not implement wrapper, launch remote tests, retrieve keys, invoke endpoints, create resources or perform cost operations. No paid target before viable execution route. Programme 4 of 13; WP03 closed.
+WP04-G4-S0 — Executor-assisted test-runner plan review. Review the exact bounded [Cursor plan](WP-04-S0-CURSOR-TEST-RUNNER-PLAN.md), future wrapper/spec/report scope, actual local-runtime/private-input evidence requirements and ChatGPT-owned fixture UUID handoff. No implementation, forwarding as implementation instructions, credentials, endpoints, resource/cost/Auth/SQL operation. No paid target before a viable execution route; programme 4 of 13; WP03 closed.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
