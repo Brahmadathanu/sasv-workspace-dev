@@ -238,6 +238,7 @@ class OperatorLauncherTests(unittest.TestCase):
         self.assertEqual(rep["execution"], "OFF")
         self.assertEqual(rep["overall"], "NOT_RUN")
         self.assertEqual(rep["network_calls"], 0)
+        self.assertEqual(rep["transport_calls"], 0)
         self.assertEqual(self.prompt_calls, [])
 
     def test_import_does_not_open_sockets(self):
@@ -398,7 +399,11 @@ class OperatorLauncherTests(unittest.TestCase):
         self.assertEqual(report["overall"], "PASS_REVIEWED_ASSERTIONS_ONLY")
         self.assertEqual(report["execution"], "SIMULATED_OFFLINE")
         self.assertEqual(report["native_auth"], "ATTEMPTED")
-        self.assertGreaterEqual(report["network_calls"], 1)
+        self.assertEqual(report["api_permissions"], "ATTEMPTED")
+        self.assertEqual(report["network_calls"], 0)
+        self.assertGreaterEqual(report["transport_calls"], 1)
+        self.assertEqual(list(report["phases"]), list(ol.REQUIRED_PASS_PHASES))
+        self.assertTrue(all(c["assertion"] == "MATCH" for c in report["cases"]))
         self.assertNotIn(CANARY, json.dumps(report))
         self.assertEqual(len(report["cases"]), 5)
 
@@ -588,9 +593,52 @@ class OperatorLauncherTests(unittest.TestCase):
                 overall="PASS_REVIEWED_ASSERTIONS_ONLY",
                 notes="operator_complete",
                 network_calls=0,
+                transport_calls=0,
                 execution="SIMULATED_OFFLINE",
                 native_auth="ATTEMPTED",
                 api_permissions="ATTEMPTED",
+            )
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.launcher_report(
+                overall="PASS_REVIEWED_ASSERTIONS_ONLY",
+                notes="operator_complete",
+                execution="REVIEWED_LIVE",
+                native_auth="ATTEMPTED",
+                api_permissions="ATTEMPTED",
+                network_calls=1,
+                transport_calls=0,
+                phases=list(ol.REQUIRED_PASS_PHASES),
+                cases=[],
+            )
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.launcher_report(
+                overall="PASS_REVIEWED_ASSERTIONS_ONLY",
+                notes="operator_complete",
+                execution="REVIEWED_LIVE",
+                native_auth="ATTEMPTED",
+                api_permissions="NOT_RUN",
+                network_calls=1,
+                transport_calls=0,
+                phases=list(ol.REQUIRED_PASS_PHASES),
+                cases=[{"case_id": "anon-period", "assertion": "MATCH"}],
+            )
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.launcher_report(
+                overall="PASS_REVIEWED_ASSERTIONS_ONLY",
+                notes="operator_complete",
+                execution="REVIEWED_LIVE",
+                native_auth="ATTEMPTED",
+                api_permissions="ATTEMPTED",
+                network_calls=1,
+                transport_calls=0,
+                phases=list(ol.REQUIRED_PASS_PHASES),
+                cases=[{"case_id": "anon-period", "assertion": "MISMATCH"}],
+            )
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.launcher_report(
+                execution="OFF",
+                network_calls=1,
+                transport_calls=0,
             )
 
     def test_report_rejects_canary_notes(self):
@@ -607,11 +655,9 @@ class OperatorLauncherTests(unittest.TestCase):
         with self.assertRaisesRegex(ol.LauncherError, "proof_incomplete|setup_failure"):
             self._run_with_ack(launcher)
 
-    def test_la05_https_guard_branch_with_delegate(self):
+    def test_la05_https_guard_branch_superclass_mocked(self):
+        """HTTPS path always uses accepted superclass; tests mock it — no live delegate injection."""
         handler = BoundFakeHandler()
-
-        def factory():
-            return handler
 
         import test_runner as runner
         adapter = runner.ConsoleCredentialAdapter(
@@ -627,16 +673,210 @@ class OperatorLauncherTests(unittest.TestCase):
             clock=self._clock,
             sleep=self._sleep,
             prompt=adapter,
-            transport_factory=factory,
-            use_https=True,
+            # No transport_factory → GuardedHttps → superclass __call__.
         )
         spec_path, approval_path, sha, _ = self._prepare()
         launcher.bind_launch_files(
             spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
         )
-        report = self._run_with_ack(launcher)
+
+        def mocked_https(self, host, method, path, headers, body):
+            return handler(host, method, path, headers, body)
+
+        with patch.object(launcher.harness.HttpsTransport, "__call__", mocked_https):
+            report = self._run_with_ack(launcher)
         self.assertEqual(report["overall"], "PASS_REVIEWED_ASSERTIONS_ONLY")
+        self.assertEqual(report["execution"], "REVIEWED_LIVE")
+        self.assertGreaterEqual(report["network_calls"], 1)
+        self.assertEqual(report["transport_calls"], 0)
+
+    def test_non_fake_transport_factory_refused(self):
+        import test_runner as runner
+        adapter = runner.ConsoleCredentialAdapter(
+            prompt_fn=self._prompt,
+            stream_probe=lambda: {
+                "stdin_isatty": True, "stdout_isatty": True, "stderr_isatty": True,
+                "stdin_redirected": False, "stdout_redirected": False, "stderr_redirected": False,
+            },
+        )
+        launcher = ol.OperatorLauncher(
+            package_dir=PACKAGE,
+            worktree_root=self.worktree,
+            clock=self._clock,
+            sleep=self._sleep,
+            prompt=adapter,
+            transport_factory=lambda: BoundFakeHandler(),
+        )
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        with self.assertRaisesRegex(ol.LauncherError, "transport_not_trusted"):
+            launcher.run_reviewed_sequence()
+
+    def test_fu_terminal_reporter_after_attempted_calls(self):
+        launcher = ol.OperatorLauncher(package_dir=PACKAGE, worktree_root=self.worktree)
+        launcher._used_fake_transport = True
+        launcher._transport_calls = 2
+        launcher._network_calls = 0
+        launcher._phases = ["bound", "actors_created"]
+        report = ol.build_terminal_report(
+            launcher,
+            failure_code="create_uncertain_stop",
+            notes="operator_failure",
+            overall="NOT_RUN",
+        )
         self.assertEqual(report["execution"], "SIMULATED_OFFLINE")
+        self.assertEqual(report["transport_calls"], 2)
+        self.assertEqual(report["network_calls"], 0)
+        self.assertEqual(report["overall"], "SETUP_FAILURE")
+        self.assertEqual(report["failure_code"], "create_uncertain_stop")
+        self.assertTrue(report["setup_failure"])
+
+    def test_fu_main_failure_after_attempts_no_secondary_escape(self):
+        import io
+        spec_path, approval_path, sha, _ = self._prepare()
+        outer = self
+        base_prompt = outer._launcher().prompt
+        base_factory = outer._launcher().transport_factory
+
+        class Tracking(ol.OperatorLauncher):
+            def __init__(self, **kwargs):
+                kwargs.setdefault("package_dir", PACKAGE)
+                kwargs.setdefault("worktree_root", outer.worktree)
+                kwargs.setdefault("clock", outer._clock)
+                kwargs.setdefault("sleep", outer._sleep)
+                kwargs.setdefault("prompt", base_prompt)
+                kwargs.setdefault("transport_factory", base_factory)
+                super().__init__(**kwargs)
+
+            def run_reviewed_sequence(self):
+                self._used_fake_transport = True
+                self._transport_calls = 1
+                self._phases = ["bound"]
+                raise ol.LauncherError("create_uncertain_stop")
+
+        buf = io.StringIO()
+        with patch.object(ol, "OperatorLauncher", Tracking), patch("sys.stdout", buf):
+            code = ol.main(["run", str(spec_path), str(approval_path), sha])
+        self.assertEqual(code, 2)
+        report = json.loads(buf.getvalue().strip().splitlines()[-1])
+        self.assertEqual(report["failure_code"], "create_uncertain_stop")
+        self.assertEqual(report["execution"], "SIMULATED_OFFLINE")
+        self.assertEqual(report["transport_calls"], 1)
+        self.assertEqual(report["network_calls"], 0)
+        self.assertTrue(report["setup_failure"])
+
+    def test_fu_main_cancel_after_attempts_exit_130(self):
+        import io
+        spec_path, approval_path, sha, _ = self._prepare()
+        outer = self
+        base_prompt = outer._launcher().prompt
+        base_factory = outer._launcher().transport_factory
+
+        class Tracking(ol.OperatorLauncher):
+            def __init__(self, **kwargs):
+                kwargs.setdefault("package_dir", PACKAGE)
+                kwargs.setdefault("worktree_root", outer.worktree)
+                kwargs.setdefault("clock", outer._clock)
+                kwargs.setdefault("sleep", outer._sleep)
+                kwargs.setdefault("prompt", base_prompt)
+                kwargs.setdefault("transport_factory", base_factory)
+                super().__init__(**kwargs)
+
+            def run_reviewed_sequence(self):
+                self._used_fake_transport = True
+                self._transport_calls = 1
+                self._phases = ["bound"]
+                raise KeyboardInterrupt
+
+        buf = io.StringIO()
+        with patch.object(ol, "OperatorLauncher", Tracking), patch("sys.stdout", buf):
+            code = ol.main(["run", str(spec_path), str(approval_path), sha])
+        self.assertEqual(code, 130)
+        report = json.loads(buf.getvalue().strip().splitlines()[-1])
+        self.assertEqual(report["failure_code"], "cancelled")
+        self.assertEqual(report["notes"], "operator_cancelled")
+        self.assertEqual(report["execution"], "SIMULATED_OFFLINE")
+        self.assertEqual(report["transport_calls"], 1)
+
+    def test_fu_source_unlink_prompt_disposes(self):
+        import shutil
+        pkg = self.root / "pkg"
+        pkg.mkdir()
+        for name in ("operator_launcher.py", "auth_api_harness.py", "test_runner.py"):
+            shutil.copy2(PACKAGE / name, pkg / name)
+        # Load from temp package so we can unlink the launcher file after bind.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("temp_operator_launcher", pkg / "operator_launcher.py")
+        temp_ol = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(temp_ol)
+
+        import test_runner as runner
+        adapter = runner.ConsoleCredentialAdapter(
+            prompt_fn=self._prompt,
+            stream_probe=lambda: {
+                "stdin_isatty": True, "stdout_isatty": True, "stderr_isatty": True,
+                "stdin_redirected": False, "stdout_redirected": False, "stderr_redirected": False,
+            },
+        )
+
+        def factory():
+            import sys
+            return sys.modules["test_runner"].TrustedFakeTransport(handler=BoundFakeHandler())
+
+        launcher = temp_ol.OperatorLauncher(
+            package_dir=pkg,
+            worktree_root=self.worktree,
+            clock=self._clock,
+            sleep=self._sleep,
+            prompt=adapter,
+            transport_factory=factory,
+        )
+        # Approval must match temp package launcher digest.
+        launcher_bytes = (pkg / "operator_launcher.py").read_bytes()
+        spec_path = self.root / "spec-unlink.json"
+        spec_bytes = self._write_json(spec_path, self._spec())
+        approval = {
+            "expected_spec_sha256": lf_sha(spec_bytes),
+            "expected_harness_sha256": ol.EXPECTED_HARNESS_SHA256,
+            "expected_wrapper_sha256": ol.EXPECTED_WRAPPER_SHA256,
+            "expected_launcher_sha256": lf_sha(launcher_bytes),
+            "approval_id": "offline-launcher-test",
+            "expires_at": future_iso(),
+            "approved_phases": ["live_orchestrate", "real_https"],
+            "approved_actions": ["auth_create", "auth_signin", "rpc_read"],
+        }
+        approval_path = self.root / "approval-unlink.json"
+        approval_bytes = self._write_json(approval_path, approval)
+        sha = lf_sha(approval_bytes)
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        # Retain fake client + secret, then unlink launcher source.
+        launcher._publishable = "sb_publishable_fake"
+        launcher._secret = "sb_secret_fake"
+        class FakeClient:
+            def __init__(self):
+                self.admin = {"kept": True}
+                self.forgotten = False
+
+            def forget(self):
+                self.admin = None
+                self.forgotten = True
+
+        fake = FakeClient()
+        launcher.offline.client = fake
+        (pkg / "operator_launcher.py").unlink()
+        with self.assertRaisesRegex(temp_ol.LauncherError, "source_load_failed|launcher_hash_mismatch"):
+            launcher.prompt_keys()
+        self.assertTrue(launcher._terminal)
+        self.assertIsNone(launcher._publishable)
+        self.assertIsNone(launcher._secret)
+        self.assertTrue(fake.forgotten)
+        # Continuation refused.
+        with self.assertRaisesRegex(temp_ol.LauncherError, "setup_failure_terminal"):
+            launcher._assert_authority()
 
     def test_la05_drift_between_transport_calls(self):
         spec_path, approval_path, sha, _ = self._prepare()

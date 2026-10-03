@@ -70,11 +70,12 @@ Not enabled for real keys/network by this offline package.
 - `forget()` drops local references only; it is not memory zeroization or remote revocation.
 - Offline tests use injected `TrustedFakeTransport` / fake prompts / synthetic identities only.
 - Spec/wrapper/harness/launcher approval compares LF-normalized file bytes to external reviewed digests; launch instructions also bind the approval file by LF digest while retaining exact approval/spec bytes for drift checks. Spec content binds by LF digest so CRLF-equivalent reviewed files match; exact on-disk bytes remain for drift. Approval/ack reads use binary mode. Ack basename is frozen to `wp04-fixture-ack.json` only.
-- Live/simulated reports use closed execution/phase enums (`OFF` / `SIMULATED_OFFLINE` / `REVIEWED_LIVE`); assertion-only PASS is not full readiness/CSE/performance proof.
+- Live/simulated reports use closed execution/phase enums (`OFF` / `SIMULATED_OFFLINE` / `REVIEWED_LIVE`); fake transports count `transport_calls` with `network_calls=0`, while reviewed HTTPS counts real `network_calls`. Assertion-only PASS requires full reviewed phases, all MATCH cases, and consistent counters — it is not full readiness/CSE/performance proof.
 - Guarded live stages require an explicit one-way fixture sequence; proof before acknowledgement is refused.
-- After client binding, source/artifact/handoff operational failures enter terminal `FAILED`, forget local credential/session references, and expose only fixed safe failure codes; continuation is refused.
+- After client binding, source/artifact/handoff operational failures enter terminal `FAILED`, forget local credential/session references, and expose only fixed safe failure codes via a retained-state failure/cancel reporter; continuation is refused. CLI cancel exits 130; setup failure exits 2; no secondary reporter escape.
 - Reviewed case/phase identifiers are allowlisted nonsecret metadata. Regex allowlisting is not content-level secret detection.
 - Real Windows hidden-input demonstration, native Auth/API calls, provisioning and performance proof remain separately authorized.
+- HTTPS tests mock the accepted `HttpsTransport.__call__` only; there is no runtime live-callable/`use_https` injection shortcut.
 - Path confinement is fail-closed where supported; it is not claimed race-proof against a hostile local filesystem.
 - Local code cannot cryptographically authenticate ChatGPT; trust is reviewed operator-selected approval/ack files plus source hashes.
 
