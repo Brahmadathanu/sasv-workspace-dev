@@ -8,9 +8,13 @@ const ATTRIBUTE_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*/;
 const HIDDEN_ROW_KEY = /^hid\d+$/;
 
 const COMPOSITION_LIVE_ARM_DEFAULT = false;
-const COMPOSITION_FIRST_LIVE_930_RELEASE = true;
+// Historical first-live line 930 release remains closed; Phase-2 line 931 is the only controlled executable target.
+const COMPOSITION_FIRST_LIVE_930_RELEASE = false;
 const COMPOSITION_FIRST_LIVE_PRODUCT_ID = 262;
 const COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID = 930;
+const COMPOSITION_CONTROLLED_PHASE2_931_RELEASE = true;
+const COMPOSITION_CONTROLLED_PRODUCT_ID = 262;
+const COMPOSITION_CONTROLLED_SOURCE_LINE_ID = 931;
 
 function compositionLiveArmEnabled(environment = process.env) {
   return COMPOSITION_LIVE_ARM_DEFAULT && environment?.EAUSHADHI_COMPOSITION_LIVE_ARM === "true";
@@ -22,6 +26,26 @@ function compositionFirstLiveTargetEnabled(productId, sourceCompositionLineId, e
     Number(productId) === COMPOSITION_FIRST_LIVE_PRODUCT_ID &&
     Number(sourceCompositionLineId) === COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID &&
     environment?.EAUSHADHI_COMPOSITION_LIVE_ARM === "true"
+  );
+}
+
+function compositionControlledPhase2TargetEnabled(productId, sourceCompositionLineId, environment = process.env) {
+  return (
+    COMPOSITION_CONTROLLED_PHASE2_931_RELEASE === true &&
+    Number(productId) === COMPOSITION_CONTROLLED_PRODUCT_ID &&
+    Number(sourceCompositionLineId) === COMPOSITION_CONTROLLED_SOURCE_LINE_ID &&
+    environment?.EAUSHADHI_COMPOSITION_LIVE_ARM === "true"
+  );
+}
+
+function assessPhase2Line931ServerAuthority(phase2) {
+  return (
+    Number(phase2?.target_source_composition_line_id) === COMPOSITION_CONTROLLED_SOURCE_LINE_ID &&
+    Number(phase2?.predecessor_source_composition_line_id) === COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID &&
+    phase2?.predecessor_row_verified_confirmed === true &&
+    phase2?.stage_partial === true &&
+    Number(phase2?.stage_portal_match_count) === 2 &&
+    phase2?.server_gate_ready === true
   );
 }
 
@@ -168,6 +192,9 @@ function assessFirstLineBootstrap({ editMarkup, reread, expectedUnitValue, expec
 }
 
 module.exports = {
+  COMPOSITION_CONTROLLED_PHASE2_931_RELEASE,
+  COMPOSITION_CONTROLLED_PRODUCT_ID,
+  COMPOSITION_CONTROLLED_SOURCE_LINE_ID,
   COMPOSITION_FIRST_LIVE_930_RELEASE,
   COMPOSITION_FIRST_LIVE_PRODUCT_ID,
   COMPOSITION_FIRST_LIVE_SOURCE_LINE_ID,
@@ -175,7 +202,9 @@ module.exports = {
   assessCompositionLineAuthority,
   assessCompositionSnapshotAuthority,
   assessFirstLineBootstrap,
+  assessPhase2Line931ServerAuthority,
   classifyCompositionUnitname,
+  compositionControlledPhase2TargetEnabled,
   compositionFirstLiveTargetEnabled,
   compositionLiveArmEnabled,
   parseCompositionRowId,

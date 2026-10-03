@@ -270,41 +270,36 @@ The execution snapshot is server authoritative.
 - [ ] WP closure audit.
 
 ## Current gate
-The post-arm `recheckMutationIdentity` wiring correction passed exact-main preflight. A subsequent controlled Product 262 / source line 930 Karpūra execution reached native field fill, where final pre-Save verification proved that Ingredient Type 1 had cleared Ingredient Name and Botanical Name. `SaveData` was not invoked, and the run closed durably as `SAVE_REJECTED` with no-mutation proof.
-
-Native contract investigation proved the portal's Type 1 change handler clears both text fields before calling `getreference(type)`, while Reference rebuilding itself touches only the Reference options. The diagnosis is `FILL_ORDER_RESET`. The current live state is:
+Controlled Product 262 / source line 930 Karpūra has completed successfully after the native fill-order correction. The durable line-930 run is `ROW_VERIFIED` with save outcome `CONFIRMED`. Current verified live state:
 
 - Product Details is `PORTAL_VERIFIED` at workflow row_version 11;
-- Composition is `PARTIAL` at stage row_version 7 with portal match count 1;
-- three historical Composition runs exist for line 930, all with final status `SAVE_REJECTED` and outcome `REJECTED`;
+- Composition is `PARTIAL` at stage row_version 10 with portal match count 2;
+- historical Composition runs for line 930: three `SAVE_REJECTED` / `REJECTED`, one `ROW_VERIFIED` / `CONFIRMED`;
 - no active Composition run exists;
-- the portal remains matched `[929]`, missing `[930,931]`;
-- Karpūra and Kēram remain unentered.
+- the portal is matched `[929,930]`, missing `[931]`;
+- Kēram line 931 has not been entered.
 
-The bounded native fill-order correction selects Type, waits for Reference readiness, selects Reference, and only then writes Ingredient Name and Botanical Name. Its next gate is independent audit and merge, followed by another short exact-main no-mutation preflight before any new controlled Karpūra attempt.
+Server Phase-2 predecessor authority is live through migration `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql`. Preflight now exposes bounded `phase2_line_931` evidence, including durable predecessor `ROW_VERIFIED`/`CONFIRMED` proof and `server_gate_ready`.
 
-The server foundation is live and repository-versioned through migrations:
+The client controlled Phase-2 gate opens Product 262 / source line 931 only when both:
+
+1. server `phase2_line_931.server_gate_ready === true` (and the bounded predecessor/stage fields), and
+2. the fresh offline planner proves exact matched `[929,930]` / missing `[931]` with zero conflicts/duplicates/extras/blockers.
+
+`COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged. Historical `COMPOSITION_FIRST_LIVE_930_RELEASE=false` closes line 930 as executable. `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true` is the narrow client release for line 931 and still requires exact runtime environment `EAUSHADHI_COMPOSITION_LIVE_ARM === "true"` plus explicit operator confirmation. Production versions continue to come from fresh preflight/server authority; stage/workflow row versions are not hard-coded as permanent business rules.
+
+The next gate is independent GitHub audit and merge of the Phase-2 client transition, then a short exact-main no-mutation line-931 preflight before any authorized Kēram execution. Composition-stage `PORTAL_VERIFIED`, QC Register and final Submit remain excluded.
+
+The earlier server foundation remains live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
 - `20260927120326_eaushadhi_composition_execution_lifecycle_hardening.sql`
+- `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql`
 
-Historical post-migration audit at the 2026-09-27 foundation deployment proved:
-- Product 262 Product Details workflow remains `PORTAL_VERIFIED` at row_version 11;
-- Product 262 has no Composition stage row yet;
-- Product 262 has no Composition run row yet;
-- no `SAVE_ARMED` authority has been opened;
-- public Composition RPC execution is restricted to authenticated/service_role;
-- active-run uniqueness and evidence-binding guards are live.
+Until the Phase-2 client transition is independently audited, merged, and a fresh exact-main preflight passes:
 
-Those zero-row statements describe the foundation-deployment baseline only. They are superseded by the current live stage/run state above.
-
-The trusted executor/adapters are merged and independently audited. Closed-gate pre-live acceptance is complete. `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged; the narrow `COMPOSITION_FIRST_LIVE_930_RELEASE=true` gate alone cannot arm execution without the exact runtime environment arm and explicit operator confirmation.
-
-Until the fill-order correction is independently audited, merged, and a fresh exact-main preflight passes:
-
-- do not manually continue Karpūra or Kēram portal entry;
-- do not invoke native Composition Save/Update/Delete;
+- do not manually enter Kēram or invoke native Composition Save/Update/Delete;
 - keep `COMPOSITION_LIVE_ARM_DEFAULT=false`;
-- do not touch QC Register or final Submit.
+- do not enable Composition-stage verification, QC Register or final Submit.
 
 
 ## Trusted executor merge evidence — 2026-09-29

@@ -49,7 +49,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
-| WP-06 | Composition Portal Execution | PURPLE | 65% | FILL_ORDER_RESET proven; bounded native fill-order correction awaits independent audit/merge, then short exact-main preflight |
+| WP-06 | Composition Portal Execution | PURPLE | 65% | Karpūra ROW_VERIFIED; Phase-2 line-931 client gate awaits independent audit/merge, then short exact-main preflight |
 | WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
@@ -68,18 +68,17 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Product 262 / Karpooradi Thailam lines 929–931 are Reference-ready through global governance with no per-line Reference authority.
 - Composition READY v1 input contract is frozen in WP-05 and is the only accepted server input boundary for WP-06.
 - Product 262 governed Ingredient Forms are reconciled and audited: line 929 Ajamōdā = LIQUID KWATH / 60, line 930 Karpūra = SOLID / 66, line 931 Kēram = OIL / 61; all remain VERIFIED at line row_version 8 and product workflow row_version 11.
-- Product 262 live portal Composition currently contains only the controlled Ajamōdā bootstrap row; Karpūra and Kēram have not been entered.
-- Native Composition list/reread/save semantics, row identity, Reference value, unit value and first-line bootstrap evidence are proven.
+- Product 262 live portal Composition currently contains matched lines `[929,930]`; Kēram line 931 has not been entered.
+- Native Composition list/reread/save semantics, row identity, Reference value, unit value, first-line bootstrap and corrected Type→Reference→names fill order are proven.
 - Server-side content-hash coverage has been re-audited for effective Reference value and governed Ingredient Form changes. JavaScript hashing remains prohibited.
 - The existing `regulatory.eaushadhi_worker_run` / product-level `entry_status` lifecycle is Product-Details execution authority and MUST NOT be reused for Composition.
 - WP-06 now has a frozen Composition-specific stage/run lifecycle: independent stage state, one target line per run, durable SAVE_ARMED authority, one Save at most once, explicit save outcome, fresh list/reread semantic proof, and separate final stage PORTAL_VERIFIED evidence.
-- Composition stage/run server authority is live and repository-versioned. Product 262 Composition is `PARTIAL` at stage row_version 7; three historical line 930 runs are durably `SAVE_REJECTED`, and no active run exists.
+- Composition stage/run server authority is live and repository-versioned. Product 262 Composition is `PARTIAL` at stage row_version 10 with portal match count 2; line 930 history is three `SAVE_REJECTED` plus one durable `ROW_VERIFIED`/`CONFIRMED`; no active run exists.
 - Trusted Composition executor/adapters/client orchestration are merged at `3611cb29e8166bfcf924c7c01aa59229b2128720`; native mutation is correctly bound to page `SaveData()` while observing `POST /admin/SaveCompositionData`.
-- Composition live arm remains OFF: `COMPOSITION_LIVE_ARM_DEFAULT=false`.
-- Controlled read-only runtime acceptance passed on baseline `80c2f9e20c1226faf10036405e24048434c28b23`: matched `[929]`, missing `[930,931]`, with no mutation.
-- Closed-gate pre-live acceptance passed on baseline `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89` with no portal mutation.
-- The first-live Product 262 / line-930 release constant is intentionally open: `COMPOSITION_FIRST_LIVE_930_RELEASE=true`. `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged, and production mutation still requires the separate exact runtime environment arm plus explicit operator confirmation.
-- The post-arm identity wiring correction passed exact-main preflight. A subsequent controlled line 930 attempt reached native fill, but final verification proved Type 1 had cleared Ingredient Name and Botanical Name; `SaveData` was not invoked and the run closed `SAVE_REJECTED` with no-mutation proof. Native investigation established `FILL_ORDER_RESET`. The portal remains matched `[929]`, missing `[930,931]`. The next gate is independent audit and merge of the bounded fill-order correction, then a short exact-main no-mutation preflight; Kēram, stage verification, QC Register and final Submit remain excluded.
+- Composition live arm remains OFF by default: `COMPOSITION_LIVE_ARM_DEFAULT=false`.
+- Server Phase-2 predecessor guard migration `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql` is merged and live; preflight exposes bounded `phase2_line_931` authority.
+- Historical first-live line-930 release is closed: `COMPOSITION_FIRST_LIVE_930_RELEASE=false`. Controlled Phase-2 client release is open for Product 262 / line 931 only: `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true`, still requiring exact runtime environment `"true"` and explicit operator confirmation.
+- The next gate is independent audit and merge of the Phase-2 line-931 client transition, then a short exact-main no-mutation line-931 preflight. Composition-stage verification, QC Register and final Submit remain excluded.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:

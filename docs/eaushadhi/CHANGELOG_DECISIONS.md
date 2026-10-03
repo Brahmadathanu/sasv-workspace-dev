@@ -171,3 +171,10 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Portal state remains matched `[929]`, missing `[930,931]`; Karpūra and Kēram remain absent.
 - The next gate is independent audit and merge, followed by a short exact-main no-mutation preflight before any further controlled line 930 execution.
 - RLS hardening for the three previously identified regulatory tables remains a separate parked security audit.
+
+## 2026-10-03 — WP-06 Karpūra ROW_VERIFIED and Phase-2 line-931 client gate
+- Controlled Product 262 / source line 930 Karpūra completed durably as `ROW_VERIFIED` with save outcome `CONFIRMED` after the corrected native fill order.
+- Current live Composition state: `PARTIAL` at stage row_version 10, portal match count 2, matched `[929,930]`, missing `[931]`; historical line-930 runs are three `SAVE_REJECTED` plus one `ROW_VERIFIED`; no active run exists. Kēram remains unentered.
+- Server Phase-2 predecessor guard migration `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql` is merged/live and exposes bounded preflight `phase2_line_931` authority.
+- Client first-live line-930 release is closed (`COMPOSITION_FIRST_LIVE_930_RELEASE=false`). Controlled Phase-2 release opens only Product 262 / line 931 (`COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true`) when server `server_gate_ready` and the exact planner partition are both proven, with exact env `"true"` and explicit confirmation. Stage verification remains disabled.
+- No Kēram portal mutation occurred in the client transition. Next gate: independent audit/merge, then short exact-main line-931 preflight. RLS hardening remains a separate parked security audit.

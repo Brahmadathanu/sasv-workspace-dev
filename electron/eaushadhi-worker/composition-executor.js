@@ -1,9 +1,15 @@
 /* eslint-env node */
 
 const { buildOfflineCompositionExecutionPlan, PLAN_CODE } = require("./composition-offline-plan");
+const {
+  COMPOSITION_CONTROLLED_SOURCE_LINE_ID,
+  assessPhase2Line931ServerAuthority,
+} = require("./composition-contract");
 
 const PRODUCT_ID = 262;
-const FIRST_LIVE_SOURCE_LINE_ID = 930;
+const CONTROLLED_SOURCE_LINE_ID = COMPOSITION_CONTROLLED_SOURCE_LINE_ID;
+const PHASE2_REQUIRED_MATCHED_IDS = [929, 930];
+const PHASE2_REQUIRED_MISSING_IDS = [931];
 const ACTIVE_RUNS = new Set(["SAVE_ARMED", "SAVE_CONFIRMED", "SAVE_AMBIGUOUS"]);
 const PAGE_IDENTITY_FAILURE_CODES = new Set([
   "WORKER_NOT_READY",
@@ -122,17 +128,53 @@ function planAuthority(authority) {
   });
 }
 
-function previewProjection(authority, planner, liveArmed) {
-  const targetMissing = planner.missing.some(
-    (item) => sourceId(item?.sourceCompositionLineId) === FIRST_LIVE_SOURCE_LINE_ID,
+function sortedSourceIds(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => sourceId(item?.sourceCompositionLineId))
+    .filter((id) => id != null)
+    .sort((left, right) => left - right);
+}
+
+function sameIdList(actual, expected) {
+  if (!Array.isArray(actual) || actual.length !== expected.length) return false;
+  return actual.every((value, index) => value === expected[index]);
+}
+
+function assessPhase2PlannerPartition(planner) {
+  if (!planner || planner.ok !== true) return false;
+  if (planner.code !== PLAN_CODE.OFFLINE_MISSING) return false;
+  if (planner.mutationAllowed !== false) return false;
+  if (planner.governedCount !== 3) return false;
+  if (planner.portalCount !== 2) return false;
+  if (planner.matches.length !== 2) return false;
+  if (planner.missing.length !== 1) return false;
+  if (
+    planner.conflicts.length ||
+    planner.duplicates.length ||
+    planner.extras.length ||
+    planner.blockers.length
+  ) {
+    return false;
+  }
+  return (
+    sameIdList(sortedSourceIds(planner.matches), PHASE2_REQUIRED_MATCHED_IDS) &&
+    sameIdList(sortedSourceIds(planner.missing), PHASE2_REQUIRED_MISSING_IDS)
   );
-  const firstLiveEligible =
+}
+
+function assessControlledPhase2Eligibility(authority, planner, liveArmed) {
+  const phase2 = authority?.preflight?.phase2_line_931;
+  return (
     liveArmed === true &&
-    planner.ok === true &&
-    planner.code === PLAN_CODE.OFFLINE_MISSING &&
-    planner.mutationAllowed === false &&
-    targetMissing &&
-    !authority.preflight.active_run;
+    !authority?.preflight?.active_run &&
+    assessPhase2Line931ServerAuthority(phase2) === true &&
+    assessPhase2PlannerPartition(planner) === true
+  );
+}
+
+function previewProjection(authority, planner, liveArmed) {
+  const controlledPhase2Eligible = assessControlledPhase2Eligibility(authority, planner, liveArmed);
+  const phase2 = authority.preflight.phase2_line_931 || null;
   return {
     ok: planner.ok === true,
     code: planner.code,
@@ -151,10 +193,11 @@ function previewProjection(authority, planner, liveArmed) {
     workflowRowVersion: Number(authority.preflight.workflow_row_version),
     contentHash: authority.preflight.content_hash,
     pageIdentityDiagnostics: authority.pageIdentityDiagnostics || null,
-    firstLiveTargetSourceLineId: FIRST_LIVE_SOURCE_LINE_ID,
-    firstLiveEligible,
-    executionEligibleSourceLineIds: firstLiveEligible ? [FIRST_LIVE_SOURCE_LINE_ID] : [],
-    startEnabled: firstLiveEligible,
+    controlledTargetSourceLineId: CONTROLLED_SOURCE_LINE_ID,
+    controlledPhase2Eligible,
+    phase2Line931: phase2,
+    executionEligibleSourceLineIds: controlledPhase2Eligible ? [CONTROLLED_SOURCE_LINE_ID] : [],
+    startEnabled: controlledPhase2Eligible,
     recoveryEnabled: false,
     stageVerifyEnabled: false,
   };
@@ -361,16 +404,28 @@ function createCompositionExecutor() {
     return exclusive(async () => {
       if (Number(deps.productId) !== PRODUCT_ID) return fail("PRODUCT_LOCK_REJECTED", "Composition V1 accepts only Product 262.");
       const targetId = sourceId(command.sourceCompositionLineId);
-      if (targetId !== FIRST_LIVE_SOURCE_LINE_ID) {
-        return fail("COMPOSITION_FIRST_LIVE_TARGET_REJECTED", "First-live Composition execution accepts only Product 262 line 930.");
+      if (targetId !== CONTROLLED_SOURCE_LINE_ID) {
+        return fail(
+          "COMPOSITION_CONTROLLED_TARGET_REJECTED",
+          "Controlled Phase-2 Composition execution accepts only Product 262 line 931.",
+        );
       }
       if (deps.liveArmed !== true) return fail("COMPOSITION_LIVE_NOT_ARMED", "Composition live execution is not armed.");
       if (command.userConfirmed !== true) return fail("USER_CONFIRMATION_REQUIRED", "Explicit Composition confirmation is required.");
       const collected = await collect(deps, { requireEditPermission: true, requireSaveCapability: true });
       if (!collected.ok) return collected;
       if (collected.authority.preflight.active_run) return fail("ACTIVE_RUN_EXISTS", "An active Composition run already exists.");
-      if (collected.planner.code !== PLAN_CODE.OFFLINE_MISSING || collected.planner.mutationAllowed !== false) {
-        return fail("PLANNER_NOT_ARM_ELIGIBLE", "Fresh Composition planner is not arm-eligible.");
+      if (assessPhase2Line931ServerAuthority(collected.authority.preflight.phase2_line_931) !== true) {
+        return fail(
+          "COMPOSITION_CONTROLLED_TARGET_REJECTED",
+          "Server Phase-2 line 931 authority is not ready.",
+        );
+      }
+      if (assessPhase2PlannerPartition(collected.planner) !== true) {
+        return fail(
+          "COMPOSITION_CONTROLLED_TARGET_REJECTED",
+          "Fresh Composition planner is not in the exact Phase-2 partition.",
+        );
       }
       const targetMissing = collected.planner.missing.filter(
         (item) => sourceId(item?.sourceCompositionLineId) === targetId,
@@ -612,8 +667,10 @@ function createCompositionExecutor() {
 }
 
 module.exports = {
-  FIRST_LIVE_SOURCE_LINE_ID,
+  CONTROLLED_SOURCE_LINE_ID,
   PRODUCT_ID,
+  assessControlledPhase2Eligibility,
+  assessPhase2PlannerPartition,
   classifySave,
   createCompositionExecutor,
   recoveryDisposition,
