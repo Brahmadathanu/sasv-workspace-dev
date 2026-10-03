@@ -238,6 +238,14 @@ Proven:
 
 Current live portal Composition remains partial: only Ajamōdā is present. Karpūra and Kēram are not yet entered.
 
+## First controlled line-930 attempt and recovery
+
+The first controlled Product 262 / source line 930 attempt created durable `SAVE_ARMED` authority, then stopped immediately because the production trusted dependency builder omitted the executor's `recheckMutationIdentity` bridge. The failure occurred before field fill and before `SaveData`; no portal mutation occurred.
+
+Read-only recovery used a fresh complete portal list to prove line 930 absent and durably changed the original run to `SAVE_REJECTED`. Product Details remains `PORTAL_VERIFIED` at workflow row_version 11. Composition remains `PARTIAL` at stage row_version 3. The portal remains matched `[929]`, missing `[930,931]`; Karpūra and Kēram remain absent.
+
+The production trusted-dependency wiring correction must be independently audited before any new line 930 execution. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.
+
 ## Content/snapshot rule
 The execution snapshot is server authoritative.
 
@@ -262,15 +270,24 @@ The execution snapshot is server authoritative.
 - [ ] WP closure audit.
 
 ## Current gate
-Closed-gate pre-live acceptance PASSED on merged baseline `2ad4b80b8b8ed711edc97daa3855d9e7f0727a89`. The trusted planner proved matched source line `[929]` and missing source lines `[930,931]`, with no portal mutation.
+The first controlled Product 262 / source line 930 Karpūra attempt reached durable `SAVE_ARMED` authority. The production worker then failed before field fill and before `SaveData` because `buildCompositionTrustedDeps()` omitted the executor-required `recheckMutationIdentity` bridge. No portal mutation occurred.
 
-The reviewed first-live Product 262 / source line 930 Karpūra release constant is intentionally open. Production mutation still requires the separate exact runtime environment arm and explicit operator confirmation. No Karpūra portal Save has occurred. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded. The next gate is one explicitly authorized controlled Karpūra run.
+Trusted recovery used fresh complete portal evidence to prove line 930 absent and durably changed the original run to `SAVE_REJECTED` with save outcome `REJECTED`. The current live state is:
+
+- Product Details is `PORTAL_VERIFIED` at workflow row_version 11;
+- Composition is `PARTIAL` at stage row_version 3 with portal match count 1;
+- one historical Composition run exists for line 930 with final status `SAVE_REJECTED`;
+- no active Composition run exists;
+- the portal remains matched `[929]`, missing `[930,931]`;
+- Karpūra and Kēram remain unentered.
+
+The trusted post-arm identity wiring correction is implemented on branch `fix/eaushadhi-composition-recheck-wiring` and awaits independent audit and merge. After merge, the next gate is a fresh exact-main preflight before any new controlled Karpūra attempt.
 
 The server foundation is live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
 - `20260927120326_eaushadhi_composition_execution_lifecycle_hardening.sql`
 
-Live post-migration audit proved:
+Historical post-migration audit at the 2026-09-27 foundation deployment proved:
 - Product 262 Product Details workflow remains `PORTAL_VERIFIED` at row_version 11;
 - Product 262 has no Composition stage row yet;
 - Product 262 has no Composition run row yet;
@@ -278,9 +295,11 @@ Live post-migration audit proved:
 - public Composition RPC execution is restricted to authenticated/service_role;
 - active-run uniqueness and evidence-binding guards are live.
 
+Those zero-row statements describe the foundation-deployment baseline only. They are superseded by the current live stage/run state above.
+
 The trusted executor/adapters are merged and independently audited. Closed-gate pre-live acceptance is complete. `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged; the narrow `COMPOSITION_FIRST_LIVE_930_RELEASE=true` gate alone cannot arm execution without the exact runtime environment arm and explicit operator confirmation.
 
-Until the explicitly authorized controlled Karpūra run:
+Until the wiring correction is merged and a fresh exact-main preflight passes:
 
 - do not manually continue Karpūra or Kēram portal entry;
 - do not invoke native Composition Save/Update/Delete;

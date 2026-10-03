@@ -949,6 +949,8 @@ function createEaushadhiWorker({
       productId: PD_PRODUCT_ID,
       liveArmed,
       loadAuthority: (options) => getAdapters().loadAuthority(options),
+      recheckMutationIdentity: (portalProductRef) =>
+        getAdapters().recheckMutationIdentity(portalProductRef),
       fillTarget: (target) => getAdapters().fillTarget(target),
       verifyFilledTarget: (target, expectedPortalProductRef) => getAdapters().verifyFilledTarget(target, expectedPortalProductRef),
       invokeSaveOnce: (runId) => getAdapters().invokeSaveOnce(runId),
