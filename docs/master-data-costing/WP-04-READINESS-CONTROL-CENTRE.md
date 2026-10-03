@@ -1487,6 +1487,14 @@ Classification: REQUIRED NOW — reconciled package review and bounded launch/ha
 Current: WP04-G4-S0 — Secure execution / target-creation package reconciliation completed; review pending.
 Exact next: WP04-G4-S0 — Reconciled secure execution / target-creation package review.
 
+## WP04-G4-S0 — Reconciled package review passed / operator-launcher PLAN frozen (2026-10-03)
+
+Fetched unchanged main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs 7a39f01e10c3c17ba77caee319178e200af61dbd and accepted feature 0c6276192d6dfa05f311325d50cc4dac66826d2b. Reviewed reconciled package against governance and accepted orchestrator methods: existing actor/export/pause/ack/proof interfaces support staged design; default CLI deliberately OFF. Accepted source/default behavior is preserved; actual target/native/network proof absent.
+
+Review PASSED at planning level. Freeze [bounded operator-launcher PLAN brief](WP-04-S0-OPERATOR-LAUNCHER-PLAN.md): two proposed new launcher/test files plus README, accepted sources unchanged; strict external authority/source binding, private prompts, UUID-only direct project-chat handoff design, ChatGPT-owned fixture verification and nonsecret acknowledgement file; bounded <=3600-second pause with no resume/recreation after timeout. Review must assess human handoff feasibility and trust limitations; local boolean/file cannot itself establish server fixture truth. No actual UUID export/channel operation authorized now.
+
+Cursor PLAN only approved, not implementation. Exact approval parser/self-hash binding, ack-file handling and targeted offline tests are for returned plan review. No coding/installation/real credentials/provider/cost/target/Auth/SQL/server/client/cleanup/merge/tag/release. No new parked finding/decision lock; programme 4 of 13; WP03 closed; DEC-014 retained.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1499,23 +1507,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Offline wrapper 0c627619 accepted; Windows private-input proof preparation next; native/setup/server/client application withheld |
+| WP04-G4 — High-risk server package, if required | [~] Offline wrapper and bounded Windows input proof accepted; operator-launcher PLAN next; native/setup/server/client application withheld |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Secure execution / target-creation package reconciliation completed; review pending`
+`WP04-G4-S0 — Reconciled secure execution / target-creation package review passed; operator-launcher PLAN brief frozen`
 
 ## Gate Status
-[~] IN PROGRESS — Accepted offline wrapper and fake-only Windows console proof retained. Existing setup plan reconciled with actual capabilities; operational launcher/UUID handoff, target/cost/default/baseline/native proof remain open. No mutation approved; branches unmerged.
+[~] IN PROGRESS — Existing setup planning accepted with explicit operational-launch/UUID-handoff dependencies. Cursor PLAN only released; no implementation or live operation. Accepted wrapper/console proof retained; branches unmerged.
 
 ## Required to close
-Review reconciled package and freeze exact bounded launch/actor-handoff planning scope before offline implementation or organization/cost/target actions. No repeat console proof needed absent drift.
+Receive complete bounded Cursor operator-launcher plan and independently review source/approval/runtime/UUID handoff/deadline/failure/test scope before offline implementation.
 
 ## Next gate
-`WP04-G4-S0 — Reconciled secure execution / target-creation package review`.
+`WP04-G4-S0 — Cursor operator-launcher PLAN`, then `WP04-G4-S0 — Operator-launcher plan review`.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1554,7 +1562,7 @@ WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapp
 Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
 WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: secure execution / target-creation package reconciliation completed; review pending.
-Next: reconciled secure execution / target-creation package review.
+Current gate: reconciled package review passed; operator-launcher PLAN brief frozen.
+Next: Cursor operator-launcher PLAN, then independent plan review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.
