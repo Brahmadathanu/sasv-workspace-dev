@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4-S0 is in progress. Consolidated offline Auth/API harness correction completed; 32 tests pass. Prior review gaps addressed: session invalidation, fixed target/key binding and private controlled response assertions. Independent corrected-package review is next; no server execution approval. Main remains b162d4932ec2bbe9ca665aadedf1827e5117de5a; no rebase/merge. G0–G3 complete at documented levels; target/Auth/bootstrap/fixtures/wrapper/runtime open; audit branch unmerged.
+WP04-G4-S0 is in progress. Corrected offline native Auth/API harness review passed; original three findings closed and 32 mocks rerun successfully. Concrete secure execution/target-creation package preparation is next. Live/runtime/secret/target/cost/bootstrap/fixture proof remains open; no provisioning/production/client execution approved. Main b162d4932ec2bbe9ca665aadedf1827e5117de5a unchanged; audit branch unmerged; G0–G3 complete at documented levels.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4-S0 — Corrected native Auth/API harness review. Independently review the exact three corrected artifacts/hashes, 32 mock results and remaining execution prerequisites. No network, credentials, server/provider/cost/Auth/fixture operation. ChatGPT retains server responsibility under DEC-014; programme 4 of 13; WP03 closed absent regression.
+WP04-G4-S0 — Secure execution / target-creation package preparation. Establish one concrete supported secret-safe runtime route and proposed isolated target/default/retention/consent sequence. No credentials, deployment, target/user/fixture writes or cost call; organization inventory only if needed to present choices, never inferred consent. Stop for exact package review. DEC-014 server ownership preserved; programme 4 of 13; WP03 closed absent regression.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
