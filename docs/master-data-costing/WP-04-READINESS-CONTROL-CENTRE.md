@@ -1036,6 +1036,63 @@ Exact next: `WP04-G4-S0 — Operational capability / target-options preparation`
 No production mutation, live database query, provisioning, Auth/config/client change, merge/tag/release or cleanup occurred. G0–G3 remain complete at their documented levels; G4-S0/G4 in progress; programme **4 of 13**; WP03 closed; DEC-014 preserved. Stop after this review checkpoint.
 
 
+## WP04-G4-S0 — Operational capability / target-options preparation (2026-10-03)
+
+Entry: fetched main first, unchanged at `47dcd80f69ca68fcca8f089bf40fa4099b376450`; clean documentation tip `235ec6ceeea823b595d5220dca881122dc35c098`. Executed only the frozen research/capability-discovery package. Reviewed official documentation through Supabase search_docs and official web/markdown retrieval plus installed connector descriptions. No live database query, production migration-history read, credential retrieval or provider provisioning operation occurred. Supabase skill and DEC-014 govern execution.
+
+**Result:** capability/options preparation is complete for independent review. A native Auth approach is documented, but a usable target-specific execution path is not established. Recommend considering a standalone isolated standard-Postgres Supabase project first because it avoids intentional replay from the production parent; this is an engineering inference/proposal, not an approved target or provider-side-effect guarantee. The previously proposed branch remains an alternative only. G4-S0/G4 remain [~] IN PROGRESS.
+
+### Dated official sources and reconciliation
+
+Consulted 2026-10-03:
+
+- [Changelog index](https://supabase.com/changelog.md): web retrieval rejected its markdown content type; direct markdown retrieval succeeded. Scanned breaking-change entries and followed the two relevant database notices below. No project upgrade/detection query was performed.
+- [Dashboard branching](https://supabase.com/docs/guides/deployment/branching/dashboard): supports branch management without Git; documents clone/configuration behavior, optional production-data copying and a migration-based path when main has migrations. Custom dashboard roles are a limitation. **Source discrepancy:** search_docs returned older/different text omitting the current web page's clone/include-data paragraphs. Neither text proves which behavior the installed connector will use for this parent. Do not resolve the difference by assuming the favorable path.
+- [Working with branches](https://supabase.com/docs/guides/deployment/branching/working-with-branches): describes ordered migrations, initial sample seeding and separate branch endpoints/Auth settings. These are general workflow capabilities, not an inspected replay package for our project.
+- [Native admin createUser](https://supabase.com/docs/reference/javascript/auth-admin-createuser): documents server-side creation with email confirmation and secret-key protection. [Password sign-in](https://supabase.com/docs/reference/javascript/auth-signinwithpassword) documents obtaining native authentication through email/password. A proposed fresh synthetic actor can be admin-created with a random password and confirmed email, then signed in normally; no invitation/OTP/recovery flow is needed. Actual Auth hooks/configuration and no-real-recipient behavior must be reviewed before execution. No email-delivery or native-session test was performed.
+- [Extension-version policy, published 2026-07-22](https://supabase.com/changelog/extension-version-pinning-ignored): hosted extension version clauses are ignored in favor of the instance default from 2026-08-05, with a warning; existing installations are unaffected. Thus captured `btree_gist` 1.7 is baseline evidence, not a version we can guarantee by writing a VERSION clause. Later setup must verify installed version/opclasses and hold on incompatible behavior; no production extension change.
+- [Postgres minor-release notice, published 2026-09-25](https://supabase.com/changelog/postgres-15-19-17-11-breaking-changes): 15.19/17.11 rollout affects certain ltree, float/NaN btree_gist indexes and recreation of custom operators using non-native estimators. The existing bounded manifest has gist_int4/gist_int8 and native opclasses, not float/ltree, so it supplies no demonstrated affected readiness index. It does not prove database-wide non-impact or custom-operator closure. Source server version 17.4 remains dated evidence; actual target/server compatibility must be reconciled before setup. No REINDEX, operator change or blanket security audit is absorbed into WP04.
+
+### Capability and prerequisite matrix
+
+| Capability | Available/documented | What is still required |
+| --- | --- | --- |
+| Hosted branch creation | Installed create_branch says it applies all main-project migrations, does not carry production data, and returns its own project ref | Exact parent migration/seed/hook/config/Edge Function automatic scope before provisioning; tool has no reviewed include-data/skip-replay control. Current dashboard docs cannot override connector semantics |
+| Standalone project creation | Installed create_project accepts name, organization, region and cost confirmation; does not accept a parent ref | Organization/region/engine choice, actual quote/consent, provider defaults/config and capability review; verify no unintended integration/clone. A new project still has provider bootstrap effects |
+| Cost flow | get_cost requires asking for organization; confirm_cost consumes a quote; creation requires confirmation ID | User organization selection and repeated actual quoted cost before consent. No cost amount/plan eligibility assumed; no cost tools called |
+| Structural baseline | Reviewed bounded capture with 32 identity sequences resolved; direct execute_sql/application tools exist | Exact executable baseline/fixture scripts, target identity/marker/ACL/RLS checks and runtime reconciliation; captured metadata is not runnable DDL |
+| Native actors and sessions | Official admin createUser + signInWithPassword available via client/server APIs | Installed Supabase connector exposes no direct Auth-admin/session methods. Need a separately reviewed server-side API harness or supported capability with target-only secret handling/network access; no credentials requested or endpoint probed here |
+| Native API permission proof | Normal signed-in actor can exercise API, separate from privileged SQL | Target API exposure, publishable-key/session path, module rows and full actor matrix; no SQL claims simulation substituted |
+| Faithful versions/performance | Standard Postgres target is proposed; source extension/opclass evidence retained | Verify PG/build/extension settings, workload and concurrency. Hosted defaults may differ; synthetic parity is not production-scale proof |
+
+### Target comparison and proposed choice
+
+| Option | Advantages | Constraints / disposition |
+| --- | --- | --- |
+| Standalone isolated Supabase project | Explicit separate ref; avoids selecting production parent for migration replay; native managed Auth/API available in principle | Most explicit baseline reconstruction work; paid/quota/region/version/Auth harness unresolved. **Preferred option for review**, conditional on supported tooling and provider default review |
+| Hosted branch from current production parent | Potentially easier schema/environment inheritance and independently addressed services | Installed replay semantics plus unknown automatic scope; dashboard clone may include configuration/Edge Functions and custom roles differ. Keep HOLD until exact pre-create scope is established; production data inclusion excluded |
+| Local/self-hosted Supabase | Greater control over setup, versions and test-mail sink | Previously unavailable local runtime/tooling; fresh server stack/network/native API fidelity not established. Fallback only after scoped runtime/capability review; no installation this pass |
+| Production transaction/test schema | Avoids paid target | Does not provide isolation from managed Auth/provider effects and would introduce production mutations. Rejected for this proof package |
+
+No option selected. Suggested logical label remains `wp04-readiness-proof`; no resource/name reservation, region or organization approved. Parent production `qhmoqtxpeasamtlxaoak` is explicitly prohibited as a write/Auth-test target. Do not restore production backups or copy production Auth/business/HR/financial rows into a proof target.
+
+### Concrete proposed operation sequence for review
+
+1. Independently review these source differences, preferred standalone option, native Auth execution gap and version constraints. Freeze any additional bounded capability/migration-history inspection before making it; no further production catalog expansion approved by this preparation.
+2. Once a viable option and supported Auth harness are established, obtain user organization/target/region selection. Then get the actual applicable cost, repeat amount/recurrence and required lifecycle assumptions, obtain confirm_cost, and separately authorize the exact creation operation. Do not provision an unusable target while Auth execution is still unresolved.
+3. Before creation, review chosen provider operation's automatic scope. For a branch this includes exact replay/seed/config/function effects and exclusions. For a standalone project it includes defaults, integration and engine/version constraints; no claim of side-effect-free creation. If sufficient pre-create scope cannot be established, hold or propose another supported option.
+4. After separately authorized creation, retain returned ref/status and independently reconcile provider identity, database/project/API endpoint and production exclusion. Inspect actual roles/hooks/schema/API/Auth settings read-only; do not treat a source OID or resource label as target proof. Freeze the first-marker script/rollback separately before its first write.
+5. Prepare and review exact baseline load and synthetic fixture scripts, final privileges/exposure, native test-actor/API harness and teardown/session-revocation scope. Before Auth creation inspect target application Auth triggers/hooks and their outbound effects; use fresh synthetic identities, never real-recipient addresses or production accounts. Store secrets/session material outside Git, MD and tool-visible diagnostic output. No public service-role key or forged token.
+6. Execute only after applicable approvals and target safeguards: baseline first, native actor permission matrix, exact fixture/context/guard assertions, then separately reviewed candidate parity/performance/access proof. A failure of native sign-in is a setup failure, not readiness UNKNOWN. Hold on version/hash/ACL/API divergence; do not loosen authority or guards to make the test pass.
+7. Separate production-apply review remains necessary after successful nonproduction proof. Client work follows its later Cursor/Codex implementation/push/audit gate. No branch merge-to-production, project deletion or cleanup is implied by this research.
+
+### Classification and checkpoint
+
+REQUIRED NOW: independent operational capability/target-options review, including the native Auth harness gap and automatic-scope/version constraints. FUTURE DEPENDENCY: concrete supported harness, target/organization/region/cost selection, target-specific bootstrap/fixtures and runtime proof. HIGH-RISK: any later provisioning/Auth/schema/ACL/fixture/candidate/production operation. PARKED: existing UX/NAV/CSE/SEC items unchanged. OUT OF SCOPE: production upgrades/REINDEX/security repairs, live migration-history expansion, production clones, invented business rules, client/module/route/Marketing/bulk implementation.
+
+No new parked finding or approved decision lock. This is a proposed target direction, not architecture approval. Current gate: `WP04-G4-S0 — Operational capability / target-options preparation completed; review pending`. Exact next: `WP04-G4-S0 — Operational capability / target-options review`. Stop after this documentation checkpoint; no target/cost/Auth/bootstrap execution.
+
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1048,23 +1105,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Completed continuation independently reviewed; operational capability/target-options preparation next; environment/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Capability/target-options preparation complete; independent options review next; environment/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Completed-continuation / setup-safety review passed; operational preparation next`
+`WP04-G4-S0 — Operational capability / target-options preparation completed; review pending`
 
 ## Gate Status
-[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Operational capability/target-options preparation is next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
+[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Operational capability/target-options preparation is complete; independent review is next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
 
 ## Required to close
-Complete the frozen operational capability/target-options preparation and independent resulting review. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
+Complete the independent operational capability/target-options review and establish a supported Auth harness/creation path. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
 
 ## Next gate
-`WP04-G4-S0 — Operational capability / target-options preparation`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
+`WP04-G4-S0 — Operational capability / target-options review`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1098,12 +1155,12 @@ None.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, operational capability/target-options preparation next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this review made no live query or provider operation. Existing business counts/timing observations remain dated evidence.
+WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, capability/target-options preparation completed, independent review next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this preparation made no live query, cost/provisioning/credential operation or server change. Existing business counts/timing observations remain dated evidence.
 
 Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, operational preparation next, environment not ready.
+WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, capability/options preparation complete, review pending, environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 completed-continuation/setup-safety review passed.
-Next: operational capability/target-options preparation; no provisioning or implementation.
+Current gate: WP04-G4-S0 operational capability/target-options preparation completed; review pending.
+Next: operational capability/target-options review; no provisioning or implementation.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.
