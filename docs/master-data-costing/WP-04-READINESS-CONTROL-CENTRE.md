@@ -1387,6 +1387,18 @@ Current gate: `WP04-G4-S0 — Executor-assisted test-runner plan review passed f
 Exact next: `WP04-G4-S0 — Cursor Windows runtime / test-runner PLAN`, followed by ChatGPT review of the returned plan before offline implementation.
 No new decision lock/parked finding; G0–G3 complete at documented levels, G4-S0/G4 in progress, programme 4 of 13, WP03 closed, audit branch unmerged. No DB/credentials/cost/provisioning/server/client mutation. User's only current action is to send the clean PLAN prompt to Cursor and bring back its response.
 
+## WP04-G4-S0 — Returned Cursor runtime / test-runner plan review (2026-10-03)
+
+Entry fetch: main unchanged `b162d4932ec2bbe9ca665aadedf1827e5117de5a`; clean audit tip `0fc5874aca0ddaddaba45e18dce030421dd1bac2`. Reviewed user-supplied Cursor plan against approved source/governance/harness. Cursor reports installed Anaconda Python 3.12.4 and redirected agent output; no installation needed, agent terminal unsuitable for secrets. Windows facts are executor-reported, separate-console input/network unverified. Existing dirty/stale local main preserved. Remote refs/harness source were independently reconciled here; no new test or live query.
+
+**Review PASSED with mandatory clarifications incorporated into the [durable implementation brief](WP-04-S0-CURSOR-TEST-RUNNER-PLAN.md).** Authorize one bounded offline four-file implementation on a separate worktree/branch from frozen 0fc5874, followed by tests/self-review/commit/push and ChatGPT audit. Clarifications cover zero-network CLI/fake tests, all-stream redirection refusal and warning-as-error, strict immutable JSON/spec validation and external digest, exact noncredential UUID path/export, bounded monotonic fixture wait, uncertain-create recovery and sanitized proof/error reporting. No further plan round required to apply these fixed clarifications. Accepted harness sources stay unchanged; incompatibility must be reported, not silently patched.
+
+This is test-tool development only. No real secret entry or real fake-input experiment, endpoint/native Auth/SQL/cost/provisioning/server/client operation, cleanup or merge authorized. Actual local input acceptance and later target/setup/native proof remain open; don't create a paid target yet. User sends the clean bounded implementation prompt to Cursor and returns its pushed report.
+
+Current gate: `WP04-G4-S0 — Returned Cursor test-runner plan review passed; bounded offline implementation approved`.
+Exact next: `WP04-G4-S0 — Cursor offline test-runner implementation`, then ChatGPT independent pushed implementation audit.
+G0–G3 complete at documented levels; G4-S0/G4 in progress; programme 4 of 13; WP03 closed; DEC-014 retained; parked/decision locks unchanged; audit branch unmerged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1399,23 +1411,23 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Bounded runner plan review passed for Cursor PLAN only; local runtime/returned plan next; implementation/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Returned Cursor plan reviewed; bounded offline test-tool implementation approved; native/setup/server/client application withheld |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Executor-assisted test-runner plan review passed for Cursor PLAN only`
+`WP04-G4-S0 — Returned Cursor test-runner plan review passed; bounded offline implementation approved`
 
 ## Gate Status
-[~] IN PROGRESS — G0–G3 complete at documented levels. Cursor PLAN brief reviewed and handoff authorized; nonsecret local runtime facts/returned plan pending. Actual private input/wrapper/target/cost/bootstrap/fixtures/native proof remain absent. No implementation/provisioning/server/client execution approved. Branch unmerged.
+[~] IN PROGRESS — G0–G3 complete at documented levels. Cursor-reported Python runtime supports offline work; four-file wrapper package approved with exact safeguards. Implementation/push/audit pending; hidden input/target/cost/bootstrap/fixtures/native proof absent. No live/server/client application approved. Audit branch unmerged.
 
 ## Required to close
-Obtain Cursor's source-bound runtime/test-runner PLAN and review it independently before exact offline implementation. Later organization/cost/setup/fixture/native proof remains separately authorized; environment not ready.
+Obtain the bounded pushed offline test-tool implementation, independently audit/test it and resolve any consolidated corrections. Then separately prove private input and authorize exact isolated setup/native stages; environment not ready.
 
 ## Next gate
-`WP04-G4-S0 — Cursor Windows runtime / test-runner PLAN`. Return to ChatGPT for plan review; no implementation or live calls. DEC-014 direct server ownership preserved.
+`WP04-G4-S0 — Cursor offline test-runner implementation`. Return pushed branch/head/files/tests to ChatGPT for independent audit; no real input, endpoints or paid operations. DEC-014 direct server ownership preserved.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1449,12 +1461,12 @@ None. Offline server-test artifacts only; no application client change.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels; G4-S0/G4 in progress. Bounded executor-assisted plan review passed for Cursor PLAN only. User sends the clean prompt to Cursor and returns its response. Actual local/private-input/runtime proof and wrapper implementation remain absent. Current review used repository/source only; no DB/endpoint/credentials/cost/provisioning/Auth/server/client mutation, merge/tag/release or cleanup. Audit branch unmerged.
+WP04 incomplete. G0–G3 verified at documented levels; G4-S0/G4 in progress. Returned Cursor plan review passed with mandatory implementation clarifications; one exact four-file offline test-tool package approved. Current review changed documentation only; no tests/live DB/endpoint/credentials/cost/provisioning/Auth/server/client mutation, merge/tag/release or cleanup. Actual private-input/native proof remains open. Audit branch unmerged.
 
-Workflow: Cursor PLAN/local facts → ChatGPT returned-plan review → separately approved offline implementation → separate native isolated proof; ChatGPT retains direct Supabase/server ownership. Client delivery later follows its own pushed-branch/audit/explicit-merge workflow.
-WP progress: G0–G3 complete at documented levels; G4-S0/G4 in progress, environment not ready.
+Workflow: Cursor bounded offline implement/test/self-review/push → ChatGPT independent implementation audit → separate local-input/isolated setup/native proof; ChatGPT retains direct Supabase/server ownership. Client delivery remains later.
+WP progress: G0–G3 complete at documented levels; G4-S0/G4 in progress; environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 executor-assisted test-runner plan review passed for Cursor PLAN only.
-Next: WP04-G4-S0 Cursor Windows runtime / test-runner PLAN; bring the result back to ChatGPT for review.
+Current gate: returned Cursor test-runner plan review passed; bounded offline implementation approved.
+Next: WP04-G4-S0 Cursor offline test-runner implementation; return pushed report for ChatGPT audit.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No new architecture/business/security lock.
