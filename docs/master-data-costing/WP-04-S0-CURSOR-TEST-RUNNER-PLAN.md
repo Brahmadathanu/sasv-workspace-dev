@@ -189,3 +189,7 @@ Record runtime/path evidence separately from Windows reparse mocks and prepare e
 ## Windows private-input package prepared — 2026-10-03
 
 The exact fake-only [Windows private-input proof package](WP-04-S0-WINDOWS-PRIVATE-INPUT-PROOF.md) is prepared for review. Accepted files/hashes unchanged. Preparation has not executed a console check, collected input, created a target or made a network/Auth/DB call. Current: package prepared, pending review. Exact next: WP04-G4-S0 — Windows private-input proof package review; stop before Cursor materialization or user execution.
+
+## Windows package review passed — 2026-10-03
+
+[Package review](WP-04-S0-WINDOWS-PRIVATE-INPUT-PROOF.md) passed after moved-main reconciliation at 768992a (e-Aushadhi only, no overlap). Five local noninteractive checks passed; actual Windows proof absent. Cursor may materialize the exact hash-bound temporary block, verify runtime/source, run captured refusal mode only and return fully substituted commands. Stop for ChatGPT handoff verification; no hidden/cancel prompts or real credentials. Current: package review passed. Exact next: WP04-G4-S0 — Cursor local fake-console materialization and command handoff.

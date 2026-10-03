@@ -1442,6 +1442,10 @@ Fetched unchanged main b162d4932ec2bbe9ca665aadedf1827e5117de5a, docs 2ebdc0cf51
 
 No server/client/production mutation, real input, target/cost operation, merge/tag/release, new parked finding or decision lock. Current: Windows private-input proof package prepared, pending review. Exact next: WP04-G4-S0 — Windows private-input proof package review. Programme 4 of 13; G4 active; WP03 closed; DEC-014 preserved.
 
+## WP04-G4-S0 — Windows package review passed / main reconciled (2026-10-03)
+
+Current main 768992a3a59a7b6809b327f6e75023e535a4bf79 reconciled: three intervening e-Aushadhi-only commits, no WP04 overlap. Docs entry 72dc0a9, accepted feature 0c627619 unchanged. Reviewed [exact package](WP-04-S0-WINDOWS-PRIVATE-INPUT-PROOF.md); compile and five noninteractive source/stream refusal checks passed. No actual Windows console/input proof. Review PASSED for Cursor local temporary materialization and refusal-mode check only, followed by returned commands/evidence and ChatGPT handoff verification. No hidden/cancel execution, credentials, target/cost/server/client mutation, main merge/rebase/tag/release. Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1461,16 +1465,16 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Windows private-input proof package prepared, pending review`
+`WP04-G4-S0 — Windows private-input proof package review passed`
 
 ## Gate Status
-[~] IN PROGRESS — Exact wrapper 0c627619 accepted offline; 75 tests PASS / 1 platform SKIP independently. All reproduced review findings closed at this scope. Windows real hidden-input/path, target/provider/cost/bootstrap/fixtures/native/performance proof absent. No live execution/merge approved; branches unmerged.
+[~] IN PROGRESS — Offline wrapper accepted; console package reviewed. Cursor local temporary preparation approved; actual Windows hidden/cancellation proof and all live/native/target/server evidence remain absent. Branches unmerged.
 
 ## Required to close
-Review the prepared fake-only package before materialization/execution, then demonstrate actual Windows private input; later explicit organization/cost/setup/native/parity/performance proof remains separate. Offline acceptance is not environment readiness.
+Verify returned Cursor paths/hashes/runtime/refusal evidence and commands before actual user fake-only console proof. Later environment/server proof remains separate.
 
 ## Next gate
-`WP04-G4-S0 — Windows private-input proof package review`. Review the prepared exact package before Cursor materialization/user execution; no paid target.
+`WP04-G4-S0 — Cursor local fake-console materialization and command handoff`, then ChatGPT handoff verification before console execution.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1509,7 +1513,7 @@ WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapp
 Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
 WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: Windows private-input proof package prepared, pending review.
-Next: WP04-G4-S0 Windows private-input proof package review, before materialization/execution.
+Current gate: Windows private-input proof package review passed.
+Next: WP04-G4-S0 Cursor local fake-console materialization and command handoff, then handoff verification.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.

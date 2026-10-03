@@ -1,17 +1,17 @@
 # WP04-G4-S0 — Windows private-input proof package
 
-Status: PREPARED FOR PACKAGE REVIEW; NOT APPROVED FOR CONSOLE EXECUTION.
+Status: PACKAGE REVIEW PASSED; CURSOR LOCAL MATERIALIZATION APPROVED; HIDDEN/CANCEL CONSOLE EXECUTION WITHHELD.
 Date: 2026-10-03. Authority: [WP04](WP-04-READINESS-CONTROL-CENTRE.md).
 
 ## Purpose and frozen evidence
 
-Determine whether the accepted input adapter works with hidden input in an actual separate Windows console. This is a fake-only local environment check, not credential entry, native Auth/API testing or target readiness. Main remains b162d4932ec2bbe9ca665aadedf1827e5117de5a; preparation source docs 2ebdc0cf5193070b82754b310a6ff893d5d4b6bc; accepted feature test/wp04-s0-cursor-runner at 0c6276192d6dfa05f311325d50cc4dac66826d2b. The accepted 76-test suite is unchanged. No further wrapper correction is requested.
+Determine whether the accepted input adapter works with hidden input in an actual separate Windows console. This is a fake-only local environment check, not credential entry, native Auth/API testing or target readiness. Preparation main was b162d4932ec2bbe9ca665aadedf1827e5117de5a; reconciled review main is 768992a3a59a7b6809b327f6e75023e535a4bf79; preparation source docs 2ebdc0cf5193070b82754b310a6ff893d5d4b6bc; accepted feature test/wp04-s0-cursor-runner at 0c6276192d6dfa05f311325d50cc4dac66826d2b. The accepted 76-test suite is unchanged. No further wrapper correction is requested.
 
 The only entered text will be `WP04-FAKE-ONLY`. Physical echo must be observed by the user; a mock or automated result cannot establish that observation. An isatty check is a necessary adapter condition, not proof that a terminal is confidential or unrecorded. Use a trusted local console without transcript, screen recording, remote sharing or output capture. No real keys at this gate.
 
-## Cursor preparation brief — execution withheld
+## Approved Cursor preparation brief — hidden/cancel execution withheld
 
-After package review approves the exact instructions:
+Package review below approves only these local preparation steps:
 
 1. Fetch main, feature and current docs. Verify the full expected main/feature SHAs and the reviewed docs tip. On unexpected movement, stop and report commits/overlap; no silent rebase/merge.
 2. Preserve the dirty original checkout. Use the existing isolated feature worktree at the exact accepted head; report its absolute path. Do not switch/reset/clean the original checkout or create a revised feature commit.
@@ -111,6 +111,17 @@ GetPassWarning must refuse via the accepted adapter, never fall back to echoing 
 
 Report interpreter path/version, isolated feature SHA, wrapper/harness LF hashes, snippet hash, terminal type and stream flags, hidden observation, match result, cancellation result, redirected-mode fixed refusal result and any NOT_RUN. Do not include entered text, screenshots containing input, real keys, environment dumps or tracebacks. One actual hidden-input success plus cancellation and redirected refusal is the bounded proof sought. Hash/TTY PASS alone cannot establish hidden input or overall environment readiness. Report limitations honestly; no forced retries or code edits.
 
-Current gate: WP04-G4-S0 — Windows private-input proof package prepared, pending review.
-Exact next gate: WP04-G4-S0 — Windows private-input proof package review.
+Current gate: WP04-G4-S0 — Windows private-input proof package review passed.
+Exact next gate: WP04-G4-S0 — Cursor local fake-console materialization and command handoff.
 Required to close review: inspect exact snippet, source/runtime binding, no-network boundaries, reporting and minimal operator handoff; freeze preparation/execution authorization explicitly. Console execution remains withheld in this prepared package. Later actual target/cost/default/bootstrap/fixtures/native/parity/performance packages remain separate. Paid target HOLD; programme 4 of 13; WP03 closed; DEC-014 preserved; no new parked finding or decision lock; all branches unmerged.
+
+
+## Package review and moved-main reconciliation — 2026-10-03
+
+Fetched main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs 72dc0a9aeff2f09245102105ae59a3ee6b0c7872 and feature 0c6276192d6dfa05f311325d50cc4dac66826d2b. Intervening commits 687a00e, 0a3b961 and merge 768992a touch only e-Aushadhi Composition adapter fill order, its smoke tests and e-Aushadhi docs; no Product/SKU readiness, Costing/Master Data/control-centre or WP04 overlap. Reconciled without rebase/merge onto main. Verified own published documents byte-for-byte, then synchronized the docs checkout only by fast-forward to its existing remote tip.
+
+Independent package review: exact verified bytes are executed, avoiding bytecode-cache substitution; no input/spec/client/transport/Auth construction or remote operation. LF snippet SHA-256 **99cbecd224f9b87955cab357da810955f4ccbbe1e7949e26471c94e030d8e7c3**. Compile plus five bounded local checks passed: redirected refusal mode emits NONINTERACTIVE_REFUSED; hidden/cancel modes refuse under redirected streams; missing source emits LOCAL_CHECK_FAILED; modified source emits SOURCE_MISMATCH before execution. No stderr/traceback, input or console prompt in these checks. These are Linux noninteractive package checks, not actual Windows hidden/cancellation proof.
+
+**Review PASSED.** Authorize Cursor materialization of the exact block only, with exclusive temporary-file creation outside worktrees, accepted feature/source hashes and CPython path/version verification. Cursor may run only refusal mode in its captured terminal and return the fixed result plus exit status; it must not run hidden/cancel mode. Return script absolute path, raw-file and LF snippet hashes (LF must match above), tests-directory path, unchanged feature head, runtime, main/docs refs and fully substituted commands. Do not alter line content, accepted repository files or interpreter settings. Stop for ChatGPT handoff verification before user console execution. No commit/push required for this temporary local file. If script creation fails or an existing name collides, use a new exclusive temporary directory rather than overwriting or escalating.
+
+Next after Cursor response: WP04-G4-S0 — Prepared Windows command handoff verification. Actual user fake-input execution follows a verified handoff; real credentials/native/target/cost/bootstrap/server/client operations remain withheld. No new parked finding or lock. DEC-014 and WP03 closure unchanged.
