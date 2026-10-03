@@ -270,18 +270,18 @@ The execution snapshot is server authoritative.
 - [ ] WP closure audit.
 
 ## Current gate
-The first controlled Product 262 / source line 930 Karpūra attempt reached durable `SAVE_ARMED` authority. The production worker then failed before field fill and before `SaveData` because `buildCompositionTrustedDeps()` omitted the executor-required `recheckMutationIdentity` bridge. No portal mutation occurred.
+The post-arm `recheckMutationIdentity` wiring correction passed exact-main preflight. A subsequent controlled Product 262 / source line 930 Karpūra execution reached native field fill, where final pre-Save verification proved that Ingredient Type 1 had cleared Ingredient Name and Botanical Name. `SaveData` was not invoked, and the run closed durably as `SAVE_REJECTED` with no-mutation proof.
 
-Trusted recovery used fresh complete portal evidence to prove line 930 absent and durably changed the original run to `SAVE_REJECTED` with save outcome `REJECTED`. The current live state is:
+Native contract investigation proved the portal's Type 1 change handler clears both text fields before calling `getreference(type)`, while Reference rebuilding itself touches only the Reference options. The diagnosis is `FILL_ORDER_RESET`. The current live state is:
 
 - Product Details is `PORTAL_VERIFIED` at workflow row_version 11;
-- Composition is `PARTIAL` at stage row_version 3 with portal match count 1;
-- one historical Composition run exists for line 930 with final status `SAVE_REJECTED`;
+- Composition is `PARTIAL` at stage row_version 7 with portal match count 1;
+- three historical Composition runs exist for line 930, all with final status `SAVE_REJECTED` and outcome `REJECTED`;
 - no active Composition run exists;
 - the portal remains matched `[929]`, missing `[930,931]`;
 - Karpūra and Kēram remain unentered.
 
-The trusted post-arm identity wiring correction is implemented on branch `fix/eaushadhi-composition-recheck-wiring` and awaits independent audit and merge. After merge, the next gate is a fresh exact-main preflight before any new controlled Karpūra attempt.
+The bounded native fill-order correction selects Type, waits for Reference readiness, selects Reference, and only then writes Ingredient Name and Botanical Name. Its next gate is independent audit and merge, followed by another short exact-main no-mutation preflight before any new controlled Karpūra attempt.
 
 The server foundation is live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
@@ -299,7 +299,7 @@ Those zero-row statements describe the foundation-deployment baseline only. They
 
 The trusted executor/adapters are merged and independently audited. Closed-gate pre-live acceptance is complete. `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged; the narrow `COMPOSITION_FIRST_LIVE_930_RELEASE=true` gate alone cannot arm execution without the exact runtime environment arm and explicit operator confirmation.
 
-Until the wiring correction is merged and a fresh exact-main preflight passes:
+Until the fill-order correction is independently audited, merged, and a fresh exact-main preflight passes:
 
 - do not manually continue Karpūra or Kēram portal entry;
 - do not invoke native Composition Save/Update/Delete;

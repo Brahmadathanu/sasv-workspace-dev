@@ -690,6 +690,129 @@ function pageIdentityHarness({
   return { page, callRpc, calls };
 }
 
+function nativeFillOrderHarness() {
+  const events = [];
+  let saveDataCalls = 0;
+  const option = (value) => ({ value: String(value), disabled: false });
+  const input = (id, value = "") => ({
+    id,
+    name: id,
+    value: String(value),
+    disabled: false,
+    readOnly: false,
+    dispatchEvent(event) { events.push(`${id}:${event.type}`); },
+    getAttribute(name) { return name === "value" ? this.value : null; },
+  });
+  const select = (id, values, initial = "-1") => ({
+    id,
+    name: id,
+    value: String(initial),
+    disabled: false,
+    options: values.map(option),
+    dispatchEvent(event) {
+      events.push(`${id}:${event.type}`);
+      if (id === "ingredientTypeId" && event.type === "change") {
+        elements.ingredientName.value = "";
+        elements.botanicalName.value = "";
+        elements.referenceId.options = [option("-1"), option("28")];
+      }
+    },
+    getAttribute(name) { return name === "value" ? this.value : null; },
+  });
+  const elements = {
+    ingredientName: input("ingredientName"),
+    botanicalName: input("botanicalName"),
+    ingredientTypeId: select("ingredientTypeId", ["-1", "1"]),
+    referenceId: select("referenceId", ["-1"]),
+    ingredientFormId: select("ingredientFormId", ["-1", "66"]),
+    partuseId: select("partuseId", ["-1", "125"]),
+    quantity: input("quantity"),
+    unitId: select("unitId", ["-1", "2"]),
+    productid: input("productid", REF),
+    producthid: input("producthid", "262"),
+    id: input("id", ""),
+    actiontype: input("actiontype", "add"),
+  };
+  const byName = Object.fromEntries(Object.values(elements).map((el) => [el.name, el]));
+  const document = {
+    querySelector(selector) {
+      if (selector.startsWith("#")) return elements[selector.slice(1)] || null;
+      const match = selector.match(/^(?:input|select)\[name='([^']+)'\]$/);
+      return match ? byName[match[1]] || null : null;
+    },
+  };
+  class NativeEvent {
+    constructor(type) { this.type = type; }
+  }
+  const window = {
+    location: { href: "https://www.e-aushadhi.gov.in/admin/addcomposition" },
+    SaveData() { saveDataCalls += 1; },
+  };
+  const page = {
+    async evaluate(fn, inputValue) {
+      const prior = { document: globalThis.document, window: globalThis.window, Event: globalThis.Event };
+      Object.assign(globalThis, { document, window, Event: NativeEvent });
+      try {
+        return await fn(inputValue);
+      } finally {
+        Object.assign(globalThis, prior);
+      }
+    },
+  };
+  return { page, elements, events, saveDataCalls: () => saveDataCalls };
+}
+
+const nativeFillTarget = {
+  ingredient_name: "Karpūra",
+  scientific_name: "Cinnamomum camphora",
+  ingredient_type: { portal_option_value: "1" },
+  reference: { portal_value: "28" },
+  ingredient_form: { portal_option_value: "66" },
+  part_used: { portal_option_value: "125" },
+  quantity_value: 1.67,
+  measurement: { portal_option_value: "2" },
+};
+
+// Native Type 1 clears both text fields and rebuilds Reference; corrected order writes names afterward.
+{
+  const harness = nativeFillOrderHarness();
+  const adapter = buildCompositionLiveAdapters({
+    page: harness.page,
+    callRpc: async () => ({}),
+    getWorkerState: () => "READY",
+    liveArmed: true,
+  });
+  await adapter.fillTarget(nativeFillTarget);
+  assert.ok(harness.events.indexOf("ingredientTypeId:change") < harness.events.indexOf("referenceId:change"));
+  assert.ok(harness.events.indexOf("referenceId:change") < harness.events.indexOf("ingredientName:input"));
+  assert.ok(harness.events.indexOf("referenceId:change") < harness.events.indexOf("botanicalName:input"));
+  assert.deepEqual({
+    ingredientName: harness.elements.ingredientName.value,
+    botanicalName: harness.elements.botanicalName.value,
+    ingredientType: harness.elements.ingredientTypeId.value,
+    reference: harness.elements.referenceId.value,
+    ingredientForm: harness.elements.ingredientFormId.value,
+    partUsed: harness.elements.partuseId.value,
+    quantity: harness.elements.quantity.value,
+    unit: harness.elements.unitId.value,
+  }, {
+    ingredientName: "Karpūra",
+    botanicalName: "Cinnamomum camphora",
+    ingredientType: "1",
+    reference: "28",
+    ingredientForm: "66",
+    partUsed: "125",
+    quantity: "1.67",
+    unit: "2",
+  });
+  assert.equal((await adapter.verifyFilledTarget(nativeFillTarget, REF)).code, "POST_FILL_VERIFIED");
+  harness.elements.ingredientName.value = "";
+  const mismatch = await adapter.verifyFilledTarget(nativeFillTarget, REF);
+  assert.equal(mismatch.code, "POST_FILL_FIELD_MISMATCH");
+  assert.deepEqual(mismatch.diagnostics.mismatchFields, ["ingredientName"]);
+  assert.equal(harness.saveDataCalls(), 0);
+}
+
 async function loadIdentityAuthority(options, request = {}) {
   const harness = pageIdentityHarness(options);
   const adapter = buildCompositionLiveAdapters({

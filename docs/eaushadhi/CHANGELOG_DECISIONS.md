@@ -161,3 +161,13 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - The reviewed Product 262 / source line 930 release constant is intentionally open while `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged.
 - Production mutation still requires the separate exact runtime environment arm and explicit operator confirmation. No Karpūra portal Save has occurred.
 - The next gate is one explicitly authorized controlled Karpūra run. Kēram line 931, Composition-stage verification, QC Register and final Submit remain excluded.
+
+## 2026-10-03 — WP-06 native Composition fill-order correction
+- The post-arm `recheckMutationIdentity` production wiring correction passed exact-main preflight.
+- A subsequent controlled Product 262 / line 930 execution reached native fill, but final pre-Save verification proved Ingredient Type 1 had cleared Ingredient Name and Botanical Name. `SaveData` was not invoked, and the run closed durably as `SAVE_REJECTED` with no-mutation proof.
+- Native investigation proved Type 1 explicitly clears both text fields and then rebuilds Reference; diagnosis: `FILL_ORDER_RESET`.
+- The adapter now selects Type, waits for Reference option readiness, selects Reference, and only then writes the two governed text values. Final exact pre-Save verification remains unchanged.
+- Product Details remains `PORTAL_VERIFIED` at workflow row_version 11. Composition remains `PARTIAL` at stage row_version 7 with portal match count 1; three historical line 930 runs are `SAVE_REJECTED`, and no active run exists.
+- Portal state remains matched `[929]`, missing `[930,931]`; Karpūra and Kēram remain absent.
+- The next gate is independent audit and merge, followed by a short exact-main no-mutation preflight before any further controlled line 930 execution.
+- RLS hardening for the three previously identified regulatory tables remains a separate parked security audit.
