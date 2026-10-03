@@ -1446,6 +1446,12 @@ No server/client/production mutation, real input, target/cost operation, merge/t
 
 Current main 768992a3a59a7b6809b327f6e75023e535a4bf79 reconciled: three intervening e-Aushadhi-only commits, no WP04 overlap. Docs entry 72dc0a9, accepted feature 0c627619 unchanged. Reviewed [exact package](WP-04-S0-WINDOWS-PRIVATE-INPUT-PROOF.md); compile and five noninteractive source/stream refusal checks passed. No actual Windows console/input proof. Review PASSED for Cursor local temporary materialization and refusal-mode check only, followed by returned commands/evidence and ChatGPT handoff verification. No hidden/cancel execution, credentials, target/cost/server/client mutation, main merge/rebase/tag/release. Programme 4 of 13; WP03 closed; DEC-014/parked/locks unchanged.
 
+## WP04-G4-S0 — Windows fake-only proof audit passed (2026-10-03)
+
+Fetched unchanged main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs entry 4a11f2bcf5023c7d70e5b63343f2171ffaa5ace4 and feature 0c6276192d6dfa05f311325d50cc4dac66826d2b. Audited [user console evidence](WP-04-S0-WINDOWS-PRIVATE-INPUT-PROOF.md): stream flags meet adapter requirements, subsequent FAKE_MATCH and CANCELLED, explicit invisible-typing YES; prior captured redirected refusal exit 0 retained. Initial mismatch/non-cancellation attempts remain failures in history; no bypass/change inferred. PASSED only for bounded fake-only Windows private-input observation. No real keys/native/network/target/fixtures/server/production proof. No console rerun required absent source/runtime changes.
+
+Exact next: reconcile existing secure-execution/target-creation planning package with accepted wrapper and demonstrated console route, then separate review. Remaining runtime/network/key provenance/target identity/defaults/actor handoff/bootstrap/fixture/cost/consent dependencies remain explicit; no paid target or native operation approved. No new parked finding/lock; programme 4 of 13; WP03 closed; DEC-014 preserved.
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1465,16 +1471,16 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Windows fake-only private-input observation, awaiting user evidence`
+`WP04-G4-S0 — Windows fake-only private-input proof audit passed`
 
 ## Gate Status
-[~] IN PROGRESS — Completed Cursor path/runtime/source-hash/command handoff verified against reviewed package; current refs unchanged. Fake-only user hidden/cancel observation released in separate PowerShell. Actual proof NOT_RUN pending user report; all real credentials/live/target/server operations withheld. Branches unmerged.
+[~] IN PROGRESS — Offline wrapper accepted and bounded fake-only Windows console proof passed. Full environment/native/target/cost/fixtures/server readiness remains unproved. Branches unmerged; no live operation approved.
 
 ## Required to close
-Obtain user stream flags, physical echo observation, FAKE_MATCH and CANCELLED; independently assess against prior redirected refusal evidence. Stop on any echo/refusal/mismatch; no bypass or real keys.
+Reconcile existing secure-execution/target-creation package against accepted wrapper/console route and remaining dependencies, then review before any later target/organization/cost/Auth/server operation. Console success alone does not establish runnable native proof.
 
 ## Next gate
-`WP04-G4-S0 — Windows fake-only private-input proof audit` after user report.
+`WP04-G4-S0 — Secure execution / target-creation package reconciliation`, then reconciled package review.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
@@ -1513,7 +1519,7 @@ WP04 incomplete. G0–G3 verified at documented levels; G4 active. Offline wrapp
 Workflow: ChatGPT prepares/reviews fake-only Windows input package → user/Cursor-assisted console proof → separately authorized isolated setup/native/server proof. DEC-014 direct server ownership retained; client delivery remains later.
 WP progress: G0–G3 complete at documented levels; G4 active; offline wrapper accepted/environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: Windows fake-only private-input observation, awaiting user evidence.
-Next: Windows fake-only private-input proof audit after user report.
+Current gate: Windows fake-only private-input proof audit passed.
+Next: secure execution / target-creation package reconciliation, then separate review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.

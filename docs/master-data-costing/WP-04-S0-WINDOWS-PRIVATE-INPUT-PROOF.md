@@ -1,6 +1,6 @@
 # WP04-G4-S0 — Windows private-input proof package
 
-Status: COMMAND HANDOFF VERIFIED; FAKE-ONLY USER HIDDEN/CANCEL OBSERVATION RELEASED; REAL CREDENTIALS/LIVE OPERATIONS WITHHELD.
+Status: FAKE-ONLY WINDOWS PRIVATE-INPUT PROOF AUDIT PASSED; REAL CREDENTIALS/LIVE OPERATIONS WITHHELD.
 Date: 2026-10-03. Authority: [WP04](WP-04-READINESS-CONTROL-CENTRE.md).
 
 ## Purpose and frozen evidence
@@ -142,3 +142,14 @@ Cursor supplied the existing tests directory `D:\ELECTRON PROJECTS\daily-worklog
 Current gate: WP04-G4-S0 — Windows fake-only private-input observation, awaiting user evidence.
 Exact next: WP04-G4-S0 — Windows fake-only private-input proof audit.
 Required evidence: three stream TTY flags True / redirects False, user hidden-input YES/NO observation, FAKE_MATCH, CANCELLED; retain prior refusal evidence and stop on any failure. Proof does not certify an unrecorded terminal, future real-key handling or complete environment readiness.
+
+
+## Windows fake-only private-input proof audit — 2026-10-03
+
+User supplied actual PowerShell output for the verified command/path: all three isatty flags True, all redirected flags False, two FAKE_MATCH results, and subsequently CANCELLED; LOCAL_REFERENCE_DROPPED. User explicitly confirmed YES that typed characters were invisible. Initial FAKE_MISMATCH and CANCEL_NOT_OBSERVED are retained as failed attempts, not passing evidence; later exact match/cancellation satisfy the bounded success checks. No code change or guard bypass reported. Prior Cursor captured NONINTERACTIVE_REFUSED; NO PROMPT, exit 0 completes the redirected refusal evidence.
+
+**PASSED at fake-only local console observation level.** Evidence is user-observed Windows behavior and Cursor-reported hash/runtime/path binding, independently reconciled with reviewed repository source; not direct ChatGPT observation of the Windows console. Accepted source/script hashes unchanged. No real credentials, network/native Auth/API, target/cost/bootstrap/fixtures/server/production proof or mutation claimed. Reference drop is not guaranteed memory erasure; this does not certify an unrecorded terminal, unattended executor access or future real-key handling. No further fake-input rerun required unless runtime/source/console changes.
+
+Current gate: WP04-G4-S0 — Windows fake-only private-input proof audit passed.
+Exact next: WP04-G4-S0 — Secure execution / target-creation package reconciliation.
+Reconcile the already reviewed planning package with accepted wrapper and demonstrated separate-console route; specify remaining target-bound runtime/network/key provenance/actor handoff/bootstrap/fixture/default/quote dependencies and stage ordering. Do not repeat generic catalog research or reopen accepted offline code/console proof without new evidence. Stop for reconciled package review before organization/cost/provisioning/Auth/server operations. Read-only planning only; paid target remains HOLD. Programme 4 of 13; WP03 closed; DEC-014/parked/locks preserved; branches unmerged.
