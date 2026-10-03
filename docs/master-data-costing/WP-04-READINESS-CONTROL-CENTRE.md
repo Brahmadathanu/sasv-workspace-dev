@@ -1131,6 +1131,37 @@ Exact next: `WP04-G4-S0 — Native Auth/API harness package preparation`.
 No live database query, credentials, cost/provisioning/Auth/server/client mutation, merge/tag/release or cleanup occurred. WP03 closed; G0–G3 complete at documented levels; G4-S0/G4 in progress; programme 4 of 13. No new approved decision lock or parked finding. Stop at this review checkpoint.
 
 
+## WP04-G4-S0 — Native Auth/API harness package preparation (2026-10-03)
+
+Fetched main first: unchanged `47dcd80f69ca68fcca8f089bf40fa4099b376450`; clean audit branch base `5efd6a69db9dfe4ac0ec06caebfbd3781415f13c`. Implemented only the frozen offline server-test package; this is neither control-centre functionality nor server application. ChatGPT retains direct server ownership under DEC-014. Supabase skill and current official createUser/signInWithPassword/API-key/Auth-user references reconciled. Python 3.12.14 standard library used, no installation.
+
+**Result: executable components prepared; 18 offline mock tests pass; independent package review next.** Safe executable entry point emits execution OFF, native Auth/API NOT_RUN, zero network calls. No live execution CLI exists; actual target-specific wrapper/secure secret injection remains a later reviewed dependency. G4-S0/G4 remain [~] IN PROGRESS; no environment-ready claim.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `supabase/tests/wp04/auth_api_harness.py` | `da9886b62b01a8dbf0279cb66026938dba8061424ff162227705768ff3992d53` |
+| `supabase/tests/wp04/test_auth_api_harness.py` | `bb0e914fbb39bcef0e64efe482807c39ec302a3910d5a57a125544cf4f97b20b` |
+| `supabase/tests/wp04/README.md` | `1de0517f01c3e47afa29a04bad5d54c737e2b83bd01edbd0961f7eec4f171c83` |
+
+### Package scope and meaningful verification
+
+- Target guard refuses production ref/host, malformed/unknown/alternate hosts, unmatched independent identity records, missing action approval and expired approval. Records are caller-supplied evidence, not independent provider verification performed by code. Only standard hosted HTTPS targets supported.
+- Admin-created fresh synthetic confirmed-email/password actors, native password sign-in and GET native-user identity confirmation are separate components. Modern secret stays in apikey for admin creation; user reads use publishable key and native session Authorization. No Auth SQL insert/forged token/invite/OTP/reset/real-recipient flow or permission writer.
+- Exact existing canonical/latest/valuation-context readers default-allowlisted; separately reviewed candidate/internal-helper reads may be configured later. No candidate name/route invented. Anonymous and invalid-session observations separate from missing native-session setup failure. Reports expose status/body shape only, never response content or readiness calculation; exact permission assertions/payload proof require later wrapper/fixture review.
+- Eighteen mocks cover default zero-network behavior, production/host/identity/action/expiry rejection, redirect refusal without follow-up in actual HTTPS transport, bounded response, redacted transport/server failures, native creation/sign-in/user sequence, privileged-token refusal, correct user headers, missing sessions, unknown writer/path and anonymous/invalid-session behavior. Mocked native responses are explicitly not native Auth or permission evidence.
+- README records exact future inputs/operation order, actor permission matrix, target hook/config review, secure injection gap, no cleanup implementation and nontransactional Auth recovery limits. `forget()` drops references only; no remote revocation/deletion or memory zeroization claim.
+
+Commands: `python -m unittest discover -s supabase/tests/wp04 -p 'test_*.py' -v` → 18 PASS; `python supabase/tests/wp04/auth_api_harness.py` → OFF/NOT_RUN/zero requests. Source self-review and documentation scope/whitespace checks passed. No dependency install, provider/target/Auth endpoint request, credential/environment scan, production query/mutation, permission fixture, provisioning, cost quote or client change.
+
+### Remaining execution boundaries and next checkpoint
+
+REQUIRED NOW: independent review of the exact executable harness/README/mock package, including target/secret/session/HTTP boundaries and incomplete runtime wrapper. FUTURE DEPENDENCY: supported secure target-only secret injection and network execution, selected/approved target/cost/provider defaults, exact marker/bootstrap/permission/behavior fixtures, wrapper assertion cases, native runtime/access/performance proof. HIGH-RISK: later provider/Auth/DDL/ACL/fixture/candidate/production operations. PARKED: unchanged; no new approved decision lock or parked finding. OUT OF SCOPE: production data clone/security repair, bulk/Marketing/client/module/routes/business-rule work.
+
+Current gate: `WP04-G4-S0 — Native Auth/API harness package preparation completed; review pending`.
+Exact next: `WP04-G4-S0 — Native Auth/API harness package review`.
+Stop after offline preparation/publication. No server use, cost/target creation, actor loading, fixture or cleanup. WP03 remains closed; G0–G3 complete at documented levels; G4-S0/G4 in progress; programme 4 of 13; branch unmerged.
+
+
 ## Approved design / contract
 G1 requirements are accepted at design-review level, with the superseding corrections and explicit feasibility/CSE-P01 constraints above. No exact API, schema, permission, refactor, source-row selection or implementation package is approved. G2 planning direction is accepted with the superseding corrections above; exact server/client packages remain for G3 review. No new architecture/business/evidence/security decision lock; DEC-014 separately clarifies execution ownership. G3 package-planning direction is accepted with the superseding corrections above; no environment, production apply or client execution package is approved. Exact candidate APIs remain stage-bound pending proof.
 
@@ -1143,29 +1174,29 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Capability/target-options review passed with corrections; offline native Auth/API harness preparation next; environment/setup/application not approved |
+| WP04-G4 — High-risk server package, if required | [~] Offline native Auth/API harness prepared; 18 mocks pass; independent package review next; environment/setup/application not approved |
 | WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
 ## Current Gate
-`WP04-G4-S0 — Operational capability / target-options review passed with corrections`
+`WP04-G4-S0 — Native Auth/API harness package preparation completed; review pending`
 
 ## Gate Status
-[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Operational capability/target-options review passed with corrections; offline native Auth/API harness preparation is next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
+[~] IN PROGRESS — Completed continuation/setup-safety review passed at capture level; 32-sequence frontier closed. Offline native Auth/API harness preparation complete; 18 mocks pass and independent package review is next; target/provider/cost/Auth/script/runtime prerequisites open. Prior batching history preserved. G0–G3 complete at documented levels. No approved/runnable environment, provisioning, candidate or production/client execution. Branch unmerged.
 
 ## Required to close
-Prepare and independently review the frozen offline native Auth/API harness package; establish a supported secure execution/creation path. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
+Independently review the prepared exact offline native Auth/API harness package; establish a supported secure execution/creation path. Establish actual target/provider automatic-scope/cost consent, supported native Auth mechanism and exact reviewed isolated bootstrap/fixture scripts before applicable execution. Full environment/runtime/access proof remains absent; no environment-ready or privileged-SQL substitute claim.
 
 ## Next gate
-`WP04-G4-S0 — Native Auth/API harness package preparation`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
+`WP04-G4-S0 — Native Auth/API harness package review`. Sequence frontier is resolved; operational setup/proof closure remains open. No provisioning/writes or GitHub/local-CLI prerequisite for direct server delivery.
 
 ## Server changes
 None. No production INSERT/UPDATE/DELETE, DDL, migration, RLS/grant, acceptance, refresh request or other writer.
 
 ## Client changes
-None.
+None. Offline server-test artifacts only; no application client change.
 
 ## Tests / verification
 - Remote main and local origin/main reconciled to exact entry SHA; WP03 tip ancestor check passed.
@@ -1193,12 +1224,12 @@ None.
 SEC-P02 added at G0; existing parked items unchanged. DEC-014 records the user-approved server/client workflow clarification; no new architecture/business/evidence/security decision.
 
 ## Exit criteria / final handover
-WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, capability/target-options review passed with corrections, offline harness preparation next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this review made no live query, cost/provisioning/credential operation or server change. Existing business counts/timing observations remain dated evidence.
+WP04 incomplete. G0–G3 verified at documented levels. G4-S0 continuation capture and separate setup-safety review completed; 32-sequence frontier closed, offline harness prepared and 18 mock tests passed, independent package review next, environment/proof prerequisites open. Documentation branch unmerged; no tag/release/merge or cleanup. The prior continuation used 22 bounded read-only catalog queries; this offline preparation made no live query, cost/provisioning/credential operation or server change. Existing business counts/timing observations remain dated evidence.
 
 Workflow: direct ChatGPT/Supabase read-only preparation → exact setup/proof package review → separately authorized isolated setup → nonproduction implementation/proof → separate production apply → Cursor/Codex client implementation/push → ChatGPT audit/live verification → explicit merge/post-merge closure.
-WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, capability/options review passed with corrections, offline harness preparation next, environment not ready.
+WP progress: G0–G3 complete at their levels; G4-S0 in progress, continuation review passed, offline harness prepared, 18 mocks pass, package review next, environment not ready.
 Programme progress: 4 of 13 unchanged.
-Current gate: WP04-G4-S0 operational capability/target-options review passed with corrections.
-Next: native Auth/API harness package preparation, offline only; no provisioning or server/client application.
+Current gate: WP04-G4-S0 native Auth/API harness package preparation completed; review pending.
+Next: native Auth/API harness package review; no provisioning or server/client application.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged; no new parked item.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 execution ownership. No new lock from this review; WP03 closed.
