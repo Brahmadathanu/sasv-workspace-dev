@@ -69,7 +69,8 @@ Not enabled for real keys/network by this offline package.
 - No permission SQL writer, actor cleanup, revoke, delete or merge/tag/release from this package.
 - `forget()` drops local references only; it is not memory zeroization or remote revocation.
 - Offline tests use injected `TrustedFakeTransport` / fake prompts / synthetic identities only.
-- Spec/wrapper/harness/launcher approval compares LF-normalized file bytes to external reviewed digests; launch instructions also bind the approval file by LF digest while retaining exact approval bytes for drift checks.
+- Spec/wrapper/harness/launcher approval compares LF-normalized file bytes to external reviewed digests; launch instructions also bind the approval file by LF digest while retaining exact approval/spec bytes for drift checks. Spec content binds by LF digest so CRLF-equivalent reviewed files match; exact on-disk bytes remain for drift. Approval/ack reads use binary mode. Ack basename is frozen to `wp04-fixture-ack.json` only.
+- Live/simulated reports use closed execution/phase enums (`OFF` / `SIMULATED_OFFLINE` / `REVIEWED_LIVE`); assertion-only PASS is not full readiness/CSE/performance proof.
 - Guarded live stages require an explicit one-way fixture sequence; proof before acknowledgement is refused.
 - After client binding, source/artifact/handoff operational failures enter terminal `FAILED`, forget local credential/session references, and expose only fixed safe failure codes; continuation is refused.
 - Reviewed case/phase identifiers are allowlisted nonsecret metadata. Regex allowlisting is not content-level secret detection.

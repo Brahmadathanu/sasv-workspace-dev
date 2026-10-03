@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import sys
 import time
 import types
@@ -40,8 +41,8 @@ REPORT_FIELDS = (
     "overall", "phases", "cases", "setup_failure", "failure_code", "cleanup", "notes",
 )
 ALLOWED_MODES = frozenset({"operator_launcher"})
-ALLOWED_EXECUTION = frozenset({"OFF"})
-ALLOWED_NATIVE = frozenset({"NOT_RUN"})
+ALLOWED_EXECUTION = frozenset({"OFF", "SIMULATED_OFFLINE", "REVIEWED_LIVE"})
+ALLOWED_NATIVE = frozenset({"NOT_RUN", "ATTEMPTED"})
 ALLOWED_OVERALL = frozenset({
     "NOT_RUN", "SETUP_FAILURE", "FAIL", "PASS_REVIEWED_ASSERTIONS_ONLY",
 })
@@ -51,6 +52,9 @@ ALLOWED_NOTES = frozenset({
 ALLOWED_CLEANUP = frozenset({"local_forget_only"})
 ALLOWED_ASSERTIONS = frozenset({
     "MATCH", "MISMATCH", "UNVERIFIED", "NOT_RUN", "SETUP_FAILURE",
+})
+ALLOWED_PHASE_VALUES = frozenset({
+    "bound", "actors_created", "exported", "paused", "acked", "proof_done",
 })
 CASE_ID_RE_TEXT = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
 
@@ -65,7 +69,6 @@ KNOWN_CODES = frozenset({
     "ack_json_invalid", "ack_schema_invalid", "fixture_wait_expired",
     "console_not_private", "secret_prompt_failed", "secret_empty",
     "report_value_refused", "setup_failure_terminal", "cancelled",
-    # Pass-through runner/harness codes observed at boundaries:
     "spec_bytes_required", "spec_json_invalid", "spec_not_object", "spec_drift",
     "spec_hash_mismatch", "spec_not_loaded", "harness_hash_mismatch",
     "wrapper_hash_mismatch", "harness_artifact_drift", "approval_missing",
@@ -138,27 +141,32 @@ def _is_reparse_point(path: Path) -> bool:
 
 
 def _assert_safe_path_chain(path: Path) -> None:
+    # Inspect every ancestor and the leaf via lexists so dangling symlinks fail closed.
     chain = [path, *list(path.parents)]
     for node in chain:
-        if node.exists() and _is_reparse_point(node):
+        if os.path.lexists(str(node)) and _is_reparse_point(node):
             raise LauncherError("ack_symlink_refused")
 
 
 def read_bounded_file(path: Path, *, too_large_code: str, read_failed_code: str) -> bytes:
+    """Binary bounded read with path↔descriptor identity checks. Not race-proof."""
+    path = Path(path)
     _assert_safe_path_chain(path)
+    if os.path.islink(path) or (os.path.lexists(str(path)) and _is_reparse_point(path)):
+        raise LauncherError("ack_symlink_refused")
     if not path.exists():
         raise LauncherError(read_failed_code)
-    if _is_reparse_point(path):
-        raise LauncherError("ack_symlink_refused")
-    if not path.is_file():
-        raise LauncherError("ack_not_regular")
     try:
-        size = path.stat().st_size
+        pre = path.stat()
     except OSError:
         raise LauncherError(read_failed_code) from None
-    if size > MAX_AUTHORITY_BYTES:
+    if not stat.S_ISREG(pre.st_mode):
+        raise LauncherError("ack_not_regular")
+    if pre.st_size > MAX_AUTHORITY_BYTES:
         raise LauncherError(too_large_code)
     flags = os.O_RDONLY
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     try:
@@ -166,16 +174,38 @@ def read_bounded_file(path: Path, *, too_large_code: str, read_failed_code: str)
     except OSError:
         raise LauncherError(read_failed_code) from None
     try:
-        st = os.fstat(fd)
-        if st.st_size > MAX_AUTHORITY_BYTES:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            raise LauncherError("ack_not_regular")
+        if (opened.st_ino, opened.st_dev, opened.st_size, opened.st_mtime_ns) != (
+            pre.st_ino, pre.st_dev, pre.st_size, pre.st_mtime_ns
+        ):
+            raise LauncherError(read_failed_code)
+        if opened.st_size > MAX_AUTHORITY_BYTES:
             raise LauncherError(too_large_code)
-        data = os.read(fd, MAX_AUTHORITY_BYTES + 1)
-        if len(data) > MAX_AUTHORITY_BYTES:
-            raise LauncherError(too_large_code)
-        # Re-check identity: no substitution between metadata and bytes.
-        st2 = os.fstat(fd)
-        if (st.st_ino, st.st_dev, st.st_size, st.st_mtime_ns) != (
-            st2.st_ino, st2.st_dev, st2.st_size, st2.st_mtime_ns
+        chunks = []
+        remaining = opened.st_size
+        while remaining > 0:
+            piece = os.read(fd, remaining)
+            if not piece:
+                raise LauncherError(read_failed_code)
+            chunks.append(piece)
+            remaining -= len(piece)
+        data = b"".join(chunks)
+        if len(data) != opened.st_size or len(data) > MAX_AUTHORITY_BYTES:
+            raise LauncherError(read_failed_code if len(data) != opened.st_size else too_large_code)
+        after = os.fstat(fd)
+        if (after.st_ino, after.st_dev, after.st_size, after.st_mtime_ns) != (
+            opened.st_ino, opened.st_dev, opened.st_size, opened.st_mtime_ns
+        ):
+            raise LauncherError(read_failed_code)
+        # Path still points at same identity after complete read.
+        try:
+            post_path = path.stat()
+        except OSError:
+            raise LauncherError(read_failed_code) from None
+        if (post_path.st_ino, post_path.st_dev, post_path.st_size, post_path.st_mtime_ns) != (
+            opened.st_ino, opened.st_dev, opened.st_size, opened.st_mtime_ns
         ):
             raise LauncherError(read_failed_code)
         return data
@@ -208,21 +238,23 @@ def launcher_report(**fields: Any) -> dict:
 
 def _validate_launcher_report(report: dict) -> dict:
     import re
-    if set(report) != set(REPORT_FIELDS):
+    if not isinstance(report, dict) or set(report) != set(REPORT_FIELDS):
         raise LauncherError("report_value_refused")
-    if report["mode"] not in ALLOWED_MODES or type(report["mode"]) is not str:
+    if type(report["mode"]) is not str or report["mode"] not in ALLOWED_MODES:
         raise LauncherError("report_value_refused")
-    if report["execution"] not in ALLOWED_EXECUTION or type(report["execution"]) is not str:
+    if type(report["execution"]) is not str or report["execution"] not in ALLOWED_EXECUTION:
         raise LauncherError("report_value_refused")
-    if report["native_auth"] not in ALLOWED_NATIVE or report["api_permissions"] not in ALLOWED_NATIVE:
+    if type(report["native_auth"]) is not str or report["native_auth"] not in ALLOWED_NATIVE:
+        raise LauncherError("report_value_refused")
+    if type(report["api_permissions"]) is not str or report["api_permissions"] not in ALLOWED_NATIVE:
         raise LauncherError("report_value_refused")
     if type(report["network_calls"]) is not int or report["network_calls"] < 0:
         raise LauncherError("report_value_refused")
-    if report["overall"] not in ALLOWED_OVERALL or type(report["overall"]) is not str:
+    if type(report["overall"]) is not str or report["overall"] not in ALLOWED_OVERALL:
         raise LauncherError("report_value_refused")
-    if report["notes"] not in ALLOWED_NOTES or type(report["notes"]) is not str:
+    if type(report["notes"]) is not str or report["notes"] not in ALLOWED_NOTES:
         raise LauncherError("report_value_refused")
-    if report["cleanup"] not in ALLOWED_CLEANUP:
+    if type(report["cleanup"]) is not str or report["cleanup"] not in ALLOWED_CLEANUP:
         raise LauncherError("report_value_refused")
     if type(report["setup_failure"]) is not bool:
         raise LauncherError("report_value_refused")
@@ -230,11 +262,24 @@ def _validate_launcher_report(report: dict) -> dict:
         type(report["failure_code"]) is not str or report["failure_code"] not in KNOWN_CODES
     ):
         raise LauncherError("report_value_refused")
-    if not isinstance(report["phases"], list) or any(
-        type(item) is not str or not re.match(CASE_ID_RE_TEXT, item) for item in report["phases"]
-    ):
+    if not isinstance(report["phases"], list):
         raise LauncherError("report_value_refused")
+    for item in report["phases"]:
+        if type(item) is not str or item not in ALLOWED_PHASE_VALUES:
+            raise LauncherError("report_value_refused")
     if not isinstance(report["cases"], list):
+        raise LauncherError("report_value_refused")
+    # Forbid contradictory PASS/setup/notes/count states.
+    if report["overall"] == "PASS_REVIEWED_ASSERTIONS_ONLY":
+        if report["setup_failure"] or report["failure_code"] is not None:
+            raise LauncherError("report_value_refused")
+        if report["notes"] != "operator_complete":
+            raise LauncherError("report_value_refused")
+        if report["network_calls"] < 1:
+            raise LauncherError("report_value_refused")
+        if report["execution"] == "OFF" or report["native_auth"] == "NOT_RUN":
+            raise LauncherError("report_value_refused")
+    if report["execution"] == "OFF" and report["network_calls"] != 0:
         raise LauncherError("report_value_refused")
     cleaned = []
     for item in report["cases"]:
@@ -244,7 +289,7 @@ def _validate_launcher_report(report: dict) -> dict:
         assertion = item.get("assertion")
         if type(case_id) is not str or not re.match(CASE_ID_RE_TEXT, case_id):
             raise LauncherError("report_value_refused")
-        if assertion not in ALLOWED_ASSERTIONS:
+        if type(assertion) is not str or assertion not in ALLOWED_ASSERTIONS:
             raise LauncherError("report_value_refused")
         entry = {"case_id": case_id, "assertion": assertion}
         if "failure_code" in item:
@@ -259,7 +304,7 @@ def _validate_launcher_report(report: dict) -> dict:
             entry["http_status"] = status
         if "body_shape" in item:
             shape = item["body_shape"]
-            if shape not in ("object", "array", "other"):
+            if type(shape) is not str or shape not in ("object", "array", "other"):
                 raise LauncherError("report_value_refused")
             entry["body_shape"] = shape
         if set(item) - set(entry):
@@ -375,19 +420,49 @@ def validate_approval_fields(data: dict, *, launcher_lf_sha: str) -> dict:
 
 
 class FrozenAuthority:
-    """Privately retained immutable launch authority (not carried on replaceable objects)."""
+    """Immutable launch authority. Field assignment after construction is refused."""
 
     __slots__ = (
         "approval_path", "approval_bytes", "approval_sha_raw", "approval_sha_lf",
         "expected_approval_sha_lf", "launcher_path", "launcher_sha_lf",
-        "spec_path", "spec_bytes", "spec_sha_raw", "ack_path",
+        "spec_path", "spec_bytes", "spec_sha_lf", "spec_sha_raw", "ack_path",
         "approval_id", "expires_at", "approved_phases", "approved_actions",
-        "expected_spec_sha256", "approval_fingerprint",
+        "expected_spec_sha256", "approval_fingerprint", "_frozen",
     )
 
     def __init__(self, **kwargs):
+        object.__setattr__(self, "_frozen", False)
         for key, value in kwargs.items():
             object.__setattr__(self, key, value)
+        object.__setattr__(self, "_frozen", True)
+
+    def __setattr__(self, name, value):
+        if getattr(self, "_frozen", False):
+            raise LauncherError("approval_binding_changed")
+        object.__setattr__(self, name, value)
+
+
+def _authority_fingerprint(auth: FrozenAuthority) -> tuple:
+    return (
+        str(auth.approval_path),
+        auth.approval_bytes,
+        auth.approval_sha_raw,
+        auth.approval_sha_lf,
+        auth.expected_approval_sha_lf,
+        str(auth.launcher_path),
+        auth.launcher_sha_lf,
+        str(auth.spec_path),
+        auth.spec_bytes,
+        auth.spec_sha_lf,
+        auth.spec_sha_raw,
+        str(auth.ack_path),
+        auth.approval_id,
+        auth.expires_at,
+        frozenset(auth.approved_phases),
+        frozenset(auth.approved_actions),
+        auth.expected_spec_sha256,
+        auth.approval_fingerprint,
+    )
 
 
 class OperatorLauncher:
@@ -400,6 +475,7 @@ class OperatorLauncher:
         sleep: Callable[[float], None] | None = None,
         prompt: Any = None,
         transport_factory: Callable[[], Any] | None = None,
+        use_https: bool = False,
     ):
         self.package_dir = package_dir or PACKAGE_DIR
         self.worktree_root = worktree_root or self.package_dir.parents[2]
@@ -407,19 +483,23 @@ class OperatorLauncher:
         self.sleep = sleep or time.sleep
         self.prompt = prompt
         self.transport_factory = transport_factory
+        self.use_https = use_https
         self.harness = None
         self.runner_mod = None
         self.offline = None
         self.orch = None
         self.authority: FrozenAuthority | None = None
+        self._retained_authority_fingerprint: tuple | None = None
+        self._authority_id: int | None = None
         self._publishable: str | None = None
         self._secret: str | None = None
         self._transport = None
         self._terminal = False
         self._network_calls = 0
+        self._used_fake_transport = False
 
     def default_report(self) -> dict:
-        return launcher_report(notes="default_cli_off", network_calls=0)
+        return launcher_report(notes="default_cli_off", network_calls=0, execution="OFF")
 
     def _dispose(self) -> None:
         self._terminal = True
@@ -430,7 +510,7 @@ class OperatorLauncher:
                 self.offline.client.forget()
             except Exception:
                 pass
-        if self.offline is not None:
+        if self.offline is not None and self.runner_mod is not None:
             try:
                 self.offline._ack_verified = False
                 self.offline._paused_deadline = None
@@ -454,12 +534,19 @@ class OperatorLauncher:
             raise LauncherError("source_load_failed") from None
 
     def _assert_authority(self) -> None:
-        if self.authority is None:
-            raise LauncherError("approval_binding_changed")
-        auth = self.authority
         if self._terminal:
             raise LauncherError("setup_failure_terminal")
-        # Re-read approval bytes and launcher digest.
+        if self.authority is None or self._retained_authority_fingerprint is None:
+            raise LauncherError("approval_binding_changed")
+        if id(self.authority) != self._authority_id:
+            self._fail("approval_binding_changed")
+        try:
+            current_fp = _authority_fingerprint(self.authority)
+        except LauncherError:
+            self._fail("approval_binding_changed")
+        if current_fp != self._retained_authority_fingerprint:
+            self._fail("approval_binding_changed")
+        auth = self.authority
         try:
             current = read_bounded_file(
                 auth.approval_path,
@@ -470,19 +557,19 @@ class OperatorLauncher:
             self._fail(_code(exc))
         if current != auth.approval_bytes or _lf_sha256(current) != auth.expected_approval_sha_lf:
             self._fail("approval_binding_changed")
-        if _launcher_sha := self._launcher_lf_sha():
-            if _launcher_sha != auth.launcher_sha_lf:
-                self._fail("launcher_hash_mismatch")
-        # Spec source drift
+        if self._launcher_lf_sha() != auth.launcher_sha_lf:
+            self._fail("launcher_hash_mismatch")
         try:
             spec_now = auth.spec_path.read_bytes()
         except OSError:
             self._fail("spec_source_invalid")
-        if spec_now != auth.spec_bytes:
-            self._fail("spec_drift" if "spec_drift" in KNOWN_CODES else "approval_binding_changed")
+        if spec_now != auth.spec_bytes or _lf_sha256(spec_now) != auth.spec_sha_lf:
+            self._fail("spec_drift")
         import datetime as dt
         if auth.expires_at <= dt.datetime.now(dt.timezone.utc):
             self._fail("approval_expired")
+        if str(auth.ack_path.name) != ACK_BASENAME:
+            self._fail("ack_path_invalid")
         if self.offline is not None:
             try:
                 appr = self.orch.approval if self.orch is not None else None
@@ -500,14 +587,9 @@ class OperatorLauncher:
         spec_path: Path,
         approval_path: Path,
         expected_approval_sha_lf: str,
-        ack_basename: str = ACK_BASENAME,
     ) -> FrozenAuthority:
         if not _is_hex64(expected_approval_sha_lf):
             raise LauncherError("launch_args_invalid")
-        if type(ack_basename) is not str or not ack_basename or "/" in ack_basename or "\\" in ack_basename:
-            raise LauncherError("ack_path_invalid")
-        if ack_basename != Path(ack_basename).name:
-            raise LauncherError("ack_path_invalid")
         spec_path = Path(spec_path)
         approval_path = Path(approval_path)
         if not spec_path.is_absolute() or not approval_path.is_absolute():
@@ -530,16 +612,21 @@ class OperatorLauncher:
         fields = validate_approval_fields(parsed, launcher_lf_sha=launcher_sha)
 
         try:
-            spec_bytes = spec_path.read_bytes()
+            spec_bytes_exact = spec_path.read_bytes()
         except OSError:
             raise LauncherError("spec_source_invalid") from None
-        if len(spec_bytes) > 1024 * 1024:
+        if len(spec_bytes_exact) > 1024 * 1024:
             raise LauncherError("spec_too_large")
-        spec_sha = hashlib.sha256(spec_bytes).hexdigest()
-        if spec_sha != fields["expected_spec_sha256"]:
+        # LA-04: approval/spec bind LF-normalized digest; retain exact bytes for drift.
+        spec_sha_lf = _lf_sha256(spec_bytes_exact)
+        spec_sha_raw = _raw_sha256(spec_bytes_exact)
+        if spec_sha_lf != fields["expected_spec_sha256"]:
             raise LauncherError("approval_hash_mismatch")
+        spec_lf_bytes = (
+            spec_bytes_exact.replace(b"\r\n", b"\n")
+            if b"\r\n" in spec_bytes_exact else spec_bytes_exact
+        )
 
-        # Build ExternalApproval from frozen fields.
         try:
             appr = self.runner_mod.ExternalApproval(
                 expected_spec_sha256=fields["expected_spec_sha256"],
@@ -553,7 +640,6 @@ class OperatorLauncher:
         except Exception as exc:
             raise LauncherError(_code(exc)) from None
 
-        # Resolve ack path under reviewed handoff after spec validate.
         offline = self.runner_mod.OfflineRunner(
             worktree_root=self.worktree_root,
             package_dir=self.package_dir,
@@ -561,7 +647,8 @@ class OperatorLauncher:
             prompt=self.prompt or self.runner_mod.ConsoleCredentialAdapter(),
         )
         try:
-            offline.load_spec(spec_bytes, appr, source_path=spec_path)
+            # Load LF bytes so runner digest matches LF approval; disk drift uses exact bytes.
+            offline.load_spec(spec_lf_bytes, appr, source_path=spec_path)
         except Exception as exc:
             raise LauncherError(_code(exc)) from None
         if offline.spec is None or offline.spec.execution != "REVIEWED_LIVE" or offline.spec.unresolved:
@@ -570,7 +657,7 @@ class OperatorLauncher:
         handoff = Path(offline.spec.handoff_directory)
         if not handoff.is_absolute():
             raise LauncherError("ack_path_invalid")
-        ack_path = handoff / ack_basename
+        ack_path = handoff / ACK_BASENAME
         _assert_safe_path_chain(ack_path)
         if ack_path.exists():
             raise LauncherError("ack_preexisting")
@@ -584,8 +671,9 @@ class OperatorLauncher:
             launcher_path=self.package_dir / LAUNCHER_NAME,
             launcher_sha_lf=launcher_sha,
             spec_path=spec_path,
-            spec_bytes=spec_bytes,
-            spec_sha_raw=spec_sha,
+            spec_bytes=spec_bytes_exact,
+            spec_sha_lf=spec_sha_lf,
+            spec_sha_raw=spec_sha_raw,
             ack_path=ack_path,
             approval_id=fields["approval_id"],
             expires_at=fields["expires_at"],
@@ -595,6 +683,8 @@ class OperatorLauncher:
             approval_fingerprint=appr.fingerprint(),
         )
         self.authority = authority
+        self._retained_authority_fingerprint = _authority_fingerprint(authority)
+        self._authority_id = id(authority)
         self.offline = offline
         self.orch = self.runner_mod.GuardedLiveOrchestrator(offline, appr)
         return authority
@@ -604,7 +694,7 @@ class OperatorLauncher:
         harness = self.harness
         launcher = self
 
-        if self.transport_factory is not None:
+        if self.transport_factory is not None and not self.use_https:
             base = self.transport_factory()
             if isinstance(base, runner_mod.TrustedFakeTransport):
                 class GuardedFake(runner_mod.TrustedFakeTransport):
@@ -616,26 +706,35 @@ class OperatorLauncher:
 
                 guarded = GuardedFake(handler=base.handler)
                 guarded.calls = base.calls
+                self._used_fake_transport = True
                 return guarded
             raise LauncherError("transport_not_trusted")
 
+        # Real HTTPS subclass path: authority rechecked per call; tests mock underlying send.
         class GuardedHttps(harness.HttpsTransport):
             def __init__(self):
                 super().__init__()
                 self.calls = []
+                self._delegate = None
 
             def __call__(self, host, method, path, headers, body):
                 launcher._assert_authority()
                 self.calls.append((host, method, path))
                 launcher._network_calls = len(self.calls)
+                if self._delegate is not None:
+                    return self._delegate(host, method, path, headers, body)
                 return super().__call__(host, method, path, headers, body)
 
-        return GuardedHttps()
+        guarded = GuardedHttps()
+        if self.transport_factory is not None:
+            # Test-only: factory returns a callable delegate that never opens sockets.
+            guarded._delegate = self.transport_factory()
+        self._used_fake_transport = guarded._delegate is not None
+        return guarded
 
     def prompt_keys(self) -> tuple[str, str]:
         self._assert_authority()
         adapter = self.prompt or self.runner_mod.ConsoleCredentialAdapter()
-        pub = None
         try:
             adapter.assert_private_console()
             pub = adapter.prompt_secret("publishable")
@@ -669,6 +768,9 @@ class OperatorLauncher:
             if self.clock() > deadline:
                 self._fail("fixture_wait_expired")
             path = auth.ack_path
+            # Missing ordinary file: wait. Symlink/nonregular: terminal via read_bounded_file.
+            if os.path.lexists(str(path)) and (os.path.islink(path) or _is_reparse_point(path)):
+                self._fail("ack_symlink_refused")
             if path.exists():
                 try:
                     raw = read_bounded_file(
@@ -703,7 +805,6 @@ class OperatorLauncher:
                 raise
 
     def run_reviewed_sequence(self) -> dict:
-        """Full live sequence after bind_launch_files. Fake or real transport via factory."""
         phases: list[str] = []
         cases: list[dict] = []
         try:
@@ -719,7 +820,6 @@ class OperatorLauncher:
             phases.append("actors_created")
             self._assert_authority()
             export_path = self.orch.export_nonsecret_mapping()
-            # Operator instruction only — not a report field.
             print(f"UUID_HANDOFF_PATH {export_path}")
             phases.append("exported")
             self._assert_authority()
@@ -736,15 +836,13 @@ class OperatorLauncher:
             overall = self.runner_mod.GuardedLiveOrchestrator.overall_from_cases(
                 cases, setup_failure=False, expected_case_ids=expected,
             )
-            notes = "operator_complete"
-            if overall != "PASS_REVIEWED_ASSERTIONS_ONLY":
-                notes = "operator_failure"
-            # Live network_calls must reflect actual guarded transport activity.
+            notes = "operator_complete" if overall == "PASS_REVIEWED_ASSERTIONS_ONLY" else "operator_failure"
             calls = self._network_calls
-            if calls < 1 and overall == "PASS_REVIEWED_ASSERTIONS_ONLY":
-                # A successful live proof cannot claim zero calls.
-                raise LauncherError("report_value_refused")
+            execution = "SIMULATED_OFFLINE" if self._used_fake_transport else "REVIEWED_LIVE"
             return launcher_report(
+                execution=execution,
+                native_auth="ATTEMPTED",
+                api_permissions="ATTEMPTED",
                 overall=overall,
                 phases=phases,
                 cases=[{
@@ -784,7 +882,8 @@ def main(argv: list[str] | None = None) -> int:
             report = launcher.default_report()
             print(json.dumps(report, sort_keys=True))
             return 0
-        if argv[0] != "run" or len(argv) not in (4, 5):
+        # Frozen ack basename only — no alternate CLI channel.
+        if argv[0] != "run" or len(argv) != 4:
             report = launcher_report(
                 overall="NOT_RUN",
                 setup_failure=True,
@@ -796,12 +895,10 @@ def main(argv: list[str] | None = None) -> int:
         spec = Path(argv[1])
         approval = Path(argv[2])
         expected_sha = argv[3]
-        ack_name = argv[4] if len(argv) == 5 else ACK_BASENAME
         launcher.bind_launch_files(
             spec_path=spec,
             approval_path=approval,
             expected_approval_sha_lf=expected_sha,
-            ack_basename=ack_name,
         )
         report = launcher.run_reviewed_sequence()
         print(json.dumps(report, sort_keys=True))

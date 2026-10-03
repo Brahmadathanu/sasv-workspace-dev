@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import http.client
 import json
 import os
 import tempfile
@@ -71,8 +72,16 @@ class OperatorLauncherTests(unittest.TestCase):
         self.handoff.mkdir()
         self._now = 100.0
         self.prompt_calls = []
+        self._https_guard = patch.object(
+            http.client, "HTTPSConnection", side_effect=AssertionError("blocked")
+        )
+        self._https_guard.start()
+        self._sock_guard = patch("socket.socket", side_effect=AssertionError("blocked"))
+        self._sock_guard.start()
 
     def tearDown(self):
+        self._https_guard.stop()
+        self._sock_guard.stop()
         self.tmp.cleanup()
 
     def _clock(self):
@@ -138,14 +147,20 @@ class OperatorLauncherTests(unittest.TestCase):
         data.update(changes)
         return data
 
-    def _write_json(self, path: Path, data: dict) -> bytes:
-        raw = json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    def _write_json(self, path: Path, data: dict, *, crlf: bool = False) -> bytes:
+        text = json.dumps(data, sort_keys=True, separators=(",", ":"))
+        raw = (text.replace("\n", "\r\n") if crlf else text).encode("utf-8")
+        if crlf and b"\n" in raw and b"\r\n" not in raw:
+            raw = text.encode("utf-8").replace(b"\n", b"\r\n")
+        # Ensure CRLF form for single-line JSON by appending CRLF newline only when requested.
+        if crlf:
+            raw = json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8") + b"\r\n"
         path.write_bytes(raw)
         return raw
 
-    def _approval_doc(self, spec_sha: str, **changes):
+    def _approval_doc(self, spec_sha_lf: str, **changes):
         data = {
-            "expected_spec_sha256": spec_sha,
+            "expected_spec_sha256": spec_sha_lf,
             "expected_harness_sha256": ol.EXPECTED_HARNESS_SHA256,
             "expected_wrapper_sha256": ol.EXPECTED_WRAPPER_SHA256,
             "expected_launcher_sha256": launcher_sha(),
@@ -157,17 +172,17 @@ class OperatorLauncherTests(unittest.TestCase):
         data.update(changes)
         return data
 
-    def _prepare(self, spec_data=None, approval_changes=None):
+    def _prepare(self, spec_data=None, approval_changes=None, *, spec_crlf: bool = False):
         spec_data = spec_data or self._spec()
         spec_path = self.root / "spec.json"
-        spec_bytes = self._write_json(spec_path, spec_data)
-        spec_sha = hashlib.sha256(spec_bytes).hexdigest()
-        approval = self._approval_doc(spec_sha, **(approval_changes or {}))
+        spec_bytes = self._write_json(spec_path, spec_data, crlf=spec_crlf)
+        spec_sha_lf = lf_sha(spec_bytes)
+        approval = self._approval_doc(spec_sha_lf, **(approval_changes or {}))
         approval_path = self.root / "approval.json"
         approval_bytes = self._write_json(approval_path, approval)
-        return spec_path, approval_path, lf_sha(approval_bytes), spec_sha
+        return spec_path, approval_path, lf_sha(approval_bytes), spec_sha_lf
 
-    def _launcher(self, handler=None):
+    def _launcher(self, handler=None, **kwargs):
         handler = handler or BoundFakeHandler()
 
         def factory():
@@ -175,8 +190,6 @@ class OperatorLauncherTests(unittest.TestCase):
             mod = sys.modules["test_runner"]
             return mod.TrustedFakeTransport(handler=handler)
 
-        import sys
-        # Ensure ConsoleCredentialAdapter class is available; bind may reload modules.
         import test_runner as runner
         adapter = runner.ConsoleCredentialAdapter(
             prompt_fn=self._prompt,
@@ -192,12 +205,13 @@ class OperatorLauncherTests(unittest.TestCase):
             sleep=self._sleep,
             prompt=adapter,
             transport_factory=factory,
+            **kwargs,
         )
 
     def _write_ack(self, launcher, **overrides):
         payload = {
             "target_ref": REF,
-            "spec_sha256": launcher.authority.spec_sha_raw,
+            "spec_sha256": launcher.authority.spec_sha_lf,
             "fixture_revision": "fix-rev-1",
             "actor_uuids": dict(USER),
             "verified": True,
@@ -207,33 +221,35 @@ class OperatorLauncherTests(unittest.TestCase):
         path.write_bytes(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
         return path
 
-    # --- default / import ---
+    def _run_with_ack(self, launcher, ack_writer=None):
+        real_begin = launcher.orch.begin_fixture_pause
+
+        def begin_and_ack():
+            deadline = real_begin()
+            (ack_writer or (lambda: self._write_ack(launcher)))()
+            return deadline
+
+        launcher.orch.begin_fixture_pause = begin_and_ack
+        return launcher.run_reviewed_sequence()
+
     def test_default_cli_off_zero_network(self):
-        report = ol.main([])
-        self.assertEqual(report, 0)
-        # main prints; invoke default_report directly too
-        launcher = ol.OperatorLauncher(package_dir=PACKAGE, worktree_root=self.worktree)
-        rep = launcher.default_report()
+        self.assertEqual(ol.main([]), 0)
+        rep = ol.OperatorLauncher(package_dir=PACKAGE, worktree_root=self.worktree).default_report()
         self.assertEqual(rep["execution"], "OFF")
         self.assertEqual(rep["overall"], "NOT_RUN")
         self.assertEqual(rep["network_calls"], 0)
         self.assertEqual(self.prompt_calls, [])
 
     def test_import_does_not_open_sockets(self):
-        with patch("socket.socket") as sock:
-            import importlib
-            importlib.reload(ol)
-            sock.assert_not_called()
+        import importlib
+        importlib.reload(ol)
 
-    # --- before-prompt refusals ---
     def test_approval_hash_mismatch_before_prompt(self):
         spec_path, approval_path, _sha, _ = self._prepare()
         launcher = self._launcher()
         with self.assertRaisesRegex(ol.LauncherError, "approval_hash_mismatch"):
             launcher.bind_launch_files(
-                spec_path=spec_path,
-                approval_path=approval_path,
-                expected_approval_sha_lf="0" * 64,
+                spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf="0" * 64,
             )
         self.assertEqual(self.prompt_calls, [])
 
@@ -270,19 +286,68 @@ class OperatorLauncherTests(unittest.TestCase):
             launcher._assert_authority()
         self.assertEqual(self.prompt_calls, [])
 
+    def test_la01_authority_field_assignment_refused(self):
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher = self._launcher()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        with self.assertRaisesRegex(ol.LauncherError, "approval_binding_changed"):
+            launcher.authority.launcher_sha_lf = "b" * 64
+        self.assertEqual(self.prompt_calls, [])
+
+    def test_la01_authority_object_replacement_refused(self):
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher = self._launcher()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        original = launcher.authority
+        launcher.authority = ol.FrozenAuthority(
+            approval_path=original.approval_path,
+            approval_bytes=original.approval_bytes,
+            approval_sha_raw=original.approval_sha_raw,
+            approval_sha_lf=original.approval_sha_lf,
+            expected_approval_sha_lf=original.expected_approval_sha_lf,
+            launcher_path=original.launcher_path,
+            launcher_sha_lf="b" * 64,
+            spec_path=original.spec_path,
+            spec_bytes=original.spec_bytes,
+            spec_sha_lf=original.spec_sha_lf,
+            spec_sha_raw=original.spec_sha_raw,
+            ack_path=original.ack_path,
+            approval_id=original.approval_id,
+            expires_at=original.expires_at,
+            approved_phases=original.approved_phases,
+            approved_actions=original.approved_actions,
+            expected_spec_sha256=original.expected_spec_sha256,
+            approval_fingerprint=original.approval_fingerprint,
+        )
+        with self.assertRaisesRegex(ol.LauncherError, "approval_binding_changed"):
+            launcher._assert_authority()
+        self.assertEqual(self.prompt_calls, [])
+
     def test_launcher_hash_mismatch_in_approval(self):
+        data = self._approval_doc("a" * 64)
+        # rebuild properly
         spec_path, approval_path, sha, _ = self._prepare(
             approval_changes={"expected_launcher_sha256": "a" * 64}
         )
-        # sha was computed before change — rewrite approval and sha
-        data = json.loads(approval_path.read_text(encoding="utf-8"))
-        data["expected_launcher_sha256"] = "a" * 64
-        raw = self._write_json(approval_path, data)
         launcher = self._launcher()
         with self.assertRaisesRegex(ol.LauncherError, "launcher_hash_mismatch"):
             launcher.bind_launch_files(
-                spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=lf_sha(raw),
+                spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
             )
+
+    def test_missing_approval_file_before_prompt(self):
+        spec_path, approval_path, sha, _ = self._prepare()
+        approval_path.unlink()
+        launcher = self._launcher()
+        with self.assertRaisesRegex(ol.LauncherError, "approval_file_invalid"):
+            launcher.bind_launch_files(
+                spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+            )
+        self.assertEqual(self.prompt_calls, [])
 
     def test_preexisting_ack_refused_before_prompt(self):
         spec_path, approval_path, sha, _ = self._prepare()
@@ -306,7 +371,8 @@ class OperatorLauncherTests(unittest.TestCase):
         )
 
         def factory():
-            return runner.TrustedFakeTransport(handler=BoundFakeHandler())
+            import sys
+            return sys.modules["test_runner"].TrustedFakeTransport(handler=BoundFakeHandler())
 
         launcher = ol.OperatorLauncher(
             package_dir=PACKAGE,
@@ -322,28 +388,30 @@ class OperatorLauncherTests(unittest.TestCase):
         with self.assertRaisesRegex(ol.LauncherError, "console_not_private"):
             launcher.prompt_keys()
 
-    # --- ack / timeout / full sequence ---
     def test_full_sequence_positive(self):
         spec_path, approval_path, sha, _ = self._prepare()
         launcher = self._launcher()
         launcher.bind_launch_files(
             spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
         )
-
-        # Write ack after pause starts: intercept begin_fixture_pause
-        real_begin = launcher.orch.begin_fixture_pause
-
-        def begin_and_ack():
-            deadline = real_begin()
-            self._write_ack(launcher)
-            return deadline
-
-        launcher.orch.begin_fixture_pause = begin_and_ack
-        report = launcher.run_reviewed_sequence()
+        report = self._run_with_ack(launcher)
         self.assertEqual(report["overall"], "PASS_REVIEWED_ASSERTIONS_ONLY")
+        self.assertEqual(report["execution"], "SIMULATED_OFFLINE")
+        self.assertEqual(report["native_auth"], "ATTEMPTED")
         self.assertGreaterEqual(report["network_calls"], 1)
         self.assertNotIn(CANARY, json.dumps(report))
         self.assertEqual(len(report["cases"]), 5)
+
+    def test_la04_crlf_spec_binds_via_lf_digest(self):
+        spec_path, approval_path, sha, _ = self._prepare(spec_crlf=True)
+        # Approval expected_spec is LF digest; raw file has trailing CRLF.
+        self.assertNotEqual(hashlib.sha256(spec_path.read_bytes()).hexdigest(), lf_sha(spec_path.read_bytes()))
+        launcher = self._launcher()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        report = self._run_with_ack(launcher)
+        self.assertEqual(report["overall"], "PASS_REVIEWED_ASSERTIONS_ONLY")
 
     def test_ack_identity_mismatch_terminal(self):
         spec_path, approval_path, sha, _ = self._prepare()
@@ -351,29 +419,18 @@ class OperatorLauncherTests(unittest.TestCase):
         launcher.bind_launch_files(
             spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
         )
-        real_begin = launcher.orch.begin_fixture_pause
-
-        def begin_and_bad_ack():
-            deadline = real_begin()
-            self._write_ack(launcher, fixture_revision="wrong")
-            return deadline
-
-        launcher.orch.begin_fixture_pause = begin_and_bad_ack
         with self.assertRaisesRegex(ol.LauncherError, "ack_identity_mismatch|ack_"):
-            launcher.run_reviewed_sequence()
+            self._run_with_ack(launcher, ack_writer=lambda: self._write_ack(launcher, fixture_revision="wrong"))
         self.assertIsNone(launcher._publishable)
         self.assertIsNone(launcher._secret)
 
     def test_ack_timeout(self):
-        spec_path, approval_path, sha, _ = self._prepare()
-        # short wait
         data = self._spec(max_fixture_wait_seconds=2)
         spec_path, approval_path, sha, _ = self._prepare(spec_data=data)
         launcher = self._launcher()
         launcher.bind_launch_files(
             spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
         )
-        # No ack written; sleep advances clock
         with self.assertRaisesRegex(ol.LauncherError, "fixture_wait_expired"):
             launcher.run_reviewed_sequence()
 
@@ -383,16 +440,12 @@ class OperatorLauncherTests(unittest.TestCase):
         launcher.bind_launch_files(
             spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
         )
-        real_begin = launcher.orch.begin_fixture_pause
 
-        def begin_and_huge():
-            deadline = real_begin()
+        def huge():
             launcher.authority.ack_path.write_bytes(b"x" * (ol.MAX_AUTHORITY_BYTES + 8))
-            return deadline
 
-        launcher.orch.begin_fixture_pause = begin_and_huge
         with self.assertRaisesRegex(ol.LauncherError, "ack_too_large"):
-            launcher.run_reviewed_sequence()
+            self._run_with_ack(launcher, ack_writer=huge)
 
     def test_ack_malformed_json_terminal(self):
         spec_path, approval_path, sha, _ = self._prepare()
@@ -400,16 +453,28 @@ class OperatorLauncherTests(unittest.TestCase):
         launcher.bind_launch_files(
             spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
         )
-        real_begin = launcher.orch.begin_fixture_pause
 
-        def begin_and_partial():
-            deadline = real_begin()
+        def partial():
             launcher.authority.ack_path.write_bytes(b'{"verified": true')
-            return deadline
 
-        launcher.orch.begin_fixture_pause = begin_and_partial
         with self.assertRaisesRegex(ol.LauncherError, "ack_json_invalid"):
-            launcher.run_reviewed_sequence()
+            self._run_with_ack(launcher, ack_writer=partial)
+
+    def test_ack_duplicate_key_refused(self):
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher = self._launcher()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+
+        def dup():
+            launcher.authority.ack_path.write_bytes(
+                b'{"verified":true,"verified":false,"target_ref":"x","spec_sha256":"y",'
+                b'"fixture_revision":"z","actor_uuids":{}}'
+            )
+
+        with self.assertRaisesRegex(ol.LauncherError, "ack_json_invalid"):
+            self._run_with_ack(launcher, ack_writer=dup)
 
     def test_uncertain_create_no_retry(self):
         import test_runner as runner
@@ -426,8 +491,7 @@ class OperatorLauncherTests(unittest.TestCase):
 
         def factory():
             import sys
-            mod = sys.modules["test_runner"]
-            return mod.TrustedFakeTransport(handler=flaky)
+            return sys.modules["test_runner"].TrustedFakeTransport(handler=flaky)
 
         adapter = runner.ConsoleCredentialAdapter(
             prompt_fn=self._prompt,
@@ -508,41 +572,119 @@ class OperatorLauncherTests(unittest.TestCase):
         self.assertIsNone(launcher._publishable)
         self.assertIsNone(launcher._secret)
 
+    def test_la03_report_type_checks_before_membership(self):
+        for bad in ([], {}, 1, True, None):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+                    ol.launcher_report(mode=bad)
+                with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+                    ol.launcher_report(overall=bad)
+                with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+                    ol.launcher_report(cases=[{"case_id": "anon-period", "assertion": bad}])
+
+    def test_la03_contradictory_pass_refused(self):
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.launcher_report(
+                overall="PASS_REVIEWED_ASSERTIONS_ONLY",
+                notes="operator_complete",
+                network_calls=0,
+                execution="SIMULATED_OFFLINE",
+                native_auth="ATTEMPTED",
+                api_permissions="ATTEMPTED",
+            )
+
     def test_report_rejects_canary_notes(self):
         with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
             ol.launcher_report(notes=CANARY)
 
-    def test_https_blocked_in_tests(self):
-        import http.client
-        with patch.object(http.client, "HTTPSConnection", side_effect=AssertionError("blocked")):
-            # default path must not touch HTTPS
-            ol.OperatorLauncher(package_dir=PACKAGE, worktree_root=self.worktree).default_report()
+    def test_coverage_mismatch_not_pass(self):
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher = self._launcher()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        launcher.offline._expected_case_ids = ("anon-period",)
+        with self.assertRaisesRegex(ol.LauncherError, "proof_incomplete|setup_failure"):
+            self._run_with_ack(launcher)
+
+    def test_la05_https_guard_branch_with_delegate(self):
+        handler = BoundFakeHandler()
+
+        def factory():
+            return handler
+
+        import test_runner as runner
+        adapter = runner.ConsoleCredentialAdapter(
+            prompt_fn=self._prompt,
+            stream_probe=lambda: {
+                "stdin_isatty": True, "stdout_isatty": True, "stderr_isatty": True,
+                "stdin_redirected": False, "stdout_redirected": False, "stderr_redirected": False,
+            },
+        )
+        launcher = ol.OperatorLauncher(
+            package_dir=PACKAGE,
+            worktree_root=self.worktree,
+            clock=self._clock,
+            sleep=self._sleep,
+            prompt=adapter,
+            transport_factory=factory,
+            use_https=True,
+        )
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        report = self._run_with_ack(launcher)
+        self.assertEqual(report["overall"], "PASS_REVIEWED_ASSERTIONS_ONLY")
+        self.assertEqual(report["execution"], "SIMULATED_OFFLINE")
+
+    def test_la05_drift_between_transport_calls(self):
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher = self._launcher()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        calls = {"n": 0}
+        real_assert = launcher._assert_authority
+
+        def flaky_assert():
+            calls["n"] += 1
+            if calls["n"] > 3:
+                # Mutate approval file mid-flight after some calls.
+                approval_path.write_bytes(b'{"broken":true}')
+            real_assert()
+
+        launcher._assert_authority = flaky_assert
+        with self.assertRaisesRegex(ol.LauncherError, "approval_binding_changed|approval_"):
+            self._run_with_ack(launcher)
 
     def test_ack_symlink_refused_when_supported(self):
-        if os.name == "nt":
-            # Creating symlinks often needs elevation; skip honestly if unavailable.
-            link = self.root / "link-handoff"
-            try:
-                os.symlink(self.handoff, link, target_is_directory=True)
-            except OSError:
-                self.skipTest("symlink creation requires privileges")
-            data = self._spec(handoff_directory=str(link))
-            spec_path, approval_path, sha, _ = self._prepare(spec_data=data)
-            launcher = self._launcher()
-            with self.assertRaisesRegex(ol.LauncherError, "ack_symlink_refused|handoff_symlink"):
-                launcher.bind_launch_files(
-                    spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
-                )
-        else:
-            link = self.root / "link-handoff"
+        link = self.root / "link-handoff"
+        try:
             os.symlink(self.handoff, link, target_is_directory=True)
-            data = self._spec(handoff_directory=str(link))
-            spec_path, approval_path, sha, _ = self._prepare(spec_data=data)
-            launcher = self._launcher()
-            with self.assertRaisesRegex(ol.LauncherError, "ack_symlink_refused|handoff_symlink"):
-                launcher.bind_launch_files(
-                    spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
-                )
+        except OSError:
+            self.skipTest("symlink creation requires privileges")
+        data = self._spec(handoff_directory=str(link))
+        spec_path, approval_path, sha, _ = self._prepare(spec_data=data)
+        launcher = self._launcher()
+        with self.assertRaisesRegex(ol.LauncherError, "ack_symlink_refused|handoff_symlink"):
+            launcher.bind_launch_files(
+                spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+            )
+
+    def test_dangling_ack_symlink_refused(self):
+        dangling = self.handoff / ol.ACK_BASENAME
+        try:
+            os.symlink(str(self.handoff / "missing-target.json"), dangling)
+        except OSError:
+            self.skipTest("symlink creation requires privileges")
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher = self._launcher()
+        # Pre-existing dangling ack should be treated as preexisting/symlink refuse.
+        with self.assertRaisesRegex(ol.LauncherError, "ack_preexisting|ack_symlink_refused"):
+            launcher.bind_launch_files(
+                spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+            )
 
 
 if __name__ == "__main__":
