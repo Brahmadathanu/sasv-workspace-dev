@@ -1,6 +1,6 @@
 # WP04-G4-S0 — Windows private-input proof package
 
-Status: PACKAGE REVIEW PASSED; CURSOR LOCAL MATERIALIZATION APPROVED; HIDDEN/CANCEL CONSOLE EXECUTION WITHHELD.
+Status: COMMAND HANDOFF VERIFIED; FAKE-ONLY USER HIDDEN/CANCEL OBSERVATION RELEASED; REAL CREDENTIALS/LIVE OPERATIONS WITHHELD.
 Date: 2026-10-03. Authority: [WP04](WP-04-READINESS-CONTROL-CENTRE.md).
 
 ## Purpose and frozen evidence
@@ -131,3 +131,14 @@ Next after Cursor response: WP04-G4-S0 — Prepared Windows command handoff veri
 Cursor reports temporary script `D:\ELECTRON PROJECTS\.tmp-wp04-fake-console-3996bec7a8e0431789e6529e5ea4f915\wp04_fake_console_check.py`, raw/LF SHA-256 99cbecd224f9b87955cab357da810955f4ccbbe1e7949e26471c94e030d8e7c3, Python 3.12.4, refusal NONINTERACTIVE_REFUSED; NO PROMPT with exit 0, hidden/cancel NOT_RUN. Hash matches the reviewed snippet. This is Cursor-reported Windows evidence; ChatGPT has no direct access to that local file/console. Current Git refs independently fetched unchanged: main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs 8427f992348d0b5ad01db2116338a0131636e18d, feature 0c6276192d6dfa05f311325d50cc4dac66826d2b.
 
 Handoff is incomplete: isolated accepted tests-directory absolute path, its checkout SHA and wrapper/harness hashes, exact interpreter path and fully substituted commands were not supplied. Request existing evidence only; no script recreation, code change, repeat suite or hidden/cancel execution. Current gate: WP04-G4-S0 — Prepared Windows command handoff verification, awaiting complete Cursor evidence. Next: complete this handoff, then release fake-only user console instructions after verification. No real credential/live/server/production operation or merge; programme 4 of 13, WP03 closed, DEC-014/parked/locks unchanged.
+
+
+## Completed command handoff verified — 2026-10-03
+
+Cursor supplied the existing tests directory `D:\ELECTRON PROJECTS\daily-worklog-app-wt-wp04-s0-cursor-runner\supabase\tests\wp04`, accepted feature SHA 0c6276192d6dfa05f311325d50cc4dac66826d2b, exact accepted wrapper/harness LF hashes, interpreter `C:\Users\BRAHMADATHAN U\anaconda3\python.exe` 3.12.4 and fully substituted hidden/cancel/refusal commands for the previously reported script. Compared with reviewed package: all bindings/arguments match. Windows local-file/runtime evidence is Cursor-reported, not independently observed by ChatGPT. Current main 768992a3a59a7b6809b327f6e75023e535a4bf79, docs entry 03e5695e3b24ca14cc525a5afd9ac60105ee3861 and feature independently fetched unchanged.
+
+**Handoff verification PASSED.** Release only fake-only hidden and cancellation commands in a separate trusted user-opened PowerShell window. Previously reported captured refusal result exit 0 remains sufficient for this handoff; no user repeat of discarded-output refusal is needed. User observes physical echo and reports stream flags, FAKE_MATCH and CANCELLED. Stop immediately on echo, refusal, mismatch, source change or unexpected output; no guard bypass, code edit or real-key substitution. This release authorizes the fake-only local observation, not any real credentials, provider/target/cost/Auth/API/SQL/production operation. Windows proof remains NOT_RUN until user report. Branches unmerged; programme 4 of 13; WP03 closed; DEC-014 and parked/locked authority unchanged.
+
+Current gate: WP04-G4-S0 — Windows fake-only private-input observation, awaiting user evidence.
+Exact next: WP04-G4-S0 — Windows fake-only private-input proof audit.
+Required evidence: three stream TTY flags True / redirects False, user hidden-input YES/NO observation, FAKE_MATCH, CANCELLED; retain prior refusal evidence and stop on any failure. Proof does not certify an unrecorded terminal, future real-key handling or complete environment readiness.
