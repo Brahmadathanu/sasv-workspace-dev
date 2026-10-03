@@ -130,7 +130,7 @@ class RunnerCorrectionTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _live(self, data=None, transport=None):
+    def _live(self, data=None, transport=None, source_path=None):
         data = data or base_spec(execution="REVIEWED_LIVE", handoff_directory=str(self.handoff))
         data["handoff_directory"] = str(self.handoff)
         raw = dumps(data)
@@ -141,7 +141,9 @@ class RunnerCorrectionTests(unittest.TestCase):
             clock=(lambda: getattr(self, "_now", 100.0)),
         )
         appr = approval(expected_spec_sha256=digest)
-        offline.load_spec(raw, appr)
+        if source_path is not None:
+            source_path.write_bytes(raw)
+        offline.load_spec(raw, appr, source_path=source_path)
         transport = transport or BoundFakeTransport()
         orch = runner.GuardedLiveOrchestrator(offline, appr)
         return offline, orch, transport, digest, appr
@@ -616,6 +618,101 @@ class RunnerCorrectionTests(unittest.TestCase):
                 expires_at=future(),
                 approved_phases=frozenset({"live_orchestrate"}),
             )
+
+    # --- Exception-boundary correction at 72c0ed9 ---
+    def test_exception_boundary_missing_exact_spec_fails_terminal_and_forgets(self):
+        source = self.root / "exact-reviewed-spec.json"
+        offline, orch, transport, digest, appr = self._live(source_path=source)
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        source.unlink()
+        before = len(transport.calls)
+        with self.assertRaisesRegex(runner.RunnerError, "spec_source_required"):
+            orch.create_actors()
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._public)
+        self.assertIsNone(offline.client._admin)
+        self.assertEqual(offline.client._sessions, {})
+        with self.assertRaisesRegex(runner.RunnerError, "setup_failure_terminal"):
+            orch.create_actors()
+
+    def test_exception_boundary_permission_read_fails_terminal_and_forgets(self):
+        source = self.root / "exact-reviewed-spec.json"
+        offline, orch, transport, digest, appr = self._live(source_path=source)
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        before = len(transport.calls)
+        with patch.object(Path, "read_bytes", side_effect=PermissionError("private-path-canary")):
+            with self.assertRaisesRegex(runner.RunnerError, "spec_source_required"):
+                orch.create_actors()
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._public)
+        self.assertIsNone(offline.client._admin)
+        self.assertEqual(offline.client._sessions, {})
+
+    def test_exception_boundary_artifact_read_failure_is_fixed_and_terminal(self):
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        before = len(transport.calls)
+        with patch.object(runner, "verify_source_artifacts", side_effect=PermissionError("artifact-canary")):
+            with self.assertRaisesRegex(runner.RunnerError, "runner_internal_error"):
+                orch.create_actors()
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._public)
+        self.assertIsNone(offline.client._admin)
+
+    def test_exception_boundary_cancellation_propagates_after_terminal_disposal(self):
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        before = len(transport.calls)
+        with patch.object(runner, "verify_source_artifacts", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                orch.create_actors()
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._public)
+        self.assertIsNone(offline.client._admin)
+        self.assertEqual(offline.client._sessions, {})
+
+    def test_exception_boundary_real_write_failure_is_fixed_and_terminal(self):
+        offline, orch, transport, digest, appr = self._live()
+        orch.bind_client("sb_publishable_mock", "sb_secret_mock", transport)
+        orch.create_actors()
+        before = len(transport.calls)
+        with patch("os.write", side_effect=PermissionError("write-canary")):
+            with self.assertRaisesRegex(runner.RunnerError, "handoff_write_failed"):
+                orch.export_nonsecret_mapping()
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(offline.stage, runner.Stage.FAILED)
+        self.assertIsNone(offline.client._public)
+        self.assertIsNone(offline.client._admin)
+        self.assertEqual(offline.client._sessions, {})
+
+    def test_exception_boundary_malformed_modes_return_fixed_codes(self):
+        for malformed in ([], {}, 1, True, None):
+            with self.subTest(malformed=malformed):
+                data = base_spec()
+                data["cases"][0]["mode"] = malformed
+                with self.assertRaisesRegex(runner.RunnerError, "case_mode_refused"):
+                    runner.validate_spec_document(data, "a" * 64)
+
+    def test_exception_boundary_malformed_public_collections_and_report(self):
+        with self.assertRaisesRegex(runner.RunnerError, "live_phase_not_approved"):
+            runner.ExternalApproval(
+                expected_spec_sha256="a" * 64,
+                expected_harness_sha256=runner.HARNESS_SHA256,
+                expected_wrapper_sha256=wrapper_digest(),
+                approval_id="offline-wrapper-test",
+                expires_at=future(),
+                approved_phases=[[]],
+            )
+        with self.assertRaisesRegex(runner.RunnerError, "report_value_refused"):
+            runner.safe_report(mode=[])
+        data = base_spec()
+        data["execution"] = []
+        with self.assertRaisesRegex(runner.RunnerError, "execution_value_refused"):
+            runner.validate_spec_document(data, "a" * 64)
 
 
 if __name__ == "__main__":

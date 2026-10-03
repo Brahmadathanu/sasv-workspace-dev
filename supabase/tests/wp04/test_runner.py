@@ -194,23 +194,27 @@ def safe_report(**fields: Any) -> dict:
 def _validate_report(report: dict) -> dict:
     if set(report) != set(REPORT_FIELDS):
         raise RunnerError("report_field_refused")
-    if report["mode"] not in ALLOWED_MODES:
+    if type(report["mode"]) is not str or report["mode"] not in ALLOWED_MODES:
         raise RunnerError("report_value_refused")
-    if report["execution"] not in ALLOWED_EXECUTION:
+    if type(report["execution"]) is not str or report["execution"] not in ALLOWED_EXECUTION:
         raise RunnerError("report_value_refused")
-    if report["native_auth"] not in ALLOWED_NATIVE or report["api_permissions"] not in ALLOWED_NATIVE:
+    if (type(report["native_auth"]) is not str or type(report["api_permissions"]) is not str
+            or report["native_auth"] not in ALLOWED_NATIVE
+            or report["api_permissions"] not in ALLOWED_NATIVE):
         raise RunnerError("report_value_refused")
     if type(report["network_calls"]) is not int or report["network_calls"] < 0:
         raise RunnerError("report_value_refused")
-    if report["overall"] not in ALLOWED_OVERALL:
+    if type(report["overall"]) is not str or report["overall"] not in ALLOWED_OVERALL:
         raise RunnerError("report_value_refused")
-    if report["notes"] not in ALLOWED_NOTES:
+    if type(report["notes"]) is not str or report["notes"] not in ALLOWED_NOTES:
         raise RunnerError("report_value_refused")
-    if report["cleanup"] not in ALLOWED_CLEANUP:
+    if type(report["cleanup"]) is not str or report["cleanup"] not in ALLOWED_CLEANUP:
         raise RunnerError("report_value_refused")
     if type(report["setup_failure"]) is not bool:
         raise RunnerError("report_value_refused")
-    if report["failure_code"] is not None and report["failure_code"] not in KNOWN_FAILURE_CODES:
+    if (report["failure_code"] is not None
+            and (type(report["failure_code"]) is not str
+                 or report["failure_code"] not in KNOWN_FAILURE_CODES)):
         raise RunnerError("report_value_refused")
     if not isinstance(report["phases"], list) or any(not isinstance(item, str) or not CASE_ID_RE.match(item) for item in report["phases"]):
         raise RunnerError("report_value_refused")
@@ -326,6 +330,14 @@ class ExternalApproval:
     approved_actions: frozenset = frozenset({"auth_create", "auth_signin", "rpc_read"})
 
     def __post_init__(self):
+        if not isinstance(self.approved_phases, (set, frozenset, list, tuple)):
+            raise RunnerError("live_phase_not_approved")
+        if not isinstance(self.approved_actions, (set, frozenset, list, tuple)):
+            raise RunnerError("unsupported_action")
+        if any(type(value) is not str for value in self.approved_phases):
+            raise RunnerError("live_phase_not_approved")
+        if any(type(value) is not str for value in self.approved_actions):
+            raise RunnerError("unsupported_action")
         phases = frozenset(self.approved_phases)
         actions = frozenset(self.approved_actions)
         if type(self.expected_spec_sha256) is not str or type(self.expected_harness_sha256) is not str:
@@ -432,7 +444,7 @@ def _validate_phase_limits(phase_limits: dict, case_count: int) -> Any:
     return _freeze({"max_cases": max_cases, "max_create_actors": max_create})
 
 
-def validate_spec_document(
+def _validate_spec_document(
     data: dict,
     raw_sha256: str,
     approval: ExternalApproval | None = None,
@@ -447,7 +459,7 @@ def validate_spec_document(
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         raise RunnerError("spec_schema_unsupported")
     execution = data["execution"]
-    if execution not in ("OFF", "REVIEWED_LIVE"):
+    if type(execution) is not str or execution not in ("OFF", "REVIEWED_LIVE"):
         raise RunnerError("execution_value_refused")
 
     target_data = data["target"]
@@ -517,7 +529,7 @@ def validate_spec_document(
             raise RunnerError("duplicate_or_invalid_case_id")
         case_ids.add(case_id)
         mode = case["mode"]
-        if mode not in CASE_MODES:
+        if type(mode) is not str or mode not in CASE_MODES:
             raise RunnerError("case_mode_refused")
         actor = case.get("actor")
         if mode == "actor":
@@ -640,6 +652,20 @@ def validate_spec_document(
         handoff_directory=handoff_directory,
         phase_limits=frozen_limits,
     )
+
+
+def validate_spec_document(
+    data: dict,
+    raw_sha256: str,
+    approval: ExternalApproval | None = None,
+) -> ValidatedSpec:
+    """Public validation boundary: expose only fixed local failure codes."""
+    try:
+        return _validate_spec_document(data, raw_sha256, approval)
+    except RunnerError:
+        raise
+    except Exception:
+        raise RunnerError("runner_internal_error") from None
 
 
 class TrustedFakeTransport:
@@ -924,7 +950,10 @@ class OfflineRunner:
         try:
             self._assert_bindings(approval)
             if self.spec_source is not None:
-                disk = self.spec_source.read_bytes()
+                try:
+                    disk = self.spec_source.read_bytes()
+                except OSError:
+                    raise RunnerError("spec_source_required") from None
                 disk_norm = disk.replace(b"\r\n", b"\n") if b"\r\n" in disk else disk
                 retained_norm = (
                     self.spec_bytes.replace(b"\r\n", b"\n")
@@ -948,9 +977,11 @@ class OfflineRunner:
                 raise RunnerError("spec_drift")
             self.spec = validated
             return self.spec
-        except RunnerError as exc:
-            self._critical_fail(_code(exc))
+        except (KeyboardInterrupt, SystemExit):
+            self._dispose_terminal()
             raise
+        except Exception as exc:
+            self._critical_fail(_code(exc))
 
     def _critical_fail(self, code: str) -> None:
         if self.client is not None:
@@ -958,6 +989,10 @@ class OfflineRunner:
         raise RunnerError(code)
 
     def _fail_terminal(self, code: str) -> None:
+        self._dispose_terminal()
+        raise RunnerError(code)
+
+    def _dispose_terminal(self) -> None:
         self._terminal_failure = True
         self.stage = Stage.FAILED
         self._ack_verified = False
@@ -967,7 +1002,6 @@ class OfflineRunner:
                 status = "confirmed" if label in self.create_confirmed else "uncertain"
                 self._reconciliation[label] = status
             self.client.forget()
-        raise RunnerError(code)
 
     def offline_preflight(self) -> dict:
         transport = TrustedFakeTransport(
@@ -1056,6 +1090,9 @@ class GuardedLiveOrchestrator:
             self.runner.create_attempted.add(label)
             try:
                 result = client.create_actor(label)
+            except (KeyboardInterrupt, SystemExit):
+                self.runner._dispose_terminal()
+                raise
             except Exception:
                 self.runner._fail_terminal("create_uncertain_stop")
             if not isinstance(result, dict) or result.get("created") is not True or label not in client._actors:
@@ -1088,7 +1125,10 @@ class GuardedLiveOrchestrator:
                 payload,
                 worktree_root=self.runner.worktree_root,
             )
-        except RunnerError as exc:
+        except (KeyboardInterrupt, SystemExit):
+            self.runner._dispose_terminal()
+            raise
+        except Exception as exc:
             self.runner._fail_terminal(_code(exc))
         self.runner._export_payload = payload
         self.runner.stage = Stage.EXPORTED
@@ -1123,7 +1163,10 @@ class GuardedLiveOrchestrator:
             if self.approval.fingerprint() != self.runner._retained_approval_fingerprint:
                 raise RunnerError("approval_binding_changed")
             validate_fixture_acknowledgement(ack, self.runner._export_payload)
-        except RunnerError as exc:
+        except (KeyboardInterrupt, SystemExit):
+            self.runner._dispose_terminal()
+            raise
+        except Exception as exc:
             self.runner._fail_terminal(_code(exc))
         self.runner._ack_verified = True
         self.runner.stage = Stage.ACKED
@@ -1160,6 +1203,9 @@ class GuardedLiveOrchestrator:
                     self.approval.assert_unchanged()
                 params = _thaw_dict(case.params)
                 outcome = client.read_rpc(case.qualified_name, params, **kwargs)
+            except (KeyboardInterrupt, SystemExit):
+                self.runner._dispose_terminal()
+                raise
             except Exception as exc:
                 results.append({
                     "case_id": case.case_id,
