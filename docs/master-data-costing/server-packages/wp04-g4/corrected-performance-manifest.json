@@ -1,0 +1,38 @@
+{
+  "status": "EXACT_CORRECTED_PERFORMANCE_PROPOSAL_REVIEWED_NOT_AUTHORIZED_NOT_RUN",
+  "target": "qhmoqtxpeasamtlxaoak",
+  "reconciled_main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+  "reviewed_audit_head": "ae4eacd0ee7b8759178e47b901c9b8135c57ce09",
+  "script": "corrected-portfolio-proof-proposal.sql",
+  "script_sha256": "c55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e",
+  "operation_authorized": false,
+  "application_authorized": false,
+  "execution_attempts": 0,
+  "planned_portfolio_invocations": 1,
+  "planned_canonical_baseline_calls": 1,
+  "population": "OPERATIONAL",
+  "page_limit": 1,
+  "filters": "ALL_NULL",
+  "frozen_membership_context": {
+    "membership_count": 611,
+    "product_count": 460,
+    "first_sku": 1,
+    "membership_md5": "eeba4bf20f54589fe5b037173a79ed82",
+    "valuation": "2026-09-10",
+    "success_run": 115
+  },
+  "statement_timeout_seconds": 15,
+  "lock_timeout_seconds": 2,
+  "idle_in_transaction_timeout_seconds": 30,
+  "instrumentation": "OUTER_CALL_TIMER_ONLY_NO_FUNCTION_CHANGES",
+  "final_action": "ROLLBACK",
+  "retry": "NONE",
+  "full_g4": "INCOMPLETE",
+  "files_sha256": {
+    "corrected-portfolio-proof-proposal.sql": "c55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e",
+    "CORRECTED_PERFORMANCE_PROPOSAL.md": "2388286602a708ffdad62d5b00d176be356fb6100c734fd3a3af9574e0692150",
+    "ab-forward-draft.sql": "9ea0c0cc7e5a10d229e6ed0707136fcf0df5bd3e3513a770ea7ced1592470d7c",
+    "ab-rollback-draft.sql": "8085f873c1bddb631b851a0737d99b284b9c92d903e596e9c038156ca280c185",
+    "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5"
+  }
+}

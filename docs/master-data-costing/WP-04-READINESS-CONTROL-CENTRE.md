@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — V2 authorized bounded correctness and separate independent restoration readback PASS AT LIMITED SCOPE; independent evidence assessment complete.
+WP04-G4 — Exact corrected OPERATIONAL performance proposal preparation/independent review COMPLETE AT PLAN SCOPE; explicit production authorization pending.
 
 ## Gate Status
-[!] BLOCKED at remaining operational-performance/widerproof/application boundary.18canonicalcalls/5cases,6boundedquerycases/10literalcases/2contextchecks passed;0portfolioinvocations. Authorizationconsumed;performance/API/fullG4unproved. Originalauthorityrestored/candidates0/idleWP040;earlier evidence retained;G4incomplete/applicationHOLD,G5blocked.
+[!] BLOCKED at corrected fullpopulation execution authorization/remaining-proof/application boundary. V2limitedcorrectness/readbackPASSretained;correctedportfolioNOT_RUN.611membership/460Products/context115guardmetadatafresh;newdigestbound. G4incomplete/applicationHOLD,G5blocked;programme4/13.
 
 ## Required to close
-Prepare/review exact correctedOPERATIONALperformanceproposal and request newexplicitauthorization before anyexecution; resolve remaining allSKU/CSE/edge/ALL_EXISTING/API/payload/rollback proof/disposition withoutwaivers. Sampleparity/extractedqueryPASS is notfullportfolio/G4PASS.
+Authorize only exact correctedperformanceproposal; freshguards/singleinvocation/restoreROLLBACK/independentreadback/assess withoutretry/timeoutescalation. Resolve remaining allSKU/CSE/edge/ALL_EXISTING/API/payload/widerperformance/rollback proof withoutwaivers. No sampledPASS orsinglelatency promoted tofullG4.
 
 ## Next gate
-WP04-G4 — Exact corrected OPERATIONAL portfolio-performance proposal preparation and independent review, notexecution. No existing authorization for performance/deployment/client; no profiling/timeoutincrease/automaticretry.
+WP04-G4 — Explicit exact corrected OPERATIONAL performance authorization per CORRECTED_PERFORMANCE_PROPOSAL.md, then oneoperation/readbackandstop. No deployment/clientauthorization.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -900,3 +900,7 @@ Main e421fe8/audit283826a unchanged. NewV2script fixes onlytwo rows JSONB assert
 ## 2026-10-04 — Authorized V2 bounded correctness/readback PASS
 
 Userexplicitlyauthorized exactV2 main/target/digest;freshguardspassed;oneoperationcompleted atlimitedscope.18canonicalinvocations/5fullJSONcases+missingexceptions,6boundedextractedquerycases,10literalcases,2contextrefusals,exactrestoreguards/finalROLLBACK. Emptyregion1795fullJSONparity included;0portfolioinvocations/performanceNOT_PROVED/nativeAPINOT_RUN. Separateoriginalsixdefinitions/attributes/ACL/event readbackPASS;candidates0/idleWP040. [AB_CORRECTNESS_V2_RESULT.md](server-packages/wp04-g4/AB_CORRECTNESS_V2_RESULT.md) and sanitizedJSONrecord result/independentG4limits. Authorizationconsumed;no retry/deployment/client. Next smallestcorrectedOPERATIONALperformanceproposal preparation/independentreview, then newexplicitauthorization. PriorV1failure/evidence/frozenSQL preserved;G4incomplete/applicationHOLD/G5blocked/programme4/13;DEC-014/parked/locked unchanged.
+
+## 2026-10-04 — Exact corrected performance proposal/review
+
+Main e421fe8/auditae4eacd unchanged. [CORRECTED_PERFORMANCE_PROPOSAL.md](server-packages/wp04-g4/CORRECTED_PERFORMANCE_PROPOSAL.md) freezes scriptdigestc55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e,exactacceptedABbodies/fullidentity/restore,oneportfolio/oneoriginalSKUbaseline,unchangedtimeouts/noCOMMIT/finalROLLBACK/noretry/readback. Read-onlymembershipcount611/460Products/first1/identityMD5eeba4bf20f54589fe5b037173a79ed82/context115fresh;no readiness/portfolio call. NewscriptNOT_AUTHORIZED/NOT_RUN;combinedtiminggoals notseparatepathcertification. PriorV2PASS/failedattempt/historicalSQL/evidence preserved. G4incomplete/applicationHOLD/G5blocked/programme4/13;DEC-014/parked/lockedunchanged.

@@ -54,7 +54,7 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "ac886233ad627b32cc084ad099ab06d5092e9e29b031ac3c549f15ee9931b5c1",
+    "REVIEW.md": "7acd8c64b10a1ce37f3ddd311b5b49972801dcb60016d0baa0f89b8614c9b7b9",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
     "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492",
@@ -76,7 +76,10 @@
     "AB_CORRECTNESS_V2_REVIEW.md": "dfc4cae679b527e15bd49c2ee0c185b3f290cc435987a8171848ed0f6fb24793",
     "ab-correctness-v2-manifest.json": "6dca117fc96859f493ab0deaab2d6629406463dc6ce77bb790290be2c178068a",
     "AB_CORRECTNESS_V2_RESULT.md": "38e2025b04394af8cf6a4f8fbd7f0cebcb6356de4f2b861eca095d79d66da72b",
-    "AB_CORRECTNESS_V2_RESULT.json": "30ea17712609103a919cf5db9efced57da88cfd84d90732c33ad4f187fe8f435"
+    "AB_CORRECTNESS_V2_RESULT.json": "30ea17712609103a919cf5db9efced57da88cfd84d90732c33ad4f187fe8f435",
+    "corrected-portfolio-proof-proposal.sql": "c55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e",
+    "CORRECTED_PERFORMANCE_PROPOSAL.md": "2388286602a708ffdad62d5b00d176be356fb6100c734fd3a3af9574e0692150",
+    "corrected-performance-manifest.json": "12b17a417585f360d030778327b9486c5249dfa16efd7c36db387d2873f20f24"
   },
   "runtime_compilation": "SEVEN_DEFINITIONS_AND_OPERATIONAL_PORTFOLIO_INVOKED_LAZY_BRANCHES_UNPROVED",
   "forward_rollback_rehearsal": "LIMITED_TRANSACTION_LOCAL_PASS_FULL_PREREQUISITE_UNRESOLVED",
@@ -95,7 +98,7 @@
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
   },
-  "review_disposition": "LIMITED_V2_CORRECTNESS_READBACK_PASS_CORRECTED_PERFORMANCE_PROPOSAL_PENDING_APPLICATION_HOLD",
+  "review_disposition": "EXACT_CORRECTED_PERFORMANCE_PROPOSAL_REVIEWED_AUTHORIZATION_PENDING_APPLICATION_HOLD",
   "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
   "review_items": [
     "G4-R01 shared issue identity",
@@ -397,7 +400,7 @@
     "within_5s_statistics_goal": false
   },
   "performance_disposition": {
-    "status": "LIMITED_V2_CORRECTNESS_PASS_PERFORMANCE_NOT_PROVED",
+    "status": "EXACT_CORRECTED_OPERATIONAL_PROPOSAL_REVIEWED_NOT_RUN",
     "portfolio_executions_this_gate": 0,
     "explain_analyze": false,
     "dominant_time_path": "NOT_MEASURED",
@@ -409,7 +412,7 @@
     ],
     "conditional_batching": "EXCLUDED_PENDING_MEASURED_JUSTIFICATION",
     "implementation_authorized": false,
-    "next_gate": "CORRECTED_OPERATIONAL_PERFORMANCE_PROPOSAL_PREPARATION_AND_INDEPENDENT_REVIEW"
+    "next_gate": "EXPLICIT_EXACT_CORRECTED_OPERATIONAL_AUTHORIZATION_THEN_SINGLE_TEST_READBACK"
   },
   "performance_plan_review": {
     "status": "ACCEPTED_PLAN_SCOPE_FROZEN_WITH_REFINEMENTS",
@@ -448,5 +451,13 @@
     "independent_readback": "PASS_ORIGINAL_STATE",
     "portfolio_invocations": 0,
     "result_record": "AB_CORRECTNESS_V2_RESULT.md"
+  },
+  "pending_corrected_performance_operation": {
+    "manifest": "corrected-performance-manifest.json",
+    "script_sha256": "c55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e",
+    "operation_authorized": false,
+    "application_authorized": false,
+    "execution_attempts": 0,
+    "planned_portfolio_invocations": 1
   }
 }
