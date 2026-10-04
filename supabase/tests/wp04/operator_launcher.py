@@ -222,6 +222,7 @@ def read_bounded_file(path: Path, *, too_large_code: str, read_failed_code: str)
 
 
 def launcher_report(**fields: Any) -> dict:
+    """Public report formatter. Cannot certify PASS without launcher-bound coverage."""
     out = {
         "mode": "operator_launcher",
         "execution": "OFF",
@@ -238,10 +239,15 @@ def launcher_report(**fields: Any) -> dict:
         "notes": "default_cli_off",
     }
     out.update(fields)
-    return _validate_launcher_report(out)
+    # Public path never carries trusted coverage: PASS is refused here.
+    return _validate_launcher_report(out, trusted_expected_case_ids=None)
 
 
-def _validate_launcher_report(report: dict) -> dict:
+def _validate_launcher_report(
+    report: dict,
+    *,
+    trusted_expected_case_ids: tuple[str, ...] | None,
+) -> dict:
     import re
     if not isinstance(report, dict) or set(report) != set(REPORT_FIELDS):
         raise LauncherError("report_value_refused")
@@ -310,6 +316,14 @@ def _validate_launcher_report(report: dict) -> dict:
 
     # Forbid contradictory PASS/setup/notes/count/coverage states.
     if report["overall"] == "PASS_REVIEWED_ASSERTIONS_ONLY":
+        # Trusted full reviewed sequence required; caller-supplied subset is not authority.
+        if (
+            trusted_expected_case_ids is None
+            or type(trusted_expected_case_ids) is not tuple
+            or not trusted_expected_case_ids
+            or any(type(item) is not str or not item for item in trusted_expected_case_ids)
+        ):
+            raise LauncherError("report_value_refused")
         if report["setup_failure"] or report["failure_code"] is not None:
             raise LauncherError("report_value_refused")
         if report["notes"] != "operator_complete":
@@ -323,6 +337,9 @@ def _validate_launcher_report(report: dict) -> dict:
         if not cleaned:
             raise LauncherError("report_value_refused")
         if any(item["assertion"] != "MATCH" for item in cleaned):
+            raise LauncherError("report_value_refused")
+        got_ids = [item["case_id"] for item in cleaned]
+        if got_ids != list(trusted_expected_case_ids):
             raise LauncherError("report_value_refused")
         if report["execution"] == "SIMULATED_OFFLINE":
             if report["network_calls"] != 0 or report["transport_calls"] < 1:
@@ -338,6 +355,39 @@ def _validate_launcher_report(report: dict) -> dict:
     if report["execution"] == "SIMULATED_OFFLINE" and report["network_calls"] != 0:
         raise LauncherError("report_value_refused")
     return report
+
+
+def build_bound_launcher_report(launcher: "OperatorLauncher", **fields: Any) -> dict:
+    """PASS-capable report bound to privately retained reviewed case coverage after revalidation."""
+    overall = fields.get("overall", "NOT_RUN")
+    if overall != "PASS_REVIEWED_ASSERTIONS_ONLY":
+        return launcher_report(**fields)
+    launcher._assert_authority()
+    expected = getattr(launcher, "_retained_expected_case_ids", None)
+    if expected is None or type(expected) is not tuple or not expected:
+        raise LauncherError("report_value_refused")
+    if launcher.offline is None:
+        raise LauncherError("report_value_refused")
+    live = tuple(launcher.offline._expected_case_ids or ())
+    if live != expected:
+        raise LauncherError("report_value_refused")
+    out = {
+        "mode": "operator_launcher",
+        "execution": "OFF",
+        "native_auth": "NOT_RUN",
+        "api_permissions": "NOT_RUN",
+        "network_calls": 0,
+        "transport_calls": 0,
+        "overall": "NOT_RUN",
+        "phases": [],
+        "cases": [],
+        "setup_failure": False,
+        "failure_code": None,
+        "cleanup": "local_forget_only",
+        "notes": "default_cli_off",
+    }
+    out.update(fields)
+    return _validate_launcher_report(out, trusted_expected_case_ids=expected)
 
 
 def build_terminal_report(
@@ -569,6 +619,7 @@ class OperatorLauncher:
         self._transport_calls = 0
         self._used_fake_transport = False
         self._phases: list[str] = []
+        self._retained_expected_case_ids: tuple[str, ...] | None = None
 
     def default_report(self) -> dict:
         return launcher_report(notes="default_cli_off", network_calls=0, transport_calls=0, execution="OFF")
@@ -577,6 +628,7 @@ class OperatorLauncher:
         self._terminal = True
         self._publishable = None
         self._secret = None
+        self._retained_expected_case_ids = None
         if self.offline is not None and getattr(self.offline, "client", None) is not None:
             try:
                 self.offline.client.forget()
@@ -755,6 +807,10 @@ class OperatorLauncher:
         self.authority = authority
         self._retained_authority_fingerprint = _authority_fingerprint(authority)
         self._authority_id = id(authority)
+        retained_cases = tuple(offline._expected_case_ids or ())
+        if not retained_cases:
+            raise LauncherError("live_spec_not_ready")
+        self._retained_expected_case_ids = retained_cases
         self.offline = offline
         self.orch = self.runner_mod.GuardedLiveOrchestrator(offline, appr)
         return authority
@@ -910,26 +966,31 @@ class OperatorLauncher:
             cases = self.orch.run_proof_cases()
             phases.append("proof_done")
             self._phases = list(phases)
-            expected = list(self.offline._expected_case_ids or ())
+            expected = list(self._retained_expected_case_ids or ())
+            live = list(self.offline._expected_case_ids or ())
+            if not expected or live != expected:
+                raise LauncherError("report_value_refused")
             overall = self.runner_mod.GuardedLiveOrchestrator.overall_from_cases(
                 cases, setup_failure=False, expected_case_ids=expected,
             )
             notes = "operator_complete" if overall == "PASS_REVIEWED_ASSERTIONS_ONLY" else "operator_failure"
             simulated = bool(self._used_fake_transport)
             execution = "SIMULATED_OFFLINE" if simulated else "REVIEWED_LIVE"
-            return launcher_report(
+            case_rows = [{
+                "case_id": item["case_id"],
+                "assertion": item["assertion"],
+                **({"http_status": item["http_status"]} if "http_status" in item else {}),
+                **({"body_shape": item["body_shape"]} if "body_shape" in item else {}),
+                **({"failure_code": item["failure_code"]} if "failure_code" in item else {}),
+            } for item in cases]
+            return build_bound_launcher_report(
+                self,
                 execution=execution,
                 native_auth="ATTEMPTED",
                 api_permissions="ATTEMPTED",
                 overall=overall,
                 phases=phases,
-                cases=[{
-                    "case_id": item["case_id"],
-                    "assertion": item["assertion"],
-                    **({"http_status": item["http_status"]} if "http_status" in item else {}),
-                    **({"body_shape": item["body_shape"]} if "body_shape" in item else {}),
-                    **({"failure_code": item["failure_code"]} if "failure_code" in item else {}),
-                } for item in cases],
+                cases=case_rows,
                 network_calls=0 if simulated else int(self._network_calls),
                 transport_calls=int(self._transport_calls) if simulated else 0,
                 notes=notes,

@@ -641,6 +641,85 @@ class OperatorLauncherTests(unittest.TestCase):
                 transport_calls=0,
             )
 
+    def test_public_pass_without_trusted_coverage_refused(self):
+        """Public formatter cannot PASS on a caller-supplied MATCH subset."""
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.launcher_report(
+                overall="PASS_REVIEWED_ASSERTIONS_ONLY",
+                notes="operator_complete",
+                execution="REVIEWED_LIVE",
+                native_auth="ATTEMPTED",
+                api_permissions="ATTEMPTED",
+                network_calls=1,
+                transport_calls=0,
+                phases=list(ol.REQUIRED_PASS_PHASES),
+                cases=[{"case_id": "anon-period", "assertion": "MATCH"}],
+            )
+
+    def test_bound_pass_rejects_absent_subset_extra_duplicate_reordered(self):
+        spec_path, approval_path, sha, _ = self._prepare()
+        launcher = self._launcher()
+        launcher.bind_launch_files(
+            spec_path=spec_path, approval_path=approval_path, expected_approval_sha_lf=sha,
+        )
+        expected = list(launcher._retained_expected_case_ids)
+        self.assertGreaterEqual(len(expected), 2)
+        base = {
+            "execution": "SIMULATED_OFFLINE",
+            "native_auth": "ATTEMPTED",
+            "api_permissions": "ATTEMPTED",
+            "network_calls": 0,
+            "transport_calls": 1,
+            "overall": "PASS_REVIEWED_ASSERTIONS_ONLY",
+            "notes": "operator_complete",
+            "phases": list(ol.REQUIRED_PASS_PHASES),
+            "setup_failure": False,
+        }
+        # Absent coverage
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.build_bound_launcher_report(launcher, **base, cases=[])
+        # Subset
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.build_bound_launcher_report(
+                launcher,
+                **base,
+                cases=[{"case_id": expected[0], "assertion": "MATCH"}],
+            )
+        # Extra
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.build_bound_launcher_report(
+                launcher,
+                **base,
+                cases=[{"case_id": c, "assertion": "MATCH"} for c in expected]
+                + [{"case_id": "extra-case", "assertion": "MATCH"}],
+            )
+        # Duplicate
+        dup = [{"case_id": c, "assertion": "MATCH"} for c in expected]
+        dup[1] = {"case_id": expected[0], "assertion": "MATCH"}
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.build_bound_launcher_report(launcher, **base, cases=dup)
+        # Reordered
+        reordered = [{"case_id": c, "assertion": "MATCH"} for c in reversed(expected)]
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.build_bound_launcher_report(launcher, **base, cases=reordered)
+        # Mismatched retained vs live offline binding
+        launcher.offline._expected_case_ids = (expected[0],)
+        with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
+            ol.build_bound_launcher_report(
+                launcher,
+                **base,
+                cases=[{"case_id": c, "assertion": "MATCH"} for c in expected],
+            )
+        # Full exact sequence still binds.
+        launcher.offline._expected_case_ids = tuple(expected)
+        ok = ol.build_bound_launcher_report(
+            launcher,
+            **base,
+            cases=[{"case_id": c, "assertion": "MATCH"} for c in expected],
+        )
+        self.assertEqual(ok["overall"], "PASS_REVIEWED_ASSERTIONS_ONLY")
+        self.assertEqual([c["case_id"] for c in ok["cases"]], expected)
+
     def test_report_rejects_canary_notes(self):
         with self.assertRaisesRegex(ol.LauncherError, "report_value_refused"):
             ol.launcher_report(notes=CANARY)
