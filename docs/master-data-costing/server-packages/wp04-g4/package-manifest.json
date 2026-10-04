@@ -54,12 +54,13 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "00fd79dd06ac44c26aecf188453f0b940e2cdd7f42b013d89659b4af1274c102",
+    "REVIEW.md": "4e61026a0ae3a3c451d742e4a7dc4c0e7dc8dd05f5e88a453b5e2b841579424a",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
-    "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f"
+    "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
+    "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492"
   },
   "runtime_compilation": "NOT_RUN",
-  "forward_rollback_rehearsal": "NOT_RUN",
+  "forward_rollback_rehearsal": "LIMITED_TRANSACTION_LOCAL_PASS_FULL_PREREQUISITE_UNRESOLVED",
   "parity_access_cse_performance": "NOT_RUN",
   "monetary_payload_certification": "NOT_ESTABLISHED",
   "static_extraction": {
@@ -75,7 +76,7 @@
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
   },
-  "review_disposition": "R01_R02_SOURCE_ACCEPTED_LIMITED_REHEARSAL_PROPOSED_NOT_AUTHORIZED",
+  "review_disposition": "R01_R02_SOURCE_ACCEPTED_LIMITED_REHEARSAL_PASS_REMAINING_R03_HOLD",
   "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
   "review_items": [
     "G4-R01 shared issue identity",
@@ -322,16 +323,22 @@
     "runtime_compile_parity_rollback": "BLOCKED_NO_APPROVED_EXISTING_RUNTIME",
     "native_api_performance": "BLOCKED_WITH_CANDIDATE_EXECUTION"
   },
-  "main_review_reference": "01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0",
+  "main_review_reference": "80246db8e10d5bb9ff1b0228ae41b0cfc2624d36",
   "limited_rehearsal": {
-    "status": "NOT_RUN",
-    "authorized": false,
+    "status": "PASS_LIMITED_SCOPE_WITH_INDEPENDENT_READBACK",
+    "authorized": true,
     "target_project": "qhmoqtxpeasamtlxaoak",
     "script_sha256": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "final_action": "ROLLBACK",
     "portfolio_invocation": "NOT_INCLUDED",
-    "native_api_full_proof": "NOT_ESTABLISHED"
+    "native_api_full_proof": "NOT_ESTABLISHED",
+    "authorization_consumed": true,
+    "execution_count": 1,
+    "main_at_execution": "80246db8e10d5bb9ff1b0228ae41b0cfc2624d36",
+    "independent_readback": "PASS",
+    "candidate_function_count_after": 0,
+    "idle_wp04_transactions_after": 0
   },
   "execution_state": "VERIFICATION_HIGH_RISK_PLAN_NOT_IMPLEMENTATION",
-  "proposal_repository_overlap": "NONE_AT_01ce609"
+  "proposal_repository_overlap": "NONE_AT_80246db"
 }

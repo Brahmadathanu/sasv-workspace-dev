@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Corrected package source review accepted; exact limited rehearsal proposal awaits authorization.
+WP04-G4 — Authorized limited rollback-only rehearsal completed; independent readback passed; remaining proof disposition pending.
 
 ## Gate Status
-[!] BLOCKED at execution-proof/application boundary. G4-R01/R02 corrected source review accepted; G4-R03 remains unresolved. One exact limited production rollback-only rehearsal is proposed, NOT_RUN/NOT_AUTHORIZED; approval decision pending. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
+[!] BLOCKED at remaining execution-proof/application boundary. G4-R01/R02 corrected source review accepted. One explicitly authorized exact rehearsal passed at limited scope, with three canonical cases, small period/gap reads and independent restoration readback. Authorization consumed; G4-R03 remains unresolved. No deployed server/client functionality or application approval. Environment/tooling detour stays withdrawn.
 
 ## Required to close
-G4-R01/R02 corrected source review accepted at limited scope. Disposition supporting repository findings and explicitly resolve G4-R03 runtime/parity/access/payload/performance/rollback proof plus the pending exact rehearsal authorization. Preserve canonical equivalence and approved scope. No application before reviewed proof/authorization; no new infrastructure or production mutation in this review.
+Resolve remaining G4-R03 portfolio runtime/performance, full parity/CSE, edge-case/lazy-branch, native/API access, payload and committed rollback proof/disposition without treating the limited rehearsal as a waiver. Preserve canonical equivalence and approved scope. No application before reviewed proof and separate authorization; no additional production operation authorized.
 
 ## Next gate
-WP04-G4 — One bounded read-only repository verification of the frozen proposal as supporting evidence, then ChatGPT disposition and explicit authorization decision. No server/client implementation; rehearsal remains NOT_RUN/NOT_AUTHORIZED. G5 client work remains dependent on a verified server contract.
+WP04-G4 — ChatGPT-owned bounded remaining-proof disposition after this limited evidence assessment. Stop; no further SQL/client implementation authorized. G5 remains dependent on a verified server contract.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -860,3 +860,7 @@ Current gate: WP04-G4 — Corrected package reviewed, pending exact rehearsal au
 Next: bounded repository-only verification handoff; no server/client implementation authorization.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No production mutation/spend/merge/tag/release.
+
+## 2026-10-04 — Authorized limited rehearsal and independent readback
+
+User explicitly approved main80246db and exact frozen script digest7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f for one rollback-only production rehearsal. Fresh guards passed; one execution passed; separate readback passed with original source/access/settings, candidate count0 and observed idle WP04 transactions0. [REHEARSAL_RESULT.md](server-packages/wp04-g4/REHEARSAL_RESULT.md) records exact authority, metadata and proof limits. Earlier NOT_RUN/NOT_AUTHORIZED records remain historical; this explicit narrow authorization is now consumed. Portfolio was not invoked. Remaining G4-R03 proof/application HOLD; no future operation/client work authorized. G0–G3 retained; G4 incomplete; programme4/13; WP03closed; DEC-014 and parked/locked unchanged. Stop after assessment.
