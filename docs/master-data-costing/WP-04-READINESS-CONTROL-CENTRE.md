@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Concrete atomic server-package draft prepared; independent plan review pending.
+WP04-G4 — Independent exact package review completed; bounded corrections required, application HOLD.
 
 ## Gate Status
-[~] IN PROGRESS. Direct live read-only reassessment and exact draft preparation complete; independent atomic package/rollback/security/proof review next. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
+[~] IN PROGRESS. Exact draft and independent plan review complete. G4-R01/R02 corrections and G4-R03 proof disposition remain required; application HOLD. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
 
 ## Required to close
-Identify the minimum genuinely required change against existing authoritative surfaces, review exact affected contracts/permissions/rollback and evidence needed, and provide one concrete implementation/proof recommendation. Preserve canonical readiness equivalence and acknowledge unproved performance/native/access coverage. No new infrastructure or production mutation in this review.
+Close the consolidated G4-R01 shared-issue identity and G4-R02 full package/rollback identity findings, then explicitly disposition G4-R03 runtime/parity/access/payload/performance/rollback proof. Preserve canonical equivalence and approved scope. No application before reviewed proof/authorization; no new infrastructure or production mutation in this review.
 
 ## Next gate
-WP04-G4 — Independent exact package/rollback/security/verification review; direct implementation only after the reviewed package and unresolved proof prerequisites are explicitly authorized. G5 client work remains dependent on a verified server contract.
+WP04-G4 — Corrected exact package and concrete verification disposition review; direct implementation only after reviewed prerequisites and explicit application authorization. G5 client work remains dependent on a verified server contract.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -786,3 +786,20 @@ Current gate: WP04-G4 — Concrete atomic server-package draft prepared, indepen
 Next gate: WP04-G4 — Independent exact package/rollback/security/verification review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 preserved; WP03 closed. No production mutation, spend, merge, tag or release.
+
+
+## WP04-G4 — Independent exact package review (2026-10-04)
+
+Reviewed audit draft 2adcbfd against IMPLEMENTATION_RULES, DEC-014, accepted G3 contracts and fresh live read-only catalogs. Main unchanged at 6e5d11ea; six live authority hashes/owners/ACLs/config match; no new-function collisions. Result **CORRECTIONS REQUIRED; application HOLD**. Detailed evidence and one consolidated correction list are in [package REVIEW.md](server-packages/wp04-g4/REVIEW.md#independent-plan-review-at-2adcbfd-2026-10-04). SQL/source bytes unchanged by this review.
+
+G4-R01: shared-issue summary currently omits actual scope/context/authority/evidence identity and associated SKU references required by G3. Grouping by code alone is insufficient; no live conflation proven with current one-row-per-code registry. G4-R02: strengthen whole package identity/postconditions and rollback preconditions beyond AS-body-only guards, including exact approved defaults/attributes/ACLs. G4-R03: compile/parity/CSE/native-access/payload/full-population-performance/rollback proof absent; explicitly settle proportional verification capability before apply, without withdrawn environment/tooling or speculative production experiment. These are bounded REQUIRED NOW package findings, not new parked enhancements or architecture decisions.
+
+Expanded Run115 note triage covered 636 rows each in eight note areas plus 1,272 scheme notes; zero digit-bearing notes. Broader lexical pattern hits occurred for all636 QC notes and one control note; neither hits nor lack of digits prove monetary disclosure/safety. Arbitrary notes, commercial warnings and all nested payloads remain uncertified. Exact canonical payload/nonmonetary contract conflict cannot be silently resolved by masking fields. Existing public default function grants require atomic revokes; SQL catalogs are not native/API access proof. No upstream regression demonstrated; WP03 not reopened.
+
+Workflow: review completed → bounded draft correction/proof disposition → reviewed authorization → direct server implementation/live verification → bounded client package.
+WP progress: G0–G3 complete at documented levels; G4 active, WP04 incomplete.
+Programme progress: 4 of 13.
+Current gate: WP04-G4 — Exact package review completed; corrections required, application HOLD.
+Next: WP04-G4 — Corrected package and concrete verification disposition review.
+Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
+Locked: canonical server authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 preserved; WP03 closed. No production mutation, spend, merge, tag or release.

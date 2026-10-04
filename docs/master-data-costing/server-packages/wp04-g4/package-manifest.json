@@ -54,7 +54,7 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "8d7a0edf1acba188eebe0ade376254c79f6e2788734eeff4d1e9863133ac26e1",
     "rollback-draft.sql": "2708cb1f50c8caa1897a622648d83c8356991e769bb2d29dadd9dc15a218b1a2",
-    "REVIEW.md": "2d6a2b834ce6cf8dd92527bc3c9455af0c48a01793b0e9c72cfc969355ec398d"
+    "REVIEW.md": "87eb1f62456dbcb90252913baf23ad2a2caed1f513f03690257ffb1fe8bb23a2"
   },
   "runtime_compilation": "NOT_RUN",
   "forward_rollback_rehearsal": "NOT_RUN",
@@ -72,5 +72,12 @@
     ],
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
-  }
+  },
+  "review_disposition": "CORRECTIONS_REQUIRED_APPLICATION_HOLD",
+  "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
+  "review_items": [
+    "G4-R01 shared issue identity",
+    "G4-R02 complete package/rollback identity guards",
+    "G4-R03 unresolved proof disposition"
+  ]
 }
