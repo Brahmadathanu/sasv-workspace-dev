@@ -1,7 +1,7 @@
 # WP-06 — Composition Portal Execution
 
-**Architecture state:** PURPLE  
-**Progress:** 65%
+**Architecture state:** DONE  
+**Progress:** 100%
 
 ## Objective
 Safely execute verified server Composition data into the portal and record durable server-side progress/evidence.
@@ -236,7 +236,7 @@ Proven:
   - Karpūra = SOLID / 66;
   - Kēram = OIL / 61.
 
-Current live portal Composition contains all three governed rows: matched `[929,930,931]`, missing `[]`. Karpūra and Kēram are both durably `ROW_VERIFIED` / `CONFIRMED`; the Composition stage itself remains `PARTIAL` until the separate final-stage verification action succeeds.
+Current live portal Composition contains all three governed rows: matched `[929,930,931]`, missing `[]`. Karpūra and Kēram are both durably `ROW_VERIFIED` / `CONFIRMED`; the Composition stage is durably `PORTAL_VERIFIED` at stage row_version 14.
 
 ## First controlled line-930 attempt and recovery
 
@@ -266,8 +266,8 @@ The execution snapshot is server authoritative.
 - [x] Prove row edit-ID and unitname/reread value semantics.
 - [x] Continue remaining lines under the durable WP-06 mutation gate with no normal Update/Delete.
 - [x] Final exact-set reconciliation and Composition-stage PORTAL_VERIFIED evidence.
-- [ ] Representative regression.
-- [ ] WP closure audit.
+- [x] Representative regression.
+- [x] WP closure audit.
 
 ## Current gate
 Controlled Product 262 Composition line entry for Karpūra (930) and Kēram (931) has completed successfully. Current verified live state:
@@ -297,7 +297,11 @@ Final-stage verification does **not** require `EAUSHADHI_COMPOSITION_LIVE_ARM` b
 
 `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged. Historical `COMPOSITION_FIRST_LIVE_930_RELEASE=false` and `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true` remain as previously shipped for row entry. Production versions continue to come from fresh preflight/server authority; stage/workflow row versions are not hard-coded as permanent business rules.
 
-The final-stage client activation is merged on exact main `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The exact-main final-stage preflight passed, and the bounded final-stage execution then recollected fresh authority and durably changed the Composition stage from `PARTIAL` to `PORTAL_VERIFIED`. Current stage row_version is 14, governed/portal match remains `3/3`, workflow row_version remains 11, `portal_verified_at` is present, latest evidence is `STAGE_PORTAL_VERIFIED`, and the audit log contains `COMPOSITION_STAGE_PORTAL_VERIFIED`. Historical Composition runs remain unchanged. No SaveData, portal row mutation, QC Register action or final Submit occurred. The next gate is representative regression, followed by the WP-06 closure audit.
+The final-stage client activation is merged on exact main `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The exact-main final-stage preflight passed, and the bounded final-stage execution then recollected fresh authority and durably changed the Composition stage from `PARTIAL` to `PORTAL_VERIFIED`. Current stage row_version is 14, governed/portal match remains `3/3`, workflow row_version remains 11, `portal_verified_at` is present, latest evidence is `STAGE_PORTAL_VERIFIED`, and the audit log contains `COMPOSITION_STAGE_PORTAL_VERIFIED`. Historical Composition runs remain unchanged. No SaveData, portal row mutation, QC Register action or final Submit occurred.
+
+Representative regression then passed on authoritative main `c719dacff9d8031ece3a892333db83d25bf164fd`: all required syntax checks and Composition execution/offline-plan/worker-contract/IPC/review-RPC smoke suites passed; missing-state, successful-row, rejection/ambiguous/recovery, exact-set final-stage and completed-state fail-closed behavior remain represented. Product 262 at `PORTAL_VERIFIED` cannot reopen row-entry eligibility or final-stage eligibility, and the server PARTIAL-only guard blocks repeat final-stage verification. No portal, server or repository mutation occurred.
+
+WP-06 closure audit passed. The representative Composition execution lifecycle is complete and downstream-safe. QC Register and final Submit remain separate unopened gates.
 
 The earlier server foundation remains live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
@@ -305,11 +309,11 @@ The earlier server foundation remains live and repository-versioned through migr
 - `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql`
 - `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql`
 
-Until WP-06 representative regression and closure audit are complete:
+Post-closure invariants:
 
-- do not reopen Composition row entry for Product 262;
+- do not reopen Composition row entry for Product 262 without a separately governed re-entry contract;
 - keep `COMPOSITION_LIVE_ARM_DEFAULT=false`;
-- do not open QC Register or final Submit.
+- QC Register and final Submit remain separate gates and are not authorized by WP-06 closure.
 
 
 ## Trusted executor merge evidence — 2026-09-29
