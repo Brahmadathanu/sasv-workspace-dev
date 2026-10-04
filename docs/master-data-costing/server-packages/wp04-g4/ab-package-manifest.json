@@ -1,6 +1,6 @@
 {
   "status": "UNAPPLIED_EXACT_AB_REVIEW_PACKAGE",
-  "main_reference": "4a8525caf4bf95e9c60bb00188706154d36b3d85",
+  "main_reference": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
   "reviewed_plan_commit": "c6e16719285b620f0da1cfaa2d117680ea0697dd",
   "target": "qhmoqtxpeasamtlxaoak",
   "application_authorized": false,
@@ -51,7 +51,7 @@
     "ab-rollback-draft.sql": "8085f873c1bddb631b851a0737d99b284b9c92d903e596e9c038156ca280c185",
     "ab-correctness-proposal.sql": "e29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669",
     "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5",
-    "AB_PROPOSAL_REVIEW.md": "2b689214c4d036b46570952b549bc1397c7c81ac1b31e379780b3e58474e585f"
+    "AB_PROPOSAL_REVIEW.md": "c103973c411028ee2784afb175e28311291663f3942c754e5c6e2e5f78e0c3d6"
   },
   "review_disposition": "ACCEPTABLE_TO_REQUEST_LIMITED_CORRECTNESS_AUTHORIZATION_ONLY",
   "proof_refinement": "EXTRACTED_QUERY_BOUNDED_INPUT_NOT_PORTFOLIO_RPC",
@@ -61,5 +61,18 @@
     "regional_model_cases": 585,
     "runtime_compilation": "NOT_RUN",
     "text_balance": "PASS_NOT_POSTGRES_PARSER"
+  },
+  "original_preparation_main_reference": "4a8525caf4bf95e9c60bb00188706154d36b3d85",
+  "current_main_reconciliation": {
+    "previous_main": "4a8525caf4bf95e9c60bb00188706154d36b3d85",
+    "current_main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+    "reviewed_audit_head": "bdfc84511e3738115c71c094374f68bc81b0051b",
+    "repository_delta_paths": 4,
+    "scope": "E_AUSHADHI_WP07_G2_QC_FOUNDATION_MERGE_RECORD",
+    "material_wp04_overlap": false,
+    "frozen_script_unchanged": true,
+    "live_source_metadata": "SIX_HASHES_ORIGINAL_ATTRIBUTES_EVENT_MATCH_CANDIDATES0_IDLE0",
+    "proof_reruns": 0,
+    "operation_authorized": false
   }
 }

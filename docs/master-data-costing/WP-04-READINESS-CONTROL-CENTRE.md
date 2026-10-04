@@ -708,7 +708,7 @@ WP04-G4 — Exact unapplied A/B correction/rollback/proof package prepared and i
 Authorize only concretely reviewed operations; collect and disposition limited correction proof with independent original restoration readback. Resolve remaining all-SKU/CSE/edge/API/payload/performance/rollback proof without waivers. Bounded query-fragment proof is not full operational RPC proof; no additional performance authorization implicit.
 
 ## Next gate
-WP04-G4 — Explicit authorization for exact target/digest in AB_PROPOSAL_REVIEW.md; if granted, fresh guards, single rollback-only correctness operation, independent readback, then stop. No performance rerun/deployment/client authorized by package preparation.
+WP04-G4 — Explicit authorization against reconciled main e421fe8df9b98b4956acdcd4cadeb36a3f9b923c for unchanged exact target/digest in AB_PROPOSAL_REVIEW.md; if granted, fresh guards, single rollback-only correctness operation, independent readback, then stop. No performance rerun/deployment/client authorized by package preparation.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -884,3 +884,7 @@ Fresh main4a8525c/audit72765077 unchanged. [PERFORMANCE_PLAN_REVIEW.md](server-p
 ## 2026-10-04 — Exact unapplied A/B correction and proof checkpoint
 
 Main4a8525c/auditc6e1671 unchanged. [AB_PROPOSAL_REVIEW.md](server-packages/wp04-g4/AB_PROPOSAL_REVIEW.md) and separate corrected manifest bind new forward/restore/proof/readback artifacts. Only common enrichment and portfolio orchestration bodies change; historical source/SQL/evidence untouched. Offline models/source/embedding/identity checks pass; database runtime NOT_RUN. Limited proof refines bounded aggregation to extracted old/new query fragments over3stored canonical inputs, not a public portfolio invocation; no speed/root-cause/G4 claim.18canonical invocations and zeroportfolio proposed in one noCOMMIT/finalROLLBACK operation, pending explicit target/digest authorization; independent readback separately required. Source/metadata inspection read-only; no candidate definition/mutation or client work. G4 incomplete/application HOLD/G5blocked/programme4/13; DEC-014/parked/locked unchanged.
+
+## 2026-10-04 — Shared-main reconciliation after e-Aushadhi WP07 G2
+
+Main advanced4a8525c→e421fe8df9b98b4956acdcd4cadeb36a3f9b923c; auditbdfc845 matched. Inspected six commits/four final paths: two e-Aushadhi regulatory QC migrations/two e-Aushadhi docs only. No material WP04/costing/canonical dependency/shared-contract overlap. Fresh live catalogue source/attributes/event unchanged;candidates0/idleWP040; no proof rerun. [AB_PROPOSAL_REVIEW.md](server-packages/wp04-g4/AB_PROPOSAL_REVIEW.md#current-main-reconciliation-after-e-aushadhi-wp-07-g2-merge-2026-10-04) records exact lineage/object/permission disposition and provenance override: unchanged script digeste29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669, new authorization maine421fe8df9b98b4956acdcd4cadeb36a3f9b923c. Executable SQL and prior evidence byte-identical; no merge/rebase/main mutation/client work; unrelated draft preserved. Gate unchanged: G4 incomplete/application HOLD, explicit correctness authorization pending,G5blocked,programme4/13; DEC-014/parked/locked unchanged.

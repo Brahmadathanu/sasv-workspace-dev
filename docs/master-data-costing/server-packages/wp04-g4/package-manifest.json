@@ -54,7 +54,7 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "66cf4d9c5bacbe456d951530cf28165db3faf157ba5dbbeb545037beecbf2369",
+    "REVIEW.md": "9b0c205b5774c7ae69a27555f188d2563e287c7b2f736cc1b1a17f3d0acfc372",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
     "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492",
@@ -69,8 +69,8 @@
     "ab-rollback-draft.sql": "8085f873c1bddb631b851a0737d99b284b9c92d903e596e9c038156ca280c185",
     "ab-correctness-proposal.sql": "e29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669",
     "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5",
-    "AB_PROPOSAL_REVIEW.md": "2b689214c4d036b46570952b549bc1397c7c81ac1b31e379780b3e58474e585f",
-    "ab-package-manifest.json": "334b0c9571ef435368782742b3c751b7cfb5c49bbb19f90d14dc7fc8b0bd69aa"
+    "AB_PROPOSAL_REVIEW.md": "c103973c411028ee2784afb175e28311291663f3942c754e5c6e2e5f78e0c3d6",
+    "ab-package-manifest.json": "e5f17f42e11fd4a666a147ccbd522f2a718d3537112920da2ed2f204311e9160"
   },
   "runtime_compilation": "SEVEN_DEFINITIONS_AND_OPERATIONAL_PORTFOLIO_INVOKED_LAZY_BRANCHES_UNPROVED",
   "forward_rollback_rehearsal": "LIMITED_TRANSACTION_LOCAL_PASS_FULL_PREREQUISITE_UNRESOLVED",
@@ -336,7 +336,7 @@
     "runtime_compile_parity_rollback": "BLOCKED_NO_APPROVED_EXISTING_RUNTIME",
     "native_api_performance": "BLOCKED_WITH_CANDIDATE_EXECUTION"
   },
-  "main_review_reference": "4a8525caf4bf95e9c60bb00188706154d36b3d85",
+  "main_review_reference": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
   "limited_rehearsal": {
     "status": "PASS_LIMITED_SCOPE_WITH_INDEPENDENT_READBACK",
     "authorized": true,
@@ -353,7 +353,7 @@
     "idle_wp04_transactions_after": 0
   },
   "execution_state": "VERIFICATION_HIGH_RISK_PLAN_NOT_IMPLEMENTATION",
-  "proposal_repository_overlap": "NONE_AT_4a8525c",
+  "proposal_repository_overlap": "NONE_AT_e421fe8",
   "bounded_expression_check": {
     "status": "PASS_TWO_CURRENT_CANONICAL_SAMPLES",
     "sample_sku_ids": [
@@ -421,6 +421,8 @@
     "operation_authorized": false,
     "portfolio_calls": 0,
     "runtime_compilation": "NOT_RUN",
-    "review": "AB_PROPOSAL_REVIEW.md"
+    "review": "AB_PROPOSAL_REVIEW.md",
+    "reconciled_main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+    "previous_preparation_main": "4a8525caf4bf95e9c60bb00188706154d36b3d85"
   }
 }
