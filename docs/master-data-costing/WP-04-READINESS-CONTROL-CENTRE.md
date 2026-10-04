@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Exact minimum server-package preparation.
+WP04-G4 — Concrete atomic server-package draft prepared; independent plan review pending.
 
 ## Gate Status
-[~] IN PROGRESS. Direct live read-only reassessment complete; exact atomic package/rollback/proof review next. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
+[~] IN PROGRESS. Direct live read-only reassessment and exact draft preparation complete; independent atomic package/rollback/security/proof review next. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
 
 ## Required to close
 Identify the minimum genuinely required change against existing authoritative surfaces, review exact affected contracts/permissions/rollback and evidence needed, and provide one concrete implementation/proof recommendation. Preserve canonical readiness equivalence and acknowledge unproved performance/native/access coverage. No new infrastructure or production mutation in this review.
 
 ## Next gate
-WP04-G4 — Concrete minimum server-package plan review; direct implementation only after that reviewed package is authorized. G5 client work remains dependent on a verified server contract.
+WP04-G4 — Independent exact package/rollback/security/verification review; direct implementation only after the reviewed package and unresolved proof prerequisites are explicitly authorized. G5 client work remains dependent on a verified server contract.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -767,3 +767,22 @@ Verification still required: exact canonical old/new equivalence including no-ru
 Required now: prepare one exact atomic server SQL package with precondition hashes, complete affected definitions/ACLs/signatures, explicit rollback and bounded operation-specific verification plan for review under DEC-014. No application yet. Future dependency: reviewed server application/live verification, then G5 client package. High-risk: helper factoring/new RPCs/ACL/security-sensitive payload. Parked/out-of-scope unchanged.
 
 Direct read-only reassessment COMPLETED at review/evidence level. Current gate: WP04-G4 — Exact minimum server-package preparation. Next checkpoint: WP04-G4 — Concrete atomic server-package and verification/rollback review. Programme4 of13; WP03closed; G0–G3 retained; G4active. No production mutation/spend/merge/tag/release; audit/test branches unmerged; unrelated local invalid manifest preserved.
+
+
+## WP04-G4 — Exact atomic SQL draft prepared (2026-10-04)
+
+The concrete unapplied package is recorded in [REVIEW.md](server-packages/wp04-g4/REVIEW.md), [forward draft](server-packages/wp04-g4/forward-draft.sql), [exact rollback](server-packages/wp04-g4/rollback-draft.sql), [captured source](server-packages/wp04-g4/source-before.json) and [package manifest](server-packages/wp04-g4/package-manifest.json). These files are review traceability under DEC-014, not a Git delivery prerequisite or authorization to execute SQL.
+
+Scope follows the existing G3 proposal: replace two existing wrappers, add two private shared-composition helpers and three bounded public readers for governed periods, Product membership gaps and canonical SKU portfolio readiness. Existing Control Center remains the intended surface. No client code, tables, views, indexes, jobs, writers, permission assignments, lifecycle rules, route URLs or commercial evidence authority choices are introduced. New function EXECUTE grants/revokes are explicitly high-risk proposed package operations, not applied permission changes.
+
+Fresh read-only source capture matches the recorded canonical/enrich definitions. Static checks confirm seven exact body fingerprints and rollback guards, retained EXACT_RUN branch, unchanged commercial point lookup expression and exact old-definition restoration text. Source whitespace is deliberately retained where required for exact captured definition identity. These checks do not establish PostgreSQL compilation, full JSON parity, native/API authorization coverage, CSE compatibility, full-catalog performance or forward/rollback rehearsal. All remain NOT_RUN. Arbitrary notes/nested payload remain uncertified nonmonetary; bounded note-pattern screening is only triage. No absent proof is converted to PASS.
+
+The complete forward draft is atomic with source/ACL/attribute and name-collision guards, closed new ACLs and fixed search paths. Rollback rejects absent/drifted candidate bodies, restores exact captured wrappers and removes only package functions, without CASCADE or business-data cleanup. Independent review must settle payload conflicts and a proportionate concrete verification approach before application; the withdrawn paid-environment/offline-tooling programme stays withdrawn. No production experimentation is authorized by draft preparation.
+
+Workflow: exact draft preparation complete → independent high-risk package/proof review → separately authorized direct server implementation/live verification → bounded client package → independent audit.
+WP progress: G0–G3 complete at documented levels; G4 active; WP04 incomplete.
+Programme progress: 4 of 13.
+Current gate: WP04-G4 — Concrete atomic server-package draft prepared, independent review pending.
+Next gate: WP04-G4 — Independent exact package/rollback/security/verification review.
+Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 preserved; WP03 closed. No production mutation, spend, merge, tag or release.
