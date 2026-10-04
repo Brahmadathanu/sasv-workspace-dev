@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Authorized limited rollback-only rehearsal completed; independent readback passed; remaining proof disposition pending.
+WP04-G4 — Read-only remaining-proof disposition completed; exact first-operational-portfolio operation awaiting explicit authorization.
 
 ## Gate Status
-[!] BLOCKED at remaining execution-proof/application boundary. G4-R01/R02 corrected source review accepted. One explicitly authorized exact rehearsal passed at limited scope, with three canonical cases, small period/gap reads and independent restoration readback. Authorization consumed; G4-R03 remains unresolved. No deployed server/client functionality or application approval. Environment/tooling detour stays withdrawn.
+[!] BLOCKED at remaining portfolio runtime/proof/application boundary. Accepted G0–G3 and R01/R02 retained. Earlier single authorized rehearsal and restoration readback PASS retained; authorization consumed. New two-sample aggregation expression PASS under READ ONLY. Candidate functions remain absent; new exact portfolio operation NOT_RUN/NOT_AUTHORIZED. Remaining G4-R03 proof unresolved; G5/client application not authorized.
 
 ## Required to close
-Resolve remaining G4-R03 portfolio runtime/performance, full parity/CSE, edge-case/lazy-branch, native/API access, payload and committed rollback proof/disposition without treating the limited rehearsal as a waiver. Preserve canonical equivalence and approved scope. No application before reviewed proof and separate authorization; no additional production operation authorized.
+Resolve/disposition G4-R03 actual portfolio runtime/performance, full parity/CSE/edge cases, native/API access, payload and later rollback/regression proof. The exact pending one-call operational proposal is a limited decisive checkpoint, not a full-proof substitute. Preserve all accepted evidence and source/business/permission boundaries; no operation before its explicit authorization.
 
 ## Next gate
-WP04-G4 — ChatGPT-owned bounded remaining-proof disposition after this limited evidence assessment. Stop; no further SQL/client implementation authorized. G5 remains dependent on a verified server contract.
+WP04-G4 — Explicit decision on the exact first-operational-portfolio proof proposal; if approved, fresh guards, one execution, independent readback, then stop for assessment. No repeat because main moved, no client work/deployment/proof waiver.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -864,3 +864,7 @@ Locked: canonical authority, lifecycle/readiness separation, fail-closed evidenc
 ## 2026-10-04 — Authorized limited rehearsal and independent readback
 
 User explicitly approved main80246db and exact frozen script digest7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f for one rollback-only production rehearsal. Fresh guards passed; one execution passed; separate readback passed with original source/access/settings, candidate count0 and observed idle WP04 transactions0. [REHEARSAL_RESULT.md](server-packages/wp04-g4/REHEARSAL_RESULT.md) records exact authority, metadata and proof limits. Earlier NOT_RUN/NOT_AUTHORIZED records remain historical; this explicit narrow authorization is now consumed. Portfolio was not invoked. Remaining G4-R03 proof/application HOLD; no future operation/client work authorized. G0–G3 retained; G4 incomplete; programme4/13; WP03closed; DEC-014 and parked/locked unchanged. Stop after assessment.
+
+## 2026-10-04 — Resume after e-Aushadhi WP-06 closure
+
+Actual main4a8525c and auditf3311b6 verified; 80246db→4a8525c contains only four e-Aushadhi documentation changes, no WP04 overlap. Prior limited rehearsal/readback PASS retained and authorization consumed. Fresh READ ONLY source/ACL/attributes/event guards PASS; candidates0; Septembervaluation09-10/SUCCESS115 and operational611/firstSKU1 retained. Two-sample current-canonical aggregation check PASS under READ ONLY; no candidate definitions or invocation. [PROOF_DISPOSITION.md](server-packages/wp04-g4/PROOF_DISPOSITION.md) records proof matrix and one exact pending first-operational-portfolio proposal. Production definition/invocation is necessary to measure an absent candidate; requires separate exact explicit authorization. No SQL mutation/client work occurred at this checkpoint. G4 incomplete; G5 blocked; programme4/13; WP03closed; DEC-014, parked/locked and formal-closure handover requirements unchanged.

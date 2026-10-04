@@ -116,3 +116,7 @@ Execution state: **VERIFICATION / high-risk PLAN**, blocked for database executi
 ## 2026-10-04 — Single authorized limited rehearsal assessed
 
 See [REHEARSAL_RESULT.md](REHEARSAL_RESULT.md). Explicit exact target/digest authorization was granted and consumed; one execution passed, final ROLLBACK and independent source/ACL/attribute/event-trigger readback passed; zero candidate functions and zero observed idle WP04 transactions. Three canonical comparisons and two small readers passed. This supersedes earlier pending-authorization status only for this operation. Full G4-R03 proof/application stays HOLD; no client work or additional operation authorized. Next: bounded remaining-proof disposition; stop after this assessment. Programme4/13; WP03closed; DEC-014 and parked/locked unchanged.
+
+## 2026-10-04 — Read-only remaining-proof disposition after WP-06 closure
+
+See [PROOF_DISPOSITION.md](PROOF_DISPOSITION.md). Main4a8525c delta is four e-Aushadhi-only documents, no WP04 overlap. Auditf3311b6 limited evidence retained, not rerun; fresh authority readback PASS and candidate count0. Two-sample canonical aggregation expression PASS under READ ONLY; no full portfolio runtime/performance proof. One exact first-operational-portfolio rollback-only operation prepared and source-reviewed, NOT_RUN/NOT_AUTHORIZED. Additional production operation requires separate explicit approval; previous authorization consumed. Remaining G4-R03 proof/application HOLD; G5 blocked; programme4/13; parked/locked/DEC-014 unchanged.

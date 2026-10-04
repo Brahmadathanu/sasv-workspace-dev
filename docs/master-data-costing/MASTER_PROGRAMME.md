@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4 — One explicitly authorized limited rollback-only rehearsal completed; independent restoration readback PASS. Three canonical cases and small period/gap reads passed. Authorization consumed; remaining G4-R03 proof/application HOLD. G0–G3 retained; G4 incomplete; programme4/13; main80246db8e10d5bb9ff1b0228ae41b0cfc2624d36 reconciled with no WP04 overlap; DEC-014 preserved; branches unmerged. See server-packages/wp04-g4/REHEARSAL_RESULT.md.
+WP04-G4 — Read-only remaining-proof disposition complete; two-sample aggregation PASS. Earlier limited rehearsal and independent restoration readback PASS retained; consumed authorization not reused. Main4a8525caf4bf95e9c60bb00188706154d36b3d85 delta is e-Aushadhi closure documentation only, no WP04 overlap; fresh live source unchanged, candidates0. Exact first-operational-portfolio operation prepared, NOT_RUN/NOT_AUTHORIZED. G0–G3 retained; G4 incomplete/application HOLD; programme4/13; DEC-014 preserved; branches unmerged.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4 — Stop after limited evidence assessment; ChatGPT dispositions remaining G4-R03 runtime/parity/access/payload/performance/rollback proof. No further SQL execution or client implementation authorized. Execution state VERIFICATION / high-risk PLAN; G5 unavailable until the server contract is proven. Programme4/13; WP03closed. Formal WP04 closure still requires complete records and the WP05 handover into a new chat in the same Project.
+WP04-G4 — Explicit authorization decision for the exact bounded first-operational-portfolio operation in server-packages/wp04-g4/PROOF_DISPOSITION.md. If approved, fresh guards, one execution, independent readback, then stop. No automatic retry, deployment, client implementation or broader proof waiver. Programme4/13; WP03closed. Formal closure still requires complete records and WP05 handover into a new chat in the same Project.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
