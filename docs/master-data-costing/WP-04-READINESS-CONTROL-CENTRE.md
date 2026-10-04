@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Exact corrected OPERATIONAL performance proposal preparation/independent review COMPLETE AT PLAN SCOPE; explicit production authorization pending.
+WP04-G4 — Corrected operational performance result assessed at bounded scope; performance goals not met.
 
 ## Gate Status
-[!] BLOCKED at corrected fullpopulation execution authorization/remaining-proof/application boundary. V2limitedcorrectness/readbackPASSretained;correctedportfolioNOT_RUN.611membership/460Products/context115guardmetadatafresh;newdigestbound. G4incomplete/applicationHOLD,G5blocked;programme4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Bounded parity/restoration PASS; corrected611 portfolio8,174.908ms, above3s/5s goals. One authorization consumed; no further execution authorized. G0–G3 retained; programme4/13.
 
 ## Required to close
-Authorize only exact correctedperformanceproposal; freshguards/singleinvocation/restoreROLLBACK/independentreadback/assess withoutretry/timeoutescalation. Resolve remaining allSKU/CSE/edge/ALL_EXISTING/API/payload/widerperformance/rollback proof withoutwaivers. No sampledPASS orsinglelatency promoted tofullG4.
+Review residual measured performance and remaining allSKU/CSE/edge/ALL_EXISTING/API/payload/wider-performance/rollback proof without waivers. Do not promote first-row parity or single latency to full G4. Any new production operation requires a reviewed frozen package and explicit authorization.
 
 ## Next gate
-WP04-G4 — Explicit exact corrected OPERATIONAL performance authorization per CORRECTED_PERFORMANCE_PROPOSAL.md, then oneoperation/readbackandstop. No deployment/clientauthorization.
+WP04-G4 — Measured corrected-performance disposition and remaining-proof review. No new portfolio test, optimization, deployment or client implementation authorized.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -904,3 +904,7 @@ Userexplicitlyauthorized exactV2 main/target/digest;freshguardspassed;oneoperati
 ## 2026-10-04 — Exact corrected performance proposal/review
 
 Main e421fe8/auditae4eacd unchanged. [CORRECTED_PERFORMANCE_PROPOSAL.md](server-packages/wp04-g4/CORRECTED_PERFORMANCE_PROPOSAL.md) freezes scriptdigestc55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e,exactacceptedABbodies/fullidentity/restore,oneportfolio/oneoriginalSKUbaseline,unchangedtimeouts/noCOMMIT/finalROLLBACK/noretry/readback. Read-onlymembershipcount611/460Products/first1/identityMD5eeba4bf20f54589fe5b037173a79ed82/context115fresh;no readiness/portfolio call. NewscriptNOT_AUTHORIZED/NOT_RUN;combinedtiminggoals notseparatepathcertification. PriorV2PASS/failedattempt/historicalSQL/evidence preserved. G4incomplete/applicationHOLD/G5blocked/programme4/13;DEC-014/parked/lockedunchanged.
+
+## 2026-10-04 — Authorized corrected portfolio measurement / restoration / disposition
+
+WP04-G4 — Single explicitly authorized corrected OPERATIONAL portfolio test completed. Bounded count/context/envelope/first-row parity PASS; latency8,174.908ms versus historical10,822.426ms (24.46% observed reduction), still above3s/5s goals. Exact restore/ROLLBACK and separate original-state readback PASS; candidates0/idleWP040. Authorization consumed; G4 incomplete/application HOLD, G5 blocked, programme4/13. Next measured corrected-performance disposition/remaining-proof review; no new test/optimization/deployment/client authorization. Main e421fe8 unchanged; DEC-014 preserved. See [CORRECTED_PERFORMANCE_RESULT.md](server-packages/wp04-g4/CORRECTED_PERFORMANCE_RESULT.md) and sanitized JSON for exact evidence/limits. Frozen SQL/prior evidence preserved. Stop after assessment.

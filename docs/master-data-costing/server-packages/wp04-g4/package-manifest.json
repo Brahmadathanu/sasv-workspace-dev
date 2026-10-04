@@ -400,8 +400,8 @@
     "within_5s_statistics_goal": false
   },
   "performance_disposition": {
-    "status": "EXACT_CORRECTED_OPERATIONAL_PROPOSAL_REVIEWED_NOT_RUN",
-    "portfolio_executions_this_gate": 0,
+    "status": "CORRECTED_SINGLE_MEASUREMENT_GOALS_NOT_MET_REMAINING_PROOF_REVIEW",
+    "portfolio_executions_this_gate": 1,
     "explain_analyze": false,
     "dominant_time_path": "NOT_MEASURED",
     "confirmed_core_evaluations_per_operational_response": 611,
@@ -412,7 +412,7 @@
     ],
     "conditional_batching": "EXCLUDED_PENDING_MEASURED_JUSTIFICATION",
     "implementation_authorized": false,
-    "next_gate": "EXPLICIT_EXACT_CORRECTED_OPERATIONAL_AUTHORIZATION_THEN_SINGLE_TEST_READBACK"
+    "next_gate": "MEASURED_CORRECTED_PERFORMANCE_DISPOSITION_AND_REMAINING_PROOF_REVIEW"
   },
   "performance_plan_review": {
     "status": "ACCEPTED_PLAN_SCOPE_FROZEN_WITH_REFINEMENTS",
@@ -457,7 +457,12 @@
     "script_sha256": "c55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e",
     "operation_authorized": false,
     "application_authorized": false,
-    "execution_attempts": 0,
-    "planned_portfolio_invocations": 1
+    "execution_attempts": 1,
+    "planned_portfolio_invocations": 1,
+    "authorization_consumed": true,
+    "result_record": "CORRECTED_PERFORMANCE_RESULT.md",
+    "result": "BOUNDED_PARITY_PASS_PERFORMANCE_GOALS_NOT_MET",
+    "elapsed_ms": 8174.908,
+    "independent_readback": "PASS_ORIGINAL_STATE"
   }
 }

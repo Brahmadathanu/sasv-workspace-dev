@@ -1,0 +1,150 @@
+{
+  "target": "qhmoqtxpeasamtlxaoak",
+  "main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+  "audit_head": "a111e2566a4ccd7f2727bb976c73e9fdc6c0d93f",
+  "script_sha256": "c55b2a79d575fbdedf52cce810c826d99412ef5efbad16c1d37f018628cab72e",
+  "execution_attempts": 1,
+  "authorization": "CONSUMED",
+  "pre_readback": [
+    {
+      "independent_restoration_readback": {
+        "event_md5": "4e2c16f8333e51161dc11c5376fb3296",
+        "original_attributes": [
+          {
+            "acl": "{postgres=X/postgres,service_role=X/postgres}",
+            "owner": "postgres",
+            "settings": [
+              "search_path=costing, public, pg_temp"
+            ],
+            "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+            "volatility": "s",
+            "return_type": "jsonb",
+            "security_definer": true
+          },
+          {
+            "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+            "owner": "postgres",
+            "settings": [
+              "search_path=public, costing, pg_temp"
+            ],
+            "signature": "rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+            "volatility": "s",
+            "return_type": "jsonb",
+            "security_definer": true
+          }
+        ],
+        "idle_wp04_transactions": 0,
+        "candidate_function_count": 0,
+        "all_six_definitions_match": true,
+        "original_definition_checks": [
+          {
+            "signature": "costing.fn_product_process_route_readiness(date)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_shared_issues(date)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_sku_commercial_sales_basis_point(bigint,date,date)",
+            "definition_matches": true
+          },
+          {
+            "signature": "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+            "definition_matches": true
+          }
+        ]
+      }
+    }
+  ],
+  "result": [
+    {
+      "bounded_portfolio_result": {
+        "operation": "WP04_G4_SINGLE_CORRECTED_OPERATIONAL_PORTFOLIO_PROPOSAL",
+        "deployment": "NOT_AUTHORIZED",
+        "elapsed_ms": 8174.908,
+        "native_api": "NOT_RUN",
+        "all_existing": "NOT_RUN",
+        "response_bytes": 14491,
+        "restore_checks": "PASSED_IN_TRANSACTION",
+        "returned_count": 1,
+        "population_count": 611,
+        "population_scope": "OPERATIONAL",
+        "full_verification": "NOT_ESTABLISHED",
+        "portfolio_invocations": 1,
+        "first_row_canonical_parity": "PASS",
+        "combined_call_within_3s_goal": false,
+        "combined_call_within_5s_goal": false,
+        "envelope_and_severity_census": "PASS"
+      }
+    }
+  ],
+  "post_readback": [
+    {
+      "independent_restoration_readback": {
+        "event_md5": "4e2c16f8333e51161dc11c5376fb3296",
+        "original_attributes": [
+          {
+            "acl": "{postgres=X/postgres,service_role=X/postgres}",
+            "owner": "postgres",
+            "settings": [
+              "search_path=costing, public, pg_temp"
+            ],
+            "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+            "volatility": "s",
+            "return_type": "jsonb",
+            "security_definer": true
+          },
+          {
+            "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+            "owner": "postgres",
+            "settings": [
+              "search_path=public, costing, pg_temp"
+            ],
+            "signature": "rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+            "volatility": "s",
+            "return_type": "jsonb",
+            "security_definer": true
+          }
+        ],
+        "idle_wp04_transactions": 0,
+        "candidate_function_count": 0,
+        "all_six_definitions_match": true,
+        "original_definition_checks": [
+          {
+            "signature": "costing.fn_product_process_route_readiness(date)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_shared_issues(date)",
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_sku_commercial_sales_basis_point(bigint,date,date)",
+            "definition_matches": true
+          },
+          {
+            "signature": "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+            "definition_matches": true
+          }
+        ]
+      }
+    }
+  ]
+}
