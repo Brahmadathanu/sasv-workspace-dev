@@ -198,6 +198,7 @@ import {
   startWorkerProductDetails,
   startWorkerCompositionLine,
   stopWorkerBrowser,
+  verifyWorkerCompositionStage,
   workerApiAvailable,
 } from "./eaushadhi-review-worker-client.js";
 
@@ -338,6 +339,7 @@ const state = {
     resolve: null,
   },
   compositionConfirm: { open: false, trigger: null, resolve: null },
+  compositionStageVerifyConfirm: { open: false, trigger: null, resolve: null },
   lineSaveStatus: new Map(),
   detailsSaveStatus: "",
   actionsSaveStatus: "",
@@ -1639,7 +1641,14 @@ function compositionPortalExecutionHtml() {
         return `<button type="button" class="icon-btn with-label primary"${enabled ? "" : ' disabled aria-disabled="true"'} data-composition-start-line="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
       }).join("")}
       ${active ? '<button type="button" class="icon-btn with-label" disabled aria-disabled="true">Recover active run</button>' : ""}
-      <button type="button" class="icon-btn with-label" disabled aria-disabled="true">Verify Composition stage</button>
+      ${(() => {
+        const stageVerifyEnabled =
+          preview?.stageVerifyEnabled === true &&
+          preview?.finalStageVerifyEligible === true &&
+          canWrite() &&
+          !state.busy;
+        return `<button type="button" class="icon-btn with-label" id="btnWorkerCompositionVerifyStage" data-edit-action="true"${stageVerifyEnabled ? "" : ' disabled aria-disabled="true"'}>Verify Composition stage</button>`;
+      })()}
     </div>
     <p class="muted-note"><strong>${preview?.liveArmed === true ? "Composition live execution is armed for the trusted Phase-2 target." : "Composition live execution is not armed."}</strong></p>
     <p class="muted-note">${preview ? escapeHtml([
@@ -2919,6 +2928,26 @@ function openCompositionConfirmModal(trigger) {
   });
 }
 
+function closeCompositionStageVerifyConfirm(accepted) {
+  const { trigger, resolve } = state.compositionStageVerifyConfirm;
+  state.compositionStageVerifyConfirm = { open: false, trigger: null, resolve: null };
+  const backdrop = $("compositionStageVerifyConfirmBackdrop");
+  if (backdrop) backdrop.hidden = true;
+  trigger?.focus?.();
+  if (typeof resolve === "function") resolve(accepted === true);
+}
+
+function openCompositionStageVerifyConfirmModal(trigger) {
+  state.compositionStageVerifyConfirm = { open: true, trigger: trigger || null, resolve: null };
+  const backdrop = $("compositionStageVerifyConfirmBackdrop");
+  if (backdrop) backdrop.hidden = false;
+  return new Promise((resolve) => {
+    state.compositionStageVerifyConfirm.resolve = resolve;
+    $("compositionStageVerifyConfirmDialog")?.focus();
+    requestAnimationFrame(() => $("compositionStageVerifyConfirmOk")?.focus());
+  });
+}
+
 function workerProductDetailsPreviewSummary(preview) {
   if (!preview) return "No Product Details preview yet.";
   const blockers = preview.preview?.blockers || preview.blockers || [];
@@ -3471,6 +3500,40 @@ async function submitWorkerCompositionStart(trigger) {
     state.workerCompositionResult = result;
     showToast(result?.message || (result?.ok ? "Composition line verified." : "Composition line execution stopped."), result?.ok ? "success" : "error");
     state.workerCompositionPreview = await previewWorkerComposition(state.selectedProductId, token);
+  } finally {
+    state.busy = false;
+    renderComposition();
+  }
+}
+
+async function submitWorkerCompositionVerifyStage() {
+  const preview = state.workerCompositionPreview;
+  const eligible =
+    preview?.finalStageVerifyEligible === true &&
+    preview?.stageVerifyEnabled === true &&
+    canWrite() &&
+    !state.busy &&
+    isFirstControlledEntryProduct(state.selectedProductId);
+  if (!eligible) return;
+  if (!(await openCompositionStageVerifyConfirmModal($("btnWorkerCompositionVerifyStage")))) return;
+  state.busy = true;
+  renderComposition();
+  try {
+    const token = await sessionAccessToken();
+    const result = await verifyWorkerCompositionStage(state.selectedProductId, token, {
+      userConfirmed: true,
+    });
+    state.workerCompositionResult = result;
+    if (result?.code === "COMPOSITION_PORTAL_VERIFIED" && result?.ok === true) {
+      showToast(result.message || "Composition stage is portal verified.", "success");
+    } else {
+      showToast(
+        result?.message || "Composition stage verification stopped. Run Preview again.",
+        "error",
+      );
+    }
+    state.workerCompositionPreview = await previewWorkerComposition(state.selectedProductId, token);
+    renderReadiness();
   } finally {
     state.busy = false;
     renderComposition();
@@ -5838,6 +5901,10 @@ function wireEvents() {
       void submitWorkerCompositionPreview();
       return;
     }
+    if (event.target.id === "btnWorkerCompositionVerifyStage" && !event.target.disabled) {
+      void submitWorkerCompositionVerifyStage();
+      return;
+    }
     const compositionStart = event.target.closest("[data-composition-start-line]");
     if (compositionStart && Number(compositionStart.dataset.compositionStartLine) === 931 && !compositionStart.disabled) {
       void submitWorkerCompositionStart(compositionStart);
@@ -6065,8 +6132,23 @@ function wireEvents() {
   $("compositionConfirmBackdrop")?.addEventListener("click", (event) => {
     if (event.target.id === "compositionConfirmBackdrop") closeCompositionConfirm(false);
   });
+  $("compositionStageVerifyConfirmClose")?.addEventListener("click", () => closeCompositionStageVerifyConfirm(false));
+  $("compositionStageVerifyConfirmCancel")?.addEventListener("click", () => closeCompositionStageVerifyConfirm(false));
+  $("compositionStageVerifyConfirmOk")?.addEventListener("click", () => closeCompositionStageVerifyConfirm(true));
+  $("compositionStageVerifyConfirmBackdrop")?.addEventListener("click", (event) => {
+    if (event.target.id === "compositionStageVerifyConfirmBackdrop") closeCompositionStageVerifyConfirm(false);
+  });
 
   document.addEventListener("keydown", (event) => {
+    if (state.compositionStageVerifyConfirm.open) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCompositionStageVerifyConfirm(false);
+        return;
+      }
+      trapModalTab(event, "compositionStageVerifyConfirmDialog");
+      return;
+    }
     if (state.compositionConfirm.open) {
       if (event.key === "Escape") {
         event.preventDefault();

@@ -371,5 +371,35 @@
         </div>
       </div>
     </div>
+    <div id="compositionStageVerifyConfirmBackdrop" class="sasv-modal-backdrop ea-source-resolve" hidden>
+      <div
+        id="compositionStageVerifyConfirmDialog"
+        class="sasv-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="compositionStageVerifyConfirmTitle"
+        aria-describedby="compositionStageVerifyConfirmBody"
+        tabindex="-1"
+      >
+        <div class="sasv-modal__header">
+          <h2 id="compositionStageVerifyConfirmTitle" class="sasv-modal__title">Verify Composition stage</h2>
+          <button type="button" id="compositionStageVerifyConfirmClose" class="sasv-modal__close" aria-label="Cancel">×</button>
+        </div>
+        <div id="compositionStageVerifyConfirmBody" class="sasv-modal__body">
+          <p><strong>Product 262 - Karpooradi Thailam</strong></p>
+          <p>All 3 governed Composition rows are currently portal matched.</p>
+          <ul>
+            <li>This action does NOT add, edit or delete Composition rows on the e-Aushadhi portal.</li>
+            <li>It records the Composition stage as PORTAL_VERIFIED in the controlled server lifecycle after a fresh exact-set check.</li>
+            <li>It does NOT perform QC Register work.</li>
+            <li>It does NOT final Submit the product.</li>
+          </ul>
+        </div>
+        <div class="sasv-modal__footer">
+          <button type="button" id="compositionStageVerifyConfirmCancel" class="icon-btn with-label">Cancel</button>
+          <button type="button" id="compositionStageVerifyConfirmOk" class="icon-btn with-label primary" data-edit-action="true">Confirm &amp; verify Composition stage</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

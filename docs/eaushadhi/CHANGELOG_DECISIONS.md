@@ -178,3 +178,10 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Server Phase-2 predecessor guard migration `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql` is merged/live and exposes bounded preflight `phase2_line_931` authority.
 - Client first-live line-930 release is closed (`COMPOSITION_FIRST_LIVE_930_RELEASE=false`). Controlled Phase-2 release opens only Product 262 / line 931 (`COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true`) when server `server_gate_ready` and the exact planner partition are both proven, with exact env `"true"` and explicit confirmation. Stage verification remains disabled.
 - No Kēram portal mutation occurred in the client transition. Next gate: independent audit/merge, then short exact-main line-931 preflight. RLS hardening remains a separate parked security audit.
+
+## 2026-10-04 — WP-06 Kēram ROW_VERIFIED and final-stage client activation
+- Controlled Product 262 / source line 931 Kēram completed durably as `ROW_VERIFIED` with save outcome `CONFIRMED`.
+- Current live Composition state: still `PARTIAL` at stage row_version 13; `governed_line_count` 3; `portal_match_count` 3; matched `[929,930,931]`; missing `[]`; five historical Composition runs; no active run. Product Details remains `PORTAL_VERIFIED` at workflow row_version 11.
+- Server final-stage PARTIAL-only guard migration `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql` is merged/live; `rpc_eaushadhi_composition_stage_mark_portal_verified` requires current `stage_status = PARTIAL` before any `PORTAL_VERIFIED` transition.
+- Client final-stage activation exposes distinct Preview `finalStageVerifyEligible` / `stageVerifyEnabled`, a dedicated confirmation modal, and the existing bounded `verifyCompositionStage` path. It does **not** require `EAUSHADHI_COMPOSITION_LIVE_ARM` and performs no portal Save/Update/Delete.
+- Composition-stage `PORTAL_VERIFIED` has **not** been executed. Next gate: independent audit/merge of the final-stage client activation, then short exact-main final-stage preflight. QC Register and final Submit remain excluded.
