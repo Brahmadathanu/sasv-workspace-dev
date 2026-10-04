@@ -1,5 +1,5 @@
 {
-  "status": "UNAPPLIED_EXACT_AB_REVIEW_PACKAGE",
+  "status": "UNAPPLIED_AB_PACKAGE_CORRECTNESS_ATTEMPT_FAILED_PROOF_SCRIPT",
   "main_reference": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
   "reviewed_plan_commit": "c6e16719285b620f0da1cfaa2d117680ea0697dd",
   "target": "qhmoqtxpeasamtlxaoak",
@@ -51,9 +51,10 @@
     "ab-rollback-draft.sql": "8085f873c1bddb631b851a0737d99b284b9c92d903e596e9c038156ca280c185",
     "ab-correctness-proposal.sql": "e29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669",
     "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5",
-    "AB_PROPOSAL_REVIEW.md": "c103973c411028ee2784afb175e28311291663f3942c754e5c6e2e5f78e0c3d6"
+    "AB_PROPOSAL_REVIEW.md": "9a9138aa0eff689d0f69c31ee7e5f65d3c582adec2264b85550dec8526927083",
+    "AB_CORRECTNESS_RESULT.md": "d7061e8297e55e19a742e9b093b0274d75fb1b7c1075641d6fd91da45600e90e"
   },
-  "review_disposition": "ACCEPTABLE_TO_REQUEST_LIMITED_CORRECTNESS_AUTHORIZATION_ONLY",
+  "review_disposition": "CORRECTNESS_ATTEMPT_FAILED_NARROW_PROOF_SCRIPT_CORRECTION_REVIEW_REQUIRED",
   "proof_refinement": "EXTRACTED_QUERY_BOUNDED_INPUT_NOT_PORTFOLIO_RPC",
   "static_checks": {
     "body_scope": "TWO_CHANGED_FIVE_IDENTICAL",
@@ -74,5 +75,23 @@
     "live_source_metadata": "SIX_HASHES_ORIGINAL_ATTRIBUTES_EVENT_MATCH_CANDIDATES0_IDLE0",
     "proof_reruns": 0,
     "operation_authorized": false
+  },
+  "correctness_attempt": {
+    "authorized_once": true,
+    "authorization_consumed": true,
+    "execution_attempts": 1,
+    "script_sha256": "e29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669",
+    "main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+    "result": "ERROR_42883_TEXT_JSONB_ASSERTION",
+    "retry_count": 0,
+    "independent_readback": "PASS_ORIGINAL_STATE",
+    "candidate_count_after": 0,
+    "idle_wp04_transactions_after": 0,
+    "corrected_stage": "NOT_REACHED",
+    "explicit_restore_final_rollback": "NOT_REACHED",
+    "completed_canonical_call_count": "NOT_ESTABLISHED",
+    "portfolio_invocations": 0,
+    "correctness_pass": false,
+    "next_gate": "NARROW_PROOF_SCRIPT_CORRECTION_AND_INDEPENDENT_REVIEW"
   }
 }

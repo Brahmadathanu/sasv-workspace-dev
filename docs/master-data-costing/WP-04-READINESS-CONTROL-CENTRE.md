@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Exact unapplied A/B correction/rollback/proof package prepared and independently reviewed; explicit limited correctness-operation authorization pending.
+WP04-G4 — Single authorized A/B correctness attempt FAILED on proof-script operator typing; independent original-state readback PASS; failure disposition complete.
 
 ## Gate Status
-[!] BLOCKED at production-operation authorization/remaining-proof/application boundary. G4 incomplete/application HOLD; G5 blocked. Earlier evidence retained and prior authorizations consumed.18canonical calls/zeroportfolio bounded proof proposed; runtime compilation NOT_RUN. No deployment or client work.
+[!] BLOCKED at narrow proof-script correction/review and remaining-proof/application boundary. Authorization consumed; no retry. Corrected stage not reached; full planned correctness/explicit restore path not established. Original authority intact/candidates0/idleWP040. Earlier evidence retained;G4incomplete/applicationHOLD,G5blocked.
 
 ## Required to close
-Authorize only concretely reviewed operations; collect and disposition limited correction proof with independent original restoration readback. Resolve remaining all-SKU/CSE/edge/API/payload/performance/rollback proof without waivers. Bounded query-fragment proof is not full operational RPC proof; no additional performance authorization implicit.
+Correct and independently review only the defective proof assertions with a new frozen digest; separately authorize any future production attempt. Then resolve limited correction and remaining CSE/edge/API/payload/performance/rollback proof/disposition without waivers. Post-error readback is not correctness PASS.
 
 ## Next gate
-WP04-G4 — Explicit authorization against reconciled main e421fe8df9b98b4956acdcd4cadeb36a3f9b923c for unchanged exact target/digest in AB_PROPOSAL_REVIEW.md; if granted, fresh guards, single rollback-only correctness operation, independent readback, then stop. No performance rerun/deployment/client authorized by package preparation.
+WP04-G4 — Narrow proof-script correction and independent review; frozen candidates/current failed script unchanged. No automatic retry, performance operation, deployment or client authorization.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -888,3 +888,7 @@ Main4a8525c/auditc6e1671 unchanged. [AB_PROPOSAL_REVIEW.md](server-packages/wp04
 ## 2026-10-04 — Shared-main reconciliation after e-Aushadhi WP07 G2
 
 Main advanced4a8525c→e421fe8df9b98b4956acdcd4cadeb36a3f9b923c; auditbdfc845 matched. Inspected six commits/four final paths: two e-Aushadhi regulatory QC migrations/two e-Aushadhi docs only. No material WP04/costing/canonical dependency/shared-contract overlap. Fresh live catalogue source/attributes/event unchanged;candidates0/idleWP040; no proof rerun. [AB_PROPOSAL_REVIEW.md](server-packages/wp04-g4/AB_PROPOSAL_REVIEW.md#current-main-reconciliation-after-e-aushadhi-wp-07-g2-merge-2026-10-04) records exact lineage/object/permission disposition and provenance override: unchanged script digeste29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669, new authorization maine421fe8df9b98b4956acdcd4cadeb36a3f9b923c. Executable SQL and prior evidence byte-identical; no merge/rebase/main mutation/client work; unrelated draft preserved. Gate unchanged: G4 incomplete/application HOLD, explicit correctness authorization pending,G5blocked,programme4/13; DEC-014/parked/locked unchanged.
+
+## 2026-10-04 — Authorized A/B attempt failed; independent original-state PASS
+
+User “proceed” authorized reconciled target/main/digest; fresh Git/live guards matched. Exactlyone execute_sql attempt failed SQLSTATE42883 in proof-script empty-population assertion text-vs-JSONB, first historical aggregation block before corrected stage. No retry; explicit restore/finalROLLBACK not reached. Separate read-only original six definitions/attributes/ACLs/event match;candidates0/idleWP040. [AB_CORRECTNESS_RESULT.md](server-packages/wp04-g4/AB_CORRECTNESS_RESULT.md) records failure/limits and consumed authorization. Static review missed operator typing; no final correctness result or partial PASS promoted. Frozen SQL and prior evidence intact; next narrow proof-script correction/review, new digest/auth before execution. G4incomplete/applicationHOLD/G5blocked/programme4/13;DEC-014/parked/locked unchanged.

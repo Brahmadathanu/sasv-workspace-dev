@@ -54,7 +54,7 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "9b0c205b5774c7ae69a27555f188d2563e287c7b2f736cc1b1a17f3d0acfc372",
+    "REVIEW.md": "0534d88da03bdf05d3b40e2526294817184d0076c88f80003fceab5314690bc5",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
     "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492",
@@ -69,8 +69,9 @@
     "ab-rollback-draft.sql": "8085f873c1bddb631b851a0737d99b284b9c92d903e596e9c038156ca280c185",
     "ab-correctness-proposal.sql": "e29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669",
     "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5",
-    "AB_PROPOSAL_REVIEW.md": "c103973c411028ee2784afb175e28311291663f3942c754e5c6e2e5f78e0c3d6",
-    "ab-package-manifest.json": "e5f17f42e11fd4a666a147ccbd522f2a718d3537112920da2ed2f204311e9160"
+    "AB_PROPOSAL_REVIEW.md": "9a9138aa0eff689d0f69c31ee7e5f65d3c582adec2264b85550dec8526927083",
+    "ab-package-manifest.json": "5f869a1978bf20d7d9becfd52aad8c97e1a4183eed33897526d0eace7afc0dd8",
+    "AB_CORRECTNESS_RESULT.md": "d7061e8297e55e19a742e9b093b0274d75fb1b7c1075641d6fd91da45600e90e"
   },
   "runtime_compilation": "SEVEN_DEFINITIONS_AND_OPERATIONAL_PORTFOLIO_INVOKED_LAZY_BRANCHES_UNPROVED",
   "forward_rollback_rehearsal": "LIMITED_TRANSACTION_LOCAL_PASS_FULL_PREREQUISITE_UNRESOLVED",
@@ -89,7 +90,7 @@
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
   },
-  "review_disposition": "EXACT_AB_PACKAGE_PROOF_REVIEWED_LIMITED_CORRECTNESS_AUTHORIZATION_PENDING_APPLICATION_HOLD",
+  "review_disposition": "AB_CORRECTNESS_ATTEMPT_FAILED_PROOF_SCRIPT_READBACK_PASS_APPLICATION_HOLD",
   "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
   "review_items": [
     "G4-R01 shared issue identity",
@@ -391,7 +392,7 @@
     "within_5s_statistics_goal": false
   },
   "performance_disposition": {
-    "status": "EXACT_AB_DRAFT_PREPARED_AND_REVIEWED_NO_RUNTIME_PROOF",
+    "status": "AB_CORRECTNESS_FAILED_PROOF_SCRIPT_TYPE_ERROR",
     "portfolio_executions_this_gate": 0,
     "explain_analyze": false,
     "dominant_time_path": "NOT_MEASURED",
@@ -403,7 +404,7 @@
     ],
     "conditional_batching": "EXCLUDED_PENDING_MEASURED_JUSTIFICATION",
     "implementation_authorized": false,
-    "next_gate": "EXPLICIT_BOUNDED_CORRECTNESS_AUTHORIZATION_THEN_SINGLE_OPERATION_READBACK"
+    "next_gate": "NARROW_PROOF_SCRIPT_CORRECTION_AND_INDEPENDENT_REVIEW"
   },
   "performance_plan_review": {
     "status": "ACCEPTED_PLAN_SCOPE_FROZEN_WITH_REFINEMENTS",
@@ -423,6 +424,11 @@
     "runtime_compilation": "NOT_RUN",
     "review": "AB_PROPOSAL_REVIEW.md",
     "reconciled_main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
-    "previous_preparation_main": "4a8525caf4bf95e9c60bb00188706154d36b3d85"
+    "previous_preparation_main": "4a8525caf4bf95e9c60bb00188706154d36b3d85",
+    "authorization_consumed": true,
+    "execution_attempts": 1,
+    "result": "FAILED_PROOF_SCRIPT_42883",
+    "independent_readback": "PASS_ORIGINAL_STATE",
+    "result_record": "AB_CORRECTNESS_RESULT.md"
   }
 }
