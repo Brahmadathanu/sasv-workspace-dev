@@ -54,7 +54,7 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "36c497b7171da551247626d9f178fb55c5c89eeb403c1c85940e2269e9a4db31",
+    "REVIEW.md": "d72ccbc77a8905e5ba858557fbdce3aa0d7eb4d193916ae41b351e2d20705f65",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
     "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492",
@@ -63,7 +63,8 @@
     "portfolio-proof-proposal.sql": "c4477062f6f02e243e5b9bfc6b56ff6e0254b22408eb28b05ddad10a9fa9a29c",
     "PORTFOLIO_RESULT.md": "f8328fb20d8783a5c920064e9c877e12bee461b1201714b8b0192892a5eda138",
     "PERFORMANCE_DISPOSITION.md": "a82211ca5c8701cd04d61765a432865e96b9dbeafc8bc39012a4268f3ce0c7ae",
-    "PERFORMANCE_EVIDENCE.json": "36d195ff4d991791e4c61d4ed05667bd56b16eef6a9a156350617475b226e2da"
+    "PERFORMANCE_EVIDENCE.json": "36d195ff4d991791e4c61d4ed05667bd56b16eef6a9a156350617475b226e2da",
+    "PERFORMANCE_PLAN_REVIEW.md": "78215dab48438616ca4bd7c5726ad87b1922b7ca7c7cb6393151958eb220c068"
   },
   "runtime_compilation": "SEVEN_DEFINITIONS_AND_OPERATIONAL_PORTFOLIO_INVOKED_LAZY_BRANCHES_UNPROVED",
   "forward_rollback_rehearsal": "LIMITED_TRANSACTION_LOCAL_PASS_FULL_PREREQUISITE_UNRESOLVED",
@@ -82,7 +83,7 @@
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
   },
-  "review_disposition": "PERFORMANCE_DISPOSITION_COMPLETE_BOUNDED_CORRECTION_PLAN_REVIEW_PENDING_APPLICATION_HOLD",
+  "review_disposition": "BOUNDED_AB_PLAN_REVIEWED_FROZEN_EXACT_PACKAGE_PENDING_APPLICATION_HOLD",
   "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
   "review_items": [
     "G4-R01 shared issue identity",
@@ -384,7 +385,7 @@
     "within_5s_statistics_goal": false
   },
   "performance_disposition": {
-    "status": "SOURCE_READONLY_ANALYSIS_COMPLETE_CORRECTION_PLAN_REVIEW_PENDING",
+    "status": "BOUNDED_AB_PLAN_REVIEW_COMPLETE_FROZEN",
     "portfolio_executions_this_gate": 0,
     "explain_analyze": false,
     "dominant_time_path": "NOT_MEASURED",
@@ -396,6 +397,15 @@
     ],
     "conditional_batching": "EXCLUDED_PENDING_MEASURED_JUSTIFICATION",
     "implementation_authorized": false,
-    "next_gate": "INDEPENDENT_BOUNDED_CORRECTION_PROOF_PLAN_REVIEW"
+    "next_gate": "EXACT_UNAPPLIED_CORRECTED_PACKAGE_PROOF_PREPARATION_AND_REVIEW"
+  },
+  "performance_plan_review": {
+    "status": "ACCEPTED_PLAN_SCOPE_FROZEN_WITH_REFINEMENTS",
+    "reviewed_plan_commit": "72765077b984909e51af4a9d2911459b070eaa4e",
+    "implementation_authorized": false,
+    "production_operation_authorized": false,
+    "new_live_queries": 0,
+    "phase_instrumentation": "EXCLUDED_UNLESS_SEPARATELY_REVIEWED",
+    "g4_complete": false
   }
 }

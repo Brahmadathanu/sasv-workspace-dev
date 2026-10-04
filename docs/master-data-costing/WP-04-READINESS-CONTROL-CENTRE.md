@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Measured portfolio-performance disposition completed at source/read-only analysis scope; bounded correction/proof plan awaiting independent review.
+WP04-G4 — Independent bounded A/B correction/proof plan review COMPLETE AT PLAN SCOPE; design/proof boundary frozen in PERFORMANCE_PLAN_REVIEW.md.
 
 ## Gate Status
-[!] BLOCKED at correction-review/remaining-proof/application boundary. Earlier611-SKU correctness/readback PASS and10.822s timing retained; both authorizations consumed. Read-only source/catalogue and planning-only EXPLAIN analysis completed; dominant elapsed-time attribution unproved. Preferred A/B correction is PLAN ONLY; no implementation/runtime test; G4 incomplete, G5 blocked.
+[!] BLOCKED at exact-package/remaining-proof/application boundary. G4 incomplete/application HOLD; G5 blocked. Prior limited correctness/restoration PASS and10.822s retained; prior authorizations consumed. No implementation or production operation authorized by plan acceptance.
 
 ## Required to close
-Independently review bounded performance correction/proof plan, then exact unapplied package/rollback/identity guards. Resolve remaining parity/CSE/edge/API/payload/performance proof through separately authorized operations. Preserve canonical semantics, all accepted evidence and original authority; no unreviewed batching/index/context/staleness or timeout changes.
+Prepare and independently review exact unapplied corrected package/identity guards/rollback/proof proposals within frozen A/B refinements, then resolve parity/CSE/edge/API/payload/performance/rollback requirements through separately authorized operations/dispositions. Do not infer measured dominance, change null/empty semantics, weaken context checks or add implicit profiling.
 
 ## Next gate
-WP04-G4 — Independent review of the bounded A/B correction/proof plan in PERFORMANCE_DISPOSITION.md. If accepted, exact corrected package preparation/review only; any production execution/application requires new explicit authorization. No portfolio rerun/client work authorized by this disposition.
+WP04-G4 — Exact UNAPPLIED corrected A/B package/rollback/proof proposal preparation and independent executable review. Production operation requires new explicit authorization tied to exact target/script/digest; no client implementation until G4 satisfied.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -876,3 +876,7 @@ Explicit exact scriptc4477062 authorization consumed by one execution. Fresh mai
 ## 2026-10-04 — Measured performance source/read-only disposition
 
 Main4a8525c/auditadf1da1 unchanged. Source/catalogue and EXPLAIN without ANALYZE confirm611private core evaluations, nested repeated evidence reads, once-per-response context/route/global resolution and full-statistics coupling before page. Existing run/SKU indexes available; literal plans sometimes use context-range filtering; timing distribution unproved. Operational611SKUs/460Products,151 repeated Product references. [PERFORMANCE_DISPOSITION.md](server-packages/wp04-g4/PERFORMANCE_DISPOSITION.md) ranks hypotheses and proposes common-enrichment evidence reuse plus relational aggregation, with conditional batching excluded until measured justification. No functional SQL correction, DDL, index, config, runtime portfolio test or client work. Original authority guards PASS; candidates0; prior evidence retained. Current analysis gate complete, bounded high-risk plan review pending; G4 incomplete/application HOLD, G5 blocked, programme4/13; DEC-014/parked/locked unchanged.
+
+## 2026-10-04 — Independent bounded performance-plan review
+
+Fresh main4a8525c/audit72765077 unchanged. [PERFORMANCE_PLAN_REVIEW.md](server-packages/wp04-g4/PERFORMANCE_PLAN_REVIEW.md) accepts/fixes the bounded A/B plan at plan scope only: preserve SQL null/empty and RESOLVED_POLICY semantics; retain full population/context checks and core-once reuse; no implicit timing instrumentation or extra evaluation. Exact executable package/proof still needs preparation/review and any production operation new explicit authorization. Historical SQL/evidence unchanged; no live query or mutation in this review; G0–G3 retained, G4 incomplete/application HOLD, G5 blocked, programme4/13, DEC-014/parked/locked unchanged. No new architecture decision or parked finding.
