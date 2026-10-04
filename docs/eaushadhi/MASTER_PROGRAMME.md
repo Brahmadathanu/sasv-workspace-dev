@@ -50,7 +50,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
 | WP-06 | Composition Portal Execution | DONE | 100% | Closed: Product 262 representative lifecycle proven end-to-end and completed state fail-closed |
-| WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
+| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | G0–G2 complete; server QC lifecycle live/fail-closed; prepare representative Product 262 canonical QC data before client/portal execution |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
 | WP-10 | Acceptance, Stabilisation & Programme Closure | BLOCKED | 0% | Final regression/usability/closure |
