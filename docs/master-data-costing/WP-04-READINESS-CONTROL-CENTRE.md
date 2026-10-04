@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Exact bounded read-only existing-helper diagnostic proposal/review COMPLETE; explicit authorization pending.
+WP04-G4 — Bounded existing-helper diagnostic completed and assessed; focused residual-cost planning next.
 
 ## Gate Status
-[!] BLOCKED at exact diagnostic execution authorization and remaining-proof/application boundary. Eight existing-reader wrappers planned; measured diagnostic NOT_RUN; fresh metadata/catalog preconditions PASS. G4 incomplete/application HOLD; G5 blocked; programme4/13; prior evidence/consumed authorizations retained.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Eight fixed read-only measurements completed once; source/state readback PASS. Authorization consumed; no further operation authorized. Prior parity/goal-miss evidence retained; programme4/13.
 
 ## Required to close
-Authorize only the exact frozen diagnostic if appropriate, then freshguards/oneexecution/finalROLLBACK/separatemetadatareadback/assessment withoutretry/timeoutescalation. Resolve existing broader parity/access/payload/performance/rollback proof or explicit reviewed disposition; no target/scope/business-rule waiver.
+Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Explicit exact existing-helper diagnostic authorization per HELPER_DIAGNOSTIC_PROPOSAL.md. No diagnostic execution until granted; no portfolio test, optimization, deployment or client implementation authorized.
+WP04-G4 — Focused residual-cost correction/proof plan preparation and review, source-only per HELPER_DIAGNOSTIC_RESULT.md. No implementation, further production test, deployment or client implementation authorized.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -916,3 +916,7 @@ WP04-G4 — Corrected measured-performance/remaining-proof review COMPLETE at ev
 ## 2026-10-04 — Exact bounded existing-helper diagnostic proposal / review
 
 WP04-G4 — Exact bounded existing-helper diagnostic proposal/review COMPLETE; explicit authorization pending. Eight fixed read-only helper wrappers planned, zeroportfolio/canonicalreadiness/candidate definitions, unchangedtimeouts/noCOMMIT/finalROLLBACK/separatemetadatareadback. Fresh catalog20functions/3views/originalstate and context/sample guards match; measured diagnostic NOT_RUN. G4 incomplete/application HOLD,G5blocked,programme4/13;main e421fe8 unchanged;DEC-014/parked/locked preserved. [HELPER_DIAGNOSTIC_PROPOSAL.md](server-packages/wp04-g4/HELPER_DIAGNOSTIC_PROPOSAL.md) and separate manifest bind exact read-only script/source/metadata readback. Nested QC resolver VOLATILE metadata retained; inspected source reads only. Runtime diagnostic compilation/execution remainsNOT_RUN; metadata readback is not timing proof. Prior SQL/evidence/localdraftpreserved; no new decision/backlog/permission change.
+
+## 2026-10-04 — Authorized existing-helper diagnostic / readback / disposition
+
+WP04-G4 — Single authorized read-only helper diagnostic completed8measurements; separate original-state readback PASS. Route/map1819.717ms/639Products,shared8.331ms,evidence2.441–6.773ms,commercial2.262–4.648ms across3samples; no portfolio phase attribution/extrapolation. Authorization consumed; no candidate/data/function change. Next focused residual-cost correction/proof plan preparation/review, source-only. G4 incomplete/application HOLD,G5blocked,programme4/13;maine421fe8 unchanged;DEC-014/parked/locked preserved. [HELPER_DIAGNOSTIC_RESULT.md](server-packages/wp04-g4/HELPER_DIAGNOSTIC_RESULT.md) and sanitized JSON record exact evidence/limits. Existing route/core/snapshot source comparison is the next planning action, not performed as part of this diagnostic. Frozen artifacts/prior evidence/localdraftpreserved; no new decision/backlog/permission change.

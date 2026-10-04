@@ -400,7 +400,7 @@
     "within_5s_statistics_goal": false
   },
   "performance_disposition": {
-    "status": "EXACT_EXISTING_HELPER_DIAGNOSTIC_REVIEWED_AUTHORIZATION_PENDING",
+    "status": "BOUNDED_HELPER_DIAGNOSTIC_ASSESSED_FOCUSED_RESIDUAL_PLAN_NEXT",
     "portfolio_executions_this_gate": 0,
     "explain_analyze": false,
     "dominant_time_path": "NOT_MEASURED",
@@ -412,9 +412,9 @@
     ],
     "conditional_batching": "EXCLUDED_PENDING_MEASURED_JUSTIFICATION",
     "implementation_authorized": false,
-    "next_gate": "EXPLICIT_EXACT_EXISTING_HELPER_DIAGNOSTIC_AUTHORIZATION",
+    "next_gate": "FOCUSED_RESIDUAL_COST_CORRECTION_PROOF_PLAN_SOURCE_ONLY",
     "review_record": "CORRECTED_PERFORMANCE_REVIEW.md",
-    "new_runtime_measurements": 0,
+    "new_runtime_measurements": 8,
     "diagnostic_execution_authorized": false
   },
   "performance_plan_review": {
@@ -472,9 +472,13 @@
     "manifest": "helper-diagnostic-manifest.json",
     "script_sha256": "143f32437b2859576bd7c3dc98aff84db351c9c51c7096f519ae7675e25fde43",
     "operation_authorized": false,
-    "execution_attempts": 0,
+    "execution_attempts": 1,
     "planned_top_level_measurements": 8,
     "portfolio_invocations": 0,
-    "candidate_definitions": 0
+    "candidate_definitions": 0,
+    "authorization_consumed": true,
+    "result": "EIGHT_MEASUREMENTS_COMPLETE",
+    "independent_readback": "PASS_ORIGINAL_STATE",
+    "result_record": "HELPER_DIAGNOSTIC_RESULT.md"
   }
 }
