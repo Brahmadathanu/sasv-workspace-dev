@@ -194,3 +194,12 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Server final-stage PARTIAL-only guard migration `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql` is merged/live; `rpc_eaushadhi_composition_stage_mark_portal_verified` requires current `stage_status = PARTIAL` before any `PORTAL_VERIFIED` transition.
 - Client final-stage activation exposes distinct Preview `finalStageVerifyEligible` / `stageVerifyEnabled`, a dedicated confirmation modal, and the existing bounded `verifyCompositionStage` path. It does **not** require `EAUSHADHI_COMPOSITION_LIVE_ARM` and performs no portal Save/Update/Delete.
 - Composition-stage `PORTAL_VERIFIED` has **not** been executed. Next gate: independent audit/merge of the final-stage client activation, then short exact-main final-stage preflight. QC Register and final Submit remain excluded.
+
+
+## 2026-10-04 — WP-06 Composition stage PORTAL_VERIFIED
+- Product 262 / Karpooradi Thailam final Composition-stage verification completed successfully after a fresh exact-set recollection.
+- Fresh planner authority was `ALREADY_COMPLETE` with governed/portal/match `3/3/3`, exact matched IDs `[929,930,931]`, missing `[]`, and zero conflicts/duplicates/extras/blockers.
+- Composition stage transitioned durably from `PARTIAL` row_version 13 to `PORTAL_VERIFIED` row_version 14; workflow row_version remained 11; `portal_verified_at` is present.
+- Latest stage evidence is `STAGE_PORTAL_VERIFIED`, and the audit trail contains `COMPOSITION_STAGE_PORTAL_VERIFIED` for Product 262.
+- No Government portal row mutation occurred during final-stage verification: no SaveData, SaveCompositionData POST, run_arm, record_save, verify_row, Update or Delete. Historical Composition run count remains five and all prior run statuses are unchanged.
+- Next gate: representative regression, then WP-06 closure audit. QC Register and final Submit remain excluded.

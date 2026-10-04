@@ -265,7 +265,7 @@ The execution snapshot is server authoritative.
 - [x] Controlled first-line bootstrap on Karpooradi.
 - [x] Prove row edit-ID and unitname/reread value semantics.
 - [x] Continue remaining lines under the durable WP-06 mutation gate with no normal Update/Delete.
-- [ ] Final exact-set reconciliation and Composition-stage PORTAL_VERIFIED evidence.
+- [x] Final exact-set reconciliation and Composition-stage PORTAL_VERIFIED evidence.
 - [ ] Representative regression.
 - [ ] WP closure audit.
 
@@ -273,14 +273,14 @@ The execution snapshot is server authoritative.
 Controlled Product 262 Composition line entry for Karpūra (930) and Kēram (931) has completed successfully. Current verified live state:
 
 - Product Details is `PORTAL_VERIFIED` at workflow row_version 11;
-- Composition remains `PARTIAL` at stage row_version 13;
+- Composition is `PORTAL_VERIFIED` at stage row_version 14;
 - `governed_line_count` 3 and `portal_match_count` 3;
 - portal exact set matched `[929,930,931]`, missing `[]`;
 - historical Composition runs: five total;
   - line 930: three `SAVE_REJECTED` / `REJECTED`, one `ROW_VERIFIED` / `CONFIRMED`;
   - line 931: one `ROW_VERIFIED` / `CONFIRMED`;
 - no active Composition run exists;
-- Composition-stage `PORTAL_VERIFIED` has **not** yet been executed.
+- Composition-stage `PORTAL_VERIFIED` completed successfully with durable server evidence and no Government portal row mutation.
 
 Server final-stage PARTIAL-only hardening is merged and live through migration `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql`. `rpc_eaushadhi_composition_stage_mark_portal_verified` now requires current `stage_status = PARTIAL` before any transition to `PORTAL_VERIFIED`, and retains Product 262 lock, edit permission, optimistic concurrency, no active run, READY snapshot, complete final list evidence, and planner `ALREADY_COMPLETE` with zero issue arrays.
 
@@ -297,7 +297,7 @@ Final-stage verification does **not** require `EAUSHADHI_COMPOSITION_LIVE_ARM` b
 
 `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged. Historical `COMPOSITION_FIRST_LIVE_930_RELEASE=false` and `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true` remain as previously shipped for row entry. Production versions continue to come from fresh preflight/server authority; stage/workflow row versions are not hard-coded as permanent business rules.
 
-The final-stage client activation is merged on exact main `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The short exact-main final-stage preflight has passed: planner `ALREADY_COMPLETE`, governed/portal/match `3/3/3`, matched `[929,930,931]`, missing `[]`, zero conflicts/duplicates/extras/blockers, no active run, `finalStageVerifyEligible=true`, and `stageVerifyEnabled=true`. No Composition-stage verification, portal mutation, or server lifecycle mutation occurred during that preflight. The next gate is one explicitly confirmed server-side `PARTIAL → PORTAL_VERIFIED` transition after a fresh exact-set recollection. QC Register and final Submit remain excluded. Do **not** claim stage `PORTAL_VERIFIED` until that authorized execution succeeds.
+The final-stage client activation is merged on exact main `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The exact-main final-stage preflight passed, and the bounded final-stage execution then recollected fresh authority and durably changed the Composition stage from `PARTIAL` to `PORTAL_VERIFIED`. Current stage row_version is 14, governed/portal match remains `3/3`, workflow row_version remains 11, `portal_verified_at` is present, latest evidence is `STAGE_PORTAL_VERIFIED`, and the audit log contains `COMPOSITION_STAGE_PORTAL_VERIFIED`. Historical Composition runs remain unchanged. No SaveData, portal row mutation, QC Register action or final Submit occurred. The next gate is representative regression, followed by the WP-06 closure audit.
 
 The earlier server foundation remains live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
@@ -305,9 +305,9 @@ The earlier server foundation remains live and repository-versioned through migr
 - `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql`
 - `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql`
 
-Until the explicitly confirmed final-stage transition is executed and independently verified:
+Until WP-06 representative regression and closure audit are complete:
 
-- do not invoke Composition-stage verification except through the bounded final-stage confirmation path;
+- do not reopen Composition row entry for Product 262;
 - keep `COMPOSITION_LIVE_ARM_DEFAULT=false`;
 - do not open QC Register or final Submit.
 
