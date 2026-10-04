@@ -120,3 +120,7 @@ See [REHEARSAL_RESULT.md](REHEARSAL_RESULT.md). Explicit exact target/digest aut
 ## 2026-10-04 — Read-only remaining-proof disposition after WP-06 closure
 
 See [PROOF_DISPOSITION.md](PROOF_DISPOSITION.md). Main4a8525c delta is four e-Aushadhi-only documents, no WP04 overlap. Auditf3311b6 limited evidence retained, not rerun; fresh authority readback PASS and candidate count0. Two-sample canonical aggregation expression PASS under READ ONLY; no full portfolio runtime/performance proof. One exact first-operational-portfolio rollback-only operation prepared and source-reviewed, NOT_RUN/NOT_AUTHORIZED. Additional production operation requires separate explicit approval; previous authorization consumed. Remaining G4-R03 proof/application HOLD; G5 blocked; programme4/13; parked/locked/DEC-014 unchanged.
+
+## 2026-10-04 — First operational portfolio measured; application HOLD
+
+[PORTFOLIO_RESULT.md](PORTFOLIO_RESULT.md) records explicit exact authorization, fresh guards, one successful OPERATIONAL611 invocation and independent restoration readback PASS (candidates0/idleWP04transactions0). Bounded census/envelope/firstSKU1 parity PASS; observed10822.426ms exceeds3s/5s goals; responseJSONBtext14491bytes. Authorization consumed; no deployment/client/retry. Goals are not SLAs and one sample does not identify a bottleneck. Next: measured portfolio-performance disposition through source/read-only analysis and bounded correction/proof plan review. Remaining G4-R03 proof/application HOLD; G5 blocked; earlier evidence retained; programme4/13.

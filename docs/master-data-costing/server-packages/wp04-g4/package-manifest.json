@@ -54,17 +54,18 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "810780f0861186e00fcde9bcd4d78658a2158094c251bc7fc230b49cc6c2a546",
+    "REVIEW.md": "70832d6eefe541b5c18e8a2c6924d20dd43c11c3e0245acee2a5b11891646664",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
     "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492",
     "PROOF_DISPOSITION.md": "7140ae9d1db367724d5b5ba76d26bb81185879cd425fbba97d23177efcda342b",
     "portfolio-expression-check.sql": "343649955e3cb643e702058f7f92ee5f22a5a5f7cbc00656f6ba8f23b0bd2024",
-    "portfolio-proof-proposal.sql": "c4477062f6f02e243e5b9bfc6b56ff6e0254b22408eb28b05ddad10a9fa9a29c"
+    "portfolio-proof-proposal.sql": "c4477062f6f02e243e5b9bfc6b56ff6e0254b22408eb28b05ddad10a9fa9a29c",
+    "PORTFOLIO_RESULT.md": "f8328fb20d8783a5c920064e9c877e12bee461b1201714b8b0192892a5eda138"
   },
-  "runtime_compilation": "NOT_RUN",
+  "runtime_compilation": "SEVEN_DEFINITIONS_AND_OPERATIONAL_PORTFOLIO_INVOKED_LAZY_BRANCHES_UNPROVED",
   "forward_rollback_rehearsal": "LIMITED_TRANSACTION_LOCAL_PASS_FULL_PREREQUISITE_UNRESOLVED",
-  "parity_access_cse_performance": "NOT_RUN",
+  "parity_access_cse_performance": "LIMITED_PARITY_PASS_OPERATIONAL_LATENCY_ABOVE_GOALS_FULL_PROOF_UNRESOLVED",
   "monetary_payload_certification": "NOT_ESTABLISHED",
   "static_extraction": {
     "canonical_md5": "0e966c3c1ab15d56420b234f5c2cef1f",
@@ -79,7 +80,7 @@
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
   },
-  "review_disposition": "LIMITED_EVIDENCE_RETAINED_READONLY_DISPOSITION_COMPLETE_FIRST_PORTFOLIO_AUTH_PENDING",
+  "review_disposition": "LIMITED_OPERATIONAL_RUNTIME_PASS_MEASURED_PERFORMANCE_DISPOSITION_REQUIRED_APPLICATION_HOLD",
   "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
   "review_items": [
     "G4-R01 shared issue identity",
@@ -358,8 +359,8 @@
     "performance": "NOT_PROVED"
   },
   "pending_portfolio_operation": {
-    "status": "NOT_RUN",
-    "authorized": false,
+    "status": "COMPLETED_LIMITED_CORRECTNESS_PASS_LATENCY_ABOVE_GOALS",
+    "authorized": true,
     "target_project": "qhmoqtxpeasamtlxaoak",
     "script_sha256": "c4477062f6f02e243e5b9bfc6b56ff6e0254b22408eb28b05ddad10a9fa9a29c",
     "portfolio_invocations": 1,
@@ -369,6 +370,15 @@
     "statement_timeout_seconds": 15,
     "final_action": "ROLLBACK",
     "first_baseline_sku_id": 1,
-    "application_authorized": false
+    "application_authorized": false,
+    "authorization_consumed": true,
+    "execution_count": 1,
+    "elapsed_ms": 10822.426,
+    "response_bytes": 14491,
+    "independent_readback": "PASS",
+    "candidate_count_after": 0,
+    "idle_wp04_transactions_after": 0,
+    "within_3s_page_goal": false,
+    "within_5s_statistics_goal": false
   }
 }
