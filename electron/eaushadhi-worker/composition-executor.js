@@ -10,6 +10,7 @@ const PRODUCT_ID = 262;
 const CONTROLLED_SOURCE_LINE_ID = COMPOSITION_CONTROLLED_SOURCE_LINE_ID;
 const PHASE2_REQUIRED_MATCHED_IDS = [929, 930];
 const PHASE2_REQUIRED_MISSING_IDS = [931];
+const FINAL_STAGE_REQUIRED_MATCHED_IDS = [929, 930, 931];
 const ACTIVE_RUNS = new Set(["SAVE_ARMED", "SAVE_CONFIRMED", "SAVE_AMBIGUOUS"]);
 const PAGE_IDENTITY_FAILURE_CODES = new Set([
   "WORKER_NOT_READY",
@@ -172,8 +173,36 @@ function assessControlledPhase2Eligibility(authority, planner, liveArmed) {
   );
 }
 
+function assessFinalStageVerifyEligibility(authority, planner) {
+  if (!authority?.preflight?.stage || typeof authority.preflight.stage !== "object") return false;
+  if (upper(authority.preflight.stage.stage_status) !== "PARTIAL") return false;
+  if (authority.preflight.active_run) return false;
+  if (!planner || planner.ok !== true) return false;
+  if (planner.code !== PLAN_CODE.ALREADY_COMPLETE) return false;
+  if (planner.mutationAllowed !== false) return false;
+  if (planner.governedCount !== 3) return false;
+  if (planner.portalCount !== 3) return false;
+  if (!Array.isArray(planner.matches) || planner.matches.length !== 3) return false;
+  if (
+    !Array.isArray(planner.missing) ||
+    planner.missing.length ||
+    !Array.isArray(planner.conflicts) ||
+    planner.conflicts.length ||
+    !Array.isArray(planner.duplicates) ||
+    planner.duplicates.length ||
+    !Array.isArray(planner.extras) ||
+    planner.extras.length ||
+    !Array.isArray(planner.blockers) ||
+    planner.blockers.length
+  ) {
+    return false;
+  }
+  return sameIdList(sortedSourceIds(planner.matches), FINAL_STAGE_REQUIRED_MATCHED_IDS);
+}
+
 function previewProjection(authority, planner, liveArmed) {
   const controlledPhase2Eligible = assessControlledPhase2Eligibility(authority, planner, liveArmed);
+  const finalStageVerifyEligible = assessFinalStageVerifyEligibility(authority, planner);
   const phase2 = authority.preflight.phase2_line_931 || null;
   return {
     ok: planner.ok === true,
@@ -195,11 +224,12 @@ function previewProjection(authority, planner, liveArmed) {
     pageIdentityDiagnostics: authority.pageIdentityDiagnostics || null,
     controlledTargetSourceLineId: CONTROLLED_SOURCE_LINE_ID,
     controlledPhase2Eligible,
+    finalStageVerifyEligible,
     phase2Line931: phase2,
     executionEligibleSourceLineIds: controlledPhase2Eligible ? [CONTROLLED_SOURCE_LINE_ID] : [],
     startEnabled: controlledPhase2Eligible,
     recoveryEnabled: false,
-    stageVerifyEnabled: false,
+    stageVerifyEnabled: finalStageVerifyEligible,
   };
 }
 
@@ -634,16 +664,12 @@ function createCompositionExecutor() {
       if (command.userConfirmed !== true) return fail("USER_CONFIRMATION_REQUIRED", "Explicit final-stage confirmation is required.");
       const collected = await collect(deps, { requireEditPermission: true, requireSaveCapability: false });
       if (!collected.ok) return collected;
-      if (collected.authority.preflight.active_run) return fail("ACTIVE_RUN_EXISTS", "Active Composition run blocks final verification.");
-      if (
-        collected.planner.code !== PLAN_CODE.ALREADY_COMPLETE ||
-        collected.planner.ok !== true ||
-        collected.planner.mutationAllowed !== false ||
-        collected.planner.matches.length !== collected.planner.governedCount ||
-        collected.planner.missing.length || collected.planner.conflicts.length ||
-        collected.planner.duplicates.length || collected.planner.extras.length ||
-        collected.planner.blockers.length
-      ) return fail("FINAL_EXACT_SET_UNPROVEN", "Final Composition exact set is not proven.");
+      if (collected.authority.preflight.active_run) {
+        return fail("ACTIVE_RUN_EXISTS", "Active Composition run blocks final verification.");
+      }
+      if (!assessFinalStageVerifyEligibility(collected.authority, collected.planner)) {
+        return fail("FINAL_EXACT_SET_UNPROVEN", "Final Composition exact set is not proven.");
+      }
       const result = await deps.markStageVerified({
         productId: PRODUCT_ID,
         expectedStageRowVersion: Number(collected.authority.preflight.stage?.row_version),
@@ -668,8 +694,10 @@ function createCompositionExecutor() {
 
 module.exports = {
   CONTROLLED_SOURCE_LINE_ID,
+  FINAL_STAGE_REQUIRED_MATCHED_IDS,
   PRODUCT_ID,
   assessControlledPhase2Eligibility,
+  assessFinalStageVerifyEligibility,
   assessPhase2PlannerPartition,
   classifySave,
   createCompositionExecutor,

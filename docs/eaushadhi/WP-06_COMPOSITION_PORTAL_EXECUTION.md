@@ -264,42 +264,52 @@ The execution snapshot is server authoritative.
 - [x] Implement trusted Composition executor/adapters/client orchestration while arm remains default OFF.
 - [x] Controlled first-line bootstrap on Karpooradi.
 - [x] Prove row edit-ID and unitname/reread value semantics.
-- [ ] Continue remaining lines under the durable WP-06 mutation gate with no normal Update/Delete.
+- [x] Continue remaining lines under the durable WP-06 mutation gate with no normal Update/Delete.
 - [ ] Final exact-set reconciliation and Composition-stage PORTAL_VERIFIED evidence.
 - [ ] Representative regression.
 - [ ] WP closure audit.
 
 ## Current gate
-Controlled Product 262 / source line 930 Karpūra has completed successfully after the native fill-order correction. The durable line-930 run is `ROW_VERIFIED` with save outcome `CONFIRMED`. Current verified live state:
+Controlled Product 262 Composition line entry for Karpūra (930) and Kēram (931) has completed successfully. Current verified live state:
 
 - Product Details is `PORTAL_VERIFIED` at workflow row_version 11;
-- Composition is `PARTIAL` at stage row_version 10 with portal match count 2;
-- historical Composition runs for line 930: three `SAVE_REJECTED` / `REJECTED`, one `ROW_VERIFIED` / `CONFIRMED`;
+- Composition remains `PARTIAL` at stage row_version 13;
+- `governed_line_count` 3 and `portal_match_count` 3;
+- portal exact set matched `[929,930,931]`, missing `[]`;
+- historical Composition runs: five total;
+  - line 930: three `SAVE_REJECTED` / `REJECTED`, one `ROW_VERIFIED` / `CONFIRMED`;
+  - line 931: one `ROW_VERIFIED` / `CONFIRMED`;
 - no active Composition run exists;
-- the portal is matched `[929,930]`, missing `[931]`;
-- Kēram line 931 has not been entered.
+- Composition-stage `PORTAL_VERIFIED` has **not** yet been executed.
 
-Server Phase-2 predecessor authority is live through migration `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql`. Preflight now exposes bounded `phase2_line_931` evidence, including durable predecessor `ROW_VERIFIED`/`CONFIRMED` proof and `server_gate_ready`.
+Server final-stage PARTIAL-only hardening is merged and live through migration `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql`. `rpc_eaushadhi_composition_stage_mark_portal_verified` now requires current `stage_status = PARTIAL` before any transition to `PORTAL_VERIFIED`, and retains Product 262 lock, edit permission, optimistic concurrency, no active run, READY snapshot, complete final list evidence, and planner `ALREADY_COMPLETE` with zero issue arrays.
 
-The client controlled Phase-2 gate opens Product 262 / source line 931 only when both:
+The client final-stage gate exposes Preview `finalStageVerifyEligible` / `stageVerifyEnabled` only when fresh trusted evidence proves:
 
-1. server `phase2_line_931.server_gate_ready === true` (and the bounded predecessor/stage fields), and
-2. the fresh offline planner proves exact matched `[929,930]` / missing `[931]` with zero conflicts/duplicates/extras/blockers.
+1. stage `PARTIAL`,
+2. planner `ALREADY_COMPLETE` with `ok=true` and `mutationAllowed=false`,
+3. governed/portal/match counts exactly 3,
+4. matched source IDs exactly `[929,930,931]`,
+5. missing/conflicts/duplicates/extras/blockers empty,
+6. no active run.
 
-`COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged. Historical `COMPOSITION_FIRST_LIVE_930_RELEASE=false` closes line 930 as executable. `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true` is the narrow client release for line 931 and still requires exact runtime environment `EAUSHADHI_COMPOSITION_LIVE_ARM === "true"` plus explicit operator confirmation. Production versions continue to come from fresh preflight/server authority; stage/workflow row versions are not hard-coded as permanent business rules.
+Final-stage verification does **not** require `EAUSHADHI_COMPOSITION_LIVE_ARM` because it performs no native portal Save/Update/Delete. It recollects trusted portal evidence, requires explicit confirmation, then calls the existing bounded `markStageVerified` path. Line-entry Phase-2 eligibility remains distinct and is not reused as final-stage authority.
 
-The next gate is independent GitHub audit and merge of the Phase-2 client transition, then a short exact-main no-mutation line-931 preflight before any authorized Kēram execution. Composition-stage `PORTAL_VERIFIED`, QC Register and final Submit remain excluded.
+`COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged. Historical `COMPOSITION_FIRST_LIVE_930_RELEASE=false` and `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true` remain as previously shipped for row entry. Production versions continue to come from fresh preflight/server authority; stage/workflow row versions are not hard-coded as permanent business rules.
+
+The next gate is independent GitHub audit and merge of this final-stage client activation, then a short exact-main final-stage preflight before any authorized Composition-stage `PORTAL_VERIFIED` execution. QC Register and final Submit remain excluded. Do **not** claim stage `PORTAL_VERIFIED` until that authorized execution succeeds.
 
 The earlier server foundation remains live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
 - `20260927120326_eaushadhi_composition_execution_lifecycle_hardening.sql`
 - `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql`
+- `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql`
 
-Until the Phase-2 client transition is independently audited, merged, and a fresh exact-main preflight passes:
+Until the final-stage client activation is independently audited, merged, and a fresh exact-main preflight passes:
 
-- do not manually enter Kēram or invoke native Composition Save/Update/Delete;
+- do not invoke Composition-stage verification against live Product 262;
 - keep `COMPOSITION_LIVE_ARM_DEFAULT=false`;
-- do not enable Composition-stage verification, QC Register or final Submit.
+- do not open QC Register or final Submit.
 
 
 ## Trusted executor merge evidence — 2026-09-29

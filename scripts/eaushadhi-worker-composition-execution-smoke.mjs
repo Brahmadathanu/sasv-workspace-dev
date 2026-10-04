@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const {
+  assessFinalStageVerifyEligibility,
   classifySave,
   createCompositionExecutor,
+  FINAL_STAGE_REQUIRED_MATCHED_IDS,
   recoveryDisposition,
 } = require("../electron/eaushadhi-worker/composition-executor.js");
 const {
@@ -332,6 +334,7 @@ const after930Rows = [portalRow(governed[0], "row-a"), portalRow(governed[1], "r
   assert.equal(result.mutationAllowed, false);
   assert.deepEqual(result.missingSourceLineIds, [930, 931]);
   assert.equal(result.controlledPhase2Eligible, false);
+  assert.equal(result.finalStageVerifyEligible, false);
   assert.deepEqual(result.executionEligibleSourceLineIds, []);
   assert.equal(result.stageVerifyEnabled, false);
   assert.deepEqual(deps.calls.map(([name]) => name), ["loadAuthority"]);
@@ -1136,18 +1139,213 @@ const activeRun = (status) => ({
   assert.equal(deps.calls.some(([name]) => ["fillTarget", "invokeSaveOnce", "armRun", "recordSave"].includes(name)), false);
 }
 
+// Final-stage eligibility is distinct from Phase-2 row-entry eligibility.
+{
+  const offlinePlanner = {
+    ok: true,
+    code: "OFFLINE_MISSING",
+    mutationAllowed: false,
+    governedCount: 3,
+    portalCount: 1,
+    matches: [{ sourceCompositionLineId: 929 }],
+    missing: [{ sourceCompositionLineId: 930 }, { sourceCompositionLineId: 931 }],
+    conflicts: [],
+    duplicates: [],
+    extras: [],
+    blockers: [],
+  };
+  assert.equal(
+    assessFinalStageVerifyEligibility(authority(beforeRows), offlinePlanner),
+    false,
+    "OFFLINE_MISSING must not be final-stage eligible",
+  );
+  assert.deepEqual(FINAL_STAGE_REQUIRED_MATCHED_IDS, [929, 930, 931]);
+}
+
+function finalStagePlanner(overrides = {}) {
+  return {
+    ok: true,
+    code: "ALREADY_COMPLETE",
+    mutationAllowed: false,
+    governedCount: 3,
+    portalCount: 3,
+    matches: [
+      { sourceCompositionLineId: 929 },
+      { sourceCompositionLineId: 930 },
+      { sourceCompositionLineId: 931 },
+    ],
+    missing: [],
+    conflicts: [],
+    duplicates: [],
+    extras: [],
+    blockers: [],
+    ...overrides,
+  };
+}
+
+function finalStageAuthority(overrides = {}) {
+  return authority(completeRows, null, {
+    preflight: {
+      stage: { stage_status: "PARTIAL", row_version: 13, governed_line_count: 3, portal_match_count: 3 },
+      workflow_row_version: 11,
+      ...(overrides.preflight || {}),
+      stage: {
+        stage_status: "PARTIAL",
+        row_version: 13,
+        governed_line_count: 3,
+        portal_match_count: 3,
+        ...(overrides.preflight?.stage || {}),
+      },
+    },
+  });
+}
+
+{
+  const auth = finalStageAuthority();
+  assert.equal(assessFinalStageVerifyEligibility(auth, finalStagePlanner()), true);
+  assert.equal(assessFinalStageVerifyEligibility(auth, finalStagePlanner({ governedCount: 2 })), false);
+  assert.equal(assessFinalStageVerifyEligibility(auth, finalStagePlanner({ portalCount: 2 })), false);
+  assert.equal(
+    assessFinalStageVerifyEligibility(
+      auth,
+      finalStagePlanner({
+        matches: [{ sourceCompositionLineId: 929 }, { sourceCompositionLineId: 930 }],
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(
+      auth,
+      finalStagePlanner({
+        matches: [
+          { sourceCompositionLineId: 929 },
+          { sourceCompositionLineId: 930 },
+          { sourceCompositionLineId: 999 },
+        ],
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(auth, finalStagePlanner({ missing: [{ sourceCompositionLineId: 931 }] })),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(auth, finalStagePlanner({ conflicts: [{ sourceCompositionLineId: 930 }] })),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(auth, finalStagePlanner({ duplicates: [{ sourceCompositionLineId: 929 }] })),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(auth, finalStagePlanner({ extras: [{ portalRowId: "x" }] })),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(auth, finalStagePlanner({ blockers: ["BLOCKED"] })),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(
+      finalStageAuthority({ preflight: { stage: { stage_status: "PORTAL_VERIFIED" } } }),
+      finalStagePlanner(),
+    ),
+    false,
+  );
+  assert.equal(
+    assessFinalStageVerifyEligibility(authority(completeRows, activeRun("SAVE_ARMED")), finalStagePlanner()),
+    false,
+  );
+}
+
+// Preview final-stage eligibility under ALREADY_COMPLETE exact set.
+{
+  const result = await createCompositionExecutor().preview(fakeDeps([finalStageAuthority()]));
+  assert.equal(result.code, "ALREADY_COMPLETE");
+  assert.equal(result.finalStageVerifyEligible, true);
+  assert.equal(result.stageVerifyEnabled, true);
+  assert.equal(result.controlledPhase2Eligible, false);
+  assert.deepEqual(result.executionEligibleSourceLineIds, []);
+  assert.deepEqual(result.matchedSourceLineIds, [929, 930, 931]);
+  assert.deepEqual(result.missingSourceLineIds, []);
+  assert.equal(result.startEnabled, false);
+}
+{
+  const result = await createCompositionExecutor().preview(
+    fakeDeps([finalStageAuthority({ preflight: { stage: { stage_status: "NOT_STARTED" } } })]),
+  );
+  assert.equal(result.finalStageVerifyEligible, false);
+  assert.equal(result.stageVerifyEnabled, false);
+}
+{
+  const result = await createCompositionExecutor().preview(
+    fakeDeps([authority(completeRows, activeRun("SAVE_CONFIRMED"))]),
+  );
+  assert.equal(result.finalStageVerifyEligible, false);
+  assert.equal(result.stageVerifyEnabled, false);
+}
+{
+  const result = await createCompositionExecutor().preview(fakeDeps([authority(after930Rows)], { liveArmed: true }));
+  assert.equal(result.code, "OFFLINE_MISSING");
+  assert.equal(result.finalStageVerifyEligible, false);
+  assert.equal(result.stageVerifyEnabled, false);
+  assert.equal(result.controlledPhase2Eligible, true);
+}
+
 // Final stage proof is a distinct server-only action with no portal Save.
 {
   const executor = createCompositionExecutor();
-  const deps = fakeDeps([authority(completeRows, null, { preflight: { ...authority(completeRows).preflight, stage: { stage_status: "PARTIAL", row_version: 8 } } })]);
+  const auth = finalStageAuthority({
+    preflight: { stage: { stage_status: "PARTIAL", row_version: 8 }, workflow_row_version: 17, content_hash: "b".repeat(64) },
+  });
+  auth.content.content_hash = "b".repeat(64);
+  auth.content.versions.workflow_row_version = 17;
+  const deps = fakeDeps([auth]);
   const result = await executor.verifyStage(deps, { userConfirmed: true });
   assert.equal(result.code, "COMPOSITION_PORTAL_VERIFIED");
   assert.deepEqual(deps.calls.map(([name]) => name), ["loadAuthority", "markStageVerified"]);
+  const marked = deps.calls.find(([name]) => name === "markStageVerified")[1];
+  assert.equal(marked.expectedStageRowVersion, 8);
+  assert.equal(marked.expectedWorkflowRowVersion, 17);
+  assert.equal(marked.expectedContentHash, "b".repeat(64));
+  assert.equal(deps.calls.filter(([name]) => name === "markStageVerified").length, 1);
+  assert.equal(deps.calls.some(([name]) => ["armRun", "invokeSaveOnce", "recordSave", "verifyRow", "fillTarget"].includes(name)), false);
+}
+{
+  const deps = fakeDeps([finalStageAuthority()]);
+  const result = await createCompositionExecutor().verifyStage(deps, {});
+  assert.equal(result.code, "USER_CONFIRMATION_REQUIRED");
+  assert.equal(deps.calls.some(([name]) => name === "markStageVerified"), false);
 }
 {
   const deps = fakeDeps([authority(beforeRows)]);
   const result = await createCompositionExecutor().verifyStage(deps, { userConfirmed: true });
   assert.equal(result.code, "FINAL_EXACT_SET_UNPROVEN");
+  assert.equal(deps.calls.some(([name]) => name === "markStageVerified"), false);
+}
+{
+  const deps = fakeDeps([finalStageAuthority({ preflight: { stage: { stage_status: "PORTAL_VERIFIED" } } })]);
+  const result = await createCompositionExecutor().verifyStage(deps, { userConfirmed: true });
+  assert.equal(result.code, "FINAL_EXACT_SET_UNPROVEN");
+  assert.equal(deps.calls.some(([name]) => name === "markStageVerified"), false);
+}
+{
+  const wrong = authority([
+    portalRow(governed[0], "row-a"),
+    portalRow(governed[1], "row-b"),
+    { ...portalRow(governed[2], "row-c"), ingredientName: "Other" },
+  ]);
+  const deps = fakeDeps([wrong]);
+  const result = await createCompositionExecutor().verifyStage(deps, { userConfirmed: true });
+  assert.equal(result.code, "FINAL_EXACT_SET_UNPROVEN");
+  assert.equal(deps.calls.some(([name]) => name === "markStageVerified"), false);
+}
+{
+  const deps = fakeDeps([authority(completeRows, activeRun("SAVE_ARMED"))]);
+  const result = await createCompositionExecutor().verifyStage(deps, { userConfirmed: true });
+  assert.equal(result.code, "ACTIVE_RUN_EXISTS");
   assert.equal(deps.calls.some(([name]) => name === "markStageVerified"), false);
 }
 
@@ -1213,12 +1411,52 @@ assert.match(files.adapter, /POST_FILL_SELECT_MISMATCH/);
 assert.match(files.control, /executionEligibleSourceLineIds/);
 assert.match(files.control, /Enter line 931 - Kēram/);
 assert.match(files.control, /controlledPhase2Eligible/);
+assert.match(files.control, /finalStageVerifyEligible/);
+assert.match(files.control, /btnWorkerCompositionVerifyStage/);
+assert.match(files.control, /submitWorkerCompositionVerifyStage/);
+assert.match(files.control, /openCompositionStageVerifyConfirmModal/);
+assert.match(files.control, /verifyWorkerCompositionStage/);
+assert.match(files.control, /COMPOSITION_PORTAL_VERIFIED/);
+assert.match(files.control, /previewWorkerComposition\(state\.selectedProductId, token\)/);
+assert.match(files.control, /renderReadiness\(\)/);
 assert.doesNotMatch(files.control, /Enter line 930 - Karpūra/);
 assert.match(files.html, /source line 931 - Kēram/);
 assert.match(files.html, /Confirm &amp; enter Kēram/);
 assert.doesNotMatch(files.control.match(/function compositionPortalExecutionHtml\(\)[\s\S]*?function dictionaryStatusLabel/)?.[0] || "", /blockers\.join\(/);
 assert.match(files.html, /id="compositionConfirmBackdrop"/);
 assert.match(files.html, /ambiguous Save is recorded and is never retried automatically/);
+assert.match(files.html, /id="compositionStageVerifyConfirmBackdrop"/);
+assert.match(files.html, /Product 262 - Karpooradi Thailam/);
+assert.match(files.html, /All 3 governed Composition rows are currently portal matched/);
+assert.match(files.html, /does NOT add, edit or delete Composition rows/);
+assert.match(files.html, /PORTAL_VERIFIED in the controlled server lifecycle/);
+assert.match(files.html, /does NOT perform QC Register work/);
+assert.match(files.html, /does NOT final Submit the product/);
+assert.match(files.html, /Confirm &amp; verify Composition stage/);
+assert.match(files.executor, /assessFinalStageVerifyEligibility/);
+assert.match(files.executor, /FINAL_STAGE_REQUIRED_MATCHED_IDS = \[929, 930, 931\]/);
+assert.match(files.executor, /stageVerifyEnabled: finalStageVerifyEligible/);
+const finalStageHelperSrc =
+  files.executor.match(/function assessFinalStageVerifyEligibility\([\s\S]*?\r?\n\}\r?\n\r?\nfunction previewProjection/)?.[0] || "";
+assert.match(finalStageHelperSrc, /ALREADY_COMPLETE/);
+assert.doesNotMatch(finalStageHelperSrc, /liveArmed/);
+assert.doesNotMatch(finalStageHelperSrc, /controlledPhase2Eligible|assessPhase2PlannerPartition/);
+const verifyStageSrc =
+  files.executor.match(/async function verifyStage\([\s\S]*?\r?\n  \}\r?\n\r?\n  return \{ preview/)?.[0] || "";
+assert.match(verifyStageSrc, /assessFinalStageVerifyEligibility\(collected\.authority, collected\.planner\)/);
+assert.match(verifyStageSrc, /requireSaveCapability: false/);
+assert.doesNotMatch(verifyStageSrc, /liveArmed/);
+assert.match(
+  files.control.match(/function compositionPortalExecutionHtml\(\)[\s\S]*?function dictionaryStatusLabel/)?.[0] || "",
+  /stageVerifyEnabled === true[\s\S]*finalStageVerifyEligible === true/,
+);
+const verifySubmitSrc =
+  files.control.match(/async function submitWorkerCompositionVerifyStage\(\)[\s\S]*?async function submitWorkerCapture/)?.[0] || "";
+assert.match(verifySubmitSrc, /openCompositionStageVerifyConfirmModal[\s\S]*userConfirmed: true/);
+assert.match(verifySubmitSrc, /if \(!\(await openCompositionStageVerifyConfirmModal/);
+assert.match(verifySubmitSrc, /renderReadiness\(\)/);
+assert.doesNotMatch(verifySubmitSrc, /QC Register|final Submit|submitProduct|startWorkerCompositionLine/);
+assert.match(files.control, /closeCompositionStageVerifyConfirm\(false\)/);
 assert.doesNotMatch(files.executor, /eaushadhi_worker_run_begin|eaushadhi_worker_mark_entered|eaushadhi_worker_mark_portal_verified|createHash|node:crypto/);
 assert.doesNotMatch(`${files.executor}\n${files.adapter}`, /QC Register|final Submit|submitProduct/);
 assert.doesNotMatch(files.normalizer, /SaveCompositionData|UpdateCompositionData|DeleteCompositionData|\.rpc\(|page\.evaluate|createHash/);
@@ -1269,5 +1507,21 @@ assert.match(phase2Migration, /p_target_source_composition_line_id <> 931/);
 assert.match(phase2Migration, /array\[929,930\]/);
 assert.match(phase2Migration, /array\[931\]/);
 assert.match(phase2Migration, /server_gate_ready/);
+
+const finalStageMigration = fs.readFileSync(
+  path.join(root, "supabase/migrations/20261004105934_eaushadhi_composition_final_stage_partial_guard.sql"),
+  "utf8",
+);
+assert.match(finalStageMigration, /rpc_eaushadhi_composition_stage_mark_portal_verified/);
+assert.match(finalStageMigration, /stage_status is distinct from 'PARTIAL'/);
+assert.match(finalStageMigration, /Composition final stage verification requires current stage PARTIAL/);
+assert.match(finalStageMigration, /ALREADY_COMPLETE/);
+assert.match(finalStageMigration, /Active Composition run blocks final stage verification/);
+assert.match(finalStageMigration, /Complete final Composition list evidence is required/);
+assert.match(finalStageMigration, /jsonb_array_length\(p_planner_report->'missing'\)<>0/);
+assert.match(finalStageMigration, /jsonb_array_length\(p_planner_report->'conflicts'\)<>0/);
+assert.match(finalStageMigration, /jsonb_array_length\(p_planner_report->'duplicates'\)<>0/);
+assert.match(finalStageMigration, /jsonb_array_length\(p_planner_report->'extras'\)<>0/);
+assert.match(finalStageMigration, /jsonb_array_length\(p_planner_report->'blockers'\)<>0/);
 
 console.log("eaushadhi trusted Composition execution smoke: PASS");
