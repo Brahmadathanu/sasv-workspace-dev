@@ -1,0 +1,39 @@
+{
+  "status": "EXACT_READ_ONLY_HELPER_DIAGNOSTIC_REVIEWED_NOT_AUTHORIZED_NOT_RUN",
+  "target": "qhmoqtxpeasamtlxaoak",
+  "reconciled_main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+  "reviewed_audit_head": "b4e1f3eb845145fda241fb02751dd948307bbb55",
+  "operation_authorized": false,
+  "application_authorized": false,
+  "execution_attempts": 0,
+  "planned_top_level_measurements": 8,
+  "sample_sku_ids": [
+    1,
+    11,
+    1795
+  ],
+  "portfolio_invocations": 0,
+  "canonical_readiness_invocations": 0,
+  "candidate_definitions": 0,
+  "read_only": true,
+  "transaction_isolation": "REPEATABLE READ",
+  "statement_timeout_seconds": 15,
+  "measurement_do_timeout_seconds": 15,
+  "lock_timeout_seconds": 2,
+  "idle_in_transaction_timeout_seconds": 30,
+  "final_action": "ROLLBACK",
+  "retry": "NONE",
+  "source_functions": 20,
+  "source_views": 3,
+  "nested_qc_volatility": "v_PRESERVED_SOURCE_READ_ONLY",
+  "precondition_catalog_readback": "PASS_METADATA_ONLY",
+  "runtime_compilation": "NOT_RUN",
+  "full_g4": "INCOMPLETE",
+  "files_sha256": {
+    "helper-diagnostic-proposal.sql": "143f32437b2859576bd7c3dc98aff84db351c9c51c7096f519ae7675e25fde43",
+    "helper-diagnostic-readback.sql": "6fd4bacd8b04a5f3ce1496bdab69fb337fa8557a5dc059d70ad19221796b7578",
+    "helper-diagnostic-source.json": "8828930a79d5bfeaf80a86a410acf8d7bb5f26849c3874975dc425fc2b4d07d6",
+    "HELPER_DIAGNOSTIC_PRECONDITIONS.json": "d16bf556f002ffaa623cdf9727d853684971529ca3bc52c7506210ab648e35a3",
+    "HELPER_DIAGNOSTIC_PROPOSAL.md": "37caa1dbf18bb2cf45a044076e9d5d5642d6522c230ec8dee0aa7f7e7ae6629e"
+  }
+}

@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Measured corrected-performance and remaining-proof review COMPLETE AT EVIDENCE/PLAN SCOPE.
+WP04-G4 — Exact bounded read-only existing-helper diagnostic proposal/review COMPLETE; explicit authorization pending.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Limited corrected parity/restoration retained;8.17s still above provisional goals. No subsequent operation authorized; prior authorizations consumed. G0–G3 retained; programme4/13.
+[!] BLOCKED at exact diagnostic execution authorization and remaining-proof/application boundary. Eight existing-reader wrappers planned; measured diagnostic NOT_RUN; fresh metadata/catalog preconditions PASS. G4 incomplete/application HOLD; G5 blocked; programme4/13; prior evidence/consumed authorizations retained.
 
 ## Required to close
-Resolve residual cost attribution and existing allSKU/CSE/edge/ALL_EXISTING/access/payload/performance/rollback proof or explicit reviewed disposition without waivers. No target/scope/business-rule adjustment approved. Any further operation requires a concrete frozen proposal and appropriate authorization.
+Authorize only the exact frozen diagnostic if appropriate, then freshguards/oneexecution/finalROLLBACK/separatemetadatareadback/assessment withoutretry/timeoutescalation. Resolve existing broader parity/access/payload/performance/rollback proof or explicit reviewed disposition; no target/scope/business-rule waiver.
 
 ## Next gate
-WP04-G4 — Exact bounded read-only existing-helper diagnostic proposal preparation and independent review per CORRECTED_PERFORMANCE_REVIEW.md. No diagnostic execution, repeat portfolio test, optimization, deployment or client implementation authorized.
+WP04-G4 — Explicit exact existing-helper diagnostic authorization per HELPER_DIAGNOSTIC_PROPOSAL.md. No diagnostic execution until granted; no portfolio test, optimization, deployment or client implementation authorized.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -912,3 +912,7 @@ WP04-G4 — Single explicitly authorized corrected OPERATIONAL portfolio test co
 ## 2026-10-04 — Corrected measured-performance / remaining-proof review
 
 WP04-G4 — Corrected measured-performance/remaining-proof review COMPLETE at evidence/plan scope. Retain bounded correctness/restoration PASS and8,174.908ms observation;3s/5s goals missed, p95/all-existing/inner attribution unproved. Source confirms611private assessments with once-per-response route/shared/context; no new runtime test. Next exact bounded read-only existing-helper diagnostic proposal preparation/independent review, then separate explicit read-load authorization if accepted. G4 incomplete/application HOLD; G5 blocked; programme4/13; main e421fe8 unchanged; DEC-014/parked/locked preserved. [CORRECTED_PERFORMANCE_REVIEW.md](server-packages/wp04-g4/CORRECTED_PERFORMANCE_REVIEW.md) ranks residual hypotheses, preserves proof limits and recommends at most eight existing-helper measurements at proposal scope only. No SQL/livetest/candidate/configuration/authority change this checkpoint; unrelated draft/frozen evidence preserved.
+
+## 2026-10-04 — Exact bounded existing-helper diagnostic proposal / review
+
+WP04-G4 — Exact bounded existing-helper diagnostic proposal/review COMPLETE; explicit authorization pending. Eight fixed read-only helper wrappers planned, zeroportfolio/canonicalreadiness/candidate definitions, unchangedtimeouts/noCOMMIT/finalROLLBACK/separatemetadatareadback. Fresh catalog20functions/3views/originalstate and context/sample guards match; measured diagnostic NOT_RUN. G4 incomplete/application HOLD,G5blocked,programme4/13;main e421fe8 unchanged;DEC-014/parked/locked preserved. [HELPER_DIAGNOSTIC_PROPOSAL.md](server-packages/wp04-g4/HELPER_DIAGNOSTIC_PROPOSAL.md) and separate manifest bind exact read-only script/source/metadata readback. Nested QC resolver VOLATILE metadata retained; inspected source reads only. Runtime diagnostic compilation/execution remainsNOT_RUN; metadata readback is not timing proof. Prior SQL/evidence/localdraftpreserved; no new decision/backlog/permission change.

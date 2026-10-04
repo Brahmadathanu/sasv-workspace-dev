@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-04",
+  "target": "qhmoqtxpeasamtlxaoak",
+  "main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+  "audit_head": "b4e1f3eb845145fda241fb02751dd948307bbb55",
+  "scope": "SOURCE_CONTEXT_MEMBERSHIP_METADATA_ONLY_NO_MEASURED_HELPER_EXECUTION",
+  "server_version_num": 170004,
+  "valuation_date": "2026-09-10",
+  "latest_success_run": 115,
+  "operational_count": 611,
+  "membership_md5": "eeba4bf20f54589fe5b037173a79ed82",
+  "samples": [
+    {
+      "sku_id": 1,
+      "product_id": 1,
+      "is_active": true,
+      "is_sample": false,
+      "product_status": "Active"
+    },
+    {
+      "sku_id": 11,
+      "product_id": 14,
+      "is_active": true,
+      "is_sample": false,
+      "product_status": "Active"
+    },
+    {
+      "sku_id": 1795,
+      "product_id": 794,
+      "is_active": false,
+      "is_sample": true,
+      "product_status": "Inactive"
+    }
+  ],
+  "catalog_readback": [
+    {
+      "diagnostic_independent_readback": {
+        "original_state": {
+          "event_md5": "4e2c16f8333e51161dc11c5376fb3296",
+          "original_attributes": [
+            {
+              "acl": "{postgres=X/postgres,service_role=X/postgres}",
+              "owner": "postgres",
+              "settings": [
+                "search_path=costing, public, pg_temp"
+              ],
+              "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+              "volatility": "s",
+              "return_type": "jsonb",
+              "security_definer": true
+            },
+            {
+              "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+              "owner": "postgres",
+              "settings": [
+                "search_path=public, costing, pg_temp"
+              ],
+              "signature": "rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+              "volatility": "s",
+              "return_type": "jsonb",
+              "security_definer": true
+            }
+          ],
+          "idle_wp04_transactions": 0,
+          "candidate_function_count": 0,
+          "all_six_definitions_match": true,
+          "original_definition_checks": [
+            {
+              "signature": "costing.fn_product_process_route_readiness(date)",
+              "definition_matches": true
+            },
+            {
+              "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+              "definition_matches": true
+            },
+            {
+              "signature": "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)",
+              "definition_matches": true
+            },
+            {
+              "signature": "costing.fn_product_sku_readiness_shared_issues(date)",
+              "definition_matches": true
+            },
+            {
+              "signature": "costing.fn_resolve_sku_commercial_sales_basis_point(bigint,date,date)",
+              "definition_matches": true
+            },
+            {
+              "signature": "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+              "definition_matches": true
+            }
+          ]
+        },
+        "diagnostic_view_checks": [
+          {
+            "options_match": true,
+            "relation_name": "costing.v_cost_driver_policy_registry",
+            "definition_matches": true
+          },
+          {
+            "options_match": true,
+            "relation_name": "costing.v_regional_marketing_evidence_review_queue",
+            "definition_matches": true
+          },
+          {
+            "options_match": true,
+            "relation_name": "costing.v_sku_commercial_sales_basis",
+            "definition_matches": true
+          }
+        ],
+        "all_diagnostic_views_match": true,
+        "diagnostic_function_checks": [
+          {
+            "signature": "costing.fn_effective_product_process_route_steps(bigint)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_process_route_readiness(date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_product_sku_readiness_shared_issues(date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_regional_marketing_evidence_fingerprint(bigint,bigint,text,date,text,numeric,numeric,bigint,bigint,text,text,numeric,numeric)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_regional_marketing_review_status(bigint)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_direct_labour_workload_policy(date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_effective_product_process_route(integer,date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_effective_route_family_route(integer,date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_marketing_allocation_policy(date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_materials_stores_workload_policy(date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_production_overhead_workload_policy(date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_qc_workload_policy(date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_route_family_for_product(integer,date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_sales_allocation_default_policy_as_of(text,date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_sku_commercial_sales_basis_point(bigint,date,date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_resolve_sku_sales_assumption_as_of(date,bigint,date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_validate_effective_product_process_route(integer,date)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_validate_product_process_route(bigint)",
+            "attributes_match": true,
+            "definition_matches": true
+          },
+          {
+            "signature": "costing.fn_validate_route_family_route(bigint)",
+            "attributes_match": true,
+            "definition_matches": true
+          }
+        ],
+        "all_diagnostic_functions_match": true
+      }
+    }
+  ],
+  "measured_diagnostic": "NOT_RUN"
+}
