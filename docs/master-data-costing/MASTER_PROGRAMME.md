@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4-S0 — Environment/cost and minimum delivery-scope reassessment; paid provisioning suspended following user concern. Offline launcher/wrapper and bounded console proof accepted; this is test infrastructure, not functional delivery. No locked decision requires a paid target; high-risk server refactor proof requirements remain. G0–G3 complete at documented levels, G4 active; main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f; DEC-014 preserved; branches unmerged.
+WP04-G4 — Minimum required server package and verification review. User-directed withdrawal removes the paid-environment/private-input/offline-harness/wrapper/launcher detour from active branches and documentation. It delivered no WP04 application/server functionality. G0–G3 remain complete at documented levels; G4 active; main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f; DEC-014 preserved; branches unmerged. No new infrastructure or production mutation authorized.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4-S0 — Read-only reuse/minimum-server-change/no-additional-cost proof feasibility review. Compare existing authoritative surfaces with the accepted full-live requirement and the minimum genuinely required server change; assess evidenced existing/local test capability without installing/provisioning. Bring concrete scope/proof tradeoffs to review; do not silently narrow delivery or waive nonproduction/native/rollback proofs for high-risk changes. Organization/quote/paid creation progression suspended. Programme 4 of 13; WP03 closed.
+WP04-G4 — Concrete minimum server-package plan review. Reassess the minimum required extension of existing authoritative Costing Suite/readiness surfaces, exact server changes and proportionate verification/rollback evidence; retain existing contracts and report missing proof honestly. No renewed paid/test-tool infrastructure detour or generic catalog/console loop. Server work remains ChatGPT-owned; client delivery later through Cursor/Codex after a verified contract. Programme 4 of 13; WP03 closed.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
@@ -83,9 +83,3 @@ ChatGPT owns server planning/review, direct implementation and live verification
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
 
 High-risk work retains a separate Plan → ChatGPT review → Implementation gate. Existing WP-specific plan gates remain valid when they involve architecture, authorization/permissions, database/schema/RPC contracts, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business rules, or security-sensitive behavior.
-
-
-Main reconciliation — 2026-10-04: inspected 7657a66 and merge 6e5d11ea (e-Aushadhi Composition client/docs/smoke only); no WP04 overlap. Resume same narrow launcher report-coverage correction from 3616941 against expected main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f. No rebase/main merge, scope or live authorization change. See detailed disposition in WP-04-S0-OPERATOR-LAUNCHER-PLAN.md.
-
-
-Environment package status — 2026-10-04: sole live SASV organization verified as Pro; no WP04 target exists. Concrete standalone wp04-readiness-proof / ap-south-1 proposal prepared. Current G4-S0: explicit organization selection pending; next selected-organization quote and cost/lifecycle/create-request review. No cost call/confirmation or creation performed; user selection permits quote retrieval only.
