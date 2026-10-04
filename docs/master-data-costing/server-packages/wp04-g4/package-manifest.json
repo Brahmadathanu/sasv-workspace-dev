@@ -54,7 +54,7 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "7acd8c64b10a1ce37f3ddd311b5b49972801dcb60016d0baa0f89b8614c9b7b9",
+    "REVIEW.md": "7384065e41457a2c9f135b6cf4b7011bbe65a8aa62cee111f9bae199ce391b33",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
     "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492",
@@ -480,5 +480,17 @@
     "result": "EIGHT_MEASUREMENTS_COMPLETE",
     "independent_readback": "PASS_ORIGINAL_STATE",
     "result_record": "HELPER_DIAGNOSTIC_RESULT.md"
+  },
+  "residual_correction_plan": {
+    "status": "ACCEPTED_PLAN_SCOPE_ONLY",
+    "plan": "RESIDUAL_CORRECTION_PLAN.md",
+    "review": "RESIDUAL_PLAN_REVIEW.md",
+    "direction": "SIX_RUN_SNAPSHOT_COHORT_INPUTS_SHARED_CANONICAL_BUILDER",
+    "main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+    "implementation_authorized": false,
+    "production_operation_authorized": false,
+    "new_live_queries": 0,
+    "g4_complete": false,
+    "next_gate": "EXACT_UNAPPLIED_C_PACKAGE_AND_STAGED_PROOF_PREPARATION_THEN_REVIEW"
   }
 }

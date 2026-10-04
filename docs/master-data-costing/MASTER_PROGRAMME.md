@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4 — Single authorized read-only helper diagnostic completed8measurements; separate original-state readback PASS. Route/map1819.717ms/639Products,shared8.331ms,evidence2.441–6.773ms,commercial2.262–4.648ms across3samples; no portfolio phase attribution/extrapolation. Authorization consumed; no candidate/data/function change. Next focused residual-cost correction/proof plan preparation/review, source-only. G4 incomplete/application HOLD,G5blocked,programme4/13;maine421fe8 unchanged;DEC-014/parked/locked preserved.
+WP04-G4 — Focused residual-cost correction/proof plan and source review complete at plan scope only. Recommend six run-snapshot cohort inputs with one shared canonical builder; route/commercial/statistics semantics unchanged. No implementation or live query at this checkpoint. Prior limited proofs, measured goal misses and consumed authorizations retained. G4 incomplete/application HOLD; G5 blocked; programme 4/13; main e421fe8 unchanged; DEC-014/parked/locked preserved. See RESIDUAL_CORRECTION_PLAN.md and RESIDUAL_PLAN_REVIEW.md in the G4 package.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4 — Request explicit authorization for exact corrected-portfolio-proof-proposal.sql target/main/digest in CORRECTED_PERFORMANCE_PROPOSAL.md. If granted:freshguards→onecorrectedOPERATIONALinvocation→restore/ROLLBACK→separateindependentreadback→stopforassessment. No new611baseline,profiling,timeoutincrease,retry,deployment/client. FormalWP04closure/new-chatWP05handover retained.
+WP04-G4 — Prepare the exact unapplied C snapshot-cohort package and staged correctness/performance proof proposals, then review exact source/rollback/security/load boundaries. No production operation or application is authorized; a later operation requires its own frozen explicit authorization. Do not repeat earlier tests or begin client work. Formal WP04 closure and mandatory WP05 new-chat handover retained.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
