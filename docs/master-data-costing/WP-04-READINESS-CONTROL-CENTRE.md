@@ -1596,3 +1596,16 @@ Current gate: operator-launcher targeted re-audit; trusted-report-coverage gap o
 Next: narrow report-coverage correction, then independent re-audit.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership/DEC-014; WP03 closed. No new lock.
+
+
+## Moved-main reconciliation / narrow report-coverage resume — 2026-10-04
+
+Cursor stopped before correction when main advanced from cc18b5744d7c21149234910aa55989eddfd309b2 to 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f. Independent fetch confirmed new main, docs entry e9dd4dcbe6e68319eb750e33a2eaa3b1d18e12dc and feature 36169410190cdccbc6ccbb6d22ee8a1630576af9. Prior main remains ancestor. Inspected intervening commit 7657a66ffda369567e00e00952fe8f3db4a8b68e and merge 6e5d11ea: ten changed files, confined to docs/eaushadhi, electron/eaushadhi-worker Composition contract/executor/live-arm/index, e-Aushadhi review-control HTML/JS and its Composition smoke script. These close line-930 execution and open the separately governed line-931 client gate. No WP04 readiness, costing/master-data/control-centre surface, governance document, test-tool, schema, RPC, permission or readiness-aggregation contract changed in this advance. Repository overlap disposition only; live application is not inferred. No SQL or live operation performed.
+
+Resume authorized against expected main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f, same feature start 36169410190cdccbc6ccbb6d22ee8a1630576af9 and frozen ancestry. Only the latest narrow trusted-report-coverage correction above remains authorized: operator_launcher.py, test_operator_launcher.py and README.md; accepted components/example unchanged. Fetch main/docs/feature first and stop on additional unexpected movement. No rebase/main merge/reset/clean; preserve the dirty original Windows checkout and existing worktree files. Implement, self-review/fix, run full offline suite/default-OFF/hash checks, commit/push and stop for independent re-audit. No re-implementation of closed findings, real input/network/Auth/SQL/cost/target/fixture/server/client/production operation, installation, cleanup, merge/tag/release.
+
+A pre-existing local truncation of WP04-S0-DEPENDENCY-MANIFEST.json was observed in the audit checkout; provenance unverified, invalid JSON. It is preserved byte-for-byte and excluded from this publication and authorization. It does not revise the committed dependency authority.
+
+Current: WP04-G4-S0 — Operator-launcher targeted re-audit; trusted-report-coverage gap open.
+Exact next: WP04-G4-S0 — Operator-launcher narrow report-coverage correction, then independent re-audit.
+Programme 4 of 13; G0–G3 complete at documented levels, G4 active; WP03 closed; DEC-014/parked/locks unchanged; branches unmerged; paid target HOLD.
