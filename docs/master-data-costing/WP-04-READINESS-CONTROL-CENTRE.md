@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Bounded draft corrected; pre-application execution proof BLOCKED.
+WP04-G4 — Corrected package source review accepted; exact limited rehearsal proposal awaits authorization.
 
 ## Gate Status
-[!] BLOCKED at execution-proof/application boundary. G4-R01/R02 draft corrections completed and bounded checks passed; G4-R03 has no established approved execution target. Corrected-package acceptance/proof disposition review remains required. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
+[!] BLOCKED at execution-proof/application boundary. G4-R01/R02 corrected source review accepted; G4-R03 remains unresolved. One exact limited production rollback-only rehearsal is proposed, NOT_RUN/NOT_AUTHORIZED; approval decision pending. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
 
 ## Required to close
-Accept/review the corrected G4-R01 shared-issue identity and G4-R02 package/rollback identity safeguards, then explicitly disposition G4-R03 runtime/parity/access/payload/performance/rollback proof. Preserve canonical equivalence and approved scope. No application before reviewed proof/authorization; no new infrastructure or production mutation in this review.
+G4-R01/R02 corrected source review accepted at limited scope. Disposition supporting repository findings and explicitly resolve G4-R03 runtime/parity/access/payload/performance/rollback proof plus the pending exact rehearsal authorization. Preserve canonical equivalence and approved scope. No application before reviewed proof/authorization; no new infrastructure or production mutation in this review.
 
 ## Next gate
-WP04-G4 — Corrected package acceptance and explicit proof-boundary disposition review; application stays HOLD until reviewed prerequisites and explicit authorization. G5 client work remains dependent on a verified server contract.
+WP04-G4 — One bounded read-only repository verification of the frozen proposal as supporting evidence, then ChatGPT disposition and explicit authorization decision. No server/client implementation; rehearsal remains NOT_RUN/NOT_AUTHORIZED. G5 client work remains dependent on a verified server contract.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -818,3 +818,45 @@ Current gate: WP04-G4 — Corrected draft prepared; execution proof BLOCKED.
 Next: WP04-G4 — Corrected package acceptance and explicit proof-boundary disposition review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No production mutation/spend/merge/tag/release; branches unmerged.
+
+
+## WP04-G4 — Corrected source acceptance / exact limited rehearsal proposal (2026-10-04)
+
+Main advanced from6e5d11ea to4f14852b8529c0e41f2e0ca20b4eb3519208aaec through b1416800 plus merge4f14852. Inspected sole added migration20261004105934_eaushadhi_composition_final_stage_partial_guard.sql: e-Aushadhi Composition final verification requires PARTIAL; no WP04/readiness/costing/lifecycle/programme-document overlap. User instructed proceed after reported reconciliation. No silent rebase/merge. New reference fetch unchanged; source hashes and period/evidence remain unchanged.
+
+G4-R01/R02 corrected draft source review accepted, within the stated static/read-only expression scope. No SQL application or runtime acceptance. The remaining execution blocker is addressed by one concrete **pending** [rehearsal proposal](server-packages/wp04-g4/REHEARSAL_PROPOSAL.md), not a paid-environment/tooling programme. Its exact SQL is complete and bound by SHA2567d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f.
+
+It would temporarily define the seven functions in a single production transaction, compare SKU11/1795 LIVE and SKU11 EXACT115 JSON against same-observation baseline, invoke period/gap readers with limit1, test exact restore and ROLLBACK. It does not invoke portfolio; no broad census/native/API/performance/monetary-payload proof claim or waiver. Locks/load are possible; this is production DDL even without COMMIT. All details, safeguards, failure recovery and exclusions are in the proposal.
+
+**NOT AUTHORIZED / NOT_RUN.** Existing prohibition on production rollback-only rehearsal remains in force until explicit approval of this exact target/digest/limited operation. Approval would be a narrow exception for partial evidence only, not deployment, additional work, COMMIT, client implementation, spending or a general change to MD proof requirements. IMPLEMENTATION_RULES, DEC-014, approved scope and parked/locked decisions remain unchanged; no CHANGELOG decision approved.
+
+Workflow: corrected draft source accepted → specific rehearsal authorization decision → limited execution/readback only if authorized → remaining proof review → separately authorized server/client implementation.
+WP progress: G0–G3 retained; G4 incomplete; execution/application boundary blocked.
+Programme progress: 4 of 13.
+Current gate: WP04-G4 — Corrected source reviewed; exact limited rehearsal proposal awaiting authorization.
+Next: explicit approval decision; if approved, fresh reconciliation and one rollback-only execution/readback, then stop to review evidence.
+Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No production mutation/spend/merge/tag/release; branches unmerged.
+
+
+## WP04 re-orientation and execution-state reconciliation (2026-10-04)
+
+Actual current refs: main01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0; entry published audit5f6711d63695bea51e511cb5bc1ee81a26066af7; withdrawn-tool branch016bd4585598ecf11fc6968bb625e21130ceb60c. Main has not moved again since the reported stop. Compared all intervening changes since6e5d11ea: e-Aushadhi-only migration, Composition client/worker/tests and its own MD; no WP04/master-data/costing/lifecycle/shared governance overlap. No rebase/merge.
+
+Re-read main and approved audit-branch MASTER_PROGRAMME, IMPLEMENTATION_RULES, WORKPACK_HANDOVER_TEMPLATE, CHANGELOG_DECISIONS, PARKED_BACKLOG, WP04 and closed WP03. Main has older workflow records; approved unmerged audit MD retains DEC-014 and G0–G3 evidence. This is an unmerged workflow-record difference, not a new decision or permission to overwrite main. Published5f6711d had materially stale corrected-review/next-action wording because later work was local only. These records and the exact pending proposal are now made reviewable; no scope/rule/decision/backlog redesign.
+
+Fresh direct READ ONLY server recheck: six canonical/source definition hashes match, no five candidate functions exist, September valuation2026-09-10/SUCCESS115 and reviewed DDL event-trigger digest match. No proposal execution, committed function change or client feature exists. Proposal valid against current repository/live inputs at this bounded check; fresh guards remain required before any authorized operation.
+
+Current execution state: **VERIFICATION / high-risk PLAN**. G4 blocked at production-rehearsal authorization and remaining proof; not autonomous server/client implementation. One bounded Cursor/Codex **read-only repository verification** may check the frozen proposal/MD consistency and return consolidated findings, without changing files, committing, running SQL, using Auth/API credentials, installing tools or adding tests. This is supporting evidence requested by the user, not transferred server ownership or a Git prerequisite. DEC-014 keeps actual server execution with ChatGPT. G5 remains unavailable until a verified contract and bounded client package exist.
+
+Immediate action: issue the exact repository-only verification prompt; server rehearsal remains NOT_RUN/NOT_AUTHORIZED. After that report, ChatGPT dispositions concrete findings and the separate approval request for the one exact rehearsal; no retry/provisioning/tooling loop and no silent proof waiver.
+
+Formal closure obligation (user reconfirmed): at verified WP04-G8 closure, finish programme/WP documentation and required decisions/backlog/evidence, then generate a comprehensive handover prompt directing the user to start WP05 in a **new chat in the same Project**. Do not begin WP05 in this chat or imply WP04 is closed now.
+
+Workflow: re-oriented exact state → supporting read-only repository verification → explicit server-operation authorization decision → verified server/client gates → formal closure/new-chat handover.
+WP progress: G0–G3 retained; G4 incomplete and execution blocked; G5–G8 not delivered.
+Programme progress: 4 of 13.
+Current gate: WP04-G4 — Corrected package reviewed, pending exact rehearsal authorization/remaining proof.
+Next: bounded repository-only verification handoff; no server/client implementation authorization.
+Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No production mutation/spend/merge/tag/release.

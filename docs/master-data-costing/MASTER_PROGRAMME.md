@@ -30,7 +30,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP01 — Canonical Product/SKU Completeness Contract
 - [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED, VERIFIED, AND MERGED
 - [x] WP03 — Creation-Time Guided Completeness — COMPLETED, VERIFIED, AND MERGED
-- [ ] WP04 — Central Master Data / Costing Readiness Control Centre
+- [~] WP04 — Central Master Data / Costing Readiness Control Centre
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
 - [ ] WP06 — Pricing Policy Manager Simplification
 - [ ] WP07 — Costing Suite Navigation and Information Architecture
@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4 — Bounded draft corrected; pre-application execution proof BLOCKED. G4-R01/R02 draft corrections and bounded read-only/static checks complete; corrected-package acceptance and G4-R03 explicit proof disposition remain. No existing approved runtime for executing candidate definitions established. No application, new infrastructure proposal or tooling detour. G0–G3 retained; G4 not complete; main6e5d11ea; DEC-014 preserved; branches unmerged.
+WP04-G4 — Corrected package source review accepted; exact limited rehearsal proposal awaiting authorization. G4-R01/R02 accepted at static/read-only-expression scope; G4-R03 execution/application remains blocked. Pending rollback-only production proposal is NOT_RUN/NOT_AUTHORIZED and does not waive remaining proof. No new infrastructure/tooling. G0–G3 retained; G4 incomplete; main01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0 inspected for no WP04 overlap; DEC-014 preserved; branches unmerged.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4 — Review corrected-package acceptance and explicitly disposition the execution-proof boundary under unchanged MD. Required compile/parity/rollback/native-access/performance evidence cannot be established by SELECT-only access to absent candidates. No apply-first shortcut, paid-environment requirement or offline-tooling revival. Server ChatGPT-owned, client after verified contract. Programme4/13; WP03closed.
+WP04-G4 — One bounded Cursor/Codex read-only repository verification of the exact pending proposal/ledger, returning a consolidated report. Execution state VERIFICATION / high-risk PLAN, not AUTONOMOUS IMPLEMENTATION. Supporting repository evidence only: DEC-014 retains server acceptance/application/live verification with ChatGPT; no Git prerequisite or server handoff. Rehearsal remains NOT_RUN/NOT_AUTHORIZED; explicit operation approval and remaining proof still required. Programme4/13; WP03closed. At formal WP04 closure, finish required records and generate the mandatory WP05 handover for a new chat in the same Project.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
