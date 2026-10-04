@@ -203,3 +203,11 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Latest stage evidence is `STAGE_PORTAL_VERIFIED`, and the audit trail contains `COMPOSITION_STAGE_PORTAL_VERIFIED` for Product 262.
 - No Government portal row mutation occurred during final-stage verification: no SaveData, SaveCompositionData POST, run_arm, record_save, verify_row, Update or Delete. Historical Composition run count remains five and all prior run statuses are unchanged.
 - Next gate: representative regression, then WP-06 closure audit. QC Register and final Submit remain excluded.
+
+
+## 2026-10-04 — WP-06 CLOSED
+- Representative regression passed on authoritative main `c719dacff9d8031ece3a892333db83d25bf164fd`: Composition executor/live-adapter/contract/offline-plan/review-control/worker-client syntax checks passed; Composition execution, offline planner, worker contract, IPC and review-RPC smoke suites passed.
+- Regression preserved missing-row, one-save, rejection/ambiguous/recovery, row-verification and exact-set final-stage contracts. Completed Product 262 is fail-closed against further WP-06 row entry and repeat final-stage verification.
+- Live closure evidence remains: Product 262 Composition `PORTAL_VERIFIED` row_version 14, workflow row_version 11, governed/portal-match `3/3`, no active runs, five historical runs unchanged, `STAGE_PORTAL_VERIFIED` latest evidence, and exactly one `COMPOSITION_STAGE_PORTAL_VERIFIED` audit event.
+- WP-06 closure audit passed. Work pack status is `DONE` / 100% and downstream-safe. QC Register and final Submit remain unopened separate gates.
+- Overall programme completion baseline remains 46% because the repository defines it as a milestone-based programme indicator but contains no documented recalculation formula; no new overall percentage is invented during this work-pack closure.
