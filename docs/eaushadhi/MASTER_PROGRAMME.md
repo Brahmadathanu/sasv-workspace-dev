@@ -49,7 +49,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-03 | Product Dossier & Attachment Readiness | YELLOW | 20% | Formalize class-specific document requirements |
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
-| WP-06 | Composition Portal Execution | PURPLE | 65% | Exact-main final-stage preflight PASS; one explicitly confirmed PARTIAL → PORTAL_VERIFIED server transition is pending |
+| WP-06 | Composition Portal Execution | PURPLE | 65% | Product 262 Composition is PORTAL_VERIFIED; representative regression and WP-06 closure audit remain |
 | WP-07 | QC Register Preparation & Portal Execution | WHITE | 5% | Discover data/server/portal contract |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
@@ -73,14 +73,14 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Server-side content-hash coverage has been re-audited for effective Reference value and governed Ingredient Form changes. JavaScript hashing remains prohibited.
 - The existing `regulatory.eaushadhi_worker_run` / product-level `entry_status` lifecycle is Product-Details execution authority and MUST NOT be reused for Composition.
 - WP-06 now has a frozen Composition-specific stage/run lifecycle: independent stage state, one target line per run, durable SAVE_ARMED authority, one Save at most once, explicit save outcome, fresh list/reread semantic proof, and separate final stage PORTAL_VERIFIED evidence.
-- Composition stage/run server authority is live and repository-versioned. Product 262 Composition remains `PARTIAL` at stage row_version 13 with `governed_line_count` 3 and `portal_match_count` 3; five historical Composition runs exist (line 930: three `SAVE_REJECTED` plus one `ROW_VERIFIED`/`CONFIRMED`; line 931: one `ROW_VERIFIED`/`CONFIRMED`); no active run exists. Stage has **not** been marked `PORTAL_VERIFIED`.
+- Composition stage/run server authority is live and repository-versioned. Product 262 Composition is now `PORTAL_VERIFIED` at stage row_version 14 with `governed_line_count` 3 and `portal_match_count` 3; five historical Composition runs remain unchanged (line 930: three `SAVE_REJECTED` plus one `ROW_VERIFIED`/`CONFIRMED`; line 931: one `ROW_VERIFIED`/`CONFIRMED`); no active run exists.
 - Trusted Composition executor/adapters/client orchestration are merged at `3611cb29e8166bfcf924c7c01aa59229b2128720`; native mutation is correctly bound to page `SaveData()` while observing `POST /admin/SaveCompositionData`.
 - Composition live arm remains OFF by default: `COMPOSITION_LIVE_ARM_DEFAULT=false`.
 - Server Phase-2 predecessor guard migration `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql` is merged and live; preflight exposes bounded `phase2_line_931` authority.
 - Final-stage PARTIAL-only server guard migration `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql` is merged and live.
 - Historical first-live line-930 release is closed: `COMPOSITION_FIRST_LIVE_930_RELEASE=false`. Controlled Phase-2 client release for line 931 remains as shipped: `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true`.
 - Final-stage client activation adds distinct Preview `finalStageVerifyEligible` / `stageVerifyEnabled` and a dedicated confirmation path; it does **not** require live-arm because it performs no portal Save/Update/Delete.
-- Final-stage client activation is merged at `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The short exact-main final-stage preflight passed with `ALREADY_COMPLETE`, exact matched IDs `[929,930,931]`, no missing/conflicts/duplicates/extras/blockers, `finalStageVerifyEligible=true`, `stageVerifyEnabled=true`, and no portal/server lifecycle mutation. The next gate is one explicitly confirmed server-side `PARTIAL → PORTAL_VERIFIED` transition after a fresh exact-set recollection. QC Register and final Submit remain excluded.
+- Final-stage client activation is merged at `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The exact-main final-stage preflight passed and the bounded server-side transition subsequently completed successfully: fresh planner `ALREADY_COMPLETE`, exact matched IDs `[929,930,931]`, no missing/conflicts/duplicates/extras/blockers, no portal row mutation, stage `PORTAL_VERIFIED` at row_version 14, workflow row_version unchanged at 11, and durable `COMPOSITION_STAGE_PORTAL_VERIFIED` audit evidence. The next gate is representative regression, followed by the WP-06 closure audit. QC Register and final Submit remain excluded.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:
