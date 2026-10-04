@@ -179,3 +179,18 @@ Exact next: WP04-G4-S0 — Read-only artifact hash reconciliation, then server-o
 Workflow: bounded offline implementation → independent audit → identity reconciliation → separately reviewed server/environment proof.
 WP progress: G0–G3 complete at documented levels; G4 active. Programme progress: 4 of 13.
 Parked/locked unchanged; DEC-014 preserved; WP03 closed; feature/docs branches unmerged. No production mutation/merge/tag/release.
+
+
+## Artifact identity reconciliation closed — 2026-10-04
+
+Cursor read-only reconciliation reports expected main 6e5d11ea, docs entry 5a769263 and feature 24746d60 unchanged; independent fetch confirms all refs. Exact git cat-file bytes are LF-only and match all three authoritative hashes in the preceding independent audit. Windows worktree CRLF-to-LF bytes also match. Earlier mismatched handoff hashes came from git-show text piping through PowerShell into Python, which altered the byte stream; they were not exact Git-blob hashes. Cursor reports no code/commit/reset change and dirty original checkout preserved. Explanation attributed to Cursor's local evidence; independently audited exact blobs remain the authority.
+
+**Hash reconciliation CLOSED.** Launcher offline acceptance at 24746d60f46773c5d121633e8ebc9b4d374646ab stands. Future reviewed authority must use the recorded exact blob/LF hashes (launcher 360ce974…, tests 1b932559…, README 0f7fdb94…), never the superseded polluted pipe hashes. No repeat coding/tests/console proof required by this closure; no new parked finding or permanent lock. Local invalid dependency manifest remains preserved/excluded.
+
+Prerequisite review: reviewed offline wrapper, launcher, runtime and bounded fake-console evidence now support preparation of the isolated-environment package. Existing proposed target remains standalone wp04-readiness-proof in ap-south-1, not provisioned. Organization selection and actual applicable quotation/recurrence/retention consent remain absent; no approved project identity/defaults/hooks/fixtures/native evidence exists. Next sequence remains: concrete organization/cost/lifecycle and creation package review → explicitly authorized isolated creation and identity/default checks → separately reviewed ChatGPT baseline/fixture and target-bound Auth/API proof → parity/access/performance proof. No source-scale/CSE/full-payload result is inferred from offline PASS. DEC-014 makes server work ChatGPT-owned, not dependent on a Git merge.
+
+Current: WP04-G4-S0 — Offline launcher accepted; artifact identity reconciled; isolated environment not ready.
+Exact next: WP04-G4-S0 — Isolated-target organization/cost/lifecycle and creation-package review.
+Workflow: offline implementation and independent audit complete → separate environment review.
+WP progress: G0–G3 complete at documented levels; G4 active. Programme: 4 of 13.
+Paid target HOLD; no live keys/Auth/API/SQL/provisioning/production/client mutation or merge/tag/release. WP03 closed; DEC-014/parked/locked boundaries unchanged; branches unmerged.
