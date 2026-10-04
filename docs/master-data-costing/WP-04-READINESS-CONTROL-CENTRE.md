@@ -1609,3 +1609,28 @@ A pre-existing local truncation of WP04-S0-DEPENDENCY-MANIFEST.json was observed
 Current: WP04-G4-S0 — Operator-launcher targeted re-audit; trusted-report-coverage gap open.
 Exact next: WP04-G4-S0 — Operator-launcher narrow report-coverage correction, then independent re-audit.
 Programme 4 of 13; G0–G3 complete at documented levels, G4 active; WP03 closed; DEC-014/parked/locks unchanged; branches unmerged; paid target HOLD.
+
+
+## Narrow report-coverage independent re-audit at 24746d6 — 2026-10-04
+
+Fetched expected main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f, docs entry a506f1cbf6516a2ae1f084210957b4a02479931e and feature 24746d60f46773c5d121633e8ebc9b4d374646ab (parent 36169410190cdccbc6ccbb6d22ee8a1630576af9). Exactly operator_launcher.py, test_operator_launcher.py and README.md changed. Accepted harness/wrapper/tests/example unchanged. Independently extracted exact Git blobs, read correction, ran 113 tests: 112 PASS / 1 Windows-only reparse SKIP. Cursor reports 113 total with 3 Windows symlink-privilege skips; neither establishes complete native/Windows path proof. Default launcher/wrapper/harness CLIs remain OFF/NOT_RUN/zero network. Tests use guarded fake transports and temporary local files; no real credentials/prompts/Auth/API/SQL/target/cost/production operation.
+
+Disposition: **operator launcher accepted at reviewed offline implementation scope at exact Git SHA 24746d6.** Public formatter refuses PASS without trusted coverage. Bound report revalidates authority/spec and compares case rows against retained exact reviewed IDs; absent/subset/extra/duplicate/reorder/live-binding mismatch regressions refuse. Full reviewed fake sequence remains assertions-only PASS with network_calls=0. Independent additional reproduction replacing the bound spec cases via dataclasses.replace then building a full report refused spec_drift and made launcher terminal. Prior error/cancellation/disposal/transport regressions retained. No new code correction is required by this audit. Acceptance is not permission for real keys, live execution, target provisioning, fixture writes, merge or release, nor full readiness/CSE/performance proof. Reviewed private state and trusted local files remain the trust boundary; no hostile-process or race-proof claim.
+
+Handoff metadata discrepancy: Cursor-reported new-file hashes (launcher 71e61b5e…, tests a6d76deb…, README 493d0d89…) do not match independently extracted Git blobs at the reported SHA. Files have LF only (no CR bytes), so CRLF normalization does not explain this. Authoritative independently audited LF SHA-256 values:
+
+| File | SHA-256 |
+| --- | --- |
+| operator_launcher.py | 360ce9744cba66d93217ff25728d4ef6997759913a078073881ec929723598ac |
+| test_operator_launcher.py | 1b9325591df7f4ad7258cd0f30c01fd4d3b9c96a77397a7c68f742f20499bdac |
+| README.md | 0f7fdb9490c035adcf9408a3c3975c4e2143298c48d286a3471cf38f205742c4 |
+
+Accepted harness 3fad74acdbf82ea14c6aa05027c9e43f566e46588ceca905daa904857f7a5eed and wrapper 36b897a0d1f2596a99c19631bb0bf6117f7757a658de28f3b45cc1d40386abdb match. No execution approval may bind the mismatched handoff hashes. Next is a read-only Cursor reconciliation: fetch expected refs, hash exact git show 24746d6:path bytes using hashlib after CRLF-to-LF normalization; compare worktree bytes separately and explain source of reported hashes. Do not modify code, accepted files or dirty files, commit/push, reset/clean, rebase/main merge, repeat console proof or use credentials/network/Auth/SQL. Unexpected ref movement stops for review. This is artifact identity reconciliation, not a new implementation cycle or parked finding.
+
+Pre-existing invalid local dependency manifest remains byte-for-byte preserved/excluded; no committed authority was changed. Upstream wrapper and bounded Windows fake-console proof remain accepted. Isolated environment/target/cost/native/fixture/server/performance work remains separately reviewed and unavailable; paid target HOLD.
+
+Current: WP04-G4-S0 — Operator-launcher offline audit accepted; handoff hash reconciliation open.
+Exact next: WP04-G4-S0 — Read-only artifact hash reconciliation, then server-owned isolated-environment prerequisite review.
+Workflow: bounded offline implementation → independent audit → identity reconciliation → separately reviewed server/environment proof.
+WP progress: G0–G3 complete at documented levels; G4 active. Programme progress: 4 of 13.
+Parked/locked unchanged; DEC-014 preserved; WP03 closed; feature/docs branches unmerged. No production mutation/merge/tag/release.
