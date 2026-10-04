@@ -307,11 +307,12 @@ begin
   from jsonb_array_elements(v_rows) x(row)
  ), incidences as materialized (
   select r.sku_id,'DEPENDENCY'::text as incidence_kind,d->>'dependency_code' as dependency_code,
-   null::text as issue_code,d->>'owner_module' as owner_module,d->>'recommended_ui_route' as route_code
+   null::text as issue_code,d->>'owner_module' as owner_module,d->>'recommended_ui_route' as route_code,
+   null::jsonb as shared_issue
   from r cross join lateral jsonb_array_elements(r.assessment->'dependencies') x(d)
   where d->>'applicability'<>'NOT_REQUIRED' and coalesce(d->>'effective_status',d->>'raw_status') in ('BLOCKED','BLOCKER','REVIEW_REQUIRED','UNKNOWN')
   union all
-  select r.sku_id,'SHARED',d->>'dependency_code',d->>'issue_code',d->>'owner_module',d->>'recommended_ui_route'
+  select r.sku_id,'SHARED',d->>'dependency_code',d->>'issue_code',d->>'owner_module',d->>'recommended_ui_route',d
   from r cross join lateral jsonb_array_elements(r.assessment->'shared_issues') x(d)
   where d->>'status' in ('BLOCKED','BLOCKER','REVIEW_REQUIRED','UNKNOWN')
  ), matched as materialized (
@@ -328,7 +329,11 @@ begin
  dependency_counts as (select dependency_code,count(distinct sku_id) as affected_sku_count from incidences where dependency_code is not null group by dependency_code),
  owner_counts as (select owner_module,count(distinct sku_id) as affected_sku_count from incidences where owner_module is not null group by owner_module),
  route_counts as (select route_code,count(distinct sku_id) as affected_sku_count from incidences where route_code is not null group by route_code),
- shared_counts as (select issue_code,count(distinct sku_id) as affected_sku_count from incidences where incidence_kind='SHARED' and issue_code is not null group by issue_code),
+ shared_counts as (
+  select shared_issue as issue,count(distinct sku_id) as affected_sku_count,
+   array_agg(distinct sku_id order by sku_id) as affected_sku_ids
+  from incidences where incidence_kind='SHARED' group by shared_issue
+ ),
  regional as (
   select distinct r.sku_id,e->>'region_code' as region_code,e->>'raw_status' as raw_status,e->>'effective_status' as effective_status
   from r cross join lateral jsonb_array_elements(r.assessment->'dependencies') x(d)
@@ -346,7 +351,10 @@ begin
    'unresolved_dependency_counts',coalesce((select jsonb_agg(to_jsonb(x) order by dependency_code) from dependency_counts x),'[]'::jsonb),
    'unresolved_owner_counts',coalesce((select jsonb_agg(to_jsonb(x) order by owner_module) from owner_counts x),'[]'::jsonb),
    'unresolved_route_counts',coalesce((select jsonb_agg(to_jsonb(x) order by route_code) from route_counts x),'[]'::jsonb),
-   'unresolved_shared_issue_counts',coalesce((select jsonb_agg(to_jsonb(x) order by issue_code) from shared_counts x),'[]'::jsonb),
+   'shared_issue_summary_basis','CANONICAL_ASSESSED_SKU_REFERENCES',
+   'unresolved_shared_issue_counts',coalesce((select jsonb_agg(jsonb_build_object(
+    'context',jsonb_build_object('context_type','LIVE_AS_OF','period_start',v_period,'valuation_date',v_val,'refresh_run_id',null,'evidence_refresh_run_id',v_run),
+    'issue',issue,'affected_sku_count',affected_sku_count,'affected_sku_ids',affected_sku_ids) order by issue) from shared_counts),'[]'::jsonb),
    'regional_marketing_counts',coalesce((select jsonb_agg(to_jsonb(x) order by region_code,raw_status,effective_status) from regional_counts x),'[]'::jsonb)),
   'matched_count',(select count(*) from matched),'returned_count',(select count(*) from page),
   'rows',coalesce((select jsonb_agg(assessment order by sku_id) from page),'[]'::jsonb),
@@ -389,4 +397,42 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)') AND proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres') AND provolatile='s' AND prosecdef AND prorettype='jsonb'::regtype AND proconfig=ARRAY['search_path=public, costing, pg_temp']::text[]) THEN RAISE EXCEPTION 'Candidate function attributes mismatch'; END IF;
  IF NOT has_function_privilege('authenticated','public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)','EXECUTE') THEN RAISE EXCEPTION 'Public reader grant missing'; END IF;
 END $guard$;
+-- Exact reviewed identity, including the complete ACL set (order independent).
+DO $identity$
+DECLARE expected record; actual record; actual_acl text[];
+BEGIN
+ FOR expected IN SELECT * FROM (VALUES
+  ('costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb)','7f7528b3dec9efa0dd0a9ba7e59fc50b',ARRAY['p_base','p_sku_id','p_period_start','p_valuation_date','p_refresh_run_id','p_shared_issues']::text[],NULL::text,0,'search_path=costing, public, pg_temp',ARRAY['postgres:postgres:EXECUTE:false']::text[]),
+  ('costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)','c1f37b9477f239cf87c44901ecd3ca6e',ARRAY['p_base','p_sku_id','p_period_start','p_valuation_date','p_refresh_run_id']::text[],NULL::text,0,'search_path=costing, public, pg_temp',ARRAY['postgres:postgres:EXECUTE:false','service_role:postgres:EXECUTE:false']::text[]),
+  ('costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)','b79c5e8476aa3c645cf6c1083909beb6',ARRAY['p_sku_id','p_period_start','p_valuation_date','p_evidence_run_id','p_route_evidence','p_shared_issues']::text[],NULL::text,0,'search_path=costing, public, pg_temp',ARRAY['postgres:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_product_sku_readiness(bigint,date,text,bigint)','7c54b0edc159d08647e8df73d51fbe51',ARRAY['p_sku_id','p_period_start','p_context_type','p_refresh_run_id']::text[],'''LIVE_AS_OF''::text, NULL::bigint',2,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false','service_role:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_readiness_governed_periods(date,integer)','671e150396f388875735e68818dcb574',ARRAY['p_before_period_start','p_limit']::text[],'NULL::date, 24',2,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer)','4ae66ab181270cfd41e16d2969d20d58',ARRAY['p_product_scope','p_gap_kind','p_search','p_after_product_id','p_limit']::text[],'''ACTIVE_PRODUCTS''::text, ''NO_SKU''::text, NULL::text, NULL::bigint, 50',5,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)','4c841fe074170a13b9dbca57c5aeacbc',ARRAY['p_period_start','p_population_scope','p_overall_severities','p_dependency_codes','p_owner_modules','p_route_codes','p_search','p_after_sku_id','p_limit']::text[],'''OPERATIONAL''::text, NULL::text[], NULL::text[], NULL::text[], NULL::text[], NULL::text, NULL::bigint, 50',8,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false']::text[])
+ ) AS e(signature,body_md5,argnames,defaults_expression,default_count,path_setting,acl_entries)
+ LOOP
+  SELECT p.*,l.lanname,r.rolname AS owner_name INTO actual
+   FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang JOIN pg_roles r ON r.oid=p.proowner
+   WHERE p.oid=to_regprocedure(expected.signature);
+  IF NOT FOUND THEN RAISE EXCEPTION 'Reviewed package function missing: %',expected.signature; END IF;
+  SELECT array_agg(coalesce(grantee_role.rolname,'PUBLIC')||':'||grantor_role.rolname||':'||a.privilege_type||':'||a.is_grantable::text ORDER BY coalesce(grantee_role.rolname,'PUBLIC'),grantor_role.rolname,a.privilege_type,a.is_grantable)
+   INTO actual_acl FROM aclexplode(coalesce(actual.proacl,acldefault('f',actual.proowner))) a
+   LEFT JOIN pg_roles grantee_role ON grantee_role.oid=a.grantee
+   JOIN pg_roles grantor_role ON grantor_role.oid=a.grantor;
+  IF md5(actual.prosrc) IS DISTINCT FROM expected.body_md5
+   OR actual.owner_name IS DISTINCT FROM 'postgres'
+   OR actual.lanname IS DISTINCT FROM 'plpgsql'
+   OR actual.prorettype IS DISTINCT FROM 'jsonb'::regtype
+   OR actual.proargnames IS DISTINCT FROM expected.argnames
+   OR actual.pronargdefaults IS DISTINCT FROM expected.default_count
+   OR pg_get_expr(actual.proargdefaults,0) IS DISTINCT FROM expected.defaults_expression
+   OR actual.proargmodes IS NOT NULL OR actual.proallargtypes IS NOT NULL
+   OR actual.provariadic<>0 OR actual.proretset OR actual.prokind<>'f'
+   OR actual.procost<>100 OR actual.prorows<>0 OR actual.prosupport<>0 OR actual.protrftypes IS NOT NULL
+   OR actual.provolatile<>'s' OR NOT actual.prosecdef OR actual.proisstrict OR actual.proleakproof OR actual.proparallel<>'u'
+   OR actual.proconfig IS DISTINCT FROM ARRAY[expected.path_setting]::text[]
+   OR actual_acl IS DISTINCT FROM expected.acl_entries
+  THEN RAISE EXCEPTION 'Reviewed package identity drift: %',expected.signature; END IF;
+ END LOOP;
+END $identity$;
 COMMIT;

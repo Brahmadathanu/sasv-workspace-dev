@@ -14,8 +14,46 @@ BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.rpc_get_product_sku_readiness(bigint,date,text,bigint)')) IS DISTINCT FROM '7c54b0edc159d08647e8df73d51fbe51' THEN RAISE EXCEPTION 'Rollback candidate missing/drifted'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.rpc_get_readiness_governed_periods(date,integer)')) IS DISTINCT FROM '671e150396f388875735e68818dcb574' THEN RAISE EXCEPTION 'Rollback candidate missing/drifted'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer)')) IS DISTINCT FROM '4ae66ab181270cfd41e16d2969d20d58' THEN RAISE EXCEPTION 'Rollback candidate missing/drifted'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)')) IS DISTINCT FROM 'ba2b475ea7088b4e84e9c232362087e5' THEN RAISE EXCEPTION 'Rollback candidate missing/drifted'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)')) IS DISTINCT FROM '4c841fe074170a13b9dbca57c5aeacbc' THEN RAISE EXCEPTION 'Rollback candidate missing/drifted'; END IF;
 END $guard$;
+-- Exact reviewed identity, including the complete ACL set (order independent).
+DO $identity$
+DECLARE expected record; actual record; actual_acl text[];
+BEGIN
+ FOR expected IN SELECT * FROM (VALUES
+  ('costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb)','7f7528b3dec9efa0dd0a9ba7e59fc50b',ARRAY['p_base','p_sku_id','p_period_start','p_valuation_date','p_refresh_run_id','p_shared_issues']::text[],NULL::text,0,'search_path=costing, public, pg_temp',ARRAY['postgres:postgres:EXECUTE:false']::text[]),
+  ('costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)','c1f37b9477f239cf87c44901ecd3ca6e',ARRAY['p_base','p_sku_id','p_period_start','p_valuation_date','p_refresh_run_id']::text[],NULL::text,0,'search_path=costing, public, pg_temp',ARRAY['postgres:postgres:EXECUTE:false','service_role:postgres:EXECUTE:false']::text[]),
+  ('costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)','b79c5e8476aa3c645cf6c1083909beb6',ARRAY['p_sku_id','p_period_start','p_valuation_date','p_evidence_run_id','p_route_evidence','p_shared_issues']::text[],NULL::text,0,'search_path=costing, public, pg_temp',ARRAY['postgres:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_product_sku_readiness(bigint,date,text,bigint)','7c54b0edc159d08647e8df73d51fbe51',ARRAY['p_sku_id','p_period_start','p_context_type','p_refresh_run_id']::text[],'''LIVE_AS_OF''::text, NULL::bigint',2,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false','service_role:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_readiness_governed_periods(date,integer)','671e150396f388875735e68818dcb574',ARRAY['p_before_period_start','p_limit']::text[],'NULL::date, 24',2,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer)','4ae66ab181270cfd41e16d2969d20d58',ARRAY['p_product_scope','p_gap_kind','p_search','p_after_product_id','p_limit']::text[],'''ACTIVE_PRODUCTS''::text, ''NO_SKU''::text, NULL::text, NULL::bigint, 50',5,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false']::text[]),
+  ('public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)','4c841fe074170a13b9dbca57c5aeacbc',ARRAY['p_period_start','p_population_scope','p_overall_severities','p_dependency_codes','p_owner_modules','p_route_codes','p_search','p_after_sku_id','p_limit']::text[],'''OPERATIONAL''::text, NULL::text[], NULL::text[], NULL::text[], NULL::text[], NULL::text, NULL::bigint, 50',8,'search_path=public, costing, pg_temp',ARRAY['authenticated:postgres:EXECUTE:false','postgres:postgres:EXECUTE:false']::text[])
+ ) AS e(signature,body_md5,argnames,defaults_expression,default_count,path_setting,acl_entries)
+ LOOP
+  SELECT p.*,l.lanname,r.rolname AS owner_name INTO actual
+   FROM pg_proc p JOIN pg_language l ON l.oid=p.prolang JOIN pg_roles r ON r.oid=p.proowner
+   WHERE p.oid=to_regprocedure(expected.signature);
+  IF NOT FOUND THEN RAISE EXCEPTION 'Reviewed package function missing: %',expected.signature; END IF;
+  SELECT array_agg(coalesce(grantee_role.rolname,'PUBLIC')||':'||grantor_role.rolname||':'||a.privilege_type||':'||a.is_grantable::text ORDER BY coalesce(grantee_role.rolname,'PUBLIC'),grantor_role.rolname,a.privilege_type,a.is_grantable)
+   INTO actual_acl FROM aclexplode(coalesce(actual.proacl,acldefault('f',actual.proowner))) a
+   LEFT JOIN pg_roles grantee_role ON grantee_role.oid=a.grantee
+   JOIN pg_roles grantor_role ON grantor_role.oid=a.grantor;
+  IF md5(actual.prosrc) IS DISTINCT FROM expected.body_md5
+   OR actual.owner_name IS DISTINCT FROM 'postgres'
+   OR actual.lanname IS DISTINCT FROM 'plpgsql'
+   OR actual.prorettype IS DISTINCT FROM 'jsonb'::regtype
+   OR actual.proargnames IS DISTINCT FROM expected.argnames
+   OR actual.pronargdefaults IS DISTINCT FROM expected.default_count
+   OR pg_get_expr(actual.proargdefaults,0) IS DISTINCT FROM expected.defaults_expression
+   OR actual.proargmodes IS NOT NULL OR actual.proallargtypes IS NOT NULL
+   OR actual.provariadic<>0 OR actual.proretset OR actual.prokind<>'f'
+   OR actual.procost<>100 OR actual.prorows<>0 OR actual.prosupport<>0 OR actual.protrftypes IS NOT NULL
+   OR actual.provolatile<>'s' OR NOT actual.prosecdef OR actual.proisstrict OR actual.proleakproof OR actual.proparallel<>'u'
+   OR actual.proconfig IS DISTINCT FROM ARRAY[expected.path_setting]::text[]
+   OR actual_acl IS DISTINCT FROM expected.acl_entries
+  THEN RAISE EXCEPTION 'Reviewed package identity drift: %',expected.signature; END IF;
+ END LOOP;
+END $identity$;
 DROP FUNCTION public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer);
 DROP FUNCTION public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer);
 DROP FUNCTION public.rpc_get_readiness_governed_periods(date,integer);

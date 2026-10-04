@@ -46,15 +46,15 @@
     },
     {
       "signature": "public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)",
-      "body_md5": "ba2b475ea7088b4e84e9c232362087e5",
+      "body_md5": "4c841fe074170a13b9dbca57c5aeacbc",
       "kind": "new"
     }
   ],
   "files_sha256": {
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
-    "forward-draft.sql": "8d7a0edf1acba188eebe0ade376254c79f6e2788734eeff4d1e9863133ac26e1",
-    "rollback-draft.sql": "2708cb1f50c8caa1897a622648d83c8356991e769bb2d29dadd9dc15a218b1a2",
-    "REVIEW.md": "87eb1f62456dbcb90252913baf23ad2a2caed1f513f03690257ffb1fe8bb23a2"
+    "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
+    "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
+    "REVIEW.md": "3e05896109c6d5316e6bfa4064bde3313f6e0950e1daa8032948daa24151315d"
   },
   "runtime_compilation": "NOT_RUN",
   "forward_rollback_rehearsal": "NOT_RUN",
@@ -73,11 +73,251 @@
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
   },
-  "review_disposition": "CORRECTIONS_REQUIRED_APPLICATION_HOLD",
+  "review_disposition": "DRAFT_CORRECTIONS_CHECKED_EXECUTION_PROOF_BLOCKED_APPLICATION_HOLD",
   "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
   "review_items": [
     "G4-R01 shared issue identity",
     "G4-R02 complete package/rollback identity guards",
     "G4-R03 unresolved proof disposition"
-  ]
+  ],
+  "candidate_catalog_identities": [
+    {
+      "signature": "costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb)",
+      "body_md5": "7f7528b3dec9efa0dd0a9ba7e59fc50b",
+      "argnames": [
+        "p_base",
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id",
+        "p_shared_issues"
+      ],
+      "defaults_expression": null,
+      "default_count": 0,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+      "body_md5": "c1f37b9477f239cf87c44901ecd3ca6e",
+      "argnames": [
+        "p_base",
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id"
+      ],
+      "defaults_expression": null,
+      "default_count": 0,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false",
+        "service_role:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)",
+      "body_md5": "b79c5e8476aa3c645cf6c1083909beb6",
+      "argnames": [
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_evidence_run_id",
+        "p_route_evidence",
+        "p_shared_issues"
+      ],
+      "defaults_expression": null,
+      "default_count": 0,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+      "body_md5": "7c54b0edc159d08647e8df73d51fbe51",
+      "argnames": [
+        "p_sku_id",
+        "p_period_start",
+        "p_context_type",
+        "p_refresh_run_id"
+      ],
+      "defaults_expression": "'LIVE_AS_OF'::text, NULL::bigint",
+      "default_count": 2,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false",
+        "service_role:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_readiness_governed_periods(date,integer)",
+      "body_md5": "671e150396f388875735e68818dcb574",
+      "argnames": [
+        "p_before_period_start",
+        "p_limit"
+      ],
+      "defaults_expression": "NULL::date, 24",
+      "default_count": 2,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer)",
+      "body_md5": "4ae66ab181270cfd41e16d2969d20d58",
+      "argnames": [
+        "p_product_scope",
+        "p_gap_kind",
+        "p_search",
+        "p_after_product_id",
+        "p_limit"
+      ],
+      "defaults_expression": "'ACTIVE_PRODUCTS'::text, 'NO_SKU'::text, NULL::text, NULL::bigint, 50",
+      "default_count": 5,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)",
+      "body_md5": "4c841fe074170a13b9dbca57c5aeacbc",
+      "argnames": [
+        "p_period_start",
+        "p_population_scope",
+        "p_overall_severities",
+        "p_dependency_codes",
+        "p_owner_modules",
+        "p_route_codes",
+        "p_search",
+        "p_after_sku_id",
+        "p_limit"
+      ],
+      "defaults_expression": "'OPERATIONAL'::text, NULL::text[], NULL::text[], NULL::text[], NULL::text[], NULL::text, NULL::bigint, 50",
+      "default_count": 8,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    }
+  ],
+  "correction_status": {
+    "G4-R01": "DRAFT_CORRECTED_STATIC_AND_READONLY_EXPRESSION_CHECKED",
+    "G4-R02": "DRAFT_CORRECTED_STATIC_AND_EXISTING_CATALOG_EXPRESSION_CHECKED",
+    "G4-R03": "RUNTIME_ACCESS_PAYLOAD_PERFORMANCE_ROLLBACK_UNRESOLVED"
+  },
+  "proof_capabilities": {
+    "connected_projects": 1,
+    "existing_development_branches": 0,
+    "workspace_postgresql_runtime": "NOT_FOUND",
+    "candidate_functions": "ABSENT",
+    "runtime_compile_parity_rollback": "BLOCKED_NO_APPROVED_EXISTING_RUNTIME",
+    "native_api_performance": "BLOCKED_WITH_CANDIDATE_EXECUTION"
+  }
 }

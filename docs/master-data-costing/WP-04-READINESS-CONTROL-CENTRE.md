@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Independent exact package review completed; bounded corrections required, application HOLD.
+WP04-G4 — Bounded draft corrected; pre-application execution proof BLOCKED.
 
 ## Gate Status
-[~] IN PROGRESS. Exact draft and independent plan review complete. G4-R01/R02 corrections and G4-R03 proof disposition remain required; application HOLD. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
+[!] BLOCKED at execution-proof/application boundary. G4-R01/R02 draft corrections completed and bounded checks passed; G4-R03 has no established approved execution target. Corrected-package acceptance/proof disposition review remains required. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
 
 ## Required to close
-Close the consolidated G4-R01 shared-issue identity and G4-R02 full package/rollback identity findings, then explicitly disposition G4-R03 runtime/parity/access/payload/performance/rollback proof. Preserve canonical equivalence and approved scope. No application before reviewed proof/authorization; no new infrastructure or production mutation in this review.
+Accept/review the corrected G4-R01 shared-issue identity and G4-R02 package/rollback identity safeguards, then explicitly disposition G4-R03 runtime/parity/access/payload/performance/rollback proof. Preserve canonical equivalence and approved scope. No application before reviewed proof/authorization; no new infrastructure or production mutation in this review.
 
 ## Next gate
-WP04-G4 — Corrected exact package and concrete verification disposition review; direct implementation only after reviewed prerequisites and explicit application authorization. G5 client work remains dependent on a verified server contract.
+WP04-G4 — Corrected package acceptance and explicit proof-boundary disposition review; application stays HOLD until reviewed prerequisites and explicit authorization. G5 client work remains dependent on a verified server contract.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -803,3 +803,18 @@ Current gate: WP04-G4 — Exact package review completed; corrections required, 
 Next: WP04-G4 — Corrected package and concrete verification disposition review.
 Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
 Locked: canonical server authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014 preserved; WP03 closed. No production mutation, spend, merge, tag or release.
+
+
+## WP04-G4 — Bounded correction and capability checkpoint (2026-10-04)
+
+G4-R01/R02 are corrected in the unapplied draft; see [REVIEW.md](server-packages/wp04-g4/REVIEW.md#bounded-draft-corrections-and-verification-disposition-2026-10-04). Shared summaries preserve complete canonical issue/evidence identity, response context and distinct observed SKU references. Identical seven-function forward-post/rollback-pre identity checks cover bodies, defaults/arguments/settings/owners and full direct ACLs. Six non-portfolio AS bodies and exact captured restoration text are unchanged. Bounded READ ONLY literal aggregation and existing catalog-expression checks passed; they do not establish candidate execution or native/API parity.
+
+G4-R03 is a genuine execution-proof blocker: connected project list exposes only production; development branches empty; no PostgreSQL runtime found in this workspace; candidate functions absent. No new infrastructure proposal/requirement, cost, actor/fixture or production DDL was introduced. SELECT-only existing access supports source/payload/baseline checks but cannot compile/invoke absent candidate functions or rehearse exact forward/rollback. A production rollback-only rehearsal remains unauthorized. Required proof cannot be converted into PASS; any alternative or change to proof prerequisites needs explicit independent review under the unchanged MD. No general environment/tooling loop is reopened.
+
+Workflow: bounded draft corrections/checks complete → corrected-package acceptance/proof-boundary disposition → authorized server implementation/live verification → bounded client package.
+WP progress: G0–G3 complete at documented levels; G4 not complete, blocked at pre-application execution-proof boundary.
+Programme progress: 4 of 13.
+Current gate: WP04-G4 — Corrected draft prepared; execution proof BLOCKED.
+Next: WP04-G4 — Corrected package acceptance and explicit proof-boundary disposition review.
+Parked: UX-P01/02, NAV-P01/02, CSE-P01, SEC-P01/02 unchanged.
+Locked: canonical authority, lifecycle/readiness separation, fail-closed evidence, governed context, specialist ownership and DEC-014; WP03 closed. No production mutation/spend/merge/tag/release; branches unmerged.
