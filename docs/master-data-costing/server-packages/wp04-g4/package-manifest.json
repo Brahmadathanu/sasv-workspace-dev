@@ -400,8 +400,8 @@
     "within_5s_statistics_goal": false
   },
   "performance_disposition": {
-    "status": "CORRECTED_SINGLE_MEASUREMENT_GOALS_NOT_MET_REMAINING_PROOF_REVIEW",
-    "portfolio_executions_this_gate": 1,
+    "status": "CORRECTED_MEASURED_REVIEW_COMPLETE_EXACT_HELPER_DIAGNOSTIC_PLAN_NEXT",
+    "portfolio_executions_this_gate": 0,
     "explain_analyze": false,
     "dominant_time_path": "NOT_MEASURED",
     "confirmed_core_evaluations_per_operational_response": 611,
@@ -412,7 +412,10 @@
     ],
     "conditional_batching": "EXCLUDED_PENDING_MEASURED_JUSTIFICATION",
     "implementation_authorized": false,
-    "next_gate": "MEASURED_CORRECTED_PERFORMANCE_DISPOSITION_AND_REMAINING_PROOF_REVIEW"
+    "next_gate": "EXACT_BOUNDED_EXISTING_HELPER_DIAGNOSTIC_PROPOSAL_PREPARATION_AND_REVIEW",
+    "review_record": "CORRECTED_PERFORMANCE_REVIEW.md",
+    "new_runtime_measurements": 0,
+    "diagnostic_execution_authorized": false
   },
   "performance_plan_review": {
     "status": "ACCEPTED_PLAN_SCOPE_FROZEN_WITH_REFINEMENTS",

@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Corrected operational performance result assessed at bounded scope; performance goals not met.
+WP04-G4 — Measured corrected-performance and remaining-proof review COMPLETE AT EVIDENCE/PLAN SCOPE.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Bounded parity/restoration PASS; corrected611 portfolio8,174.908ms, above3s/5s goals. One authorization consumed; no further execution authorized. G0–G3 retained; programme4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Limited corrected parity/restoration retained;8.17s still above provisional goals. No subsequent operation authorized; prior authorizations consumed. G0–G3 retained; programme4/13.
 
 ## Required to close
-Review residual measured performance and remaining allSKU/CSE/edge/ALL_EXISTING/API/payload/wider-performance/rollback proof without waivers. Do not promote first-row parity or single latency to full G4. Any new production operation requires a reviewed frozen package and explicit authorization.
+Resolve residual cost attribution and existing allSKU/CSE/edge/ALL_EXISTING/access/payload/performance/rollback proof or explicit reviewed disposition without waivers. No target/scope/business-rule adjustment approved. Any further operation requires a concrete frozen proposal and appropriate authorization.
 
 ## Next gate
-WP04-G4 — Measured corrected-performance disposition and remaining-proof review. No new portfolio test, optimization, deployment or client implementation authorized.
+WP04-G4 — Exact bounded read-only existing-helper diagnostic proposal preparation and independent review per CORRECTED_PERFORMANCE_REVIEW.md. No diagnostic execution, repeat portfolio test, optimization, deployment or client implementation authorized.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -908,3 +908,7 @@ Main e421fe8/auditae4eacd unchanged. [CORRECTED_PERFORMANCE_PROPOSAL.md](server-
 ## 2026-10-04 — Authorized corrected portfolio measurement / restoration / disposition
 
 WP04-G4 — Single explicitly authorized corrected OPERATIONAL portfolio test completed. Bounded count/context/envelope/first-row parity PASS; latency8,174.908ms versus historical10,822.426ms (24.46% observed reduction), still above3s/5s goals. Exact restore/ROLLBACK and separate original-state readback PASS; candidates0/idleWP040. Authorization consumed; G4 incomplete/application HOLD, G5 blocked, programme4/13. Next measured corrected-performance disposition/remaining-proof review; no new test/optimization/deployment/client authorization. Main e421fe8 unchanged; DEC-014 preserved. See [CORRECTED_PERFORMANCE_RESULT.md](server-packages/wp04-g4/CORRECTED_PERFORMANCE_RESULT.md) and sanitized JSON for exact evidence/limits. Frozen SQL/prior evidence preserved. Stop after assessment.
+
+## 2026-10-04 — Corrected measured-performance / remaining-proof review
+
+WP04-G4 — Corrected measured-performance/remaining-proof review COMPLETE at evidence/plan scope. Retain bounded correctness/restoration PASS and8,174.908ms observation;3s/5s goals missed, p95/all-existing/inner attribution unproved. Source confirms611private assessments with once-per-response route/shared/context; no new runtime test. Next exact bounded read-only existing-helper diagnostic proposal preparation/independent review, then separate explicit read-load authorization if accepted. G4 incomplete/application HOLD; G5 blocked; programme4/13; main e421fe8 unchanged; DEC-014/parked/locked preserved. [CORRECTED_PERFORMANCE_REVIEW.md](server-packages/wp04-g4/CORRECTED_PERFORMANCE_REVIEW.md) ranks residual hypotheses, preserves proof limits and recommends at most eight existing-helper measurements at proposal scope only. No SQL/livetest/candidate/configuration/authority change this checkpoint; unrelated draft/frozen evidence preserved.
