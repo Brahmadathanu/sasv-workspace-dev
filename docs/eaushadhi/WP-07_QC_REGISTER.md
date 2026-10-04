@@ -52,8 +52,9 @@ Native reread and exact semantic proof are required before row verification.
 Final QC-stage verification is separate from row execution and never authorizes final product Submit.
 
 ## G2 — Server foundation implementation
-Implemented live on 2026-10-04 and repository-versioned on
-`feat/wp07-g2-qc-server-lifecycle`.
+Implemented live on 2026-10-04, repository-versioned on
+`feat/wp07-g2-qc-server-lifecycle`, and cleanly merged to `main` at
+`efa8f33b44ade2574af8f8ade4d97ff4d88009a0` after a 0-behind/no-overlap guard.
 
 Live migrations:
 - `20261004151444_wp07_qc_server_lifecycle_foundation`
@@ -71,6 +72,12 @@ Implemented:
 - bounded run-arm, Save-outcome, row-verification and final-stage-verification RPCs;
 - explicit QC audit-event writes;
 - no direct anonymous execution of QC lifecycle RPCs.
+
+Post-merge verification:
+- repository migration files exactly match live Supabase migration history;
+- Product 262 Product Details and Composition remain unchanged;
+- QC remains fail-closed with `READY=false` / `NO_GOVERNED_QC_RECORDS`;
+- merge created no Product 262 QC source, stage, run or QC audit row.
 
 Post-deployment proof:
 - Product 262 Product Details remains `PORTAL_VERIFIED` at workflow row_version 11;
