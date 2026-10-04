@@ -699,10 +699,10 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Minimum required server package and verification review.
+WP04-G4 — Exact minimum server-package preparation.
 
 ## Gate Status
-[~] IN PROGRESS. Environment/tooling detour withdrawn; no server/client functionality delivered or application approved.
+[~] IN PROGRESS. Direct live read-only reassessment complete; exact atomic package/rollback/proof review next. No server/client functionality delivered or application approved. Environment/tooling detour withdrawn.
 
 ## Required to close
 Identify the minimum genuinely required change against existing authoritative surfaces, review exact affected contracts/permissions/rollback and evidence needed, and provide one concrete implementation/proof recommendation. Preserve canonical readiness equivalence and acknowledge unproved performance/native/access coverage. No new infrastructure or production mutation in this review.
@@ -732,3 +732,38 @@ Locked: canonical server authority, lifecycle/readiness separation, fail-closed 
 Cursor/user reports removal commits verified, isolated feature worktree fast-forwarded from 24746d6 to 016bd4585598ecf11fc6968bb625e21130ceb60c with tracked files clean, dirty original checkout unchanged. Exact recorded temporary script hash 99cbecd224f9b87955cab357da810955f4ccbbe1e7949e26471c94e030d8e7c3 verified before removal; script and empty parent directory removed. This is reported Windows evidence, not a local filesystem observation by ChatGPT. Two other Windows TEMP copies (wp04-fake-console-aqlux2x_ and wp04-fake-console-vafwc9mc) have unmatched hash aa9d2576… and remain unverified/untouched; untracked __pycache__ also remains. No blanket cleanup or claim all local copies were removed. They confer no execution authority and do not block WP04.
 
 Independent fetch confirms main 6e5d11ea, docs removal dddff348 and feature removal 016bd458 unchanged. Infrastructure detour withdrawal and scoped cleanup closed; no further tool development/console/cost gate. Current/next WP04-G4 minimum required server-package and verification review unchanged. Programme 4 of 13; WP03 closed; DEC-014/parked/locks preserved; no production/provider mutation, credentials, merge/tag/release.
+
+
+## WP04-G4 — Direct live Supabase minimum-package review (2026-10-04)
+
+Entry fetch: main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f, docs fec4309dbeda7ee26b74d7cd9d869316a6ed8aef and feature-removal 016bd4585598ecf11fc6968bb625e21130ceb60c unchanged. Re-read IMPLEMENTATION_RULES, G3 accepted scope/constraints and current Control Center client dispatch. Followed installed Supabase skill. Connected target sasv-workspace / qhmoqtxpeasamtlxaoak / ACTIVE_HEALTHY / provider PG17 build 17.4.1.45. All SQL used BEGIN READ ONLY, SET LOCAL statement_timeout='10s' and ROLLBACK. No DDL/data/grant/RLS/Auth/fixture/cost/provisioning/refresh writer; transaction-local actor claim only for one authorized canonical sample. That is SQL inspection, not a native API login/denial proof.
+
+Fresh findings:
+
+| Evidence | Result / implication |
+| --- | --- |
+| Function inventory and full canonical/enrich/shared bodies | No full portfolio readiness reader; canonical remains one SKU + governed period/context. It calls whole Product-route readiness then selects Product; enrichment calls shared/global policy checks per SKU. No new authority or upstream regression found |
+| Canonical definition MD5 | 0e966c3c1ab15d56420b234f5c2cef1f, matches committed dated manifest |
+| Enrich definition MD5 | 65b40f9ac648ee077641c84eaee18497, matches committed dated manifest |
+| Shared issues / route / commercial point-helper MD5 | 7467604a4929b59412181c3c7481e0e8 / 29835ce9be925dfe0afdea8133d8217a / 68bd9325062299eb8af1291bf4d9393b; current bodies remain reviewed authority, no modifications |
+| Product/SKU population | 1342 Products (639 Active), 1793 SKUs (637 Active); OPERATIONAL membership 611; 516 Products without SKU; 179 Active Products without active SKU. Gap counts overlap and are not readiness verdicts |
+| Context | Latest governed period September2026, valuation 2026-09-10; Run115 SUCCESS, newer Run116 FAILED. Canonical excludes FAILED and selects SUCCESS for period+valuation; existing snapshot selector uses per-period CAPTURED_AT_REQUEST SUCCESS. Still distinct contracts |
+| Run115 base control rows | 489 READY + 147 REVIEW_REQUIRED =636. Frozen control counts, not full live-readiness population/severity totals; current public view can additionally overlay direct-labour route blocking |
+| Existing client / public control view | sku-control-status reads v_costing_pricing_sku_control_status_snapshot; existing dashboard/workbench reused. Public view contains monetary columns and frozen outcomes, not all canonical foundation/dependency dimensions. Cannot be renamed full LIVE_AS_OF readiness |
+| Bounded route EXPLAIN ANALYZE | Function Scan returned Product14, removed638 rows (639 assessed), one loop; execution2388.847ms, shared-hit214474/read336/dirtied1/written0. One observation, not SLA/concurrency/portfolio benchmark. Buffer dirtied statistic is not logical application-data mutation; transaction was read-only. Full N-SKU scan not run |
+| Authorization | anon cannot EXECUTE canonical/latest-period; authenticated can. Internal readiness/route helpers not callable by anon/authenticated. Existing canonical body enforces auth.uid and Manage Products OR Control Center view. Supplied actor has both view permissions; no assignments changed |
+| Canonical sample | SKU11 LIVE_AS_OF September, requested run null, evidence115: READY, five foundation/evidence/outcome dimensions preserved,17 dependencies,0 shared issues. No other full-payload/new permission proof inferred |
+| Exact candidate reader names | Zero overload/name collisions for rpc_get_readiness_governed_periods, rpc_get_product_sku_readiness_portfolio, rpc_get_readiness_product_gaps. They do not yet exist |
+
+**Review conclusion:** existing Control Center remains the placement; a client-only change or relabelled snapshot does not fulfill the accepted G1/G2 full-live scope. N per-SKU calls are inappropriate. G3's shared-evaluation server direction is still justified by live evidence. No smaller implementation has been proven to deliver the same contract; do not silently narrow it. No paid infrastructure/test-tool programme needed for this direct review, and withdrawn artifacts stay withdrawn.
+
+Minimum package recommendation (already stage-bound in G3, not apply authorization):
+1. Three bounded read-only public contracts: governed-period metadata, canonical portfolio readiness, separately labelled Product gaps. New readers enforce existing Control Center view; existing single-SKU/latest-period permissions unchanged. No new module/permission target/table/view/cache/job/writer.
+2. Factor existing canonical base assessment and enrichment into private reusable helpers as specified by G3; share governed context, complete route result and applicable shared/global issues once per response. Existing canonical/enrich wrappers delegate while preserving public signatures and LIVE_AS_OF/EXACT_RUN payload/semantics. Keep commercial point-helper, unordered consumption and CSE-P01 unresolved; no row selection/index/order change. This is the necessary high-risk compatibility seam, not a second readiness calculator.
+3. Existing Costing Suite gains the reviewed readiness lens only after server verification. Manage Products and specialist queues/editors remain upstream contracts. Owner/route text initially; no invented URLs or central specialist edits.
+
+Verification still required: exact canonical old/new equivalence including no-run/EXACT_RUN and caught global exceptions; CSE candidate/consumption compatibility; nested payload/notes monetary exposure; complete scopes/filter witness/count/page semantics; actual denied/view-only access; complete statistics/page cost; atomic forward/rollback and unchanged upstream consumers. Existing SQL reads do not discharge those requirements. No proof-stage substitution, new environment or production experiment is authorized here. Any unresolved proof must be explicitly dispositioned in the exact package review, not concealed or translated into an automatic spending prerequisite.
+
+Required now: prepare one exact atomic server SQL package with precondition hashes, complete affected definitions/ACLs/signatures, explicit rollback and bounded operation-specific verification plan for review under DEC-014. No application yet. Future dependency: reviewed server application/live verification, then G5 client package. High-risk: helper factoring/new RPCs/ACL/security-sensitive payload. Parked/out-of-scope unchanged.
+
+Direct read-only reassessment COMPLETED at review/evidence level. Current gate: WP04-G4 — Exact minimum server-package preparation. Next checkpoint: WP04-G4 — Concrete atomic server-package and verification/rollback review. Programme4 of13; WP03closed; G0–G3 retained; G4active. No production mutation/spend/merge/tag/release; audit/test branches unmerged; unrelated local invalid manifest preserved.
