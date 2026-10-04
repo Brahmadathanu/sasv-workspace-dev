@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4-S0 — Offline launcher accepted at 24746d60f46773c5d121633e8ebc9b4d374646ab; artifact identity reconciled. Independent suite: 113 tests, 112 PASS / 1 platform SKIP. Exact Git/LF hashes match Windows worktree LF normalization; earlier handoff mismatch was PowerShell text-pipe alteration. Wrapper/Windows fake-console proof retained; isolated environment not ready, organization/cost/lifecycle and creation-package review next. No live/provisioning/server/client/merge authorization. G0–G3 complete at documented levels; G4 active; main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f; DEC-014 preserved; branches unmerged.
+WP04-G4-S0 — Offline launcher accepted at 24746d60f46773c5d121633e8ebc9b4d374646ab; artifact identity reconciled. Independent suite: 113 tests, 112 PASS / 1 platform SKIP. Exact Git/LF hashes match Windows worktree LF normalization; earlier handoff mismatch was PowerShell text-pipe alteration. Wrapper/Windows fake-console proof retained; isolated environment not ready, concrete creation package prepared; explicit organization selection before actual quote next. No live/provisioning/server/client/merge authorization. G0–G3 complete at documented levels; G4 active; main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f; DEC-014 preserved; branches unmerged.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -86,3 +86,6 @@ High-risk work retains a separate Plan → ChatGPT review → Implementation gat
 
 
 Main reconciliation — 2026-10-04: inspected 7657a66 and merge 6e5d11ea (e-Aushadhi Composition client/docs/smoke only); no WP04 overlap. Resume same narrow launcher report-coverage correction from 3616941 against expected main 6e5d11ea2b7503931dbe4dcb840ec753ce8f986f. No rebase/main merge, scope or live authorization change. See detailed disposition in WP-04-S0-OPERATOR-LAUNCHER-PLAN.md.
+
+
+Environment package status — 2026-10-04: sole live SASV organization verified as Pro; no WP04 target exists. Concrete standalone wp04-readiness-proof / ap-south-1 proposal prepared. Current G4-S0: explicit organization selection pending; next selected-organization quote and cost/lifecycle/create-request review. No cost call/confirmation or creation performed; user selection permits quote retrieval only.
