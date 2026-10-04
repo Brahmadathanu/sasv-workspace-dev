@@ -1,0 +1,890 @@
+{
+  "date": "2026-10-04",
+  "main": "4a8525caf4bf95e9c60bb00188706154d36b3d85",
+  "audit_at_entry": "adf1da178d54660476b3ba469738761a00761841",
+  "inspection_scope": "SOURCE_CATALOG_READONLY_AND_EXPLAIN_WITHOUT_ANALYZE",
+  "portfolio_executions_this_gate": 0,
+  "known_previous_elapsed_ms": 10822.426,
+  "operational_skus": 611,
+  "operational_products": 460,
+  "repeated_product_references": 151,
+  "current_track_functions": "none",
+  "current_jit": "off",
+  "catalog": [
+    {
+      "relname": "regional_marketing_evidence_acceptance",
+      "estimated_rows": 334,
+      "relation_bytes": 393216,
+      "existing_indexes": [
+        {
+          "name": "ix_regional_marketing_evidence_acceptance_match",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX ix_regional_marketing_evidence_acceptance_match ON costing.regional_marketing_evidence_acceptance USING btree (period_start, source_valuation_date, sku_id, region_code, evidence_fingerprint, acceptance_status)"
+        },
+        {
+          "name": "regional_marketing_evidence_a_period_start_source_valuation_key",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX regional_marketing_evidence_a_period_start_source_valuation_key ON costing.regional_marketing_evidence_acceptance USING btree (period_start, source_valuation_date, sku_id, region_code, evidence_fingerprint)"
+        },
+        {
+          "name": "regional_marketing_evidence_acceptance_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX regional_marketing_evidence_acceptance_pkey ON costing.regional_marketing_evidence_acceptance USING btree (id)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_admin_finance_overhead_allocation_snapshot",
+      "estimated_rows": 26904,
+      "relation_bytes": 18718720,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_admin_finance_overhead_allocation_snapshot_context",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_admin_finance_overhead_allocation_snapshot_context ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (period_start, valuation_date, refresh_run_id)"
+        },
+        {
+          "name": "idx_sku_admin_finance_overhead_allocation_snapshot_period",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_admin_finance_overhead_allocation_snapshot_period ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (period_start)"
+        },
+        {
+          "name": "idx_sku_admin_finance_overhead_allocation_snapshot_product",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_admin_finance_overhead_allocation_snapshot_product ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (product_id)"
+        },
+        {
+          "name": "idx_sku_admin_finance_overhead_allocation_snapshot_run_sku",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_admin_finance_overhead_allocation_snapshot_run_sku ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (refresh_run_id, sku_id)"
+        },
+        {
+          "name": "idx_sku_admin_finance_overhead_allocation_snapshot_sku",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_admin_finance_overhead_allocation_snapshot_sku ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (sku_id)"
+        },
+        {
+          "name": "sku_admin_finance_overhead_allocation_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_admin_finance_overhead_allocation_snapshot_pkey ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (id)"
+        },
+        {
+          "name": "uq_admin_finance_legacy_period_sku",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_admin_finance_legacy_period_sku ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (period_start, sku_id) WHERE (refresh_run_id IS NULL)"
+        },
+        {
+          "name": "uq_admin_finance_run_sku",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_admin_finance_run_sku ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (refresh_run_id, sku_id) WHERE (refresh_run_id IS NOT NULL)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_costing_control_status_snapshot",
+      "estimated_rows": 17374,
+      "relation_bytes": 15712256,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_control_snapshot_refresh_run",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_control_snapshot_refresh_run ON costing.sku_costing_control_status_snapshot USING btree (refresh_run_id, sku_id)"
+        },
+        {
+          "name": "idx_sku_costing_control_status_snapshot_product",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_costing_control_status_snapshot_product ON costing.sku_costing_control_status_snapshot USING btree (period_start, product_id)"
+        },
+        {
+          "name": "idx_sku_costing_control_status_snapshot_status",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_costing_control_status_snapshot_status ON costing.sku_costing_control_status_snapshot USING btree (period_start, control_severity, recommended_ui_route)"
+        },
+        {
+          "name": "uq_sku_control_exact",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_sku_control_exact ON costing.sku_costing_control_status_snapshot USING btree (period_start, valuation_date, refresh_run_id, sku_id) WHERE (refresh_run_id IS NOT NULL)"
+        },
+        {
+          "name": "uq_sku_control_legacy",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_sku_control_legacy ON costing.sku_costing_control_status_snapshot USING btree (period_start, sku_id) WHERE (refresh_run_id IS NULL)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_direct_labour_allocation_snapshot",
+      "estimated_rows": 26268,
+      "relation_bytes": 24485888,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_direct_labour_allocation_snapshot_context",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_direct_labour_allocation_snapshot_context ON costing.sku_direct_labour_allocation_snapshot USING btree (period_start, valuation_date, refresh_run_id)"
+        },
+        {
+          "name": "idx_sku_direct_labour_allocation_snapshot_period",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_direct_labour_allocation_snapshot_period ON costing.sku_direct_labour_allocation_snapshot USING btree (period_start)"
+        },
+        {
+          "name": "idx_sku_direct_labour_allocation_snapshot_product",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_direct_labour_allocation_snapshot_product ON costing.sku_direct_labour_allocation_snapshot USING btree (product_id)"
+        },
+        {
+          "name": "idx_sku_direct_labour_allocation_snapshot_run_sku",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_direct_labour_allocation_snapshot_run_sku ON costing.sku_direct_labour_allocation_snapshot USING btree (refresh_run_id, sku_id)"
+        },
+        {
+          "name": "idx_sku_direct_labour_allocation_snapshot_sku",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_direct_labour_allocation_snapshot_sku ON costing.sku_direct_labour_allocation_snapshot USING btree (sku_id)"
+        },
+        {
+          "name": "idx_sku_direct_labour_allocation_snapshot_status",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_direct_labour_allocation_snapshot_status ON costing.sku_direct_labour_allocation_snapshot USING btree (direct_labour_allocation_status)"
+        },
+        {
+          "name": "sku_direct_labour_allocation_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_direct_labour_allocation_snapshot_pkey ON costing.sku_direct_labour_allocation_snapshot USING btree (id)"
+        },
+        {
+          "name": "uq_direct_labour_legacy_period_sku",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_direct_labour_legacy_period_sku ON costing.sku_direct_labour_allocation_snapshot USING btree (period_start, sku_id) WHERE (refresh_run_id IS NULL)"
+        },
+        {
+          "name": "uq_direct_labour_run_sku",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_direct_labour_run_sku ON costing.sku_direct_labour_allocation_snapshot USING btree (refresh_run_id, sku_id) WHERE (refresh_run_id IS NOT NULL)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_marketing_expense_allocation_snapshot",
+      "estimated_rows": 27190,
+      "relation_bytes": 23396352,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_marketing_expense_allocation_snapshot_context",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_marketing_expense_allocation_snapshot_context ON costing.sku_marketing_expense_allocation_snapshot USING btree (period_start, valuation_date, refresh_run_id)"
+        },
+        {
+          "name": "idx_sku_marketing_expense_allocation_snapshot_period",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_marketing_expense_allocation_snapshot_period ON costing.sku_marketing_expense_allocation_snapshot USING btree (period_start)"
+        },
+        {
+          "name": "idx_sku_marketing_expense_allocation_snapshot_product",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_marketing_expense_allocation_snapshot_product ON costing.sku_marketing_expense_allocation_snapshot USING btree (product_id)"
+        },
+        {
+          "name": "idx_sku_marketing_expense_allocation_snapshot_run_sku",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_marketing_expense_allocation_snapshot_run_sku ON costing.sku_marketing_expense_allocation_snapshot USING btree (refresh_run_id, sku_id)"
+        },
+        {
+          "name": "idx_sku_marketing_expense_allocation_snapshot_sku",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_marketing_expense_allocation_snapshot_sku ON costing.sku_marketing_expense_allocation_snapshot USING btree (sku_id)"
+        },
+        {
+          "name": "idx_sku_marketing_expense_allocation_snapshot_status",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_marketing_expense_allocation_snapshot_status ON costing.sku_marketing_expense_allocation_snapshot USING btree (marketing_expense_allocation_status)"
+        },
+        {
+          "name": "sku_marketing_expense_allocation_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_marketing_expense_allocation_snapshot_pkey ON costing.sku_marketing_expense_allocation_snapshot USING btree (id)"
+        },
+        {
+          "name": "uq_marketing_legacy_period_sku",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_marketing_legacy_period_sku ON costing.sku_marketing_expense_allocation_snapshot USING btree (period_start, sku_id) WHERE (refresh_run_id IS NULL)"
+        },
+        {
+          "name": "uq_marketing_run_sku",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_marketing_run_sku ON costing.sku_marketing_expense_allocation_snapshot USING btree (refresh_run_id, sku_id) WHERE (refresh_run_id IS NOT NULL)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_materials_stores_allocation_snapshot",
+      "estimated_rows": 19427,
+      "relation_bytes": 8937472,
+      "existing_indexes": [
+        {
+          "name": "sku_materials_stores_allocation_snapshot_context_idx",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX sku_materials_stores_allocation_snapshot_context_idx ON costing.sku_materials_stores_allocation_snapshot USING btree (period_start, valuation_date, refresh_run_id)"
+        },
+        {
+          "name": "sku_materials_stores_allocation_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_materials_stores_allocation_snapshot_pkey ON costing.sku_materials_stores_allocation_snapshot USING btree (id)"
+        },
+        {
+          "name": "sku_materials_stores_allocation_snapshot_product_idx",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX sku_materials_stores_allocation_snapshot_product_idx ON costing.sku_materials_stores_allocation_snapshot USING btree (refresh_run_id, product_id)"
+        },
+        {
+          "name": "sku_materials_stores_allocation_snapshot_run_sku_uq",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_materials_stores_allocation_snapshot_run_sku_uq ON costing.sku_materials_stores_allocation_snapshot USING btree (refresh_run_id, sku_id)"
+        },
+        {
+          "name": "sku_materials_stores_allocation_snapshot_status_idx",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX sku_materials_stores_allocation_snapshot_status_idx ON costing.sku_materials_stores_allocation_snapshot USING btree (refresh_run_id, allocation_status, allocation_reason_code)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_production_overhead_allocation_snapshot",
+      "estimated_rows": 17393,
+      "relation_bytes": 7700480,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_poh_allocation_pool_snapshot",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_poh_allocation_pool_snapshot ON costing.sku_production_overhead_allocation_snapshot USING btree (pool_snapshot_id)"
+        },
+        {
+          "name": "sku_production_overhead_allocation_sn_refresh_run_id_sku_id_key",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_production_overhead_allocation_sn_refresh_run_id_sku_id_key ON costing.sku_production_overhead_allocation_snapshot USING btree (refresh_run_id, sku_id)"
+        },
+        {
+          "name": "sku_production_overhead_allocation_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_production_overhead_allocation_snapshot_pkey ON costing.sku_production_overhead_allocation_snapshot USING btree (id)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_qc_allocation_snapshot",
+      "estimated_rows": 19469,
+      "relation_bytes": 7913472,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_qc_allocation_snapshot_run_status",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_qc_allocation_snapshot_run_status ON costing.sku_qc_allocation_snapshot USING btree (refresh_run_id, allocation_status)"
+        },
+        {
+          "name": "sku_qc_allocation_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_qc_allocation_snapshot_pkey ON costing.sku_qc_allocation_snapshot USING btree (id)"
+        },
+        {
+          "name": "sku_qc_allocation_snapshot_run_sku_uq",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_qc_allocation_snapshot_run_sku_uq ON costing.sku_qc_allocation_snapshot USING btree (refresh_run_id, sku_id)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_regional_marketing_allocation_basis_snapshot",
+      "estimated_rows": 39022,
+      "relation_bytes": 32186368,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_regional_marketing_basis_context",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_basis_context ON costing.sku_regional_marketing_allocation_basis_snapshot USING btree (period_start, valuation_date, refresh_run_id)"
+        },
+        {
+          "name": "idx_sku_regional_marketing_basis_product_region",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_basis_product_region ON costing.sku_regional_marketing_allocation_basis_snapshot USING btree (refresh_run_id, product_id, region_code)"
+        },
+        {
+          "name": "idx_sku_regional_marketing_basis_source",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_basis_source ON costing.sku_regional_marketing_allocation_basis_snapshot USING btree (refresh_run_id, regional_basis_source)"
+        },
+        {
+          "name": "idx_sku_regional_marketing_basis_status",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_basis_status ON costing.sku_regional_marketing_allocation_basis_snapshot USING btree (refresh_run_id, regional_basis_status)"
+        },
+        {
+          "name": "sku_regional_marketing_allocation_basis_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_regional_marketing_allocation_basis_snapshot_pkey ON costing.sku_regional_marketing_allocation_basis_snapshot USING btree (id)"
+        },
+        {
+          "name": "sku_regional_marketing_basis_run_sku_region_uq",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_regional_marketing_basis_run_sku_region_uq ON costing.sku_regional_marketing_allocation_basis_snapshot USING btree (refresh_run_id, sku_id, region_code)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_regional_marketing_expense_allocation_snapshot",
+      "estimated_rows": 42838,
+      "relation_bytes": 50085888,
+      "existing_indexes": [
+        {
+          "name": "idx_sku_regional_marketing_allocation_context",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_allocation_context ON costing.sku_regional_marketing_expense_allocation_snapshot USING btree (period_start, valuation_date, refresh_run_id)"
+        },
+        {
+          "name": "idx_sku_regional_marketing_allocation_product_region",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_allocation_product_region ON costing.sku_regional_marketing_expense_allocation_snapshot USING btree (refresh_run_id, product_id, region_code)"
+        },
+        {
+          "name": "idx_sku_regional_marketing_allocation_source",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_allocation_source ON costing.sku_regional_marketing_expense_allocation_snapshot USING btree (refresh_run_id, marketing_value_source)"
+        },
+        {
+          "name": "idx_sku_regional_marketing_allocation_status",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_sku_regional_marketing_allocation_status ON costing.sku_regional_marketing_expense_allocation_snapshot USING btree (refresh_run_id, marketing_expense_allocation_status)"
+        },
+        {
+          "name": "sku_regional_marketing_allocation_run_sku_region_uq",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_regional_marketing_allocation_run_sku_region_uq ON costing.sku_regional_marketing_expense_allocation_snapshot USING btree (refresh_run_id, sku_id, region_code)"
+        },
+        {
+          "name": "sku_regional_marketing_expense_allocation_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_regional_marketing_expense_allocation_snapshot_pkey ON costing.sku_regional_marketing_expense_allocation_snapshot USING btree (id)"
+        }
+      ]
+    },
+    {
+      "relname": "sku_selected_scheme_policy_context_snapshot",
+      "estimated_rows": 55046,
+      "relation_bytes": 28475392,
+      "existing_indexes": [
+        {
+          "name": "idx_selected_scheme_context_region_scheme",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_selected_scheme_context_region_scheme ON costing.sku_selected_scheme_policy_context_snapshot USING btree (refresh_run_id, region_code, scheme_id)"
+        },
+        {
+          "name": "idx_selected_scheme_context_resolution",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_selected_scheme_context_resolution ON costing.sku_selected_scheme_policy_context_snapshot USING btree (refresh_run_id, resolution_status)"
+        },
+        {
+          "name": "idx_selected_scheme_context_sku",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_selected_scheme_context_sku ON costing.sku_selected_scheme_policy_context_snapshot USING btree (period_start, valuation_date, refresh_run_id, sku_id)"
+        },
+        {
+          "name": "idx_selected_scheme_context_tuple",
+          "valid": true,
+          "unique": false,
+          "definition": "CREATE INDEX idx_selected_scheme_context_tuple ON costing.sku_selected_scheme_policy_context_snapshot USING btree (period_start, valuation_date, refresh_run_id)"
+        },
+        {
+          "name": "sku_selected_scheme_policy_context_snapshot_pkey",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX sku_selected_scheme_policy_context_snapshot_pkey ON costing.sku_selected_scheme_policy_context_snapshot USING btree (id)"
+        },
+        {
+          "name": "uq_selected_scheme_context_run_sku_region",
+          "valid": true,
+          "unique": true,
+          "definition": "CREATE UNIQUE INDEX uq_selected_scheme_context_run_sku_region ON costing.sku_selected_scheme_policy_context_snapshot USING btree (refresh_run_id, sku_id, region_code)"
+        }
+      ]
+    }
+  ],
+  "run_evidence_expanded_plan_summary": [
+    {
+      "node": "Result",
+      "rows": 1,
+      "cost": 62.85
+    },
+    {
+      "node": "Limit",
+      "rows": 1,
+      "cost": 2.51
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_direct_labour_allocation_snapshot",
+      "index": "uq_direct_labour_run_sku",
+      "rows": 1,
+      "cost": 2.51
+    },
+    {
+      "node": "Limit",
+      "rows": 1,
+      "cost": 1.9
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_production_overhead_allocation_snapshot",
+      "index": "sku_production_overhead_allocation_sn_refresh_run_id_sku_id_key",
+      "rows": 1,
+      "cost": 1.9
+    },
+    {
+      "node": "Limit",
+      "rows": 1,
+      "cost": 2.51
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_qc_allocation_snapshot",
+      "index": "idx_sku_qc_allocation_snapshot_run_status",
+      "rows": 1,
+      "cost": 2.51
+    },
+    {
+      "node": "Limit",
+      "rows": 1,
+      "cost": 1.89
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_materials_stores_allocation_snapshot",
+      "index": "sku_materials_stores_allocation_snapshot_context_idx",
+      "rows": 1,
+      "cost": 1.89
+    },
+    {
+      "node": "Limit",
+      "rows": 1,
+      "cost": 1.9
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_admin_finance_overhead_allocation_snapshot",
+      "index": "idx_sku_admin_finance_overhead_allocation_snapshot_context",
+      "rows": 1,
+      "cost": 1.9
+    },
+    {
+      "node": "Limit",
+      "rows": 1,
+      "cost": 2.51
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_marketing_expense_allocation_snapshot",
+      "index": "uq_marketing_run_sku",
+      "rows": 1,
+      "cost": 2.51
+    },
+    {
+      "node": "Aggregate",
+      "rows": 1,
+      "cost": 2.68
+    },
+    {
+      "node": "Sort",
+      "rows": 1,
+      "cost": 2.65
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_selected_scheme_policy_context_snapshot",
+      "index": "idx_selected_scheme_context_sku",
+      "rows": 1,
+      "cost": 2.64
+    },
+    {
+      "node": "Aggregate",
+      "rows": 1,
+      "cost": 45.94
+    },
+    {
+      "node": "Nested Loop",
+      "rows": 1000,
+      "cost": 25.93
+    },
+    {
+      "node": "Nested Loop",
+      "rows": 1,
+      "cost": 5.68
+    },
+    {
+      "node": "Index Scan",
+      "relation": "sku_regional_marketing_expense_allocation_snapshot",
+      "index": "sku_regional_marketing_allocation_run_sku_region_uq",
+      "rows": 1,
+      "cost": 3.17
+    },
+    {
+      "node": "Index Only Scan",
+      "relation": "sku_regional_marketing_allocation_basis_snapshot",
+      "index": "sku_regional_marketing_allocation_basis_snapshot_pkey",
+      "rows": 1,
+      "cost": 2.51
+    },
+    {
+      "node": "Function Scan",
+      "rows": 1000,
+      "cost": 10.25
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    },
+    {
+      "node": "CTE Scan",
+      "rows": 1,
+      "cost": 0.02
+    }
+  ],
+  "run_evidence_access_paths": [
+    {
+      "relation": "sku_direct_labour_allocation_snapshot",
+      "index": "uq_direct_labour_run_sku",
+      "index_condition": "((refresh_run_id = '115'::bigint) AND (sku_id = '1'::bigint))",
+      "filter": "((period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date))"
+    },
+    {
+      "relation": "sku_production_overhead_allocation_snapshot",
+      "index": "sku_production_overhead_allocation_sn_refresh_run_id_sku_id_key",
+      "index_condition": "((refresh_run_id = '115'::bigint) AND (sku_id = '1'::bigint))",
+      "filter": "((period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date))"
+    },
+    {
+      "relation": "sku_qc_allocation_snapshot",
+      "index": "idx_sku_qc_allocation_snapshot_run_status",
+      "index_condition": "(refresh_run_id = '115'::bigint)",
+      "filter": "((sku_id = '1'::bigint) AND (period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date))"
+    },
+    {
+      "relation": "sku_materials_stores_allocation_snapshot",
+      "index": "sku_materials_stores_allocation_snapshot_context_idx",
+      "index_condition": "((period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date) AND (refresh_run_id = '115'::bigint))",
+      "filter": "(sku_id = '1'::bigint)"
+    },
+    {
+      "relation": "sku_admin_finance_overhead_allocation_snapshot",
+      "index": "idx_sku_admin_finance_overhead_allocation_snapshot_context",
+      "index_condition": "((period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date) AND (refresh_run_id = '115'::bigint))",
+      "filter": "(sku_id = '1'::bigint)"
+    },
+    {
+      "relation": "sku_marketing_expense_allocation_snapshot",
+      "index": "uq_marketing_run_sku",
+      "index_condition": "((refresh_run_id = '115'::bigint) AND (sku_id = '1'::bigint))",
+      "filter": "((period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date))"
+    },
+    {
+      "relation": "sku_selected_scheme_policy_context_snapshot",
+      "index": "idx_selected_scheme_context_sku",
+      "index_condition": "((period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date) AND (refresh_run_id = '115'::bigint) AND (sku_id = '1'::bigint))"
+    },
+    {
+      "relation": "sku_regional_marketing_expense_allocation_snapshot",
+      "index": "sku_regional_marketing_allocation_run_sku_region_uq",
+      "index_condition": "((refresh_run_id = '115'::bigint) AND (sku_id = '1'::bigint))",
+      "filter": "((marketing_expense_allocation_status = 'REVIEW_REQUIRED'::text) AND (period_start = '2026-09-01'::date) AND (valuation_date = '2026-09-10'::date))"
+    },
+    {
+      "relation": "sku_regional_marketing_allocation_basis_snapshot",
+      "index": "sku_regional_marketing_allocation_basis_snapshot_pkey",
+      "index_condition": "(id = e.regional_basis_snapshot_id)"
+    }
+  ],
+  "plan_limitations": "SKU1 literal-context planning only; no actual timing/buffers/rows/loops and no assurance of identical generic cached function plans."
+}
