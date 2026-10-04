@@ -3,6 +3,7 @@
 This file is the scope sink for useful but non-blocking discoveries. Items stay parked unless formally promoted into an active work pack because they become acceptance blockers.
 
 ## Current parked items
+- Composition regulatory-table RLS hardening audit for `regulatory.eaushadhi_composition_stage`, `regulatory.eaushadhi_composition_run`, and `regulatory.source_ingestion_register`; current WP-06 execution proved no direct anon/authenticated/public table grants, and this non-blocking security hardening remains outside the closed WP-06 scope.
 - Rebase→Resume hydration UX improvements.
 - True pageno>0 pagination if catalogue exceeds current practical bounds.
 - Broader renderer candidateId/runId/requestedId/loadedHiddenId cleanup in unrelated historical failure paths.
