@@ -1,6 +1,6 @@
 # WP-06 — Composition Portal Execution
 
-**Architecture state:** GREEN  
+**Architecture state:** PURPLE  
 **Progress:** 65%
 
 ## Objective
@@ -236,7 +236,7 @@ Proven:
   - Karpūra = SOLID / 66;
   - Kēram = OIL / 61.
 
-Current live portal Composition remains partial: only Ajamōdā is present. Karpūra and Kēram are not yet entered.
+Current live portal Composition contains all three governed rows: matched `[929,930,931]`, missing `[]`. Karpūra and Kēram are both durably `ROW_VERIFIED` / `CONFIRMED`; the Composition stage itself remains `PARTIAL` until the separate final-stage verification action succeeds.
 
 ## First controlled line-930 attempt and recovery
 
@@ -297,7 +297,7 @@ Final-stage verification does **not** require `EAUSHADHI_COMPOSITION_LIVE_ARM` b
 
 `COMPOSITION_LIVE_ARM_DEFAULT=false` remains unchanged. Historical `COMPOSITION_FIRST_LIVE_930_RELEASE=false` and `COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true` remain as previously shipped for row entry. Production versions continue to come from fresh preflight/server authority; stage/workflow row versions are not hard-coded as permanent business rules.
 
-The next gate is independent GitHub audit and merge of this final-stage client activation, then a short exact-main final-stage preflight before any authorized Composition-stage `PORTAL_VERIFIED` execution. QC Register and final Submit remain excluded. Do **not** claim stage `PORTAL_VERIFIED` until that authorized execution succeeds.
+The final-stage client activation is merged on exact main `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The short exact-main final-stage preflight has passed: planner `ALREADY_COMPLETE`, governed/portal/match `3/3/3`, matched `[929,930,931]`, missing `[]`, zero conflicts/duplicates/extras/blockers, no active run, `finalStageVerifyEligible=true`, and `stageVerifyEnabled=true`. No Composition-stage verification, portal mutation, or server lifecycle mutation occurred during that preflight. The next gate is one explicitly confirmed server-side `PARTIAL → PORTAL_VERIFIED` transition after a fresh exact-set recollection. QC Register and final Submit remain excluded. Do **not** claim stage `PORTAL_VERIFIED` until that authorized execution succeeds.
 
 The earlier server foundation remains live and repository-versioned through migrations:
 - `20260927120053_eaushadhi_composition_execution_lifecycle_foundation.sql`
@@ -305,9 +305,9 @@ The earlier server foundation remains live and repository-versioned through migr
 - `20261003153637_eaushadhi_composition_line931_phase2_predecessor_guard.sql`
 - `20261004105934_eaushadhi_composition_final_stage_partial_guard.sql`
 
-Until the final-stage client activation is independently audited, merged, and a fresh exact-main preflight passes:
+Until the explicitly confirmed final-stage transition is executed and independently verified:
 
-- do not invoke Composition-stage verification against live Product 262;
+- do not invoke Composition-stage verification except through the bounded final-stage confirmation path;
 - keep `COMPOSITION_LIVE_ARM_DEFAULT=false`;
 - do not open QC Register or final Submit.
 

@@ -179,6 +179,15 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Client first-live line-930 release is closed (`COMPOSITION_FIRST_LIVE_930_RELEASE=false`). Controlled Phase-2 release opens only Product 262 / line 931 (`COMPOSITION_CONTROLLED_PHASE2_931_RELEASE=true`) when server `server_gate_ready` and the exact planner partition are both proven, with exact env `"true"` and explicit confirmation. Stage verification remains disabled.
 - No Kēram portal mutation occurred in the client transition. Next gate: independent audit/merge, then short exact-main line-931 preflight. RLS hardening remains a separate parked security audit.
 
+
+## 2026-10-04 — WP-06 exact-main final-stage preflight PASS
+- Final-stage client activation was independently audited and merged at `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`.
+- Exact-main final-stage Preview passed with planner `ALREADY_COMPLETE`, governed/portal/match `3/3/3`, exact matched source IDs `[929,930,931]`, missing `[]`, and zero conflicts/duplicates/extras/blockers.
+- `finalStageVerifyEligible=true` and `stageVerifyEnabled=true`; row-entry eligibility is closed and no line-entry action is available because the missing set is empty.
+- Product 262 Composition remains `PARTIAL` at stage row_version 13 with no active run; Product Details remains `PORTAL_VERIFIED` at workflow row_version 11.
+- The preflight performed no `composition-verify-stage`, no `markStageVerified`, no SaveData, no run arm, no record/verify-row call, and no portal or Supabase lifecycle mutation.
+- Next gate: one explicitly confirmed server-side `PARTIAL → PORTAL_VERIFIED` transition after a fresh exact-set recollection. QC Register and final Submit remain excluded.
+
 ## 2026-10-04 — WP-06 Kēram ROW_VERIFIED and final-stage client activation
 - Controlled Product 262 / source line 931 Kēram completed durably as `ROW_VERIFIED` with save outcome `CONFIRMED`.
 - Current live Composition state: still `PARTIAL` at stage row_version 13; `governed_line_count` 3; `portal_match_count` 3; matched `[929,930,931]`; missing `[]`; five historical Composition runs; no active run. Product Details remains `PORTAL_VERIFIED` at workflow row_version 11.
