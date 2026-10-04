@@ -1,0 +1,74 @@
+{
+  "operation": {
+    "full_G4": "INCOMPLETE",
+    "operation": "WP04_AB_BOUNDED_CORRECTNESS",
+    "native_api": "NOT_RUN",
+    "performance": "NOT_PROVED",
+    "restoration": "IN_TRANSACTION_GUARDS_PASSED",
+    "canonical_calls": 18,
+    "canonical_cases": 5,
+    "aggregation_cases": 6,
+    "accepted_review_case": "NOT_RUN_NOT_REQUIRED_IN_THIS_LIMITED_PROPOSAL",
+    "scheme_literal_cases": 5,
+    "empty_regional_sample": "INCLUDED_FULL_JSON_PARITY",
+    "invalid_context_cases": 2,
+    "portfolio_invocations": 0,
+    "regional_literal_cases": 5
+  },
+  "independent_readback": {
+    "event_md5": "4e2c16f8333e51161dc11c5376fb3296",
+    "original_attributes": [
+      {
+        "acl": "{postgres=X/postgres,service_role=X/postgres}",
+        "owner": "postgres",
+        "settings": [
+          "search_path=costing, public, pg_temp"
+        ],
+        "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+        "volatility": "s",
+        "return_type": "jsonb",
+        "security_definer": true
+      },
+      {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "owner": "postgres",
+        "settings": [
+          "search_path=public, costing, pg_temp"
+        ],
+        "signature": "rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+        "volatility": "s",
+        "return_type": "jsonb",
+        "security_definer": true
+      }
+    ],
+    "idle_wp04_transactions": 0,
+    "candidate_function_count": 0,
+    "all_six_definitions_match": true,
+    "original_definition_checks": [
+      {
+        "signature": "costing.fn_product_process_route_readiness(date)",
+        "definition_matches": true
+      },
+      {
+        "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+        "definition_matches": true
+      },
+      {
+        "signature": "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)",
+        "definition_matches": true
+      },
+      {
+        "signature": "costing.fn_product_sku_readiness_shared_issues(date)",
+        "definition_matches": true
+      },
+      {
+        "signature": "costing.fn_resolve_sku_commercial_sales_basis_point(bigint,date,date)",
+        "definition_matches": true
+      },
+      {
+        "signature": "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+        "definition_matches": true
+      }
+    ]
+  }
+}

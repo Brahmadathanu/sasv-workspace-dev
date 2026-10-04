@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4 — Narrow correctness-script V2 correction and independent source/type review complete; renewed explicit authorization pending. Exactlytwo assertions corrected; six literal-only SQL checks pass; no V2 candidate/runtime operation. V1failed/readbackPASS/consumed authorization and earlier evidence retained. G4incomplete/applicationHOLD,G5blocked,programme4/13;maine421fe8 unchanged;DEC-014 preserved.
+WP04-G4 — V2 bounded correctness operation PASS at exact limitedscope; separate independent original-state readbackPASS/candidates0/idleWP040. Authorizationconsumed;0portfolioinvocations/performanceNOT_PROVED. Independent assessment complete;correctedOPERATIONALperformanceproposal preparation/review next. Earlier evidence retained;G4incomplete/applicationHOLD,G5blocked,programme4/13;maine421fe8 unchanged;DEC-014 preserved.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4 — Request renewed exact V2 bounded correctness authorization against reconciled maine421fe8/targetqhmoqtxpeasamtlxaoak and digest in AB_CORRECTNESS_V2_REVIEW.md. If granted: fresh guards, one rollback-only operation, separate independent readback, stop. No automatic retry/performance/deployment/client authorization. Formal WP04 closure/new-chat WP05 handover retained.
+WP04-G4 — Prepare and independently review the smallest exact corrected OPERATIONAL portfolio-performance proposal after the limited V2 correctness PASS. Fresh membership/context/source/digest, one proposed corrected portfolio invocation, count/parity/totalelapsed/size/restore/readback evidence; no additional uncorrected611baseline/profiling/timeoutincrease. Newexplicitauthorization before execution; no deployment/client. See server-packages/wp04-g4/AB_CORRECTNESS_V2_RESULT.md;formalclosure/new-chatWP05handover retained.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.

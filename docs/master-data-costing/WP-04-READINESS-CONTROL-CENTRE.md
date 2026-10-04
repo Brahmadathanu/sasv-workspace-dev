@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Narrow correctness-script V2 correction and independent source/type review COMPLETE AT BOUNDED REVIEW SCOPE; renewed explicit operation authorization pending.
+WP04-G4 — V2 authorized bounded correctness and separate independent restoration readback PASS AT LIMITED SCOPE; independent evidence assessment complete.
 
 ## Gate Status
-[!] BLOCKED at renewed V2 operation authorization/remaining-proof/application boundary. Two proof assertions corrected; six literal type checksPASS; fullV2runtimeNOT_RUN. V1failed/readbackPASS and consumed authorization retained. CandidateSQL/prior evidence unchanged;G4incomplete/applicationHOLD,G5blocked.
+[!] BLOCKED at remaining operational-performance/widerproof/application boundary.18canonicalcalls/5cases,6boundedquerycases/10literalcases/2contextchecks passed;0portfolioinvocations. Authorizationconsumed;performance/API/fullG4unproved. Originalauthorityrestored/candidates0/idleWP040;earlier evidence retained;G4incomplete/applicationHOLD,G5blocked.
 
 ## Required to close
-Separately authorize exact reviewed V2 target/digest before production operation, then fresh guards/single execution/independent original-state readback and bounded assessment. Resolve remaining CSE/edge/API/payload/performance/rollback proof without waivers. Literal typePASS is not readiness/G4PASS.
+Prepare/review exact correctedOPERATIONALperformanceproposal and request newexplicitauthorization before anyexecution; resolve remaining allSKU/CSE/edge/ALL_EXISTING/API/payload/rollback proof/disposition withoutwaivers. Sampleparity/extractedqueryPASS is notfullportfolio/G4PASS.
 
 ## Next gate
-WP04-G4 — Renewed explicit V2 authorization using AB_CORRECTNESS_V2_REVIEW.md. If granted, one rollback-only correctness operation/readback, then stop. No automatic retry, performance operation, deployment or client work.
+WP04-G4 — Exact corrected OPERATIONAL portfolio-performance proposal preparation and independent review, notexecution. No existing authorization for performance/deployment/client; no profiling/timeoutincrease/automaticretry.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -896,3 +896,7 @@ User “proceed” authorized reconciled target/main/digest; fresh Git/live guar
 ## 2026-10-04 — Narrow proof-script V2 correction/review
 
 Main e421fe8/audit283826a unchanged. NewV2script fixes onlytwo rows JSONB assertions; failedV1/candidateSQL/allprior evidence preserved. [AB_CORRECTNESS_V2_REVIEW.md](server-packages/wp04-g4/AB_CORRECTNESS_V2_REVIEW.md) freezes digestfafa65b083fe46fd93628857a3b6659e49d93c556791c25aa6dd28cd1737e23b with separate manifest; allotherbytes/18embedded CREATEbodies unchanged. Literal-only SELECT checks6cases/operator typesPASS; no businessdata/function/candidate/fullscript execution. Narrow review complete; renewed explicit authorization pending. V1authorizationconsumed;V2NOT_RUN, G4incomplete/applicationHOLD/G5blocked/programme4/13;DEC-014/parked/locked unchanged.
+
+## 2026-10-04 — Authorized V2 bounded correctness/readback PASS
+
+Userexplicitlyauthorized exactV2 main/target/digest;freshguardspassed;oneoperationcompleted atlimitedscope.18canonicalinvocations/5fullJSONcases+missingexceptions,6boundedextractedquerycases,10literalcases,2contextrefusals,exactrestoreguards/finalROLLBACK. Emptyregion1795fullJSONparity included;0portfolioinvocations/performanceNOT_PROVED/nativeAPINOT_RUN. Separateoriginalsixdefinitions/attributes/ACL/event readbackPASS;candidates0/idleWP040. [AB_CORRECTNESS_V2_RESULT.md](server-packages/wp04-g4/AB_CORRECTNESS_V2_RESULT.md) and sanitizedJSONrecord result/independentG4limits. Authorizationconsumed;no retry/deployment/client. Next smallestcorrectedOPERATIONALperformanceproposal preparation/independentreview, then newexplicitauthorization. PriorV1failure/evidence/frozenSQL preserved;G4incomplete/applicationHOLD/G5blocked/programme4/13;DEC-014/parked/locked unchanged.

@@ -1,5 +1,5 @@
 {
-  "status": "NARROW_V2_REVIEW_COMPLETE_NOT_AUTHORIZED_NOT_RUN",
+  "status": "LIMITED_V2_CORRECTNESS_PASS_INDEPENDENT_READBACK_PASS",
   "target": "qhmoqtxpeasamtlxaoak",
   "reconciled_main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
   "reviewed_audit_head": "283826ad4d3e1b930dfd1f2a07c400ba94e76fc8",
@@ -10,7 +10,7 @@
   "script_sha256": "fafa65b083fe46fd93628857a3b6659e49d93c556791c25aa6dd28cd1737e23b",
   "operation_authorized": false,
   "application_authorized": false,
-  "execution_attempts": 0,
+  "execution_attempts": 1,
   "changed_assertions": 2,
   "changed_function_bodies": 0,
   "planned_canonical_calls": 18,
@@ -21,13 +21,40 @@
     "both_operand_types": "jsonb",
     "scope": "INLINE_LITERAL_SELECT_ONLY"
   },
-  "full_script_runtime": "NOT_RUN",
-  "review_disposition": "ACCEPTABLE_FOR_REQUESTING_EXACT_LIMITED_V2_AUTHORIZATION_ONLY",
+  "full_script_runtime": "COMPLETED_LIMITED_PROOF_PORTFOLIO_RPC_NOT_INVOKED",
+  "review_disposition": "LIMITED_CORRECTNESS_PASS_FULL_G4_UNRESOLVED",
   "files_sha256": {
     "ab-correctness-proposal-v2.sql": "fafa65b083fe46fd93628857a3b6659e49d93c556791c25aa6dd28cd1737e23b",
-    "AB_CORRECTNESS_V2_REVIEW.md": "a9d4a0e705301dbe7634aed1c920184b8fad8adc4d81ddb28fa800e38dc9bb94",
+    "AB_CORRECTNESS_V2_REVIEW.md": "dfc4cae679b527e15bd49c2ee0c185b3f290cc435987a8171848ed0f6fb24793",
     "ab-forward-draft.sql": "9ea0c0cc7e5a10d229e6ed0707136fcf0df5bd3e3513a770ea7ced1592470d7c",
     "ab-rollback-draft.sql": "8085f873c1bddb631b851a0737d99b284b9c92d903e596e9c038156ca280c185",
-    "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5"
-  }
+    "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5",
+    "AB_CORRECTNESS_V2_RESULT.md": "38e2025b04394af8cf6a4f8fbd7f0cebcb6356de4f2b861eca095d79d66da72b",
+    "AB_CORRECTNESS_V2_RESULT.json": "30ea17712609103a919cf5db9efced57da88cfd84d90732c33ad4f187fe8f435"
+  },
+  "authorization_consumed": true,
+  "main_at_execution": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+  "operation_result": {
+    "full_G4": "INCOMPLETE",
+    "operation": "WP04_AB_BOUNDED_CORRECTNESS",
+    "native_api": "NOT_RUN",
+    "performance": "NOT_PROVED",
+    "restoration": "IN_TRANSACTION_GUARDS_PASSED",
+    "canonical_calls": 18,
+    "canonical_cases": 5,
+    "aggregation_cases": 6,
+    "accepted_review_case": "NOT_RUN_NOT_REQUIRED_IN_THIS_LIMITED_PROPOSAL",
+    "scheme_literal_cases": 5,
+    "empty_regional_sample": "INCLUDED_FULL_JSON_PARITY",
+    "invalid_context_cases": 2,
+    "portfolio_invocations": 0,
+    "regional_literal_cases": 5
+  },
+  "independent_readback": {
+    "status": "PASS",
+    "candidate_count": 0,
+    "idle_wp04_transactions": 0,
+    "six_definitions_match": true
+  },
+  "next_gate": "CORRECTED_OPERATIONAL_PERFORMANCE_PROPOSAL_PREPARATION_AND_INDEPENDENT_REVIEW"
 }
