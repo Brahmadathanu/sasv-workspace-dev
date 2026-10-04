@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Independent bounded A/B correction/proof plan review COMPLETE AT PLAN SCOPE; design/proof boundary frozen in PERFORMANCE_PLAN_REVIEW.md.
+WP04-G4 — Exact unapplied A/B correction/rollback/proof package prepared and independently reviewed; explicit limited correctness-operation authorization pending.
 
 ## Gate Status
-[!] BLOCKED at exact-package/remaining-proof/application boundary. G4 incomplete/application HOLD; G5 blocked. Prior limited correctness/restoration PASS and10.822s retained; prior authorizations consumed. No implementation or production operation authorized by plan acceptance.
+[!] BLOCKED at production-operation authorization/remaining-proof/application boundary. G4 incomplete/application HOLD; G5 blocked. Earlier evidence retained and prior authorizations consumed.18canonical calls/zeroportfolio bounded proof proposed; runtime compilation NOT_RUN. No deployment or client work.
 
 ## Required to close
-Prepare and independently review exact unapplied corrected package/identity guards/rollback/proof proposals within frozen A/B refinements, then resolve parity/CSE/edge/API/payload/performance/rollback requirements through separately authorized operations/dispositions. Do not infer measured dominance, change null/empty semantics, weaken context checks or add implicit profiling.
+Authorize only concretely reviewed operations; collect and disposition limited correction proof with independent original restoration readback. Resolve remaining all-SKU/CSE/edge/API/payload/performance/rollback proof without waivers. Bounded query-fragment proof is not full operational RPC proof; no additional performance authorization implicit.
 
 ## Next gate
-WP04-G4 — Exact UNAPPLIED corrected A/B package/rollback/proof proposal preparation and independent executable review. Production operation requires new explicit authorization tied to exact target/script/digest; no client implementation until G4 satisfied.
+WP04-G4 — Explicit authorization for exact target/digest in AB_PROPOSAL_REVIEW.md; if granted, fresh guards, single rollback-only correctness operation, independent readback, then stop. No performance rerun/deployment/client authorized by package preparation.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -880,3 +880,7 @@ Main4a8525c/auditadf1da1 unchanged. Source/catalogue and EXPLAIN without ANALYZE
 ## 2026-10-04 — Independent bounded performance-plan review
 
 Fresh main4a8525c/audit72765077 unchanged. [PERFORMANCE_PLAN_REVIEW.md](server-packages/wp04-g4/PERFORMANCE_PLAN_REVIEW.md) accepts/fixes the bounded A/B plan at plan scope only: preserve SQL null/empty and RESOLVED_POLICY semantics; retain full population/context checks and core-once reuse; no implicit timing instrumentation or extra evaluation. Exact executable package/proof still needs preparation/review and any production operation new explicit authorization. Historical SQL/evidence unchanged; no live query or mutation in this review; G0–G3 retained, G4 incomplete/application HOLD, G5 blocked, programme4/13, DEC-014/parked/locked unchanged. No new architecture decision or parked finding.
+
+## 2026-10-04 — Exact unapplied A/B correction and proof checkpoint
+
+Main4a8525c/auditc6e1671 unchanged. [AB_PROPOSAL_REVIEW.md](server-packages/wp04-g4/AB_PROPOSAL_REVIEW.md) and separate corrected manifest bind new forward/restore/proof/readback artifacts. Only common enrichment and portfolio orchestration bodies change; historical source/SQL/evidence untouched. Offline models/source/embedding/identity checks pass; database runtime NOT_RUN. Limited proof refines bounded aggregation to extracted old/new query fragments over3stored canonical inputs, not a public portfolio invocation; no speed/root-cause/G4 claim.18canonical invocations and zeroportfolio proposed in one noCOMMIT/finalROLLBACK operation, pending explicit target/digest authorization; independent readback separately required. Source/metadata inspection read-only; no candidate definition/mutation or client work. G4 incomplete/application HOLD/G5blocked/programme4/13; DEC-014/parked/locked unchanged.

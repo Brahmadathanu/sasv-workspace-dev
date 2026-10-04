@@ -1,0 +1,65 @@
+{
+  "status": "UNAPPLIED_EXACT_AB_REVIEW_PACKAGE",
+  "main_reference": "4a8525caf4bf95e9c60bb00188706154d36b3d85",
+  "reviewed_plan_commit": "c6e16719285b620f0da1cfaa2d117680ea0697dd",
+  "target": "qhmoqtxpeasamtlxaoak",
+  "application_authorized": false,
+  "correctness_operation_authorized": false,
+  "performance_operation_authorized": false,
+  "changed_candidate_bodies": [
+    {
+      "signature": "costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb)",
+      "old_body_md5": "7f7528b3dec9efa0dd0a9ba7e59fc50b",
+      "corrected_body_md5": "c24ce797c8e1a13cb8888eee12393aee"
+    },
+    {
+      "signature": "public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)",
+      "old_body_md5": "4c841fe074170a13b9dbca57c5aeacbc",
+      "corrected_body_md5": "f34055346694c45900af9f16b0fea1d5"
+    }
+  ],
+  "unchanged_candidate_body_indices": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "correctness_scope": {
+    "canonical_rpc_calls": 18,
+    "portfolio_invocations": 0,
+    "sample_skus": [
+      1,
+      11,
+      1795
+    ],
+    "contexts": [
+      "LIVE_AS_OF",
+      "EXACT_RUN114",
+      "EXACT_RUN115"
+    ],
+    "aggregation_sample_size": 3,
+    "aggregation_cases": 6,
+    "aggregation_method": "EXTRACTED_QUERY_FRAGMENTS_STORED_ASSESSMENTS_NOT_PUBLIC_PORTFOLIO_RPC",
+    "accepted_review_runtime": "NOT_RUN",
+    "missing_sku_runtime": "PROPOSED_THREE_EXCEPTION_COMPARISONS",
+    "no_success_run_runtime": "NOT_RUN",
+    "performance": "NOT_RUN"
+  },
+  "files_sha256": {
+    "ab-forward-draft.sql": "9ea0c0cc7e5a10d229e6ed0707136fcf0df5bd3e3513a770ea7ced1592470d7c",
+    "ab-rollback-draft.sql": "8085f873c1bddb631b851a0737d99b284b9c92d903e596e9c038156ca280c185",
+    "ab-correctness-proposal.sql": "e29d4c395a36070d2e03f5cb01c71e969198811f408b88fe44022145e549c669",
+    "ab-independent-readback.sql": "c2c07996a93daf88a867b24492a09c6420edf1491b7ce23139c1abb20de39fb5",
+    "AB_PROPOSAL_REVIEW.md": "2b689214c4d036b46570952b549bc1397c7c81ac1b31e379780b3e58474e585f"
+  },
+  "review_disposition": "ACCEPTABLE_TO_REQUEST_LIMITED_CORRECTNESS_AUTHORIZATION_ONLY",
+  "proof_refinement": "EXTRACTED_QUERY_BOUNDED_INPUT_NOT_PORTFOLIO_RPC",
+  "static_checks": {
+    "body_scope": "TWO_CHANGED_FIVE_IDENTICAL",
+    "scheme_model_cases": 585,
+    "regional_model_cases": 585,
+    "runtime_compilation": "NOT_RUN",
+    "text_balance": "PASS_NOT_POSTGRES_PARSER"
+  }
+}
