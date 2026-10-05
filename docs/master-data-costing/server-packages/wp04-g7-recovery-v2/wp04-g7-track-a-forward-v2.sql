@@ -25,8 +25,13 @@ BEGIN
     RAISE EXCEPTION 'V2 source drift: index reader';
   END IF;
   IF md5(pg_get_functiondef(to_regprocedure('costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint)')))
-     IS DISTINCT FROM md5(pg_get_functiondef(to_regprocedure('costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint)'))) THEN
-    RAISE EXCEPTION 'unreachable';
+     IS DISTINCT FROM 'ea6f0e12b2004bd5819f54aaede5e730' THEN
+    RAISE EXCEPTION 'V2 source drift: batched run cohort';
+  END IF;
+  IF md5(pg_get_functiondef(to_regprocedure(
+    'costing.fn_wp04_c_run_assemble(bigint,date,date,bigint,costing.sku_direct_labour_allocation_snapshot,costing.sku_production_overhead_allocation_snapshot,costing.sku_qc_allocation_snapshot,costing.sku_materials_stores_allocation_snapshot,costing.sku_admin_finance_overhead_allocation_snapshot,costing.sku_marketing_expense_allocation_snapshot)'
+  ))) IS DISTINCT FROM 'a7bcc3e6df3f42c0c531148f2857ff47' THEN
+    RAISE EXCEPTION 'V2 source drift: run assembler';
   END IF;
   IF md5(pg_get_functiondef(to_regprocedure('costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)')))
      IS DISTINCT FROM 'b47e4d07e13dffe5d38d37010ee5ff34' THEN
