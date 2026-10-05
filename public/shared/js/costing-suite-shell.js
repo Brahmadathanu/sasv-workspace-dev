@@ -1858,11 +1858,10 @@ function syncReadinessShellChrome() {
   document.body.classList.toggle("cp-readiness-active", readinessActive);
 
   if (readinessActive) {
-    // Readiness owns filters; suppress orphan shell filter + dashboard chrome.
-    closeFilterDrawer();
-    setVisible(peqFilterWrapper, false);
-    setVisible(kpiStripWrap, false);
-    setVisible(lastRefreshed, false);
+    // Keep CCC KPI strip + global filter; hide generic table + CPV (valuation in lens context).
+    setVisible(peqFilterWrapper, true);
+    applyKpiStripVisibility();
+    setVisible(lastRefreshed, true);
     setVisible(genericTableCard, false);
     if (cpvStrip) {
       cpvStrip.hidden = true;
@@ -1870,6 +1869,7 @@ function syncReadinessShellChrome() {
       cpvStrip.setAttribute("hidden", "");
     }
     syncPeriodControlState();
+    syncPortfolioReadinessFilterChrome();
     return;
   }
 
@@ -1878,8 +1878,53 @@ function syncReadinessShellChrome() {
   setVisible(genericTableCard, true);
   applyKpiStripVisibility();
   syncPeriodControlState();
-  // CPV content/visibility restore is owned by reloadCostPeriodValuationIfNeeded
-  // (called from switchLens on Readiness exit and other existing paint paths).
+  syncPortfolioReadinessFilterChrome();
+}
+
+function syncPortfolioReadinessFilterChrome() {
+  const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
+  const readinessBody = $("readinessPeqFilterBody");
+  const selectAll = $("peqFilterSelectAll");
+  const drawer = $("peqFilterDrawer");
+
+  document
+    .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+    .forEach((section) => {
+      const key = section.getAttribute("data-peq-section");
+      if (key === "portfolio-readiness") {
+        setVisible(section, readinessActive);
+        return;
+      }
+      // Hide default CCC status/issue/source groups while Readiness owns the drawer.
+      setVisible(section, !readinessActive);
+    });
+
+  if (readinessBody) {
+    readinessBody.hidden = !readinessActive;
+    if (readinessActive) {
+      readinessBody.removeAttribute("hidden");
+    } else {
+      readinessBody.setAttribute("hidden", "");
+    }
+  }
+
+  if (selectAll) {
+    setVisible(selectAll, !readinessActive);
+  }
+
+  if (drawer) {
+    drawer.classList.toggle("is-readiness-mode", readinessActive);
+    drawer.setAttribute(
+      "aria-label",
+      readinessActive ? "Readiness filters" : "Costing filters",
+    );
+  }
+
+  if (readinessActive) {
+    portfolioReadinessCtrl.syncGlobalFilterUi?.();
+  }
+
+  updateFilterButtonState();
 }
 
 function applyRouteLaunchParams() {
@@ -4823,6 +4868,7 @@ async function switchLens(lensId) {
   if (leavingReadiness) {
     clearReadinessSearchDebounce();
     portfolioReadinessCtrl.onLensExit?.();
+    portfolioReadinessCtrl.resetGlobalFilterUi?.();
   }
   if (leavingQc) {
     clearQcSearchDebounce();
@@ -7402,7 +7448,9 @@ function updateFilterButtonState() {
   const btn = $("peqFilterBtn");
   if (!btn) return;
   let count = 0;
-  if (isQcActionQueueLens(CURRENT_LENS)) {
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    count = Number(portfolioReadinessCtrl.activeFilterCount?.() || 0);
+  } else if (isQcActionQueueLens(CURRENT_LENS)) {
     count = normalizeQcCode(qcActionQueueCtrl.getActionCode?.() || "") ? 1 : 0;
   } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
     count = normalizeMsCode(materialsStoresActionQueueCtrl.getActionCode?.() || "")
@@ -7459,6 +7507,7 @@ function updateFilterButtonState() {
     badge.style.display = count ? "" : "none";
   }
   if (
+    !isPortfolioReadinessLens(CURRENT_LENS) &&
     !isQcActionQueueLens(CURRENT_LENS) &&
     !isMaterialsStoresActionQueueLens(CURRENT_LENS) &&
     !isProductionRouteLens(CURRENT_LENS)
@@ -7468,6 +7517,16 @@ function updateFilterButtonState() {
       summary.textContent = count
         ? `${count} filter${count === 1 ? "" : "s"} applied`
         : "No filters applied";
+  }
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    const summary = document.querySelector(
+      "#readinessPeqFilterBody .peq-filter-summary",
+    );
+    if (summary) {
+      summary.textContent = count
+        ? `${count} filter${count === 1 ? "" : "s"} applied`
+        : "No filters applied";
+    }
   }
 }
 
@@ -7498,6 +7557,15 @@ function wireFilterDrawer() {
   $("peqFilterBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleFilterDrawer();
+  });
+  $("readinessFilterApply")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!isPortfolioReadinessLens(CURRENT_LENS)) return;
+    closeFilterDrawer();
+    void (async () => {
+      await portfolioReadinessCtrl.applyPendingFilters?.();
+      updateFilterButtonState();
+    })();
   });
   $("peqFilterDrawer")?.addEventListener("change", (e) => {
     const target = e.target;
@@ -7676,6 +7744,15 @@ function wireFilterDrawer() {
       })();
       return;
     }
+    if (
+      input.hasAttribute("data-readiness-severity") ||
+      input.hasAttribute("data-readiness-dependency") ||
+      input.hasAttribute("data-readiness-owner") ||
+      input.hasAttribute("data-readiness-route")
+    ) {
+      // Apply-gated: checkbox draft only until Apply.
+      return;
+    }
     if (!input.dataset.filterGroup) return;
     const cb = input;
     const group = cb.dataset.filterGroup;
@@ -7690,6 +7767,14 @@ function wireFilterDrawer() {
     void applyManualRateManagerFilterChange();
   });
   $("peqFilterClear")?.addEventListener("click", () => {
+    if (isPortfolioReadinessLens(CURRENT_LENS)) {
+      closeFilterDrawer();
+      void (async () => {
+        await portfolioReadinessCtrl.clearFilters?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
     if (isQcActionQueueLens(CURRENT_LENS)) {
       CURRENT_PAGE = 1;
       qcActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
@@ -8548,6 +8633,8 @@ const portfolioReadinessCtrl = createPortfolioReadinessController({
   openDetails,
   closeDetails,
   getSearchValue: () => searchBox?.value ?? "",
+  closeFilterDrawer,
+  onFilterUiChange: () => updateFilterButtonState(),
 });
 
 const costPeriodValuationCtrl = createCostPeriodValuationController({

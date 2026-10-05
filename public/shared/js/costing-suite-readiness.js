@@ -601,6 +601,8 @@ export function createPortfolioReadinessController(deps = {}) {
     openDetails,
     closeDetails,
     getSearchValue = () => "",
+    closeFilterDrawer = null,
+    onFilterUiChange = null,
   } = deps;
 
   const t = typeof shellText === "function" ? shellText : text;
@@ -647,17 +649,11 @@ export function createPortfolioReadinessController(deps = {}) {
         host: null,
         periodSelect: null,
         scopeSelect: null,
-        filterBtn: null,
-        filterBadge: null,
-        filterDrawer: null,
-        filterWrapper: null,
         severityHost: null,
         dependencyHost: null,
         ownerHost: null,
         routeHost: null,
         filterApplyBtn: null,
-        filterDrawerClearBtn: null,
-        clearBtn: null,
         appliedFilters: null,
         summaryHost: null,
         gapHost: null,
@@ -674,17 +670,11 @@ export function createPortfolioReadinessController(deps = {}) {
       host: doc.getElementById("readinessLensHost"),
       periodSelect: doc.getElementById("readinessPeriodSelect"),
       scopeSelect: doc.getElementById("readinessPopulationScope"),
-      filterBtn: doc.getElementById("readinessFilterBtn"),
-      filterBadge: doc.getElementById("readinessFilterBadge"),
-      filterDrawer: doc.getElementById("readinessFilterDrawer"),
-      filterWrapper: doc.getElementById("readinessFilterWrapper"),
       severityHost: doc.getElementById("readinessSeverityFilters"),
       dependencyHost: doc.getElementById("readinessDependencyFilters"),
       ownerHost: doc.getElementById("readinessOwnerFilters"),
       routeHost: doc.getElementById("readinessRouteFilters"),
       filterApplyBtn: doc.getElementById("readinessFilterApply"),
-      filterDrawerClearBtn: doc.getElementById("readinessFilterDrawerClear"),
-      clearBtn: doc.getElementById("readinessClearFilters"),
       appliedFilters: doc.getElementById("readinessAppliedFilters"),
       summaryHost: doc.getElementById("readinessSummary"),
       gapHost: doc.getElementById("readinessGaps"),
@@ -1032,22 +1022,13 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function setFilterDrawerOpen(open) {
     state.filterDrawerOpen = Boolean(open);
-    const els = hostEls();
-    if (els.filterDrawer) {
-      els.filterDrawer.hidden = !state.filterDrawerOpen;
-      if (state.filterDrawerOpen) {
-        els.filterDrawer.removeAttribute("hidden");
-      } else {
-        els.filterDrawer.setAttribute("hidden", "");
-      }
-      els.filterDrawer.classList.toggle("open", state.filterDrawerOpen);
+    if (!open && typeof closeFilterDrawer === "function") {
+      closeFilterDrawer();
     }
-    if (els.filterBtn) {
-      els.filterBtn.setAttribute(
-        "aria-expanded",
-        state.filterDrawerOpen ? "true" : "false",
-      );
-    }
+  }
+
+  function notifyFilterUiChange() {
+    if (typeof onFilterUiChange === "function") onFilterUiChange();
   }
 
   function applyControlChanges({ resetPaging = true } = {}) {
@@ -1116,7 +1097,7 @@ export function createPortfolioReadinessController(deps = {}) {
   }
 
   function renderAppliedFilterChips() {
-    const { appliedFilters, clearBtn, filterBadge } = hostEls();
+    const { appliedFilters } = hostEls();
     const chips = [];
     state.overallSeverities.forEach((code) => {
       chips.push({
@@ -1147,25 +1128,7 @@ export function createPortfolioReadinessController(deps = {}) {
       });
     });
     const count = chips.length;
-    const els = hostEls();
-    if (els.filterBtn) {
-      els.filterBtn.classList.toggle("peq-filter-btn--active", count > 0);
-    }
-    if (filterBadge) {
-      if (count > 0) {
-        filterBadge.hidden = false;
-        filterBadge.style.display = "";
-        filterBadge.removeAttribute("hidden");
-        filterBadge.textContent = String(count);
-      } else {
-        filterBadge.hidden = true;
-        filterBadge.style.display = "none";
-        filterBadge.textContent = "";
-      }
-    }
-    if (clearBtn) {
-      clearBtn.hidden = count === 0;
-    }
+    notifyFilterUiChange();
     if (!appliedFilters) return;
     if (!count) {
       appliedFilters.innerHTML = "";
@@ -1246,7 +1209,6 @@ export function createPortfolioReadinessController(deps = {}) {
       "data-readiness-route",
     );
     renderAppliedFilterChips();
-    setFilterDrawerOpen(state.filterDrawerOpen);
   }
 
   function clearReadinessFilters() {
@@ -1256,6 +1218,28 @@ export function createPortfolioReadinessController(deps = {}) {
     syncControlsFromState();
     invalidatePendingRequests();
     return loadPortfolio({ preserveKeyset: true });
+  }
+
+  function applyPendingFilters() {
+    setFilterDrawerOpen(false);
+    return applyControlChanges({ resetPaging: true });
+  }
+
+  function syncGlobalFilterUi() {
+    syncControlsFromState();
+  }
+
+  function resetGlobalFilterUi() {
+    resetFilters({ keepSearch: true });
+    state.filterDrawerOpen = false;
+    const els = hostEls();
+    // Clear checklist drafts so leaving Readiness cannot leak options to other lenses.
+    if (els.severityHost) els.severityHost.innerHTML = "";
+    if (els.dependencyHost) els.dependencyHost.innerHTML = "";
+    if (els.ownerHost) els.ownerHost.innerHTML = "";
+    if (els.routeHost) els.routeHost.innerHTML = "";
+    if (els.appliedFilters) els.appliedFilters.innerHTML = "";
+    notifyFilterUiChange();
   }
 
   function ensureBound() {
@@ -1270,22 +1254,6 @@ export function createPortfolioReadinessController(deps = {}) {
     });
     on(els.scopeSelect, "change", () => {
       void applyControlChanges({ resetPaging: true });
-    });
-    on(els.filterBtn, "click", (ev) => {
-      ev.stopPropagation();
-      setFilterDrawerOpen(!state.filterDrawerOpen);
-    });
-    on(els.filterApplyBtn, "click", (ev) => {
-      ev.stopPropagation();
-      setFilterDrawerOpen(false);
-      void applyControlChanges({ resetPaging: true });
-    });
-    on(els.filterDrawerClearBtn, "click", (ev) => {
-      ev.stopPropagation();
-      void clearReadinessFilters();
-    });
-    on(els.clearBtn, "click", () => {
-      void clearReadinessFilters();
     });
     on(els.appliedFilters, "click", (ev) => {
       const btn = ev.target?.closest?.("[data-readiness-chip-kind]");
@@ -1308,18 +1276,8 @@ export function createPortfolioReadinessController(deps = {}) {
       state.expandedGapKind = null;
       renderGaps();
     });
-    on(document, "click", (ev) => {
-      if (!state.filterDrawerOpen) return;
-      const wrap = hostEls().filterWrapper;
-      if (wrap && wrap.contains(ev.target)) return;
-      setFilterDrawerOpen(false);
-    });
     on(document, "keydown", (ev) => {
       if (ev.key !== "Escape") return;
-      if (state.filterDrawerOpen) {
-        setFilterDrawerOpen(false);
-        return;
-      }
       if (state.expandedGapKind) {
         state.expandedGapKind = null;
         renderGaps();
@@ -1334,28 +1292,26 @@ export function createPortfolioReadinessController(deps = {}) {
     on(els.tableBody, "click", (ev) => {
       const row = ev.target?.closest?.("tr[data-sku-id]");
       if (!row) return;
-      const skuId = toBigIntOrNull(row.dataset.skuId);
-      selectAssessmentBySkuId(skuId);
+      void selectAssessmentBySkuId(toBigIntOrNull(row.dataset.skuId));
     });
     on(els.tableBody, "keydown", (ev) => {
       if (ev.key !== "Enter" && ev.key !== " ") return;
       const row = ev.target?.closest?.("tr[data-sku-id]");
       if (!row) return;
       ev.preventDefault();
-      selectAssessmentBySkuId(toBigIntOrNull(row.dataset.skuId));
+      void selectAssessmentBySkuId(toBigIntOrNull(row.dataset.skuId));
     });
     on(els.cardHost, "click", (ev) => {
       const card = ev.target?.closest?.("[data-sku-id]");
       if (!card) return;
-      const skuId = toBigIntOrNull(card.dataset.skuId);
-      selectAssessmentBySkuId(skuId);
+      void selectAssessmentBySkuId(toBigIntOrNull(card.dataset.skuId));
     });
     on(els.cardHost, "keydown", (ev) => {
       if (ev.key !== "Enter" && ev.key !== " ") return;
       const card = ev.target?.closest?.("[data-sku-id]");
       if (!card) return;
       ev.preventDefault();
-      selectAssessmentBySkuId(toBigIntOrNull(card.dataset.skuId));
+      void selectAssessmentBySkuId(toBigIntOrNull(card.dataset.skuId));
     });
   }
 
@@ -1406,46 +1362,12 @@ export function createPortfolioReadinessController(deps = {}) {
       return;
     }
     const ctx = state.portfolio.context || {};
-    const stats = state.portfolio.statistics || {};
-    const sev = stats.overall_severity_counts || {};
     const integrity = ctx.context_integrity_status || ctx.context_type || "—";
     summaryHost.innerHTML = `
-      <div class="cp-readiness-summary-strip" aria-label="Live readiness summary">
+      <div class="cp-readiness-summary-strip" aria-label="Live readiness context">
         <div class="cp-readiness-summary-context">
-          <span>Period <strong>${text(ctx.period_start)}</strong></span>
           <span>Valuation <strong>${text(ctx.valuation_date)}</strong></span>
-          <span>Scope <strong>${text(state.populationScope)}</strong></span>
           <span class="cp-readiness-summary-badge">${text(integrity)}</span>
-        </div>
-        <div class="cp-readiness-summary-metrics">
-          <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Population</span><span class="cp-readiness-stat-value">${text(
-            stats.population_sku_count,
-            "0",
-          )}</span></div>
-          <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Matched</span><span class="cp-readiness-stat-value">${text(
-            state.portfolio.matched_count,
-            "0",
-          )}</span></div>
-          <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Returned</span><span class="cp-readiness-stat-value">${text(
-            state.portfolio.returned_count,
-            "0",
-          )}</span></div>
-          <div class="cp-readiness-stat">${chip("READY")} <span class="cp-readiness-stat-value">${text(
-            sev.READY,
-            "0",
-          )}</span></div>
-          <div class="cp-readiness-stat">${chip("REVIEW_REQUIRED")} <span class="cp-readiness-stat-value">${text(
-            sev.REVIEW_REQUIRED,
-            "0",
-          )}</span></div>
-          <div class="cp-readiness-stat">${chip("BLOCKER")} <span class="cp-readiness-stat-value">${text(
-            sev.BLOCKER,
-            "0",
-          )}</span></div>
-          <div class="cp-readiness-stat">${chip("UNKNOWN")} <span class="cp-readiness-stat-value">${text(
-            sev.UNKNOWN,
-            "0",
-          )}</span></div>
         </div>
       </div>`;
   }
@@ -1460,12 +1382,11 @@ export function createPortfolioReadinessController(deps = {}) {
         )}">${expanded ? "Hide details" : "View details"}</button>`
       : "";
     // Count-first collapsed exception: no product-name preview rows by default.
-    return `<div class="cp-readiness-gap-card${expanded ? " is-expanded" : ""}" data-gap-kind="${escapeHtml(gapKind)}">
-      <div class="cp-readiness-gap-card-head">
-        <div class="cp-readiness-gap-title">${escapeHtml(title)}</div>
-        <div class="cp-readiness-gap-count">${text(matched, "0")}</div>
-        ${detailsBtn}
-      </div>
+    return `<div class="cp-readiness-gap-row${expanded ? " is-expanded" : ""}" data-gap-kind="${escapeHtml(gapKind)}">
+      <span class="cp-readiness-gap-title">${escapeHtml(title)}</span>
+      <span class="cp-readiness-gap-sep">—</span>
+      <span class="cp-readiness-gap-count">${text(matched, "0")}</span>
+      ${detailsBtn}
     </div>`;
   }
 
@@ -1931,6 +1852,11 @@ export function createPortfolioReadinessController(deps = {}) {
     syncSearchFromShell,
     goNextPage,
     goPrevPage,
+    activeFilterCount,
+    applyPendingFilters,
+    clearFilters: clearReadinessFilters,
+    syncGlobalFilterUi,
+    resetGlobalFilterUi,
     getPeriodStart: () => state.periodStart,
     getPopulationScope: () => state.populationScope,
     getMatchedCount: () =>

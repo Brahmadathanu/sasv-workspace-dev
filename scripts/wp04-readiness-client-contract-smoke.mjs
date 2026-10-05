@@ -635,8 +635,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v335/.test(sw));
-assert.ok(!/hub-cache-v334/.test(sw));
+assert.ok(/hub-cache-v336/.test(sw));
+assert.ok(!/hub-cache-v335/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -645,46 +645,55 @@ assert.ok(!/js\/products\.js/.test(shellSrc));
 pass("shell does not add Manage Products or marketing writer paths");
 
 // ── Track B structural assertions ──────────────────────────────────────────
-assert.ok(htmlSrc.includes('id="readinessFilterBtn"'));
-assert.ok(htmlSrc.includes('id="readinessFilterDrawer"'));
-assert.ok(htmlSrc.includes('id="readinessFilterBadge"'));
+assert.ok(htmlSrc.includes('id="readinessPeqFilterBody"'));
+assert.ok(htmlSrc.includes('id="readinessSeverityFilters"'));
+assert.ok(htmlSrc.includes('id="readinessDependencyFilters"'));
+assert.ok(htmlSrc.includes('id="readinessOwnerFilters"'));
+assert.ok(htmlSrc.includes('id="readinessRouteFilters"'));
+assert.ok(htmlSrc.includes('id="readinessFilterApply"'));
 assert.ok(htmlSrc.includes('id="readinessAppliedFilters"'));
 assert.ok(htmlSrc.includes('id="readinessSummary"'));
 assert.ok(htmlSrc.includes('id="readinessGapDetails"'));
 assert.ok(htmlSrc.includes('id="genericTableCard"'));
-assert.ok(htmlSrc.includes('cp-readiness-ops'));
+assert.ok(htmlSrc.includes('id="peqFilterWrapper"'));
+assert.ok(htmlSrc.includes('cp-readiness-controls'));
 assert.ok(htmlSrc.includes('cp-readiness-register-region'));
+assert.ok(!htmlSrc.includes('id="readinessFilterBtn"'));
+assert.ok(!htmlSrc.includes('id="readinessFilterDrawer"'));
+assert.ok(!htmlSrc.includes('cp-readiness-ops'));
 assert.ok(!/id="readinessDependencyFilter"/.test(htmlSrc));
 assert.ok(!/id="readinessOwnerFilter"/.test(htmlSrc));
 assert.ok(!/id="readinessRouteFilter"/.test(htmlSrc));
 assert.ok(!/multiple\s+size\s*=\s*["']?3["']?/.test(htmlSrc));
 assert.ok(!htmlSrc.includes('id="readinessSearch"'));
-pass("Track B filter drawer / chip hosts present; raw multi-selects absent");
+pass("Track B global filter hosts present; lens-local filter button absent");
 
 assert.ok(shellSrc.includes("function syncReadinessShellChrome"));
+assert.ok(shellSrc.includes("function syncPortfolioReadinessFilterChrome"));
 assert.ok(/syncReadinessShellChrome\s*\(/.test(shellSrc));
 assert.ok(/cp-readiness-active/.test(shellSrc));
 assert.ok(/genericTableCard/.test(shellSrc));
-assert.ok(/peqFilterWrapper/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
+assert.ok(/applyKpiStripVisibility\s*\(/.test(shellSrc.split("function syncReadinessShellChrome")[1]?.split("function syncPortfolioReadinessFilterChrome")[0] || ""));
+assert.ok(!/setVisible\(\s*kpiStripWrap,\s*false/.test(shellSrc.split("function syncReadinessShellChrome")[1]?.split("function syncPortfolioReadinessFilterChrome")[0] || ""));
+assert.ok(/setVisible\(\s*peqFilterWrapper,\s*true/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
+assert.ok(!/setVisible\(\s*peqFilterWrapper,\s*false/.test(shellSrc.split("function syncReadinessShellChrome")[1]?.split("function syncPortfolioReadinessFilterChrome")[0] || ""));
 assert.ok(/costPeriodValuationStrip/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
-assert.ok(/closeFilterDrawer\s*\(/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
-assert.ok(/setVisible\(\s*kpiStripWrap,\s*false/.test(shellSrc));
-assert.ok(/setVisible\(\s*lastRefreshed,\s*false/.test(shellSrc));
-assert.ok(/setVisible\(\s*peqFilterWrapper,\s*false/.test(shellSrc));
-assert.ok(/setVisible\(\s*peqFilterWrapper,\s*true/.test(shellSrc));
-assert.ok(/applyKpiStripVisibility\s*\(/.test(shellSrc));
 assert.ok(/syncPeriodControlState\s*\(/.test(shellSrc));
 assert.ok(/reloadCostPeriodValuationIfNeeded\s*\(/.test(shellSrc));
+assert.ok(/activeFilterCount/.test(shellSrc));
+assert.ok(/applyPendingFilters/.test(shellSrc));
+assert.ok(/resetGlobalFilterUi/.test(shellSrc));
 assert.ok(
   /CURRENT_LENS\s*=\s*lensId[\s\S]{0,400}?syncReadinessShellChrome\s*\(/.test(
     shellSrc,
   ),
 );
 assert.ok(/Search product, SKU or ID/.test(shellSrc));
-pass("Track B shell chrome hide/restore synchronizer present");
+pass("Track B shell chrome keeps KPI + global filter under Readiness");
 
 assert.ok(/READINESS_GAP_PREVIEW_LIMIT\s*=\s*3/.test(readinessSrc));
 assert.ok(/Count-first collapsed exception/.test(readinessSrc));
+assert.ok(/cp-readiness-gap-row/.test(readinessSrc));
 assert.ok(
   !/cp-readiness-gap-preview/.test(
     readinessSrc.split("function renderGapCard")[1]?.split("function renderGapDetailsPanel")[0] ||
@@ -711,23 +720,27 @@ assert.ok(/cp-readiness-detail-disclose/.test(readinessSrc));
 assert.ok(/getDrawerConfig/.test(readinessSrc));
 assert.ok(/renderDrawerTab/.test(readinessSrc));
 assert.ok(!/Action<\/th>/.test(htmlSrc.split("readinessLensHost")[1]?.split("genericTableCard")[0] || ""));
+assert.ok(!/cp-readiness-summary-metrics/.test(readinessSrc));
+assert.ok(!/Population<\/span>/.test(readinessSrc.split("function renderSummary")[1]?.split("function renderGapCard")[0] || ""));
 pass("Track B loading/unavailable/empty states and details path preserved");
 
 assert.ok(!readinessSrc.includes("readinessSearch"));
 assert.ok(/getSearchValue/.test(readinessSrc));
 pass("Track B preserves shell search as sole search authority");
 
-// Pager attached to register region (not a pre-register peer block)
 const hostChunk =
   htmlSrc.split('id="readinessLensHost"')[1]?.split('id="genericTableCard"')[0] || "";
 assert.ok(/cp-readiness-register-region[\s\S]*cp-readiness-pagebar/.test(hostChunk));
 assert.ok(!/cp-readiness-pagebar[\s\S]*cp-readiness-register-region/.test(hostChunk));
-assert.ok(/clear-link/.test(hostChunk));
-pass("Track B pager attached to register region; Clear is link-style");
+assert.ok(/table-card cp-readiness-register-region/.test(hostChunk));
+assert.ok(!/id="readinessFilterBtn"/.test(hostChunk));
+pass("Track B pager attached to register card; no lens-local filter button");
 
 assert.ok(!/severity_precedence|clientDerivedSeverity|deriveOverallSeverity/.test(readinessSrc));
-assert.ok(cssSrc.includes("cp-readiness-active #peqFilterWrapper"));
+assert.ok(!cssSrc.includes("cp-readiness-active #peqFilterWrapper"));
+assert.ok(!cssSrc.includes("cp-readiness-active #kpiStripWrap"));
 assert.ok(cssSrc.includes("costPeriodValuationStrip"));
-pass("Track B no client severity authority; CSS chrome hide rules present");
+assert.ok(cssSrc.includes("overflow: visible"));
+pass("Track B no client severity authority; CCC KPI/filter remain visible");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");
