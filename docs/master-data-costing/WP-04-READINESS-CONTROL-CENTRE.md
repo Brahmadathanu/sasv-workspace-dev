@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — C-R01/C-R02 V2 single authorized runtime attempt consumed and failed on proposal SQL ambiguity; independent readback clean; new versioned correction required before any further authorization.
+WP04-G4 — C-R01/C-R02 V3 frozen and source-reviewed PASS after correcting the consumed V2 proposal defects; explicit operation authorization required before runtime.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V2 SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f one-attempt authorization is consumed. Attempt failed SQLSTATE 42702 before proof completion; no retry. Independent readback PASS with candidate_count0/all22 definitions matching/idle transactions0. Original state unchanged; programme 4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V2 remains consumed failed with clean readback. V3 is frozen/source-review PASS at SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca; runtime NOT_RUN/no operation authorized. V3 corrects C-R01 ambiguous n and latent C-R02 bare case_name qualification only; original C source and historical evidence unchanged; programme 4/13.
 
 ## Required to close
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Repository-only new versioned correction/review for the V2 ambiguous-`n` proposal defect. Do not edit/retry the consumed V2 digest. No server operation, portfolio/performance/deployment/client work; do not start a new WP.
+WP04-G4 — Explicit-authorization boundary for V3 SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca. Before any attempt, freshly reconcile main/target/source/context/digests; at most one attempt, no retry/no COMMIT/final ROLLBACK, then separately frozen independent readback. No portfolio/performance/deployment/client work; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -940,3 +940,7 @@ Prepared `server-packages/wp04-g4/c-correctness-proposal-v2.sql` as a new versio
 ## 2026-10-05 — C correctness V2 authorized attempt consumed / failed
 
 Fresh repository, target, script/readback digest, source, index, governed-context and 611-membership guards all passed. The single authorized V2 attempt failed with SQLSTATE `42702`: PL/pgSQL variable `n` was ambiguous with the `source_counts.n` CTE column in C-R01. No retry occurred. Mandatory separate independent readback immediately PASS: candidate_count 0, all 22 definitions match, existing owner/ACL/search_path attributes match, column shape/event/textual callers match, idle WP04 transactions 0. C-R01/C-R02 runtime proof therefore remains incomplete, but no production/source residue or readiness regression was demonstrated. Consumed V2 must remain immutable. Next bounded action is a new versioned repository-only proposal correction/review; any later execution needs a new explicit authorization.
+
+## 2026-10-05 — C correctness V3 frozen and source-reviewed
+
+New file `c-correctness-proposal-v3.sql` frozen at SHA-256 `ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca`; source review PASS only, runtime NOT_RUN. V3 preserves V2 and frozen C history, fixes the observed C-R01 ambiguity via distinct/qualified row-count names, and fixes seven latent C-R02 expected-value references from bare `case_name` to `r.case_name`. Static boundaries: no COMMIT, final ROLLBACK, zero canonical readiness/portfolio calls, one temporary assembler CREATE/DROP, frozen assembler/helper/membership guards retained. Any runtime now requires a new explicit authorization bound to this V3 digest and target/current main.
