@@ -97,6 +97,7 @@ VALUES
  ('costing.sku_selling_price_policy'),
  ('costing.sku_scheme_policy'),
  ('costing.sku_selected_scheme_policy_context_snapshot'),
+ ('costing.sku_regional_marketing_allocation_basis_snapshot'),
  ('costing.cost_driver_policy_envelope'),
  ('costing.cost_driver_policy_cutover_acceptance'),
  ('costing.cost_element_driver_catalog'),
@@ -305,7 +306,9 @@ BEGIN
     ||'|view:costing.v_cost_driver_policy_registry='
     ||md5(pg_get_viewdef('costing.v_cost_driver_policy_registry'::regclass,true))
     ||'|view:costing.v_sku_commercial_sales_basis='
-    ||md5(pg_get_viewdef('costing.v_sku_commercial_sales_basis'::regclass,true));
+    ||md5(pg_get_viewdef('costing.v_sku_commercial_sales_basis'::regclass,true))
+    ||'|view:costing.v_regional_marketing_evidence_review_queue='
+    ||md5(pg_get_viewdef('costing.v_regional_marketing_evidence_review_queue'::regclass,true));
 
   SELECT string_agg(
     e.source_relation||':'||
