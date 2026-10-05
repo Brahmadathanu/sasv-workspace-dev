@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4 — C-R01/C-R02 versioned correctness correction V2 is frozen and source-reviewed PASS at script level; runtime NOT_RUN and no operation authorized. Script SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f. G4 incomplete/application HOLD; G5 blocked; programme 4/13; main remained e421fe8 at preparation reconciliation. Frozen original C artifacts and all prior evidence remain unchanged. See C_CORRECTNESS_V2_PROPOSAL.md and C_CORRECTNESS_V2_REVIEW.md.
+WP04-G4 — C-R01/C-R02 V2 authorized one-attempt runtime was consumed and FAILED with SQLSTATE 42702 (ambiguous `n` in C-R01 proposal query); no retry. Mandatory independent readback PASS: candidate_count0, all22definitions/attributes/columns/event/callers match, idle WP04 transactions0. Original state unchanged. V2 digest is consumed and must not be edited/retried under prior authorization. G4 incomplete/application HOLD; G5 blocked; programme 4/13.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4 — Stop at the explicit-authorization boundary for the reviewed C-R01/C-R02 V2 script. Any execution requires fresh moved-main/target guards and explicit authorization bound to SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f, one attempt/no retry/no COMMIT/final ROLLBACK and separate frozen independent readback. No portfolio/performance/deployment/client work. Formal WP04 closure/mandatory WP05 new-chat handover remain future requirements.
+WP04-G4 — Stop after the consumed failed V2 attempt and clean independent readback. Next bounded action is repository-only preparation/review of a new versioned correction for the ambiguous `n` defect; no server execution is authorized. Any later attempt requires a new digest and fresh explicit authorization. No portfolio/performance/deployment/client work.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
@@ -87,3 +87,7 @@ High-risk work retains a separate Plan → ChatGPT review → Implementation gat
 ## 2026-10-05 — C-R01/C-R02 correctness correction V2 frozen and reviewed
 
 New versioned `c-correctness-proposal-v2.sql` prepared without changing original C SQL/history. Final SHA-256 `3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f`. C-R01 compares complete six-source selections across all 611 operational SKUs using extracted original point predicates versus C set-join predicates; zero readiness/canonical/core/portfolio calls. C-R02 uses eight pure-literal typed-composite cases for absent and present-null source boundaries, seven drivers and complete JSON; no persisted fixtures/live-row claim. Source review corrected three proposal-only defects before freezing and records PASS at source level; parser/runtime NOT_RUN. No Supabase operation occurred. G4 remains incomplete/application HOLD; G5 blocked; next boundary is fresh explicit digest-bound authorization or stop.
+
+## 2026-10-05 — C correctness V2 single authorized attempt failed / readback clean
+
+Fresh main/target/script/context/source guards passed. Exactly one authorized V2 attempt was made and failed with PostgreSQL 42702 because PL/pgSQL variable `n` conflicted with `source_counts.n` in C-R01. No retry. Frozen independent readback immediately afterward PASS: candidate_count0, all22definitions match, attributes/columns/event/textual callers match, idle transactions0. No production/source residue. V2 digest is consumed failed evidence; original C/history remain unchanged. G4 stays incomplete/application HOLD, G5 blocked. Next only a new versioned repository correction/review may be prepared; no new operation authorized.
