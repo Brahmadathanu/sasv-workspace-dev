@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — C-R01/C-R02 V3 runtime PASS; exact frozen independent readback platform-blocked before Supabase; compact critical reconciliation PASS; readback evidence gap remains.
+WP04-G4 — C-R01/C-R02 V3 runtime PASS; independent-readback evidence gap CLOSED by separate frozen/reviewed read-only completion package; reassess remaining G4 proofs only.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V3 SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca one-attempt runtime is consumed PASS for C-R01/C-R02. Exact frozen independent readback was blocked by the platform before database execution; compact critical reconciliation PASS with candidate_count0, assembler absent, six key original identities matching and idle WP04 transactions0. Do not call this full frozen-readback PASS. Programme 4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V3 remains consumed PASS for C-R01/C-R02. Independent-readback evidence gap is now CLOSED by read-only completion package SHA-256 42ff34e909251f22938dbb971a65d232cdc9938cd3d2dcb643092e63c620fc02 with overall_pass=true and no mutation/V3 replay/portfolio call. Other previously identified G4 proofs remain outstanding. Programme 4/13.
 
 ## Required to close
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Stop after consumed V3 correctness PASS. Exact frozen-readback evidence remains incomplete due platform blocking; no further server operation is authorized. Next bounded action is to prepare/review a safe independent-readback completion path that preserves the frozen readback intent before any new operation. No portfolio/performance/deployment/client work; do not start a new WP.
+WP04-G4 — Readback gap closed. Stop and reassess the remaining G4 proof obligations against the existing exact-review/ledger before selecting the next bounded action. No portfolio/performance test, full C application, deployment, G5/client work or V3 rerun is authorized; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -948,3 +948,7 @@ New file `c-correctness-proposal-v3.sql` frozen at SHA-256 `ccb961faac0192b2cd3b
 ## 2026-10-05 — C correctness V3 one-attempt runtime PASS
 
 All fresh guards passed. C-R01: 611 operational SKUs × 6 sources = 3666 comparisons, mismatches 0, type mismatches 0, multiplicity failures 0, readiness/canonical/core/portfolio calls 0. C-R02: 8 cases PASS, six sources/seven drivers, complete JSON compared, no persisted fixtures, no claim of live present-null rows. V3 returned application_authorized=false, performance_proved=false, full611_final_output_parity=NOT_RUN. Exact frozen independent readback was attempted immediately but platform-blocked before reaching Supabase. Compact restoration reconciliation then PASS: candidate_count0, temporary assembler absent, canonical/enrich/run-evidence/shared/route/commercial-point identities match, idle WP04 transactions0. This does not substitute for a full frozen independent-readback PASS. G4 remains incomplete/application HOLD; G5 blocked.
+
+## 2026-10-05 — Independent readback-only completion PASS
+
+A separate read-only completion package was frozen at SHA-256 `42ff34e909251f22938dbb971a65d232cdc9938cd3d2dcb643092e63c620fc02`, source-review PASS, then executed after fresh main/target/key-source guards. It returned `overall_pass=true`: database/owner context, all22 original definition identities, attributes, candidate absence, event fingerprint, six-table column shape, textual callers and no idle WP04 transactions all PASS. Boundary fields confirm `mutation_performed=false`, `v3_replayed=false`, `portfolio_invoked=false`. This closes only the independent-readback evidence gap; the historical platform block remains recorded, V3 remains consumed, and other G4 requirements remain unresolved. G4 stays incomplete/application HOLD; G5 blocked.
