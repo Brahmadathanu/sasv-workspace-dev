@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Focused residual-cost correction/proof plan and source review complete at plan scope only.
+WP04-G4 — Exact unapplied C snapshot-cohort package/correctness proposal prepared; independent exact review pending.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Plan direction: six run-snapshot cohort inputs, one shared canonical builder, unchanged route/commercial/statistics semantics. No implementation or live query at this checkpoint. Prior bounded parity/restoration PASS and performance goal misses retained; all authorizations consumed; programme 4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Unapplied C draft and exact restore/readback/correctness proposal prepared. Two bounded read-only source/context inspections matched; no business-function invocation or production mutation. Runtime NOT_RUN; no operation/application authorization. Prior evidence and consumed authorizations retained; programme 4/13.
 
 ## Required to close
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Exact unapplied C snapshot-cohort package and staged proof preparation, followed by separate exact source/rollback/security/proof review per RESIDUAL_CORRECTION_PLAN.md and RESIDUAL_PLAN_REVIEW.md. No production operation, deployment or client implementation authorized.
+WP04-G4 — Independent exact C source/rollback/security/correctness-proof review per C_PACKAGE_DRAFT.md and c-package-manifest.json. No production operation, deployment or client implementation authorized.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -924,3 +924,7 @@ WP04-G4 — Single authorized read-only helper diagnostic completed8measurements
 ## 2026-10-04 — Focused residual-cost correction/proof plan and source review
 
 Source comparison complete; [RESIDUAL_CORRECTION_PLAN.md](server-packages/wp04-g4/RESIDUAL_CORRECTION_PLAN.md) recommends six run-snapshot cohort inputs and one shared canonical builder. [RESIDUAL_PLAN_REVIEW.md](server-packages/wp04-g4/RESIDUAL_PLAN_REVIEW.md) accepts this bounded direction at plan scope only. It preserves row-presence/null/context/JSON behavior, original helper-summary differences and existing route/commercial/statistics contracts. The affected original run-evidence helper expands high-risk replacement/restoration scope and requires exact review, not automatic permission. No implementation or live query at this checkpoint; no forecast from three samples. Next exact unapplied C package and staged proof preparation, then separate source/rollback/security/proof review. Programme Immediate next action corrected because the previously requested performance operation was already completed. Historical evidence and frozen SQL untouched; all authorizations consumed; G0–G3 retained, G4 incomplete/application HOLD, G5 blocked; programme 4/13; main e421fe8 unchanged; WP03 closed; DEC-014/parked/locked preserved. No new decision or parked finding. Formal WP04 closure and mandatory WP05 new-chat handover remain future gates.
+
+## 2026-10-05 — Exact unapplied C package/correctness proposal prepared
+
+[C_PACKAGE_DRAFT.md](server-packages/wp04-g4/C_PACKAGE_DRAFT.md) and separate c-package-manifest.json bind source/forward/restore/identities/correctness/readback artifacts. Twelve definitions: original canonical/enrich/run-evidence replacements plus nine absent candidates, including four added private helpers; one shared typed snapshot assembler preserves evidence composition. Fresh read-only catalog22functions/threeviews/sixunique runkeys/candidate0 and bounded context611/460Products/SUCCESS115/membership matched. Structural identity/embedding/transaction/hash checks PASS only; SQL parser/runtime NOT_RUN. No business-function invocation, candidate creation, production mutation or portfolio test. Correctness proposal call budget explicit; full611 output, live no-success/present-null fixture, nativeAPI/performance/committed rollback gaps retained. Independent exact C source/rollback/security/correctness-proof review next; no execution/application authorization. Previous SQL/results and unrelated draft preserved; G0–G3 retained; G4 incomplete/application HOLD, G5 blocked; programme4/13; main e421fe8 unchanged; WP03 closed; DEC-014/parked/locked and mandatory formal-closure WP05 new-chat handover unchanged.

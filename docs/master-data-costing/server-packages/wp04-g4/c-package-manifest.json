@@ -1,0 +1,57 @@
+{
+  "status": "UNAPPLIED_SOURCE_REVIEW_PENDING",
+  "target": "qhmoqtxpeasamtlxaoak",
+  "main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+  "audit_input": "d108ea764891a1eea9ff770262a5ac0f0893ad6b",
+  "application_authorized": false,
+  "operation_authorized": false,
+  "executed": false,
+  "existing_replacements": [
+    "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+    "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+    "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)"
+  ],
+  "new_functions": [
+    "costing.fn_wp04_c_run_assemble(bigint,date,date,bigint,costing.sku_direct_labour_allocation_snapshot,costing.sku_production_overhead_allocation_snapshot,costing.sku_qc_allocation_snapshot,costing.sku_materials_stores_allocation_snapshot,costing.sku_admin_finance_overhead_allocation_snapshot,costing.sku_marketing_expense_allocation_snapshot)",
+    "costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint)",
+    "costing.fn_wp04_c_enrich(jsonb,bigint,date,date,bigint,jsonb,jsonb)",
+    "costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb)",
+    "costing.fn_wp04_c_live_core(bigint,date,date,bigint,jsonb,jsonb,jsonb)",
+    "costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)",
+    "public.rpc_get_readiness_governed_periods(date,integer)",
+    "public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer)",
+    "public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)"
+  ],
+  "runtime_compilation": "NOT_RUN",
+  "next_gate": "INDEPENDENT_EXACT_C_SOURCE_ROLLBACK_SECURITY_PROOF_REVIEW",
+  "proof_budget": {
+    "canonical_success_calls": 10,
+    "canonical_expected_missing_calls": 2,
+    "run_helper_calls": 24,
+    "direct_cohort_calls": 4,
+    "prefetched_core_calls": 3,
+    "invalid_prefetch_calls": 6,
+    "direct_route_map_calls": 1,
+    "direct_shared_issue_calls": 1,
+    "portfolio_calls": 0,
+    "hidden_611_old_helper_calls": 0,
+    "statement_timeout_seconds": 15
+  },
+  "limits": [
+    "full_611_output_parity_NOT_RUN",
+    "no_success_context_NOT_RUN",
+    "present_null_status_fixture_NOT_RUN",
+    "native_API_NOT_RUN",
+    "performance_NOT_RUN"
+  ],
+  "files_sha256": {
+    "c-source-before.json": "671503e113896b70be78a3246eca49cd9009eb9c0ed1844b4e772dacd7af77f1",
+    "c-forward-draft.sql": "83766951ef244941ca6b0679e70b8a18d240a3a9ed3d8c2b3d8bafe7220bc055",
+    "c-rollback-draft.sql": "b5d906f0a16fdf9e9b4dedc2cc380434d0962152270b113c557f3b1bb3330011",
+    "c-package-identities.json": "f9521353e8b2daa10f9a33ea0138565ea5b46d658e04f7c948a6bd591cd383f1",
+    "c-correctness-proposal.sql": "63b9320d1511adb115e3937478aab72371fc0ed0d2457f3ca9936ba73a726964",
+    "c-independent-readback.sql": "690047294992cf19c31b57da9e075fd175bff458cdf404513fea584a0d9f16e6",
+    "C_PACKAGE_DRAFT.md": "7cb77a4e9a6eb136d81770b882fcb439261e8c901ed431be9d5e07bc2db87914",
+    "C_PREPARATION_EVIDENCE.json": "671e3d3b963d9b4928e8806f60fde7c402fb5b347d8f4b4f162486e97c7462fe"
+  }
+}

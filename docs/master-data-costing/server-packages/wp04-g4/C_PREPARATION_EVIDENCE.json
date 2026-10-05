@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-05",
+  "main": "e421fe8df9b98b4956acdcd4cadeb36a3f9b923c",
+  "input_audit": "d108ea764891a1eea9ff770262a5ac0f0893ad6b",
+  "live_operations": "TWO_BOUNDED_READONLY_CATALOG_AND_CONTEXT_INSPECTIONS",
+  "business_function_invocations": 0,
+  "production_mutation": false,
+  "context": {
+    "first_sku": 1,
+    "product_count": 460,
+    "membership_md5": "eeba4bf20f54589fe5b037173a79ed82",
+    "run114_present": true,
+    "valuation_date": "2026-09-10",
+    "population_count": 611,
+    "latest_success_run": 115
+  },
+  "source_match": "20_PRIOR_HELPERS_AND_ORIGINAL_CANONICAL_ENRICH_RUN_MATCH",
+  "candidate_count": 0,
+  "structural_checks": "PASS_IDENTITY_SCOPE_ONLY",
+  "sql_parser": "NOT_RUN",
+  "runtime": "NOT_RUN",
+  "application_authorized": false,
+  "operation_authorized": false
+}

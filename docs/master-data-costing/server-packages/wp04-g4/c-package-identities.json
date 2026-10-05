@@ -1,0 +1,426 @@
+{
+  "existing_replacements": [
+    "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+    "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+    "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)"
+  ],
+  "new_functions": [
+    "costing.fn_wp04_c_run_assemble(bigint,date,date,bigint,costing.sku_direct_labour_allocation_snapshot,costing.sku_production_overhead_allocation_snapshot,costing.sku_qc_allocation_snapshot,costing.sku_materials_stores_allocation_snapshot,costing.sku_admin_finance_overhead_allocation_snapshot,costing.sku_marketing_expense_allocation_snapshot)",
+    "costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint)",
+    "costing.fn_wp04_c_enrich(jsonb,bigint,date,date,bigint,jsonb,jsonb)",
+    "costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb)",
+    "costing.fn_wp04_c_live_core(bigint,date,date,bigint,jsonb,jsonb,jsonb)",
+    "costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)",
+    "public.rpc_get_readiness_governed_periods(date,integer)",
+    "public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer)",
+    "public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)"
+  ],
+  "candidate_catalog_identities": [
+    {
+      "signature": "costing.fn_wp04_c_run_assemble(bigint,date,date,bigint,costing.sku_direct_labour_allocation_snapshot,costing.sku_production_overhead_allocation_snapshot,costing.sku_qc_allocation_snapshot,costing.sku_materials_stores_allocation_snapshot,costing.sku_admin_finance_overhead_allocation_snapshot,costing.sku_marketing_expense_allocation_snapshot)",
+      "body_md5": "fdb75ff20ffd5d37e5103dec6b407f8c",
+      "argnames": [
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id",
+        "p_dl",
+        "p_poh",
+        "p_qc",
+        "p_ms",
+        "p_af",
+        "p_mk"
+      ],
+      "default_count": 0,
+      "defaults_expression": null,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "sql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint)",
+      "body_md5": "fd3953417095e6c1045c4c508cbab777",
+      "argnames": [
+        "p_sku_ids",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id",
+        "sku_id",
+        "evidence_envelope"
+      ],
+      "default_count": 0,
+      "defaults_expression": null,
+      "owner": "postgres",
+      "return_type": "record",
+      "language": "sql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": true,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 1000,
+      "support": 0,
+      "transforms": null,
+      "argmodes": [
+        "i",
+        "i",
+        "i",
+        "i",
+        "t",
+        "t"
+      ],
+      "allargtypes": [
+        "bigint[]",
+        "date",
+        "date",
+        "bigint",
+        "bigint",
+        "jsonb"
+      ]
+    },
+    {
+      "signature": "costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)",
+      "body_md5": "24120402765a16d9705f8937b4ae3699",
+      "argnames": [
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id"
+      ],
+      "default_count": 0,
+      "defaults_expression": null,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "sql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false",
+        "service_role:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_wp04_c_enrich(jsonb,bigint,date,date,bigint,jsonb,jsonb)",
+      "body_md5": "5174d7a97de4302b40826d207f144cce",
+      "argnames": [
+        "p_base",
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id",
+        "p_shared_issues",
+        "p_run_envelope"
+      ],
+      "default_count": 0,
+      "defaults_expression": null,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb)",
+      "body_md5": "3e06daca9e83c1d3c8a2ea0a432d88c2",
+      "argnames": [
+        "p_base",
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id",
+        "p_shared_issues"
+      ],
+      "defaults_expression": null,
+      "default_count": 0,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint)",
+      "body_md5": "c1f37b9477f239cf87c44901ecd3ca6e",
+      "argnames": [
+        "p_base",
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_refresh_run_id"
+      ],
+      "defaults_expression": null,
+      "default_count": 0,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false",
+        "service_role:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_wp04_c_live_core(bigint,date,date,bigint,jsonb,jsonb,jsonb)",
+      "body_md5": "41d34c8869f2153220170cd765880d52",
+      "argnames": [
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_evidence_run_id",
+        "p_route_evidence",
+        "p_shared_issues",
+        "p_run_envelope"
+      ],
+      "default_count": 0,
+      "defaults_expression": null,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb)",
+      "body_md5": "e00e399bace53b8bd906facc754d8584",
+      "argnames": [
+        "p_sku_id",
+        "p_period_start",
+        "p_valuation_date",
+        "p_evidence_run_id",
+        "p_route_evidence",
+        "p_shared_issues"
+      ],
+      "defaults_expression": null,
+      "default_count": 0,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=costing, public, pg_temp",
+      "acl_entries": [
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_product_sku_readiness(bigint,date,text,bigint)",
+      "body_md5": "7c54b0edc159d08647e8df73d51fbe51",
+      "argnames": [
+        "p_sku_id",
+        "p_period_start",
+        "p_context_type",
+        "p_refresh_run_id"
+      ],
+      "defaults_expression": "'LIVE_AS_OF'::text, NULL::bigint",
+      "default_count": 2,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false",
+        "service_role:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_readiness_governed_periods(date,integer)",
+      "body_md5": "671e150396f388875735e68818dcb574",
+      "argnames": [
+        "p_before_period_start",
+        "p_limit"
+      ],
+      "defaults_expression": "NULL::date, 24",
+      "default_count": 2,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer)",
+      "body_md5": "4ae66ab181270cfd41e16d2969d20d58",
+      "argnames": [
+        "p_product_scope",
+        "p_gap_kind",
+        "p_search",
+        "p_after_product_id",
+        "p_limit"
+      ],
+      "defaults_expression": "'ACTIVE_PRODUCTS'::text, 'NO_SKU'::text, NULL::text, NULL::bigint, 50",
+      "default_count": 5,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    },
+    {
+      "signature": "public.rpc_get_product_sku_readiness_portfolio(date,text,text[],text[],text[],text[],text,bigint,integer)",
+      "body_md5": "cf6f5703b9d5bf1bef2c28b31cc4fe24",
+      "argnames": [
+        "p_period_start",
+        "p_population_scope",
+        "p_overall_severities",
+        "p_dependency_codes",
+        "p_owner_modules",
+        "p_route_codes",
+        "p_search",
+        "p_after_sku_id",
+        "p_limit"
+      ],
+      "defaults_expression": "'OPERATIONAL'::text, NULL::text[], NULL::text[], NULL::text[], NULL::text[], NULL::text, NULL::bigint, 50",
+      "default_count": 8,
+      "owner": "postgres",
+      "return_type": "jsonb",
+      "language": "plpgsql",
+      "volatility": "s",
+      "security_definer": true,
+      "strict": false,
+      "leakproof": false,
+      "parallel": "u",
+      "kind": "f",
+      "set_returning": false,
+      "search_path": "search_path=public, costing, pg_temp",
+      "acl_entries": [
+        "authenticated:postgres:EXECUTE:false",
+        "postgres:postgres:EXECUTE:false"
+      ],
+      "cost": 100,
+      "rows": 0,
+      "support": 0,
+      "transforms": null
+    }
+  ]
+}
