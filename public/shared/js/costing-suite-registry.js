@@ -2,7 +2,12 @@ export const COSTING_SUITE_MODULES = [
   {
     id: "control-center",
     label: "Costing Control Center",
-    lensIds: ["dashboard", "costing-review-workbench", "sku-control-status"],
+    lensIds: [
+      "dashboard",
+      "costing-review-workbench",
+      "sku-control-status",
+      "portfolio-readiness",
+    ],
   },
   {
     id: "material-cost",
@@ -81,6 +86,14 @@ export const LENS_REGISTRY = {
     periodScoped: true,
     description:
       "Canonical SKU costing remediation index: primary control, recommended route, and secondary material evidence.",
+  },
+  "portfolio-readiness": {
+    id: "portfolio-readiness",
+    label: "Readiness",
+    suiteId: "control-center",
+    periodScoped: true,
+    description:
+      "Read-only portfolio readiness lens over the governed LIVE_AS_OF server contract.",
   },
   "manual-rate-manager": {
     id: "manual-rate-manager",

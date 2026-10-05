@@ -53,6 +53,10 @@ import {
   createControlCenterController,
   isControlCenterLens,
 } from "./costing-suite-control-center.js";
+import {
+  createPortfolioReadinessController,
+  isPortfolioReadinessLens,
+} from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
 import {
   createQcActionQueueController,
@@ -3579,6 +3583,7 @@ let _csrStatusChecklistHtml = null;
 let qcSearchDebounceTimer = null;
 let msSearchDebounceTimer = null;
 let prmSearchDebounceTimer = null;
+let readinessSearchDebounceTimer = null;
 
 function clearQcSearchDebounce() {
   if (qcSearchDebounceTimer != null) {
@@ -3598,6 +3603,13 @@ function clearPrmSearchDebounce() {
   if (prmSearchDebounceTimer != null) {
     clearTimeout(prmSearchDebounceTimer);
     prmSearchDebounceTimer = null;
+  }
+}
+
+function clearReadinessSearchDebounce() {
+  if (readinessSearchDebounceTimer != null) {
+    clearTimeout(readinessSearchDebounceTimer);
+    readinessSearchDebounceTimer = null;
   }
 }
 
@@ -3822,8 +3834,21 @@ function restoreCsrStatusPeqOptions() {
 
 function syncPeriodControlState() {
   const scoped = isPeriodScopedLens();
+  const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
 
   if (costingPeriodSelect) {
+    // Readiness owns governed-period state from rpc_get_readiness_governed_periods.
+    // Do not drive readiness from AVAILABLE_COSTING_PERIODS / ACTIVE_PERIOD_START.
+    if (readinessActive) {
+      costingPeriodSelect.disabled = true;
+      costingPeriodSelect.hidden = true;
+      costingPeriodSelect.setAttribute("hidden", "");
+      costingPeriodSelect.setAttribute("aria-hidden", "true");
+      costingPeriodSelect.title =
+        "Readiness uses its own governed-period selector";
+      return;
+    }
+
     const onPpm = isPricingPolicyManagerRoute();
     if (onPpm) {
       // EVP-3I2C9E: show existing #costingPeriodSelect only for the sole
@@ -3858,6 +3883,10 @@ function syncPeriodControlState() {
         costingPeriodSelect.setAttribute("aria-hidden", "true");
         costingPeriodSelect.setAttribute("tabindex", "-1");
       }
+    } else {
+      costingPeriodSelect.hidden = false;
+      costingPeriodSelect.removeAttribute("hidden");
+      costingPeriodSelect.setAttribute("aria-hidden", "false");
     }
 
     costingPeriodSelect.disabled = !scoped;
@@ -4136,6 +4165,23 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     // Lens startup never loads SKU status diagnosis (selected-SKU on demand only).
     clearSkuStatusDiagnosisCache();
     if (!preservePage) CURRENT_PAGE = 1;
+
+    if (isPortfolioReadinessLens(CURRENT_LENS)) {
+      ALL_ROWS = [];
+      VIEW = [];
+      portfolioReadinessCtrl.onLensLoadStart?.();
+      if (!preservePage) CURRENT_PAGE = 1;
+      const result = await portfolioReadinessCtrl.load({
+        preserveKeyset: !!preservePage,
+        search: String(searchBox?.value || "").trim(),
+      });
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      if (result?.stale === true) return;
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      renderTable();
+      return;
+    }
 
     if (shouldShowKpiStrip()) {
       await controlCenterCtrl.loadGlobalSummaries(ACTIVE_PERIOD_START);
@@ -4736,10 +4782,15 @@ async function switchLens(lensId) {
   const leavingMs = isMaterialsStoresActionQueueLens(CURRENT_LENS);
   const leavingPrm = isProductionRouteLens(CURRENT_LENS);
   const leavingDriverGovernance = isDriverGovernanceLens(CURRENT_LENS);
+  const leavingReadiness = isPortfolioReadinessLens(CURRENT_LENS);
   const leavingTrace = isMaterialCostTraceLensActive();
   costSheetCtrl.onLensSwitch();
   if (leavingTrace) {
     materialCostCtrl.teardownTraceProgressiveScroll?.();
+  }
+  if (leavingReadiness) {
+    clearReadinessSearchDebounce();
+    portfolioReadinessCtrl.onLensExit?.();
   }
   if (leavingQc) {
     clearQcSearchDebounce();
@@ -5742,6 +5793,9 @@ function paintProductionRouteLens(options = {}) {
 function renderTable() {
   costBuildCtrl.syncManualProvisionLayout();
   syncPeriodControlState();
+  if (!isPortfolioReadinessLens(CURRENT_LENS)) {
+    applyKpiStripVisibility();
+  }
   syncPricingPolicyLensChrome();
   syncCostSheetReviewLensChrome();
   if (isPricingPolicyManagerRoute()) {
@@ -5774,6 +5828,26 @@ function renderTable() {
     qcActionQueueCtrl.render();
     syncCostSheetReviewLensChrome();
     // Fall through to shared row-count / paginator chrome below.
+  } else if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    clearStatus();
+    // Readiness owns its host register; keep generic table/pagination hidden.
+    if (tableWrap) {
+      tableWrap.classList.add("hidden");
+      tableWrap.classList.remove("tw-visible");
+    }
+    const shellPagination = document.querySelector(
+      "#genericTableMetaRow .pagination",
+    );
+    setVisible(shellPagination, false);
+    setVisible(genericTableMetaActions, false);
+    if (workbenchSummary) {
+      workbenchSummary.innerHTML = "";
+      workbenchSummary.classList.remove("is-visible");
+    }
+    setVisible(kpiStripWrap, false);
+    portfolioReadinessCtrl.render();
+    syncPeriodControlState();
+    return;
   } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
     clearStatus();
     tableWrap?.classList.add("tw-visible");
@@ -6632,7 +6706,12 @@ async function setDrawerTab(tabId) {
     );
   drawerContent.innerHTML = `<div class="status">Loading...</div>`;
   try {
-    if (CURRENT_LENS === "dashboard") {
+    if (isPortfolioReadinessLens(CURRENT_LENS)) {
+      drawerContent.innerHTML = portfolioReadinessCtrl.renderDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+    } else if (CURRENT_LENS === "dashboard") {
       drawerContent.innerHTML = controlCenterCtrl.renderDashboardDrawerTab(tabId);
     } else if (CURRENT_LENS === "sku-control-status") {
       drawerContent.innerHTML = await controlCenterCtrl.renderSkuControlDrawerTab(
@@ -6756,6 +6835,16 @@ function openDetails(row, preferredTab) {
     setModalTabs(config.tabs, config.activeTab);
     setDrawerTab(config.activeTab);
 
+    detailsModal.classList.remove("hidden");
+    detailsModal.setAttribute("aria-hidden", "false");
+    return;
+  } else if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    SELECTED_ROW = row;
+    const config = portfolioReadinessCtrl.getDrawerConfig(row);
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
     detailsModal.classList.remove("hidden");
     detailsModal.setAttribute("aria-hidden", "false");
     return;
@@ -8412,6 +8501,19 @@ const controlCenterCtrl = createControlCenterController({
   },
 });
 
+const portfolioReadinessCtrl = createPortfolioReadinessController({
+  costingRpc,
+  showToast,
+  text,
+  statusChip,
+  normalizeStatus,
+  getCurrentLens: () => CURRENT_LENS,
+  canView: () => PERM_CAN_VIEW === true,
+  openDetails,
+  closeDetails,
+  getSearchValue: () => searchBox?.value ?? "",
+});
+
 const costPeriodValuationCtrl = createCostPeriodValuationController({
   costingRpc,
   showToast,
@@ -8686,6 +8788,18 @@ exportBtn?.addEventListener("click", () => {
 $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 searchBox?.addEventListener("input", () => {
   if (isMaterialCostTraceLensActive()) return;
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    clearReadinessSearchDebounce();
+    const value = String(searchBox.value || "");
+    readinessSearchDebounceTimer = setTimeout(() => {
+      void (async () => {
+        await portfolioReadinessCtrl.syncSearchFromShell(value);
+        renderTable();
+      })();
+    }, 300);
+    updateSearchClear();
+    return;
+  }
   if (isQcActionQueueLens(CURRENT_LENS)) {
     clearQcSearchDebounce();
     const value = String(searchBox.value || "");
@@ -8757,6 +8871,16 @@ searchBox?.addEventListener("input", () => {
 searchClear?.addEventListener("click", () => {
   if (isMaterialCostTraceLensActive()) return;
   searchBox.value = "";
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    clearReadinessSearchDebounce();
+    void (async () => {
+      await portfolioReadinessCtrl.syncSearchFromShell("");
+      renderTable();
+    })();
+    updateSearchClear();
+    searchBox.focus();
+    return;
+  }
   if (isQcActionQueueLens(CURRENT_LENS)) {
     clearQcSearchDebounce();
     CURRENT_PAGE = 1;

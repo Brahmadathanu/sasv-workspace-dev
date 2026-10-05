@@ -2823,6 +2823,121 @@
     </div>
 
     <div class="main" style="margin-top: 8px">
+      <div
+        id="readinessLensHost"
+        class="cp-readiness-host"
+        hidden
+        aria-hidden="true"
+        aria-label="Portfolio readiness"
+      >
+        <div class="cp-readiness-toolbar">
+          <div class="cp-readiness-toolbar-row">
+            <label class="cp-readiness-field">
+              <span>Governed period</span>
+              <select
+                id="readinessPeriodSelect"
+                aria-label="Governed readiness period"
+              >
+                <option value="">Loading…</option>
+              </select>
+            </label>
+            <label class="cp-readiness-field">
+              <span>Population scope</span>
+              <select
+                id="readinessPopulationScope"
+                aria-label="Readiness population scope"
+              >
+                <option value="OPERATIONAL">OPERATIONAL</option>
+                <option value="ALL_EXISTING">ALL_EXISTING</option>
+              </select>
+            </label>
+            <label class="cp-readiness-field cp-readiness-search-field">
+              <span>Search</span>
+              <input
+                id="readinessSearch"
+                type="search"
+                aria-label="Search readiness portfolio"
+                placeholder="Search product / SKU"
+              />
+            </label>
+            <button
+              id="readinessClearFilters"
+              type="button"
+              class="peq-filter-action-btn"
+            >
+              Clear
+            </button>
+          </div>
+          <div class="cp-readiness-toolbar-row">
+            <div
+              id="readinessSeverityFilters"
+              class="cp-readiness-severity-filters"
+              aria-label="Overall severity filters"
+            ></div>
+            <label class="cp-readiness-field">
+              <span>Dependency</span>
+              <select
+                id="readinessDependencyFilter"
+                multiple
+                size="3"
+                aria-label="Dependency filters"
+              ></select>
+            </label>
+            <label class="cp-readiness-field">
+              <span>Owner module</span>
+              <select
+                id="readinessOwnerFilter"
+                multiple
+                size="3"
+                aria-label="Owner module filters"
+              ></select>
+            </label>
+            <label class="cp-readiness-field">
+              <span>Recommended route</span>
+              <select
+                id="readinessRouteFilter"
+                multiple
+                size="3"
+                aria-label="Recommended route filters"
+              ></select>
+            </label>
+          </div>
+        </div>
+        <div id="readinessContext"></div>
+        <div id="readinessStats"></div>
+        <div id="readinessGaps"></div>
+        <div id="readinessStatus"></div>
+        <div class="cp-readiness-pagebar">
+          <button id="readinessPrevPage" type="button" class="icon-btn" disabled>
+            Prev
+          </button>
+          <span id="readinessPageMeta" class="cp-muted-text"></span>
+          <button id="readinessNextPage" type="button" class="icon-btn" disabled>
+            Next
+          </button>
+        </div>
+        <div class="cp-readiness-register-wrap table-card">
+          <table class="cp-readiness-table" aria-label="Portfolio readiness register">
+            <thead>
+              <tr>
+                <th>Product / SKU</th>
+                <th>Overall</th>
+                <th>Product master</th>
+                <th>SKU master</th>
+                <th>Costing foundation</th>
+                <th>Evidence</th>
+                <th>Outcome</th>
+              </tr>
+            </thead>
+            <tbody id="readinessTableBody"></tbody>
+          </table>
+        </div>
+        <div
+          id="readinessCardList"
+          class="cp-readiness-cards"
+          aria-label="Portfolio readiness cards"
+        ></div>
+      </div>
       <div class="table-card">
         <div id="workbenchSummary" class="cp-workbench-summary"></div>
         <div id="statusArea" class="status">Loading...</div>

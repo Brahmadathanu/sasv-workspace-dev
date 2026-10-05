@@ -1711,3 +1711,218 @@ body.sasv-production-route-manager
 }
 
 /* Costing suite visual migration track complete for the six sibling pages. */
+
+/* ── WP04-G5 Portfolio Readiness lens (Control Center only) ─────────────── */
+body.sasv-costing-control-center .cp-readiness-host {
+  display: none;
+  margin-bottom: 12px;
+}
+
+body.sasv-costing-control-center .cp-readiness-host.is-visible,
+body.sasv-costing-control-center .cp-readiness-host:not([hidden]) {
+  display: block;
+}
+
+body.sasv-costing-control-center .cp-readiness-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+body.sasv-costing-control-center .cp-readiness-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+body.sasv-costing-control-center .cp-readiness-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-costing-control-center .cp-readiness-field select,
+body.sasv-costing-control-center .cp-readiness-field input {
+  min-height: var(--sasv-control-md);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  padding: 4px 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-search-field {
+  flex: 1 1 180px;
+}
+
+body.sasv-costing-control-center .cp-readiness-severity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+body.sasv-costing-control-center .cp-readiness-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text);
+}
+
+body.sasv-costing-control-center .cp-readiness-context,
+body.sasv-costing-control-center .cp-readiness-stats,
+body.sasv-costing-control-center .cp-readiness-gaps,
+body.sasv-costing-control-center .cp-readiness-pagebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-costing-control-center .cp-readiness-stat-label {
+  color: var(--sasv-text-secondary);
+}
+
+body.sasv-costing-control-center .cp-readiness-stat-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-block {
+  flex: 1 1 240px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  padding: 8px 10px;
+  background: var(--sasv-surface);
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-title {
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  margin-bottom: 4px;
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-costing-control-center .cp-readiness-register-wrap {
+  overflow: auto;
+}
+
+body.sasv-costing-control-center .cp-readiness-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-costing-control-center .cp-readiness-table th {
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text-secondary);
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sasv-border);
+  white-space: nowrap;
+  text-align: left;
+}
+
+body.sasv-costing-control-center .cp-readiness-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-divider);
+  vertical-align: top;
+}
+
+body.sasv-costing-control-center .cp-readiness-row.is-selected td,
+body.sasv-costing-control-center .cp-readiness-card.is-selected {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-costing-control-center .cp-readiness-row:hover td,
+body.sasv-costing-control-center .cp-readiness-card:hover {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-costing-control-center .cp-readiness-cards {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-card {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+body.sasv-costing-control-center .cp-readiness-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+body.sasv-costing-control-center .cp-readiness-card-dims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-section {
+  margin-bottom: 12px;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-section h4 {
+  margin: 0 0 6px;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-costing-control-center .cp-readiness-dep {
+  border-top: 1px solid var(--sasv-divider);
+  padding: 8px 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-dep-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 900px) {
+  body.sasv-costing-control-center .cp-readiness-register-wrap {
+    display: none;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-cards {
+    display: flex;
+  }
+}

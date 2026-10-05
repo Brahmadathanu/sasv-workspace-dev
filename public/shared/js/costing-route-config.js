@@ -20,6 +20,7 @@ export const COSTING_ROUTE_CONFIG = {
       "dashboard",
       "costing-review-workbench",
       "sku-control-status",
+      "portfolio-readiness",
     ],
   },
   "material-cost-manager": {
