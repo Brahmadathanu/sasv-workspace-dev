@@ -142,27 +142,6 @@ begin
  if v_context_invalid then raise exception 'Canonical assessment context or severity mismatch'; end if;
  return v_result;
 end $function$;
-ALTER FUNCTION costing.fn_wp04_c_run_assemble(bigint,date,date,bigint,costing.sku_direct_labour_allocation_snapshot,costing.sku_production_overhead_allocation_snapshot,costing.sku_qc_allocation_snapshot,costing.sku_materials_stores_allocation_snapshot,costing.sku_admin_finance_overhead_allocation_snapshot,costing.sku_marketing_expense_allocation_snapshot) OWNER TO postgres;
-REVOKE ALL ON FUNCTION costing.fn_wp04_c_run_assemble(bigint,date,date,bigint,costing.sku_direct_labour_allocation_snapshot,costing.sku_production_overhead_allocation_snapshot,costing.sku_qc_allocation_snapshot,costing.sku_materials_stores_allocation_snapshot,costing.sku_admin_finance_overhead_allocation_snapshot,costing.sku_marketing_expense_allocation_snapshot) FROM PUBLIC,anon,authenticated,service_role;
-ALTER FUNCTION costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint) OWNER TO postgres;
-REVOKE ALL ON FUNCTION costing.fn_wp04_c_run_cohort(bigint[],date,date,bigint) FROM PUBLIC,anon,authenticated,service_role;
-ALTER FUNCTION costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint) OWNER TO postgres;
-ALTER FUNCTION costing.fn_wp04_c_enrich(jsonb,bigint,date,date,bigint,jsonb,jsonb) OWNER TO postgres;
-REVOKE ALL ON FUNCTION costing.fn_wp04_c_enrich(jsonb,bigint,date,date,bigint,jsonb,jsonb) FROM PUBLIC,anon,authenticated,service_role;
-ALTER FUNCTION costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb) OWNER TO postgres;
-REVOKE ALL ON FUNCTION costing.fn_product_sku_readiness_enrich_with_shared(jsonb,bigint,date,date,bigint,jsonb) FROM PUBLIC,anon,authenticated,service_role;
-ALTER FUNCTION costing.fn_product_sku_readiness_enrich(jsonb,bigint,date,date,bigint) OWNER TO postgres;
-ALTER FUNCTION costing.fn_wp04_c_live_core(bigint,date,date,bigint,jsonb,jsonb,jsonb) OWNER TO postgres;
-REVOKE ALL ON FUNCTION costing.fn_wp04_c_live_core(bigint,date,date,bigint,jsonb,jsonb,jsonb) FROM PUBLIC,anon,authenticated,service_role;
-ALTER FUNCTION costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb) OWNER TO postgres;
-REVOKE ALL ON FUNCTION costing.fn_product_sku_readiness_live_core(bigint,date,date,bigint,jsonb,jsonb) FROM PUBLIC,anon,authenticated,service_role;
-ALTER FUNCTION public.rpc_get_product_sku_readiness(bigint,date,text,bigint) OWNER TO postgres;
-ALTER FUNCTION public.rpc_get_readiness_governed_periods(date,integer) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.rpc_get_readiness_governed_periods(date,integer) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.rpc_get_readiness_governed_periods(date,integer) TO authenticated;
-ALTER FUNCTION public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer) FROM PUBLIC,anon,authenticated,service_role;
-GRANT EXECUTE ON FUNCTION public.rpc_get_readiness_product_gaps(text,text,text,bigint,integer) TO authenticated;
 
 ALTER FUNCTION public.rpc_get_product_sku_readiness_portfolio(
  date,text,text[],text[],text[],text[],text,bigint,integer
