@@ -840,11 +840,8 @@ SET search_path TO public,costing,pg_temp
 AS $function$
 DECLARE
   v_period date;
-  v_val date;
-  v_run bigint;
-  v_build bigint;
-  v_build_digest text;
-  v_current_digest text;
+  v_result jsonb;
+  v_has_current boolean;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
   IF NOT public.app_has_permission('module:costing-control-center','view') THEN
@@ -856,44 +853,41 @@ BEGIN
 
   v_period:=date_trunc('month',p_period_start::timestamp)::date;
 
-  SELECT valuation_date INTO v_val
-  FROM costing.cost_periods WHERE period_start=v_period;
-  IF v_val IS NULL THEN RAISE EXCEPTION 'Governed valuation date is missing for period %',v_period; END IF;
-
-  SELECT id INTO v_run
-  FROM costing.costing_refresh_run
-  WHERE period_start=v_period AND valuation_date=v_val AND overall_status='SUCCESS'
-  ORDER BY finished_at DESC NULLS LAST,id DESC LIMIT 1;
-
-  SELECT b.id,b.source_fingerprint_digest
-  INTO v_build,v_build_digest
-  FROM costing.product_sku_readiness_portfolio_build b
-  WHERE b.period_start=v_period
-    AND b.valuation_date=v_val
-    AND b.evidence_refresh_run_id IS NOT DISTINCT FROM v_run
-    AND b.status='COMPLETED'
-    AND b.is_current
+  -- One SQL statement/snapshot binds freshness, current-build identity and indexed read.
+  SELECT costing.fn_wp04_readiness_portfolio_index_read(
+           b.id,p_period_start,p_population_scope,p_overall_severities,
+           p_dependency_codes,p_owner_modules,p_route_codes,p_search,p_after_sku_id,p_limit
+         )
+  INTO v_result
+  FROM costing.fn_wp04_readiness_source_fingerprint(v_period) fp
+  JOIN costing.product_sku_readiness_portfolio_build b
+    ON b.period_start=v_period
+   AND b.valuation_date=(fp.fingerprint->>'valuation_date')::date
+   AND b.evidence_refresh_run_id IS NOT DISTINCT FROM
+       nullif(fp.fingerprint->>'evidence_refresh_run_id','')::bigint
+   AND b.status='COMPLETED'
+   AND b.is_current
+   AND b.source_fingerprint_digest=fp.digest
   ORDER BY b.id DESC
   LIMIT 1;
 
-  IF v_build IS NULL THEN
-    RAISE EXCEPTION 'READINESS_BUILD_ABSENT';
+  IF v_result IS NOT NULL THEN
+    RETURN v_result;
   END IF;
 
-  SELECT digest INTO v_current_digest
-  FROM costing.fn_wp04_readiness_source_fingerprint(v_period);
+  SELECT EXISTS(
+    SELECT 1
+    FROM costing.product_sku_readiness_portfolio_build b
+    WHERE b.period_start=v_period AND b.is_current
+  )
+  INTO v_has_current;
 
-  IF v_build_digest IS DISTINCT FROM v_current_digest THEN
+  IF v_has_current THEN
     RAISE EXCEPTION 'READINESS_BUILD_STALE';
   END IF;
-
-  RETURN costing.fn_wp04_readiness_portfolio_index_read(
-    v_build,p_period_start,p_population_scope,p_overall_severities,
-    p_dependency_codes,p_owner_modules,p_route_codes,p_search,p_after_sku_id,p_limit
-  );
+  RAISE EXCEPTION 'READINESS_BUILD_ABSENT';
 END
 $function$;
-
 ALTER FUNCTION public.rpc_get_product_sku_readiness_portfolio(
  date,text,text[],text[],text[],text[],text,bigint,integer
 ) OWNER TO postgres;
