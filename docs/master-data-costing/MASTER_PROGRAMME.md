@@ -50,7 +50,7 @@ IN PROGRESS
 WP04 — Central Master Data / Costing Readiness Control Centre. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-WP04-G4 — C-R01/C-R02 V2 authorized one-attempt runtime was consumed and FAILED with SQLSTATE 42702 (ambiguous `n` in C-R01 proposal query); no retry. Mandatory independent readback PASS: candidate_count0, all22definitions/attributes/columns/event/callers match, idle WP04 transactions0. Original state unchanged. V2 digest is consumed and must not be edited/retried under prior authorization. G4 incomplete/application HOLD; G5 blocked; programme 4/13.
+WP04-G4 — V2 one-attempt runtime remains consumed FAILED/cleanly reconciled. New versioned C-R01/C-R02 V3 proposal is frozen and source-review PASS at SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca; runtime NOT_RUN and no operation authorized. V3 removes the observed C-R01 ambiguous-n defect and a separately detected latent C-R02 bare-case_name qualification defect. Frozen original C and V2 evidence remain unchanged. G4 incomplete/application HOLD; G5 blocked; programme 4/13.
 
 ## Overall completion progress
 4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
@@ -74,7 +74,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G4 — Stop after the consumed failed V2 attempt and clean independent readback. Next bounded action is repository-only preparation/review of a new versioned correction for the ambiguous `n` defect; no server execution is authorized. Any later attempt requires a new digest and fresh explicit authorization. No portfolio/performance/deployment/client work.
+WP04-G4 — Stop at the explicit-authorization boundary for frozen/source-reviewed V3. Any runtime requires fresh moved-main/target/source/context guards and explicit authorization bound to SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca, one attempt/no retry/no COMMIT/final ROLLBACK plus separate frozen independent readback. No portfolio/performance/deployment/client work.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
@@ -91,3 +91,7 @@ New versioned `c-correctness-proposal-v2.sql` prepared without changing original
 ## 2026-10-05 — C correctness V2 single authorized attempt failed / readback clean
 
 Fresh main/target/script/context/source guards passed. Exactly one authorized V2 attempt was made and failed with PostgreSQL 42702 because PL/pgSQL variable `n` conflicted with `source_counts.n` in C-R01. No retry. Frozen independent readback immediately afterward PASS: candidate_count0, all22definitions match, attributes/columns/event/textual callers match, idle transactions0. No production/source residue. V2 digest is consumed failed evidence; original C/history remain unchanged. G4 stays incomplete/application HOLD, G5 blocked. Next only a new versioned repository correction/review may be prepared; no new operation authorized.
+
+## 2026-10-05 — C correctness V3 proposal frozen / source review PASS
+
+Repository-only continuation after the consumed V2 failure. V3 SHA-256 `ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca`. It removes the observed C-R01 PL/pgSQL/CTE `n` ambiguity by using `total_rows`, `source_row_count` and qualified `sc.source_row_count`; review also caught and corrected seven latent C-R02 bare `case_name` references to `r.case_name`. V2 remains immutable. Original C source/evidence unchanged. No Supabase execution occurred. G4 remains incomplete/application HOLD; G5 blocked. Current gate is explicit authorization for at most one V3 runtime attempt with separate independent readback.
