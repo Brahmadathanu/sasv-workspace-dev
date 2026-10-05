@@ -1408,7 +1408,7 @@ export function createPortfolioReadinessController(deps = {}) {
     const ctx = state.portfolio.context || {};
     const stats = state.portfolio.statistics || {};
     const sev = stats.overall_severity_counts || {};
-    const integrity = ctx.context_integrity_status || ctx.live_as_of || "LIVE_AS_OF";
+    const integrity = ctx.context_integrity_status || ctx.context_type || "—";
     summaryHost.innerHTML = `
       <div class="cp-readiness-summary-strip" aria-label="Live readiness summary">
         <div class="cp-readiness-summary-context">
