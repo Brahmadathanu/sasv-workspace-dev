@@ -708,7 +708,7 @@ WP04-G4 — C-R01/C-R02 V3 runtime PASS; independent-readback evidence gap CLOSE
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Readback gap closed. Stop and reassess the remaining G4 proof obligations against the existing exact-review/ledger before selecting the next bounded action. No portfolio/performance test, full C application, deployment, G5/client work or V3 rerun is authorized; do not start a new WP.
+WP04-G4 — Readback gap closed; CSE compatibility source/catalog proof PASS. Stop after this bounded read-only action and reassess the next remaining G4 proof obligation. CSE-P01 remains parked/unresolved. No portfolio/performance test, full C application, deployment, G5/client work or V3 rerun is authorized; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -952,3 +952,7 @@ All fresh guards passed. C-R01: 611 operational SKUs × 6 sources = 3666 compari
 ## 2026-10-05 — Independent readback-only completion PASS
 
 A separate read-only completion package was frozen at SHA-256 `42ff34e909251f22938dbb971a65d232cdc9938cd3d2dcb643092e63c620fc02`, source-review PASS, then executed after fresh main/target/key-source guards. It returned `overall_pass=true`: database/owner context, all22 original definition identities, attributes, candidate absence, event fingerprint, six-table column shape, textual callers and no idle WP04 transactions all PASS. Boundary fields confirm `mutation_performed=false`, `v3_replayed=false`, `portfolio_invoked=false`. This closes only the independent-readback evidence gap; the historical platform block remains recorded, V3 remains consumed, and other G4 requirements remain unresolved. G4 stays incomplete/application HOLD; G5 blocked.
+
+## 2026-10-05 — CSE compatibility read-only reassessment PASS
+
+Fresh live catalog identities for the commercial point resolver and underlying commercial-sales view match the frozen C guards. Mechanical source comparison confirms the current canonical and frozen C private live core use the same exact commercial point resolver call with SKU/period/valuation inputs; no direct view query, alternate ordering, batching or invented row-selection path exists in C. This closes the G4 CSE compatibility question at source/catalog level only. It does not resolve or waive parked CSE-P01; existing ambiguous-row authority remains unchanged. No commercial resolver invocation, canonical/portfolio execution, DDL/DML, performance work, application, deployment, G5 or client work occurred.
