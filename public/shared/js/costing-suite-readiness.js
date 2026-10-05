@@ -661,8 +661,9 @@ export function createPortfolioReadinessController(deps = {}) {
     loadingPeriods: false,
     loadingPortfolio: false,
     loadingGaps: false,
+    appendingMore: false,
     selectedAssessment: null,
-    expandedGapKind: null,
+    membershipModalOpen: false,
     filterDrawerOpen: false,
   };
 
@@ -678,12 +679,14 @@ export function createPortfolioReadinessController(deps = {}) {
         routeHost: null,
         filterApplyBtn: null,
         appliedFilters: null,
-        summaryHost: null,
-        gapHost: null,
-        gapDetails: null,
+        membershipBtn: null,
+        membershipModal: null,
+        membershipModalBody: null,
+        membershipModalClose: null,
         tableBody: null,
         cardHost: null,
         statusHost: null,
+        appendStatusHost: null,
         scrollSentinel: null,
       };
     }
@@ -696,12 +699,14 @@ export function createPortfolioReadinessController(deps = {}) {
       routeHost: doc.getElementById("readinessRouteFilters"),
       filterApplyBtn: doc.getElementById("readinessFilterApply"),
       appliedFilters: doc.getElementById("readinessAppliedFilters"),
-      summaryHost: doc.getElementById("readinessSummary"),
-      gapHost: doc.getElementById("readinessGaps"),
-      gapDetails: doc.getElementById("readinessGapDetails"),
+      membershipBtn: doc.getElementById("readinessMembershipExceptionsBtn"),
+      membershipModal: doc.getElementById("readinessMembershipModal"),
+      membershipModalBody: doc.getElementById("readinessMembershipModalBody"),
+      membershipModalClose: doc.getElementById("readinessMembershipModalClose"),
       tableBody: doc.getElementById("readinessTableBody"),
       cardHost: doc.getElementById("readinessCardList"),
       statusHost: doc.getElementById("readinessStatus"),
+      appendStatusHost: doc.getElementById("readinessAppendStatus"),
       scrollSentinel: doc.getElementById("readinessScrollSentinel"),
     };
   }
@@ -858,21 +863,31 @@ export function createPortfolioReadinessController(deps = {}) {
   async function loadPortfolio({
     preserveKeyset = false,
     generation = null,
+    append = false,
   } = {}) {
     const gen = generation == null ? ++loadGeneration : generation;
-    if (!preserveKeyset) resetKeyset();
-    state.loadingPortfolio = true;
-    state.portfolioUnavailable = false;
-    state.portfolioError = null;
-    state.selectedAssessment = null;
-    selectedSkuId = null;
+    if (!preserveKeyset && !append) resetKeyset();
+    if (append) {
+      state.appendingMore = true;
+    } else {
+      state.loadingPortfolio = true;
+      state.portfolioUnavailable = false;
+      state.portfolioError = null;
+      state.selectedAssessment = null;
+      selectedSkuId = null;
+    }
     renderStatus();
+    renderAppendStatus();
     try {
       if (canView() !== true) {
         throw Object.assign(new Error("Permission denied"), { status: 403 });
       }
       if (state.periodsUnavailable || !state.periodStart) {
+        if (append) {
+          return { ok: false, quiet: true };
+        }
         state.portfolio = null;
+        state.registerRows = [];
         state.portfolioUnavailable = true;
         state.portfolioError =
           state.periodsError || "Unavailable — no governed period selected.";
@@ -908,7 +923,15 @@ export function createPortfolioReadinessController(deps = {}) {
       return { ok: true, portfolio: state.portfolio };
     } catch (err) {
       if (!isLoadCurrent(gen)) return { ok: false, stale: true };
+      if (append) {
+        return {
+          ok: false,
+          quiet: true,
+          error: err?.message || "append failed",
+        };
+      }
       state.portfolio = null;
+      state.registerRows = [];
       state.portfolioUnavailable = true;
       state.portfolioError = isPermissionError(err)
         ? "Unavailable — permission denied for portfolio readiness."
@@ -918,6 +941,7 @@ export function createPortfolioReadinessController(deps = {}) {
     } finally {
       if (isLoadCurrent(gen)) {
         state.loadingPortfolio = false;
+        state.appendingMore = false;
         syncControlsFromState();
         render();
       }
@@ -970,7 +994,10 @@ export function createPortfolioReadinessController(deps = {}) {
     } finally {
       if (isLoadCurrent(gen)) {
         state.loadingGaps = false;
-        renderGaps();
+        renderMembershipExceptionsButton();
+        if (state.membershipModalOpen) {
+          renderMembershipModalBody();
+        }
       }
     }
   }
@@ -1015,14 +1042,53 @@ export function createPortfolioReadinessController(deps = {}) {
   }
 
   async function appendNextPortfolioPage() {
-    if (state.loadingPortfolio || state.portfolioUnavailable) {
+    if (
+      state.loadingPortfolio ||
+      state.appendingMore ||
+      state.portfolioUnavailable
+    ) {
       return { ok: false };
     }
     if (!state.portfolio?.has_more || state.portfolio.next_after_sku_id == null) {
-      return { ok: false };
+      return { ok: false, end: true };
     }
     state.afterSkuId = state.portfolio.next_after_sku_id;
-    return loadPortfolio({ preserveKeyset: true });
+    return loadPortfolio({ preserveKeyset: true, append: true });
+  }
+
+  async function maybeFillReadinessViewport(scrollerEl, { maxPasses = 2 } = {}) {
+    const root =
+      scrollerEl ||
+      (typeof document !== "undefined"
+        ? document.querySelector(
+            ".cp-readiness-register-wrap.cp-ccc-table-scroll",
+          )
+        : null);
+    if (!root || !isActiveLens()) return { ok: false };
+    if (
+      state.loadingPortfolio ||
+      state.appendingMore ||
+      state.portfolioUnavailable ||
+      !state.portfolio?.has_more
+    ) {
+      return { ok: false };
+    }
+    if (root.scrollHeight > root.clientHeight + 8) {
+      return { ok: false, filled: false };
+    }
+    let passes = 0;
+    while (
+      passes < maxPasses &&
+      state.portfolio?.has_more &&
+      !state.loadingPortfolio &&
+      !state.appendingMore &&
+      root.scrollHeight <= root.clientHeight + 8
+    ) {
+      const result = await appendNextPortfolioPage();
+      passes += 1;
+      if (!result?.ok) break;
+    }
+    return { ok: true, passes };
   }
 
   function applyShellPeriodStart(periodStart) {
@@ -1042,8 +1108,6 @@ export function createPortfolioReadinessController(deps = {}) {
       },
     );
   }
-
-  const READINESS_GAP_PREVIEW_LIMIT = 3;
 
   function readChecklistCodes(host, dataAttr) {
     if (!host) return [];
@@ -1230,7 +1294,6 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function clearReadinessFilters() {
     resetFilters({ keepSearch: true });
-    state.expandedGapKind = null;
     setFilterDrawerOpen(false);
     syncControlsFromState();
     invalidatePendingRequests();
@@ -1275,24 +1338,21 @@ export function createPortfolioReadinessController(deps = {}) {
         btn.dataset.readinessChipCode,
       );
     });
-    on(els.gapHost, "click", (ev) => {
-      const btn = ev.target?.closest?.("[data-readiness-gap-kind]");
-      if (!btn) return;
-      const kind = String(btn.dataset.readinessGapKind || "");
-      state.expandedGapKind = state.expandedGapKind === kind ? null : kind;
-      renderGaps();
+    on(els.membershipBtn, "click", () => {
+      openMembershipModal();
     });
-    on(els.gapDetails, "click", (ev) => {
-      const btn = ev.target?.closest?.("[data-readiness-gap-close]");
-      if (!btn) return;
-      state.expandedGapKind = null;
-      renderGaps();
+    on(els.membershipModalClose, "click", () => {
+      closeMembershipModal();
+    });
+    on(els.membershipModal, "click", (ev) => {
+      if (ev.target === els.membershipModal) {
+        closeMembershipModal();
+      }
     });
     on(document, "keydown", (ev) => {
       if (ev.key !== "Escape") return;
-      if (state.expandedGapKind) {
-        state.expandedGapKind = null;
-        renderGaps();
+      if (state.membershipModalOpen) {
+        closeMembershipModal();
       }
     });
     on(els.tableBody, "click", (ev) => {
@@ -1356,75 +1416,27 @@ export function createPortfolioReadinessController(deps = {}) {
     statusHost.innerHTML = "";
   }
 
-  function renderSummary() {
-    const { summaryHost } = hostEls();
-    if (!summaryHost) return;
-    if (state.loadingPeriods || state.loadingPortfolio) {
-      summaryHost.innerHTML = `<div class="cp-readiness-summary-strip" role="status">Loading summary…</div>`;
-      return;
-    }
-    if (state.portfolioUnavailable || state.periodsUnavailable || !state.portfolio) {
-      summaryHost.innerHTML = "";
-      return;
-    }
-    const ctx = state.portfolio.context || {};
-    const integrity = ctx.context_integrity_status || ctx.context_type || "—";
-    summaryHost.innerHTML = `
-      <div class="cp-readiness-summary-strip" aria-label="Live readiness context">
-        <span class="cp-readiness-summary-badge">${text(integrity)}</span>
-      </div>`;
+  function gapMatchedCount(bucket) {
+    if (!bucket) return null;
+    const matched = bucket.matched_count;
+    return matched == null ? null : Number(matched);
   }
 
-  function renderGapCard(title, gapKind, gapBucket) {
-    const matched = gapBucket?.matched_count ?? 0;
-    const rows = Array.isArray(gapBucket?.rows) ? gapBucket.rows : [];
-    const expanded = state.expandedGapKind === gapKind;
-    const detailsBtn = rows.length
-      ? `<button type="button" class="clear-link cp-readiness-gap-toggle" data-readiness-gap-kind="${escapeHtml(
-          gapKind,
-        )}">${expanded ? "Hide details" : "View details"}</button>`
-      : "";
-    // Count-first collapsed exception: no product-name preview rows by default.
-    return `<div class="cp-readiness-gap-row${expanded ? " is-expanded" : ""}" data-gap-kind="${escapeHtml(gapKind)}">
-      <span class="cp-readiness-gap-title">${escapeHtml(title)}</span>
-      <span class="cp-readiness-gap-sep">—</span>
-      <span class="cp-readiness-gap-count">${text(matched, "0")}</span>
-      ${detailsBtn}
-    </div>`;
-  }
-
-  function renderGapDetailsPanel() {
-    const { gapDetails } = hostEls();
-    if (!gapDetails) return;
-    const kind = state.expandedGapKind;
-    if (!kind || !state.gaps || state.gapsUnavailable) {
-      gapDetails.hidden = true;
-      gapDetails.innerHTML = "";
-      return;
-    }
-    const bucket =
-      kind === "no_sku"
-        ? state.gaps.no_sku
-        : kind === "active_without_active_sku"
-          ? state.gaps.active_without_active_sku
-          : null;
-    if (!bucket) {
-      gapDetails.hidden = true;
-      gapDetails.innerHTML = "";
-      return;
-    }
-    const rows = Array.isArray(bucket.rows) ? bucket.rows : [];
-    const matched = bucket.matched_count ?? rows.length;
-    const hasMore = Boolean(bucket.has_more);
+  function renderMembershipGapSection(title, bucket) {
+    const rows = Array.isArray(bucket?.rows) ? bucket.rows : [];
+    const matched = bucket?.matched_count ?? rows.length;
+    const hasMore = Boolean(bucket?.has_more);
     const boundNote = hasMore
-      ? `<div class="cp-muted-text">Showing first ${READINESS_GAP_LIMIT} of ${text(
+      ? `<div class="cp-muted-text cp-readiness-gap-bound">Showing first ${READINESS_GAP_LIMIT} of ${text(
           matched,
           "0",
-        )} matched</div>`
-      : `<div class="cp-muted-text">Showing ${rows.length} of ${text(
-          matched,
-          "0",
-        )} matched</div>`;
+        )}</div>`
+      : rows.length
+        ? `<div class="cp-muted-text cp-readiness-gap-bound">Showing ${rows.length} of ${text(
+            matched,
+            "0",
+          )}</div>`
+        : "";
     const listHtml = rows.length
       ? `<ul class="cp-readiness-gap-detail-list">${rows
           .map(
@@ -1435,55 +1447,97 @@ export function createPortfolioReadinessController(deps = {}) {
           )
           .join("")}</ul>`
       : `<div class="cp-muted-text">None</div>`;
-    gapDetails.hidden = false;
-    gapDetails.removeAttribute("hidden");
-    gapDetails.innerHTML = `
-      <div class="cp-readiness-gap-details-head">
-        <strong>${escapeHtml(
-          kind === "no_sku"
-            ? "Active products without SKU"
-            : "Active products without active SKU",
-        )}</strong>
-        <button type="button" class="peq-filter-action-btn" data-readiness-gap-close>Close</button>
-      </div>
+    return `<section class="cp-readiness-membership-section" aria-label="${escapeHtml(
+      title,
+    )}">
+      <h4 class="cp-readiness-membership-section-title">${escapeHtml(title)}</h4>
       ${boundNote}
-      ${listHtml}`;
+      <div class="cp-readiness-membership-section-scroll">${listHtml}</div>
+    </section>`;
   }
 
-  function renderGaps() {
-    const { gapHost } = hostEls();
-    if (!gapHost) return;
+  function renderMembershipModalBody() {
+    const { membershipModalBody } = hostEls();
+    if (!membershipModalBody) return;
     if (state.loadingGaps) {
-      gapHost.innerHTML = `<div class="status">Loading product gaps…</div>`;
-      renderGapDetailsPanel();
+      membershipModalBody.innerHTML = `<div class="status" role="status">Loading product gaps…</div>`;
       return;
     }
     if (state.gapsUnavailable) {
-      gapHost.innerHTML = `<div class="status error" role="alert">${escapeHtml(
+      membershipModalBody.innerHTML = `<div class="status error" role="alert">${escapeHtml(
         state.gapsError || "Product gaps unavailable",
       )}</div>`;
-      renderGapDetailsPanel();
       return;
     }
     if (!state.gaps) {
-      gapHost.innerHTML = "";
-      renderGapDetailsPanel();
+      membershipModalBody.innerHTML = `<div class="cp-muted-text">No gap data loaded.</div>`;
       return;
     }
-    gapHost.innerHTML = `
-      <div class="cp-readiness-gap-grid" aria-label="Product membership gaps">
-        ${renderGapCard(
-          "Active products without SKU",
-          "no_sku",
-          state.gaps.no_sku,
-        )}
-        ${renderGapCard(
-          "Active products without active SKU",
-          "active_without_active_sku",
-          state.gaps.active_without_active_sku,
-        )}
-      </div>`;
-    renderGapDetailsPanel();
+    membershipModalBody.innerHTML = `
+      ${renderMembershipGapSection(
+        "Active products without SKU",
+        state.gaps.no_sku,
+      )}
+      ${renderMembershipGapSection(
+        "Active products without active SKU",
+        state.gaps.active_without_active_sku,
+      )}`;
+  }
+
+  function openMembershipModal() {
+    const { membershipModal } = hostEls();
+    if (!membershipModal) return;
+    state.membershipModalOpen = true;
+    membershipModal.classList.remove("hidden");
+    membershipModal.removeAttribute("hidden");
+    membershipModal.setAttribute("aria-hidden", "false");
+    renderMembershipModalBody();
+  }
+
+  function closeMembershipModal() {
+    const { membershipModal } = hostEls();
+    state.membershipModalOpen = false;
+    if (!membershipModal) return;
+    membershipModal.classList.add("hidden");
+    membershipModal.setAttribute("hidden", "");
+    membershipModal.setAttribute("aria-hidden", "true");
+  }
+
+  function renderMembershipExceptionsButton() {
+    const { membershipBtn } = hostEls();
+    if (!membershipBtn) return;
+    let label = "Membership exceptions";
+    if (state.gaps && !state.gapsUnavailable) {
+      const noSku = gapMatchedCount(state.gaps.no_sku);
+      const activeGap = gapMatchedCount(state.gaps.active_without_active_sku);
+      if (noSku != null && activeGap != null) {
+        label = `Membership exceptions · ${noSku} / ${activeGap}`;
+      }
+    } else if (state.loadingGaps) {
+      label = "Membership exceptions · …";
+    }
+    membershipBtn.textContent = label;
+    membershipBtn.disabled =
+      state.loadingGaps || state.gapsUnavailable || !state.gaps;
+  }
+
+  function renderAppendStatus() {
+    const { appendStatusHost } = hostEls();
+    if (!appendStatusHost) return;
+    if (state.appendingMore) {
+      appendStatusHost.textContent = "Loading more…";
+      return;
+    }
+    if (
+      state.portfolio &&
+      !state.portfolioUnavailable &&
+      !state.portfolio.has_more &&
+      (state.registerRows.length || state.portfolio.rows?.length)
+    ) {
+      appendStatusHost.textContent = "End of results";
+      return;
+    }
+    appendStatusHost.textContent = "";
   }
 
   function rowIdentityHtml(assessment) {
@@ -1614,8 +1668,11 @@ export function createPortfolioReadinessController(deps = {}) {
     ensureBound();
     syncControlsFromState();
     renderStatus();
-    renderSummary();
-    renderGaps();
+    renderMembershipExceptionsButton();
+    if (state.membershipModalOpen) {
+      renderMembershipModalBody();
+    }
+    renderAppendStatus();
     renderRows();
   }
 
@@ -1809,6 +1866,7 @@ export function createPortfolioReadinessController(deps = {}) {
   function onLensExit() {
     invalidatePendingRequests();
     clearSearchTimer();
+    closeMembershipModal();
     setHostVisibility(false);
     state.selectedAssessment = null;
     selectedSkuId = null;
@@ -1837,6 +1895,7 @@ export function createPortfolioReadinessController(deps = {}) {
     invalidatePendingRequests,
     syncSearchFromShell,
     appendNextPortfolioPage,
+    maybeFillReadinessViewport,
     applyShellPeriodStart,
     activeFilterCount,
     applyPendingFilters,

@@ -2702,32 +2702,14 @@
           >
             <div class="peq-filter-section">
               <div class="peq-filter-section-title">Population scope</div>
-              <label class="cp-readiness-field cp-readiness-drawer-scope">
-                <span class="visually-hidden">Population scope</span>
-                <select
-                  id="readinessPopulationScope"
-                  aria-label="Readiness population scope"
-                >
-                  <option value="OPERATIONAL">OPERATIONAL</option>
-                  <option value="ALL_EXISTING">ALL_EXISTING</option>
-                </select>
-              </label>
-            </div>
-            <div class="peq-filter-section">
-              <div class="peq-filter-section-title">
-                Membership exceptions (not filters)
-              </div>
-              <div
-                id="readinessGaps"
-                class="cp-readiness-gaps cp-readiness-drawer-gaps"
-                aria-label="Product membership gaps"
-              ></div>
-              <div
-                id="readinessGapDetails"
-                class="cp-readiness-gap-details"
-                hidden
-                aria-live="polite"
-              ></div>
+              <select
+                id="readinessPopulationScope"
+                class="cp-readiness-drawer-scope"
+                aria-label="Population scope"
+              >
+                <option value="OPERATIONAL">OPERATIONAL</option>
+                <option value="ALL_EXISTING">ALL_EXISTING</option>
+              </select>
             </div>
             <div class="peq-filter-section">
               <div class="peq-filter-section-title">Overall severity</div>
@@ -2913,12 +2895,18 @@
         aria-hidden="true"
         aria-label="Portfolio readiness"
       >
-        <div
-          id="readinessSummary"
-          class="cp-readiness-summary"
-          aria-label="Live readiness context"
-        ></div>
         <div id="readinessStatus" class="cp-readiness-status"></div>
+        <div class="cp-readiness-register-toolbar">
+          <button
+            id="readinessMembershipExceptionsBtn"
+            type="button"
+            class="icon-btn cp-readiness-membership-btn"
+            aria-haspopup="dialog"
+            aria-controls="readinessMembershipModal"
+          >
+            Membership exceptions
+          </button>
+        </div>
         <div class="table-card cp-readiness-register-region cp-ccc-table-work-surface">
           <div class="cp-readiness-register-wrap cp-ccc-table-scroll">
             <table class="cp-readiness-table cp-ccc-register-table" aria-label="Portfolio readiness register">
@@ -2935,16 +2923,21 @@
               </thead>
               <tbody id="readinessTableBody"></tbody>
             </table>
+            <div
+              id="readinessScrollSentinel"
+              class="cp-ccc-scroll-sentinel"
+              aria-hidden="true"
+            ></div>
           </div>
+          <div
+            id="readinessAppendStatus"
+            class="cp-readiness-append-status"
+            aria-live="polite"
+          ></div>
           <div
             id="readinessCardList"
             class="cp-readiness-cards"
             aria-label="Portfolio readiness cards"
-          ></div>
-          <div
-            id="readinessScrollSentinel"
-            class="cp-ccc-scroll-sentinel"
-            aria-hidden="true"
           ></div>
         </div>
       </div>
@@ -3045,6 +3038,52 @@
             <span class="cp-loading-spinner" aria-hidden="true"></span>
             <span id="costingLoadingText">Loading...</span>
           </div>
+        </div>
+      </div>
+
+      <div
+        class="modal-overlay hidden"
+        id="readinessMembershipModal"
+        data-readonly-overlay="true"
+        aria-hidden="true"
+        role="dialog"
+        aria-labelledby="readinessMembershipModalTitle"
+      >
+        <div class="modal-window cp-readiness-membership-modal">
+          <div class="modal-header">
+            <div>
+              <span id="readinessMembershipModalTitle" class="cp-modal-title"
+                >Membership exceptions</span
+              >
+              <div class="peq-modal-subtitle cp-muted-text">
+                Product membership gaps (not portfolio filters)
+              </div>
+            </div>
+            <button
+              id="readinessMembershipModalClose"
+              type="button"
+              class="modal-close-btn"
+              title="Close"
+              aria-label="Close membership exceptions"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div
+            id="readinessMembershipModalBody"
+            class="modal-content cp-readiness-membership-modal-body"
+          ></div>
         </div>
       </div>
 

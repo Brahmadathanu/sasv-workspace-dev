@@ -1713,15 +1713,30 @@ body.sasv-production-route-manager
 /* Costing suite visual migration track complete for the six sibling pages. */
 
 /* ── WP04-G5 / G7 Track B Portfolio Readiness lens (Control Center only) ─ */
+body.sasv-costing-control-center .main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+body.sasv-costing-control-center.cp-readiness-active .main {
+  min-height: 0;
+  overflow: hidden;
+}
+
 body.sasv-costing-control-center .cp-readiness-host {
   display: none;
   margin-bottom: 8px;
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
 }
 
 body.sasv-costing-control-center .cp-readiness-host.is-visible,
 body.sasv-costing-control-center .cp-readiness-host:not([hidden]) {
-  display: block;
+  display: flex;
 }
 
 body.sasv-costing-control-center.cp-readiness-active #genericTableCard {
@@ -1736,10 +1751,6 @@ body.sasv-costing-control-center .cp-readiness-drawer-scope select {
   background: var(--sasv-surface-soft);
   color: var(--sasv-text);
   padding: 4px 8px;
-}
-
-body.sasv-costing-control-center .cp-readiness-drawer-gaps {
-  margin-top: 4px;
 }
 
 body.sasv-costing-control-center .cp-readiness-peq-body {
@@ -1772,103 +1783,29 @@ body.sasv-costing-control-center .cp-filter-chip {
   cursor: pointer;
 }
 
-body.sasv-costing-control-center .cp-readiness-summary {
-  flex: 1 1 auto;
-  min-width: 160px;
-  margin: 0;
-}
-
-body.sasv-costing-control-center .cp-readiness-summary-strip {
+body.sasv-costing-control-center .cp-readiness-register-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-
-body.sasv-costing-control-center .cp-readiness-summary-context {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
   align-items: center;
-  font-size: var(--sasv-text-xs);
-  color: var(--sasv-text-secondary);
-}
-
-body.sasv-costing-control-center .cp-readiness-summary-badge {
-  padding: 2px 8px;
-  border: 1px solid var(--sasv-border);
-  border-radius: var(--sasv-radius-sm);
-  background: var(--sasv-surface-soft);
-  font-size: var(--sasv-text-xs);
-  font-weight: var(--sasv-fw-semibold);
-  color: var(--sasv-text);
-}
-
-body.sasv-costing-control-center .cp-readiness-gaps {
-  display: block;
+  gap: 8px;
   margin: 0 0 6px;
+  flex-shrink: 0;
 }
 
-body.sasv-costing-control-center .cp-readiness-gap-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  margin: 0;
-}
-
-body.sasv-costing-control-center .cp-readiness-gap-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  padding: 2px 0;
+body.sasv-costing-control-center .cp-readiness-membership-btn {
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 4px 10px;
   font-size: var(--sasv-text-xs);
-  color: var(--sasv-text-secondary);
-}
-
-body.sasv-costing-control-center .cp-readiness-gap-title {
-  font-size: var(--sasv-text-xs);
-  font-weight: var(--sasv-fw-semibold);
-  color: var(--sasv-text);
-}
-
-body.sasv-costing-control-center .cp-readiness-gap-sep {
-  color: var(--sasv-text-secondary);
-}
-
-body.sasv-costing-control-center .cp-readiness-gap-count {
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--sasv-fw-semibold);
-  color: var(--sasv-text);
-}
-
-body.sasv-costing-control-center .cp-readiness-gap-toggle {
-  margin-left: 0;
+  white-space: nowrap;
 }
 
 body.sasv-costing-control-center .cp-readiness-gap-detail-list {
-  margin: 0 0 8px;
+  margin: 0;
   padding-left: 16px;
   font-size: var(--sasv-text-xs);
-}
-
-body.sasv-costing-control-center .cp-readiness-gap-details {
-  margin-bottom: 6px;
-  padding: 6px 8px;
-  border: 1px solid var(--sasv-border);
-  border-radius: var(--sasv-radius-sm);
-  background: var(--sasv-surface-soft);
-}
-
-body.sasv-costing-control-center .cp-readiness-gap-details-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 4px;
 }
 
 body.sasv-costing-control-center .cp-readiness-register-region.table-card {
@@ -1876,7 +1813,9 @@ body.sasv-costing-control-center .cp-readiness-register-region.table-card {
   flex-direction: column;
   gap: 0;
   width: 100%;
-  overflow: visible;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 body.sasv-costing-control-center .cp-ccc-table-work-surface {
@@ -1885,8 +1824,8 @@ body.sasv-costing-control-center .cp-ccc-table-work-surface {
   min-height: 0;
 }
 
-body.sasv-costing-control-center .cp-ccc-table-scroll,
-body.sasv-costing-control-center .cp-readiness-register-wrap.cp-ccc-table-scroll {
+body.sasv-costing-control-center #genericTableCard .cp-ccc-table-scroll,
+body.sasv-costing-control-center #tableWrap.cp-ccc-table-scroll {
   overflow: auto;
   max-height: min(calc(100vh - 280px), 720px);
   min-height: 240px;
@@ -1897,8 +1836,19 @@ body.sasv-costing-control-center .cp-readiness-register-wrap.cp-ccc-table-scroll
   background: transparent;
 }
 
-body.sasv-costing-control-center .cp-ccc-register-table thead th,
-body.sasv-costing-control-center .cp-readiness-table thead th {
+body.sasv-costing-control-center
+  .cp-readiness-register-wrap.cp-ccc-table-scroll {
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+body.sasv-costing-control-center .cp-ccc-register-table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -1940,17 +1890,6 @@ body.sasv-costing-control-center .cp-readiness-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--sasv-text-sm);
-}
-
-body.sasv-costing-control-center .cp-readiness-table th {
-  background: var(--sasv-surface-soft);
-  color: var(--sasv-text-secondary);
-  font-size: var(--sasv-text-xs);
-  font-weight: var(--sasv-fw-semibold);
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--sasv-border);
-  white-space: nowrap;
-  text-align: left;
 }
 
 body.sasv-costing-control-center .cp-readiness-table td {
@@ -2100,6 +2039,55 @@ body.sasv-costing-control-center .cp-readiness-dep-head {
 
 body.sasv-costing-control-center .cp-readiness-status:empty {
   display: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-append-status {
+  flex-shrink: 0;
+  padding: 4px 8px 0;
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text-muted);
+  min-height: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-append-status:empty {
+  display: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-modal {
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(82vh, 640px);
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  min-height: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-section {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  padding: 8px 10px;
+  min-height: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-section-title {
+  margin: 0 0 4px;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-section-scroll {
+  max-height: min(28vh, 220px);
+  overflow: auto;
+  min-height: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-bound {
+  margin-bottom: 4px;
 }
 
 @media (max-width: 900px) {

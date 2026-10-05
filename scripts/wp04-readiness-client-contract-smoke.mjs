@@ -639,8 +639,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v337/.test(sw));
-assert.ok(!/hub-cache-v336/.test(sw));
+assert.ok(/hub-cache-v338/.test(sw));
+assert.ok(!/hub-cache-v337/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -656,12 +656,17 @@ assert.ok(htmlSrc.includes('id="readinessOwnerFilters"'));
 assert.ok(htmlSrc.includes('id="readinessRouteFilters"'));
 assert.ok(htmlSrc.includes('id="readinessFilterApply"'));
 assert.ok(htmlSrc.includes('id="readinessAppliedFilters"'));
-assert.ok(htmlSrc.includes('id="readinessSummary"'));
-assert.ok(htmlSrc.includes('id="readinessGapDetails"'));
+assert.ok(!htmlSrc.includes('id="readinessSummary"'));
+assert.ok(!htmlSrc.includes('id="readinessGaps"'));
+assert.ok(!htmlSrc.includes('id="readinessGapDetails"'));
+assert.ok(htmlSrc.includes('id="readinessMembershipExceptionsBtn"'));
+assert.ok(htmlSrc.includes('id="readinessMembershipModal"'));
+assert.ok(htmlSrc.includes('id="readinessAppendStatus"'));
 assert.ok(htmlSrc.includes('id="genericTableCard"'));
 assert.ok(htmlSrc.includes('id="peqFilterWrapper"'));
 assert.ok(!htmlSrc.includes('id="readinessPeriodSelect"'));
-assert.ok(htmlSrc.includes("Membership exceptions (not filters)"));
+assert.ok(!htmlSrc.includes("Membership exceptions (not filters)"));
+assert.ok(!htmlSrc.includes('visually-hidden">Population scope'));
 assert.ok(htmlSrc.includes('id="readinessScrollSentinel"'));
 assert.ok(htmlSrc.includes('id="cccTableScrollSentinel"'));
 assert.ok(htmlSrc.includes('cp-readiness-register-region'));
@@ -687,7 +692,10 @@ assert.ok(!/setVisible\(\s*kpiStripWrap,\s*false/.test(shellSrc.split("function 
 assert.ok(/setVisible\(\s*peqFilterWrapper,\s*true/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
 assert.ok(!/setVisible\(\s*peqFilterWrapper,\s*false/.test(shellSrc.split("function syncReadinessShellChrome")[1]?.split("function syncPortfolioReadinessFilterChrome")[0] || ""));
 assert.ok(/paintReadinessValuationFromContext/.test(shellSrc));
+assert.ok(/formatDate\(String\(valuationRaw\)/.test(shellSrc));
 assert.ok(/renderReadinessGovernedPeriodOptions/.test(shellSrc));
+assert.ok(/formatPeriodMonth\(row\.period_start\)/.test(shellSrc));
+assert.ok(/maybeFillReadinessViewport/.test(shellSrc));
 assert.ok(/syncCccRegisterPaginationChrome/.test(shellSrc));
 assert.ok(/setupReadinessScrollAppend/.test(shellSrc));
 assert.ok(/setupCccProgressiveScroll/.test(shellSrc));
@@ -705,16 +713,12 @@ assert.ok(
 assert.ok(/Search product, SKU or ID/.test(shellSrc));
 pass("Track B shell chrome keeps KPI + global filter under Readiness");
 
-assert.ok(/READINESS_GAP_PREVIEW_LIMIT\s*=\s*3/.test(readinessSrc));
-assert.ok(/Count-first collapsed exception/.test(readinessSrc));
-assert.ok(/cp-readiness-gap-row/.test(readinessSrc));
-assert.ok(
-  !/cp-readiness-gap-preview/.test(
-    readinessSrc.split("function renderGapCard")[1]?.split("function renderGapDetailsPanel")[0] ||
-      "",
-  ),
-);
-assert.ok(!/rows\.slice\(\s*0\s*,\s*READINESS_GAP_PREVIEW_LIMIT\s*\)/.test(readinessSrc));
+assert.ok(/renderMembershipGapSection/.test(readinessSrc));
+assert.ok(/Membership exceptions ·/.test(readinessSrc));
+assert.ok(/Showing first \$\{READINESS_GAP_LIMIT\}/.test(readinessSrc));
+assert.ok(!/READINESS_GAP_PREVIEW_LIMIT/.test(readinessSrc));
+assert.ok(!/cp-readiness-summary-strip/.test(readinessSrc));
+assert.ok(!/LIVE_GOVERNED_PERIOD/.test(readinessSrc.split("function render")[0] || readinessSrc));
 assert.ok(!/after_product_id/.test(
   readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
 ) || /limit:\s*READINESS_GAP_LIMIT/.test(
@@ -724,7 +728,7 @@ assert.ok(!/while\s*\([^)]*has_more/.test(
   readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
 ));
 assert.ok(!/goNextGap|loadNextGap|after_product_id\s*=/.test(readinessSrc));
-pass("Track B product-gap preview bounded; no auto gap page traversal");
+pass("Track B membership modal gaps bounded; no auto gap page traversal");
 
 assert.ok(/No readiness rows match the current filters/.test(readinessSrc));
 assert.ok(/Readiness unavailable/.test(readinessSrc));
@@ -735,9 +739,11 @@ assert.ok(/getDrawerConfig/.test(readinessSrc));
 assert.ok(/renderDrawerTab/.test(readinessSrc));
 assert.ok(!/Action<\/th>/.test(htmlSrc.split("readinessLensHost")[1]?.split("genericTableCard")[0] || ""));
 assert.ok(!/cp-readiness-summary-metrics/.test(readinessSrc));
-assert.ok(!/Population<\/span>/.test(readinessSrc.split("function renderSummary")[1]?.split("function renderGapCard")[0] || ""));
-assert.ok(!/Valuation\s*</.test(readinessSrc.split("function renderSummary")[1]?.split("function renderGapCard")[0] || ""));
 assert.ok(/appendNextPortfolioPage/.test(readinessSrc));
+assert.ok(/maybeFillReadinessViewport/.test(readinessSrc));
+assert.ok(/append:\s*true/.test(readinessSrc));
+assert.ok(/Loading more…/.test(readinessSrc));
+assert.ok(/End of results/.test(readinessSrc));
 assert.ok(/dedupeReadinessRows/.test(readinessSrc));
 assert.ok(/applyShellPeriodStart/.test(readinessSrc));
 assert.ok(!/readinessPeriodSelect/.test(readinessSrc));
@@ -750,10 +756,12 @@ pass("Track B preserves shell search as sole search authority");
 const hostChunk =
   htmlSrc.split('id="readinessLensHost"')[1]?.split('id="genericTableCard"')[0] || "";
 assert.ok(/table-card cp-readiness-register-region cp-ccc-table-work-surface/.test(hostChunk));
-assert.ok(/readinessScrollSentinel/.test(hostChunk));
+assert.ok(
+  /cp-readiness-register-wrap[\s\S]*readinessScrollSentinel/.test(hostChunk),
+);
 assert.ok(!/cp-readiness-pagebar/.test(hostChunk));
 assert.ok(!/id="readinessFilterBtn"/.test(hostChunk));
-pass("Track B readiness register uses scroll sentinel; no pagebar");
+pass("Track B readiness register uses in-wrap scroll sentinel; no pagebar");
 
 assert.ok(!/severity_precedence|clientDerivedSeverity|deriveOverallSeverity/.test(readinessSrc));
 assert.ok(!cssSrc.includes("cp-readiness-active #peqFilterWrapper"));
@@ -761,6 +769,15 @@ assert.ok(!cssSrc.includes("cp-readiness-active #kpiStripWrap"));
 assert.ok(!cssSrc.includes("cp-readiness-active #costPeriodValuationStrip"));
 assert.ok(cssSrc.includes("cp-ccc-table-work-surface"));
 assert.ok(cssSrc.includes("cp-ccc-table-scroll"));
+assert.ok(!/body\.sasv-costing-control-center \.cp-readiness-table th \{/.test(
+  cssSrc,
+));
+assert.ok(cssSrc.includes("cp-readiness-active .main"));
+assert.ok(
+  !/cp-readiness-register-wrap\.cp-ccc-table-scroll[\s\S]{0,200}720px/.test(
+    cssSrc,
+  ),
+);
 assert.ok(/rebuildPeqFilterOptionsFromRows/.test(controlCenterSrc));
 pass("Track B no client severity authority; unified CCC table work surface");
 

@@ -1901,7 +1901,7 @@ function paintReadinessValuationFromContext(context = {}) {
   const valuationRaw = context.valuation_date;
   const valuation =
     valuationRaw != null && String(valuationRaw).trim() !== ""
-      ? String(valuationRaw).slice(0, 10)
+      ? formatDate(String(valuationRaw).slice(0, 10))
       : "—";
   if (chipValue) chipValue.textContent = valuation;
   const chipBtn = $("cpvValuationChip");
@@ -1958,9 +1958,7 @@ function renderReadinessGovernedPeriodOptions({
   }
   costingPeriodSelect.innerHTML = periods
     .map((row) => {
-      const label = row.valuation_date
-        ? `${row.period_start} (val ${row.valuation_date})`
-        : row.period_start;
+      const label = formatPeriodMonth(row.period_start) || row.period_start || "—";
       const selected = row.period_start === periodStart ? " selected" : "";
       return `<option value="${escapeHtml(row.period_start)}"${selected}>${escapeHtml(
         label,
@@ -2054,11 +2052,13 @@ function setupReadinessScrollAppend() {
         if (result?.stale) return;
         portfolioReadinessCtrl.render?.();
         setupReadinessScrollAppend();
+        void portfolioReadinessCtrl.maybeFillReadinessViewport?.(root);
       });
     },
     { root, rootMargin: "120px 0px", threshold: 0.01 },
   );
   readinessScrollObserver.observe(sentinel);
+  void portfolioReadinessCtrl.maybeFillReadinessViewport?.(root);
 }
 
 function setupCccProgressiveScroll() {

@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v337"; // WP04-G7 Track B readiness CCC table UX unification
+const CACHE_NAME = "hub-cache-v338"; // WP04-G7 Track B readiness signed-in visual correction
 
 const PRECACHE = [
   // Hub shell
