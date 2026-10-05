@@ -176,3 +176,7 @@ Exact frozen G5 package was issued as GitHub issue #43 against main `e421fe8df9b
 ## 2026-10-05 — WP04-G5 branch audit: correction pass required
 
 Independent audit of pushed `feat/wp04-g5-portfolio-readiness` head `43a21b4ba7fa0acc8f314466c06960770478434a` confirms clean scope/base but identifies one consolidated in-scope client hardening pass before acceptance: fail-closed strict response-envelope validation, server-authoritative severity filter options, and exactly one visible readiness search source, with strengthened smoke coverage. Stale cache-pin failures are pre-existing and not G5 regressions. Correction request is pinned to issue #43. No merge/G6/G7/release started; await corrected branch then re-audit.
+
+## 2026-10-05 — WP04-G5 implementation accepted
+
+Corrected client branch `feat/wp04-g5-portfolio-readiness` head `db7544f2ebdf30f515f249ade9e12a660a364476` independently re-audited PASS against authorized main `e421fe8df9b98b4956acdcd4cadeb36a3f9b923c`. Scope remains exactly frozen; fail-closed validation, server-owned severity options and single search authority corrections verified. G5 is accepted. No merge performed. G6 and G7 remain unopened and require explicit gate transition.
