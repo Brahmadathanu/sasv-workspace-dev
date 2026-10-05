@@ -680,8 +680,8 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G1 — Portfolio readiness contract | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; implementation feasibility remains for G3 |
 | WP04-G2 — Control-centre information architecture / remediation model | [x] COMPLETED AND VERIFIED at requirements/design-review level after documentation corrections; no implementation |
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
-| WP04-G4 — High-risk server package, if required | [~] Minimum server implementation package under scope/proof review; withdrawn environment/tooling detour removed; no application authorized |
-| WP04-G5 — Client implementation | [ ] Bounded reviewed contract; autonomous routine work only where applicable |
+| WP04-G4 — High-risk server package, if required | [x] COMPLETED AND VERIFIED — C contract committed and independently verified; native signed-in runtime proof explicitly deferred to mandatory G7; performance ACCEPTED WITH MEASURED LIMITATION |
+| WP04-G5 — Client implementation | [ ] OPENING BOUNDARY FROZEN — reviewed client package ready; implementation not started |
 | WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — C-R01/C-R02 V3 runtime PASS; independent-readback evidence gap CLOSED by separate frozen/reviewed read-only completion package; reassess remaining G4 proofs only.
+WP04-G5 — OPENING BOUNDARY FROZEN. G4 is formally CLOSED / COMPLETED AND VERIFIED. Reviewed client package and independent package review are frozen; implementation has not started and no Cursor/Codex task has been issued.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V3 remains consumed PASS for C-R01/C-R02. Independent-readback evidence gap is now CLOSED by read-only completion package SHA-256 42ff34e909251f22938dbb971a65d232cdc9938cd3d2dcb643092e63c620fc02 with overall_pass=true and no mutation/V3 replay/portfolio call. Other previously identified G4 proofs remain outstanding. Programme 4/13.
+[x] G4 COMPLETED AND VERIFIED. [ ] G5 implementation NOT STARTED; opening boundary/package frozen and reviewed. All G4 proof obligations are closed, accepted with measured limitation, or explicitly deferred under governance. Native Auth/API runtime remains mandatory G7 verification, not a waived proof. Programme remains 4/13 because WP04 itself is not complete until G8.
 
 ## Required to close
-Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
+G4 has no remaining closure requirement. Before G5 implementation begins, use only the frozen/reviewed WP-04-G5-CLIENT-PACKAGE.md. Any discovered server/RPC/permission/auth/business-rule or broader architecture need stops G5 implementation and returns to review; do not invent a backend contract in the client.
 
 ## Next gate
-WP04-G4 — Performance disposition remains ACCEPTED WITH MEASURED LIMITATION; exact 6938.008ms/5084.304ms full611 OPERATIONAL/full-statistics observations retained, provisional3s/5s goals UNMET/NON-BLOCKING. Committed C deployment/rollback server gate is PASS: fresh guards and all four digests matched, pre-deploy old-state readback overall_pass=true, deployment COMMIT succeeded on the single authorized attempt, and immediate frozen post-deployment verification PASS for identities plus governed-period/Product-gap/canonical-single-read/full611 portfolio smoke. Conditional rollback not triggered/NOT CONSUMED. Native Auth/API runtime remains mandatory G7. No G5/client/merge/release work occurred.
+WP04-G5 — Client implementation from the frozen/reviewed bounded package only. This checkpoint does not start implementation. After pushed implementation, WP04-G6 performs independent audit; WP04-G7 then performs mandatory authenticated/live context, permission/native API, navigation and performance verification; G8 alone can merge/close WP04.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -1016,3 +1016,9 @@ Final G4 server gate prepared without production execution. Permanent deployment
 ## 2026-10-05 — Committed deployment verified PASS
 
 The exact authorized committed C package is now active in production. Pre-deployment old-state readback PASS; deployment executed once/COMMIT succeeded; independent post-deployment verification returned candidate_identity PASS, governed_period_reader PASS, product_gap_reader PASS, canonical_single_read PASS and portfolio_full611_smoke PASS. Verification remained read-only and did not establish native API or new performance evidence. Conditional rollback was unnecessary and remains unconsumed. This closes the committed deployment/rollback server gate. Stop here before G5/client action; next gate transition requires assessment of G4 closure state and handoff conditions.
+
+## 2026-10-05 — WP04-G4 formal closure / G5 opening boundary
+
+Formal acceptance reconciliation completed after the committed C deployment. G4 obligations: C-R01 PASS; C-R02 PASS; independent readback PASS; CSE compatibility PASS with CSE-P01 parked unchanged; payload/nonmonetary/monetary-note PASS; live no-success PASS; ALL_EXISTING/filter PASS; full611 C-induced semantic parity PASS compositionally; performance ACCEPTED WITH MEASURED LIMITATION at exact 6938.008ms/5084.304ms with provisional3s/5s goals UNMET/NON-BLOCKING; committed deployment and immediate independent verification PASS; rollback path frozen and conditional rollback NOT CONSUMED. Native Auth/API structural preflight PASS; genuine signed-in runtime proof remains NOT RUN and is explicitly deferred to mandatory G7 because G7 is the designated authenticated/live application verification gate. No unresolved G4 blocker remains. G4 is therefore **COMPLETED AND VERIFIED**.
+
+Current-main client reconciliation found no conflicting architecture drift. Frozen [WP-04-G5-CLIENT-PACKAGE.md](WP-04-G5-CLIENT-PACKAGE.md) and independent [WP-04-G5-CLIENT-PACKAGE-REVIEW.md](WP-04-G5-CLIENT-PACKAGE-REVIEW.md) define the only allowed G5 boundary. Objective: add one read-only Portfolio Readiness lens to the existing Costing Control Center consuming the deployed period/gap/portfolio readers with server-authoritative statistics, filters, keyset paging, gaps and read-only canonical detail. No client severity/totals/readiness calculation, no new module, no Product/Manage Products change, no specialist writer, no invented route link, no permission/server change. G5 implementation is **NOT STARTED** and no Cursor/Codex task has been issued.
