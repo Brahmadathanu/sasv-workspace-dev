@@ -12,13 +12,13 @@ BEGIN
  IF current_user<>'postgres' THEN RAISE EXCEPTION 'C-V2 unexpected owner'; END IF;
  IF md5(pg_get_functiondef(to_regprocedure('costing.fn_product_sku_readiness_run_evidence(bigint,date,date,bigint)'))) IS DISTINCT FROM 'c29e8b289304e7ece6f7affcccb6ffd8' THEN RAISE EXCEPTION 'C-V2 original run-evidence source drift'; END IF;
  IF EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='costing' AND p.proname='fn_wp04_c_run_assemble') THEN RAISE EXCEPTION 'C-V2 assembler name collision'; END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.uq_admin_finance_run_sku') AND indisunique AND indisvalid AND indisready)
- OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.uq_direct_labour_run_sku') AND indisunique AND indisvalid AND indisready)
- OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.uq_marketing_run_sku') AND indisunique AND indisvalid AND indisready)
- OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.sku_materials_stores_allocation_snapshot_run_sku_uq') AND indisunique AND indisvalid AND indisready)
- OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.sku_production_overhead_allocation_sn_refresh_run_id_sku_id_key') AND indisunique AND indisvalid AND indisready)
- OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.sku_qc_allocation_snapshot_run_sku_uq') AND indisunique AND indisvalid AND indisready)
- THEN RAISE EXCEPTION 'C-V2 unique run/SKU key drift'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.uq_admin_finance_run_sku') AND indisunique AND indisvalid AND indisready AND pg_get_indexdef(indexrelid)='CREATE UNIQUE INDEX uq_admin_finance_run_sku ON costing.sku_admin_finance_overhead_allocation_snapshot USING btree (refresh_run_id, sku_id) WHERE (refresh_run_id IS NOT NULL)')
+ OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.uq_direct_labour_run_sku') AND indisunique AND indisvalid AND indisready AND pg_get_indexdef(indexrelid)='CREATE UNIQUE INDEX uq_direct_labour_run_sku ON costing.sku_direct_labour_allocation_snapshot USING btree (refresh_run_id, sku_id) WHERE (refresh_run_id IS NOT NULL)')
+ OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.uq_marketing_run_sku') AND indisunique AND indisvalid AND indisready AND pg_get_indexdef(indexrelid)='CREATE UNIQUE INDEX uq_marketing_run_sku ON costing.sku_marketing_expense_allocation_snapshot USING btree (refresh_run_id, sku_id) WHERE (refresh_run_id IS NOT NULL)')
+ OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.sku_materials_stores_allocation_snapshot_run_sku_uq') AND indisunique AND indisvalid AND indisready AND pg_get_indexdef(indexrelid)='CREATE UNIQUE INDEX sku_materials_stores_allocation_snapshot_run_sku_uq ON costing.sku_materials_stores_allocation_snapshot USING btree (refresh_run_id, sku_id)')
+ OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.sku_production_overhead_allocation_sn_refresh_run_id_sku_id_key') AND indisunique AND indisvalid AND indisready AND pg_get_indexdef(indexrelid)='CREATE UNIQUE INDEX sku_production_overhead_allocation_sn_refresh_run_id_sku_id_key ON costing.sku_production_overhead_allocation_snapshot USING btree (refresh_run_id, sku_id)')
+ OR NOT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass('costing.sku_qc_allocation_snapshot_run_sku_uq') AND indisunique AND indisvalid AND indisready AND pg_get_indexdef(indexrelid)='CREATE UNIQUE INDEX sku_qc_allocation_snapshot_run_sku_uq ON costing.sku_qc_allocation_snapshot USING btree (refresh_run_id, sku_id)')
+ THEN RAISE EXCEPTION 'C-V2 exact unique run/SKU key drift'; END IF;
  IF (SELECT valuation_date FROM costing.cost_periods WHERE period_start='2026-09-01'::date) IS DISTINCT FROM '2026-09-10'::date THEN RAISE EXCEPTION 'C-V2 governed context drift'; END IF;
  SELECT id INTO latest FROM costing.costing_refresh_run WHERE period_start='2026-09-01'::date AND valuation_date='2026-09-10'::date AND overall_status='SUCCESS' ORDER BY finished_at DESC NULLS LAST,id DESC LIMIT 1;
  IF latest IS DISTINCT FROM 115::bigint THEN RAISE EXCEPTION 'C-V2 SUCCESS run drift'; END IF;
@@ -85,8 +85,8 @@ SELECT 'DL'::text source_code,c.sku_id,
      AND t.valuation_date='2026-09-10'::date AND t.refresh_run_id=115::bigint
    LIMIT 1) o) AS old_selected_row,
  CASE WHEN n.id IS NULL THEN NULL::jsonb ELSE to_jsonb(n) END AS cohort_selected_row,
- 'costing.sku_direct_labour_allocation_snapshot'::text AS expected_row_type,
- pg_typeof(n)::text AS cohort_row_type
+ 'costing.sku_direct_labour_allocation_snapshot'::regtype::oid AS expected_row_type_oid,
+ pg_typeof(n)::oid AS cohort_row_type_oid
 FROM cohort c
 LEFT JOIN costing.sku_direct_labour_allocation_snapshot n
  ON n.sku_id=c.sku_id AND n.period_start='2026-09-01'::date
@@ -99,8 +99,8 @@ SELECT 'POH'::text source_code,c.sku_id,
      AND t.valuation_date='2026-09-10'::date AND t.refresh_run_id=115::bigint
    LIMIT 1) o) AS old_selected_row,
  CASE WHEN n.id IS NULL THEN NULL::jsonb ELSE to_jsonb(n) END AS cohort_selected_row,
- 'costing.sku_production_overhead_allocation_snapshot'::text AS expected_row_type,
- pg_typeof(n)::text AS cohort_row_type
+ 'costing.sku_production_overhead_allocation_snapshot'::regtype::oid AS expected_row_type_oid,
+ pg_typeof(n)::oid AS cohort_row_type_oid
 FROM cohort c
 LEFT JOIN costing.sku_production_overhead_allocation_snapshot n
  ON n.sku_id=c.sku_id AND n.period_start='2026-09-01'::date
@@ -113,8 +113,8 @@ SELECT 'QC'::text source_code,c.sku_id,
      AND t.valuation_date='2026-09-10'::date AND t.refresh_run_id=115::bigint
    LIMIT 1) o) AS old_selected_row,
  CASE WHEN n.id IS NULL THEN NULL::jsonb ELSE to_jsonb(n) END AS cohort_selected_row,
- 'costing.sku_qc_allocation_snapshot'::text AS expected_row_type,
- pg_typeof(n)::text AS cohort_row_type
+ 'costing.sku_qc_allocation_snapshot'::regtype::oid AS expected_row_type_oid,
+ pg_typeof(n)::oid AS cohort_row_type_oid
 FROM cohort c
 LEFT JOIN costing.sku_qc_allocation_snapshot n
  ON n.sku_id=c.sku_id AND n.period_start='2026-09-01'::date
@@ -127,8 +127,8 @@ SELECT 'MS'::text source_code,c.sku_id,
      AND t.valuation_date='2026-09-10'::date AND t.refresh_run_id=115::bigint
    LIMIT 1) o) AS old_selected_row,
  CASE WHEN n.id IS NULL THEN NULL::jsonb ELSE to_jsonb(n) END AS cohort_selected_row,
- 'costing.sku_materials_stores_allocation_snapshot'::text AS expected_row_type,
- pg_typeof(n)::text AS cohort_row_type
+ 'costing.sku_materials_stores_allocation_snapshot'::regtype::oid AS expected_row_type_oid,
+ pg_typeof(n)::oid AS cohort_row_type_oid
 FROM cohort c
 LEFT JOIN costing.sku_materials_stores_allocation_snapshot n
  ON n.sku_id=c.sku_id AND n.period_start='2026-09-01'::date
@@ -141,8 +141,8 @@ SELECT 'AF'::text source_code,c.sku_id,
      AND t.valuation_date='2026-09-10'::date AND t.refresh_run_id=115::bigint
    LIMIT 1) o) AS old_selected_row,
  CASE WHEN n.id IS NULL THEN NULL::jsonb ELSE to_jsonb(n) END AS cohort_selected_row,
- 'costing.sku_admin_finance_overhead_allocation_snapshot'::text AS expected_row_type,
- pg_typeof(n)::text AS cohort_row_type
+ 'costing.sku_admin_finance_overhead_allocation_snapshot'::regtype::oid AS expected_row_type_oid,
+ pg_typeof(n)::oid AS cohort_row_type_oid
 FROM cohort c
 LEFT JOIN costing.sku_admin_finance_overhead_allocation_snapshot n
  ON n.sku_id=c.sku_id AND n.period_start='2026-09-01'::date
@@ -155,8 +155,8 @@ SELECT 'MK'::text source_code,c.sku_id,
      AND t.valuation_date='2026-09-10'::date AND t.refresh_run_id=115::bigint
    LIMIT 1) o) AS old_selected_row,
  CASE WHEN n.id IS NULL THEN NULL::jsonb ELSE to_jsonb(n) END AS cohort_selected_row,
- 'costing.sku_marketing_expense_allocation_snapshot'::text AS expected_row_type,
- pg_typeof(n)::text AS cohort_row_type
+ 'costing.sku_marketing_expense_allocation_snapshot'::regtype::oid AS expected_row_type_oid,
+ pg_typeof(n)::oid AS cohort_row_type_oid
 FROM cohort c
 LEFT JOIN costing.sku_marketing_expense_allocation_snapshot n
  ON n.sku_id=c.sku_id AND n.period_start='2026-09-01'::date
@@ -167,7 +167,7 @@ LEFT JOIN costing.sku_marketing_expense_allocation_snapshot n
  )
  SELECT count(*),
         count(*) FILTER (WHERE old_selected_row IS DISTINCT FROM cohort_selected_row),
-        count(*) FILTER (WHERE cohort_row_type IS DISTINCT FROM expected_row_type),
+        count(*) FILTER (WHERE cohort_row_type_oid IS DISTINCT FROM expected_row_type_oid),
         (SELECT count(*) FROM source_counts WHERE n<>611)
  INTO n,mismatches,bad_types,bad_source_counts
  FROM compared;
