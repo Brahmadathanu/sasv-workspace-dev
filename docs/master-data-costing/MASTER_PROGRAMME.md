@@ -75,7 +75,7 @@ No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay 
 - Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
 
 ## Immediate next action
-WP04-G5 — client implementation may begin only from the frozen/reviewed WP-04-G5-CLIENT-PACKAGE.md under DEC-011. This checkpoint stops before handing work to Cursor/Codex. G6 independently audits the pushed implementation; G7 retains mandatory genuine signed-in native Auth/API permission verification and live performance/context/navigation checks; G8 handles explicit merge/post-merge closure.
+WP04-G7 — authenticated/live verification may begin only after explicit gate opening. G4 closed, G5 accepted at frozen head db7544f2ebdf30f515f249ade9e12a660a364476, and G6 independent audit PASS. G7 must verify genuine signed-in native Auth/API permissions, governed context/live behavior, private-helper/anonymous denial and live performance before any G8 merge/closure.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
@@ -180,3 +180,7 @@ Independent audit of pushed `feat/wp04-g5-portfolio-readiness` head `43a21b4ba7f
 ## 2026-10-05 — WP04-G5 implementation accepted
 
 Corrected client branch `feat/wp04-g5-portfolio-readiness` head `db7544f2ebdf30f515f249ade9e12a660a364476` independently re-audited PASS against authorized main `e421fe8df9b98b4956acdcd4cadeb36a3f9b923c`. Scope remains exactly frozen; fail-closed validation, server-owned severity options and single search authority corrections verified. G5 is accepted. No merge performed. G6 and G7 remain unopened and require explicit gate transition.
+
+## 2026-10-05 — WP04-G6 independent audit PASS
+
+Formal independent audit of frozen G5 head `db7544f2ebdf30f515f249ade9e12a660a364476` PASS. Actual GitHub diff, frozen package compliance, deployed RPC usage, fail-closed semantics, server-owned filters/statistics, keyset/search/stale-response behavior, scope boundaries and smoke-source evidence were rechecked. No unauthorized drift or fresh defect found. No GitHub CI/status checks exist for this head; implementer local execution evidence is retained and smoke definitions independently audited. G7 remains unopened and mandatory; no merge/release performed.
