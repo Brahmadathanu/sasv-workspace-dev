@@ -167,7 +167,13 @@ Public selection requires:
 If no current build:
 - `READINESS_BUILD_ABSENT`.
 
-If a current build exists but does not match the current fingerprint:
+If no current build:
+- `READINESS_BUILD_ABSENT`.
+
+If a current build exists but is not COMPLETED:
+- `READINESS_BUILD_INCOMPLETE`.
+
+If a completed current build exists but its fingerprint no longer matches:
 - `READINESS_BUILD_STALE`.
 
 Incomplete/BUILDING builds are never selected.
