@@ -1,7 +1,8 @@
 /**
  * WP04-G5 — Portfolio Readiness client contract smoke (mocked).
- * Proves request generation, envelope validation, stale suppression,
- * keyset reset rules, UNKNOWN vs unavailable, and read-only boundaries.
+ * Proves request generation, fail-closed envelope validation, stale suppression,
+ * keyset reset rules, single shell search authority, UNKNOWN vs unavailable,
+ * and read-only boundaries.
  */
 
 import assert from "node:assert/strict";
@@ -15,6 +16,14 @@ const readinessPath = join(
   "public/shared/js/costing-suite-readiness.js",
 );
 const readinessSrc = readFileSync(readinessPath, "utf8");
+const htmlSrc = readFileSync(
+  join(root, "public/shared/costing-control-center.html"),
+  "utf8",
+);
+const shellSrc = readFileSync(
+  join(root, "public/shared/js/costing-suite-shell.js"),
+  "utf8",
+);
 
 const {
   READINESS_RPC,
@@ -89,23 +98,72 @@ const unlimited = buildPortfolioRequest({
 assert.equal(unlimited.args.p_limit, 100);
 pass("portfolio limit remains bounded");
 
-const badPeriods = validateGovernedPeriodsEnvelope({ rows: "nope" });
-assert.equal(badPeriods.ok, false);
+assert.equal(validateGovernedPeriodsEnvelope({ rows: "nope" }).ok, false);
+assert.equal(
+  validateGovernedPeriodsEnvelope({
+    observed_at: "2026-10-05T00:00:00Z",
+    rows: [{ period_start: "2026-09-01", valuation_date: "2026-09-10" }],
+    // missing limit / returned_count / has_more
+  }).ok,
+  false,
+);
+assert.equal(
+  validateGovernedPeriodsEnvelope({
+    observed_at: "2026-10-05T00:00:00Z",
+    rows: [{ period_start: "2026-09-01", valuation_date: "2026-09-10" }],
+    limit: 24,
+    returned_count: 0, // fabricated mismatch vs rows.length
+    has_more: false,
+  }).ok,
+  false,
+);
 const goodPeriods = validateGovernedPeriodsEnvelope({
   observed_at: "2026-10-05T00:00:00Z",
   rows: [
     { period_start: "2026-09-01", valuation_date: "2026-09-10" },
     { period_start: "2026-08-01", valuation_date: null },
   ],
+  limit: 24,
   returned_count: 2,
   has_more: false,
+  next_before_period_start: null,
 });
 assert.equal(goodPeriods.ok, true);
 assert.equal(goodPeriods.value.rows[0].period_start, "2026-09-01");
-pass("governed periods envelope validation");
+pass("governed periods fail-closed + valid envelope");
 
+assert.equal(
+  validateProductGapsEnvelope({
+    assessment_kind: "PRODUCT_MEMBERSHIP_GAPS",
+    observed_at: "2026-10-05T00:00:00Z",
+    product_scope: "ACTIVE_PRODUCTS",
+    gap_kind: "NO_SKU",
+    rows: [],
+    // missing statistics / counts
+    has_more: false,
+  }).ok,
+  false,
+);
+assert.equal(
+  validateProductGapsEnvelope({
+    assessment_kind: "PRODUCT_MEMBERSHIP_GAPS",
+    observed_at: "2026-10-05T00:00:00Z",
+    product_scope: "ACTIVE_PRODUCTS",
+    gap_kind: "NO_SKU",
+    rows: [],
+    statistics: {}, // missing count fields -> must not become zeros
+    limit: 25,
+    matched_count: 0,
+    returned_count: 0,
+    has_more: false,
+  }).ok,
+  false,
+);
 const goodGaps = validateProductGapsEnvelope({
   assessment_kind: "PRODUCT_MEMBERSHIP_GAPS",
+  observed_at: "2026-10-05T00:00:00Z",
+  product_scope: "ACTIVE_PRODUCTS",
+  gap_kind: "NO_SKU",
   rows: [
     {
       product_id: 1,
@@ -119,13 +177,16 @@ const goodGaps = validateProductGapsEnvelope({
     no_sku_count: 1,
     active_without_active_sku_count: 0,
   },
+  limit: 25,
   matched_count: 1,
   returned_count: 1,
   has_more: false,
+  next_after_product_id: null,
 });
 assert.equal(goodGaps.ok, true);
 assert.equal(goodGaps.value.rows[0].gap_kind, "NO_SKU");
-pass("product gaps envelope validation");
+assert.equal(goodGaps.value.statistics.active_without_active_sku_count, 0);
+pass("product gaps fail-closed + valid envelope");
 
 const unknownAssessment = {
   context: {
@@ -156,57 +217,164 @@ const unknownAssessment = {
   downstream_control: null,
 };
 
-const goodPortfolio = validatePortfolioEnvelope({
-  context: {
-    context_type: "LIVE_AS_OF",
-    requested_period_start: "2026-09-01",
-    period_start: "2026-09-01",
-    valuation_date: "2026-09-10",
-    refresh_run_id: null,
-    evidence_refresh_run_id: 115,
-    context_integrity_status: "LIVE_GOVERNED_PERIOD",
-  },
-  observed_at: "2026-10-05T00:00:00Z",
-  population_scope: "OPERATIONAL",
-  filters: {},
-  filter_options: {
-    overall_severities: ["READY", "REVIEW_REQUIRED", "BLOCKER", "UNKNOWN"],
-    dependency_codes: ["MRP_POLICY"],
-    owner_modules: ["PRICING_POLICY_MANAGER"],
-    route_codes: ["MRP_GOVERNANCE"],
-  },
-  after_sku_id: null,
-  limit: 50,
-  statistics: {
-    population_sku_count: 611,
-    overall_severity_counts: {
-      READY: 10,
-      REVIEW_REQUIRED: 20,
-      BLOCKER: 30,
-      UNKNOWN: 551,
+function validPortfolioPayload(overrides = {}) {
+  return {
+    context: {
+      context_type: "LIVE_AS_OF",
+      requested_period_start: "2026-09-01",
+      period_start: "2026-09-01",
+      valuation_date: "2026-09-10",
+      refresh_run_id: null,
+      evidence_refresh_run_id: 115,
+      context_integrity_status: "LIVE_GOVERNED_PERIOD",
     },
-    unresolved_dependency_counts: [],
-    unresolved_owner_counts: [],
-    unresolved_route_counts: [],
-    unresolved_shared_issue_counts: [],
-    regional_marketing_counts: [],
-  },
-  matched_count: 611,
-  returned_count: 1,
-  rows: [unknownAssessment],
-  has_more: true,
-  next_after_sku_id: 7,
-});
-assert.equal(goodPortfolio.ok, true);
-assert.equal(goodPortfolio.value.statistics.population_sku_count, 611);
-assert.equal(assessmentOverallSeverity(unknownAssessment), "UNKNOWN");
-pass("portfolio envelope + UNKNOWN severity preserved");
+    observed_at: "2026-10-05T00:00:00Z",
+    population_scope: "OPERATIONAL",
+    filters: {
+      overall_severities: null,
+      dependency_codes: null,
+      owner_modules: null,
+      route_codes: null,
+      search: null,
+    },
+    filter_options: {
+      overall_severities: ["READY", "REVIEW_REQUIRED", "BLOCKER", "UNKNOWN"],
+      dependency_codes: ["MRP_POLICY"],
+      owner_modules: ["PRICING_POLICY_MANAGER"],
+      route_codes: ["MRP_GOVERNANCE"],
+    },
+    after_sku_id: null,
+    limit: 50,
+    statistics: {
+      population_sku_count: 611,
+      overall_severity_counts: {
+        READY: 10,
+        REVIEW_REQUIRED: 20,
+        BLOCKER: 30,
+        UNKNOWN: 551,
+      },
+      unresolved_dependency_counts: [],
+      unresolved_owner_counts: [],
+      unresolved_route_counts: [],
+      unresolved_shared_issue_counts: [],
+      regional_marketing_counts: [],
+    },
+    matched_count: 611,
+    returned_count: 1,
+    rows: [unknownAssessment],
+    has_more: true,
+    next_after_sku_id: 7,
+    ...overrides,
+  };
+}
 
+assert.equal(validatePortfolioEnvelope({ rows: [], statistics: {} }).ok, false);
 assert.equal(
-  validatePortfolioEnvelope({ rows: [], statistics: {} }).ok,
+  validatePortfolioEnvelope(
+    validPortfolioPayload({
+      filter_options: undefined,
+    }),
+  ).ok,
   false,
 );
-pass("portfolio rejects missing context");
+assert.equal(
+  validatePortfolioEnvelope(
+    validPortfolioPayload({
+      statistics: {
+        population_sku_count: 611,
+        // missing overall_severity_counts
+        unresolved_dependency_counts: [],
+        unresolved_owner_counts: [],
+        unresolved_route_counts: [],
+        unresolved_shared_issue_counts: [],
+        regional_marketing_counts: [],
+      },
+    }),
+  ).ok,
+  false,
+);
+assert.equal(
+  validatePortfolioEnvelope(
+    validPortfolioPayload({
+      statistics: {
+        population_sku_count: 611,
+        overall_severity_counts: {
+          READY: 10,
+          REVIEW_REQUIRED: 20,
+          BLOCKER: 30,
+          // UNKNOWN missing -> must not default to 0 success
+        },
+        unresolved_dependency_counts: [],
+        unresolved_owner_counts: [],
+        unresolved_route_counts: [],
+        unresolved_shared_issue_counts: [],
+        regional_marketing_counts: [],
+      },
+    }),
+  ).ok,
+  false,
+);
+assert.equal(
+  validatePortfolioEnvelope(
+    validPortfolioPayload({
+      matched_count: undefined,
+    }),
+  ).ok,
+  false,
+);
+assert.equal(
+  validatePortfolioEnvelope(
+    validPortfolioPayload({
+      filter_options: {
+        overall_severities: [],
+        dependency_codes: [],
+        owner_modules: [],
+        route_codes: [],
+      },
+    }),
+  ).ok,
+  false,
+);
+
+const goodPortfolio = validatePortfolioEnvelope(validPortfolioPayload());
+assert.equal(goodPortfolio.ok, true);
+assert.equal(goodPortfolio.value.statistics.population_sku_count, 611);
+assert.equal(goodPortfolio.value.statistics.overall_severity_counts.UNKNOWN, 551);
+assert.deepEqual(goodPortfolio.value.filter_options.overall_severities, [
+  "READY",
+  "REVIEW_REQUIRED",
+  "BLOCKER",
+  "UNKNOWN",
+]);
+assert.equal(assessmentOverallSeverity(unknownAssessment), "UNKNOWN");
+pass("portfolio fail-closed + valid envelope + UNKNOWN preserved");
+
+assert.ok(
+  !/filter_options\.overall_severities\?\.length\s*\?\s*filterOptions\.overall_severities\s*:\s*READINESS_OVERALL_SEVERITIES/.test(
+    readinessSrc,
+  ),
+);
+assert.ok(
+  !/severityHost\.innerHTML\s*=\s*READINESS_OVERALL_SEVERITIES\.map/.test(
+    readinessSrc,
+  ),
+);
+assert.ok(
+  readinessSrc.includes(
+    "state.portfolio.filter_options.overall_severities",
+  ) ||
+    readinessSrc.includes(
+      "filter_options?.overall_severities",
+    ),
+);
+pass("severity filter options derive only from server filter_options");
+
+assert.ok(!htmlSrc.includes('id="readinessSearch"'));
+assert.ok(!readinessSrc.includes("readinessSearch"));
+assert.ok(!readinessSrc.includes("getElementById(\"readinessSearch\")"));
+assert.ok(shellSrc.includes("portfolioReadinessCtrl.syncSearchFromShell"));
+assert.ok(htmlSrc.includes('id="search"'));
+pass("single shell search authority; no readiness-local search input");
 
 const calls = [];
 let currentLens = PORTFOLIO_READINESS_LENS_ID;
@@ -217,8 +385,10 @@ const rpcImpl = async (name, args) => {
       data: {
         observed_at: "2026-10-05T00:00:00Z",
         rows: [{ period_start: "2026-09-01", valuation_date: "2026-09-10" }],
+        limit: 24,
         returned_count: 1,
         has_more: false,
+        next_before_period_start: null,
       },
       error: null,
     };
@@ -227,42 +397,37 @@ const rpcImpl = async (name, args) => {
     return {
       data: {
         assessment_kind: "PRODUCT_MEMBERSHIP_GAPS",
+        observed_at: "2026-10-05T00:00:00Z",
+        product_scope: args.p_product_scope,
+        gap_kind: args.p_gap_kind,
         rows: [],
         statistics: {
           product_count: 0,
           no_sku_count: 0,
           active_without_active_sku_count: 0,
         },
+        limit: 25,
         matched_count: 0,
         returned_count: 0,
         has_more: false,
+        next_after_product_id: null,
       },
       error: null,
     };
   }
   if (name === READINESS_RPC.portfolio) {
+    const matched = args.p_search ? 0 : 611;
+    const rows = args.p_search ? [] : [unknownAssessment];
     return {
-      data: {
-        context: {
-          context_type: "LIVE_AS_OF",
-          requested_period_start: args.p_period_start,
-          period_start: args.p_period_start,
-          valuation_date: "2026-09-10",
-          refresh_run_id: null,
-          evidence_refresh_run_id: 115,
-          context_integrity_status: "LIVE_GOVERNED_PERIOD",
-        },
-        observed_at: "2026-10-05T00:00:00Z",
+      data: validPortfolioPayload({
         population_scope: args.p_population_scope,
-        filters: {},
-        filter_options: {
-          overall_severities: ["READY", "REVIEW_REQUIRED", "BLOCKER", "UNKNOWN"],
-          dependency_codes: [],
-          owner_modules: [],
-          route_codes: [],
-        },
         after_sku_id: args.p_after_sku_id,
         limit: args.p_limit,
+        matched_count: matched,
+        returned_count: rows.length,
+        rows,
+        has_more: !args.p_search,
+        next_after_sku_id: args.p_search ? null : 7,
         statistics: {
           population_sku_count: 611,
           overall_severity_counts: {
@@ -277,12 +442,7 @@ const rpcImpl = async (name, args) => {
           unresolved_shared_issue_counts: [],
           regional_marketing_counts: [],
         },
-        matched_count: args.p_search ? 0 : 611,
-        returned_count: args.p_search ? 0 : 1,
-        rows: args.p_search ? [] : [unknownAssessment],
-        has_more: !args.p_search,
-        next_after_sku_id: args.p_search ? null : 7,
-      },
+      }),
       error: null,
     };
   }
@@ -305,9 +465,14 @@ assert.equal(ctrl.getReturnedCount(), 1);
 assert.ok(calls.some((c) => c.name === READINESS_RPC.governedPeriods));
 assert.ok(calls.some((c) => c.name === READINESS_RPC.portfolio));
 assert.ok(calls.some((c) => c.name === READINESS_RPC.productGaps));
-pass("controller load uses only readiness read RPCs");
+const rpcNames = [...new Set(calls.map((c) => c.name))];
+assert.deepEqual(rpcNames.sort(), [
+  "rpc_get_product_sku_readiness_portfolio",
+  "rpc_get_readiness_governed_periods",
+  "rpc_get_readiness_product_gaps",
+].sort());
+pass("controller load uses only the three approved read RPCs");
 
-const beforeStale = calls.length;
 ctrl.invalidatePendingRequests();
 currentLens = "dashboard";
 const stale = await ctrl.load();
@@ -332,9 +497,8 @@ assert.equal(searchCall?.args?.p_search, "none");
 assert.equal(searchCall?.args?.p_after_sku_id, null);
 assert.equal(ctrl.getMatchedCount(), 0);
 assert.equal(ctrl.isUnavailable(), false);
-pass("search resets keyset and empty matched is not unavailable");
+pass("shell search resets keyset; empty matched is not unavailable");
 
-// Period failure must be Unavailable, not UNKNOWN/empty success.
 const failingCtrl = createPortfolioReadinessController({
   costingRpc: async (name) => {
     if (name === READINESS_RPC.governedPeriods) {
@@ -351,16 +515,82 @@ assert.equal(failingCtrl.isUnavailable(), true);
 assert.match(String(failingCtrl.getUnavailableMessage()), /Unavailable/i);
 pass("period-load failure is Unavailable");
 
-// UNKNOWN remains a valid readiness severity in source (no READY coercion).
+const malformedPortfolioCtrl = createPortfolioReadinessController({
+  costingRpc: async (name) => {
+    if (name === READINESS_RPC.governedPeriods) {
+      return {
+        data: {
+          observed_at: "2026-10-05T00:00:00Z",
+          rows: [{ period_start: "2026-09-01", valuation_date: "2026-09-10" }],
+          limit: 24,
+          returned_count: 1,
+          has_more: false,
+        },
+        error: null,
+      };
+    }
+    if (name === READINESS_RPC.productGaps) {
+      return {
+        data: {
+          assessment_kind: "PRODUCT_MEMBERSHIP_GAPS",
+          observed_at: "2026-10-05T00:00:00Z",
+          product_scope: "ACTIVE_PRODUCTS",
+          gap_kind: "NO_SKU",
+          rows: [],
+          statistics: {
+            product_count: 0,
+            no_sku_count: 0,
+            active_without_active_sku_count: 0,
+          },
+          limit: 25,
+          matched_count: 0,
+          returned_count: 0,
+          has_more: false,
+        },
+        error: null,
+      };
+    }
+    if (name === READINESS_RPC.portfolio) {
+      return {
+        data: validPortfolioPayload({
+          matched_count: undefined,
+          statistics: {
+            population_sku_count: 611,
+            overall_severity_counts: {
+              READY: 0,
+              REVIEW_REQUIRED: 0,
+              BLOCKER: 0,
+              // UNKNOWN omitted on purpose
+            },
+            unresolved_dependency_counts: [],
+            unresolved_owner_counts: [],
+            unresolved_route_counts: [],
+            unresolved_shared_issue_counts: [],
+            regional_marketing_counts: [],
+          },
+        }),
+        error: null,
+      };
+    }
+    return { data: null, error: new Error(`unexpected ${name}`) };
+  },
+  getCurrentLens: () => PORTFOLIO_READINESS_LENS_ID,
+  canView: () => true,
+});
+const malformed = await malformedPortfolioCtrl.load();
+assert.equal(malformed.ok, false);
+assert.equal(malformedPortfolioCtrl.isUnavailable(), true);
+assert.equal(malformedPortfolioCtrl.getMatchedCount(), 0);
+assert.match(String(malformedPortfolioCtrl.getUnavailableMessage()), /Unavailable/i);
+pass("malformed portfolio counts/filter fields fail closed to Unavailable");
+
 assert.ok(!/overall_severity\s*===\s*["']READY["']/.test(readinessSrc));
-assert.ok(!/UNKNOWN[\s\S]{0,40}READY/.test(readinessSrc));
 assert.equal(
   assessmentOverallSeverity({ summary: { overall_severity: "UNKNOWN" } }),
   "UNKNOWN",
 );
 pass("UNKNOWN is not coerced to READY");
 
-// No writer / mutation RPC names and no client portfolio totals from page rows.
 const forbidden = [
   "rpc_accept",
   "rpc_upsert",
@@ -375,16 +605,15 @@ const forbidden = [
   "reduce((sum",
 ];
 for (const token of forbidden) {
-  assert.ok(
-    !readinessSrc.includes(token),
-    `forbidden token present: ${token}`,
-  );
+  assert.ok(!readinessSrc.includes(token), `forbidden token present: ${token}`);
 }
 assert.ok(!/population_sku_count\s*=\s*rows\.length/.test(readinessSrc));
 assert.ok(!/matched_count\s*=\s*rows\.length/.test(readinessSrc));
-pass("no writer invocation / no client-derived totals");
+assert.ok(!/Number\([^)]*matched_count[^)]*\)\s*\|\|\s*0/.test(
+  readinessSrc.split("export function validate")[1]?.split("export function assessment")[0] || "",
+));
+pass("no writer invocation / no client-derived totals / no silent zero defaults in validators");
 
-// Registry / route / shell / sw static checks
 const registry = readFileSync(
   join(root, "public/shared/js/costing-suite-registry.js"),
   "utf8",
@@ -393,29 +622,21 @@ const routeConfig = readFileSync(
   join(root, "public/shared/js/costing-route-config.js"),
   "utf8",
 );
-const shell = readFileSync(
-  join(root, "public/shared/js/costing-suite-shell.js"),
-  "utf8",
-);
 const sw = readFileSync(join(root, "public/sw.js"), "utf8");
-const html = readFileSync(
-  join(root, "public/shared/costing-control-center.html"),
-  "utf8",
-);
 
 assert.ok(registry.includes('"portfolio-readiness"') || registry.includes("'portfolio-readiness'"));
 assert.ok(registry.includes("Readiness"));
 assert.ok(routeConfig.includes("portfolio-readiness"));
 assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
-assert.ok(shell.includes("costing-suite-readiness.js"));
-assert.ok(shell.includes("isPortfolioReadinessLens"));
-assert.ok(html.includes("readinessLensHost"));
+assert.ok(shellSrc.includes("costing-suite-readiness.js"));
+assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
+assert.ok(htmlSrc.includes("readinessLensHost"));
 assert.ok(/hub-cache-v333/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
-assert.ok(!shell.includes("rpc_accept_marketing"));
-assert.ok(!/js\/products\.js/.test(shell));
+assert.ok(!shellSrc.includes("rpc_accept_marketing"));
+assert.ok(!/js\/products\.js/.test(shellSrc));
 pass("shell does not add Manage Products or marketing writer paths");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");

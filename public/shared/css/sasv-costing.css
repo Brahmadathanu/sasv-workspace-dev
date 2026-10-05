@@ -1760,10 +1760,6 @@ body.sasv-costing-control-center .cp-readiness-field input {
   padding: 4px 8px;
 }
 
-body.sasv-costing-control-center .cp-readiness-search-field {
-  flex: 1 1 180px;
-}
-
 body.sasv-costing-control-center .cp-readiness-severity-filters {
   display: flex;
   flex-wrap: wrap;

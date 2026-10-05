@@ -102,6 +102,54 @@ function uniqueCodes(values) {
   return out;
 }
 
+function requireNonNegativeInt(value, label) {
+  if (value == null || value === "") {
+    return { ok: false, error: `${label} is required.` };
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+    return { ok: false, error: `${label} must be a non-negative integer.` };
+  }
+  return { ok: true, value: n };
+}
+
+function requireBoolean(value, label) {
+  if (typeof value !== "boolean") {
+    return { ok: false, error: `${label} must be a boolean.` };
+  }
+  return { ok: true, value };
+}
+
+function requireObject(value, label) {
+  const obj = asObject(value);
+  if (!obj) return { ok: false, error: `${label} must be an object.` };
+  return { ok: true, value: obj };
+}
+
+function requireArray(value, label) {
+  if (!Array.isArray(value)) {
+    return { ok: false, error: `${label} must be an array.` };
+  }
+  return { ok: true, value };
+}
+
+function requireCodeArray(value, label, { allowEmpty = true } = {}) {
+  const arr = requireArray(value, label);
+  if (!arr.ok) return arr;
+  const codes = uniqueCodes(arr.value);
+  if (!allowEmpty && codes.length === 0) {
+    return { ok: false, error: `${label} must not be empty.` };
+  }
+  // Reject if any non-empty input entry failed to normalize into a code.
+  const rawNonEmpty = arr.value
+    .map((v) => String(v ?? "").trim())
+    .filter(Boolean);
+  if (rawNonEmpty.length !== codes.length) {
+    return { ok: false, error: `${label} contains invalid codes.` };
+  }
+  return { ok: true, value: codes };
+}
+
 function isPermissionError(err) {
   if (!err) return false;
   const status = Number(err.status ?? err.statusCode ?? err.code);
@@ -201,11 +249,23 @@ export function validateGovernedPeriodsEnvelope(payload) {
   if (!obj) {
     return { ok: false, error: "Governed periods response is not an object." };
   }
-  if (!Array.isArray(obj.rows)) {
-    return { ok: false, error: "Governed periods rows must be an array." };
+  if (obj.observed_at == null || obj.observed_at === "") {
+    return { ok: false, error: "Governed periods observed_at is required." };
   }
+  const rowsReq = requireArray(obj.rows, "Governed periods rows");
+  if (!rowsReq.ok) return rowsReq;
+  const limitReq = requireNonNegativeInt(obj.limit, "Governed periods limit");
+  if (!limitReq.ok) return limitReq;
+  const returnedReq = requireNonNegativeInt(
+    obj.returned_count,
+    "Governed periods returned_count",
+  );
+  if (!returnedReq.ok) return returnedReq;
+  const hasMoreReq = requireBoolean(obj.has_more, "Governed periods has_more");
+  if (!hasMoreReq.ok) return hasMoreReq;
+
   const rows = [];
-  for (const row of obj.rows) {
+  for (const row of rowsReq.value) {
     const periodStart = toIsoDate(row?.period_start);
     if (!periodStart) {
       return {
@@ -218,16 +278,21 @@ export function validateGovernedPeriodsEnvelope(payload) {
       valuation_date: toIsoDate(row?.valuation_date),
     });
   }
+  if (returnedReq.value !== rows.length) {
+    return {
+      ok: false,
+      error: "Governed periods returned_count does not match rows length.",
+    };
+  }
   return {
     ok: true,
     value: {
-      observed_at: obj.observed_at ?? null,
+      observed_at: obj.observed_at,
       before_period_start: toIsoDate(obj.before_period_start),
-      limit: Number(obj.limit) || rows.length,
+      limit: limitReq.value,
       rows,
-      returned_count:
-        obj.returned_count != null ? Number(obj.returned_count) : rows.length,
-      has_more: obj.has_more === true,
+      returned_count: returnedReq.value,
+      has_more: hasMoreReq.value,
       next_before_period_start: toIsoDate(obj.next_before_period_start),
     },
   };
@@ -244,38 +309,81 @@ export function validateProductGapsEnvelope(payload) {
       error: "Product gaps assessment_kind mismatch.",
     };
   }
-  if (!Array.isArray(obj.rows)) {
-    return { ok: false, error: "Product gaps rows must be an array." };
+  if (obj.observed_at == null || obj.observed_at === "") {
+    return { ok: false, error: "Product gaps observed_at is required." };
   }
-  const statistics = asObject(obj.statistics) || {};
+  const productScope = normalizeCode(obj.product_scope);
+  if (!productScope) {
+    return { ok: false, error: "Product gaps product_scope is required." };
+  }
+  const gapKind = normalizeCode(obj.gap_kind);
+  if (!gapKind) {
+    return { ok: false, error: "Product gaps gap_kind is required." };
+  }
+  const rowsReq = requireArray(obj.rows, "Product gaps rows");
+  if (!rowsReq.ok) return rowsReq;
+  const statsReq = requireObject(obj.statistics, "Product gaps statistics");
+  if (!statsReq.ok) return statsReq;
+  const productCount = requireNonNegativeInt(
+    statsReq.value.product_count,
+    "Product gaps statistics.product_count",
+  );
+  if (!productCount.ok) return productCount;
+  const noSkuCount = requireNonNegativeInt(
+    statsReq.value.no_sku_count,
+    "Product gaps statistics.no_sku_count",
+  );
+  if (!noSkuCount.ok) return noSkuCount;
+  const activeGapCount = requireNonNegativeInt(
+    statsReq.value.active_without_active_sku_count,
+    "Product gaps statistics.active_without_active_sku_count",
+  );
+  if (!activeGapCount.ok) return activeGapCount;
+  const limitReq = requireNonNegativeInt(obj.limit, "Product gaps limit");
+  if (!limitReq.ok) return limitReq;
+  const matchedReq = requireNonNegativeInt(
+    obj.matched_count,
+    "Product gaps matched_count",
+  );
+  if (!matchedReq.ok) return matchedReq;
+  const returnedReq = requireNonNegativeInt(
+    obj.returned_count,
+    "Product gaps returned_count",
+  );
+  if (!returnedReq.ok) return returnedReq;
+  const hasMoreReq = requireBoolean(obj.has_more, "Product gaps has_more");
+  if (!hasMoreReq.ok) return hasMoreReq;
+  if (returnedReq.value !== rowsReq.value.length) {
+    return {
+      ok: false,
+      error: "Product gaps returned_count does not match rows length.",
+    };
+  }
+
   return {
     ok: true,
     value: {
       assessment_kind: obj.assessment_kind,
-      observed_at: obj.observed_at ?? null,
-      product_scope: normalizeCode(obj.product_scope),
-      gap_kind: normalizeCode(obj.gap_kind),
+      observed_at: obj.observed_at,
+      product_scope: productScope,
+      gap_kind: gapKind,
       search: obj.search ?? null,
       after_product_id: toBigIntOrNull(obj.after_product_id),
-      limit: Number(obj.limit) || READINESS_GAP_LIMIT,
+      limit: limitReq.value,
       statistics: {
-        product_count: Number(statistics.product_count) || 0,
-        no_sku_count: Number(statistics.no_sku_count) || 0,
-        active_without_active_sku_count:
-          Number(statistics.active_without_active_sku_count) || 0,
+        product_count: productCount.value,
+        no_sku_count: noSkuCount.value,
+        active_without_active_sku_count: activeGapCount.value,
       },
-      matched_count: Number(obj.matched_count) || 0,
-      returned_count:
-        obj.returned_count != null
-          ? Number(obj.returned_count)
-          : obj.rows.length,
-      rows: obj.rows.map((row) => ({
+      matched_count: matchedReq.value,
+      returned_count: returnedReq.value,
+      rows: rowsReq.value.map((row) => ({
         product_id: row?.product_id ?? null,
         product_name: row?.product_name ?? null,
         product_status: row?.product_status ?? null,
         gap_kind: normalizeCode(row?.gap_kind),
       })),
-      has_more: obj.has_more === true,
+      has_more: hasMoreReq.value,
       next_after_product_id: toBigIntOrNull(obj.next_after_product_id),
     },
   };
@@ -286,73 +394,159 @@ export function validatePortfolioEnvelope(payload) {
   if (!obj) {
     return { ok: false, error: "Portfolio response is not an object." };
   }
-  const context = asObject(obj.context);
-  if (!context) {
-    return { ok: false, error: "Portfolio context is required." };
+  if (obj.observed_at == null || obj.observed_at === "") {
+    return { ok: false, error: "Portfolio observed_at is required." };
   }
-  if (!Array.isArray(obj.rows)) {
-    return { ok: false, error: "Portfolio rows must be an array." };
+  const contextReq = requireObject(obj.context, "Portfolio context");
+  if (!contextReq.ok) return contextReq;
+  const context = contextReq.value;
+  const periodStart = toIsoDate(context.period_start);
+  if (!periodStart) {
+    return { ok: false, error: "Portfolio context.period_start is required." };
   }
-  const statistics = asObject(obj.statistics);
-  if (!statistics) {
-    return { ok: false, error: "Portfolio statistics are required." };
+  const populationScope = normalizeCode(obj.population_scope);
+  if (
+    !populationScope ||
+    !READINESS_POPULATION_SCOPES.includes(populationScope)
+  ) {
+    return { ok: false, error: "Portfolio population_scope is invalid." };
   }
-  const severityCounts = asObject(statistics.overall_severity_counts) || {};
-  const filterOptions = asObject(obj.filter_options) || {};
+  const rowsReq = requireArray(obj.rows, "Portfolio rows");
+  if (!rowsReq.ok) return rowsReq;
+  const statsReq = requireObject(obj.statistics, "Portfolio statistics");
+  if (!statsReq.ok) return statsReq;
+  const populationCount = requireNonNegativeInt(
+    statsReq.value.population_sku_count,
+    "Portfolio statistics.population_sku_count",
+  );
+  if (!populationCount.ok) return populationCount;
+  const severityCountsReq = requireObject(
+    statsReq.value.overall_severity_counts,
+    "Portfolio statistics.overall_severity_counts",
+  );
+  if (!severityCountsReq.ok) return severityCountsReq;
+  const severityCounts = {};
+  for (const code of READINESS_OVERALL_SEVERITIES) {
+    const countReq = requireNonNegativeInt(
+      severityCountsReq.value[code],
+      `Portfolio statistics.overall_severity_counts.${code}`,
+    );
+    if (!countReq.ok) return countReq;
+    severityCounts[code] = countReq.value;
+  }
+  for (const key of [
+    "unresolved_dependency_counts",
+    "unresolved_owner_counts",
+    "unresolved_route_counts",
+    "unresolved_shared_issue_counts",
+    "regional_marketing_counts",
+  ]) {
+    const arrReq = requireArray(
+      statsReq.value[key],
+      `Portfolio statistics.${key}`,
+    );
+    if (!arrReq.ok) return arrReq;
+  }
+  const filterOptionsReq = requireObject(
+    obj.filter_options,
+    "Portfolio filter_options",
+  );
+  if (!filterOptionsReq.ok) return filterOptionsReq;
+  const overallSeverities = requireCodeArray(
+    filterOptionsReq.value.overall_severities,
+    "Portfolio filter_options.overall_severities",
+    { allowEmpty: false },
+  );
+  if (!overallSeverities.ok) return overallSeverities;
+  for (const code of overallSeverities.value) {
+    if (!READINESS_OVERALL_SEVERITIES.includes(code)) {
+      return {
+        ok: false,
+        error: `Portfolio filter_options.overall_severities contains unsupported code ${code}.`,
+      };
+    }
+  }
+  const dependencyCodes = requireCodeArray(
+    filterOptionsReq.value.dependency_codes,
+    "Portfolio filter_options.dependency_codes",
+  );
+  if (!dependencyCodes.ok) return dependencyCodes;
+  const ownerModules = requireCodeArray(
+    filterOptionsReq.value.owner_modules,
+    "Portfolio filter_options.owner_modules",
+  );
+  if (!ownerModules.ok) return ownerModules;
+  const routeCodes = requireCodeArray(
+    filterOptionsReq.value.route_codes,
+    "Portfolio filter_options.route_codes",
+  );
+  if (!routeCodes.ok) return routeCodes;
+  const filtersReq = requireObject(obj.filters, "Portfolio filters");
+  if (!filtersReq.ok) return filtersReq;
+  const limitReq = requireNonNegativeInt(obj.limit, "Portfolio limit");
+  if (!limitReq.ok) return limitReq;
+  const matchedReq = requireNonNegativeInt(
+    obj.matched_count,
+    "Portfolio matched_count",
+  );
+  if (!matchedReq.ok) return matchedReq;
+  const returnedReq = requireNonNegativeInt(
+    obj.returned_count,
+    "Portfolio returned_count",
+  );
+  if (!returnedReq.ok) return returnedReq;
+  const hasMoreReq = requireBoolean(obj.has_more, "Portfolio has_more");
+  if (!hasMoreReq.ok) return hasMoreReq;
+  if (returnedReq.value !== rowsReq.value.length) {
+    return {
+      ok: false,
+      error: "Portfolio returned_count does not match rows length.",
+    };
+  }
+  if (hasMoreReq.value === true && toBigIntOrNull(obj.next_after_sku_id) == null) {
+    return {
+      ok: false,
+      error: "Portfolio next_after_sku_id is required when has_more is true.",
+    };
+  }
+
   return {
     ok: true,
     value: {
       context: {
         context_type: context.context_type ?? null,
         requested_period_start: toIsoDate(context.requested_period_start),
-        period_start: toIsoDate(context.period_start),
+        period_start: periodStart,
         valuation_date: toIsoDate(context.valuation_date),
         refresh_run_id: context.refresh_run_id ?? null,
         evidence_refresh_run_id: context.evidence_refresh_run_id ?? null,
         context_integrity_status: context.context_integrity_status ?? null,
       },
-      observed_at: obj.observed_at ?? null,
-      population_scope: normalizeCode(obj.population_scope),
-      filters: asObject(obj.filters) || {},
+      observed_at: obj.observed_at,
+      population_scope: populationScope,
+      filters: filtersReq.value,
       filter_options: {
-        overall_severities: uniqueCodes(
-          filterOptions.overall_severities?.length
-            ? filterOptions.overall_severities
-            : READINESS_OVERALL_SEVERITIES,
-        ),
-        dependency_codes: uniqueCodes(filterOptions.dependency_codes),
-        owner_modules: uniqueCodes(filterOptions.owner_modules),
-        route_codes: uniqueCodes(filterOptions.route_codes),
+        overall_severities: overallSeverities.value,
+        dependency_codes: dependencyCodes.value,
+        owner_modules: ownerModules.value,
+        route_codes: routeCodes.value,
       },
       after_sku_id: toBigIntOrNull(obj.after_sku_id),
-      limit: Number(obj.limit) || READINESS_PAGE_LIMIT,
+      limit: limitReq.value,
       statistics: {
-        population_sku_count: Number(statistics.population_sku_count) || 0,
-        overall_severity_counts: {
-          READY: Number(severityCounts.READY) || 0,
-          REVIEW_REQUIRED: Number(severityCounts.REVIEW_REQUIRED) || 0,
-          BLOCKER: Number(severityCounts.BLOCKER) || 0,
-          UNKNOWN: Number(severityCounts.UNKNOWN) || 0,
-        },
-        unresolved_dependency_counts: asArray(
-          statistics.unresolved_dependency_counts,
-        ),
-        unresolved_owner_counts: asArray(statistics.unresolved_owner_counts),
-        unresolved_route_counts: asArray(statistics.unresolved_route_counts),
-        unresolved_shared_issue_counts: asArray(
-          statistics.unresolved_shared_issue_counts,
-        ),
-        regional_marketing_counts: asArray(
-          statistics.regional_marketing_counts,
-        ),
+        population_sku_count: populationCount.value,
+        overall_severity_counts: severityCounts,
+        unresolved_dependency_counts: statsReq.value.unresolved_dependency_counts,
+        unresolved_owner_counts: statsReq.value.unresolved_owner_counts,
+        unresolved_route_counts: statsReq.value.unresolved_route_counts,
+        unresolved_shared_issue_counts:
+          statsReq.value.unresolved_shared_issue_counts,
+        regional_marketing_counts: statsReq.value.regional_marketing_counts,
       },
-      matched_count: Number(obj.matched_count) || 0,
-      returned_count:
-        obj.returned_count != null
-          ? Number(obj.returned_count)
-          : obj.rows.length,
-      rows: obj.rows,
-      has_more: obj.has_more === true,
+      matched_count: matchedReq.value,
+      returned_count: returnedReq.value,
+      rows: rowsReq.value,
+      has_more: hasMoreReq.value,
       next_after_sku_id: toBigIntOrNull(obj.next_after_sku_id),
     },
   };
@@ -455,7 +649,6 @@ export function createPortfolioReadinessController(deps = {}) {
         dependencySelect: null,
         ownerSelect: null,
         routeSelect: null,
-        searchInput: null,
         clearBtn: null,
         statsHost: null,
         contextHost: null,
@@ -476,7 +669,6 @@ export function createPortfolioReadinessController(deps = {}) {
       dependencySelect: doc.getElementById("readinessDependencyFilter"),
       ownerSelect: doc.getElementById("readinessOwnerFilter"),
       routeSelect: doc.getElementById("readinessRouteFilter"),
-      searchInput: doc.getElementById("readinessSearch"),
       clearBtn: doc.getElementById("readinessClearFilters"),
       statsHost: doc.getElementById("readinessStats"),
       contextHost: doc.getElementById("readinessContext"),
@@ -752,11 +944,8 @@ export function createPortfolioReadinessController(deps = {}) {
     if (resetFiltersOnLoad) resetFilters();
     if (search != null) state.search = String(search || "").trim();
     else if (typeof getSearchValue === "function") {
-      // Prefer readiness-local search when present; else shell search.
-      const local = hostEls().searchInput?.value;
-      state.search = String(
-        local != null && local !== "" ? local : getSearchValue() || "",
-      ).trim();
+      // Shell search is the sole visible search authority for this lens.
+      state.search = String(getSearchValue() || "").trim();
     }
 
     setHostVisibility(true);
@@ -782,20 +971,8 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function syncSearchFromShell(value) {
     state.search = String(value || "").trim();
-    const { searchInput } = hostEls();
-    if (searchInput && searchInput.value !== state.search) {
-      searchInput.value = state.search;
-    }
     resetKeyset();
     return loadPortfolio({ preserveKeyset: true });
-  }
-
-  function scheduleSearch(value) {
-    clearSearchTimer();
-    searchTimer = setTimeout(() => {
-      searchTimer = null;
-      void syncSearchFromShell(value);
-    }, READINESS_SEARCH_DEBOUNCE_MS);
   }
 
   async function goNextPage() {
@@ -848,7 +1025,9 @@ export function createPortfolioReadinessController(deps = {}) {
     state.dependencyCodes = readMultiSelect(els.dependencySelect);
     state.ownerModules = readMultiSelect(els.ownerSelect);
     state.routeCodes = readMultiSelect(els.routeSelect);
-    if (els.searchInput) state.search = String(els.searchInput.value || "").trim();
+    if (typeof getSearchValue === "function") {
+      state.search = String(getSearchValue() || "").trim();
+    }
     if (resetPaging) resetKeyset();
     invalidatePendingRequests();
     return loadPortfolio({ preserveKeyset: true });
@@ -897,12 +1076,21 @@ export function createPortfolioReadinessController(deps = {}) {
       els.scopeSelect.value = state.populationScope;
     }
     if (els.severityHost) {
-      els.severityHost.innerHTML = READINESS_OVERALL_SEVERITIES.map((code) => {
-        const checked = state.overallSeverities.includes(code) ? " checked" : "";
-        return `<label class="cp-readiness-check"><input type="checkbox" data-readiness-severity value="${escapeHtml(
-          code,
-        )}"${checked}/> ${escapeHtml(code)}</label>`;
-      }).join("");
+      const severities = Array.isArray(
+        state.portfolio?.filter_options?.overall_severities,
+      )
+        ? state.portfolio.filter_options.overall_severities
+        : [];
+      els.severityHost.innerHTML = severities
+        .map((code) => {
+          const checked = state.overallSeverities.includes(code)
+            ? " checked"
+            : "";
+          return `<label class="cp-readiness-check"><input type="checkbox" data-readiness-severity value="${escapeHtml(
+            code,
+          )}"${checked}/> ${escapeHtml(code)}</label>`;
+        })
+        .join("");
     }
     const filterOptions = state.portfolio?.filter_options || {
       dependency_codes: [],
@@ -924,9 +1112,6 @@ export function createPortfolioReadinessController(deps = {}) {
       filterOptions.route_codes,
       state.routeCodes,
     );
-    if (els.searchInput && document.activeElement !== els.searchInput) {
-      els.searchInput.value = state.search || "";
-    }
   }
 
   function ensureBound() {
@@ -954,12 +1139,8 @@ export function createPortfolioReadinessController(deps = {}) {
     on(els.routeSelect, "change", () => {
       void applyControlChanges({ resetPaging: true });
     });
-    on(els.searchInput, "input", () => {
-      scheduleSearch(els.searchInput.value);
-    });
     on(els.clearBtn, "click", () => {
-      resetFilters();
-      if (els.searchInput) els.searchInput.value = "";
+      resetFilters({ keepSearch: true });
       syncControlsFromState();
       void loadPortfolio({ preserveKeyset: true });
     });
@@ -1468,7 +1649,6 @@ export function createPortfolioReadinessController(deps = {}) {
     dispose: destroy,
     invalidatePendingRequests,
     syncSearchFromShell,
-    scheduleSearch,
     goNextPage,
     goPrevPage,
     getPeriodStart: () => state.periodStart,
