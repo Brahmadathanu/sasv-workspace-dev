@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — C-R01/C-R02 correctness correction V2 frozen and source-reviewed; explicit operation authorization required before runtime.
+WP04-G4 — C-R01/C-R02 V2 single authorized runtime attempt consumed and failed on proposal SQL ambiguity; independent readback clean; new versioned correction required before any further authorization.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Versioned C-R01/C-R02 V2 script is frozen at SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f and source-review PASS; parser/runtime NOT_RUN and no operation/application authorization. Frozen original C artifacts and prior evidence/consumed authorizations remain unchanged; programme 4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V2 SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f one-attempt authorization is consumed. Attempt failed SQLSTATE 42702 before proof completion; no retry. Independent readback PASS with candidate_count0/all22 definitions matching/idle transactions0. Original state unchanged; programme 4/13.
 
 ## Required to close
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Explicit-authorization boundary for the frozen C-R01/C-R02 V2 script. Before any attempt, freshly reconcile main/target and bind authorization to SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f; one attempt/no retry/no COMMIT/final ROLLBACK plus separate frozen independent readback. No portfolio/performance/deployment/client work; do not start a new WP.
+WP04-G4 — Repository-only new versioned correction/review for the V2 ambiguous-`n` proposal defect. Do not edit/retry the consumed V2 digest. No server operation, portfolio/performance/deployment/client work; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -936,3 +936,7 @@ Source comparison complete; [RESIDUAL_CORRECTION_PLAN.md](server-packages/wp04-g
 ## 2026-10-05 — C-R01/C-R02 correctness correction V2 source review
 
 Prepared `server-packages/wp04-g4/c-correctness-proposal-v2.sql` as a new version; original correctness SQL and all historical evidence remain byte-unchanged. Final SHA-256: `3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f`. `C_CORRECTNESS_V2_PROPOSAL.md` freezes provenance/load/failure/readback boundaries. `C_CORRECTNESS_V2_REVIEW.md` records SOURCE REVIEW PASS only: C-R01 is 611 x six complete input-selection parity with exact context/type/multiplicity guards and zero evaluator calls; C-R02 is eight pure-literal typed-record projection cases covering absent/six single-source present-null/all-six present-null, complete JSON and seven drivers. Three proposal-only review defects were corrected before freezing. SQL parser/runtime NOT_RUN; no live SQL or production operation. Application HOLD remains; any attempt now requires fresh explicit digest-bound authorization and separate independent readback.
+
+## 2026-10-05 — C correctness V2 authorized attempt consumed / failed
+
+Fresh repository, target, script/readback digest, source, index, governed-context and 611-membership guards all passed. The single authorized V2 attempt failed with SQLSTATE `42702`: PL/pgSQL variable `n` was ambiguous with the `source_counts.n` CTE column in C-R01. No retry occurred. Mandatory separate independent readback immediately PASS: candidate_count 0, all 22 definitions match, existing owner/ACL/search_path attributes match, column shape/event/textual callers match, idle WP04 transactions 0. C-R01/C-R02 runtime proof therefore remains incomplete, but no production/source residue or readiness regression was demonstrated. Consumed V2 must remain immutable. Next bounded action is a new versioned repository-only proposal correction/review; any later execution needs a new explicit authorization.
