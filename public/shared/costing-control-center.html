@@ -2701,6 +2701,35 @@
             hidden
           >
             <div class="peq-filter-section">
+              <div class="peq-filter-section-title">Population scope</div>
+              <label class="cp-readiness-field cp-readiness-drawer-scope">
+                <span class="visually-hidden">Population scope</span>
+                <select
+                  id="readinessPopulationScope"
+                  aria-label="Readiness population scope"
+                >
+                  <option value="OPERATIONAL">OPERATIONAL</option>
+                  <option value="ALL_EXISTING">ALL_EXISTING</option>
+                </select>
+              </label>
+            </div>
+            <div class="peq-filter-section">
+              <div class="peq-filter-section-title">
+                Membership exceptions (not filters)
+              </div>
+              <div
+                id="readinessGaps"
+                class="cp-readiness-gaps cp-readiness-drawer-gaps"
+                aria-label="Product membership gaps"
+              ></div>
+              <div
+                id="readinessGapDetails"
+                class="cp-readiness-gap-details"
+                hidden
+                aria-live="polite"
+              ></div>
+            </div>
+            <div class="peq-filter-section">
               <div class="peq-filter-section-title">Overall severity</div>
               <ul
                 id="readinessSeverityFilters"
@@ -2884,45 +2913,15 @@
         aria-hidden="true"
         aria-label="Portfolio readiness"
       >
-        <div class="cp-readiness-controls" aria-label="Readiness operating controls">
-          <div class="cp-readiness-toolbar-row">
-            <label class="cp-readiness-field">
-              <span>Governed period</span>
-              <select
-                id="readinessPeriodSelect"
-                aria-label="Governed readiness period"
-              >
-                <option value="">Loading…</option>
-              </select>
-            </label>
-            <label class="cp-readiness-field">
-              <span>Population scope</span>
-              <select
-                id="readinessPopulationScope"
-                aria-label="Readiness population scope"
-              >
-                <option value="OPERATIONAL">OPERATIONAL</option>
-                <option value="ALL_EXISTING">ALL_EXISTING</option>
-              </select>
-            </label>
-            <div
-              id="readinessSummary"
-              class="cp-readiness-summary"
-              aria-label="Live readiness context"
-            ></div>
-          </div>
-        </div>
-        <div id="readinessGaps" class="cp-readiness-gaps" aria-label="Product membership gaps"></div>
         <div
-          id="readinessGapDetails"
-          class="cp-readiness-gap-details"
-          hidden
-          aria-live="polite"
+          id="readinessSummary"
+          class="cp-readiness-summary"
+          aria-label="Live readiness context"
         ></div>
         <div id="readinessStatus" class="cp-readiness-status"></div>
-        <div class="table-card cp-readiness-register-region">
-          <div class="cp-readiness-register-wrap">
-            <table class="cp-readiness-table" aria-label="Portfolio readiness register">
+        <div class="table-card cp-readiness-register-region cp-ccc-table-work-surface">
+          <div class="cp-readiness-register-wrap cp-ccc-table-scroll">
+            <table class="cp-readiness-table cp-ccc-register-table" aria-label="Portfolio readiness register">
               <thead>
                 <tr>
                   <th>Product / SKU</th>
@@ -2942,18 +2941,14 @@
             class="cp-readiness-cards"
             aria-label="Portfolio readiness cards"
           ></div>
-          <div class="cp-readiness-pagebar" aria-label="Readiness pagination">
-            <button id="readinessPrevPage" type="button" class="icon-btn" disabled>
-              Prev
-            </button>
-            <span id="readinessPageMeta" class="cp-muted-text"></span>
-            <button id="readinessNextPage" type="button" class="icon-btn" disabled>
-              Next
-            </button>
-          </div>
+          <div
+            id="readinessScrollSentinel"
+            class="cp-ccc-scroll-sentinel"
+            aria-hidden="true"
+          ></div>
         </div>
       </div>
-      <div id="genericTableCard" class="table-card">
+      <div id="genericTableCard" class="table-card cp-ccc-table-work-surface">
         <div id="workbenchSummary" class="cp-workbench-summary"></div>
         <div id="statusArea" class="status">Loading...</div>
         <div
@@ -3029,11 +3024,16 @@
             </button>
           </div>
         </div>
-        <div id="tableWrap">
-          <table id="mainTable" class="costing-pricing-table">
+        <div id="tableWrap" class="cp-ccc-table-scroll">
+          <table id="mainTable" class="costing-pricing-table cp-ccc-register-table">
             <thead id="tableHead"></thead>
             <tbody id="tableBody"></tbody>
           </table>
+          <div
+            id="cccTableScrollSentinel"
+            class="cp-ccc-scroll-sentinel"
+            aria-hidden="true"
+          ></div>
         </div>
         <div
           id="costingLoadingMask"

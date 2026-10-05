@@ -589,6 +589,29 @@ function boolLabel(value) {
   return "—";
 }
 
+function assessmentSkuIdFromRow(row) {
+  const ctx = asObject(row?.context);
+  return toBigIntOrNull(ctx?.sku_id);
+}
+
+function dedupeReadinessRows(existingRows, incomingRows) {
+  const out = Array.isArray(existingRows) ? [...existingRows] : [];
+  const seen = new Set(
+    out
+      .map((row) => assessmentSkuIdFromRow(row))
+      .filter((id) => id != null),
+  );
+  for (const row of asArray(incomingRows)) {
+    const skuId = assessmentSkuIdFromRow(row);
+    if (skuId != null) {
+      if (seen.has(skuId)) continue;
+      seen.add(skuId);
+    }
+    out.push(row);
+  }
+  return out;
+}
+
 export function createPortfolioReadinessController(deps = {}) {
   const {
     costingRpc,
@@ -603,6 +626,8 @@ export function createPortfolioReadinessController(deps = {}) {
     getSearchValue = () => "",
     closeFilterDrawer = null,
     onFilterUiChange = null,
+    onGovernedPeriodsLoaded = null,
+    onPortfolioContextLoaded = null,
   } = deps;
 
   const t = typeof shellText === "function" ? shellText : text;
@@ -625,8 +650,7 @@ export function createPortfolioReadinessController(deps = {}) {
     routeCodes: [],
     search: "",
     afterSkuId: null,
-    pageCursorStack: [null],
-    pageIndex: 0,
+    registerRows: [],
     limit: READINESS_PAGE_LIMIT,
     portfolio: null,
     portfolioUnavailable: false,
@@ -647,7 +671,6 @@ export function createPortfolioReadinessController(deps = {}) {
     if (!doc) {
       return {
         host: null,
-        periodSelect: null,
         scopeSelect: null,
         severityHost: null,
         dependencyHost: null,
@@ -661,14 +684,11 @@ export function createPortfolioReadinessController(deps = {}) {
         tableBody: null,
         cardHost: null,
         statusHost: null,
-        prevBtn: null,
-        nextBtn: null,
-        pageMeta: null,
+        scrollSentinel: null,
       };
     }
     return {
       host: doc.getElementById("readinessLensHost"),
-      periodSelect: doc.getElementById("readinessPeriodSelect"),
       scopeSelect: doc.getElementById("readinessPopulationScope"),
       severityHost: doc.getElementById("readinessSeverityFilters"),
       dependencyHost: doc.getElementById("readinessDependencyFilters"),
@@ -682,9 +702,7 @@ export function createPortfolioReadinessController(deps = {}) {
       tableBody: doc.getElementById("readinessTableBody"),
       cardHost: doc.getElementById("readinessCardList"),
       statusHost: doc.getElementById("readinessStatus"),
-      prevBtn: doc.getElementById("readinessPrevPage"),
-      nextBtn: doc.getElementById("readinessNextPage"),
-      pageMeta: doc.getElementById("readinessPageMeta"),
+      scrollSentinel: doc.getElementById("readinessScrollSentinel"),
     };
   }
 
@@ -749,8 +767,7 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function resetKeyset() {
     state.afterSkuId = null;
-    state.pageCursorStack = [null];
-    state.pageIndex = 0;
+    state.registerRows = [];
   }
 
   function resetFilters({ keepSearch = false } = {}) {
@@ -807,6 +824,13 @@ export function createPortfolioReadinessController(deps = {}) {
       if (!state.periodStart) {
         state.periodsUnavailable = true;
         state.periodsError = "No governed periods returned.";
+      }
+      if (typeof onGovernedPeriodsLoaded === "function") {
+        onGovernedPeriodsLoaded({
+          periods: state.periods,
+          periodStart: state.periodStart,
+          unavailable: state.periodsUnavailable,
+        });
       }
       return { ok: !state.periodsUnavailable, periods: state.periods };
     } catch (err) {
@@ -869,9 +893,18 @@ export function createPortfolioReadinessController(deps = {}) {
       if (!isLoadCurrent(gen)) return { ok: false, stale: true };
       const validated = validatePortfolioEnvelope(data);
       if (!validated.ok) throw new Error(validated.error);
-      state.portfolio = validated.value;
+      const pageRows = asArray(validated.value.rows);
+      if (state.afterSkuId == null) {
+        state.registerRows = pageRows.slice();
+      } else {
+        state.registerRows = dedupeReadinessRows(state.registerRows, pageRows);
+      }
+      state.portfolio = { ...validated.value, rows: state.registerRows };
       state.portfolioUnavailable = false;
       state.portfolioError = null;
+      if (typeof onPortfolioContextLoaded === "function") {
+        onPortfolioContextLoaded(asObject(state.portfolio.context) || {});
+      }
       return { ok: true, portfolio: state.portfolio };
     } catch (err) {
       if (!isLoadCurrent(gen)) return { ok: false, stale: true };
@@ -981,23 +1014,33 @@ export function createPortfolioReadinessController(deps = {}) {
     return loadPortfolio({ preserveKeyset: true });
   }
 
-  async function goNextPage() {
+  async function appendNextPortfolioPage() {
+    if (state.loadingPortfolio || state.portfolioUnavailable) {
+      return { ok: false };
+    }
     if (!state.portfolio?.has_more || state.portfolio.next_after_sku_id == null) {
       return { ok: false };
     }
-    const next = state.portfolio.next_after_sku_id;
-    state.pageCursorStack = state.pageCursorStack.slice(0, state.pageIndex + 1);
-    state.pageCursorStack.push(next);
-    state.pageIndex += 1;
-    state.afterSkuId = next;
+    state.afterSkuId = state.portfolio.next_after_sku_id;
     return loadPortfolio({ preserveKeyset: true });
   }
 
-  async function goPrevPage() {
-    if (state.pageIndex <= 0) return { ok: false };
-    state.pageIndex -= 1;
-    state.afterSkuId = state.pageCursorStack[state.pageIndex] ?? null;
-    return loadPortfolio({ preserveKeyset: true });
+  function applyShellPeriodStart(periodStart) {
+    const iso = toIsoDate(periodStart);
+    if (!iso) return Promise.resolve({ ok: false });
+    if (iso === state.periodStart) return Promise.resolve({ ok: true });
+    state.periodStart = iso;
+    resetKeyset();
+    invalidatePendingRequests();
+    const gen = ++loadGeneration;
+    return loadPortfolio({ preserveKeyset: true, generation: gen }).then(
+      (result) => {
+        if (result?.ok !== false) {
+          void loadProductGaps({ generation: gen });
+        }
+        return result;
+      },
+    );
   }
 
   const READINESS_GAP_PREVIEW_LIMIT = 3;
@@ -1033,9 +1076,6 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function applyControlChanges({ resetPaging = true } = {}) {
     const els = hostEls();
-    if (els.periodSelect?.value) {
-      state.periodStart = toIsoDate(els.periodSelect.value);
-    }
     if (els.scopeSelect?.value) {
       const scope = normalizeCode(els.scopeSelect.value);
       state.populationScope = READINESS_POPULATION_SCOPES.includes(scope)
@@ -1150,29 +1190,6 @@ export function createPortfolioReadinessController(deps = {}) {
 
   function syncControlsFromState() {
     const els = hostEls();
-    if (els.periodSelect) {
-      const options = state.periods.length
-        ? state.periods
-        : state.periodStart
-          ? [{ period_start: state.periodStart, valuation_date: null }]
-          : [];
-      els.periodSelect.innerHTML = options.length
-        ? options
-            .map((row) => {
-              const val = row.valuation_date
-                ? `${row.period_start} (val ${row.valuation_date})`
-                : row.period_start;
-              const selected =
-                row.period_start === state.periodStart ? " selected" : "";
-              return `<option value="${escapeHtml(row.period_start)}"${selected}>${escapeHtml(
-                val,
-              )}</option>`;
-            })
-            .join("")
-        : `<option value="">Unavailable</option>`;
-      els.periodSelect.disabled =
-        state.periodsUnavailable || state.loadingPeriods || !options.length;
-    }
     if (els.scopeSelect) {
       els.scopeSelect.value = state.populationScope;
     }
@@ -1247,11 +1264,6 @@ export function createPortfolioReadinessController(deps = {}) {
     if (!els.host || els.host.dataset.bound === "1") return;
     els.host.dataset.bound = "1";
 
-    on(els.periodSelect, "change", () => {
-      void applyControlChanges({ resetPaging: true }).then(() =>
-        loadProductGaps(),
-      );
-    });
     on(els.scopeSelect, "change", () => {
       void applyControlChanges({ resetPaging: true });
     });
@@ -1282,12 +1294,6 @@ export function createPortfolioReadinessController(deps = {}) {
         state.expandedGapKind = null;
         renderGaps();
       }
-    });
-    on(els.prevBtn, "click", () => {
-      void goPrevPage();
-    });
-    on(els.nextBtn, "click", () => {
-      void goNextPage();
     });
     on(els.tableBody, "click", (ev) => {
       const row = ev.target?.closest?.("tr[data-sku-id]");
@@ -1365,10 +1371,7 @@ export function createPortfolioReadinessController(deps = {}) {
     const integrity = ctx.context_integrity_status || ctx.context_type || "—";
     summaryHost.innerHTML = `
       <div class="cp-readiness-summary-strip" aria-label="Live readiness context">
-        <div class="cp-readiness-summary-context">
-          <span>Valuation <strong>${text(ctx.valuation_date)}</strong></span>
-          <span class="cp-readiness-summary-badge">${text(integrity)}</span>
-        </div>
+        <span class="cp-readiness-summary-badge">${text(integrity)}</span>
       </div>`;
   }
 
@@ -1566,7 +1569,7 @@ export function createPortfolioReadinessController(deps = {}) {
   }
 
   function renderRows() {
-    const { tableBody, cardHost, prevBtn, nextBtn, pageMeta } = hostEls();
+    const { tableBody, cardHost } = hostEls();
     if (state.portfolioUnavailable || state.periodsUnavailable) {
       const msg = escapeHtml(
         state.portfolioError || state.periodsError || "Unavailable",
@@ -1577,9 +1580,6 @@ export function createPortfolioReadinessController(deps = {}) {
       if (cardHost) {
         cardHost.innerHTML = `<div class="cp-readiness-unavailable status error" role="alert">Readiness unavailable — ${msg}</div>`;
       }
-      if (prevBtn) prevBtn.disabled = true;
-      if (nextBtn) nextBtn.disabled = true;
-      if (pageMeta) pageMeta.textContent = "";
       return;
     }
     if (state.loadingPortfolio || state.loadingPeriods) {
@@ -1587,8 +1587,6 @@ export function createPortfolioReadinessController(deps = {}) {
         tableBody.innerHTML = `<tr><td colspan="7"><div class="status" role="status">Loading…</div></td></tr>`;
       }
       if (cardHost) cardHost.innerHTML = `<div class="status" role="status">Loading…</div>`;
-      if (prevBtn) prevBtn.disabled = true;
-      if (nextBtn) nextBtn.disabled = true;
       return;
     }
     const rows = state.portfolio?.rows || [];
@@ -1604,18 +1602,6 @@ export function createPortfolioReadinessController(deps = {}) {
     } else {
       if (tableBody) tableBody.innerHTML = rows.map(renderRegisterRow).join("");
       if (cardHost) cardHost.innerHTML = rows.map(renderCard).join("");
-    }
-    if (prevBtn) prevBtn.disabled = state.pageIndex <= 0 || state.loadingPortfolio;
-    if (nextBtn) {
-      nextBtn.disabled =
-        !state.portfolio?.has_more ||
-        state.portfolio?.next_after_sku_id == null ||
-        state.loadingPortfolio;
-    }
-    if (pageMeta) {
-      pageMeta.textContent = `Page ${state.pageIndex + 1} · matched ${
-        state.portfolio?.matched_count ?? 0
-      } · returned ${state.portfolio?.returned_count ?? 0}`;
     }
   }
 
@@ -1850,8 +1836,8 @@ export function createPortfolioReadinessController(deps = {}) {
     dispose: destroy,
     invalidatePendingRequests,
     syncSearchFromShell,
-    goNextPage,
-    goPrevPage,
+    appendNextPortfolioPage,
+    applyShellPeriodStart,
     activeFilterCount,
     applyPendingFilters,
     clearFilters: clearReadinessFilters,

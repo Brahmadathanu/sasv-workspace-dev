@@ -28,6 +28,10 @@ const cssSrc = readFileSync(
   join(root, "public/shared/css/sasv-costing.css"),
   "utf8",
 );
+const controlCenterSrc = readFileSync(
+  join(root, "public/shared/js/costing-suite-control-center.js"),
+  "utf8",
+);
 
 const {
   READINESS_RPC,
@@ -485,10 +489,10 @@ currentLens = PORTFOLIO_READINESS_LENS_ID;
 pass("stale/inactive lens suppression");
 
 const page1Calls = calls.length;
-await ctrl.goNextPage();
+await ctrl.appendNextPortfolioPage();
 const nextCall = calls.slice(page1Calls).find((c) => c.name === READINESS_RPC.portfolio);
 assert.equal(nextCall?.args?.p_after_sku_id, 7);
-pass("keyset next uses next_after_sku_id");
+pass("keyset append uses next_after_sku_id");
 
 ctrl.__test.resetFilters();
 ctrl.__test.resetKeyset();
@@ -635,8 +639,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v336/.test(sw));
-assert.ok(!/hub-cache-v335/.test(sw));
+assert.ok(/hub-cache-v337/.test(sw));
+assert.ok(!/hub-cache-v336/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -656,8 +660,13 @@ assert.ok(htmlSrc.includes('id="readinessSummary"'));
 assert.ok(htmlSrc.includes('id="readinessGapDetails"'));
 assert.ok(htmlSrc.includes('id="genericTableCard"'));
 assert.ok(htmlSrc.includes('id="peqFilterWrapper"'));
-assert.ok(htmlSrc.includes('cp-readiness-controls'));
+assert.ok(!htmlSrc.includes('id="readinessPeriodSelect"'));
+assert.ok(htmlSrc.includes("Membership exceptions (not filters)"));
+assert.ok(htmlSrc.includes('id="readinessScrollSentinel"'));
+assert.ok(htmlSrc.includes('id="cccTableScrollSentinel"'));
 assert.ok(htmlSrc.includes('cp-readiness-register-region'));
+assert.ok(!htmlSrc.includes('cp-readiness-pagebar'));
+assert.ok(!htmlSrc.includes('cp-readiness-controls'));
 assert.ok(!htmlSrc.includes('id="readinessFilterBtn"'));
 assert.ok(!htmlSrc.includes('id="readinessFilterDrawer"'));
 assert.ok(!htmlSrc.includes('cp-readiness-ops'));
@@ -677,7 +686,12 @@ assert.ok(/applyKpiStripVisibility\s*\(/.test(shellSrc.split("function syncReadi
 assert.ok(!/setVisible\(\s*kpiStripWrap,\s*false/.test(shellSrc.split("function syncReadinessShellChrome")[1]?.split("function syncPortfolioReadinessFilterChrome")[0] || ""));
 assert.ok(/setVisible\(\s*peqFilterWrapper,\s*true/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
 assert.ok(!/setVisible\(\s*peqFilterWrapper,\s*false/.test(shellSrc.split("function syncReadinessShellChrome")[1]?.split("function syncPortfolioReadinessFilterChrome")[0] || ""));
-assert.ok(/costPeriodValuationStrip/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
+assert.ok(/paintReadinessValuationFromContext/.test(shellSrc));
+assert.ok(/renderReadinessGovernedPeriodOptions/.test(shellSrc));
+assert.ok(/syncCccRegisterPaginationChrome/.test(shellSrc));
+assert.ok(/setupReadinessScrollAppend/.test(shellSrc));
+assert.ok(/setupCccProgressiveScroll/.test(shellSrc));
+assert.ok(/IntersectionObserver/.test(shellSrc));
 assert.ok(/syncPeriodControlState\s*\(/.test(shellSrc));
 assert.ok(/reloadCostPeriodValuationIfNeeded\s*\(/.test(shellSrc));
 assert.ok(/activeFilterCount/.test(shellSrc));
@@ -722,6 +736,11 @@ assert.ok(/renderDrawerTab/.test(readinessSrc));
 assert.ok(!/Action<\/th>/.test(htmlSrc.split("readinessLensHost")[1]?.split("genericTableCard")[0] || ""));
 assert.ok(!/cp-readiness-summary-metrics/.test(readinessSrc));
 assert.ok(!/Population<\/span>/.test(readinessSrc.split("function renderSummary")[1]?.split("function renderGapCard")[0] || ""));
+assert.ok(!/Valuation\s*</.test(readinessSrc.split("function renderSummary")[1]?.split("function renderGapCard")[0] || ""));
+assert.ok(/appendNextPortfolioPage/.test(readinessSrc));
+assert.ok(/dedupeReadinessRows/.test(readinessSrc));
+assert.ok(/applyShellPeriodStart/.test(readinessSrc));
+assert.ok(!/readinessPeriodSelect/.test(readinessSrc));
 pass("Track B loading/unavailable/empty states and details path preserved");
 
 assert.ok(!readinessSrc.includes("readinessSearch"));
@@ -730,17 +749,19 @@ pass("Track B preserves shell search as sole search authority");
 
 const hostChunk =
   htmlSrc.split('id="readinessLensHost"')[1]?.split('id="genericTableCard"')[0] || "";
-assert.ok(/cp-readiness-register-region[\s\S]*cp-readiness-pagebar/.test(hostChunk));
-assert.ok(!/cp-readiness-pagebar[\s\S]*cp-readiness-register-region/.test(hostChunk));
-assert.ok(/table-card cp-readiness-register-region/.test(hostChunk));
+assert.ok(/table-card cp-readiness-register-region cp-ccc-table-work-surface/.test(hostChunk));
+assert.ok(/readinessScrollSentinel/.test(hostChunk));
+assert.ok(!/cp-readiness-pagebar/.test(hostChunk));
 assert.ok(!/id="readinessFilterBtn"/.test(hostChunk));
-pass("Track B pager attached to register card; no lens-local filter button");
+pass("Track B readiness register uses scroll sentinel; no pagebar");
 
 assert.ok(!/severity_precedence|clientDerivedSeverity|deriveOverallSeverity/.test(readinessSrc));
 assert.ok(!cssSrc.includes("cp-readiness-active #peqFilterWrapper"));
 assert.ok(!cssSrc.includes("cp-readiness-active #kpiStripWrap"));
-assert.ok(cssSrc.includes("costPeriodValuationStrip"));
-assert.ok(cssSrc.includes("overflow: visible"));
-pass("Track B no client severity authority; CCC KPI/filter remain visible");
+assert.ok(!cssSrc.includes("cp-readiness-active #costPeriodValuationStrip"));
+assert.ok(cssSrc.includes("cp-ccc-table-work-surface"));
+assert.ok(cssSrc.includes("cp-ccc-table-scroll"));
+assert.ok(/rebuildPeqFilterOptionsFromRows/.test(controlCenterSrc));
+pass("Track B no client severity authority; unified CCC table work surface");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");

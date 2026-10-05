@@ -2487,6 +2487,76 @@ export function createControlCenterController(deps) {
     return !!CONTROL_DASHBOARD_SUMMARY;
   }
 
+  function uniqueNonEmpty(values) {
+    const out = [];
+    const seen = new Set();
+    for (const raw of values || []) {
+      const value = String(raw ?? "").trim();
+      if (!value) continue;
+      const key = value.toUpperCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(value);
+    }
+    out.sort((a, b) => a.localeCompare(b));
+    return out;
+  }
+
+  function replacePeqChecklist(sectionKey, group, values) {
+    if (typeof document === "undefined") return;
+    const section = document.querySelector(
+      `#peqFilterDrawer [data-peq-section="${sectionKey}"]`,
+    );
+    const list = section?.querySelector(".peq-filter-checklist");
+    if (!list) return;
+    const options = uniqueNonEmpty(values);
+    list.innerHTML = options.length
+      ? options
+          .map(
+            (value) =>
+              `<li><label><input type="checkbox" data-filter-group="${group}" value="${escapeHtml(
+                value,
+              )}" /> ${escapeHtml(value)}</label></li>`,
+          )
+          .join("")
+      : `<li class="cp-muted-text">No options from loaded rows</li>`;
+  }
+
+  function rebuildPeqFilterOptionsFromRows(lensId, rows) {
+    if (lensId !== "costing-review-workbench" && lensId !== "sku-control-status") {
+      return;
+    }
+    const list = Array.isArray(rows) ? rows : [];
+    const statusValues = [];
+    const issueValues = [];
+    const sourceValues = [];
+    for (const row of list) {
+      statusValues.push(
+        row.first_control_status,
+        row.overall_control_status,
+        row.costing_status,
+        row.material_costing_status,
+        row.manufacturing_cop_status,
+        row.internal_loaded_cost_status,
+      );
+      issueValues.push(
+        row.material_issue_code,
+        row.primary_diagnostic_code,
+        row.warning_code,
+        row.final_action_status,
+      );
+      sourceValues.push(
+        row.recommended_ui_route,
+        row.material_area,
+        row.rate_source,
+        row.bom_source,
+      );
+    }
+    replacePeqChecklist("status", "status", statusValues);
+    replacePeqChecklist("issue", "issue", issueValues);
+    replacePeqChecklist("source", "source", sourceValues);
+  }
+
   return {
     loadGlobalSummaries,
     loadDashboardRows,
@@ -2512,5 +2582,6 @@ export function createControlCenterController(deps) {
     clearSkuExactEvidenceCache,
     clearSkuFoundationDiagnosisCache,
     clearSkuControlSessionCaches,
+    rebuildPeqFilterOptionsFromRows,
   };
 }

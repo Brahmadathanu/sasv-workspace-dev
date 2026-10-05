@@ -630,6 +630,20 @@ let ALL_ROWS = [];
 let VIEW = [];
 let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
+const CCC_PROGRESSIVE_LENS_IDS = new Set([
+  "costing-review-workbench",
+  "sku-control-status",
+]);
+const CCC_RENDER_WINDOW = 50;
+let cccRenderedThrough = 0;
+let cccScrollGeneration = 0;
+/** @type {IntersectionObserver|null} */
+let cccScrollObserver = null;
+/** @type {IntersectionObserver|null} */
+let readinessScrollObserver = null;
+let readinessScrollGeneration = 0;
+/** @type {{ activePeriod: string|null, periodOptionsHtml: string|null, periodValue: string|null, governedMode: boolean }|null} */
+let cccPeriodUiSnapshot = null;
 let SELECTED_ROW = null;
 let LAST_REFRESH_TIME = null;
 /**
@@ -1850,26 +1864,243 @@ function applyKpiStripVisibility() {
   setVisible(kpiStripWrap, shouldShowKpiStrip(), "");
 }
 
+function isControlCenterRouteActive() {
+  return ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center";
+}
+
+function shouldUseCccProgressiveRender() {
+  return (
+    isControlCenterRouteActive() && CCC_PROGRESSIVE_LENS_IDS.has(CURRENT_LENS)
+  );
+}
+
+function shouldRenderAllCccDashboardRows() {
+  return isControlCenterRouteActive() && CURRENT_LENS === "dashboard";
+}
+
+function teardownCccScrollObservers() {
+  cccScrollObserver?.disconnect?.();
+  cccScrollObserver = null;
+  readinessScrollObserver?.disconnect?.();
+  readinessScrollObserver = null;
+}
+
+function resetCccProgressiveWindow() {
+  cccScrollGeneration += 1;
+  cccRenderedThrough = 0;
+}
+
+function paintReadinessValuationFromContext(context = {}) {
+  const strip = $("costPeriodValuationStrip");
+  if (!strip || !isPortfolioReadinessLens(CURRENT_LENS)) return;
+  setVisible(strip, true);
+  strip.hidden = false;
+  strip.removeAttribute("hidden");
+  strip.setAttribute("aria-hidden", "false");
+  const chipValue = strip.querySelector("[data-cpv-chip-value]");
+  const valuationRaw = context.valuation_date;
+  const valuation =
+    valuationRaw != null && String(valuationRaw).trim() !== ""
+      ? String(valuationRaw).slice(0, 10)
+      : "—";
+  if (chipValue) chipValue.textContent = valuation;
+  const chipBtn = $("cpvValuationChip");
+  if (chipBtn) {
+    chipBtn.disabled = true;
+    chipBtn.title = "Readiness valuation (authoritative governed context)";
+  }
+}
+
+function enterReadinessGovernedPeriodMode() {
+  if (cccPeriodUiSnapshot?.governedMode) return;
+  cccPeriodUiSnapshot = {
+    activePeriod: ACTIVE_PERIOD_START,
+    periodOptionsHtml: costingPeriodSelect?.innerHTML ?? null,
+    periodValue: costingPeriodSelect?.value ?? null,
+    governedMode: true,
+  };
+}
+
+function restoreCccPeriodUiAfterReadiness() {
+  if (!cccPeriodUiSnapshot) return;
+  const snap = cccPeriodUiSnapshot;
+  cccPeriodUiSnapshot = null;
+  if (costingPeriodSelect && snap.periodOptionsHtml != null) {
+    costingPeriodSelect.innerHTML = snap.periodOptionsHtml;
+    if (snap.periodValue) costingPeriodSelect.value = snap.periodValue;
+  }
+  if (snap.activePeriod) {
+    ACTIVE_PERIOD_START = snap.activePeriod;
+  }
+  const chipBtn = $("cpvValuationChip");
+  if (chipBtn) {
+    chipBtn.disabled = false;
+    chipBtn.title = "Open valuation governance";
+  }
+  syncPeriodControlState();
+}
+
+function renderReadinessGovernedPeriodOptions({
+  periods = [],
+  periodStart,
+  unavailable = false,
+} = {}) {
+  if (!costingPeriodSelect) return;
+  enterReadinessGovernedPeriodMode();
+  costingPeriodSelect.hidden = false;
+  costingPeriodSelect.removeAttribute("hidden");
+  costingPeriodSelect.setAttribute("aria-hidden", "false");
+  costingPeriodSelect.disabled = Boolean(unavailable) || !periods.length;
+  costingPeriodSelect.title = "Governed readiness period";
+  if (!periods.length) {
+    costingPeriodSelect.innerHTML = `<option value="">Unavailable</option>`;
+    return;
+  }
+  costingPeriodSelect.innerHTML = periods
+    .map((row) => {
+      const label = row.valuation_date
+        ? `${row.period_start} (val ${row.valuation_date})`
+        : row.period_start;
+      const selected = row.period_start === periodStart ? " selected" : "";
+      return `<option value="${escapeHtml(row.period_start)}"${selected}>${escapeHtml(
+        label,
+      )}</option>`;
+    })
+    .join("");
+  if (periodStart) costingPeriodSelect.value = periodStart;
+}
+
+function syncCccRegisterPaginationChrome() {
+  if (!isControlCenterRouteActive()) return;
+  const hideMeta =
+    isPortfolioReadinessLens(CURRENT_LENS) || isControlCenterLens(CURRENT_LENS);
+  const shellPagination = document.querySelector(
+    "#genericTableMetaRow .pagination",
+  );
+  if (shellPagination) {
+    setVisible(shellPagination, !hideMeta, "inline-flex");
+  }
+  if (genericTableMetaRow && hideMeta) {
+    setVisible(genericTableMetaRow, false);
+  }
+  if (rowCount && hideMeta) {
+    rowCount.style.display = "none";
+    rowCount.textContent = "";
+  }
+  if (pageLabel && hideMeta) {
+    pageLabel.textContent = "";
+  }
+}
+
+function syncControlCenterLensChrome() {
+  if (!isControlCenterRouteActive() || isPortfolioReadinessLens(CURRENT_LENS)) {
+    return;
+  }
+  document
+    .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+    .forEach((section) => {
+      const key = section.getAttribute("data-peq-section");
+      if (key === "portfolio-readiness") {
+        setVisible(section, false);
+        return;
+      }
+      if (CURRENT_LENS === "dashboard") {
+        setVisible(section, false);
+        return;
+      }
+      if (
+        CURRENT_LENS === "costing-review-workbench" ||
+        CURRENT_LENS === "sku-control-status"
+      ) {
+        setVisible(
+          section,
+          key === "status" || key === "issue" || key === "source",
+        );
+      } else {
+        setVisible(section, true);
+      }
+    });
+  if (
+    CURRENT_LENS === "costing-review-workbench" ||
+    CURRENT_LENS === "sku-control-status"
+  ) {
+    controlCenterCtrl.rebuildPeqFilterOptionsFromRows?.(CURRENT_LENS, ALL_ROWS);
+    sanitizeActiveFiltersToVisibleOptions();
+    syncFilterCheckboxes();
+  } else if (CURRENT_LENS === "dashboard") {
+    ACTIVE_FILTERS.status = [];
+    ACTIVE_FILTERS.issue = [];
+    ACTIVE_FILTERS.source = [];
+    syncFilterCheckboxes();
+  }
+}
+
+function setupReadinessScrollAppend() {
+  readinessScrollObserver?.disconnect?.();
+  readinessScrollObserver = null;
+  if (!isPortfolioReadinessLens(CURRENT_LENS)) return;
+  const root = document.querySelector(
+    ".cp-readiness-register-wrap.cp-ccc-table-scroll",
+  );
+  const sentinel = $("readinessScrollSentinel");
+  if (!root || !sentinel || typeof IntersectionObserver !== "function") return;
+  const gen = ++readinessScrollGeneration;
+  readinessScrollObserver = new IntersectionObserver(
+    (entries) => {
+      if (gen !== readinessScrollGeneration) return;
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      void portfolioReadinessCtrl.appendNextPortfolioPage?.().then((result) => {
+        if (gen !== readinessScrollGeneration) return;
+        if (result?.stale) return;
+        portfolioReadinessCtrl.render?.();
+        setupReadinessScrollAppend();
+      });
+    },
+    { root, rootMargin: "120px 0px", threshold: 0.01 },
+  );
+  readinessScrollObserver.observe(sentinel);
+}
+
+function setupCccProgressiveScroll() {
+  cccScrollObserver?.disconnect?.();
+  cccScrollObserver = null;
+  if (!shouldUseCccProgressiveRender() || !VIEW.length) return;
+  const root = tableWrap;
+  const sentinel = $("cccTableScrollSentinel");
+  if (!root || !sentinel || typeof IntersectionObserver !== "function") return;
+  if (cccRenderedThrough >= VIEW.length) return;
+  const gen = ++cccScrollGeneration;
+  cccScrollObserver = new IntersectionObserver(
+    (entries) => {
+      if (gen !== cccScrollGeneration) return;
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      if (cccRenderedThrough >= VIEW.length) return;
+      cccRenderedThrough = Math.min(
+        VIEW.length,
+        (cccRenderedThrough || Math.min(CCC_RENDER_WINDOW, VIEW.length)) +
+          CCC_RENDER_WINDOW,
+      );
+      renderTable();
+    },
+    { root, rootMargin: "120px 0px", threshold: 0.01 },
+  );
+  cccScrollObserver.observe(sentinel);
+}
+
 function syncReadinessShellChrome() {
   const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
   const genericTableCard = $("genericTableCard");
   const peqFilterWrapper = $("peqFilterWrapper");
-  const cpvStrip = $("costPeriodValuationStrip");
   document.body.classList.toggle("cp-readiness-active", readinessActive);
 
   if (readinessActive) {
-    // Keep CCC KPI strip + global filter; hide generic table + CPV (valuation in lens context).
     setVisible(peqFilterWrapper, true);
     applyKpiStripVisibility();
     setVisible(lastRefreshed, true);
     setVisible(genericTableCard, false);
-    if (cpvStrip) {
-      cpvStrip.hidden = true;
-      cpvStrip.setAttribute("aria-hidden", "true");
-      cpvStrip.setAttribute("hidden", "");
-    }
     syncPeriodControlState();
     syncPortfolioReadinessFilterChrome();
+    syncCccRegisterPaginationChrome();
     return;
   }
 
@@ -1879,6 +2110,8 @@ function syncReadinessShellChrome() {
   applyKpiStripVisibility();
   syncPeriodControlState();
   syncPortfolioReadinessFilterChrome();
+  syncControlCenterLensChrome();
+  syncCccRegisterPaginationChrome();
 }
 
 function syncPortfolioReadinessFilterChrome() {
@@ -3914,15 +4147,11 @@ function syncPeriodControlState() {
   const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
 
   if (costingPeriodSelect) {
-    // Readiness owns governed-period state from rpc_get_readiness_governed_periods.
-    // Do not drive readiness from AVAILABLE_COSTING_PERIODS / ACTIVE_PERIOD_START.
     if (readinessActive) {
-      costingPeriodSelect.disabled = true;
-      costingPeriodSelect.hidden = true;
-      costingPeriodSelect.setAttribute("hidden", "");
-      costingPeriodSelect.setAttribute("aria-hidden", "true");
-      costingPeriodSelect.title =
-        "Readiness uses its own governed-period selector";
+      costingPeriodSelect.hidden = false;
+      costingPeriodSelect.removeAttribute("hidden");
+      costingPeriodSelect.setAttribute("aria-hidden", "false");
+      costingPeriodSelect.title = "Governed readiness period";
       return;
     }
 
@@ -4228,6 +4457,10 @@ function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
 async function loadRowsForLens({ preservePage = false } = {}) {
   // Soft-nav owns the PRM load/paint cycle; do not start a competing generation.
   if (softNavLockLens) return;
+  if (isControlCenterRouteActive() || isPortfolioReadinessLens(CURRENT_LENS)) {
+    teardownCccScrollObservers();
+    resetCccProgressiveWindow();
+  }
   const loadGeneration = ++ROWS_LOAD_GENERATION;
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
@@ -4257,6 +4490,7 @@ async function loadRowsForLens({ preservePage = false } = {}) {
       LAST_REFRESH_TIME = new Date();
       updateFreshnessIndicator();
       renderTable();
+      setupReadinessScrollAppend();
       return;
     }
 
@@ -4867,8 +5101,10 @@ async function switchLens(lensId) {
   }
   if (leavingReadiness) {
     clearReadinessSearchDebounce();
+    teardownCccScrollObservers();
     portfolioReadinessCtrl.onLensExit?.();
     portfolioReadinessCtrl.resetGlobalFilterUi?.();
+    restoreCccPeriodUiAfterReadiness();
   }
   if (leavingQc) {
     clearQcSearchDebounce();
@@ -5391,6 +5627,10 @@ function applyFilters() {
     return;
   }
 
+  if (shouldUseCccProgressiveRender() || shouldRenderAllCccDashboardRows()) {
+    resetCccProgressiveWindow();
+  }
+
   let rows = [...ALL_ROWS];
   rows = rows.filter(
     (row) =>
@@ -5433,6 +5673,9 @@ function applySearch() {
     rows = pricingPolicyCtrl.filterCommercialSalesAssumptionRows?.(rows) || rows;
   }
   if (q) rows = rows.filter((row) => getSearchBlob(row).includes(q));
+  if (shouldUseCccProgressiveRender() || shouldRenderAllCccDashboardRows()) {
+    resetCccProgressiveWindow();
+  }
   VIEW = rows;
   CURRENT_PAGE = 1;
   renderTable();
@@ -5523,7 +5766,10 @@ function updateSearchPlaceholder() {
     placeholder = "Search Product, Product ID, SKU ID or action";
   } else if (isProductionRouteLens(CURRENT_LENS)) {
     placeholder = "Search Product or Product Group.";
-  } else if (isPortfolioReadinessLens(CURRENT_LENS)) {
+  } else if (
+    isPortfolioReadinessLens(CURRENT_LENS) ||
+    isControlCenterLens(CURRENT_LENS)
+  ) {
     placeholder = "Search product, SKU or ID";
   }
 
@@ -5919,16 +6165,14 @@ function renderTable() {
       tableWrap.classList.add("hidden");
       tableWrap.classList.remove("tw-visible");
     }
-    const shellPagination = document.querySelector(
-      "#genericTableMetaRow .pagination",
-    );
-    setVisible(shellPagination, false);
     setVisible(genericTableMetaActions, false);
     if (workbenchSummary) {
       workbenchSummary.innerHTML = "";
       workbenchSummary.classList.remove("is-visible");
     }
+    syncCccRegisterPaginationChrome();
     portfolioReadinessCtrl.render();
+    setupReadinessScrollAppend();
     return;
   } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
     clearStatus();
@@ -6140,8 +6384,19 @@ function renderTable() {
     CURRENT_PAGE = totalPages;
   }
   const start = rmTraceActive || actionQueueActive ? 0 : (CURRENT_PAGE - 1) * PAGE_SIZE;
-  const pageRows =
-    rmTraceActive || actionQueueActive ? VIEW : VIEW.slice(start, start + PAGE_SIZE);
+  let pageRows;
+  if (rmTraceActive || actionQueueActive) {
+    pageRows = VIEW;
+  } else if (shouldRenderAllCccDashboardRows()) {
+    pageRows = VIEW;
+  } else if (shouldUseCccProgressiveRender()) {
+    if (!cccRenderedThrough) {
+      cccRenderedThrough = Math.min(CCC_RENDER_WINDOW, VIEW.length);
+    }
+    pageRows = VIEW.slice(0, cccRenderedThrough);
+  } else {
+    pageRows = VIEW.slice(start, start + PAGE_SIZE);
+  }
 
   if (prmActive) {
     // Production Route Manager owns table/editor hosts; skip generic empty-table path.
@@ -6407,6 +6662,12 @@ function renderTable() {
     ) {
       rowCount.style.display = "none";
       rowCount.textContent = "";
+    } else if (
+      isControlCenterRouteActive() &&
+      (isControlCenterLens(CURRENT_LENS) || isPortfolioReadinessLens(CURRENT_LENS))
+    ) {
+      rowCount.style.display = "none";
+      rowCount.textContent = "";
     } else {
       rowCount.style.display = "";
       rowCount.textContent = `${totalCount.toLocaleString("en-IN")} row${totalCount === 1 ? "" : "s"}`;
@@ -6417,7 +6678,10 @@ function renderTable() {
       /* pager chrome already synced by paintProductionRouteLens */
     } else if (
       (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
-      rmTraceActive
+      rmTraceActive ||
+      (isControlCenterRouteActive() &&
+        (isControlCenterLens(CURRENT_LENS) ||
+          isPortfolioReadinessLens(CURRENT_LENS)))
     ) {
       pageLabel.textContent = "";
     } else {
@@ -6436,6 +6700,11 @@ function renderTable() {
   );
   if (shellPagination) {
     if (rmTraceActive) {
+      setVisible(shellPagination, false);
+    } else if (
+      isControlCenterRouteActive() &&
+      (isControlCenterLens(CURRENT_LENS) || isPortfolioReadinessLens(CURRENT_LENS))
+    ) {
       setVisible(shellPagination, false);
     } else if (
       !isQcActionQueueLens(CURRENT_LENS) &&
@@ -6474,6 +6743,13 @@ function renderTable() {
     syncTraceProgressiveScrollChrome();
   } else {
     materialCostCtrl.teardownTraceProgressiveScroll?.();
+  }
+  if (isControlCenterRouteActive()) {
+    syncControlCenterLensChrome();
+    syncCccRegisterPaginationChrome();
+  }
+  if (shouldUseCccProgressiveRender()) {
+    setupCccProgressiveScroll();
   }
 }
 
@@ -8635,6 +8911,13 @@ const portfolioReadinessCtrl = createPortfolioReadinessController({
   getSearchValue: () => searchBox?.value ?? "",
   closeFilterDrawer,
   onFilterUiChange: () => updateFilterButtonState(),
+  onGovernedPeriodsLoaded: (payload) => {
+    renderReadinessGovernedPeriodOptions(payload);
+    syncPeriodControlState();
+  },
+  onPortfolioContextLoaded: (ctx) => {
+    paintReadinessValuationFromContext(ctx);
+  },
 });
 
 const costPeriodValuationCtrl = createCostPeriodValuationController({
@@ -8907,6 +9190,15 @@ document.addEventListener("click", (event) => {
 refreshBtn?.addEventListener("click", onCostingSuiteRefreshClick);
 costingPeriodSelect?.addEventListener("change", () => {
   if (costingPeriodSelect.disabled) return;
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    void portfolioReadinessCtrl
+      .applyShellPeriodStart?.(costingPeriodSelect.value)
+      .then(() => {
+        renderTable();
+        setupReadinessScrollAppend();
+      });
+    return;
+  }
   setActiveCostingPeriod(costingPeriodSelect.value);
 });
 exportBtn?.addEventListener("click", () => {
