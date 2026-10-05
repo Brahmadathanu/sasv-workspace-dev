@@ -4,6 +4,7 @@
 
 ## Exact reviewed identities
 
+- Contract V2.1 blob: `04be8331e4aae876362f0f2951a524a822a55713`
 - Forward V2.1 blob: `38cf3b3f8df2461e31822ab09b5207da8b5c38c8`
 - Rollback V2.1 blob: `c7fd717c212a829aa70af2f128b2d6de16bc818c`
 - Proof V2.1 blob: `e856b362442626844d80faa33782324fd186897d`
