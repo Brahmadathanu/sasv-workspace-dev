@@ -682,7 +682,7 @@ The original skeleton had unnumbered audit, contract, implementation, focused ve
 | WP04-G3 — Server/client package decomposition | [x] COMPLETED AND VERIFIED at package-planning level after corrections; no production/client execution approved |
 | WP04-G4 — High-risk server package, if required | [x] COMPLETED AND VERIFIED — C contract committed and independently verified; native signed-in runtime proof explicitly deferred to mandatory G7; performance ACCEPTED WITH MEASURED LIMITATION |
 | WP04-G5 — Client implementation | [ ] OPENING BOUNDARY FROZEN — reviewed client package ready; implementation not started |
-| WP04-G6 — Independent implementation audit | [ ] Audit pushed implementation, consolidate corrections |
+| WP04-G6 — Independent implementation audit | [x] PASS — frozen G5 head independently audited; no unauthorized drift or fresh contract defect |
 | WP04-G7 — Authenticated/live verification | [ ] Context, severities, permissions, specialist destinations, performance; no manufactured production test data |
 | WP04-G8 — Merge/post-merge closure and final handover | [ ] Explicit approval required; update progress only after verified closure |
 
@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G5 — OPENING BOUNDARY FROZEN. G4 is formally CLOSED / COMPLETED AND VERIFIED. Reviewed client package and independent package review are frozen; implementation has not started and no Cursor/Codex task has been issued.
+WP04-G7 — OPENING BOUNDARY ONLY. G4 closed, G5 implementation accepted at frozen head db7544f2ebdf30f515f249ade9e12a660a364476, and G6 formal independent implementation audit PASS. G7 authenticated/live verification has not started.
 
 ## Gate Status
-[x] G4 COMPLETED AND VERIFIED. [ ] G5 implementation NOT STARTED; opening boundary/package frozen and reviewed. All G4 proof obligations are closed, accepted with measured limitation, or explicitly deferred under governance. Native Auth/API runtime remains mandatory G7 verification, not a waived proof. Programme remains 4/13 because WP04 itself is not complete until G8.
+[x] G4 COMPLETED AND VERIFIED. [x] G5 IMPLEMENTATION ACCEPTED at frozen head db7544f2ebdf30f515f249ade9e12a660a364476. [x] G6 FORMAL INDEPENDENT AUDIT PASS. [ ] G7 NOT STARTED. Native Auth/API runtime and live performance remain mandatory G7 verification. Programme remains 4/13 because WP04 itself is not complete until G8.
 
 ## Required to close
 G4 has no remaining closure requirement. Before G5 implementation begins, use only the frozen/reviewed WP-04-G5-CLIENT-PACKAGE.md. Any discovered server/RPC/permission/auth/business-rule or broader architecture need stops G5 implementation and returns to review; do not invent a backend contract in the client.
 
 ## Next gate
-WP04-G5 — Client implementation from the frozen/reviewed bounded package only. This checkpoint does not start implementation. After pushed implementation, WP04-G6 performs independent audit; WP04-G7 then performs mandatory authenticated/live context, permission/native API, navigation and performance verification; G8 alone can merge/close WP04.
+WP04-G7 — Mandatory authenticated/live verification only after explicit gate opening. G7 must verify genuine signed-in permissions/native API behavior, governed context, live OPERATIONAL/ALL_EXISTING/filter/search/keyset/gap/detail behavior, private-helper/anonymous denial, and live performance while preserving DEC-015. G8 alone can merge/close WP04.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -1034,3 +1034,7 @@ Audited branch `feat/wp04-g5-portfolio-readiness` at head `43a21b4ba7fa0acc8f314
 ## 2026-10-05 — WP04-G5 corrected implementation accepted; G6 not started
 
 Independent re-audit of `feat/wp04-g5-portfolio-readiness` at corrected head `db7544f2ebdf30f515f249ade9e12a660a364476` against authorized base `e421fe8df9b98b4956acdcd4cadeb36a3f9b923c` PASS. Branch is two commits ahead/zero behind with unchanged merge base. Full branch remains limited to the eight frozen G5 files; correction commit itself touches only readiness JS, G5 smoke, Control Center HTML and scoped CSS. Prior correction findings are closed: response validators now fail closed on malformed authoritative fields; visible severity options derive from server `filter_options.overall_severities`; duplicate readiness-local search removed so shell search is sole authority; negative smoke coverage locks malformed-envelope failure, server-option authority, single-search behavior and approved read-RPC set. Historical v331/v250 cache-pin smoke failures remain pre-existing/out-of-scope. No server/permission/Manage Products/specialist-writer/CSE-P01/DEC-015 drift found. **G5 IMPLEMENTATION ACCEPTED.** No merge/G6/G7/release started. Next gate is G6 independent implementation audit only when explicitly opened.
+
+## 2026-10-05 — WP04-G6 formal independent implementation audit PASS
+
+Frozen G5 branch `feat/wp04-g5-portfolio-readiness` at `db7544f2ebdf30f515f249ade9e12a660a364476` independently audited against exact authorized main `e421fe8df9b98b4956acdcd4cadeb36a3f9b923c`. Branch remains 2 ahead/0 behind with exact merge base and only the eight frozen G5 files. Frozen package compliance PASS; exact three approved read RPCs/argument mapping PASS; fail-closed envelope validation PASS; server-owned severity filter options PASS; single shell search PASS; keyset/stale-response handling PASS; shell isolation/read-only scope PASS; SW v332→v333 bounded update PASS; no client readiness precedence/totals/writers/polling/all-page fan-out; no server/permission/Manage Products/specialist-writer/CSE-P01/DEC-015 drift. Implementer local smoke results retained; smoke source independently reviewed. No GitHub CI/status checks or PR workflow runs exist for this head and none are claimed. Historical v331/v250 cache-pin smoke failures remain pre-existing/out-of-scope. **G6 PASS.** No branch modification, merge, release or G7 activity performed.
