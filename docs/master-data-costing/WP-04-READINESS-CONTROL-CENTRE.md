@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Exact C package review complete; bounded proof corrections C-R01/C-R02 required before authorization.
+WP04-G4 — C-R01/C-R02 correctness correction V2 frozen and source-reviewed; explicit operation authorization required before runtime.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Source direction retained; six-input full611equivalence and present-null composite proof omitted from current proposal. Frozen C artifacts unchanged; SQL parser/runtime NOT_RUN; no live SQL/operation/application authorization at this review. Prior evidence/consumed authorizations retained; programme4/13. User-requested same-WP fresh-chat continuation handover prepared.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Versioned C-R01/C-R02 V2 script is frozen at SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f and source-review PASS; parser/runtime NOT_RUN and no operation/application authorization. Frozen original C artifacts and prior evidence/consumed authorizations remain unchanged; programme 4/13.
 
 ## Required to close
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — One narrow versioned C correctness-proposal correction for C-R01/C-R02, then exact source-fragment/load/restore/readback review per C_EXACT_REVIEW.md. Preserve frozen C SQL/digests; no production operation, deployment or client work. Continue via WP04_CONTINUATION_HANDOVER.md if changing chats; do not start a new WP.
+WP04-G4 — Explicit-authorization boundary for the frozen C-R01/C-R02 V2 script. Before any attempt, freshly reconcile main/target and bind authorization to SHA-256 3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f; one attempt/no retry/no COMMIT/final ROLLBACK plus separate frozen independent readback. No portfolio/performance/deployment/client work; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -932,3 +932,7 @@ Source comparison complete; [RESIDUAL_CORRECTION_PLAN.md](server-packages/wp04-g
 ## 2026-10-05 — Exact C review / same-WP continuation handover
 
 [C_EXACT_REVIEW.md](server-packages/wp04-g4/C_EXACT_REVIEW.md) completes the source/rollback/security/proof review at source scope. Direction retained; REQUIRED NOW proof findings C-R01 (full611six-input equivalence) and C-R02 (present-row/null-status composite boundary) prevent authorization request for the current correctness script. These are coverage omissions, not demonstrated production regressions, new architecture decisions or parked enhancements. Next one narrow new versioned correctness proposal with explicit provenance/load/calls/restore/readback review, keeping frozen C SQL and all history unchanged. No live SQL/test/production mutation at this review; G0–G3 retained, G4 incomplete/application HOLD,G5blocked,programme4/13; main e421fe8 unchanged; DEC-014/WP03/parked/locked/consumed authorizations preserved. User expressly requested [WP04_CONTINUATION_HANDOVER.md](WP04_CONTINUATION_HANDOVER.md) at this clean pre-operation stopping point because of chat length; it permits continuation of this same WP04 in a fresh chat in the same Costing Project, not a restart/new WP. Formal WP04 closure and mandatory WP05 new-chat handover remain future gates.
+
+## 2026-10-05 — C-R01/C-R02 correctness correction V2 source review
+
+Prepared `server-packages/wp04-g4/c-correctness-proposal-v2.sql` as a new version; original correctness SQL and all historical evidence remain byte-unchanged. Final SHA-256: `3ed866cbfff9be29b251c17ddf163b12f159ee96cb70738b6e58d2919e15a69f`. `C_CORRECTNESS_V2_PROPOSAL.md` freezes provenance/load/failure/readback boundaries. `C_CORRECTNESS_V2_REVIEW.md` records SOURCE REVIEW PASS only: C-R01 is 611 x six complete input-selection parity with exact context/type/multiplicity guards and zero evaluator calls; C-R02 is eight pure-literal typed-record projection cases covering absent/six single-source present-null/all-six present-null, complete JSON and seven drivers. Three proposal-only review defects were corrected before freezing. SQL parser/runtime NOT_RUN; no live SQL or production operation. Application HOLD remains; any attempt now requires fresh explicit digest-bound authorization and separate independent readback.
