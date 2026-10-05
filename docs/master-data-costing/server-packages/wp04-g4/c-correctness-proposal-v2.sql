@@ -199,7 +199,7 @@ BEGIN
  LOOP
    got:=costing.fn_wp04_c_run_assemble(NULL,NULL,NULL,NULL,r.dl,r.poh,r.qc,r.ms,r.af,r.mk);
    expected:=jsonb_build_object(
- 'snapshot_present',case when case_name='absent_all' then false else true end,
+ 'snapshot_present',case when r.case_name='absent_all' then false else true end,
  'driver_dependencies',jsonb_build_array(
   jsonb_build_object('dependency_code','DIRECT_LABOUR','label','Direct Labour','scope','SKU_RUN','dimension','EVIDENCE_QUALITY','applicability','APPLICABLE','raw_status','UNKNOWN','effective_status',null,'resolution_source','RUN_SNAPSHOT','reason_code',null,'note',null,'owner_module','PRODUCTION_ROUTE_MANAGER','recommended_ui_route','PRODUCTION_ROUTE_MANAGER','authority','costing.sku_direct_labour_allocation_snapshot','evidence_ids',jsonb_build_object('snapshot_id',case when case_name in ('present_null_dl','present_null_all_six') then 9101 end,'policy_id',null)),
   jsonb_build_object('dependency_code','PRODUCTION_OVERHEAD','label','Production Overhead','scope','SKU_RUN','dimension','EVIDENCE_QUALITY','applicability','APPLICABLE','raw_status','UNKNOWN','effective_status',null,'resolution_source','RUN_SNAPSHOT','reason_code',null,'note',null,'owner_module','PRODUCTION_ROUTE_MANAGER','recommended_ui_route','PRODUCTION_ROUTE_MANAGER','authority','costing.sku_production_overhead_allocation_snapshot','evidence_ids',jsonb_build_object('snapshot_id',case when case_name in ('present_null_poh','present_null_all_six') then 9201 end,'policy_id',null)),
