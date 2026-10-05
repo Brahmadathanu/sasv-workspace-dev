@@ -845,6 +845,7 @@ DECLARE
   v_period date;
   v_result jsonb;
   v_has_current boolean;
+  v_current_status text;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
   IF NOT public.app_has_permission('module:costing-control-center','view') THEN
@@ -885,10 +886,20 @@ BEGIN
   )
   INTO v_has_current;
 
-  IF v_has_current THEN
-    RAISE EXCEPTION 'READINESS_BUILD_STALE';
+  IF NOT v_has_current THEN
+    RAISE EXCEPTION 'READINESS_BUILD_ABSENT';
   END IF;
-  RAISE EXCEPTION 'READINESS_BUILD_ABSENT';
+
+  SELECT status INTO v_current_status
+  FROM costing.product_sku_readiness_portfolio_build
+  WHERE period_start=v_period AND is_current
+  ORDER BY id DESC LIMIT 1;
+
+  IF v_current_status<>'COMPLETED' THEN
+    RAISE EXCEPTION 'READINESS_BUILD_INCOMPLETE';
+  END IF;
+
+  RAISE EXCEPTION 'READINESS_BUILD_STALE';
 END
 $function$;
 ALTER FUNCTION public.rpc_get_product_sku_readiness_portfolio(
