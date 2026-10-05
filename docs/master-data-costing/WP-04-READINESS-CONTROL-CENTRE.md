@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — Exact unapplied C snapshot-cohort package/correctness proposal prepared; independent exact review pending.
+WP04-G4 — Exact C package review complete; bounded proof corrections C-R01/C-R02 required before authorization.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Unapplied C draft and exact restore/readback/correctness proposal prepared. Two bounded read-only source/context inspections matched; no business-function invocation or production mutation. Runtime NOT_RUN; no operation/application authorization. Prior evidence and consumed authorizations retained; programme 4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. Source direction retained; six-input full611equivalence and present-null composite proof omitted from current proposal. Frozen C artifacts unchanged; SQL parser/runtime NOT_RUN; no live SQL/operation/application authorization at this review. Prior evidence/consumed authorizations retained; programme4/13. User-requested same-WP fresh-chat continuation handover prepared.
 
 ## Required to close
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Independent exact C source/rollback/security/correctness-proof review per C_PACKAGE_DRAFT.md and c-package-manifest.json. No production operation, deployment or client implementation authorized.
+WP04-G4 — One narrow versioned C correctness-proposal correction for C-R01/C-R02, then exact source-fragment/load/restore/readback review per C_EXACT_REVIEW.md. Preserve frozen C SQL/digests; no production operation, deployment or client work. Continue via WP04_CONTINUATION_HANDOVER.md if changing chats; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -928,3 +928,7 @@ Source comparison complete; [RESIDUAL_CORRECTION_PLAN.md](server-packages/wp04-g
 ## 2026-10-05 — Exact unapplied C package/correctness proposal prepared
 
 [C_PACKAGE_DRAFT.md](server-packages/wp04-g4/C_PACKAGE_DRAFT.md) and separate c-package-manifest.json bind source/forward/restore/identities/correctness/readback artifacts. Twelve definitions: original canonical/enrich/run-evidence replacements plus nine absent candidates, including four added private helpers; one shared typed snapshot assembler preserves evidence composition. Fresh read-only catalog22functions/threeviews/sixunique runkeys/candidate0 and bounded context611/460Products/SUCCESS115/membership matched. Structural identity/embedding/transaction/hash checks PASS only; SQL parser/runtime NOT_RUN. No business-function invocation, candidate creation, production mutation or portfolio test. Correctness proposal call budget explicit; full611 output, live no-success/present-null fixture, nativeAPI/performance/committed rollback gaps retained. Independent exact C source/rollback/security/correctness-proof review next; no execution/application authorization. Previous SQL/results and unrelated draft preserved; G0–G3 retained; G4 incomplete/application HOLD, G5 blocked; programme4/13; main e421fe8 unchanged; WP03 closed; DEC-014/parked/locked and mandatory formal-closure WP05 new-chat handover unchanged.
+
+## 2026-10-05 — Exact C review / same-WP continuation handover
+
+[C_EXACT_REVIEW.md](server-packages/wp04-g4/C_EXACT_REVIEW.md) completes the source/rollback/security/proof review at source scope. Direction retained; REQUIRED NOW proof findings C-R01 (full611six-input equivalence) and C-R02 (present-row/null-status composite boundary) prevent authorization request for the current correctness script. These are coverage omissions, not demonstrated production regressions, new architecture decisions or parked enhancements. Next one narrow new versioned correctness proposal with explicit provenance/load/calls/restore/readback review, keeping frozen C SQL and all history unchanged. No live SQL/test/production mutation at this review; G0–G3 retained, G4 incomplete/application HOLD,G5blocked,programme4/13; main e421fe8 unchanged; DEC-014/WP03/parked/locked/consumed authorizations preserved. User expressly requested [WP04_CONTINUATION_HANDOVER.md](WP04_CONTINUATION_HANDOVER.md) at this clean pre-operation stopping point because of chat length; it permits continuation of this same WP04 in a fresh chat in the same Costing Project, not a restart/new WP. Formal WP04 closure and mandatory WP05 new-chat handover remain future gates.

@@ -54,7 +54,7 @@
     "source-before.json": "7bf946c1685fae3dbc2991423e4c9abf5bb806ee94de31611c17b14aa1789423",
     "forward-draft.sql": "6d5dfbb5bb4e3258415fcafc0b97e87523cec9d46b073878b21709e5dcc9a003",
     "rollback-draft.sql": "c845516cc006834299060fe6e9a7bd0fbb95d6b4f38497961606122cc247b929",
-    "REVIEW.md": "422d0c06738205137095f931eacfc12f56f708c36075218955d978bdc71ce9ec",
+    "REVIEW.md": "69e18659b4a77e33fd21d7b5f57a4172f3bbfe6fe7d76bf1c1ae0de98e0d01b3",
     "REHEARSAL_PROPOSAL.md": "8d51b69b3908fcb58af20a83a38054b2bf4589caa4c318edc10b700466bf44b1",
     "rehearsal-proposal.sql": "7d85ee676a6e6df358069a9406b0e26685b1b1efe4342a1aa68e337a6e46e11f",
     "REHEARSAL_RESULT.md": "a04772301705a3937ed6f040dff7b5a90900954688076761c4c584c9ac13f492",
@@ -98,7 +98,7 @@
     "runtime_compilation": "NOT_RUN",
     "parity_and_performance": "NOT_RUN"
   },
-  "review_disposition": "EXACT_C_DRAFT_PREPARED_INDEPENDENT_REVIEW_PENDING_APPLICATION_HOLD",
+  "review_disposition": "EXACT_C_SOURCE_DIRECTION_RETAINED_PROOF_CORRECTIONS_REQUIRED_BEFORE_AUTHORIZATION",
   "reviewed_draft_commit": "2adcbfd74c12a49ac8d65345f440b9603daadf87",
   "review_items": [
     "G4-R01 shared issue identity",
@@ -361,7 +361,7 @@
     "candidate_function_count_after": 0,
     "idle_wp04_transactions_after": 0
   },
-  "execution_state": "EXACT_UNAPPLIED_C_PACKAGE_SOURCE_REVIEW_PENDING",
+  "execution_state": "CORRECTION_VERSIONED_C_PROOF_PREPARATION",
   "proposal_repository_overlap": "NONE_AT_e421fe8",
   "bounded_expression_check": {
     "status": "PASS_TWO_CURRENT_CANONICAL_SAMPLES",
@@ -495,7 +495,7 @@
   },
   "c_snapshot_package": {
     "manifest": "c-package-manifest.json",
-    "status": "SOURCE_DRAFT_PREPARED_INDEPENDENT_EXACT_REVIEW_PENDING",
+    "status": "EXACT_REVIEW_COMPLETE_PROOF_CORRECTIONS_REQUIRED",
     "operation_authorized": false,
     "application_authorized": false,
     "runtime": "NOT_RUN",
@@ -503,6 +503,11 @@
     "bounded_readonly_inspections": 2,
     "portfolio_invocations": 0,
     "g4_complete": false,
-    "next_gate": "INDEPENDENT_EXACT_C_SOURCE_ROLLBACK_SECURITY_CORRECTNESS_REVIEW"
+    "next_gate": "NARROW_VERSIONED_C_CORRECTNESS_PROPOSAL_CORRECTION_THEN_REVIEW",
+    "review": "C_EXACT_REVIEW.md",
+    "required_now": [
+      "C-R01_FULL_611_SIX_INPUT_EQUIVALENCE",
+      "C-R02_PRESENT_NULL_COMPOSITE_BOUNDARY"
+    ]
   }
 }
