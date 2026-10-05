@@ -24,6 +24,10 @@ const shellSrc = readFileSync(
   join(root, "public/shared/js/costing-suite-shell.js"),
   "utf8",
 );
+const cssSrc = readFileSync(
+  join(root, "public/shared/css/sasv-costing.css"),
+  "utf8",
+);
 
 const {
   READINESS_RPC,
@@ -631,8 +635,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v334/.test(sw));
-assert.ok(!/hub-cache-v333/.test(sw));
+assert.ok(/hub-cache-v335/.test(sw));
+assert.ok(!/hub-cache-v334/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -648,6 +652,8 @@ assert.ok(htmlSrc.includes('id="readinessAppliedFilters"'));
 assert.ok(htmlSrc.includes('id="readinessSummary"'));
 assert.ok(htmlSrc.includes('id="readinessGapDetails"'));
 assert.ok(htmlSrc.includes('id="genericTableCard"'));
+assert.ok(htmlSrc.includes('cp-readiness-ops'));
+assert.ok(htmlSrc.includes('cp-readiness-register-region'));
 assert.ok(!/id="readinessDependencyFilter"/.test(htmlSrc));
 assert.ok(!/id="readinessOwnerFilter"/.test(htmlSrc));
 assert.ok(!/id="readinessRouteFilter"/.test(htmlSrc));
@@ -659,14 +665,33 @@ assert.ok(shellSrc.includes("function syncReadinessShellChrome"));
 assert.ok(/syncReadinessShellChrome\s*\(/.test(shellSrc));
 assert.ok(/cp-readiness-active/.test(shellSrc));
 assert.ok(/genericTableCard/.test(shellSrc));
+assert.ok(/peqFilterWrapper/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
+assert.ok(/costPeriodValuationStrip/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
+assert.ok(/closeFilterDrawer\s*\(/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
 assert.ok(/setVisible\(\s*kpiStripWrap,\s*false/.test(shellSrc));
 assert.ok(/setVisible\(\s*lastRefreshed,\s*false/.test(shellSrc));
+assert.ok(/setVisible\(\s*peqFilterWrapper,\s*false/.test(shellSrc));
+assert.ok(/setVisible\(\s*peqFilterWrapper,\s*true/.test(shellSrc));
 assert.ok(/applyKpiStripVisibility\s*\(/.test(shellSrc));
 assert.ok(/syncPeriodControlState\s*\(/.test(shellSrc));
+assert.ok(/reloadCostPeriodValuationIfNeeded\s*\(/.test(shellSrc));
+assert.ok(
+  /CURRENT_LENS\s*=\s*lensId[\s\S]{0,400}?syncReadinessShellChrome\s*\(/.test(
+    shellSrc,
+  ),
+);
+assert.ok(/Search product, SKU or ID/.test(shellSrc));
 pass("Track B shell chrome hide/restore synchronizer present");
 
 assert.ok(/READINESS_GAP_PREVIEW_LIMIT\s*=\s*3/.test(readinessSrc));
-assert.ok(/rows\.slice\(\s*0\s*,\s*READINESS_GAP_PREVIEW_LIMIT\s*\)/.test(readinessSrc));
+assert.ok(/Count-first collapsed exception/.test(readinessSrc));
+assert.ok(
+  !/cp-readiness-gap-preview/.test(
+    readinessSrc.split("function renderGapCard")[1]?.split("function renderGapDetailsPanel")[0] ||
+      "",
+  ),
+);
+assert.ok(!/rows\.slice\(\s*0\s*,\s*READINESS_GAP_PREVIEW_LIMIT\s*\)/.test(readinessSrc));
 assert.ok(!/after_product_id/.test(
   readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
 ) || /limit:\s*READINESS_GAP_LIMIT/.test(
@@ -682,11 +707,27 @@ assert.ok(/No readiness rows match the current filters/.test(readinessSrc));
 assert.ok(/Readiness unavailable/.test(readinessSrc));
 assert.ok(/Loading readiness|Loading…/.test(readinessSrc));
 assert.ok(/openDetails\(assessment\)/.test(readinessSrc));
+assert.ok(/cp-readiness-detail-disclose/.test(readinessSrc));
+assert.ok(/getDrawerConfig/.test(readinessSrc));
+assert.ok(/renderDrawerTab/.test(readinessSrc));
 assert.ok(!/Action<\/th>/.test(htmlSrc.split("readinessLensHost")[1]?.split("genericTableCard")[0] || ""));
 pass("Track B loading/unavailable/empty states and details path preserved");
 
 assert.ok(!readinessSrc.includes("readinessSearch"));
 assert.ok(/getSearchValue/.test(readinessSrc));
 pass("Track B preserves shell search as sole search authority");
+
+// Pager attached to register region (not a pre-register peer block)
+const hostChunk =
+  htmlSrc.split('id="readinessLensHost"')[1]?.split('id="genericTableCard"')[0] || "";
+assert.ok(/cp-readiness-register-region[\s\S]*cp-readiness-pagebar/.test(hostChunk));
+assert.ok(!/cp-readiness-pagebar[\s\S]*cp-readiness-register-region/.test(hostChunk));
+assert.ok(/clear-link/.test(hostChunk));
+pass("Track B pager attached to register region; Clear is link-style");
+
+assert.ok(!/severity_precedence|clientDerivedSeverity|deriveOverallSeverity/.test(readinessSrc));
+assert.ok(cssSrc.includes("cp-readiness-active #peqFilterWrapper"));
+assert.ok(cssSrc.includes("costPeriodValuationStrip"));
+pass("Track B no client severity authority; CSS chrome hide rules present");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");

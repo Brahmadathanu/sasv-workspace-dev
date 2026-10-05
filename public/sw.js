@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v334"; // WP04-G7 Track B readiness UX recovery
+const CACHE_NAME = "hub-cache-v335"; // WP04-G7 Track B readiness UX density correction
 
 const PRECACHE = [
   // Hub shell

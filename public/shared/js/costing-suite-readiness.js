@@ -1453,24 +1453,19 @@ export function createPortfolioReadinessController(deps = {}) {
   function renderGapCard(title, gapKind, gapBucket) {
     const matched = gapBucket?.matched_count ?? 0;
     const rows = Array.isArray(gapBucket?.rows) ? gapBucket.rows : [];
-    const preview = rows.slice(0, READINESS_GAP_PREVIEW_LIMIT);
-    const previewHtml = preview.length
-      ? `<ul class="cp-readiness-gap-preview">${preview
-          .map((row) => `<li>${text(row.product_name)}</li>`)
-          .join("")}</ul>`
-      : `<div class="cp-muted-text">None</div>`;
+    const expanded = state.expandedGapKind === gapKind;
     const detailsBtn = rows.length
-      ? `<button type="button" class="peq-filter-action-btn" data-readiness-gap-kind="${escapeHtml(
+      ? `<button type="button" class="clear-link cp-readiness-gap-toggle" data-readiness-gap-kind="${escapeHtml(
           gapKind,
-        )}">${state.expandedGapKind === gapKind ? "Hide details" : "View details"}</button>`
+        )}">${expanded ? "Hide details" : "View details"}</button>`
       : "";
-    return `<div class="cp-readiness-gap-card" data-gap-kind="${escapeHtml(gapKind)}">
+    // Count-first collapsed exception: no product-name preview rows by default.
+    return `<div class="cp-readiness-gap-card${expanded ? " is-expanded" : ""}" data-gap-kind="${escapeHtml(gapKind)}">
       <div class="cp-readiness-gap-card-head">
         <div class="cp-readiness-gap-title">${escapeHtml(title)}</div>
         <div class="cp-readiness-gap-count">${text(matched, "0")}</div>
+        ${detailsBtn}
       </div>
-      ${previewHtml}
-      ${detailsBtn}
     </div>`;
   }
 
@@ -1580,12 +1575,11 @@ export function createPortfolioReadinessController(deps = {}) {
       <div class="cp-cell-primary">${text(name)}</div>
       <div class="cp-muted-text">SKU ${text(ctx.sku_id)} · Product ${text(
         ctx.product_id,
-      )} · ${text(pack)}</div>
-      <div class="cp-muted-text">Product ${text(
-        lifecycle.product_status,
-      )} · SKU active ${text(boolLabel(lifecycle.sku_is_active))} · Sample ${text(
-        boolLabel(lifecycle.sku_is_sample),
-      )}</div>`;
+      )} · ${text(pack)} · ${text(lifecycle.product_status)} · SKU ${text(
+        boolLabel(lifecycle.sku_is_active),
+      )}${
+        lifecycle.sku_is_sample ? " · Sample" : ""
+      }</div>`;
   }
 
   function renderRegisterRow(assessment) {
@@ -1724,15 +1718,34 @@ export function createPortfolioReadinessController(deps = {}) {
     )}</div><div class="kv-val">${valueHtml}</div></div>`;
   }
 
-  function section(title, bodyHtml) {
-    return `<section class="cp-readiness-detail-section"><h4>${escapeHtml(
+  function section(title, bodyHtml, { className = "" } = {}) {
+    const cls = className
+      ? `cp-readiness-detail-section ${className}`
+      : "cp-readiness-detail-section";
+    return `<section class="${cls}"><h4>${escapeHtml(
       title,
     )}</h4>${bodyHtml}</section>`;
+  }
+
+  function disclose(title, bodyHtml, { open = false } = {}) {
+    return `<details class="cp-readiness-detail-disclose"${
+      open ? " open" : ""
+    }><summary>${escapeHtml(
+      title,
+    )}</summary><div class="cp-readiness-detail-disclose-body">${bodyHtml}</div></details>`;
   }
 
   function renderDependency(dep) {
     const d = asObject(dep) || {};
     const status = d.effective_status || d.raw_status;
+    const evidence =
+      d.evidence_ids == null
+        ? ""
+        : `<div class="cp-readiness-evidence">${text(
+            typeof d.evidence_ids === "string"
+              ? d.evidence_ids
+              : JSON.stringify(d.evidence_ids),
+          )}</div>`;
     return `<div class="cp-readiness-dep">
       <div class="cp-readiness-dep-head">
         <strong>${text(d.label || d.dependency_code)}</strong>
@@ -1745,15 +1758,7 @@ export function createPortfolioReadinessController(deps = {}) {
       </div>
       ${d.reason_code ? `<div class="cp-muted-text">Reason ${text(d.reason_code)}</div>` : ""}
       ${d.note ? `<div>${text(d.note)}</div>` : ""}
-      ${
-        d.evidence_ids
-          ? `<div class="cp-muted-text">Evidence ${text(
-              typeof d.evidence_ids === "string"
-                ? d.evidence_ids
-                : JSON.stringify(d.evidence_ids),
-            )}</div>`
-          : ""
-      }
+      ${evidence}
     </div>`;
   }
 
@@ -1767,9 +1772,50 @@ export function createPortfolioReadinessController(deps = {}) {
     const deps = asArray(a.dependencies);
     const shared = asArray(a.shared_issues);
 
-    const summaryHtml = SUMMARY_DIMENSIONS.map(([key, label]) =>
-      kv(label, chip(summary[key])),
+    const foundationChips = SUMMARY_DIMENSIONS.map(
+      ([key, label]) =>
+        `<span class="cp-readiness-detail-chip">${escapeHtml(label)} ${chip(
+          summary[key],
+        )}</span>`,
     ).join("");
+
+    const packLabel =
+      identity.pack_size != null
+        ? `${identity.pack_size}${
+            identity.pack_uom ? ` ${identity.pack_uom}` : ""
+          }`
+        : null;
+
+    const firstTier = `
+      <section class="cp-readiness-detail-section cp-readiness-detail-primary">
+        <div class="cp-readiness-detail-overall">
+          <span class="cp-readiness-detail-overall-label">Overall</span>
+          ${chip(summary.overall_severity)}
+        </div>
+        <div class="cp-readiness-detail-foundations">${foundationChips}</div>
+        <div class="cp-readiness-detail-essentials">
+          <span>Pack <strong>${text(packLabel)}</strong></span>
+          <span>Product <strong>${text(lifecycle.product_status)}</strong></span>
+          <span>SKU active <strong>${text(
+            boolLabel(lifecycle.sku_is_active),
+          )}</strong></span>
+          <span>Sample <strong>${text(
+            boolLabel(lifecycle.sku_is_sample),
+          )}</strong></span>
+        </div>
+      </section>`;
+
+    const contextGrid = [
+      kv("Product ID", text(ctx.product_id)),
+      kv("SKU ID", text(ctx.sku_id)),
+      kv("Period start", text(ctx.period_start)),
+      kv("Valuation date", text(ctx.valuation_date)),
+      kv("Context type", text(ctx.context_type)),
+      kv("Integrity", text(ctx.context_integrity_status)),
+      kv("Refresh run", text(ctx.refresh_run_id)),
+      kv("Evidence refresh run", text(ctx.evidence_refresh_run_id)),
+      kv("Run status", text(ctx.run_status)),
+    ].join("");
 
     const depsHtml = deps.length
       ? deps.map(renderDependency).join("")
@@ -1807,56 +1853,23 @@ export function createPortfolioReadinessController(deps = {}) {
           kv("Pricing bridge", chip(downstream.pricing_bridge_status)),
           kv("Selling price bridge", chip(downstream.selling_price_bridge_status)),
           kv("Cost sheet", chip(downstream.cost_sheet_status)),
-          kv("Refresh run", text(downstream.refresh_run_id)),
+          kv(
+            "Refresh run",
+            `<span class="cp-readiness-evidence">${text(
+              downstream.refresh_run_id,
+            )}</span>`,
+          ),
         ].join("")
       : `<div class="cp-muted-text">No downstream control returned.</div>`;
 
     return `
-      ${section(
-        "Identity",
-        [
-          kv("Product", text(identity.product_name)),
-          kv("Product ID", text(ctx.product_id)),
-          kv("SKU ID", text(ctx.sku_id)),
-          kv(
-            "Pack",
-            text(
-              identity.pack_size != null
-                ? `${identity.pack_size}${
-                    identity.pack_uom ? ` ${identity.pack_uom}` : ""
-                  }`
-                : null,
-            ),
-          ),
-        ].join(""),
-      )}
-      ${section(
-        "Lifecycle",
-        [
-          kv("Product status", text(lifecycle.product_status)),
-          kv("SKU active", text(boolLabel(lifecycle.sku_is_active))),
-          kv("SKU sample", text(boolLabel(lifecycle.sku_is_sample))),
-        ].join(""),
-      )}
-      ${section(
-        "Context",
-        [
-          kv("Context type", text(ctx.context_type)),
-          kv("Period start", text(ctx.period_start)),
-          kv("Valuation date", text(ctx.valuation_date)),
-          kv("Integrity", text(ctx.context_integrity_status)),
-          kv("Refresh run", text(ctx.refresh_run_id)),
-          kv("Evidence refresh run", text(ctx.evidence_refresh_run_id)),
-          kv("Run status", text(ctx.run_status)),
-        ].join(""),
-      )}
-      ${section(
-        "Summary",
-        `${summaryHtml}${kv("Overall severity", chip(summary.overall_severity))}`,
-      )}
-      ${section("Dependencies", depsHtml)}
-      ${section("Shared issues", sharedHtml)}
-      ${section("Downstream control", downstreamHtml)}
+      ${firstTier}
+      ${section("Context", `<div class="cp-readiness-detail-grid">${contextGrid}</div>`, {
+        className: "cp-readiness-detail-context",
+      })}
+      ${disclose("Dependencies", depsHtml)}
+      ${disclose("Shared issues", sharedHtml)}
+      ${disclose("Downstream control", `<div class="cp-readiness-detail-grid">${downstreamHtml}</div>`)}
     `;
   }
 

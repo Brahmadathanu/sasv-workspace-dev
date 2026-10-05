@@ -1853,20 +1853,33 @@ function applyKpiStripVisibility() {
 function syncReadinessShellChrome() {
   const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
   const genericTableCard = $("genericTableCard");
+  const peqFilterWrapper = $("peqFilterWrapper");
+  const cpvStrip = $("costPeriodValuationStrip");
   document.body.classList.toggle("cp-readiness-active", readinessActive);
 
   if (readinessActive) {
+    // Readiness owns filters; suppress orphan shell filter + dashboard chrome.
+    closeFilterDrawer();
+    setVisible(peqFilterWrapper, false);
     setVisible(kpiStripWrap, false);
     setVisible(lastRefreshed, false);
     setVisible(genericTableCard, false);
+    if (cpvStrip) {
+      cpvStrip.hidden = true;
+      cpvStrip.setAttribute("aria-hidden", "true");
+      cpvStrip.setAttribute("hidden", "");
+    }
     syncPeriodControlState();
     return;
   }
 
+  setVisible(peqFilterWrapper, true);
   setVisible(lastRefreshed, true);
   setVisible(genericTableCard, true);
   applyKpiStripVisibility();
   syncPeriodControlState();
+  // CPV content/visibility restore is owned by reloadCostPeriodValuationIfNeeded
+  // (called from switchLens on Readiness exit and other existing paint paths).
 }
 
 function applyRouteLaunchParams() {
@@ -4843,6 +4856,13 @@ async function switchLens(lensId) {
   CURRENT_LENS = lensId;
   pricingPolicyCtrl.syncNavigationFromLegacyLens?.(CURRENT_LENS);
   SELECTED_ROW = null;
+  // Apply Readiness chrome immediately after lens change, before async load.
+  syncReadinessShellChrome();
+  updateSearchPlaceholder();
+  if (leavingReadiness) {
+    // Restore CPV via existing controller paint path after leaving Readiness.
+    void reloadCostPeriodValuationIfNeeded();
+  }
   if (
     CURRENT_LENS === "cost-governance" ||
     CURRENT_LENS === "staff-governance"
@@ -5457,6 +5477,8 @@ function updateSearchPlaceholder() {
     placeholder = "Search Product, Product ID, SKU ID or action";
   } else if (isProductionRouteLens(CURRENT_LENS)) {
     placeholder = "Search Product or Product Group.";
+  } else if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    placeholder = "Search product, SKU or ID";
   }
 
   if (searchBox) {
@@ -8549,6 +8571,10 @@ async function reloadCostPeriodValuationIfNeeded() {
     return;
   }
   await costPeriodValuationCtrl.loadForActivePeriod();
+  // CPV paint may re-show the strip; reassert Readiness hide when still active.
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    syncReadinessShellChrome();
+  }
 }
 
 const materialCostCtrl = createMaterialCostController({

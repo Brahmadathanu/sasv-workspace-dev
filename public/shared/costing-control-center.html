@@ -2830,139 +2830,141 @@
         aria-hidden="true"
         aria-label="Portfolio readiness"
       >
-        <div class="cp-readiness-toolbar cp-readiness-toolbar--compact">
-          <div class="cp-readiness-toolbar-row">
-            <label class="cp-readiness-field">
-              <span>Governed period</span>
-              <select
-                id="readinessPeriodSelect"
-                aria-label="Governed readiness period"
-              >
-                <option value="">Loading…</option>
-              </select>
-            </label>
-            <label class="cp-readiness-field">
-              <span>Population scope</span>
-              <select
-                id="readinessPopulationScope"
-                aria-label="Readiness population scope"
-              >
-                <option value="OPERATIONAL">OPERATIONAL</option>
-                <option value="ALL_EXISTING">ALL_EXISTING</option>
-              </select>
-            </label>
-            <div
-              id="readinessFilterWrapper"
-              class="cp-readiness-filter-wrap"
-              style="position: relative; flex-shrink: 0"
-            >
-              <button
-                id="readinessFilterBtn"
-                type="button"
-                class="peq-filter-btn"
-                title="Readiness filters"
-                aria-label="Readiness filters"
-                aria-haspopup="true"
-                aria-expanded="false"
-                aria-controls="readinessFilterDrawer"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
+        <div class="cp-readiness-ops" aria-label="Readiness operating controls">
+          <div class="cp-readiness-toolbar cp-readiness-toolbar--compact">
+            <div class="cp-readiness-toolbar-row">
+              <label class="cp-readiness-field">
+                <span>Governed period</span>
+                <select
+                  id="readinessPeriodSelect"
+                  aria-label="Governed readiness period"
                 >
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-                <span>Filters</span>
-                <span
-                  id="readinessFilterBadge"
-                  class="peq-filter-badge"
-                  style="display: none"
-                ></span>
-              </button>
+                  <option value="">Loading…</option>
+                </select>
+              </label>
+              <label class="cp-readiness-field">
+                <span>Population scope</span>
+                <select
+                  id="readinessPopulationScope"
+                  aria-label="Readiness population scope"
+                >
+                  <option value="OPERATIONAL">OPERATIONAL</option>
+                  <option value="ALL_EXISTING">ALL_EXISTING</option>
+                </select>
+              </label>
               <div
-                id="readinessFilterDrawer"
-                class="peq-filter-drawer cp-readiness-filter-drawer"
-                role="dialog"
-                aria-label="Readiness filters"
-                hidden
+                id="readinessFilterWrapper"
+                class="cp-readiness-filter-wrap"
+                style="position: relative; flex-shrink: 0"
               >
-                <div class="peq-filter-section">
-                  <div class="peq-filter-section-title">Overall severity</div>
-                  <ul
-                    id="readinessSeverityFilters"
-                    class="peq-filter-checklist"
-                    aria-label="Overall severity filters"
-                  ></ul>
-                </div>
-                <div class="peq-filter-section">
-                  <div class="peq-filter-section-title">Dependency</div>
-                  <ul
-                    id="readinessDependencyFilters"
-                    class="peq-filter-checklist"
-                    aria-label="Dependency filters"
-                  ></ul>
-                </div>
-                <div class="peq-filter-section">
-                  <div class="peq-filter-section-title">Owner module</div>
-                  <ul
-                    id="readinessOwnerFilters"
-                    class="peq-filter-checklist"
-                    aria-label="Owner module filters"
-                  ></ul>
-                </div>
-                <div class="peq-filter-section">
-                  <div class="peq-filter-section-title">Recommended route</div>
-                  <ul
-                    id="readinessRouteFilters"
-                    class="peq-filter-checklist"
-                    aria-label="Recommended route filters"
-                  ></ul>
-                </div>
-                <div class="peq-filter-actions">
-                  <button
-                    id="readinessFilterApply"
-                    type="button"
-                    class="peq-filter-action-btn"
+                <button
+                  id="readinessFilterBtn"
+                  type="button"
+                  class="peq-filter-btn"
+                  title="Readiness filters"
+                  aria-label="Readiness filters"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  aria-controls="readinessFilterDrawer"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
                   >
-                    Apply
-                  </button>
-                  <button
-                    id="readinessFilterDrawerClear"
-                    type="button"
-                    class="peq-filter-action-btn"
-                  >
-                    Clear
-                  </button>
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg>
+                  <span>Filters</span>
+                  <span
+                    id="readinessFilterBadge"
+                    class="peq-filter-badge"
+                    style="display: none"
+                  ></span>
+                </button>
+                <div
+                  id="readinessFilterDrawer"
+                  class="peq-filter-drawer cp-readiness-filter-drawer"
+                  role="dialog"
+                  aria-label="Readiness filters"
+                  hidden
+                >
+                  <div class="peq-filter-section">
+                    <div class="peq-filter-section-title">Overall severity</div>
+                    <ul
+                      id="readinessSeverityFilters"
+                      class="peq-filter-checklist"
+                      aria-label="Overall severity filters"
+                    ></ul>
+                  </div>
+                  <div class="peq-filter-section">
+                    <div class="peq-filter-section-title">Dependency</div>
+                    <ul
+                      id="readinessDependencyFilters"
+                      class="peq-filter-checklist"
+                      aria-label="Dependency filters"
+                    ></ul>
+                  </div>
+                  <div class="peq-filter-section">
+                    <div class="peq-filter-section-title">Owner module</div>
+                    <ul
+                      id="readinessOwnerFilters"
+                      class="peq-filter-checklist"
+                      aria-label="Owner module filters"
+                    ></ul>
+                  </div>
+                  <div class="peq-filter-section">
+                    <div class="peq-filter-section-title">Recommended route</div>
+                    <ul
+                      id="readinessRouteFilters"
+                      class="peq-filter-checklist"
+                      aria-label="Recommended route filters"
+                    ></ul>
+                  </div>
+                  <div class="peq-filter-actions">
+                    <button
+                      id="readinessFilterApply"
+                      type="button"
+                      class="peq-filter-action-btn"
+                    >
+                      Apply
+                    </button>
+                    <button
+                      id="readinessFilterDrawerClear"
+                      type="button"
+                      class="peq-filter-action-btn"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
               </div>
+              <button
+                id="readinessClearFilters"
+                type="button"
+                class="clear-link"
+                hidden
+              >
+                Clear
+              </button>
             </div>
-            <button
-              id="readinessClearFilters"
-              type="button"
-              class="peq-filter-action-btn"
-              hidden
-            >
-              Clear
-            </button>
+            <div
+              id="readinessAppliedFilters"
+              class="cp-readiness-applied-filters"
+              aria-label="Applied readiness filters"
+            ></div>
           </div>
           <div
-            id="readinessAppliedFilters"
-            class="cp-readiness-applied-filters"
-            aria-label="Applied readiness filters"
+            id="readinessSummary"
+            class="cp-readiness-summary"
+            aria-label="Live readiness summary"
           ></div>
         </div>
-        <div
-          id="readinessSummary"
-          class="cp-readiness-summary"
-          aria-label="Live readiness summary"
-        ></div>
         <div id="readinessGaps" class="cp-readiness-gaps" aria-label="Product membership gaps"></div>
         <div
           id="readinessGapDetails"
@@ -2971,36 +2973,38 @@
           aria-live="polite"
         ></div>
         <div id="readinessStatus" class="cp-readiness-status"></div>
-        <div class="cp-readiness-pagebar">
-          <button id="readinessPrevPage" type="button" class="icon-btn" disabled>
-            Prev
-          </button>
-          <span id="readinessPageMeta" class="cp-muted-text"></span>
-          <button id="readinessNextPage" type="button" class="icon-btn" disabled>
-            Next
-          </button>
+        <div class="cp-readiness-register-region">
+          <div class="cp-readiness-register-wrap table-card">
+            <table class="cp-readiness-table" aria-label="Portfolio readiness register">
+              <thead>
+                <tr>
+                  <th>Product / SKU</th>
+                  <th>Overall</th>
+                  <th>Product master</th>
+                  <th>SKU master</th>
+                  <th>Costing foundation</th>
+                  <th>Evidence</th>
+                  <th>Outcome</th>
+                </tr>
+              </thead>
+              <tbody id="readinessTableBody"></tbody>
+            </table>
+          </div>
+          <div
+            id="readinessCardList"
+            class="cp-readiness-cards"
+            aria-label="Portfolio readiness cards"
+          ></div>
+          <div class="cp-readiness-pagebar" aria-label="Readiness pagination">
+            <button id="readinessPrevPage" type="button" class="icon-btn" disabled>
+              Prev
+            </button>
+            <span id="readinessPageMeta" class="cp-muted-text"></span>
+            <button id="readinessNextPage" type="button" class="icon-btn" disabled>
+              Next
+            </button>
+          </div>
         </div>
-        <div class="cp-readiness-register-wrap table-card">
-          <table class="cp-readiness-table" aria-label="Portfolio readiness register">
-            <thead>
-              <tr>
-                <th>Product / SKU</th>
-                <th>Overall</th>
-                <th>Product master</th>
-                <th>SKU master</th>
-                <th>Costing foundation</th>
-                <th>Evidence</th>
-                <th>Outcome</th>
-              </tr>
-            </thead>
-            <tbody id="readinessTableBody"></tbody>
-          </table>
-        </div>
-        <div
-          id="readinessCardList"
-          class="cp-readiness-cards"
-          aria-label="Portfolio readiness cards"
-        ></div>
       </div>
       <div id="genericTableCard" class="table-card">
         <div id="workbenchSummary" class="cp-workbench-summary"></div>
