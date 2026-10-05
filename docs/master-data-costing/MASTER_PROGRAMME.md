@@ -172,3 +172,7 @@ G4 acceptance reconciliation PASS. Closed/accepted evidence includes C-R01/C-R02
 ## 2026-10-05 — WP04-G5 implementation handoff issued
 
 Exact frozen G5 package was issued as GitHub issue #43 against main `e421fe8df9b98b4956acdcd4cadeb36a3f9b923c`, preserving DEC-011/014/015 and all G4 locks. Package/review blob identities are pinned. No Cursor/Codex launch action is available through the current connector, so no implementation branch/edit/push is claimed yet. G5 remains pending external Cursor/Codex execution. After a branch is pushed, ChatGPT must audit the actual GitHub implementation before any merge decision. G6/G7/merge/release remain not started.
+
+## 2026-10-05 — WP04-G5 branch audit: correction pass required
+
+Independent audit of pushed `feat/wp04-g5-portfolio-readiness` head `43a21b4ba7fa0acc8f314466c06960770478434a` confirms clean scope/base but identifies one consolidated in-scope client hardening pass before acceptance: fail-closed strict response-envelope validation, server-authoritative severity filter options, and exactly one visible readiness search source, with strengthened smoke coverage. Stale cache-pin failures are pre-existing and not G5 regressions. Correction request is pinned to issue #43. No merge/G6/G7/release started; await corrected branch then re-audit.
