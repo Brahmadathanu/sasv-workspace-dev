@@ -708,7 +708,7 @@ WP04-G4 — C-R01/C-R02 V3 runtime PASS; independent-readback evidence gap CLOSE
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Readback gap closed; CSE compatibility source/catalog proof PASS. Stop after this bounded read-only action and reassess the next remaining G4 proof obligation. CSE-P01 remains parked/unresolved. No portfolio/performance test, full C application, deployment, G5/client work or V3 rerun is authorized; do not start a new WP.
+WP04-G4 — Readback gap closed; CSE compatibility PASS; payload/nonmonetary/monetary-note audit PASS at source + bounded live-content level. Stop after this bounded read-only action and reassess the next remaining G4 proof obligation. Native Auth/API remains separate/unproved; CSE-P01 remains parked. No portfolio/performance test, full C application, deployment, G5/client work or V3 rerun is authorized; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -956,3 +956,7 @@ A separate read-only completion package was frozen at SHA-256 `42ff34e909251f229
 ## 2026-10-05 — CSE compatibility read-only reassessment PASS
 
 Fresh live catalog identities for the commercial point resolver and underlying commercial-sales view match the frozen C guards. Mechanical source comparison confirms the current canonical and frozen C private live core use the same exact commercial point resolver call with SKU/period/valuation inputs; no direct view query, alternate ordering, batching or invented row-selection path exists in C. This closes the G4 CSE compatibility question at source/catalog level only. It does not resolve or waive parked CSE-P01; existing ambiguous-row authority remains unchanged. No commercial resolver invocation, canonical/portfolio execution, DDL/DML, performance work, application, deployment, G5 or client work occurred.
+
+## 2026-10-05 — Payload / nonmonetary / monetary-note audit PASS
+
+Read-only source/content audit only. Candidate governed-period and Product-gap readers are nonmonetary metadata readers; portfolio returns canonical readiness assessments plus nonmonetary filters/statistics. Common core/enrich construct no explicit monetary amount/value/cost fields. Regional Marketing monetary columns are not projected into evidence JSON. Shared issues expose only codes/status/owner/route/authority/evidence IDs. Run115 scan: 5088 non-null driver/control notes and 1272 selected-scheme notes showed no currency symbols or INR/Rs/rupee markers; existing cost/rate/value terminology is explanatory. Source-level portfolio permission remains costing-control-center view only, but native Auth/API behavior is not claimed. Payload/nonmonetary/monetary-note obligation is closed; remaining G4 obligations include native Auth/API, ALL_EXISTING/filter behavior, live no-success, full611 final-output parity, performance and committed deployment/rollback.
