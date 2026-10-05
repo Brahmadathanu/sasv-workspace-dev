@@ -827,7 +827,10 @@ $build_guard$;
 
 -- =========================================================
 -- P3 — exact public RPC replacement only
+-- P3 + P4 are one transaction: cutover is atomic with its guards.
 -- =========================================================
+BEGIN;
+
 CREATE OR REPLACE FUNCTION public.rpc_get_product_sku_readiness_portfolio(
  p_period_start date,p_population_scope text DEFAULT 'OPERATIONAL',p_overall_severities text[] DEFAULT NULL,
  p_dependency_codes text[] DEFAULT NULL,p_owner_modules text[] DEFAULT NULL,p_route_codes text[] DEFAULT NULL,
@@ -941,6 +944,8 @@ BEGIN
   END IF;
 END
 $post$;
+
+COMMIT;
 
 -- Retention rule V1:
 -- No automatic deletion is performed by the forward package.
