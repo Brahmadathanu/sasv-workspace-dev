@@ -65,6 +65,7 @@ WP04-G5 — OPENING BOUNDARY FROZEN / implementation NOT STARTED. WP04-G4 is COM
 - Product detail is the Product/SKU lifecycle anchor; SKU master, activation and readiness remain separate.
 - Product Master readiness uses LIVE_AS_OF only for an explicit server-governed period.
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
+- WP04 G4 is closed with the committed C contract active; measured 6938.008 ms / 5084.304 ms full-611 performance is accepted with limitation, provisional 3s/5s goals remain UNMET/NON-BLOCKING, and genuine native Auth/API verification remains mandatory at G7 (DEC-015).
 
 ## Major unresolved blockers
 No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay parked for their assigned later work and do not reopen WP02 or WP03:
