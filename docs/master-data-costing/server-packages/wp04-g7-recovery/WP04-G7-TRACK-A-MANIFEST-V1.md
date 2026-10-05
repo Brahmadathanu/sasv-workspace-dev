@@ -48,3 +48,13 @@ No changes to:
 - G7: BLOCKED
 - Track B: NOT STARTED
 - G8: CLOSED
+
+
+## Exact file identities
+
+- forward SQL blob: `8c640d563b3a349a61c3b1e161875081823016c0` (37912 chars)
+- rollback SQL blob: `9130ba6be1b1b1b531557eded4743be2b4108cb3` (15590 chars)
+- proof SQL blob: `eccfc0ed7de4116f6b7227ee00dfe4a954b8bb86` (19278 chars)
+- contract blob: `50a3d7877f6609a1a1f161bdd7c4b5c462cdf4f1` (8802 chars)
+
+These Git blob identities define the reviewed V1 package. Any content change requires a new review identity.
