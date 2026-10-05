@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v333"; // WP04-G5 portfolio readiness lens
+const CACHE_NAME = "hub-cache-v334"; // WP04-G7 Track B readiness UX recovery
 
 const PRECACHE = [
   // Hub shell

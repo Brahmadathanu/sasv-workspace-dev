@@ -1712,10 +1712,11 @@ body.sasv-production-route-manager
 
 /* Costing suite visual migration track complete for the six sibling pages. */
 
-/* ── WP04-G5 Portfolio Readiness lens (Control Center only) ─────────────── */
+/* ── WP04-G5 / G7 Track B Portfolio Readiness lens (Control Center only) ─ */
 body.sasv-costing-control-center .cp-readiness-host {
   display: none;
   margin-bottom: 12px;
+  width: 100%;
 }
 
 body.sasv-costing-control-center .cp-readiness-host.is-visible,
@@ -1723,21 +1724,25 @@ body.sasv-costing-control-center .cp-readiness-host:not([hidden]) {
   display: block;
 }
 
+body.sasv-costing-control-center.cp-readiness-active #genericTableCard {
+  display: none !important;
+}
+
 body.sasv-costing-control-center .cp-readiness-toolbar {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-md);
   background: var(--sasv-surface);
 }
 
-body.sasv-costing-control-center .cp-readiness-toolbar-row {
+body.sasv-costing-control-center .cp-readiness-toolbar--compact .cp-readiness-toolbar-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-end;
 }
 
@@ -1760,11 +1765,24 @@ body.sasv-costing-control-center .cp-readiness-field input {
   padding: 4px 8px;
 }
 
-body.sasv-costing-control-center .cp-readiness-severity-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+body.sasv-costing-control-center .cp-readiness-filter-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-filter-wrap .peq-filter-btn {
+  width: auto;
+  min-width: 32px;
+  height: var(--sasv-control-md, 32px);
+  padding: 0 10px;
+  gap: 6px;
+}
+
+body.sasv-costing-control-center .cp-readiness-filter-drawer {
+  min-width: min(320px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 16px));
+  max-height: min(70vh, 520px);
+  overflow: auto;
 }
 
 body.sasv-costing-control-center .cp-readiness-check {
@@ -1775,15 +1793,58 @@ body.sasv-costing-control-center .cp-readiness-check {
   color: var(--sasv-text);
 }
 
-body.sasv-costing-control-center .cp-readiness-context,
-body.sasv-costing-control-center .cp-readiness-stats,
+body.sasv-costing-control-center .cp-readiness-applied-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+body.sasv-costing-control-center .cp-readiness-chip,
+body.sasv-costing-control-center .cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  font-size: var(--sasv-text-xs);
+  cursor: pointer;
+}
+
+body.sasv-costing-control-center .cp-readiness-summary {
+  margin-bottom: 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-summary-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+}
+
+body.sasv-costing-control-center .cp-readiness-summary-context,
+body.sasv-costing-control-center .cp-readiness-summary-metrics,
 body.sasv-costing-control-center .cp-readiness-gaps,
 body.sasv-costing-control-center .cp-readiness-pagebar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  margin-bottom: 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-summary-badge {
+  padding: 2px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-semibold);
 }
 
 body.sasv-costing-control-center .cp-readiness-stat {
@@ -1806,28 +1867,69 @@ body.sasv-costing-control-center .cp-readiness-stat-value {
   font-weight: var(--sasv-fw-semibold);
 }
 
-body.sasv-costing-control-center .cp-readiness-gap-block {
-  flex: 1 1 240px;
+body.sasv-costing-control-center .cp-readiness-gap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-card {
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-sm);
   padding: 8px 10px;
   background: var(--sasv-surface);
 }
 
+body.sasv-costing-control-center .cp-readiness-gap-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
 body.sasv-costing-control-center .cp-readiness-gap-title {
   font-size: var(--sasv-text-sm);
   font-weight: var(--sasv-fw-semibold);
-  margin-bottom: 4px;
 }
 
-body.sasv-costing-control-center .cp-readiness-gap-list {
-  margin: 0;
+body.sasv-costing-control-center .cp-readiness-gap-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-preview,
+body.sasv-costing-control-center .cp-readiness-gap-detail-list {
+  margin: 0 0 8px;
   padding-left: 16px;
   font-size: var(--sasv-text-xs);
 }
 
+body.sasv-costing-control-center .cp-readiness-gap-details {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-details-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+body.sasv-costing-control-center .cp-readiness-pagebar {
+  margin-bottom: 8px;
+}
+
 body.sasv-costing-control-center .cp-readiness-register-wrap {
   overflow: auto;
+  width: 100%;
 }
 
 body.sasv-costing-control-center .cp-readiness-table {
@@ -1914,6 +2016,16 @@ body.sasv-costing-control-center .cp-readiness-dep-head {
 }
 
 @media (max-width: 900px) {
+  body.sasv-costing-control-center .cp-readiness-gap-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-filter-drawer {
+    left: 0;
+    right: 0;
+    max-width: calc(100vw - 16px);
+  }
+
   body.sasv-costing-control-center .cp-readiness-register-wrap {
     display: none;
   }

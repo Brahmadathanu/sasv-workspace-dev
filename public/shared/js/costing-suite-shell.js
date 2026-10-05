@@ -1850,6 +1850,25 @@ function applyKpiStripVisibility() {
   setVisible(kpiStripWrap, shouldShowKpiStrip(), "");
 }
 
+function syncReadinessShellChrome() {
+  const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
+  const genericTableCard = $("genericTableCard");
+  document.body.classList.toggle("cp-readiness-active", readinessActive);
+
+  if (readinessActive) {
+    setVisible(kpiStripWrap, false);
+    setVisible(lastRefreshed, false);
+    setVisible(genericTableCard, false);
+    syncPeriodControlState();
+    return;
+  }
+
+  setVisible(lastRefreshed, true);
+  setVisible(genericTableCard, true);
+  applyKpiStripVisibility();
+  syncPeriodControlState();
+}
+
 function applyRouteLaunchParams() {
   const qp = new URLSearchParams(window.location.search);
   const lens = qp.get("lens")?.trim();
@@ -5792,10 +5811,7 @@ function paintProductionRouteLens(options = {}) {
 
 function renderTable() {
   costBuildCtrl.syncManualProvisionLayout();
-  syncPeriodControlState();
-  if (!isPortfolioReadinessLens(CURRENT_LENS)) {
-    applyKpiStripVisibility();
-  }
+  syncReadinessShellChrome();
   syncPricingPolicyLensChrome();
   syncCostSheetReviewLensChrome();
   if (isPricingPolicyManagerRoute()) {
@@ -5844,9 +5860,7 @@ function renderTable() {
       workbenchSummary.innerHTML = "";
       workbenchSummary.classList.remove("is-visible");
     }
-    setVisible(kpiStripWrap, false);
     portfolioReadinessCtrl.render();
-    syncPeriodControlState();
     return;
   } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
     clearStatus();

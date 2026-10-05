@@ -631,12 +631,62 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v333/.test(sw));
+assert.ok(/hub-cache-v334/.test(sw));
+assert.ok(!/hub-cache-v333/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
 assert.ok(!shellSrc.includes("rpc_accept_marketing"));
 assert.ok(!/js\/products\.js/.test(shellSrc));
 pass("shell does not add Manage Products or marketing writer paths");
+
+// ── Track B structural assertions ──────────────────────────────────────────
+assert.ok(htmlSrc.includes('id="readinessFilterBtn"'));
+assert.ok(htmlSrc.includes('id="readinessFilterDrawer"'));
+assert.ok(htmlSrc.includes('id="readinessFilterBadge"'));
+assert.ok(htmlSrc.includes('id="readinessAppliedFilters"'));
+assert.ok(htmlSrc.includes('id="readinessSummary"'));
+assert.ok(htmlSrc.includes('id="readinessGapDetails"'));
+assert.ok(htmlSrc.includes('id="genericTableCard"'));
+assert.ok(!/id="readinessDependencyFilter"/.test(htmlSrc));
+assert.ok(!/id="readinessOwnerFilter"/.test(htmlSrc));
+assert.ok(!/id="readinessRouteFilter"/.test(htmlSrc));
+assert.ok(!/multiple\s+size\s*=\s*["']?3["']?/.test(htmlSrc));
+assert.ok(!htmlSrc.includes('id="readinessSearch"'));
+pass("Track B filter drawer / chip hosts present; raw multi-selects absent");
+
+assert.ok(shellSrc.includes("function syncReadinessShellChrome"));
+assert.ok(/syncReadinessShellChrome\s*\(/.test(shellSrc));
+assert.ok(/cp-readiness-active/.test(shellSrc));
+assert.ok(/genericTableCard/.test(shellSrc));
+assert.ok(/setVisible\(\s*kpiStripWrap,\s*false/.test(shellSrc));
+assert.ok(/setVisible\(\s*lastRefreshed,\s*false/.test(shellSrc));
+assert.ok(/applyKpiStripVisibility\s*\(/.test(shellSrc));
+assert.ok(/syncPeriodControlState\s*\(/.test(shellSrc));
+pass("Track B shell chrome hide/restore synchronizer present");
+
+assert.ok(/READINESS_GAP_PREVIEW_LIMIT\s*=\s*3/.test(readinessSrc));
+assert.ok(/rows\.slice\(\s*0\s*,\s*READINESS_GAP_PREVIEW_LIMIT\s*\)/.test(readinessSrc));
+assert.ok(!/after_product_id/.test(
+  readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
+) || /limit:\s*READINESS_GAP_LIMIT/.test(
+  readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
+));
+assert.ok(!/while\s*\([^)]*has_more/.test(
+  readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
+));
+assert.ok(!/goNextGap|loadNextGap|after_product_id\s*=/.test(readinessSrc));
+pass("Track B product-gap preview bounded; no auto gap page traversal");
+
+assert.ok(/No readiness rows match the current filters/.test(readinessSrc));
+assert.ok(/Readiness unavailable/.test(readinessSrc));
+assert.ok(/Loading readiness|Loading…/.test(readinessSrc));
+assert.ok(/openDetails\(assessment\)/.test(readinessSrc));
+assert.ok(!/Action<\/th>/.test(htmlSrc.split("readinessLensHost")[1]?.split("genericTableCard")[0] || ""));
+pass("Track B loading/unavailable/empty states and details path preserved");
+
+assert.ok(!readinessSrc.includes("readinessSearch"));
+assert.ok(/getSearchValue/.test(readinessSrc));
+pass("Track B preserves shell search as sole search authority");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");

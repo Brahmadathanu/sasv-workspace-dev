@@ -636,6 +636,8 @@ export function createPortfolioReadinessController(deps = {}) {
     loadingPortfolio: false,
     loadingGaps: false,
     selectedAssessment: null,
+    expandedGapKind: null,
+    filterDrawerOpen: false,
   };
 
   function hostEls() {
@@ -645,14 +647,21 @@ export function createPortfolioReadinessController(deps = {}) {
         host: null,
         periodSelect: null,
         scopeSelect: null,
+        filterBtn: null,
+        filterBadge: null,
+        filterDrawer: null,
+        filterWrapper: null,
         severityHost: null,
-        dependencySelect: null,
-        ownerSelect: null,
-        routeSelect: null,
+        dependencyHost: null,
+        ownerHost: null,
+        routeHost: null,
+        filterApplyBtn: null,
+        filterDrawerClearBtn: null,
         clearBtn: null,
-        statsHost: null,
-        contextHost: null,
+        appliedFilters: null,
+        summaryHost: null,
         gapHost: null,
+        gapDetails: null,
         tableBody: null,
         cardHost: null,
         statusHost: null,
@@ -665,14 +674,21 @@ export function createPortfolioReadinessController(deps = {}) {
       host: doc.getElementById("readinessLensHost"),
       periodSelect: doc.getElementById("readinessPeriodSelect"),
       scopeSelect: doc.getElementById("readinessPopulationScope"),
+      filterBtn: doc.getElementById("readinessFilterBtn"),
+      filterBadge: doc.getElementById("readinessFilterBadge"),
+      filterDrawer: doc.getElementById("readinessFilterDrawer"),
+      filterWrapper: doc.getElementById("readinessFilterWrapper"),
       severityHost: doc.getElementById("readinessSeverityFilters"),
-      dependencySelect: doc.getElementById("readinessDependencyFilter"),
-      ownerSelect: doc.getElementById("readinessOwnerFilter"),
-      routeSelect: doc.getElementById("readinessRouteFilter"),
+      dependencyHost: doc.getElementById("readinessDependencyFilters"),
+      ownerHost: doc.getElementById("readinessOwnerFilters"),
+      routeHost: doc.getElementById("readinessRouteFilters"),
+      filterApplyBtn: doc.getElementById("readinessFilterApply"),
+      filterDrawerClearBtn: doc.getElementById("readinessFilterDrawerClear"),
       clearBtn: doc.getElementById("readinessClearFilters"),
-      statsHost: doc.getElementById("readinessStats"),
-      contextHost: doc.getElementById("readinessContext"),
+      appliedFilters: doc.getElementById("readinessAppliedFilters"),
+      summaryHost: doc.getElementById("readinessSummary"),
       gapHost: doc.getElementById("readinessGaps"),
+      gapDetails: doc.getElementById("readinessGapDetails"),
       tableBody: doc.getElementById("readinessTableBody"),
       cardHost: doc.getElementById("readinessCardList"),
       statusHost: doc.getElementById("readinessStatus"),
@@ -994,20 +1010,44 @@ export function createPortfolioReadinessController(deps = {}) {
     return loadPortfolio({ preserveKeyset: true });
   }
 
-  function readMultiSelect(selectEl) {
-    if (!selectEl) return [];
-    return Array.from(selectEl.selectedOptions || [])
-      .map((opt) => normalizeCode(opt.value))
-      .filter(Boolean);
-  }
+  const READINESS_GAP_PREVIEW_LIMIT = 3;
 
-  function readSeverityChecks(host) {
+  function readChecklistCodes(host, dataAttr) {
     if (!host) return [];
     return Array.from(
-      host.querySelectorAll('input[type="checkbox"][data-readiness-severity]:checked'),
+      host.querySelectorAll(`input[type="checkbox"][${dataAttr}]:checked`),
     )
       .map((el) => normalizeCode(el.value))
       .filter(Boolean);
+  }
+
+  function activeFilterCount() {
+    return (
+      state.overallSeverities.length +
+      state.dependencyCodes.length +
+      state.ownerModules.length +
+      state.routeCodes.length
+    );
+  }
+
+  function setFilterDrawerOpen(open) {
+    state.filterDrawerOpen = Boolean(open);
+    const els = hostEls();
+    if (els.filterDrawer) {
+      els.filterDrawer.hidden = !state.filterDrawerOpen;
+      if (state.filterDrawerOpen) {
+        els.filterDrawer.removeAttribute("hidden");
+      } else {
+        els.filterDrawer.setAttribute("hidden", "");
+      }
+      els.filterDrawer.classList.toggle("open", state.filterDrawerOpen);
+    }
+    if (els.filterBtn) {
+      els.filterBtn.setAttribute(
+        "aria-expanded",
+        state.filterDrawerOpen ? "true" : "false",
+      );
+    }
   }
 
   function applyControlChanges({ resetPaging = true } = {}) {
@@ -1021,10 +1061,19 @@ export function createPortfolioReadinessController(deps = {}) {
         ? scope
         : "OPERATIONAL";
     }
-    state.overallSeverities = readSeverityChecks(els.severityHost);
-    state.dependencyCodes = readMultiSelect(els.dependencySelect);
-    state.ownerModules = readMultiSelect(els.ownerSelect);
-    state.routeCodes = readMultiSelect(els.routeSelect);
+    state.overallSeverities = readChecklistCodes(
+      els.severityHost,
+      "data-readiness-severity",
+    );
+    state.dependencyCodes = readChecklistCodes(
+      els.dependencyHost,
+      "data-readiness-dependency",
+    );
+    state.ownerModules = readChecklistCodes(
+      els.ownerHost,
+      "data-readiness-owner",
+    );
+    state.routeCodes = readChecklistCodes(els.routeHost, "data-readiness-route");
     if (typeof getSearchValue === "function") {
       state.search = String(getSearchValue() || "").trim();
     }
@@ -1033,17 +1082,106 @@ export function createPortfolioReadinessController(deps = {}) {
     return loadPortfolio({ preserveKeyset: true });
   }
 
-  function fillSelectOptions(selectEl, options, selected) {
-    if (!selectEl) return;
+  function fillChecklistOptions(host, options, selected, dataAttr) {
+    if (!host) return;
     const selectedSet = new Set(uniqueCodes(selected));
     const values = uniqueCodes(options);
-    selectEl.innerHTML = values
-      .map((code) => {
-        const sel = selectedSet.has(code) ? " selected" : "";
-        return `<option value="${escapeHtml(code)}"${sel}>${escapeHtml(
-          formatLabel(code),
-        )}</option>`;
-      })
+    host.innerHTML = values.length
+      ? values
+          .map((code) => {
+            const checked = selectedSet.has(code) ? " checked" : "";
+            return `<li><label class="cp-readiness-check peq-filter-check"><input type="checkbox" ${dataAttr} value="${escapeHtml(
+              code,
+            )}"${checked}/> ${escapeHtml(formatLabel(code))}</label></li>`;
+          })
+          .join("")
+      : `<li class="cp-muted-text">No server options</li>`;
+  }
+
+  function removeAppliedFilter(kind, code) {
+    const value = normalizeCode(code);
+    if (kind === "severity") {
+      state.overallSeverities = state.overallSeverities.filter((c) => c !== value);
+    } else if (kind === "dependency") {
+      state.dependencyCodes = state.dependencyCodes.filter((c) => c !== value);
+    } else if (kind === "owner") {
+      state.ownerModules = state.ownerModules.filter((c) => c !== value);
+    } else if (kind === "route") {
+      state.routeCodes = state.routeCodes.filter((c) => c !== value);
+    }
+    syncControlsFromState();
+    invalidatePendingRequests();
+    resetKeyset();
+    return loadPortfolio({ preserveKeyset: true });
+  }
+
+  function renderAppliedFilterChips() {
+    const { appliedFilters, clearBtn, filterBadge } = hostEls();
+    const chips = [];
+    state.overallSeverities.forEach((code) => {
+      chips.push({
+        kind: "severity",
+        code,
+        label: `Severity: ${formatLabel(code)}`,
+      });
+    });
+    state.dependencyCodes.forEach((code) => {
+      chips.push({
+        kind: "dependency",
+        code,
+        label: `Dependency: ${formatLabel(code)}`,
+      });
+    });
+    state.ownerModules.forEach((code) => {
+      chips.push({
+        kind: "owner",
+        code,
+        label: `Owner: ${formatLabel(code)}`,
+      });
+    });
+    state.routeCodes.forEach((code) => {
+      chips.push({
+        kind: "route",
+        code,
+        label: `Route: ${formatLabel(code)}`,
+      });
+    });
+    const count = chips.length;
+    const els = hostEls();
+    if (els.filterBtn) {
+      els.filterBtn.classList.toggle("peq-filter-btn--active", count > 0);
+    }
+    if (filterBadge) {
+      if (count > 0) {
+        filterBadge.hidden = false;
+        filterBadge.style.display = "";
+        filterBadge.removeAttribute("hidden");
+        filterBadge.textContent = String(count);
+      } else {
+        filterBadge.hidden = true;
+        filterBadge.style.display = "none";
+        filterBadge.textContent = "";
+      }
+    }
+    if (clearBtn) {
+      clearBtn.hidden = count === 0;
+    }
+    if (!appliedFilters) return;
+    if (!count) {
+      appliedFilters.innerHTML = "";
+      return;
+    }
+    appliedFilters.innerHTML = chips
+      .map(
+        (chipItem) =>
+          `<button type="button" class="cp-filter-chip cp-readiness-chip" data-readiness-chip-kind="${escapeHtml(
+            chipItem.kind,
+          )}" data-readiness-chip-code="${escapeHtml(
+            chipItem.code,
+          )}" aria-label="Remove ${escapeHtml(chipItem.label)}">${escapeHtml(
+            chipItem.label,
+          )} ×</button>`,
+      )
       .join("");
   }
 
@@ -1075,43 +1213,49 @@ export function createPortfolioReadinessController(deps = {}) {
     if (els.scopeSelect) {
       els.scopeSelect.value = state.populationScope;
     }
-    if (els.severityHost) {
-      const severities = Array.isArray(
-        state.portfolio?.filter_options?.overall_severities,
-      )
-        ? state.portfolio.filter_options.overall_severities
-        : [];
-      els.severityHost.innerHTML = severities
-        .map((code) => {
-          const checked = state.overallSeverities.includes(code)
-            ? " checked"
-            : "";
-          return `<label class="cp-readiness-check"><input type="checkbox" data-readiness-severity value="${escapeHtml(
-            code,
-          )}"${checked}/> ${escapeHtml(code)}</label>`;
-        })
-        .join("");
-    }
     const filterOptions = state.portfolio?.filter_options || {
+      overall_severities: [],
       dependency_codes: [],
       owner_modules: [],
       route_codes: [],
     };
-    fillSelectOptions(
-      els.dependencySelect,
+    fillChecklistOptions(
+      els.severityHost,
+      Array.isArray(state.portfolio?.filter_options?.overall_severities)
+        ? state.portfolio.filter_options.overall_severities
+        : [],
+      state.overallSeverities,
+      "data-readiness-severity",
+    );
+    fillChecklistOptions(
+      els.dependencyHost,
       filterOptions.dependency_codes,
       state.dependencyCodes,
+      "data-readiness-dependency",
     );
-    fillSelectOptions(
-      els.ownerSelect,
+    fillChecklistOptions(
+      els.ownerHost,
       filterOptions.owner_modules,
       state.ownerModules,
+      "data-readiness-owner",
     );
-    fillSelectOptions(
-      els.routeSelect,
+    fillChecklistOptions(
+      els.routeHost,
       filterOptions.route_codes,
       state.routeCodes,
+      "data-readiness-route",
     );
+    renderAppliedFilterChips();
+    setFilterDrawerOpen(state.filterDrawerOpen);
+  }
+
+  function clearReadinessFilters() {
+    resetFilters({ keepSearch: true });
+    state.expandedGapKind = null;
+    setFilterDrawerOpen(false);
+    syncControlsFromState();
+    invalidatePendingRequests();
+    return loadPortfolio({ preserveKeyset: true });
   }
 
   function ensureBound() {
@@ -1120,29 +1264,66 @@ export function createPortfolioReadinessController(deps = {}) {
     els.host.dataset.bound = "1";
 
     on(els.periodSelect, "change", () => {
-      void applyControlChanges({ resetPaging: true });
+      void applyControlChanges({ resetPaging: true }).then(() =>
+        loadProductGaps(),
+      );
     });
     on(els.scopeSelect, "change", () => {
       void applyControlChanges({ resetPaging: true });
     });
-    on(els.severityHost, "change", (ev) => {
-      if (ev.target?.matches?.("input[data-readiness-severity]")) {
-        void applyControlChanges({ resetPaging: true });
-      }
+    on(els.filterBtn, "click", (ev) => {
+      ev.stopPropagation();
+      setFilterDrawerOpen(!state.filterDrawerOpen);
     });
-    on(els.dependencySelect, "change", () => {
+    on(els.filterApplyBtn, "click", (ev) => {
+      ev.stopPropagation();
+      setFilterDrawerOpen(false);
       void applyControlChanges({ resetPaging: true });
     });
-    on(els.ownerSelect, "change", () => {
-      void applyControlChanges({ resetPaging: true });
-    });
-    on(els.routeSelect, "change", () => {
-      void applyControlChanges({ resetPaging: true });
+    on(els.filterDrawerClearBtn, "click", (ev) => {
+      ev.stopPropagation();
+      void clearReadinessFilters();
     });
     on(els.clearBtn, "click", () => {
-      resetFilters({ keepSearch: true });
-      syncControlsFromState();
-      void loadPortfolio({ preserveKeyset: true });
+      void clearReadinessFilters();
+    });
+    on(els.appliedFilters, "click", (ev) => {
+      const btn = ev.target?.closest?.("[data-readiness-chip-kind]");
+      if (!btn) return;
+      void removeAppliedFilter(
+        btn.dataset.readinessChipKind,
+        btn.dataset.readinessChipCode,
+      );
+    });
+    on(els.gapHost, "click", (ev) => {
+      const btn = ev.target?.closest?.("[data-readiness-gap-kind]");
+      if (!btn) return;
+      const kind = String(btn.dataset.readinessGapKind || "");
+      state.expandedGapKind = state.expandedGapKind === kind ? null : kind;
+      renderGaps();
+    });
+    on(els.gapDetails, "click", (ev) => {
+      const btn = ev.target?.closest?.("[data-readiness-gap-close]");
+      if (!btn) return;
+      state.expandedGapKind = null;
+      renderGaps();
+    });
+    on(document, "click", (ev) => {
+      if (!state.filterDrawerOpen) return;
+      const wrap = hostEls().filterWrapper;
+      if (wrap && wrap.contains(ev.target)) return;
+      setFilterDrawerOpen(false);
+    });
+    on(document, "keydown", (ev) => {
+      if (ev.key !== "Escape") return;
+      if (state.filterDrawerOpen) {
+        setFilterDrawerOpen(false);
+        return;
+      }
+      if (state.expandedGapKind) {
+        state.expandedGapKind = null;
+        renderGaps();
+      }
     });
     on(els.prevBtn, "click", () => {
       void goPrevPage();
@@ -1156,11 +1337,25 @@ export function createPortfolioReadinessController(deps = {}) {
       const skuId = toBigIntOrNull(row.dataset.skuId);
       selectAssessmentBySkuId(skuId);
     });
+    on(els.tableBody, "keydown", (ev) => {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      const row = ev.target?.closest?.("tr[data-sku-id]");
+      if (!row) return;
+      ev.preventDefault();
+      selectAssessmentBySkuId(toBigIntOrNull(row.dataset.skuId));
+    });
     on(els.cardHost, "click", (ev) => {
       const card = ev.target?.closest?.("[data-sku-id]");
       if (!card) return;
       const skuId = toBigIntOrNull(card.dataset.skuId);
       selectAssessmentBySkuId(skuId);
+    });
+    on(els.cardHost, "keydown", (ev) => {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      const card = ev.target?.closest?.("[data-sku-id]");
+      if (!card) return;
+      ev.preventDefault();
+      selectAssessmentBySkuId(toBigIntOrNull(card.dataset.skuId));
     });
   }
 
@@ -1191,7 +1386,7 @@ export function createPortfolioReadinessController(deps = {}) {
       return;
     }
     if (state.portfolioUnavailable) {
-      statusHost.innerHTML = `<div class="status error" role="alert">${escapeHtml(
+      statusHost.innerHTML = `<div class="status error" role="alert">Readiness unavailable — ${escapeHtml(
         state.portfolioError || "Unavailable",
       )}</div>`;
       return;
@@ -1199,63 +1394,141 @@ export function createPortfolioReadinessController(deps = {}) {
     statusHost.innerHTML = "";
   }
 
-  function renderContext() {
-    const { contextHost } = hostEls();
-    if (!contextHost) return;
-    const ctx = state.portfolio?.context;
-    if (!ctx || state.portfolioUnavailable) {
-      contextHost.innerHTML = "";
+  function renderSummary() {
+    const { summaryHost } = hostEls();
+    if (!summaryHost) return;
+    if (state.loadingPeriods || state.loadingPortfolio) {
+      summaryHost.innerHTML = `<div class="cp-readiness-summary-strip" role="status">Loading summary…</div>`;
       return;
     }
-    contextHost.innerHTML = `
-      <div class="cp-readiness-context" aria-label="Governed readiness context">
-        <span>Period <strong>${text(ctx.period_start)}</strong></span>
-        <span>Valuation <strong>${text(ctx.valuation_date)}</strong></span>
-        <span>Scope <strong>${text(state.populationScope)}</strong></span>
-        <span>Integrity <strong>${text(ctx.context_integrity_status)}</strong></span>
+    if (state.portfolioUnavailable || state.periodsUnavailable || !state.portfolio) {
+      summaryHost.innerHTML = "";
+      return;
+    }
+    const ctx = state.portfolio.context || {};
+    const stats = state.portfolio.statistics || {};
+    const sev = stats.overall_severity_counts || {};
+    const integrity = ctx.context_integrity_status || ctx.live_as_of || "LIVE_AS_OF";
+    summaryHost.innerHTML = `
+      <div class="cp-readiness-summary-strip" aria-label="Live readiness summary">
+        <div class="cp-readiness-summary-context">
+          <span>Period <strong>${text(ctx.period_start)}</strong></span>
+          <span>Valuation <strong>${text(ctx.valuation_date)}</strong></span>
+          <span>Scope <strong>${text(state.populationScope)}</strong></span>
+          <span class="cp-readiness-summary-badge">${text(integrity)}</span>
+        </div>
+        <div class="cp-readiness-summary-metrics">
+          <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Population</span><span class="cp-readiness-stat-value">${text(
+            stats.population_sku_count,
+            "0",
+          )}</span></div>
+          <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Matched</span><span class="cp-readiness-stat-value">${text(
+            state.portfolio.matched_count,
+            "0",
+          )}</span></div>
+          <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Returned</span><span class="cp-readiness-stat-value">${text(
+            state.portfolio.returned_count,
+            "0",
+          )}</span></div>
+          <div class="cp-readiness-stat">${chip("READY")} <span class="cp-readiness-stat-value">${text(
+            sev.READY,
+            "0",
+          )}</span></div>
+          <div class="cp-readiness-stat">${chip("REVIEW_REQUIRED")} <span class="cp-readiness-stat-value">${text(
+            sev.REVIEW_REQUIRED,
+            "0",
+          )}</span></div>
+          <div class="cp-readiness-stat">${chip("BLOCKER")} <span class="cp-readiness-stat-value">${text(
+            sev.BLOCKER,
+            "0",
+          )}</span></div>
+          <div class="cp-readiness-stat">${chip("UNKNOWN")} <span class="cp-readiness-stat-value">${text(
+            sev.UNKNOWN,
+            "0",
+          )}</span></div>
+        </div>
       </div>`;
   }
 
-  function renderStats() {
-    const { statsHost } = hostEls();
-    if (!statsHost) return;
-    if (state.portfolioUnavailable || !state.portfolio) {
-      statsHost.innerHTML = "";
+  function renderGapCard(title, gapKind, gapBucket) {
+    const matched = gapBucket?.matched_count ?? 0;
+    const rows = Array.isArray(gapBucket?.rows) ? gapBucket.rows : [];
+    const preview = rows.slice(0, READINESS_GAP_PREVIEW_LIMIT);
+    const previewHtml = preview.length
+      ? `<ul class="cp-readiness-gap-preview">${preview
+          .map((row) => `<li>${text(row.product_name)}</li>`)
+          .join("")}</ul>`
+      : `<div class="cp-muted-text">None</div>`;
+    const detailsBtn = rows.length
+      ? `<button type="button" class="peq-filter-action-btn" data-readiness-gap-kind="${escapeHtml(
+          gapKind,
+        )}">${state.expandedGapKind === gapKind ? "Hide details" : "View details"}</button>`
+      : "";
+    return `<div class="cp-readiness-gap-card" data-gap-kind="${escapeHtml(gapKind)}">
+      <div class="cp-readiness-gap-card-head">
+        <div class="cp-readiness-gap-title">${escapeHtml(title)}</div>
+        <div class="cp-readiness-gap-count">${text(matched, "0")}</div>
+      </div>
+      ${previewHtml}
+      ${detailsBtn}
+    </div>`;
+  }
+
+  function renderGapDetailsPanel() {
+    const { gapDetails } = hostEls();
+    if (!gapDetails) return;
+    const kind = state.expandedGapKind;
+    if (!kind || !state.gaps || state.gapsUnavailable) {
+      gapDetails.hidden = true;
+      gapDetails.innerHTML = "";
       return;
     }
-    const stats = state.portfolio.statistics;
-    const sev = stats.overall_severity_counts;
-    statsHost.innerHTML = `
-      <div class="cp-readiness-stats" aria-label="Server readiness statistics">
-        <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Population</span><span class="cp-readiness-stat-value">${text(
-          stats.population_sku_count,
+    const bucket =
+      kind === "no_sku"
+        ? state.gaps.no_sku
+        : kind === "active_without_active_sku"
+          ? state.gaps.active_without_active_sku
+          : null;
+    if (!bucket) {
+      gapDetails.hidden = true;
+      gapDetails.innerHTML = "";
+      return;
+    }
+    const rows = Array.isArray(bucket.rows) ? bucket.rows : [];
+    const matched = bucket.matched_count ?? rows.length;
+    const hasMore = Boolean(bucket.has_more);
+    const boundNote = hasMore
+      ? `<div class="cp-muted-text">Showing first ${READINESS_GAP_LIMIT} of ${text(
+          matched,
           "0",
-        )}</span></div>
-        <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Matched</span><span class="cp-readiness-stat-value">${text(
-          state.portfolio.matched_count,
+        )} matched</div>`
+      : `<div class="cp-muted-text">Showing ${rows.length} of ${text(
+          matched,
           "0",
-        )}</span></div>
-        <div class="cp-readiness-stat"><span class="cp-readiness-stat-label">Returned</span><span class="cp-readiness-stat-value">${text(
-          state.portfolio.returned_count,
-          "0",
-        )}</span></div>
-        <div class="cp-readiness-stat">${chip("READY")} <span class="cp-readiness-stat-value">${text(
-          sev.READY,
-          "0",
-        )}</span></div>
-        <div class="cp-readiness-stat">${chip("REVIEW_REQUIRED")} <span class="cp-readiness-stat-value">${text(
-          sev.REVIEW_REQUIRED,
-          "0",
-        )}</span></div>
-        <div class="cp-readiness-stat">${chip("BLOCKER")} <span class="cp-readiness-stat-value">${text(
-          sev.BLOCKER,
-          "0",
-        )}</span></div>
-        <div class="cp-readiness-stat">${chip("UNKNOWN")} <span class="cp-readiness-stat-value">${text(
-          sev.UNKNOWN,
-          "0",
-        )}</span></div>
-      </div>`;
+        )} matched</div>`;
+    const listHtml = rows.length
+      ? `<ul class="cp-readiness-gap-detail-list">${rows
+          .map(
+            (row) =>
+              `<li><strong>${text(row.product_name)}</strong> · ${text(
+                row.product_status,
+              )} · ${text(row.gap_kind)}</li>`,
+          )
+          .join("")}</ul>`
+      : `<div class="cp-muted-text">None</div>`;
+    gapDetails.hidden = false;
+    gapDetails.removeAttribute("hidden");
+    gapDetails.innerHTML = `
+      <div class="cp-readiness-gap-details-head">
+        <strong>${escapeHtml(
+          kind === "no_sku"
+            ? "Active products without SKU"
+            : "Active products without active SKU",
+        )}</strong>
+        <button type="button" class="peq-filter-action-btn" data-readiness-gap-close>Close</button>
+      </div>
+      ${boundNote}
+      ${listHtml}`;
   }
 
   function renderGaps() {
@@ -1263,47 +1536,35 @@ export function createPortfolioReadinessController(deps = {}) {
     if (!gapHost) return;
     if (state.loadingGaps) {
       gapHost.innerHTML = `<div class="status">Loading product gaps…</div>`;
+      renderGapDetailsPanel();
       return;
     }
     if (state.gapsUnavailable) {
       gapHost.innerHTML = `<div class="status error" role="alert">${escapeHtml(
         state.gapsError || "Product gaps unavailable",
       )}</div>`;
+      renderGapDetailsPanel();
       return;
     }
     if (!state.gaps) {
       gapHost.innerHTML = "";
+      renderGapDetailsPanel();
       return;
     }
-    const noSku = state.gaps.no_sku;
-    const activeGap = state.gaps.active_without_active_sku;
-    const renderGapRows = (rows) =>
-      rows.length
-        ? `<ul class="cp-readiness-gap-list">${rows
-            .map(
-              (row) =>
-                `<li><strong>${text(row.product_name)}</strong> · ${text(
-                  row.product_status,
-                )} · ${text(row.gap_kind)}</li>`,
-            )
-            .join("")}</ul>`
-        : `<div class="cp-muted-text">None</div>`;
-
     gapHost.innerHTML = `
-      <div class="cp-readiness-gaps" aria-label="Product membership gaps">
-        <div class="cp-readiness-gap-block">
-          <div class="cp-readiness-gap-title">Active products without SKU
-            <span class="cp-muted-text">(${text(noSku.matched_count, "0")} matched)</span>
-          </div>
-          ${renderGapRows(noSku.rows)}
-        </div>
-        <div class="cp-readiness-gap-block">
-          <div class="cp-readiness-gap-title">Active products without active SKU
-            <span class="cp-muted-text">(${text(activeGap.matched_count, "0")} matched)</span>
-          </div>
-          ${renderGapRows(activeGap.rows)}
-        </div>
+      <div class="cp-readiness-gap-grid" aria-label="Product membership gaps">
+        ${renderGapCard(
+          "Active products without SKU",
+          "no_sku",
+          state.gaps.no_sku,
+        )}
+        ${renderGapCard(
+          "Active products without active SKU",
+          "active_without_active_sku",
+          state.gaps.active_without_active_sku,
+        )}
       </div>`;
+    renderGapDetailsPanel();
   }
 
   function rowIdentityHtml(assessment) {
@@ -1392,31 +1653,38 @@ export function createPortfolioReadinessController(deps = {}) {
   function renderRows() {
     const { tableBody, cardHost, prevBtn, nextBtn, pageMeta } = hostEls();
     if (state.portfolioUnavailable || state.periodsUnavailable) {
+      const msg = escapeHtml(
+        state.portfolioError || state.periodsError || "Unavailable",
+      );
       if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="7"><div class="status error">${escapeHtml(
-          state.portfolioError || state.periodsError || "Unavailable",
-        )}</div></td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7"><div class="cp-readiness-unavailable status error" role="alert">Readiness unavailable — ${msg}</div></td></tr>`;
       }
-      if (cardHost) cardHost.innerHTML = "";
+      if (cardHost) {
+        cardHost.innerHTML = `<div class="cp-readiness-unavailable status error" role="alert">Readiness unavailable — ${msg}</div>`;
+      }
       if (prevBtn) prevBtn.disabled = true;
       if (nextBtn) nextBtn.disabled = true;
       if (pageMeta) pageMeta.textContent = "";
       return;
     }
-    if (state.loadingPortfolio) {
+    if (state.loadingPortfolio || state.loadingPeriods) {
       if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="7"><div class="status">Loading…</div></td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7"><div class="status" role="status">Loading…</div></td></tr>`;
       }
-      if (cardHost) cardHost.innerHTML = `<div class="status">Loading…</div>`;
+      if (cardHost) cardHost.innerHTML = `<div class="status" role="status">Loading…</div>`;
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
       return;
     }
     const rows = state.portfolio?.rows || [];
     if (!rows.length) {
+      const empty =
+        "No readiness rows match the current filters";
       if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="7"><div class="status">No matching SKUs for the current server filters.</div></td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7"><div class="status">${empty}</div></td></tr>`;
       }
       if (cardHost) {
-        cardHost.innerHTML = `<div class="status">No matching SKUs for the current server filters.</div>`;
+        cardHost.innerHTML = `<div class="status">${empty}</div>`;
       }
     } else {
       if (tableBody) tableBody.innerHTML = rows.map(renderRegisterRow).join("");
@@ -1445,8 +1713,7 @@ export function createPortfolioReadinessController(deps = {}) {
     ensureBound();
     syncControlsFromState();
     renderStatus();
-    renderContext();
-    renderStats();
+    renderSummary();
     renderGaps();
     renderRows();
   }
