@@ -168,3 +168,7 @@ Fresh authorized main/digest/source/ACL/attribute/candidate/context/membership/e
 ## 2026-10-05 — G4 formally closed; G5 opening package frozen
 
 G4 acceptance reconciliation PASS. Closed/accepted evidence includes C-R01/C-R02, independent readback, CSE compatibility, payload/nonmonetary/notes, live no-success, ALL_EXISTING/filter, compositional full611 semantic parity, accepted measured performance limitation, and committed C deployment/post-deployment verification. Native Auth/API runtime remains explicitly deferred to mandatory G7 signed-in verification; this is governance deferral, not PASS/waiver. No unresolved blocker prevents G5. G4 is marked COMPLETED AND VERIFIED. G5 client package and independent review are frozen; implementation is not started. Programme completion remains 4/13 because WP04 itself remains in progress through G5–G8.
+
+## 2026-10-05 — WP04-G5 implementation handoff issued
+
+Exact frozen G5 package was issued as GitHub issue #43 against main `e421fe8df9b98b4956acdcd4cadeb36a3f9b923c`, preserving DEC-011/014/015 and all G4 locks. Package/review blob identities are pinned. No Cursor/Codex launch action is available through the current connector, so no implementation branch/edit/push is claimed yet. G5 remains pending external Cursor/Codex execution. After a branch is pushed, ChatGPT must audit the actual GitHub implementation before any merge decision. G6/G7/merge/release remain not started.
