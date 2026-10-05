@@ -699,16 +699,16 @@ G0–G3 evidence and design/planning conclusions stand. G3's high-risk refactor 
 Only work necessary for the agreed WP04 outcome may interrupt the active gate. Do not reopen generic harness/console/catalog loops, propose paid infrastructure as a default dependency, or ask the user to make coding/security design decisions. Server analysis/review/application/verification stays ChatGPT-owned; client implementation stays Cursor/Codex-owned after its bounded package and proven server contract. Git is traceability for server work, not its delivery prerequisite.
 
 ## Current Gate
-WP04-G4 — C-R01/C-R02 V3 frozen and source-reviewed PASS after correcting the consumed V2 proposal defects; explicit operation authorization required before runtime.
+WP04-G4 — C-R01/C-R02 V3 runtime PASS; exact frozen independent readback platform-blocked before Supabase; compact critical reconciliation PASS; readback evidence gap remains.
 
 ## Gate Status
-[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V2 remains consumed failed with clean readback. V3 is frozen/source-review PASS at SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca; runtime NOT_RUN/no operation authorized. V3 corrects C-R01 ambiguous n and latent C-R02 bare case_name qualification only; original C source and historical evidence unchanged; programme 4/13.
+[!] G4 INCOMPLETE / APPLICATION HOLD; G5 BLOCKED. V3 SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca one-attempt runtime is consumed PASS for C-R01/C-R02. Exact frozen independent readback was blocked by the platform before database execution; compact critical reconciliation PASS with candidate_count0, assembler absent, six key original identities matching and idle WP04 transactions0. Do not call this full frozen-readback PASS. Programme 4/13.
 
 ## Required to close
 Resolve residual performance through a focused evidence-led safe plan/proof or explicitly reviewed feasibility disposition, and retain existing broader parity/access/payload/rollback requirements. Diagnostic timings do not establish611phase attribution or fullG4. Any new mutation/load requires concrete reviewed scope and authorization.
 
 ## Next gate
-WP04-G4 — Explicit-authorization boundary for V3 SHA-256 ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca. Before any attempt, freshly reconcile main/target/source/context/digests; at most one attempt, no retry/no COMMIT/final ROLLBACK, then separately frozen independent readback. No portfolio/performance/deployment/client work; do not start a new WP.
+WP04-G4 — Stop after consumed V3 correctness PASS. Exact frozen-readback evidence remains incomplete due platform blocking; no further server operation is authorized. Next bounded action is to prepare/review a safe independent-readback completion path that preserves the frozen readback intent before any new operation. No portfolio/performance/deployment/client work; do not start a new WP.
 
 ## Server changes
 None from the withdrawn detour. No production rollback needed.
@@ -944,3 +944,7 @@ Fresh repository, target, script/readback digest, source, index, governed-contex
 ## 2026-10-05 — C correctness V3 frozen and source-reviewed
 
 New file `c-correctness-proposal-v3.sql` frozen at SHA-256 `ccb961faac0192b2cd3bcc4fd52ac2da1489ccad10f000e0dd6820360cb80eca`; source review PASS only, runtime NOT_RUN. V3 preserves V2 and frozen C history, fixes the observed C-R01 ambiguity via distinct/qualified row-count names, and fixes seven latent C-R02 expected-value references from bare `case_name` to `r.case_name`. Static boundaries: no COMMIT, final ROLLBACK, zero canonical readiness/portfolio calls, one temporary assembler CREATE/DROP, frozen assembler/helper/membership guards retained. Any runtime now requires a new explicit authorization bound to this V3 digest and target/current main.
+
+## 2026-10-05 — C correctness V3 one-attempt runtime PASS
+
+All fresh guards passed. C-R01: 611 operational SKUs × 6 sources = 3666 comparisons, mismatches 0, type mismatches 0, multiplicity failures 0, readiness/canonical/core/portfolio calls 0. C-R02: 8 cases PASS, six sources/seven drivers, complete JSON compared, no persisted fixtures, no claim of live present-null rows. V3 returned application_authorized=false, performance_proved=false, full611_final_output_parity=NOT_RUN. Exact frozen independent readback was attempted immediately but platform-blocked before reaching Supabase. Compact restoration reconciliation then PASS: candidate_count0, temporary assembler absent, canonical/enrich/run-evidence/shared/route/commercial-point identities match, idle WP04 transactions0. This does not substitute for a full frozen independent-readback PASS. G4 remains incomplete/application HOLD; G5 blocked.
