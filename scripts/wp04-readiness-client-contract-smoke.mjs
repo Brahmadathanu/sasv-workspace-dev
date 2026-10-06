@@ -639,8 +639,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v339/.test(sw));
-assert.ok(!/hub-cache-v338/.test(sw));
+assert.ok(/hub-cache-v340/.test(sw));
+assert.ok(!/hub-cache-v339/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -720,21 +720,24 @@ assert.ok(/Search product, SKU or ID/.test(shellSrc));
 pass("Track B shell chrome keeps KPI + global filter under Readiness");
 
 assert.ok(/renderMembershipGapSection/.test(readinessSrc));
-assert.ok(/Membership exceptions ·/.test(readinessSrc));
-assert.ok(/Showing first \$\{READINESS_GAP_LIMIT\}/.test(readinessSrc));
+assert.ok(/Membership exceptions \(\$\{noSku\}, \$\{activeGap\}\)/.test(readinessSrc));
+assert.ok(/membershipExceptionsAccessibleLabel/.test(readinessSrc));
+assert.ok(!/Showing first \$\{READINESS_GAP_LIMIT\}/.test(readinessSrc));
+assert.ok(!/<th scope="col">Gap<\/th>/.test(readinessSrc));
+assert.ok(/dedupeGapRows/.test(readinessSrc));
+assert.ok(/appendNextMembershipGapPage/.test(readinessSrc));
+assert.ok(/data-membership-gap-sentinel/.test(readinessSrc));
+assert.ok(/afterProductId: append \? stream\.nextAfterProductId : null/.test(readinessSrc));
 assert.ok(!/READINESS_GAP_PREVIEW_LIMIT/.test(readinessSrc));
 assert.ok(!/cp-readiness-summary-strip/.test(readinessSrc));
 assert.ok(!/LIVE_GOVERNED_PERIOD/.test(readinessSrc.split("function render")[0] || readinessSrc));
-assert.ok(!/after_product_id/.test(
-  readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
-) || /limit:\s*READINESS_GAP_LIMIT/.test(
-  readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
-));
-assert.ok(!/while\s*\([^)]*has_more/.test(
-  readinessSrc.split("async function loadProductGaps")[1]?.split("async function load(")[0] || "",
-));
-assert.ok(!/goNextGap|loadNextGap|after_product_id\s*=/.test(readinessSrc));
-pass("Track B membership modal gaps bounded; no auto gap page traversal");
+const membershipGapChunk =
+  readinessSrc.split("async function fetchMembershipGapPage")[1]?.split(
+    "async function loadProductGaps",
+  )[0] || "";
+assert.ok(!/while\s*\([^)]*has_more/.test(membershipGapChunk));
+assert.ok(!/goNextGap|loadNextGap/.test(readinessSrc));
+pass("Track B membership modal keyset append; Product|Status columns only");
 
 assert.ok(/No readiness rows match the current filters/.test(readinessSrc));
 assert.ok(/Readiness unavailable/.test(readinessSrc));
@@ -771,7 +774,31 @@ pass("Track B readiness register uses in-wrap scroll sentinel; no pagebar");
 
 assert.ok(!/severity_precedence|clientDerivedSeverity|deriveOverallSeverity/.test(readinessSrc));
 assert.ok(!cssSrc.includes("cp-readiness-active #peqFilterWrapper"));
-assert.ok(!cssSrc.includes("cp-readiness-active #kpiStripWrap"));
+assert.ok(
+  /@media \(max-width: 520px\)[\s\S]*body\.sasv-costing-control-center #kpiStripWrap[\s\S]*display:\s*none/.test(
+    cssSrc,
+  ),
+);
+assert.ok(
+  /@media \(max-width: 520px\)[\s\S]*#homeBtn \.home-label[\s\S]*clip:\s*rect\(0,\s*0,\s*0,\s*0\)/.test(
+    cssSrc,
+  ),
+);
+assert.ok(
+  /@media \(max-width: 520px\)[\s\S]*#lastRefreshed \.sc-snapshot-label/.test(
+    cssSrc,
+  ),
+);
+assert.ok(
+  /@media \(max-width: 520px\)[\s\S]*#readinessMembershipModal[\s\S]*100dvh/.test(
+    cssSrc,
+  ),
+);
+assert.ok(
+  /#mainTable tbody tr:nth-child\(even\) td[\s\S]*cp-ccc-register-table[\s\S]*nth-child\(even\)/.test(
+    cssSrc,
+  ),
+);
 assert.ok(!cssSrc.includes("cp-readiness-active #costPeriodValuationStrip"));
 assert.ok(cssSrc.includes("cp-ccc-table-work-surface"));
 assert.ok(cssSrc.includes("cp-ccc-table-scroll"));
@@ -852,7 +879,7 @@ pass("readiness scroll sentinel and keyset runtime preserved");
 
 assert.ok(registry.includes("portfolio-readiness"));
 assert.ok(routeConfig.includes("portfolio-readiness"));
-assert.ok(!/hub-cache-v338/.test(sw));
-pass("SW v339 and registry/route unchanged");
+assert.ok(!/hub-cache-v339/.test(sw));
+pass("SW v340 and registry/route unchanged");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");

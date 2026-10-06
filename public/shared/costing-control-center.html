@@ -639,14 +639,26 @@
         padding: 12px 14px;
         box-sizing: border-box;
       }
-      @media (max-width: 480px) {
+      @media (max-width: 520px) {
         .peq-filter-drawer {
           position: fixed;
           left: 8px;
           right: 8px;
+          bottom: max(8px, env(safe-area-inset-bottom, 0px));
           top: auto;
           width: auto;
           max-width: none;
+          max-height: min(72vh, calc(100dvh - 96px));
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .peq-filter-drawer .peq-filter-actions {
+          position: sticky;
+          bottom: 0;
+          background: var(--surface, #fff);
+          padding-top: 8px;
+          margin-top: 4px;
+          border-top: 1px solid var(--border, #e5e7eb);
         }
       }
       .peq-filter-drawer {
@@ -832,13 +844,24 @@
           color: var(--sasv-action-primary);
         }
         #homeBtn .home-label {
-          display: none;
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+          display: block;
         }
         #homeBtn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 0;
+          padding: 6px;
+          gap: 0;
+          position: relative;
         }
         #homeBtn svg {
           display: block;
