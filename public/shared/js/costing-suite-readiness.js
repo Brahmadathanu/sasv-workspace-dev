@@ -675,7 +675,7 @@ export function createPortfolioReadinessController(deps = {}) {
   let boundHandlers = [];
   let selectedSkuId = null;
   let membershipScrollGeneration = 0;
-  let membershipScrollObserver = null;
+  let membershipScrollObservers = [];
 
   const state = {
     periods: [],
@@ -1034,8 +1034,10 @@ export function createPortfolioReadinessController(deps = {}) {
   }
 
   function teardownMembershipModalScroll() {
-    membershipScrollObserver?.disconnect?.();
-    membershipScrollObserver = null;
+    for (const observer of membershipScrollObservers) {
+      observer?.disconnect?.();
+    }
+    membershipScrollObservers = [];
     membershipScrollGeneration += 1;
   }
 
@@ -1159,31 +1161,35 @@ export function createPortfolioReadinessController(deps = {}) {
     teardownMembershipModalScroll();
     if (!state.membershipModalOpen) return;
     const { membershipModalBody } = hostEls();
-    if (
-      !membershipModalBody ||
-      typeof IntersectionObserver !== "function"
-    ) {
+    if (!membershipModalBody || typeof IntersectionObserver !== "function") {
       return;
     }
     const gen = membershipScrollGeneration;
-    membershipScrollObserver = new IntersectionObserver(
-      (entries) => {
-        if (gen !== membershipScrollGeneration) return;
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const streamKey = entry.target?.dataset?.membershipGapStream;
-          if (!streamKey) continue;
-          void appendNextMembershipGapPage(streamKey).then((result) => {
-            if (gen !== membershipScrollGeneration) return;
-            if (result?.stale) return;
-          });
-        }
-      },
-      { root: membershipModalBody, rootMargin: "96px 0px", threshold: 0.01 },
-    );
     membershipModalBody
-      .querySelectorAll("[data-membership-gap-sentinel]")
-      .forEach((node) => membershipScrollObserver.observe(node));
+      .querySelectorAll(".cp-readiness-membership-section-table")
+      .forEach((scrollRoot) => {
+        const sentinel = scrollRoot.querySelector(
+          "[data-membership-gap-sentinel]",
+        );
+        if (!sentinel) return;
+        const observer = new IntersectionObserver(
+          (entries) => {
+            if (gen !== membershipScrollGeneration) return;
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const streamKey = entry.target?.dataset?.membershipGapStream;
+              if (!streamKey) continue;
+              void appendNextMembershipGapPage(streamKey).then((result) => {
+                if (gen !== membershipScrollGeneration) return;
+                if (result?.stale) return;
+              });
+            }
+          },
+          { root: scrollRoot, rootMargin: "96px 0px", threshold: 0.01 },
+        );
+        observer.observe(sentinel);
+        membershipScrollObservers.push(observer);
+      });
   }
 
   async function load({
@@ -1531,7 +1537,15 @@ export function createPortfolioReadinessController(deps = {}) {
     on(els.membershipModal, "click", (ev) => {
       if (ev.target === els.membershipModal) {
         closeMembershipModal();
+        return;
       }
+      const retryBtn = ev.target?.closest?.("[data-membership-gap-retry]");
+      if (!retryBtn) return;
+      const streamKey = retryBtn.dataset.membershipGapRetry;
+      const stream = streamKey ? state.membershipStreams[streamKey] : null;
+      if (!stream) return;
+      stream.appendError = null;
+      void appendNextMembershipGapPage(streamKey);
     });
     on(document, "keydown", (ev) => {
       if (ev.key !== "Escape") return;
@@ -1607,33 +1621,18 @@ export function createPortfolioReadinessController(deps = {}) {
     return Number.isFinite(matched) ? matched : null;
   }
 
-  function membershipProgressNote(streamKey) {
+  function membershipSectionStatus(streamKey) {
     const stream = state.membershipStreams[streamKey];
     if (!stream) return "";
-    const matched = stream.matchedCount;
-    const loaded = stream.rows.length;
     if (stream.appendError) {
-      return `<div class="cp-muted-text cp-readiness-gap-bound" role="status">${escapeHtml(
+      return `<div class="cp-readiness-gap-bound status error" role="alert">${escapeHtml(
         stream.appendError,
-      )}</div>`;
+      )} <button type="button" class="cp-prm-link-btn" data-membership-gap-retry="${escapeHtml(
+        streamKey,
+      )}">Retry</button></div>`;
     }
     if (stream.loadingMore) {
-      if (matched != null && loaded < matched) {
-        return `<div class="cp-muted-text cp-readiness-gap-bound" role="status">${text(
-          loaded,
-        )} of ${text(matched)} loaded</div>`;
-      }
-      return `<div class="cp-muted-text cp-readiness-gap-bound" role="status">Loading more…</div>`;
-    }
-    if (stream.hasMore && matched != null && loaded < matched) {
-      return `<div class="cp-muted-text cp-readiness-gap-bound" role="status">${text(
-        loaded,
-      )} of ${text(matched)} loaded</div>`;
-    }
-    if (!stream.hasMore && matched != null && loaded > 0) {
-      return `<div class="cp-muted-text cp-readiness-gap-bound" role="status">${text(
-        matched,
-      )} products</div>`;
+      return `<div class="cp-muted-text cp-readiness-gap-bound" role="status">Loading…</div>`;
     }
     return "";
   }
@@ -1644,7 +1643,7 @@ export function createPortfolioReadinessController(deps = {}) {
     const matched = stream?.matchedCount;
     const matchedLabel =
       matched != null && matched !== "" ? ` (${text(matched, "0")})` : "";
-    const progressNote = membershipProgressNote(streamKey);
+    const sectionStatus = membershipSectionStatus(streamKey);
     const tableHtml = rows.length
       ? `<table class="cp-ccc-register-table costing-pricing-table cp-readiness-gap-table" aria-label="${escapeHtml(
           title,
@@ -1676,8 +1675,7 @@ export function createPortfolioReadinessController(deps = {}) {
       <h4 class="cp-readiness-membership-section-title">${escapeHtml(
         title,
       )}${matchedLabel}</h4>
-      ${progressNote}
-      <div class="cp-readiness-membership-section-table">${tableHtml}${sentinel}</div>
+      <div class="cp-readiness-membership-section-table">${tableHtml}${sentinel}${sectionStatus}</div>
     </section>`;
   }
 

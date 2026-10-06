@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v340"; // WP04-G7 Track B narrow-screen + membership keyset
+const CACHE_NAME = "hub-cache-v341"; // WP04-G7 Track B modal UX + table parity
 
 const PRECACHE = [
   // Hub shell

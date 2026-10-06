@@ -845,6 +845,9 @@ body.sasv-costing-control-center .cp-ccc-register-table thead th {
   border-bottom: 1px solid var(--sasv-border);
   padding: 8px 10px;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 body.sasv-costing-control-center #tableBody td,
@@ -864,15 +867,6 @@ body.sasv-costing-control-center
   tr.cp-readiness-row:hover
   td {
   background: var(--sasv-action-primary-soft);
-}
-
-body.sasv-costing-control-center #mainTable tbody tr:nth-child(even) td,
-body.sasv-costing-control-center
-  .cp-ccc-register-table
-  tbody
-  tr:nth-child(even)
-  td {
-  background: rgba(15, 23, 42, 0.018);
 }
 
 body.sasv-costing-control-center #tableBody td.num,
@@ -1912,17 +1906,6 @@ body.sasv-costing-control-center
   background: transparent;
 }
 
-body.sasv-costing-control-center
-  .cp-readiness-register-wrap
-  .cp-ccc-register-table
-  thead
-  th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--sasv-surface-elevated);
-}
-
 body.sasv-costing-control-center .cp-ccc-scroll-sentinel {
   width: 100%;
   height: 1px;
@@ -2124,18 +2107,22 @@ body.sasv-costing-control-center .cp-readiness-membership-modal-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
   flex: 1 1 auto;
   overscroll-behavior: contain;
 }
 
 body.sasv-costing-control-center .cp-readiness-membership-section {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: min(34vh, 300px);
+  min-height: 0;
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-sm);
   background: var(--sasv-surface-soft);
   padding: 8px 10px;
-  min-height: 0;
 }
 
 body.sasv-costing-control-center .cp-readiness-membership-section-title {
@@ -2145,7 +2132,10 @@ body.sasv-costing-control-center .cp-readiness-membership-section-title {
 }
 
 body.sasv-costing-control-center .cp-readiness-membership-section-table {
+  flex: 1 1 auto;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body.sasv-costing-control-center .cp-membership-gap-sentinel {
@@ -2266,7 +2256,40 @@ body.sasv-costing-control-center .cp-readiness-gap-bound {
   }
 
   body.sasv-costing-control-center .cp-readiness-membership-modal-body {
+    overflow: hidden;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-membership-section {
+    flex: 1 1 0;
+    height: auto;
+    max-height: none;
+  }
+
+  body.sasv-costing-control-center #detailsModal.modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  body.sasv-costing-control-center #detailsModal .modal-window {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  body.sasv-costing-control-center #detailsModal .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sasv-surface-elevated, var(--surface, #fff));
+  }
+
+  body.sasv-costing-control-center #detailsModal #drawerContent {
     overflow-x: hidden;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   body.sasv-costing-control-center .peq-filter-drawer {

@@ -639,8 +639,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v340/.test(sw));
-assert.ok(!/hub-cache-v339/.test(sw));
+assert.ok(/hub-cache-v341/.test(sw));
+assert.ok(!/hub-cache-v340/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -795,10 +795,34 @@ assert.ok(
   ),
 );
 assert.ok(
-  /#mainTable tbody tr:nth-child\(even\) td[\s\S]*cp-ccc-register-table[\s\S]*nth-child\(even\)/.test(
+  /@media \(max-width: 520px\)[\s\S]*#detailsModal[\s\S]*100dvh/.test(
     cssSrc,
   ),
 );
+assert.ok(!/#mainTable tbody tr:nth-child\(even\) td/.test(cssSrc));
+assert.ok(
+  !/\.cp-ccc-register-table[\s\S]*tbody[\s\S]*tr:nth-child\(even\)/.test(
+    cssSrc,
+  ),
+);
+assert.ok(
+  /#mainTable thead th,[\s\S]*\.cp-ccc-register-table thead th[\s\S]*position:\s*sticky/.test(
+    cssSrc,
+  ),
+);
+assert.ok(
+  /cp-readiness-membership-section[\s\S]*flex-direction:\s*column/.test(cssSrc),
+);
+assert.ok(
+  /\.cp-readiness-membership-section-table[\s\S]*overflow-y:\s*auto/.test(
+    cssSrc,
+  ),
+);
+assert.ok(!readinessSrc.includes("membershipProgressNote"));
+assert.ok(!/ of \$\{text\(matched\)\} loaded/.test(readinessSrc));
+assert.ok(readinessSrc.includes(".cp-readiness-membership-section-table"));
+assert.ok(/root:\s*scrollRoot/.test(readinessSrc));
+assert.ok(readinessSrc.includes("data-membership-gap-retry"));
 assert.ok(!cssSrc.includes("cp-readiness-active #costPeriodValuationStrip"));
 assert.ok(cssSrc.includes("cp-ccc-table-work-surface"));
 assert.ok(cssSrc.includes("cp-ccc-table-scroll"));
@@ -879,7 +903,7 @@ pass("readiness scroll sentinel and keyset runtime preserved");
 
 assert.ok(registry.includes("portfolio-readiness"));
 assert.ok(routeConfig.includes("portfolio-readiness"));
-assert.ok(!/hub-cache-v339/.test(sw));
-pass("SW v340 and registry/route unchanged");
+assert.ok(!/hub-cache-v340/.test(sw));
+pass("SW v341 and registry/route unchanged");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");
