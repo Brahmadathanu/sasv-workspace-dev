@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v338"; // WP04-G7 Track B readiness signed-in visual correction
+const CACHE_NAME = "hub-cache-v339"; // WP04-G7 Track B readiness visual-parity polish
 
 const PRECACHE = [
   // Hub shell

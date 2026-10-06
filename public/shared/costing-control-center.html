@@ -2439,15 +2439,14 @@
       </div>
     </div>
 
-    <div id="kpiStripWrap" style="margin-top: 8px; overflow: visible">
+    <div id="kpiStripWrap" class="ccc-chrome-block">
       <div class="kpi-strip" id="kpiStrip"></div>
     </div>
 
     <div
       id="globalSearchCard"
-      class="card search-card"
+      class="card search-card ccc-chrome-block"
       style="
-        margin-top: 8px;
         padding: 8px 10px;
         border-radius: 8px;
         background: var(--panel-bg);
@@ -2850,9 +2849,8 @@
     </div>
 
     <div
-      class="card tabs-card"
+      class="card tabs-card ccc-chrome-block"
       style="
-        margin-top: 6px;
         padding: 8px 10px;
         border-radius: 8px;
         background: var(--panel-bg);
@@ -2887,7 +2885,7 @@
       <div class="lens-pills" id="lensPills"></div>
     </div>
 
-    <div class="main" style="margin-top: 8px">
+    <div class="main ccc-chrome-main">
       <div
         id="readinessLensHost"
         class="cp-readiness-host"
@@ -2896,20 +2894,20 @@
         aria-label="Portfolio readiness"
       >
         <div id="readinessStatus" class="cp-readiness-status"></div>
-        <div class="cp-readiness-register-toolbar">
-          <button
-            id="readinessMembershipExceptionsBtn"
-            type="button"
-            class="icon-btn cp-readiness-membership-btn"
-            aria-haspopup="dialog"
-            aria-controls="readinessMembershipModal"
-          >
-            Membership exceptions
-          </button>
-        </div>
         <div class="table-card cp-readiness-register-region cp-ccc-table-work-surface">
+          <div class="cp-readiness-register-card-toolbar">
+            <button
+              id="readinessMembershipExceptionsBtn"
+              type="button"
+              class="cp-readiness-membership-btn"
+              aria-haspopup="dialog"
+              aria-controls="readinessMembershipModal"
+            >
+              Membership exceptions
+            </button>
+          </div>
           <div class="cp-readiness-register-wrap cp-ccc-table-scroll">
-            <table class="cp-readiness-table cp-ccc-register-table" aria-label="Portfolio readiness register">
+            <table class="cp-readiness-table cp-ccc-register-table costing-pricing-table" aria-label="Portfolio readiness register">
               <thead>
                 <tr>
                   <th>Product / SKU</th>

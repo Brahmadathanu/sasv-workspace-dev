@@ -1890,6 +1890,29 @@ function resetCccProgressiveWindow() {
   cccRenderedThrough = 0;
 }
 
+function formatCpvDisplayDate(value) {
+  if (value == null || value === "") return "—";
+  const raw = String(value).slice(0, 10);
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return raw;
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const month = months[Number(m[2]) - 1] || m[2];
+  return `${Number(m[3])} ${month} ${m[1]}`;
+}
+
 function paintReadinessValuationFromContext(context = {}) {
   const strip = $("costPeriodValuationStrip");
   if (!strip || !isPortfolioReadinessLens(CURRENT_LENS)) return;
@@ -1901,7 +1924,7 @@ function paintReadinessValuationFromContext(context = {}) {
   const valuationRaw = context.valuation_date;
   const valuation =
     valuationRaw != null && String(valuationRaw).trim() !== ""
-      ? formatDate(String(valuationRaw).slice(0, 10))
+      ? formatCpvDisplayDate(String(valuationRaw).slice(0, 10))
       : "—";
   if (chipValue) chipValue.textContent = valuation;
   const chipBtn = $("cpvValuationChip");

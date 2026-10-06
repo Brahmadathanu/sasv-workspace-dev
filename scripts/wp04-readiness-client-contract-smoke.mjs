@@ -639,8 +639,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v338/.test(sw));
-assert.ok(!/hub-cache-v337/.test(sw));
+assert.ok(/hub-cache-v339/.test(sw));
+assert.ok(!/hub-cache-v338/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -692,7 +692,13 @@ assert.ok(!/setVisible\(\s*kpiStripWrap,\s*false/.test(shellSrc.split("function 
 assert.ok(/setVisible\(\s*peqFilterWrapper,\s*true/.test(shellSrc.split("function syncReadinessShellChrome")[1] || ""));
 assert.ok(!/setVisible\(\s*peqFilterWrapper,\s*false/.test(shellSrc.split("function syncReadinessShellChrome")[1]?.split("function syncPortfolioReadinessFilterChrome")[0] || ""));
 assert.ok(/paintReadinessValuationFromContext/.test(shellSrc));
-assert.ok(/formatDate\(String\(valuationRaw\)/.test(shellSrc));
+assert.ok(/function formatCpvDisplayDate/.test(shellSrc));
+assert.ok(/formatCpvDisplayDate\(String\(valuationRaw\)/.test(shellSrc));
+assert.ok(!/formatDate\(String\(valuationRaw\)/.test(shellSrc));
+assert.match(
+  shellSrc.match(/function formatCpvDisplayDate[\s\S]*?\n\}/)?.[0] || "",
+  /"Sep"/,
+);
 assert.ok(/renderReadinessGovernedPeriodOptions/.test(shellSrc));
 assert.ok(/formatPeriodMonth\(row\.period_start\)/.test(shellSrc));
 assert.ok(/maybeFillReadinessViewport/.test(shellSrc));
@@ -780,5 +786,73 @@ assert.ok(
 );
 assert.ok(/rebuildPeqFilterOptionsFromRows/.test(controlCenterSrc));
 pass("Track B no client severity authority; unified CCC table work surface");
+
+// ── Track B visual-parity polish (package §10) ─────────────────────────────
+const registerRegionChunk =
+  htmlSrc
+    .split('class="table-card cp-readiness-register-region cp-ccc-table-work-surface"')[1]
+    ?.split("</div>")[0] || "";
+assert.ok(registerRegionChunk.includes('id="readinessMembershipExceptionsBtn"'));
+assert.ok(registerRegionChunk.includes("cp-readiness-register-card-toolbar"));
+assert.ok(!htmlSrc.includes("cp-readiness-register-toolbar"));
+assert.ok(!htmlSrc.includes('class="icon-btn cp-readiness-membership-btn"'));
+assert.ok(
+  /cp-readiness-register-region[\s\S]*readinessMembershipExceptionsBtn[\s\S]*cp-readiness-register-wrap/.test(
+    hostChunk,
+  ),
+);
+pass("membership button lives inside register card toolbar");
+
+assert.ok(cssSrc.includes("#lensSuiteLabel"));
+assert.match(
+  cssSrc.match(
+    /body\.sasv-costing-control-center #lensSuiteLabel[\s\S]*?\}/,
+  )?.[0] || "",
+  /display:\s*none/,
+);
+pass("CCC lens breadcrumb hidden via CSS only");
+
+assert.ok(cssSrc.includes(".cp-readiness-membership-btn:hover"));
+assert.ok(cssSrc.includes(".cp-readiness-membership-btn:focus-visible"));
+assert.ok(cssSrc.includes("cursor: pointer"));
+pass("membership button actionable secondary styling");
+
+assert.ok(readinessSrc.includes("cp-ccc-register-table costing-pricing-table cp-readiness-gap-table"));
+assert.ok(readinessSrc.includes("<th scope=\"col\">Product</th>"));
+assert.ok(!readinessSrc.includes("cp-readiness-gap-detail-list"));
+assert.ok(!/<ul class="cp-readiness-gap/.test(readinessSrc));
+pass("membership modal uses compact read-only tables");
+
+assert.ok(
+  /#mainTable thead th,\s*\nbody\.sasv-costing-control-center \.cp-ccc-register-table thead th/.test(
+    cssSrc,
+  ),
+);
+assert.ok(
+  /#mainTable tbody td,\s*\nbody\.sasv-costing-control-center \.cp-ccc-register-table tbody td/.test(
+    cssSrc,
+  ),
+);
+assert.ok(!/body\.sasv-costing-control-center \.cp-readiness-table td \{/.test(cssSrc));
+assert.ok(htmlSrc.includes("cp-ccc-register-table costing-pricing-table"));
+pass("readiness register shares #mainTable table contract");
+
+assert.ok(!htmlSrc.includes("margin-top: 6px"));
+assert.ok(!htmlSrc.match(/class="main" style="margin-top: 8px"/));
+assert.ok(htmlSrc.includes('class="main ccc-chrome-main"'));
+assert.ok(cssSrc.includes(".ccc-chrome-main"));
+assert.ok(cssSrc.includes(".ccc-chrome-block"));
+pass("CCC vertical spacing tightened; no inline 6/8px chrome margins");
+
+assert.ok(/readinessScrollSentinel/.test(htmlSrc));
+assert.ok(/maybeFillReadinessViewport/.test(shellSrc));
+assert.ok(/appendNextPortfolioPage/.test(readinessSrc));
+assert.ok(/dedupeReadinessRows/.test(readinessSrc));
+pass("readiness scroll sentinel and keyset runtime preserved");
+
+assert.ok(registry.includes("portfolio-readiness"));
+assert.ok(routeConfig.includes("portfolio-readiness"));
+assert.ok(!/hub-cache-v338/.test(sw));
+pass("SW v339 and registry/route unchanged");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");

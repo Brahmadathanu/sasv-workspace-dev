@@ -1437,22 +1437,37 @@ export function createPortfolioReadinessController(deps = {}) {
             "0",
           )}</div>`
         : "";
-    const listHtml = rows.length
-      ? `<ul class="cp-readiness-gap-detail-list">${rows
-          .map(
-            (row) =>
-              `<li><strong>${text(row.product_name)}</strong> · ${text(
-                row.product_status,
-              )} · ${text(row.gap_kind)}</li>`,
-          )
-          .join("")}</ul>`
+    const matchedLabel =
+      matched != null && matched !== "" ? ` (${text(matched, "0")})` : "";
+    const tableHtml = rows.length
+      ? `<table class="cp-ccc-register-table costing-pricing-table cp-readiness-gap-table" aria-label="${escapeHtml(
+          title,
+        )}">
+          <thead>
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col">Status</th>
+              <th scope="col">Gap</th>
+            </tr>
+          </thead>
+          <tbody>${rows
+            .map(
+              (row) =>
+                `<tr><td>${text(row.product_name)}</td><td>${text(
+                  row.product_status,
+                )}</td><td>${text(row.gap_kind)}</td></tr>`,
+            )
+            .join("")}</tbody>
+        </table>`
       : `<div class="cp-muted-text">None</div>`;
     return `<section class="cp-readiness-membership-section" aria-label="${escapeHtml(
       title,
     )}">
-      <h4 class="cp-readiness-membership-section-title">${escapeHtml(title)}</h4>
+      <h4 class="cp-readiness-membership-section-title">${escapeHtml(
+        title,
+      )}${matchedLabel}</h4>
       ${boundNote}
-      <div class="cp-readiness-membership-section-scroll">${listHtml}</div>
+      <div class="cp-readiness-membership-section-scroll">${tableHtml}</div>
     </section>`;
   }
 
