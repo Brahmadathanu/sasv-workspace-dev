@@ -639,8 +639,8 @@ assert.ok(routeConfig.includes('defaultLens: "dashboard"'));
 assert.ok(shellSrc.includes("costing-suite-readiness.js"));
 assert.ok(shellSrc.includes("isPortfolioReadinessLens"));
 assert.ok(htmlSrc.includes("readinessLensHost"));
-assert.ok(/hub-cache-v341/.test(sw));
-assert.ok(!/hub-cache-v340/.test(sw));
+assert.ok(/hub-cache-v342/.test(sw));
+assert.ok(!/hub-cache-v341/.test(sw));
 assert.ok(/costing-suite-readiness/.test(sw));
 pass("registry/route/shell/html/sw integration markers");
 
@@ -903,7 +903,85 @@ pass("readiness scroll sentinel and keyset runtime preserved");
 
 assert.ok(registry.includes("portfolio-readiness"));
 assert.ok(routeConfig.includes("portfolio-readiness"));
-assert.ok(!/hub-cache-v340/.test(sw));
-pass("SW v341 and registry/route unchanged");
+assert.ok(/hub-cache-v342/.test(sw));
+assert.ok(!/hub-cache-v341/.test(sw));
+pass("SW v342 and registry/route unchanged");
+
+// ── Membership scroll-preservation (append rerender) ───────────────────────
+assert.ok(/function captureMembershipSectionScrollTops/.test(readinessSrc));
+assert.ok(/function restoreMembershipSectionScrollTops/.test(readinessSrc));
+assert.ok(
+  /data-membership-gap-stream="\$\{escapeHtml\(\s*streamKey/.test(readinessSrc),
+);
+assert.ok(
+  /cp-readiness-membership-section-table" data-membership-gap-stream=/.test(
+    readinessSrc,
+  ),
+);
+const renderMembershipBodyFn =
+  readinessSrc.split("function renderMembershipModalBody")[1]?.split(
+    "function openMembershipModal",
+  )[0] || "";
+assert.ok(/captureMembershipSectionScrollTops\s*\(/.test(renderMembershipBodyFn));
+assert.ok(/restoreMembershipSectionScrollTops\s*\(/.test(renderMembershipBodyFn));
+assert.ok(/restoreScroll/.test(renderMembershipBodyFn));
+assert.ok(
+  /restoreMembershipSectionScrollTops[\s\S]*setupMembershipModalScroll\s*\(/.test(
+    renderMembershipBodyFn,
+  ),
+);
+assert.ok(!/localStorage|sessionStorage/.test(renderMembershipBodyFn));
+const openMembershipFn =
+  readinessSrc.split("function openMembershipModal")[1]?.split(
+    "function closeMembershipModal",
+  )[0] || "";
+assert.ok(
+  /renderMembershipModalBody\(\s*\{\s*restoreScroll:\s*false\s*\}\s*\)/.test(
+    openMembershipFn,
+  ),
+);
+const closeMembershipFn =
+  readinessSrc.split("function closeMembershipModal")[1]?.split(
+    "function membershipExceptionsAccessibleLabel",
+  )[0] || "";
+assert.ok(/teardownMembershipModalScroll\s*\(/.test(closeMembershipFn));
+assert.ok(/membershipModalBody\.innerHTML\s*=\s*""/.test(closeMembershipFn));
+assert.ok(!/restoreMembershipSectionScrollTops/.test(closeMembershipFn));
+const fetchGapFinally =
+  readinessSrc.split("async function fetchMembershipGapPage")[1]?.split(
+    "async function loadProductGaps",
+  )[0] || "";
+assert.ok(
+  /renderMembershipModalBody\(\s*\{\s*restoreScroll:\s*append\s*\}\s*\)/.test(
+    fetchGapFinally,
+  ),
+);
+assert.ok(
+  !/renderMembershipModalBody\s*\([^)]*\);\s*setupMembershipModalScroll\s*\(/.test(
+    fetchGapFinally,
+  ),
+);
+const loadGapsFinally =
+  readinessSrc.split("async function loadProductGaps")[1]?.split(
+    "async function appendNextMembershipGapPage",
+  )[0] || "";
+assert.ok(
+  /renderMembershipModalBody\(\s*\{\s*restoreScroll:\s*false\s*\}\s*\)/.test(
+    loadGapsFinally,
+  ),
+);
+assert.ok(
+  !/renderMembershipModalBody\s*\([^)]*\);\s*setupMembershipModalScroll\s*\(/.test(
+    loadGapsFinally,
+  ),
+);
+assert.ok(/root:\s*scrollRoot/.test(readinessSrc));
+assert.ok(/data-membership-gap-stream/.test(readinessSrc));
+assert.ok(/p_after_product_id/.test(readinessSrc));
+assert.ok(/next_after_product_id/.test(readinessSrc));
+assert.ok(/appendNextPortfolioPage/.test(readinessSrc));
+assert.ok(/maybeFillReadinessViewport/.test(readinessSrc));
+assert.ok(/dedupeReadinessRows/.test(readinessSrc));
+pass("Membership section scroll preserved per stream; single observer arm after restore");
 
 console.log("\nAll WP04-G5 readiness client contract smoke checks passed.");

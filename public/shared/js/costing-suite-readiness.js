@@ -1100,8 +1100,9 @@ export function createPortfolioReadinessController(deps = {}) {
         stream.loadingMore = false;
         renderMembershipExceptionsButton();
         if (state.membershipModalOpen) {
-          renderMembershipModalBody();
-          setupMembershipModalScroll();
+          // Append keeps per-stream scroll; first-page / reset starts at top.
+          // Scroll restore + single observer arm happen inside renderMembershipModalBody.
+          renderMembershipModalBody({ restoreScroll: append });
         }
       }
     }
@@ -1142,8 +1143,8 @@ export function createPortfolioReadinessController(deps = {}) {
         state.loadingGaps = false;
         renderMembershipExceptionsButton();
         if (state.membershipModalOpen) {
-          renderMembershipModalBody();
-          setupMembershipModalScroll();
+          // Full Membership stream reset always starts section scroll at top.
+          renderMembershipModalBody({ restoreScroll: false });
         }
       }
     }
@@ -1675,21 +1676,65 @@ export function createPortfolioReadinessController(deps = {}) {
       <h4 class="cp-readiness-membership-section-title">${escapeHtml(
         title,
       )}${matchedLabel}</h4>
-      <div class="cp-readiness-membership-section-table">${tableHtml}${sentinel}${sectionStatus}</div>
+      <div class="cp-readiness-membership-section-table" data-membership-gap-stream="${escapeHtml(
+        streamKey,
+      )}">${tableHtml}${sentinel}${sectionStatus}</div>
     </section>`;
   }
 
-  function renderMembershipModalBody() {
+  /** Capture per-stream Membership table scrollTops before DOM rebuild (same modal session only). */
+  function captureMembershipSectionScrollTops() {
+    const { membershipModalBody } = hostEls();
+    const positions = Object.create(null);
+    if (!membershipModalBody) return positions;
+    membershipModalBody
+      .querySelectorAll(
+        ".cp-readiness-membership-section-table[data-membership-gap-stream]",
+      )
+      .forEach((el) => {
+        const streamKey = el.getAttribute("data-membership-gap-stream");
+        if (!streamKey) return;
+        positions[streamKey] = el.scrollTop;
+      });
+    return positions;
+  }
+
+  /** Restore captured per-stream scrollTops onto matching section tables after rebuild. */
+  function restoreMembershipSectionScrollTops(positions) {
+    const { membershipModalBody } = hostEls();
+    if (!membershipModalBody || !positions) return;
+    membershipModalBody
+      .querySelectorAll(
+        ".cp-readiness-membership-section-table[data-membership-gap-stream]",
+      )
+      .forEach((el) => {
+        const streamKey = el.getAttribute("data-membership-gap-stream");
+        if (!streamKey || !Object.prototype.hasOwnProperty.call(positions, streamKey)) {
+          return;
+        }
+        const top = Number(positions[streamKey]);
+        el.scrollTop = Number.isFinite(top) ? top : 0;
+      });
+  }
+
+  function renderMembershipModalBody({ restoreScroll = true } = {}) {
     const { membershipModalBody } = hostEls();
     if (!membershipModalBody) return;
+    // Capture live per-stream scrollTops only for same-session append/status rerenders.
+    // First open, close/reopen, and full stream reset pass restoreScroll:false → start at top.
+    const scrollPositions = restoreScroll
+      ? captureMembershipSectionScrollTops()
+      : Object.create(null);
     if (state.loadingGaps) {
       membershipModalBody.innerHTML = `<div class="status" role="status">Loading product gaps…</div>`;
+      teardownMembershipModalScroll();
       return;
     }
     if (state.gapsUnavailable) {
       membershipModalBody.innerHTML = `<div class="status error" role="alert">${escapeHtml(
         state.gapsError || "Product gaps unavailable",
       )}</div>`;
+      teardownMembershipModalScroll();
       return;
     }
     membershipModalBody.innerHTML = `
@@ -1701,6 +1746,9 @@ export function createPortfolioReadinessController(deps = {}) {
         "Active products without active SKU",
         "active_without_active_sku",
       )}`;
+    if (restoreScroll) {
+      restoreMembershipSectionScrollTops(scrollPositions);
+    }
     setupMembershipModalScroll();
   }
 
@@ -1723,14 +1771,16 @@ export function createPortfolioReadinessController(deps = {}) {
         );
       }
     }
-    renderMembershipModalBody();
+    renderMembershipModalBody({ restoreScroll: false });
   }
 
   function closeMembershipModal() {
-    const { membershipModal } = hostEls();
+    const { membershipModal, membershipModalBody } = hostEls();
     state.membershipModalOpen = false;
     teardownMembershipModalScroll();
     resetMembershipGapStreamPresentation();
+    // Drop live section DOM so scroll positions cannot survive into the next modal session.
+    if (membershipModalBody) membershipModalBody.innerHTML = "";
     if (!membershipModal) return;
     membershipModal.classList.add("hidden");
     membershipModal.setAttribute("hidden", "");

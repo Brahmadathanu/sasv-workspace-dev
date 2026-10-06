@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v341"; // WP04-G7 Track B modal UX + table parity
+const CACHE_NAME = "hub-cache-v342"; // WP04-G7 Track B membership scroll preservation
 
 const PRECACHE = [
   // Hub shell
