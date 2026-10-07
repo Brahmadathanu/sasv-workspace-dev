@@ -78,3 +78,23 @@
 **Impact:** Presentation only. Product, SKU, readiness, permission, and server contracts are unchanged.
 **Status:** LOCKED
 **Evidence:** DEC-012 remains recorded above and is not erased.
+
+## 2026-10-02 — DEC-014 — Server/client execution ownership clarification
+**Decision:** ChatGPT owns server analysis, reviewed package implementation and live verification directly through Supabase/server tools. Server implementation is not bound to GitHub commits, PRs, merges, Cursor/Codex handoff or local CLI-generated repository migrations. Client implementation remains through Cursor/Codex on an isolated branch, followed by ChatGPT audit of the actual pushed implementation and explicit merge authorization.
+**Reason:** User explicitly reconfirmed this ownership division during WP04. Prior server wording was generic; WP04's proposed CLI/repository artifact steps over-bound server delivery to the client pipeline.
+**Impact:** Clarifies execution ownership and removes artificial server Git/local-tool prerequisites. Repository MD still carries durable workflow authority; optional SQL/rollback artifacts may be retained for traceability. High-risk Plan → review → authorized application, target/rollback safeguards, Supabase operation records where applicable and live verification remain required. No particular database mutation, paid provisioning, client implementation or merge is approved by this clarification.
+**Affected:** IMPLEMENTATION_RULES, MASTER_PROGRAMME, WORKPACK_HANDOVER_TEMPLATE and WP04 server-package planning.
+**Status:** LOCKED — workflow ownership; existing readiness/business/security decisions unchanged.
+
+## 2026-10-05 — DEC-015 — WP04 G4 closure / performance limitation / G7 native verification
+**Decision:** WP04-G4 server implementation is accepted and closed with the committed C contract active in production. Server performance feasibility is ACCEPTED WITH MEASURED LIMITATION: 6938.008 ms and 5084.304 ms for full-611 OPERATIONAL/full-statistics; provisional 3s/5s engineering goals remain UNMET/NON-BLOCKING and are not SLAs. No further speculative G4 optimization is permitted. Genuine signed-in native Auth/API runtime permission verification is mandatory at WP04-G7, not waived or relabelled PASS. Broader caching/materialization/page-statistics separation/precomputation/subset-route redesign is deferred to a separate architectural work item.
+**Reason:** Correctness/parity/access-source/payload/filter/no-success/rollback obligations are closed; C is committed and independently verified. Current synchronous canonical full-population/statistics semantics make the remaining latency materially architectural, while the repository explicitly defined 3s/5s as provisional engineering targets. Native API proof requires the signed-in application surface already assigned to G7.
+**Impact:** G4 may be marked COMPLETED AND VERIFIED and G5 client implementation may open from a frozen bounded package. G7 remains a hard verification gate for native permissions and live performance before G8 closure.
+**Affected:** WP-04-READINESS-CONTROL-CENTRE.md, MASTER_PROGRAMME.md, WP-04-G5-CLIENT-PACKAGE.md, PARKED_BACKLOG.md.
+**Status:** LOCKED for WP04 gate governance; measured performance figures and UNMET status remain historical evidence and must not be rewritten as PASS.
+
+## 2026-10-07 — WP04 G7 recovery acceptance / ledger reconciliation
+**Decision:** After original G7 signed-in verification exposed native 8-second portfolio instability and material CCC/Readiness UX defects, G7 recovery Track A is recorded CLOSED/APPLIED/PROVEN (production Build 4 / COMPLETED / current / period 2026-09-01 / valuation 2026-09-10 / Run 115 / 1793 ALL_EXISTING / 611 OPERATIONAL / OPERATIONAL mismatch 0 / indexed reader under 8s / fail-closed stale-absent-incomplete proven / CSE-P01 unchanged). Track B is recorded ACCEPTED at `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`, including startup-timeout repair that removes normal CCC queries of parked legacy `public.v_costing_pricing_dashboard_summary` and corrects Scheme/Margin Risk from duplicate 1764 to governed 882. Exact current gate is **WP04 G7 restart boundary**. Formal G7 has not been rerun after recovery; no Track A rerun without fresh defect evidence; Track B has no GitHub CI evidence; WP05/G8/merge/release/publish have not started.
+**Reason:** Authoritative programme/WP04 docs on the recovery branch were stale versus independently verified recovery state and required ledger reconciliation before G7 restart.
+**Impact:** Documentation/workflow authority only. Does not reopen G0–G6, does not authorize merge/release, and does not start WP05 or G8.
+**Status:** RECORDED — preserves DEC-011 / DEC-014 / DEC-015.

@@ -1,7 +1,11 @@
 # Implementation Rules
 
 ## Server responsibility
-- Supabase/server work uses the authoritative server workflow.
+- ChatGPT owns server analysis, package planning/review, implementation and live verification through the connected Supabase/server tools. Client executors do not own server application merely because a client package depends on it.
+- Server work follows live inspection → concrete plan/review for high-risk changes → authorized direct server application → live verification → durable workflow/evidence handover.
+- Server implementation is not bound to GitHub: no Cursor/Codex handoff, repository commit/push, PR, merge or local CLI-generated migration is required as a server-apply prerequisite. Use the appropriate supported Supabase operation and retain its operation/migration record where applicable.
+- Repository MD remains the durable programme/gate authority. SQL/migration/rollback evidence may be retained in Git for traceability where useful; this does not turn server delivery into the client Git pipeline.
+- Direct server ownership does not waive high-risk review, target validation, rollback, permission/RLS/evidence safeguards or required live verification; role assignment alone does not approve an unspecified mutation.
 - Inspect live server architecture before mutation.
 - Do not rewrite effective-dated/history data.
 - Do not guess business/master data.
@@ -19,6 +23,8 @@
 7. Merge to current main, post-merge verification, and branch/worktree cleanup follow only after approval.
 
 ### High-risk client work
+Server dependencies remain ChatGPT-owned under the server workflow above. A client plan may identify a required server contract, but Cursor/Codex must not invent or apply that contract as client work.
+
 Use a separate Cursor/Codex PLAN → independent ChatGPT plan audit → autonomous implementation gate for architecture changes, database/schema/RPC contracts, authentication/permissions, production-data mutation risk, destructive operations, major cross-module refactoring, unclear business-rule decisions, or security-sensitive behavior.
 
 ### Agent stop conditions

@@ -30,7 +30,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP01 — Canonical Product/SKU Completeness Contract
 - [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED, VERIFIED, AND MERGED
 - [x] WP03 — Creation-Time Guided Completeness — COMPLETED, VERIFIED, AND MERGED
-- [ ] WP04 — Central Master Data / Costing Readiness Control Centre
+- [~] WP04 — Central Master Data / Costing Readiness Control Centre — ACTIVE (not yet merged/closed)
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
 - [ ] WP06 — Pricing Policy Manager Simplification
 - [ ] WP07 — Costing Suite Navigation and Information Architecture
@@ -47,13 +47,15 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-None. WP03 — Creation-Time Guided Completeness is completed, verified, merged, and closed. WP02 remains completed, verified, merged, and closed.
+WP04 — Central Master Data / Costing Readiness Control Centre. WP04 remains active and is not yet merged or closed. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
 
 ## Active gate
-None. WP03-G7 is completed and verified. WP04 has not started.
+`WP04 G7 restart boundary`
+
+G0–G6 are completed and preserved. Original G7 signed-in verification exposed native 8-second portfolio instability and material CCC/Readiness UX integration defects; G7 was blocked and recovery split into Track A / Track B. Track A is CLOSED / APPLIED / PROVEN. Track B is ACCEPTED at `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Formal G7 has not yet been rerun after recovery. WP05 and G8 have not started. No merge/release/publish has occurred.
 
 ## Overall completion progress
-4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. A subsequent e-Aushadhi-only merge advanced `main` without WP02 overlap. WP03-G1 audited `main` at `f22b36ca7077fcf70943112fb0aee6380af93e8d`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
+4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP04 is in progress on branch `fix/wp04-g7-track-b-readiness-ux` at accepted Track B head `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -65,16 +67,26 @@ None. WP03-G7 is completed and verified. WP04 has not started.
 - Product detail is the Product/SKU lifecycle anchor; SKU master, activation and readiness remain separate.
 - Product Master readiness uses LIVE_AS_OF only for an explicit server-governed period.
 - Manage Products readiness visibility does not require granting Costing Control Center module access.
+- DEC-011 autonomous gate-based client implementation remains LOCKED.
+- DEC-014 server/client execution ownership remains LOCKED.
+- DEC-015 WP04 G4 closure / measured performance limitation / mandatory G7 native verification remains LOCKED.
 
 ## Major unresolved blockers
-No WP02 blocker remains, and WP03-G1 found no WP03 blocker. These findings stay parked for their assigned later work and do not reopen WP02 or WP03:
+No WP02/WP03 blocker remains. Parked items stay parked for their assigned later work:
 
-- UX-P02, remaining Manage Products aesthetic and interaction hardening: PARKED → WP11.
-- Broader Product / Master Data navigation: PARKED → WP08.
-- Commercial-sales LIVE_AS_OF row authority is ambiguous when multiple snapshot rows exist for one SKU/period. This stays in costing/commercial-sales evidence governance and is not solved.
+- UX-P02 → WP11.
+- NAV-P01 / NAV-P02 → WP08.
+- CSE-P01 commercial-sales LIVE_AS_OF multi-row authority → costing/commercial-sales evidence governance.
+- PERF-P01 broader portfolio-readiness performance architecture → separate future architectural decision.
+- WP05 park candidates from Track B acceptance (SKU Control Status ↔ Readiness rationalisation; wider Costing/Pricing Policy Manager duplication audit; parked legacy dashboard-summary dependency audit) → WP05; WP05 has not started.
+
+No Track A rerun is required without fresh defect evidence.
 
 ## Immediate next action
-Start WP04 — Central Master Data / Costing Readiness Control Centre in a new chat. Do not start WP04 in the WP03 closure chat. Do not reopen WP02 or WP03 except for a demonstrated regression or an explicitly assigned parked item.
+Restart the formal G7 signed-in/native verification from the beginning against the frozen candidate branch/head `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`, without reopening completed recovery work unless fresh evidence proves a defect. Do not start G8 or WP05. Do not merge/release/publish.
+
+## Server development operating model
+ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
 
 ## Client development operating model
 Routine bounded client work uses the repository autonomous gate model: ChatGPT freezes one complete work package; Cursor/Codex autonomously analyze, implement, test, self-review, fix, commit and push on an isolated task branch/worktree; ChatGPT audits the pushed GitHub implementation and may request one consolidated correction pass before explicit merge approval.
