@@ -3499,14 +3499,20 @@ async function resolveActivePeriodStart() {
     console.warn("Control dashboard snapshot period resolution failed", err);
   }
 
-  const { data: fallbackRows, error: fallbackErr } = await costingFrom(
-    "v_costing_pricing_dashboard_summary",
-  )
-    .select("period_start")
-    .order("period_start", { ascending: false })
-    .limit(1);
-  if (fallbackErr) throw fallbackErr;
-  return fallbackRows?.[0]?.period_start || currentMonth;
+  // Legacy dashboard summary is parked; use Business KPI summary for period fallback.
+  try {
+    const { data: fallbackRows, error: fallbackErr } = await costingFrom(
+      "v_costing_pricing_business_kpi_summary",
+    )
+      .select("period_start")
+      .order("period_start", { ascending: false })
+      .limit(1);
+    if (fallbackErr) throw fallbackErr;
+    if (fallbackRows?.[0]?.period_start) return fallbackRows[0].period_start;
+  } catch (fallbackErr) {
+    console.warn("Business KPI summary period fallback failed", fallbackErr);
+  }
+  return currentMonth;
 }
 
 function isRmCostTraceLensActive() {
