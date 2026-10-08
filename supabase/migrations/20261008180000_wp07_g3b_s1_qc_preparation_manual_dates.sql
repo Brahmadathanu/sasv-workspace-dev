@@ -36,9 +36,9 @@ create index eaushadhi_qc_preparation_event_history_idx on regulatory.eaushadhi_
 alter table regulatory.eaushadhi_qc_preparation enable row level security;
 alter table regulatory.eaushadhi_qc_preparation_event enable row level security;
 revoke all on regulatory.eaushadhi_qc_preparation, regulatory.eaushadhi_qc_preparation_event from public,anon,authenticated;
-grant select,insert,update on regulatory.eaushadhi_qc_preparation to service_role;
-grant select,insert on regulatory.eaushadhi_qc_preparation_event to service_role;
-grant usage,select on sequence regulatory.eaushadhi_qc_preparation_event_event_id_seq to service_role;
+-- No direct table grants: even service_role must use the audited RPC surface.
+revoke all on regulatory.eaushadhi_qc_preparation, regulatory.eaushadhi_qc_preparation_event from service_role;
+revoke all on sequence regulatory.eaushadhi_qc_preparation_event_event_id_seq from public,anon,authenticated,service_role;
 
 create or replace function regulatory.eaushadhi_qc_preparation_review_v1(p_payload jsonb)
 returns jsonb language plpgsql stable security definer
