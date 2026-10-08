@@ -38,7 +38,7 @@ begin
   end if;
   for v_key in select unnest(array['study_start_date','study_end_date','report_date']) loop
     v_date:=p_payload->>v_key;
-    if v_date is null or v_date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} then
+    if v_date is null or v_date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
       v_reasons:=array_append(v_reasons,upper(v_key)||'_REQUIRED_OR_INVALID');
     else
       begin
