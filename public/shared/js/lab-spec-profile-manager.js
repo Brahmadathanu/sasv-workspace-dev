@@ -8,6 +8,11 @@
 
 import { supabase, labSupabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import {
+  normalizeLabUserError,
+  rangePayloadError,
+  reviewRangeApprovalBlock,
+} from "./lab-user-error.js";
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const homeBtn = document.getElementById("homeBtn");
@@ -4211,6 +4216,8 @@ function collectSupersedeFormPayload() {
     }
     minVal = Number(minRaw);
     maxVal = Number(maxRaw);
+    const rangeError = rangePayloadError("RANGE", minVal, maxVal);
+    if (rangeError) return { error: rangeError };
   } else if (specType === "NMT") {
     const maxRaw = document.getElementById("specOverrideSupersedeMax")?.value.trim();
     if (!maxRaw) return { error: "Max value is required for NMT." };
@@ -4522,6 +4529,16 @@ async function confirmAppliedOverrideSupersede() {
     return;
   }
 
+  const supersedeRangeError = rangePayloadError(
+    payload.specType,
+    payload.minValue,
+    payload.maxValue,
+  );
+  if (supersedeRangeError) {
+    toast(supersedeRangeError, "warn");
+    return;
+  }
+
   overrideRegisterActionInFlight = true;
   syncSupersedeConfirmActions(true);
   syncSupersedeFormActions(true);
@@ -4555,14 +4572,20 @@ async function confirmAppliedOverrideSupersede() {
     });
 
     if (error) {
-      toast("Failed to supersede override: " + error.message, "error");
+      console.error("[SPM] fn_supersede_spec_override error:", error);
+      toast(normalizeLabUserError(error), "error");
       closeSupersedeConfirmModal();
       return;
     }
 
     const result = parseOverrideLifecycleRpcResponse(data);
     if (!result.ok) {
-      toast(result.message || "Override supersede was not completed.", "warn");
+      toast(
+        result.message
+          ? normalizeLabUserError({ message: result.message })
+          : "Override supersede was not completed.",
+        "warn",
+      );
       closeSupersedeConfirmModal();
       return;
     }
@@ -4576,10 +4599,8 @@ async function confirmAppliedOverrideSupersede() {
     closeOverrideRegisterModal();
     shouldRefresh = true;
   } catch (err) {
-    toast(
-      "Failed to supersede override: " + (err?.message || String(err)),
-      "error",
-    );
+    console.error("[SPM] fn_supersede_spec_override error:", err);
+    toast(normalizeLabUserError(err), "error");
     closeSupersedeConfirmModal();
   } finally {
     overrideRegisterActionInFlight = false;
@@ -6055,6 +6076,12 @@ async function submitSpecRequestReview(action, options = {}) {
       return;
     }
 
+    const approvalRangeBlock = reviewRangeApprovalBlock(action, request);
+    if (approvalRangeBlock.blocked) {
+      toast(approvalRangeBlock.error, "warn");
+      return;
+    }
+
     if (continueNext) {
       reviewedRequestIdForNext = String(rawRequestId);
       priorOrderIdsForNext = getFilteredReviewQueueRows().map((r) =>
@@ -6094,10 +6121,7 @@ async function submitSpecRequestReview(action, options = {}) {
 
     if (error) {
       console.error("Spec request review RPC error", error);
-      toast(
-        `Failed to ${action === "approve" ? "approve" : "reject"} request: ${error.message}`,
-        "error",
-      );
+      toast(normalizeLabUserError(error), "error");
       return;
     }
 
@@ -6115,12 +6139,8 @@ async function submitSpecRequestReview(action, options = {}) {
       shouldRefresh = true;
     }
   } catch (err) {
-    const message = err?.message || String(err);
     console.error("Spec request review unexpected error", err);
-    toast(
-      `Failed to ${action === "approve" ? "approve" : "reject"} request: ${message}`,
-      "error",
-    );
+    toast(normalizeLabUserError(err), "error");
   } finally {
     specRequestReviewInFlight = false;
 
@@ -11479,6 +11499,11 @@ async function saveOverrideModal() {
         );
         return;
       }
+      const rangeError = rangePayloadError("RANGE", minVal, maxVal);
+      if (rangeError) {
+        showBanner(banner, "error", rangeError);
+        return;
+      }
       displayText = `${minVal} – ${maxVal}`;
     } else if (specType === "NMT") {
       maxVal = document.getElementById("ovModalMax")?.value.trim() || null;
@@ -11583,7 +11608,8 @@ async function saveOverrideModal() {
     });
 
     if (error) {
-      showBanner(banner, "error", "Failed to save override: " + error.message);
+      console.error("[SPM] fn_save_spec_override_direct error:", error);
+      showBanner(banner, "error", normalizeLabUserError(error));
       return;
     }
 
@@ -11600,7 +11626,7 @@ async function saveOverrideModal() {
     else await onPmOverrideItemChange();
   } catch (err) {
     console.error("[SPM] saveOverrideModal failed", err);
-    toast(`Failed to save override: ${err.message || err}`, "error", 5000);
+    toast(normalizeLabUserError(err), "error", 5000);
   } finally {
     if (saveBtn) saveBtn.disabled = false;
     if (saveLabel) saveLabel.textContent = defaultSaveLabel;
