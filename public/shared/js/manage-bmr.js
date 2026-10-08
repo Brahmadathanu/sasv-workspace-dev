@@ -320,6 +320,39 @@ function fillSelect(el, rows, valKey, txtKey, placeholder) {
 /* ═══════════════════════════════════════════════════════════════
    CREATE tab
    ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Prefix one zero when a batch number is exactly three numeric digits.
+ * Longer numbers and alphanumeric codes are left unchanged.
+ */
+function normalizeBmrBatchNumber(value) {
+  const bn = String(value ?? "").trim();
+  if (/^\d{3}$/.test(bn)) return `0${bn}`;
+  return bn;
+}
+
+/** Matches uq_bmr_item_bn_ci: lower(item), lower(normalized bn). */
+function bmrCreateDuplicateKey(item, bn) {
+  return `${String(item ?? "").trim().toLowerCase()}\u0000${normalizeBmrBatchNumber(bn).toLowerCase()}`;
+}
+
+function takeUniqueCreateRows(rows) {
+  const seen = new Set();
+  const unique = [];
+  let duplicateCount = 0;
+  for (const row of rows) {
+    const bn = normalizeBmrBatchNumber(row.bn);
+    const key = bmrCreateDuplicateKey(row.item, bn);
+    if (seen.has(key)) {
+      duplicateCount += 1;
+      continue;
+    }
+    seen.add(key);
+    unique.push({ ...row, bn });
+  }
+  return { unique, duplicateCount };
+}
+
 function csvToRows(text) {
   const lines = text
     .replace(/^\uFEFF/, "")
@@ -332,9 +365,10 @@ function csvToRows(text) {
   const hasHeader = expectedHeader.every((h, i) => firstCols[i] === h);
   const body = hasHeader ? lines.slice(1) : lines;
   return body.map((ln, idx) => {
-    const [item, bn, batch_size, uom] = ln
+    const [item, rawBn, batch_size, uom] = ln
       .split(",")
       .map((x) => x.trim().replace(/^"|"$/g, ""));
+    const bn = normalizeBmrBatchNumber(rawBn);
     if (!item || !bn || !uom) {
       throw new Error(
         `CSV row ${idx + (hasHeader ? 2 : 1)} is incomplete (item/bn/uom required).`,
@@ -440,7 +474,7 @@ function getCreateRowsFromTable() {
   const rows = Array.from(els.add.tableBody.querySelectorAll("tr")).map(
     (tr, i) => {
       const item = tr.querySelector(".c-item").value.trim();
-      const bn = tr.querySelector(".c-bn").value.trim();
+      const bn = normalizeBmrBatchNumber(tr.querySelector(".c-bn").value);
       const size = tr.querySelector(".c-size").value.trim();
       const uomSpan = tr.querySelector(".c-uom-text");
       const uom = uomSpan ? uomSpan.dataset.uom || "" : "";
@@ -532,14 +566,15 @@ async function submitCreateEntries() {
 
   if (!confirmed) return;
 
-  // Step 3: execute inserts
+  // Step 3: execute inserts. In-batch duplicates use the normalized BN.
   els.add.submitCreateBtn.disabled = true;
   clearStatus();
+  const partitioned = takeUniqueCreateRows(rows);
   let ok = 0,
-    dup = 0,
+    dup = partitioned.duplicateCount,
     err = 0;
   const missing = new Set();
-  for (const row of rows) {
+  for (const row of partitioned.unique) {
     const res = await insertBmrRow(row);
     if (res.ok) ok++;
     else if (res.dup) dup++;
