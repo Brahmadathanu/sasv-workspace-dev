@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v332"; // WP03 creation guidance
+const CACHE_NAME = "hub-cache-v343"; // WP04-G7 Track B CCC skip legacy dashboard summary
 
 const PRECACHE = [
   // Hub shell
@@ -90,7 +90,8 @@ self.addEventListener("fetch", (event) => {
   // the current post-mutation refresh path.
   if (
     /costing-suite-production-route/.test(url.pathname) ||
-    /costing-suite-shell\.js$/.test(url.pathname)
+    /costing-suite-shell\.js$/.test(url.pathname) ||
+    /costing-suite-readiness\.js$/.test(url.pathname)
   ) {
     event.respondWith(
       (async () => {

@@ -639,14 +639,26 @@
         padding: 12px 14px;
         box-sizing: border-box;
       }
-      @media (max-width: 480px) {
+      @media (max-width: 520px) {
         .peq-filter-drawer {
           position: fixed;
           left: 8px;
           right: 8px;
+          bottom: max(8px, env(safe-area-inset-bottom, 0px));
           top: auto;
           width: auto;
           max-width: none;
+          max-height: min(72vh, calc(100dvh - 96px));
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .peq-filter-drawer .peq-filter-actions {
+          position: sticky;
+          bottom: 0;
+          background: var(--surface, #fff);
+          padding-top: 8px;
+          margin-top: 4px;
+          border-top: 1px solid var(--border, #e5e7eb);
         }
       }
       .peq-filter-drawer {
@@ -832,13 +844,24 @@
           color: var(--sasv-action-primary);
         }
         #homeBtn .home-label {
-          display: none;
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+          display: block;
         }
         #homeBtn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 0;
+          padding: 6px;
+          gap: 0;
+          position: relative;
         }
         #homeBtn svg {
           display: block;
@@ -2439,15 +2462,14 @@
       </div>
     </div>
 
-    <div id="kpiStripWrap" style="margin-top: 8px; overflow: visible">
+    <div id="kpiStripWrap" class="ccc-chrome-block">
       <div class="kpi-strip" id="kpiStrip"></div>
     </div>
 
     <div
       id="globalSearchCard"
-      class="card search-card"
+      class="card search-card ccc-chrome-block"
       style="
-        margin-top: 8px;
         padding: 8px 10px;
         border-radius: 8px;
         background: var(--panel-bg);
@@ -2488,7 +2510,7 @@
           role="dialog"
           aria-label="Costing filters"
         >
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="status">
             <div class="peq-filter-section-title">Status</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2533,7 +2555,7 @@
               </li>
             </ul>
           </div>
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="issue">
             <div class="peq-filter-section-title">Issue / Route</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2638,7 +2660,7 @@
               </li>
             </ul>
           </div>
-          <div class="peq-filter-section">
+          <div class="peq-filter-section" data-peq-section="source">
             <div class="peq-filter-section-title">Source / Area</div>
             <ul class="peq-filter-checklist">
               <li>
@@ -2694,7 +2716,72 @@
             </ul>
             <div class="peq-filter-summary">No filters applied</div>
           </div>
-          <div class="peq-filter-actions">
+          <div
+            id="readinessPeqFilterBody"
+            class="cp-readiness-peq-body"
+            data-peq-section="portfolio-readiness"
+            hidden
+          >
+            <div class="peq-filter-section">
+              <div class="peq-filter-section-title">Population scope</div>
+              <select
+                id="readinessPopulationScope"
+                class="cp-readiness-drawer-scope"
+                aria-label="Population scope"
+              >
+                <option value="OPERATIONAL">OPERATIONAL</option>
+                <option value="ALL_EXISTING">ALL_EXISTING</option>
+              </select>
+            </div>
+            <div class="peq-filter-section">
+              <div class="peq-filter-section-title">Overall severity</div>
+              <ul
+                id="readinessSeverityFilters"
+                class="peq-filter-checklist"
+                aria-label="Overall severity filters"
+              ></ul>
+            </div>
+            <div class="peq-filter-section">
+              <div class="peq-filter-section-title">Dependency</div>
+              <ul
+                id="readinessDependencyFilters"
+                class="peq-filter-checklist"
+                aria-label="Dependency filters"
+              ></ul>
+            </div>
+            <div class="peq-filter-section">
+              <div class="peq-filter-section-title">Owner module</div>
+              <ul
+                id="readinessOwnerFilters"
+                class="peq-filter-checklist"
+                aria-label="Owner module filters"
+              ></ul>
+            </div>
+            <div class="peq-filter-section">
+              <div class="peq-filter-section-title">Recommended route</div>
+              <ul
+                id="readinessRouteFilters"
+                class="peq-filter-checklist"
+                aria-label="Recommended route filters"
+              ></ul>
+            </div>
+            <div
+              id="readinessAppliedFilters"
+              class="cp-readiness-applied-filters"
+              aria-label="Applied readiness filters"
+            ></div>
+            <div class="peq-filter-summary">No filters applied</div>
+            <div class="peq-filter-actions">
+              <button
+                id="readinessFilterApply"
+                type="button"
+                class="peq-filter-action-btn"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+          <div class="peq-filter-actions" data-peq-footer="actions">
             <button
               id="peqFilterSelectAll"
               type="button"
@@ -2785,9 +2872,8 @@
     </div>
 
     <div
-      class="card tabs-card"
+      class="card tabs-card ccc-chrome-block"
       style="
-        margin-top: 6px;
         padding: 8px 10px;
         border-radius: 8px;
         background: var(--panel-bg);
@@ -2822,8 +2908,61 @@
       <div class="lens-pills" id="lensPills"></div>
     </div>
 
-    <div class="main" style="margin-top: 8px">
-      <div class="table-card">
+    <div class="main ccc-chrome-main">
+      <div
+        id="readinessLensHost"
+        class="cp-readiness-host"
+        hidden
+        aria-hidden="true"
+        aria-label="Portfolio readiness"
+      >
+        <div id="readinessStatus" class="cp-readiness-status"></div>
+        <div class="table-card cp-readiness-register-region cp-ccc-table-work-surface">
+          <div class="cp-readiness-register-card-toolbar">
+            <button
+              id="readinessMembershipExceptionsBtn"
+              type="button"
+              class="cp-readiness-membership-btn"
+              aria-haspopup="dialog"
+              aria-controls="readinessMembershipModal"
+            >
+              Membership exceptions
+            </button>
+          </div>
+          <div class="cp-readiness-register-wrap cp-ccc-table-scroll">
+            <table class="cp-readiness-table cp-ccc-register-table costing-pricing-table" aria-label="Portfolio readiness register">
+              <thead>
+                <tr>
+                  <th>Product / SKU</th>
+                  <th>Overall</th>
+                  <th>Product master</th>
+                  <th>SKU master</th>
+                  <th>Costing foundation</th>
+                  <th>Evidence</th>
+                  <th>Outcome</th>
+                </tr>
+              </thead>
+              <tbody id="readinessTableBody"></tbody>
+            </table>
+            <div
+              id="readinessScrollSentinel"
+              class="cp-ccc-scroll-sentinel"
+              aria-hidden="true"
+            ></div>
+          </div>
+          <div
+            id="readinessAppendStatus"
+            class="cp-readiness-append-status"
+            aria-live="polite"
+          ></div>
+          <div
+            id="readinessCardList"
+            class="cp-readiness-cards"
+            aria-label="Portfolio readiness cards"
+          ></div>
+        </div>
+      </div>
+      <div id="genericTableCard" class="table-card cp-ccc-table-work-surface">
         <div id="workbenchSummary" class="cp-workbench-summary"></div>
         <div id="statusArea" class="status">Loading...</div>
         <div
@@ -2899,11 +3038,16 @@
             </button>
           </div>
         </div>
-        <div id="tableWrap">
-          <table id="mainTable" class="costing-pricing-table">
+        <div id="tableWrap" class="cp-ccc-table-scroll">
+          <table id="mainTable" class="costing-pricing-table cp-ccc-register-table">
             <thead id="tableHead"></thead>
             <tbody id="tableBody"></tbody>
           </table>
+          <div
+            id="cccTableScrollSentinel"
+            class="cp-ccc-scroll-sentinel"
+            aria-hidden="true"
+          ></div>
         </div>
         <div
           id="costingLoadingMask"
@@ -2915,6 +3059,52 @@
             <span class="cp-loading-spinner" aria-hidden="true"></span>
             <span id="costingLoadingText">Loading...</span>
           </div>
+        </div>
+      </div>
+
+      <div
+        class="modal-overlay hidden"
+        id="readinessMembershipModal"
+        data-readonly-overlay="true"
+        aria-hidden="true"
+        role="dialog"
+        aria-labelledby="readinessMembershipModalTitle"
+      >
+        <div class="modal-window cp-readiness-membership-modal">
+          <div class="modal-header">
+            <div>
+              <span id="readinessMembershipModalTitle" class="cp-modal-title"
+                >Membership exceptions</span
+              >
+              <div class="peq-modal-subtitle cp-muted-text">
+                Product membership gaps (not portfolio filters)
+              </div>
+            </div>
+            <button
+              id="readinessMembershipModalClose"
+              type="button"
+              class="modal-close-btn"
+              title="Close"
+              aria-label="Close membership exceptions"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div
+            id="readinessMembershipModalBody"
+            class="modal-content cp-readiness-membership-modal-body"
+          ></div>
         </div>
       </div>
 

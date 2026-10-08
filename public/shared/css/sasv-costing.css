@@ -828,14 +828,16 @@ body.sasv-costing-control-center .table-card {
 }
 
 body.sasv-costing-control-center #mainTable,
-body.sasv-costing-control-center .costing-pricing-table {
+body.sasv-costing-control-center .costing-pricing-table,
+body.sasv-costing-control-center .cp-ccc-register-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--sasv-text-sm);
 }
 
 body.sasv-costing-control-center #tableHead th,
-body.sasv-costing-control-center #mainTable thead th {
+body.sasv-costing-control-center #mainTable thead th,
+body.sasv-costing-control-center .cp-ccc-register-table thead th {
   background: var(--sasv-surface-soft);
   color: var(--sasv-text-secondary);
   font-weight: var(--sasv-fw-semibold);
@@ -843,17 +845,27 @@ body.sasv-costing-control-center #mainTable thead th {
   border-bottom: 1px solid var(--sasv-border);
   padding: 8px 10px;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 body.sasv-costing-control-center #tableBody td,
-body.sasv-costing-control-center #mainTable tbody td {
+body.sasv-costing-control-center #mainTable tbody td,
+body.sasv-costing-control-center .cp-ccc-register-table tbody td {
   padding: 6px 10px;
   border-bottom: 1px solid var(--sasv-divider);
   vertical-align: middle;
   color: var(--sasv-text);
 }
 
-body.sasv-costing-control-center #tableBody tr:hover td {
+body.sasv-costing-control-center #tableBody tr:hover td,
+body.sasv-costing-control-center #mainTable tbody tr:hover td,
+body.sasv-costing-control-center
+  .cp-ccc-register-table
+  tbody
+  tr.cp-readiness-row:hover
+  td {
   background: var(--sasv-action-primary-soft);
 }
 
@@ -1711,3 +1723,576 @@ body.sasv-production-route-manager
 }
 
 /* Costing suite visual migration track complete for the six sibling pages. */
+
+/* ── WP04-G5 / G7 Track B Portfolio Readiness lens (Control Center only) ─ */
+body.sasv-costing-control-center #lensSuiteLabel {
+  display: none;
+}
+
+body.sasv-costing-control-center .ccc-chrome-block + .ccc-chrome-block,
+body.sasv-costing-control-center .page-header + .ccc-chrome-block,
+body.sasv-costing-control-center #kpiStripWrap.ccc-chrome-block {
+  margin-top: var(--sasv-space-2, 8px);
+}
+
+body.sasv-costing-control-center #kpiStripWrap.ccc-chrome-block {
+  overflow: visible;
+}
+
+body.sasv-costing-control-center .ccc-chrome-main {
+  margin-top: var(--sasv-space-2, 8px);
+}
+
+body.sasv-costing-control-center .main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+body.sasv-costing-control-center.cp-readiness-active .main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.sasv-costing-control-center .cp-readiness-host {
+  display: none;
+  margin-bottom: 8px;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+body.sasv-costing-control-center .cp-readiness-host.is-visible,
+body.sasv-costing-control-center .cp-readiness-host:not([hidden]) {
+  display: flex;
+}
+
+body.sasv-costing-control-center.cp-readiness-active #genericTableCard {
+  display: none !important;
+}
+
+body.sasv-costing-control-center .cp-readiness-drawer-scope select {
+  width: 100%;
+  min-height: var(--sasv-control-md);
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  padding: 4px 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-peq-body {
+  display: block;
+}
+
+body.sasv-costing-control-center .cp-readiness-peq-body[hidden] {
+  display: none !important;
+}
+
+body.sasv-costing-control-center .cp-readiness-applied-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin: 4px 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-chip,
+body.sasv-costing-control-center .cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  font-size: var(--sasv-text-xs);
+  cursor: pointer;
+}
+
+body.sasv-costing-control-center .cp-readiness-register-card-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sasv-space-2, 8px);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sasv-border);
+  flex-shrink: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: auto;
+  height: auto;
+  min-height: var(--sasv-control-md);
+  padding: 6px 12px;
+  font-size: var(--sasv-text-xs);
+  font-weight: var(--sasv-fw-medium);
+  white-space: nowrap;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  color: var(--sasv-text);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-btn:hover:not(:disabled) {
+  background: var(--sasv-surface);
+  border-color: var(--sasv-border-strong, var(--sasv-border));
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-btn:focus-visible {
+  outline: 2px solid var(--sasv-action-primary);
+  outline-offset: 2px;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-table {
+  width: 100%;
+}
+
+body.sasv-costing-control-center .cp-readiness-register-region.table-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+body.sasv-costing-control-center .cp-ccc-table-work-surface {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.sasv-costing-control-center #genericTableCard .cp-ccc-table-scroll,
+body.sasv-costing-control-center #tableWrap.cp-ccc-table-scroll {
+  overflow: auto;
+  max-height: min(calc(100vh - 280px), 720px);
+  min-height: 240px;
+  width: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+body.sasv-costing-control-center
+  .cp-readiness-register-wrap.cp-ccc-table-scroll {
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+body.sasv-costing-control-center .cp-ccc-scroll-sentinel {
+  width: 100%;
+  height: 1px;
+  pointer-events: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: var(--sasv-fw-medium);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose summary::-webkit-details-marker {
+  display: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose summary::after {
+  content: "›";
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+  color: var(--sasv-text-muted);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose[open] summary::after {
+  transform: rotate(-90deg);
+}
+
+body.sasv-costing-control-center .cp-readiness-row.is-selected td,
+body.sasv-costing-control-center .cp-readiness-card.is-selected {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-costing-control-center .cp-readiness-card:hover {
+  background: var(--sasv-action-primary-soft);
+}
+
+body.sasv-costing-control-center .cp-readiness-cards {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-card {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-md);
+  background: var(--sasv-surface);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+body.sasv-costing-control-center .cp-readiness-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+body.sasv-costing-control-center .cp-readiness-card-dims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-section {
+  margin-bottom: 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-section h4 {
+  margin: 0 0 4px;
+  font-size: var(--sasv-text-sm);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-primary {
+  padding: 6px 8px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-overall {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-overall-label {
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text-secondary);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-foundations,
+body.sasv-costing-control-center .cp-readiness-detail-essentials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--sasv-text-xs);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 2px 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-grid .kv-row {
+  margin: 0;
+  padding: 2px 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose {
+  margin-bottom: 6px;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface);
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose > summary {
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+  list-style: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose > summary::-webkit-details-marker {
+  display: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-detail-disclose-body {
+  padding: 0 8px 8px;
+}
+
+body.sasv-costing-control-center .cp-readiness-evidence {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--sasv-text-secondary);
+  word-break: break-all;
+  opacity: 0.85;
+}
+
+body.sasv-costing-control-center .cp-readiness-dep {
+  border-top: 1px solid var(--sasv-divider);
+  padding: 6px 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-dep-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+body.sasv-costing-control-center .cp-readiness-status:empty {
+  display: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-append-status {
+  flex-shrink: 0;
+  padding: 4px 8px 0;
+  font-size: var(--sasv-text-xs);
+  color: var(--sasv-text-muted);
+  min-height: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-append-status:empty {
+  display: none;
+}
+
+body.sasv-costing-control-center #readinessMembershipModal .cp-readiness-membership-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(88vh, 720px);
+  overflow: hidden;
+}
+
+body.sasv-costing-control-center #readinessMembershipModal .modal-header {
+  flex-shrink: 0;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+  overscroll-behavior: contain;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-section {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: min(34vh, 300px);
+  min-height: 0;
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  background: var(--sasv-surface-soft);
+  padding: 8px 10px;
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-section-title {
+  margin: 0 0 4px;
+  font-size: var(--sasv-text-sm);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-costing-control-center .cp-readiness-membership-section-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body.sasv-costing-control-center .cp-membership-gap-sentinel {
+  width: 100%;
+  height: 1px;
+  pointer-events: none;
+}
+
+body.sasv-costing-control-center .cp-readiness-gap-bound {
+  margin-bottom: 4px;
+}
+
+@media (max-width: 900px) {
+  body.sasv-costing-control-center.cp-readiness-active #globalSearchCard {
+    overflow: visible;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-controls {
+    margin-bottom: 4px;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-register-wrap {
+    display: none;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-cards {
+    display: flex;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-pagebar {
+    border-top: 1px solid var(--sasv-border);
+  }
+
+  body.sasv-costing-control-center .cp-readiness-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  body.sasv-costing-control-center .page-header .page-sub,
+  body.sasv-costing-control-center #subtitle {
+    display: none;
+  }
+
+  body.sasv-costing-control-center #kpiStripWrap {
+    display: none !important;
+  }
+
+  body.sasv-costing-control-center #homeBtn .home-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    display: block;
+  }
+
+  body.sasv-costing-control-center #homeBtn {
+    padding: 6px;
+    gap: 0;
+  }
+
+  body.sasv-costing-control-center #lastRefreshed .sc-snapshot-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  body.sasv-costing-control-center #lastRefreshed.sc-snapshot,
+  body.sasv-costing-control-center #lastRefreshed {
+    min-width: 28px;
+    justify-content: center;
+  }
+
+  body.sasv-costing-control-center .lens-pills,
+  body.sasv-costing-control-center #lensPills {
+    display: none !important;
+  }
+
+  body.sasv-costing-control-center .tab-select-wrap {
+    display: block;
+    width: 100%;
+  }
+
+  body.sasv-costing-control-center #lensSelect {
+    display: block;
+    width: 100%;
+  }
+
+  body.sasv-costing-control-center #readinessMembershipModal.modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  body.sasv-costing-control-center #readinessMembershipModal .cp-readiness-membership-modal {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  body.sasv-costing-control-center #readinessMembershipModal .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sasv-surface-elevated, var(--surface, #fff));
+  }
+
+  body.sasv-costing-control-center .cp-readiness-membership-modal-body {
+    overflow: hidden;
+  }
+
+  body.sasv-costing-control-center .cp-readiness-membership-section {
+    flex: 1 1 0;
+    height: auto;
+    max-height: none;
+  }
+
+  body.sasv-costing-control-center #detailsModal.modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  body.sasv-costing-control-center #detailsModal .modal-window {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  body.sasv-costing-control-center #detailsModal .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sasv-surface-elevated, var(--surface, #fff));
+  }
+
+  body.sasv-costing-control-center #detailsModal #drawerContent {
+    overflow-x: hidden;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  body.sasv-costing-control-center .peq-filter-drawer {
+    max-height: min(72vh, calc(100dvh - 96px));
+  }
+}

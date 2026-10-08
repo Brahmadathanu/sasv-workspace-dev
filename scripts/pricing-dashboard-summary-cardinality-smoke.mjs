@@ -1,6 +1,6 @@
 /**
- * Pricing dashboard period summaries must be zero-or-one reads.
- * Source contract only: no database calls.
+ * CCC global-summary / period / KPI contract smoke (source only; no DB calls).
+ * Legacy v_costing_pricing_dashboard_summary is parked — not used on normal CCC startup.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -15,7 +15,19 @@ const shellSrc = readFileSync(
   join(root, "public/shared/js/costing-suite-shell.js"),
   "utf8",
 );
+const readinessSrc = readFileSync(
+  join(root, "public/shared/js/costing-suite-readiness.js"),
+  "utf8",
+);
 const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
+const registry = readFileSync(
+  join(root, "public/shared/js/costing-suite-registry.js"),
+  "utf8",
+);
+const routeConfig = readFileSync(
+  join(root, "public/shared/js/costing-route-config.js"),
+  "utf8",
+);
 
 let failed = 0;
 function assert(condition, message) {
@@ -34,11 +46,13 @@ function sliceFn(source, name, nextName) {
   return source.slice(start, end);
 }
 
-const dashboardFn = sliceFn(
-  controlSrc,
-  "loadDashboardSummary",
-  "loadBusinessKpiSummary",
-);
+function sliceFnTo(source, name, nextMarker) {
+  const start = source.indexOf(`async function ${name}(`);
+  const end = source.indexOf(nextMarker, start + 1);
+  if (start < 0 || end < 0 || end <= start) return "";
+  return source.slice(start, end);
+}
+
 const businessFn = sliceFn(
   controlSrc,
   "loadBusinessKpiSummary",
@@ -56,8 +70,32 @@ const auditFn = sliceFn(
 );
 const globalFn = sliceFn(controlSrc, "loadGlobalSummaries", "loadDashboardRows");
 
+const LEGACY_DASHBOARD = "v_costing_pricing_dashboard_summary";
+
+assert(
+  !controlSrc.includes("function loadDashboardSummary"),
+  "loadDashboardSummary removed from CCC runtime",
+);
+assert(
+  !/\bDASHBOARD_SUMMARY\b/.test(controlSrc),
+  "DASHBOARD_SUMMARY state removed from CCC runtime",
+);
+assert(
+  !globalFn.includes("loadDashboardSummary"),
+  "loadGlobalSummaries() does not call loadDashboardSummary",
+);
+assert(
+  !globalFn.includes(LEGACY_DASHBOARD),
+  "loadGlobalSummaries() does not query legacy dashboard summary",
+);
+assert(
+  /await loadBusinessKpiSummary\(periodStart\);\s*await loadControlDashboardSummary\(periodStart\);\s*await loadControlAuditSnapshot\(periodStart\);/.test(
+    globalFn,
+  ),
+  "loadGlobalSummaries() loads business + control + audit only",
+);
+
 const loaders = [
-  ["loadDashboardSummary", dashboardFn, "v_costing_pricing_dashboard_summary"],
   [
     "loadBusinessKpiSummary",
     businessFn,
@@ -110,29 +148,94 @@ assert(
   "control audit does not use .maybeSingle()",
 );
 
-const shellFallback = shellSrc.slice(
-  shellSrc.indexOf("async function resolveActivePeriodStart"),
-  shellSrc.indexOf("function isRmCostTraceLensActive"),
+const shellFallback = sliceFnTo(
+  shellSrc,
+  "resolveActivePeriodStart",
+  "function isRmCostTraceLensActive",
 );
 assert(shellFallback.length > 0, "shell period resolver located");
 assert(
-  shellFallback.includes('costingFrom(\n    "v_costing_pricing_dashboard_summary",\n  )') ||
-    shellFallback.includes('"v_costing_pricing_dashboard_summary"'),
-  "shell latest-period fallback still reads dashboard summary",
+  shellFallback.includes("v_costing_pricing_control_dashboard_snapshot"),
+  "shell primary period path still uses control dashboard snapshot",
+);
+assert(
+  !shellFallback.includes(LEGACY_DASHBOARD),
+  "active-period fallback does not query legacy dashboard summary",
+);
+assert(
+  shellFallback.includes("v_costing_pricing_business_kpi_summary"),
+  "active-period fallback uses business KPI summary",
 );
 assert(
   shellFallback.includes('.order("period_start", { ascending: false })'),
-  "shell latest-period fallback still orders period_start descending",
+  "shell period fallback still orders period_start descending",
 );
 assert(shellFallback.includes(".limit(1)"), "shell fallback still keeps .limit(1)");
-
 assert(
-  /await loadDashboardSummary\(periodStart\);\s*await loadBusinessKpiSummary\(periodStart\);\s*await loadControlDashboardSummary\(periodStart\);\s*await loadControlAuditSnapshot\(periodStart\);/.test(
-    globalFn,
-  ),
-  "loadGlobalSummaries() ordering remains unchanged",
+  shellFallback.includes("getCurrentMonthStart"),
+  "shell preserves safe current-month fallback helper",
 );
 
+const kpiFn =
+  controlSrc.slice(
+    controlSrc.indexOf("function renderKpiStrip("),
+    controlSrc.indexOf("async function handleKpiAction("),
+  ) || "";
+assert(kpiFn.length > 0, "renderKpiStrip body located");
+assert(!/legacy\./.test(kpiFn), "KPI renderer contains no legacy.* fallback");
+assert(
+  !kpiFn.includes("pricing_bridge_sku_count"),
+  "KPI renderer drops legacy pricing_bridge_sku_count",
+);
+assert(
+  !kpiFn.includes("pricing_bridge_blocked_count"),
+  "KPI renderer drops legacy pricing_bridge_blocked_count",
+);
+assert(
+  !kpiFn.includes("pricing_bridge_review_required_count"),
+  "KPI renderer drops legacy pricing_bridge_review_required_count",
+);
+assert(
+  !kpiFn.includes("selling_price_sku_count"),
+  "KPI renderer drops legacy selling_price_sku_count",
+);
+assert(
+  !kpiFn.includes("scheme_blocked_count"),
+  "KPI renderer drops legacy scheme_blocked_count",
+);
+assert(
+  !kpiFn.includes("scheme_review_required_count"),
+  "KPI renderer drops legacy scheme_review_required_count",
+);
+assert(
+  /riskTotal\(\s*business\.scheme_blocked_row_count,\s*business\.scheme_review_row_count,\s*\)/.test(
+    kpiFn,
+  ),
+  "Scheme / Margin Risk uses business scheme blocked + review exactly once",
+);
+
+assert(
+  /function loadDashboardRows[\s\S]*return CONTROL_DASHBOARD_SUMMARY \? \[CONTROL_DASHBOARD_SUMMARY\] : \[\]/.test(
+    controlSrc,
+  ),
+  "Dashboard row still comes from CONTROL_DASHBOARD_SUMMARY",
+);
+
+assert(
+  !controlSrc.includes(LEGACY_DASHBOARD),
+  "control-center normal paths do not reference legacy dashboard summary view",
+);
+
+const readinessBefore = readinessSrc.length;
+assert(readinessBefore > 0, "Readiness source present (untouched by this package)");
+assert(
+  registry.includes("portfolio-readiness"),
+  "registry still includes portfolio-readiness",
+);
+assert(
+  routeConfig.includes("portfolio-readiness"),
+  "route config still includes portfolio-readiness",
+);
 assert(
   !controlSrc.includes("20260926062836") &&
     !controlSrc.includes(
@@ -142,9 +245,10 @@ assert(
   "no SQL/migration parity strings",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v331"/.test(swSrc),
-  "current SW generation is v331",
+  /CACHE_NAME = "hub-cache-v343"/.test(swSrc),
+  "current SW generation is v343",
 );
+assert(!/hub-cache-v342/.test(swSrc), "SW no longer v342");
 
 if (failed) {
   console.error(`\npricing-dashboard-summary-cardinality-smoke: ${failed} failure(s)`);

@@ -53,6 +53,10 @@ import {
   createControlCenterController,
   isControlCenterLens,
 } from "./costing-suite-control-center.js";
+import {
+  createPortfolioReadinessController,
+  isPortfolioReadinessLens,
+} from "./costing-suite-readiness.js";
 import { createCostPeriodValuationController } from "./costing-suite-cost-period-valuation.js";
 import {
   createQcActionQueueController,
@@ -626,6 +630,20 @@ let ALL_ROWS = [];
 let VIEW = [];
 let CURRENT_PAGE = 1;
 let PAGE_SIZE = 25;
+const CCC_PROGRESSIVE_LENS_IDS = new Set([
+  "costing-review-workbench",
+  "sku-control-status",
+]);
+const CCC_RENDER_WINDOW = 50;
+let cccRenderedThrough = 0;
+let cccScrollGeneration = 0;
+/** @type {IntersectionObserver|null} */
+let cccScrollObserver = null;
+/** @type {IntersectionObserver|null} */
+let readinessScrollObserver = null;
+let readinessScrollGeneration = 0;
+/** @type {{ activePeriod: string|null, periodOptionsHtml: string|null, periodValue: string|null, governedMode: boolean }|null} */
+let cccPeriodUiSnapshot = null;
 let SELECTED_ROW = null;
 let LAST_REFRESH_TIME = null;
 /**
@@ -1844,6 +1862,325 @@ function shouldShowKpiStrip() {
 
 function applyKpiStripVisibility() {
   setVisible(kpiStripWrap, shouldShowKpiStrip(), "");
+}
+
+function isControlCenterRouteActive() {
+  return ACTIVE_ROUTE_CONFIG?.moduleKey === "costing-control-center";
+}
+
+function shouldUseCccProgressiveRender() {
+  return (
+    isControlCenterRouteActive() && CCC_PROGRESSIVE_LENS_IDS.has(CURRENT_LENS)
+  );
+}
+
+function shouldRenderAllCccDashboardRows() {
+  return isControlCenterRouteActive() && CURRENT_LENS === "dashboard";
+}
+
+function teardownCccScrollObservers() {
+  cccScrollObserver?.disconnect?.();
+  cccScrollObserver = null;
+  readinessScrollObserver?.disconnect?.();
+  readinessScrollObserver = null;
+}
+
+function resetCccProgressiveWindow() {
+  cccScrollGeneration += 1;
+  cccRenderedThrough = 0;
+}
+
+function formatCpvDisplayDate(value) {
+  if (value == null || value === "") return "—";
+  const raw = String(value).slice(0, 10);
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return raw;
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const month = months[Number(m[2]) - 1] || m[2];
+  return `${Number(m[3])} ${month} ${m[1]}`;
+}
+
+function paintReadinessValuationFromContext(context = {}) {
+  const strip = $("costPeriodValuationStrip");
+  if (!strip || !isPortfolioReadinessLens(CURRENT_LENS)) return;
+  setVisible(strip, true);
+  strip.hidden = false;
+  strip.removeAttribute("hidden");
+  strip.setAttribute("aria-hidden", "false");
+  const chipValue = strip.querySelector("[data-cpv-chip-value]");
+  const valuationRaw = context.valuation_date;
+  const valuation =
+    valuationRaw != null && String(valuationRaw).trim() !== ""
+      ? formatCpvDisplayDate(String(valuationRaw).slice(0, 10))
+      : "—";
+  if (chipValue) chipValue.textContent = valuation;
+  const chipBtn = $("cpvValuationChip");
+  if (chipBtn) {
+    chipBtn.disabled = true;
+    chipBtn.title = "Readiness valuation (authoritative governed context)";
+  }
+}
+
+function enterReadinessGovernedPeriodMode() {
+  if (cccPeriodUiSnapshot?.governedMode) return;
+  cccPeriodUiSnapshot = {
+    activePeriod: ACTIVE_PERIOD_START,
+    periodOptionsHtml: costingPeriodSelect?.innerHTML ?? null,
+    periodValue: costingPeriodSelect?.value ?? null,
+    governedMode: true,
+  };
+}
+
+function restoreCccPeriodUiAfterReadiness() {
+  if (!cccPeriodUiSnapshot) return;
+  const snap = cccPeriodUiSnapshot;
+  cccPeriodUiSnapshot = null;
+  if (costingPeriodSelect && snap.periodOptionsHtml != null) {
+    costingPeriodSelect.innerHTML = snap.periodOptionsHtml;
+    if (snap.periodValue) costingPeriodSelect.value = snap.periodValue;
+  }
+  if (snap.activePeriod) {
+    ACTIVE_PERIOD_START = snap.activePeriod;
+  }
+  const chipBtn = $("cpvValuationChip");
+  if (chipBtn) {
+    chipBtn.disabled = false;
+    chipBtn.title = "Open valuation governance";
+  }
+  syncPeriodControlState();
+}
+
+function renderReadinessGovernedPeriodOptions({
+  periods = [],
+  periodStart,
+  unavailable = false,
+} = {}) {
+  if (!costingPeriodSelect) return;
+  enterReadinessGovernedPeriodMode();
+  costingPeriodSelect.hidden = false;
+  costingPeriodSelect.removeAttribute("hidden");
+  costingPeriodSelect.setAttribute("aria-hidden", "false");
+  costingPeriodSelect.disabled = Boolean(unavailable) || !periods.length;
+  costingPeriodSelect.title = "Governed readiness period";
+  if (!periods.length) {
+    costingPeriodSelect.innerHTML = `<option value="">Unavailable</option>`;
+    return;
+  }
+  costingPeriodSelect.innerHTML = periods
+    .map((row) => {
+      const label = formatPeriodMonth(row.period_start) || row.period_start || "—";
+      const selected = row.period_start === periodStart ? " selected" : "";
+      return `<option value="${escapeHtml(row.period_start)}"${selected}>${escapeHtml(
+        label,
+      )}</option>`;
+    })
+    .join("");
+  if (periodStart) costingPeriodSelect.value = periodStart;
+}
+
+function syncCccRegisterPaginationChrome() {
+  if (!isControlCenterRouteActive()) return;
+  const hideMeta =
+    isPortfolioReadinessLens(CURRENT_LENS) || isControlCenterLens(CURRENT_LENS);
+  const shellPagination = document.querySelector(
+    "#genericTableMetaRow .pagination",
+  );
+  if (shellPagination) {
+    setVisible(shellPagination, !hideMeta, "inline-flex");
+  }
+  if (genericTableMetaRow && hideMeta) {
+    setVisible(genericTableMetaRow, false);
+  }
+  if (rowCount && hideMeta) {
+    rowCount.style.display = "none";
+    rowCount.textContent = "";
+  }
+  if (pageLabel && hideMeta) {
+    pageLabel.textContent = "";
+  }
+}
+
+function syncControlCenterLensChrome() {
+  if (!isControlCenterRouteActive() || isPortfolioReadinessLens(CURRENT_LENS)) {
+    return;
+  }
+  document
+    .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+    .forEach((section) => {
+      const key = section.getAttribute("data-peq-section");
+      if (key === "portfolio-readiness") {
+        setVisible(section, false);
+        return;
+      }
+      if (CURRENT_LENS === "dashboard") {
+        setVisible(section, false);
+        return;
+      }
+      if (
+        CURRENT_LENS === "costing-review-workbench" ||
+        CURRENT_LENS === "sku-control-status"
+      ) {
+        setVisible(
+          section,
+          key === "status" || key === "issue" || key === "source",
+        );
+      } else {
+        setVisible(section, true);
+      }
+    });
+  if (
+    CURRENT_LENS === "costing-review-workbench" ||
+    CURRENT_LENS === "sku-control-status"
+  ) {
+    controlCenterCtrl.rebuildPeqFilterOptionsFromRows?.(CURRENT_LENS, ALL_ROWS);
+    sanitizeActiveFiltersToVisibleOptions();
+    syncFilterCheckboxes();
+  } else if (CURRENT_LENS === "dashboard") {
+    ACTIVE_FILTERS.status = [];
+    ACTIVE_FILTERS.issue = [];
+    ACTIVE_FILTERS.source = [];
+    syncFilterCheckboxes();
+  }
+}
+
+function setupReadinessScrollAppend() {
+  readinessScrollObserver?.disconnect?.();
+  readinessScrollObserver = null;
+  if (!isPortfolioReadinessLens(CURRENT_LENS)) return;
+  const root = document.querySelector(
+    ".cp-readiness-register-wrap.cp-ccc-table-scroll",
+  );
+  const sentinel = $("readinessScrollSentinel");
+  if (!root || !sentinel || typeof IntersectionObserver !== "function") return;
+  const gen = ++readinessScrollGeneration;
+  readinessScrollObserver = new IntersectionObserver(
+    (entries) => {
+      if (gen !== readinessScrollGeneration) return;
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      void portfolioReadinessCtrl.appendNextPortfolioPage?.().then((result) => {
+        if (gen !== readinessScrollGeneration) return;
+        if (result?.stale) return;
+        portfolioReadinessCtrl.render?.();
+        setupReadinessScrollAppend();
+        void portfolioReadinessCtrl.maybeFillReadinessViewport?.(root);
+      });
+    },
+    { root, rootMargin: "120px 0px", threshold: 0.01 },
+  );
+  readinessScrollObserver.observe(sentinel);
+  void portfolioReadinessCtrl.maybeFillReadinessViewport?.(root);
+}
+
+function setupCccProgressiveScroll() {
+  cccScrollObserver?.disconnect?.();
+  cccScrollObserver = null;
+  if (!shouldUseCccProgressiveRender() || !VIEW.length) return;
+  const root = tableWrap;
+  const sentinel = $("cccTableScrollSentinel");
+  if (!root || !sentinel || typeof IntersectionObserver !== "function") return;
+  if (cccRenderedThrough >= VIEW.length) return;
+  const gen = ++cccScrollGeneration;
+  cccScrollObserver = new IntersectionObserver(
+    (entries) => {
+      if (gen !== cccScrollGeneration) return;
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      if (cccRenderedThrough >= VIEW.length) return;
+      cccRenderedThrough = Math.min(
+        VIEW.length,
+        (cccRenderedThrough || Math.min(CCC_RENDER_WINDOW, VIEW.length)) +
+          CCC_RENDER_WINDOW,
+      );
+      renderTable();
+    },
+    { root, rootMargin: "120px 0px", threshold: 0.01 },
+  );
+  cccScrollObserver.observe(sentinel);
+}
+
+function syncReadinessShellChrome() {
+  const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
+  const genericTableCard = $("genericTableCard");
+  const peqFilterWrapper = $("peqFilterWrapper");
+  document.body.classList.toggle("cp-readiness-active", readinessActive);
+
+  if (readinessActive) {
+    setVisible(peqFilterWrapper, true);
+    applyKpiStripVisibility();
+    setVisible(lastRefreshed, true);
+    setVisible(genericTableCard, false);
+    syncPeriodControlState();
+    syncPortfolioReadinessFilterChrome();
+    syncCccRegisterPaginationChrome();
+    return;
+  }
+
+  setVisible(peqFilterWrapper, true);
+  setVisible(lastRefreshed, true);
+  setVisible(genericTableCard, true);
+  applyKpiStripVisibility();
+  syncPeriodControlState();
+  syncPortfolioReadinessFilterChrome();
+  syncControlCenterLensChrome();
+  syncCccRegisterPaginationChrome();
+}
+
+function syncPortfolioReadinessFilterChrome() {
+  const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
+  const readinessBody = $("readinessPeqFilterBody");
+  const selectAll = $("peqFilterSelectAll");
+  const drawer = $("peqFilterDrawer");
+
+  document
+    .querySelectorAll("#peqFilterDrawer [data-peq-section]")
+    .forEach((section) => {
+      const key = section.getAttribute("data-peq-section");
+      if (key === "portfolio-readiness") {
+        setVisible(section, readinessActive);
+        return;
+      }
+      // Hide default CCC status/issue/source groups while Readiness owns the drawer.
+      setVisible(section, !readinessActive);
+    });
+
+  if (readinessBody) {
+    readinessBody.hidden = !readinessActive;
+    if (readinessActive) {
+      readinessBody.removeAttribute("hidden");
+    } else {
+      readinessBody.setAttribute("hidden", "");
+    }
+  }
+
+  if (selectAll) {
+    setVisible(selectAll, !readinessActive);
+  }
+
+  if (drawer) {
+    drawer.classList.toggle("is-readiness-mode", readinessActive);
+    drawer.setAttribute(
+      "aria-label",
+      readinessActive ? "Readiness filters" : "Costing filters",
+    );
+  }
+
+  if (readinessActive) {
+    portfolioReadinessCtrl.syncGlobalFilterUi?.();
+  }
+
+  updateFilterButtonState();
 }
 
 function applyRouteLaunchParams() {
@@ -3162,14 +3499,20 @@ async function resolveActivePeriodStart() {
     console.warn("Control dashboard snapshot period resolution failed", err);
   }
 
-  const { data: fallbackRows, error: fallbackErr } = await costingFrom(
-    "v_costing_pricing_dashboard_summary",
-  )
-    .select("period_start")
-    .order("period_start", { ascending: false })
-    .limit(1);
-  if (fallbackErr) throw fallbackErr;
-  return fallbackRows?.[0]?.period_start || currentMonth;
+  // Legacy dashboard summary is parked; use Business KPI summary for period fallback.
+  try {
+    const { data: fallbackRows, error: fallbackErr } = await costingFrom(
+      "v_costing_pricing_business_kpi_summary",
+    )
+      .select("period_start")
+      .order("period_start", { ascending: false })
+      .limit(1);
+    if (fallbackErr) throw fallbackErr;
+    if (fallbackRows?.[0]?.period_start) return fallbackRows[0].period_start;
+  } catch (fallbackErr) {
+    console.warn("Business KPI summary period fallback failed", fallbackErr);
+  }
+  return currentMonth;
 }
 
 function isRmCostTraceLensActive() {
@@ -3579,6 +3922,7 @@ let _csrStatusChecklistHtml = null;
 let qcSearchDebounceTimer = null;
 let msSearchDebounceTimer = null;
 let prmSearchDebounceTimer = null;
+let readinessSearchDebounceTimer = null;
 
 function clearQcSearchDebounce() {
   if (qcSearchDebounceTimer != null) {
@@ -3598,6 +3942,13 @@ function clearPrmSearchDebounce() {
   if (prmSearchDebounceTimer != null) {
     clearTimeout(prmSearchDebounceTimer);
     prmSearchDebounceTimer = null;
+  }
+}
+
+function clearReadinessSearchDebounce() {
+  if (readinessSearchDebounceTimer != null) {
+    clearTimeout(readinessSearchDebounceTimer);
+    readinessSearchDebounceTimer = null;
   }
 }
 
@@ -3822,8 +4173,17 @@ function restoreCsrStatusPeqOptions() {
 
 function syncPeriodControlState() {
   const scoped = isPeriodScopedLens();
+  const readinessActive = isPortfolioReadinessLens(CURRENT_LENS);
 
   if (costingPeriodSelect) {
+    if (readinessActive) {
+      costingPeriodSelect.hidden = false;
+      costingPeriodSelect.removeAttribute("hidden");
+      costingPeriodSelect.setAttribute("aria-hidden", "false");
+      costingPeriodSelect.title = "Governed readiness period";
+      return;
+    }
+
     const onPpm = isPricingPolicyManagerRoute();
     if (onPpm) {
       // EVP-3I2C9E: show existing #costingPeriodSelect only for the sole
@@ -3858,6 +4218,10 @@ function syncPeriodControlState() {
         costingPeriodSelect.setAttribute("aria-hidden", "true");
         costingPeriodSelect.setAttribute("tabindex", "-1");
       }
+    } else {
+      costingPeriodSelect.hidden = false;
+      costingPeriodSelect.removeAttribute("hidden");
+      costingPeriodSelect.setAttribute("aria-hidden", "false");
     }
 
     costingPeriodSelect.disabled = !scoped;
@@ -4122,6 +4486,10 @@ function getSkuDiagnosis(skuId, periodStart = ACTIVE_PERIOD_START) {
 async function loadRowsForLens({ preservePage = false } = {}) {
   // Soft-nav owns the PRM load/paint cycle; do not start a competing generation.
   if (softNavLockLens) return;
+  if (isControlCenterRouteActive() || isPortfolioReadinessLens(CURRENT_LENS)) {
+    teardownCccScrollObservers();
+    resetCccProgressiveWindow();
+  }
   const loadGeneration = ++ROWS_LOAD_GENERATION;
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
@@ -4136,6 +4504,24 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     // Lens startup never loads SKU status diagnosis (selected-SKU on demand only).
     clearSkuStatusDiagnosisCache();
     if (!preservePage) CURRENT_PAGE = 1;
+
+    if (isPortfolioReadinessLens(CURRENT_LENS)) {
+      ALL_ROWS = [];
+      VIEW = [];
+      portfolioReadinessCtrl.onLensLoadStart?.();
+      if (!preservePage) CURRENT_PAGE = 1;
+      const result = await portfolioReadinessCtrl.load({
+        preserveKeyset: !!preservePage,
+        search: String(searchBox?.value || "").trim(),
+      });
+      if (!isRowsLoadCurrent(loadGeneration)) return;
+      if (result?.stale === true) return;
+      LAST_REFRESH_TIME = new Date();
+      updateFreshnessIndicator();
+      renderTable();
+      setupReadinessScrollAppend();
+      return;
+    }
 
     if (shouldShowKpiStrip()) {
       await controlCenterCtrl.loadGlobalSummaries(ACTIVE_PERIOD_START);
@@ -4736,10 +5122,18 @@ async function switchLens(lensId) {
   const leavingMs = isMaterialsStoresActionQueueLens(CURRENT_LENS);
   const leavingPrm = isProductionRouteLens(CURRENT_LENS);
   const leavingDriverGovernance = isDriverGovernanceLens(CURRENT_LENS);
+  const leavingReadiness = isPortfolioReadinessLens(CURRENT_LENS);
   const leavingTrace = isMaterialCostTraceLensActive();
   costSheetCtrl.onLensSwitch();
   if (leavingTrace) {
     materialCostCtrl.teardownTraceProgressiveScroll?.();
+  }
+  if (leavingReadiness) {
+    clearReadinessSearchDebounce();
+    teardownCccScrollObservers();
+    portfolioReadinessCtrl.onLensExit?.();
+    portfolioReadinessCtrl.resetGlobalFilterUi?.();
+    restoreCccPeriodUiAfterReadiness();
   }
   if (leavingQc) {
     clearQcSearchDebounce();
@@ -4773,6 +5167,13 @@ async function switchLens(lensId) {
   CURRENT_LENS = lensId;
   pricingPolicyCtrl.syncNavigationFromLegacyLens?.(CURRENT_LENS);
   SELECTED_ROW = null;
+  // Apply Readiness chrome immediately after lens change, before async load.
+  syncReadinessShellChrome();
+  updateSearchPlaceholder();
+  if (leavingReadiness) {
+    // Restore CPV via existing controller paint path after leaving Readiness.
+    void reloadCostPeriodValuationIfNeeded();
+  }
   if (
     CURRENT_LENS === "cost-governance" ||
     CURRENT_LENS === "staff-governance"
@@ -5255,6 +5656,10 @@ function applyFilters() {
     return;
   }
 
+  if (shouldUseCccProgressiveRender() || shouldRenderAllCccDashboardRows()) {
+    resetCccProgressiveWindow();
+  }
+
   let rows = [...ALL_ROWS];
   rows = rows.filter(
     (row) =>
@@ -5297,6 +5702,9 @@ function applySearch() {
     rows = pricingPolicyCtrl.filterCommercialSalesAssumptionRows?.(rows) || rows;
   }
   if (q) rows = rows.filter((row) => getSearchBlob(row).includes(q));
+  if (shouldUseCccProgressiveRender() || shouldRenderAllCccDashboardRows()) {
+    resetCccProgressiveWindow();
+  }
   VIEW = rows;
   CURRENT_PAGE = 1;
   renderTable();
@@ -5387,6 +5795,11 @@ function updateSearchPlaceholder() {
     placeholder = "Search Product, Product ID, SKU ID or action";
   } else if (isProductionRouteLens(CURRENT_LENS)) {
     placeholder = "Search Product or Product Group.";
+  } else if (
+    isPortfolioReadinessLens(CURRENT_LENS) ||
+    isControlCenterLens(CURRENT_LENS)
+  ) {
+    placeholder = "Search product, SKU or ID";
   }
 
   if (searchBox) {
@@ -5741,7 +6154,7 @@ function paintProductionRouteLens(options = {}) {
 
 function renderTable() {
   costBuildCtrl.syncManualProvisionLayout();
-  syncPeriodControlState();
+  syncReadinessShellChrome();
   syncPricingPolicyLensChrome();
   syncCostSheetReviewLensChrome();
   if (isPricingPolicyManagerRoute()) {
@@ -5774,6 +6187,22 @@ function renderTable() {
     qcActionQueueCtrl.render();
     syncCostSheetReviewLensChrome();
     // Fall through to shared row-count / paginator chrome below.
+  } else if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    clearStatus();
+    // Readiness owns its host register; keep generic table/pagination hidden.
+    if (tableWrap) {
+      tableWrap.classList.add("hidden");
+      tableWrap.classList.remove("tw-visible");
+    }
+    setVisible(genericTableMetaActions, false);
+    if (workbenchSummary) {
+      workbenchSummary.innerHTML = "";
+      workbenchSummary.classList.remove("is-visible");
+    }
+    syncCccRegisterPaginationChrome();
+    portfolioReadinessCtrl.render();
+    setupReadinessScrollAppend();
+    return;
   } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
     clearStatus();
     tableWrap?.classList.add("tw-visible");
@@ -5984,8 +6413,19 @@ function renderTable() {
     CURRENT_PAGE = totalPages;
   }
   const start = rmTraceActive || actionQueueActive ? 0 : (CURRENT_PAGE - 1) * PAGE_SIZE;
-  const pageRows =
-    rmTraceActive || actionQueueActive ? VIEW : VIEW.slice(start, start + PAGE_SIZE);
+  let pageRows;
+  if (rmTraceActive || actionQueueActive) {
+    pageRows = VIEW;
+  } else if (shouldRenderAllCccDashboardRows()) {
+    pageRows = VIEW;
+  } else if (shouldUseCccProgressiveRender()) {
+    if (!cccRenderedThrough) {
+      cccRenderedThrough = Math.min(CCC_RENDER_WINDOW, VIEW.length);
+    }
+    pageRows = VIEW.slice(0, cccRenderedThrough);
+  } else {
+    pageRows = VIEW.slice(start, start + PAGE_SIZE);
+  }
 
   if (prmActive) {
     // Production Route Manager owns table/editor hosts; skip generic empty-table path.
@@ -6251,6 +6691,12 @@ function renderTable() {
     ) {
       rowCount.style.display = "none";
       rowCount.textContent = "";
+    } else if (
+      isControlCenterRouteActive() &&
+      (isControlCenterLens(CURRENT_LENS) || isPortfolioReadinessLens(CURRENT_LENS))
+    ) {
+      rowCount.style.display = "none";
+      rowCount.textContent = "";
     } else {
       rowCount.style.display = "";
       rowCount.textContent = `${totalCount.toLocaleString("en-IN")} row${totalCount === 1 ? "" : "s"}`;
@@ -6261,7 +6707,10 @@ function renderTable() {
       /* pager chrome already synced by paintProductionRouteLens */
     } else if (
       (CURRENT_LENS === "mrp-governance" && !isMrpRegisterLensActive()) ||
-      rmTraceActive
+      rmTraceActive ||
+      (isControlCenterRouteActive() &&
+        (isControlCenterLens(CURRENT_LENS) ||
+          isPortfolioReadinessLens(CURRENT_LENS)))
     ) {
       pageLabel.textContent = "";
     } else {
@@ -6280,6 +6729,11 @@ function renderTable() {
   );
   if (shellPagination) {
     if (rmTraceActive) {
+      setVisible(shellPagination, false);
+    } else if (
+      isControlCenterRouteActive() &&
+      (isControlCenterLens(CURRENT_LENS) || isPortfolioReadinessLens(CURRENT_LENS))
+    ) {
       setVisible(shellPagination, false);
     } else if (
       !isQcActionQueueLens(CURRENT_LENS) &&
@@ -6318,6 +6772,13 @@ function renderTable() {
     syncTraceProgressiveScrollChrome();
   } else {
     materialCostCtrl.teardownTraceProgressiveScroll?.();
+  }
+  if (isControlCenterRouteActive()) {
+    syncControlCenterLensChrome();
+    syncCccRegisterPaginationChrome();
+  }
+  if (shouldUseCccProgressiveRender()) {
+    setupCccProgressiveScroll();
   }
 }
 
@@ -6632,7 +7093,12 @@ async function setDrawerTab(tabId) {
     );
   drawerContent.innerHTML = `<div class="status">Loading...</div>`;
   try {
-    if (CURRENT_LENS === "dashboard") {
+    if (isPortfolioReadinessLens(CURRENT_LENS)) {
+      drawerContent.innerHTML = portfolioReadinessCtrl.renderDrawerTab(
+        tabId,
+        SELECTED_ROW,
+      );
+    } else if (CURRENT_LENS === "dashboard") {
       drawerContent.innerHTML = controlCenterCtrl.renderDashboardDrawerTab(tabId);
     } else if (CURRENT_LENS === "sku-control-status") {
       drawerContent.innerHTML = await controlCenterCtrl.renderSkuControlDrawerTab(
@@ -6756,6 +7222,16 @@ function openDetails(row, preferredTab) {
     setModalTabs(config.tabs, config.activeTab);
     setDrawerTab(config.activeTab);
 
+    detailsModal.classList.remove("hidden");
+    detailsModal.setAttribute("aria-hidden", "false");
+    return;
+  } else if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    SELECTED_ROW = row;
+    const config = portfolioReadinessCtrl.getDrawerConfig(row);
+    title.textContent = config.title;
+    subtitle.textContent = config.subtitle;
+    setModalTabs(config.tabs, config.activeTab);
+    setDrawerTab(config.activeTab);
     detailsModal.classList.remove("hidden");
     detailsModal.setAttribute("aria-hidden", "false");
     return;
@@ -7277,7 +7753,9 @@ function updateFilterButtonState() {
   const btn = $("peqFilterBtn");
   if (!btn) return;
   let count = 0;
-  if (isQcActionQueueLens(CURRENT_LENS)) {
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    count = Number(portfolioReadinessCtrl.activeFilterCount?.() || 0);
+  } else if (isQcActionQueueLens(CURRENT_LENS)) {
     count = normalizeQcCode(qcActionQueueCtrl.getActionCode?.() || "") ? 1 : 0;
   } else if (isMaterialsStoresActionQueueLens(CURRENT_LENS)) {
     count = normalizeMsCode(materialsStoresActionQueueCtrl.getActionCode?.() || "")
@@ -7334,6 +7812,7 @@ function updateFilterButtonState() {
     badge.style.display = count ? "" : "none";
   }
   if (
+    !isPortfolioReadinessLens(CURRENT_LENS) &&
     !isQcActionQueueLens(CURRENT_LENS) &&
     !isMaterialsStoresActionQueueLens(CURRENT_LENS) &&
     !isProductionRouteLens(CURRENT_LENS)
@@ -7343,6 +7822,16 @@ function updateFilterButtonState() {
       summary.textContent = count
         ? `${count} filter${count === 1 ? "" : "s"} applied`
         : "No filters applied";
+  }
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    const summary = document.querySelector(
+      "#readinessPeqFilterBody .peq-filter-summary",
+    );
+    if (summary) {
+      summary.textContent = count
+        ? `${count} filter${count === 1 ? "" : "s"} applied`
+        : "No filters applied";
+    }
   }
 }
 
@@ -7373,6 +7862,15 @@ function wireFilterDrawer() {
   $("peqFilterBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleFilterDrawer();
+  });
+  $("readinessFilterApply")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!isPortfolioReadinessLens(CURRENT_LENS)) return;
+    closeFilterDrawer();
+    void (async () => {
+      await portfolioReadinessCtrl.applyPendingFilters?.();
+      updateFilterButtonState();
+    })();
   });
   $("peqFilterDrawer")?.addEventListener("change", (e) => {
     const target = e.target;
@@ -7551,6 +8049,15 @@ function wireFilterDrawer() {
       })();
       return;
     }
+    if (
+      input.hasAttribute("data-readiness-severity") ||
+      input.hasAttribute("data-readiness-dependency") ||
+      input.hasAttribute("data-readiness-owner") ||
+      input.hasAttribute("data-readiness-route")
+    ) {
+      // Apply-gated: checkbox draft only until Apply.
+      return;
+    }
     if (!input.dataset.filterGroup) return;
     const cb = input;
     const group = cb.dataset.filterGroup;
@@ -7565,6 +8072,14 @@ function wireFilterDrawer() {
     void applyManualRateManagerFilterChange();
   });
   $("peqFilterClear")?.addEventListener("click", () => {
+    if (isPortfolioReadinessLens(CURRENT_LENS)) {
+      closeFilterDrawer();
+      void (async () => {
+        await portfolioReadinessCtrl.clearFilters?.();
+        updateFilterButtonState();
+      })();
+      return;
+    }
     if (isQcActionQueueLens(CURRENT_LENS)) {
       CURRENT_PAGE = 1;
       qcActionQueueCtrl.syncPageFromShell(1, PAGE_SIZE);
@@ -8412,6 +8927,28 @@ const controlCenterCtrl = createControlCenterController({
   },
 });
 
+const portfolioReadinessCtrl = createPortfolioReadinessController({
+  costingRpc,
+  showToast,
+  text,
+  statusChip,
+  normalizeStatus,
+  getCurrentLens: () => CURRENT_LENS,
+  canView: () => PERM_CAN_VIEW === true,
+  openDetails,
+  closeDetails,
+  getSearchValue: () => searchBox?.value ?? "",
+  closeFilterDrawer,
+  onFilterUiChange: () => updateFilterButtonState(),
+  onGovernedPeriodsLoaded: (payload) => {
+    renderReadinessGovernedPeriodOptions(payload);
+    syncPeriodControlState();
+  },
+  onPortfolioContextLoaded: (ctx) => {
+    paintReadinessValuationFromContext(ctx);
+  },
+});
+
 const costPeriodValuationCtrl = createCostPeriodValuationController({
   costingRpc,
   showToast,
@@ -8433,6 +8970,10 @@ async function reloadCostPeriodValuationIfNeeded() {
     return;
   }
   await costPeriodValuationCtrl.loadForActivePeriod();
+  // CPV paint may re-show the strip; reassert Readiness hide when still active.
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    syncReadinessShellChrome();
+  }
 }
 
 const materialCostCtrl = createMaterialCostController({
@@ -8678,6 +9219,15 @@ document.addEventListener("click", (event) => {
 refreshBtn?.addEventListener("click", onCostingSuiteRefreshClick);
 costingPeriodSelect?.addEventListener("change", () => {
   if (costingPeriodSelect.disabled) return;
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    void portfolioReadinessCtrl
+      .applyShellPeriodStart?.(costingPeriodSelect.value)
+      .then(() => {
+        renderTable();
+        setupReadinessScrollAppend();
+      });
+    return;
+  }
   setActiveCostingPeriod(costingPeriodSelect.value);
 });
 exportBtn?.addEventListener("click", () => {
@@ -8686,6 +9236,18 @@ exportBtn?.addEventListener("click", () => {
 $("homeBtn")?.addEventListener("click", () => Platform.goHome());
 searchBox?.addEventListener("input", () => {
   if (isMaterialCostTraceLensActive()) return;
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    clearReadinessSearchDebounce();
+    const value = String(searchBox.value || "");
+    readinessSearchDebounceTimer = setTimeout(() => {
+      void (async () => {
+        await portfolioReadinessCtrl.syncSearchFromShell(value);
+        renderTable();
+      })();
+    }, 300);
+    updateSearchClear();
+    return;
+  }
   if (isQcActionQueueLens(CURRENT_LENS)) {
     clearQcSearchDebounce();
     const value = String(searchBox.value || "");
@@ -8757,6 +9319,16 @@ searchBox?.addEventListener("input", () => {
 searchClear?.addEventListener("click", () => {
   if (isMaterialCostTraceLensActive()) return;
   searchBox.value = "";
+  if (isPortfolioReadinessLens(CURRENT_LENS)) {
+    clearReadinessSearchDebounce();
+    void (async () => {
+      await portfolioReadinessCtrl.syncSearchFromShell("");
+      renderTable();
+    })();
+    updateSearchClear();
+    searchBox.focus();
+    return;
+  }
   if (isQcActionQueueLens(CURRENT_LENS)) {
     clearQcSearchDebounce();
     CURRENT_PAGE = 1;

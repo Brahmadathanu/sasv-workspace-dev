@@ -547,7 +547,6 @@ export function createControlCenterController(deps) {
     costingRpc,
   } = deps;
 
-  let DASHBOARD_SUMMARY = null;
   let BUSINESS_KPI_SUMMARY = null;
   let CONTROL_DASHBOARD_SUMMARY = null;
   let CONTROL_AUDIT_ROWS = [];
@@ -579,17 +578,7 @@ export function createControlCenterController(deps) {
   function getSummaryContext() {
     const control = CONTROL_DASHBOARD_SUMMARY || {};
     const business = BUSINESS_KPI_SUMMARY || {};
-    const legacy = DASHBOARD_SUMMARY || {};
-    return { control, business, legacy };
-  }
-
-  async function loadDashboardSummary(periodStart) {
-    const { data, error } = await costingFrom("v_costing_pricing_dashboard_summary")
-      .select("*")
-      .eq("period_start", periodStart)
-      .maybeSingle();
-    if (error) throw error;
-    DASHBOARD_SUMMARY = data || null;
+    return { control, business };
   }
 
   async function loadBusinessKpiSummary(periodStart) {
@@ -625,7 +614,7 @@ export function createControlCenterController(deps) {
   }
 
   async function loadGlobalSummaries(periodStart) {
-    await loadDashboardSummary(periodStart);
+    // Authoritative CCC startup sources only (legacy dashboard summary parked for WP05).
     await loadBusinessKpiSummary(periodStart);
     await loadControlDashboardSummary(periodStart);
     await loadControlAuditSnapshot(periodStart);
@@ -715,12 +704,11 @@ export function createControlCenterController(deps) {
       return;
     }
 
-    const { control, business, legacy } = getSummaryContext();
+    const { control, business } = getSummaryContext();
 
     const totalSkus = firstNumber(
       control.total_sku_count,
       business.total_pricing_sku_count,
-      legacy.pricing_bridge_sku_count,
     );
 
     const costingReadyCount = firstNumber(
@@ -731,13 +719,11 @@ export function createControlCenterController(deps) {
     const costingBlockedCount = firstNumber(
       control.blocked_sku_count,
       business.costing_blocked_sku_count,
-      legacy.pricing_bridge_blocked_count,
     );
 
     const costingReviewCount = firstNumber(
       control.review_required_sku_count,
       business.costing_review_sku_count,
-      legacy.pricing_bridge_review_required_count,
     );
 
     const workbenchBlockedActions =
@@ -752,7 +738,6 @@ export function createControlCenterController(deps) {
 
     const sellingPolicyComplete = firstNumber(
       business.selling_policy_complete_count,
-      legacy.selling_price_sku_count,
     );
 
     const sellingPolicyMissing = firstNumber(
@@ -765,11 +750,10 @@ export function createControlCenterController(deps) {
 
     const schemePolicyMissing = firstNumber(business.scheme_policy_missing_count);
 
+    // Scheme / Margin Risk = Business KPI scheme blocked + review only (no legacy double-count).
     const schemeRiskRows = riskTotal(
       business.scheme_blocked_row_count,
       business.scheme_review_row_count,
-      legacy.scheme_blocked_count,
-      legacy.scheme_review_required_count,
     );
 
     const readyClass =
@@ -933,38 +917,29 @@ export function createControlCenterController(deps) {
   }
 
   function renderDashboardTableRow(row, trAttrs) {
-    const { control, business, legacy } = getSummaryContext();
+    const { control, business } = getSummaryContext();
     const totalSkus = firstNumber(
       control.total_sku_count,
       business.total_pricing_sku_count,
-      legacy.pricing_bridge_sku_count,
     );
     const costingBlocked = firstNumber(
       control.blocked_sku_count,
       business.costing_blocked_sku_count,
-      legacy.pricing_bridge_blocked_count,
     );
     const costingReview = firstNumber(
       control.review_required_sku_count,
       business.costing_review_sku_count,
-      legacy.pricing_bridge_review_required_count,
     );
     const costingReady = firstNumber(
       control.ready_sku_count,
       business.costing_ready_sku_count,
       Math.max(totalSkus - costingBlocked - costingReview, 0),
     );
-    const sellingComplete = firstNumber(
-      business.selling_policy_complete_count,
-      legacy.selling_price_sku_count,
-    );
+    const sellingComplete = firstNumber(business.selling_policy_complete_count);
     const schemeComplete = firstNumber(business.scheme_policy_complete_count);
     const schemeRiskRows = riskTotal(
       business.scheme_blocked_row_count,
       business.scheme_review_row_count,
-      legacy.scheme_blocked_count,
-      legacy.scheme_review_required_count,
-      legacy.scheme_viability_row_count,
     );
     const workbenchActions =
       firstNumber(control.rm_blocker_item_count) +
@@ -975,13 +950,11 @@ export function createControlCenterController(deps) {
     const refreshStatus =
       control.overall_control_status ||
       control.latest_refresh_status ||
-      business.latest_refresh_status ||
-      legacy.latest_refresh_status;
+      business.latest_refresh_status;
     const refreshFinished =
       control.snapshot_refreshed_at ||
       control.latest_refresh_finished_at ||
-      business.latest_refresh_finished_at ||
-      legacy.latest_refresh_finished_at;
+      business.latest_refresh_finished_at;
 
     return `<tr ${trAttrs}>
       <td>
@@ -1132,7 +1105,7 @@ export function createControlCenterController(deps) {
 
   function renderDashboardSummaryTab() {
     const selected = getSelectedRow();
-    const { control, business, legacy } = getSummaryContext();
+    const { control, business } = getSummaryContext();
     const row = selected || control;
 
     return detailPanel(
@@ -1140,9 +1113,7 @@ export function createControlCenterController(deps) {
         kvSection("Period", [
           [
             "Period",
-            formatDate(
-              row.period_start || business.period_start || legacy.period_start,
-            ),
+            formatDate(row.period_start || business.period_start),
           ],
         ]),
         kvSection("SKU Readiness", [
@@ -1152,7 +1123,6 @@ export function createControlCenterController(deps) {
               firstNumber(
                 control.total_sku_count,
                 business.total_pricing_sku_count,
-                legacy.pricing_bridge_sku_count,
               ),
             ),
           ],
@@ -1171,7 +1141,6 @@ export function createControlCenterController(deps) {
               firstNumber(
                 control.blocked_sku_count,
                 business.costing_blocked_sku_count,
-                legacy.pricing_bridge_blocked_count,
               ),
             ),
           ],
@@ -1181,7 +1150,6 @@ export function createControlCenterController(deps) {
               firstNumber(
                 control.review_required_sku_count,
                 business.costing_review_sku_count,
-                legacy.pricing_bridge_review_required_count,
               ),
             ),
           ],
@@ -1189,12 +1157,7 @@ export function createControlCenterController(deps) {
         kvSection("Policy Coverage", [
           [
             "Selling Price SKUs",
-            formatNumber(
-              firstNumber(
-                business.selling_policy_complete_count,
-                legacy.selling_price_sku_count,
-              ),
-            ),
+            formatNumber(firstNumber(business.selling_policy_complete_count)),
           ],
           [
             "Scheme Rows",
@@ -1202,7 +1165,6 @@ export function createControlCenterController(deps) {
               riskTotal(
                 business.scheme_blocked_row_count,
                 business.scheme_review_row_count,
-                legacy.scheme_viability_row_count,
               ),
             ),
           ],
@@ -1213,21 +1175,16 @@ export function createControlCenterController(deps) {
             statusChip(
               control.latest_refresh_status ||
                 control.overall_control_status ||
-                business.latest_refresh_status ||
-                legacy.latest_refresh_status,
+                business.latest_refresh_status,
             ),
           ],
-          [
-            "Refresh Scope",
-            text(control.latest_refresh_scope || legacy.latest_refresh_scope),
-          ],
+          ["Refresh Scope", text(control.latest_refresh_scope)],
           [
             "Finished At",
             formatDateTime(
               control.snapshot_refreshed_at ||
                 control.latest_refresh_finished_at ||
-                business.latest_refresh_finished_at ||
-                legacy.latest_refresh_finished_at,
+                business.latest_refresh_finished_at,
             ),
           ],
         ]),
@@ -2487,6 +2444,76 @@ export function createControlCenterController(deps) {
     return !!CONTROL_DASHBOARD_SUMMARY;
   }
 
+  function uniqueNonEmpty(values) {
+    const out = [];
+    const seen = new Set();
+    for (const raw of values || []) {
+      const value = String(raw ?? "").trim();
+      if (!value) continue;
+      const key = value.toUpperCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(value);
+    }
+    out.sort((a, b) => a.localeCompare(b));
+    return out;
+  }
+
+  function replacePeqChecklist(sectionKey, group, values) {
+    if (typeof document === "undefined") return;
+    const section = document.querySelector(
+      `#peqFilterDrawer [data-peq-section="${sectionKey}"]`,
+    );
+    const list = section?.querySelector(".peq-filter-checklist");
+    if (!list) return;
+    const options = uniqueNonEmpty(values);
+    list.innerHTML = options.length
+      ? options
+          .map(
+            (value) =>
+              `<li><label><input type="checkbox" data-filter-group="${group}" value="${escapeHtml(
+                value,
+              )}" /> ${escapeHtml(value)}</label></li>`,
+          )
+          .join("")
+      : `<li class="cp-muted-text">No options from loaded rows</li>`;
+  }
+
+  function rebuildPeqFilterOptionsFromRows(lensId, rows) {
+    if (lensId !== "costing-review-workbench" && lensId !== "sku-control-status") {
+      return;
+    }
+    const list = Array.isArray(rows) ? rows : [];
+    const statusValues = [];
+    const issueValues = [];
+    const sourceValues = [];
+    for (const row of list) {
+      statusValues.push(
+        row.first_control_status,
+        row.overall_control_status,
+        row.costing_status,
+        row.material_costing_status,
+        row.manufacturing_cop_status,
+        row.internal_loaded_cost_status,
+      );
+      issueValues.push(
+        row.material_issue_code,
+        row.primary_diagnostic_code,
+        row.warning_code,
+        row.final_action_status,
+      );
+      sourceValues.push(
+        row.recommended_ui_route,
+        row.material_area,
+        row.rate_source,
+        row.bom_source,
+      );
+    }
+    replacePeqChecklist("status", "status", statusValues);
+    replacePeqChecklist("issue", "issue", issueValues);
+    replacePeqChecklist("source", "source", sourceValues);
+  }
+
   return {
     loadGlobalSummaries,
     loadDashboardRows,
@@ -2512,5 +2539,6 @@ export function createControlCenterController(deps) {
     clearSkuExactEvidenceCache,
     clearSkuFoundationDiagnosisCache,
     clearSkuControlSessionCaches,
+    rebuildPeqFilterOptionsFromRows,
   };
 }
