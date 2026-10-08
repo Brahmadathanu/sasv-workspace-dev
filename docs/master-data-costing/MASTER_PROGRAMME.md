@@ -30,7 +30,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP01 — Canonical Product/SKU Completeness Contract
 - [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED, VERIFIED, AND MERGED
 - [x] WP03 — Creation-Time Guided Completeness — COMPLETED, VERIFIED, AND MERGED
-- [~] WP04 — Central Master Data / Costing Readiness Control Centre — ACTIVE (not yet merged/closed)
+- [x] WP04 — Central Master Data / Costing Readiness Control Centre — COMPLETED, VERIFIED, MERGED, AND CLOSED
 - [ ] WP05 — Costing Suite Functional Rationalisation Audit
 - [ ] WP06 — Pricing Policy Manager Simplification
 - [ ] WP07 — Costing Suite Navigation and Information Architecture
@@ -47,15 +47,15 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-WP04 — Central Master Data / Costing Readiness Control Centre. WP04 remains active and is not yet merged or closed. WP03 remains completed, verified, merged, and closed; no upstream regression was demonstrated.
+None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 has not started.
 
 ## Active gate
-`WP04-G8 — merge / post-merge closure boundary`
+None. WP04-G8 is completed and post-merge verification passed.
 
-G0–G6 are completed and preserved. Original G7 signed-in verification was blocked (native 8-second portfolio instability and material CCC/Readiness UX defects) and recovered through Track A / Track B. Formal WP04-G7 was subsequently rerun and is **PASS**. Track A remains CLOSED / APPLIED / PROVEN. Track B remains ACCEPTED at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Documentation-only commits after that runtime candidate (ledger reconciliation `bece900ae75d3292fbb7ea6f4623f1185af0e283`, then this G7 closure record) advance the branch documentation head only; they are not a new runtime candidate. No GitHub CI evidence exists. WP04 remains active until G8 completes. No merge has occurred yet. WP05 has not started. G8 itself has not been executed.
+WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b` with parent 1 `a007cea4d624835dc5406a952657769868619649` and parent 2 `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`. G0–G8 are complete. Formal G7 remains PASS; Track A remains CLOSED / APPLIED / PROVEN; Track B remains accepted at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Post-merge verification confirmed the merged tree matches the verified branch tree, Build 4 remains current/COMPLETED with Run 115 and 1793/611 populations, source fingerprint matches, Readiness RPC and CSE-P01 are unchanged, and no new statement-timeout or legacy-dashboard-summary log event was found in the checked post-merge window. No GitHub CI evidence is claimed. WP05 remains not started.
 
 ## Overall completion progress
-4 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, and WP03 are complete. WP04 remains active on branch `fix/wp04-g7-track-b-readiness-ux`. Runtime candidate is Track B head `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`; the branch documentation head is later and documentation-only. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
+5 of 13 substantive work packs (WP00–WP12) are completed, verified, and merged where applicable. The prerequisite control plane, WP00, WP01, WP02, WP03, and WP04 are complete. WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b`; its final synchronized feature head was `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`, while the signed-in runtime candidate verified in G7 was `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. WP02 merged to `main` as `7948551bd48e9ab6113e21df3a2cd98946a25362`; its final feature tip was `6247a7bccb862d679071f68843523156ce6e5cb3`. WP03 merged to `main` as `dd7da3a6fa2f447a71d92ca091f3d18921e32968`; its verified feature tip was `3894ce43798e4d9d919dfac54c8ab11aa7168733`.
 
 ## Major locked decisions
 - Server-authoritative completeness.
@@ -83,7 +83,7 @@ No WP02/WP03 blocker remains. Parked items stay parked for their assigned later 
 No Track A rerun is required without fresh defect evidence.
 
 ## Immediate next action
-Perform the explicitly authorized clean merge of the verified WP04 branch into current main, followed by independent post-merge verification; do not start WP05 until WP04 G8 is closed.
+WP04 is closed. WP05 — Costing Suite Functional Rationalisation Audit may be opened as a separate work pack/chat when explicitly started; do not reopen WP04 without fresh regression evidence.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.

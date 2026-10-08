@@ -31,9 +31,9 @@ This recovery-branch copy of the WP04 ledger was stale (still showing G0 / not s
 | WP04-G5 — Client implementation | [x] IMPLEMENTATION ACCEPTED at `db7544f2ebdf30f515f249ade9e12a660a364476` (preserved) |
 | WP04-G6 — Independent implementation audit | [x] PASS (preserved; no GitHub CI evidence claimed) |
 | WP04-G7 — Authenticated / live verification | [x] COMPLETED AND VERIFIED / PASS — original attempt was blocked, recovered through Track A/B, then formally rerun successfully |
-| WP04-G8 — Merge / post-merge closure | [ ] NOT STARTED |
+| WP04-G8 — Merge / post-merge closure | [x] COMPLETED AND VERIFIED / PASS |
 
-WP04 remains **ACTIVE** until G8 completes and is **not yet merged or closed**.
+WP04 is **COMPLETED, VERIFIED, MERGED, AND CLOSED**.
 
 ### Original G7 exposure and recovery split
 
@@ -134,31 +134,31 @@ Backend verification after that G7 rerun found:
 No GitHub CI evidence exists.
 
 ## Current Gate
-`WP04-G8 — merge / post-merge closure boundary`
+Closed — WP04-G8 completed and verified.
 
 ## Gate Status
-[~] WP04 ACTIVE until G8 completes — G0–G6 preserved complete; original G7 blocked then recovered; formal G7 rerun **COMPLETED AND VERIFIED / PASS**; Track A CLOSED/APPLIED/PROVEN; Track B ACCEPTED at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`; G8 NOT STARTED; no merge/release/publish; WP05 not started.
+[x] WP04 **COMPLETED, VERIFIED, MERGED, AND CLOSED** — G0–G8 complete. Formal G7 rerun PASS; Track A CLOSED/APPLIED/PROVEN; Track B accepted at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. G8 merged synchronized feature head `836ff0e9e9fd8dbe27061dde2a6346236466b2a4` into `main` `a007cea4d624835dc5406a952657769868619649` as merge commit `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b`. Post-merge verification PASS. No GitHub CI evidence is claimed. WP05 not started.
 
 ## Required to close
-Perform the explicitly authorized clean merge of the verified WP04 branch into current main, followed by independent post-merge verification. Do not start WP05 until WP04 G8 is closed.
+None. Exit criteria satisfied.
 
 ## Next gate
-`WP04-G8 — merge / post-merge closure`. G8 remains NOT STARTED.
+None within WP04. WP05 may open separately when explicitly started.
 
 ## Server changes
 Track A server recovery is already APPLIED/PROVEN in production (Build 4). No further Track A mutation is authorized by this ledger update. Legacy dashboard-summary server objects remain parked, not dropped.
 
 ## Client changes
-Track B accepted client head `47b07b4bdb92f9d2d471c61569045c8f24f1cac5` on `fix/wp04-g7-track-b-readiness-ux`. This documentation commit does not change implementation files.
+Track B accepted client runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5` on `fix/wp04-g7-track-b-readiness-ux`. After documentation and main-synchronization commits, final synchronized feature head `836ff0e9e9fd8dbe27061dde2a6346236466b2a4` was merged unchanged into `main` by G8 merge commit `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b`.
 
 ## Tests / verification
-Formal WP04-G7 rerun is PASS for the seven signed-in/native checks listed above. Backend verification after that rerun found no new statement timeouts and no new calls to parked `public.v_costing_pricing_dashboard_summary`. Track B and this G7 record have no GitHub CI evidence.
+Formal WP04-G7 rerun is PASS for the seven signed-in/native checks listed above. G8 post-merge verification confirmed merge parent 1 `a007cea4d624835dc5406a952657769868619649`, parent 2 `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`, and a merged tree identical to the verified synchronized branch tree. Live Track A remained Build 4 / COMPLETED / current / period 2026-09-01 / valuation 2026-09-10 / Run 115 / 1793 ALL_EXISTING / 611 OPERATIONAL / fingerprint matching; Readiness RPC MD5 remained `590a40c5a53949ca8e9f87dd54404947`; CSE-P01 MD5 remained `68bd9325062299eb8af1291bf4d9393b`. The checked post-merge log window contained no new statement timeout and no new `v_costing_pricing_dashboard_summary` call. No GitHub CI evidence is claimed.
 
 ## Decisions created / preserved
 DEC-011, DEC-014, and DEC-015 remain LOCKED and are preserved. Historical recovery evidence (2026-10-07) remains recorded. See CHANGELOG_DECISIONS.md for the 2026-10-08 G7 PASS ledger entry.
 
 ## Risks
-Treating the documentation head as a new runtime candidate; claiming GitHub CI evidence that does not exist; starting WP05 before G8 closes; dropping parked legacy dashboard-summary objects before the WP05 dependency audit.
+Reopening closed WP04 recovery work without fresh regression evidence; claiming GitHub CI evidence that does not exist; or dropping parked legacy dashboard-summary objects before the WP05 dependency audit.
 
 ## Parked discoveries
 See PARKED_BACKLOG.md entries PERF-P01, CSE-P01, and the WP05 park candidates recorded from Track B acceptance.
@@ -167,4 +167,4 @@ See PARKED_BACKLOG.md entries PERF-P01, CSE-P01, and the WP05 park candidates re
 All work-pack objectives and required verification gates pass; documentation and handover are current; explicit G8 merge/post-merge proof where applicable.
 
 ## Final handover
-Not complete. WP04 remains active at the G8 merge / post-merge closure boundary.
+Complete. WP04 is closed at merge commit `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b`. Preserve Track A/Track B/G7 recovery evidence and parked WP05 candidates; do not reopen WP04 without fresh regression evidence.
