@@ -49,15 +49,21 @@ const helperSrc = [
   extractNamed(src, "normalizeBmrBatchNumber"),
   extractNamed(src, "bmrCreateDuplicateKey"),
   extractNamed(src, "takeUniqueCreateRows"),
+  extractNamed(src, "formatCreatePreviewSummary"),
   extractNamed(src, "csvToRows"),
 ].join("\n");
 
 const helpers = new Function(
-  `${helperSrc}\nreturn { normalizeBmrBatchNumber, bmrCreateDuplicateKey, takeUniqueCreateRows, csvToRows };`,
+  `${helperSrc}\nreturn { normalizeBmrBatchNumber, bmrCreateDuplicateKey, takeUniqueCreateRows, formatCreatePreviewSummary, csvToRows };`,
 )();
 
-const { normalizeBmrBatchNumber, bmrCreateDuplicateKey, takeUniqueCreateRows, csvToRows } =
-  helpers;
+const {
+  normalizeBmrBatchNumber,
+  bmrCreateDuplicateKey,
+  takeUniqueCreateRows,
+  formatCreatePreviewSummary,
+  csvToRows,
+} = helpers;
 
 const examples = [
   ["147", "0147"],
@@ -138,6 +144,61 @@ assert(
   "alphanumeric batch number is a different duplicate key",
 );
 
+const paddedPair = takeUniqueCreateRows([
+  { item: "Sample Item", bn: "147", size: 10, uom: "Kg" },
+  { item: "Sample Item", bn: "0147", size: 10, uom: "Kg" },
+]);
+assert(
+  formatCreatePreviewSummary(paddedPair.unique.length, paddedPair.duplicateCount) ===
+    "1 entry will be created. 1 duplicate will be skipped. Please review before confirming.",
+  "preview counts 147 and 0147 as one create and one skip",
+);
+assert(
+  paddedPair.unique.length === 1 && paddedPair.unique[0].bn === "0147",
+  "preview partition keeps the normalized batch number",
+);
+assert(
+  formatCreatePreviewSummary(1, 0) ===
+    "1 entry will be created. Please review before confirming.",
+  "preview without duplicates keeps the original sentence",
+);
+assert(
+  formatCreatePreviewSummary(2, 0) ===
+    "2 entries will be created. Please review before confirming.",
+  "preview plural without duplicates stays unchanged",
+);
+assert(
+  formatCreatePreviewSummary(2, 2) ===
+    "2 entries will be created. 2 duplicates will be skipped. Please review before confirming.",
+  "preview pluralizes skipped duplicates",
+);
+
+const submitStart = src.indexOf("async function submitCreateEntries()");
+const submitEnd = src.indexOf("function resetManagePg()");
+const submitSrc = src.slice(submitStart, submitEnd);
+assert(
+  submitSrc.split("takeUniqueCreateRows(").length - 1 === 1,
+  "submit partitions in-batch duplicates once",
+);
+assert(
+  submitSrc.indexOf("const partitioned = takeUniqueCreateRows(rows);") !== -1 &&
+    submitSrc.indexOf("const partitioned = takeUniqueCreateRows(rows);") <
+      submitSrc.indexOf("formatCreatePreviewSummary("),
+  "partition happens before the preview summary",
+);
+assert(
+  submitSrc.includes("partitioned.unique.length") &&
+    submitSrc.includes("partitioned.duplicateCount") &&
+    submitSrc.includes("cp.body.innerHTML = partitioned.unique") &&
+    submitSrc.includes("for (const row of partitioned.unique)") &&
+    submitSrc.includes("dup = partitioned.duplicateCount"),
+  "preview and insert share one duplicate partition",
+);
+assert(
+  !submitSrc.includes("const n = rows.length"),
+  "preview no longer counts raw rows as entries to create",
+);
+
 const getCreateSrc = extractFunction(src, "getCreateRowsFromTable");
 const csvSrc = extractFunction(src, "csvToRows");
 const saveStart = src.indexOf("async function saveEditModal()");
@@ -155,8 +216,8 @@ assert(
 assert(
   src.includes("rows = getCreateRowsFromTable()") &&
     src.includes("${escHtml(r.bn)}") &&
-    src.includes("takeUniqueCreateRows(rows)"),
-  "preview renders normalized bn and submit rechecks normalized duplicates",
+    submitSrc.includes("takeUniqueCreateRows(rows)"),
+  "preview renders normalized bn from the shared duplicate partition",
 );
 assert(
   !saveSrc.includes("normalizeBmrBatchNumber"),

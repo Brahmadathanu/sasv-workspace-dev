@@ -353,6 +353,16 @@ function takeUniqueCreateRows(rows) {
   return { unique, duplicateCount };
 }
 
+function formatCreatePreviewSummary(uniqueCount, duplicateCount) {
+  const entryWord = uniqueCount === 1 ? "entry" : "entries";
+  let summary = uniqueCount + " " + entryWord + " will be created.";
+  if (duplicateCount) {
+    const dupWord = duplicateCount === 1 ? "duplicate" : "duplicates";
+    summary += " " + duplicateCount + " " + dupWord + " will be skipped.";
+  }
+  return summary + " Please review before confirming.";
+}
+
 function csvToRows(text) {
   const lines = text
     .replace(/^\uFEFF/, "")
@@ -529,11 +539,14 @@ async function submitCreateEntries() {
     return;
   }
 
-  // Populate preview modal
+  // One partition feeds both the preview and the inserts below.
+  const partitioned = takeUniqueCreateRows(rows);
   const cp = els.createPreview;
-  const n = rows.length;
-  cp.summary.textContent = `${n} entr${n === 1 ? "y" : "ies"} will be created. Please review before confirming.`;
-  cp.body.innerHTML = rows
+  cp.summary.textContent = formatCreatePreviewSummary(
+    partitioned.unique.length,
+    partitioned.duplicateCount,
+  );
+  cp.body.innerHTML = partitioned.unique
     .map(
       (r, i) => `
     <tr>
@@ -566,10 +579,9 @@ async function submitCreateEntries() {
 
   if (!confirmed) return;
 
-  // Step 3: execute inserts. In-batch duplicates use the normalized BN.
+  // Step 3: insert the same unique rows the preview counted.
   els.add.submitCreateBtn.disabled = true;
   clearStatus();
-  const partitioned = takeUniqueCreateRows(rows);
   let ok = 0,
     dup = partitioned.duplicateCount,
     err = 0;
