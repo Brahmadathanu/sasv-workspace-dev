@@ -36,6 +36,13 @@
  *   )
  *   Returns: table rows for the current active specification setup.
  *
+ *   fn_validate_current_active_spec(
+ *     p_subject_type,              -- 'FG' | 'RM' | 'PM'
+ *     p_product_id,                -- bigint | null  (FG only)
+ *     p_stock_item_id              -- bigint | null  (RM/PM only)
+ *   )
+ *   Returns: JSON readiness authority. Green readiness requires ok === true.
+ *
  *   fn_receive_sample_and_create_analysis(
  *     p_user_id,                   -- uuid
  *     p_analysis_subject_type,     -- 'FG_BATCH' | 'RM_LOT' | 'PM_LOT'
@@ -64,6 +71,12 @@
 
 import { supabase, labSupabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import {
+  buildValidateCurrentActiveSpecArgs,
+  normalizeEffectiveSpecValidation,
+  normalizeLabUserError,
+  readinessFailureCopy,
+} from "./lab-user-error.js";
 
 // ── DOM helpers ───────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -924,10 +937,14 @@ async function previewCurrentActiveSpecForAnalysis(
   );
 
   if (error) {
+    console.error(
+      "[lab-analysis-entry] fn_resolve_current_active_spec_lines error:",
+      error,
+    );
     return {
       ok: false,
       reason_code: "ERROR",
-      message: error.message || "Active specification could not be resolved.",
+      message: normalizeLabUserError(error, { context: "spec-resolution" }),
       subject_type: normalizedSubject,
       product_id: resolvedProductId,
       stock_item_id: resolvedStockItemId,
@@ -957,6 +974,28 @@ async function previewCurrentActiveSpecForAnalysis(
     line_count: rows.length,
     lines: rows,
   };
+}
+
+async function confirmEffectiveSpecIsValid(subjectType, productId, stockItemId) {
+  const args = buildValidateCurrentActiveSpecArgs(
+    subjectType,
+    productId,
+    stockItemId,
+  );
+  const { data, error } = await labSupabase.rpc(
+    "fn_validate_current_active_spec",
+    args,
+  );
+  if (error) throw error;
+  return normalizeEffectiveSpecValidation(data);
+}
+
+function showEffectiveSpecNotReady(showNotReady, validation) {
+  const copy = readinessFailureCopy(validation);
+  readinessOk.classList.add("hidden");
+  const foundLabel = readinessOk.querySelector(".mapping-found-label");
+  if (foundLabel) foundLabel.textContent = "";
+  showNotReady(copy.label, copy.sub);
 }
 
 // FG readiness check (product-group level)
@@ -1082,6 +1121,18 @@ async function checkFgReadiness(productId) {
       return;
     }
 
+    const specValidation = await confirmEffectiveSpecIsValid(
+      "FG",
+      productId,
+      null,
+    );
+    if (specValidation.ok !== true) {
+      fgReadiness.specOk = false;
+      fgReadiness.ok = false;
+      showEffectiveSpecNotReady(showFgNotReady, specValidation);
+      return;
+    }
+
     // All checks passed
     fgReadiness.specOk = true;
     fgReadiness.ok = true;
@@ -1103,8 +1154,12 @@ async function checkFgReadiness(productId) {
   } catch (err) {
     console.error("[lab-analysis-entry] checkFgReadiness error:", err);
     mappingLoading.classList.add("hidden");
-    showFgNotReady(`FG readiness check failed: ${err.message}`, "");
-    toast(`FG readiness check failed: ${err.message}`, "error");
+    readinessOk.classList.add("hidden");
+    fgReadiness.specOk = false;
+    fgReadiness.ok = false;
+    const message = normalizeLabUserError(err);
+    showFgNotReady(message, "");
+    toast(message, "error");
   }
 }
 
@@ -1225,6 +1280,21 @@ async function checkInventoryReadiness(stockItemId) {
       return;
     }
 
+    testPreview.classList.remove("hidden");
+    renderEffectiveSpecPreviewRows(rows);
+
+    const specValidation = await confirmEffectiveSpecIsValid(
+      "RM",
+      null,
+      stockItemId,
+    );
+    if (specValidation.ok !== true) {
+      rmReadiness.specOk = false;
+      rmReadiness.ok = false;
+      showEffectiveSpecNotReady(showInventoryNotReady, specValidation);
+      return;
+    }
+
     // All checks passed
     rmReadiness.specOk = true;
     rmReadiness.ok = true;
@@ -1244,13 +1314,15 @@ async function checkInventoryReadiness(stockItemId) {
       name;
 
     readinessOk.classList.remove("hidden");
-    testPreview.classList.remove("hidden");
-    renderEffectiveSpecPreviewRows(rows);
   } catch (err) {
     console.error("[lab-analysis-entry] checkInventoryReadiness error:", err);
     mappingLoading.classList.add("hidden");
-    showInventoryNotReady("RM readiness check failed: " + err.message, "");
-    toast("RM readiness check failed: " + err.message, "error");
+    readinessOk.classList.add("hidden");
+    rmReadiness.specOk = false;
+    rmReadiness.ok = false;
+    const message = normalizeLabUserError(err);
+    showInventoryNotReady(message, "");
+    toast(message, "error");
   }
 }
 
@@ -1344,6 +1416,21 @@ async function checkPmReadiness(stockItemId) {
       return;
     }
 
+    testPreview.classList.remove("hidden");
+    renderEffectiveSpecPreviewRows(rows);
+
+    const specValidation = await confirmEffectiveSpecIsValid(
+      "PM",
+      null,
+      stockItemId,
+    );
+    if (specValidation.ok !== true) {
+      pmReadiness.specOk = false;
+      pmReadiness.ok = false;
+      showEffectiveSpecNotReady(showInventoryNotReady, specValidation);
+      return;
+    }
+
     // All checks passed
     pmReadiness.specOk = true;
     pmReadiness.ok = true;
@@ -1363,16 +1450,18 @@ async function checkPmReadiness(stockItemId) {
       name;
 
     readinessOk.classList.remove("hidden");
-    testPreview.classList.remove("hidden");
-    renderEffectiveSpecPreviewRows(rows);
   } catch (err) {
     console.error("[lab-analysis-entry] checkPmReadiness error:", err);
     mappingLoading.classList.add("hidden");
+    readinessOk.classList.add("hidden");
+    pmReadiness.specOk = false;
+    pmReadiness.ok = false;
+    const message = normalizeLabUserError(err);
     showInventoryNotReady(
-      "PM readiness check failed: " + err.message,
+      message,
       "A protocol and base spec are required at packing-material subcategory level.",
     );
-    toast("PM readiness check failed: " + err.message, "error");
+    toast(message, "error");
   }
 }
 
@@ -1830,10 +1919,10 @@ async function startAnalysis() {
     showCreatedState(result);
   } catch (err) {
     console.error("[lab-analysis-entry] startAnalysis error:", err);
-    const msg = err.message ?? "An unexpected error occurred.";
+    const msg = normalizeLabUserError(err);
     startError.textContent = msg;
     startError.classList.remove("hidden");
-    toast(`Failed to create analysis: ${msg}`, "error");
+    toast(msg, "error");
     startAnalysisBtn.classList.remove("loading");
     startAnalysisBtn.disabled = false;
   }
