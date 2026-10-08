@@ -116,3 +116,8 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
 - Live rollback-only DO audit executed successfully: create, incomplete verify rejection, update, stale-version rejection, source verification, verification invalidation and rollback/no surviving test record. Test did not perform authenticated UI E2E exercise; client/runtime authorization still needs acceptance evidence.
 - No QC portal mutations, QC study promotion, approved-laboratory mappings or Product 262 drafts authorized.
 - Final merge gate: reconcile current shared main, migration-history identity/parity, role grants, audit and documentation. No automatic merge.
+
+### G3B S1 database identity acceptance supplement
+- Read-only inspected `public.user_permissions_canonical`: the established production e-Aushadhi operator has `can_view=true` and `can_edit=true` for `module:e-aushadhi-automation`.
+- Ran scoped SQL claim-context simulation using `request.jwt.claim.sub`: permissioned operator read and unpermissioned identity rejection completed without exception. This is **database-level permission simulation**, not a genuine authenticated Electron/PWA client-session E2E test and does not prove the end-user application route.
+- S1 remains conditional until client-authenticated route acceptance and final merge reconciliation; do not merge implicitly.
