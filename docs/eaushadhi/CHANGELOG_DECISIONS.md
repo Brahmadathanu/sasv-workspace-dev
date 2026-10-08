@@ -216,3 +216,9 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Operator **manually enters** Study Start and Study End dates as mandatory values to approve; no automatic manufacturing-month derivation or prefilling. Reviewer documents evidence/provenance. Report date also manually confirmed.
 - S1 draft and event foundation deployed in two repository-versioned migrations on feature branch, with service-role-only operations, no QC study or portal Save authorized. Read-only validation/security checks passed; isolated write-path tests and final audit pending.
 - Haridev default portal selection remains editable as a future candidate, separate from NUPAL report issuer; portal mapping remains unverified and no S2 promotion is authorized.
+
+## 2026-10-08 — WP-07 S1 operator identity security correction
+- S1 source-draft read/review/save/verify public wrappers now use existing `rpc_eaushadhi_require_permission` and derive the authenticated actor; user-supplied audit identity is never a public wrapper argument.
+- Internal regulatory preparation functions are revoked from application/service roles and retained solely for owner-definer delegation. No autonomous service-role impersonation path is approved.
+- A rollback-only S1 lifecycle test completed without error for create, incomplete verification denial, edit, stale denial, verify and verification invalidation. No test records persisted.
+- S1 remains unmerged pending final permission, parity and branch movement audit; S2, client and portal execution remain unopened.
