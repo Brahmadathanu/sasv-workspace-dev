@@ -96,3 +96,16 @@ IN/OUT classification, eligible report artifact and (for OUT) approved laborator
 
 No QC portal Save/Update/Delete is authorized.
 No final product Submit is authorized.
+
+
+## G3B / S1 — Manual-entry QC preparation foundation (2026-10-08)
+Authorized S1 server foundation applied live, with no Product 262 source study/draft/stage/run or portal mutation.
+- Decision: operator manually enters **both** Study Start Date and Study End Date as mandatory verification fields; the server does not infer, prefill, or overwrite these dates from manufacturing months. Dates may be absent during incomplete draft editing but cannot pass source verification without explicit operator entry and evidence note.
+- Report Date is similarly entered/confirmed by the operator.
+- New isolated tables `regulatory.eaushadhi_qc_preparation` and `eaushadhi_qc_preparation_event`; optimistic row versions, preparation state only and append-only ordinary-operator audit history.
+- Service-role-only, audited S1 RPC surface: `eaushadhi_qc_preparation_read_v1`, `save_v1`, `review_v1`, `verify_v1`; no ordinary authenticated direct table access or execute grants. S1 verification is source-only; not an execution authorization.
+- Applied migrations: `20261008180000_wp07_g3b_s1_qc_preparation_manual_dates.sql` and `20261008180500_wp07_g3b_s1_manual_date_regex_correction.sql`. Both are in the dedicated S1 feature branch pending independent audit/merge.
+- Read-only tests: complete sample manually entered date passes; omitted Start/End/Report dates fail; impossible calendar day fails. Direct authenticated/service role table insert denied; authenticated save/verify execute denied; service role RPC granted.
+- Product 262 still has zero QC preparations, source studies, QC stage rows and QC run rows. Product Details and Composition unchanged by migrations. No S2 laboratory mapping, source promotion or QC portal execution opened.
+- Feature branch: `feat/wp07-g3b-s1-qc-preparation-manual-dates` (not merged).
+- Remaining acceptance: independent diff/security/permission audit, transactional write-path tests (create/save/stale/verify/reopen/reject) in disposable test context, migration parity and explicit merge authorization.
