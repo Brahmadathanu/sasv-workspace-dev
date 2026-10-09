@@ -26,3 +26,15 @@ High-risk PLAN gate: inspect exact current files and produce a minimal plan befo
 
 ## Gate discipline
 G1 high-risk plan review; G2 server correction and live parity verification; G3 client execution; G4 independent acceptance; G5 merge authorization. No gate becomes DONE solely because a branch or file exists.
+
+## G2 server execution evidence — 2026-10-09
+**COMPLETED — LIVE (server); signed-in user acceptance is pending.**
+- Applied migration: `pec_filtered_buylist_canonical_indent_line_sort_no` against `qhmoqtxpeasamtlxaoak`.
+- Live internal function now joins `v_proc_indent_lines_console_ordered` by `indent_line_id`, carries canonical `indent_line_sort_no` and includes it in each JSON breakdown record.
+- Unique IDs in ordered view: 1472/1472; unique base IDs: 1147/1147; join matches: 1147; missing serials: 0.
+- Representative filtered lookup: Indent 193, 28 MM ROPP Cap → `indent_line_sort_no=15`.
+- Result row/quantity/amount parity with base view: 769 rows; quantity `3141498.892228`; amount `53439863.525775243794`.
+- Internal function still owned by `postgres`, `SECURITY DEFINER`, `search_path=public`, directly non-executable by `authenticated`.
+- Public wrapper rejected unauthenticated invocation (`Not authenticated`) as expected; signed-in proof remains OPEN.
+- No client code, PWA, grants, or indent source records were changed.
+- Migration reversal must restore prior filtered function definition from verified prechange source, not delete serials or modify underlying indent rows.
