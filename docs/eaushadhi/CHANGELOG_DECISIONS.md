@@ -222,3 +222,8 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Internal regulatory preparation functions are revoked from application/service roles and retained solely for owner-definer delegation. No autonomous service-role impersonation path is approved.
 - A rollback-only S1 lifecycle test completed without error for create, incomplete verification denial, edit, stale denial, verify and verification invalidation. No test records persisted.
 - S1 remains unmerged pending final permission, parity and branch movement audit; S2, client and portal execution remain unopened.
+
+## 2026-10-09 — WP-07 S1 live Electron acceptance
+- Product 262 authenticated read-only QC preparation probe returned **“QC preparation read probe returned no preparations.”** Operator-observed PASS using isolated feature-branch Electron development app, not a government portal login.
+- Independent review of bounded view-only diagnostic and permissions correction accepted. No QC preparation or QC study record created; S2 and portal execution remain unopened.
+- S1 awaiting final integrated audit and separate authorization before merging.
