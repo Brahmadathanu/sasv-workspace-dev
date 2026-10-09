@@ -128,3 +128,37 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
 - Independent code audit of the read-only feature/probe and bounded view-permission correction completed. The client probe requires view permission, restricts to Product 262, and returns success solely on an empty array.
 - Main/feature file movement reconciled with no overlap (as of main `200148818d52a4c552ec0a338d86bf794803dddd`): main-only changes are BMR batch-number normalization files; feature S1 changes remain QC migrations, QC docs and probe-related client/tests.
 - Await explicit merge authorization after final integrated check. S2 promotion, approved-laboratory mapping, full QC preparation UI, portal Save/Submit remain unopened.
+
+## G3B/S2A — Approved operator-entry and QC document contract (2026-10-09)
+
+**Approval scope:** field-level design, document naming/registration pattern, human source verification and later gated portal lifecycle. This section is a contract freeze only. No QC draft, report upload, authoritative study promotion or portal operation is authorized solely by its approval.
+
+### Operator flow
+1. In e-Aushadhi Review & Control select the governed product and QC Register section; preserve the existing module and product lifecycle.
+2. Operator manually enters QC protocol (OTHER requires actual description), Start Date, End Date, shelf-life months, batch numbers, Report Date, QC IN/OUT, true report issuer, optional issuer approval/Form-48 evidence, and portal laboratory candidate (OUT). Dates must have evidence notes and are never calculated from manufacturing month or COA date.
+3. Operator uploads the actual QC test-report PDF to the existing protected `eaushadhi-evidence` bucket under a purpose-specific validated convention. For Product 262, proposed filename `EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf`; version must advance for a new artifact. Preserve original filename, issuer and byte checksum in canonical metadata; no PDF content relabelling or false issuer attribution.
+4. Register the QC report as a **new QC-specific document purpose/asset**, not APPROVED_PRODUCT_COPY. Server must validate product, purpose, path, PDF MIME/extension, size, content hash, verified object presence/identity, current version and authorized actor. Registry and actual storage bytes must agree. Upload success alone is not registration or verification. Reuse the proven Approved Product Copy contract/upload/storage pattern, not its document type/RPC blindly.
+5. Field review displays missing/pending/verified with evidence and actionable failure reasons. Draft Save allows incomplete data. Source Verify requires all mandatory fields, a current verified QC report asset and human confirmation, binds source and document hashes to the version, and invalidates prior verification on any relevant edit/replacement.
+6. Separately governed promotion maps exactly one verified preparation to its authoritative `stability_study`, batch rows and current report attachment atomically; idempotent uniqueness, stale-version rejection and append-only audit are mandatory. A source-verified preparation is **not** equivalent to portal READY or portal verified.
+7. QC snapshot/preflight only becomes READY when authoritative source, report asset, canonical-to-portal protocol mapping and, for OUT, qualified laboratory and portal mapping meet existing G2 rules. Portal navigation, bounded Save, native reread, exact semantic reconciliation and QC stage verification follow *separately* under the existing G2 execution lifecycle. Never final product Submit by implication.
+
+### Schema and contract findings
+- Existing S1 `eaushadhi_qc_preparation.draft_payload` admits: `testing_protocol_term_id`, `other_testing_protocol_text`, `study_start_date`, `study_end_date`, `date_basis`, `date_evidence_note`, `shelf_life_months`, `batches`, `report_date`, `report_date_evidence_note`, `quality_control_mode`, `source_report_issuer`, `source_report_approval_no`, `portal_laboratory_candidate`, `report_filename`, `report_sha256`, `report_evidence_note`.
+- S1 review currently checks report filename and SHA text, **not** a registered QC asset; additional attachment-backed readiness must be built before source promotion/portal READY. Never treat S1 verification alone as proof of upload.
+- Existing approved copy client uses `rpc_eaushadhi_document_upload_contract` → non-upsert Supabase private storage upload → `rpc_eaushadhi_register_approved_product_copy`. QC must use separate purpose/scoped registration and attachment linkage; ordinary users cannot directly write regulatory tables.
+- Existing `stability_study_document` links study to `document_asset` with purpose `TEST_REPORT` or `PORTAL_UPLOAD_ARTIFACT`; G2 QC snapshot already requires current active eligible attachment.
+- The only verified Product-262 named `document_asset` encountered in S2A was ID 1, `APPROVED_PRODUCT_COPY`, **not** the QC report. Actual source QC PDF registration is unproven.
+- Portal QC protocol `OTHER` candidate mapping was seeded as DRAFT; verify its native Others option before execution. Source report issuer NUPAL and preferred editable portal candidate Haridev Formulations must remain separate; Haridev is never automatically represented as report issuer or approved mapping.
+- IN versus OUT requirements must be explicit; no laboratory mapping may be fabricated or auto-verified.
+
+### Ordered implementation boundaries
+**S2B — Server contract and backend:** independently audit current SQL, approved-copy registration and storage policies; implement purpose-specific naming/upload/registration, evidence-backed verify and transactional promotion with permission checks and rollback-only acceptance. Migrations live only after separate bounded plan approval. No actual Product-262 draft/report/study writes during technical tests.
+
+**S2C — Client UX:** high-risk Plan → ChatGPT review → Cursor implementation on isolated feature branch; compact QC Register panel, human field entry, editable OUT lab selection, controlled PDF upload, field review, Save/Verify, clear status. Do not implement against hypothetical RPC signatures.
+
+**S2D — QC portal executor:** separate authorization following verified source and current native capture; reuse existing G2 run-arm/Save-outcome/reread/stage-verify lifecycle. No portal Save/Update/Delete/Submit opened in S2A/B/C.
+
+### Outstanding evidence
+Confirm exact QC report bytes/hash and legitimate accessible artifact; start/end/report dates through human entry; Form-48/laboratory validity and the source issuer versus portal lab applicability; native portal Others and laboratory-option mapping. Any unresolved question remains a blocker rather than inferred data.
+
+**S1 closure:** PR #47 merged to main `980cfeed1aaaaf13d6cd168506dc91d87d3546a8`; Product-262 authenticated Electron read yielded empty preparations. Prior S1 document paragraphs describing pre-merge state are historical, not the current state.
