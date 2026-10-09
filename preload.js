@@ -113,6 +113,11 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
     ipcRenderer.invoke("eaushadhi-worker:capture-contract", { accessToken }),
   openCaptureFolder: (accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:open-capture-folder", { accessToken }),
+  readQcPreparation: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-read", {
+      productId,
+      accessToken,
+    }),
   onStatus: (cb) => {
     const handler = (_evt, payload) => cb && cb(payload);
     ipcRenderer.on("eaushadhi-worker:status", handler);

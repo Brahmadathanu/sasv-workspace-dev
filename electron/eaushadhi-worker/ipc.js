@@ -2,6 +2,8 @@
 
 const { createEaushadhiWorker } = require("./index");
 const { WorkerError, ERROR_KINDS, workerError } = require("./errors");
+const { callWorkerRpc } = require("./server-client");
+const { readQcPreparation } = require("./qc-preparation-read");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const {
   assertAllowedEaushadhiRenderer,
@@ -30,6 +32,7 @@ const CHANNELS = Object.freeze({
   CAPTURE_CONTRACT: "eaushadhi-worker:capture-contract",
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
+  QC_PREPARATION_READ: "eaushadhi-worker:qc-preparation-read",
 });
 
 function errorPayload(error) {
@@ -228,6 +231,19 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
     withRendererGuard(async (_event, payload) => {
       const accessToken = validateAccessToken(payload?.accessToken);
       return worker.capturePortalContract(accessToken);
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREPARATION_READ,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return readQcPreparation({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
+      });
     }),
   );
 
