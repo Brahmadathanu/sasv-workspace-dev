@@ -117,22 +117,6 @@ begin
    v_res.preparation_row_version is distinct from p_expected_row_version then
    raise exception using errcode='40001',message='Stale or mismatched QC preparation';
  end if;
- if v_res.status='REGISTERED' then
-   if v_res.storage_object_id=p_object_id and v_res.claimed_sha256=p_claimed_sha256 and
-     v_res.original_upload_file_name=p_original_upload_file_name and
-     exists(select 1 from storage.objects o where o.id=p_object_id
-       and o.bucket_id=v_res.expected_bucket and o.name=v_res.expected_storage_path
-       and o.archived_at is null and coalesce(o.is_delete_marker,false)=false
-       and o.version is not distinct from v_res.storage_object_version) then
-     return jsonb_build_object('reservation_id',v_res.reservation_id,
-       'document_asset_id',v_res.document_asset_id,'integrity_status','UNVERIFIED_BYTES',
-       'idempotent',true);
-   end if;
-   raise exception using errcode='23505',message='Conflicting QC report registration';
- end if;
- if v_res.status<>'RESERVED' then
-   raise exception using errcode='23514',message='QC reservation is not active';
- end if;
  select * into v_object from storage.objects
  where id=p_object_id and bucket_id=v_res.expected_bucket
  and name=v_res.expected_storage_path and archived_at is null
@@ -148,6 +132,25 @@ begin
  v_size:=(v_object.metadata->>'size')::bigint;
  if v_size<=0 or v_size>20971520 then
    raise exception using errcode='23514',message='QC PDF size outside approved range';
+ end if;
+ if v_res.status='REGISTERED' then
+   if v_res.storage_object_id=p_object_id and v_res.claimed_sha256=p_claimed_sha256
+     and v_res.original_upload_file_name=p_original_upload_file_name
+     and v_res.storage_object_version is not distinct from v_object.version
+     and exists(select 1 from regulatory.document_asset da
+       where da.id=v_res.document_asset_id and da.is_active
+       and da.document_type='QC_TEST_REPORT' and da.file_size_bytes=v_size
+       and da.mime_type='application/pdf' and da.storage_bucket=v_res.expected_bucket
+       and da.storage_path=v_res.expected_storage_path
+       and da.content_sha256=p_claimed_sha256) then
+     return jsonb_build_object('reservation_id',v_res.reservation_id,
+       'document_asset_id',v_res.document_asset_id,'integrity_status','UNVERIFIED_BYTES',
+       'idempotent',true);
+   end if;
+   raise exception using errcode='23505',message='Conflicting QC report registration';
+ end if;
+ if v_res.status<>'RESERVED' then
+   raise exception using errcode='23514',message='QC reservation is not active';
  end if;
  -- Important: this is unverified caller-supplied SHA, NOT a hash of stored bytes.
  insert into regulatory.document_asset(document_type,storage_bucket,storage_path,
