@@ -164,11 +164,24 @@ assert(probeUi.includes(">QC preparation read probe</button>"), "button label is
 assert(!/QC Ready|\bVerified\b|\bCompleted\b/.test(probeUi), "probe label is not QC Ready, Verified, or Completed");
 assert(probeUi.includes("isFirstControlledEntryProduct"), "probe UI is limited to product 262");
 assert(probeUi.includes('id="btnWorkerFoundation"'), "Foundation Check remains in the same card");
+assert(
+  /id="btnWorkerFoundation"[^>]*data-edit-action="true"/.test(probeUi),
+  "Foundation Check remains an edit action",
+);
+const probeButton = probeUi.slice(probeUi.indexOf('id="btnQcPreparationRead"'), probeUi.indexOf(">QC preparation read probe</button>"));
+assert(!probeButton.includes("data-edit-action"), "probe button is not gated as an edit action");
+assert(probeUi.includes("access.canView !== true"), "probe button is unavailable without view permission");
+assert(probeUi.includes("probeBlocked"), "missing view permission disables the probe button");
 
 const probeSubmit = controlSrc.slice(
   controlSrc.indexOf("async function submitQcPreparationReadProbe"),
   controlSrc.indexOf("async function submitWorkerEntryDryRun"),
 );
+assert(probeSubmit.includes("access.canView !== true"), "view permission allows the diagnostic read");
+assert(!probeSubmit.includes("canWrite("), "view-only operator is not blocked by the edit requirement");
+assert(probeSubmit.includes("state.busy"), "busy-state protection remains");
+assert(probeSubmit.includes("isFirstControlledEntryProduct"), "product 262 restriction remains");
+assert(probeSubmit.includes("state.selectedProductId !== productId"), "late result is discarded after product switch");
 assert(probeSubmit.indexOf("if (!workerApiAvailable()) return;") < probeSubmit.indexOf("sessionAccessToken"), "PWA returns before a session read");
 assert(!probeSubmit.includes("supabase.rpc"), "probe handler has no renderer RPC fallback");
 assert(!probeSubmit.includes("startWorkerProductDetails"), "probe handler does not start Product Details");

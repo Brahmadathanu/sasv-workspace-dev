@@ -2819,15 +2819,15 @@ function renderWorkerFoundationCard() {
   const busy = state.busy;
   const checkDisabled = !available || busy || !state.selectedProductId;
   const probeProduct = isFirstControlledEntryProduct(state.selectedProductId);
-  const probeDisabled = !available || busy;
+  const probeBlocked = access.canView !== true || !available || busy;
   const browserLine = available
     ? `Browser session: ${workerStatusLabel(state.workerStatus)}. Connect, capture, and folder controls are in the page header.`
     : "Browser session: Unavailable. The dedicated e-Aushadhi browser worker is available only in the SASV Electron app. PWA cannot launch Edge.";
   const probeBlock = probeProduct
     ? `
       <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcPreparationRead" data-edit-action="true" ${
-          probeDisabled ? `data-force-disabled="true"` : ""
+        <button type="button" class="icon-btn with-label" id="btnQcPreparationRead"${
+          probeBlocked ? ` disabled aria-disabled="true"` : ""
         }>QC preparation read probe</button>
       </div>
       <p class="muted-note" id="workerQcPreparationReadResult">${escapeHtml(
@@ -3270,7 +3270,7 @@ async function submitWorkerFoundationCheck() {
 }
 
 async function submitQcPreparationReadProbe() {
-  if (!canWrite() || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (access.canView !== true || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
   if (!workerApiAvailable()) return;
   const productId = state.selectedProductId;
   state.busy = true;
