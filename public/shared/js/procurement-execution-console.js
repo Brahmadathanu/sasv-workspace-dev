@@ -4053,6 +4053,11 @@ function renderIndentLinesActions(indent) {
   applyPermissionUi();
 }
 
+function getIndentLineSerial(row, fallback = "") {
+  const serial = Number(row?.indent_line_sort_no);
+  return Number.isFinite(serial) && serial > 0 ? serial : fallback;
+}
+
 function renderIndentLines(rows) {
   const empty = qs("iLinesEmpty");
   const table = qs("iLinesTable");
@@ -4067,7 +4072,7 @@ function renderIndentLines(rows) {
   empty.style.display = "none";
   table.style.display = "";
   rows.forEach((row, idx) => {
-    const lineNo = idx + 1;
+    const lineNo = getIndentLineSerial(row, idx + 1);
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
     if (state.selectedIndentLine?.indent_line_id === row.indent_line_id) {
@@ -4162,7 +4167,7 @@ function renderIndentLinesInfinite(options = {}) {
   } else {
     const startAt = tbody.children.length;
     rows.slice(startAt).forEach((row, idx) => {
-      const lineNo = startAt + idx + 1;
+      const lineNo = getIndentLineSerial(row, startAt + idx + 1);
       const tr = document.createElement("tr");
       tr.style.cursor = "pointer";
       if (state.selectedIndentLine?.indent_line_id === row.indent_line_id) {
@@ -9342,6 +9347,11 @@ function normalizeVwlBreakdown(raw) {
       "-",
     indent_id: entry?.indent_id ?? null,
     indent_line_id: entry?.indent_line_id ?? null,
+    indent_line_sort_no:
+      entry?.indent_line_sort_no ??
+      entry?.line_sort_no ??
+      entry?.serial_no ??
+      null,
     qty_to_buy:
       entry?.qty_to_buy ??
       entry?.qty ??
@@ -9426,13 +9436,23 @@ function renderVwlActualVendorCell(line) {
   `;
 }
 
+function formatVwlIndentReference(line) {
+  const indent = String(
+    line?.indent_number ?? line?.indent_id ?? "-",
+  ).trim() || "-";
+  const serial = Number(line?.indent_line_sort_no);
+  return Number.isFinite(serial) && serial > 0
+    ? `${indent} (${serial})`
+    : indent;
+}
+
 function breakdownToCompactText(raw, row = {}) {
   const parts = normalizeVwlBreakdown(raw).map((b) => {
     const qty = Number(b.qty_to_buy || 0).toLocaleString("en-IN", {
       maximumFractionDigits: 3,
     });
     const uom = b.uom_code || row.uom_code || row.uom || "";
-    const indent = b.indent_number;
+    const indent = formatVwlIndentReference(b);
     return `${qty}${uom ? " " + uom : ""} [${indent}]`;
   });
   return parts.join("; ");
@@ -9503,7 +9523,7 @@ function openVwlBreakdown(row) {
       const lineDisplay = getVwlBreakdownLineDisplay(item);
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${esc(item.indent_number)}</td>
+        <td>${esc(formatVwlIndentReference(item))}</td>
         <td>${renderVwlActualVendorCell(item)}</td>
         <td class="num">${esc(fmt(item.qty_to_buy))}</td>
         <td class="num">${renderVwlRateCellContent(lineDisplay)}</td>
@@ -11026,7 +11046,7 @@ function formatVwlIndentSplitEntry(x, row) {
     maximumFractionDigits: 3,
   });
   const uom = pdfSafeText(x.uom_code || row.uom_code || row.uom || "");
-  const indent = pdfSafeText(x.indent_number || x.indent_id || "");
+  const indent = pdfSafeText(formatVwlIndentReference(x));
   if (!indent) return "";
   return `${qty}${uom ? " " + uom : ""} [${indent}]`;
 }
