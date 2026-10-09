@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v343"; // WP04-G7 Track B CCC skip legacy dashboard summary
+const CACHE_NAME = "hub-cache-v344"; // WP04-G7 Track B CCC skip legacy dashboard summary
 
 const PRECACHE = [
   // Hub shell
