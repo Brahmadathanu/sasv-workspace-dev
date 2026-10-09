@@ -43,7 +43,11 @@ create or replace view public.v_proc_vendorwise_buylist as
             WHEN count(*) FILTER (WHERE rate_value IS NULL OR rate_value <= 0::numeric) > 0 THEN NULL::numeric
             ELSE sum(line_amount)
         END AS total_amount,
-    jsonb_agg(jsonb_build_object('indent_number', indent_number, 'indent_id', indent_id, 'indent_line_id', indent_line_id, 'indent_line_sort_no', ( SELECT o.indent_line_sort_no\n           FROM v_proc_indent_lines_console_ordered o\n          WHERE o.indent_line_id = b.indent_line_id), 'qty_to_buy', qty_to_buy, 'uom_code', uom_code, 'actual_vendor_id', vendor_id, 'actual_vendor_name', vendor_name, 'actual_vendor_type', actual_vendor_type, 'vendor_bucket_key', vendor_bucket_key, 'vendor_bucket_name', vendor_bucket_name, 'vendor_bucket_type', vendor_bucket_type, 'rate_value', rate_value, 'line_amount', line_amount, 'rate_status', rate_status, 'assignment_status', assignment_status, 'rm_scope', rm_scope, 'rm_scope_label', rm_scope_label) ORDER BY indent_number, ( SELECT o.indent_line_sort_no\n           FROM v_proc_indent_lines_console_ordered o\n          WHERE o.indent_line_id = b.indent_line_id), indent_line_id) AS indent_breakdown,
+    jsonb_agg(jsonb_build_object('indent_number', indent_number, 'indent_id', indent_id, 'indent_line_id', indent_line_id, 'indent_line_sort_no', ( SELECT o.indent_line_sort_no
+           FROM v_proc_indent_lines_console_ordered o
+          WHERE o.indent_line_id = b.indent_line_id), 'qty_to_buy', qty_to_buy, 'uom_code', uom_code, 'actual_vendor_id', vendor_id, 'actual_vendor_name', vendor_name, 'actual_vendor_type', actual_vendor_type, 'vendor_bucket_key', vendor_bucket_key, 'vendor_bucket_name', vendor_bucket_name, 'vendor_bucket_type', vendor_bucket_type, 'rate_value', rate_value, 'line_amount', line_amount, 'rate_status', rate_status, 'assignment_status', assignment_status, 'rm_scope', rm_scope, 'rm_scope_label', rm_scope_label) ORDER BY indent_number, ( SELECT o.indent_line_sort_no
+           FROM v_proc_indent_lines_console_ordered o
+          WHERE o.indent_line_id = b.indent_line_id), indent_line_id) AS indent_breakdown,
     material_class_code,
     material_class_label,
     material_class_display,
