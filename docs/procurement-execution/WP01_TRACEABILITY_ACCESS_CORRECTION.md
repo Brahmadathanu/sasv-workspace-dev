@@ -1,7 +1,7 @@
 # WP01 — PEC Traceability & PWA Access Correction
 
 ## Gate status
-**Current:** G0 read-only audit (partially evidenced); G1–G5 unopened.
+**Current:** G2 server correction verified live (2026-10-09); G3 client implementation pending; G4/G5 unopened. Signed-in PWA access evidence remains outstanding.
 **No application, data, permission or release mutation authorized by this document.**
 
 ## Problem A — two users cannot see PWA module
@@ -55,7 +55,7 @@ Prior code audit found client initial render uses `idx + 1` and appended render 
 ## Gate completion
 - G0: complete audit, root-cause discrimination and plan.
 - G1: exact user-approved high-risk mutation contract.
-- G2: server change verified live with parity/security.
+- G2: **VERIFIED live** — migration `pec_filtered_buylist_canonical_indent_line_sort_no`; canonical join 1147/1147; 769 rows and all financial totals unchanged; example 193 (15); function security preserved. Authenticated wrapper test still pending.
 - G3: isolated client tests and branch evidence.
 - G4: ChatGPT independent audit and authenticated user acceptance.
 - G5: explicit merge decision, post-merge/live verification, handover.
