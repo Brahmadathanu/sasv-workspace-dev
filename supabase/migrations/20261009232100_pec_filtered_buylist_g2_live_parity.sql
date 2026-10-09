@@ -291,6 +291,7 @@ AS $function$
     g.stock_item_name,
     g.uom_code;
 
-$function$
+$function$;
 
 -- No GRANT for authenticated on the private _pec_internal function.
+REVOKE ALL ON FUNCTION public.proc_vendorwise_buylist_filtered_pec_internal(bigint,text,text,text,text) FROM PUBLIC, anon, authenticated;
