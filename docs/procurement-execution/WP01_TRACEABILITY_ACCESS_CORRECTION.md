@@ -6,7 +6,7 @@
 
 ## Problem A — two users cannot see PWA module
 Prior read-only audit observed two correct `get_user_permissions` view grants, PWA registry module with `nav_enabled=true`, `min_nav_mode=read`, path `/shared/procurement-execution-console.html`; users nevertheless reported missing module.
-**Hypotheses to discriminate:** current session/hub refresh after grant, resume lifecycle, deployment/service-worker cache, registry source/migration drift, module list entitlement projection or route. Do not treat refresh alone as proven fix.
+**Updated G0 finding (2026-10-09):** Current `public/utilities-hub/js/hub-auth.js` already wires `visibilitychange` (visible) and `pageshow` to rerender, and `loadUtilities()` fetches `loadClientModuleRegistry('pwa')` while `loadAccessMap()` refetches `get_user_permissions`. Current `public/shared/js/module-registry.js` already maps `can_view + min_nav_mode=read` to `read`. Thus blindly adding resume listeners is **not justified**. Investigate actual deployment/service-worker version, network/error path, signed-in session permission mapping, registry/migration durability, route and client cache before changing any one of these. Live registry still shows `nav_enabled=true`, `min_nav_mode=read`, and the expected PWA route.
 **Acceptance:** each affected account's real authenticated PWA displays and opens the module after supported refresh/relaunch; read-only card remains read-only; unauthorized user stays blocked. Preserve canonical grants. Capture registry persistence and exact navigation evidence.
 
 ## Problem B — vendor-wise buying list Indents modal
@@ -25,7 +25,9 @@ Prior code audit found client initial render uses `idx + 1` and appended render 
 | E03 | Current GitHub client normalization function exists | VERIFIED in indexed repository search; full current-head source audit pending |
 | E04 | Row-index rendering path | PRIOR AUDIT; reconfirm on current main |
 | E05 | Registry/grants and two affected users | PRIOR LIVE AUDIT; current signed-in acceptance pending |
-| E06 | Migration durability / service-worker/navigation path | UNRESOLVED |
+| E06 | Migration durability / service-worker/deployed-version path | UNRESOLVED |
+| E07 | Current main already has `visibilitychange` + `pageshow` rerender, canonical permission retrieval and `read` mode mapping | VERIFIED 2026-10-09; root cause remains open |
+| E08 | Filtered internal RPC is `SECURITY DEFINER`, owned by `postgres`, `search_path=public`, and is not directly executable by `authenticated` | VERIFIED 2026-10-09; preserve wrapper/security separation |
 
 ## Required G0 outputs
 - Identify exact source/migration/client paths and security-definer grants/owner/search_path implications.
