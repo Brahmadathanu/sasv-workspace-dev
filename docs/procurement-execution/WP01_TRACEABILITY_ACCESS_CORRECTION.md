@@ -25,7 +25,7 @@ Prior code audit found client initial render uses `idx + 1` and appended render 
 | E03 | Current GitHub client normalization function exists | VERIFIED in indexed repository search; full current-head source audit pending |
 | E04 | Row-index rendering path | PRIOR AUDIT; reconfirm on current main |
 | E05 | Registry/grants and two affected users | PRIOR LIVE AUDIT; current signed-in acceptance pending |
-| E06 | Migration durability / service-worker/deployed-version path | UNRESOLVED |
+| E06 | Migration durability / service-worker/deployed-version path | INVESTIGATED 2026-10-09; no evidence-proven client correction. Signed-in acceptance still open. |
 | E07 | Current main already has `visibilitychange` + `pageshow` rerender, canonical permission retrieval and `read` mode mapping | VERIFIED 2026-10-09; root cause remains open |
 | E08 | Filtered internal RPC is `SECURITY DEFINER`, owned by `postgres`, `search_path=public`, and is not directly executable by `authenticated` | VERIFIED 2026-10-09; preserve wrapper/security separation |
 
@@ -59,6 +59,13 @@ Prior code audit found client initial render uses `idx + 1` and appended render 
 - G3: isolated client tests and branch evidence.
 - G4: ChatGPT independent audit and authenticated user acceptance.
 - G5: explicit merge decision, post-merge/live verification, handover.
+
+## G3 client evidence — 2026-10-09
+Buying-list normalization keeps canonical `indent_line_sort_no`. The Indents modal, buying-list compact export, and buying-list PDF indent split display `indent (serial)`, for example `193 (15)`. A missing or invalid serial displays `unavailable` and is not replaced with a row index. Opened indent `#` cells use that same serial on the first paint and on infinite-scroll append.
+
+Display-only compact change: structured buying-list breakdown text changes from `[193]` to `[193 (15)]` when the canonical serial is present, and to `[193 (unavailable)]` when it is not. Quantity, rate, amount, vendor, and line identity are unchanged. Indent requisition `SN` remains the export document sequence.
+
+PWA: no client edit. Live `v_app_module_registry` has the PWA row `procurement-execution-console` with `nav_enabled=true`, `min_nav_mode=read`, and route `/shared/procurement-execution-console.html`. Effective grants on `module:procurement-execution-console` are 2 view-only and 3 edit. `authenticated` can select the registry view. Current Hub code already reloads the registry and `get_user_permissions` on `visibilitychange` and `pageshow`, and `getModuleAccessLevel` already maps view permission plus `min_nav_mode=read` to a clickable read card. `public/sw.js` is `hub-cache-v343`: `hub-auth.js` is network-fetched and `module-registry.js` is cache-first. Those two scripts are unchanged since the v343 commit, and the read-mode mapping dates from 2026-06-29, before that cache. The pre-read client still showed a view-only card rather than hiding it. The repository has no recorded public deployment URL, so the bytes currently served to phones were not compared. No permission was widened, no resume listener was added, and the service-worker cache was not bumped. Signed-in proof for the two accounts remains open.
 
 ## Parked
 Potential wider finance formatting improvements, other indent UX enhancements, and unrelated stock mapping are outside WP01 unless separately approved.
