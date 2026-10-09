@@ -148,6 +148,7 @@ function firstCell(rowEl) {
 if (api) {
   const {
     canonicalIndentLineSortNo,
+    formatIndentLineSortLabel,
     formatIndentWithSerial,
     normalizeVwlBreakdown,
     breakdownToCompactText,
@@ -166,13 +167,42 @@ if (api) {
     "canonical integer text 15 stays 15",
   );
   assert(canonicalIndentLineSortNo(" 15 ") === 15, "trimmed integer text 15");
-  assert(canonicalIndentLineSortNo(0) === 0, "integer 0 is preserved");
-  for (const invalid of [null, undefined, "", "15abc", "15.0", "015", 15.5, true, NaN, Infinity]) {
+  assert(canonicalIndentLineSortNo(1) === 1, "positive integer 1 stays 1");
+  for (const invalid of [
+    null,
+    undefined,
+    "",
+    "15abc",
+    "15.0",
+    "015",
+    15.5,
+    true,
+    NaN,
+    Infinity,
+    0,
+    -0,
+    -1,
+    -15,
+    "0",
+    "-1",
+    "-15",
+    " -2 ",
+  ]) {
     assert(
       canonicalIndentLineSortNo(invalid) === null,
       `invalid serial ${String(invalid)} is not synthesized`,
     );
   }
+  assert(formatIndentLineSortLabel(15) === "15", "valid serial label stays 15");
+  assert(formatIndentLineSortLabel(0) === "unavailable", "zero serial displays unavailable");
+  assert(
+    formatIndentLineSortLabel(-15) === "unavailable",
+    "negative serial displays unavailable",
+  );
+  assert(
+    formatIndentLineSortLabel("-1") === "unavailable",
+    "negative serial text displays unavailable",
+  );
 
   assert(
     formatIndentWithSerial("193", 15) === "193 (15)",
@@ -185,6 +215,18 @@ if (api) {
   assert(
     formatIndentWithSerial("193", null) === "193 (unavailable)",
     "missing serial is unavailable",
+  );
+  assert(
+    formatIndentWithSerial("193", 0) === "193 (unavailable)",
+    "zero serial displays unavailable beside the indent",
+  );
+  assert(
+    formatIndentWithSerial("193", -15) === "193 (unavailable)",
+    "negative serial displays unavailable beside the indent",
+  );
+  assert(
+    formatIndentWithSerial(193, 15) === "193 (15)",
+    "valid canonical serial display is unchanged",
   );
   assert(
     esc(formatIndentWithSerial("193 <cap>", 15)) === "193 &lt;cap&gt; (15)",
@@ -327,6 +369,18 @@ if (api) {
     firstCell(nodes.iLinesTbody.children[0]) === "unavailable",
     "missing opened-indent serial is unavailable, not 1",
   );
+
+  const zeroSerial = { ...cap, indent_line_id: 1004, indent_line_sort_no: 0 };
+  const negativeSerial = { ...cap, indent_line_id: 1005, indent_line_sort_no: -15 };
+  resetTbody();
+  renderIndentLines([zeroSerial, negativeSerial, cap]);
+  assert(nodes.iLinesTbody.children.length === 3, "zero and negative rows still render");
+  assert(firstCell(nodes.iLinesTbody.children[0]) === "unavailable", "opened indent # shows unavailable for zero");
+  assert(
+    firstCell(nodes.iLinesTbody.children[1]) === "unavailable",
+    "opened indent # shows unavailable for a negative serial",
+  );
+  assert(firstCell(nodes.iLinesTbody.children[2]) === "15", "valid opened indent # stays 15");
 
   api.filtered = [cap, other];
   api.visible = 2;

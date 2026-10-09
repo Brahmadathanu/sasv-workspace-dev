@@ -4055,13 +4055,15 @@ function renderIndentLinesActions(indent) {
 
 function canonicalIndentLineSortNo(value) {
   if (typeof value === "number") {
-    return Number.isSafeInteger(value) ? value : null;
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
   }
   if (typeof value === "string") {
     const text = value.trim();
-    if (!/^-?\d+$/.test(text)) return null;
+    if (!/^[1-9]\d*$/.test(text)) return null;
     const numeric = Number(text);
-    if (!Number.isSafeInteger(numeric) || String(numeric) !== text) return null;
+    if (!Number.isSafeInteger(numeric) || numeric <= 0 || String(numeric) !== text) {
+      return null;
+    }
     return numeric;
   }
   return null;
