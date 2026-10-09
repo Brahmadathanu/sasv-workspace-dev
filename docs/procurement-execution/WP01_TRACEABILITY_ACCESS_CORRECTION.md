@@ -65,7 +65,7 @@ Prior code audit found client initial render uses `idx + 1` and appended render 
 - G1: exact user-approved high-risk mutation contract.
 - G2: **VERIFIED live** — migration `pec_filtered_buylist_canonical_indent_line_sort_no`; canonical join 1147/1147; 769 rows and all financial totals unchanged; example 193 (15); function security preserved. Authenticated wrapper test still pending.
 - G3: **DONE** — PR #49 merged to main at 19:38 IST on 2026-10-09. Post-merge independent read-only audit PASS WITH NOTES (E09, E10).
-- G4: **PASS WITH NOTES** — phone PWA evidence E11 (2026-10-09). Caveat: admin account with a temporarily reduced grant, not the two originally affected accounts.
+- G4: **PARTIAL / OPEN — representative PASS WITH NOTES** — phone PWA evidence E11 (2026-10-09). Admin account was tested with a temporarily reduced grant; the two originally affected View-only users are still unverified. Do not mark overall G4 complete.
 - G5: PR #49 was merged before the independent audit, contrary to the brief. Post-merge verification of main was done by that audit (PASS WITH NOTES). Out-of-order merge accepted by user 2026-10-09 (DEC-009). This does not mean the prescribed order was followed.
 
 ## G3 client evidence — 2026-10-09
