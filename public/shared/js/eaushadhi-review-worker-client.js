@@ -152,6 +152,12 @@ export async function openWorkerCaptureFolder(accessToken) {
   return window.eaushadhiWorkerAPI.openCaptureFolder(accessToken);
 }
 
+export async function readQcPreparation(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.readQcPreparation !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.readQcPreparation(productId, accessToken);
+}
+
 export function onWorkerStatus(callback) {
   if (!workerApiAvailable() || typeof window.eaushadhiWorkerAPI.onStatus !== "function") {
     return () => {};

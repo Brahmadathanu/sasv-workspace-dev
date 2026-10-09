@@ -40,7 +40,24 @@ assert(CHANNELS.COMPOSITION_PREVIEW === "eaushadhi-worker:composition-preview", 
 assert(CHANNELS.COMPOSITION_START_LINE === "eaushadhi-worker:composition-start-line", "Composition start-line channel is bounded");
 assert(CHANNELS.COMPOSITION_RECOVER_RUN === "eaushadhi-worker:composition-recover-run", "Composition recovery channel is bounded");
 assert(CHANNELS.COMPOSITION_VERIFY_STAGE === "eaushadhi-worker:composition-verify-stage", "Composition stage verification channel is bounded");
+assert(CHANNELS.PRODUCT_DETAILS_PREVIEW === "eaushadhi-worker:product-details-preview", "Product Details preview channel remains");
+assert(CHANNELS.PRODUCT_DETAILS_START === "eaushadhi-worker:product-details-start", "Product Details start channel remains");
+assert(CHANNELS.QC_PREPARATION_READ === "eaushadhi-worker:qc-preparation-read", "QC preparation read channel is bounded");
 assert(!Object.values(CHANNELS).some((name) => /evaluate|execute|run-script/i.test(name)), "no generic evaluate IPC");
+
+const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
+const qcHandlerStart = ipcSrc.indexOf("CHANNELS.QC_PREPARATION_READ,");
+const qcReadHandler = ipcSrc.slice(
+  qcHandlerStart,
+  ipcSrc.indexOf("CHANNELS.OPEN_CAPTURE_FOLDER,", qcHandlerStart),
+);
+assert(qcReadHandler.includes("withRendererGuard"), "QC preparation read IPC is renderer-guarded");
+assert(qcReadHandler.includes("validateAccessToken"), "QC preparation read IPC validates the session token");
+assert(qcReadHandler.includes("validateProductId"), "QC preparation read IPC validates productId");
+assert(qcReadHandler.includes("callRpc: callWorkerRpc"), "QC preparation read IPC uses the user-scoped RPC client");
+assert(!/qc_preparation_save_v1|qc_preparation_verify_v1|qc_preparation_review_v1|qc_run_arm|SaveQCData/.test(qcReadHandler), "QC preparation read IPC does not reference mutation RPCs");
+assert(ipcSrc.includes("previewProductDetailsExecution"), "Product Details preview path remains");
+assert(ipcSrc.includes("startCompositionLineExecution"), "Composition start path remains");
 
 const preloadSrc = readFileSync(join(root, "preload.js"), "utf8");
 assert(preloadSrc.includes("recheckLogin:"), "preload exposes recheckLogin only");
@@ -54,6 +71,13 @@ const compositionBlock = preloadSrc.slice(
   preloadSrc.indexOf("capturePortalContract:"),
 );
 assert(!/(plannerReport|pageIdentityEvidence|portalListEvidence|target_projection|rpcName|scriptSource)/.test(compositionBlock), "preload exposes no Composition evidence/RPC/script authority");
+assert(preloadSrc.includes("readQcPreparation:"), "preload exposes readQcPreparation");
+assert(preloadSrc.includes("eaushadhi-worker:qc-preparation-read"), "preload maps the QC preparation read channel");
+const qcPreload = preloadSrc.slice(
+  preloadSrc.indexOf("readQcPreparation:"),
+  preloadSrc.indexOf("onStatus:"),
+);
+assert(!/qc_preparation_save_v1|qc_preparation_verify_v1|service_role|actor/i.test(qcPreload), "preload QC read sends no mutation or actor authority");
 
 assert(validateAccessToken("a".repeat(20)).length === 20, "token accepted");
 let badToken = null;

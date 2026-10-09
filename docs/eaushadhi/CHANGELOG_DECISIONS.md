@@ -211,3 +211,19 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Live closure evidence remains: Product 262 Composition `PORTAL_VERIFIED` row_version 14, workflow row_version 11, governed/portal-match `3/3`, no active runs, five historical runs unchanged, `STAGE_PORTAL_VERIFIED` latest evidence, and exactly one `COMPOSITION_STAGE_PORTAL_VERIFIED` audit event.
 - WP-06 closure audit passed. Work pack status is `DONE` / 100% and downstream-safe. QC Register and final Submit remain unopened separate gates.
 - Overall programme completion baseline remains 46% because the repository defines it as a milestone-based programme indicator but contains no documented recalculation formula; no new overall percentage is invented during this work-pack closure.
+
+## 2026-10-08 — WP-07 G3B manual QC date governance and S1 deployment
+- Operator **manually enters** Study Start and Study End dates as mandatory values to approve; no automatic manufacturing-month derivation or prefilling. Reviewer documents evidence/provenance. Report date also manually confirmed.
+- S1 draft and event foundation deployed in two repository-versioned migrations on feature branch, with service-role-only operations, no QC study or portal Save authorized. Read-only validation/security checks passed; isolated write-path tests and final audit pending.
+- Haridev default portal selection remains editable as a future candidate, separate from NUPAL report issuer; portal mapping remains unverified and no S2 promotion is authorized.
+
+## 2026-10-08 — WP-07 S1 operator identity security correction
+- S1 source-draft read/review/save/verify public wrappers now use existing `rpc_eaushadhi_require_permission` and derive the authenticated actor; user-supplied audit identity is never a public wrapper argument.
+- Internal regulatory preparation functions are revoked from application/service roles and retained solely for owner-definer delegation. No autonomous service-role impersonation path is approved.
+- A rollback-only S1 lifecycle test completed without error for create, incomplete verification denial, edit, stale denial, verify and verification invalidation. No test records persisted.
+- S1 remains unmerged pending final permission, parity and branch movement audit; S2, client and portal execution remain unopened.
+
+## 2026-10-09 — WP-07 S1 live Electron acceptance
+- Product 262 authenticated read-only QC preparation probe returned **“QC preparation read probe returned no preparations.”** Operator-observed PASS using isolated feature-branch Electron development app, not a government portal login.
+- Independent review of bounded view-only diagnostic and permissions correction accepted. No QC preparation or QC study record created; S2 and portal execution remain unopened.
+- S1 awaiting final integrated audit and separate authorization before merging.
