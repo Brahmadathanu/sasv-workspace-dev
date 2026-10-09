@@ -1,7 +1,7 @@
 # WP01 — PEC Traceability & PWA Access Correction
 
 ## Gate status
-**Current (2026-10-09, IST):** G3 client merged in PR #49 to main at 19:38 IST, before independent audit. Post-merge independent read-only audit of main: PASS WITH NOTES. G4 signed-in acceptance evidence recorded PASS WITH NOTES. G5: the merge happened early; post-merge verification of main was done by that audit; the out-of-order merge was accepted by user 2026-10-09. This is not a claim that the brief's audit-then-merge order was followed.
+**Current (2026-10-09, IST):** G3 client merged in PR #49 to main at 19:38 IST, before independent audit. Post-merge independent read-only audit of main: PASS WITH NOTES. G4: representative PASS WITH NOTES; two originally affected users PENDING; overall G4 OPEN. G5: the merge happened early; post-merge verification of main was done by that audit; the out-of-order merge was accepted by user 2026-10-09. This is not a claim that the brief's audit-then-merge order was followed.
 **Open:** service-worker cache bump, PR #46 disposition and migration durability, G2 server change not stored as a repository migration.
 **No application, data, permission or release mutation authorized by this document.**
 
