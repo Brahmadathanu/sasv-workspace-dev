@@ -4053,38 +4053,51 @@ function renderIndentLinesActions(indent) {
   applyPermissionUi();
 }
 
-function renderIndentLines(rows) {
-  const empty = qs("iLinesEmpty");
-  const table = qs("iLinesTable");
-  const tbody = qs("iLinesTbody");
-  tbody.innerHTML = "";
-  if (!rows.length) {
-    empty.style.display = "";
-    empty.textContent = "No lines for this indent.";
-    table.style.display = "none";
-    return;
+function canonicalIndentLineSortNo(value) {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
   }
-  empty.style.display = "none";
-  table.style.display = "";
-  rows.forEach((row, idx) => {
-    const lineNo = idx + 1;
-    const tr = document.createElement("tr");
-    tr.style.cursor = "pointer";
-    if (state.selectedIndentLine?.indent_line_id === row.indent_line_id) {
-      tr.style.background = "rgba(10,100,200,.06)";
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!/^[1-9]\d*$/.test(text)) return null;
+    const numeric = Number(text);
+    if (!Number.isSafeInteger(numeric) || numeric <= 0 || String(numeric) !== text) {
+      return null;
     }
-    const recVendor = esc(row.recommended_vendor_name ?? "-");
-    const recRate =
-      row.recommended_rate != null ? fmt(row.recommended_rate) : "-";
-    const selVendor = esc(row.selected_vendor_name ?? "-");
-    const selRate = row.selected_rate != null ? fmt(row.selected_rate) : "-";
-    const resolvedVendor = row.resolved_vendor_name
-      ? esc(row.resolved_vendor_name)
-      : "&mdash;";
-    const resolvedRate =
-      row.resolved_rate != null ? fmt(row.resolved_rate) : "&mdash;";
-    tr.innerHTML = `
-      <td class="muted" style="text-align:center">${lineNo}</td>
+    return numeric;
+  }
+  return null;
+}
+
+function formatIndentLineSortLabel(sortNo) {
+  const serial = canonicalIndentLineSortNo(sortNo);
+  return serial == null ? "unavailable" : String(serial);
+}
+
+function formatIndentWithSerial(indentNumber, sortNo) {
+  const indentText = String(indentNumber ?? "").trim();
+  const indent = indentText || "-";
+  return `${indent} (${formatIndentLineSortLabel(sortNo)})`;
+}
+
+function createIndentLineRow(row) {
+  const tr = document.createElement("tr");
+  tr.style.cursor = "pointer";
+  if (state.selectedIndentLine?.indent_line_id === row.indent_line_id) {
+    tr.style.background = "rgba(10,100,200,.06)";
+  }
+  const recVendor = esc(row.recommended_vendor_name ?? "-");
+  const recRate =
+    row.recommended_rate != null ? fmt(row.recommended_rate) : "-";
+  const selVendor = esc(row.selected_vendor_name ?? "-");
+  const selRate = row.selected_rate != null ? fmt(row.selected_rate) : "-";
+  const resolvedVendor = row.resolved_vendor_name
+    ? esc(row.resolved_vendor_name)
+    : "&mdash;";
+  const resolvedRate =
+    row.resolved_rate != null ? fmt(row.resolved_rate) : "&mdash;";
+  tr.innerHTML = `
+      <td class="muted" style="text-align:center">${esc(formatIndentLineSortLabel(row.indent_line_sort_no))}</td>
       <td>${esc(row.stock_item_name)}</td>
       <td>${esc(displayMaterialClassCode(row.material_class_code ?? ""))}</td>
       <td>${esc(row.uom_code ?? "")}</td>
@@ -4098,15 +4111,34 @@ function renderIndentLines(rows) {
       <td>${selVendor}</td>
       <td class="muted">${selRate}</td>
     `;
-    tr.addEventListener("click", () => {
-      state.selectedIndentLine = row;
-      const btnEditQty = qs("iBtnEditLineQty");
-      if (btnEditQty)
-        btnEditQty.disabled = state.selectedIndent?.status === "draft";
-      tbody.querySelectorAll("tr").forEach((r) => (r.style.background = ""));
-      tr.style.background = "rgba(10,100,200,.06)";
-    });
-    tbody.appendChild(tr);
+  tr.addEventListener("click", () => {
+    state.selectedIndentLine = row;
+    const btnEditQty = qs("iBtnEditLineQty");
+    if (btnEditQty)
+      btnEditQty.disabled = state.selectedIndent?.status === "draft";
+    tr.parentElement
+      ?.querySelectorAll("tr")
+      .forEach((r) => (r.style.background = ""));
+    tr.style.background = "rgba(10,100,200,.06)";
+  });
+  return tr;
+}
+
+function renderIndentLines(rows) {
+  const empty = qs("iLinesEmpty");
+  const table = qs("iLinesTable");
+  const tbody = qs("iLinesTbody");
+  tbody.innerHTML = "";
+  if (!rows.length) {
+    empty.style.display = "";
+    empty.textContent = "No lines for this indent.";
+    table.style.display = "none";
+    return;
+  }
+  empty.style.display = "none";
+  table.style.display = "";
+  rows.forEach((row) => {
+    tbody.appendChild(createIndentLineRow(row));
   });
 }
 
@@ -4161,47 +4193,8 @@ function renderIndentLinesInfinite(options = {}) {
     renderIndentLines(rows);
   } else {
     const startAt = tbody.children.length;
-    rows.slice(startAt).forEach((row, idx) => {
-      const lineNo = startAt + idx + 1;
-      const tr = document.createElement("tr");
-      tr.style.cursor = "pointer";
-      if (state.selectedIndentLine?.indent_line_id === row.indent_line_id) {
-        tr.style.background = "rgba(10,100,200,.06)";
-      }
-      const recVendor = esc(row.recommended_vendor_name ?? "-");
-      const recRate =
-        row.recommended_rate != null ? fmt(row.recommended_rate) : "-";
-      const selVendor = esc(row.selected_vendor_name ?? "-");
-      const selRate = row.selected_rate != null ? fmt(row.selected_rate) : "-";
-      const resolvedVendor = row.resolved_vendor_name
-        ? esc(row.resolved_vendor_name)
-        : "&mdash;";
-      const resolvedRate =
-        row.resolved_rate != null ? fmt(row.resolved_rate) : "&mdash;";
-      tr.innerHTML = `
-      <td class="muted" style="text-align:center">${lineNo}</td>
-      <td>${esc(row.stock_item_name)}</td>
-      <td>${esc(displayMaterialClassCode(row.material_class_code ?? ""))}</td>
-      <td>${esc(row.uom_code ?? "")}</td>
-      <td>${fmt(row.requested_qty)}</td>
-      <td>${fmt(row.allocated_qty)}</td>
-      <td>${fmt(row.remaining_qty)}</td>
-      <td>${resolvedVendor}</td>
-      <td class="muted">${resolvedRate}</td>
-      <td>${recVendor}</td>
-      <td class="muted">${recRate}</td>
-      <td>${selVendor}</td>
-      <td class="muted">${selRate}</td>
-    `;
-      tr.addEventListener("click", () => {
-        state.selectedIndentLine = row;
-        const btnEditQty = qs("iBtnEditLineQty");
-        if (btnEditQty)
-          btnEditQty.disabled = state.selectedIndent?.status === "draft";
-        tbody.querySelectorAll("tr").forEach((r) => (r.style.background = ""));
-        tr.style.background = "rgba(10,100,200,.06)";
-      });
-      tbody.appendChild(tr);
+    rows.slice(startAt).forEach((row) => {
+      tbody.appendChild(createIndentLineRow(row));
     });
   }
 
@@ -9342,6 +9335,7 @@ function normalizeVwlBreakdown(raw) {
       "-",
     indent_id: entry?.indent_id ?? null,
     indent_line_id: entry?.indent_line_id ?? null,
+    indent_line_sort_no: canonicalIndentLineSortNo(entry?.indent_line_sort_no),
     qty_to_buy:
       entry?.qty_to_buy ??
       entry?.qty ??
@@ -9432,7 +9426,10 @@ function breakdownToCompactText(raw, row = {}) {
       maximumFractionDigits: 3,
     });
     const uom = b.uom_code || row.uom_code || row.uom || "";
-    const indent = b.indent_number;
+    const indent = formatIndentWithSerial(
+      b.indent_number,
+      b.indent_line_sort_no,
+    );
     return `${qty}${uom ? " " + uom : ""} [${indent}]`;
   });
   return parts.join("; ");
@@ -9503,7 +9500,7 @@ function openVwlBreakdown(row) {
       const lineDisplay = getVwlBreakdownLineDisplay(item);
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${esc(item.indent_number)}</td>
+        <td>${esc(formatIndentWithSerial(item.indent_number, item.indent_line_sort_no))}</td>
         <td>${renderVwlActualVendorCell(item)}</td>
         <td class="num">${esc(fmt(item.qty_to_buy))}</td>
         <td class="num">${renderVwlRateCellContent(lineDisplay)}</td>
@@ -11028,7 +11025,10 @@ function formatVwlIndentSplitEntry(x, row) {
   const uom = pdfSafeText(x.uom_code || row.uom_code || row.uom || "");
   const indent = pdfSafeText(x.indent_number || x.indent_id || "");
   if (!indent) return "";
-  return `${qty}${uom ? " " + uom : ""} [${indent}]`;
+  const indentLabel = pdfSafeText(
+    formatIndentWithSerial(indent, x.indent_line_sort_no),
+  );
+  return `${qty}${uom ? " " + uom : ""} [${indentLabel}]`;
 }
 
 function formatVwlIndentSplit(row) {

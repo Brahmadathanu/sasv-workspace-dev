@@ -29,16 +29,16 @@ No indent renumbering, no new `proc_indent_line` serial column, no reordering or
 | Pack | Name | State | Entry / closure boundary |
 |---|---|---|---|
 | WP00 | Governance & baseline | IN REVIEW | Documentation drafted; independent audit and integration approval pending |
-| WP01 | PEC traceability & PWA access correction | G0 AUDIT | G0 current-state proof → G1 server contract/plan → G2 filtered JSON change → G3 UI/registry refresh → G4 acceptance → G5 reviewed integration |
+| WP01 | PEC traceability & PWA access correction | G2 SERVER VERIFIED; G3 CLIENT PENDING | G0 current-state proof → G1 server contract/plan → G2 filtered JSON change → G3 UI/registry refresh → G4 acceptance → G5 reviewed integration |
 | WP02 | Post-fix operational stabilization | NOT OPEN | Opens only for accepted regressions or separately approved follow-on stabilization |
 | BACKLOG | Future improvements | PARKED | New features require an explicit separate decision |
 
-No invented percentage: use **0/5 implementation gates verified** until gate evidence exists. Governance drafting is not production correction completion.
+Do not invent percentage. G2 server mutation and technical parity verified live; G3 client and G4 signed-in acceptance pending. G5 merge unopened. Governance drafting is not production correction completion.
 
 ## WP01 gate ledger
 - [~] G0 — Reconcile current main, exact repository files, function owner/security, migrations, auth and signed-in PWA behaviour; freeze test plan.
 - [ ] G1 — High-risk server/auth plan independently reviewed and explicitly authorized.
-- [ ] G2 — Apply exactly approved server alteration; verify row parity, JSON key and authorization/security.
+- [x] G2 — Applied migration `pec_filtered_buylist_canonical_indent_line_sort_no` and verified 1147 canonical joins, 769 result rows, quantity/amount parity, example serial 15, function privileges intact. Authenticated acceptance remains G4.
 - [ ] G3 — Isolated client implementation, canonical serial rendering, PWA refresh/durable registry, targeted tests and self-review.
 - [ ] G4 — Independent code audit and operational acceptance with actual affected users/roles and read-only checks.
 - [ ] G5 — Explicit merge authorization, current-main overlap check, integration and post-merge/live verification.
