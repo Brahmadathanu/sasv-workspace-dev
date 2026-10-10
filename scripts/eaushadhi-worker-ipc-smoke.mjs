@@ -43,6 +43,7 @@ assert(CHANNELS.COMPOSITION_VERIFY_STAGE === "eaushadhi-worker:composition-verif
 assert(CHANNELS.PRODUCT_DETAILS_PREVIEW === "eaushadhi-worker:product-details-preview", "Product Details preview channel remains");
 assert(CHANNELS.PRODUCT_DETAILS_START === "eaushadhi-worker:product-details-start", "Product Details start channel remains");
 assert(CHANNELS.QC_PREPARATION_READ === "eaushadhi-worker:qc-preparation-read", "QC preparation read channel is bounded");
+assert(CHANNELS.QC_REPORT_READ === "eaushadhi-worker:qc-report-read", "QC report read channel is bounded");
 assert(!Object.values(CHANNELS).some((name) => /evaluate|execute|run-script/i.test(name)), "no generic evaluate IPC");
 
 const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
@@ -78,6 +79,15 @@ const qcPreload = preloadSrc.slice(
   preloadSrc.indexOf("onStatus:"),
 );
 assert(!/qc_preparation_save_v1|qc_preparation_verify_v1|service_role|actor/i.test(qcPreload), "preload QC read sends no mutation or actor authority");
+assert(preloadSrc.includes("readQcReport:"), "preload exposes readQcReport");
+assert(preloadSrc.includes("eaushadhi-worker:qc-report-read"), "preload maps the QC report read channel");
+const qcReportHandlerStart = ipcSrc.indexOf("CHANNELS.QC_REPORT_READ,");
+const qcReportHandler = ipcSrc.slice(qcReportHandlerStart, ipcSrc.indexOf("return worker;", qcReportHandlerStart));
+assert(qcReportHandler.includes("withRendererGuard"), "QC report read IPC is renderer-guarded");
+assert(qcReportHandler.includes("validateAccessToken"), "QC report read IPC validates the session token");
+assert(qcReportHandler.includes("validateProductId"), "QC report read IPC validates productId");
+assert(qcReportHandler.includes("callRpc: callWorkerRpc"), "QC report read IPC uses the user-scoped RPC client");
+assert(!/qc_report_reserve_v1|qc_report_register_v1|storage\.from|service_role/.test(qcReportHandler), "QC report read IPC does not reserve, register, or upload");
 
 assert(validateAccessToken("a".repeat(20)).length === 20, "token accepted");
 let badToken = null;

@@ -188,6 +188,7 @@ import {
   openWorkerCaptureFolder,
   recheckWorkerLogin,
   readQcPreparation,
+  readQcReport,
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
   previewWorkerProductDetails,
@@ -290,6 +291,7 @@ const state = {
   workerStatus: null,
   workerFoundationResult: null,
   workerQcPreparationReadResult: null,
+  workerQcReportReadResult: null,
   workerDryRunResult: null,
   workerProductDetailsPreview: null,
   workerProductDetailsResult: null,
@@ -2834,6 +2836,16 @@ function renderWorkerFoundationCard() {
         available
           ? workerQcPreparationReadSummary(state.workerQcPreparationReadResult)
           : "QC preparation read probe is available only in the SASV Electron app.",
+      )}</p>
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label" id="btnQcReportRead"${
+          probeBlocked ? ` disabled aria-disabled="true"` : ""
+        }>QC report read probe</button>
+      </div>
+      <p class="muted-note" id="workerQcReportReadResult">${escapeHtml(
+        available
+          ? workerQcReportReadSummary(state.workerQcReportReadResult)
+          : "QC report read probe is available only in the SASV Electron app.",
       )}</p>`
     : "";
   return `
@@ -2849,6 +2861,26 @@ function renderWorkerFoundationCard() {
       <p class="muted-note" id="workerFoundationResult">${escapeHtml(workerFoundationSummary(state.workerFoundationResult))}</p>
       ${probeBlock}
     </div>`;
+}
+
+function workerQcReportReadSummary(result) {
+  if (!result) return "QC report read probe has not been run.";
+  if (result.ok === true && result.recordCount === 0) {
+    return "QC report read probe returned no report reservations.";
+  }
+  if (result.errorKind === "AUTHORIZATION" || result.errorKind === "UNAUTHORIZED_RENDERER") {
+    return "QC report read probe: not authorized.";
+  }
+  if (result.errorKind === "UNSUPPORTED_PLATFORM") {
+    return "QC report read probe is available only in the SASV Electron app.";
+  }
+  if (result.errorKind === "PRODUCT_NOT_ALLOWED") {
+    return "QC report read probe accepts only product 262.";
+  }
+  if (result.message === "QC report read probe did not return an empty report list.") {
+    return result.message;
+  }
+  return "QC report read probe failed.";
 }
 
 function workerDryRunSummary(result) {
@@ -3297,6 +3329,41 @@ async function submitQcPreparationReadProbe() {
       ok: false,
       errorKind: "CRASH",
       message: "QC preparation read probe failed.",
+    };
+    showToast(userMessageForError(error), "error");
+  } finally {
+    state.busy = false;
+    syncWorkerToolbarUi();
+    renderReadiness();
+  }
+}
+
+async function submitQcReportReadProbe() {
+  if (access.canView !== true || state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (!workerApiAvailable()) return;
+  const productId = state.selectedProductId;
+  state.busy = true;
+  syncWorkerToolbarUi();
+  try {
+    const token = await sessionAccessToken();
+    if (state.selectedProductId !== productId) return;
+    const result = await readQcReport(productId, token);
+    if (state.selectedProductId !== productId) return;
+    state.workerQcReportReadResult = result;
+    if (result?.ok === true && result.recordCount === 0) {
+      showToast("QC report read probe returned no report reservations.", "info");
+    } else if (result?.errorKind === "AUTHORIZATION" || result?.errorKind === "UNAUTHORIZED_RENDERER") {
+      showToast("Not authorized for e-Aushadhi automation.", "error");
+    } else if (result?.message === "QC report read probe did not return an empty report list.") {
+      showToast(result.message, "error");
+    } else {
+      showToast("QC report read probe failed.", "error");
+    }
+  } catch (error) {
+    state.workerQcReportReadResult = {
+      ok: false,
+      errorKind: "CRASH",
+      message: "QC report read probe failed.",
     };
     showToast(userMessageForError(error), "error");
   } finally {
@@ -4002,6 +4069,7 @@ async function openProduct(productId) {
     if (!idsEqual(state.selectedProductId, productId)) {
       state.workerFoundationResult = null;
       state.workerQcPreparationReadResult = null;
+      state.workerQcReportReadResult = null;
       state.workerDryRunResult = null;
       state.workerCompositionPreview = null;
       state.workerProductDetailsPreview = null;
@@ -4092,6 +4160,7 @@ async function backToQueue() {
   state.selectedProductId = null;
   state.workerFoundationResult = null;
   state.workerQcPreparationReadResult = null;
+  state.workerQcReportReadResult = null;
   state.workerDryRunResult = null;
   state.workerCompositionPreview = null;
   state.workerProductDetailsPreview = null;
@@ -6093,6 +6162,7 @@ function wireEvents() {
     if (event.target.id === "btnVerifyProduct") submitVerifyProduct();
     if (event.target.id === "btnWorkerFoundation") submitWorkerFoundationCheck();
     if (event.target.id === "btnQcPreparationRead") submitQcPreparationReadProbe();
+    if (event.target.id === "btnQcReportRead") submitQcReportReadProbe();
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
     if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
     if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();

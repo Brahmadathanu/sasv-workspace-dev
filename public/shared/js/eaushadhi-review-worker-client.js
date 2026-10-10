@@ -158,6 +158,12 @@ export async function readQcPreparation(productId, accessToken) {
   return window.eaushadhiWorkerAPI.readQcPreparation(productId, accessToken);
 }
 
+export async function readQcReport(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.readQcReport !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.readQcReport(productId, accessToken);
+}
+
 export function onWorkerStatus(callback) {
   if (!workerApiAvailable() || typeof window.eaushadhiWorkerAPI.onStatus !== "function") {
     return () => {};
