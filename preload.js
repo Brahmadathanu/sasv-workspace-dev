@@ -123,6 +123,31 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
+  loadQcProtocolOptions: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-protocol-options", {
+      productId,
+      accessToken,
+    }),
+  readQcPreparationWorkspace: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-workspace-read", {
+      productId,
+      accessToken,
+    }),
+  reviewQcPreparation: (productId, accessToken, payload) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-review", {
+      productId,
+      accessToken,
+      payload,
+    }),
+  saveQcPreparation: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-save", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId ?? null,
+      expectedRowVersion: draft?.expectedRowVersion,
+      payload: draft?.payload,
+      lastReadStatus: draft?.lastReadStatus ?? null,
+    }),
   onStatus: (cb) => {
     const handler = (_evt, payload) => cb && cb(payload);
     ipcRenderer.on("eaushadhi-worker:status", handler);

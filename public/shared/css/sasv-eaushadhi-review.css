@@ -1754,3 +1754,14 @@ body.sasv-eaushadhi-review .ea-change-item dd.is-after {
     grid-template-columns: 1fr;
   }
 }
+
+body.sasv-eaushadhi-review .qc-prep-workspace > summary {
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .qc-prep-workspace fieldset {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  margin: 0;
+  padding: var(--sasv-space-2);
+}

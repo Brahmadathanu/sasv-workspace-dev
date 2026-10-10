@@ -164,6 +164,30 @@ export async function readQcReport(productId, accessToken) {
   return window.eaushadhiWorkerAPI.readQcReport(productId, accessToken);
 }
 
+export async function loadQcProtocolOptions(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.loadQcProtocolOptions !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.loadQcProtocolOptions(productId, accessToken);
+}
+
+export async function readQcPreparationWorkspace(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.readQcPreparationWorkspace !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.readQcPreparationWorkspace(productId, accessToken);
+}
+
+export async function reviewQcPreparation(productId, accessToken, payload) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.reviewQcPreparation !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.reviewQcPreparation(productId, accessToken, payload);
+}
+
+export async function saveQcPreparation(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.saveQcPreparation !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.saveQcPreparation(productId, accessToken, draft);
+}
+
 export function onWorkerStatus(callback) {
   if (!workerApiAvailable() || typeof window.eaushadhiWorkerAPI.onStatus !== "function") {
     return () => {};

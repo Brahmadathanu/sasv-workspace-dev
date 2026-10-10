@@ -497,9 +497,15 @@ assert(controlSrc.includes("createSignedUrl") || apiSrc.includes("createSignedUr
 assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");
 const STOP_BROWSER_TOOLTIP =
   "Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi.";
-// Canonical Stop wording intentionally uses an em dash. Exclude that approved
-// literal before scanning for other mojibake-prone punctuation.
-const uiLiteralsWithoutCanonicalStop = (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("");
+const QC_PREP_VERIFIED_NOTE = "Verified — editing is not available in C1.";
+// Canonical Stop wording and the frozen C1 verified-state sentence intentionally
+// use an em dash. Exclude those approved literals before scanning for other
+// mojibake-prone punctuation.
+const uiLiteralsWithoutCanonicalStop = (controlSrc + htmlSrc)
+  .split(STOP_BROWSER_TOOLTIP)
+  .join("")
+  .split(QC_PREP_VERIFIED_NOTE)
+  .join("");
 assert(
   !/[·…←→↑↓—]/.test(uiLiteralsWithoutCanonicalStop) &&
     !/Â·|â€/.test(controlSrc + htmlSrc),
