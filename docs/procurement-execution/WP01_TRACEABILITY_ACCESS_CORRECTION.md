@@ -1,8 +1,8 @@
 # WP01 — PEC Traceability & PWA Access Correction
 
 ## Gate status
-**Current (2026-10-09, IST):** G3 client merged in PR #49 to main at 19:38 IST, before independent audit. Post-merge independent read-only audit of main: PASS WITH NOTES. G4: representative PASS WITH NOTES; two originally affected users PENDING; overall G4 OPEN. G5: the merge happened early; post-merge verification of main was done by that audit; the out-of-order merge was accepted by user 2026-10-09. This is not a claim that the brief's audit-then-merge order was followed.
-**Open:** service-worker cache bump, PR #46 disposition and migration durability, G2 server change not stored as a repository migration.
+**Current (2026-10-10, IST):** WP01 OPERATIONALLY ACCEPTED. G3 client merged in PR #49; post-merge independent audit PASS WITH NOTES. G4: both originally affected View-only users reported PASS after the v344 PWA release, confirming the Read-only module and `193 (15)`. Final documentation merge pending. G5: the merge happened early; post-merge verification of main was done by that audit; the out-of-order merge was accepted by user 2026-10-09. This is not a claim that the brief's audit-then-merge order was followed.
+**Resolved:** PR #52 merged and deployed v344; PR #46 closed unmerged; PR #51 merged the exact two historical live SQL migrations. Global migration-history drift and unrelated popup formatting are separate work.
 **No application, data, permission or release mutation authorized by this document.**
 
 ## Problem A — two users cannot see PWA module
@@ -65,7 +65,7 @@ Prior code audit found client initial render uses `idx + 1` and appended render 
 - G1: exact user-approved high-risk mutation contract.
 - G2: **VERIFIED live** — migration `pec_filtered_buylist_canonical_indent_line_sort_no`; canonical join 1147/1147; 769 rows and all financial totals unchanged; example 193 (15); function security preserved. Authenticated wrapper test still pending.
 - G3: **DONE** — PR #49 merged to main at 19:38 IST on 2026-10-09. Post-merge independent read-only audit PASS WITH NOTES (E09, E10).
-- G4: **PARTIAL / OPEN — representative PASS WITH NOTES** — phone PWA evidence E11 (2026-10-09). Admin account was tested with a temporarily reduced grant; the two originally affected View-only users are still unverified. Do not mark overall G4 complete.
+- G4: **PASS / COMPLETE (2026-10-10)** — both originally affected View-only users independently reported that their PWA opens PEC in Read-only mode and Indent 193 / 28 MM ROPP Cap displays `193 (15)` after v344 rollout. This is user-reported, not independently witnessed in the assistant's session. Earlier representative admin-grant and grant-removal tests remain recorded in E11.
 - G5: PR #49 was merged before the independent audit, contrary to the brief. Post-merge verification of main was done by that audit (PASS WITH NOTES). Out-of-order merge accepted by user 2026-10-09 (DEC-009). This does not mean the prescribed order was followed.
 
 ## G3 client evidence — 2026-10-09
@@ -102,3 +102,14 @@ Pending user decision where noted. Not decided in this document.
 
 ## Parked
 Potential wider finance formatting improvements, other indent UX enhancements, and unrelated stock mapping are outside WP01 unless separately approved.
+
+## E13–E17 — final operational and repository closure evidence (2026-10-10 IST)
+| ID | Evidence | Status |
+|---|---|---|
+| E13 | PR #51 merged: historical live versions `20261009100628` and `20261009131026` reconstructed verbatim from `supabase_migrations.schema_migrations`, and integrated without `db push` or migration repair. Live view rewrite from original PR #46 included faithfully in history. | VERIFIED via prior read-only audit and reported merge |
+| E14 | PR #52 merged at `dd669459010c8df1bf73a198da564a02becfb392`; Netlify production reported serving `hub-cache-v344` and the latest PEC console script with hashes matching merged main. No Electron release. | GitHub merge independently verified; deployment content executor-reported |
+| E15 | Original View-only User 1: post-v344 PEC card visible, module opens Read-only, `193 (15)` shown. Original View-only User 2: same checks PASS. | BOTH PASS — USER-REPORTED 2026-10-10; assistant has no direct device session |
+| E16 | Prior admin account grant temporarily restricted: Read-only card/banner and edit restrictions; grant removed: card hidden; grant restored. | Representative PASS WITH NOTES; not substituted for E15 |
+| E17 | PR #46 closed unmerged as superseded; 35 approved clean Group A remote branches deleted with SHA-guarded checks, other worktrees/branches retained and auto-delete off. | Executor-reported ledger; no further cleanup authorized here |
+
+**Disposition:** G4 complete. PEC WP01 operational acceptance met; final documentation PR pending independent audit/merge. Out-of-order PR #49 merge remains DEC-009 historical exception, not a process precedent. The wider repository/live migration drift (50 local vs 515 remote in the recorded snapshot), historical branch cleanup beyond Group A, and other PEC popup indent-reference formats are separate work and do not reopen accepted WP01 functionality.
