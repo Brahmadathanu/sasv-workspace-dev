@@ -34,3 +34,6 @@ Record timestamp, decision ID, motivating evidence, alternatives, user authoriza
 
 ## 2026-10-10 — G4 permission qualification
 - **DEC-015 (RESOLVED — NO CORRECTION NEEDED):** Account `b8fd6239-cc4b-4123-87d0-0a89fc2c84bd` is intentionally an EDITOR. Its temporary View-only assignment was a controlled acceptance test; `193 (15)` and Read-only restrictions passed, and its Edit permission was deliberately restored. Account `33372369-…` is the original intended View-only user and passed post-v344. Current View+Edit on b8fd6239 is correct. No role correction, grant mutation or additional G4 gate remains.
+
+## 2026-10-10 — Purchase Requisition PDF continuation header
+- **DEC-016 (APPROVED):** The user (operator) approved a bounded follow-on enhancement to the Purchase Requisition PDF — repeating continuation header on pages 2+ (Dept/Unit | Location | Req No & Date), double-footer fix, sw v345. It does not reopen WP01. WP02 stays NOT OPEN; the item is tracked as WP02-A and closes on reviewed merge plus an operator multi-page export check in Electron and PWA.

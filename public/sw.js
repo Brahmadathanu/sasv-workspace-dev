@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v344"; // PEC WP01 canonical indent serial client refresh
+const CACHE_NAME = "hub-cache-v345"; // PEC PR PDF continuation header (DEC-016)
 
 const PRECACHE = [
   // Hub shell

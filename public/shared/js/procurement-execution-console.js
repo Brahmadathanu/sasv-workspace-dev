@@ -5526,6 +5526,8 @@ async function exportIndentToPdf() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
     const FOOTER_H = 12;
+    // One-line band on pages 2+ only. Page 1 still starts the table at HEADER_H.
+    const CONT_HEADER_H = 14;
     const contact = contactDetails;
 
     // Context for header/footer drawing
@@ -5754,6 +5756,74 @@ async function exportIndentToPdf() {
       }
     };
 
+    // Pages 2..N: Dept/Unit | Location | Req No & Date, same wording as page 1 row 1.
+    function drawContinuationHeader(doc, ctx) {
+      const bandMargin = ctx.margin;
+      const pageW = ctx.pageWidth;
+      const thirdW = (pageW - bandMargin * 2) / 3;
+      const segmentMax = Math.max(8, thirdW - 2);
+      const textY = bandMargin + 4;
+      const fontSize = 8.5;
+
+      function truncateContinuationText(text, maxWidth) {
+        const value = String(text ?? "").trim() || "-";
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(fontSize);
+        if (doc.getTextWidth(value) <= maxWidth) return value;
+        const ellipsis = "\u2026";
+        let line = String(
+          doc.splitTextToSize(value, Math.max(1, maxWidth))[0] || "",
+        );
+        const ellipsisWidth = doc.getTextWidth(ellipsis);
+        while (
+          line.length > 0 &&
+          doc.getTextWidth(line) + ellipsisWidth > maxWidth
+        ) {
+          line = line.slice(0, -1);
+        }
+        return `${line.replace(/\s+$/, "")}${ellipsis}`;
+      }
+
+      function drawSegment(anchorX, align, label, value) {
+        const labelText = `${label}: `;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(fontSize);
+        const labelW = doc.getTextWidth(labelText);
+        const valueText = truncateContinuationText(
+          value,
+          Math.max(4, segmentMax - labelW),
+        );
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(fontSize);
+        const valueW = doc.getTextWidth(valueText);
+        const total = labelW + valueW;
+        let x = anchorX;
+        if (align === "center") x = anchorX - total / 2;
+        else if (align === "right") x = anchorX - total;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(fontSize);
+        doc.text(labelText, x, textY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(fontSize);
+        doc.text(valueText, x + labelW, textY);
+      }
+
+      doc.setTextColor(0);
+      drawSegment(bandMargin, "left", "Dept/Unit", ctx.deptUnit);
+      drawSegment(pageW / 2, "center", "Location", ctx.location);
+      drawSegment(
+        pageW - bandMargin,
+        "right",
+        "Req No & Date",
+        ctx.reqNoAndDate,
+      );
+
+      const ruleY = bandMargin + CONT_HEADER_H - 3;
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.15);
+      doc.line(bandMargin, ruleY, pageW - bandMargin, ruleY);
+    }
+
     function formatHeaderLabel(label, maxWidthMm) {
       const text = String(label || "").trim();
       if (!text) return "";
@@ -5889,7 +5959,8 @@ async function exportIndentToPdf() {
       formatHeaderLabel(label, colW[index]),
     );
 
-    // Draw table. AutoTable repeats only the column header on later pages.
+    // Draw table. Column headers repeat on later pages, below the continuation band.
+    // Page 1 keeps startY: HEADER_H (margin.top applies only after the first page).
     headerEngine.drawHeader(doc, ctx);
 
     doc.autoTable({
@@ -5898,7 +5969,12 @@ async function exportIndentToPdf() {
       head: tableHead,
       body: tableBody,
       startY: HEADER_H,
-      margin: { top: margin, left: margin, right: margin, bottom: FOOTER_H },
+      margin: {
+        top: margin + CONT_HEADER_H,
+        left: margin,
+        right: margin,
+        bottom: FOOTER_H,
+      },
       styles: {
         fontSize: 7.6,
         cellPadding: 1.45,
@@ -5919,22 +5995,21 @@ async function exportIndentToPdf() {
         valign: "middle",
       },
       columnStyles,
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) drawContinuationHeader(doc, ctx);
+      },
     });
 
-    // Stamp accurate page numbers on every page after table is complete
-    const totalPages = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      drawPageFooter(doc, ctx, i, totalPages);
-    }
-
-    // Signature block on last page; add new page if insufficient space
-    doc.setPage(totalPages);
+    // Signature block on last page; add new page if insufficient space.
+    // autoTable didDrawPage does not run for a page added only for signatures.
+    const tablePages = doc.internal.getNumberOfPages();
+    doc.setPage(tablePages);
     const pageHeight = doc.internal.pageSize.getHeight();
     let sigY = doc.lastAutoTable.finalY + 16;
     if (sigY + 28 > pageHeight - FOOTER_H) {
       doc.addPage("a4", "landscape");
-      sigY = margin + 20;
+      drawContinuationHeader(doc, ctx);
+      sigY = margin + CONT_HEADER_H + 20;
     }
 
     const colWidth = (pageWidth - 2 * margin) / 3;
@@ -5959,13 +6034,11 @@ async function exportIndentToPdf() {
       doc.text(subtitle, sigCenters[i], sigY + 8.5, { align: "center" });
     });
 
-    // If a new page was added for signatures, re-stamp page numbers with updated total
+    // Stamp the footer once, after every page (including a signature page) exists.
     const finalTotalPages = doc.internal.getNumberOfPages();
-    if (finalTotalPages > totalPages) {
-      for (let i = 1; i <= finalTotalPages; i++) {
-        doc.setPage(i);
-        drawPageFooter(doc, ctx, i, finalTotalPages);
-      }
+    for (let i = 1; i <= finalTotalPages; i++) {
+      doc.setPage(i);
+      drawPageFooter(doc, ctx, i, finalTotalPages);
     }
 
     // Save PDF
