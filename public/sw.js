@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v345"; // PEC PR PDF continuation header (DEC-016)
+const CACHE_NAME = "hub-cache-v346"; // WP-07 C1 QC preparation workspace
 
 const PRECACHE = [
   // Hub shell
