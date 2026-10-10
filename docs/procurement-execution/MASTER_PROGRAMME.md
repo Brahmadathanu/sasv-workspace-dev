@@ -45,7 +45,7 @@ Gate state can become [x] only with recorded reproducible evidence. A skipped or
 
 ## Closure and separately governed follow-ups (2026-10-10)
 - PR #51: merged; original live migration versions `20261009100628` and `20261009131026` are on `main` with exact SQL parity; no repair or replay.
-- PR #52: merged as `dd669459010c8df1bf73a198da564a02becfb392`; production Netlify PWA reported content-verified as v344. No Electron release or DB change.
+- PR #52: merged as `dd669459010c8df1bf73a198da564a02becfb392`; production Netlify PWA independently content-verified as v344. No Electron release or DB change.
 - PR #46: closed unmerged as superseded; branch preserved for reference.
 - Conservative Group A remote-branch cleanup: 35 branches deleted after SHA, ancestry, PR and local worktree checks; 23 remote branches kept excluding main (executor-reported ledger); Group B/C, WIP, dirty/missing worktrees retained. Auto-delete remains off.
 - Global migration-history drift (50 local migration files, 515 remote versions in the recorded snapshot) is excluded from PEC WP01 and requires separate read-only inventory/governance. Do not bulk repair/push.
