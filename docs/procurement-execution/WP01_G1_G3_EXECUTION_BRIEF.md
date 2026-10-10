@@ -1,5 +1,5 @@
 # PEC WP01 — G1–G3 implementation execution brief
-Status: Approved bounded contract, implementation evidence pending.
+Status: G3 client merged in PR #49 to main at 19:38 IST on 2026-10-09, before the independent audit this brief required. Post-merge audit PASS WITH NOTES. Out-of-order merge accepted by user 2026-10-09 (DEC-009). The workflow below is the recorded brief; it was not followed for this merge. See WP01_TRACEABILITY_ACCESS_CORRECTION.md.
 Base: merge `0d004779f7e928b855b18d1d90b3eddd262050b4`. Always check fresh main before beginning.
 Branch: `feat/pec-wp01-traceability-access`.
 Read `docs/procurement-execution/{README,MASTER_PROGRAMME,IMPLEMENTATION_RULES,WP01_TRACEABILITY_ACCESS_CORRECTION,CHANGELOG_DECISIONS}.md` first.
