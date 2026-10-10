@@ -16,6 +16,9 @@
 - **Notes carried as open follow-ups (not closed by DEC-009):** (a) `public/sw.js` still `hub-cache-v343`, so previously cached PWA clients may serve the old console script; deferred as separate release approval; the smoke test asserts v343 and must be updated with any bump. (b) the G2 server change `pec_filtered_buylist_canonical_indent_line_sort_no` is applied live but not stored as a migration in the repo. (c) export Indent Breakdown text format changes from `[193]` to `[193 (15)]`. (d) some other PEC popups still show indent number without serial (out of scope).
 - **Scope:** record only. No further merge, cache bump, migration, or PR #46 disposition is authorized here. PR #46 remains OPEN and not merged; its PWA registration migration is not on main. Disposition is pending user decision.
 
+## 2026-10-10 — Record exact live migration history (PR #51)
+- **DEC-010 (LOCKED):** Record the historically executed PEC WP01 SQL verbatim from live `supabase_migrations.schema_migrations` as `20261009100628` (MD5 `1f789d6fc0d26f62d90c7d4aa7345357`) and `20261009131026` (MD5 `4d0f5137d0ce9560f17ed3ad9192a64a`). These include PR #46's live `v_proc_vendorwise_buylist` rewrite. No db push or migration repair is needed, and there is no production change. The earlier `20261009232000` / `20261009232100` reconstructions are withdrawn. A REVOKE was intentionally not added to the historical SQL; live privileges are already correct (anon/authenticated denied). Resolved by PR #51, pending merge.
+
 ## Evidence qualifiers
 VERIFIED = observed live/current state; PRIOR AUDIT = reported in preceding chat and to be revalidated before mutation; CANDIDATE = proposed pending plan review; PARKED = excluded from this work pack.
 
