@@ -139,12 +139,31 @@ await expectFailure(
 );
 assert(unknown.calls.length === 0, "unknown key is rejected before the RPC");
 
-const created = mockRpc(async () => ({
-  preparation_id: "11111111-1111-1111-1111-111111111111",
+const PREP_ID = "11111111-1111-1111-1111-111111111111";
+function preparationRow(overrides = {}) {
+  return {
+    preparation_id: PREP_ID,
+    product_id: 262,
+    source_key: QC_PREPARATION_SOURCE_KEY,
+    row_version: 1,
+    preparation_status: "PREPARING",
+    ...overrides,
+  };
+}
+function readThenSave(rows, saveResult) {
+  return mockRpc(async (_token, name) => {
+    if (name === QC_PREPARATION_WORKSPACE_READ_RPC) return rows;
+    if (name === QC_PREPARATION_SAVE_RPC) return saveResult;
+    throw new Error(`unexpected rpc ${name}`);
+  });
+}
+
+const created = readThenSave([], {
+  preparation_id: PREP_ID,
   row_version: 1,
   preparation_status: "PREPARING",
   review: { source_verified_eligible: false, reasons: ["PROTOCOL_REQUIRED"] },
-}));
+});
 await saveQcPreparation({
   productId: 262,
   accessToken: TOKEN,
@@ -153,29 +172,31 @@ await saveQcPreparation({
   payload: { report_filename: "claim.pdf" },
   callRpc: created.callRpc,
 });
-assert(created.calls[0].name === QC_PREPARATION_SAVE_RPC, "create uses the save RPC");
-assert(created.calls[0].args.p_preparation_id === null, "create sends a null preparation id");
-assert(created.calls[0].args.p_expected_row_version === 0, "create sends expected version 0");
-assert(created.calls[0].args.p_source_key === QC_PREPARATION_SOURCE_KEY, "create uses the fixed source key");
-assert(created.calls[0].args.p_source_key === "manual-qc:262:primary", "source key is manual-qc:262:primary");
-assert(created.calls[0].args.p_payload.report_filename === "claim.pdf", "create payload keeps the entered filename");
+assert(created.calls[0].name === QC_PREPARATION_WORKSPACE_READ_RPC, "create reads before saving");
+assert(created.calls[1].name === QC_PREPARATION_SAVE_RPC, "create uses the save RPC");
+assert(created.calls[1].args.p_preparation_id === null, "create sends a null preparation id");
+assert(created.calls[1].args.p_expected_row_version === 0, "create sends expected version 0");
+assert(created.calls[1].args.p_source_key === QC_PREPARATION_SOURCE_KEY, "create uses the fixed source key");
+assert(created.calls[1].args.p_source_key === "manual-qc:262:primary", "source key is manual-qc:262:primary");
+assert(created.calls[1].args.p_payload.report_filename === "claim.pdf", "create payload keeps the entered filename");
 
-const updated = mockRpc(async () => ({
-  preparation_id: "11111111-1111-1111-1111-111111111111",
+const updated = readThenSave([preparationRow()], {
+  preparation_id: PREP_ID,
   row_version: 2,
   preparation_status: "REVIEW_REQUIRED",
   review: { source_verified_eligible: false, reasons: [] },
-}));
+});
 await saveQcPreparation({
   productId: 262,
   accessToken: TOKEN,
-  preparationId: "11111111-1111-1111-1111-111111111111",
+  preparationId: PREP_ID,
   expectedRowVersion: 1,
   payload: {},
   callRpc: updated.callRpc,
 });
-assert(updated.calls[0].args.p_expected_row_version === 1, "update sends the current row version");
-assert(updated.calls[0].args.p_source_key === "manual-qc:262:primary", "update cannot substitute another source key");
+assert(updated.calls[0].name === QC_PREPARATION_WORKSPACE_READ_RPC, "update reads before saving");
+assert(updated.calls[1].args.p_expected_row_version === 1, "update sends the current row version");
+assert(updated.calls[1].args.p_source_key === "manual-qc:262:primary", "update cannot substitute another source key");
 
 const stale = mockRpc(async () => {
   const error = new Error("stale");
@@ -183,7 +204,7 @@ const stale = mockRpc(async () => {
   throw error;
 });
 const staleError = await expectFailure(
-  () => saveQcPreparation({ productId: 262, accessToken: TOKEN, expectedRowVersion: 1, preparationId: "11111111-1111-1111-1111-111111111111", payload: {}, callRpc: stale.callRpc }),
+  () => saveQcPreparation({ productId: 262, accessToken: TOKEN, expectedRowVersion: 1, preparationId: PREP_ID, payload: {}, callRpc: stale.callRpc }),
   ERROR_KINDS.STALE,
 );
 assert(staleError?.message === "Server copy changed — reload to compare; nothing was overwritten.", "stale save keeps the operator copy");
@@ -227,6 +248,77 @@ await expectFailure(
 );
 assert(verified.calls.length === 0, "verified preparation is not saved");
 
+for (const [label, payload] of [
+  ["invalid shelf life", { shelf_life_months: "0" }],
+  ["invalid date", { study_start_date: "10/10/2026" }],
+  ["invalid protocol term", { testing_protocol_term_id: "abc" }],
+]) {
+  const invalid = mockRpc(async () => {
+    throw new Error("rpc should not run");
+  });
+  const invalidError = await expectFailure(
+    () => saveQcPreparation({
+      productId: 262,
+      accessToken: TOKEN,
+      preparationId: null,
+      expectedRowVersion: 0,
+      payload,
+      callRpc: invalid.callRpc,
+    }),
+    ERROR_KINDS.CONTRACT_INCOMPLETE,
+  );
+  assert(invalidError?.message === "Correct the highlighted fields before saving.", `${label} is refused before saving`);
+  assert(invalid.calls.length === 0, `${label} makes no RPC call`);
+}
+
+const verifiedOnServer = readThenSave([preparationRow({ preparation_status: "VERIFIED", row_version: 4 })], {
+  preparation_id: PREP_ID,
+});
+await expectFailure(
+  () => saveQcPreparation({
+    productId: 262,
+    accessToken: TOKEN,
+    preparationId: PREP_ID,
+    expectedRowVersion: 4,
+    lastReadStatus: null,
+    payload: {},
+    callRpc: verifiedOnServer.callRpc,
+  }),
+  ERROR_KINDS.PREFLIGHT_DENIED,
+);
+assert(verifiedOnServer.calls.length === 1, "server-verified row makes no save call");
+assert(verifiedOnServer.calls[0].name === QC_PREPARATION_WORKSPACE_READ_RPC, "server-verified refusal reads first");
+
+const mismatch = readThenSave([preparationRow({ row_version: 2 })], { preparation_id: PREP_ID });
+const mismatchError = await expectFailure(
+  () => saveQcPreparation({
+    productId: 262,
+    accessToken: TOKEN,
+    preparationId: PREP_ID,
+    expectedRowVersion: 1,
+    payload: {},
+    callRpc: mismatch.callRpc,
+  }),
+  ERROR_KINDS.STALE,
+);
+assert(mismatchError?.message === "Server copy changed — reload to compare; nothing was overwritten.", "version mismatch stays stale");
+assert(mismatch.calls.length === 1 && mismatch.calls[0].name === QC_PREPARATION_WORKSPACE_READ_RPC, "version mismatch makes no save call");
+
+const already = readThenSave([preparationRow()], { preparation_id: PREP_ID });
+const alreadyError = await expectFailure(
+  () => saveQcPreparation({
+    productId: 262,
+    accessToken: TOKEN,
+    preparationId: null,
+    expectedRowVersion: 0,
+    payload: {},
+    callRpc: already.callRpc,
+  }),
+  ERROR_KINDS.STALE,
+);
+assert(alreadyError?.message === "A QC preparation already exists — reload.", "create finds the existing preparation");
+assert(already.calls.length === 1 && already.calls[0].name === QC_PREPARATION_WORKSPACE_READ_RPC, "existing preparation makes no save call");
+
 const helperSrc = readFileSync(join(root, "electron/eaushadhi-worker/qc-preparation-workspace.js"), "utf8");
 const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
 const preloadSrc = readFileSync(join(root, "preload.js"), "utf8");
@@ -267,6 +359,11 @@ assert(ui.includes("request !== qcPrepCurrent() || state.selectedProductId !== p
 assert(ui.includes("QC preparation is available only in the SASV Electron app."), "PWA has no writable QC preparation form");
 assert(ui.includes('study_start_date: ""') && ui.includes('report_date: ""'), "form dates start empty");
 assert(!ui.includes("qc_preparation_verify_v1"), "UI does not call source verify");
+const saveFn = ui.slice(ui.indexOf("async function submitQcPreparationSave"), ui.indexOf("function workerFoundationSummary"));
+assert(saveFn.includes("reloadQcPreparationWorkspace()"), "successful save reloads the server copy");
+assert(!saveFn.includes("draft_payload:"), "successful save does not keep an un-normalised local copy");
+const fieldFn = ui.slice(ui.indexOf("function onQcPrepField"), ui.indexOf("async function submitQcPreparationReview"));
+assert(fieldFn.includes("state.qcPrepReasons = []"), "form edits clear the previous server reasons");
 
 globalThis.window = {};
 const client = await import(pathToFileURL(join(root, "public/shared/js/eaushadhi-review-worker-client.js")).href);
