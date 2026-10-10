@@ -94,11 +94,11 @@ The out-of-order merge was accepted by user 2026-10-09 (DEC-009).
 - The user earlier verified Problem B and Problem C checks in a fresh PWA session via Cursor.
 **Caveat:** this was tested using the admin's account with a temporarily reduced grant, not the two originally affected accounts themselves.
 
-## Open follow-ups (2026-10-09, IST)
+## Historical open follow-ups (2026-10-09; disposition updated 2026-10-10)
 Pending user decision where noted. Not decided in this document.
-- Service-worker cache bump for `hub-cache-v343`. Previously cached PWA clients may serve the old console script. Separate release approval. The smoke test asserts v343 and must be updated with any bump.
+- **RESOLVED / SUPERSEDED 2026-10-10:** The former `hub-cache-v343` stale-client concern was addressed by the separately approved PR #52 service-worker v344 release (merge `dd669459010c8df1bf73a198da564a02becfb392`), updated smoke expectations and successful affected-user retests.
 - PR #46 closed unmerged as superseded; exact live migration version `20261009100628` was recovered by merged PR #51.
-- Store the live G2 server change `pec_filtered_buylist_canonical_indent_line_sort_no` as a migration in the repository.
+- **RESOLVED / SUPERSEDED 2026-10-10:** Merged PR #51 (`f2d9a94fd300f61dc728daaba8914f00a7b0d655`) records the exact historical G2 live migration as `20261009131026_pec_filtered_buylist_canonical_indent_line_sort_no.sql` alongside the original `20261009100628` PWA registration/view migration; no replay or repair.
 
 ## Parked
 Potential wider finance formatting improvements, other indent UX enhancements, and unrelated stock mapping are outside WP01 unless separately approved.
