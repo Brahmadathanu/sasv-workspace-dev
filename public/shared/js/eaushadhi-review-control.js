@@ -3161,6 +3161,7 @@ function onQcPrepField(event) {
   if (state.qcPrepServer?.preparation_status === "VERIFIED" || !canWrite()) return;
   syncQcPrepFormFromDom();
   state.qcPrepDirty = true;
+  state.qcPrepReasons = [];
   if (target.id === "qcPrepProtocol") {
     if (qcPrepProtocolCode(qcPrepForm()) !== "OTHER") qcPrepForm().other_testing_protocol_text = "";
     renderReadiness();
@@ -3220,18 +3221,9 @@ async function submitQcPreparationSave() {
       return;
     }
     state.qcPrepDirty = false;
-    state.qcPrepServer = {
-      preparation_id: result.preparation_id,
-      preparation_status: result.preparation_status,
-      row_version: result.row_version,
-      verified_at: null,
-      draft_payload: qcPrepPayloadFromForm(form),
-      review: result.review,
-      source_key: "manual-qc:262:primary",
-    };
-    state.qcPrepReasons = Array.isArray(result?.review?.reasons) ? result.review.reasons : [];
+    state.busy = false;
+    reloadQcPreparationWorkspace();
     state.qcPrepNotice = "Draft saved.";
-    state.qcPrepLoadedFor = productId;
   } catch (error) {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     state.qcPrepNotice = userMessageForError(error);
@@ -6651,6 +6643,7 @@ function wireEvents() {
       syncQcPrepFormFromDom();
       qcPrepForm().batches.push("");
       state.qcPrepDirty = true;
+      state.qcPrepReasons = [];
       renderReadiness();
     }
     const removeBatch = event.target?.dataset?.qcRemoveBatch;
@@ -6661,6 +6654,7 @@ function wireEvents() {
       const next = qcPrepForm().batches.filter((_, item) => item !== index);
       qcPrepForm().batches = next.length ? next : [""];
       state.qcPrepDirty = true;
+      state.qcPrepReasons = [];
       renderReadiness();
     }
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();

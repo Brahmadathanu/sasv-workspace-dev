@@ -166,6 +166,18 @@ function normalizeQcPayload(input) {
   return { payload, hints, duplicateBatches };
 }
 
+const TYPED_FORMAT_HINTS = new Set([
+  "PROTOCOL_REQUIRED",
+  "STUDY_START_DATE_REQUIRED_OR_INVALID",
+  "STUDY_END_DATE_REQUIRED_OR_INVALID",
+  "REPORT_DATE_REQUIRED_OR_INVALID",
+  "SHELF_LIFE_REQUIRED",
+]);
+
+function hasTypedFormatHint(hints) {
+  return hints.some((hint) => TYPED_FORMAT_HINTS.has(hint));
+}
+
 function assertProtocolOptions(data) {
   if (!Array.isArray(data)) {
     throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC protocol options were not accepted.");
@@ -276,10 +288,34 @@ async function saveQcPreparation({
       "Duplicate batch numbers must be corrected before saving.",
     );
   }
+  if (hasTypedFormatHint(normalized.hints)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Correct the highlighted fields before saving.");
+  }
   const creating = preparationId == null || preparationId === "";
   const version = Number(expectedRowVersion);
   if (!Number.isInteger(version) || version < 0) {
     throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC preparation draft was not accepted.");
+  }
+  const current = await readQcPreparations({ productId: id, accessToken: token, callRpc });
+  if (creating) {
+    const existing = current.preparations.some((row) => row?.source_key === QC_PREPARATION_SOURCE_KEY);
+    if (existing) {
+      throw workerError(ERROR_KINDS.STALE, "A QC preparation already exists — reload.");
+    }
+  } else {
+    const row = current.preparations.find(
+      (item) => String(item?.preparation_id) === String(preparationId)
+        && item?.source_key === QC_PREPARATION_SOURCE_KEY,
+    );
+    if (!row || Number(row.row_version) !== version) {
+      throw workerError(
+        ERROR_KINDS.STALE,
+        "Server copy changed — reload to compare; nothing was overwritten.",
+      );
+    }
+    if (row.preparation_status === "VERIFIED") {
+      throw workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Verified — editing is not available in C1.");
+    }
   }
   const args = {
     p_preparation_id: creating ? null : String(preparationId),
