@@ -28,7 +28,7 @@ No indent renumbering, no new `proc_indent_line` serial column, no reordering or
 ## Work packs & sequence
 | Pack | Name | State | Entry / closure boundary |
 |---|---|---|---|
-| WP00 | Governance & baseline | IN REVIEW | Documentation drafted; independent audit and integration approval pending |
+| WP00 | Governance & baseline | CLOSED — Governance established | PR #48 merged; governance subsequently exercised and WP01 closed under PR #53 |
 | WP01 | PEC traceability & PWA access correction | CLOSED — 2026-10-10 (PR #53, merge e20a8f06) | G0 current-state proof → G1 server contract/plan → G2 filtered JSON change → G3 UI/registry refresh → G4 acceptance → G5 reviewed integration |
 | WP02 | Post-fix operational stabilization | NOT OPEN | Opens only for accepted regressions or separately approved follow-on stabilization |
 | BACKLOG | Future improvements | PARKED | New features require an explicit separate decision |
