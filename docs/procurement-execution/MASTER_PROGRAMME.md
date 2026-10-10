@@ -29,25 +29,28 @@ No indent renumbering, no new `proc_indent_line` serial column, no reordering or
 | Pack | Name | State | Entry / closure boundary |
 |---|---|---|---|
 | WP00 | Governance & baseline | IN REVIEW | Documentation drafted; independent audit and integration approval pending |
-| WP01 | PEC traceability & PWA access correction | G3 MERGED (PR #49); representative PASS WITH NOTES; two originally affected users PENDING; overall G4 OPEN; G5 MERGED EARLY | G0 current-state proof → G1 server contract/plan → G2 filtered JSON change → G3 UI/registry refresh → G4 acceptance → G5 reviewed integration |
+| WP01 | PEC traceability & PWA access correction | OPERATIONALLY ACCEPTED; G4 TWO ORIGINAL USERS PASS; FINAL CLOSURE RECORD IN REVIEW | G0 current-state proof → G1 server contract/plan → G2 filtered JSON change → G3 UI/registry refresh → G4 acceptance → G5 reviewed integration |
 | WP02 | Post-fix operational stabilization | NOT OPEN | Opens only for accepted regressions or separately approved follow-on stabilization |
 | BACKLOG | Future improvements | PARKED | New features require an explicit separate decision |
 
-Do not invent percentage. G2 server mutation and technical parity verified live. G3 is done: PR #49 merged to main at 19:38 IST on 2026-10-09. G4 representative signed-in access evidence is PASS WITH NOTES (admin account with a temporarily reduced grant); the two originally affected View-only users are NOT verified, so G4 remains OPEN. G5 did not follow the brief's order: the merge happened before the independent audit; post-merge verification of main was done by that audit (PASS WITH NOTES), and the out-of-order merge was accepted by user 2026-10-09. Open: service-worker cache bump (`public/sw.js` still `hub-cache-v343`). G2/#46 migration durability is resolved by PR #51 pending merge. Governance drafting is not production correction completion.
-
+G2 live SQL and exact migration history are reconciled by PR #51; G3 client code merged in PR #49; G4 signed-in acceptance is now PASS for both originally affected View-only users after production service-worker v344 (PR #52). Representative admin role-reduction and permission-removal tests also passed earlier. G5 preserves the historical exception that PR #49 merged before independent audit and was accepted after PASS WITH NOTES. Final documentation integration remains pending; global migration-history drift is a distinct new work package.
 ## WP01 gate ledger
 - [~] G0 — Reconcile current main, exact repository files, function owner/security, migrations, auth and signed-in PWA behaviour; freeze test plan.
 - [ ] G1 — High-risk server/auth plan independently reviewed and explicitly authorized.
 - [x] G2 — Live change `pec_filtered_buylist_canonical_indent_line_sort_no` verified: 1147 canonical joins, 769 result rows, quantity/amount parity, example serial 15, function privileges intact. Applied live. Repository durability is resolved by PR #51 pending merge. Authenticated acceptance is recorded under G4 (PASS WITH NOTES).
 - [x] G3 — PR #49 merged to main at 19:38 IST on 2026-10-09. Canonical indent serials in the PEC buying-list Indents popup, exports, and opened-indent `#` column. Post-merge independent read-only audit: PASS WITH NOTES (2026-10-09).
-- [~] G4 — Representative signed-in acceptance evidence recorded 2026-10-09, PASS WITH NOTES; original two View-only users have NOT been independently verified. Phone PWA checks used the admin account with a temporarily reduced view-only grant on module `procurement-execution-console`, not the two originally affected accounts. Screenshots held by the user. See WP01 evidence.
+- [x] G4 — Two originally affected View-only users each reported PASS after PWA v344 deployment on 2026-10-10: PEC visible/open, Read-only retained, and Indent 193 / 28 MM ROPP Cap displays `193 (15)`. User-reported acceptance, not independently witnessed by ChatGPT. Earlier admin role-reduction and permission-removal test remains supplementary evidence.
 - [x] G5 — Post-merge verification of main was done by the independent audit (PASS WITH NOTES). NOTE: PR #49 was merged at 19:38 IST on 2026-10-09 before that audit, contrary to the brief. The out-of-order merge was accepted by user 2026-10-09. This mark does not mean the prescribed audit-then-merge order was followed.
 Gate state can become [x] only with recorded reproducible evidence. A skipped or partial test is not a pass.
 
-## Open follow-ups (2026-10-09, IST)
-Service-worker cache bump remains pending. Not decided in this document.
-- Service-worker cache bump: `public/sw.js` remains `hub-cache-v343`. Previously cached PWA clients may serve the old console script. Deferred as a separate release approval. The smoke test asserts v343 and must be updated with any bump.
-- G2/#46 migration durability: resolved by PR #51 pending merge. Exact live SQL is recorded as `20261009100628_pec_pwa_indent_serials.sql` (MD5 `1f789d6fc0d26f62d90c7d4aa7345357`) and `20261009131026_pec_filtered_buylist_canonical_indent_line_sort_no.sql` (MD5 `4d0f5137d0ce9560f17ed3ad9192a64a`).
+## Closure and separately governed follow-ups (2026-10-10)
+- PR #51: merged; original live migration versions `20261009100628` and `20261009131026` are on `main` with exact SQL parity; no repair or replay.
+- PR #52: merged as `dd669459010c8df1bf73a198da564a02becfb392`; production Netlify PWA reported content-verified as v344. No Electron release or DB change.
+- PR #46: closed unmerged as superseded; branch preserved for reference.
+- Conservative Group A remote-branch cleanup: 35 branches deleted after SHA, ancestry, PR and local worktree checks (executor-reported ledger); Group B/C, WIP, dirty/missing worktrees retained. Auto-delete remains off.
+- Global migration-history drift (50 local migration files, 515 remote versions in the recorded snapshot) is excluded from PEC WP01 and requires separate read-only inventory/governance. Do not bulk repair/push.
+- Other PEC popups without indent serial remain outside the WP01 scope; finance-facing buying list/export formatting changed from `[193]` to `[193 (15)]`.
+- WP01 is **operationally accepted**. Administrative closure awaits independent audit and merge of this final documentation PR.
 
 ## Dependency and stop rules
 G1 requires G0; G2 and G3 require the approved contract; G4 needs reviewed server/client candidates; G5 needs acceptance. Permissions changes, unknown server contract, surprising moved-main overlap, missing serial, mismatched quantities or cross-programme overlap STOP the relevant gate.
