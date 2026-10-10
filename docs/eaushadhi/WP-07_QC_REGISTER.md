@@ -144,3 +144,10 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
 - Production storage bucket currently exposes only the existing Product-262 Approved Product Copy as a matched known object; do **not** reuse, edit, or remove it for B1 positive tests.
 - Unresolved acceptance: true positive PDF upload/storage-object registration, real object metadata rejection/idempotent retry, inter-session concurrency and view/edit user-session validation. SQL-only simulated storage rows are insufficient as proof of genuine Supabase Storage behavior.
 - Safe next step: isolated test project/branch or explicitly approved purpose-scoped temporary PDF upload and cleanup, with resource/cost and operational permission review. Until then B1 is unmerged, undeployed and not acceptance-complete.
+
+### B1 continuation audit — 2026-10-10
+- Supabase project `qhmoqtxpeasamtlxaoak` currently has **no available development branches**, confirmed through branch listing. Do not assume an isolated existing DB instance.
+- Rollback-only B1 migration + tests PASS: invalid caller SHA-256 rejected (`22023`), stale preparation version rejected (`40001`), no QC document asset registered; rollback executed.
+- Main observed at `dd669459010c8df1bf73a198da564a02becfb392`; reconcile main-only movement before eventual merge.
+- Real Supabase Storage upload/positive registration, concurrency under separate sessions, byte-level trusted integrity and user-authenticated RPC checks remain outstanding. No artificial storage.object row should be labelled real-storage acceptance.
+- Next: determine affordable isolated environment and whether real-storage acceptance should occur after a separate B1 deployment approval, with exact controlled test object and cleanup. Do not create a chargeable environment implicitly.
