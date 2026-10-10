@@ -128,3 +128,34 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
 - Independent code audit of the read-only feature/probe and bounded view-permission correction completed. The client probe requires view permission, restricts to Product 262, and returns success solely on an empty array.
 - Main/feature file movement reconciled with no overlap (as of main `200148818d52a4c552ec0a338d86bf794803dddd`): main-only changes are BMR batch-number normalization files; feature S1 changes remain QC migrations, QC docs and probe-related client/tests.
 - Await explicit merge authorization after final integrated check. S2 promotion, approved-laboratory mapping, full QC preparation UI, portal Save/Submit remain unopened.
+
+### B1 rollback-only behavioral/security audit — 2026-10-09
+- Feature migration head prior to this documentation update: `7045e2c4da9e90c8a506397b02281e95493d3024`. Evaluated SQL source by executing `BEGIN; [migration]; [assertion DO block]; ROLLBACK;` in live database, **without deploying it**.
+- PASS: function creation and PostgreSQL execution; anonymous public RPC denial; authenticated internal-regulatory RPC denial; authenticated public read grant; missing preparation and registration identity fail-closed; rollback-only creation of an incomplete Product-262 S1 draft followed by QC report reservation versions V01 and V02; incorrect preparation version rejected; missing storage object rejected; two append-only reservation events in the disposable transaction.
+- Immediately after rollback: **0** surviving Product-262 QC preparations, **0** preparation events, **0** source studies, **0** B1 reservation tables; no QC PDF uploaded and no portal mutation.
+- **Not yet tested:** successful registration of a real storage object, conflicting second registration/idempotent positive response, wrong MIME/oversize on an actual storage object, concurrent reservation racing under separate sessions, live authenticated editor/view-only use of the new wrappers and end-to-end byte integrity. Do not claim full B1 verification.
+- **Integrity limitation:** newly registered assets will remain `UNVERIFIED_BYTES`; claimed SHA-256 and storage metadata do not prove actual bytes. B2 verification/promotion must remain blocked until a trusted object-hash process is implemented and independently audited.
+- The S1 preparation row version currently does not advance on B1 reservation/registration. B2 must explicitly bind and invalidate attachment-sensitive source verification; do not imply source Verify is protected merely by registering an attachment.
+- **Gate remains:** B1 implementation candidate; independent final security review and explicit live migration authorization remain required.
+
+### B1 additional acceptance boundary — 2026-10-09
+- Rechecked production: zero Product-262 QC preparations, zero Product-262 `stability_study` rows and no B1 reservation table deployed.
+- Executed entire current candidate migration inside `BEGIN ... ROLLBACK` with a permission-negative public-read probe using an unauthorised simulated authenticated identity. An error was caught as expected; this is **simulation**, not live client-session proof.
+- Production storage bucket currently exposes only the existing Product-262 Approved Product Copy as a matched known object; do **not** reuse, edit, or remove it for B1 positive tests.
+- Unresolved acceptance: true positive PDF upload/storage-object registration, real object metadata rejection/idempotent retry, inter-session concurrency and view/edit user-session validation. SQL-only simulated storage rows are insufficient as proof of genuine Supabase Storage behavior.
+- Safe next step: isolated test project/branch or explicitly approved purpose-scoped temporary PDF upload and cleanup, with resource/cost and operational permission review. Until then B1 is unmerged, undeployed and not acceptance-complete.
+
+### B1 continuation audit — 2026-10-10
+- Supabase project `qhmoqtxpeasamtlxaoak` currently has **no available development branches**, confirmed through branch listing. Do not assume an isolated existing DB instance.
+- Rollback-only B1 migration + tests PASS: invalid caller SHA-256 rejected (`22023`), stale preparation version rejected (`40001`), no QC document asset registered; rollback executed.
+- Main observed at `dd669459010c8df1bf73a198da564a02becfb392`; reconcile main-only movement before eventual merge.
+- Real Supabase Storage upload/positive registration, concurrency under separate sessions, byte-level trusted integrity and user-authenticated RPC checks remain outstanding. No artificial storage.object row should be labelled real-storage acceptance.
+- Next: determine affordable isolated environment and whether real-storage acceptance should occur after a separate B1 deployment approval, with exact controlled test object and cleanup. Do not create a chargeable environment implicitly.
+
+### S2B/B1 live deployment acceptance — 2026-10-10
+- Explicit operator authorization received for **B1-only** migration. Live Supabase migration application succeeded, recorded version `20261010054501` / name `wp07_s2b_b1_qc_report_reservation_registration`.
+- Repository migration file renamed from draft timestamp `20261009190000` to exact live-history version `20261010054501`; SQL contents unchanged.
+- Post-deploy read-only checks: 0 report reservations, 0 report events, 0 Product-262 QC preparation drafts and 0 stability studies; QC snapshot `ready=false`, reason `NO_GOVERNED_QC_RECORDS`.
+- ACL post-deploy: anonymous QC register/read EXECUTE denied; authenticated public registration EXECUTE granted; authenticated direct internal regulatory registration EXECUTE denied. The public wrapper still checks canonical module edit permission through `rpc_eaushadhi_require_permission(true)`.
+- No real QC report upload, document-byte verification, source promotion, QC stage/run or portal mutation. Real authenticated positive registration, object integrity and race acceptance remain pending; deployment success is **not** end-to-end B1 acceptance.
+- GitHub branch awaits independent final diff and merge review; no Git merge/release authorization is implied.

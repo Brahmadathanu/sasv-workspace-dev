@@ -118,6 +118,11 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
+  readQcReport: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-read", {
+      productId,
+      accessToken,
+    }),
   onStatus: (cb) => {
     const handler = (_evt, payload) => cb && cb(payload);
     ipcRenderer.on("eaushadhi-worker:status", handler);

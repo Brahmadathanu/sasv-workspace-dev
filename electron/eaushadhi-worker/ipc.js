@@ -4,6 +4,7 @@ const { createEaushadhiWorker } = require("./index");
 const { WorkerError, ERROR_KINDS, workerError } = require("./errors");
 const { callWorkerRpc } = require("./server-client");
 const { readQcPreparation } = require("./qc-preparation-read");
+const { readQcReport } = require("./qc-report-read");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const {
   assertAllowedEaushadhiRenderer,
@@ -33,6 +34,7 @@ const CHANNELS = Object.freeze({
   OPEN_CAPTURE_FOLDER: "eaushadhi-worker:open-capture-folder",
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
   QC_PREPARATION_READ: "eaushadhi-worker:qc-preparation-read",
+  QC_REPORT_READ: "eaushadhi-worker:qc-report-read",
 });
 
 function errorPayload(error) {
@@ -253,6 +255,19 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
       const accessToken = validateAccessToken(payload?.accessToken);
       return worker.openLastCaptureFolder(accessToken, {
         openPath: typeof shell?.openPath === "function" ? (dir) => shell.openPath(dir) : undefined,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_READ,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return readQcReport({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
       });
     }),
   );
