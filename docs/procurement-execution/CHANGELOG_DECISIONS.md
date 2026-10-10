@@ -31,3 +31,6 @@ VERIFIED = observed live/current state; PRIOR AUDIT = reported in preceding chat
 
 ## Future entries
 Record timestamp, decision ID, motivating evidence, alternatives, user authorization, scope and superseded IDs when changed. Do not rewrite locked decisions silently.
+
+## 2026-10-10 — G4 permission qualification
+- **DEC-015 (OPEN):** The second originally affected PWA account (`b8fd6239-…`) displayed the correct serial but retained a live View+Edit permission. Its intended View-only role must be restored by an authorized administrator and verified on that account. The first original user's View-only and serial display test passed. Do not conflate functional G4 acceptance with completed least-privilege restoration; this documentation PR makes no grant changes.
