@@ -29,20 +29,25 @@ No indent renumbering, no new `proc_indent_line` serial column, no reordering or
 | Pack | Name | State | Entry / closure boundary |
 |---|---|---|---|
 | WP00 | Governance & baseline | IN REVIEW | Documentation drafted; independent audit and integration approval pending |
-| WP01 | PEC traceability & PWA access correction | G2 SERVER VERIFIED; G3 CLIENT PENDING | G0 current-state proof → G1 server contract/plan → G2 filtered JSON change → G3 UI/registry refresh → G4 acceptance → G5 reviewed integration |
+| WP01 | PEC traceability & PWA access correction | G3 MERGED (PR #49); representative PASS WITH NOTES; two originally affected users PENDING; overall G4 OPEN; G5 MERGED EARLY | G0 current-state proof → G1 server contract/plan → G2 filtered JSON change → G3 UI/registry refresh → G4 acceptance → G5 reviewed integration |
 | WP02 | Post-fix operational stabilization | NOT OPEN | Opens only for accepted regressions or separately approved follow-on stabilization |
 | BACKLOG | Future improvements | PARKED | New features require an explicit separate decision |
 
-Do not invent percentage. G2 server mutation and technical parity verified live; G3 client and G4 signed-in acceptance pending. G5 merge unopened. Governance drafting is not production correction completion.
+Do not invent percentage. G2 server mutation and technical parity verified live. G3 is done: PR #49 merged to main at 19:38 IST on 2026-10-09. G4 representative signed-in access evidence is PASS WITH NOTES (admin account with a temporarily reduced grant); the two originally affected View-only users are NOT verified, so G4 remains OPEN. G5 did not follow the brief's order: the merge happened before the independent audit; post-merge verification of main was done by that audit (PASS WITH NOTES), and the out-of-order merge was accepted by user 2026-10-09. Open: service-worker cache bump (`public/sw.js` still `hub-cache-v343`). G2/#46 migration durability is resolved by PR #51 pending merge. Governance drafting is not production correction completion.
 
 ## WP01 gate ledger
 - [~] G0 — Reconcile current main, exact repository files, function owner/security, migrations, auth and signed-in PWA behaviour; freeze test plan.
 - [ ] G1 — High-risk server/auth plan independently reviewed and explicitly authorized.
-- [x] G2 — Applied migration `pec_filtered_buylist_canonical_indent_line_sort_no` and verified 1147 canonical joins, 769 result rows, quantity/amount parity, example serial 15, function privileges intact. Authenticated acceptance remains G4.
-- [ ] G3 — Isolated client implementation, canonical serial rendering, PWA refresh/durable registry, targeted tests and self-review.
-- [ ] G4 — Independent code audit and operational acceptance with actual affected users/roles and read-only checks.
-- [ ] G5 — Explicit merge authorization, current-main overlap check, integration and post-merge/live verification.
+- [x] G2 — Live change `pec_filtered_buylist_canonical_indent_line_sort_no` verified: 1147 canonical joins, 769 result rows, quantity/amount parity, example serial 15, function privileges intact. Applied live. Repository durability is resolved by PR #51 pending merge. Authenticated acceptance is recorded under G4 (PASS WITH NOTES).
+- [x] G3 — PR #49 merged to main at 19:38 IST on 2026-10-09. Canonical indent serials in the PEC buying-list Indents popup, exports, and opened-indent `#` column. Post-merge independent read-only audit: PASS WITH NOTES (2026-10-09).
+- [~] G4 — Representative signed-in acceptance evidence recorded 2026-10-09, PASS WITH NOTES; original two View-only users have NOT been independently verified. Phone PWA checks used the admin account with a temporarily reduced view-only grant on module `procurement-execution-console`, not the two originally affected accounts. Screenshots held by the user. See WP01 evidence.
+- [x] G5 — Post-merge verification of main was done by the independent audit (PASS WITH NOTES). NOTE: PR #49 was merged at 19:38 IST on 2026-10-09 before that audit, contrary to the brief. The out-of-order merge was accepted by user 2026-10-09. This mark does not mean the prescribed audit-then-merge order was followed.
 Gate state can become [x] only with recorded reproducible evidence. A skipped or partial test is not a pass.
+
+## Open follow-ups (2026-10-09, IST)
+Service-worker cache bump remains pending. Not decided in this document.
+- Service-worker cache bump: `public/sw.js` remains `hub-cache-v343`. Previously cached PWA clients may serve the old console script. Deferred as a separate release approval. The smoke test asserts v343 and must be updated with any bump.
+- G2/#46 migration durability: resolved by PR #51 pending merge. Exact live SQL is recorded as `20261009100628_pec_pwa_indent_serials.sql` (MD5 `1f789d6fc0d26f62d90c7d4aa7345357`) and `20261009131026_pec_filtered_buylist_canonical_indent_line_sort_no.sql` (MD5 `4d0f5137d0ce9560f17ed3ad9192a64a`).
 
 ## Dependency and stop rules
 G1 requires G0; G2 and G3 require the approved contract; G4 needs reviewed server/client candidates; G5 needs acceptance. Permissions changes, unknown server contract, surprising moved-main overlap, missing serial, mismatched quantities or cross-programme overlap STOP the relevant gate.
