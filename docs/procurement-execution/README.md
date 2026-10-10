@@ -2,7 +2,7 @@
 
 **Programme:** SASV Procurement Execution Console (PEC) Traceability, Access & Reliability
 **Created:** 2026-10-09
-**State:** Governance baseline drafted on isolated documentation branch; implementation NOT authorized by this document.
+**State:** Governance baseline is on main; implementation NOT authorized by this document.
 
 ## Reading order
 1. [MASTER_PROGRAMME.md](MASTER_PROGRAMME.md) — objective, work packs, gates, dependencies, status.
