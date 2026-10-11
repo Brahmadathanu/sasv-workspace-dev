@@ -2958,14 +2958,32 @@ function qcPrepOtherTextInvalid(text) {
   return value.length > 125 || !/\S/.test(value) || !QC_PREP_OTHER_TEXT_RE.test(value);
 }
 
+function qcPrepDateOrderMessages(start, end, report) {
+  const studyStart = String(start || "");
+  const studyEnd = String(end || "");
+  const reportDate = String(report || "");
+  const incomplete = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number(value.slice(0, 4)) < 1900;
+  const ready = (value) => Boolean(value) && !incomplete(value);
+  return {
+    end: ready(studyStart) && ready(studyEnd) && studyEnd <= studyStart
+      ? "Study end date must be after the study start date."
+      : "",
+    report: ready(studyEnd) && ready(reportDate) && reportDate < studyEnd
+      ? "Report date must be on or after the study end date."
+      : "",
+    beforeStart: ready(studyStart) && ready(reportDate) && reportDate < studyStart,
+  };
+}
+
 function qcPrepLocalHints(form) {
   const hints = [];
   const start = String(form.study_start_date || "");
   const end = String(form.study_end_date || "");
   const report = String(form.report_date || "");
-  if (start && end && end <= start) hints.push("STUDY_END_NOT_AFTER_START");
-  if (end && report && report < end) hints.push("REPORT_DATE_BEFORE_STUDY_END");
-  if (start && report && report < start) hints.push("REPORT_DATE_BEFORE_STUDY_START");
+  const dates = qcPrepDateOrderMessages(start, end, report);
+  if (dates.end) hints.push("STUDY_END_NOT_AFTER_START");
+  if (dates.report) hints.push("REPORT_DATE_BEFORE_STUDY_END");
+  if (dates.beforeStart) hints.push("REPORT_DATE_BEFORE_STUDY_START");
   if (qcPrepProtocolCode(form) === "OTHER") {
     const other = String(form.other_testing_protocol_text || "");
     if (!other.trim()) hints.push("OTHER_PROTOCOL_TEXT_REQUIRED");
@@ -2988,6 +3006,39 @@ function qcPrepLocalHints(form) {
 
 function qcPrepReasonText(code) {
   return QC_PREP_REASON_LABELS[code] || String(code);
+}
+
+function updateQcPrepDateMessages(form = qcPrepForm()) {
+  const messages = qcPrepDateOrderMessages(form.study_start_date, form.study_end_date, form.report_date);
+  const endEl = document.getElementById("qcPrepDateOrder");
+  const reportEl = document.getElementById("qcPrepReportDateOrder");
+  if (endEl) {
+    endEl.textContent = messages.end;
+    endEl.hidden = !messages.end;
+  }
+  if (reportEl) {
+    reportEl.textContent = messages.report;
+    reportEl.hidden = !messages.report;
+  }
+  const checks = document.getElementById("qcPrepFormChecks");
+  if (!checks) return;
+  const hints = [...new Set(qcPrepLocalHints(form))].map((code) => qcPrepReasonText(code));
+  checks.replaceChildren();
+  if (!hints.length) {
+    const note = document.createElement("p");
+    note.className = "muted-note";
+    note.textContent = "None";
+    checks.append(note);
+    return;
+  }
+  const list = document.createElement("ul");
+  list.className = "progress-list";
+  for (const hint of hints) {
+    const item = document.createElement("li");
+    item.textContent = hint;
+    list.append(item);
+  }
+  checks.append(list);
 }
 
 function resetQcPreparationWorkspace() {
@@ -3086,10 +3137,15 @@ function qcPrepWorkspaceHtml(model) {
     : model.fieldsComplete
       ? `<p class="muted-note">Fields complete (draft only)</p>`
       : `<p class="muted-note">No server review reasons yet.</p>`;
-  const studyEndOrder = model.studyStart && model.studyEnd && model.studyEnd <= model.studyStart
+  const dateIncomplete = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) && Number(String(value).slice(0, 4)) < 1900;
+  const studyEndOrder = model.studyStart && model.studyEnd
+    && !dateIncomplete(model.studyStart) && !dateIncomplete(model.studyEnd)
+    && model.studyEnd <= model.studyStart
     ? "Study end date must be after the study start date."
     : "";
-  const reportDateOrder = model.studyEnd && model.reportDate && model.reportDate < model.studyEnd
+  const reportDateOrder = model.studyEnd && model.reportDate
+    && !dateIncomplete(model.studyEnd) && !dateIncomplete(model.reportDate)
+    && model.reportDate < model.studyEnd
     ? "Report date must be on or after the study end date."
     : "";
   const batchFormatMessage = "Batch numbers must be comma-separated, with no spaces or duplicates, and 2–256 characters.";
@@ -3145,11 +3201,11 @@ function qcPrepWorkspaceHtml(model) {
         <label class="form-field">Study end date
           <input id="qcPrepEnd" type="date" value="${esc(model.studyEnd)}"${disabled}>
         </label>
-        ${studyEndOrder ? `<p class="muted-note" id="qcPrepDateOrder">${esc(studyEndOrder)}</p>` : ""}
+        <p class="muted-note" id="qcPrepDateOrder"${studyEndOrder ? "" : " hidden"}>${esc(studyEndOrder)}</p>
         <label class="form-field">Report date
           <input id="qcPrepReportDate" type="date" value="${esc(model.reportDate)}"${disabled}>
         </label>
-        ${reportDateOrder ? `<p class="muted-note" id="qcPrepReportDateOrder">${esc(reportDateOrder)}</p>` : ""}
+        <p class="muted-note" id="qcPrepReportDateOrder"${reportDateOrder ? "" : " hidden"}>${esc(reportDateOrder)}</p>
         <label class="form-field">Date basis
           <select id="qcPrepDateBasis"${disabled}>
             <option value="">Blank</option>
@@ -3203,7 +3259,7 @@ function qcPrepWorkspaceHtml(model) {
         <h4 class="meta-label">Server review</h4>
         ${reasonItems(serverReasons)}
         <h4 class="meta-label">Form checks</h4>
-        ${reasonItems(formChecks)}
+        <div id="qcPrepFormChecks">${reasonItems(formChecks)}</div>
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
@@ -3401,6 +3457,10 @@ function onQcPrepField(event) {
   if (state.qcPrepServer?.preparation_status === "VERIFIED" || !canWrite()) return;
   syncQcPrepFormFromDom();
   state.qcPrepDirty = true;
+  if ((target.id === "qcPrepStart" || target.id === "qcPrepEnd" || target.id === "qcPrepReportDate")
+    && (event.type === "input" || event.type === "change")) {
+    return;
+  }
   state.qcPrepReasons = [];
   state.qcPrepFieldsComplete = false;
   if (target.id === "qcPrepProtocol") {
@@ -3408,10 +3468,7 @@ function onQcPrepField(event) {
     renderReadiness();
   }
   if (target.id === "qcPrepPortalLab") renderReadiness();
-  const liveField = target.id === "qcPrepStart"
-    || target.id === "qcPrepEnd"
-    || target.id === "qcPrepReportDate"
-    || target.id === "qcPrepBatches"
+  const liveField = target.id === "qcPrepBatches"
     || target.id === "qcPrepShelf"
     || target.id === "qcPrepOther"
     || target.id === "qcPrepIssuer"
@@ -6980,6 +7037,13 @@ function wireEvents() {
     if (!event.target?.closest?.("#qcPreparationWorkspace")) return;
     qcPrepPendingBlurId = event.target?.id || "";
     qcPrepPendingFocusId = event.relatedTarget?.id || "";
+    const dateBlur = event.target.id === "qcPrepStart"
+      || event.target.id === "qcPrepEnd"
+      || event.target.id === "qcPrepReportDate";
+    if (dateBlur && event.relatedTarget !== event.target) {
+      syncQcPrepFormFromDom();
+      updateQcPrepDateMessages();
+    }
   });
   $("tab-readiness")?.addEventListener("keydown", (event) => {
     if (event.key !== "Tab" || !event.target?.closest?.("#qcPreparationWorkspace")) return;
