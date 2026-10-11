@@ -747,7 +747,7 @@ const releaseBusy = controlFunction("releaseQcPrepReviewBusy");
 const staleReview = releaseBusy({ ownsBusy: true, busy: true, selectedProductId: 261, productId: 262 });
 assert(staleReview.busy === false, "busy flag is released after a stale review");
 assert(staleReview.render === false, "a stale product is not rendered");
-assert(controlSrc.includes("event.type === \"change\" && liveField"), "date and batch edits re-render on change only");
+assert(controlSrc.includes("event.type === \"change\" && liveField"), "live field edits re-render on change only");
 
 const batchFormatCopy = "Batch numbers must be comma-separated, with no spaces or duplicates, and 2–256 characters.";
 const spacedBatches = renderQc({ batches: "A101, A102", open: true });
@@ -784,6 +784,107 @@ assert(revealUses.length === 3 && revealUses.every((arg) => arg === '"btnQcPrepR
 assert(revealUses.includes('"btnQcPrepReview"') && revealUses.includes('"btnQcPrepReload"'), "Check and Reload still reveal their result");
 assert(controlSrc.includes('qcPrepPendingFocusId = event.relatedTarget?.id || ""'), "focusout records the destination id");
 assert(controlSrc.includes("qcPrepTabDirection = event.shiftKey ? -1 : 1"), "keydown records the Tab direction");
+
+function extractFunction(name) {
+  const start = controlSrc.indexOf(`function ${name}(`);
+  assert(start >= 0, `${name} is defined`);
+  const brace = controlSrc.indexOf("{", start);
+  let depth = 0;
+  for (let index = brace; index < controlSrc.length; index += 1) {
+    const char = controlSrc[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return controlSrc.slice(start, index + 1);
+    }
+  }
+  throw new Error(`could not extract ${name}`);
+}
+
+const onField = controlSrc.slice(controlSrc.indexOf("function onQcPrepField"), controlSrc.indexOf("function focusQcPrepFieldChangeDestination"));
+const liveList = onField.slice(onField.indexOf("const liveField"), onField.indexOf("if (event.type === \"change\" && liveField)"));
+assert(!liveList.includes("qcPrepStart") && !liveList.includes("qcPrepEnd") && !liveList.includes("qcPrepReportDate"), "date fields are not in the live re-render list");
+const datePath = onField.slice(onField.indexOf('target.id === "qcPrepStart"'), onField.indexOf("state.qcPrepReasons"));
+assert(datePath.includes("event.type === \"input\" || event.type === \"change\"") && datePath.includes("return"), "date input and change return after sync");
+assert(!datePath.includes("renderReadiness") && !datePath.includes("focus") && !datePath.includes("scrollIntoView"), "date input and change do not re-render, focus, or scroll");
+const focusoutAt = controlSrc.indexOf('addEventListener("focusout"');
+const focusout = controlSrc.slice(focusoutAt, controlSrc.indexOf('addEventListener("keydown"', focusoutAt));
+assert(focusout.includes("updateQcPrepDateMessages()") && focusout.includes("event.relatedTarget !== event.target"), "date blur calls updateQcPrepDateMessages");
+assert(!focusout.includes("renderReadiness"), "date blur does not re-render");
+const updater = extractFunction("updateQcPrepDateMessages");
+assert(updater.includes('getElementById("qcPrepDateOrder")') && updater.includes('getElementById("qcPrepReportDateOrder")') && updater.includes('getElementById("qcPrepFormChecks")'), "date blur updates the inline messages and Form checks in place");
+assert(!updater.includes("renderReadiness") && !updater.includes(".focus(") && !updater.includes("scrollIntoView"), "the date-message update does not re-render, focus, or scroll");
+
+const dateMessagesApi = new Function(
+  "const state = { qcPrepOptions: [], qcPrepLabs: [], qcPrepLabsUnavailable: false };\n"
+  + "function qcPrepProtocolCode() { return \"\"; }\n"
+  + "function qcPrepBatchTextInvalid() { return false; }\n"
+  + "function qcPrepReasonText(code) {\n"
+  + "  const labels = {\n"
+  + "    STUDY_END_NOT_AFTER_START: \"Study end date must be after the study start date.\",\n"
+  + "    REPORT_DATE_BEFORE_STUDY_END: \"Report date must be on or after the study end date.\",\n"
+  + "    REPORT_DATE_BEFORE_STUDY_START: \"Report date is before the study start date.\",\n"
+  + "  };\n"
+  + "  return labels[code] || String(code);\n"
+  + "}\n"
+  + "const endEl = { textContent: \"\", hidden: true };\n"
+  + "const reportEl = { textContent: \"\", hidden: true };\n"
+  + "const checks = { children: [], replaceChildren() { this.children = []; }, append(node) { this.children.push(node); } };\n"
+  + "const document = {\n"
+  + "  getElementById(id) {\n"
+  + "    if (id === \"qcPrepDateOrder\") return endEl;\n"
+  + "    if (id === \"qcPrepReportDateOrder\") return reportEl;\n"
+  + "    if (id === \"qcPrepFormChecks\") return checks;\n"
+  + "    return null;\n"
+  + "  },\n"
+  + "  createElement(tag) {\n"
+  + "    return { tag, className: \"\", textContent: \"\", children: [], append(node) { this.children.push(node); } };\n"
+  + "  },\n"
+  + "};\n"
+  + extractFunction("qcPrepDateOrderMessages") + "\n"
+  + extractFunction("qcPrepLocalHints") + "\n"
+  + updater + "\n"
+  + "return { qcPrepDateOrderMessages, qcPrepLocalHints, updateQcPrepDateMessages, endEl, reportEl, checks };",
+)();
+const endCopy = "Study end date must be after the study start date.";
+const reportCopy = "Report date must be on or after the study end date.";
+const sameDay = dateMessagesApi.qcPrepDateOrderMessages("2026-01-02", "2026-01-02", "2026-01-03");
+assert(sameDay.end === endCopy && sameDay.report === "", "an end date equal to the start gives the end message");
+const earlyReport = dateMessagesApi.qcPrepDateOrderMessages("2026-01-01", "2026-01-03", "2026-01-02");
+assert(earlyReport.report === reportCopy && earlyReport.end === "", "a report date before the end gives the report message");
+const orderedDates = dateMessagesApi.qcPrepDateOrderMessages("2026-01-01", "2026-01-02", "2026-01-02");
+assert(orderedDates.end === "" && orderedDates.report === "", "valid dates give empty date messages");
+const partialYearMessages = dateMessagesApi.qcPrepDateOrderMessages("0002-10-01", "0002-10-01", "0001-01-01");
+assert(partialYearMessages.end === "" && partialYearMessages.report === "" && partialYearMessages.beforeStart === false, "a year before 1900 gives no date message");
+const hintForm = {
+  batches: "",
+  shelf_life_months: "",
+  quality_control_mode: "",
+  portal_laboratory_candidate: "",
+  other_testing_protocol_text: "",
+};
+const partialHints = dateMessagesApi.qcPrepLocalHints({
+  ...hintForm,
+  study_start_date: "0002-10-01",
+  study_end_date: "0002-10-01",
+  report_date: "0001-01-01",
+});
+assert(!partialHints.includes("STUDY_END_NOT_AFTER_START") && !partialHints.includes("REPORT_DATE_BEFORE_STUDY_END") && !partialHints.includes("REPORT_DATE_BEFORE_STUDY_START"), "qcPrepLocalHints gives no date hints for a year before 1900");
+dateMessagesApi.updateQcPrepDateMessages({ ...hintForm, study_start_date: "2026-01-02", study_end_date: "2026-01-02", report_date: "2026-01-03" });
+assert(dateMessagesApi.endEl.textContent === endCopy && dateMessagesApi.endEl.hidden === false, "blur shows the end message in place");
+assert(dateMessagesApi.reportEl.textContent === "" && dateMessagesApi.reportEl.hidden === true, "blur hides an empty report message");
+assert(dateMessagesApi.checks.children.some((node) => node.children?.some((item) => item.textContent === endCopy)), "blur updates the Form checks list in place");
+dateMessagesApi.updateQcPrepDateMessages({ ...hintForm, study_start_date: "2026-01-01", study_end_date: "2026-01-03", report_date: "2026-01-02" });
+assert(dateMessagesApi.reportEl.textContent === reportCopy && dateMessagesApi.reportEl.hidden === false, "blur shows the report message in place");
+assert(dateMessagesApi.endEl.hidden === true, "blur hides an empty end message");
+dateMessagesApi.updateQcPrepDateMessages({ ...hintForm, study_start_date: "2026-01-01", study_end_date: "2026-01-02", report_date: "2026-01-02" });
+assert(dateMessagesApi.endEl.hidden === true && dateMessagesApi.reportEl.hidden === true, "valid dates leave both messages hidden");
+dateMessagesApi.updateQcPrepDateMessages({ ...hintForm, study_start_date: "0002-10-01", study_end_date: "0002-10-01", report_date: "0001-01-01" });
+assert(dateMessagesApi.endEl.textContent === "" && dateMessagesApi.reportEl.textContent === "" && dateMessagesApi.endEl.hidden === true && dateMessagesApi.reportEl.hidden === true, "an incomplete year shows no date message");
+const bareDates = renderQc({ open: true });
+assert(bareDates.includes('id="qcPrepDateOrder"') && bareDates.includes('id="qcPrepReportDateOrder"'), "markup always contains both date message elements");
+const validDateMarkup = renderQc({ open: true, studyStart: "2026-01-01", studyEnd: "2026-01-02", reportDate: "2026-01-02" });
+assert(validDateMarkup.includes('id="qcPrepDateOrder" hidden') && validDateMarkup.includes('id="qcPrepReportDateOrder" hidden'), "valid dates keep both date messages hidden");
 
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);
