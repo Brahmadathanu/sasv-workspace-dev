@@ -1417,9 +1417,53 @@ const truncated = factApi.qcSourceVerifyFactLines({
   shelf_life_months: { supported: true, text: "NUPAL report p.1" },
 });
 assert(truncated.includes(`${"n".repeat(60)}…`) && !truncated.includes("n".repeat(61)), "the confirm summary truncates a reference or note at 60 characters");
-assert(verifyFn.includes("qcSourceVerifyFactLines(submittedRows)") && verifyFn.includes("factEvidence: qcFactEvidenceFromRows(submittedRows)"), "the confirm summary and the submitted payload use the same rows");
+assert(verifyFn.includes("structuredClone(qcFactRowsCurrent())") && verifyFn.includes("qcSourceVerifyFactLines(submittedRows)") && verifyFn.includes("factEvidence: qcFactEvidenceFromRows(submittedRows)"), "the confirm summary and the submitted payload use the same copied rows");
 assert(verifyFn.includes("This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?"), "the verify confirm keeps its existing sentence");
 assert(!verifyFn.includes("state.qcFactRows = null"), "a successful verify keeps the submitted rows");
+assert(extractFunction("openQcConfirm").includes('paragraph.className = "sasv-modal__message"'), "the confirm message uses sasv-modal__message");
+const modalCss = readFileSync(join(root, "public/shared/css/sasv-primitives.css"), "utf8");
+assert(/\.sasv-modal__message \{\r?\n  white-space: pre-wrap;\r?\n\}/.test(modalCss), "the confirm message keeps fact lines with pre-wrap");
+const snapshotRows = {
+  study_start_date: { supported: false, text: "Study period entered by operator on the manufacturing-span basis; not printed in the report" },
+  study_end_date: { supported: true, text: "NUPAL report p.1" },
+  report_date: { supported: true, text: "NUPAL report p.1" },
+  testing_protocol: { supported: false, text: "Protocol chosen by operator: Cross Sectional Approach; not stated in the report" },
+  batches: { supported: true, text: "NUPAL report p.1" },
+  shelf_life_months: { supported: true, text: "NUPAL report p.1" },
+};
+const capturedEvidence = await new Function(
+  `const state = {
+     selectedProductId: 262,
+     tab: "other",
+     qcSourceVerifyRunning: false,
+     qcSourceConfirmOpen: false,
+     qcPrepServer: { preparation_id: "${PREP_ID}", row_version: 5 },
+     qcFactRows: ${JSON.stringify(snapshotRows)},
+   };
+   function qcSourceFactsModel() { return { canSubmit: true, version: "01", sha12: "abcdef123456" }; }
+   function qcFactRowsCurrent() { return state.qcFactRows; }
+   function qcSourceVerifyFactLines() { return "lines"; }
+   async function openQcConfirm() {
+     state.qcFactRows.study_start_date.text = "MUTATED AFTER COPY";
+     state.qcFactRows.study_start_date.supported = true;
+     return true;
+   }
+   let captured = null;
+   async function verifyQcPreparationSource(_productId, _token, draft) {
+     captured = draft.factEvidence;
+     return { ok: true, row_version: 6 };
+   }
+   ${controlSrc.slice(controlSrc.indexOf("const QC_SOURCE_FACT_FIELDS = ["), controlSrc.indexOf("];", controlSrc.indexOf("const QC_SOURCE_FACT_FIELDS = [")) + 2)}
+   ${extractFunction("qcFactEvidenceFromRows")}
+   async function sessionAccessToken() { return "token"; }
+   function renderQc() {}
+   function showToast() {}
+   function reloadQcPreparationWorkspace() {}
+   function userMessageForError() { return "failed"; }
+   ${extractCallable("submitQcSourceVerify")}
+   return submitQcSourceVerify().then(() => captured);`,
+)();
+assert(capturedEvidence.study_start_date.supported_by_report === false && capturedEvidence.study_start_date.evidence_note === snapshotRows.study_start_date.text, "mutating the state rows after the copy leaves the submitted payload unchanged");
 
 const savedEvidence = {
   study_start_date: { supported_by_report: false, evidence_note: "Study period entered by operator on the manufacturing-span basis; not printed in the report" },
@@ -1579,7 +1623,7 @@ assert((controlSrc.match(/reopenQcPreparation\(/g) || []).length === 1, "reopenQ
 assert(preloadSrc.includes("reopenQcPreparation") && preloadSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "preload exposes reopenQcPreparation");
 assert(ipcSrc.includes("CHANNELS.QC_PREPARATION_REOPEN") && ipcSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "ipc registers the reopen channel");
 assert(controlSrc.includes('onwheel="this.blur()"') && extractFunction("onQcSourceFactField").includes('event.type !== "change"') && extractFunction("onQcSourceFactField").includes("document.getElementById(focusId)?.focus()"), "a fact select changes only on change, restores focus, and blurs on the wheel");
-assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v360"'), "CACHE_NAME is v360");
+assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v361"'), "CACHE_NAME is v361");
 
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);

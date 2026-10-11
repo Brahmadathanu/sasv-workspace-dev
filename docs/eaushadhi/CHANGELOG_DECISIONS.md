@@ -283,9 +283,12 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - The form now loads `report_filename`. The client compares the SHA only when a verified SHA is known, and the file name only when both names are non-empty. `rpc_eaushadhi_qc_preparation_verify_v2` still rejects a real SHA or file-name mismatch.
 
 ## 2026-10-11 — WP-07 D4.2 saved facts and reopen
-- **B3.1 decision (candidate, not yet applied):** an attested reopen supersedes a binding in an append-only way. Binding #1 stays in the audit trail. The draft returns to Review required.
+- **B3.1 decision:** an attested reopen supersedes a binding in an append-only way. Binding #1 stays in the audit trail. The draft returns to Review required. The "candidate, not yet applied" note is superseded by the D4.3 entry.
 - The operator confirmed that batches, report date, study end date, and shelf life are printed on NUPAL report page 1.
 - Study start date and testing protocol are operator facts: not shown in the report, each with a note.
 - **D4.2 display root cause:** after Verify source facts the card cleared its rows and showed the defaults, so study start and protocol appeared as No while the server had saved Yes. The confirm dialog did not list the submitted facts, and a focused Yes/No control could change with the mouse wheel or arrow keys. There is no path that turns a selected No into a saved Yes.
 - A verified preparation shows the six saved facts read-only when the recheck returns them. If that evidence is absent, the card says the saved fact evidence is not available in this view.
-- Reopen for re-verification is operator-triggered only. It will call `rpc_eaushadhi_qc_preparation_reopen_v1` once B3.1 is applied. Until then a missing RPC says reopen is not available on the server yet.
+- Reopen for re-verification is operator-triggered only. It calls `rpc_eaushadhi_qc_preparation_reopen_v1`.
+
+## 2026-10-11 — WP-07 D4.3 B3.1 parity
+- B3.1 is applied live as `20261011165858_wp07_b3_1_qc_source_reopen` (md5 `2a87e4eb3de1341937580febe29d2bad`). The repository file is byte-exact. It was not reapplied.

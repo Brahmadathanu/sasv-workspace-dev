@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v360"; // WP-07 D4.2 saved facts and reopen
+const CACHE_NAME = "hub-cache-v361"; // WP-07 D4.3 B3.1 parity and fact lines
 
 const PRECACHE = [
   // Hub shell

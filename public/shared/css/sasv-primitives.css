@@ -357,6 +357,10 @@ button.clear-link:hover {
   min-height: 0;
 }
 
+.sasv-modal__message {
+  white-space: pre-wrap;
+}
+
 .sasv-modal__footer,
 .modal-footer {
   display: flex;
