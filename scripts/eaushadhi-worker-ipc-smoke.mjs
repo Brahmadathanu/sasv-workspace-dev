@@ -86,6 +86,8 @@ assert(preloadSrc.includes("readQcReport:"), "preload exposes readQcReport");
 assert(preloadSrc.includes("listQcReports:"), "preload exposes listQcReports");
 assert(preloadSrc.includes("reserveQcReport:"), "preload exposes reserveQcReport");
 assert(preloadSrc.includes("registerQcReport:"), "preload exposes registerQcReport");
+assert(preloadSrc.includes("verifyQcReportBytes:"), "preload exposes verifyQcReportBytes");
+assert(CHANNELS.QC_REPORT_VERIFY_BYTES === "eaushadhi-worker:qc-report-verify-bytes", "QC report byte check channel is bounded");
 assert(preloadSrc.includes("eaushadhi-worker:qc-report-read"), "preload maps the QC report read channel");
 const qcReportHandlerStart = ipcSrc.indexOf("CHANNELS.QC_REPORT_READ,");
 const qcReportHandler = ipcSrc.slice(qcReportHandlerStart, ipcSrc.indexOf("return worker;", qcReportHandlerStart));

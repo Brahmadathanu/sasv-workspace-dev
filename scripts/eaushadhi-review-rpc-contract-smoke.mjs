@@ -503,12 +503,11 @@ const QC_PREP_VERIFIED_NOTE = "Verified — editing is not available in C1.";
 // approved literals before scanning for other mojibake-prone punctuation.
 const uiLiteralsWithoutCanonicalStop = [
   "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
-  "B1/B2 — Report registered and bytes verified",
   "B3 — Evidence governance accepted",
   "B4 — QC portal readiness confirmed",
   "Defaults filled — review every value before saving.",
   " — not done",
-  "QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open",
+  "QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open. ${b1}. B2: Server byte check: ${byte}",
 ].reduce(
   (text, literal) => text.split(literal).join(""),
   (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("").split(QC_PREP_VERIFIED_NOTE).join(""),

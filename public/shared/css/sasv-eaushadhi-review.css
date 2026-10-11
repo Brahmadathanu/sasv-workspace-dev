@@ -726,6 +726,16 @@ body.sasv-eaushadhi-review .ea-autosave.is-stale {
   font-weight: var(--sasv-fw-semibold);
 }
 
+body.sasv-eaushadhi-review .ea-autosave.is-verified {
+  color: var(--sasv-success);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .qc-report-sha {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
 body.sasv-eaushadhi-review .ea-lock-note {
   display: inline-flex;
   align-items: center;
