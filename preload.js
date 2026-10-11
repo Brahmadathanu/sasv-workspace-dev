@@ -153,6 +153,15 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       attest: draft?.attest === true,
       factEvidence: draft?.factEvidence,
     }),
+  reopenQcPreparation: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-reopen", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      attest: draft?.attest === true,
+      reasonNote: draft?.reasonNote,
+    }),
   recheckQcEvidence: (productId, accessToken, draft) =>
     ipcRenderer.invoke("eaushadhi-worker:qc-evidence-recheck", {
       productId,

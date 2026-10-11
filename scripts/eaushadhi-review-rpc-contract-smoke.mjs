@@ -509,6 +509,11 @@ const uiLiteralsWithoutCanonicalStop = [
   " — not done",
   "QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open. ${b1}. B2: Server byte check: ${byte}",
   "This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?",
+  "${label}: Shown — ${shown}",
+  "${label}: Not shown — note: ${shown}",
+  "${text.slice(0, 60)}…",
+  "Suggested — confirm against the PDF",
+  "Reopened — verify again",
 ].reduce(
   (text, literal) => text.split(literal).join(""),
   (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("").split(QC_PREP_VERIFIED_NOTE).join(""),

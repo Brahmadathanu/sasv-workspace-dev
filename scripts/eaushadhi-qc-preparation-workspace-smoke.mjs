@@ -1248,10 +1248,19 @@ assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["OBJECT_MISSING"] }).
 assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["TUPLE_MISMATCH_SHA"] }).detail === "Evidence record mismatch", "a tuple mismatch maps to the evidence-record sentence");
 assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["SOMETHING_ELSE"] }).label === "Needs re-verify" && workspace.qcEvidenceBadge({ valid: false, reasons: ["SOMETHING_ELSE"] }).detail === "Needs re-verify", "any other reason maps to Needs re-verify");
 
+const factHelperSrc = controlSrc.slice(
+  controlSrc.indexOf("const QC_STUDY_START_FALLBACK"),
+  controlSrc.indexOf("function qcFactRowError"),
+);
 const factApi = new Function(
-  `${extractFunction("qcIssuerShortName")}
-   ${extractFunction("qcFactDefaultRows")}
-   return { qcIssuerShortName, qcFactDefaultRows };`,
+  `${controlSrc.slice(controlSrc.indexOf("const QC_SOURCE_FACT_FIELDS = ["), controlSrc.indexOf("];", controlSrc.indexOf("const QC_SOURCE_FACT_FIELDS = [")) + 2)}
+   ${extractFunction("qcIssuerShortName")}
+   ${factHelperSrc}
+   ${extractFunction("qcFactEvidenceFromRows")}
+   ${extractFunction("qcRowsFromFactEvidence")}
+   ${extractFunction("qcSourceVerifyFactLines")}
+   ${extractFunction("qcFactPageHintMissing")}
+   return { qcIssuerShortName, qcFactDefaultRows, qcFactEvidenceFromRows, qcRowsFromFactEvidence, qcSourceVerifyFactLines, qcFactPageHintMissing };`,
 )();
 const issuerNameForFacts = "New Udaya Pharmacy & Ayurvedic Laboratories (NUPAL)";
 assert(factApi.qcIssuerShortName(issuerNameForFacts) === "NUPAL", "the issuer short name is the text inside parentheses");
@@ -1263,14 +1272,15 @@ const defaultRows = factApi.qcFactDefaultRows({
 assert(defaultRows.study_start_date.supported === false && defaultRows.testing_protocol.supported === false, "study start and testing protocol default to No");
 assert(defaultRows.study_end_date.supported === true && defaultRows.report_date.supported === true && defaultRows.batches.supported === true && defaultRows.shelf_life_months.supported === true, "the other facts default to Yes");
 assert(defaultRows.study_end_date.text === "NUPAL report p.1" && defaultRows.report_date.text === "NUPAL report p.1" && defaultRows.batches.text === "NUPAL report p.1" && defaultRows.shelf_life_months.text === "NUPAL report p.1", "Yes rows prefill NUPAL report p.1");
-assert(defaultRows.study_start_date.text === "Study period entered manually by the operator.", "a long date note prefills the No row");
-assert(defaultRows.testing_protocol.text === "Cross Sectional Approach", "a long protocol note prefills the No row");
+assert(defaultRows.study_start_date.text === "Study period entered manually by the operator." && defaultRows.study_start_date.text.length >= 10, "a long date note prefills the No row");
+assert(defaultRows.testing_protocol.text === "Protocol chosen by operator: Cross Sectional Approach; not stated in the report" && defaultRows.testing_protocol.text.length >= 10, "protocol defaults to an operator note");
 const shortDefaults = factApi.qcFactDefaultRows({
   source_report_issuer: issuerNameForFacts,
   date_evidence_note: "too short",
   other_testing_protocol_text: "short",
 }, []);
-assert(shortDefaults.study_start_date.text === "" && shortDefaults.testing_protocol.text === "", "notes shorter than 10 characters stay empty");
+assert(shortDefaults.study_start_date.text === "Study period entered by operator on the manufacturing-span basis; not printed in the report" && shortDefaults.study_start_date.text.length >= 10, "a short date note uses the manufacturing-span fallback");
+assert(shortDefaults.testing_protocol.text === "Protocol chosen by operator: short; not stated in the report" && shortDefaults.testing_protocol.text.length >= 10, "a short protocol still gets the operator note");
 
 const verifyFn = extractCallable("submitQcSourceVerify");
 const confirmReturn = verifyFn.indexOf("if (accepted !== true) return;");
@@ -1325,9 +1335,11 @@ const reloadedDraft = new Function(
    ${extractFunction("qcPrepForm")}
    ${extractFunction("qcPrepFormFromPayload")}
    ${extractFunction("qcRegisteredReport")}
+   const esc = (value) => String(value ?? "");
    ${extractFunction("qcIssuerShortName")}
    ${extractFunction("qcFactPreviewValue")}
-   ${extractFunction("qcFactDefaultRows")}
+   ${factHelperSrc}
+   ${extractFunction("qcFactPageHintMissing")}
    ${extractFunction("qcFactRowError")}
    ${extractFunction("qcFactRowsCurrent")}
    ${extractFunction("qcEvidenceReasonText")}
@@ -1347,14 +1359,227 @@ const reloadedDraft = new Function(
    state.qcFactAttest = true;
    const open = qcSourceFactsModel();
    const html = qcSourceFactsCardHtml(open);
+   const warnRows = qcFactRowsCurrent();
+   warnRows.batches = { supported: true, text: "Cross Sectional Approach (API Vol VIII Page No:226)" };
+   state.qcFactRows = warnRows;
+   const warned = qcSourceFactsCardHtml(qcSourceFactsModel());
+   warnRows.batches = { supported: true, text: "NUPAL report p.1" };
+   state.qcFactRows = warnRows;
+   const quiet = qcSourceFactsCardHtml(qcSourceFactsModel());
    state.qcPrepForm = { ...loaded, report_filename: "other.pdf" };
    const blocked = qcSourceFactsModel();
-   return { loaded, open, html, blocked };`,
+   return { loaded, open, html, warned, quiet, blocked };`,
 )();
 assert(reloadedDraft.loaded.report_filename === savedReportFile && reloadedDraft.loaded.report_sha256 === savedReportSha, "a saved draft loads report_filename and report_sha256");
 assert(!reloadedDraft.open.blockReason, "a matching reloaded draft with no session byte check has no block reason");
 assert(reloadedDraft.open.canSubmit === true && reloadedDraft.html.includes('id="btnQcVerifySourceFacts"') && !reloadedDraft.html.includes('id="btnQcVerifySourceFacts" disabled'), "Verify source facts is enabled for that draft");
 assert(reloadedDraft.blocked.blockReason === "The draft does not match the verified report. Save the draft again from the latest report." && reloadedDraft.blocked.canSubmit !== true, "a different filename still blocks Verify source facts");
+assert(reloadedDraft.warned.includes("This does not look like a page or section in the report. If the value is not printed in the report, choose No and write a note."), "a Yes row without a page hint shows the soft warning");
+assert(!reloadedDraft.quiet.includes("This does not look like a page or section in the report."), "NUPAL report p.1 does not show the soft warning");
+assert(factApi.qcFactPageHintMissing({ supported: true, text: "Cross Sectional Approach (API Vol VIII Page No:226)" }) === true, "Page No:226 is not a page hint");
+assert(factApi.qcFactPageHintMissing({ supported: true, text: "NUPAL report p.1" }) === false, "p.1 is a page hint");
+
+const factKeys = ["study_start_date", "study_end_date", "report_date", "testing_protocol", "batches", "shelf_life_months"];
+let roundTripExact = true;
+for (let mask = 0; mask < 64; mask += 1) {
+  const rows = {};
+  for (let index = 0; index < factKeys.length; index += 1) {
+    const supported = (mask & (1 << index)) !== 0;
+    rows[factKeys[index]] = {
+      supported,
+      text: supported ? `NUPAL report p.${index + 1}` : `Operator note ${index} is long enough`,
+    };
+  }
+  const evidence = factApi.qcFactEvidenceFromRows(rows);
+  const back = factApi.qcRowsFromFactEvidence(evidence);
+  if (JSON.stringify(back) !== JSON.stringify(rows)) roundTripExact = false;
+  const lines = factApi.qcSourceVerifyFactLines(rows).split("\n");
+  if (lines.length !== 6) roundTripExact = false;
+  factKeys.forEach((key, index) => {
+    const shown = rows[key].supported === true;
+    const item = evidence[key];
+    if (item.supported_by_report !== shown) roundTripExact = false;
+    if (shown && item.source_reference !== rows[key].text) roundTripExact = false;
+    if (!shown && item.evidence_note !== rows[key].text) roundTripExact = false;
+    const line = lines[index];
+    if (shown && !line.startsWith(`${["Study start date", "Study end date", "Report date", "Testing protocol", "Batches", "Shelf life"][index]}: Shown — `)) roundTripExact = false;
+    if (!shown && !line.includes("Not shown — note:")) roundTripExact = false;
+  });
+}
+assert(roundTripExact, "qcFactEvidenceFromRows is round-trip exact for every Yes/No combination");
+const longNote = "n".repeat(70);
+const truncated = factApi.qcSourceVerifyFactLines({
+  study_start_date: { supported: false, text: longNote },
+  study_end_date: { supported: true, text: "NUPAL report p.1" },
+  report_date: { supported: true, text: "NUPAL report p.1" },
+  testing_protocol: { supported: false, text: "Protocol chosen by operator: Cross Sectional Approach; not stated in the report" },
+  batches: { supported: true, text: "NUPAL report p.1" },
+  shelf_life_months: { supported: true, text: "NUPAL report p.1" },
+});
+assert(truncated.includes(`${"n".repeat(60)}…`) && !truncated.includes("n".repeat(61)), "the confirm summary truncates a reference or note at 60 characters");
+assert(verifyFn.includes("qcSourceVerifyFactLines(submittedRows)") && verifyFn.includes("factEvidence: qcFactEvidenceFromRows(submittedRows)"), "the confirm summary and the submitted payload use the same rows");
+assert(verifyFn.includes("This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?"), "the verify confirm keeps its existing sentence");
+assert(!verifyFn.includes("state.qcFactRows = null"), "a successful verify keeps the submitted rows");
+
+const savedEvidence = {
+  study_start_date: { supported_by_report: false, evidence_note: "Study period entered by operator on the manufacturing-span basis; not printed in the report" },
+  study_end_date: { supported_by_report: true, source_reference: "NUPAL report p.1" },
+  report_date: { supported_by_report: true, source_reference: "NUPAL report p.1" },
+  testing_protocol: { supported_by_report: false, evidence_note: "Protocol chosen by operator: Cross Sectional Approach; not stated in the report" },
+  batches: { supported_by_report: true, source_reference: "NUPAL report p.1" },
+  shelf_life_months: { supported_by_report: true, source_reference: "NUPAL report p.1" },
+};
+const verifiedCard = new Function(
+  `const state = {
+     selectedProductId: 262,
+     qcPrepServer: { preparation_id: "${PREP_ID}", preparation_status: "VERIFIED", row_version: 5 },
+     qcPrepForm: {
+       source_report_issuer: "New Udaya Pharmacy & Ayurvedic Laboratories (NUPAL)",
+       date_evidence_note: "Study period entered manually by the operator.",
+       other_testing_protocol_text: "Cross Sectional Approach",
+       report_filename: ${JSON.stringify(savedReportFile)},
+       report_sha256: ${JSON.stringify(savedReportSha)},
+     },
+     qcPrepOptions: [],
+     qcPrepReasons: [],
+     qcPrepDirty: false,
+     busy: false,
+     qcSourceVerifyRunning: false,
+     qcSourceConfirmOpen: false,
+     qcReopenRunning: false,
+     qcReports: [{
+       status: "REGISTERED",
+       preparation_id: "${PREP_ID}",
+       version_no: 1,
+       integrity_status: "VERIFIED_BYTES",
+       expected_file_name: ${JSON.stringify(savedReportFile)},
+       verified_sha256: ${JSON.stringify(savedReportSha)},
+     }],
+     qcReportByteResult: null,
+     qcFactScope: "",
+     qcFactRows: null,
+     qcFactAttest: false,
+     qcFactHighlights: [],
+     qcEvidenceRecheck: { valid: true, reasons: [], fact_evidence: ${JSON.stringify(savedEvidence)} },
+   };
+   function workerApiAvailable() { return true; }
+   function canWrite() { return true; }
+   const esc = (value) => String(value ?? "");
+   ${controlSrc.slice(factFieldsStart, controlSrc.indexOf("];", factFieldsStart) + 2)}
+   ${extractFunction("emptyQcPrepForm")}
+   ${extractFunction("qcPrepForm")}
+   ${extractFunction("qcRegisteredReport")}
+   ${extractFunction("qcIssuerShortName")}
+   ${extractFunction("qcFactPreviewValue")}
+   ${factHelperSrc}
+   ${extractFunction("qcFactRowError")}
+   ${extractFunction("qcFactRowsCurrent")}
+   ${extractFunction("qcEvidenceReasonText")}
+   ${extractFunction("qcEvidenceBadge")}
+   ${extractFunction("qcSourceFactsBlockReason")}
+   ${extractFunction("qcRowsFromFactEvidence")}
+   ${extractFunction("qcFactPageHintMissing")}
+   ${extractFunction("qcSourceFactsModel")}
+   ${extractFunction("qcSourceFactsCardHtml")}
+   const withEvidence = qcSourceFactsCardHtml(qcSourceFactsModel());
+   state.qcEvidenceRecheck = { valid: true, reasons: [] };
+   const withoutEvidence = qcSourceFactsCardHtml(qcSourceFactsModel());
+   state.qcPrepServer = { preparation_id: "${PREP_ID}", preparation_status: "VERIFIED", row_version: 5 };
+   state.qcEvidenceRecheck = { valid: true, reasons: [], fact_evidence: ${JSON.stringify(savedEvidence)} };
+   function canWriteDenied() { return false; }
+   return { withEvidence, withoutEvidence, canReopen: qcSourceFactsModel().canReopen };`,
+)();
+assert(verifiedCard.withEvidence.includes("Shown in the report: No") && verifiedCard.withEvidence.includes("Shown in the report: Yes"), "a verified card shows Yes and No from the saved facts");
+assert(verifiedCard.withEvidence.includes(savedEvidence.study_start_date.evidence_note) && verifiedCard.withEvidence.includes(savedEvidence.testing_protocol.evidence_note) && verifiedCard.withEvidence.includes("NUPAL report p.1"), "the read-only rows match the saved fact evidence");
+assert(!verifiedCard.withEvidence.includes("<select"), "a verified card with fact evidence has no select");
+assert(verifiedCard.withoutEvidence.includes("Saved fact evidence is not available in this view") && !verifiedCard.withoutEvidence.includes("<select") && !verifiedCard.withoutEvidence.includes("Study period entered manually by the operator."), "a verified card without fact evidence does not render the default rows");
+assert(verifiedCard.withEvidence.includes("Reopen for re-verification") && verifiedCard.canReopen === true, "reopen is offered when the draft is verified and editable");
+assert(controlSrc.includes('if (text === "BINDING_SUPERSEDED") return "Reopened — verify again";'), "BINDING_SUPERSEDED says Reopened — verify again");
+assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["BINDING_SUPERSEDED"] }).detail === "Reopened — verify again", "the worker badge maps BINDING_SUPERSEDED");
+
+const reopenReason = "The saved Yes answers need to be checked again.";
+async function rejectReopen(label, overrides) {
+  const rpc = mockRpc(async () => ({}));
+  const error = await expectFailure(
+    () => workspace.reopenQcPreparation({
+      productId: 262,
+      accessToken: TOKEN,
+      preparationId: PREP_ID,
+      expectedRowVersion: 5,
+      attest: true,
+      reasonNote: reopenReason,
+      callRpc: rpc.callRpc,
+      ...overrides,
+    }),
+    ERROR_KINDS.CONTRACT_INCOMPLETE,
+  );
+  assert(rpc.calls.length === 0, `${label} makes no RPC call`);
+  return error;
+}
+const shortReopen = await rejectReopen("a short reason", { reasonNote: "too short" });
+assert(shortReopen?.message === "Write a reason of at least 10 characters.", "a short reason asks for 10 characters");
+const missingAttest = await rejectReopen("a missing attest", { attest: false });
+assert(missingAttest?.message === "Tick the confirmation first.", "a missing attest asks for the confirmation");
+await rejectReopen("a bad UUID", { preparationId: "not-a-uuid" });
+await rejectReopen("a bad version", { expectedRowVersion: 0 });
+const reopenRpc = mockRpc(async () => ({
+  preparation_id: PREP_ID,
+  row_version: 6,
+  preparation_status: "REVIEW_REQUIRED",
+  superseded_binding_id: "11111111-1111-1111-1111-111111111111",
+  supersession_id: "22222222-2222-2222-2222-222222222222",
+}));
+const reopened = await workspace.reopenQcPreparation({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP_ID,
+  expectedRowVersion: 5,
+  attest: true,
+  reasonNote: reopenReason,
+  callRpc: reopenRpc.callRpc,
+});
+assert(reopenRpc.calls.length === 1 && reopenRpc.calls[0].name === "rpc_eaushadhi_qc_preparation_reopen_v1", "reopen uses rpc_eaushadhi_qc_preparation_reopen_v1");
+assert(Object.keys(reopenRpc.calls[0].args).join(",") === "p_preparation_id,p_expected_row_version,p_attest,p_reason_note", "reopen sends exact parameter names");
+assert(reopenRpc.calls[0].args.p_preparation_id === PREP_ID && reopenRpc.calls[0].args.p_expected_row_version === 5 && reopenRpc.calls[0].args.p_attest === true && reopenRpc.calls[0].args.p_reason_note === reopenReason, "reopen sends the preparation, version, attestation, and reason");
+assert(reopened.row_version === 6 && reopened.preparation_status === "REVIEW_REQUIRED", "reopen returns the next version and Review required");
+async function mapReopen(error, kind, message) {
+  const rpc = mockRpc(async () => { throw error; });
+  const caught = await expectFailure(
+    () => workspace.reopenQcPreparation({
+      productId: 262,
+      accessToken: TOKEN,
+      preparationId: PREP_ID,
+      expectedRowVersion: 5,
+      attest: true,
+      reasonNote: reopenReason,
+      callRpc: rpc.callRpc,
+    }),
+    kind,
+  );
+  assert(caught?.message === message, message);
+}
+await mapReopen({ code: "40001" }, ERROR_KINDS.STALE, "Someone changed this draft. Reload and try again.");
+await mapReopen({ message: "REOPEN_NOT_VERIFIED" }, ERROR_KINDS.PREFLIGHT_DENIED, "This draft is not verified.");
+await mapReopen({ message: "REOPEN_REASON_REQUIRED" }, ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a reason of at least 10 characters.");
+await mapReopen({ message: "ATTESTATION_REQUIRED" }, ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first.");
+await mapReopen({ code: "42501" }, ERROR_KINDS.AUTHORIZATION, "You need edit permission for e-Aushadhi.");
+await mapReopen({ status: 401 }, ERROR_KINDS.AUTHORIZATION, "You need edit permission for e-Aushadhi.");
+await mapReopen({ status: 403 }, ERROR_KINDS.AUTHORIZATION, "You need edit permission for e-Aushadhi.");
+await mapReopen({ code: "PGRST202" }, ERROR_KINDS.PREFLIGHT_DENIED, "Reopen is not available on the server yet.");
+await mapReopen({ status: 404 }, ERROR_KINDS.PREFLIGHT_DENIED, "Reopen is not available on the server yet.");
+await mapReopen({ message: "REOPEN_BINDING_MISSING" }, ERROR_KINDS.CRASH, "Reopen failed.");
+await mapReopen({ message: "REOPEN_ALREADY_SUPERSEDED" }, ERROR_KINDS.CRASH, "Reopen failed.");
+
+const reopenFn = extractCallable("submitQcReopen");
+assert(reopenFn.includes("openQcConfirm.showing === true") && reopenFn.includes("state.qcReopenRunning === true"), "reopen guards a second dialog and a double click");
+assert(reopenFn.includes('if (accepted?.ok !== true) return;') && reopenFn.indexOf("reopenQcPreparation") > reopenFn.indexOf("accepted?.ok"), "reopen runs only after confirm OK");
+assert(!extractCallable("loadQcPreparationWorkspace").includes("reopenQcPreparation") && !extractCallable("submitQcPreparationSave").includes("reopenQcPreparation") && !extractCallable("submitQcSourceVerify").includes("reopenQcPreparation"), "load, save, and verify do not reopen");
+assert(!extractCallable("executeQcReportUpload").includes("reopenQcPreparation") && !extractCallable("submitQcReportUpload").includes("reopenQcPreparation"), "upload and register do not reopen");
+assert((controlSrc.match(/reopenQcPreparation\(/g) || []).length === 1, "reopenQcPreparation is called from one place");
+assert(preloadSrc.includes("reopenQcPreparation") && preloadSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "preload exposes reopenQcPreparation");
+assert(ipcSrc.includes("CHANNELS.QC_PREPARATION_REOPEN") && ipcSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "ipc registers the reopen channel");
+assert(controlSrc.includes('onwheel="this.blur()"') && extractFunction("onQcSourceFactField").includes('event.type !== "change"') && extractFunction("onQcSourceFactField").includes("document.getElementById(focusId)?.focus()"), "a fact select changes only on change, restores focus, and blurs on the wheel");
+assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v360"'), "CACHE_NAME is v360");
 
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);
