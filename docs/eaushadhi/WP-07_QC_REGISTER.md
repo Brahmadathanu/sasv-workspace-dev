@@ -183,3 +183,10 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
 4. If register returns `40001` for a reused reservation, the card says "This reservation is out of date. Reserve a new version". Only that button calls reserve with `forceNew: true`. There is no automatic retry.
 
 **V01 outcome:** operator-triggered byte check on reservation `7e9bdf61-43c8-407d-b4dc-d9b45680c972` reached `VERIFIED_BYTES`. Verified SHA-256 `0795de1d0e186cec278040cd16f1431e7422ceeaf7b48f7b6a50ca9bdba60ee9` equals the claimed SHA-256. Size 1,723,549 bytes; object version `306b7fc8-e5b4-4e88-9b36-45c7f5d38c24`. `bytes_checked_at` 2026-10-11 12:25:07 UTC (17:55:07 IST); event #3 `BYTES_VERIFIED`, method `edge:eaushadhi-qc-report-verify`. Before that check, the negative permission test passed with no state change: no auth header → 401 at the gateway; anon key → 403 FORBIDDEN; viewer-only user → `42501 e-Aushadhi Automation permission is required`.
+
+## B3 — Evidence binding (live `20261011135744`)
+`rpc_eaushadhi_qc_preparation_verify_v2` requires module edit permission, attestation, and exactly six facts: study start date, study end date, report date, testing protocol, batches, and shelf life. Each fact is either shown in the report (page or section reference, at least 5 characters) or not shown (evidence note, at least 10 characters). `rpc_eaushadhi_qc_preparation_verify_v1` is retired. `rpc_eaushadhi_qc_evidence_recheck_v1` is read-only and needs view permission.
+
+The evidence badge is **Evidence valid ✓** when the binding still matches, **Needs re-verify** with the first reason in plain words when it does not, and **Not verified yet** when the reasons are not source-verified and no binding.
+
+Operator flow: Save the draft, **Check bytes on server**, then **Verify source facts**, then read the recheck badge. Verify source facts is never started automatically. Esc, Cancel, and a backdrop click make no call. A later edit requires verifying again.

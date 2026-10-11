@@ -196,6 +196,8 @@ import {
   readQcPreparationWorkspace,
   reviewQcPreparation,
   saveQcPreparation,
+  verifyQcPreparationSource,
+  recheckQcEvidence,
   listQcReports,
   reserveQcReport,
   registerQcReport,
@@ -342,6 +344,17 @@ const state = {
   qcReportVerifying: false,
   qcReportConfirmOpen: false,
   qcReportByteResult: null,
+  qcFactScope: "",
+  qcFactRows: null,
+  qcFactAttest: false,
+  qcFactNotice: "",
+  qcFactHighlights: [],
+  qcSourceVerifyRunning: false,
+  qcSourceConfirmOpen: false,
+  qcEvidenceRecheck: null,
+  qcEvidenceRequest: 0,
+  qcEvidenceLoadedFor: null,
+  qcEvidenceLoading: false,
   qcReportVerifyError: "",
   qcReportVerifyCode: "",
   qcReportOfferNewVersion: false,
@@ -2868,31 +2881,34 @@ function qcReportByteCheckWarning(version) {
   return `The server will read the stored PDF and compute its SHA-256. If the checksum does not match, the file is not a valid PDF, or it is over 2 MB, this version (V${version}) is permanently marked BYTES_MISMATCH and cannot be re-checked. You would need to upload a new version. Continue?`;
 }
 
-function openQcByteCheckConfirm(message) {
-  if (openQcByteCheckConfirm.showing === true) return Promise.resolve(false);
-  openQcByteCheckConfirm.showing = true;
-  const trigger = document.getElementById("btnQcReportCheckBytes");
+function openQcConfirm(options) {
+  const { title, message, okLabel, returnFocusId, idPrefix } = options || {};
+  if (openQcConfirm.showing === true) return Promise.resolve(false);
+  openQcConfirm.showing = true;
+  const prefix = idPrefix || "qcConfirm";
+  const focusId = returnFocusId || "";
+  const trigger = focusId ? document.getElementById(focusId) : null;
   return new Promise((resolve) => {
     let closed = false;
     const backdrop = document.createElement("div");
-    backdrop.id = "qcByteCheckConfirmBackdrop";
+    backdrop.id = `${prefix}Backdrop`;
     backdrop.className = "sasv-modal-backdrop ea-source-resolve";
     const dialog = document.createElement("div");
-    dialog.id = "qcByteCheckConfirmDialog";
+    dialog.id = `${prefix}Dialog`;
     dialog.className = "sasv-modal";
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-labelledby", "qcByteCheckConfirmTitle");
+    dialog.setAttribute("aria-labelledby", `${prefix}Title`);
     dialog.tabIndex = -1;
     const header = document.createElement("div");
     header.className = "sasv-modal__header";
-    const title = document.createElement("h2");
-    title.id = "qcByteCheckConfirmTitle";
-    title.className = "sasv-modal__title";
-    title.textContent = "Check bytes on server";
-    header.append(title);
+    const titleEl = document.createElement("h2");
+    titleEl.id = `${prefix}Title`;
+    titleEl.className = "sasv-modal__title";
+    titleEl.textContent = String(title || "");
+    header.append(titleEl);
     const body = document.createElement("div");
-    body.id = "qcByteCheckConfirmBody";
+    body.id = `${prefix}Body`;
     body.className = "sasv-modal__body";
     const paragraph = document.createElement("p");
     paragraph.textContent = String(message ?? "");
@@ -2901,14 +2917,14 @@ function openQcByteCheckConfirm(message) {
     footer.className = "sasv-modal__footer";
     const cancelBtn = document.createElement("button");
     cancelBtn.type = "button";
-    cancelBtn.id = "qcByteCheckConfirmCancel";
+    cancelBtn.id = `${prefix}Cancel`;
     cancelBtn.className = "icon-btn with-label";
     cancelBtn.textContent = "Cancel";
     const okBtn = document.createElement("button");
     okBtn.type = "button";
-    okBtn.id = "qcByteCheckConfirmOk";
+    okBtn.id = `${prefix}Ok`;
     okBtn.className = "icon-btn with-label primary";
-    okBtn.textContent = "OK, check bytes";
+    okBtn.textContent = String(okLabel || "OK");
     footer.append(cancelBtn, okBtn);
     dialog.append(header, body, footer);
     backdrop.append(dialog);
@@ -2916,10 +2932,10 @@ function openQcByteCheckConfirm(message) {
     const close = (accepted) => {
       if (closed) return;
       closed = true;
-      openQcByteCheckConfirm.showing = false;
+      openQcConfirm.showing = false;
       document.removeEventListener("keydown", onKeydown, true);
       backdrop.remove();
-      const button = document.getElementById("btnQcReportCheckBytes") || trigger;
+      const button = (focusId && document.getElementById(focusId)) || trigger;
       if (button && typeof button.focus === "function") button.focus();
       resolve(accepted === true);
     };
@@ -2931,7 +2947,7 @@ function openQcByteCheckConfirm(message) {
         close(false);
         return;
       }
-      trapModalTab(event, "qcByteCheckConfirmDialog");
+      trapModalTab(event, `${prefix}Dialog`);
     };
 
     backdrop.addEventListener("click", (event) => {
@@ -2942,6 +2958,16 @@ function openQcByteCheckConfirm(message) {
     document.body.append(backdrop);
     document.addEventListener("keydown", onKeydown, true);
     cancelBtn.focus();
+  });
+}
+
+function openQcByteCheckConfirm(message) {
+  return openQcConfirm({
+    title: "Check bytes on server",
+    message,
+    okLabel: "OK, check bytes",
+    returnFocusId: "btnQcReportCheckBytes",
+    idPrefix: "qcByteCheckConfirm",
   });
 }
 
@@ -3123,6 +3149,8 @@ async function submitQcReportUpload() {
       showToast(result.toast, "success");
       state.busy = false;
       state.qcReportLoadedFor = null;
+      state.qcEvidenceLoadedFor = null;
+      state.qcEvidenceLoading = false;
       reloadQcPreparationWorkspace();
       queueQcReportLoad();
       return;
@@ -3193,6 +3221,8 @@ async function submitQcReportByteCheck() {
       state.qcReportVerifyError = "";
       state.qcReportVerifyCode = "";
       state.qcReportLoadedFor = null;
+      state.qcEvidenceLoadedFor = null;
+      state.qcEvidenceLoading = false;
       queueQcReportLoad();
     } else {
       state.qcReportVerifyError = checked?.message || "QC test report byte check failed.";
@@ -3264,20 +3294,23 @@ function qcTestReportCardHtml(model) {
   const reasons = (Array.isArray(model.reasons) ? model.reasons : [])
     .map((code) => qcReportByteReasonText(code))
     .filter(Boolean);
+  const detailSha = model.byteCheck === "verified" ? (model.verifiedSha || "") : (model.sha || "");
+  const detailSize = model.byteCheck === "verified" && model.verifiedSize != null
+    ? `${model.verifiedSize} bytes`
+    : (model.lastSize ? `${model.lastSize} bytes` : "");
+  const details = latest
+    ? `<details id="qcReportByteDetails"><summary>Details</summary><p>File name: ${esc(latest.expected_file_name || "")}</p><p>SHA-256 ${esc(detailSha)}</p><p>Size ${esc(detailSize)}</p>${model.bytesCheckedAt ? `<p>Checked ${esc(model.bytesCheckedAt)}</p>` : ""}</details>`
+    : "";
   let latestLine = `<p class="muted-note">No report uploaded.</p>`;
   if (model.verifying) {
     latestLine = `<p class="muted-note" id="qcReportByteStatus">Verifying bytes on server...</p>`;
   } else if (latest && model.byteCheck === "verified") {
-    const sha = model.verifiedSha || "";
-    const size = model.verifiedSize == null ? "" : `${model.verifiedSize} bytes`;
-    const detail = sha ? `Server verified bytes: SHA-256 ${sha}, ${size}` : "Server byte check: verified";
-    latestLine = `<p class="muted-note ea-autosave is-verified" id="qcReportByteStatus">${esc(detail)}. ${esc(b1)}. ${esc(b2)}</p>`;
+    latestLine = `<p class="muted-note ea-autosave is-verified" id="qcReportByteStatus">Bytes verified ✓</p>${details}<p class="muted-note">${esc(b1)}. ${esc(b2)}</p>`;
   } else if (latest && model.byteCheck === "mismatch") {
     const reasonLine = reasons.length ? `${reasons.join("; ")}. ` : "";
-    latestLine = `<p class="muted-note ea-autosave is-failed" id="qcReportByteStatus">${esc(reasonLine)}This version is final. Upload a corrected file as a new version. ${esc(b1)}. ${esc(b2)}</p>`;
+    latestLine = `<p class="muted-note ea-autosave is-failed" id="qcReportByteStatus">Bytes mismatch</p>${details}<p class="muted-note">${esc(reasonLine)}This version is final. Upload a corrected file as a new version. ${esc(b1)}. ${esc(b2)}</p>`;
   } else if (latest) {
-    const size = model.lastSize ? ` Size ${esc(model.lastSize)} bytes.` : "";
-    latestLine = `<p class="muted-note" id="qcReportByteStatus">Latest registered: ${esc(latest.expected_file_name)}; SHA-256 ${esc(model.sha || "")};${size} Bytes not yet verified. ${esc(b1)}. ${esc(b2)}</p>`;
+    latestLine = `<p class="muted-note" id="qcReportByteStatus">Bytes not yet verified</p>${details}<p class="muted-note">${esc(b1)}. ${esc(b2)}</p>`;
   }
   const checkButton = qcReportShowByteCheck(model)
     ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes"${model.verifying || model.confirmOpen ? " disabled" : ""}>Check bytes on server</button>`
@@ -3312,6 +3345,7 @@ function renderEvidence() {
   const host = $("tab-evidence");
   queueQcPreparationLoad();
   queueQcReportLoad();
+  queueQcEvidenceRecheck();
   const evidence = state.evidence || {};
   const row = state.queueRow || {};
   const blocking = toInt(evidence.blocking_issue_count ?? row.open_blockers);
@@ -3916,6 +3950,17 @@ function resetQcPreparationWorkspace() {
   state.qcReportVerifyError = "";
   state.qcReportVerifyCode = "";
   state.qcReportOfferNewVersion = false;
+  state.qcFactScope = "";
+  state.qcFactRows = null;
+  state.qcFactAttest = false;
+  state.qcFactNotice = "";
+  state.qcFactHighlights = [];
+  state.qcSourceVerifyRunning = false;
+  state.qcSourceConfirmOpen = false;
+  state.qcEvidenceRecheck = null;
+  state.qcEvidenceRequest += 1;
+  state.qcEvidenceLoadedFor = null;
+  state.qcEvidenceLoading = false;
 }
 
 function qcPrepCurrent() {
@@ -4266,6 +4311,319 @@ function reloadQcPreparationWorkspace(options = {}) {
   void loadQcPreparationWorkspace(productId, request);
 }
 
+const QC_SOURCE_FACT_FIELDS = [
+  ["study_start_date", "Study start date"],
+  ["study_end_date", "Study end date"],
+  ["report_date", "Report date"],
+  ["testing_protocol", "Testing protocol"],
+  ["batches", "Batches"],
+  ["shelf_life_months", "Shelf life"],
+];
+
+function qcIssuerShortName(issuer) {
+  const text = String(issuer || "").trim();
+  const match = text.match(/\(([^)]+)\)/);
+  if (match && match[1].trim()) return match[1].trim();
+  return text.slice(0, 20);
+}
+
+function qcFactPreviewValue(key, form, options) {
+  if (key === "testing_protocol") {
+    const other = String(form?.other_testing_protocol_text || "").trim();
+    if (other) return other;
+    const match = (options || []).find((item) => String(item.term_id) === String(form?.testing_protocol_term_id));
+    return match?.label || "";
+  }
+  return String(form?.[key] ?? "");
+}
+
+function qcFactDefaultRows(form, options) {
+  const shortName = qcIssuerShortName(form?.source_report_issuer);
+  const yesText = `${shortName} report p.1`.replace(/^\s+/, "");
+  const dateNote = String(form?.date_evidence_note || "").trim();
+  const protocolSource = String(form?.other_testing_protocol_text || "").trim()
+    || String((options || []).find((item) => String(item.term_id) === String(form?.testing_protocol_term_id))?.label || "").trim();
+  const row = (supported, text) => ({ supported: supported === true, text: String(text || "") });
+  return {
+    study_start_date: row(false, dateNote.length >= 10 ? dateNote : ""),
+    study_end_date: row(true, yesText),
+    report_date: row(true, yesText),
+    testing_protocol: row(false, protocolSource.length >= 10 ? protocolSource : ""),
+    batches: row(true, yesText),
+    shelf_life_months: row(true, yesText),
+  };
+}
+
+function qcFactRowError(row) {
+  const text = String(row?.text || "").trim();
+  if (row?.supported === true) return text.length < 5 ? "Enter at least 5 characters for the page or section." : "";
+  return text.length < 10 ? "Enter at least 10 characters for the evidence note." : "";
+}
+
+function qcFactRowsCurrent() {
+  const preparationId = state.qcPrepServer?.preparation_id || "";
+  const scope = `${state.selectedProductId || ""}:${preparationId}`;
+  if (state.qcFactScope === scope && state.qcFactRows) return state.qcFactRows;
+  state.qcFactScope = scope;
+  state.qcFactRows = qcFactDefaultRows(qcPrepForm(), state.qcPrepOptions);
+  state.qcFactAttest = false;
+  state.qcFactHighlights = [];
+  return state.qcFactRows;
+}
+
+function qcEvidenceReasonText(code) {
+  const text = String(code || "");
+  if (text === "NOT_SOURCE_VERIFIED") return "Not verified yet";
+  if (text === "BINDING_STALE_PREPARATION_VERSION" || text === "PAYLOAD_HASH_CHANGED") return "Draft edited after verification";
+  if (text === "SUPERSEDED_BY_NEWER_REPORT") return "A newer report version was registered";
+  if (text.startsWith("OBJECT_")) return "Stored report changed";
+  if (text.startsWith("TUPLE_MISMATCH_")) return "Evidence record mismatch";
+  return "Needs re-verify";
+}
+
+function qcEvidenceBadge(recheck) {
+  const reasons = Array.isArray(recheck?.reasons) ? recheck.reasons.map((reason) => String(reason)) : [];
+  const unique = new Set(reasons);
+  if (unique.size === 2 && unique.has("NOT_SOURCE_VERIFIED") && unique.has("NO_BINDING")) {
+    return { tone: "pending", label: "Not verified yet", detail: "" };
+  }
+  if (recheck?.valid === true) return { tone: "valid", label: "Evidence valid ✓", detail: "" };
+  const detail = reasons.length ? qcEvidenceReasonText(reasons[0]) : "Needs re-verify";
+  return { tone: "attention", label: "Needs re-verify", detail };
+}
+
+function qcSourceFactsBlockReason(input) {
+  if (input?.electron !== true) return "Verify source facts is available only in the SASV Electron app.";
+  if (input?.canWrite !== true) return "You need edit permission for e-Aushadhi.";
+  if (input?.busy === true) return "Wait for the current action to finish.";
+  if (input?.dirty === true) return "Save or reload the QC form first.";
+  const status = input?.preparation?.preparation_status || "";
+  if (status === "VERIFIED") return "Already verified.";
+  if (status !== "REVIEW_REQUIRED") return "Save a QC draft before verifying source facts.";
+  if (Array.isArray(input?.serverReasons) && input.serverReasons.length > 0) return "The server review still has items to correct.";
+  const report = input?.latestRegistered;
+  if (!report || report.integrity_status !== "VERIFIED_BYTES") return "Run 'Check bytes on server' first.";
+  const reportSha = report.verified_sha256 || input?.verifiedSha || "";
+  if (String(input?.reportSha || "") !== String(reportSha) || String(input?.reportFilename || "") !== String(report.expected_file_name || "")) {
+    return "The draft does not match the verified report. Save the draft again from the latest report.";
+  }
+  return "";
+}
+
+function qcSourceFactsModel() {
+  const preparation = state.qcPrepServer;
+  const form = qcPrepForm();
+  const latest = qcRegisteredReport(preparation?.preparation_id);
+  const sessionMatches = latest && state.qcReportByteResult
+    && String(state.qcReportByteResult.reservation_id) === String(latest.reservation_id);
+  const verifiedSha = latest?.verified_sha256 || (sessionMatches ? state.qcReportByteResult.verified_sha256 : "") || "";
+  const report = latest ? { ...latest, verified_sha256: verifiedSha || latest.verified_sha256 || "" } : null;
+  const blockReason = qcSourceFactsBlockReason({
+    electron: workerApiAvailable(),
+    canWrite: canWrite(),
+    busy: state.busy === true || state.qcSourceVerifyRunning === true,
+    dirty: state.qcPrepDirty === true,
+    preparation,
+    serverReasons: state.qcPrepReasons,
+    latestRegistered: report,
+    reportSha: form.report_sha256,
+    reportFilename: form.report_filename,
+    verifiedSha,
+  });
+  const rows = qcFactRowsCurrent();
+  const rowErrors = Object.fromEntries(QC_SOURCE_FACT_FIELDS.map(([key]) => [key, qcFactRowError(rows[key])]));
+  const rowsValid = Object.values(rowErrors).every((error) => error === "");
+  const version = latest ? String(latest.version_no).padStart(2, "0") : "";
+  return {
+    blockReason,
+    enabled: blockReason === "",
+    rows,
+    rowErrors,
+    previews: Object.fromEntries(QC_SOURCE_FACT_FIELDS.map(([key]) => [key, qcFactPreviewValue(key, form, state.qcPrepOptions)])),
+    attest: state.qcFactAttest === true,
+    canSubmit: blockReason === "" && state.qcFactAttest === true && rowsValid && state.qcSourceConfirmOpen !== true,
+    version,
+    sha12: String(form.report_sha256 || "").slice(0, 12),
+    notice: state.qcFactNotice,
+    highlights: Array.isArray(state.qcFactHighlights) ? state.qcFactHighlights : [],
+    badge: qcEvidenceBadge(state.qcEvidenceRecheck),
+    running: state.qcSourceVerifyRunning === true,
+  };
+}
+
+function qcFactEvidenceFromRows(rows) {
+  const evidence = {};
+  for (const [key] of QC_SOURCE_FACT_FIELDS) {
+    const row = rows[key] || { supported: false, text: "" };
+    const text = String(row.text || "").trim();
+    evidence[key] = row.supported === true
+      ? { supported_by_report: true, source_reference: text }
+      : { supported_by_report: false, evidence_note: text };
+  }
+  return evidence;
+}
+
+function qcSourceFactsCardHtml(model) {
+  const esc = (value) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const badge = model.badge || { tone: "pending", label: "Not verified yet", detail: "" };
+  const badgeClass = badge.tone === "valid" ? "ea-autosave is-verified" : "muted-note";
+  const badgeStyle = badge.tone === "attention" ? "color:#8a5a00" : "";
+  const rows = QC_SOURCE_FACT_FIELDS.map(([key, label]) => {
+    const row = model.rows?.[key] || { supported: false, text: "" };
+    const error = model.rowErrors?.[key] || "";
+    const highlighted = (model.highlights || []).includes(key) ? " data-qc-fact-highlight=\"true\"" : "";
+    const fieldLabel = row.supported === true ? "Where in the report (page/section)" : "Why this is correct (evidence note)";
+    return `<div class="form-field form-span-2" data-qc-fact="${esc(key)}"${highlighted}>
+      <span class="meta-label">${esc(label)}</span>
+      <p class="muted-note">Saved value: ${esc(model.previews?.[key] || "")}</p>
+      <label>Shown in the report?
+        <select id="qcFactSupported-${esc(key)}" data-qc-fact-key="${esc(key)}" data-qc-fact-role="supported"${model.enabled ? "" : " disabled"}>
+          <option value="yes"${row.supported === true ? " selected" : ""}>Yes</option>
+          <option value="no"${row.supported === true ? "" : " selected"}>No</option>
+        </select>
+      </label>
+      <label>${esc(fieldLabel)}
+        <input id="qcFactText-${esc(key)}" data-qc-fact-key="${esc(key)}" data-qc-fact-role="text" value="${esc(row.text || "")}"${model.enabled ? "" : " disabled"}>
+      </label>
+      ${error ? `<p class="qc-fact-error" id="qcFactError-${esc(key)}" style="color:#9b1c1c">${esc(error)}</p>` : ""}
+    </div>`;
+  }).join("");
+  return `<section class="section-card" id="qcSourceFactsCard">
+    <h3 class="section-title">Verify source facts <span id="qcEvidenceBadge" class="${badgeClass}"${badgeStyle ? ` style="${badgeStyle}"` : ""}>${esc(badge.label)}</span></h3>
+    ${badge.detail ? `<p class="muted-note" id="qcEvidenceBadgeDetail">${esc(badge.detail)}</p>` : `<p class="muted-note" id="qcEvidenceBadgeDetail"></p>`}
+    ${model.blockReason ? `<p class="muted-note" id="qcSourceFactsBlock">${esc(model.blockReason)}</p>` : ""}
+    <div class="form-grid">${rows}</div>
+    <label class="qc-prep-block"><input id="qcFactAttest" type="checkbox"${model.attest ? " checked" : ""}${model.enabled ? "" : " disabled"}> I have reviewed every fact above against the verified QC test report (V${esc(model.version)}).</label>
+    ${model.notice ? `<p class="muted-note ea-autosave is-failed" id="qcSourceFactsNotice">${esc(model.notice)}</p>` : ""}
+    <div class="action-row"><button type="button" class="icon-btn with-label primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}>${model.running ? "Verifying source facts..." : "Verify source facts"}</button></div>
+  </section>`;
+}
+
+function queueQcEvidenceRecheck() {
+  if (!workerApiAvailable() || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (access.canView !== true) return;
+  const preparationId = state.qcPrepServer?.preparation_id || "";
+  if (!preparationId) {
+    if (state.qcEvidenceLoadedFor === "") return;
+    state.qcEvidenceRecheck = { valid: false, reasons: ["NOT_SOURCE_VERIFIED", "NO_BINDING"] };
+    state.qcEvidenceLoadedFor = "";
+    return;
+  }
+  if (state.qcEvidenceLoading === true || state.qcEvidenceLoadedFor === preparationId) return;
+  state.qcEvidenceLoading = true;
+  const productId = state.selectedProductId;
+  const request = ++state.qcEvidenceRequest;
+  queueMicrotask(() => {
+    void loadQcEvidenceRecheck(productId, preparationId, request);
+  });
+}
+
+async function loadQcEvidenceRecheck(productId, preparationId, request) {
+  try {
+    const token = await sessionAccessToken();
+    if (request !== state.qcEvidenceRequest || state.selectedProductId !== productId) return;
+    const result = await recheckQcEvidence(productId, token, { preparationId });
+    if (request !== state.qcEvidenceRequest || state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcEvidenceRecheck = { valid: false, reasons: [result.message || "RECHECK_FAILED"] };
+    } else {
+      state.qcEvidenceRecheck = result;
+    }
+    state.qcEvidenceLoadedFor = preparationId;
+  } catch (error) {
+    if (request !== state.qcEvidenceRequest || state.selectedProductId !== productId) return;
+    state.qcEvidenceRecheck = { valid: false, reasons: [userMessageForError(error)] };
+    state.qcEvidenceLoadedFor = preparationId;
+  } finally {
+    if (request === state.qcEvidenceRequest) state.qcEvidenceLoading = false;
+    if (state.selectedProductId === productId) {
+      if (state.tab === "qc") renderQc();
+      if (state.tab === "evidence") renderEvidence();
+    }
+  }
+}
+
+function onQcSourceFactField(event) {
+  const target = event.target;
+  if (!target?.closest?.("#qcSourceFactsCard")) return;
+  const key = target.getAttribute?.("data-qc-fact-key");
+  if (target.id === "qcFactAttest") {
+    state.qcFactAttest = target.checked === true;
+    if (state.tab === "qc") renderQc();
+    return;
+  }
+  if (!key) return;
+  const rows = qcFactRowsCurrent();
+  const current = rows[key] || { supported: false, text: "" };
+  if (target.getAttribute("data-qc-fact-role") === "supported") {
+    rows[key] = { supported: target.value === "yes", text: current.text };
+  } else {
+    rows[key] = { supported: current.supported === true, text: target.value };
+  }
+  state.qcFactRows = rows;
+  if (event.type === "change") {
+    if (state.tab === "qc") renderQc();
+  }
+}
+
+async function submitQcSourceVerify() {
+  if (state.qcSourceVerifyRunning === true || state.qcSourceConfirmOpen === true) return;
+  const model = qcSourceFactsModel();
+  if (model.canSubmit !== true) return;
+  const preparation = state.qcPrepServer;
+  const productId = state.selectedProductId;
+  const version = model.version;
+  state.qcSourceConfirmOpen = true;
+  state.qcFactNotice = "";
+  try {
+    const accepted = await openQcConfirm({
+      title: "Verify source facts",
+      message: `This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?`,
+      okLabel: "Verify source facts",
+      returnFocusId: "btnQcVerifySourceFacts",
+      idPrefix: "qcSourceVerifyConfirm",
+    });
+    if (accepted !== true) return;
+    if (state.selectedProductId !== productId) return;
+    state.qcSourceVerifyRunning = true;
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    if (state.selectedProductId !== productId) return;
+    const result = await verifyQcPreparationSource(productId, token, {
+      preparationId: preparation.preparation_id,
+      expectedRowVersion: preparation.row_version,
+      attest: true,
+      factEvidence: qcFactEvidenceFromRows(qcFactRowsCurrent()),
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcFactNotice = result.message || "QC source verification failed.";
+      state.qcFactHighlights = Array.isArray(result.details?.facts) ? result.details.facts : [];
+      return;
+    }
+    showToast(`Source facts verified (version ${result.row_version})`, "success");
+    state.qcFactRows = null;
+    state.qcFactScope = "";
+    state.qcFactAttest = false;
+    state.qcFactNotice = "";
+    state.qcFactHighlights = [];
+    state.qcEvidenceLoadedFor = null;
+    state.qcEvidenceLoading = false;
+    reloadQcPreparationWorkspace();
+  } catch (error) {
+    if (state.selectedProductId !== productId) return;
+    state.qcFactNotice = userMessageForError(error);
+  } finally {
+    state.qcSourceConfirmOpen = false;
+    state.qcSourceVerifyRunning = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
 function qcPreparationWorkspaceMarkup() {
   const available = workerApiAvailable();
   if (!available) {
@@ -4328,7 +4686,7 @@ function qcPreparationWorkspaceMarkup() {
     reviewDisabled: access.canView !== true || !available || state.busy || state.qcPrepLoading,
     saveDisabled: !canWrite() || locked,
     reloadDisabled: access.canView !== true || state.busy,
-  });
+  }) + qcSourceFactsCardHtml(qcSourceFactsModel());
 }
 
 function qcPrepReadField(id) {
@@ -4371,6 +4729,10 @@ let qcPrepTabFieldId = "";
 
 function onQcPrepField(event) {
   const target = event.target;
+  if (target?.closest?.("#qcSourceFactsCard")) {
+    onQcSourceFactField(event);
+    return;
+  }
   if (!target?.closest?.("#qcPreparationWorkspace")) return;
   if (state.qcPrepServer?.preparation_status === "VERIFIED" || !canWrite()) return;
   syncQcPrepFormFromDom();
@@ -4524,6 +4886,8 @@ async function submitQcPreparationSave() {
     const notice = `Draft saved (version ${result.row_version})`;
     showToast(notice, "success");
     state.qcPrepDirty = false;
+    state.qcEvidenceLoadedFor = null;
+    state.qcEvidenceLoading = false;
     state.busy = false;
     reloadQcPreparationWorkspace({ preserveNotice: notice });
   } catch (error) {
@@ -5527,6 +5891,7 @@ function renderQc() {
   if (!host) return;
   queueQcPreparationLoad();
   queueQcReportLoad();
+  queueQcEvidenceRecheck();
   if (!workerApiAvailable()) {
     host.innerHTML = `<section class="section-card qc-prep-workspace"><h3 class="section-title">QC Register</h3><p class="muted-note">QC preparation is available only in the SASV Electron app.</p></section>`;
     return;
@@ -8039,6 +8404,7 @@ function wireEvents() {
     if (event.target.id === "btnQcPrepReload") reloadQcPreparationWorkspace({ feedback: true });
     if (event.target.id === "btnQcPrepCopyName") void copyQcPrepReportFilename();
     if (event.target.id === "btnOpenEvidenceFromQc") selectWorkflowTab("evidence");
+    if (event.target.id === "btnQcVerifySourceFacts") void submitQcSourceVerify();
   });
   $("tab-qc")?.addEventListener("input", onQcPrepField);
   $("tab-qc")?.addEventListener("change", onQcPrepField);

@@ -188,6 +188,18 @@ export async function reviewQcPreparation(productId, accessToken, payload) {
   return window.eaushadhiWorkerAPI.reviewQcPreparation(productId, accessToken, payload);
 }
 
+export async function verifyQcPreparationSource(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.verifyQcPreparationSource !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.verifyQcPreparationSource(productId, accessToken, draft);
+}
+
+export async function recheckQcEvidence(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.recheckQcEvidence !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.recheckQcEvidence(productId, accessToken, draft);
+}
+
 export async function saveQcPreparation(productId, accessToken, draft) {
   if (!workerApiAvailable()) return unsupported();
   if (typeof window.eaushadhiWorkerAPI.saveQcPreparation !== "function") return unsupported();

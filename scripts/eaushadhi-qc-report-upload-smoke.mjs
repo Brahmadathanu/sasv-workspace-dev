@@ -709,7 +709,7 @@ const verifiedCard = cardApi({
   verifiedSha: SHA,
   verifiedSize: 1200,
 });
-assert(verifiedCard.includes(`Server verified bytes: SHA-256 ${SHA}, 1200 bytes`), "verified bytes show the full SHA and size");
+assert(verifiedCard.includes("Bytes verified ✓") && verifiedCard.includes("<details") && verifiedCard.includes(SHA), "verified bytes show a badge and the SHA in details");
 assert(verifiedCard.includes("is-verified") && !verifiedCard.includes("Bytes not yet verified") && !verifiedCard.includes("btnQcReportCheckBytes"), "verified bytes replace the pending check");
 const chosen = {
   ...cardModel,
@@ -841,7 +841,8 @@ function installQcConfirmDom() {
 }
 
 const modalApi = new Function(
-  `${extractFunction("openQcByteCheckConfirm")}
+  `${extractFunction("openQcConfirm")}
+   ${extractFunction("openQcByteCheckConfirm")}
    return openQcByteCheckConfirm;`,
 )();
 const confirmDom = installQcConfirmDom();

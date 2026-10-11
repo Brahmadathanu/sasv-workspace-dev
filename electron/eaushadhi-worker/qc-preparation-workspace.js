@@ -9,6 +9,18 @@ const QC_LABORATORY_OPTIONS_RPC = "rpc_eaushadhi_qc_portal_laboratory_options_v1
 const QC_PREPARATION_WORKSPACE_READ_RPC = "rpc_eaushadhi_qc_preparation_read_v1";
 const QC_PREPARATION_REVIEW_RPC = "rpc_eaushadhi_qc_preparation_review_v1";
 const QC_PREPARATION_SAVE_RPC = "rpc_eaushadhi_qc_preparation_save_v1";
+const QC_PREPARATION_VERIFY_SOURCE_RPC = "rpc_eaushadhi_qc_preparation_verify_v2";
+const QC_EVIDENCE_RECHECK_RPC = "rpc_eaushadhi_qc_evidence_recheck_v1";
+const QC_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const QC_FACT_KEYS = [
+  "study_start_date",
+  "study_end_date",
+  "report_date",
+  "testing_protocol",
+  "batches",
+  "shelf_life_months",
+];
+const QC_FACT_ITEM_KEYS = new Set(["supported_by_report", "source_reference", "evidence_note"]);
 const QC_PREPARATION_SOURCE_KEY = "manual-qc:262:primary";
 const QC_DATE_BASIS = "OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN";
 const QC_CANONICAL_REPORT_FILENAME = "EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf";
@@ -495,12 +507,224 @@ async function saveQcPreparation({
   };
 }
 
+function assertQcUuid(value, message) {
+  if (typeof value !== "string" || !QC_UUID_RE.test(value)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+  }
+  return value;
+}
+
+function assertQcRowVersion(value) {
+  const text = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : String(value ?? "");
+  if (!/^[0-9]+$/.test(text) || Number(text) <= 0) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC source verification was not accepted.");
+  }
+  return Number(text);
+}
+
+function assertFactEvidence(factEvidence) {
+  const message = "Some fact rows need a page reference or an evidence note.";
+  if (!factEvidence || typeof factEvidence !== "object" || Array.isArray(factEvidence)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+  }
+  const keys = Object.keys(factEvidence);
+  if (keys.length !== QC_FACT_KEYS.length || QC_FACT_KEYS.some((key) => !Object.hasOwn(factEvidence, key))) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+  }
+  for (const key of QC_FACT_KEYS) {
+    const item = factEvidence[key];
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+    }
+    if (Object.keys(item).some((prop) => !QC_FACT_ITEM_KEYS.has(prop))) {
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+    }
+    if (typeof item.supported_by_report !== "boolean") {
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+    }
+    if (item.supported_by_report === true) {
+      if (String(item.source_reference ?? "").trim().length < 5) {
+        throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+      }
+    } else if (String(item.evidence_note ?? "").trim().length < 10) {
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+    }
+  }
+}
+
+function qcFactNamesFromIncomplete(message) {
+  const body = String(message || "").split("FACT_EVIDENCE_INCOMPLETE:").slice(1).join("FACT_EVIDENCE_INCOMPLETE:");
+  const names = new Set();
+  for (const part of body.split(",")) {
+    const token = part.trim();
+    const fact = token.split("_").slice(-1)[0] === token
+      ? ""
+      : token.replace(/^(FACT_STATUS_REQUIRED_|SUPPORTED_FACT_REFERENCE_REQUIRED_|UNSUPPORTED_FACT_NOTE_REQUIRED_|FACT_UNKNOWN_)/, "");
+    const key = fact.toLowerCase();
+    if (QC_FACT_KEYS.includes(key)) names.add(key);
+  }
+  return [...names];
+}
+
+function mapQcSourceVerifyError(error) {
+  if (error instanceof WorkerError) return error;
+  const code = String(error?.code || error?.errcode || "");
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || "");
+  if (code === "42501" || status === 401 || status === 403) {
+    return workerError(ERROR_KINDS.AUTHORIZATION, "You need edit permission for e-Aushadhi.");
+  }
+  if (message.includes("ATTESTATION_REQUIRED")) {
+    return workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the review confirmation first.");
+  }
+  if (message.includes("FACT_EVIDENCE_INCOMPLETE")) {
+    return workerError(
+      ERROR_KINDS.CONTRACT_INCOMPLETE,
+      "Some fact rows need a page reference or an evidence note.",
+      { details: { facts: qcFactNamesFromIncomplete(message) } },
+    );
+  }
+  if (message.includes("REPORT_NOT_REGISTERED")) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Upload and register the QC report first.");
+  }
+  if (message.includes("REPORT_BYTES_NOT_VERIFIED")) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Run 'Check bytes on server' first.");
+  }
+  if (message.includes("PAYLOAD_SHA_NOT_VERIFIED_BYTES") || message.includes("PAYLOAD_FILENAME_MISMATCH")) {
+    return workerError(
+      ERROR_KINDS.STALE,
+      "The draft does not match the verified report. Save the draft again from the latest report.",
+    );
+  }
+  if (message.includes("OBJECT_CHANGED_OR_MISSING")) {
+    return workerError(ERROR_KINDS.STALE, "The stored report changed or is missing. Upload a new version.");
+  }
+  if (message.includes("ASSET_NOT_VERIFIED") || message.includes("BYTE_EVENT_MISSING")) {
+    return workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The report's verification record is incomplete. Contact support.");
+  }
+  if (message.includes("Stale QC draft version")) {
+    return workerError(ERROR_KINDS.STALE, "Someone changed this draft. Reload and try again.");
+  }
+  if (/already source verified/i.test(message)) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Already verified.");
+  }
+  if (message.includes("complete human-entered fields")) {
+    return workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Complete the QC draft fields before verifying source facts.");
+  }
+  return workerError(ERROR_KINDS.CRASH, "QC source verification failed.");
+}
+
+async function verifyQcPreparationSource({
+  productId,
+  accessToken,
+  preparationId,
+  expectedRowVersion,
+  attest,
+  factEvidence,
+  callRpc,
+} = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "QC source verification was not accepted.");
+  const version = assertQcRowVersion(expectedRowVersion);
+  if (attest !== true) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the review confirmation first.");
+  }
+  assertFactEvidence(factEvidence);
+  let data;
+  try {
+    data = await callRpc(token, QC_PREPARATION_VERIFY_SOURCE_RPC, {
+      p_preparation_id: preparation,
+      p_expected_row_version: version,
+      p_attest: true,
+      p_fact_evidence: factEvidence,
+    });
+  } catch (error) {
+    throw mapQcSourceVerifyError(error);
+  }
+  if (!data || typeof data !== "object" || data.preparation_id == null) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC source verification was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-preparation-verify-source",
+    productId: id,
+    preparation_id: data.preparation_id,
+    row_version: data.row_version,
+    preparation_status: data.preparation_status,
+    verified_payload_hash: data.verified_payload_hash,
+    binding_id: data.binding_id,
+    reservation_id: data.reservation_id,
+    verified_sha256: data.verified_sha256,
+    mutated: true,
+  };
+}
+
+async function recheckQcEvidence({ productId, accessToken, preparationId, callRpc } = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "QC evidence recheck was not accepted.");
+  let data;
+  try {
+    data = await callRpc(token, QC_EVIDENCE_RECHECK_RPC, {
+      p_product_id: id,
+      p_preparation_id: preparation,
+    });
+  } catch (error) {
+    throw toWorkspaceError(error);
+  }
+  if (!data || typeof data !== "object" || typeof data.valid !== "boolean" || !Array.isArray(data.reasons)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC evidence recheck was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-evidence-recheck",
+    productId: id,
+    valid: data.valid === true,
+    reasons: data.reasons.map((reason) => String(reason)),
+    binding_id: data.binding_id ?? null,
+    reservation_id: data.reservation_id ?? null,
+    verified_sha256: data.verified_sha256 || "",
+    portal_laboratory_candidate_status: data.portal_laboratory_candidate_status || "",
+    checked_at: data.checked_at || null,
+    mutated: false,
+  };
+}
+
+function qcEvidenceReasonText(code) {
+  const text = String(code || "");
+  if (text === "NOT_SOURCE_VERIFIED") return "Not verified yet";
+  if (text === "BINDING_STALE_PREPARATION_VERSION" || text === "PAYLOAD_HASH_CHANGED") return "Draft edited after verification";
+  if (text === "SUPERSEDED_BY_NEWER_REPORT") return "A newer report version was registered";
+  if (text.startsWith("OBJECT_")) return "Stored report changed";
+  if (text.startsWith("TUPLE_MISMATCH_")) return "Evidence record mismatch";
+  return "Needs re-verify";
+}
+
+function qcEvidenceBadge(recheck) {
+  const reasons = Array.isArray(recheck?.reasons) ? recheck.reasons.map((reason) => String(reason)) : [];
+  const unique = new Set(reasons);
+  if (unique.size === 2 && unique.has("NOT_SOURCE_VERIFIED") && unique.has("NO_BINDING")) {
+    return { tone: "pending", label: "Not verified yet", detail: "" };
+  }
+  if (recheck?.valid === true) {
+    return { tone: "valid", label: "Evidence valid ✓", detail: "" };
+  }
+  const detail = reasons.length ? qcEvidenceReasonText(reasons[0]) : "Needs re-verify";
+  return { tone: "attention", label: "Needs re-verify", detail };
+}
+
 module.exports = {
   QC_PROTOCOL_OPTIONS_RPC,
   QC_LABORATORY_OPTIONS_RPC,
   QC_PREPARATION_WORKSPACE_READ_RPC,
   QC_PREPARATION_REVIEW_RPC,
   QC_PREPARATION_SAVE_RPC,
+  QC_PREPARATION_VERIFY_SOURCE_RPC,
+  QC_EVIDENCE_RECHECK_RPC,
+  QC_FACT_KEYS,
   QC_PREPARATION_SOURCE_KEY,
   QC_DATE_BASIS,
   QC_CANONICAL_REPORT_FILENAME,
@@ -515,4 +739,8 @@ module.exports = {
   readQcPreparations,
   reviewQcPreparation,
   saveQcPreparation,
+  mapQcSourceVerifyError,
+  verifyQcPreparationSource,
+  recheckQcEvidence,
+  qcEvidenceBadge,
 };
