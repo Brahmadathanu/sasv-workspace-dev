@@ -311,6 +311,7 @@ const state = {
   qcPrepForm: null,
   qcPrepDirty: false,
   qcPrepNotice: "",
+  qcPrepReloadFeedback: false,
   qcPrepReasons: [],
   workerDryRunResult: null,
   workerProductDetailsPreview: null,
@@ -3003,6 +3004,7 @@ function resetQcPreparationWorkspace() {
   state.qcPrepForm = emptyQcPrepForm();
   state.qcPrepDirty = false;
   state.qcPrepNotice = "";
+  state.qcPrepReloadFeedback = false;
   state.qcPrepReasons = [];
   state.qcPrepOpen = true;
 }
@@ -3074,11 +3076,22 @@ function qcPrepWorkspaceHtml(model) {
     .replace(/"/g, "&quot;");
   const disabled = model.disabled || "";
   const reasons = Array.isArray(model.reasons) ? model.reasons : [];
+  const serverReasons = [...new Set(Array.isArray(model.serverReasons) ? model.serverReasons : [])];
+  const localHints = [...new Set(Array.isArray(model.localHints) ? model.localHints : [])];
+  const reasonItems = (items) => (items.length
+    ? `<ul class="progress-list">${items.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>`
+    : `<p class="muted-note">None</p>`);
   const reasonList = reasons.length
     ? `<ul class="progress-list">${reasons.map((code) => `<li>${esc(code)}</li>`).join("")}</ul>`
     : model.fieldsComplete
       ? `<p class="muted-note">Fields complete (draft only)</p>`
       : `<p class="muted-note">No server review reasons yet.</p>`;
+  const studyEndOrder = model.studyStart && model.studyEnd && model.studyEnd <= model.studyStart
+    ? "Study end date must be after the study start date."
+    : "";
+  const reportDateOrder = model.studyEnd && model.reportDate && model.reportDate < model.studyEnd
+    ? "Report date must be on or after the study end date."
+    : "";
   const checklist = [
     "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
     "B1/B2 — Report registered and bytes verified",
@@ -3120,9 +3133,11 @@ function qcPrepWorkspaceHtml(model) {
         <label class="form-field">Study end date
           <input id="qcPrepEnd" type="date" value="${esc(model.studyEnd)}"${disabled}>
         </label>
+        ${studyEndOrder ? `<p class="muted-note" id="qcPrepDateOrder">${esc(studyEndOrder)}</p>` : ""}
         <label class="form-field">Report date
           <input id="qcPrepReportDate" type="date" value="${esc(model.reportDate)}"${disabled}>
         </label>
+        ${reportDateOrder ? `<p class="muted-note" id="qcPrepReportDateOrder">${esc(reportDateOrder)}</p>` : ""}
         <label class="form-field">Date basis
           <select id="qcPrepDateBasis"${disabled}>
             <option value="">Blank</option>
@@ -3145,8 +3160,8 @@ function qcPrepWorkspaceHtml(model) {
       <div class="form-grid">
         <fieldset class="form-field">
           <legend class="meta-label">Laboratory status</legend>
-          <label><input type="radio" name="qcPrepMode" value="IN"${model.mode === "IN" ? " checked" : ""}${disabled}> IN</label>
-          <label><input type="radio" name="qcPrepMode" value="OUT"${model.mode === "OUT" ? " checked" : ""}${disabled}> OUT</label>
+          <label><input id="qcPrepModeIn" type="radio" name="qcPrepMode" value="IN"${model.mode === "IN" ? " checked" : ""}${disabled}> IN</label>
+          <label><input id="qcPrepModeOut" type="radio" name="qcPrepMode" value="OUT"${model.mode === "OUT" ? " checked" : ""}${disabled}> OUT</label>
         </fieldset>
         <label class="form-field">Source report issuer
           <input id="qcPrepIssuer" value="${esc(model.issuer)}"${disabled}>
@@ -3170,6 +3185,13 @@ function qcPrepWorkspaceHtml(model) {
           <textarea id="qcPrepEvidenceNote"${disabled}>${esc(model.evidence)}</textarea>
         </label>
       </div>
+      <div id="qcPrepResult" class="muted-note" role="status" aria-live="polite">
+        ${model.notice ? `<p>${esc(model.notice)}</p>` : ""}
+        <h4 class="meta-label">Server review</h4>
+        ${reasonItems(serverReasons)}
+        <h4 class="meta-label">Form checks</h4>
+        ${reasonItems(localHints)}
+      </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
         <button type="button" class="icon-btn with-label" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save draft</button>
@@ -3187,6 +3209,7 @@ async function loadQcPreparationWorkspace(productId, request) {
     if (options?.ok === false) {
       state.qcPrepNotice = options.message;
       state.qcPrepLoadedFor = productId;
+      if (state.qcPrepReloadFeedback) showToast(String(options.message || "QC preparation workspace failed."), "error");
       return;
     }
     state.qcPrepOptions = Array.isArray(options?.options) ? options.options : [];
@@ -3208,6 +3231,7 @@ async function loadQcPreparationWorkspace(productId, request) {
     if (read?.ok === false) {
       state.qcPrepNotice = labsUnavailable ? "" : read?.message;
       state.qcPrepLoadedFor = productId;
+      if (state.qcPrepReloadFeedback) showToast(String(state.qcPrepNotice || read?.message || "QC preparation workspace failed."), "error");
       return;
     }
     state.qcPrepAmbiguous = read?.ambiguous === true;
@@ -3229,23 +3253,42 @@ async function loadQcPreparationWorkspace(productId, request) {
     }
     state.qcPrepLoadedFor = productId;
     if (read?.ambiguous) state.qcPrepNotice = "More than one preparation uses the governed source key. Reload before editing.";
-    else state.qcPrepNotice = "";
+    else if (state.qcPrepReloadFeedback) {
+      state.qcPrepNotice = "Server copy reloaded.";
+      showToast("Server copy reloaded", "success");
+    } else state.qcPrepNotice = "";
   } catch (error) {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     state.qcPrepNotice = userMessageForError(error);
     state.qcPrepLoadedFor = productId;
+    if (state.qcPrepReloadFeedback) showToast(state.qcPrepNotice, "error");
   } finally {
-    if (request === qcPrepCurrent()) state.qcPrepLoading = false;
-    if (state.selectedProductId === productId) renderReadiness();
+    const reloadFeedback = state.qcPrepReloadFeedback === true && request === qcPrepCurrent();
+    if (request === qcPrepCurrent()) {
+      state.qcPrepLoading = false;
+      state.qcPrepReloadFeedback = false;
+    }
+    if (state.selectedProductId === productId) {
+      renderReadiness();
+      if (reloadFeedback) revealQcPrepResult("btnQcPrepReload");
+    }
   }
 }
 
-function reloadQcPreparationWorkspace() {
+function revealQcPrepResult(focusId) {
+  document.getElementById("qcPrepResult")?.scrollIntoView({ block: "nearest" });
+  if (focusId) document.getElementById(focusId)?.focus();
+}
+
+function reloadQcPreparationWorkspace(options = {}) {
   if (state.busy || !isFirstControlledEntryProduct(state.selectedProductId)) return;
   state.qcPrepDirty = false;
   state.qcPrepLoadedFor = null;
   state.qcPrepLoading = true;
   state.qcPrepNotice = "";
+  state.qcPrepReloadFeedback = options.feedback === true;
+  renderReadiness();
+  if (options.feedback === true) revealQcPrepResult("btnQcPrepReload");
   const productId = state.selectedProductId;
   const request = ++state.qcPrepRequest;
   void loadQcPreparationWorkspace(productId, request);
@@ -3263,7 +3306,9 @@ function qcPreparationWorkspaceMarkup() {
   const showOther = protocolCode === "OTHER" || String(form.other_testing_protocol_text || "").trim() !== "";
   const knownIds = new Set(state.qcPrepOptions.map((item) => String(item.term_id)));
   const savedMissing = Boolean(form.testing_protocol_term_id) && !knownIds.has(String(form.testing_protocol_term_id));
-  const reasons = [...new Set([...(state.qcPrepReasons || []), ...qcPrepLocalHints(form)])];
+  const serverReasons = [...new Set(state.qcPrepReasons || [])].map((code) => qcPrepReasonText(code));
+  const localHints = [...new Set(qcPrepLocalHints(form))].map((code) => qcPrepReasonText(code));
+  const reasons = [...new Set([...serverReasons, ...localHints])];
   const fieldsComplete = state.qcPrepFieldsComplete === true && reasons.length === 0;
   return qcPrepWorkspaceHtml({
     open: state.qcPrepOpen,
@@ -3274,7 +3319,9 @@ function qcPreparationWorkspaceMarkup() {
     defaultsNote: state.qcPrepDefaultsApplied === true,
     labsUnavailable: state.qcPrepLabsUnavailable === true,
     fieldsComplete,
-    reasons: reasons.map((code) => qcPrepReasonText(code)),
+    reasons,
+    serverReasons,
+    localHints,
     showOther,
     protocolOptions: state.qcPrepOptions,
     protocolId: form.testing_protocol_term_id,
@@ -3343,6 +3390,25 @@ function onQcPrepField(event) {
     renderReadiness();
   }
   if (target.id === "qcPrepPortalLab") renderReadiness();
+  const liveField = target.id === "qcPrepStart"
+    || target.id === "qcPrepEnd"
+    || target.id === "qcPrepReportDate"
+    || target.id === "qcPrepBatches"
+    || target.id === "qcPrepShelf"
+    || target.id === "qcPrepOther"
+    || target.id === "qcPrepIssuer"
+    || target.name === "qcPrepMode";
+  if (event.type === "change" && liveField) {
+    renderReadiness();
+    revealQcPrepResult(target.id);
+  }
+}
+
+function releaseQcPrepReviewBusy(snapshot) {
+  return {
+    busy: snapshot?.ownsBusy === true ? false : snapshot?.busy === true,
+    render: snapshot?.selectedProductId === snapshot?.productId,
+  };
 }
 
 async function submitQcPreparationReview() {
@@ -3351,7 +3417,9 @@ async function submitQcPreparationReview() {
   const productId = state.selectedProductId;
   const request = ++state.qcPrepRequest;
   const form = syncQcPrepFormFromDom();
+  let ownsBusy = false;
   state.busy = true;
+  ownsBusy = true;
   try {
     const token = await sessionAccessToken();
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
@@ -3359,19 +3427,34 @@ async function submitQcPreparationReview() {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     if (result?.ok === false) {
       state.qcPrepNotice = result.message || "QC preparation workspace failed.";
+      showToast(state.qcPrepNotice, "error");
       return;
     }
     state.qcPrepReasons = Array.isArray(result?.review?.reasons) ? result.review.reasons : [];
     state.qcPrepFieldsComplete = state.qcPrepReasons.length === 0;
-    state.qcPrepNotice = state.qcPrepFieldsComplete
-      ? "Fields complete (draft only)"
-      : "Server review found items to complete.";
+    if (state.qcPrepFieldsComplete) {
+      state.qcPrepNotice = "Fields complete (draft only)";
+      showToast("Fields complete (draft only)", "success");
+    } else {
+      state.qcPrepNotice = "Server review found items to complete.";
+      showToast(`Server review: ${state.qcPrepReasons.length} item(s) to complete`, "warning");
+    }
   } catch (error) {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     state.qcPrepNotice = userMessageForError(error);
+    showToast(state.qcPrepNotice, "error");
   } finally {
-    if (request === qcPrepCurrent()) state.busy = false;
-    if (state.selectedProductId === productId) renderReadiness();
+    const settled = releaseQcPrepReviewBusy({
+      ownsBusy,
+      busy: state.busy,
+      selectedProductId: state.selectedProductId,
+      productId,
+    });
+    state.busy = settled.busy;
+    if (settled.render) {
+      renderReadiness();
+      revealQcPrepResult("btnQcPrepReview");
+    }
   }
 }
 
@@ -6815,7 +6898,7 @@ function wireEvents() {
     if (event.target.id === "btnQcReportRead") submitQcReportReadProbe();
     if (event.target.id === "btnQcPrepReview") void submitQcPreparationReview();
     if (event.target.id === "btnQcPrepSave") void submitQcPreparationSave();
-    if (event.target.id === "btnQcPrepReload") reloadQcPreparationWorkspace();
+    if (event.target.id === "btnQcPrepReload") reloadQcPreparationWorkspace({ feedback: true });
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
     if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
     if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();

@@ -686,6 +686,69 @@ assert(!helperSrc.includes("qc_preparation_verify_v1"), "workspace helper does n
 assert(!helperSrc.includes("qc_report_reserve_v1") && !helperSrc.includes("qc_report_register_v1"), "workspace helper does not reserve or register");
 assert(!helperSrc.includes("storage.from"), "workspace helper does not call storage");
 
+const feedbackHtml = renderQc({
+  open: true,
+  status: "No QC preparation saved yet.",
+  verified: false,
+  disabled: "",
+  notice: "Server review found items to complete.",
+  defaultsNote: false,
+  labsUnavailable: false,
+  fieldsComplete: false,
+  reasons: ["Testing protocol is required.", "Study end date must be after the study start date."],
+  serverReasons: ["Testing protocol is required."],
+  localHints: ["Study end date must be after the study start date."],
+  showOther: false,
+  protocolOptions: [],
+  protocolId: "",
+  savedProtocolMissing: false,
+  otherText: "",
+  studyStart: "2026-01-02",
+  studyEnd: "2026-01-02",
+  reportDate: "2026-01-01",
+  dateBasis: "OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN",
+  dateBasisSelected: false,
+  dateNote: "",
+  reportDateNote: "",
+  shelf: "",
+  batches: "",
+  mode: "",
+  issuer: "",
+  approval: "",
+  lab: "",
+  labs: [],
+  sha: "",
+  evidence: "",
+  reviewDisabled: false,
+  saveDisabled: false,
+  reloadDisabled: false,
+});
+const resultAt = feedbackHtml.indexOf('id="qcPrepResult"');
+const reviewAt = feedbackHtml.indexOf('id="btnQcPrepReview"');
+assert(resultAt >= 0 && reviewAt > resultAt, "result panel is directly above the review button");
+const panel = feedbackHtml.slice(resultAt, reviewAt);
+const serverHeading = panel.indexOf('<h4 class="meta-label">Server review</h4>');
+const formHeading = panel.indexOf('<h4 class="meta-label">Form checks</h4>');
+const serverItem = panel.indexOf("Testing protocol is required.");
+const localItem = panel.indexOf("Study end date must be after the study start date.");
+assert(serverHeading >= 0 && formHeading > serverHeading, "result panel lists server reasons and form checks separately");
+assert(serverItem > serverHeading && serverItem < formHeading, "server reasons stay under Server review");
+assert(localItem > formHeading, "local hints stay under Form checks");
+assert(feedbackHtml.includes("Server review found items to complete."), "result panel shows the current notice");
+const endField = feedbackHtml.indexOf('id="qcPrepEnd"');
+const dateOrder = feedbackHtml.indexOf('id="qcPrepDateOrder"');
+const reportField = feedbackHtml.indexOf('id="qcPrepReportDate"');
+assert(endField >= 0 && dateOrder > endField && dateOrder < reportField, "date-order message renders under the dates when end is not after start");
+assert(feedbackHtml.slice(dateOrder, reportField).includes("Study end date must be after the study start date."), "date-order copy sits with the study dates");
+assert(feedbackHtml.includes("Report date must be on or after the study end date."), "report-date order message renders under the report date");
+assert(!feedbackHtml.includes("READY"), "QC feedback markup does not contain READY");
+assert(controlSrc.includes('state.qcPrepNotice = "Server copy reloaded."'), "reload success notice reads Server copy reloaded.");
+const releaseBusy = controlFunction("releaseQcPrepReviewBusy");
+const staleReview = releaseBusy({ ownsBusy: true, busy: true, selectedProductId: 261, productId: 262 });
+assert(staleReview.busy === false, "busy flag is released after a stale review");
+assert(staleReview.render === false, "a stale product is not rendered");
+assert(controlSrc.includes("event.type === \"change\" && liveField"), "date and batch edits re-render on change only");
+
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);
   process.exit(1);
