@@ -109,6 +109,7 @@ await expectFailure(
     accessToken: TOKEN,
     preparationId: PREP_ID,
     expectedRowVersion: 2,
+    fileSize: 1200,
     callRpc: stale.callRpc,
   }),
   ERROR_KINDS.STALE,
@@ -125,6 +126,7 @@ await expectFailure(
     accessToken: TOKEN,
     preparationId: PREP_ID,
     expectedRowVersion: "2",
+    fileSize: 1200,
     callRpc: verified.callRpc,
   }),
   ERROR_KINDS.PREFLIGHT_DENIED,
@@ -141,6 +143,7 @@ await expectFailure(
     accessToken: TOKEN,
     preparationId: PREP_ID,
     expectedRowVersion: 2,
+    fileSize: 1200,
     callRpc: wrongKey.callRpc,
   }),
   ERROR_KINDS.PREFLIGHT_DENIED,
@@ -167,6 +170,7 @@ const reusedResult = await reserveQcReport({
   accessToken: TOKEN,
   preparationId: PREP_ID,
   expectedRowVersion: 2,
+  fileSize: 1200,
   callRpc: reused.callRpc,
 });
 assert(reusedResult.reused === true && reusedResult.reservation.version_no === 3, "an existing RESERVED row is reused");
@@ -183,6 +187,7 @@ await expectFailure(
     accessToken: TOKEN,
     preparationId: PREP_ID,
     expectedRowVersion: 2,
+    fileSize: 1200,
     callRpc: badReuse.callRpc,
   }),
   ERROR_KINDS.CONTRACT_INCOMPLETE,
@@ -200,6 +205,7 @@ const forcedResult = await reserveQcReport({
   preparationId: PREP_ID,
   expectedRowVersion: 2,
   forceNew: true,
+  fileSize: 1200,
   callRpc: forced.callRpc,
 });
 assert(forcedResult.reused === false && forced.calls.some((call) => call.name === QC_REPORT_RESERVE_RPC), "forceNew reserves a new version");
@@ -215,6 +221,7 @@ await expectFailure(
     accessToken: TOKEN,
     preparationId: PREP_ID,
     expectedRowVersion: 2,
+    fileSize: 1200,
     callRpc: reserved.callRpc,
   }),
   ERROR_KINDS.CONTRACT_INCOMPLETE,
@@ -232,6 +239,7 @@ await expectFailure(
     accessToken: TOKEN,
     preparationId: PREP_ID,
     expectedRowVersion: 2,
+    fileSize: 1200,
     callRpc: badPath.callRpc,
   }),
   ERROR_KINDS.CONTRACT_INCOMPLETE,
@@ -246,6 +254,7 @@ await expectFailure(
     objectId: OBJECT_ID,
     originalFileName: "lab.pdf",
     sha256: SHA,
+    fileSize: 1200,
     callRpc: mockRpc(async () => ({})).callRpc,
   }),
   ERROR_KINDS.CONTRACT_INCOMPLETE,
@@ -260,6 +269,7 @@ await expectFailure(
     objectId: OBJECT_ID,
     originalFileName: "lab.pdf",
     sha256: "abc",
+    fileSize: 1200,
     callRpc: badShaRpc.callRpc,
   }),
   ERROR_KINDS.CONTRACT_INCOMPLETE,
@@ -286,6 +296,7 @@ for (const [code, kind] of [
       objectId: OBJECT_ID,
       originalFileName: "lab.pdf",
       sha256: SHA,
+      fileSize: 1200,
       callRpc: rpc.callRpc,
     }),
     kind,
@@ -428,6 +439,52 @@ await expectFailure(
   ERROR_KINDS.CONTRACT_INCOMPLETE,
 );
 assert(oversizedRegister.calls.length === 0, "an oversized PDF makes no register call");
+for (const missingSize of [undefined, null]) {
+  const missingReserve = mockRpc(async () => reservationRow());
+  const missingReserveError = await expectFailure(
+    () => reserveQcReport({
+      productId: 262,
+      accessToken: TOKEN,
+      preparationId: PREP_ID,
+      expectedRowVersion: 2,
+      fileSize: missingSize,
+      callRpc: missingReserve.callRpc,
+    }),
+    ERROR_KINDS.CONTRACT_INCOMPLETE,
+  );
+  assert(missingReserve.calls.length === 0, "reserve without fileSize makes no RPC call");
+  assert(missingReserveError?.message === "QC test report was not accepted.", "reserve without fileSize is not accepted");
+  const missingRegister = mockRpc(async () => ({}));
+  const missingRegisterError = await expectFailure(
+    () => registerQcReport({
+      productId: 262,
+      accessToken: TOKEN,
+      reservationId: RESERVATION_ID,
+      expectedRowVersion: 2,
+      objectId: OBJECT_ID,
+      originalFileName: "lab.pdf",
+      sha256: SHA,
+      fileSize: missingSize,
+      callRpc: missingRegister.callRpc,
+    }),
+    ERROR_KINDS.CONTRACT_INCOMPLETE,
+  );
+  assert(missingRegister.calls.length === 0, "register without fileSize makes no RPC call");
+  assert(missingRegisterError?.message === "QC test report was not accepted.", "register without fileSize is not accepted");
+}
+const exactRegister = mockRpc(async () => ({ integrity_status: "UNVERIFIED_BYTES" }));
+const exactRegistered = await registerQcReport({
+  productId: 262,
+  accessToken: TOKEN,
+  reservationId: RESERVATION_ID,
+  expectedRowVersion: 2,
+  objectId: OBJECT_ID,
+  originalFileName: "lab.pdf",
+  sha256: SHA,
+  fileSize: upload.QC_REPORT_MAX_BYTES,
+  callRpc: exactRegister.callRpc,
+});
+assert(exactRegistered.ok === true && exactRegister.calls.length === 1, "a 2 MB PDF is accepted by register");
 assert(!/service_role|SERVICE_ROLE|storage\.from|qc_preparation_verify_v1/.test(uploadSrc), "the upload worker has no service role or source verify call");
 
 const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
@@ -678,8 +735,139 @@ const denied = await confirmApi.runConfirmedQcReportByteCheck("01", () => false,
 assert(denied === false && byteCalls === 0, "cancelling the byte-check warning makes no verify call");
 const acceptedCheck = await confirmApi.runConfirmedQcReportByteCheck("01", () => true, async () => { byteCalls += 1; });
 assert(acceptedCheck === true && byteCalls === 1, "confirming the byte-check warning calls verify once");
+const asyncDenied = await confirmApi.runConfirmedQcReportByteCheck("01", async () => false, async () => { byteCalls += 1; });
+assert(asyncDenied === false && byteCalls === 1, "async confirm false makes no verify call");
+const asyncAccepted = await confirmApi.runConfirmedQcReportByteCheck("01", async () => true, async () => { byteCalls += 1; });
+assert(asyncAccepted === true && byteCalls === 2, "async confirm true calls verify once");
 assert(confirmApi.qcReportByteCheckWarning("01").includes("this version (V01) is permanently marked BYTES_MISMATCH"), "the warning names the version");
-assert(extractFunction("submitQcReportByteCheck").includes("runConfirmedQcReportByteCheck") && extractFunction("submitQcReportByteCheck").includes("verifyQcReportBytes"), "only the button path calls the byte check");
+const submitByteCheckSrc = extractFunction("submitQcReportByteCheck");
+assert(submitByteCheckSrc.includes("runConfirmedQcReportByteCheck") && submitByteCheckSrc.includes("verifyQcReportBytes"), "only the button path calls the byte check");
+const qcFlowStart = controlSrc.indexOf("function qcReportByteCheckWarning");
+const qcFlowEnd = controlSrc.indexOf("async function reserveNewQcReportVersion");
+assert(qcFlowStart >= 0 && qcFlowEnd > qcFlowStart && !controlSrc.slice(qcFlowStart, qcFlowEnd).includes("window.confirm"), "the QC report flow contains no window.confirm");
+const confirmGuard = submitByteCheckSrc.indexOf("qcReportConfirmOpen");
+const verifyGuard = submitByteCheckSrc.indexOf("qcReportVerifying");
+const modalCall = submitByteCheckSrc.indexOf("runConfirmedQcReportByteCheck");
+assert(confirmGuard >= 0 && verifyGuard >= 0 && confirmGuard < modalCall && verifyGuard < modalCall, "submitQcReportByteCheck checks confirm and verifying before the modal");
+assert(extractFunction("reserveNewQcReportVersion").includes("fileSize"), "reserve new version passes fileSize");
+
+function installQcConfirmDom() {
+  class El {
+    constructor(tag) {
+      this.tagName = String(tag).toUpperCase();
+      this.children = [];
+      this.parentNode = null;
+      this.id = "";
+      this.className = "";
+      this.textContent = "";
+      this.type = "";
+      this.tabIndex = 0;
+      this.hidden = false;
+      this.disabled = false;
+      this.offsetParent = {};
+      this.attrs = {};
+      this.listeners = new Map();
+    }
+    setAttribute(name, value) { this.attrs[name] = String(value); }
+    getAttribute(name) { return this.attrs[name]; }
+    append(...nodes) {
+      for (const node of nodes) {
+        node.parentNode = this;
+        this.children.push(node);
+      }
+    }
+    remove() {
+      if (!this.parentNode) return;
+      this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
+      this.parentNode = null;
+    }
+    addEventListener(type, fn) {
+      const list = this.listeners.get(type) || [];
+      list.push(fn);
+      this.listeners.set(type, list);
+    }
+    removeEventListener(type, fn) {
+      const list = this.listeners.get(type) || [];
+      this.listeners.set(type, list.filter((item) => item !== fn));
+    }
+    dispatch(type, event) {
+      for (const fn of [...(this.listeners.get(type) || [])]) fn(event);
+    }
+    focus() { globalThis.document.activeElement = this; }
+    click() { this.dispatch("click", { target: this, currentTarget: this }); }
+    querySelectorAll() {
+      const found = [];
+      const walk = (node) => {
+        for (const child of node.children) {
+          found.push(child);
+          walk(child);
+        }
+      };
+      walk(this);
+      return found;
+    }
+  }
+  const body = new El("body");
+  const button = new El("button");
+  button.id = "btnQcReportCheckBytes";
+  body.append(button);
+  const keyListeners = [];
+  const document = {
+    body,
+    activeElement: button,
+    createElement(tag) { return new El(tag); },
+    getElementById(id) {
+      const all = [body, ...body.querySelectorAll()];
+      return all.find((el) => el.id === id) || null;
+    },
+    addEventListener(type, fn) {
+      if (type === "keydown") keyListeners.push(fn);
+    },
+    removeEventListener(type, fn) {
+      if (type !== "keydown") return;
+      const index = keyListeners.indexOf(fn);
+      if (index >= 0) keyListeners.splice(index, 1);
+    },
+  };
+  globalThis.document = document;
+  return {
+    document,
+    button,
+    press(key) {
+      const event = { key, shiftKey: false, preventDefault() {}, stopPropagation() {} };
+      for (const fn of [...keyListeners]) fn(event);
+    },
+  };
+}
+
+const modalApi = new Function(
+  `${extractFunction("openQcByteCheckConfirm")}
+   return openQcByteCheckConfirm;`,
+)();
+const confirmDom = installQcConfirmDom();
+const warning = confirmApi.qcReportByteCheckWarning("01");
+const escaped = modalApi(warning);
+confirmDom.press("Escape");
+assert(await escaped === false, "Esc resolves the byte-check confirm false");
+assert(confirmDom.document.getElementById("qcByteCheckConfirmBackdrop") == null, "Esc removes the byte-check confirm");
+assert(confirmDom.document.activeElement === confirmDom.button, "Esc returns focus to Check bytes on server");
+const cancelled = modalApi(warning);
+confirmDom.document.getElementById("qcByteCheckConfirmCancel").click();
+assert(await cancelled === false, "Cancel resolves the byte-check confirm false");
+const acceptedModal = modalApi(warning);
+assert(confirmDom.document.activeElement?.id === "qcByteCheckConfirmCancel", "the confirm focuses Cancel");
+assert(confirmDom.document.getElementById("qcByteCheckConfirmTitle").textContent === "Check bytes on server", "the confirm title is Check bytes on server");
+assert(confirmDom.document.getElementById("qcByteCheckConfirmBody").children[0].textContent === warning, "the confirm body is the byte-check warning");
+confirmDom.document.getElementById("qcByteCheckConfirmOk").click();
+assert(await acceptedModal === true, "OK resolves the byte-check confirm true");
+const held = modalApi(warning);
+const secondOpen = await modalApi(warning);
+assert(secondOpen === false, "a second byte-check confirm resolves false while one is showing");
+confirmDom.document.getElementById("qcByteCheckConfirmBackdrop").dispatch("click", {
+  target: confirmDom.document.getElementById("qcByteCheckConfirmBackdrop"),
+});
+assert(await held === false, "a backdrop click resolves the byte-check confirm false");
+delete globalThis.document;
 const selection = new Function(
   `const state = {
      qcReportFile: { name: "nupal.pdf", size: 1200 },
