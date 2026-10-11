@@ -3641,6 +3641,7 @@ function qcPrepFormFromPayload(payload) {
     "quality_control_mode",
     "source_report_issuer",
     "source_report_approval_no",
+    "report_filename",
     "report_sha256",
     "report_evidence_note",
   ]) {
@@ -4403,8 +4404,12 @@ function qcSourceFactsBlockReason(input) {
   if (Array.isArray(input?.serverReasons) && input.serverReasons.length > 0) return "The server review still has items to correct.";
   const report = input?.latestRegistered;
   if (!report || report.integrity_status !== "VERIFIED_BYTES") return "Run 'Check bytes on server' first.";
-  const reportSha = report.verified_sha256 || input?.verifiedSha || "";
-  if (String(input?.reportSha || "") !== String(reportSha) || String(input?.reportFilename || "") !== String(report.expected_file_name || "")) {
+  const knownSha = String(report.verified_sha256 || input?.verifiedSha || "").trim();
+  const draftName = String(input?.reportFilename || "").trim();
+  const reportName = String(report.expected_file_name || "").trim();
+  const shaDiffers = knownSha !== "" && String(input?.reportSha || "") !== knownSha;
+  const nameDiffers = draftName !== "" && reportName !== "" && draftName !== reportName;
+  if (shaDiffers || nameDiffers) {
     return "The draft does not match the verified report. Save the draft again from the latest report.";
   }
   return "";
