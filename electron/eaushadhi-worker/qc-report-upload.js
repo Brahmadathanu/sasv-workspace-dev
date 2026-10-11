@@ -304,6 +304,19 @@ async function invokePayload(result) {
   return context;
 }
 
+function acceptedDocumentAssetId(value) {
+  if (value == null || value === "") return "";
+  const text = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
+  if (!/^[0-9]+$/.test(text)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
+  }
+  const parsed = Number(text);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
+  }
+  return String(parsed);
+}
+
 function acceptedByteCheck(body) {
   const status = body?.integrity_status;
   if (status !== "VERIFIED_BYTES" && status !== "BYTES_MISMATCH") {
@@ -320,10 +333,7 @@ function acceptedByteCheck(body) {
   if (size != null && (!Number.isInteger(size) || size < 0)) {
     throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
   }
-  const documentAssetId = body.document_asset_id == null ? "" : String(body.document_asset_id);
-  if (documentAssetId !== "" && !QC_REPORT_UUID_RE.test(documentAssetId)) {
-    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
-  }
+  const documentAssetId = acceptedDocumentAssetId(body.document_asset_id);
   return {
     ok: true,
     operation: "qc-report-verify-bytes",

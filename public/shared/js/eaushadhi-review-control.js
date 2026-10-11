@@ -3908,7 +3908,7 @@ function qcPrepWorkspaceHtml(model) {
     plain
       ? `<li>${esc(item)}</li>`
       : done
-        ? `<li>${esc(item)}: done (registered, bytes unverified)</li>`
+        ? `<li>${esc(item)}: done (registered)</li>`
         : `<li>${esc(item)} — not done</li>`
   )).join("");
   const labs = Array.isArray(model.labs) ? model.labs : [];
