@@ -178,6 +178,8 @@ import {
   saveProductPortalText,
   signedApprovedProductCopyUrl,
   uploadApprovedProductCopyObject,
+  uploadQcReportObject,
+  removeQcReportObject,
   verifyProduct,
 } from "./eaushadhi-review-api.js";
 import {
@@ -194,6 +196,9 @@ import {
   readQcPreparationWorkspace,
   reviewQcPreparation,
   saveQcPreparation,
+  listQcReports,
+  reserveQcReport,
+  registerQcReport,
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
   previewWorkerProductDetails,
@@ -319,6 +324,17 @@ const state = {
     report_date_evidence_note: false,
     report_evidence_note: false,
   },
+  qcReportRequest: 0,
+  qcReportUploadRequest: 0,
+  qcReportLoading: false,
+  qcReportLoadedFor: null,
+  qcReports: [],
+  qcReportNotice: "",
+  qcReportWarning: "",
+  qcReportFile: null,
+  qcReportSha: "",
+  qcReportFileError: "",
+  qcReportLastSize: null,
   workerDryRunResult: null,
   workerProductDetailsPreview: null,
   workerProductDetailsResult: null,
@@ -2602,8 +2618,352 @@ function copyCardActions(hasCopy, pick, canUpload) {
   return `<button type="button" class="icon-btn with-label" id="btnChooseCopy" data-edit-action="true" aria-label="Choose approved product copy file" title="PDF, JPG, or PNG. Max 20 MB.">Choose file</button>`;
 }
 
+function qcReportFileProblem(file, header) {
+  const name = String(file?.name || "");
+  if (!/\.pdf$/i.test(name) || file?.type !== "application/pdf") return "Choose a PDF file.";
+  const bytes = header instanceof Uint8Array ? header : Uint8Array.from(header || []);
+  const pdf = bytes.length >= 5
+    && bytes[0] === 0x25
+    && bytes[1] === 0x50
+    && bytes[2] === 0x44
+    && bytes[3] === 0x46
+    && bytes[4] === 0x2d;
+  if (!pdf) return "The file does not start with %PDF-.";
+  const size = Number(file?.size);
+  if (!(size > 0 && size <= 2097152)) return "Portal limit: PDF must be 2 MB or smaller.";
+  return "";
+}
+
+function qcReportObjectId(value) {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : "";
+}
+
+function qcReportStorageExists(error) {
+  const status = Number(error?.status || error?.statusCode || error?.original?.status || error?.original?.statusCode || 0);
+  const message = String(error?.message || error?.original?.message || "");
+  return status === 409 || /exists/i.test(message);
+}
+
+function qcReportRemovalWarning(path) {
+  return `Uploaded file could not be removed after a failed registration: ${path}. Tell Jarvis/support.`;
+}
+
+function qcRegisteredReport(preparationId) {
+  const rows = (state.qcReports || []).filter((row) => (
+    row?.status === "REGISTERED" && String(row?.preparation_id) === String(preparationId || "")
+  ));
+  rows.sort((left, right) => Number(right.version_no) - Number(left.version_no));
+  return rows[0] || null;
+}
+
+function qcReportNextFile(reports, preparationId) {
+  const rows = (Array.isArray(reports) ? reports : []).filter((row) => String(row?.preparation_id) === String(preparationId || ""));
+  const reserved = rows.filter((row) => row.status === "RESERVED").sort((left, right) => Number(right.version_no) - Number(left.version_no));
+  if (reserved[0]?.expected_file_name) {
+    return { fileName: reserved[0].expected_file_name, label: reserved[0].expected_file_name };
+  }
+  const max = rows.reduce((highest, row) => Math.max(highest, Number(row.version_no) || 0), 0);
+  const nn = String(max + 1).padStart(2, "0");
+  const fileName = `EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V${nn}.pdf`;
+  return { fileName, label: `assigned at upload (next: V${nn})` };
+}
+
+async function executeQcReportUpload(input) {
+  const steps = [];
+  if (input?.busy === true) return { ok: false, blocked: true, steps };
+  if (input?.dirty === true) return { ok: false, inline: "Save or reload the QC form first.", steps };
+  const preparation = input.preparation;
+  const reserved = await input.reserve({
+    preparationId: preparation.preparation_id,
+    expectedRowVersion: preparation.row_version,
+  });
+  steps.push("reserve");
+  if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
+  if (reserved?.ok === false) return { ok: false, message: reserved.message || "QC test report upload failed.", steps };
+  const reservation = reserved.reservation;
+  const path = reservation.expected_storage_path;
+  let uploaded;
+  try {
+    uploaded = await input.upload(path, input.file, { upsert: false, contentType: "application/pdf" });
+  } catch (error) {
+    if (qcReportStorageExists(error)) {
+      return {
+        ok: false,
+        inline: "A file already exists at the reserved path. Reload; contact support if it persists.",
+        steps,
+      };
+    }
+    return { ok: false, message: error?.message || "QC test report upload failed.", steps };
+  }
+  steps.push("upload");
+  if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
+  const objectId = qcReportObjectId(uploaded?.id);
+  if (!objectId) {
+    let removed = false;
+    try {
+      removed = await input.remove(path) !== false;
+    } catch {
+      removed = false;
+    }
+    return {
+      ok: false,
+      inline: "Upload could not be registered (no object id). Nothing was registered.",
+      warning: removed ? "" : qcReportRemovalWarning(path),
+      steps,
+    };
+  }
+  const registered = await input.register({
+    reservationId: reservation.reservation_id,
+    expectedRowVersion: preparation.row_version,
+    objectId,
+    originalFileName: input.file.name,
+    sha256: input.sha256,
+  });
+  steps.push("register");
+  if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
+  if (registered?.ok === false) {
+    let removed = false;
+    try {
+      removed = await input.remove(path) !== false;
+    } catch {
+      removed = false;
+    }
+    return {
+      ok: false,
+      message: registered.message || "QC test report upload failed.",
+      warning: removed ? "" : qcReportRemovalWarning(path),
+      steps,
+    };
+  }
+  const form = {
+    ...(input.form || {}),
+    report_filename: reservation.expected_file_name,
+    report_sha256: input.sha256,
+  };
+  if (input.overrides?.report_evidence_note !== true) {
+    form.report_evidence_note = input.generatedNotes(form, input.protocolOptions).report_evidence_note;
+  }
+  const saved = await input.save({
+    preparationId: preparation.preparation_id,
+    expectedRowVersion: preparation.row_version,
+    payload: input.payloadFromForm(form),
+    lastReadStatus: preparation.preparation_status,
+  });
+  steps.push("save");
+  if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
+  if (saved?.ok === false) {
+    return {
+      ok: false,
+      message: "Report registered, but the QC draft could not be updated. Open QC Register, Reload, then Save.",
+      steps,
+    };
+  }
+  const version = String(reservation.version_no).padStart(2, "0");
+  return {
+    ok: true,
+    steps,
+    fileName: reservation.expected_file_name,
+    sha256: input.sha256,
+    toast: `QC test report V${version} registered; draft saved (version ${saved.row_version}).`,
+  };
+}
+
+function qcTestReportCardModel() {
+  const preparation = state.qcPrepServer;
+  const next = qcReportNextFile(state.qcReports, preparation?.preparation_id);
+  const latest = qcRegisteredReport(preparation?.preparation_id);
+  const electron = workerApiAvailable();
+  const allowed = isFirstControlledEntryProduct(state.selectedProductId);
+  const uploadDisabled = !canWrite()
+    || !electron
+    || !preparation
+    || preparation.preparation_status === "VERIFIED"
+    || state.qcPrepDirty === true
+    || state.busy === true
+    || !state.qcReportFile
+    || !state.qcReportSha
+    || Boolean(state.qcReportFileError);
+  return {
+    electron,
+    productAllowed: allowed,
+    status: preparation
+      ? qcPrepStatusText(preparation, state.qcPrepLoading)
+      : "No QC preparation saved yet.",
+    reports: state.qcReports,
+    latestRegistered: latest,
+    sha: preparation ? qcPrepForm().report_sha256 : "",
+    lastSize: state.qcReportLastSize,
+    nextLabel: next.label,
+    nextFileName: next.fileName,
+    shaPreview: state.qcReportSha,
+    fileError: state.qcPrepDirty ? "Save or reload the QC form first." : state.qcReportFileError,
+    warning: state.qcReportWarning,
+    notice: state.qcReportNotice,
+    uploadDisabled,
+  };
+}
+
+function queueQcReportLoad() {
+  if (!workerApiAvailable() || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (access.canView !== true || state.qcReportLoading || state.qcReportLoadedFor === state.selectedProductId) return;
+  state.qcReportLoading = true;
+  const productId = state.selectedProductId;
+  const request = ++state.qcReportRequest;
+  queueMicrotask(() => {
+    void loadQcReportList(productId, request);
+  });
+}
+
+async function loadQcReportList(productId, request) {
+  try {
+    const token = await sessionAccessToken();
+    if (request !== state.qcReportRequest || state.selectedProductId !== productId) return;
+    const listed = await listQcReports(productId, token);
+    if (request !== state.qcReportRequest || state.selectedProductId !== productId) return;
+    if (listed?.ok === false) {
+      state.qcReportNotice = listed.message || "QC test report list failed.";
+      state.qcReports = [];
+    } else {
+      state.qcReports = Array.isArray(listed?.reports) ? listed.reports : [];
+      state.qcReportNotice = "";
+    }
+    state.qcReportLoadedFor = productId;
+  } catch (error) {
+    if (request !== state.qcReportRequest || state.selectedProductId !== productId) return;
+    state.qcReportNotice = userMessageForError(error);
+    state.qcReportLoadedFor = productId;
+  } finally {
+    if (request === state.qcReportRequest) state.qcReportLoading = false;
+    if (state.selectedProductId === productId) {
+      if (state.tab === "evidence") renderEvidence();
+      if (state.tab === "qc") renderQc();
+    }
+  }
+}
+
+async function pickQcReportFile(file) {
+  state.qcReportFile = file;
+  state.qcReportSha = "";
+  state.qcReportFileError = "";
+  try {
+    const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+    const problem = qcReportFileProblem(file, header);
+    if (problem) {
+      state.qcReportFileError = problem;
+      state.qcReportFile = null;
+    } else {
+      state.qcReportSha = await hashFileSha256(file) || "";
+      if (!state.qcReportSha) state.qcReportFileError = "SHA-256 could not be computed.";
+    }
+  } catch (error) {
+    state.qcReportFileError = userMessageForError(error);
+    state.qcReportFile = null;
+  }
+  if (state.tab === "evidence") renderEvidence();
+}
+
+async function submitQcReportUpload() {
+  if (state.busy || !workerApiAvailable() || !canWrite()) return;
+  if (!isFirstControlledEntryProduct(state.selectedProductId)) return;
+  const preparation = state.qcPrepServer;
+  if (!preparation || preparation.preparation_status === "VERIFIED" || !state.qcReportFile || !state.qcReportSha) return;
+  if (state.qcPrepDirty) {
+    state.qcReportFileError = "Save or reload the QC form first.";
+    if (state.tab === "evidence") renderEvidence();
+    return;
+  }
+  const productId = state.selectedProductId;
+  const request = ++state.qcReportUploadRequest;
+  state.busy = true;
+  state.qcReportWarning = "";
+  try {
+    const token = await sessionAccessToken();
+    const result = await executeQcReportUpload({
+      dirty: state.qcPrepDirty,
+      busy: false,
+      preparation,
+      file: state.qcReportFile,
+      sha256: state.qcReportSha,
+      form: qcPrepForm(),
+      overrides: state.qcPrepNoteOverrides,
+      protocolOptions: state.qcPrepOptions,
+      generatedNotes: qcPrepGeneratedNotes,
+      payloadFromForm: qcPrepPayloadFromForm,
+      isCurrent: () => state.qcReportUploadRequest === request && state.selectedProductId === productId,
+      reserve: (draft) => reserveQcReport(productId, token, draft),
+      upload: (path, file) => uploadQcReportObject(path, file),
+      remove: (path) => removeQcReportObject(path),
+      register: (draft) => registerQcReport(productId, token, draft),
+      save: (draft) => saveQcPreparation(productId, token, draft),
+    });
+    if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
+    if (result.warning) state.qcReportWarning = result.warning;
+    if (result.ok === true) {
+      state.qcReportLastSize = state.qcReportFile?.size || null;
+      state.qcReportFile = null;
+      state.qcReportSha = "";
+      state.qcReportFileError = "";
+      showToast(result.toast, "success");
+      state.busy = false;
+      state.qcReportLoadedFor = null;
+      reloadQcPreparationWorkspace();
+      queueQcReportLoad();
+      return;
+    }
+    state.qcReportFileError = result.inline || result.message || "";
+    if (result.message && !result.inline) showToast(result.message, "error");
+  } catch (error) {
+    if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
+    state.qcReportFileError = userMessageForError(error);
+    showToast(state.qcReportFileError, "error");
+  } finally {
+    if (state.qcReportUploadRequest === request) state.busy = false;
+    if (state.selectedProductId === productId && state.tab === "evidence") renderEvidence();
+  }
+}
+
+function qcTestReportCardHtml(model) {
+  const esc = (value) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  if (model.electron !== true) {
+    return `<section class="section-card" id="qcTestReportCard"><h3 class="section-title">QC Test Report (Product 262)</h3><p class="muted-note">QC test report upload is available only in the SASV Electron app.</p></section>`;
+  }
+  if (model.productAllowed !== true) {
+    return `<section class="section-card" id="qcTestReportCard"><h3 class="section-title">QC Test Report (Product 262)</h3><p class="muted-note">QC test report upload is available for Product 262 only in this release.</p></section>`;
+  }
+  const reports = Array.isArray(model.reports) ? model.reports : [];
+  const rows = reports.map((row) => `<li>V${esc(String(row.version_no).padStart(2, "0"))} ${esc(row.status)} ${esc(row.expected_file_name)}</li>`).join("");
+  const latest = model.latestRegistered;
+  const size = model.lastSize ? ` Size ${esc(model.lastSize)} bytes.` : "";
+  const latestLine = latest
+    ? `<p class="muted-note">Latest registered: ${esc(latest.expected_file_name)}; SHA-256 ${esc(model.sha || "")};${size} Report bytes not yet verified (B2).</p>`
+    : `<p class="muted-note">No report uploaded.</p>`;
+  return `<section class="section-card" id="qcTestReportCard">
+    <h3 class="section-title">QC Test Report (Product 262)</h3>
+    <p class="muted-note">${esc(model.status || "")}</p>
+    ${latestLine}
+    <ul class="progress-list">${rows}</ul>
+    <p class="muted-note" id="qcReportNextName">Next file name: ${esc(model.nextLabel)}</p>
+    <p class="muted-note qc-prep-block">${esc(model.nextFileName)}</p>
+    <button type="button" class="icon-btn with-label" id="btnQcReportCopyName">Copy name</button>
+    ${model.shaPreview ? `<p class="muted-note" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview)}</p>` : ""}
+    ${model.fileError ? `<p class="muted-note ea-autosave is-failed" id="qcReportFileError">${esc(model.fileError)}</p>` : ""}
+    ${model.warning ? `<p class="muted-note ea-autosave is-failed" id="qcReportWarning">${esc(model.warning)}</p>` : ""}
+    ${model.notice ? `<p class="muted-note" id="qcReportNotice">${esc(model.notice)}</p>` : ""}
+    <input id="fldQcReportFile" type="file" accept="application/pdf,.pdf" />
+    <button type="button" class="icon-btn with-label" id="btnQcReportUpload"${model.uploadDisabled ? " disabled" : ""}>Upload</button>
+  </section>`;
+}
+
 function renderEvidence() {
   const host = $("tab-evidence");
+  queueQcPreparationLoad();
+  queueQcReportLoad();
   const evidence = state.evidence || {};
   const row = state.queueRow || {};
   const blocking = toInt(evidence.blocking_issue_count ?? row.open_blockers);
@@ -2634,6 +2994,7 @@ function renderEvidence() {
       ${state.copyContractError ? `<p class="muted-note ea-autosave is-failed ea-copy-contract-error" aria-live="polite">${escapeHtml(state.copyContractError)}</p>` : ""}
       <input id="fldCopyFile" class="ea-copy-file" type="file" accept="application/pdf,image/jpeg,image/png" hidden data-edit-action="true" />
     </div>
+    ${qcTestReportCardHtml(qcTestReportCardModel())}
     <div class="section-card">
       <h3 class="section-title">Evidence status</h3>
       <div class="evidence-list">
@@ -3027,6 +3388,9 @@ function qcPrepPayloadFromForm(form) {
   const laboratory = String(form.portal_laboratory_candidate ?? "");
   if (laboratory.length > 0) payload.portal_laboratory_candidate = laboratory;
   payload.report_filename = QC_PREP_CANONICAL_REPORT_FILENAME;
+  if (/^EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V[0-9]{2}\.pdf$/.test(String(form.report_filename || ""))) {
+    payload.report_filename = String(form.report_filename);
+  }
   if (String(form.shelf_life_months || "").trim()) payload.shelf_life_months = String(form.shelf_life_months).trim();
   const batchText = String(form.batches ?? "");
   if (batchText.length > 0) {
@@ -3181,6 +3545,17 @@ function resetQcPreparationWorkspace() {
     report_evidence_note: false,
   };
   state.qcPrepOpen = true;
+  state.qcReportRequest += 1;
+  state.qcReportUploadRequest += 1;
+  state.qcReportLoading = false;
+  state.qcReportLoadedFor = null;
+  state.qcReports = [];
+  state.qcReportNotice = "";
+  state.qcReportWarning = "";
+  state.qcReportFile = null;
+  state.qcReportSha = "";
+  state.qcReportFileError = "";
+  state.qcReportLastSize = null;
 }
 
 function qcPrepCurrent() {
@@ -3290,12 +3665,16 @@ function qcPrepWorkspaceHtml(model) {
     ? [...localHints, batchFormatMessage]
     : localHints;
   const checklist = [
-    "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
-    "B1/B2 — Report registered and bytes verified",
-    "B3 — Evidence governance accepted",
-    "B4 — QC portal readiness confirmed",
-    "Portal entry (manual, later)",
-  ].map((item) => `<li>${esc(item)} — not done</li>`).join("");
+    ["C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)", model.reportRegistered === true],
+    ["B1/B2 — Report registered and bytes verified", false],
+    ["B3 — Evidence governance accepted", false],
+    ["B4 — QC portal readiness confirmed", false],
+    ["Portal entry (manual, later)", false],
+  ].map(([item, done]) => (
+    done
+      ? `<li>${esc(item)}: done (registered, bytes unverified)</li>`
+      : `<li>${esc(item)} — not done</li>`
+  )).join("");
   const labs = Array.isArray(model.labs) ? model.labs : [];
   const selectedLab = labs.find((item) => item.label === model.lab);
   const labMissing = model.lab && !labs.some((item) => item.label === model.lab);
@@ -3390,7 +3769,8 @@ function qcPrepWorkspaceHtml(model) {
         <p class="muted-note qc-prep-block" id="qcPrepFileName">File name: EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf</p>
         <button type="button" class="icon-btn with-label" id="btnQcPrepCopyName">Copy name</button>
         <p class="muted-note qc-prep-block" id="qcPrepShaView">SHA-256: ${model.sha ? esc(model.sha) : "computed at upload (D2)"}</p>
-        <p class="muted-note qc-prep-block">Portal upload limit: PDF ≤ 2 MB. Upload is in the Evidence tab (next release).</p>
+        ${model.reportRegistered ? `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">Test report: V${esc(model.reportVersion)} registered \u2013 ${esc(model.reportFileName)}; SHA-256 ${esc(model.sha)}; bytes not yet verified (B2)</p><button type="button" class="icon-btn with-label" id="btnOpenEvidenceFromQc">Open Evidence tab</button>` : `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">No report uploaded. Upload in the Evidence tab.</p>`}
+        <p class="muted-note qc-prep-block">Portal upload limit: PDF ≤ 2 MB. Upload is in the Evidence tab.</p>
       </section>
       ${reasonList}
       <ul class="progress-list" id="qcPrepChecklist">${checklist}</ul>
@@ -3491,6 +3871,7 @@ async function loadQcPreparationWorkspace(productId, request) {
     }
     if (state.selectedProductId === productId) {
       renderQcSurface();
+      if (state.tab === "evidence") renderEvidence();
       if (reloadFeedback) revealQcPrepResult("btnQcPrepReload");
       else if (preserveNotice) revealQcPrepResult("btnQcPrepSave");
     }
@@ -3567,6 +3948,11 @@ function qcPreparationWorkspaceMarkup() {
     sha: form.report_sha256,
     evidence: form.report_evidence_note,
     noteOverrides: state.qcPrepNoteOverrides,
+    reportRegistered: Boolean(qcRegisteredReport(state.qcPrepServer?.preparation_id)),
+    reportVersion: qcRegisteredReport(state.qcPrepServer?.preparation_id)
+      ? String(qcRegisteredReport(state.qcPrepServer?.preparation_id).version_no).padStart(2, "0")
+      : "",
+    reportFileName: qcRegisteredReport(state.qcPrepServer?.preparation_id)?.expected_file_name || "",
     reviewDisabled: access.canView !== true || !available || state.busy || state.qcPrepLoading,
     saveDisabled: !canWrite() || locked,
     reloadDisabled: access.canView !== true || state.busy,
@@ -4764,6 +5150,7 @@ function renderQc() {
   const host = $("tab-qc");
   if (!host) return;
   queueQcPreparationLoad();
+  queueQcReportLoad();
   if (!workerApiAvailable()) {
     host.innerHTML = `<section class="section-card qc-prep-workspace"><h3 class="section-title">QC Register</h3><p class="muted-note">QC preparation is available only in the SASV Electron app.</p></section>`;
     return;
@@ -6438,6 +6825,12 @@ async function copyQcPrepReportFilename() {
   await copyTextWithToast("EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf");
 }
 
+async function copyQcReportNextName() {
+  const next = qcReportNextFile(state.qcReports, state.qcPrepServer?.preparation_id);
+  if (!next.fileName) return;
+  await copyTextWithToast(next.fileName);
+}
+
 async function copyTextWithToast(text) {
   try {
     if (navigator?.clipboard?.writeText) {
@@ -7220,6 +7613,14 @@ function wireEvents() {
       renderEvidence();
       requestAnimationFrame(() => $("fldCopyFile")?.click());
     }
+    if (btn.id === "btnQcReportCopyName") void copyQcReportNextName();
+    if (btn.id === "btnQcReportUpload") void submitQcReportUpload();
+  });
+  $("tab-evidence")?.addEventListener("change", (event) => {
+    if (event.target.id !== "fldQcReportFile") return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+    void pickQcReportFile(file);
   });
 
   $("tab-readiness")?.addEventListener("click", (event) => {
@@ -7258,6 +7659,7 @@ function wireEvents() {
     if (event.target.id === "btnQcPrepSave") void submitQcPreparationSave();
     if (event.target.id === "btnQcPrepReload") reloadQcPreparationWorkspace({ feedback: true });
     if (event.target.id === "btnQcPrepCopyName") void copyQcPrepReportFilename();
+    if (event.target.id === "btnOpenEvidenceFromQc") selectWorkflowTab("evidence");
   });
   $("tab-qc")?.addEventListener("input", onQcPrepField);
   $("tab-qc")?.addEventListener("change", onQcPrepField);

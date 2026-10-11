@@ -194,6 +194,24 @@ export async function saveQcPreparation(productId, accessToken, draft) {
   return window.eaushadhiWorkerAPI.saveQcPreparation(productId, accessToken, draft);
 }
 
+export async function listQcReports(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.listQcReports !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.listQcReports(productId, accessToken);
+}
+
+export async function reserveQcReport(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.reserveQcReport !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.reserveQcReport(productId, accessToken, draft);
+}
+
+export async function registerQcReport(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.registerQcReport !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.registerQcReport(productId, accessToken, draft);
+}
+
 export function onWorkerStatus(callback) {
   if (!workerApiAvailable() || typeof window.eaushadhiWorkerAPI.onStatus !== "function") {
     return () => {};
