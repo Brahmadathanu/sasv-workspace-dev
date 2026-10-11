@@ -35,7 +35,9 @@ function qcReportTooLargeMessage(size) {
 }
 
 function assertQcReportByteLimit(fileSize) {
-  if (fileSize == null) return;
+  if (fileSize == null) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report was not accepted.");
+  }
   const size = Number(fileSize);
   if (!Number.isInteger(size) || size <= 0) {
     throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report was not accepted.");

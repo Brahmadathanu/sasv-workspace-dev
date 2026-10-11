@@ -258,3 +258,16 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - The live B2 SQL is in the repository as `supabase/migrations/20261011094445_wp07_b2_qc_report_byte_verification.sql`, byte-exact to the applied migration (md5 `11a328b66551d8a1bbce82e1133560ec`). It was not reapplied. `rpc_eaushadhi_qc_report_record_byte_check_v1` and `rpc_eaushadhi_qc_report_byte_check_target_v1` are EXECUTE for `service_role` only; `anon` and `authenticated` have none.
 - A PDF larger than 2 MB is rejected when the file is selected and again in the worker before reserve or register, with no network call.
 - A reused reservation that returns `40001` from register asks the operator to reserve a new version. Only that click calls reserve with `forceNew`. There is no automatic retry.
+
+## 2026-10-11 — WP-07 D3.3 V01 byte check verified
+- **V01 byte check ran (operator-triggered):**
+  - Reservation `7e9bdf61-43c8-407d-b4dc-d9b45680c972` → `VERIFIED_BYTES`.
+  - Verified SHA-256 `0795de1d0e186cec278040cd16f1431e7422ceeaf7b48f7b6a50ca9bdba60ee9` equals the claimed SHA-256.
+  - Size 1,723,549 bytes; object version `306b7fc8-e5b4-4e88-9b36-45c7f5d38c24`.
+  - `bytes_checked_at` 2026-10-11 12:25:07 UTC (17:55:07 IST); event #3 `BYTES_VERIFIED`, method `edge:eaushadhi-qc-report-verify`.
+- **Negative permission test passed** before the check:
+  - No auth header → 401 at the gateway.
+  - Anon key → 403 FORBIDDEN.
+  - Viewer-only user → `42501 e-Aushadhi Automation permission is required`.
+  - No state change.
+- **Confirm is now an in-page modal, and worker `fileSize` is required.**

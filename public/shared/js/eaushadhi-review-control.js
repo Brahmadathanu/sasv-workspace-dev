@@ -340,6 +340,7 @@ const state = {
   qcReportLastSize: null,
   qcReportVerifyRequest: 0,
   qcReportVerifying: false,
+  qcReportConfirmOpen: false,
   qcReportByteResult: null,
   qcReportVerifyError: "",
   qcReportVerifyCode: "",
@@ -2845,7 +2846,7 @@ function qcReportByteLabel(report, session) {
 
 function qcReportShowByteCheck(model) {
   if (model?.electron !== true || model?.canWrite !== true) return false;
-  if (model?.verifying === true) return true;
+  if (model?.verifying === true || model?.confirmOpen === true) return true;
   if (model.verifyCode === "OBJECT_CHANGED" || model.verifyCode === "NETWORK") return true;
   return model.integrityStatus === "UNVERIFIED_BYTES" && Boolean(model.latestRegistered);
 }
@@ -2867,8 +2868,86 @@ function qcReportByteCheckWarning(version) {
   return `The server will read the stored PDF and compute its SHA-256. If the checksum does not match, the file is not a valid PDF, or it is over 2 MB, this version (V${version}) is permanently marked BYTES_MISMATCH and cannot be re-checked. You would need to upload a new version. Continue?`;
 }
 
+function openQcByteCheckConfirm(message) {
+  if (openQcByteCheckConfirm.showing === true) return Promise.resolve(false);
+  openQcByteCheckConfirm.showing = true;
+  const trigger = document.getElementById("btnQcReportCheckBytes");
+  return new Promise((resolve) => {
+    let closed = false;
+    const backdrop = document.createElement("div");
+    backdrop.id = "qcByteCheckConfirmBackdrop";
+    backdrop.className = "sasv-modal-backdrop ea-source-resolve";
+    const dialog = document.createElement("div");
+    dialog.id = "qcByteCheckConfirmDialog";
+    dialog.className = "sasv-modal";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", "qcByteCheckConfirmTitle");
+    dialog.tabIndex = -1;
+    const header = document.createElement("div");
+    header.className = "sasv-modal__header";
+    const title = document.createElement("h2");
+    title.id = "qcByteCheckConfirmTitle";
+    title.className = "sasv-modal__title";
+    title.textContent = "Check bytes on server";
+    header.append(title);
+    const body = document.createElement("div");
+    body.id = "qcByteCheckConfirmBody";
+    body.className = "sasv-modal__body";
+    const paragraph = document.createElement("p");
+    paragraph.textContent = String(message ?? "");
+    body.append(paragraph);
+    const footer = document.createElement("div");
+    footer.className = "sasv-modal__footer";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.id = "qcByteCheckConfirmCancel";
+    cancelBtn.className = "icon-btn with-label";
+    cancelBtn.textContent = "Cancel";
+    const okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.id = "qcByteCheckConfirmOk";
+    okBtn.className = "icon-btn with-label primary";
+    okBtn.textContent = "OK, check bytes";
+    footer.append(cancelBtn, okBtn);
+    dialog.append(header, body, footer);
+    backdrop.append(dialog);
+
+    const close = (accepted) => {
+      if (closed) return;
+      closed = true;
+      openQcByteCheckConfirm.showing = false;
+      document.removeEventListener("keydown", onKeydown, true);
+      backdrop.remove();
+      const button = document.getElementById("btnQcReportCheckBytes") || trigger;
+      if (button && typeof button.focus === "function") button.focus();
+      resolve(accepted === true);
+    };
+
+    const onKeydown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close(false);
+        return;
+      }
+      trapModalTab(event, "qcByteCheckConfirmDialog");
+    };
+
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) close(false);
+    });
+    cancelBtn.addEventListener("click", () => close(false));
+    okBtn.addEventListener("click", () => close(true));
+    document.body.append(backdrop);
+    document.addEventListener("keydown", onKeydown, true);
+    cancelBtn.focus();
+  });
+}
+
 async function runConfirmedQcReportByteCheck(version, confirm, verify) {
-  if (confirm(qcReportByteCheckWarning(version)) !== true) return false;
+  const msg = qcReportByteCheckWarning(version);
+  if ((await confirm(msg)) !== true) return false;
   await verify();
   return true;
 }
@@ -2911,6 +2990,7 @@ function qcTestReportCardModel() {
     verifiedSha: activeSession?.verified_sha256 || "",
     verifiedSize: activeSession?.verified_size_bytes ?? null,
     verifying: state.qcReportVerifying === true,
+    confirmOpen: state.qcReportConfirmOpen === true,
     verifyError: state.qcReportVerifyError,
     verifyCode: state.qcReportVerifyCode,
     offerNewVersion: state.qcReportOfferNewVersion === true,
@@ -3077,7 +3157,8 @@ function clearQcReportFile() {
 }
 
 async function submitQcReportByteCheck() {
-  if (state.busy || state.qcReportVerifying || !workerApiAvailable() || !canWrite()) return;
+  if (state.qcReportVerifying === true || state.qcReportConfirmOpen === true) return;
+  if (state.busy || !workerApiAvailable() || !canWrite()) return;
   if (!isFirstControlledEntryProduct(state.selectedProductId)) return;
   const latest = qcRegisteredReport(state.qcPrepServer?.preparation_id);
   if (!latest?.reservation_id) return;
@@ -3085,8 +3166,9 @@ async function submitQcReportByteCheck() {
   const version = String(latest.version_no).padStart(2, "0");
   let request = state.qcReportVerifyRequest;
   let checked = null;
+  state.qcReportConfirmOpen = true;
   try {
-    const ran = await runConfirmedQcReportByteCheck(version, (message) => window.confirm(message), async () => {
+    const ran = await runConfirmedQcReportByteCheck(version, openQcByteCheckConfirm, async () => {
       if (state.qcReportVerifying || state.selectedProductId !== productId) return;
       request = ++state.qcReportVerifyRequest;
       state.qcReportVerifying = true;
@@ -3098,6 +3180,7 @@ async function submitQcReportByteCheck() {
       checked = await verifyQcReportBytes(productId, token, { reservationId: latest.reservation_id });
     });
     if (ran !== true) return;
+    if (checked == null) return;
     if (state.qcReportVerifyRequest !== request || state.selectedProductId !== productId) return;
     if (checked?.ok === true) {
       state.qcReportByteResult = {
@@ -3120,8 +3203,11 @@ async function submitQcReportByteCheck() {
     state.qcReportVerifyError = userMessageForError(error);
     state.qcReportVerifyCode = "NETWORK";
   } finally {
+    state.qcReportConfirmOpen = false;
     if (state.qcReportVerifyRequest === request) state.qcReportVerifying = false;
     if (state.selectedProductId === productId && state.tab === "evidence") renderEvidence();
+    const button = document.getElementById("btnQcReportCheckBytes");
+    if (button && typeof button.focus === "function") button.focus();
   }
 }
 
@@ -3138,6 +3224,7 @@ async function reserveNewQcReportVersion() {
       preparationId: preparation.preparation_id,
       expectedRowVersion: preparation.row_version,
       forceNew: true,
+      fileSize: state.qcReportFile?.size,
     });
     if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
     if (reserved?.ok === false) {
@@ -3193,7 +3280,7 @@ function qcTestReportCardHtml(model) {
     latestLine = `<p class="muted-note" id="qcReportByteStatus">Latest registered: ${esc(latest.expected_file_name)}; SHA-256 ${esc(model.sha || "")};${size} Bytes not yet verified. ${esc(b1)}. ${esc(b2)}</p>`;
   }
   const checkButton = qcReportShowByteCheck(model)
-    ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes"${model.verifying ? " disabled" : ""}>Check bytes on server</button>`
+    ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes"${model.verifying || model.confirmOpen ? " disabled" : ""}>Check bytes on server</button>`
     : "";
   const newVersionButton = model.offerNewVersion && model.electron === true && model.canWrite === true
     ? `<button type="button" class="icon-btn with-label" id="btnQcReportReserveNew">Reserve a new version</button>`
@@ -3824,6 +3911,7 @@ function resetQcPreparationWorkspace() {
   state.qcReportLastSize = null;
   state.qcReportVerifyRequest += 1;
   state.qcReportVerifying = false;
+  state.qcReportConfirmOpen = false;
   state.qcReportByteResult = null;
   state.qcReportVerifyError = "";
   state.qcReportVerifyCode = "";
