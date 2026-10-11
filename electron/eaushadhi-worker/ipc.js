@@ -12,7 +12,7 @@ const {
   saveQcPreparation,
 } = require("./qc-preparation-workspace");
 const { readQcReport } = require("./qc-report-read");
-const { listQcReports, reserveQcReport, registerQcReport } = require("./qc-report-upload");
+const { listQcReports, reserveQcReport, registerQcReport, verifyQcReportBytes } = require("./qc-report-upload");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const {
   assertAllowedEaushadhiRenderer,
@@ -51,6 +51,7 @@ const CHANNELS = Object.freeze({
   QC_REPORT_LIST: "eaushadhi-worker:qc-report-list",
   QC_REPORT_RESERVE: "eaushadhi-worker:qc-report-reserve",
   QC_REPORT_REGISTER: "eaushadhi-worker:qc-report-register",
+  QC_REPORT_VERIFY_BYTES: "eaushadhi-worker:qc-report-verify-bytes",
 });
 
 function errorPayload(error) {
@@ -381,6 +382,7 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         accessToken,
         preparationId: payload?.preparationId,
         expectedRowVersion: payload?.expectedRowVersion,
+        forceNew: payload?.forceNew === true,
         callRpc: callWorkerRpc,
       });
     }),
@@ -400,6 +402,19 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         originalFileName: payload?.originalFileName,
         sha256: payload?.sha256,
         callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_VERIFY_BYTES,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return verifyQcReportBytes({
+        productId,
+        accessToken,
+        reservationId: payload?.reservationId,
       });
     }),
   );

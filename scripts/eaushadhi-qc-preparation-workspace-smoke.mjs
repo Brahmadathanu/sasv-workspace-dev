@@ -645,13 +645,14 @@ assert(!html.includes("READY"), "rendered QC markup does not contain READY");
 assert(html.includes("Fields complete (draft only)"), "rendered QC markup says the draft fields are complete");
 for (const item of [
   "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
-  "B1/B2 — Report registered and bytes verified",
   "B3 — Evidence governance accepted",
   "B4 — QC portal readiness confirmed",
   "Portal entry (manual, later)",
 ]) {
   assert(html.includes(`${item} — not done`), `checklist marks ${item} not done`);
 }
+assert(html.includes("B1: Report registered"), "checklist names B1");
+assert(html.includes("B2: Server byte check: pending"), "checklist names a pending byte check");
 assert(html.includes("Issuing lab Form-48 approval no. (evidence only; not sent to portal)"), "Form-48 label text is exact");
 assert(html.includes("portal id 3980"), "the selected laboratory shows its portal id");
 const unavailableHtml = renderQc({

@@ -199,6 +199,7 @@ import {
   listQcReports,
   reserveQcReport,
   registerQcReport,
+  verifyQcReportBytes,
   runWorkerFoundationCheck,
   runWorkerEntryDryRun,
   previewWorkerProductDetails,
@@ -335,6 +336,12 @@ const state = {
   qcReportSha: "",
   qcReportFileError: "",
   qcReportLastSize: null,
+  qcReportVerifyRequest: 0,
+  qcReportVerifying: false,
+  qcReportByteResult: null,
+  qcReportVerifyError: "",
+  qcReportVerifyCode: "",
+  qcReportOfferNewVersion: false,
   workerDryRunResult: null,
   workerProductDetailsPreview: null,
   workerProductDetailsResult: null,
@@ -2678,6 +2685,7 @@ async function executeQcReportUpload(input) {
   const reserved = await input.reserve({
     preparationId: preparation.preparation_id,
     expectedRowVersion: preparation.row_version,
+    forceNew: input.forceNew === true,
   });
   steps.push("reserve");
   if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
@@ -2698,7 +2706,20 @@ async function executeQcReportUpload(input) {
     return { ok: false, message: error?.message || "QC test report upload failed.", steps };
   }
   steps.push("upload");
-  if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
+  if (!input.isCurrent()) {
+    let removed = false;
+    try {
+      removed = await input.remove(path) !== false;
+    } catch {
+      removed = false;
+    }
+    return {
+      ok: false,
+      abandoned: true,
+      warning: removed ? "" : qcReportRemovalWarning(path),
+      steps,
+    };
+  }
   const objectId = qcReportObjectId(uploaded?.id);
   if (!objectId) {
     let removed = false;
@@ -2734,6 +2755,9 @@ async function executeQcReportUpload(input) {
       ok: false,
       message: registered.message || "QC test report upload failed.",
       warning: removed ? "" : qcReportRemovalWarning(path),
+      offerNewVersion: reserved.reused === true
+        && String(registered.message || "").startsWith("Stale reservation")
+        && String(registered.message || "").includes("reload and retry"),
       steps,
     };
   }
@@ -2761,19 +2785,62 @@ async function executeQcReportUpload(input) {
     };
   }
   const version = String(reservation.version_no).padStart(2, "0");
+  let verification = null;
+  if (typeof input.verify === "function") {
+    if (typeof input.onVerifyStart === "function") input.onVerifyStart();
+    verification = await input.verify({ reservationId: reservation.reservation_id });
+    steps.push("verify");
+    if (!input.isCurrent()) return { ok: false, abandoned: true, steps, verification };
+  }
   return {
     ok: true,
     steps,
+    reservationId: reservation.reservation_id,
     fileName: reservation.expected_file_name,
     sha256: input.sha256,
+    verification,
     toast: `QC test report V${version} registered; draft saved (version ${saved.row_version}).`,
   };
+}
+
+function qcReportSizeText(size) {
+  const bytes = Number(size);
+  const count = Number.isFinite(bytes) ? bytes : 0;
+  const kb = (count / 1024).toFixed(1);
+  const mb = (count / 1048576).toFixed(2);
+  return `${count} bytes (${kb} KB / ${mb} MB)`;
+}
+
+function qcReportByteReasonText(code) {
+  if (code === "SHA256_MISMATCH") return "file on server differs from the file you picked";
+  if (code === "SIZE_MISMATCH_STORAGE_METADATA") return "stored size does not match the storage metadata";
+  if (code === "SIZE_OUT_OF_RANGE_2MB") return "over 2 MB";
+  if (code === "NOT_PDF_HEADER") return "not a PDF";
+  return String(code || "");
+}
+
+function qcReportByteLabel(report, session) {
+  const sessionMatches = Boolean(session) && Boolean(report)
+    && String(session.reservation_id) === String(report.reservation_id);
+  const status = sessionMatches ? session.integrity_status : report?.integrity_status;
+  if (status === "VERIFIED_BYTES") return "verified";
+  if (status === "BYTES_MISMATCH") return "mismatch";
+  return "pending";
+}
+
+function qcReportShowByteCheck(model) {
+  if (model?.electron !== true || model?.canWrite !== true || model?.verifying === true) return false;
+  if (model.verifyCode === "OBJECT_CHANGED" || model.verifyCode === "NETWORK") return true;
+  return model.integrityStatus === "UNVERIFIED_BYTES" && Boolean(model.latestRegistered);
 }
 
 function qcTestReportCardModel() {
   const preparation = state.qcPrepServer;
   const next = qcReportNextFile(state.qcReports, preparation?.preparation_id);
   const latest = qcRegisteredReport(preparation?.preparation_id);
+  const sessionReport = latest || (state.qcReportByteResult
+    ? { reservation_id: state.qcReportByteResult.reservation_id, integrity_status: state.qcReportByteResult.integrity_status }
+    : null);
   const electron = workerApiAvailable();
   const allowed = isFirstControlledEntryProduct(state.selectedProductId);
   const uploadDisabled = !canWrite()
@@ -2785,18 +2852,33 @@ function qcTestReportCardModel() {
     || !state.qcReportFile
     || !state.qcReportSha
     || Boolean(state.qcReportFileError);
+  const sessionMatches = Boolean(latest) && Boolean(state.qcReportByteResult)
+    && String(state.qcReportByteResult.reservation_id) === String(latest.reservation_id);
+  const activeSession = sessionMatches || !latest ? state.qcReportByteResult : null;
   return {
     electron,
     productAllowed: allowed,
+    canWrite: canWrite(),
     status: preparation
       ? qcPrepStatusText(preparation, state.qcPrepLoading)
       : "No QC preparation saved yet.",
     reports: state.qcReports,
     latestRegistered: latest,
+    integrityStatus: latest?.integrity_status || "",
+    byteCheck: qcReportByteLabel(sessionReport, state.qcReportByteResult),
+    reasons: Array.isArray(activeSession?.reasons) ? activeSession.reasons : [],
+    verifiedSha: activeSession?.verified_sha256 || "",
+    verifiedSize: activeSession?.verified_size_bytes ?? null,
+    verifying: state.qcReportVerifying === true,
+    verifyError: state.qcReportVerifyError,
+    verifyCode: state.qcReportVerifyCode,
+    offerNewVersion: state.qcReportOfferNewVersion === true,
     sha: preparation ? qcPrepForm().report_sha256 : "",
     lastSize: state.qcReportLastSize,
     nextLabel: next.label,
     nextFileName: next.fileName,
+    chosenName: state.qcReportFile?.name || "",
+    chosenSizeText: state.qcReportFile ? qcReportSizeText(state.qcReportFile.size) : "",
     shaPreview: state.qcReportSha,
     fileError: state.qcPrepDirty ? "Save or reload the QC form first." : state.qcReportFileError,
     warning: state.qcReportWarning,
@@ -2897,9 +2979,34 @@ async function submitQcReportUpload() {
       remove: (path) => removeQcReportObject(path),
       register: (draft) => registerQcReport(productId, token, draft),
       save: (draft) => saveQcPreparation(productId, token, draft),
+      verify: (draft) => verifyQcReportBytes(productId, token, draft),
+      onVerifyStart: () => {
+        state.qcReportVerifying = true;
+        state.qcReportVerifyError = "";
+        state.qcReportVerifyCode = "";
+        if (state.selectedProductId === productId && state.tab === "evidence") renderEvidence();
+      },
     });
+    if (result.warning && state.qcReportUploadRequest === request && state.selectedProductId === productId) {
+      state.qcReportWarning = result.warning;
+    }
     if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
-    if (result.warning) state.qcReportWarning = result.warning;
+    state.qcReportVerifying = false;
+    state.qcReportOfferNewVersion = result.offerNewVersion === true;
+    if (result.verification?.ok === true) {
+      state.qcReportByteResult = {
+        reservation_id: result.reservationId,
+        integrity_status: result.verification.integrity_status,
+        reasons: result.verification.reasons || [],
+        verified_sha256: result.verification.verified_sha256 || "",
+        verified_size_bytes: result.verification.verified_size_bytes ?? null,
+      };
+      state.qcReportVerifyError = "";
+      state.qcReportVerifyCode = "";
+    } else if (result.verification) {
+      state.qcReportVerifyError = result.verification.message || "QC test report byte check failed.";
+      state.qcReportVerifyCode = result.verification.code || "";
+    }
     if (result.ok === true) {
       state.qcReportLastSize = state.qcReportFile?.size || null;
       state.qcReportFile = null;
@@ -2918,6 +3025,89 @@ async function submitQcReportUpload() {
     if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
     state.qcReportFileError = userMessageForError(error);
     showToast(state.qcReportFileError, "error");
+  } finally {
+    if (state.qcReportUploadRequest === request) {
+      state.busy = false;
+      state.qcReportVerifying = false;
+    }
+    if (state.selectedProductId === productId && state.tab === "evidence") renderEvidence();
+  }
+}
+
+function clearQcReportFile() {
+  state.qcReportFile = null;
+  state.qcReportSha = "";
+  state.qcReportFileError = "";
+  if (state.tab === "evidence") renderEvidence();
+}
+
+async function submitQcReportByteCheck() {
+  if (state.busy || state.qcReportVerifying || !workerApiAvailable() || !canWrite()) return;
+  if (!isFirstControlledEntryProduct(state.selectedProductId)) return;
+  const latest = qcRegisteredReport(state.qcPrepServer?.preparation_id);
+  if (!latest?.reservation_id) return;
+  const productId = state.selectedProductId;
+  const request = ++state.qcReportVerifyRequest;
+  state.qcReportVerifying = true;
+  state.qcReportVerifyError = "";
+  state.qcReportVerifyCode = "";
+  if (state.tab === "evidence") renderEvidence();
+  try {
+    const token = await sessionAccessToken();
+    if (state.qcReportVerifyRequest !== request || state.selectedProductId !== productId) return;
+    const checked = await verifyQcReportBytes(productId, token, { reservationId: latest.reservation_id });
+    if (state.qcReportVerifyRequest !== request || state.selectedProductId !== productId) return;
+    if (checked?.ok === true) {
+      state.qcReportByteResult = {
+        reservation_id: latest.reservation_id,
+        integrity_status: checked.integrity_status,
+        reasons: checked.reasons || [],
+        verified_sha256: checked.verified_sha256 || "",
+        verified_size_bytes: checked.verified_size_bytes ?? null,
+      };
+      state.qcReportVerifyError = "";
+      state.qcReportVerifyCode = "";
+      state.qcReportLoadedFor = null;
+      queueQcReportLoad();
+    } else {
+      state.qcReportVerifyError = checked?.message || "QC test report byte check failed.";
+      state.qcReportVerifyCode = checked?.code || "";
+    }
+  } catch (error) {
+    if (state.qcReportVerifyRequest !== request || state.selectedProductId !== productId) return;
+    state.qcReportVerifyError = userMessageForError(error);
+    state.qcReportVerifyCode = "NETWORK";
+  } finally {
+    if (state.qcReportVerifyRequest === request) state.qcReportVerifying = false;
+    if (state.selectedProductId === productId && state.tab === "evidence") renderEvidence();
+  }
+}
+
+async function reserveNewQcReportVersion() {
+  if (state.busy || state.qcReportOfferNewVersion !== true || !workerApiAvailable() || !canWrite()) return;
+  const preparation = state.qcPrepServer;
+  if (!preparation || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  const productId = state.selectedProductId;
+  const request = ++state.qcReportUploadRequest;
+  state.busy = true;
+  try {
+    const token = await sessionAccessToken();
+    const reserved = await reserveQcReport(productId, token, {
+      preparationId: preparation.preparation_id,
+      expectedRowVersion: preparation.row_version,
+      forceNew: true,
+    });
+    if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
+    if (reserved?.ok === false) {
+      state.qcReportFileError = reserved.message || "QC test report upload failed.";
+      return;
+    }
+    state.qcReportOfferNewVersion = false;
+    state.qcReportLoadedFor = null;
+    queueQcReportLoad();
+  } catch (error) {
+    if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
+    state.qcReportFileError = userMessageForError(error);
   } finally {
     if (state.qcReportUploadRequest === request) state.busy = false;
     if (state.selectedProductId === productId && state.tab === "evidence") renderEvidence();
@@ -2939,10 +3129,36 @@ function qcTestReportCardHtml(model) {
   const reports = Array.isArray(model.reports) ? model.reports : [];
   const rows = reports.map((row) => `<li>V${esc(String(row.version_no).padStart(2, "0"))} ${esc(row.status)} ${esc(row.expected_file_name)}</li>`).join("");
   const latest = model.latestRegistered;
-  const size = model.lastSize ? ` Size ${esc(model.lastSize)} bytes.` : "";
-  const latestLine = latest
-    ? `<p class="muted-note">Latest registered: ${esc(latest.expected_file_name)}; SHA-256 ${esc(model.sha || "")};${size} Report bytes not yet verified (B2).</p>`
-    : `<p class="muted-note">No report uploaded.</p>`;
+  const version = latest ? String(latest.version_no).padStart(2, "0") : "";
+  const b1 = version ? `B1: Report registered (V${version})` : "B1: Report registered";
+  const b2 = `B2: Server byte check: ${model.byteCheck || "pending"}`;
+  const reasons = (Array.isArray(model.reasons) ? model.reasons : [])
+    .map((code) => qcReportByteReasonText(code))
+    .filter(Boolean);
+  let latestLine = `<p class="muted-note">No report uploaded.</p>`;
+  if (model.verifying) {
+    latestLine = `<p class="muted-note" id="qcReportByteStatus">Verifying bytes on server...</p>`;
+  } else if (latest && model.byteCheck === "verified") {
+    const sha = model.verifiedSha || "";
+    const size = model.verifiedSize == null ? "" : `${model.verifiedSize} bytes`;
+    const detail = sha ? `Server verified bytes: SHA-256 ${sha}, ${size}` : "Server byte check: verified";
+    latestLine = `<p class="muted-note ea-autosave is-verified" id="qcReportByteStatus">${esc(detail)}. ${esc(b1)}. ${esc(b2)}</p>`;
+  } else if (latest && model.byteCheck === "mismatch") {
+    const reasonLine = reasons.length ? `${reasons.join("; ")}. ` : "";
+    latestLine = `<p class="muted-note ea-autosave is-failed" id="qcReportByteStatus">${esc(reasonLine)}This version is final. Upload a corrected file as a new version. ${esc(b1)}. ${esc(b2)}</p>`;
+  } else if (latest) {
+    const size = model.lastSize ? ` Size ${esc(model.lastSize)} bytes.` : "";
+    latestLine = `<p class="muted-note" id="qcReportByteStatus">Latest registered: ${esc(latest.expected_file_name)}; SHA-256 ${esc(model.sha || "")};${size} Bytes not yet verified. ${esc(b1)}. ${esc(b2)}</p>`;
+  }
+  const checkButton = qcReportShowByteCheck(model)
+    ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes">Check bytes on server</button>`
+    : "";
+  const newVersionButton = model.offerNewVersion && model.electron === true && model.canWrite === true
+    ? `<button type="button" class="icon-btn with-label" id="btnQcReportReserveNew">Reserve a new version</button>`
+    : "";
+  const chosen = model.chosenName
+    ? `<div id="qcReportChosenFile"><p class="muted-note">Chosen file: ${esc(model.chosenName)}</p><p class="muted-note">Size: ${esc(model.chosenSizeText)}</p><p class="muted-note qc-report-sha" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview || "")}</p><button type="button" class="icon-btn with-label" id="btnQcReportClearFile">Clear</button></div>`
+    : "";
   return `<section class="section-card" id="qcTestReportCard">
     <h3 class="section-title">QC Test Report (Product 262)</h3>
     <p class="muted-note">${esc(model.status || "")}</p>
@@ -2951,8 +3167,11 @@ function qcTestReportCardHtml(model) {
     <p class="muted-note" id="qcReportNextName">Next file name: ${esc(model.nextLabel)}</p>
     <p class="muted-note qc-prep-block">${esc(model.nextFileName)}</p>
     <button type="button" class="icon-btn with-label" id="btnQcReportCopyName">Copy name</button>
-    ${model.shaPreview ? `<p class="muted-note" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview)}</p>` : ""}
+    ${chosen}
     ${model.fileError ? `<p class="muted-note ea-autosave is-failed" id="qcReportFileError">${esc(model.fileError)}</p>` : ""}
+    ${model.verifyError ? `<p class="muted-note ea-autosave is-failed" id="qcReportVerifyError">${esc(model.verifyError)}</p>` : ""}
+    ${checkButton}
+    ${newVersionButton}
     ${model.warning ? `<p class="muted-note ea-autosave is-failed" id="qcReportWarning">${esc(model.warning)}</p>` : ""}
     ${model.notice ? `<p class="muted-note" id="qcReportNotice">${esc(model.notice)}</p>` : ""}
     <input id="fldQcReportFile" type="file" accept="application/pdf,.pdf" />
@@ -3300,7 +3519,10 @@ function qcPrepGeneratedNotes(form, options) {
   const batchList = batchText.split(",").join(", ");
   const issuer = String(form?.source_report_issuer || "").trim();
   const sha = String(form?.report_sha256 || "").trim();
-  const filename = "EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf";
+  const reportName = String(form?.report_filename || "");
+  const filename = /^EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V[0-9]{2}\.pdf$/.test(reportName)
+    ? reportName
+    : "EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf";
   const dateNote = dateOk(start) && dateOk(end) && batchesOk && protocolText
     ? `Study period ${qcPrepFmtDate(start)} to ${qcPrepFmtDate(end)} entered manually by the operator on the operator-reviewed cross-sectional manufacturing-span basis for batch(es) ${batchList}; testing protocol: ${protocolText}. Dates are not derived automatically.`
     : "";
@@ -3556,6 +3778,12 @@ function resetQcPreparationWorkspace() {
   state.qcReportSha = "";
   state.qcReportFileError = "";
   state.qcReportLastSize = null;
+  state.qcReportVerifyRequest += 1;
+  state.qcReportVerifying = false;
+  state.qcReportByteResult = null;
+  state.qcReportVerifyError = "";
+  state.qcReportVerifyCode = "";
+  state.qcReportOfferNewVersion = false;
 }
 
 function qcPrepCurrent() {
@@ -3664,16 +3892,24 @@ function qcPrepWorkspaceHtml(model) {
   const formChecks = batchFormatInvalid && !localHints.includes(batchFormatMessage)
     ? [...localHints, batchFormatMessage]
     : localHints;
+  const byteCheck = model.byteCheck === "verified" || model.byteCheck === "mismatch" ? model.byteCheck : "pending";
+  const b1Text = model.reportRegistered && model.reportVersion
+    ? `B1: Report registered (V${model.reportVersion})`
+    : "B1: Report registered";
+  const b2Text = `B2: Server byte check: ${byteCheck}`;
   const checklist = [
-    ["C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)", model.reportRegistered === true],
-    ["B1/B2 — Report registered and bytes verified", false],
-    ["B3 — Evidence governance accepted", false],
-    ["B4 — QC portal readiness confirmed", false],
-    ["Portal entry (manual, later)", false],
-  ].map(([item, done]) => (
-    done
-      ? `<li>${esc(item)}: done (registered, bytes unverified)</li>`
-      : `<li>${esc(item)} — not done</li>`
+    ["C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)", model.reportRegistered === true, false],
+    [b1Text, false, true],
+    [b2Text, false, true],
+    ["B3 — Evidence governance accepted", false, false],
+    ["B4 — QC portal readiness confirmed", false, false],
+    ["Portal entry (manual, later)", false, false],
+  ].map(([item, done, plain]) => (
+    plain
+      ? `<li>${esc(item)}</li>`
+      : done
+        ? `<li>${esc(item)}: done (registered, bytes unverified)</li>`
+        : `<li>${esc(item)} — not done</li>`
   )).join("");
   const labs = Array.isArray(model.labs) ? model.labs : [];
   const selectedLab = labs.find((item) => item.label === model.lab);
@@ -3769,7 +4005,7 @@ function qcPrepWorkspaceHtml(model) {
         <p class="muted-note qc-prep-block" id="qcPrepFileName">File name: EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf</p>
         <button type="button" class="icon-btn with-label" id="btnQcPrepCopyName">Copy name</button>
         <p class="muted-note qc-prep-block" id="qcPrepShaView">SHA-256: ${model.sha ? esc(model.sha) : "computed at upload (D2)"}</p>
-        ${model.reportRegistered ? `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">Test report: V${esc(model.reportVersion)} registered \u2013 ${esc(model.reportFileName)}; SHA-256 ${esc(model.sha)}; bytes not yet verified (B2)</p><button type="button" class="icon-btn with-label" id="btnOpenEvidenceFromQc">Open Evidence tab</button>` : `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">No report uploaded. Upload in the Evidence tab.</p>`}
+        ${model.reportRegistered ? `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">Test report: V${esc(model.reportVersion)} registered \u2013 ${esc(model.reportFileName)}; SHA-256 ${esc(model.sha)}. ${esc(b1Text)}. ${esc(b2Text)}</p><button type="button" class="icon-btn with-label" id="btnOpenEvidenceFromQc">Open Evidence tab</button>` : `<p class="muted-note qc-prep-block" id="qcPrepRegisteredReport">No report uploaded. Upload in the Evidence tab.</p>`}
         <p class="muted-note qc-prep-block">Portal upload limit: PDF ≤ 2 MB. Upload is in the Evidence tab.</p>
       </section>
       ${reasonList}
@@ -3953,6 +4189,10 @@ function qcPreparationWorkspaceMarkup() {
       ? String(qcRegisteredReport(state.qcPrepServer?.preparation_id).version_no).padStart(2, "0")
       : "",
     reportFileName: qcRegisteredReport(state.qcPrepServer?.preparation_id)?.expected_file_name || "",
+    byteCheck: qcReportByteLabel(
+      qcRegisteredReport(state.qcPrepServer?.preparation_id),
+      state.qcReportByteResult,
+    ),
     reviewDisabled: access.canView !== true || !available || state.busy || state.qcPrepLoading,
     saveDisabled: !canWrite() || locked,
     reloadDisabled: access.canView !== true || state.busy,
@@ -5143,7 +5383,11 @@ function qcReadinessSummaryText() {
   }
   if (!state.qcPrepServer && !state.qcPrepLoading) return "No QC preparation saved yet.";
   const openChecks = qcPrepLocalHints(qcPrepForm()).length;
-  return `QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open`;
+  const registered = qcRegisteredReport(state.qcPrepServer?.preparation_id);
+  const version = registered ? String(registered.version_no).padStart(2, "0") : "";
+  const b1 = version ? `B1: Report registered (V${version})` : "B1: Report registered";
+  const byte = qcReportByteLabel(registered, state.qcReportByteResult);
+  return `QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open. ${b1}. B2: Server byte check: ${byte}`;
 }
 
 function renderQc() {
@@ -7615,6 +7859,9 @@ function wireEvents() {
     }
     if (btn.id === "btnQcReportCopyName") void copyQcReportNextName();
     if (btn.id === "btnQcReportUpload") void submitQcReportUpload();
+    if (btn.id === "btnQcReportClearFile") clearQcReportFile();
+    if (btn.id === "btnQcReportCheckBytes") void submitQcReportByteCheck();
+    if (btn.id === "btnQcReportReserveNew") void reserveNewQcReportVersion();
   });
   $("tab-evidence")?.addEventListener("change", (event) => {
     if (event.target.id !== "fldQcReportFile") return;

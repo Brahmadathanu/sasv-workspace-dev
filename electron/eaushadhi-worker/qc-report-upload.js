@@ -2,12 +2,14 @@
 
 const { ERROR_KINDS, WorkerError, workerError } = require("./errors");
 const { FIRST_CONTROLLED_PRODUCT_ID } = require("./product-lock");
+const { createUserScopedClient } = require("./server-client");
 const { validateAccessToken } = require("./validate");
 
 const QC_PREPARATION_READ_RPC = "rpc_eaushadhi_qc_preparation_read_v1";
 const QC_REPORT_LIST_RPC = "rpc_eaushadhi_qc_report_read_v1";
 const QC_REPORT_RESERVE_RPC = "rpc_eaushadhi_qc_report_reserve_v1";
 const QC_REPORT_REGISTER_RPC = "rpc_eaushadhi_qc_report_register_v1";
+const QC_REPORT_VERIFY_FUNCTION = "eaushadhi-qc-report-verify";
 const QC_PREPARATION_SOURCE_KEY = "manual-qc:262:primary";
 const QC_REPORT_BUCKET = "eaushadhi-evidence";
 const QC_REPORT_FILENAME_RE = /^EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V[0-9]{2}\.pdf$/;
@@ -79,6 +81,19 @@ function assertReportRows(data) {
   });
 }
 
+function assertReusedReservation(reservation, preparationId) {
+  const fileName = reservation?.expected_file_name;
+  const path = reservation?.expected_storage_path;
+  if (
+    typeof fileName !== "string"
+    || !QC_REPORT_FILENAME_RE.test(fileName)
+    || path !== `qc-test-report/262/${preparationId}/${fileName}`
+  ) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report reservation was not accepted.");
+  }
+  return reservation;
+}
+
 function assertReservation(reservation, preparationId) {
   const fileName = reservation?.expected_file_name;
   const path = reservation?.expected_storage_path;
@@ -118,6 +133,7 @@ async function reserveQcReport({
   accessToken,
   preparationId,
   expectedRowVersion,
+  forceNew,
   callRpc,
 } = {}) {
   const id = assertReportProduct(productId);
@@ -163,12 +179,12 @@ async function reserveQcReport({
   const reserved = listed.reports
     .filter((item) => item.status === "RESERVED" && String(item.preparation_id) === preparationId)
     .sort((left, right) => right.version_no - left.version_no);
-  if (reserved.length > 0) {
+  if (forceNew !== true && reserved.length > 0) {
     return {
       ok: true,
       operation: "qc-report-reserve",
       productId: id,
-      reservation: reserved[0],
+      reservation: assertReusedReservation(reserved[0], preparationId),
       reused: true,
       mutated: false,
     };
@@ -244,14 +260,122 @@ async function registerQcReport({
   };
 }
 
+function verifyFailure(code) {
+  const messages = {
+    RESERVATION_NOT_REGISTERED: [ERROR_KINDS.PREFLIGHT_DENIED, "The QC test report is not registered."],
+    RESERVATION_NOT_FOUND: [ERROR_KINDS.PREFLIGHT_DENIED, "QC test report reservation was not found."],
+    OBJECT_MISSING: [ERROR_KINDS.CONTRACT_INCOMPLETE, "The stored QC test report file is missing."],
+    OBJECT_CHANGED: [ERROR_KINDS.STALE, "The stored file changed before the byte check finished."],
+    FORBIDDEN: [ERROR_KINDS.AUTHORIZATION, "Not authorized for e-Aushadhi automation."],
+    NETWORK: [ERROR_KINDS.NETWORK, "Network error while checking QC test report bytes."],
+  };
+  const mapped = messages[code];
+  if (!mapped) {
+    return {
+      ok: false,
+      operation: "qc-report-verify-bytes",
+      code: code || "VERIFY_FAILED",
+      errorKind: ERROR_KINDS.CRASH,
+      message: "QC test report byte check failed.",
+    };
+  }
+  return {
+    ok: false,
+    operation: "qc-report-verify-bytes",
+    code,
+    errorKind: mapped[0],
+    message: mapped[1],
+  };
+}
+
+async function invokePayload(result) {
+  if (result?.data && typeof result.data === "object") return result.data;
+  const context = result?.error?.context;
+  if (!context || typeof context !== "object") return null;
+  if (typeof context.json === "function") {
+    try {
+      const source = typeof context.clone === "function" ? context.clone() : context;
+      const body = await source.json();
+      return body && typeof body === "object" ? body : null;
+    } catch {
+      return null;
+    }
+  }
+  return context;
+}
+
+function acceptedByteCheck(body) {
+  const status = body?.integrity_status;
+  if (status !== "VERIFIED_BYTES" && status !== "BYTES_MISMATCH") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
+  }
+  if (body.reasons != null && !Array.isArray(body.reasons)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
+  }
+  const sha = body.verified_sha256 == null ? "" : String(body.verified_sha256);
+  if (sha !== "" && !QC_REPORT_SHA_RE.test(sha)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
+  }
+  const size = body.verified_size_bytes;
+  if (size != null && (!Number.isInteger(size) || size < 0)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
+  }
+  const documentAssetId = body.document_asset_id == null ? "" : String(body.document_asset_id);
+  if (documentAssetId !== "" && !QC_REPORT_UUID_RE.test(documentAssetId)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report byte check was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-report-verify-bytes",
+    integrity_status: status,
+    already_checked: body.already_checked === true,
+    reasons: Array.isArray(body.reasons) ? body.reasons.map((reason) => String(reason)) : [],
+    verified_sha256: sha,
+    verified_size_bytes: size == null ? null : size,
+    document_asset_id: documentAssetId,
+    mutated: body.already_checked !== true,
+  };
+}
+
+async function verifyQcReportBytes({
+  productId,
+  accessToken,
+  reservationId,
+  createClient,
+} = {}) {
+  const id = assertReportProduct(productId);
+  const token = validateAccessToken(accessToken);
+  if (typeof reservationId !== "string" || !QC_REPORT_UUID_RE.test(reservationId)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report was not accepted.");
+  }
+  const factory = typeof createClient === "function" ? createClient : createUserScopedClient;
+  let invoked;
+  try {
+    const client = factory(token);
+    invoked = await client.functions.invoke(QC_REPORT_VERIFY_FUNCTION, {
+      body: { product_id: id, reservation_id: reservationId },
+    });
+  } catch {
+    return verifyFailure("NETWORK");
+  }
+  const body = await invokePayload(invoked);
+  if (!body) {
+    return verifyFailure(invoked?.error ? "NETWORK" : "VERIFY_FAILED");
+  }
+  if (body.ok !== true) return verifyFailure(String(body.code || "VERIFY_FAILED"));
+  return acceptedByteCheck(body);
+}
+
 module.exports = {
   QC_PREPARATION_READ_RPC,
   QC_REPORT_LIST_RPC,
   QC_REPORT_RESERVE_RPC,
   QC_REPORT_REGISTER_RPC,
+  QC_REPORT_VERIFY_FUNCTION,
   QC_PREPARATION_SOURCE_KEY,
   QC_REPORT_FILENAME_RE,
   listQcReports,
   reserveQcReport,
   registerQcReport,
+  verifyQcReportBytes,
 };

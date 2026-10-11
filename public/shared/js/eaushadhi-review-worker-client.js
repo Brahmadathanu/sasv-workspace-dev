@@ -212,6 +212,12 @@ export async function registerQcReport(productId, accessToken, draft) {
   return window.eaushadhiWorkerAPI.registerQcReport(productId, accessToken, draft);
 }
 
+export async function verifyQcReportBytes(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.verifyQcReportBytes !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.verifyQcReportBytes(productId, accessToken, draft);
+}
+
 export function onWorkerStatus(callback) {
   if (!workerApiAvailable() || typeof window.eaushadhiWorkerAPI.onStatus !== "function") {
     return () => {};
