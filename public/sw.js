@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v357"; // WP-07 D3.3 styled byte-check confirm
+const CACHE_NAME = "hub-cache-v358"; // WP-07 D4 verify source facts
 
 const PRECACHE = [
   // Hub shell

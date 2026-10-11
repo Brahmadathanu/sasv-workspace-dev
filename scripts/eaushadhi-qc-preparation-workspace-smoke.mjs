@@ -1136,6 +1136,159 @@ for (let tick = 0; tick < 12; tick += 1) await Promise.resolve();
 assert(saveHarness.toasts.includes("Draft saved (version 2)"), "a save at row version 2 toasts Draft saved (version 2)");
 assert(saveHarness.state.qcPrepNotice === "Draft saved (version 2)", "the save notice survives the follow-up reload");
 
+function validFacts(overrides = {}) {
+  const facts = {};
+  for (const key of workspace.QC_FACT_KEYS) {
+    facts[key] = { supported_by_report: true, source_reference: "NUPAL report p.1" };
+  }
+  return { ...facts, ...overrides };
+}
+async function rejectFacts(label, factEvidence, attest = true) {
+  const rpc = mockRpc(async () => ({}));
+  const error = await expectFailure(
+    () => workspace.verifyQcPreparationSource({
+      productId: 262,
+      accessToken: TOKEN,
+      preparationId: PREP_ID,
+      expectedRowVersion: 1,
+      attest,
+      factEvidence,
+      callRpc: rpc.callRpc,
+    }),
+    ERROR_KINDS.CONTRACT_INCOMPLETE,
+  );
+  assert(rpc.calls.length === 0, `${label} makes no RPC call`);
+  return error;
+}
+const attestError = await rejectFacts("attest false", validFacts(), false);
+assert(attestError?.message === "Tick the review confirmation first.", "attest false asks for the review confirmation");
+await rejectFacts("a missing fact key", (() => {
+  const facts = validFacts();
+  delete facts.batches;
+  return facts;
+})());
+await rejectFacts("an extra fact key", validFacts({ extra_fact: { supported_by_report: true, source_reference: "page 1" } }));
+await rejectFacts("Yes without a page reference", validFacts({ study_start_date: { supported_by_report: true } }));
+await rejectFacts("a blank page reference", validFacts({ study_start_date: { supported_by_report: true, source_reference: "  " } }));
+await rejectFacts("a 4 character page reference", validFacts({ study_start_date: { supported_by_report: true, source_reference: "1234" } }));
+await rejectFacts("a 9 character evidence note", validFacts({ study_start_date: { supported_by_report: false, evidence_note: "123456789" } }));
+
+const acceptedFacts = validFacts();
+const verifiedRpc = mockRpc(async () => ({
+  preparation_id: PREP_ID,
+  row_version: 4,
+  preparation_status: "VERIFIED",
+  verified_payload_hash: "hash",
+  binding_id: "22222222-2222-2222-2222-222222222222",
+  reservation_id: "33333333-3333-3333-3333-333333333333",
+  verified_sha256: "ab".repeat(32),
+}));
+const verifiedSource = await workspace.verifyQcPreparationSource({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP_ID,
+  expectedRowVersion: 3,
+  attest: true,
+  factEvidence: acceptedFacts,
+  callRpc: verifiedRpc.callRpc,
+});
+assert(verifiedRpc.calls.length === 1, "a valid payload calls verify once");
+assert(verifiedRpc.calls[0].name === "rpc_eaushadhi_qc_preparation_verify_v2", "verify uses rpc_eaushadhi_qc_preparation_verify_v2");
+assert(Object.keys(verifiedRpc.calls[0].args).join(",") === "p_preparation_id,p_expected_row_version,p_attest,p_fact_evidence", "verify argument names are exact");
+assert(verifiedRpc.calls[0].args.p_preparation_id === PREP_ID && verifiedRpc.calls[0].args.p_expected_row_version === 3 && verifiedRpc.calls[0].args.p_attest === true, "verify sends the preparation, version, and attestation");
+assert(verifiedRpc.calls[0].args.p_fact_evidence === acceptedFacts, "verify sends the fact evidence object");
+assert(verifiedSource.ok === true && verifiedSource.row_version === 4 && verifiedSource.mutated === true, "verify returns the server row");
+
+const mappedMessages = [
+  ["ATTESTATION_REQUIRED", "Tick the review confirmation first."],
+  ["FACT_EVIDENCE_INCOMPLETE: SUPPORTED_FACT_REFERENCE_REQUIRED_STUDY_START_DATE, UNSUPPORTED_FACT_NOTE_REQUIRED_BATCHES", "Some fact rows need a page reference or an evidence note."],
+  ["REPORT_NOT_REGISTERED", "Upload and register the QC report first."],
+  ["REPORT_BYTES_NOT_VERIFIED", "Run 'Check bytes on server' first."],
+  ["PAYLOAD_SHA_NOT_VERIFIED_BYTES", "The draft does not match the verified report. Save the draft again from the latest report."],
+  ["PAYLOAD_FILENAME_MISMATCH", "The draft does not match the verified report. Save the draft again from the latest report."],
+  ["OBJECT_CHANGED_OR_MISSING", "The stored report changed or is missing. Upload a new version."],
+  ["ASSET_NOT_VERIFIED", "The report's verification record is incomplete. Contact support."],
+  ["BYTE_EVENT_MISSING", "The report's verification record is incomplete. Contact support."],
+  ["40001 Stale QC draft version", "Someone changed this draft. Reload and try again."],
+  ["QC draft already source verified", "Already verified."],
+  ["QC draft source verification requires complete human-entered fields", "Complete the QC draft fields before verifying source facts."],
+];
+for (const [serverMessage, plain] of mappedMessages) {
+  const mapped = workspace.mapQcSourceVerifyError({ message: serverMessage });
+  assert(mapped.message === plain, `${serverMessage} maps to the plain sentence`);
+}
+const permissionMapped = workspace.mapQcSourceVerifyError({ code: "42501", message: "permission denied" });
+assert(permissionMapped.message === "You need edit permission for e-Aushadhi.", "42501 maps to the edit-permission sentence");
+const namedFacts = workspace.mapQcSourceVerifyError({
+  message: "FACT_EVIDENCE_INCOMPLETE: SUPPORTED_FACT_REFERENCE_REQUIRED_STUDY_START_DATE, UNSUPPORTED_FACT_NOTE_REQUIRED_BATCHES",
+});
+assert(namedFacts.details?.facts?.includes("study_start_date") && namedFacts.details.facts.includes("batches"), "an incomplete fact error names the rows");
+
+const recheckRpc = mockRpc(async () => ({
+  valid: false,
+  reasons: ["NOT_SOURCE_VERIFIED", "NO_BINDING"],
+  binding_id: null,
+  reservation_id: null,
+  verified_sha256: "",
+  portal_laboratory_candidate_status: "",
+  checked_at: "2026-10-11T12:00:00Z",
+}));
+const recheck = await workspace.recheckQcEvidence({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP_ID,
+  callRpc: recheckRpc.callRpc,
+});
+assert(recheckRpc.calls.length === 1 && recheckRpc.calls[0].name === "rpc_eaushadhi_qc_evidence_recheck_v1", "recheck uses rpc_eaushadhi_qc_evidence_recheck_v1");
+assert(recheck.mutated === false && workspace.qcEvidenceBadge(recheck).label === "Not verified yet", "the unverified pair maps to Not verified yet");
+assert(workspace.qcEvidenceBadge({ valid: true, reasons: [] }).label === "Evidence valid ✓", "a valid recheck maps to Evidence valid");
+assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["PAYLOAD_HASH_CHANGED"] }).detail === "Draft edited after verification", "a changed payload maps to the draft-edited sentence");
+assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["SUPERSEDED_BY_NEWER_REPORT"] }).detail === "A newer report version was registered", "a newer report maps to that sentence");
+assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["OBJECT_MISSING"] }).detail === "Stored report changed", "an object reason maps to the stored-report sentence");
+assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["TUPLE_MISMATCH_SHA"] }).detail === "Evidence record mismatch", "a tuple mismatch maps to the evidence-record sentence");
+assert(workspace.qcEvidenceBadge({ valid: false, reasons: ["SOMETHING_ELSE"] }).label === "Needs re-verify" && workspace.qcEvidenceBadge({ valid: false, reasons: ["SOMETHING_ELSE"] }).detail === "Needs re-verify", "any other reason maps to Needs re-verify");
+
+const factApi = new Function(
+  `${extractFunction("qcIssuerShortName")}
+   ${extractFunction("qcFactDefaultRows")}
+   return { qcIssuerShortName, qcFactDefaultRows };`,
+)();
+const issuerNameForFacts = "New Udaya Pharmacy & Ayurvedic Laboratories (NUPAL)";
+assert(factApi.qcIssuerShortName(issuerNameForFacts) === "NUPAL", "the issuer short name is the text inside parentheses");
+const defaultRows = factApi.qcFactDefaultRows({
+  source_report_issuer: issuerNameForFacts,
+  date_evidence_note: "Study period entered manually by the operator.",
+  other_testing_protocol_text: "Cross Sectional Approach",
+}, []);
+assert(defaultRows.study_start_date.supported === false && defaultRows.testing_protocol.supported === false, "study start and testing protocol default to No");
+assert(defaultRows.study_end_date.supported === true && defaultRows.report_date.supported === true && defaultRows.batches.supported === true && defaultRows.shelf_life_months.supported === true, "the other facts default to Yes");
+assert(defaultRows.study_end_date.text === "NUPAL report p.1" && defaultRows.report_date.text === "NUPAL report p.1" && defaultRows.batches.text === "NUPAL report p.1" && defaultRows.shelf_life_months.text === "NUPAL report p.1", "Yes rows prefill NUPAL report p.1");
+assert(defaultRows.study_start_date.text === "Study period entered manually by the operator.", "a long date note prefills the No row");
+assert(defaultRows.testing_protocol.text === "Cross Sectional Approach", "a long protocol note prefills the No row");
+const shortDefaults = factApi.qcFactDefaultRows({
+  source_report_issuer: issuerNameForFacts,
+  date_evidence_note: "too short",
+  other_testing_protocol_text: "short",
+}, []);
+assert(shortDefaults.study_start_date.text === "" && shortDefaults.testing_protocol.text === "", "notes shorter than 10 characters stay empty");
+
+const verifyFn = extractCallable("submitQcSourceVerify");
+const confirmReturn = verifyFn.indexOf("if (accepted !== true) return;");
+assert(confirmReturn > 0 && verifyFn.includes("openQcConfirm") && !verifyFn.slice(0, confirmReturn).includes("verifyQcPreparationSource"), "verify is not called before confirm returns");
+assert(verifyFn.slice(confirmReturn).includes("verifyQcPreparationSource"), "verify runs only after confirm OK");
+assert(!extractCallable("loadQcPreparationWorkspace").includes("verifyQcPreparationSource"), "load does not call source verify");
+assert(!extractCallable("submitQcPreparationSave").includes("verifyQcPreparationSource"), "save does not call source verify");
+assert(!extractCallable("executeQcReportUpload").includes("verifyQcPreparationSource"), "upload does not call source verify");
+assert(!extractCallable("submitQcReportUpload").includes("verifyQcPreparationSource"), "register does not call source verify");
+const verifyUses = [...controlSrc.matchAll(/verifyQcPreparationSource/g)];
+assert(verifyUses.length === 2, "verifyQcPreparationSource appears only as the import and the confirm-OK call");
+const qcFlow = controlSrc.slice(controlSrc.indexOf("function qcReportByteCheckWarning"), controlSrc.indexOf("function workerFoundationSummary"));
+assert(!qcFlow.includes("window.confirm"), "the QC and verify flow does not use window.confirm");
+assert(!controlSrc.includes("qc_preparation_verify_v1"), "the client does not reference verify_v1");
+assert(controlSrc.includes("Bytes verified ✓") && controlSrc.includes("<details") && controlSrc.includes("Bytes not yet verified") && controlSrc.includes("Bytes mismatch"), "the byte readout is a badge plus details");
+assert(preloadSrc.includes("eaushadhi-worker:qc-preparation-verify-source") && preloadSrc.includes("eaushadhi-worker:qc-evidence-recheck"), "preload maps verify and recheck");
+assert(ipcSrc.includes("CHANNELS.QC_PREPARATION_VERIFY_SOURCE") && ipcSrc.includes("CHANNELS.QC_EVIDENCE_RECHECK"), "ipc registers verify and recheck");
+
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);
   process.exit(1);

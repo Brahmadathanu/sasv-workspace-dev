@@ -271,3 +271,9 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
   - Viewer-only user → `42501 e-Aushadhi Automation permission is required`.
   - No state change.
 - **Confirm is now an in-page modal, and worker `fileSize` is required.**
+
+## 2026-10-11 — WP-07 B3 evidence binding is live
+- B3 is applied live as `20261011135744_wp07_b3_qc_evidence_binding` (md5 `18671148f501ee69b031a5df913ffadb`, byte-exact in the repository). It was not reapplied from this client change.
+- `rpc_eaushadhi_qc_preparation_verify_v1` is retired. `rpc_eaushadhi_qc_preparation_verify_v2` binds the evidence tuple and requires attestation plus per-fact evidence. `rpc_eaushadhi_qc_evidence_recheck_v1` is read-only.
+- Storage rejects client update and delete of a registered QC report. Register stays at 2 MB. The lock order is preparation, then reservation.
+- **Operator decision, pending B4 legal basis:** a NUPAL-issued report may be filed under HARIDEV FORMULATIONS as the portal laboratory. Recorded for B4. B3 does not act on it.

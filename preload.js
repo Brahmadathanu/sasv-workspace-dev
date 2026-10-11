@@ -144,6 +144,21 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       accessToken,
       payload,
     }),
+  verifyQcPreparationSource: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-verify-source", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      attest: draft?.attest === true,
+      factEvidence: draft?.factEvidence,
+    }),
+  recheckQcEvidence: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-evidence-recheck", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+    }),
   saveQcPreparation: (productId, accessToken, draft) =>
     ipcRenderer.invoke("eaushadhi-worker:qc-preparation-save", {
       productId,
