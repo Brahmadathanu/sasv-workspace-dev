@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v347"; // WP-07 C1b QC preparation portal rules
+const CACHE_NAME = "hub-cache-v348"; // WP-07 C1b.2 QC preparation feedback placement
 
 const PRECACHE = [
   // Hub shell
