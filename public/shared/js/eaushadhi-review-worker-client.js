@@ -194,6 +194,12 @@ export async function verifyQcPreparationSource(productId, accessToken, draft) {
   return window.eaushadhiWorkerAPI.verifyQcPreparationSource(productId, accessToken, draft);
 }
 
+export async function reopenQcPreparation(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.reopenQcPreparation !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.reopenQcPreparation(productId, accessToken, draft);
+}
+
 export async function recheckQcEvidence(productId, accessToken, draft) {
   if (!workerApiAvailable()) return unsupported();
   if (typeof window.eaushadhiWorkerAPI.recheckQcEvidence !== "function") return unsupported();

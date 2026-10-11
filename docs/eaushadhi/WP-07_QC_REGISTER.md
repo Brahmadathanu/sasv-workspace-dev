@@ -192,3 +192,7 @@ The evidence badge is **Evidence valid ✓** when the binding still matches, **N
 Operator flow: Save the draft, **Check bytes on server**, then **Verify source facts**, then read the recheck badge. Verify source facts is never started automatically. Esc, Cancel, and a backdrop click make no call. A later edit requires verifying again.
 
 D4.1: after a reload, the saved report file name is loaded with the draft. Verify source facts compares the SHA only when a verified SHA is known, and the file name only when both names are present. A matching VERIFIED_BYTES report is not blocked by a blank session SHA. A different file name still blocks. The server verify still enforces both matches.
+
+D4.2: a verified preparation shows the six saved facts read-only: "Shown in the report: Yes/No" plus the reference or note. It does not show the editable defaults. If the recheck has no fact evidence, the card says "Saved fact evidence is not available in this view".
+
+Operator flow after a verified draft: **Reopen for re-verification** (edit permission, a reason of at least 10 characters, and the attestation). The current evidence record stays in the audit trail and the draft returns to Review required. Then Verify source facts again. Reopen is never started automatically. Esc, Cancel, and a backdrop click make no call. B3.1 (`rpc_eaushadhi_qc_preparation_reopen_v1`) is a candidate and is not yet applied.

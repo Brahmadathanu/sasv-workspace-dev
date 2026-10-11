@@ -197,6 +197,7 @@ import {
   reviewQcPreparation,
   saveQcPreparation,
   verifyQcPreparationSource,
+  reopenQcPreparation,
   recheckQcEvidence,
   listQcReports,
   reserveQcReport,
@@ -351,6 +352,7 @@ const state = {
   qcFactHighlights: [],
   qcSourceVerifyRunning: false,
   qcSourceConfirmOpen: false,
+  qcReopenRunning: false,
   qcEvidenceRecheck: null,
   qcEvidenceRequest: 0,
   qcEvidenceLoadedFor: null,
@@ -2882,12 +2884,13 @@ function qcReportByteCheckWarning(version) {
 }
 
 function openQcConfirm(options) {
-  const { title, message, okLabel, returnFocusId, idPrefix } = options || {};
+  const { title, message, okLabel, returnFocusId, idPrefix, reasonRequired, attestLabel, extraText } = options || {};
   if (openQcConfirm.showing === true) return Promise.resolve(false);
   openQcConfirm.showing = true;
   const prefix = idPrefix || "qcConfirm";
   const focusId = returnFocusId || "";
   const trigger = focusId ? document.getElementById(focusId) : null;
+  const gated = reasonRequired === true || Boolean(attestLabel);
   return new Promise((resolve) => {
     let closed = false;
     const backdrop = document.createElement("div");
@@ -2913,6 +2916,29 @@ function openQcConfirm(options) {
     const paragraph = document.createElement("p");
     paragraph.textContent = String(message ?? "");
     body.append(paragraph);
+    if (extraText) {
+      const extra = document.createElement("p");
+      extra.id = `${prefix}Extra`;
+      extra.textContent = String(extraText);
+      body.append(extra);
+    }
+    let reasonInput = null;
+    if (reasonRequired === true) {
+      reasonInput = document.createElement("textarea");
+      reasonInput.id = `${prefix}Reason`;
+      body.append(reasonInput);
+    }
+    let attestInput = null;
+    if (attestLabel) {
+      attestInput = document.createElement("input");
+      attestInput.type = "checkbox";
+      attestInput.id = `${prefix}Attest`;
+      const attestWrap = document.createElement("label");
+      const attestText = document.createElement("span");
+      attestText.textContent = ` ${attestLabel}`;
+      attestWrap.append(attestInput, attestText);
+      body.append(attestWrap);
+    }
     const footer = document.createElement("div");
     footer.className = "sasv-modal__footer";
     const cancelBtn = document.createElement("button");
@@ -2925,9 +2951,20 @@ function openQcConfirm(options) {
     okBtn.id = `${prefix}Ok`;
     okBtn.className = "icon-btn with-label primary";
     okBtn.textContent = String(okLabel || "OK");
+    if (gated) okBtn.disabled = true;
     footer.append(cancelBtn, okBtn);
     dialog.append(header, body, footer);
     backdrop.append(dialog);
+
+    const syncOk = () => {
+      if (!gated) return;
+      const note = String(reasonInput?.value || "").trim();
+      const reasonOk = reasonRequired !== true || (note.length >= 10 && note.length <= 2000);
+      const attestOk = !attestLabel || attestInput.checked === true;
+      okBtn.disabled = !(reasonOk && attestOk);
+    };
+    reasonInput?.addEventListener("input", syncOk);
+    attestInput?.addEventListener("change", syncOk);
 
     const close = (accepted) => {
       if (closed) return;
@@ -2937,7 +2974,8 @@ function openQcConfirm(options) {
       backdrop.remove();
       const button = (focusId && document.getElementById(focusId)) || trigger;
       if (button && typeof button.focus === "function") button.focus();
-      resolve(accepted === true);
+      if (accepted && typeof accepted === "object") resolve(accepted);
+      else resolve(accepted === true);
     };
 
     const onKeydown = (event) => {
@@ -2954,7 +2992,18 @@ function openQcConfirm(options) {
       if (event.target === backdrop) close(false);
     });
     cancelBtn.addEventListener("click", () => close(false));
-    okBtn.addEventListener("click", () => close(true));
+    okBtn.addEventListener("click", () => {
+      if (okBtn.disabled) return;
+      if (gated) {
+        close({
+          ok: true,
+          reasonNote: String(reasonInput?.value || "").trim(),
+          attest: attestInput ? attestInput.checked === true : true,
+        });
+        return;
+      }
+      close(true);
+    });
     document.body.append(backdrop);
     document.addEventListener("keydown", onKeydown, true);
     cancelBtn.focus();
@@ -3958,6 +4007,7 @@ function resetQcPreparationWorkspace() {
   state.qcFactHighlights = [];
   state.qcSourceVerifyRunning = false;
   state.qcSourceConfirmOpen = false;
+  state.qcReopenRunning = false;
   state.qcEvidenceRecheck = null;
   state.qcEvidenceRequest += 1;
   state.qcEvidenceLoadedFor = null;
@@ -4338,18 +4388,26 @@ function qcFactPreviewValue(key, form, options) {
   return String(form?.[key] ?? "");
 }
 
+const QC_STUDY_START_FALLBACK = "Study period entered by operator on the manufacturing-span basis; not printed in the report";
+const QC_FACT_PAGE_HINT = /\b(p\.?|page|pp\.?|sec(tion)?|§|table|annex)\s*\d/i;
+const QC_SUGGESTED_FACT_KEYS = ["study_end_date", "report_date", "batches", "shelf_life_months"];
+
+function qcProtocolEvidenceNote(form, options) {
+  const protocolSource = String(form?.other_testing_protocol_text || "").trim()
+    || String((options || []).find((item) => String(item.term_id) === String(form?.testing_protocol_term_id))?.label || "").trim();
+  return `Protocol chosen by operator: ${protocolSource}; not stated in the report`;
+}
+
 function qcFactDefaultRows(form, options) {
   const shortName = qcIssuerShortName(form?.source_report_issuer);
   const yesText = `${shortName} report p.1`.replace(/^\s+/, "");
   const dateNote = String(form?.date_evidence_note || "").trim();
-  const protocolSource = String(form?.other_testing_protocol_text || "").trim()
-    || String((options || []).find((item) => String(item.term_id) === String(form?.testing_protocol_term_id))?.label || "").trim();
   const row = (supported, text) => ({ supported: supported === true, text: String(text || "") });
   return {
-    study_start_date: row(false, dateNote.length >= 10 ? dateNote : ""),
+    study_start_date: row(false, dateNote.length >= 10 ? dateNote : QC_STUDY_START_FALLBACK),
     study_end_date: row(true, yesText),
     report_date: row(true, yesText),
-    testing_protocol: row(false, protocolSource.length >= 10 ? protocolSource : ""),
+    testing_protocol: row(false, qcProtocolEvidenceNote(form, options)),
     batches: row(true, yesText),
     shelf_life_months: row(true, yesText),
   };
@@ -4375,6 +4433,7 @@ function qcFactRowsCurrent() {
 function qcEvidenceReasonText(code) {
   const text = String(code || "");
   if (text === "NOT_SOURCE_VERIFIED") return "Not verified yet";
+  if (text === "BINDING_SUPERSEDED") return "Reopened — verify again";
   if (text === "BINDING_STALE_PREPARATION_VERSION" || text === "PAYLOAD_HASH_CHANGED") return "Draft edited after verification";
   if (text === "SUPERSEDED_BY_NEWER_REPORT") return "A newer report version was registered";
   if (text.startsWith("OBJECT_")) return "Stored report changed";
@@ -4435,25 +4494,61 @@ function qcSourceFactsModel() {
     reportFilename: form.report_filename,
     verifiedSha,
   });
-  const rows = qcFactRowsCurrent();
-  const rowErrors = Object.fromEntries(QC_SOURCE_FACT_FIELDS.map(([key]) => [key, qcFactRowError(rows[key])]));
-  const rowsValid = Object.values(rowErrors).every((error) => error === "");
+  const verified = preparation?.preparation_status === "VERIFIED";
+  const savedRows = verified ? qcRowsFromFactEvidence(state.qcEvidenceRecheck?.fact_evidence) : null;
+  const rows = verified ? savedRows : qcFactRowsCurrent();
+  const rowErrors = verified || !rows
+    ? {}
+    : Object.fromEntries(QC_SOURCE_FACT_FIELDS.map(([key]) => [key, qcFactRowError(rows[key])]));
+  const rowsValid = !verified && rows != null && Object.values(rowErrors).every((error) => error === "");
   const version = latest ? String(latest.version_no).padStart(2, "0") : "";
   return {
     blockReason,
-    enabled: blockReason === "",
+    enabled: blockReason === "" && verified !== true,
+    readOnly: verified === true,
+    savedMissing: verified === true && savedRows == null,
     rows,
     rowErrors,
     previews: Object.fromEntries(QC_SOURCE_FACT_FIELDS.map(([key]) => [key, qcFactPreviewValue(key, form, state.qcPrepOptions)])),
     attest: state.qcFactAttest === true,
-    canSubmit: blockReason === "" && state.qcFactAttest === true && rowsValid && state.qcSourceConfirmOpen !== true,
+    canSubmit: blockReason === "" && verified !== true && state.qcFactAttest === true && rowsValid && state.qcSourceConfirmOpen !== true,
+    canReopen: verified === true && canWrite() && state.busy !== true && state.qcSourceConfirmOpen !== true && state.qcReopenRunning !== true,
+    nextVersion: Number(preparation?.row_version) + 1,
     version,
     sha12: String(form.report_sha256 || "").slice(0, 12),
     notice: state.qcFactNotice,
     highlights: Array.isArray(state.qcFactHighlights) ? state.qcFactHighlights : [],
     badge: qcEvidenceBadge(state.qcEvidenceRecheck),
     running: state.qcSourceVerifyRunning === true,
+    reopenRunning: state.qcReopenRunning === true,
   };
+}
+
+function qcRowsFromFactEvidence(factEvidence) {
+  if (!factEvidence || typeof factEvidence !== "object" || Array.isArray(factEvidence)) return null;
+  const rows = {};
+  for (const [key] of QC_SOURCE_FACT_FIELDS) {
+    const item = factEvidence[key];
+    if (!item || typeof item !== "object" || typeof item.supported_by_report !== "boolean") return null;
+    rows[key] = item.supported_by_report === true
+      ? { supported: true, text: String(item.source_reference || "") }
+      : { supported: false, text: String(item.evidence_note || "") };
+  }
+  return rows;
+}
+
+function qcFactPageHintMissing(row) {
+  if (row?.supported !== true) return false;
+  return !QC_FACT_PAGE_HINT.test(String(row.text || ""));
+}
+
+function qcSourceVerifyFactLines(rows) {
+  return QC_SOURCE_FACT_FIELDS.map(([key, label]) => {
+    const row = rows?.[key] || { supported: false, text: "" };
+    const text = String(row.text || "").trim();
+    const shown = text.length > 60 ? `${text.slice(0, 60)}…` : text;
+    return row.supported === true ? `${label}: Shown — ${shown}` : `${label}: Not shown — note: ${shown}`;
+  }).join("\n");
 }
 
 function qcFactEvidenceFromRows(rows) {
@@ -4477,16 +4572,31 @@ function qcSourceFactsCardHtml(model) {
   const badge = model.badge || { tone: "pending", label: "Not verified yet", detail: "" };
   const badgeClass = badge.tone === "valid" ? "ea-autosave is-verified" : "muted-note";
   const badgeStyle = badge.tone === "attention" ? "color:#8a5a00" : "";
-  const rows = QC_SOURCE_FACT_FIELDS.map(([key, label]) => {
-    const row = model.rows?.[key] || { supported: false, text: "" };
-    const error = model.rowErrors?.[key] || "";
-    const highlighted = (model.highlights || []).includes(key) ? " data-qc-fact-highlight=\"true\"" : "";
-    const fieldLabel = row.supported === true ? "Where in the report (page/section)" : "Why this is correct (evidence note)";
-    return `<div class="form-field form-span-2" data-qc-fact="${esc(key)}"${highlighted}>
+  const rows = model.readOnly === true
+    ? (model.savedMissing ? "" : QC_SOURCE_FACT_FIELDS.map(([key, label]) => {
+      const row = model.rows?.[key] || { supported: false, text: "" };
+      return `<div class="form-field form-span-2" data-qc-fact="${esc(key)}">
+        <span class="meta-label">${esc(label)}</span>
+        <p>Shown in the report: ${row.supported === true ? "Yes" : "No"}</p>
+        <p>${esc(row.text || "")}</p>
+      </div>`;
+    }).join(""))
+    : QC_SOURCE_FACT_FIELDS.map(([key, label]) => {
+      const row = model.rows?.[key] || { supported: false, text: "" };
+      const error = model.rowErrors?.[key] || "";
+      const highlighted = (model.highlights || []).includes(key) ? " data-qc-fact-highlight=\"true\"" : "";
+      const fieldLabel = row.supported === true ? "Where in the report (page/section)" : "Why this is correct (evidence note)";
+      const suggested = QC_SUGGESTED_FACT_KEYS.includes(key) && row.supported === true
+        ? `<p class="muted-note">Suggested — confirm against the PDF</p>`
+        : "";
+      const warning = qcFactPageHintMissing(row)
+        ? `<p class="qc-fact-hint" id="qcFactHint-${esc(key)}" style="color:#8a5a00">This does not look like a page or section in the report. If the value is not printed in the report, choose No and write a note.</p>`
+        : "";
+      return `<div class="form-field form-span-2" data-qc-fact="${esc(key)}"${highlighted}>
       <span class="meta-label">${esc(label)}</span>
       <p class="muted-note">Saved value: ${esc(model.previews?.[key] || "")}</p>
       <label>Shown in the report?
-        <select id="qcFactSupported-${esc(key)}" data-qc-fact-key="${esc(key)}" data-qc-fact-role="supported"${model.enabled ? "" : " disabled"}>
+        <select id="qcFactSupported-${esc(key)}" data-qc-fact-key="${esc(key)}" data-qc-fact-role="supported" onwheel="this.blur()"${model.enabled ? "" : " disabled"}>
           <option value="yes"${row.supported === true ? " selected" : ""}>Yes</option>
           <option value="no"${row.supported === true ? "" : " selected"}>No</option>
         </select>
@@ -4494,17 +4604,23 @@ function qcSourceFactsCardHtml(model) {
       <label>${esc(fieldLabel)}
         <input id="qcFactText-${esc(key)}" data-qc-fact-key="${esc(key)}" data-qc-fact-role="text" value="${esc(row.text || "")}"${model.enabled ? "" : " disabled"}>
       </label>
+      ${suggested}
+      ${warning}
       ${error ? `<p class="qc-fact-error" id="qcFactError-${esc(key)}" style="color:#9b1c1c">${esc(error)}</p>` : ""}
     </div>`;
-  }).join("");
+    }).join("");
   return `<section class="section-card" id="qcSourceFactsCard">
     <h3 class="section-title">Verify source facts <span id="qcEvidenceBadge" class="${badgeClass}"${badgeStyle ? ` style="${badgeStyle}"` : ""}>${esc(badge.label)}</span></h3>
     ${badge.detail ? `<p class="muted-note" id="qcEvidenceBadgeDetail">${esc(badge.detail)}</p>` : `<p class="muted-note" id="qcEvidenceBadgeDetail"></p>`}
-    ${model.blockReason ? `<p class="muted-note" id="qcSourceFactsBlock">${esc(model.blockReason)}</p>` : ""}
+    ${model.blockReason && model.readOnly !== true ? `<p class="muted-note" id="qcSourceFactsBlock">${esc(model.blockReason)}</p>` : ""}
+    ${model.savedMissing ? `<p id="qcSourceFactsSavedMissing">Saved fact evidence is not available in this view</p>` : ""}
     <div class="form-grid">${rows}</div>
-    <label class="qc-prep-block"><input id="qcFactAttest" type="checkbox"${model.attest ? " checked" : ""}${model.enabled ? "" : " disabled"}> I have reviewed every fact above against the verified QC test report (V${esc(model.version)}).</label>
+    ${model.readOnly === true ? "" : `<label class="qc-prep-block"><input id="qcFactAttest" type="checkbox"${model.attest ? " checked" : ""}${model.enabled ? "" : " disabled"}> I have reviewed every fact above against the verified QC test report (V${esc(model.version)}).</label>`}
     ${model.notice ? `<p class="muted-note ea-autosave is-failed" id="qcSourceFactsNotice">${esc(model.notice)}</p>` : ""}
-    <div class="action-row"><button type="button" class="icon-btn with-label primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}>${model.running ? "Verifying source facts..." : "Verify source facts"}</button></div>
+    <div class="action-row">
+      ${model.readOnly === true ? "" : `<button type="button" class="icon-btn with-label primary" id="btnQcVerifySourceFacts"${model.canSubmit ? "" : " disabled"}>${model.running ? "Verifying source facts..." : "Verify source facts"}</button>`}
+      ${model.canReopen || model.reopenRunning ? `<button type="button" class="icon-btn with-label" id="btnQcReopenSourceFacts"${model.canReopen ? "" : " disabled"}>${model.reopenRunning ? "Reopening..." : "Reopen for re-verification"}</button>` : ""}
+    </div>
   </section>`;
 }
 
@@ -4562,6 +4678,7 @@ function onQcSourceFactField(event) {
     return;
   }
   if (!key) return;
+  if (target.getAttribute("data-qc-fact-role") === "supported" && event.type !== "change") return;
   const rows = qcFactRowsCurrent();
   const current = rows[key] || { supported: false, text: "" };
   if (target.getAttribute("data-qc-fact-role") === "supported") {
@@ -4571,7 +4688,11 @@ function onQcSourceFactField(event) {
   }
   state.qcFactRows = rows;
   if (event.type === "change") {
-    if (state.tab === "qc") renderQc();
+    const focusId = target.id;
+    if (state.tab === "qc") {
+      renderQc();
+      document.getElementById(focusId)?.focus();
+    }
   }
 }
 
@@ -4585,9 +4706,10 @@ async function submitQcSourceVerify() {
   state.qcSourceConfirmOpen = true;
   state.qcFactNotice = "";
   try {
+    const submittedRows = qcFactRowsCurrent();
     const accepted = await openQcConfirm({
       title: "Verify source facts",
-      message: `This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?`,
+      message: `This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?\n${qcSourceVerifyFactLines(submittedRows)}`,
       okLabel: "Verify source facts",
       returnFocusId: "btnQcVerifySourceFacts",
       idPrefix: "qcSourceVerifyConfirm",
@@ -4602,7 +4724,7 @@ async function submitQcSourceVerify() {
       preparationId: preparation.preparation_id,
       expectedRowVersion: preparation.row_version,
       attest: true,
-      factEvidence: qcFactEvidenceFromRows(qcFactRowsCurrent()),
+      factEvidence: qcFactEvidenceFromRows(submittedRows),
     });
     if (state.selectedProductId !== productId) return;
     if (result?.ok === false) {
@@ -4611,6 +4733,57 @@ async function submitQcSourceVerify() {
       return;
     }
     showToast(`Source facts verified (version ${result.row_version})`, "success");
+    state.qcFactNotice = "";
+    state.qcFactHighlights = [];
+    state.qcEvidenceLoadedFor = null;
+    state.qcEvidenceLoading = false;
+    reloadQcPreparationWorkspace();
+  } catch (error) {
+    if (state.selectedProductId !== productId) return;
+    state.qcFactNotice = userMessageForError(error);
+  } finally {
+    state.qcSourceConfirmOpen = false;
+    state.qcSourceVerifyRunning = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+async function submitQcReopen() {
+  if (state.qcReopenRunning === true || state.qcSourceConfirmOpen === true || openQcConfirm.showing === true) return;
+  const model = qcSourceFactsModel();
+  if (model.canReopen !== true) return;
+  const preparation = state.qcPrepServer;
+  const productId = state.selectedProductId;
+  state.qcSourceConfirmOpen = true;
+  state.qcFactNotice = "";
+  try {
+    const accepted = await openQcConfirm({
+      title: "Reopen for re-verification",
+      message: "The current evidence record stays in the audit trail. The draft returns to Review required (version " + model.nextVersion + ").",
+      okLabel: "Reopen for re-verification",
+      returnFocusId: "btnQcReopenSourceFacts",
+      idPrefix: "qcReopenConfirm",
+      reasonRequired: true,
+      attestLabel: "I understand the current verification will be superseded and the draft must be verified again",
+    });
+    if (accepted?.ok !== true) return;
+    if (state.selectedProductId !== productId) return;
+    state.qcReopenRunning = true;
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    if (state.selectedProductId !== productId) return;
+    const result = await reopenQcPreparation(productId, token, {
+      preparationId: preparation.preparation_id,
+      expectedRowVersion: preparation.row_version,
+      attest: true,
+      reasonNote: accepted.reasonNote,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcFactNotice = result.message || "Reopen failed.";
+      return;
+    }
+    showToast(`Reopened for re-verification (version ${result.row_version})`, "success");
     state.qcFactRows = null;
     state.qcFactScope = "";
     state.qcFactAttest = false;
@@ -4624,7 +4797,7 @@ async function submitQcSourceVerify() {
     state.qcFactNotice = userMessageForError(error);
   } finally {
     state.qcSourceConfirmOpen = false;
-    state.qcSourceVerifyRunning = false;
+    state.qcReopenRunning = false;
     if (state.selectedProductId === productId && state.tab === "qc") renderQc();
   }
 }
@@ -8410,9 +8583,16 @@ function wireEvents() {
     if (event.target.id === "btnQcPrepCopyName") void copyQcPrepReportFilename();
     if (event.target.id === "btnOpenEvidenceFromQc") selectWorkflowTab("evidence");
     if (event.target.id === "btnQcVerifySourceFacts") void submitQcSourceVerify();
+    if (event.target.id === "btnQcReopenSourceFacts") void submitQcReopen();
   });
   $("tab-qc")?.addEventListener("input", onQcPrepField);
   $("tab-qc")?.addEventListener("change", onQcPrepField);
+  $("tab-qc")?.addEventListener("wheel", (event) => {
+    const select = event.target?.closest?.("select[data-qc-fact-role='supported']");
+    if (!select) return;
+    event.preventDefault();
+    select.blur();
+  });
   $("tab-qc")?.addEventListener("focusout", (event) => {
     if (!event.target?.closest?.("#qcPreparationWorkspace")) return;
     qcPrepPendingBlurId = event.target?.id || "";

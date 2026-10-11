@@ -868,6 +868,59 @@ confirmDom.document.getElementById("qcByteCheckConfirmBackdrop").dispatch("click
   target: confirmDom.document.getElementById("qcByteCheckConfirmBackdrop"),
 });
 assert(await held === false, "a backdrop click resolves the byte-check confirm false");
+const reopenConfirm = new Function(
+  `${extractFunction("openQcConfirm")}
+   return openQcConfirm;`,
+)();
+const reopenButton = confirmDom.document.createElement("button");
+reopenButton.id = "btnQcReopenSourceFacts";
+confirmDom.document.body.append(reopenButton);
+const reopenOptions = {
+  title: "Reopen for re-verification",
+  message: "The current evidence record stays in the audit trail. The draft returns to Review required (version 6).",
+  okLabel: "Reopen for re-verification",
+  returnFocusId: "btnQcReopenSourceFacts",
+  idPrefix: "qcReopenConfirm",
+  reasonRequired: true,
+  attestLabel: "I understand the current verification will be superseded and the draft must be verified again",
+};
+function reopenText(id) {
+  const el = confirmDom.document.getElementById(id);
+  const walk = (node) => `${node.textContent || ""}${ (node.children || []).map(walk).join("") }`;
+  return walk(el);
+}
+const reopenPending = reopenConfirm(reopenOptions);
+const reopenOk = confirmDom.document.getElementById("qcReopenConfirmOk");
+assert(reopenOk.disabled === true, "reopen OK stays disabled until the reason is valid");
+assert(reopenText("qcReopenConfirmBody").includes("The current evidence record stays in the audit trail. The draft returns to Review required (version 6)."), "the reopen confirm names the next version");
+assert(reopenText("qcReopenConfirmBody").includes("I understand the current verification will be superseded and the draft must be verified again"), "the reopen confirm asks for the attestation");
+const reopenSecond = await reopenConfirm(reopenOptions);
+assert(reopenSecond === false, "only one dialog opens at a time");
+confirmDom.press("Escape");
+assert(await reopenPending === false, "Esc makes no reopen call");
+assert(confirmDom.document.activeElement === reopenButton, "Esc returns focus to Reopen for re-verification");
+const reopenCancel = reopenConfirm(reopenOptions);
+confirmDom.document.getElementById("qcReopenConfirmCancel").click();
+assert(await reopenCancel === false, "Cancel makes no reopen call");
+const reopenBackdrop = reopenConfirm(reopenOptions);
+const reopenBackdropEl = confirmDom.document.getElementById("qcReopenConfirmBackdrop");
+reopenBackdropEl.dispatch("click", { target: reopenBackdropEl });
+assert(await reopenBackdrop === false, "a backdrop click makes no reopen call");
+const reopenAccepted = reopenConfirm(reopenOptions);
+const reason = confirmDom.document.getElementById("qcReopenConfirmReason");
+reason.value = "too short";
+reason.dispatch("input", {});
+assert(confirmDom.document.getElementById("qcReopenConfirmOk").disabled === true, "a short reason keeps reopen OK disabled");
+reason.value = "The saved Yes answers need to be checked again.";
+reason.dispatch("input", {});
+assert(confirmDom.document.getElementById("qcReopenConfirmOk").disabled === true, "reopen OK stays disabled until the attestation is ticked");
+const attest = confirmDom.document.getElementById("qcReopenConfirmAttest");
+attest.checked = true;
+attest.dispatch("change", {});
+assert(confirmDom.document.getElementById("qcReopenConfirmOk").disabled === false, "reopen OK enables when the reason and attestation are valid");
+confirmDom.document.getElementById("qcReopenConfirmOk").click();
+const reopenResult = await reopenAccepted;
+assert(reopenResult?.ok === true && reopenResult.attest === true && reopenResult.reasonNote === "The saved Yes answers need to be checked again.", "reopen OK returns the reason and attestation");
 delete globalThis.document;
 const selection = new Function(
   `const state = {

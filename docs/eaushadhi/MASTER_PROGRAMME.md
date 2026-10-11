@@ -51,7 +51,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
 | WP-06 | Composition Portal Execution | DONE | 100% | Closed: Product 262 representative lifecycle proven end-to-end and completed state fail-closed |
-| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | B3 live as `20261011135744_wp07_b3_qc_evidence_binding`. Next is operator source Verify through the D4 UI, then B4. B4/B5, portal entry, and merges stay parked |
+| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | B3 live as `20261011135744_wp07_b3_qc_evidence_binding`. Next is B3.1 apply, then reopen Product 262, then re-verify, then B4. B3.1 is a candidate and is not yet applied. B4/B5, portal entry, and merges stay parked |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
 | WP-10 | Acceptance, Stabilisation & Programme Closure | BLOCKED | 0% | Final regression/usability/closure |
@@ -68,7 +68,7 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Inherited-readiness proof: Sujanapriya 1,477/1,477 lines across 85/85 products ready; Vaidyapriya 0/32 lines across 0/10 products ready.
 - Product 262 / Karpooradi Thailam lines 929–931 are Reference-ready through global governance with no per-line Reference authority.
 - Composition READY v1 input contract is frozen in WP-05 and is the only accepted server input boundary for WP-06.
-- WP-07 B3 is live as `20261011135744_wp07_b3_qc_evidence_binding` (repository file byte-exact, md5 `18671148f501ee69b031a5df913ffadb`). B2 remains accepted for V01 VERIFIED_BYTES. Next is operator source Verify through the D4 UI, then B4. B4/B5, portal entry, and merges stay parked. Post-deploy gates: G-CONC (row-lock serialisation passed live, rolled back); G-STORAGE-API (operator check pending).
+- WP-07 B3 is live as `20261011135744_wp07_b3_qc_evidence_binding` (repository file byte-exact, md5 `18671148f501ee69b031a5df913ffadb`). B2 remains accepted for V01 VERIFIED_BYTES. Next is B3.1 apply, then reopen Product 262, then re-verify, then B4. B3.1 is a candidate and is not yet applied. B4/B5, portal entry, and merges stay parked. Post-deploy gates: G-CONC (row-lock serialisation passed live, rolled back); G-STORAGE-API (operator check pending).
 - Product 262 governed Ingredient Forms are reconciled and audited: line 929 Ajamōdā = LIQUID KWATH / 60, line 930 Karpūra = SOLID / 66, line 931 Kēram = OIL / 61; all remain VERIFIED at line row_version 8 and product workflow row_version 11.
 - Product 262 live portal Composition now contains matched lines `[929,930,931]` with missing `[]`; Kēram line 931 is durably `ROW_VERIFIED` / `CONFIRMED`.
 - Native Composition list/reread/save semantics, row identity, Reference value, unit value, first-line bootstrap and corrected Type→Reference→names fill order are proven.

@@ -10,6 +10,7 @@ const QC_PREPARATION_WORKSPACE_READ_RPC = "rpc_eaushadhi_qc_preparation_read_v1"
 const QC_PREPARATION_REVIEW_RPC = "rpc_eaushadhi_qc_preparation_review_v1";
 const QC_PREPARATION_SAVE_RPC = "rpc_eaushadhi_qc_preparation_save_v1";
 const QC_PREPARATION_VERIFY_SOURCE_RPC = "rpc_eaushadhi_qc_preparation_verify_v2";
+const QC_PREPARATION_REOPEN_RPC = "rpc_eaushadhi_qc_preparation_reopen_v1";
 const QC_EVIDENCE_RECHECK_RPC = "rpc_eaushadhi_qc_evidence_recheck_v1";
 const QC_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const QC_FACT_KEYS = [
@@ -689,13 +690,100 @@ async function recheckQcEvidence({ productId, accessToken, preparationId, callRp
     verified_sha256: data.verified_sha256 || "",
     portal_laboratory_candidate_status: data.portal_laboratory_candidate_status || "",
     checked_at: data.checked_at || null,
+    binding_superseded: data.binding_superseded === true,
+    fact_evidence: data.fact_evidence && typeof data.fact_evidence === "object" && !Array.isArray(data.fact_evidence)
+      ? data.fact_evidence
+      : null,
     mutated: false,
+  };
+}
+
+function assertQcReopenVersion(value) {
+  const text = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : String(value ?? "");
+  if (!/^[0-9]+$/.test(text) || Number(text) <= 0) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Reopen failed.");
+  }
+  return Number(text);
+}
+
+function mapQcReopenError(error) {
+  if (error instanceof WorkerError) return error;
+  const code = String(error?.code || error?.errcode || "");
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || "");
+  if (code === "PGRST202" || status === 404 || message.includes("PGRST202")) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Reopen is not available on the server yet.");
+  }
+  if (code === "42501" || status === 401 || status === 403) {
+    return workerError(ERROR_KINDS.AUTHORIZATION, "You need edit permission for e-Aushadhi.");
+  }
+  if (code === "40001" || message.includes("40001") || message.includes("Stale QC draft version")) {
+    return workerError(ERROR_KINDS.STALE, "Someone changed this draft. Reload and try again.");
+  }
+  if (message.includes("REOPEN_NOT_VERIFIED")) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "This draft is not verified.");
+  }
+  if (message.includes("REOPEN_REASON_REQUIRED")) {
+    return workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a reason of at least 10 characters.");
+  }
+  if (message.includes("ATTESTATION_REQUIRED")) {
+    return workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first.");
+  }
+  return workerError(ERROR_KINDS.CRASH, "Reopen failed.");
+}
+
+async function reopenQcPreparation({
+  productId,
+  accessToken,
+  preparationId,
+  expectedRowVersion,
+  attest,
+  reasonNote,
+  callRpc,
+} = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "Reopen failed.");
+  const version = assertQcReopenVersion(expectedRowVersion);
+  if (attest !== true) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first.");
+  }
+  const note = String(reasonNote ?? "").trim();
+  if (note.length < 10 || note.length > 2000) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a reason of at least 10 characters.");
+  }
+  let data;
+  try {
+    data = await callRpc(token, QC_PREPARATION_REOPEN_RPC, {
+      p_preparation_id: preparation,
+      p_expected_row_version: version,
+      p_attest: true,
+      p_reason_note: note,
+    });
+  } catch (error) {
+    throw mapQcReopenError(error);
+  }
+  if (!data || typeof data !== "object" || data.preparation_id == null) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Reopen failed.");
+  }
+  return {
+    ok: true,
+    operation: "qc-preparation-reopen",
+    productId: id,
+    preparation_id: data.preparation_id,
+    row_version: data.row_version,
+    preparation_status: data.preparation_status,
+    superseded_binding_id: data.superseded_binding_id ?? null,
+    supersession_id: data.supersession_id ?? null,
+    mutated: true,
   };
 }
 
 function qcEvidenceReasonText(code) {
   const text = String(code || "");
   if (text === "NOT_SOURCE_VERIFIED") return "Not verified yet";
+  if (text === "BINDING_SUPERSEDED") return "Reopened — verify again";
   if (text === "BINDING_STALE_PREPARATION_VERSION" || text === "PAYLOAD_HASH_CHANGED") return "Draft edited after verification";
   if (text === "SUPERSEDED_BY_NEWER_REPORT") return "A newer report version was registered";
   if (text.startsWith("OBJECT_")) return "Stored report changed";
@@ -723,6 +811,7 @@ module.exports = {
   QC_PREPARATION_REVIEW_RPC,
   QC_PREPARATION_SAVE_RPC,
   QC_PREPARATION_VERIFY_SOURCE_RPC,
+  QC_PREPARATION_REOPEN_RPC,
   QC_EVIDENCE_RECHECK_RPC,
   QC_FACT_KEYS,
   QC_PREPARATION_SOURCE_KEY,
@@ -741,6 +830,8 @@ module.exports = {
   saveQcPreparation,
   mapQcSourceVerifyError,
   verifyQcPreparationSource,
+  mapQcReopenError,
+  reopenQcPreparation,
   recheckQcEvidence,
   qcEvidenceBadge,
 };
