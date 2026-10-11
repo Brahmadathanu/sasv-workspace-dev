@@ -227,3 +227,28 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Product 262 authenticated read-only QC preparation probe returned **“QC preparation read probe returned no preparations.”** Operator-observed PASS using isolated feature-branch Electron development app, not a government portal login.
 - Independent review of bounded view-only diagnostic and permissions correction accepted. No QC preparation or QC study record created; S2 and portal execution remain unopened.
 - S1 awaiting final integrated audit and separate authorization before merging.
+
+## 2026-10-11 — WP-07 driver handover and C1b decisions
+- **Programme driver:**
+  - On 2026-10-10 the user authorised Jarvis (Grok Bot) to drive WP-07 autonomously in ChatGPT's planning, server and audit role.
+  - ChatGPT is updated after milestones. Merges and live migrations still require explicit user approval.
+- **C1b defaults (operator-approved):** applied only on an empty Product 262 form with no saved `manual-qc:262:primary` preparation. They are never auto-saved, and the operator reviews every value.
+  - protocol Others (`OTHER` by code), text "Cross Sectional Approach (API Vol VIII Page No:226)";
+  - date basis `OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN`;
+  - shelf life 36;
+  - mode OUT;
+  - portal laboratory "HARIDEV FORMULATIONS" if present in the live list.
+  - Study start/end and report dates are never prefilled, consistent with the 2026-10-08 manual-date decision.
+- **Portal QC field rules adopted client-side,** from portal `addQCRegister.js` / `CommonValidation.js`:
+  - other text: `OnlyAlphaNumericWithunderscoreandbracket('otherText')` (`/^[a-zA-Z0-9()-_ .]*$/`) and `MaximumLengthCheck('otherText', 125)`;
+  - batch: `AlphaNumericWithoutRegExp('batchno')`, `MaximumLengthCheck('batchno', 256)`, `MinumumLengthCheck('batchno', 2)`. SASV additionally requires a strict `a,b,c` form: no spaces, empty items or duplicates; items `[A-Za-z0-9./_-]+`;
+  - report: "Please Upload Test Report"; `file.size > 2 * 1024 * 1024` → "Test Report limit is 2 MB .";
+  - SASV date rules: study end strictly after start; report date on or after study end.
+- **Source approval number:** relabelled "Issuing lab Form-48 approval no. (evidence only; not sent to portal)". The portal `qcdetails` Save payload has no such field.
+- **Canonical QC report filename:** `EAUSHADHI_P{4-digit product id}_{NAME}_QC_TEST_REPORT_V{NN}.pdf`, server-assigned at B1 reservation. For Product 262 the first name is `EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf`. The operator does not type it.
+- **Portal laboratory vocabulary (M-LAB, live `20261010180112`):**
+  - 59 labs from authenticated live capture `2d2840d0-e708-4000-9096-18d8ccf7e4d3`, stored byte-exact with portal ids; HARIDEV FORMULATIONS = 3980.
+  - The value saved and sent is the label, which is the portal `labName`.
+  - Reference only: confers no Form-48 approval or laboratory mapping authority.
+- **Open regulatory question for B3:** the current report issuer NUPAL is not in the portal laboratory list, so an OUT report from NUPAL cannot be named as the portal laboratory. Resolve before evidence governance and portal entry.
+- **Readiness wording:** the UI never shows READY for QC before C2 upload and B1–B4. With no server review reasons it shows "Fields complete (draft only)" plus the C2 / B1/B2 / B3 / B4 / portal-entry checklist.
