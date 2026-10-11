@@ -749,6 +749,42 @@ assert(staleReview.busy === false, "busy flag is released after a stale review")
 assert(staleReview.render === false, "a stale product is not rendered");
 assert(controlSrc.includes("event.type === \"change\" && liveField"), "date and batch edits re-render on change only");
 
+const batchFormatCopy = "Batch numbers must be comma-separated, with no spaces or duplicates, and 2–256 characters.";
+const spacedBatches = renderQc({ batches: "A101, A102", open: true });
+const batchInputAt = spacedBatches.indexOf('id="qcPrepBatches"');
+const batchNoteAt = spacedBatches.indexOf('id="qcPrepBatchFormat"');
+const modeAt = spacedBatches.indexOf('id="qcPrepModeIn"');
+assert(batchInputAt >= 0 && batchNoteAt > batchInputAt && batchNoteAt < modeAt, "invalid batch text renders the format message immediately after the batch input");
+assert(!spacedBatches.slice(batchInputAt, batchNoteAt).includes("<input id="), "no other input sits between the batch field and its message");
+assert(spacedBatches.slice(batchNoteAt, modeAt).includes(batchFormatCopy), "the batch message uses the batch-format wording");
+const spacedPanel = spacedBatches.slice(spacedBatches.indexOf('id="qcPrepResult"'), spacedBatches.indexOf('id="btnQcPrepReview"'));
+const spacedChecks = spacedPanel.slice(spacedPanel.indexOf("Form checks"));
+assert(spacedChecks.includes(batchFormatCopy), "Form checks still lists the batch message");
+assert(spacedBatches.includes('value="A101, A102"'), "the raw batch string survives re-render and esc");
+const cleanBatches = renderQc({ batches: "A101,A102", open: true });
+assert(!cleanBatches.includes('id="qcPrepBatchFormat"'), "valid batch text has no message under the field");
+const cleanChecks = cleanBatches.slice(cleanBatches.indexOf("Form checks"), cleanBatches.indexOf('id="btnQcPrepReview"'));
+assert(!cleanChecks.includes(batchFormatCopy), "valid batch text is absent from Form checks");
+assert(controlSrc.includes('form.batches = qcPrepReadField("qcPrepBatches")'), "sync keeps the raw batch string");
+const syncFn = controlSrc.slice(controlSrc.indexOf("function syncQcPrepFormFromDom"), controlSrc.indexOf("function onQcPrepField"));
+assert(!/form\.batches\s*=\s*[^;\n]*\.trim\(/.test(syncFn), "sync does not trim the batch string");
+assert(controlSrc.includes('value="${esc(model.batches)}"'), "re-render writes the raw batch string through esc");
+assert(controlSrc.includes('payload.batches = batchText.split(",").map((batch_no) => ({ batch_no }))'), "batch splitting stays in the payload builder");
+
+const fieldChange = controlSrc.slice(controlSrc.indexOf("function onQcPrepField"), controlSrc.indexOf("function releaseQcPrepReviewBusy"));
+assert(!fieldChange.includes("revealQcPrepResult"), "the field-change path does not call revealQcPrepResult");
+assert(!fieldChange.includes("scrollIntoView"), "the field-change path does not scroll");
+assert(!fieldChange.includes("getElementById(target.id)") && !fieldChange.includes("getElementById(changedId)"), "the field-change path never focuses the changed field");
+assert(fieldChange.includes("event.relatedTarget?.id") && fieldChange.includes("document.activeElement"), "the field-change path uses relatedTarget or the active element");
+assert(fieldChange.includes("qcPrepPendingFocusId") && fieldChange.includes("qcPrepTabDirection"), "the field-change path keeps the recorded destination and Tab direction");
+assert(fieldChange.includes("neighbor.focus({ preventScroll: false })"), "Tab moves to the next or previous focusable element");
+assert(fieldChange.includes("destinationId !== changedId") && fieldChange.includes("neighbor.id === changedId"), "a recorded destination or Tab neighbor is never the field just left");
+const revealUses = [...controlSrc.matchAll(/revealQcPrepResult\(([^)]*)\)/g)].map((match) => match[1]).filter((arg) => arg !== "focusId");
+assert(revealUses.length === 3 && revealUses.every((arg) => arg === '"btnQcPrepReview"' || arg === '"btnQcPrepReload"'), "revealQcPrepResult stays on Check and Reload only");
+assert(revealUses.includes('"btnQcPrepReview"') && revealUses.includes('"btnQcPrepReload"'), "Check and Reload still reveal their result");
+assert(controlSrc.includes('qcPrepPendingFocusId = event.relatedTarget?.id || ""'), "focusout records the destination id");
+assert(controlSrc.includes("qcPrepTabDirection = event.shiftKey ? -1 : 1"), "keydown records the Tab direction");
+
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);
   process.exit(1);
