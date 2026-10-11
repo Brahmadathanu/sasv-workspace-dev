@@ -1289,6 +1289,73 @@ assert(controlSrc.includes("Bytes verified ✓") && controlSrc.includes("<detail
 assert(preloadSrc.includes("eaushadhi-worker:qc-preparation-verify-source") && preloadSrc.includes("eaushadhi-worker:qc-evidence-recheck"), "preload maps verify and recheck");
 assert(ipcSrc.includes("CHANNELS.QC_PREPARATION_VERIFY_SOURCE") && ipcSrc.includes("CHANNELS.QC_EVIDENCE_RECHECK"), "ipc registers verify and recheck");
 
+const savedReportFile = QC_CANONICAL_REPORT_FILENAME;
+const savedReportSha = "ab".repeat(32);
+const factFieldsStart = controlSrc.indexOf("const QC_SOURCE_FACT_FIELDS = [");
+const reloadedDraft = new Function(
+  `const state = {
+     selectedProductId: 262,
+     qcPrepServer: { preparation_id: "${PREP_ID}", preparation_status: "REVIEW_REQUIRED", row_version: 4 },
+     qcPrepForm: null,
+     qcPrepOptions: [],
+     qcPrepReasons: [],
+     qcPrepDirty: false,
+     busy: false,
+     qcSourceVerifyRunning: false,
+     qcSourceConfirmOpen: false,
+     qcReports: [{
+       status: "REGISTERED",
+       preparation_id: "${PREP_ID}",
+       version_no: 1,
+       integrity_status: "VERIFIED_BYTES",
+       expected_file_name: ${JSON.stringify(savedReportFile)},
+       reservation_id: "33333333-3333-3333-3333-333333333333",
+     }],
+     qcReportByteResult: null,
+     qcFactScope: "",
+     qcFactRows: null,
+     qcFactAttest: false,
+     qcFactHighlights: [],
+     qcEvidenceRecheck: null,
+   };
+   function workerApiAvailable() { return true; }
+   function canWrite() { return true; }
+   ${controlSrc.slice(factFieldsStart, controlSrc.indexOf("];", factFieldsStart) + 2)}
+   ${extractFunction("emptyQcPrepForm")}
+   ${extractFunction("qcPrepForm")}
+   ${extractFunction("qcPrepFormFromPayload")}
+   ${extractFunction("qcRegisteredReport")}
+   ${extractFunction("qcIssuerShortName")}
+   ${extractFunction("qcFactPreviewValue")}
+   ${extractFunction("qcFactDefaultRows")}
+   ${extractFunction("qcFactRowError")}
+   ${extractFunction("qcFactRowsCurrent")}
+   ${extractFunction("qcEvidenceReasonText")}
+   ${extractFunction("qcEvidenceBadge")}
+   ${extractFunction("qcSourceFactsBlockReason")}
+   ${extractFunction("qcSourceFactsModel")}
+   ${extractFunction("qcSourceFactsCardHtml")}
+   const loaded = qcPrepFormFromPayload({
+     report_sha256: ${JSON.stringify(savedReportSha)},
+     report_filename: ${JSON.stringify(savedReportFile)},
+     source_report_issuer: "New Udaya Pharmacy & Ayurvedic Laboratories (NUPAL)",
+     date_evidence_note: "Study period entered manually by the operator.",
+     other_testing_protocol_text: "Cross Sectional Approach",
+   });
+   state.qcPrepForm = loaded;
+   qcSourceFactsModel();
+   state.qcFactAttest = true;
+   const open = qcSourceFactsModel();
+   const html = qcSourceFactsCardHtml(open);
+   state.qcPrepForm = { ...loaded, report_filename: "other.pdf" };
+   const blocked = qcSourceFactsModel();
+   return { loaded, open, html, blocked };`,
+)();
+assert(reloadedDraft.loaded.report_filename === savedReportFile && reloadedDraft.loaded.report_sha256 === savedReportSha, "a saved draft loads report_filename and report_sha256");
+assert(!reloadedDraft.open.blockReason, "a matching reloaded draft with no session byte check has no block reason");
+assert(reloadedDraft.open.canSubmit === true && reloadedDraft.html.includes('id="btnQcVerifySourceFacts"') && !reloadedDraft.html.includes('id="btnQcVerifySourceFacts" disabled'), "Verify source facts is enabled for that draft");
+assert(reloadedDraft.blocked.blockReason === "The draft does not match the verified report. Save the draft again from the latest report." && reloadedDraft.blocked.canSubmit !== true, "a different filename still blocks Verify source facts");
+
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);
   process.exit(1);

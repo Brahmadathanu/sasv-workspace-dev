@@ -277,3 +277,7 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - `rpc_eaushadhi_qc_preparation_verify_v1` is retired. `rpc_eaushadhi_qc_preparation_verify_v2` binds the evidence tuple and requires attestation plus per-fact evidence. `rpc_eaushadhi_qc_evidence_recheck_v1` is read-only.
 - Storage rejects client update and delete of a registered QC report. Register stays at 2 MB. The lock order is preparation, then reservation.
 - **Operator decision, pending B4 legal basis:** a NUPAL-issued report may be filed under HARIDEV FORMULATIONS as the portal laboratory. Recorded for B4. B3 does not act on it.
+
+## 2026-10-11 — WP-07 D4.1 saved report filename loads into Verify
+- Verify source facts blocked a matching draft after reload. The saved `report_filename` was not loaded back into the form, and the report list has no verified SHA until a byte check in the same session, so the client compared the draft with a blank file name and a blank SHA.
+- The form now loads `report_filename`. The client compares the SHA only when a verified SHA is known, and the file name only when both names are non-empty. `rpc_eaushadhi_qc_preparation_verify_v2` still rejects a real SHA or file-name mismatch.

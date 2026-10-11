@@ -190,3 +190,5 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
 The evidence badge is **Evidence valid ✓** when the binding still matches, **Needs re-verify** with the first reason in plain words when it does not, and **Not verified yet** when the reasons are not source-verified and no binding.
 
 Operator flow: Save the draft, **Check bytes on server**, then **Verify source facts**, then read the recheck badge. Verify source facts is never started automatically. Esc, Cancel, and a backdrop click make no call. A later edit requires verifying again.
+
+D4.1: after a reload, the saved report file name is loaded with the draft. Verify source facts compares the SHA only when a verified SHA is known, and the file name only when both names are present. A matching VERIFIED_BYTES report is not blocked by a blank session SHA. A different file name still blocks. The server verify still enforces both matches.

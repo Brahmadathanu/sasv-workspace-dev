@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v358"; // WP-07 D4 verify source facts
+const CACHE_NAME = "hub-cache-v359"; // WP-07 D4.1 verify source facts filename
 
 const PRECACHE = [
   // Hub shell
