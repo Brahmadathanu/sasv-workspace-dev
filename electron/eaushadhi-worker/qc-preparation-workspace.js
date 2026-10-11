@@ -5,11 +5,17 @@ const { FIRST_CONTROLLED_PRODUCT_ID } = require("./product-lock");
 const { validateAccessToken } = require("./validate");
 
 const QC_PROTOCOL_OPTIONS_RPC = "rpc_eaushadhi_qc_protocol_options_v1";
+const QC_LABORATORY_OPTIONS_RPC = "rpc_eaushadhi_qc_portal_laboratory_options_v1";
 const QC_PREPARATION_WORKSPACE_READ_RPC = "rpc_eaushadhi_qc_preparation_read_v1";
 const QC_PREPARATION_REVIEW_RPC = "rpc_eaushadhi_qc_preparation_review_v1";
 const QC_PREPARATION_SAVE_RPC = "rpc_eaushadhi_qc_preparation_save_v1";
 const QC_PREPARATION_SOURCE_KEY = "manual-qc:262:primary";
 const QC_DATE_BASIS = "OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN";
+const QC_CANONICAL_REPORT_FILENAME = "EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf";
+const QC_CANONICAL_REPORT_FILENAME_RE = /^EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V[0-9]{2}\.pdf$/;
+const QC_OTHER_PROTOCOL_TEXT_RE = /^[a-zA-Z0-9()-_ .]*$/;
+const QC_BATCH_TOKEN_RE = /^[A-Za-z0-9./_-]+$/;
+const QC_BATCH_TEXT_RE = /^[A-Za-z0-9./_-]+(,[A-Za-z0-9./_-]+)*$/;
 
 const PAYLOAD_KEYS = new Set([
   "testing_protocol_term_id",
@@ -33,12 +39,10 @@ const PAYLOAD_KEYS = new Set([
 
 const DATE_KEYS = ["study_start_date", "study_end_date", "report_date"];
 const TEXT_KEYS = [
-  "other_testing_protocol_text",
   "date_evidence_note",
   "report_date_evidence_note",
   "source_report_issuer",
   "source_report_approval_no",
-  "portal_laboratory_candidate",
   "report_filename",
   "report_evidence_note",
 ];
@@ -108,6 +112,14 @@ function normalizeQcPayload(input) {
   for (const key of TEXT_KEYS) {
     if (!blank(input[key])) payload[key] = String(input[key]).trim();
   }
+  if (typeof input.other_testing_protocol_text === "string" && input.other_testing_protocol_text.trim()) {
+    const other = input.other_testing_protocol_text.trim();
+    if (!qcOtherProtocolTextAccepted(other)) hints.push("OTHER_PROTOCOL_TEXT_INVALID");
+    else payload.other_testing_protocol_text = other;
+  }
+  if (typeof input.portal_laboratory_candidate === "string" && input.portal_laboratory_candidate.length > 0) {
+    payload.portal_laboratory_candidate = input.portal_laboratory_candidate;
+  }
   if (!blank(input.date_basis)) {
     const basis = String(input.date_basis).trim();
     if (basis !== QC_DATE_BASIS) {
@@ -136,17 +148,36 @@ function normalizeQcPayload(input) {
     }
     const seen = new Set();
     const batches = [];
+    let batchFormatInvalid = false;
     for (const item of input.batches) {
       if (item == null || typeof item !== "object" || Array.isArray(item)) {
         throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC preparation draft was not accepted.");
       }
-      const batchNo = blank(item.batch_no) ? "" : String(item.batch_no).trim();
-      if (!batchNo) continue;
+      const raw = item.batch_no == null ? "" : String(item.batch_no);
+      const batchNo = raw.trim();
+      if (!batchNo || !QC_BATCH_TOKEN_RE.test(raw)) {
+        batchFormatInvalid = true;
+        if (batchNo && QC_BATCH_TOKEN_RE.test(batchNo)) {
+          if (seen.has(batchNo)) duplicateBatches = true;
+          seen.add(batchNo);
+          batches.push({ batch_no: batchNo });
+        }
+        continue;
+      }
       if (seen.has(batchNo)) duplicateBatches = true;
       seen.add(batchNo);
       batches.push({ batch_no: batchNo });
     }
-    if (batches.length) payload.batches = batches;
+    if (batches.length) {
+      const joined = batches.map((item) => item.batch_no).join(",");
+      if (joined.length < 2 || joined.length > 256 || new Set(batches.map((item) => item.batch_no)).size !== batches.length) {
+        batchFormatInvalid = true;
+      }
+      payload.batches = batches;
+    } else if (input.batches.length) {
+      batchFormatInvalid = true;
+    }
+    if (batchFormatInvalid) hints.push("BATCH_FORMAT_INVALID");
   }
   if (duplicateBatches) hints.push("DUPLICATE_BATCH_NUMBER");
   if (!blank(input.quality_control_mode)) {
@@ -163,6 +194,18 @@ function normalizeQcPayload(input) {
   if (payload.quality_control_mode === "OUT" && blank(payload.source_report_issuer)) {
     hints.push("SOURCE_REPORT_ISSUER_REQUIRED");
   }
+  if (payload.quality_control_mode === "OUT" && !Object.hasOwn(payload, "portal_laboratory_candidate")) {
+    hints.push("PORTAL_LABORATORY_CANDIDATE_REQUIRED");
+  }
+  if (payload.study_start_date && payload.study_end_date && payload.study_end_date <= payload.study_start_date) {
+    hints.push("STUDY_END_NOT_AFTER_START");
+  }
+  if (payload.study_end_date && payload.report_date && payload.report_date < payload.study_end_date) {
+    hints.push("REPORT_DATE_BEFORE_STUDY_END");
+  }
+  if (payload.report_filename && !QC_CANONICAL_REPORT_FILENAME_RE.test(payload.report_filename)) {
+    hints.push("REPORT_FILENAME_NONCANONICAL");
+  }
   return { payload, hints, duplicateBatches };
 }
 
@@ -172,10 +215,75 @@ const TYPED_FORMAT_HINTS = new Set([
   "STUDY_END_DATE_REQUIRED_OR_INVALID",
   "REPORT_DATE_REQUIRED_OR_INVALID",
   "SHELF_LIFE_REQUIRED",
+  "OTHER_PROTOCOL_TEXT_INVALID",
+  "STUDY_END_NOT_AFTER_START",
+  "REPORT_DATE_BEFORE_STUDY_END",
+  "BATCH_FORMAT_INVALID",
+  "PORTAL_LABORATORY_CANDIDATE_REQUIRED",
+  "REPORT_FILENAME_NONCANONICAL",
 ]);
 
 function hasTypedFormatHint(hints) {
   return hints.some((hint) => TYPED_FORMAT_HINTS.has(hint));
+}
+
+function qcOtherProtocolTextAccepted(text) {
+  const value = String(text ?? "");
+  return value.length >= 1
+    && value.length <= 125
+    && /\S/.test(value)
+    && QC_OTHER_PROTOCOL_TEXT_RE.test(value);
+}
+
+function assessQcBatchText(text) {
+  const value = String(text ?? "");
+  const items = value.split(",");
+  if (
+    value.length < 2
+    || value.length > 256
+    || !QC_BATCH_TEXT_RE.test(value)
+    || new Set(items).size !== items.length
+  ) {
+    return { ok: false, hint: "BATCH_FORMAT_INVALID", batches: [] };
+  }
+  return {
+    ok: true,
+    hint: null,
+    batches: items.map((batch_no) => ({ batch_no })),
+  };
+}
+
+function assertLaboratoryOptions(data) {
+  if (!Array.isArray(data)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC laboratory options were not accepted.");
+  }
+  const labels = new Set();
+  const options = data.map((item) => {
+    const portalOptionId = item?.portal_option_id;
+    const externalId = item?.external_id;
+    const label = item?.label;
+    const portalValue = item?.portal_value;
+    if (
+      typeof portalOptionId !== "number"
+      || !Number.isInteger(portalOptionId)
+      || typeof externalId !== "string"
+      || !/^[0-9]+$/.test(externalId)
+      || typeof label !== "string"
+      || label.length === 0
+      || portalValue !== label
+      || labels.has(label)
+    ) {
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC laboratory options were not accepted.");
+    }
+    labels.add(label);
+    return {
+      portal_option_id: portalOptionId,
+      external_id: externalId,
+      label,
+      portal_value: portalValue,
+    };
+  });
+  return options;
 }
 
 function assertProtocolOptions(data) {
@@ -215,6 +323,25 @@ async function loadQcProtocolOptions({ productId, accessToken, callRpc } = {}) {
     operation: "qc-protocol-options",
     productId: id,
     options: assertProtocolOptions(data),
+    mutated: false,
+  };
+}
+
+async function loadQcLaboratoryOptions({ productId, accessToken, callRpc } = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  let data;
+  try {
+    data = await callRpc(token, QC_LABORATORY_OPTIONS_RPC, {});
+  } catch (error) {
+    throw toWorkspaceError(error);
+  }
+  return {
+    ok: true,
+    operation: "qc-laboratory-options",
+    productId: id,
+    options: assertLaboratoryOptions(data),
     mutated: false,
   };
 }
@@ -317,6 +444,23 @@ async function saveQcPreparation({
       throw workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Verified — editing is not available in C1.");
     }
   }
+  if (Object.hasOwn(normalized.payload, "portal_laboratory_candidate")) {
+    const listed = await loadQcLaboratoryOptions({
+      productId: id,
+      accessToken: token,
+      callRpc,
+    });
+    const known = listed.options.some(
+      (item) => item.label === normalized.payload.portal_laboratory_candidate,
+    );
+    if (!known) {
+      throw workerError(
+        ERROR_KINDS.CONTRACT_INCOMPLETE,
+        "Portal laboratory must match a name from the portal laboratory list.",
+        { details: { code: "PORTAL_LABORATORY_CANDIDATE_UNKNOWN" } },
+      );
+    }
+  }
   const args = {
     p_preparation_id: creating ? null : String(preparationId),
     p_product_id: id,
@@ -348,13 +492,21 @@ async function saveQcPreparation({
 
 module.exports = {
   QC_PROTOCOL_OPTIONS_RPC,
+  QC_LABORATORY_OPTIONS_RPC,
   QC_PREPARATION_WORKSPACE_READ_RPC,
   QC_PREPARATION_REVIEW_RPC,
   QC_PREPARATION_SAVE_RPC,
   QC_PREPARATION_SOURCE_KEY,
   QC_DATE_BASIS,
+  QC_CANONICAL_REPORT_FILENAME,
+  QC_CANONICAL_REPORT_FILENAME_RE,
+  QC_OTHER_PROTOCOL_TEXT_RE,
   normalizeQcPayload,
+  assessQcBatchText,
+  assertLaboratoryOptions,
+  qcOtherProtocolTextAccepted,
   loadQcProtocolOptions,
+  loadQcLaboratoryOptions,
   readQcPreparations,
   reviewQcPreparation,
   saveQcPreparation,

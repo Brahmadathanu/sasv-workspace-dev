@@ -190,6 +190,7 @@ import {
   readQcPreparation,
   readQcReport,
   loadQcProtocolOptions,
+  loadQcLaboratoryOptions,
   readQcPreparationWorkspace,
   reviewQcPreparation,
   saveQcPreparation,
@@ -301,6 +302,10 @@ const state = {
   qcPrepLoading: false,
   qcPrepLoadedFor: null,
   qcPrepOptions: [],
+  qcPrepLabs: [],
+  qcPrepLabsUnavailable: false,
+  qcPrepDefaultsApplied: false,
+  qcPrepFieldsComplete: false,
   qcPrepServer: null,
   qcPrepAmbiguous: false,
   qcPrepForm: null,
@@ -2795,6 +2800,9 @@ function refreshReadinessIfActive() {
 }
 
 const QC_PREP_DATE_BASIS = "OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN";
+const QC_PREP_CANONICAL_REPORT_FILENAME = "EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf";
+const QC_PREP_OTHER_TEXT_RE = /^[a-zA-Z0-9()-_ .]*$/;
+const QC_PREP_BATCH_TEXT_RE = /^[A-Za-z0-9./_-]+(,[A-Za-z0-9./_-]+)*$/;
 const QC_PREP_REASON_LABELS = {
   PROTOCOL_REQUIRED: "Testing protocol is required.",
   PROTOCOL_INVALID: "Testing protocol is not an active QC protocol.",
@@ -2815,9 +2823,16 @@ const QC_PREP_REASON_LABELS = {
   BATCHES_REQUIRED: "At least one batch number is required.",
   BATCH_NUMBER_REQUIRED: "Each batch needs a batch number.",
   DUPLICATE_BATCH_NUMBER: "Batch numbers must be unique.",
+  BATCH_FORMAT_INVALID: "Batch numbers must be comma-separated, with no spaces or duplicates, and 2–256 characters.",
   QC_MODE_REQUIRED: "Choose IN or OUT laboratory status.",
   SOURCE_REPORT_ISSUER_REQUIRED: "OUT reports need the source report issuer.",
+  PORTAL_LABORATORY_CANDIDATE_REQUIRED: "Choose a portal laboratory when laboratory status is OUT.",
+  PORTAL_LABORATORY_CANDIDATE_UNKNOWN: "Portal laboratory must match a name from the portal laboratory list.",
   REPORT_FILENAME_REQUIRED: "Report filename is required.",
+  REPORT_FILENAME_NONCANONICAL: "Report filename must be the canonical Product 262 report name.",
+  OTHER_PROTOCOL_TEXT_INVALID: "Other testing protocol text must be 1–125 characters and use only the portal's accepted characters.",
+  STUDY_END_NOT_AFTER_START: "Study end date must be after the study start date.",
+  REPORT_DATE_BEFORE_STUDY_END: "Report date must be on or after the study end date.",
   REPORT_SHA256_REQUIRED: "Claimed SHA-256 must be 64 lowercase hex characters.",
   REPORT_EVIDENCE_REQUIRED: "Report evidence note is required.",
   PAYLOAD_NOT_OBJECT: "The draft is not a valid form.",
@@ -2832,7 +2847,7 @@ function emptyQcPrepForm() {
     date_basis: "",
     date_evidence_note: "",
     shelf_life_months: "",
-    batches: [""],
+    batches: "",
     report_date: "",
     report_date_evidence_note: "",
     quality_control_mode: "",
@@ -2867,18 +2882,19 @@ function qcPrepFormFromPayload(payload) {
     "quality_control_mode",
     "source_report_issuer",
     "source_report_approval_no",
-    "portal_laboratory_candidate",
-    "report_filename",
     "report_sha256",
     "report_evidence_note",
   ]) {
     if (src[key] != null && String(src[key]).trim()) form[key] = String(src[key]);
   }
+  if (typeof src.portal_laboratory_candidate === "string" && src.portal_laboratory_candidate.length > 0) {
+    form.portal_laboratory_candidate = src.portal_laboratory_candidate;
+  }
   if (src.shelf_life_months != null && String(src.shelf_life_months).trim()) {
     form.shelf_life_months = String(src.shelf_life_months);
   }
   if (Array.isArray(src.batches) && src.batches.length) {
-    form.batches = src.batches.map((item) => String(item?.batch_no ?? ""));
+    form.batches = src.batches.map((item) => String(item?.batch_no ?? "")).join(",");
   }
   return form;
 }
@@ -2905,19 +2921,19 @@ function qcPrepPayloadFromForm(form) {
     "report_date_evidence_note",
     "source_report_issuer",
     "source_report_approval_no",
-    "portal_laboratory_candidate",
-    "report_filename",
     "report_evidence_note",
   ]) {
     const value = String(form[key] || "").trim();
     if (value) payload[key] = value;
   }
+  const laboratory = String(form.portal_laboratory_candidate ?? "");
+  if (laboratory.length > 0) payload.portal_laboratory_candidate = laboratory;
+  payload.report_filename = QC_PREP_CANONICAL_REPORT_FILENAME;
   if (String(form.shelf_life_months || "").trim()) payload.shelf_life_months = String(form.shelf_life_months).trim();
-  const batches = (form.batches || [])
-    .map((value) => String(value || "").trim())
-    .filter(Boolean)
-    .map((batchNo) => ({ batch_no: batchNo }));
-  if (batches.length) payload.batches = batches;
+  const batchText = String(form.batches ?? "");
+  if (batchText.length > 0) {
+    payload.batches = batchText.split(",").map((batch_no) => ({ batch_no }));
+  }
   if (form.quality_control_mode === "IN" || form.quality_control_mode === "OUT") {
     payload.quality_control_mode = form.quality_control_mode;
   }
@@ -2925,22 +2941,46 @@ function qcPrepPayloadFromForm(form) {
   return payload;
 }
 
+function qcPrepBatchTextInvalid(text) {
+  const value = String(text ?? "");
+  if (!value) return false;
+  const items = value.split(",");
+  return value.length < 2
+    || value.length > 256
+    || !QC_PREP_BATCH_TEXT_RE.test(value)
+    || new Set(items).size !== items.length;
+}
+
+function qcPrepOtherTextInvalid(text) {
+  const value = String(text ?? "").trim();
+  if (!value) return false;
+  return value.length > 125 || !/\S/.test(value) || !QC_PREP_OTHER_TEXT_RE.test(value);
+}
+
 function qcPrepLocalHints(form) {
   const hints = [];
   const start = String(form.study_start_date || "");
   const end = String(form.study_end_date || "");
   const report = String(form.report_date || "");
-  if (start && end && end < start) hints.push("STUDY_DATE_ORDER_INVALID");
+  if (start && end && end <= start) hints.push("STUDY_END_NOT_AFTER_START");
+  if (end && report && report < end) hints.push("REPORT_DATE_BEFORE_STUDY_END");
   if (start && report && report < start) hints.push("REPORT_DATE_BEFORE_STUDY_START");
-  const seen = new Set();
-  for (const value of form.batches || []) {
-    const batchNo = String(value || "").trim();
-    if (!batchNo) continue;
-    if (seen.has(batchNo)) hints.push("DUPLICATE_BATCH_NUMBER");
-    seen.add(batchNo);
+  if (qcPrepProtocolCode(form) === "OTHER") {
+    const other = String(form.other_testing_protocol_text || "");
+    if (!other.trim()) hints.push("OTHER_PROTOCOL_TEXT_REQUIRED");
+    else if (qcPrepOtherTextInvalid(other)) hints.push("OTHER_PROTOCOL_TEXT_INVALID");
   }
+  if (qcPrepBatchTextInvalid(form.batches)) hints.push("BATCH_FORMAT_INVALID");
+  const shelf = String(form.shelf_life_months || "").trim();
+  if (shelf && (!/^[0-9]{1,4}$/.test(shelf) || Number(shelf) < 1)) hints.push("SHELF_LIFE_REQUIRED");
   if (form.quality_control_mode === "OUT" && !String(form.source_report_issuer || "").trim()) {
     hints.push("SOURCE_REPORT_ISSUER_REQUIRED");
+  }
+  if (form.quality_control_mode === "OUT" && !String(form.portal_laboratory_candidate ?? "").length) {
+    hints.push("PORTAL_LABORATORY_CANDIDATE_REQUIRED");
+  } else if (String(form.portal_laboratory_candidate ?? "").length) {
+    const known = (state.qcPrepLabs || []).some((item) => item.label === form.portal_laboratory_candidate);
+    if (!state.qcPrepLabsUnavailable && !known) hints.push("PORTAL_LABORATORY_CANDIDATE_UNKNOWN");
   }
   return hints;
 }
@@ -2954,6 +2994,10 @@ function resetQcPreparationWorkspace() {
   state.qcPrepLoading = false;
   state.qcPrepLoadedFor = null;
   state.qcPrepOptions = [];
+  state.qcPrepLabs = [];
+  state.qcPrepLabsUnavailable = false;
+  state.qcPrepDefaultsApplied = false;
+  state.qcPrepFieldsComplete = false;
   state.qcPrepServer = null;
   state.qcPrepAmbiguous = false;
   state.qcPrepForm = emptyQcPrepForm();
@@ -2967,26 +3011,225 @@ function qcPrepCurrent() {
   return state.qcPrepRequest;
 }
 
+function qcPrepFormIsEmpty(form) {
+  if (!form) return true;
+  const empty = emptyQcPrepForm();
+  return Object.keys(empty).every((key) => form[key] === empty[key]);
+}
+
+function applyQcPreparationDefaults(form, context) {
+  const dateBasis = "OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN";
+  const otherText = "Cross Sectional Approach (API Vol VIII Page No:226)";
+  const laboratoryName = "HARIDEV FORMULATIONS";
+  const productId = Number(context?.productId);
+  const eligible = productId === 262
+    && context?.hasPreparation !== true
+    && context?.dirty !== true
+    && context?.formEmpty === true;
+  if (!eligible) return { form, applied: false, save: false };
+  const protocolOptions = Array.isArray(context?.protocolOptions) ? context.protocolOptions : [];
+  const other = protocolOptions.find((item) => item?.code === "OTHER");
+  const laboratoryOptions = Array.isArray(context?.laboratoryOptions) ? context.laboratoryOptions : [];
+  const haridev = laboratoryOptions.find((item) => item?.label === laboratoryName);
+  return {
+    applied: true,
+    save: false,
+    form: {
+      ...form,
+      testing_protocol_term_id: other ? String(other.term_id) : "",
+      other_testing_protocol_text: otherText,
+      date_basis: dateBasis,
+      shelf_life_months: "36",
+      quality_control_mode: "OUT",
+      portal_laboratory_candidate: haridev ? haridev.label : "",
+      study_start_date: "",
+      study_end_date: "",
+      report_date: "",
+      date_evidence_note: "",
+      report_date_evidence_note: "",
+      source_report_issuer: "",
+      source_report_approval_no: "",
+      batches: "",
+      report_sha256: "",
+      report_evidence_note: "",
+    },
+  };
+}
+
+function qcPrepStatusText(server, loading) {
+  if (server) {
+    const status = String(server.preparation_status ?? "").split("READY").join("");
+    const verifiedAt = String(server.verified_at || "not verified").split("READY").join("");
+    return `Status ${status}, row version ${server.row_version}, verified at ${verifiedAt}.`;
+  }
+  if (loading) return "Loading QC preparation.";
+  return "No QC preparation saved yet.";
+}
+
+function qcPrepWorkspaceHtml(model) {
+  const esc = (value) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const disabled = model.disabled || "";
+  const reasons = Array.isArray(model.reasons) ? model.reasons : [];
+  const reasonList = reasons.length
+    ? `<ul class="progress-list">${reasons.map((code) => `<li>${esc(code)}</li>`).join("")}</ul>`
+    : model.fieldsComplete
+      ? `<p class="muted-note">Fields complete (draft only)</p>`
+      : `<p class="muted-note">No server review reasons yet.</p>`;
+  const checklist = [
+    "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
+    "B1/B2 — Report registered and bytes verified",
+    "B3 — Evidence governance accepted",
+    "B4 — QC portal readiness confirmed",
+    "Portal entry (manual, later)",
+  ].map((item) => `<li>${esc(item)} — not done</li>`).join("");
+  const labs = Array.isArray(model.labs) ? model.labs : [];
+  const selectedLab = labs.find((item) => item.label === model.lab);
+  const labMissing = model.lab && !labs.some((item) => item.label === model.lab);
+  const protocolOptions = Array.isArray(model.protocolOptions) ? model.protocolOptions : [];
+  return `
+    <details class="section-card qc-prep-workspace" id="qcPreparationWorkspace"${model.open ? " open" : ""}>
+      <summary class="section-title">QC Preparation (Product 262)</summary>
+      <p class="muted-note">${esc(model.status)}</p>
+      ${model.verified ? `<p class="muted-note">Verified — editing is not available in C1.</p>` : ""}
+      <p class="muted-note">Reference for Product 262: the current report issuer appears to be NUPAL; Haridev Formulations is a possible portal laboratory candidate. Neither is saved or verified automatically.</p>
+      <p class="muted-note">PDF bytes are not uploaded or verified. QC portal readiness remains blocked.</p>
+      <p class="muted-note">Portal upload limit: PDF ≤ 2 MB.</p>
+      ${model.defaultsNote ? `<p class="muted-note">Defaults filled — review every value before saving.</p>` : ""}
+      ${model.labsUnavailable ? `<p class="muted-note">Laboratory list unavailable</p>` : ""}
+      ${model.notice ? `<p class="muted-note" id="qcPrepNotice">${esc(model.notice)}</p>` : `<p class="muted-note" id="qcPrepNotice"></p>`}
+      ${reasonList}
+      <ul class="progress-list" id="qcPrepChecklist">${checklist}</ul>
+      <div class="form-grid">
+        <label class="form-field">Testing protocol
+          <select id="qcPrepProtocol"${disabled}>
+            <option value="">Select protocol</option>
+            ${model.savedProtocolMissing ? `<option value="${esc(model.protocolId)}" selected>Saved protocol term</option>` : ""}
+            ${protocolOptions.map((item) => `<option value="${esc(item.term_id)}"${String(item.term_id) === String(model.protocolId) ? " selected" : ""}>${esc(item.label)}</option>`).join("")}
+          </select>
+        </label>
+        ${model.showOther ? `<label class="form-field form-span-2">Other testing protocol
+          <input id="qcPrepOther" value="${esc(model.otherText)}"${disabled}>
+        </label>` : ""}
+        <label class="form-field">Study start date
+          <input id="qcPrepStart" type="date" value="${esc(model.studyStart)}"${disabled}>
+        </label>
+        <label class="form-field">Study end date
+          <input id="qcPrepEnd" type="date" value="${esc(model.studyEnd)}"${disabled}>
+        </label>
+        <label class="form-field">Report date
+          <input id="qcPrepReportDate" type="date" value="${esc(model.reportDate)}"${disabled}>
+        </label>
+        <label class="form-field">Date basis
+          <select id="qcPrepDateBasis"${disabled}>
+            <option value="">Blank</option>
+            <option value="${esc(model.dateBasis)}"${model.dateBasisSelected ? " selected" : ""}>Operator-reviewed cross-sectional manufacturing span</option>
+          </select>
+        </label>
+        <label class="form-field form-span-2">Date evidence note
+          <textarea id="qcPrepDateNote"${disabled}>${esc(model.dateNote)}</textarea>
+        </label>
+        <label class="form-field form-span-2">Report-date evidence note
+          <textarea id="qcPrepReportDateNote"${disabled}>${esc(model.reportDateNote)}</textarea>
+        </label>
+        <label class="form-field">Shelf life months
+          <input id="qcPrepShelf" inputmode="numeric" value="${esc(model.shelf)}"${disabled}>
+        </label>
+        <label class="form-field form-span-2">Batch numbers (comma-separated, no spaces, e.g. A101,A102)
+          <input id="qcPrepBatches" value="${esc(model.batches)}"${disabled}>
+        </label>
+      </div>
+      <div class="form-grid">
+        <fieldset class="form-field">
+          <legend class="meta-label">Laboratory status</legend>
+          <label><input type="radio" name="qcPrepMode" value="IN"${model.mode === "IN" ? " checked" : ""}${disabled}> IN</label>
+          <label><input type="radio" name="qcPrepMode" value="OUT"${model.mode === "OUT" ? " checked" : ""}${disabled}> OUT</label>
+        </fieldset>
+        <label class="form-field">Source report issuer
+          <input id="qcPrepIssuer" value="${esc(model.issuer)}"${disabled}>
+        </label>
+        <label class="form-field">Issuing lab Form-48 approval no. (evidence only; not sent to portal)
+          <input id="qcPrepApproval" value="${esc(model.approval)}"${disabled}>
+        </label>
+        <label class="form-field">Portal laboratory
+          <select id="qcPrepPortalLab"${disabled}>
+            <option value="">Select laboratory</option>
+            ${labMissing ? `<option value="${esc(model.lab)}" selected>${esc(model.lab)}</option>` : ""}
+            ${labs.map((item) => `<option value="${esc(item.label)}"${item.label === model.lab ? " selected" : ""}>${esc(item.label)}</option>`).join("")}
+          </select>
+        </label>
+        ${selectedLab ? `<p class="muted-note">portal id ${esc(selectedLab.external_id)}</p>` : ""}
+        <p class="muted-note">Report file name (assigned by server at upload): EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf</p>
+        <label class="form-field">Claimed SHA-256
+          <input id="qcPrepSha" value="${esc(model.sha)}"${disabled}>
+        </label>
+        <label class="form-field form-span-2">Report evidence note
+          <textarea id="qcPrepEvidenceNote"${disabled}>${esc(model.evidence)}</textarea>
+        </label>
+      </div>
+      <div class="action-row">
+        <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
+        <button type="button" class="icon-btn with-label" id="btnQcPrepSave" data-edit-action="true"${model.saveDisabled ? " disabled" : ""}>Save draft</button>
+        <button type="button" class="icon-btn with-label" id="btnQcPrepReload"${model.reloadDisabled ? " disabled" : ""}>Reload server copy</button>
+      </div>
+    </details>`;
+}
+
 async function loadQcPreparationWorkspace(productId, request) {
   try {
     const token = await sessionAccessToken();
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     const options = await loadQcProtocolOptions(productId, token);
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
-    const read = await readQcPreparationWorkspace(productId, token);
-    if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
-    if (options?.ok === false || read?.ok === false) {
-      state.qcPrepNotice = options?.ok === false ? options.message : read?.message;
+    if (options?.ok === false) {
+      state.qcPrepNotice = options.message;
       state.qcPrepLoadedFor = productId;
       return;
     }
     state.qcPrepOptions = Array.isArray(options?.options) ? options.options : [];
+    let labsUnavailable = false;
+    let labs = [];
+    try {
+      const listed = await loadQcLaboratoryOptions(productId, token);
+      if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
+      if (listed?.ok === false) labsUnavailable = true;
+      else labs = Array.isArray(listed?.options) ? listed.options : [];
+    } catch {
+      if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
+      labsUnavailable = true;
+    }
+    state.qcPrepLabsUnavailable = labsUnavailable;
+    state.qcPrepLabs = labs;
+    const read = await readQcPreparationWorkspace(productId, token);
+    if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
+    if (read?.ok === false) {
+      state.qcPrepNotice = labsUnavailable ? "" : read?.message;
+      state.qcPrepLoadedFor = productId;
+      return;
+    }
     state.qcPrepAmbiguous = read?.ambiguous === true;
     state.qcPrepServer = read?.preparation || null;
     state.qcPrepReasons = Array.isArray(read?.preparation?.review?.reasons) ? read.preparation.review.reasons : [];
-    if (!state.qcPrepDirty) state.qcPrepForm = qcPrepFormFromPayload(read?.preparation?.draft_payload);
+    state.qcPrepFieldsComplete = false;
+    if (!state.qcPrepDirty) {
+      const loadedForm = qcPrepFormFromPayload(read?.preparation?.draft_payload);
+      const applied = applyQcPreparationDefaults(loadedForm, {
+        productId,
+        protocolOptions: state.qcPrepOptions,
+        laboratoryOptions: state.qcPrepLabs,
+        hasPreparation: Boolean(read?.preparation),
+        dirty: false,
+        formEmpty: qcPrepFormIsEmpty(loadedForm),
+      });
+      state.qcPrepForm = applied.form;
+      state.qcPrepDefaultsApplied = applied.applied === true;
+    }
     state.qcPrepLoadedFor = productId;
     if (read?.ambiguous) state.qcPrepNotice = "More than one preparation uses the governed source key. Reload before editing.";
+    else state.qcPrepNotice = "";
   } catch (error) {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
     state.qcPrepNotice = userMessageForError(error);
@@ -3015,115 +3258,48 @@ function qcPreparationWorkspaceMarkup() {
   }
   const form = qcPrepForm();
   const verified = state.qcPrepServer?.preparation_status === "VERIFIED";
-  const locked = verified || !canWrite() || state.busy || state.qcPrepLoading;
-  const disabled = locked ? " disabled" : "";
+  const locked = verified || !canWrite() || state.busy || state.qcPrepLoading || state.qcPrepLabsUnavailable;
   const protocolCode = qcPrepProtocolCode(form);
   const showOther = protocolCode === "OTHER" || String(form.other_testing_protocol_text || "").trim() !== "";
   const knownIds = new Set(state.qcPrepOptions.map((item) => String(item.term_id)));
-  const savedMissing = form.testing_protocol_term_id && !knownIds.has(String(form.testing_protocol_term_id));
-  const status = state.qcPrepServer
-    ? `Status ${state.qcPrepServer.preparation_status}, row version ${state.qcPrepServer.row_version}, verified at ${state.qcPrepServer.verified_at || "not verified"}.`
-    : state.qcPrepLoading
-      ? "Loading QC preparation."
-      : "No QC preparation saved yet.";
+  const savedMissing = Boolean(form.testing_protocol_term_id) && !knownIds.has(String(form.testing_protocol_term_id));
   const reasons = [...new Set([...(state.qcPrepReasons || []), ...qcPrepLocalHints(form)])];
-  const reasonList = reasons.length
-    ? `<ul class="progress-list">${reasons.map((code) => `<li>${escapeHtml(qcPrepReasonText(code))}</li>`).join("")}</ul>`
-    : `<p class="muted-note">No server review reasons yet.</p>`;
-  const batches = (form.batches || [""]).map((value, index) => `
-    <div class="action-row">
-      <label class="form-field">Batch number
-        <input id="qcPrepBatch${index}" data-qc-batch="${index}" value="${escapeHtml(value)}"${disabled}>
-      </label>
-      <button type="button" class="icon-btn with-label" data-qc-remove-batch="${index}"${disabled}>Remove</button>
-    </div>`).join("");
-  return `
-    <details class="section-card qc-prep-workspace" id="qcPreparationWorkspace"${state.qcPrepOpen ? " open" : ""}>
-      <summary class="section-title">QC Preparation (Product 262)</summary>
-      <p class="muted-note">${escapeHtml(status)}</p>
-      ${verified ? `<p class="muted-note">Verified — editing is not available in C1.</p>` : ""}
-      <p class="muted-note">Reference for Product 262: the current report issuer appears to be NUPAL; Haridev Formulations is a possible portal laboratory candidate. Neither is saved or verified automatically.</p>
-      <p class="muted-note">PDF bytes are not uploaded or verified. QC portal readiness remains blocked.</p>
-      ${state.qcPrepNotice ? `<p class="muted-note" id="qcPrepNotice">${escapeHtml(state.qcPrepNotice)}</p>` : `<p class="muted-note" id="qcPrepNotice"></p>`}
-      ${reasonList}
-      <div class="form-grid">
-        <label class="form-field">Testing protocol
-          <select id="qcPrepProtocol"${disabled}>
-            <option value="">Select protocol</option>
-            ${savedMissing ? `<option value="${escapeHtml(form.testing_protocol_term_id)}" selected>Saved protocol term</option>` : ""}
-            ${state.qcPrepOptions.map((item) => `<option value="${escapeHtml(item.term_id)}"${String(item.term_id) === String(form.testing_protocol_term_id) ? " selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
-          </select>
-        </label>
-        ${showOther ? `<label class="form-field form-span-2">Other testing protocol
-          <input id="qcPrepOther" value="${escapeHtml(form.other_testing_protocol_text)}"${disabled}>
-        </label>` : ""}
-        <label class="form-field">Study start date
-          <input id="qcPrepStart" type="date" value="${escapeHtml(form.study_start_date)}"${disabled}>
-        </label>
-        <label class="form-field">Study end date
-          <input id="qcPrepEnd" type="date" value="${escapeHtml(form.study_end_date)}"${disabled}>
-        </label>
-        <label class="form-field">Report date
-          <input id="qcPrepReportDate" type="date" value="${escapeHtml(form.report_date)}"${disabled}>
-        </label>
-        <label class="form-field">Date basis
-          <select id="qcPrepDateBasis"${disabled}>
-            <option value="">Blank</option>
-            <option value="${QC_PREP_DATE_BASIS}"${form.date_basis === QC_PREP_DATE_BASIS ? " selected" : ""}>Operator-reviewed cross-sectional manufacturing span</option>
-          </select>
-        </label>
-        <label class="form-field form-span-2">Date evidence note
-          <textarea id="qcPrepDateNote"${disabled}>${escapeHtml(form.date_evidence_note)}</textarea>
-        </label>
-        <label class="form-field form-span-2">Report-date evidence note
-          <textarea id="qcPrepReportDateNote"${disabled}>${escapeHtml(form.report_date_evidence_note)}</textarea>
-        </label>
-        <label class="form-field">Shelf life months
-          <input id="qcPrepShelf" inputmode="numeric" value="${escapeHtml(form.shelf_life_months)}"${disabled}>
-        </label>
-      </div>
-      <div class="form-field">
-        <span class="meta-label">Batch numbers</span>
-        ${batches}
-        <button type="button" class="icon-btn with-label" id="btnQcPrepAddBatch"${disabled}>Add batch</button>
-      </div>
-      <div class="form-grid">
-        <fieldset class="form-field">
-          <legend class="meta-label">Laboratory status</legend>
-          <label><input type="radio" name="qcPrepMode" value="IN"${form.quality_control_mode === "IN" ? " checked" : ""}${disabled}> IN</label>
-          <label><input type="radio" name="qcPrepMode" value="OUT"${form.quality_control_mode === "OUT" ? " checked" : ""}${disabled}> OUT</label>
-        </fieldset>
-        <label class="form-field">Source report issuer
-          <input id="qcPrepIssuer" value="${escapeHtml(form.source_report_issuer)}"${disabled}>
-        </label>
-        <label class="form-field">Source approval number
-          <input id="qcPrepApproval" value="${escapeHtml(form.source_report_approval_no)}"${disabled}>
-        </label>
-        <label class="form-field">Portal laboratory candidate
-          <input id="qcPrepPortalLab" value="${escapeHtml(form.portal_laboratory_candidate)}"${disabled}>
-        </label>
-        <label class="form-field">Report filename
-          <input id="qcPrepFilename" value="${escapeHtml(form.report_filename)}"${disabled}>
-        </label>
-        <label class="form-field">Claimed SHA-256
-          <input id="qcPrepSha" value="${escapeHtml(form.report_sha256)}"${disabled}>
-        </label>
-        <label class="form-field form-span-2">Report evidence note
-          <textarea id="qcPrepEvidenceNote"${disabled}>${escapeHtml(form.report_evidence_note)}</textarea>
-        </label>
-      </div>
-      <div class="action-row">
-        <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${
-          access.canView !== true || !available || state.busy || state.qcPrepLoading ? " disabled" : ""
-        }>Check (server review)</button>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepSave" data-edit-action="true"${
-          !canWrite() || locked ? " disabled" : ""
-        }>Save draft</button>
-        <button type="button" class="icon-btn with-label" id="btnQcPrepReload"${
-          access.canView !== true || state.busy ? " disabled" : ""
-        }>Reload server copy</button>
-      </div>
-    </details>`;
+  const fieldsComplete = state.qcPrepFieldsComplete === true && reasons.length === 0;
+  return qcPrepWorkspaceHtml({
+    open: state.qcPrepOpen,
+    status: qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading),
+    verified,
+    disabled: locked ? " disabled" : "",
+    notice: state.qcPrepNotice,
+    defaultsNote: state.qcPrepDefaultsApplied === true,
+    labsUnavailable: state.qcPrepLabsUnavailable === true,
+    fieldsComplete,
+    reasons: reasons.map((code) => qcPrepReasonText(code)),
+    showOther,
+    protocolOptions: state.qcPrepOptions,
+    protocolId: form.testing_protocol_term_id,
+    savedProtocolMissing: savedMissing,
+    otherText: form.other_testing_protocol_text,
+    studyStart: form.study_start_date,
+    studyEnd: form.study_end_date,
+    reportDate: form.report_date,
+    dateBasis: QC_PREP_DATE_BASIS,
+    dateBasisSelected: form.date_basis === QC_PREP_DATE_BASIS,
+    dateNote: form.date_evidence_note,
+    reportDateNote: form.report_date_evidence_note,
+    shelf: form.shelf_life_months,
+    batches: form.batches,
+    mode: form.quality_control_mode,
+    issuer: form.source_report_issuer,
+    approval: form.source_report_approval_no,
+    lab: form.portal_laboratory_candidate,
+    labs: state.qcPrepLabs,
+    sha: form.report_sha256,
+    evidence: form.report_evidence_note,
+    reviewDisabled: access.canView !== true || !available || state.busy || state.qcPrepLoading,
+    saveDisabled: !canWrite() || locked,
+    reloadDisabled: access.canView !== true || state.busy,
+  });
 }
 
 function qcPrepReadField(id) {
@@ -3143,13 +3319,12 @@ function syncQcPrepFormFromDom() {
   form.date_evidence_note = qcPrepReadField("qcPrepDateNote");
   form.report_date_evidence_note = qcPrepReadField("qcPrepReportDateNote");
   form.shelf_life_months = qcPrepReadField("qcPrepShelf");
-  form.batches = (form.batches || [""]).map((_, index) => qcPrepReadField(`qcPrepBatch${index}`));
+  form.batches = qcPrepReadField("qcPrepBatches");
   const selectedMode = document.querySelector("input[name='qcPrepMode']:checked");
   form.quality_control_mode = selectedMode?.value || "";
   form.source_report_issuer = qcPrepReadField("qcPrepIssuer");
   form.source_report_approval_no = qcPrepReadField("qcPrepApproval");
   form.portal_laboratory_candidate = qcPrepReadField("qcPrepPortalLab");
-  form.report_filename = qcPrepReadField("qcPrepFilename");
   form.report_sha256 = qcPrepReadField("qcPrepSha");
   form.report_evidence_note = qcPrepReadField("qcPrepEvidenceNote");
   return form;
@@ -3162,10 +3337,12 @@ function onQcPrepField(event) {
   syncQcPrepFormFromDom();
   state.qcPrepDirty = true;
   state.qcPrepReasons = [];
+  state.qcPrepFieldsComplete = false;
   if (target.id === "qcPrepProtocol") {
     if (qcPrepProtocolCode(qcPrepForm()) !== "OTHER") qcPrepForm().other_testing_protocol_text = "";
     renderReadiness();
   }
+  if (target.id === "qcPrepPortalLab") renderReadiness();
 }
 
 async function submitQcPreparationReview() {
@@ -3185,8 +3362,9 @@ async function submitQcPreparationReview() {
       return;
     }
     state.qcPrepReasons = Array.isArray(result?.review?.reasons) ? result.review.reasons : [];
-    state.qcPrepNotice = result?.review?.source_verified_eligible === true
-      ? "Fields are complete for source review."
+    state.qcPrepFieldsComplete = state.qcPrepReasons.length === 0;
+    state.qcPrepNotice = state.qcPrepFieldsComplete
+      ? "Fields complete (draft only)"
       : "Server review found items to complete.";
   } catch (error) {
     if (request !== qcPrepCurrent() || state.selectedProductId !== productId) return;
@@ -3198,7 +3376,7 @@ async function submitQcPreparationReview() {
 }
 
 async function submitQcPreparationSave() {
-  if (!canWrite() || state.busy || state.qcPrepLoading || state.qcPrepAmbiguous) return;
+  if (!canWrite() || state.busy || state.qcPrepLoading || state.qcPrepAmbiguous || state.qcPrepLabsUnavailable) return;
   if (!workerApiAvailable() || !isFirstControlledEntryProduct(state.selectedProductId)) return;
   if (state.qcPrepServer?.preparation_status === "VERIFIED") return;
   const productId = state.selectedProductId;
@@ -6638,25 +6816,6 @@ function wireEvents() {
     if (event.target.id === "btnQcPrepReview") void submitQcPreparationReview();
     if (event.target.id === "btnQcPrepSave") void submitQcPreparationSave();
     if (event.target.id === "btnQcPrepReload") reloadQcPreparationWorkspace();
-    if (event.target.id === "btnQcPrepAddBatch") {
-      if (!canWrite() || state.qcPrepServer?.preparation_status === "VERIFIED") return;
-      syncQcPrepFormFromDom();
-      qcPrepForm().batches.push("");
-      state.qcPrepDirty = true;
-      state.qcPrepReasons = [];
-      renderReadiness();
-    }
-    const removeBatch = event.target?.dataset?.qcRemoveBatch;
-    if (removeBatch != null) {
-      if (!canWrite() || state.qcPrepServer?.preparation_status === "VERIFIED") return;
-      syncQcPrepFormFromDom();
-      const index = Number(removeBatch);
-      const next = qcPrepForm().batches.filter((_, item) => item !== index);
-      qcPrepForm().batches = next.length ? next : [""];
-      state.qcPrepDirty = true;
-      state.qcPrepReasons = [];
-      renderReadiness();
-    }
     if (event.target.id === "btnWorkerEntryDryRun") submitWorkerEntryDryRun();
     if (event.target.id === "btnWorkerProductDetailsPreview") submitWorkerProductDetailsPreview();
     if (event.target.id === "btnWorkerProductDetailsStart") submitWorkerProductDetailsStart();
