@@ -3092,6 +3092,18 @@ function qcPrepWorkspaceHtml(model) {
   const reportDateOrder = model.studyEnd && model.reportDate && model.reportDate < model.studyEnd
     ? "Report date must be on or after the study end date."
     : "";
+  const batchFormatMessage = "Batch numbers must be comma-separated, with no spaces or duplicates, and 2–256 characters.";
+  const batchValue = String(model.batches ?? "");
+  const batchItems = batchValue.split(",");
+  const batchFormatInvalid = batchValue.length > 0 && (
+    batchValue.length < 2
+    || batchValue.length > 256
+    || !/^[A-Za-z0-9./_-]+(,[A-Za-z0-9./_-]+)*$/.test(batchValue)
+    || new Set(batchItems).size !== batchItems.length
+  );
+  const formChecks = batchFormatInvalid && !localHints.includes(batchFormatMessage)
+    ? [...localHints, batchFormatMessage]
+    : localHints;
   const checklist = [
     "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
     "B1/B2 — Report registered and bytes verified",
@@ -3156,6 +3168,7 @@ function qcPrepWorkspaceHtml(model) {
         <label class="form-field form-span-2">Batch numbers (comma-separated, no spaces, e.g. A101,A102)
           <input id="qcPrepBatches" value="${esc(model.batches)}"${disabled}>
         </label>
+        ${batchFormatInvalid ? `<p class="muted-note" id="qcPrepBatchFormat">${esc(batchFormatMessage)}</p>` : ""}
       </div>
       <div class="form-grid">
         <fieldset class="form-field">
@@ -3190,7 +3203,7 @@ function qcPrepWorkspaceHtml(model) {
         <h4 class="meta-label">Server review</h4>
         ${reasonItems(serverReasons)}
         <h4 class="meta-label">Form checks</h4>
-        ${reasonItems(localHints)}
+        ${reasonItems(formChecks)}
       </div>
       <div class="action-row">
         <button type="button" class="icon-btn with-label" id="btnQcPrepReview"${model.reviewDisabled ? " disabled" : ""}>Check (server review)</button>
@@ -3377,6 +3390,11 @@ function syncQcPrepFormFromDom() {
   return form;
 }
 
+let qcPrepPendingFocusId = "";
+let qcPrepPendingBlurId = "";
+let qcPrepTabDirection = 0;
+let qcPrepTabFieldId = "";
+
 function onQcPrepField(event) {
   const target = event.target;
   if (!target?.closest?.("#qcPreparationWorkspace")) return;
@@ -3399,9 +3417,42 @@ function onQcPrepField(event) {
     || target.id === "qcPrepIssuer"
     || target.name === "qcPrepMode";
   if (event.type === "change" && liveField) {
+    const changedId = target.id || "";
+    const active = document.activeElement;
+    const activeId = active?.id && active.id !== changedId && active.closest?.("#qcPreparationWorkspace")
+      ? active.id
+      : "";
+    const recordedId = qcPrepPendingBlurId === changedId ? qcPrepPendingFocusId : "";
+    const destinationId = event.relatedTarget?.id || recordedId || activeId;
+    const tabDirection = qcPrepTabFieldId === changedId ? qcPrepTabDirection : 0;
+    qcPrepPendingFocusId = "";
+    qcPrepPendingBlurId = "";
+    qcPrepTabDirection = 0;
+    qcPrepTabFieldId = "";
     renderReadiness();
-    revealQcPrepResult(target.id);
+    focusQcPrepFieldChangeDestination(changedId, destinationId === changedId ? "" : destinationId, tabDirection);
   }
+}
+
+function focusQcPrepFieldChangeDestination(changedId, destinationId, tabDirection) {
+  const destination = destinationId && destinationId !== changedId
+    ? document.getElementById(destinationId)
+    : null;
+  if (destination) {
+    destination.focus({ preventScroll: false });
+    return;
+  }
+  if (tabDirection !== 1 && tabDirection !== -1) return;
+  const root = document.getElementById("qcPreparationWorkspace");
+  if (!root || !changedId) return;
+  const focusable = [...root.querySelectorAll("a[href], button, input, select, textarea, summary")].filter((el) => {
+    return !el.disabled && el.tabIndex >= 0;
+  });
+  const index = focusable.findIndex((el) => el.id === changedId);
+  if (index < 0) return;
+  const neighbor = focusable[index + tabDirection];
+  if (!neighbor || neighbor.id === changedId) return;
+  neighbor.focus({ preventScroll: false });
 }
 
 function releaseQcPrepReviewBusy(snapshot) {
@@ -6925,6 +6976,16 @@ function wireEvents() {
   });
   $("tab-readiness")?.addEventListener("input", onQcPrepField);
   $("tab-readiness")?.addEventListener("change", onQcPrepField);
+  $("tab-readiness")?.addEventListener("focusout", (event) => {
+    if (!event.target?.closest?.("#qcPreparationWorkspace")) return;
+    qcPrepPendingBlurId = event.target?.id || "";
+    qcPrepPendingFocusId = event.relatedTarget?.id || "";
+  });
+  $("tab-readiness")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab" || !event.target?.closest?.("#qcPreparationWorkspace")) return;
+    qcPrepTabFieldId = event.target?.id || "";
+    qcPrepTabDirection = event.shiftKey ? -1 : 1;
+  });
   $("tab-readiness")?.addEventListener("toggle", (event) => {
     if (event.target?.id === "qcPreparationWorkspace") state.qcPrepOpen = event.target.open;
   }, true);
