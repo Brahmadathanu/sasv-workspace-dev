@@ -2914,6 +2914,7 @@ function openQcConfirm(options) {
     body.id = `${prefix}Body`;
     body.className = "sasv-modal__body";
     const paragraph = document.createElement("p");
+    paragraph.className = "sasv-modal__message";
     paragraph.textContent = String(message ?? "");
     body.append(paragraph);
     if (extraText) {
@@ -4706,7 +4707,7 @@ async function submitQcSourceVerify() {
   state.qcSourceConfirmOpen = true;
   state.qcFactNotice = "";
   try {
-    const submittedRows = qcFactRowsCurrent();
+    const submittedRows = structuredClone(qcFactRowsCurrent());
     const accepted = await openQcConfirm({
       title: "Verify source facts",
       message: `This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?\n${qcSourceVerifyFactLines(submittedRows)}`,
