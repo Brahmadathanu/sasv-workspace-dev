@@ -508,6 +508,7 @@ const uiLiteralsWithoutCanonicalStop = [
   "B4 — QC portal readiness confirmed",
   "Defaults filled — review every value before saving.",
   " — not done",
+  "QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open",
 ].reduce(
   (text, literal) => text.split(literal).join(""),
   (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("").split(QC_PREP_VERIFIED_NOTE).join(""),

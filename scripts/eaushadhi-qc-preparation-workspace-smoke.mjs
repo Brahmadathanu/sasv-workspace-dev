@@ -373,7 +373,7 @@ assert(ui.includes("QC preparation is available only in the SASV Electron app.")
 assert(ui.includes('study_start_date: ""') && ui.includes('report_date: ""'), "form dates start empty");
 assert(!ui.includes("qc_preparation_verify_v1"), "UI does not call source verify");
 const saveFn = ui.slice(ui.indexOf("async function submitQcPreparationSave"), ui.indexOf("function workerFoundationSummary"));
-assert(saveFn.includes("reloadQcPreparationWorkspace()"), "successful save reloads the server copy");
+assert(saveFn.includes("reloadQcPreparationWorkspace({ preserveNotice: notice })"), "successful save reloads the server copy");
 assert(!saveFn.includes("draft_payload:"), "successful save does not keep an un-normalised local copy");
 const fieldFn = ui.slice(ui.indexOf("function onQcPrepField"), ui.indexOf("async function submitQcPreparationReview"));
 assert(fieldFn.includes("state.qcPrepReasons = []"), "form edits clear the previous server reasons");
@@ -467,7 +467,8 @@ assert(defaultsOn.form.date_basis === "OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFAC
 assert(defaultsOn.form.shelf_life_months === "36", "default shelf life is 36");
 assert(defaultsOn.form.quality_control_mode === "OUT", "default laboratory status is OUT");
 assert(defaultsOn.form.portal_laboratory_candidate === "HARIDEV FORMULATIONS", "Haridev is the default only when that label is listed");
-for (const key of ["study_start_date", "study_end_date", "report_date", "batches", "report_sha256", "source_report_issuer", "source_report_approval_no", "date_evidence_note", "report_date_evidence_note", "report_evidence_note"]) {
+assert(defaultsOn.form.source_report_issuer === "New Udaya Pharmacy & Ayurvedic Laboratories (NUPAL)", "an empty Product 262 form defaults the issuer to NUPAL");
+for (const key of ["study_start_date", "study_end_date", "report_date", "batches", "report_sha256", "source_report_approval_no", "date_evidence_note", "report_date_evidence_note", "report_evidence_note"]) {
   assert(defaultsOn.form[key] === "", `defaults do not prefill ${key}`);
 }
 const draftForm = { ...emptyPrepForm, shelf_life_months: "12", batches: "B9", study_start_date: "2020-01-01", report_sha256: "" };
@@ -482,6 +483,16 @@ const defaultsOverDraft = applyDefaults(draftForm, {
 assert(defaultsOverDraft.applied === false && defaultsOverDraft.save === false, "defaults are not applied over a loaded draft and do not save");
 assert(defaultsOverDraft.form.shelf_life_months === "12" && defaultsOverDraft.form.batches === "B9", "loaded draft values stay in place");
 assert(defaultsOverDraft.form.study_start_date === "2020-01-01", "loaded draft dates stay in place");
+assert(defaultsOverDraft.form.source_report_issuer === "", "a loaded preparation keeps its saved issuer");
+const otherProductDefaults = applyDefaults({ ...emptyPrepForm }, {
+  productId: 261,
+  hasPreparation: false,
+  dirty: false,
+  formEmpty: true,
+  protocolOptions: defaultProtocols,
+  laboratoryOptions: LAB_FIXTURE,
+});
+assert(otherProductDefaults.applied === false && otherProductDefaults.form.source_report_issuer === "", "the issuer default is only for an empty Product 262 form");
 const defaultsDirty = applyDefaults({ ...emptyPrepForm, shelf_life_months: "24" }, {
   productId: 262,
   hasPreparation: false,
@@ -780,8 +791,8 @@ assert(fieldChange.includes("qcPrepPendingFocusId") && fieldChange.includes("qcP
 assert(fieldChange.includes("neighbor.focus({ preventScroll: false })"), "Tab moves to the next or previous focusable element");
 assert(fieldChange.includes("destinationId !== changedId") && fieldChange.includes("neighbor.id === changedId"), "a recorded destination or Tab neighbor is never the field just left");
 const revealUses = [...controlSrc.matchAll(/revealQcPrepResult\(([^)]*)\)/g)].map((match) => match[1]).filter((arg) => arg !== "focusId");
-assert(revealUses.length === 3 && revealUses.every((arg) => arg === '"btnQcPrepReview"' || arg === '"btnQcPrepReload"'), "revealQcPrepResult stays on Check and Reload only");
-assert(revealUses.includes('"btnQcPrepReview"') && revealUses.includes('"btnQcPrepReload"'), "Check and Reload still reveal their result");
+assert(revealUses.length === 4 && revealUses.every((arg) => arg === '"btnQcPrepReview"' || arg === '"btnQcPrepReload"' || arg === '"btnQcPrepSave"'), "revealQcPrepResult stays on Check, Save, and Reload");
+assert(revealUses.includes('"btnQcPrepReview"') && revealUses.includes('"btnQcPrepReload"') && revealUses.includes('"btnQcPrepSave"'), "Check, Save, and Reload reveal their result");
 assert(controlSrc.includes('qcPrepPendingFocusId = event.relatedTarget?.id || ""'), "focusout records the destination id");
 assert(controlSrc.includes("qcPrepTabDirection = event.shiftKey ? -1 : 1"), "keydown records the Tab direction");
 
@@ -933,7 +944,196 @@ await withUtcYear(2026, async () => {
   assert(!nextHints.includes("STUDY_START_DATE_REQUIRED_OR_INVALID"), "2027-12-31 is not a form-check hint when the current year is 2026");
   const pastHints = dateMessagesApi.qcPrepLocalHints({ ...hintForm, study_start_date: "2021-10-01", study_end_date: "", report_date: "" });
   assert(!pastHints.includes("STUDY_START_DATE_REQUIRED_OR_INVALID"), "2021-10-01 is not a form-check hint");
+  const reasonText = controlFunction("qcPrepReasonText");
+  assert(reasonText("STUDY_START_DATE_REQUIRED_OR_INVALID") === "Study start date must be a valid date (year 1900\u20132027).", "study start uses the year-range message");
+  assert(reasonText("STUDY_END_DATE_REQUIRED_OR_INVALID") === "Study end date must be a valid date (year 1900\u20132027).", "study end uses the year-range message");
+  assert(reasonText("REPORT_DATE_REQUIRED_OR_INVALID") === "Report date must be a valid date (year 1900\u20132027).", "report date uses the year-range message");
 });
+
+const htmlSrc = readFileSync(join(root, "public/shared/e-aushadhi-review-control.html"), "utf8");
+const actionsTabAt = htmlSrc.indexOf('id="wf-tab-actions"');
+const qcTabAt = htmlSrc.indexOf('id="wf-tab-qc"');
+const evidenceTabAt = htmlSrc.indexOf('id="wf-tab-evidence"');
+assert(actionsTabAt >= 0 && qcTabAt > actionsTabAt && evidenceTabAt > qcTabAt, "QC Register tab sits between Pharmacological Action and Evidence");
+assert(htmlSrc.includes('id="tab-qc"') && htmlSrc.includes('aria-controls="tab-qc"'), "the QC panel and its tab control exist");
+assert(controlSrc.includes('else if (tab === "qc") renderQc();'), "renderActiveTab routes the qc tab");
+assert(controlSrc.includes('if (stage.id === "evidence") stages.push({ id: "qc", label: "QC Register" })'), "keyboard stage order inserts QC Register before Evidence");
+const readinessFn = extractFunction("renderReadiness");
+assert(readinessFn.includes('id="btnOpenQcTab"') && readinessFn.includes("Open QC Register"), "Readiness has an Open QC Register button");
+const summaryFn = extractFunction("qcReadinessSummaryText");
+assert(readinessFn.includes("qcReadinessSummaryText()") && summaryFn.includes("No QC preparation saved yet.") && summaryFn.includes("form checks open"), "Readiness shows the QC summary");
+assert(!readinessFn.includes("qcPrepBatches") && !readinessFn.includes('type="date"') && !readinessFn.includes("qcPrepSha"), "Readiness has no QC inputs");
+assert(controlSrc.includes('$("tab-qc")?.addEventListener("input", onQcPrepField)'), "QC input listener is on tab-qc");
+assert(controlSrc.includes('$("tab-qc")?.addEventListener("change", onQcPrepField)'), "QC change listener is on tab-qc");
+assert(controlSrc.includes('$("tab-qc")?.addEventListener("focusout"'), "QC focusout listener is on tab-qc");
+assert(controlSrc.includes('$("tab-qc")?.addEventListener("keydown"'), "QC keydown listener is on tab-qc");
+assert(controlSrc.includes('$("tab-qc")?.addEventListener("toggle"'), "QC toggle listener is on tab-qc");
+assert(!controlSrc.includes('$("tab-readiness")?.addEventListener("input", onQcPrepField)'), "QC input listener is not on tab-readiness");
+assert(!controlSrc.includes('$("tab-readiness")?.addEventListener("change", onQcPrepField)'), "QC change listener is not on tab-readiness");
+const cardHtml = renderQc({
+  open: true,
+  lab: "HARIDEV FORMULATIONS",
+  labs: LAB_FIXTURE,
+  sha: "",
+  dateNote: "",
+  reportDateNote: "",
+  evidence: "",
+});
+assert(cardHtml.includes("Study facts (sent to portal)"), "card A title is present");
+assert(cardHtml.includes("Evidence &amp; notes (not sent to portal)"), "card B title is present");
+assert(cardHtml.includes("Test report"), "card C title is present");
+assert(cardHtml.includes('id="qcPrepPortalLab" class="form-span-2 qc-prep-lab-select"'), "the laboratory select is full width");
+const fileAt = cardHtml.indexOf('id="qcPrepFileName"');
+const shaAt = cardHtml.indexOf('id="qcPrepShaView"');
+assert(fileAt >= 0 && shaAt > fileAt, "the filename and SHA rows are separate blocks");
+assert(cardHtml.includes("File name: EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf"), "the filename row shows the canonical name");
+assert(cardHtml.includes("SHA-256: computed at upload (D2)"), "an empty hash says it is computed at upload");
+assert(!cardHtml.includes('id="qcPrepSha"'), "the SHA-256 text input is gone");
+const shaHtml = renderQc({ open: true, sha: "ab".repeat(32), labs: [], lab: "" });
+assert(shaHtml.includes(`SHA-256: ${"ab".repeat(32)}`), "a saved hash is shown read-only");
+
+const notesApi = new Function(
+  `const QC_PREP_BATCH_TEXT_RE = /^[A-Za-z0-9.\\/_-]+(?:,[A-Za-z0-9.\\/_-]+)*$/;
+   ${extractFunction("qcPrepDateYearImplausible")}
+   ${extractFunction("qcPrepBatchTextInvalid")}
+   ${extractFunction("qcPrepFmtDate")}
+   ${extractFunction("qcPrepGeneratedNotes")}
+   ${extractFunction("qcPrepNoteOverridesForLoad")}
+   ${extractFunction("qcPrepDisplayNotes")}
+   return { qcPrepGeneratedNotes, qcPrepNoteOverridesForLoad, qcPrepDisplayNotes };`,
+)();
+const issuerName = "New Udaya Pharmacy & Ayurvedic Laboratories (NUPAL)";
+const noteSample = {
+  testing_protocol_term_id: "77",
+  other_testing_protocol_text: "Cross Sectional Approach (API Vol VIII Page No:226)",
+  study_start_date: "2021-10-01",
+  study_end_date: "2024-09-30",
+  report_date: "2024-10-15",
+  batches: "A101,A102",
+  source_report_issuer: issuerName,
+  report_sha256: "",
+};
+const noteOptions = [{ term_id: "77", code: "OTHER", label: "Others" }];
+const generatedNotes = notesApi.qcPrepGeneratedNotes(noteSample, noteOptions);
+const protocolJoin = "Others \u2013 Cross Sectional Approach (API Vol VIII Page No:226)";
+assert(generatedNotes.date_evidence_note === `Study period 01-10-2021 to 30-09-2024 entered manually by the operator on the operator-reviewed cross-sectional manufacturing-span basis for batch(es) A101, A102; testing protocol: ${protocolJoin}. Dates are not derived automatically.`, "date evidence note matches the sample");
+assert(generatedNotes.report_date_evidence_note === `Report date 15-10-2024 entered manually as printed on the QC test report issued by ${issuerName}.`, "report-date evidence note matches the sample");
+assert(generatedNotes.report_evidence_note === `QC test report issued by ${issuerName}, dated 15-10-2024, covering batch(es) A101, A102; canonical file EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf; SHA-256 to be computed at upload (D2); report bytes not yet verified (B2).`, "report evidence note uses the D2 hash phrase when empty");
+const hexSha = "0123456789abcdef".repeat(4);
+const hashedNotes = notesApi.qcPrepGeneratedNotes({ ...noteSample, report_sha256: hexSha }, noteOptions);
+assert(hashedNotes.report_evidence_note.includes(`SHA-256 ${hexSha}`), "report evidence note includes a saved 64-hex hash");
+assert(notesApi.qcPrepGeneratedNotes({ ...noteSample, study_start_date: "" }, noteOptions).date_evidence_note === "", "a missing date input leaves the date note empty");
+assert(notesApi.qcPrepGeneratedNotes({ ...noteSample, source_report_issuer: "  " }, noteOptions).report_date_evidence_note === "", "a missing issuer leaves the report-date note empty");
+const edited = { ...noteSample, date_evidence_note: "Operator note" };
+const editFlags = { date_evidence_note: true, report_date_evidence_note: false, report_evidence_note: false };
+assert(notesApi.qcPrepDisplayNotes(edited, noteOptions, editFlags).date_evidence_note === "Operator note", "an Edit note override is kept");
+assert(notesApi.qcPrepDisplayNotes({ ...edited, batches: "B200" }, noteOptions, editFlags).date_evidence_note === "Operator note", "an Edit note override survives a field change");
+assert(notesApi.qcPrepDisplayNotes({ ...edited, batches: "B200" }, noteOptions, editFlags).report_evidence_note.includes("B200"), "a note that is not being edited regenerates");
+const loadFlags = notesApi.qcPrepNoteOverridesForLoad({
+  ...noteSample,
+  date_evidence_note: "Saved custom",
+  report_date_evidence_note: generatedNotes.report_date_evidence_note,
+  report_evidence_note: "",
+}, noteOptions);
+assert(loadFlags.date_evidence_note === true, "a saved note that differs from the template is an override");
+assert(loadFlags.report_date_evidence_note === false, "a saved note that matches the template stays generated");
+assert(loadFlags.report_evidence_note === false, "an empty saved note stays generated");
+
+const savedSha = "fedcba9876543210".repeat(4);
+const payloadApi = new Function(
+  `const QC_PREP_DATE_BASIS = "OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN";
+   const QC_PREP_CANONICAL_REPORT_FILENAME = "EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf";
+   const state = { qcPrepOptions: ${JSON.stringify(noteOptions)} };
+   ${extractFunction("qcPrepProtocolCode")}
+   ${extractFunction("qcPrepPayloadFromForm")}
+   return qcPrepPayloadFromForm;`,
+)();
+const shaPayload = payloadApi({ ...noteSample, report_sha256: savedSha, date_evidence_note: generatedNotes.date_evidence_note });
+assert(shaPayload.report_sha256 === savedSha, "the payload sends the loaded report_sha256 unchanged");
+assert(!extractFunction("syncQcPrepFormFromDom").includes("qcPrepSha"), "sync does not read a SHA input");
+
+function extractCallable(name) {
+  const asyncAt = controlSrc.indexOf(`async function ${name}(`);
+  const plainAt = controlSrc.indexOf(`\nfunction ${name}(`);
+  const start = asyncAt >= 0 ? asyncAt : plainAt + 1;
+  let paren = 0;
+  let seenParen = false;
+  let bodyAt = -1;
+  for (let index = start; index < controlSrc.length; index += 1) {
+    const char = controlSrc[index];
+    if (char === "(") {
+      paren += 1;
+      seenParen = true;
+    } else if (char === ")") paren -= 1;
+    else if (seenParen && paren === 0 && char === "{") {
+      bodyAt = index;
+      break;
+    }
+  }
+  let depth = 0;
+  for (let index = bodyAt; index < controlSrc.length; index += 1) {
+    const char = controlSrc[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return controlSrc.slice(start, index + 1);
+    }
+  }
+  throw new Error(`could not extract ${name}`);
+}
+
+const saveHarness = new Function(
+  `const toasts = [];
+   const state = {
+     busy: false,
+     qcPrepLoading: false,
+     qcPrepAmbiguous: false,
+     qcPrepLabsUnavailable: false,
+     selectedProductId: 262,
+     tab: "qc",
+     qcPrepServer: { preparation_status: "PREPARING", preparation_id: "prep-1", row_version: 1 },
+     qcPrepRequest: 0,
+     qcPrepDirty: true,
+     qcPrepNotice: "",
+     qcPrepPreserveNotice: "",
+     qcPrepReloadFeedback: false,
+     qcPrepForm: {},
+     qcPrepOptions: [],
+     qcPrepReasons: [],
+     qcPrepFieldsComplete: false,
+     qcPrepDefaultsApplied: false,
+     qcPrepNoteOverrides: {},
+   };
+   function canWrite() { return true; }
+   function workerApiAvailable() { return true; }
+   function isFirstControlledEntryProduct() { return true; }
+   function syncQcPrepFormFromDom() { return { report_sha256: "${savedSha}" }; }
+   function qcPrepApplyGeneratedNotes(form) { return form; }
+   function sessionAccessToken() { return Promise.resolve("token"); }
+   function qcPrepPayloadFromForm(form) { return form; }
+   function saveQcPreparation() { return Promise.resolve({ ok: true, row_version: 2 }); }
+   function showToast(message) { toasts.push(message); }
+   function userMessageForError() { return "failed"; }
+   function renderQc() {}
+   function renderQcSurface() {}
+   function revealQcPrepResult() {}
+   function loadQcProtocolOptions() { return Promise.resolve({ options: [] }); }
+   function loadQcLaboratoryOptions() { return Promise.resolve({ options: [] }); }
+   function readQcPreparationWorkspace() { return Promise.resolve({ preparation: { draft_payload: {}, review: { reasons: [] }, row_version: 2 } }); }
+   function qcPrepFormFromPayload() { return { report_sha256: "${savedSha}" }; }
+   function applyQcPreparationDefaults(form) { return { form, applied: false }; }
+   function qcPrepFormIsEmpty() { return false; }
+   function qcPrepNoteOverridesForLoad() { return { date_evidence_note: false, report_date_evidence_note: false, report_evidence_note: false }; }
+   ${extractCallable("qcPrepCurrent")}
+   ${extractCallable("loadQcPreparationWorkspace")}
+   ${extractCallable("reloadQcPreparationWorkspace")}
+   ${extractCallable("submitQcPreparationSave")}
+   return { submitQcPreparationSave, state, toasts };`,
+)();
+await saveHarness.submitQcPreparationSave();
+for (let tick = 0; tick < 12; tick += 1) await Promise.resolve();
+assert(saveHarness.toasts.includes("Draft saved (version 2)"), "a save at row version 2 toasts Draft saved (version 2)");
+assert(saveHarness.state.qcPrepNotice === "Draft saved (version 2)", "the save notice survives the follow-up reload");
 
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);
