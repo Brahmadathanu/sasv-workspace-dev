@@ -6,6 +6,7 @@ const { callWorkerRpc } = require("./server-client");
 const { readQcPreparation } = require("./qc-preparation-read");
 const {
   loadQcProtocolOptions,
+  loadQcLaboratoryOptions,
   readQcPreparations,
   reviewQcPreparation,
   saveQcPreparation,
@@ -42,6 +43,7 @@ const CHANNELS = Object.freeze({
   QC_PREPARATION_READ: "eaushadhi-worker:qc-preparation-read",
   QC_REPORT_READ: "eaushadhi-worker:qc-report-read",
   QC_PROTOCOL_OPTIONS: "eaushadhi-worker:qc-protocol-options",
+  QC_LABORATORY_OPTIONS: "eaushadhi-worker:qc-laboratory-options",
   QC_PREPARATION_WORKSPACE_READ: "eaushadhi-worker:qc-preparation-workspace-read",
   QC_PREPARATION_REVIEW: "eaushadhi-worker:qc-preparation-review",
   QC_PREPARATION_SAVE: "eaushadhi-worker:qc-preparation-save",
@@ -288,6 +290,19 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
       const productId = validateProductId(payload?.productId);
       const accessToken = validateAccessToken(payload?.accessToken);
       return loadQcProtocolOptions({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_LABORATORY_OPTIONS,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return loadQcLaboratoryOptions({
         productId,
         accessToken,
         callRpc: callWorkerRpc,

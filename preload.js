@@ -128,6 +128,11 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
+  loadQcLaboratoryOptions: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-laboratory-options", {
+      productId,
+      accessToken,
+    }),
   readQcPreparationWorkspace: (productId, accessToken) =>
     ipcRenderer.invoke("eaushadhi-worker:qc-preparation-workspace-read", {
       productId,

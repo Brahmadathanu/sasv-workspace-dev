@@ -498,14 +498,20 @@ assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bu
 const STOP_BROWSER_TOOLTIP =
   "Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi.";
 const QC_PREP_VERIFIED_NOTE = "Verified — editing is not available in C1.";
-// Canonical Stop wording and the frozen C1 verified-state sentence intentionally
-// use an em dash. Exclude those approved literals before scanning for other
-// mojibake-prone punctuation.
-const uiLiteralsWithoutCanonicalStop = (controlSrc + htmlSrc)
-  .split(STOP_BROWSER_TOOLTIP)
-  .join("")
-  .split(QC_PREP_VERIFIED_NOTE)
-  .join("");
+// Canonical Stop wording, the frozen C1 verified-state sentence, and the C1b
+// checklist / defaults sentences intentionally use an em dash. Exclude those
+// approved literals before scanning for other mojibake-prone punctuation.
+const uiLiteralsWithoutCanonicalStop = [
+  "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
+  "B1/B2 — Report registered and bytes verified",
+  "B3 — Evidence governance accepted",
+  "B4 — QC portal readiness confirmed",
+  "Defaults filled — review every value before saving.",
+  " — not done",
+].reduce(
+  (text, literal) => text.split(literal).join(""),
+  (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("").split(QC_PREP_VERIFIED_NOTE).join(""),
+);
 assert(
   !/[·…←→↑↓—]/.test(uiLiteralsWithoutCanonicalStop) &&
     !/Â·|â€/.test(controlSrc + htmlSrc),

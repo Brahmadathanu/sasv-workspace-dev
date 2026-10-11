@@ -170,6 +170,12 @@ export async function loadQcProtocolOptions(productId, accessToken) {
   return window.eaushadhiWorkerAPI.loadQcProtocolOptions(productId, accessToken);
 }
 
+export async function loadQcLaboratoryOptions(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.loadQcLaboratoryOptions !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.loadQcLaboratoryOptions(productId, accessToken);
+}
+
 export async function readQcPreparationWorkspace(productId, accessToken) {
   if (!workerApiAvailable()) return unsupported();
   if (typeof window.eaushadhiWorkerAPI.readQcPreparationWorkspace !== "function") return unsupported();
