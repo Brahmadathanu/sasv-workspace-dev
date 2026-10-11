@@ -15,6 +15,7 @@ const QC_REPORT_BUCKET = "eaushadhi-evidence";
 const QC_REPORT_FILENAME_RE = /^EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V[0-9]{2}\.pdf$/;
 const QC_REPORT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const QC_REPORT_SHA_RE = /^[0-9a-f]{64}$/;
+const QC_REPORT_MAX_BYTES = 2 * 1024 * 1024;
 const QC_REPORT_STATUSES = new Set(["RESERVED", "REGISTERED", "REVOKED"]);
 
 function assertReportProduct(productId) {
@@ -26,6 +27,22 @@ function assertReportProduct(productId) {
     );
   }
   return id;
+}
+
+function qcReportTooLargeMessage(size) {
+  const mb = (Number(size) / (1024 * 1024)).toFixed(2);
+  return `PDF is larger than 2 MB (${mb} MB). Reduce it before uploading.`;
+}
+
+function assertQcReportByteLimit(fileSize) {
+  if (fileSize == null) return;
+  const size = Number(fileSize);
+  if (!Number.isInteger(size) || size <= 0) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report was not accepted.");
+  }
+  if (size > QC_REPORT_MAX_BYTES) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, qcReportTooLargeMessage(size));
+  }
 }
 
 function assertRpc(callRpc) {
@@ -134,10 +151,12 @@ async function reserveQcReport({
   preparationId,
   expectedRowVersion,
   forceNew,
+  fileSize,
   callRpc,
 } = {}) {
   const id = assertReportProduct(productId);
   const token = validateAccessToken(accessToken);
+  assertQcReportByteLimit(fileSize);
   assertRpc(callRpc);
   if (typeof preparationId !== "string" || !QC_REPORT_UUID_RE.test(preparationId)) {
     throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC test report was not accepted.");
@@ -217,10 +236,12 @@ async function registerQcReport({
   objectId,
   originalFileName,
   sha256,
+  fileSize,
   callRpc,
 } = {}) {
   const id = assertReportProduct(productId);
   const token = validateAccessToken(accessToken);
+  assertQcReportByteLimit(fileSize);
   assertRpc(callRpc);
   const versionText = String(expectedRowVersion);
   const fileName = typeof originalFileName === "string" ? originalFileName : "";
@@ -384,6 +405,7 @@ module.exports = {
   QC_REPORT_VERIFY_FUNCTION,
   QC_PREPARATION_SOURCE_KEY,
   QC_REPORT_FILENAME_RE,
+  QC_REPORT_MAX_BYTES,
   listQcReports,
   reserveQcReport,
   registerQcReport,

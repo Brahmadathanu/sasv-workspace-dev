@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v355"; // WP-07 D3.1 numeric QC report asset id
+const CACHE_NAME = "hub-cache-v356"; // WP-07 D3.2 button-only byte check
 
 const PRECACHE = [
   // Hub shell

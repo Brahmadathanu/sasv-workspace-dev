@@ -175,3 +175,9 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
   3. B1 positive registration, then B2 byte verification, B3 evidence governance, B4 readiness, B5.
   4. S2D, then portal entry.
 - Branch and PR #59 remain unmerged pending final integration review.
+
+## Operator QC test report flow
+1. Select a PDF. An empty file, a file that does not start with `%PDF-`, or a file larger than 2 MB (`2 * 1024 * 1024` bytes) is rejected before any network call. The card keeps `Selected: <name> (<size>)` across redraws until a successful register, Clear, or a product or preparation change.
+2. Upload reserves a version, stores the object, and registers it. Registration does not start the server byte check.
+3. Optional: **Check bytes on server**. The warning says this version (V{NN}) is permanently marked `BYTES_MISMATCH` if the checksum, PDF header, or 2 MB limit fails, and that it cannot be re-checked. Cancel makes no call.
+4. If register returns `40001` for a reused reservation, the card says "This reservation is out of date. Reserve a new version". Only that button calls reserve with `forceNew: true`. There is no automatic retry.

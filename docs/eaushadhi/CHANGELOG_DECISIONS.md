@@ -252,3 +252,9 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
   - Reference only: confers no Form-48 approval or laboratory mapping authority.
 - **Open regulatory question for B3:** the current report issuer NUPAL is not in the portal laboratory list, so an OUT report from NUPAL cannot be named as the portal laboratory. Resolve before evidence governance and portal entry.
 - **Readiness wording:** the UI never shows READY for QC before C2 upload and B1–B4. With no server review reasons it shows "Fields complete (draft only)" plus the C2 / B1/B2 / B3 / B4 / portal-entry checklist.
+
+## 2026-10-11 — WP-07 D3.2 byte check is operator-triggered
+- The QC test report byte check runs only when the operator clicks **Check bytes on server** and confirms the terminal-outcome warning. Register does not start it.
+- The live B2 SQL is in the repository as `supabase/migrations/20261011094445_wp07_b2_qc_report_byte_verification.sql`, byte-exact to the applied migration (md5 `11a328b66551d8a1bbce82e1133560ec`). It was not reapplied. `rpc_eaushadhi_qc_report_record_byte_check_v1` and `rpc_eaushadhi_qc_report_byte_check_target_v1` are EXECUTE for `service_role` only; `anon` and `authenticated` have none.
+- A PDF larger than 2 MB is rejected when the file is selected and again in the worker before reserve or register, with no network call.
+- A reused reservation that returns `40001` from register asks the operator to reserve a new version. Only that click calls reserve with `forceNew`. There is no automatic retry.

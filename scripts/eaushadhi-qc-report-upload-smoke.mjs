@@ -383,6 +383,51 @@ await expectFailure(
   ERROR_KINDS.PRODUCT_NOT_ALLOWED,
 );
 assert(blockedVerify.calls.length === 0, "verify for another product makes no function call");
+assert(upload.QC_REPORT_MAX_BYTES === 2 * 1024 * 1024, "the shared byte limit is 2 MB");
+const oversizedReserve = mockRpc(async () => reservationRow());
+const oversizedReserveError = await expectFailure(
+  () => reserveQcReport({
+    productId: 262,
+    accessToken: TOKEN,
+    preparationId: PREP_ID,
+    expectedRowVersion: 2,
+    fileSize: upload.QC_REPORT_MAX_BYTES + 1,
+    callRpc: oversizedReserve.callRpc,
+  }),
+  ERROR_KINDS.CONTRACT_INCOMPLETE,
+);
+assert(oversizedReserve.calls.length === 0, "an oversized PDF makes no reserve call");
+assert(oversizedReserveError?.message === "PDF is larger than 2 MB (2.00 MB). Reduce it before uploading.", "reserve names the 2 MB limit");
+const exactReserve = mockRpc(async (_token, name) => {
+  if (name === QC_PREPARATION_READ_RPC) return [preparationRow()];
+  if (name === QC_REPORT_LIST_RPC) return [];
+  return reservationRow();
+});
+await reserveQcReport({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP_ID,
+  expectedRowVersion: 2,
+  fileSize: upload.QC_REPORT_MAX_BYTES,
+  callRpc: exactReserve.callRpc,
+});
+assert(exactReserve.calls.some((call) => call.name === QC_REPORT_RESERVE_RPC), "a 2 MB PDF is accepted by reserve");
+const oversizedRegister = mockRpc(async () => ({}));
+await expectFailure(
+  () => registerQcReport({
+    productId: 262,
+    accessToken: TOKEN,
+    reservationId: RESERVATION_ID,
+    expectedRowVersion: 2,
+    objectId: OBJECT_ID,
+    originalFileName: "lab.pdf",
+    sha256: SHA,
+    fileSize: upload.QC_REPORT_MAX_BYTES + 1,
+    callRpc: oversizedRegister.callRpc,
+  }),
+  ERROR_KINDS.CONTRACT_INCOMPLETE,
+);
+assert(oversizedRegister.calls.length === 0, "an oversized PDF makes no register call");
 assert(!/service_role|SERVICE_ROLE|storage\.from|qc_preparation_verify_v1/.test(uploadSrc), "the upload worker has no service role or source verify call");
 
 const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-control.js"), "utf8");
@@ -424,7 +469,9 @@ function extractFunction(name) {
 }
 
 const flow = new Function(
-  `${extractFunction("qcReportFileProblem")}
+  `const QC_REPORT_MAX_BYTES = 2 * 1024 * 1024;
+   ${extractFunction("qcReportTooLargeMessage")}
+   ${extractFunction("qcReportFileProblem")}
    ${extractFunction("qcReportObjectId")}
    ${extractFunction("qcReportStorageExists")}
    ${extractFunction("qcReportRemovalWarning")}
@@ -435,8 +482,8 @@ const pdfHeader = Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d]);
 assert(flow.qcReportFileProblem({ name: "note.txt", type: "application/pdf", size: 10 }, pdfHeader), "a non-PDF extension is rejected");
 assert(flow.qcReportFileProblem({ name: "note.pdf", type: "text/plain", size: 10 }, pdfHeader), "a wrong MIME type is rejected");
 assert(flow.qcReportFileProblem({ name: "note.pdf", type: "application/pdf", size: 10 }, Uint8Array.from([1, 2, 3, 4, 5])), "a missing PDF header is rejected");
-assert(flow.qcReportFileProblem({ name: "note.pdf", type: "application/pdf", size: 0 }, pdfHeader) === "Portal limit: PDF must be 2 MB or smaller.", "an empty file is rejected");
-assert(flow.qcReportFileProblem({ name: "note.pdf", type: "application/pdf", size: 2097153 }, pdfHeader) === "Portal limit: PDF must be 2 MB or smaller.", "a file over 2 MB is rejected");
+assert(flow.qcReportFileProblem({ name: "note.pdf", type: "application/pdf", size: 0 }, pdfHeader) === "The PDF is empty.", "an empty file is rejected");
+assert(flow.qcReportFileProblem({ name: "note.pdf", type: "application/pdf", size: 2097153 }, pdfHeader) === "PDF is larger than 2 MB (2.00 MB). Reduce it before uploading.", "a file over 2 MB is rejected");
 assert(flow.qcReportFileProblem({ name: "note.pdf", type: "application/pdf", size: 2097152 }, pdfHeader) === "", "a 2 MB PDF is accepted");
 
 const preparation = { preparation_id: PREP_ID, row_version: 2, preparation_status: "REVIEW_REQUIRED" };
@@ -491,6 +538,8 @@ assert(happy.calls.join(",") === "reserve,upload:false,register,save", "upload o
 assert(happy.saved.payload.report_filename === FILE_NAME && happy.saved.payload.report_sha256 === SHA, "the re-save payload carries the file name and SHA");
 assert(String(happy.saved.payload.report_evidence_note).includes(SHA), "the regenerated note includes the SHA");
 assert(happy.result.toast === "QC test report V01 registered; draft saved (version 3).", "success names the registered version");
+const tooBig = await runFlow({ input: { file: { name: "big.pdf", size: 2097153 } } });
+assert(tooBig.calls.length === 0 && tooBig.result.message === "PDF is larger than 2 MB (2.00 MB). Reduce it before uploading.", "an oversized PDF is rejected before any upload call");
 
 const registerFailed = await runFlow({ registerResult: { ok: false, message: "QC test report was not accepted." } });
 assert(registerFailed.calls.includes("remove") && !registerFailed.calls.includes("save"), "register failure removes the object and does not save");
@@ -614,9 +663,39 @@ const chosen = {
 };
 const firstDraw = cardApi(chosen);
 const secondDraw = cardApi(chosen);
-assert(firstDraw.includes("Chosen file: nupal.pdf") && secondDraw.includes("Chosen file: nupal.pdf") && secondDraw.includes(SHA), "the chosen file line survives a redraw");
+assert(firstDraw.includes("Selected: nupal.pdf (1200 bytes (1.2 KB / 0.00 MB))") && secondDraw.includes("Selected: nupal.pdf (1200 bytes (1.2 KB / 0.00 MB))") && secondDraw.includes(SHA), "the selected file line survives a redraw");
 assert(firstDraw.includes("btnQcReportClearFile") && firstDraw.includes("1200 bytes (1.2 KB / 0.00 MB)"), "the chosen file shows its size and a Clear button");
 assert(extractFunction("qcTestReportCardModel").includes("state.qcReportFile"), "upload enablement uses the stored file");
+assert(!extractFunction("submitQcReportUpload").includes("verifyQcReportBytes"), "register does not call the byte check");
+assert(extractFunction("submitQcReportUpload").includes("This reservation is out of date. Reserve a new version"), "a stale reused reservation tells the operator to reserve a new version");
+const confirmApi = new Function(
+  `${extractFunction("qcReportByteCheckWarning")}
+   ${extractFunction("runConfirmedQcReportByteCheck")}
+   return { qcReportByteCheckWarning, runConfirmedQcReportByteCheck };`,
+)();
+let byteCalls = 0;
+const denied = await confirmApi.runConfirmedQcReportByteCheck("01", () => false, async () => { byteCalls += 1; });
+assert(denied === false && byteCalls === 0, "cancelling the byte-check warning makes no verify call");
+const acceptedCheck = await confirmApi.runConfirmedQcReportByteCheck("01", () => true, async () => { byteCalls += 1; });
+assert(acceptedCheck === true && byteCalls === 1, "confirming the byte-check warning calls verify once");
+assert(confirmApi.qcReportByteCheckWarning("01").includes("this version (V01) is permanently marked BYTES_MISMATCH"), "the warning names the version");
+assert(extractFunction("submitQcReportByteCheck").includes("runConfirmedQcReportByteCheck") && extractFunction("submitQcReportByteCheck").includes("verifyQcReportBytes"), "only the button path calls the byte check");
+const selection = new Function(
+  `const state = {
+     qcReportFile: { name: "nupal.pdf", size: 1200 },
+     qcReportSha: "abc",
+     qcReportFileError: "",
+     qcReportFileProductId: 262,
+     qcReportFilePreparationId: "prep-1",
+   };
+   ${extractFunction("clearQcReportSelectionIfScopeChanged")}
+   const kept = clearQcReportSelectionIfScopeChanged(262, "prep-1");
+   const keptName = state.qcReportFile && state.qcReportFile.name;
+   const cleared = clearQcReportSelectionIfScopeChanged(261, "prep-1");
+   return { kept, keptName, cleared, file: state.qcReportFile };`,
+)();
+assert(selection.kept === false && selection.keptName === "nupal.pdf", "the same product keeps the selected file");
+assert(selection.cleared === true && selection.file === null, "a product change clears the selected file");
 assert(!extractFunction("submitQcReportUpload").includes("input.files"), "upload does not read the file input after a redraw");
 assert(!extractFunction("submitQcReportUpload").includes("forceNew: true"), "upload does not force a new reservation");
 assert(extractFunction("reserveNewQcReportVersion").includes("forceNew: true"), "a new version is reserved only from the explicit action");

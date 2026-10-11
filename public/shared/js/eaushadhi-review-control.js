@@ -333,6 +333,8 @@ const state = {
   qcReportNotice: "",
   qcReportWarning: "",
   qcReportFile: null,
+  qcReportFileProductId: null,
+  qcReportFilePreparationId: null,
   qcReportSha: "",
   qcReportFileError: "",
   qcReportLastSize: null,
@@ -2625,6 +2627,13 @@ function copyCardActions(hasCopy, pick, canUpload) {
   return `<button type="button" class="icon-btn with-label" id="btnChooseCopy" data-edit-action="true" aria-label="Choose approved product copy file" title="PDF, JPG, or PNG. Max 20 MB.">Choose file</button>`;
 }
 
+const QC_REPORT_MAX_BYTES = 2 * 1024 * 1024;
+
+function qcReportTooLargeMessage(size) {
+  const mb = (Number(size) / (1024 * 1024)).toFixed(2);
+  return `PDF is larger than 2 MB (${mb} MB). Reduce it before uploading.`;
+}
+
 function qcReportFileProblem(file, header) {
   const name = String(file?.name || "");
   if (!/\.pdf$/i.test(name) || file?.type !== "application/pdf") return "Choose a PDF file.";
@@ -2637,7 +2646,8 @@ function qcReportFileProblem(file, header) {
     && bytes[4] === 0x2d;
   if (!pdf) return "The file does not start with %PDF-.";
   const size = Number(file?.size);
-  if (!(size > 0 && size <= 2097152)) return "Portal limit: PDF must be 2 MB or smaller.";
+  if (!(size > 0)) return "The PDF is empty.";
+  if (size > QC_REPORT_MAX_BYTES) return qcReportTooLargeMessage(size);
   return "";
 }
 
@@ -2681,11 +2691,15 @@ async function executeQcReportUpload(input) {
   const steps = [];
   if (input?.busy === true) return { ok: false, blocked: true, steps };
   if (input?.dirty === true) return { ok: false, inline: "Save or reload the QC form first.", steps };
+  const size = Number(input.file?.size);
+  if (!Number.isInteger(size) || size <= 0) return { ok: false, message: "The PDF is empty.", steps };
+  if (size > QC_REPORT_MAX_BYTES) return { ok: false, message: qcReportTooLargeMessage(size), steps };
   const preparation = input.preparation;
   const reserved = await input.reserve({
     preparationId: preparation.preparation_id,
     expectedRowVersion: preparation.row_version,
     forceNew: input.forceNew === true,
+    fileSize: size,
   });
   steps.push("reserve");
   if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
@@ -2741,6 +2755,7 @@ async function executeQcReportUpload(input) {
     objectId,
     originalFileName: input.file.name,
     sha256: input.sha256,
+    fileSize: size,
   });
   steps.push("register");
   if (!input.isCurrent()) return { ok: false, abandoned: true, steps };
@@ -2829,13 +2844,39 @@ function qcReportByteLabel(report, session) {
 }
 
 function qcReportShowByteCheck(model) {
-  if (model?.electron !== true || model?.canWrite !== true || model?.verifying === true) return false;
+  if (model?.electron !== true || model?.canWrite !== true) return false;
+  if (model?.verifying === true) return true;
   if (model.verifyCode === "OBJECT_CHANGED" || model.verifyCode === "NETWORK") return true;
   return model.integrityStatus === "UNVERIFIED_BYTES" && Boolean(model.latestRegistered);
 }
 
+function clearQcReportSelectionIfScopeChanged(productId, preparationId) {
+  if (!state.qcReportFile) return false;
+  const sameProduct = state.qcReportFileProductId === productId;
+  const samePreparation = String(state.qcReportFilePreparationId || "") === String(preparationId || "");
+  if (sameProduct && samePreparation) return false;
+  state.qcReportFile = null;
+  state.qcReportSha = "";
+  state.qcReportFileError = "";
+  state.qcReportFileProductId = null;
+  state.qcReportFilePreparationId = null;
+  return true;
+}
+
+function qcReportByteCheckWarning(version) {
+  return `The server will read the stored PDF and compute its SHA-256. If the checksum does not match, the file is not a valid PDF, or it is over 2 MB, this version (V${version}) is permanently marked BYTES_MISMATCH and cannot be re-checked. You would need to upload a new version. Continue?`;
+}
+
+async function runConfirmedQcReportByteCheck(version, confirm, verify) {
+  if (confirm(qcReportByteCheckWarning(version)) !== true) return false;
+  await verify();
+  return true;
+}
+
 function qcTestReportCardModel() {
   const preparation = state.qcPrepServer;
+  clearQcReportSelectionIfScopeChanged(state.selectedProductId, preparation?.preparation_id || "");
+  const activeFile = state.qcReportFile;
   const next = qcReportNextFile(state.qcReports, preparation?.preparation_id);
   const latest = qcRegisteredReport(preparation?.preparation_id);
   const sessionReport = latest || (state.qcReportByteResult
@@ -2849,7 +2890,7 @@ function qcTestReportCardModel() {
     || preparation.preparation_status === "VERIFIED"
     || state.qcPrepDirty === true
     || state.busy === true
-    || !state.qcReportFile
+    || !activeFile
     || !state.qcReportSha
     || Boolean(state.qcReportFileError);
   const sessionMatches = Boolean(latest) && Boolean(state.qcReportByteResult)
@@ -2877,8 +2918,8 @@ function qcTestReportCardModel() {
     lastSize: state.qcReportLastSize,
     nextLabel: next.label,
     nextFileName: next.fileName,
-    chosenName: state.qcReportFile?.name || "",
-    chosenSizeText: state.qcReportFile ? qcReportSizeText(state.qcReportFile.size) : "",
+    chosenName: activeFile?.name || "",
+    chosenSizeText: activeFile ? qcReportSizeText(activeFile.size) : "",
     shaPreview: state.qcReportSha,
     fileError: state.qcPrepDirty ? "Save or reload the QC form first." : state.qcReportFileError,
     warning: state.qcReportWarning,
@@ -2935,13 +2976,19 @@ async function pickQcReportFile(file) {
     if (problem) {
       state.qcReportFileError = problem;
       state.qcReportFile = null;
+      state.qcReportFileProductId = null;
+      state.qcReportFilePreparationId = null;
     } else {
+      state.qcReportFileProductId = state.selectedProductId;
+      state.qcReportFilePreparationId = state.qcPrepServer?.preparation_id || "";
       state.qcReportSha = await hashFileSha256(file) || "";
       if (!state.qcReportSha) state.qcReportFileError = "SHA-256 could not be computed.";
     }
   } catch (error) {
     state.qcReportFileError = userMessageForError(error);
     state.qcReportFile = null;
+    state.qcReportFileProductId = null;
+    state.qcReportFilePreparationId = null;
   }
   if (state.tab === "evidence") renderEvidence();
 }
@@ -2979,13 +3026,6 @@ async function submitQcReportUpload() {
       remove: (path) => removeQcReportObject(path),
       register: (draft) => registerQcReport(productId, token, draft),
       save: (draft) => saveQcPreparation(productId, token, draft),
-      verify: (draft) => verifyQcReportBytes(productId, token, draft),
-      onVerifyStart: () => {
-        state.qcReportVerifying = true;
-        state.qcReportVerifyError = "";
-        state.qcReportVerifyCode = "";
-        if (state.selectedProductId === productId && state.tab === "evidence") renderEvidence();
-      },
     });
     if (result.warning && state.qcReportUploadRequest === request && state.selectedProductId === productId) {
       state.qcReportWarning = result.warning;
@@ -2993,23 +3033,11 @@ async function submitQcReportUpload() {
     if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
     state.qcReportVerifying = false;
     state.qcReportOfferNewVersion = result.offerNewVersion === true;
-    if (result.verification?.ok === true) {
-      state.qcReportByteResult = {
-        reservation_id: result.reservationId,
-        integrity_status: result.verification.integrity_status,
-        reasons: result.verification.reasons || [],
-        verified_sha256: result.verification.verified_sha256 || "",
-        verified_size_bytes: result.verification.verified_size_bytes ?? null,
-      };
-      state.qcReportVerifyError = "";
-      state.qcReportVerifyCode = "";
-    } else if (result.verification) {
-      state.qcReportVerifyError = result.verification.message || "QC test report byte check failed.";
-      state.qcReportVerifyCode = result.verification.code || "";
-    }
     if (result.ok === true) {
       state.qcReportLastSize = state.qcReportFile?.size || null;
       state.qcReportFile = null;
+      state.qcReportFileProductId = null;
+      state.qcReportFilePreparationId = null;
       state.qcReportSha = "";
       state.qcReportFileError = "";
       showToast(result.toast, "success");
@@ -3019,8 +3047,13 @@ async function submitQcReportUpload() {
       queueQcReportLoad();
       return;
     }
-    state.qcReportFileError = result.inline || result.message || "";
-    if (result.message && !result.inline) showToast(result.message, "error");
+    if (result.offerNewVersion === true) {
+      state.qcReportFileError = "This reservation is out of date. Reserve a new version";
+      showToast(state.qcReportFileError, "error");
+    } else {
+      state.qcReportFileError = result.inline || result.message || "";
+      if (result.message && !result.inline) showToast(result.message, "error");
+    }
   } catch (error) {
     if (state.qcReportUploadRequest !== request || state.selectedProductId !== productId) return;
     state.qcReportFileError = userMessageForError(error);
@@ -3036,6 +3069,8 @@ async function submitQcReportUpload() {
 
 function clearQcReportFile() {
   state.qcReportFile = null;
+  state.qcReportFileProductId = null;
+  state.qcReportFilePreparationId = null;
   state.qcReportSha = "";
   state.qcReportFileError = "";
   if (state.tab === "evidence") renderEvidence();
@@ -3047,15 +3082,22 @@ async function submitQcReportByteCheck() {
   const latest = qcRegisteredReport(state.qcPrepServer?.preparation_id);
   if (!latest?.reservation_id) return;
   const productId = state.selectedProductId;
-  const request = ++state.qcReportVerifyRequest;
-  state.qcReportVerifying = true;
-  state.qcReportVerifyError = "";
-  state.qcReportVerifyCode = "";
-  if (state.tab === "evidence") renderEvidence();
+  const version = String(latest.version_no).padStart(2, "0");
+  let request = state.qcReportVerifyRequest;
+  let checked = null;
   try {
-    const token = await sessionAccessToken();
-    if (state.qcReportVerifyRequest !== request || state.selectedProductId !== productId) return;
-    const checked = await verifyQcReportBytes(productId, token, { reservationId: latest.reservation_id });
+    const ran = await runConfirmedQcReportByteCheck(version, (message) => window.confirm(message), async () => {
+      if (state.qcReportVerifying || state.selectedProductId !== productId) return;
+      request = ++state.qcReportVerifyRequest;
+      state.qcReportVerifying = true;
+      state.qcReportVerifyError = "";
+      state.qcReportVerifyCode = "";
+      if (state.tab === "evidence") renderEvidence();
+      const token = await sessionAccessToken();
+      if (state.qcReportVerifyRequest !== request || state.selectedProductId !== productId) return;
+      checked = await verifyQcReportBytes(productId, token, { reservationId: latest.reservation_id });
+    });
+    if (ran !== true) return;
     if (state.qcReportVerifyRequest !== request || state.selectedProductId !== productId) return;
     if (checked?.ok === true) {
       state.qcReportByteResult = {
@@ -3151,13 +3193,13 @@ function qcTestReportCardHtml(model) {
     latestLine = `<p class="muted-note" id="qcReportByteStatus">Latest registered: ${esc(latest.expected_file_name)}; SHA-256 ${esc(model.sha || "")};${size} Bytes not yet verified. ${esc(b1)}. ${esc(b2)}</p>`;
   }
   const checkButton = qcReportShowByteCheck(model)
-    ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes">Check bytes on server</button>`
+    ? `<button type="button" class="icon-btn with-label" id="btnQcReportCheckBytes"${model.verifying ? " disabled" : ""}>Check bytes on server</button>`
     : "";
   const newVersionButton = model.offerNewVersion && model.electron === true && model.canWrite === true
     ? `<button type="button" class="icon-btn with-label" id="btnQcReportReserveNew">Reserve a new version</button>`
     : "";
   const chosen = model.chosenName
-    ? `<div id="qcReportChosenFile"><p class="muted-note">Chosen file: ${esc(model.chosenName)}</p><p class="muted-note">Size: ${esc(model.chosenSizeText)}</p><p class="muted-note qc-report-sha" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview || "")}</p><button type="button" class="icon-btn with-label" id="btnQcReportClearFile">Clear</button></div>`
+    ? `<div id="qcReportChosenFile"><p class="muted-note" id="qcReportSelectedFile">Selected: ${esc(model.chosenName)} (${esc(model.chosenSizeText)})</p><p class="muted-note qc-report-sha" id="qcReportShaPreview">SHA-256 ${esc(model.shaPreview || "")}</p><button type="button" class="icon-btn with-label" id="btnQcReportClearFile">Clear</button></div>`
     : "";
   return `<section class="section-card" id="qcTestReportCard">
     <h3 class="section-title">QC Test Report (Product 262)</h3>
@@ -3775,6 +3817,8 @@ function resetQcPreparationWorkspace() {
   state.qcReportNotice = "";
   state.qcReportWarning = "";
   state.qcReportFile = null;
+  state.qcReportFileProductId = null;
+  state.qcReportFilePreparationId = null;
   state.qcReportSha = "";
   state.qcReportFileError = "";
   state.qcReportLastSize = null;
