@@ -153,6 +153,28 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       payload: draft?.payload,
       lastReadStatus: draft?.lastReadStatus ?? null,
     }),
+  listQcReports: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-list", {
+      productId,
+      accessToken,
+    }),
+  reserveQcReport: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-reserve", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+    }),
+  registerQcReport: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-register", {
+      productId,
+      accessToken,
+      reservationId: draft?.reservationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      objectId: draft?.objectId,
+      originalFileName: draft?.originalFileName,
+      sha256: draft?.sha256,
+    }),
   onStatus: (cb) => {
     const handler = (_evt, payload) => cb && cb(payload);
     ipcRenderer.on("eaushadhi-worker:status", handler);

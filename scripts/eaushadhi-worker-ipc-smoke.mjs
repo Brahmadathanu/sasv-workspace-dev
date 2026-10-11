@@ -44,6 +44,9 @@ assert(CHANNELS.PRODUCT_DETAILS_PREVIEW === "eaushadhi-worker:product-details-pr
 assert(CHANNELS.PRODUCT_DETAILS_START === "eaushadhi-worker:product-details-start", "Product Details start channel remains");
 assert(CHANNELS.QC_PREPARATION_READ === "eaushadhi-worker:qc-preparation-read", "QC preparation read channel is bounded");
 assert(CHANNELS.QC_REPORT_READ === "eaushadhi-worker:qc-report-read", "QC report read channel is bounded");
+assert(CHANNELS.QC_REPORT_LIST === "eaushadhi-worker:qc-report-list", "QC report list channel is bounded");
+assert(CHANNELS.QC_REPORT_RESERVE === "eaushadhi-worker:qc-report-reserve", "QC report reserve channel is bounded");
+assert(CHANNELS.QC_REPORT_REGISTER === "eaushadhi-worker:qc-report-register", "QC report register channel is bounded");
 assert(!Object.values(CHANNELS).some((name) => /evaluate|execute|run-script/i.test(name)), "no generic evaluate IPC");
 
 const ipcSrc = readFileSync(join(root, "electron/eaushadhi-worker/ipc.js"), "utf8");
@@ -80,6 +83,9 @@ const qcPreload = preloadSrc.slice(
 );
 assert(!/qc_preparation_save_v1|qc_preparation_verify_v1|service_role|actor/i.test(qcPreload), "preload QC read sends no mutation or actor authority");
 assert(preloadSrc.includes("readQcReport:"), "preload exposes readQcReport");
+assert(preloadSrc.includes("listQcReports:"), "preload exposes listQcReports");
+assert(preloadSrc.includes("reserveQcReport:"), "preload exposes reserveQcReport");
+assert(preloadSrc.includes("registerQcReport:"), "preload exposes registerQcReport");
 assert(preloadSrc.includes("eaushadhi-worker:qc-report-read"), "preload maps the QC report read channel");
 const qcReportHandlerStart = ipcSrc.indexOf("CHANNELS.QC_REPORT_READ,");
 const qcReportHandler = ipcSrc.slice(qcReportHandlerStart, ipcSrc.indexOf("return worker;", qcReportHandlerStart));

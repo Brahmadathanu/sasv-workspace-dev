@@ -12,6 +12,7 @@ const {
   saveQcPreparation,
 } = require("./qc-preparation-workspace");
 const { readQcReport } = require("./qc-report-read");
+const { listQcReports, reserveQcReport, registerQcReport } = require("./qc-report-upload");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const {
   assertAllowedEaushadhiRenderer,
@@ -47,6 +48,9 @@ const CHANNELS = Object.freeze({
   QC_PREPARATION_WORKSPACE_READ: "eaushadhi-worker:qc-preparation-workspace-read",
   QC_PREPARATION_REVIEW: "eaushadhi-worker:qc-preparation-review",
   QC_PREPARATION_SAVE: "eaushadhi-worker:qc-preparation-save",
+  QC_REPORT_LIST: "eaushadhi-worker:qc-report-list",
+  QC_REPORT_RESERVE: "eaushadhi-worker:qc-report-reserve",
+  QC_REPORT_REGISTER: "eaushadhi-worker:qc-report-register",
 });
 
 function errorPayload(error) {
@@ -349,6 +353,52 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         expectedRowVersion: payload?.expectedRowVersion,
         payload: payload?.payload,
         lastReadStatus: payload?.lastReadStatus ?? null,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_LIST,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return listQcReports({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_RESERVE,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return reserveQcReport({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_REGISTER,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return registerQcReport({
+        productId,
+        accessToken,
+        reservationId: payload?.reservationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        objectId: payload?.objectId,
+        originalFileName: payload?.originalFileName,
+        sha256: payload?.sha256,
         callRpc: callWorkerRpc,
       });
     }),

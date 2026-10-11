@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v352"; // WP-07 D1 QC Register stage tab
+const CACHE_NAME = "hub-cache-v353"; // WP-07 D2 QC test report upload
 
 const PRECACHE = [
   // Hub shell
