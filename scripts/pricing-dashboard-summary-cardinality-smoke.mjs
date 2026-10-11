@@ -245,8 +245,8 @@ assert(
   "no SQL/migration parity strings",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v351"/.test(swSrc),
-  "current SW generation is v351",
+  /CACHE_NAME = "hub-cache-v352"/.test(swSrc),
+  "current SW generation is v352",
 );
 assert(!/hub-cache-v342/.test(swSrc), "SW no longer v342");
 

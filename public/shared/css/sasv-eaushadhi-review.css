@@ -594,6 +594,12 @@ body.sasv-eaushadhi-review .form-span-2 {
   grid-column: 1 / -1;
 }
 
+body.sasv-eaushadhi-review .qc-prep-lab-select,
+body.sasv-eaushadhi-review .qc-prep-block {
+  display: block;
+  width: 100%;
+}
+
 body.sasv-eaushadhi-review .section-card {
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-md);
