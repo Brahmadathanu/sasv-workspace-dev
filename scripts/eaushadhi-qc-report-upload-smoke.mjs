@@ -317,7 +317,7 @@ const verifiedBytes = {
   reasons: [],
   verified_sha256: SHA,
   verified_size_bytes: 1200,
-  document_asset_id: OBJECT_ID,
+  document_asset_id: 2,
 };
 const verifiedClient = verifyClient(async () => ({ data: verifiedBytes, error: null }));
 const byteCheck = await verifyQcReportBytes({
@@ -326,8 +326,23 @@ const byteCheck = await verifyQcReportBytes({
   reservationId: RESERVATION_ID,
   createClient: verifiedClient.createClient,
 });
-assert(byteCheck.ok === true && byteCheck.integrity_status === "VERIFIED_BYTES" && byteCheck.verified_sha256 === SHA, "verify success returns the server byte check");
+assert(byteCheck.ok === true && byteCheck.integrity_status === "VERIFIED_BYTES" && byteCheck.verified_sha256 === SHA && byteCheck.document_asset_id === "2", "verify success accepts a numeric document asset id");
 assert(verifiedClient.calls.some((call) => call?.name === "eaushadhi-qc-report-verify" && call.options.body.product_id === 262), "verify calls the edge function with the user token client");
+for (const badAssetId of ["abc", -1]) {
+  await expectFailure(
+    () => verifyQcReportBytes({
+      productId: 262,
+      accessToken: TOKEN,
+      reservationId: RESERVATION_ID,
+      createClient: verifyClient(async () => ({
+        data: { ...verifiedBytes, document_asset_id: badAssetId },
+        error: null,
+      })).createClient,
+    }),
+    ERROR_KINDS.CONTRACT_INCOMPLETE,
+  );
+}
+assert(true, "a document asset id of abc or -1 is rejected");
 const mismatch = await verifyQcReportBytes({
   productId: 262,
   accessToken: TOKEN,
@@ -534,7 +549,8 @@ const registeredHtml = markup({
   protocolOptions: [],
 });
 assert(registeredHtml.includes(`Test report: V01 registered \u2013 ${FILE_NAME}; SHA-256 ${SHA}. B1: Report registered (V01). B2: Server byte check: pending`), "card C shows the registered report");
-assert(registeredHtml.includes("done (registered, bytes unverified)"), "C2 is done when a report is registered");
+assert(registeredHtml.includes("done (registered)"), "C2 is done when a report is registered");
+assert(!registeredHtml.includes("bytes unverified"), "C2 no longer says the bytes are unverified");
 assert(registeredHtml.includes("B3 — Evidence governance accepted") && registeredHtml.includes("— not done"), "other checklist items stay not done");
 assert(registeredHtml.includes("B1: Report registered (V01)") && registeredHtml.includes("B2: Server byte check: pending"), "B1 and B2 are shown on the checklist");
 assert(!registeredHtml.includes("READY"), "registered QC markup does not contain READY");
