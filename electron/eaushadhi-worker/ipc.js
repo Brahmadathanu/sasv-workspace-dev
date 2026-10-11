@@ -383,6 +383,7 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         preparationId: payload?.preparationId,
         expectedRowVersion: payload?.expectedRowVersion,
         forceNew: payload?.forceNew === true,
+        fileSize: payload?.fileSize,
         callRpc: callWorkerRpc,
       });
     }),
@@ -401,6 +402,7 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         objectId: payload?.objectId,
         originalFileName: payload?.originalFileName,
         sha256: payload?.sha256,
+        fileSize: payload?.fileSize,
         callRpc: callWorkerRpc,
       });
     }),

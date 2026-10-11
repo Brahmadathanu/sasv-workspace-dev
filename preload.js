@@ -165,6 +165,7 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       preparationId: draft?.preparationId,
       expectedRowVersion: draft?.expectedRowVersion,
       forceNew: draft?.forceNew === true,
+      fileSize: draft?.fileSize,
     }),
   registerQcReport: (productId, accessToken, draft) =>
     ipcRenderer.invoke("eaushadhi-worker:qc-report-register", {
@@ -175,6 +176,7 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       objectId: draft?.objectId,
       originalFileName: draft?.originalFileName,
       sha256: draft?.sha256,
+      fileSize: draft?.fileSize,
     }),
   verifyQcReportBytes: (productId, accessToken, draft) =>
     ipcRenderer.invoke("eaushadhi-worker:qc-report-verify-bytes", {
