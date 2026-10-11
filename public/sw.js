@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v350"; // WP-07 C1b.4 QC preparation date typing
+const CACHE_NAME = "hub-cache-v351"; // WP-07 C1b.5 QC preparation date year range
 
 const PRECACHE = [
   // Hub shell

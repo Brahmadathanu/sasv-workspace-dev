@@ -841,6 +841,7 @@ const dateMessagesApi = new Function(
   + "    return { tag, className: \"\", textContent: \"\", children: [], append(node) { this.children.push(node); } };\n"
   + "  },\n"
   + "};\n"
+  + extractFunction("qcPrepDateYearImplausible") + "\n"
   + extractFunction("qcPrepDateOrderMessages") + "\n"
   + extractFunction("qcPrepLocalHints") + "\n"
   + updater + "\n"
@@ -881,10 +882,58 @@ dateMessagesApi.updateQcPrepDateMessages({ ...hintForm, study_start_date: "2026-
 assert(dateMessagesApi.endEl.hidden === true && dateMessagesApi.reportEl.hidden === true, "valid dates leave both messages hidden");
 dateMessagesApi.updateQcPrepDateMessages({ ...hintForm, study_start_date: "0002-10-01", study_end_date: "0002-10-01", report_date: "0001-01-01" });
 assert(dateMessagesApi.endEl.textContent === "" && dateMessagesApi.reportEl.textContent === "" && dateMessagesApi.endEl.hidden === true && dateMessagesApi.reportEl.hidden === true, "an incomplete year shows no date message");
+const implausibleChecks = dateMessagesApi.checks.children.flatMap((node) => (node.children || []).map((item) => item.textContent));
+assert(implausibleChecks.includes("STUDY_START_DATE_REQUIRED_OR_INVALID") && implausibleChecks.includes("STUDY_END_DATE_REQUIRED_OR_INVALID") && implausibleChecks.includes("REPORT_DATE_REQUIRED_OR_INVALID"), "blur lists an implausible year in Form checks");
 const bareDates = renderQc({ open: true });
 assert(bareDates.includes('id="qcPrepDateOrder"') && bareDates.includes('id="qcPrepReportDateOrder"'), "markup always contains both date message elements");
 const validDateMarkup = renderQc({ open: true, studyStart: "2026-01-01", studyEnd: "2026-01-02", reportDate: "2026-01-02" });
 assert(validDateMarkup.includes('id="qcPrepDateOrder" hidden') && validDateMarkup.includes('id="qcPrepReportDateOrder" hidden'), "valid dates keep both date messages hidden");
+
+async function withUtcYear(year, run) {
+  const RealDate = globalThis.Date;
+  const fixedMs = RealDate.UTC(year, 9, 11);
+  function PatchedDate(...args) {
+    if (!new.target) return RealDate(...args);
+    if (args.length === 0) return new RealDate(fixedMs);
+    return new RealDate(...args);
+  }
+  PatchedDate.now = () => fixedMs;
+  PatchedDate.parse = RealDate.parse;
+  PatchedDate.UTC = RealDate.UTC;
+  PatchedDate.prototype = RealDate.prototype;
+  globalThis.Date = PatchedDate;
+  try {
+    return await run();
+  } finally {
+    globalThis.Date = RealDate;
+  }
+}
+
+await withUtcYear(2026, async () => {
+  for (const key of ["study_start_date", "study_end_date", "report_date"]) {
+    const outcome = await savePayload({ [key]: "0002-10-01" });
+    assert(!outcome.rpc.calls.some((call) => call.name === QC_PREPARATION_SAVE_RPC), `${key} 0002-10-01 makes no save RPC`);
+    const normalized = normalizeQcPayload({ [key]: "0002-10-01" });
+    const hint = `${key.toUpperCase()}_REQUIRED_OR_INVALID`;
+    assert(normalized.hints.includes(hint), `${key} 0002-10-01 keeps the invalid-date hint`);
+    assert(normalized.payload[key] === "0002-10-01", `${key} 0002-10-01 is not dropped`);
+  }
+  const nextYear = await savePayload({ study_start_date: "2027-12-31" });
+  assert(nextYear.rpc.calls.some((call) => call.name === QC_PREPARATION_SAVE_RPC), "2027-12-31 is accepted when the current year is 2026");
+  const tooFar = await savePayload({ study_start_date: "2028-01-01" });
+  assert(!tooFar.rpc.calls.some((call) => call.name === QC_PREPARATION_SAVE_RPC), "2028-01-01 is blocked when the current year is 2026");
+  assert(normalizeQcPayload({ study_start_date: "2028-01-01" }).hints.includes("STUDY_START_DATE_REQUIRED_OR_INVALID"), "2028-01-01 keeps the invalid-date hint");
+  const past = await savePayload({ study_start_date: "2021-10-01" });
+  assert(past.rpc.calls.some((call) => call.name === QC_PREPARATION_SAVE_RPC), "2021-10-01 is accepted");
+  const farMessages = dateMessagesApi.qcPrepDateOrderMessages("2028-01-01", "2028-01-01", "2028-06-01");
+  assert(farMessages.end === "" && farMessages.report === "", "a year after next year does not produce an order message");
+  const farHints = dateMessagesApi.qcPrepLocalHints({ ...hintForm, study_start_date: "2028-01-01", study_end_date: "", report_date: "" });
+  assert(farHints.includes("STUDY_START_DATE_REQUIRED_OR_INVALID") && !farHints.includes("STUDY_END_NOT_AFTER_START"), "2028-01-01 is a form check and not an order hint");
+  const nextHints = dateMessagesApi.qcPrepLocalHints({ ...hintForm, study_start_date: "2027-12-31", study_end_date: "", report_date: "" });
+  assert(!nextHints.includes("STUDY_START_DATE_REQUIRED_OR_INVALID"), "2027-12-31 is not a form-check hint when the current year is 2026");
+  const pastHints = dateMessagesApi.qcPrepLocalHints({ ...hintForm, study_start_date: "2021-10-01", study_end_date: "", report_date: "" });
+  assert(!pastHints.includes("STUDY_START_DATE_REQUIRED_OR_INVALID"), "2021-10-01 is not a form-check hint");
+});
 
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);

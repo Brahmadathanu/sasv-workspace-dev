@@ -2958,11 +2958,18 @@ function qcPrepOtherTextInvalid(text) {
   return value.length > 125 || !/\S/.test(value) || !QC_PREP_OTHER_TEXT_RE.test(value);
 }
 
-function qcPrepDateOrderMessages(start, end, report) {
+function qcPrepDateYearImplausible(value, now = new Date()) {
+  const text = String(value || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const year = Number(text.slice(0, 4));
+  return year < 1900 || year > now.getUTCFullYear() + 1;
+}
+
+function qcPrepDateOrderMessages(start, end, report, now = new Date()) {
   const studyStart = String(start || "");
   const studyEnd = String(end || "");
   const reportDate = String(report || "");
-  const incomplete = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number(value.slice(0, 4)) < 1900;
+  const incomplete = (value) => qcPrepDateYearImplausible(value, now);
   const ready = (value) => Boolean(value) && !incomplete(value);
   return {
     end: ready(studyStart) && ready(studyEnd) && studyEnd <= studyStart
@@ -2975,15 +2982,18 @@ function qcPrepDateOrderMessages(start, end, report) {
   };
 }
 
-function qcPrepLocalHints(form) {
+function qcPrepLocalHints(form, now = new Date()) {
   const hints = [];
   const start = String(form.study_start_date || "");
   const end = String(form.study_end_date || "");
   const report = String(form.report_date || "");
-  const dates = qcPrepDateOrderMessages(start, end, report);
+  const dates = qcPrepDateOrderMessages(start, end, report, now);
   if (dates.end) hints.push("STUDY_END_NOT_AFTER_START");
   if (dates.report) hints.push("REPORT_DATE_BEFORE_STUDY_END");
   if (dates.beforeStart) hints.push("REPORT_DATE_BEFORE_STUDY_START");
+  if (qcPrepDateYearImplausible(start, now)) hints.push("STUDY_START_DATE_REQUIRED_OR_INVALID");
+  if (qcPrepDateYearImplausible(end, now)) hints.push("STUDY_END_DATE_REQUIRED_OR_INVALID");
+  if (qcPrepDateYearImplausible(report, now)) hints.push("REPORT_DATE_REQUIRED_OR_INVALID");
   if (qcPrepProtocolCode(form) === "OTHER") {
     const other = String(form.other_testing_protocol_text || "");
     if (!other.trim()) hints.push("OTHER_PROTOCOL_TEXT_REQUIRED");
@@ -3137,7 +3147,13 @@ function qcPrepWorkspaceHtml(model) {
     : model.fieldsComplete
       ? `<p class="muted-note">Fields complete (draft only)</p>`
       : `<p class="muted-note">No server review reasons yet.</p>`;
-  const dateIncomplete = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) && Number(String(value).slice(0, 4)) < 1900;
+  const maxQcDateYear = new Date().getUTCFullYear() + 1;
+  const dateIncomplete = (value) => {
+    const text = String(value || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+    const year = Number(text.slice(0, 4));
+    return year < 1900 || year > maxQcDateYear;
+  };
   const studyEndOrder = model.studyStart && model.studyEnd
     && !dateIncomplete(model.studyStart) && !dateIncomplete(model.studyEnd)
     && model.studyEnd <= model.studyStart

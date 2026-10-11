@@ -127,12 +127,17 @@ function normalizeQcPayload(input) {
     }
     payload.date_basis = basis;
   }
+  const maxQcDateYear = new Date().getUTCFullYear() + 1;
   for (const key of DATE_KEYS) {
     if (blank(input[key])) continue;
     const date = String(input[key]).trim();
     if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)) {
       hints.push(`${key.toUpperCase()}_REQUIRED_OR_INVALID`);
       continue;
+    }
+    const year = Number(date.slice(0, 4));
+    if (year < 1900 || year > maxQcDateYear) {
+      hints.push(`${key.toUpperCase()}_REQUIRED_OR_INVALID`);
     }
     payload[key] = date;
   }
