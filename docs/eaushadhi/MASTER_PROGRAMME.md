@@ -8,6 +8,7 @@ The server is the authoritative preparation and governance layer. The portal is 
 
 ## Architecture and execution ownership
 - ChatGPT is the programme architect across all work packs.
+- WP-07 driver since 2026-10-10 (user-authorised): Jarvis acts in ChatGPT's planning/server/audit role; ChatGPT is updated after milestones (see CHANGELOG 2026-10-11).
 - ChatGPT owns server/database planning and implementation.
 - Cursor/Codex are client implementation workers only.
 - Cursor/Codex must never independently redefine server contracts, lifecycle rules, work-pack scope, cross-work-pack dependencies, or architecture.
@@ -50,7 +51,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
 | WP-06 | Composition Portal Execution | DONE | 100% | Closed: Product 262 representative lifecycle proven end-to-end and completed state fail-closed |
-| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | G0–G2 complete; server QC lifecycle live/fail-closed; prepare representative Product 262 canonical QC data before client/portal execution |
+| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | G0–G2 complete; S1 (PR #47) and B1 (PR #57) merged; S2C protocol RPC + M-LAB live; C1–C1b.3 client on `feat/wp07-s2c-c1-qc-preparation-ui` (head `5026733`) read-only acceptance PASS; next: first controlled Product 262 Save |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
 | WP-10 | Acceptance, Stabilisation & Programme Closure | BLOCKED | 0% | Final regression/usability/closure |
@@ -83,6 +84,7 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Final-stage client activation is merged at `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The exact-main final-stage preflight and bounded server-side transition completed successfully: planner `ALREADY_COMPLETE`, exact matched IDs `[929,930,931]`, no missing/conflicts/duplicates/extras/blockers, no portal row mutation, stage `PORTAL_VERIFIED` at row_version 14, workflow row_version unchanged at 11, and durable `COMPOSITION_STAGE_PORTAL_VERIFIED` audit evidence.
 - WP-06 representative regression passed on `c719dacff9d8031ece3a892333db83d25bf164fd`: syntax and Composition execution/offline-plan/worker-contract/IPC/review-RPC smoke suites all passed; completed Product 262 is fail-closed against row-entry and repeat final-stage verification; no live or repository mutation occurred.
 - WP-06 closure audit passed. WP-06 is closed and downstream-safe. QC Register and final Submit remain separate unopened gates.
+- WP-07 (2026-10-11): S1 merged (PR #47, `980cfeed`); B1 merged (PR #57, `2c4496e6`); S2C protocol-options RPC live as `20261010125640` (draft PR #59, unmerged); M-LAB portal laboratory vocabulary live as `20261010180112`; C1/C1b client on `feat/wp07-s2c-c1-qc-preparation-ui` at `5026733` with operator read-only acceptance PASS; Product 262 QC preparations = 0; QC READY=false.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:

@@ -88,7 +88,9 @@ Post-deployment proof:
 - no QC portal mutation occurred.
 
 ## Current gate
-**G3 — Representative Product 262 canonical QC data preparation.**
+**G3B/S2C — Product 262 QC preparation (C1/C1b client accepted read-only; next: first controlled Save).** See "Status update — 2026-10-11" at the end; the older text below is kept as history.
+
+_Historical (pre-S1):_ **G3 — Representative Product 262 canonical QC data preparation.**
 
 Prepare and govern the first real QC/stability record source data for Product 262 before any client or portal execution work.
 The next gate must resolve the actual testing protocol, study dates, batch representation, report date,
@@ -159,3 +161,17 @@ Authorized S1 server foundation applied live, with no Product 262 source study/d
 - ACL post-deploy: anonymous QC register/read EXECUTE denied; authenticated public registration EXECUTE granted; authenticated direct internal regulatory registration EXECUTE denied. The public wrapper still checks canonical module edit permission through `rpc_eaushadhi_require_permission(true)`.
 - No real QC report upload, document-byte verification, source promotion, QC stage/run or portal mutation. Real authenticated positive registration, object integrity and race acceptance remain pending; deployment success is **not** end-to-end B1 acceptance.
 - GitHub branch awaits independent final diff and merge review; no Git merge/release authorization is implied.
+
+## Status update — 2026-10-11 (supersedes earlier "not merged"/"pending" notes above)
+- **S1 merged:** PR #47 merged 2026-10-09 (merge `980cfeed1aaaaf13d6cd168506dc91d87d3546a8`).
+- **B1 merged:** PR #57 merged 2026-10-10 (merge `2c4496e61272ae24b7e8c87ba4f354ced95ddf03`). Positive real-storage registration, racing and byte integrity remain untested.
+- **S2C protocol-options RPC:** `rpc_eaushadhi_qc_protocol_options_v1()` live as `20261010125640_wp07_s2c_c1_qc_protocol_options`; file in draft PR #59 (unmerged).
+- **M-LAB (C1b):** `rpc_eaushadhi_qc_portal_laboratory_options_v1()` and 59 `QC_LABORATORY` portal options + 1 vocabulary snapshot live as `20261010180112_wp07_c1b_qc_portal_laboratory_vocabulary` (file on this branch, byte-identical to recorded statements). Reference vocabulary only; no Form-48/approved-laboratory/mapping authority (`approved_laboratory` and `eaushadhi_qc_laboratory_mapping` both 0 rows).
+- **Client, branch `feat/wp07-s2c-c1-qc-preparation-ui`:** C1 `45fb826` → C1 fix `07deeec` → C1b `4a790db` → C1b.2 feedback placement `57a17f2` → C1b.3 focus/batch message `5026733`. Each was independently audited with mock-RPC smokes.
+- **Operator acceptance:** read-only Electron acceptance on `5026733` PASS (defaults, 59-lab dropdown with Haridev portal id 3980, checklist, server Check, Reload, date/batch messages). No Save was performed; Product 262 QC preparations = 0, reservations = 0, QC READY=false.
+- **Next:**
+  1. First controlled Product 262 Save (`manual-qc:262:primary`), with explicit operator authorisation.
+  2. C2 PDF upload (PDF ≤ 2 MB).
+  3. B1 positive registration, then B2 byte verification, B3 evidence governance, B4 readiness, B5.
+  4. S2D, then portal entry.
+- Branch and PR #59 remain unmerged pending final integration review.

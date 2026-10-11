@@ -2,6 +2,7 @@
 
 ## 1. Ownership
 - ChatGPT is the architect and programme controller.
+- Since 2026-10-10 (user-authorised), Jarvis (the user's Grok Bot assistant) drives WP-07 day to day in ChatGPT's role in these rules (planning, server work, independent audit); ChatGPT is updated after milestones. Merge authorisation remains the user's.
 - Server/database planning and implementation are performed by ChatGPT using connected tools.
 - Cursor/Codex are client implementation workers only.
 - The user remains the business/operational decision authority.
