@@ -201,6 +201,9 @@ import {
   recheckQcEvidence,
   readQcReadiness,
   acceptQcFact,
+  correctQcFactAcceptance,
+  verifyQcProtocolMapping,
+  readQcFillPreflight,
   recordQcLabDecision,
   listQcReports,
   reserveQcReport,
@@ -374,6 +377,20 @@ const state = {
   qcFactAcceptDrafts: null,
   qcGovernanceRunning: false,
   qcGovernanceConfirmOpen: false,
+  qcFactCorrectScope: "",
+  qcFactCorrectDrafts: null,
+  qcFactCorrectOpen: "",
+  qcFactCorrectNotice: "",
+  qcMappingScope: "",
+  qcMappingReason: "",
+  qcMappingAttest: false,
+  qcMappingSeeded: false,
+  qcMappingNotice: "",
+  qcFillPreflight: null,
+  qcFillRequest: 0,
+  qcFillLoadedFor: null,
+  qcFillLoading: false,
+  qcFillNotice: "",
   qcReportVerifyError: "",
   qcReportVerifyCode: "",
   qcReportOfferNewVersion: false,
@@ -4044,6 +4061,20 @@ function resetQcPreparationWorkspace() {
   state.qcFactAcceptDrafts = null;
   state.qcGovernanceRunning = false;
   state.qcGovernanceConfirmOpen = false;
+  state.qcFactCorrectScope = "";
+  state.qcFactCorrectDrafts = null;
+  state.qcFactCorrectOpen = "";
+  state.qcFactCorrectNotice = "";
+  state.qcMappingScope = "";
+  state.qcMappingReason = "";
+  state.qcMappingAttest = false;
+  state.qcMappingSeeded = false;
+  state.qcMappingNotice = "";
+  state.qcFillRequest += 1;
+  state.qcFillPreflight = null;
+  state.qcFillLoadedFor = null;
+  state.qcFillLoading = false;
+  state.qcFillNotice = "";
 }
 
 function qcPrepCurrent() {
@@ -4842,6 +4873,7 @@ const QC_BASIS_CATEGORY_OPTIONS = [
   ["REGULATORY_GUIDANCE", "Regulatory guidance"],
   ["LABORATORY_CORRESPONDENCE", "Laboratory correspondence"],
   ["OPERATOR_DETERMINATION", "Operator determination"],
+  ["OPERATOR_DERIVATION", "Operator derivation"],
 ];
 
 function qcReadinessFactLabel(factKey) {
@@ -5100,6 +5132,14 @@ function refreshQcAfterGovernanceWrite() {
   state.qcReadinessLoadedFor = null;
   state.qcReadiness = null;
   state.qcReadinessLoading = false;
+  state.qcFillLoadedFor = null;
+  state.qcFillPreflight = null;
+  state.qcFillLoading = false;
+  state.qcFactAcceptDrafts = null;
+  state.qcFactCorrectDrafts = null;
+  state.qcFactCorrectOpen = "";
+  state.qcMappingSeeded = false;
+  state.qcMappingAttest = false;
   reloadQcPreparationWorkspace();
 }
 
@@ -5181,9 +5221,17 @@ function qcFactAcceptDraft(factKey) {
     state.qcFactAcceptDrafts = {};
   }
   if (!state.qcFactAcceptDrafts[factKey]) {
-    state.qcFactAcceptDrafts[factKey] = { category: "", note: "", attest: false };
+    state.qcFactAcceptDrafts[factKey] = { category: "", note: "", attest: false, touched: false };
   }
-  return state.qcFactAcceptDrafts[factKey];
+  const draft = state.qcFactAcceptDrafts[factKey];
+  if (draft.touched !== true && !String(draft.note || "").trim()) {
+    const suggestion = qcFactBasisSuggestion(factKey, qcPrepForm());
+    if (suggestion.note) {
+      draft.category = suggestion.category;
+      draft.note = suggestion.note;
+    }
+  }
+  return draft;
 }
 
 function qcFactAcceptReady(draft) {
@@ -5281,6 +5329,405 @@ async function submitQcFactAccept(factKey) {
   }
 }
 
+function qcFactBatchList(form) {
+  const raw = form?.batches;
+  const parts = Array.isArray(raw)
+    ? raw.map((item) => (item && typeof item === "object" ? item.batch_no : item))
+    : String(raw || "").split(",");
+  return parts.map((item) => String(item ?? "").trim()).filter(Boolean).join(", ");
+}
+
+function qcFactDisplayDate(value) {
+  const iso = qcPrepFmtDate(value);
+  if (iso) return iso;
+  const text = String(value || "").trim();
+  if (/^\d{2}-\d{2}-\d{4}$/.test(text)) return text;
+  return "";
+}
+
+function qcFactBasisSuggestion(factKey, form) {
+  const list = state.qcPrepOptions || [];
+  const selected = list.find((item) => String(item?.term_id) === String(form?.testing_protocol_term_id || ""));
+  const protocolCode = selected?.code || "";
+  const protocolLabel = selected?.label || "";
+  const issuer = qcIssuerShortName(form?.source_report_issuer);
+  const reportName = String(form?.report_filename || "").trim();
+  if (factKey === "study_start_date") {
+    const date = qcFactDisplayDate(form?.study_start_date);
+    const batches = qcFactBatchList(form);
+    if (!date || !batches || !issuer || !reportName) return { category: "", note: "" };
+    return {
+      category: "OPERATOR_DERIVATION",
+      note: `Study start date ${date} derived by the operator as the earliest batch manufacturing date among batches ${batches} stated on the ${issuer} certificate of analysis / QC test report (${reportName}). The report does not state a study start date.`,
+    };
+  }
+  if (factKey === "testing_protocol") {
+    const other = String(form?.other_testing_protocol_text || "").trim();
+    if (!protocolLabel || !issuer) return { category: "", note: "" };
+    if (protocolCode === "OTHER") {
+      if (!other) return { category: "", note: "" };
+      return {
+        category: "OPERATOR_DETERMINATION",
+        note: `Testing protocol "${protocolLabel}: ${other}" was chosen by the operator. It is not stated on the ${issuer} report.`,
+      };
+    }
+    return {
+      category: "OPERATOR_DETERMINATION",
+      note: `Testing protocol "${protocolLabel}" was chosen by the operator. It is not stated on the ${issuer} report.`,
+    };
+  }
+  return { category: "", note: "" };
+}
+
+function qcBasisCategoryLabel(code) {
+  const match = QC_BASIS_CATEGORY_OPTIONS.find(([value]) => value === code);
+  return match ? match[1] : String(code || "");
+}
+
+const QC_FILL_QUALIFICATION = "Portal laboratory is an internal provisional selection. It is not the report issuer, and legal laboratory identity and portal eligibility are not verified.";
+const QC_FILL_BLOCKER_TEXT = {
+  READINESS_NOT_READY: "Readiness is not Ready (provisional) yet",
+  PRODUCT_DETAILS_NOT_PORTAL_VERIFIED: "Product details are not verified on the portal",
+  COMPOSITION_NOT_PORTAL_VERIFIED: "Composition is not verified on the portal",
+  PROTOCOL_MAPPING_NOT_VERIFIED: "The 'Others' protocol mapping is not verified yet",
+  STUDY_START_NOT_FLAGGED_DERIVED: "Study start date must be accepted as 'Operator derivation' (correct the acceptance)",
+  OTHER_PROTOCOL_TEXT_MISSING: "Others protocol text is missing",
+};
+const QC_FILL_FIELD_ROWS = [
+  ["typeOfStudy", "Type of study"],
+  ["startDate", "Start date"],
+  ["endDate", "End date"],
+  ["reportDate", "Report date"],
+  ["batchNo", "Batch numbers"],
+  ["duration", "Duration (months)"],
+  ["labName", "Laboratory (portal id)"],
+  ["qualityCntrl", "Quality control"],
+];
+
+function qcFillBlockerText(code) {
+  const text = String(code || "");
+  if (Object.prototype.hasOwnProperty.call(QC_FILL_BLOCKER_TEXT, text)) return QC_FILL_BLOCKER_TEXT[text];
+  return text;
+}
+
+function queueQcFillPreflight() {
+  if (!workerApiAvailable() || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (access.canView !== true) return;
+  const preparationId = state.qcPrepServer?.preparation_id || "";
+  if (!preparationId) {
+    if (state.qcFillLoadedFor === "") return;
+    state.qcFillPreflight = null;
+    state.qcFillLoadedFor = "";
+    return;
+  }
+  if (state.qcReadinessLoadedFor !== preparationId) return;
+  if (state.qcFillLoading === true || state.qcFillLoadedFor === preparationId) return;
+  state.qcFillLoading = true;
+  const productId = state.selectedProductId;
+  const request = ++state.qcFillRequest;
+  queueMicrotask(() => {
+    void loadQcFillPreflight(productId, preparationId, request);
+  });
+}
+
+async function loadQcFillPreflight(productId, preparationId, request) {
+  try {
+    const token = await sessionAccessToken();
+    if (request !== state.qcFillRequest || state.selectedProductId !== productId) return;
+    const result = await readQcFillPreflight(productId, token, { preparationId });
+    if (request !== state.qcFillRequest || state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcFillPreflight = null;
+      state.qcFillNotice = result.message || "QC filling preflight failed.";
+    } else {
+      state.qcFillPreflight = result;
+      state.qcFillNotice = "";
+    }
+    state.qcFillLoadedFor = preparationId;
+  } catch (error) {
+    if (request !== state.qcFillRequest || state.selectedProductId !== productId) return;
+    state.qcFillPreflight = null;
+    state.qcFillNotice = userMessageForError(error);
+    state.qcFillLoadedFor = preparationId;
+  } finally {
+    if (request === state.qcFillRequest) state.qcFillLoading = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+function qcFactCorrectDraft(item) {
+  const factKey = String(item?.fact || "");
+  const scope = `${state.selectedProductId || ""}:${state.qcPrepServer?.preparation_id || ""}`;
+  if (state.qcFactCorrectScope !== scope || !state.qcFactCorrectDrafts) {
+    state.qcFactCorrectScope = scope;
+    state.qcFactCorrectDrafts = {};
+  }
+  const existing = state.qcFactCorrectDrafts[factKey];
+  if (!existing || (existing.touched !== true && String(existing.acceptanceId) !== String(item?.acceptance_id ?? ""))) {
+    const suggestion = qcFactBasisSuggestion(factKey, qcPrepForm());
+    const oldLabel = qcBasisCategoryLabel(item?.basis_category);
+    const oldNote = String(item?.basis_note || "");
+    state.qcFactCorrectDrafts[factKey] = {
+      category: suggestion.category || "",
+      note: suggestion.note || "",
+      reason: `Earlier basis "${oldLabel}: ${oldNote}" was inaccurate. Corrected to state the actual basis.`,
+      attest: false,
+      touched: false,
+      acceptanceId: item?.acceptance_id,
+    };
+  }
+  return state.qcFactCorrectDrafts[factKey];
+}
+
+function qcFactCorrectReady(draft) {
+  const note = String(draft?.note || "").trim();
+  const reason = String(draft?.reason || "").trim();
+  return QC_BASIS_CATEGORY_OPTIONS.some(([value]) => value === draft?.category)
+    && note.length >= 10
+    && note.length <= 2000
+    && reason.length >= 10
+    && reason.length <= 2000
+    && draft?.attest === true;
+}
+
+function qcFactCorrectCardHtml() {
+  if (canWrite() !== true) return "";
+  const accepted = (state.qcReadiness?.operator_asserted_facts || []).filter((item) => item && item.accepted === true && item.fact);
+  if (!accepted.length) return "";
+  const esc = qcHtmlEscape;
+  const verifiedBy = String(state.qcReadiness?.verified_by || "");
+  const selfCorrect = verifiedBy !== "" && String(access.userId || "") === verifiedBy;
+  const blocked = qcGovernanceBlocked();
+  const rows = accepted.map((item) => {
+    const draft = qcFactCorrectDraft(item);
+    const open = state.qcFactCorrectOpen === item.fact;
+    const ready = qcFactCorrectReady(draft) && !blocked && Number(state.qcReadiness?.preparation_row_version) > 0 && Number(item.acceptance_id) > 0;
+    const chain = Number(item.chain_length) > 1 ? `Correction ${item.chain_length}` : "";
+    const options = QC_BASIS_CATEGORY_OPTIONS.map(([value, label]) => (
+      `<option value="${esc(value)}"${draft.category === value ? " selected" : ""}>${esc(label)}</option>`
+    )).join("");
+    const editor = open
+      ? `<label>Basis category
+          <select id="qcFactCorrectCategory-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="category">${options}</select>
+        </label>
+        <label>Basis note
+          <textarea id="qcFactCorrectNote-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="note">${esc(draft.note || "")}</textarea>
+        </label>
+        <label>Correction reason
+          <textarea id="qcFactCorrectReason-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="reason">${esc(draft.reason || "")}</textarea>
+        </label>
+        <label><input id="qcFactCorrectAttest-${esc(item.fact)}" type="checkbox" data-qc-correct-fact="${esc(item.fact)}" data-qc-correct-role="attest"${draft.attest ? " checked" : ""}> I confirm this basis is accurate and I am accountable for this correction.</label>
+        <button type="button" class="icon-btn with-label primary" id="btnQcFactCorrectSave-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Correct</button>`
+      : `<button type="button" class="icon-btn with-label" id="btnQcFactCorrect-${esc(item.fact)}" data-qc-correct-fact="${esc(item.fact)}"${blocked ? " disabled" : ""}>Correct</button>`;
+    return `<div class="form-field form-span-2" data-qc-correct-row="${esc(item.fact)}">
+      <span class="meta-label">${esc(qcReadinessFactLabel(item.fact))}</span>
+      <p>Basis: ${esc(qcBasisCategoryLabel(item.basis_category))}</p>
+      <p>${esc(item.basis_note || "")}</p>
+      <p>Accepted by ${esc(qcActorLabel(item.accepted_by))} on ${esc(qcIstStamp(item.accepted_at))}</p>
+      ${chain ? `<p>${esc(chain)}</p>` : ""}
+      ${editor}
+    </div>`;
+  }).join("");
+  return `<section class="section-card" id="qcFactCorrectCard">
+    <h3 class="section-title">Correct an accepted fact</h3>
+    <p id="qcFactCorrectHistory">Original kept; history is append-only.</p>
+    ${selfCorrect ? `<p id="qcFactCorrectSelfWarning">You verified this evidence. Your correction will be recorded but will not count. A different editor must correct or accept.</p>` : ""}
+    ${state.qcFactCorrectNotice ? `<p class="muted-note" id="qcFactCorrectNotice">${esc(state.qcFactCorrectNotice)}</p>` : ""}
+    ${rows}
+  </section>`;
+}
+
+async function submitQcFactCorrect(factKey) {
+  if (qcGovernanceBlocked()) return;
+  if (canWrite() !== true || !factKey) return;
+  const item = (state.qcReadiness?.operator_asserted_facts || []).find((row) => row?.fact === factKey && row?.accepted === true);
+  if (!item) return;
+  const draft = qcFactCorrectDraft(item);
+  if (!qcFactCorrectReady(draft)) return;
+  const preparation = state.qcPrepServer;
+  const version = state.qcReadiness?.preparation_row_version;
+  if (!preparation || !(Number(version) > 0) || !(Number(item.acceptance_id) > 0)) return;
+  const productId = state.selectedProductId;
+  const note = String(draft.note || "").trim();
+  const reason = String(draft.reason || "").trim();
+  const category = draft.category;
+  const oldLabel = qcBasisCategoryLabel(item.basis_category);
+  const oldNote = String(item.basis_note || "");
+  state.qcGovernanceConfirmOpen = true;
+  state.qcFactCorrectNotice = "";
+  try {
+    const accepted = await openQcConfirm({
+      title: "Correct an accepted fact",
+      message: `Correct ${qcReadinessFactLabel(factKey)}. Old basis: ${oldLabel}: ${oldNote}. New basis: ${qcBasisCategoryLabel(category)}: ${note}. Reason: ${reason}`,
+      okLabel: "Correct",
+      returnFocusId: `btnQcFactCorrectSave-${factKey}`,
+      idPrefix: "qcFactCorrectConfirm",
+    });
+    if (accepted !== true) return;
+    if (state.selectedProductId !== productId) return;
+    state.qcGovernanceRunning = true;
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    if (state.selectedProductId !== productId) return;
+    const result = await correctQcFactAcceptance(productId, token, {
+      preparationId: preparation.preparation_id,
+      expectedRowVersion: version,
+      supersedesAcceptanceId: item.acceptance_id,
+      basisCategory: category,
+      basisNote: note,
+      correctionReason: reason,
+      attest: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcFactCorrectNotice = result.message || "Fact correction failed.";
+      return;
+    }
+    showToast(`Corrected ${qcReadinessFactLabel(factKey)}`, "success");
+    refreshQcAfterGovernanceWrite();
+  } catch (error) {
+    if (state.selectedProductId !== productId) return;
+    state.qcFactCorrectNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcGovernanceRunning = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+function qcEnsureMappingDraft(optionId) {
+  const scope = `${state.selectedProductId || ""}:${state.qcPrepServer?.preparation_id || ""}:${optionId}`;
+  if (state.qcMappingScope !== scope || state.qcMappingSeeded !== true) {
+    state.qcMappingScope = scope;
+    state.qcMappingReason = `Others (portal option ${optionId}) confirmed by the operator against the live addQCRegister Type of Study list.`;
+    state.qcMappingAttest = false;
+    state.qcMappingSeeded = true;
+  }
+}
+
+function qcProtocolMappingCardHtml() {
+  const mapping = state.qcFillPreflight?.protocol_mapping;
+  const status = String(mapping?.mapping_status || "");
+  if (status !== "DRAFT" && status !== "VERIFIED") return "";
+  const esc = qcHtmlEscape;
+  if (status === "VERIFIED") {
+    return `<section class="section-card" id="qcProtocolMappingCard">
+      <h3 class="section-title">Verify 'Others' protocol mapping</h3>
+      <p id="qcProtocolMappingVerified">Others mapping verified</p>
+    </section>`;
+  }
+  if (canWrite() !== true) return "";
+  const optionId = mapping.portal_option_id;
+  qcEnsureMappingDraft(optionId);
+  const reason = String(state.qcMappingReason || "").trim();
+  const ready = reason.length >= 10 && reason.length <= 2000 && state.qcMappingAttest === true && !qcGovernanceBlocked() && Number(mapping.mapping_id) > 0 && Number(optionId) > 0;
+  return `<section class="section-card" id="qcProtocolMappingCard">
+    <h3 class="section-title">Verify 'Others' protocol mapping</h3>
+    <p id="qcProtocolMappingLine">term "Others" to portal option ${esc(optionId)} "Others" (Type of Study list on /admin/addQCRegister).</p>
+    <p id="qcProtocolMappingCheck">Open the live portal Add QC Register page and confirm 'Others' is listed under Type of Study.</p>
+    ${state.qcMappingNotice ? `<p class="muted-note" id="qcMappingNotice">${esc(state.qcMappingNotice)}</p>` : ""}
+    <label>Reason
+      <textarea id="qcMappingReason">${esc(state.qcMappingReason || "")}</textarea>
+    </label>
+    <label><input id="qcMappingAttest" type="checkbox"${state.qcMappingAttest ? " checked" : ""}> I attest this protocol mapping.</label>
+    <button type="button" class="icon-btn with-label primary" id="btnQcMappingVerify"${ready ? "" : " disabled"}>Verify</button>
+  </section>`;
+}
+
+async function submitQcProtocolMapping() {
+  if (qcGovernanceBlocked()) return;
+  if (canWrite() !== true) return;
+  const mapping = state.qcFillPreflight?.protocol_mapping;
+  if (String(mapping?.mapping_status || "") !== "DRAFT") return;
+  const reason = String(state.qcMappingReason || "").trim();
+  if (reason.length < 10 || reason.length > 2000 || state.qcMappingAttest !== true) return;
+  if (!(Number(mapping.mapping_id) > 0) || !(Number(mapping.portal_option_id) > 0)) return;
+  const productId = state.selectedProductId;
+  const optionId = mapping.portal_option_id;
+  state.qcGovernanceConfirmOpen = true;
+  state.qcMappingNotice = "";
+  try {
+    const accepted = await openQcConfirm({
+      title: "Verify Others protocol mapping",
+      message: `Verify Others mapping to portal option ${optionId}. Reason: ${reason}`,
+      okLabel: "Verify",
+      returnFocusId: "btnQcMappingVerify",
+      idPrefix: "qcMappingVerifyConfirm",
+    });
+    if (accepted !== true) return;
+    if (state.selectedProductId !== productId) return;
+    state.qcGovernanceRunning = true;
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    if (state.selectedProductId !== productId) return;
+    const result = await verifyQcProtocolMapping(productId, token, {
+      mappingId: mapping.mapping_id,
+      expectedStatus: "DRAFT",
+      expectedPortalOptionId: optionId,
+      mappingReason: reason,
+      attest: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcMappingNotice = result.message || "Protocol mapping verification failed.";
+      return;
+    }
+    showToast("Others mapping verified", "success");
+    state.qcMappingAttest = false;
+    refreshQcAfterGovernanceWrite();
+  } catch (error) {
+    if (state.selectedProductId !== productId) return;
+    state.qcMappingNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcGovernanceRunning = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+function qcFillPreflightCardHtml() {
+  if (access.canView !== true) return "";
+  const esc = qcHtmlEscape;
+  const preflight = state.qcFillPreflight;
+  const blockers = Array.isArray(preflight?.blockers) ? preflight.blockers : [];
+  const blockerHtml = blockers.length
+    ? `<ul id="qcFillBlockers">${blockers.map((code) => `<li>${esc(qcFillBlockerText(code))}</li>`).join("")}</ul>`
+    : (preflight ? `<p id="qcFillNoBlockers" style="color:#166534">No blockers</p>` : "");
+  const fields = preflight?.fill_fields || {};
+  const fieldRows = QC_FILL_FIELD_ROWS.map(([key, label]) => (
+    `<tr><th>${esc(label)}</th><td>${esc(fields?.[key] ?? "")}</td></tr>`
+  )).join("");
+  const context = preflight?.context || {};
+  const derived = Array.isArray(context.derived_facts) ? context.derived_facts : [];
+  const derivedHtml = derived.map((item) => (
+    `<li>${esc(qcReadinessFactLabel(item?.fact))}: ${esc(item?.basis_note || "")}</li>`
+  )).join("");
+  const runs = Array.isArray(preflight?.runs) ? preflight.runs : [];
+  const runHtml = runs.map((run) => {
+    const when = qcIstStamp(run?.armed_at);
+    return `<li>${esc([run?.run_status, when].filter(Boolean).join(" "))}</li>`;
+  }).join("");
+  return `<section class="section-card" id="qcFillPreflightCard">
+    <h3 class="section-title">Portal filling preflight (B5)</h3>
+    ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
+    ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
+    ${blockerHtml}
+    <table id="qcFillFields"><tbody>${fieldRows}</tbody></table>
+    <p id="qcFillOthersNote">For Others, the portal saves the description itself as the type of study.</p>
+    <p id="qcFillIssuer">Report issuer: ${esc(context.report_issuer || "")}</p>
+    <p id="qcFillPortalLab">Portal laboratory: ${esc(context.laboratory_label || "")}</p>
+    <p id="qcFillQualification">${esc(QC_FILL_QUALIFICATION)}</p>
+    ${derivedHtml ? `<ul id="qcFillDerivedFacts">${derivedHtml}</ul>` : ""}
+    <p id="qcFillDerivedLabel">Required when filling starts (D7).</p>
+    <label><input id="qcFillDerivedAck" type="checkbox" disabled> I acknowledge the derived value is suitable for the portal field</label>
+    <label>Acknowledgement note
+      <textarea id="qcFillDerivedNote" disabled></textarea>
+    </label>
+    <p id="qcFillScope">Save only; Submit is out of scope.</p>
+    ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
+  </section>`;
+}
+
 function onQcGovernanceField(event) {
   const target = event.target;
   const focusId = target?.id || "";
@@ -5291,14 +5738,31 @@ function onQcGovernanceField(event) {
     if (target.id === "qcLabDocumentReference") state.qcLabDocumentReference = target.value;
     if (target.id === "qcLabRationale") state.qcLabRationale = target.value;
     if (target.id === "qcLabAttest") state.qcLabAttest = target.checked === true;
-  } else {
-    const key = target?.getAttribute?.("data-qc-accept-fact");
-    if (!key) return;
+  } else if (target?.getAttribute?.("data-qc-accept-fact")) {
+    const key = target.getAttribute("data-qc-accept-fact");
     const draft = qcFactAcceptDraft(key);
+    draft.touched = true;
     const role = target.getAttribute("data-qc-accept-role");
     if (role === "category") draft.category = target.value;
     if (role === "note") draft.note = target.value;
     if (role === "attest") draft.attest = target.checked === true;
+  } else if (target?.getAttribute?.("data-qc-correct-fact")) {
+    const key = target.getAttribute("data-qc-correct-fact");
+    const item = (state.qcReadiness?.operator_asserted_facts || []).find((row) => row?.fact === key);
+    const draft = item ? qcFactCorrectDraft(item) : null;
+    if (!draft) return;
+    draft.touched = true;
+    const role = target.getAttribute("data-qc-correct-role");
+    if (role === "category") draft.category = target.value;
+    if (role === "note") draft.note = target.value;
+    if (role === "reason") draft.reason = target.value;
+    if (role === "attest") draft.attest = target.checked === true;
+  } else if (target?.id === "qcMappingReason" || target?.id === "qcMappingAttest") {
+    state.qcMappingSeeded = true;
+    if (target.id === "qcMappingReason") state.qcMappingReason = target.value;
+    if (target.id === "qcMappingAttest") state.qcMappingAttest = target.checked === true;
+  } else {
+    return;
   }
   if (state.tab !== "qc") return;
   renderQc();
@@ -5372,7 +5836,7 @@ function qcPreparationWorkspaceMarkup() {
     reviewDisabled: access.canView !== true || !available || state.busy || state.qcPrepLoading,
     saveDisabled: !canWrite() || locked,
     reloadDisabled: access.canView !== true || state.busy,
-  }) + qcSourceFactsCardHtml(qcSourceFactsModel()) + qcReadinessCardHtml() + qcLabDecisionCardHtml() + qcFactAcceptCardHtml();
+  }) + qcSourceFactsCardHtml(qcSourceFactsModel()) + qcReadinessCardHtml() + qcLabDecisionCardHtml() + qcFactAcceptCardHtml() + qcFactCorrectCardHtml() + qcProtocolMappingCardHtml() + qcFillPreflightCardHtml();
 }
 
 function qcPrepReadField(id) {
@@ -5415,7 +5879,7 @@ let qcPrepTabFieldId = "";
 
 function onQcPrepField(event) {
   const target = event.target;
-  if (target?.closest?.("#qcLabDecisionCard") || target?.closest?.("#qcFactAcceptCard")) {
+  if (target?.closest?.("#qcLabDecisionCard") || target?.closest?.("#qcFactAcceptCard") || target?.closest?.("#qcFactCorrectCard") || target?.closest?.("#qcProtocolMappingCard") || target?.closest?.("#qcFillPreflightCard")) {
     onQcGovernanceField(event);
     return;
   }
@@ -6584,6 +7048,7 @@ function renderQc() {
   queueQcReportLoad();
   queueQcEvidenceRecheck();
   queueQcReadinessLoad();
+  queueQcFillPreflight();
   if (!workerApiAvailable()) {
     host.innerHTML = `<section class="section-card qc-prep-workspace"><h3 class="section-title">QC Register</h3><p class="muted-note">QC preparation is available only in the SASV Electron app.</p></section>`;
     return;
@@ -9108,6 +9573,17 @@ function wireEvents() {
     if (String(event.target.id || "").startsWith("btnQcFactAccept-")) {
       void submitQcFactAccept(event.target.getAttribute("data-qc-accept-fact"));
     }
+    if (String(event.target.id || "").startsWith("btnQcFactCorrect-") && !String(event.target.id || "").startsWith("btnQcFactCorrectSave-")) {
+      const factKey = event.target.getAttribute("data-qc-correct-fact");
+      if (factKey && state.qcFactCorrectOpen !== factKey) {
+        state.qcFactCorrectOpen = factKey;
+        if (state.tab === "qc") renderQc();
+      }
+    }
+    if (String(event.target.id || "").startsWith("btnQcFactCorrectSave-")) {
+      void submitQcFactCorrect(event.target.getAttribute("data-qc-correct-fact"));
+    }
+    if (event.target.id === "btnQcMappingVerify") void submitQcProtocolMapping();
   });
   $("tab-qc")?.addEventListener("input", onQcPrepField);
   $("tab-qc")?.addEventListener("change", onQcPrepField);

@@ -218,6 +218,24 @@ export async function acceptQcFact(productId, accessToken, draft) {
   return window.eaushadhiWorkerAPI.acceptQcFact(productId, accessToken, draft);
 }
 
+export async function correctQcFactAcceptance(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.correctQcFactAcceptance !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.correctQcFactAcceptance(productId, accessToken, draft);
+}
+
+export async function verifyQcProtocolMapping(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.verifyQcProtocolMapping !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.verifyQcProtocolMapping(productId, accessToken, draft);
+}
+
+export async function readQcFillPreflight(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.readQcFillPreflight !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.readQcFillPreflight(productId, accessToken, draft);
+}
+
 export async function recordQcLabDecision(productId, accessToken, draft) {
   if (!workerApiAvailable()) return unsupported();
   if (typeof window.eaushadhiWorkerAPI.recordQcLabDecision !== "function") return unsupported();

@@ -210,3 +210,23 @@ Operator flow for Product 262:
 3. Read readiness: READY_PROVISIONAL is the maximum.
 
 A reopen or re-verify makes the acceptances and the lab decision stale; redo both on the new binding. Readiness is separate from portal submission and never triggers it.
+
+## B5 — Filling preflight and corrections (live 20261013095629)
+Operator flow for Product 262:
+1. Check on the COA that 01-10-2021 is the earliest batch manufacturing date.
+2. A colleague (not the verifier) corrects study start → Operator derivation, using the prefilled note.
+3. The colleague corrects testing protocol → Operator determination.
+4. Verify the Others mapping after checking the live Type of Study list.
+5. The preflight shows no blockers.
+6. D7: fill and Save.
+
+Plain-word blockers:
+- The 'Others' protocol mapping is not verified yet.
+- Study start date must be accepted as 'Operator derivation' (correct the acceptance).
+- Readiness is not Ready (provisional) yet.
+- Composition is not verified on the portal.
+- Product details are not verified on the portal.
+- Others protocol text is missing.
+- Any other blocker is shown as its code.
+
+Qualification: Portal laboratory is an internal provisional selection. It is not the report issuer, and legal laboratory identity and portal eligibility are not verified.
