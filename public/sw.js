@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v361"; // WP-07 D4.3 B3.1 parity and fact lines
+const CACHE_NAME = "hub-cache-v362"; // WP-07 D5 B4 readiness, lab decision, fact acceptance
 
 const PRECACHE = [
   // Hub shell

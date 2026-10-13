@@ -292,3 +292,11 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 
 ## 2026-10-11 — WP-07 D4.3 B3.1 parity
 - B3.1 is applied live as `20261011165858_wp07_b3_1_qc_source_reopen` (md5 `2a87e4eb3de1341937580febe29d2bad`). The repository file is byte-exact. It was not reapplied.
+
+## 2026-10-12 — WP-07 B4 readiness and provisional portal laboratory
+- B4 applied as `20261012023035_wp07_b4_qc_readiness` (repository file byte-exact).
+- **Operator decision:** HARIDEV FORMULATIONS (portal option external id 3980) is PROVISIONALLY_APPROVED as the portal laboratory for Product 262, on the basis CROSS_LABORATORY_TIE_UP. NUPAL (New Udaya Pharmacy & Ayurvedic Laboratories) remains the true report issuer. This is an internal selection only: `legal_lab_identity_verified = false` and `portal_eligibility_verified = false`. The system never states that NUPAL and HARIDEV are the same laboratory.
+- Lab decisions are append-only. Correction, replacement and withdrawal are new rows that supersede the head. Each is bound to the preparation id, row version and evidence binding, and becomes stale (blocking) when any of these changes.
+- Operator-asserted facts (study start date, testing protocol) need acceptance by an editor other than the one who verified the evidence. Self-acceptance is recorded but blocks readiness.
+- Legacy `eaushadhi_qc_snapshot_v1` now requires the study document to be the current, non-superseded binding of a READY preparation. A claimed checksum, a malformed ID or a provisional state never counts.
+- **READY_PROVISIONAL counts as ready for e-Aushadhi portal filling in B5** (operator decision 2026-10-12). It still does not permit canonical stability-study promotion. Legal laboratory identity and portal eligibility remain unverified, and the B5 filling log must record that the laboratory was provisional.

@@ -168,6 +168,36 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       accessToken,
       preparationId: draft?.preparationId,
     }),
+  readQcReadiness: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-readiness", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+    }),
+  acceptQcFact: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-fact-accept", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      factKey: draft?.factKey,
+      basisCategory: draft?.basisCategory,
+      basisNote: draft?.basisNote,
+      attest: draft?.attest === true,
+    }),
+  recordQcLabDecision: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-lab-decision", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      action: draft?.action,
+      supersedesLabBasisId: draft?.supersedesLabBasisId ?? null,
+      basisType: draft?.basisType,
+      documentReference: draft?.documentReference,
+      rationale: draft?.rationale,
+      attest: draft?.attest === true,
+    }),
   saveQcPreparation: (productId, accessToken, draft) =>
     ipcRenderer.invoke("eaushadhi-worker:qc-preparation-save", {
       productId,
