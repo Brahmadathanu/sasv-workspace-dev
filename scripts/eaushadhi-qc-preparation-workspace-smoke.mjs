@@ -1623,7 +1623,232 @@ assert((controlSrc.match(/reopenQcPreparation\(/g) || []).length === 1, "reopenQ
 assert(preloadSrc.includes("reopenQcPreparation") && preloadSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "preload exposes reopenQcPreparation");
 assert(ipcSrc.includes("CHANNELS.QC_PREPARATION_REOPEN") && ipcSrc.includes("eaushadhi-worker:qc-preparation-reopen"), "ipc registers the reopen channel");
 assert(controlSrc.includes('onwheel="this.blur()"') && extractFunction("onQcSourceFactField").includes('event.type !== "change"') && extractFunction("onQcSourceFactField").includes("document.getElementById(focusId)?.focus()"), "a fact select changes only on change, restores focus, and blurs on the wheel");
-assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v361"'), "CACHE_NAME is v361");
+assert(readFileSync(join(root, "public/sw.js"), "utf8").includes('const CACHE_NAME = "hub-cache-v362"'), "CACHE_NAME is v362");
+
+const readinessRpc = mockRpc(async () => ({
+  status: "NOT_READY",
+  reasons: ["FACT_ACCEPTANCE_MISSING_STUDY_START_DATE"],
+  flags: [],
+  preparation_id: PREP_ID,
+  preparation_row_version: 7,
+  binding_id: 4,
+  verified_by: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  verified_at: "2026-10-12T04:30:00Z",
+  evidence_valid: true,
+  report_supported_facts: ["batches"],
+  operator_asserted_facts: [{ fact: "study_start_date", accepted: false, note: "operator note" }],
+  lab_basis: null,
+  canonical_promotion: "BLOCKED_OUT_OF_SCOPE_B4",
+  portal_submission: "NOT_PART_OF_READINESS",
+  checked_at: "2026-10-12T05:00:00Z",
+}));
+const readiness = await workspace.readQcReadiness({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP_ID,
+  callRpc: readinessRpc.callRpc,
+});
+assert(readinessRpc.calls.length === 1 && readinessRpc.calls[0].name === "rpc_eaushadhi_qc_readiness_v1", "readiness uses rpc_eaushadhi_qc_readiness_v1");
+assert(Object.keys(readinessRpc.calls[0].args).join(",") === "p_product_id,p_preparation_id", "readiness argument names are exact");
+assert(readiness.mutated === false && readiness.status === "NOT_READY", "readiness is read-only");
+assert(workspace.qcReadinessBadge({ status: "NOT_READY" }).label === "Not ready", "NOT_READY maps to Not ready");
+assert(workspace.qcReadinessBadge({ status: "READY_PROVISIONAL" }).label === "Ready (provisional)", "READY_PROVISIONAL maps to Ready (provisional)");
+assert(workspace.qcReadinessBadge({ status: "READY" }).label === "Ready", "READY maps to Ready");
+assert(workspace.qcReadinessBadge({ status: "READY" }).tone === "ready" && workspace.qcReadinessBadge({ status: "READY_PROVISIONAL" }).tone === "provisional" && workspace.qcReadinessBadge({ status: "NOT_READY" }).tone === "not-ready", "the three readiness tones are distinct");
+const reasonCodes = [
+  ["FACT_ACCEPTANCE_MISSING_STUDY_START_DATE", "Study start date needs acceptance by a colleague"],
+  ["FACT_ACCEPTANCE_MISSING_TESTING_PROTOCOL", "Testing protocol needs acceptance by a colleague"],
+  ["FACT_SELF_ACCEPTED_STUDY_START_DATE", "Study start date was accepted by the same person who verified; a different editor must accept"],
+  ["FACT_SELF_ACCEPTED_TESTING_PROTOCOL", "Testing protocol was accepted by the same person who verified; a different editor must accept"],
+  ["LAB_DECISION_MISSING", "Record the laboratory decision"],
+  ["LAB_DECISION_STALE_BINDING", "Laboratory decision was made on older evidence; record a correction"],
+  ["LAB_DECISION_WITHDRAWN", "Laboratory decision withdrawn"],
+  ["EVIDENCE_NOT_SOURCE_VERIFIED", "Not verified yet"],
+  ["EVIDENCE_BINDING_SUPERSEDED", "Reopened — verify again"],
+  ["EVIDENCE_PAYLOAD_HASH_CHANGED", "Draft edited after verification"],
+  ["EVIDENCE_SUPERSEDED_BY_NEWER_REPORT", "A newer report version was registered"],
+  ["EVIDENCE_OBJECT_MISSING", "Stored report changed"],
+  ["EVIDENCE_TUPLE_MISMATCH_SHA", "Evidence record mismatch"],
+];
+for (const [code, plain] of reasonCodes) {
+  assert(workspace.qcReadinessReasonText(code) === plain, `${code} maps to the readiness sentence`);
+}
+assert(controlSrc.includes("needs acceptance by a colleague") && controlSrc.includes("was accepted by the same person who verified; a different editor must accept") && controlSrc.includes("Ready (provisional)") && controlSrc.includes("color:#c2410c") && controlSrc.includes("color:#8a5a00") && controlSrc.includes("color:#166534"), "the QC card uses the three readiness colours and the acceptance sentences");
+
+async function rejectAccept(label, overrides = {}) {
+  const rpc = mockRpc(async () => ({}));
+  const error = await expectFailure(
+    () => workspace.acceptQcFact({
+      productId: 262,
+      accessToken: TOKEN,
+      preparationId: PREP_ID,
+      expectedRowVersion: 7,
+      factKey: "study_start_date",
+      basisCategory: "MANUFACTURING_RECORDS",
+      basisNote: "Manufacturing records cover the study start.",
+      attest: true,
+      callRpc: rpc.callRpc,
+      ...overrides,
+    }),
+    ERROR_KINDS.CONTRACT_INCOMPLETE,
+  );
+  assert(rpc.calls.length === 0, `${label} makes no RPC call`);
+  return error;
+}
+const badFact = await rejectAccept("a report-only fact key", { factKey: "batches" });
+assert(badFact?.message === "That fact cannot be accepted.", "a fact outside the two allowed keys is rejected before the RPC");
+const badCategory = await rejectAccept("a bad category", { basisCategory: "GUESS" });
+assert(badCategory?.message === "Choose a valid basis category.", "a bad category is rejected before the RPC");
+const shortNote = await rejectAccept("a short basis note", { basisNote: "too short" });
+assert(shortNote?.message === "Write a basis note of at least 10 characters.", "a short basis note is rejected before the RPC");
+const missingFactAttest = await rejectAccept("a missing fact attest", { attest: false });
+assert(missingFactAttest?.message === "Tick the confirmation first.", "fact acceptance requires the attestation");
+await rejectAccept("a bad fact UUID", { preparationId: "nope" });
+await rejectAccept("a bad fact version", { expectedRowVersion: 0 });
+const acceptRpc = mockRpc(async () => ({
+  acceptance_id: 9,
+  binding_id: 4,
+  fact_key: "testing_protocol",
+  self_accepted: false,
+}));
+const acceptedFact = await workspace.acceptQcFact({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP_ID,
+  expectedRowVersion: 7,
+  factKey: "testing_protocol",
+  basisCategory: "OPERATOR_DETERMINATION",
+  basisNote: "  Protocol chosen by the operator and checked.  ",
+  attest: true,
+  callRpc: acceptRpc.callRpc,
+});
+assert(acceptRpc.calls.length === 1 && acceptRpc.calls[0].name === "rpc_eaushadhi_qc_fact_accept_v1", "fact acceptance uses rpc_eaushadhi_qc_fact_accept_v1");
+assert(Object.keys(acceptRpc.calls[0].args).join(",") === "p_preparation_id,p_expected_row_version,p_fact_key,p_basis_category,p_basis_note,p_attest", "fact acceptance argument names are exact");
+assert(acceptRpc.calls[0].args.p_basis_note === "Protocol chosen by the operator and checked." && acceptRpc.calls[0].args.p_attest === true, "fact acceptance trims the note and sends attestation");
+assert(acceptedFact.mutated === true && acceptedFact.acceptance_id === 9 && acceptedFact.self_accepted === false, "fact acceptance returns the server row");
+
+const factMessages = [
+  ["40001 Stale QC draft version", ERROR_KINDS.STALE, "Someone changed this draft. Reload and try again."],
+  ["EVIDENCE_NOT_CURRENT", ERROR_KINDS.STALE, "The verified evidence changed. Reload and try again."],
+  ["ATTESTATION_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first."],
+  ["BASIS_NOTE_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a basis note of at least 10 characters."],
+  ["BASIS_CATEGORY_INVALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "Choose a valid basis category."],
+  ["EVIDENCE_NOT_VALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "The verified evidence is no longer valid. Verify source facts again first."],
+  ["FACT_UNKNOWN", ERROR_KINDS.CONTRACT_INCOMPLETE, "That fact cannot be accepted."],
+  ["FACT_IS_REPORT_SUPPORTED", ERROR_KINDS.CONTRACT_INCOMPLETE, "This fact is shown in the report and does not need acceptance."],
+  ["FACT_ALREADY_ACCEPTED", ERROR_KINDS.CONTRACT_INCOMPLETE, "This fact is already accepted for the current evidence."],
+  ["PGRST202", ERROR_KINDS.PREFLIGHT_DENIED, "Not available on the server yet."],
+];
+for (const [serverMessage, kind, plain] of factMessages) {
+  const rpc = mockRpc(async () => { throw { message: serverMessage, code: serverMessage === "PGRST202" ? "PGRST202" : "23514" }; });
+  const caught = await expectFailure(
+    () => workspace.acceptQcFact({
+      productId: 262,
+      accessToken: TOKEN,
+      preparationId: PREP_ID,
+      expectedRowVersion: 7,
+      factKey: "study_start_date",
+      basisCategory: "MANUFACTURING_RECORDS",
+      basisNote: "Manufacturing records cover the study start.",
+      attest: true,
+      callRpc: rpc.callRpc,
+    }),
+    kind,
+  );
+  assert(caught?.message === plain, `${serverMessage} maps to the fact-acceptance sentence`);
+}
+const factDenied = workspace.mapQcGovernanceError({ code: "42501", message: "permission denied" }, "Fact acceptance failed.");
+assert(factDenied.message === "You need edit permission for e-Aushadhi.", "fact acceptance maps 42501 to the edit-permission sentence");
+const readinessMissing = workspace.mapQcReadinessError({ status: 404, message: "missing" });
+assert(readinessMissing.message === "Not available on the server yet.", "a missing readiness RPC says it is not available yet");
+
+const labBase = {
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP_ID,
+  expectedRowVersion: 7,
+  action: "INITIAL",
+  supersedesLabBasisId: null,
+  basisType: "CROSS_LABORATORY_TIE_UP",
+  documentReference: "Operator decision 2026-10-13",
+  rationale: "HARIDEV FORMULATIONS selected provisionally as portal laboratory.",
+  attest: true,
+};
+async function rejectLab(label, overrides = {}, kind = ERROR_KINDS.CONTRACT_INCOMPLETE) {
+  const rpc = mockRpc(async () => ({}));
+  const error = await expectFailure(
+    () => workspace.recordQcLabDecision({ ...labBase, callRpc: rpc.callRpc, ...overrides }),
+    kind,
+  );
+  assert(rpc.calls.length === 0, `${label} makes no RPC call`);
+  return error;
+}
+const badAction = await rejectLab("a bad action", { action: "APPROVE" });
+assert(badAction?.message === "Choose a valid laboratory decision.", "a bad laboratory action is rejected before the RPC");
+const initialSupersede = await rejectLab("an initial row that supersedes", { supersedesLabBasisId: 3 });
+assert(initialSupersede?.message === "The first laboratory decision cannot replace an earlier one.", "INITIAL cannot supersede");
+const missingHead = await rejectLab("a correction without a head", { action: "CORRECTION", supersedesLabBasisId: null });
+assert(missingHead?.message === "Someone changed the laboratory decision. Reload and try again.", "a correction needs the current head");
+const badBasis = await rejectLab("a bad basis type", { basisType: "OTHER" });
+assert(badBasis?.message === "The laboratory basis must be a cross laboratory tie-up.", "the basis type is fixed before the RPC");
+const shortRef = await rejectLab("a short document reference", { documentReference: "abc" });
+assert(shortRef?.message === "Enter a document reference of at least 5 characters.", "a short document reference is rejected before the RPC");
+const shortRationale = await rejectLab("a short rationale", { rationale: "too short" });
+assert(shortRationale?.message === "Write a rationale of at least 10 characters.", "a short rationale is rejected before the RPC");
+await rejectLab("a missing laboratory attest", { attest: false });
+const labRpc = mockRpc(async () => ({
+  lab_basis_id: 15,
+  decision_action: "CORRECTION",
+  basis_status: "PROVISIONALLY_APPROVED",
+  supersedes_lab_basis_id: 14,
+  preparation_row_version: 7,
+  binding_id: 4,
+  report_issuer: "NUPAL",
+  portal_laboratory: "HARIDEV FORMULATIONS",
+  portal_external_id: "3980",
+  legal_lab_identity_verified: false,
+  portal_eligibility_verified: false,
+}));
+const recordedLab = await workspace.recordQcLabDecision({
+  ...labBase,
+  action: "CORRECTION",
+  supersedesLabBasisId: 14,
+  callRpc: labRpc.callRpc,
+});
+assert(labRpc.calls.length === 1 && labRpc.calls[0].name === "rpc_eaushadhi_qc_lab_decision_record_v1", "the laboratory decision uses rpc_eaushadhi_qc_lab_decision_record_v1");
+assert(Object.keys(labRpc.calls[0].args).join(",") === "p_preparation_id,p_expected_row_version,p_action,p_supersedes_lab_basis_id,p_basis_type,p_document_reference,p_document_asset_id,p_rationale,p_attest", "laboratory decision argument names are exact");
+assert(labRpc.calls[0].args.p_document_asset_id === null && labRpc.calls[0].args.p_supersedes_lab_basis_id === 14 && labRpc.calls[0].args.p_basis_type === "CROSS_LABORATORY_TIE_UP", "this release sends a null document asset and the current head");
+assert(!Object.hasOwn(labRpc.calls[0].args, "p_report_issuer") && !Object.hasOwn(labRpc.calls[0].args, "p_portal_laboratory"), "the laboratory decision does not send the issuer or the portal laboratory");
+assert(recordedLab.legal_lab_identity_verified === false && recordedLab.portal_eligibility_verified === false && recordedLab.mutated === true, "the laboratory decision stays unverified for legal identity and portal eligibility");
+const supersedesMapped = workspace.mapQcGovernanceError({ code: "40001", message: "SUPERSEDES_NOT_CURRENT_HEAD" }, "Laboratory decision failed.");
+assert(supersedesMapped.message === "Someone changed the laboratory decision. Reload and try again.", "SUPERSEDES_NOT_CURRENT_HEAD maps to the reload sentence");
+const labMissing = workspace.mapQcGovernanceError({ status: 404, message: "not found" }, "Laboratory decision failed.");
+assert(labMissing.message === "Not available on the server yet.", "a missing laboratory RPC says it is not available yet");
+
+const labSubmit = extractCallable("submitQcLabDecision");
+const factSubmit = extractCallable("submitQcFactAccept");
+assert(labSubmit.includes("openQcConfirm") && labSubmit.indexOf("recordQcLabDecision") > labSubmit.indexOf("accepted !== true"), "the laboratory decision runs only after confirm OK");
+assert(factSubmit.includes("openQcConfirm") && factSubmit.indexOf("acceptQcFact") > factSubmit.indexOf("accepted !== true"), "fact acceptance runs only after confirm OK");
+assert(labSubmit.includes("qcGovernanceBlocked") && factSubmit.includes("qcGovernanceBlocked"), "laboratory and fact actions guard a second dialog and a double click");
+assert(labSubmit.includes("supersedesLabBasisId: action === \"INITIAL\" ? null : headId") && labSubmit.includes("lab_basis?.lab_basis_id") && labSubmit.includes("preparation_row_version"), "Correct, Replace and Withdraw pass the current head and the preparation version");
+assert(!labSubmit.includes("source_report_issuer") && !labSubmit.includes("portal_laboratory_candidate") && !factSubmit.includes("source_report_issuer"), "the write calls do not send the issuer or the portal laboratory");
+assert(extractFunction("qcLabSuggestions").includes("portal_laboratory_candidate") && extractFunction("qcLabSuggestions").includes("source_report_issuer") && extractFunction("qcEnsureLabDraft").includes("qcLabSuggestions") && extractFunction("qcLabDecisionCardHtml").includes("qcEnsureLabDraft"), "the laboratory card is prefilled from the draft");
+assert(extractFunction("qcFactAcceptCardHtml").includes("You verified this evidence. Your acceptance will be recorded but will not count. A different editor must accept.") && extractFunction("qcFactAcceptCardHtml").includes("access.userId") && extractFunction("qcFactAcceptCardHtml").includes("verified_by"), "self-acceptance shows the warning when the current user verified the evidence");
+const confirmFn = extractFunction("openQcConfirm");
+assert(confirmFn.includes('event.key === "Escape"') && confirmFn.includes("close(false)") && confirmFn.includes("Cancel") && confirmFn.includes("event.target === backdrop"), "Esc, Cancel and a backdrop click close the confirm without accepting");
+for (const name of ["loadQcPreparationWorkspace", "loadQcEvidenceRecheck", "loadQcReadiness", "renderQc", "queueQcReadinessLoad", "renderReadiness"]) {
+  const body = extractCallable(name);
+  assert(!body.includes("acceptQcFact(") && !body.includes("recordQcLabDecision("), `${name} does not write readiness facts or the laboratory decision`);
+}
+assert((controlSrc.match(/acceptQcFact\(/g) || []).length === 1, "acceptQcFact is called from one place");
+assert((controlSrc.match(/recordQcLabDecision\(/g) || []).length === 1, "recordQcLabDecision is called from one place");
+assert((controlSrc.match(/readQcReadiness\(/g) || []).length === 1, "readQcReadiness is called from one place");
+assert(!controlSrc.includes("same laboratory"), "the QC screen does not claim the issuer and the portal laboratory are the same laboratory");
+assert(preloadSrc.includes("eaushadhi-worker:qc-readiness") && preloadSrc.includes("eaushadhi-worker:qc-fact-accept") && preloadSrc.includes("eaushadhi-worker:qc-lab-decision"), "preload exposes readiness, fact acceptance and the laboratory decision");
+assert(preloadSrc.includes("readQcReadiness:") && preloadSrc.includes("acceptQcFact:") && preloadSrc.includes("recordQcLabDecision:"), "preload method names match the worker");
+assert(ipcSrc.includes("CHANNELS.QC_READINESS") && ipcSrc.includes("eaushadhi-worker:qc-readiness") && ipcSrc.includes("CHANNELS.QC_FACT_ACCEPT") && ipcSrc.includes("CHANNELS.QC_LAB_DECISION"), "ipc registers the three readiness channels");
+const reviewClientSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-worker-client.js"), "utf8");
+assert(reviewClientSrc.includes("readQcReadiness") && reviewClientSrc.includes("acceptQcFact") && reviewClientSrc.includes("recordQcLabDecision"), "the review client exposes the three readiness calls");
 
 if (failed) {
   console.error(`\n${failed} qc preparation workspace assertion(s) failed`);

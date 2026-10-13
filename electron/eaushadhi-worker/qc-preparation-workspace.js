@@ -12,6 +12,27 @@ const QC_PREPARATION_SAVE_RPC = "rpc_eaushadhi_qc_preparation_save_v1";
 const QC_PREPARATION_VERIFY_SOURCE_RPC = "rpc_eaushadhi_qc_preparation_verify_v2";
 const QC_PREPARATION_REOPEN_RPC = "rpc_eaushadhi_qc_preparation_reopen_v1";
 const QC_EVIDENCE_RECHECK_RPC = "rpc_eaushadhi_qc_evidence_recheck_v1";
+const QC_READINESS_RPC = "rpc_eaushadhi_qc_readiness_v1";
+const QC_FACT_ACCEPT_RPC = "rpc_eaushadhi_qc_fact_accept_v1";
+const QC_LAB_DECISION_RPC = "rpc_eaushadhi_qc_lab_decision_record_v1";
+const QC_ACCEPT_FACT_KEYS = ["study_start_date", "testing_protocol"];
+const QC_BASIS_CATEGORIES = [
+  "MANUFACTURING_RECORDS",
+  "PHARMACOPOEIA_OR_MONOGRAPH",
+  "REGULATORY_GUIDANCE",
+  "LABORATORY_CORRESPONDENCE",
+  "OPERATOR_DETERMINATION",
+];
+const QC_LAB_ACTIONS = ["INITIAL", "CORRECTION", "REPLACEMENT", "WITHDRAWAL"];
+const QC_LAB_BASIS_TYPE = "CROSS_LABORATORY_TIE_UP";
+const QC_FACT_LABELS = {
+  study_start_date: "Study start date",
+  study_end_date: "Study end date",
+  report_date: "Report date",
+  testing_protocol: "Testing protocol",
+  batches: "Batches",
+  shelf_life_months: "Shelf life",
+};
 const QC_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const QC_FACT_KEYS = [
   "study_start_date",
@@ -515,10 +536,10 @@ function assertQcUuid(value, message) {
   return value;
 }
 
-function assertQcRowVersion(value) {
+function assertQcRowVersion(value, message = "QC source verification was not accepted.") {
   const text = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : String(value ?? "");
-  if (!/^[0-9]+$/.test(text) || Number(text) <= 0) {
-    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC source verification was not accepted.");
+  if (!/^[0-9]+$/.test(text) || Number(text) <= 0 || !Number.isSafeInteger(Number(text))) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
   }
   return Number(text);
 }
@@ -804,6 +825,275 @@ function qcEvidenceBadge(recheck) {
   return { tone: "attention", label: "Needs re-verify", detail };
 }
 
+function qcFactLabel(factKey) {
+  const key = String(factKey || "").toLowerCase();
+  return QC_FACT_LABELS[key] || key.replaceAll("_", " ");
+}
+
+function qcReadinessReasonText(code) {
+  const text = String(code || "");
+  if (text.startsWith("FACT_ACCEPTANCE_MISSING_")) {
+    return `${qcFactLabel(text.slice("FACT_ACCEPTANCE_MISSING_".length))} needs acceptance by a colleague`;
+  }
+  if (text.startsWith("FACT_SELF_ACCEPTED_")) {
+    return `${qcFactLabel(text.slice("FACT_SELF_ACCEPTED_".length))} was accepted by the same person who verified; a different editor must accept`;
+  }
+  if (text === "LAB_DECISION_MISSING") return "Record the laboratory decision";
+  if (text === "LAB_DECISION_STALE_BINDING") return "Laboratory decision was made on older evidence; record a correction";
+  if (text === "LAB_DECISION_WITHDRAWN") return "Laboratory decision withdrawn";
+  if (text.startsWith("EVIDENCE_")) return qcEvidenceReasonText(text.slice("EVIDENCE_".length));
+  if (text === "PAYLOAD_DRIFT_SINCE_VERIFY") return "Draft edited after verification";
+  return qcEvidenceReasonText(text);
+}
+
+function qcReadinessBadge(readiness) {
+  const status = String(readiness?.status || "");
+  if (status === "READY") return { tone: "ready", label: "Ready" };
+  if (status === "READY_PROVISIONAL") return { tone: "provisional", label: "Ready (provisional)" };
+  return { tone: "not-ready", label: "Not ready" };
+}
+
+function mapQcReadinessError(error) {
+  if (error instanceof WorkerError) return error;
+  const code = String(error?.code || error?.errcode || "");
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || "");
+  if (code === "PGRST202" || status === 404 || message.includes("PGRST202")) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Not available on the server yet.");
+  }
+  if (code === "42501" || status === 401 || status === 403) {
+    return workerError(ERROR_KINDS.AUTHORIZATION, "You need view permission for e-Aushadhi.");
+  }
+  return workerError(ERROR_KINDS.CRASH, "QC readiness failed.");
+}
+
+function mapQcGovernanceError(error, fallback) {
+  if (error instanceof WorkerError) return error;
+  const code = String(error?.code || error?.errcode || "");
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || "");
+  if (code === "PGRST202" || status === 404 || message.includes("PGRST202")) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Not available on the server yet.");
+  }
+  if (code === "42501" || status === 401 || status === 403) {
+    return workerError(ERROR_KINDS.AUTHORIZATION, "You need edit permission for e-Aushadhi.");
+  }
+  const table = [
+    ["SUPERSEDES_NOT_CURRENT_HEAD", ERROR_KINDS.STALE, "Someone changed the laboratory decision. Reload and try again."],
+    ["EVIDENCE_NOT_CURRENT", ERROR_KINDS.STALE, "The verified evidence changed. Reload and try again."],
+    ["Stale QC draft version", ERROR_KINDS.STALE, "Someone changed this draft. Reload and try again."],
+    ["ATTESTATION_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first."],
+    ["BASIS_NOTE_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a basis note of at least 10 characters."],
+    ["BASIS_CATEGORY_INVALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "Choose a valid basis category."],
+    ["EVIDENCE_NOT_VALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "The verified evidence is no longer valid. Verify source facts again first."],
+    ["FACT_UNKNOWN", ERROR_KINDS.CONTRACT_INCOMPLETE, "That fact cannot be accepted."],
+    ["FACT_IS_REPORT_SUPPORTED", ERROR_KINDS.CONTRACT_INCOMPLETE, "This fact is shown in the report and does not need acceptance."],
+    ["FACT_ALREADY_ACCEPTED", ERROR_KINDS.CONTRACT_INCOMPLETE, "This fact is already accepted for the current evidence."],
+    ["DECISION_ACTION_INVALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "Choose a valid laboratory decision."],
+    ["BASIS_TYPE_INVALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "The laboratory basis must be a cross laboratory tie-up."],
+    ["DOCUMENT_REFERENCE_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Enter a document reference of at least 5 characters."],
+    ["RATIONALE_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a rationale of at least 10 characters."],
+    ["DOCUMENT_ASSET_INVALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "The attached document is not valid."],
+    ["DECISION_EXISTS_USE_CORRECTION_REPLACEMENT_OR_WITHDRAWAL", ERROR_KINDS.CONTRACT_INCOMPLETE, "A laboratory decision already exists. Correct, replace, or withdraw it."],
+    ["INITIAL_CANNOT_SUPERSEDE", ERROR_KINDS.CONTRACT_INCOMPLETE, "The first laboratory decision cannot replace an earlier one."],
+    ["ALREADY_WITHDRAWN", ERROR_KINDS.CONTRACT_INCOMPLETE, "The laboratory decision is already withdrawn."],
+    ["LAB_FIELDS_MISSING", ERROR_KINDS.CONTRACT_INCOMPLETE, "The draft is missing the report issuer or the portal laboratory."],
+    ["PORTAL_LAB_NOT_FOUND", ERROR_KINDS.CONTRACT_INCOMPLETE, "The portal laboratory on the draft was not found."],
+  ];
+  for (const [token, kind, plain] of table) {
+    if (message.includes(token)) return workerError(kind, plain);
+  }
+  if (code === "40001") {
+    return workerError(ERROR_KINDS.STALE, "Someone changed this draft. Reload and try again.");
+  }
+  return workerError(ERROR_KINDS.CRASH, fallback);
+}
+
+function assertTrimmedSpan(value, min, max, message) {
+  const text = String(value ?? "").trim();
+  if (text.length < min || text.length > max) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, message);
+  }
+  return text;
+}
+
+async function readQcReadiness({ productId, accessToken, preparationId, callRpc } = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "QC readiness was not accepted.");
+  let data;
+  try {
+    data = await callRpc(token, QC_READINESS_RPC, {
+      p_product_id: id,
+      p_preparation_id: preparation,
+    });
+  } catch (error) {
+    throw mapQcReadinessError(error);
+  }
+  if (!data || typeof data !== "object" || typeof data.status !== "string") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC readiness was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-readiness",
+    productId: id,
+    status: data.status,
+    reasons: Array.isArray(data.reasons) ? data.reasons.map((reason) => String(reason)) : [],
+    flags: Array.isArray(data.flags) ? data.flags.map((flag) => String(flag)) : [],
+    preparation_id: data.preparation_id ?? preparation,
+    preparation_row_version: data.preparation_row_version ?? null,
+    binding_id: data.binding_id ?? null,
+    verified_by: data.verified_by ?? null,
+    verified_at: data.verified_at ?? null,
+    evidence_valid: data.evidence_valid === true,
+    report_supported_facts: Array.isArray(data.report_supported_facts)
+      ? data.report_supported_facts.map((fact) => String(fact))
+      : [],
+    operator_asserted_facts: Array.isArray(data.operator_asserted_facts) ? data.operator_asserted_facts : [],
+    lab_basis: data.lab_basis && typeof data.lab_basis === "object" && !Array.isArray(data.lab_basis) ? data.lab_basis : null,
+    canonical_promotion: data.canonical_promotion ?? null,
+    portal_submission: data.portal_submission ?? null,
+    checked_at: data.checked_at ?? null,
+    mutated: false,
+  };
+}
+
+async function acceptQcFact({
+  productId,
+  accessToken,
+  preparationId,
+  expectedRowVersion,
+  factKey,
+  basisCategory,
+  basisNote,
+  attest,
+  callRpc,
+} = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "Fact acceptance was not accepted.");
+  const version = assertQcRowVersion(expectedRowVersion, "Fact acceptance was not accepted.");
+  if (attest !== true) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first.");
+  }
+  if (!QC_ACCEPT_FACT_KEYS.includes(factKey)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "That fact cannot be accepted.");
+  }
+  if (!QC_BASIS_CATEGORIES.includes(basisCategory)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Choose a valid basis category.");
+  }
+  const note = assertTrimmedSpan(basisNote, 10, 2000, "Write a basis note of at least 10 characters.");
+  let data;
+  try {
+    data = await callRpc(token, QC_FACT_ACCEPT_RPC, {
+      p_preparation_id: preparation,
+      p_expected_row_version: version,
+      p_fact_key: factKey,
+      p_basis_category: basisCategory,
+      p_basis_note: note,
+      p_attest: true,
+    });
+  } catch (error) {
+    throw mapQcGovernanceError(error, "Fact acceptance failed.");
+  }
+  if (!data || typeof data !== "object" || data.acceptance_id == null) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Fact acceptance was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-fact-accept",
+    productId: id,
+    acceptance_id: data.acceptance_id,
+    binding_id: data.binding_id,
+    fact_key: data.fact_key,
+    self_accepted: data.self_accepted === true,
+    mutated: true,
+  };
+}
+
+async function recordQcLabDecision({
+  productId,
+  accessToken,
+  preparationId,
+  expectedRowVersion,
+  action,
+  supersedesLabBasisId,
+  basisType,
+  documentReference,
+  rationale,
+  attest,
+  callRpc,
+} = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "Laboratory decision was not accepted.");
+  const version = assertQcRowVersion(expectedRowVersion, "Laboratory decision was not accepted.");
+  if (attest !== true) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first.");
+  }
+  if (!QC_LAB_ACTIONS.includes(action)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Choose a valid laboratory decision.");
+  }
+  let supersedes = null;
+  if (action === "INITIAL") {
+    if (supersedesLabBasisId != null && supersedesLabBasisId !== "") {
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The first laboratory decision cannot replace an earlier one.");
+    }
+  } else {
+    supersedes = assertQcRowVersion(
+      supersedesLabBasisId,
+      "Someone changed the laboratory decision. Reload and try again.",
+    );
+  }
+  if (basisType !== QC_LAB_BASIS_TYPE) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The laboratory basis must be a cross laboratory tie-up.");
+  }
+  const reference = String(documentReference ?? "").trim();
+  if (reference.length < 5) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Enter a document reference of at least 5 characters.");
+  }
+  const note = assertTrimmedSpan(rationale, 10, 2000, "Write a rationale of at least 10 characters.");
+  let data;
+  try {
+    data = await callRpc(token, QC_LAB_DECISION_RPC, {
+      p_preparation_id: preparation,
+      p_expected_row_version: version,
+      p_action: action,
+      p_supersedes_lab_basis_id: supersedes,
+      p_basis_type: QC_LAB_BASIS_TYPE,
+      p_document_reference: reference,
+      p_document_asset_id: null,
+      p_rationale: note,
+      p_attest: true,
+    });
+  } catch (error) {
+    throw mapQcGovernanceError(error, "Laboratory decision failed.");
+  }
+  if (!data || typeof data !== "object" || data.lab_basis_id == null) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Laboratory decision was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-lab-decision",
+    productId: id,
+    lab_basis_id: data.lab_basis_id,
+    decision_action: data.decision_action,
+    basis_status: data.basis_status,
+    supersedes_lab_basis_id: data.supersedes_lab_basis_id ?? null,
+    preparation_row_version: data.preparation_row_version,
+    binding_id: data.binding_id,
+    report_issuer: data.report_issuer,
+    portal_laboratory: data.portal_laboratory,
+    portal_external_id: data.portal_external_id,
+    legal_lab_identity_verified: false,
+    portal_eligibility_verified: false,
+    mutated: true,
+  };
+}
+
 module.exports = {
   QC_PROTOCOL_OPTIONS_RPC,
   QC_LABORATORY_OPTIONS_RPC,
@@ -813,6 +1103,13 @@ module.exports = {
   QC_PREPARATION_VERIFY_SOURCE_RPC,
   QC_PREPARATION_REOPEN_RPC,
   QC_EVIDENCE_RECHECK_RPC,
+  QC_READINESS_RPC,
+  QC_FACT_ACCEPT_RPC,
+  QC_LAB_DECISION_RPC,
+  QC_ACCEPT_FACT_KEYS,
+  QC_BASIS_CATEGORIES,
+  QC_LAB_ACTIONS,
+  QC_LAB_BASIS_TYPE,
   QC_FACT_KEYS,
   QC_PREPARATION_SOURCE_KEY,
   QC_DATE_BASIS,
@@ -834,4 +1131,12 @@ module.exports = {
   reopenQcPreparation,
   recheckQcEvidence,
   qcEvidenceBadge,
+  qcFactLabel,
+  qcReadinessReasonText,
+  qcReadinessBadge,
+  mapQcReadinessError,
+  mapQcGovernanceError,
+  readQcReadiness,
+  acceptQcFact,
+  recordQcLabDecision,
 };

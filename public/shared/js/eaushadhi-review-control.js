@@ -199,6 +199,9 @@ import {
   verifyQcPreparationSource,
   reopenQcPreparation,
   recheckQcEvidence,
+  readQcReadiness,
+  acceptQcFact,
+  recordQcLabDecision,
   listQcReports,
   reserveQcReport,
   registerQcReport,
@@ -357,6 +360,20 @@ const state = {
   qcEvidenceRequest: 0,
   qcEvidenceLoadedFor: null,
   qcEvidenceLoading: false,
+  qcReadiness: null,
+  qcReadinessRequest: 0,
+  qcReadinessLoadedFor: null,
+  qcReadinessLoading: false,
+  qcReadinessNotice: "",
+  qcLabDraftScope: "",
+  qcLabDocumentReference: "",
+  qcLabRationale: "",
+  qcLabAttest: false,
+  qcLabDraftSeeded: false,
+  qcFactAcceptScope: "",
+  qcFactAcceptDrafts: null,
+  qcGovernanceRunning: false,
+  qcGovernanceConfirmOpen: false,
   qcReportVerifyError: "",
   qcReportVerifyCode: "",
   qcReportOfferNewVersion: false,
@@ -4013,6 +4030,20 @@ function resetQcPreparationWorkspace() {
   state.qcEvidenceRequest += 1;
   state.qcEvidenceLoadedFor = null;
   state.qcEvidenceLoading = false;
+  state.qcReadiness = null;
+  state.qcReadinessRequest += 1;
+  state.qcReadinessLoadedFor = null;
+  state.qcReadinessLoading = false;
+  state.qcReadinessNotice = "";
+  state.qcLabDraftScope = "";
+  state.qcLabDocumentReference = "";
+  state.qcLabRationale = "";
+  state.qcLabAttest = false;
+  state.qcLabDraftSeeded = false;
+  state.qcFactAcceptScope = "";
+  state.qcFactAcceptDrafts = null;
+  state.qcGovernanceRunning = false;
+  state.qcGovernanceConfirmOpen = false;
 }
 
 function qcPrepCurrent() {
@@ -4664,7 +4695,9 @@ async function loadQcEvidenceRecheck(productId, preparationId, request) {
     if (request === state.qcEvidenceRequest) state.qcEvidenceLoading = false;
     if (state.selectedProductId === productId) {
       if (state.tab === "qc") renderQc();
+      else queueQcReadinessLoad();
       if (state.tab === "evidence") renderEvidence();
+      if (state.tab === "readiness") renderReadiness();
     }
   }
 }
@@ -4803,6 +4836,480 @@ async function submitQcReopen() {
   }
 }
 
+const QC_BASIS_CATEGORY_OPTIONS = [
+  ["MANUFACTURING_RECORDS", "Manufacturing records"],
+  ["PHARMACOPOEIA_OR_MONOGRAPH", "Pharmacopoeia or monograph"],
+  ["REGULATORY_GUIDANCE", "Regulatory guidance"],
+  ["LABORATORY_CORRESPONDENCE", "Laboratory correspondence"],
+  ["OPERATOR_DETERMINATION", "Operator determination"],
+];
+
+function qcReadinessFactLabel(factKey) {
+  const match = QC_SOURCE_FACT_FIELDS.find(([key]) => key === String(factKey || "").toLowerCase());
+  return match ? match[1] : String(factKey || "").replaceAll("_", " ");
+}
+
+function qcReadinessReasonText(code) {
+  const text = String(code || "");
+  if (text.startsWith("FACT_ACCEPTANCE_MISSING_")) {
+    return `${qcReadinessFactLabel(text.slice("FACT_ACCEPTANCE_MISSING_".length))} needs acceptance by a colleague`;
+  }
+  if (text.startsWith("FACT_SELF_ACCEPTED_")) {
+    return `${qcReadinessFactLabel(text.slice("FACT_SELF_ACCEPTED_".length))} was accepted by the same person who verified; a different editor must accept`;
+  }
+  if (text === "LAB_DECISION_MISSING") return "Record the laboratory decision";
+  if (text === "LAB_DECISION_STALE_BINDING") return "Laboratory decision was made on older evidence; record a correction";
+  if (text === "LAB_DECISION_WITHDRAWN") return "Laboratory decision withdrawn";
+  if (text.startsWith("EVIDENCE_")) return qcEvidenceReasonText(text.slice("EVIDENCE_".length));
+  if (text === "PAYLOAD_DRIFT_SINCE_VERIFY") return "Draft edited after verification";
+  return qcEvidenceReasonText(text);
+}
+
+function qcReadinessBadge(readiness) {
+  const status = String(readiness?.status || "");
+  if (status === "READY") return { tone: "ready", label: "Ready", style: "color:#166534" };
+  if (status === "READY_PROVISIONAL") return { tone: "provisional", label: "Ready (provisional)", style: "color:#8a5a00" };
+  return { tone: "not-ready", label: "Not ready", style: "color:#c2410c" };
+}
+
+function qcActorLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) return "unknown";
+  return text.slice(0, 8);
+}
+
+function qcIstStamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const formatted = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+  return `${formatted} IST`;
+}
+
+function qcHtmlEscape(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function queueQcReadinessLoad() {
+  if (!workerApiAvailable() || !isFirstControlledEntryProduct(state.selectedProductId)) return;
+  if (access.canView !== true) return;
+  const preparationId = state.qcPrepServer?.preparation_id || "";
+  if (!preparationId) {
+    if (state.qcReadinessLoadedFor === "") return;
+    state.qcReadiness = null;
+    state.qcReadinessLoadedFor = "";
+    return;
+  }
+  if (state.qcEvidenceLoadedFor !== preparationId) return;
+  if (state.qcReadinessLoading === true || state.qcReadinessLoadedFor === preparationId) return;
+  state.qcReadinessLoading = true;
+  const productId = state.selectedProductId;
+  const request = ++state.qcReadinessRequest;
+  queueMicrotask(() => {
+    void loadQcReadiness(productId, preparationId, request);
+  });
+}
+
+async function loadQcReadiness(productId, preparationId, request) {
+  try {
+    const token = await sessionAccessToken();
+    if (request !== state.qcReadinessRequest || state.selectedProductId !== productId) return;
+    const result = await readQcReadiness(productId, token, { preparationId });
+    if (request !== state.qcReadinessRequest || state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcReadiness = null;
+      state.qcReadinessNotice = result.message || "QC readiness failed.";
+    } else {
+      state.qcReadiness = result;
+      state.qcReadinessNotice = "";
+    }
+    state.qcReadinessLoadedFor = preparationId;
+  } catch (error) {
+    if (request !== state.qcReadinessRequest || state.selectedProductId !== productId) return;
+    state.qcReadiness = null;
+    state.qcReadinessNotice = userMessageForError(error);
+    state.qcReadinessLoadedFor = preparationId;
+  } finally {
+    if (request === state.qcReadinessRequest) state.qcReadinessLoading = false;
+    if (state.selectedProductId === productId) {
+      if (state.tab === "qc") renderQc();
+      if (state.tab === "readiness") renderReadiness();
+    }
+  }
+}
+
+function qcReadinessCardHtml() {
+  const esc = qcHtmlEscape;
+  const readiness = state.qcReadiness;
+  const badge = qcReadinessBadge(readiness);
+  const reasons = Array.isArray(readiness?.reasons) ? readiness.reasons.map((code) => qcReadinessReasonText(code)) : [];
+  const facts = [];
+  for (const fact of readiness?.report_supported_facts || []) {
+    facts.push(`${qcReadinessFactLabel(fact)}: Shown in the report`);
+  }
+  for (const item of readiness?.operator_asserted_facts || []) {
+    if (item?.accepted === true) {
+      facts.push(`${qcReadinessFactLabel(item.fact)}: Accepted by ${qcActorLabel(item.accepted_by)} on ${qcIstStamp(item.accepted_at)}`);
+    } else if (item?.fact) {
+      facts.push(`${qcReadinessFactLabel(item.fact)}: Not accepted`);
+    }
+  }
+  const verified = readiness?.verified_by
+    ? `Verified by ${qcActorLabel(readiness.verified_by)} on ${qcIstStamp(readiness.verified_at)}`
+    : "";
+  const lab = readiness?.lab_basis;
+  const statement = lab?.statement ? String(lab.statement) : "";
+  return `<section class="section-card" id="qcReadinessCard">
+    <h3 class="section-title">Readiness <span id="qcReadinessBadge" data-qc-readiness-tone="${esc(badge.tone)}" style="${esc(badge.style)}">${esc(readiness ? badge.label : "Not ready")}</span></h3>
+    ${state.qcReadinessLoading ? `<p class="muted-note" id="qcReadinessLoading">Reading readiness.</p>` : ""}
+    ${state.qcReadinessNotice ? `<p class="muted-note" id="qcReadinessNotice">${esc(state.qcReadinessNotice)}</p>` : ""}
+    ${verified ? `<p id="qcReadinessVerified">${esc(verified)}</p>` : ""}
+    ${reasons.length ? `<ul id="qcReadinessReasons">${reasons.map((reason) => `<li>${esc(reason)}</li>`).join("")}</ul>` : ""}
+    ${facts.length ? `<ul id="qcReadinessFacts">${facts.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
+    ${lab ? `<p id="qcReadinessIssuer">Report issuer: ${esc(lab.report_issuer || "")}</p><p id="qcReadinessPortalLab">Portal laboratory: ${esc(lab.portal_laboratory || "")}</p>` : ""}
+    ${statement ? `<p id="qcLabProvisionalStatement">${esc(statement)}</p>` : ""}
+  </section>`;
+}
+
+function qcTodayStamp() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function qcLabSuggestions(form) {
+  const lab = String(form?.portal_laboratory_candidate || "").trim();
+  const issuer = qcIssuerShortName(form?.source_report_issuer);
+  return {
+    documentReference: `Operator decision ${qcTodayStamp()} – cross laboratory tie-up`,
+    rationale: lab && issuer
+      ? `${lab} selected provisionally as portal laboratory; ${issuer} remains the report issuer; legal identity not verified`
+      : "",
+  };
+}
+
+function qcPortalLabLine(form) {
+  const label = String(form?.portal_laboratory_candidate || "").trim();
+  const match = (state.qcPrepLabs || []).find((item) => item.label === label);
+  if (!label) return "";
+  if (match?.external_id != null && String(match.external_id) !== "") return `${label}, portal id ${match.external_id}`;
+  return label;
+}
+
+function qcEnsureLabDraft(form) {
+  const scope = `${state.selectedProductId || ""}:${state.qcPrepServer?.preparation_id || ""}`;
+  const suggestion = qcLabSuggestions(form);
+  if (state.qcLabDraftScope !== scope || state.qcLabDraftSeeded !== true) {
+    state.qcLabDraftScope = scope;
+    if (suggestion.rationale) {
+      state.qcLabDocumentReference = suggestion.documentReference;
+      state.qcLabRationale = suggestion.rationale;
+      state.qcLabAttest = false;
+      state.qcLabDraftSeeded = true;
+    }
+  }
+  return suggestion;
+}
+
+function qcLabFieldsReady() {
+  const reference = String(state.qcLabDocumentReference || "").trim();
+  const rationale = String(state.qcLabRationale || "").trim();
+  return reference.length >= 5 && rationale.length >= 10 && rationale.length <= 2000 && state.qcLabAttest === true;
+}
+
+function qcGovernanceBlocked() {
+  return state.qcGovernanceRunning === true
+    || state.qcGovernanceConfirmOpen === true
+    || state.qcSourceConfirmOpen === true
+    || state.qcSourceVerifyRunning === true
+    || state.qcReopenRunning === true
+    || openQcConfirm.showing === true;
+}
+
+function qcLabDecisionCardHtml() {
+  const form = qcPrepForm();
+  if (form.quality_control_mode !== "OUT" || canWrite() !== true) return "";
+  const esc = qcHtmlEscape;
+  qcEnsureLabDraft(form);
+  const lab = state.qcReadiness?.lab_basis || null;
+  const blocked = qcGovernanceBlocked();
+  const ready = qcLabFieldsReady() && !blocked && Number(state.qcReadiness?.preparation_row_version) > 0;
+  const hasHead = lab?.lab_basis_id != null && Number(lab.lab_basis_id) > 0;
+  const decision = lab
+    ? `<div id="qcLabDecisionCurrent">
+        <p>Action: ${esc(lab.decision_action || "")}</p>
+        <p>Status: ${esc(lab.internal_selection || "")}</p>
+        <p>Recorded by ${esc(qcActorLabel(lab.recorded_by))} on ${esc(qcIstStamp(lab.recorded_at))}</p>
+        <p>${esc(lab.rationale || "")}</p>
+      </div>`
+    : "";
+  const buttons = hasHead
+    ? `<button type="button" class="icon-btn with-label" id="btnQcLabCorrect"${ready ? "" : " disabled"}>Correct</button>
+       <button type="button" class="icon-btn with-label" id="btnQcLabReplace"${ready ? "" : " disabled"}>Replace</button>
+       <button type="button" class="icon-btn with-label" id="btnQcLabWithdraw"${ready ? "" : " disabled"}>Withdraw</button>`
+    : `<button type="button" class="icon-btn with-label primary" id="btnQcLabRecord"${ready ? "" : " disabled"}>${state.qcGovernanceRunning ? "Recording..." : "Record"}</button>`;
+  return `<section class="section-card" id="qcLabDecisionCard">
+    <h3 class="section-title">Record laboratory decision</h3>
+    <p id="qcLabIssuer">Report issuer: ${esc(form.source_report_issuer || "")}</p>
+    <p id="qcLabPortal">Portal laboratory: ${esc(qcPortalLabLine(form))}</p>
+    <p id="qcLabBasis">Basis: Cross laboratory tie-up</p>
+    ${decision}
+    <label>Document reference
+      <input id="qcLabDocumentReference" value="${esc(state.qcLabDocumentReference || "")}">
+    </label>
+    <label>Rationale
+      <textarea id="qcLabRationale">${esc(state.qcLabRationale || "")}</textarea>
+    </label>
+    <label><input id="qcLabAttest" type="checkbox"${state.qcLabAttest ? " checked" : ""}> I attest this laboratory decision.</label>
+    <div class="action-row">${buttons}</div>
+  </section>`;
+}
+
+function qcLabConfirmMessage(action, form) {
+  const lab = String(form?.portal_laboratory_candidate || "").trim() || "the portal laboratory";
+  const issuer = qcIssuerShortName(form?.source_report_issuer) || "The report issuer";
+  if (action === "INITIAL") {
+    return `Records ${lab} as PROVISIONAL portal laboratory for this evidence version. ${issuer} stays the issuer. Continue?`;
+  }
+  if (action === "CORRECTION") {
+    return `Records a correction for this evidence version. ${lab} stays the provisional portal laboratory. ${issuer} stays the issuer. Continue?`;
+  }
+  if (action === "REPLACEMENT") {
+    return `Replaces the laboratory decision for this evidence version. ${issuer} stays the issuer. Continue?`;
+  }
+  return `Withdraws the laboratory decision for this evidence version. ${issuer} stays the issuer. Continue?`;
+}
+
+function refreshQcAfterGovernanceWrite() {
+  state.qcEvidenceLoadedFor = null;
+  state.qcEvidenceLoading = false;
+  state.qcReadinessLoadedFor = null;
+  state.qcReadiness = null;
+  state.qcReadinessLoading = false;
+  reloadQcPreparationWorkspace();
+}
+
+async function submitQcLabDecision(action) {
+  if (qcGovernanceBlocked()) return;
+  const form = qcPrepForm();
+  const preparation = state.qcPrepServer;
+  const readiness = state.qcReadiness;
+  if (!preparation || form.quality_control_mode !== "OUT" || canWrite() !== true) return;
+  if (!qcLabFieldsReady()) return;
+  const headId = readiness?.lab_basis?.lab_basis_id ?? null;
+  if (action === "INITIAL" && headId != null) return;
+  if (action !== "INITIAL" && !(Number(headId) > 0)) return;
+  const version = readiness?.preparation_row_version;
+  if (!(Number(version) > 0)) return;
+  const productId = state.selectedProductId;
+  const titles = {
+    INITIAL: "Record laboratory decision",
+    CORRECTION: "Correct laboratory decision",
+    REPLACEMENT: "Replace laboratory decision",
+    WITHDRAWAL: "Withdraw laboratory decision",
+  };
+  const focus = {
+    INITIAL: "btnQcLabRecord",
+    CORRECTION: "btnQcLabCorrect",
+    REPLACEMENT: "btnQcLabReplace",
+    WITHDRAWAL: "btnQcLabWithdraw",
+  };
+  state.qcGovernanceConfirmOpen = true;
+  state.qcReadinessNotice = "";
+  try {
+    const accepted = await openQcConfirm({
+      title: titles[action] || "Record laboratory decision",
+      message: qcLabConfirmMessage(action, form),
+      okLabel: titles[action] || "Record laboratory decision",
+      returnFocusId: focus[action] || "btnQcLabRecord",
+      idPrefix: `qcLab${action}Confirm`,
+    });
+    if (accepted !== true) return;
+    if (state.selectedProductId !== productId) return;
+    state.qcGovernanceRunning = true;
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    if (state.selectedProductId !== productId) return;
+    const reference = String(state.qcLabDocumentReference || "").trim();
+    const rationale = String(state.qcLabRationale || "").trim();
+    const result = await recordQcLabDecision(productId, token, {
+      preparationId: preparation.preparation_id,
+      expectedRowVersion: version,
+      action,
+      supersedesLabBasisId: action === "INITIAL" ? null : headId,
+      basisType: "CROSS_LABORATORY_TIE_UP",
+      documentReference: reference,
+      rationale,
+      attest: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcReadinessNotice = result.message || "Laboratory decision failed.";
+      return;
+    }
+    showToast(`Laboratory decision recorded (${result.decision_action || action})`, "success");
+    state.qcLabAttest = false;
+    refreshQcAfterGovernanceWrite();
+  } catch (error) {
+    if (state.selectedProductId !== productId) return;
+    state.qcReadinessNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcGovernanceRunning = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+function qcFactAcceptDraft(factKey) {
+  const scope = `${state.selectedProductId || ""}:${state.qcPrepServer?.preparation_id || ""}`;
+  if (state.qcFactAcceptScope !== scope || !state.qcFactAcceptDrafts) {
+    state.qcFactAcceptScope = scope;
+    state.qcFactAcceptDrafts = {};
+  }
+  if (!state.qcFactAcceptDrafts[factKey]) {
+    state.qcFactAcceptDrafts[factKey] = { category: "", note: "", attest: false };
+  }
+  return state.qcFactAcceptDrafts[factKey];
+}
+
+function qcFactAcceptReady(draft) {
+  const note = String(draft?.note || "").trim();
+  return QC_BASIS_CATEGORY_OPTIONS.some(([value]) => value === draft?.category)
+    && note.length >= 10
+    && note.length <= 2000
+    && draft?.attest === true;
+}
+
+function qcFactAcceptCardHtml() {
+  if (canWrite() !== true) return "";
+  const pending = (state.qcReadiness?.operator_asserted_facts || []).filter((item) => item && item.accepted !== true && item.fact);
+  if (!pending.length) return "";
+  const esc = qcHtmlEscape;
+  const verifiedBy = String(state.qcReadiness?.verified_by || "");
+  const selfAccept = verifiedBy !== "" && String(access.userId || "") === verifiedBy;
+  const blocked = qcGovernanceBlocked();
+  const rows = pending.map((item) => {
+    const draft = qcFactAcceptDraft(item.fact);
+    const ready = qcFactAcceptReady(draft) && !blocked && Number(state.qcReadiness?.preparation_row_version) > 0;
+    const options = [`<option value="">Choose a basis</option>`].concat(QC_BASIS_CATEGORY_OPTIONS.map(([value, label]) => (
+      `<option value="${esc(value)}"${draft.category === value ? " selected" : ""}>${esc(label)}</option>`
+    ))).join("");
+    return `<div class="form-field form-span-2" data-qc-accept-row="${esc(item.fact)}">
+      <span class="meta-label">${esc(qcReadinessFactLabel(item.fact))}</span>
+      <p>Not accepted</p>
+      ${item.note ? `<p>${esc(item.note)}</p>` : ""}
+      <label>Basis category
+        <select id="qcFactAcceptCategory-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}" data-qc-accept-role="category">${options}</select>
+      </label>
+      <label>Basis note
+        <textarea id="qcFactAcceptNote-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}" data-qc-accept-role="note">${esc(draft.note || "")}</textarea>
+      </label>
+      <label><input id="qcFactAcceptAttest-${esc(item.fact)}" type="checkbox" data-qc-accept-fact="${esc(item.fact)}" data-qc-accept-role="attest"${draft.attest ? " checked" : ""}> I attest this fact acceptance.</label>
+      <button type="button" class="icon-btn with-label primary" id="btnQcFactAccept-${esc(item.fact)}" data-qc-accept-fact="${esc(item.fact)}"${ready ? "" : " disabled"}>Accept</button>
+    </div>`;
+  }).join("");
+  return `<section class="section-card" id="qcFactAcceptCard">
+    <h3 class="section-title">Accept operator-asserted fact</h3>
+    ${selfAccept ? `<p id="qcFactAcceptSelfWarning">You verified this evidence. Your acceptance will be recorded but will not count. A different editor must accept.</p>` : ""}
+    ${rows}
+  </section>`;
+}
+
+async function submitQcFactAccept(factKey) {
+  if (qcGovernanceBlocked()) return;
+  if (canWrite() !== true || !factKey) return;
+  const draft = qcFactAcceptDraft(factKey);
+  if (!qcFactAcceptReady(draft)) return;
+  const preparation = state.qcPrepServer;
+  const version = state.qcReadiness?.preparation_row_version;
+  if (!preparation || !(Number(version) > 0)) return;
+  const productId = state.selectedProductId;
+  const note = String(draft.note || "").trim();
+  const category = draft.category;
+  state.qcGovernanceConfirmOpen = true;
+  state.qcReadinessNotice = "";
+  try {
+    const accepted = await openQcConfirm({
+      title: "Accept operator-asserted fact",
+      message: `Accept ${qcReadinessFactLabel(factKey)} for this evidence version. Continue?`,
+      okLabel: "Accept",
+      returnFocusId: `btnQcFactAccept-${factKey}`,
+      idPrefix: "qcFactAcceptConfirm",
+    });
+    if (accepted !== true) return;
+    if (state.selectedProductId !== productId) return;
+    state.qcGovernanceRunning = true;
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    if (state.selectedProductId !== productId) return;
+    const result = await acceptQcFact(productId, token, {
+      preparationId: preparation.preparation_id,
+      expectedRowVersion: version,
+      factKey,
+      basisCategory: category,
+      basisNote: note,
+      attest: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcReadinessNotice = result.message || "Fact acceptance failed.";
+      return;
+    }
+    showToast(`Accepted ${qcReadinessFactLabel(factKey)}`, "success");
+    refreshQcAfterGovernanceWrite();
+  } catch (error) {
+    if (state.selectedProductId !== productId) return;
+    state.qcReadinessNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcGovernanceRunning = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+function onQcGovernanceField(event) {
+  const target = event.target;
+  const focusId = target?.id || "";
+  const selectionStart = target?.selectionStart;
+  const selectionEnd = target?.selectionEnd;
+  if (target?.id === "qcLabDocumentReference" || target?.id === "qcLabRationale" || target?.id === "qcLabAttest") {
+    state.qcLabDraftSeeded = true;
+    if (target.id === "qcLabDocumentReference") state.qcLabDocumentReference = target.value;
+    if (target.id === "qcLabRationale") state.qcLabRationale = target.value;
+    if (target.id === "qcLabAttest") state.qcLabAttest = target.checked === true;
+  } else {
+    const key = target?.getAttribute?.("data-qc-accept-fact");
+    if (!key) return;
+    const draft = qcFactAcceptDraft(key);
+    const role = target.getAttribute("data-qc-accept-role");
+    if (role === "category") draft.category = target.value;
+    if (role === "note") draft.note = target.value;
+    if (role === "attest") draft.attest = target.checked === true;
+  }
+  if (state.tab !== "qc") return;
+  renderQc();
+  const el = document.getElementById(focusId);
+  if (!el) return;
+  el.focus();
+  if (typeof selectionStart === "number" && typeof el.setSelectionRange === "function") {
+    el.setSelectionRange(selectionStart, selectionEnd ?? selectionStart);
+  }
+}
+
 function qcPreparationWorkspaceMarkup() {
   const available = workerApiAvailable();
   if (!available) {
@@ -4865,7 +5372,7 @@ function qcPreparationWorkspaceMarkup() {
     reviewDisabled: access.canView !== true || !available || state.busy || state.qcPrepLoading,
     saveDisabled: !canWrite() || locked,
     reloadDisabled: access.canView !== true || state.busy,
-  }) + qcSourceFactsCardHtml(qcSourceFactsModel());
+  }) + qcSourceFactsCardHtml(qcSourceFactsModel()) + qcReadinessCardHtml() + qcLabDecisionCardHtml() + qcFactAcceptCardHtml();
 }
 
 function qcPrepReadField(id) {
@@ -4908,6 +5415,10 @@ let qcPrepTabFieldId = "";
 
 function onQcPrepField(event) {
   const target = event.target;
+  if (target?.closest?.("#qcLabDecisionCard") || target?.closest?.("#qcFactAcceptCard")) {
+    onQcGovernanceField(event);
+    return;
+  }
   if (target?.closest?.("#qcSourceFactsCard")) {
     onQcSourceFactField(event);
     return;
@@ -6062,7 +6573,8 @@ function qcReadinessSummaryText() {
   const version = registered ? String(registered.version_no).padStart(2, "0") : "";
   const b1 = version ? `B1: Report registered (V${version})` : "B1: Report registered";
   const byte = qcReportByteLabel(registered, state.qcReportByteResult);
-  return `QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open. ${b1}. B2: Server byte check: ${byte}`;
+  const readinessLabel = state.qcReadiness?.status ? qcReadinessBadge(state.qcReadiness).label : "not loaded";
+  return `QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open. ${b1}. B2: Server byte check: ${byte}. B4 readiness: ${readinessLabel}.`;
 }
 
 function renderQc() {
@@ -6071,6 +6583,7 @@ function renderQc() {
   queueQcPreparationLoad();
   queueQcReportLoad();
   queueQcEvidenceRecheck();
+  queueQcReadinessLoad();
   if (!workerApiAvailable()) {
     host.innerHTML = `<section class="section-card qc-prep-workspace"><h3 class="section-title">QC Register</h3><p class="muted-note">QC preparation is available only in the SASV Electron app.</p></section>`;
     return;
@@ -6084,6 +6597,9 @@ function renderQc() {
 }
 
 function renderReadiness() {
+  queueQcPreparationLoad();
+  queueQcEvidenceRecheck();
+  queueQcReadinessLoad();
   const host = $("tab-readiness");
   const row = state.queueRow || {};
   const review = state.review || {};
@@ -8585,6 +9101,13 @@ function wireEvents() {
     if (event.target.id === "btnOpenEvidenceFromQc") selectWorkflowTab("evidence");
     if (event.target.id === "btnQcVerifySourceFacts") void submitQcSourceVerify();
     if (event.target.id === "btnQcReopenSourceFacts") void submitQcReopen();
+    if (event.target.id === "btnQcLabRecord") void submitQcLabDecision("INITIAL");
+    if (event.target.id === "btnQcLabCorrect") void submitQcLabDecision("CORRECTION");
+    if (event.target.id === "btnQcLabReplace") void submitQcLabDecision("REPLACEMENT");
+    if (event.target.id === "btnQcLabWithdraw") void submitQcLabDecision("WITHDRAWAL");
+    if (String(event.target.id || "").startsWith("btnQcFactAccept-")) {
+      void submitQcFactAccept(event.target.getAttribute("data-qc-accept-fact"));
+    }
   });
   $("tab-qc")?.addEventListener("input", onQcPrepField);
   $("tab-qc")?.addEventListener("change", onQcPrepField);

@@ -195,4 +195,18 @@ D4.1: after a reload, the saved report file name is loaded with the draft. Verif
 
 D4.2: a verified preparation shows the six saved facts read-only: "Shown in the report: Yes/No" plus the reference or note. It does not show the editable defaults. If the recheck has no fact evidence, the card says "Saved fact evidence is not available in this view".
 
-Operator flow after a verified draft: **Reopen for re-verification** (edit permission, a reason of at least 10 characters, and the attestation). The current evidence record stays in the audit trail and the draft returns to Review required. Then Verify source facts again, with study start and protocol set to not shown and a note for each. Reopen is never started automatically. Esc, Cancel, and a backdrop click make no call. B3.1 is live as `20261011165858_wp07_b3_1_qc_source_reopen` (`rpc_eaushadhi_qc_preparation_reopen_v1`). Next the operator reopens Product 262, then re-verifies, then B4.
+Operator flow after a verified draft: **Reopen for re-verification** (edit permission, a reason of at least 10 characters, and the attestation). The current evidence record stays in the audit trail and the draft returns to Review required. Then Verify source facts again, with study start and protocol set to not shown and a note for each. Reopen is never started automatically. Esc, Cancel, and a backdrop click make no call. B3.1 is live as `20261011165858_wp07_b3_1_qc_source_reopen` (`rpc_eaushadhi_qc_preparation_reopen_v1`).
+
+## B4 — Readiness (live `20261012023035`)
+`rpc_eaushadhi_qc_readiness_v1(product_id, preparation_id)` is read-only and needs view permission. It returns:
+- the status: NOT_READY, READY_PROVISIONAL or READY;
+- blocking reasons and flags;
+- report-supported facts and operator-asserted facts, with who accepted each and when;
+- the lab decision: report issuer and portal laboratory shown separately, the internal selection, legal identity and portal eligibility verified (both false), and a plain-words statement.
+
+Operator flow for Product 262:
+1. Record the lab decision: INITIAL, CROSS_LABORATORY_TIE_UP, document reference, rationale. Use CORRECTION, REPLACEMENT or WITHDRAWAL for later changes; history is kept.
+2. A colleague with edit access accepts study start date and testing protocol (basis category and note).
+3. Read readiness: READY_PROVISIONAL is the maximum.
+
+A reopen or re-verify makes the acceptances and the lab decision stale; redo both on the new binding. Readiness is separate from portal submission and never triggers it.
