@@ -24,8 +24,8 @@ No server or client mutation in G0/G1. No e-Aushadhi changes (parallel WP-07 e-A
 | WP05-G0 — entry criteria / start | [x] COMPLETED AND VERIFIED (2026-10-13 22:07 IST) |
 | WP05-G1 — current-state/audit gate | [~] IN PROGRESS — audit complete, self-audited (§11), owner decisions D1–D7 recorded 2026-10-13 (DEC-016…DEC-022); awaiting independent ChatGPT audit of the pushed docs branch + docs merge approval |
 | WP05-G2 — design/contract gate | [~] DRAFTED (§12), owner business choices Q1–Q5 resolved; pending independent plan audit of high-risk packages (S1, S2, S3, S4, C2) |
-| WP05-C1 — dead mapping cleanup (routine) | [~] IN PROGRESS — draft PR, awaiting audit |
-| WP05-S1 — KPI view rebuild prep | [~] SQL + read-only value-match proof drafted (`docs/master-data-costing/wp05-s1/`); NOT applied |
+| WP05-C1 — dead mapping cleanup (routine) | [~] Implemented locally on `costing/wp05-c1-dead-mapping` (commit 5e826ff); smokes unchanged vs main; NOT pushed (no GitHub write access from this agent) |
+| WP05-S1 — KPI view rebuild prep | [~] SQL drafted; read-only value-match proof **PASS** (3/3 periods, 0 diff, 2026-10-13); role + timing checks pending apply-time on a Supabase branch; NOT applied (`wp05-s1/`) |
 | WP05-G3 — implementation gate(s) | [ ] NOT STARTED |
 | WP05-G4 — focused verification | [ ] |
 | WP05-G5 — independent audit | [ ] |
