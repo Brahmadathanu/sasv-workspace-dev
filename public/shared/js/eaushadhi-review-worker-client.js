@@ -236,6 +236,12 @@ export async function readQcFillPreflight(productId, accessToken, draft) {
   return window.eaushadhiWorkerAPI.readQcFillPreflight(productId, accessToken, draft);
 }
 
+export async function executeQcPrepRun(productId, accessToken, command) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.executeQcPrepRun !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.executeQcPrepRun(productId, accessToken, command);
+}
+
 export async function recordQcLabDecision(productId, accessToken, draft) {
   if (!workerApiAvailable()) return unsupported();
   if (typeof window.eaushadhiWorkerAPI.recordQcLabDecision !== "function") return unsupported();

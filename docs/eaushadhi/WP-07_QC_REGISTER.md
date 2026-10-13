@@ -218,7 +218,26 @@ Operator flow for Product 262:
 3. The colleague corrects testing protocol → Operator determination.
 4. Verify the Others mapping after checking the live Type of Study list.
 5. The preflight shows no blockers.
-6. D7: fill and Save.
+6. Arm filling, then fill the portal form and attach the verified report. Native Save stays off.
+
+## D7 — Filling client (Save disabled)
+The filling client is on `feat/wp07-s2c-c1-qc-preparation-ui`. It arms, fills, checks the PDF, and can record a Save observation. It does not click the portal.
+
+Confirmed from capture `2d2840d0-e708-4000-9096-18d8ccf7e4d3`:
+- route `/admin/addQCRegister`;
+- list `../admin/LoadQCData?pageno=0`, success status `1`;
+- row id DOM prefix `hid`; edit/reread `GetQCData` / `../admin/GetqcData` sets `#id` and changes `#save_btn` to Update;
+- Save function `SaveData()`, endpoint `../admin/SaveQCData`;
+- the only control wired to `SaveData()` is `#save_btn`, and its captured text is Submit.
+
+Native Save stays disabled (`SAVE_CONTROL_LABELLED_SUBMIT`). The screen says: "The portal control that runs Save is labelled Submit. Save was not pressed." and "Save only; Submit is not allowed."
+
+Unresolved capture gaps, so the client fails closed instead of guessing:
+- list columns in the capture stop before the eight posted fields;
+- the Save payload snippet stops after endDate;
+- `getLaboratroyName` builds the option value from the laboratory name, while the frozen field is the portal external id.
+
+A verified row is shown as "Row verified — document not verified (trusted document check not available yet)". The client never shows fully verified. NUPAL stays the report issuer. HARIDEV FORMULATIONS stays the provisional portal laboratory. No live portal Save or Submit is part of this client change.
 
 Plain-word blockers:
 - The 'Others' protocol mapping is not verified yet.

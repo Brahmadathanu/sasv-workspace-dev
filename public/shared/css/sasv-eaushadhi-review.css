@@ -1781,3 +1781,18 @@ body.sasv-eaushadhi-review .qc-prep-workspace fieldset {
   margin: 0;
   padding: var(--sasv-space-2);
 }
+
+body.sasv-eaushadhi-review #qcFillFieldScroll {
+  overflow-x: auto;
+}
+
+body.sasv-eaushadhi-review #qcFillPreflightCard label,
+body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
+  margin-top: var(--sasv-space-2);
+}
+
+@media (max-width: 720px) {
+  body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
+    width: 100%;
+  }
+}

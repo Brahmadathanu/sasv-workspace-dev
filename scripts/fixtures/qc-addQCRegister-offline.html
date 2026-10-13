@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <body>
+    <select id="typeofstudy">
+      <option value="">Select</option>
+      <option value="493">Others</option>
+    </select>
+    <input id="otherText" type="text">
+    <input id="sdate" type="date">
+    <input id="edate" type="date">
+    <input id="reportdate" type="date">
+    <input id="duration" type="number">
+    <input id="batchno" type="text">
+    <input id="qc_in" type="checkbox" value="In">
+    <input id="qc_out" type="checkbox" value="Out">
+    <select id="lab_name">
+      <option value="">Select</option>
+      <option value="3980">HARIDEV FORMULATIONS</option>
+    </select>
+    <input id="upload_document" type="file">
+    <a id="save_btn" href="#">Submit</a>
+    <script>
+      document.getElementById("sdate").addEventListener("change", () => {
+        document.getElementById("duration").value = "0";
+      });
+      document.getElementById("edate").addEventListener("change", () => {
+        document.getElementById("duration").value = "0";
+      });
+    </script>
+  </body>
+</html>

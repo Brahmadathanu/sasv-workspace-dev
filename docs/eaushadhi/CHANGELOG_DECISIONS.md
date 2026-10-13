@@ -313,3 +313,9 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
   - row verification separate from document; FULLY_VERIFIED only via a service-role trusted-fetch recorder (not available yet: portal attachment retrieval needs a portal session), so runs stop at ROW_VERIFIED_DOCUMENT_NOT_VERIFIED;
   - the readiness/lab qualification is in every event.
 - D6 adds the correction, mapping-verify and read-only preflight UI. Arm/Save UI is parked to D7.
+
+## 2026-10-13 — WP-07 D7 filling client, native Save disabled
+- The Product 262 filling client arms a B5 run, fills the eight frozen fields, checks the verified PDF, and can observe a Save response. Pre-save tokens stay in worker memory.
+- Capture `2d2840d0-e708-4000-9096-18d8ccf7e4d3` shows `#save_btn` labelled Submit and wired to `SaveData()`. Native Save stays disabled until a later gate decides that this control may be treated as QC Save. The client never clicks Submit.
+- List columns and the Save payload after endDate are truncated in that capture. Rows that do not expose the eight fields block arm and cannot become CONFIRMED. `getLaboratroyName` option values are names; the client still sets the frozen portal id and fails the readback if that option is absent.
+- Row verification display remains "Row verified — document not verified (trusted document check not available yet)" even when a response says fully verified. No migration or server function was changed. No live portal Save or Submit was performed.

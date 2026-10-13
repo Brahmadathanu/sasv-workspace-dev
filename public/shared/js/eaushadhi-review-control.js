@@ -204,6 +204,7 @@ import {
   correctQcFactAcceptance,
   verifyQcProtocolMapping,
   readQcFillPreflight,
+  executeQcPrepRun,
   recordQcLabDecision,
   listQcReports,
   reserveQcReport,
@@ -391,6 +392,16 @@ const state = {
   qcFillLoadedFor: null,
   qcFillLoading: false,
   qcFillNotice: "",
+  qcFillAckScope: "",
+  qcFillProvisionalAck: false,
+  qcFillProvisionalNote: "",
+  qcFillDerivedAck: false,
+  qcFillDerivedNote: "",
+  qcFillAckSeeded: false,
+  qcFillRun: null,
+  qcFillRunNotice: "",
+  qcFillReportName: "",
+  qcPrepRunBusy: false,
   qcReportVerifyError: "",
   qcReportVerifyCode: "",
   qcReportOfferNewVersion: false,
@@ -5385,6 +5396,8 @@ function qcBasisCategoryLabel(code) {
 }
 
 const QC_FILL_QUALIFICATION = "Portal laboratory is an internal provisional selection. It is not the report issuer, and legal laboratory identity and portal eligibility are not verified.";
+const QC_FILL_PROVISIONAL_PREFILL = "I acknowledge HARIDEV FORMULATIONS is an internal provisional portal laboratory selection; NUPAL is the report issuer; legal identity and portal eligibility are not verified.";
+const QC_FILL_SAVE_BLOCKED = "The portal control that runs Save is labelled Submit. Save was not pressed.";
 const QC_FILL_BLOCKER_TEXT = {
   READINESS_NOT_READY: "Readiness is not Ready (provisional) yet",
   PRODUCT_DETAILS_NOT_PORTAL_VERIFIED: "Product details are not verified on the portal",
@@ -5685,8 +5698,35 @@ async function submitQcProtocolMapping() {
   }
 }
 
+function qcSeedFillAcks() {
+  const scope = `${state.selectedProductId || ""}:${state.qcPrepServer?.preparation_id || ""}`;
+  if (state.qcFillAckScope === scope && state.qcFillAckSeeded === true) return;
+  state.qcFillAckScope = scope;
+  state.qcFillAckSeeded = true;
+  state.qcFillProvisionalAck = false;
+  state.qcFillProvisionalNote = QC_FILL_PROVISIONAL_PREFILL;
+  const derived = Array.isArray(state.qcFillPreflight?.context?.derived_facts) ? state.qcFillPreflight.context.derived_facts : [];
+  const note = derived.map((item) => String(item?.basis_note || "").trim()).filter(Boolean).join(" ");
+  state.qcFillDerivedAck = false;
+  state.qcFillDerivedNote = note.length >= 10 && note.length <= 2000 ? note : "";
+}
+
+function qcFillArmReady() {
+  const preflight = state.qcFillPreflight;
+  if (!preflight || (preflight.blockers || []).length > 0) return false;
+  if (canWrite() !== true || !workerApiAvailable() || state.qcPrepRunBusy === true || state.qcGovernanceConfirmOpen === true) return false;
+  const provisional = preflight.readiness?.status === "READY_PROVISIONAL";
+  const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
+  const provisionalNote = String(state.qcFillProvisionalNote || "").trim();
+  const derivedNote = String(state.qcFillDerivedNote || "").trim();
+  if (provisional && (state.qcFillProvisionalAck !== true || provisionalNote.length < 10 || provisionalNote.length > 2000)) return false;
+  if (derived.length > 0 && (state.qcFillDerivedAck !== true || derivedNote.length < 10 || derivedNote.length > 2000)) return false;
+  return true;
+}
+
 function qcFillPreflightCardHtml() {
   if (access.canView !== true) return "";
+  qcSeedFillAcks();
   const esc = qcHtmlEscape;
   const preflight = state.qcFillPreflight;
   const blockers = Array.isArray(preflight?.blockers) ? preflight.blockers : [];
@@ -5707,25 +5747,361 @@ function qcFillPreflightCardHtml() {
     const when = qcIstStamp(run?.armed_at);
     return `<li>${esc([run?.run_status, when].filter(Boolean).join(" "))}</li>`;
   }).join("");
+  const provisional = preflight?.readiness?.status === "READY_PROVISIONAL";
+  const writable = canWrite() === true && workerApiAvailable();
+  const armDisabled = qcFillArmReady() ? "" : " disabled";
+  const armed = state.qcFillRun?.runStatus === "SAVE_ARMED" && state.qcFillRun?.clickState === "not-clicked";
+  const latest = runs[0] || null;
+  const latestStatus = String(latest?.run_status || "");
+  const recovery = ["SAVE_AMBIGUOUS", "SAVE_UNAUTHORIZED", "SAVE_FOUND_UNAUTHORIZED"].includes(latestStatus)
+    || (latestStatus === "SAVE_ARMED" && !state.qcFillRun);
   return `<section class="section-card" id="qcFillPreflightCard">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
     ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
+    ${state.qcFillRunNotice ? `<p class="muted-note" id="qcFillRunNotice">${esc(state.qcFillRunNotice)}</p>` : ""}
     ${blockerHtml}
-    <table id="qcFillFields"><tbody>${fieldRows}</tbody></table>
+    <div id="qcFillFieldScroll"><table id="qcFillFields"><tbody>${fieldRows}</tbody></table></div>
     <p id="qcFillOthersNote">For Others, the portal saves the description itself as the type of study.</p>
     <p id="qcFillIssuer">Report issuer: ${esc(context.report_issuer || "")}</p>
     <p id="qcFillPortalLab">Portal laboratory: ${esc(context.laboratory_label || "")}</p>
     <p id="qcFillQualification">${esc(QC_FILL_QUALIFICATION)}</p>
     ${derivedHtml ? `<ul id="qcFillDerivedFacts">${derivedHtml}</ul>` : ""}
-    <p id="qcFillDerivedLabel">Required when filling starts (D7).</p>
-    <label><input id="qcFillDerivedAck" type="checkbox" disabled> I acknowledge the derived value is suitable for the portal field</label>
+    <p id="qcFillDerivedLabel">Required when filling starts.</p>
+    ${provisional ? `<label><input id="qcFillProvisionalAck" type="checkbox"${state.qcFillProvisionalAck ? " checked" : ""}${writable ? "" : " disabled"}> ${esc(QC_FILL_PROVISIONAL_PREFILL)}</label>
+    <label>Provisional laboratory note
+      <textarea id="qcFillProvisionalNote"${writable ? "" : " disabled"}>${esc(state.qcFillProvisionalNote || "")}</textarea>
+    </label>` : ""}
+    <label><input id="qcFillDerivedAck" type="checkbox"${state.qcFillDerivedAck ? " checked" : ""}${writable && derived.length ? "" : " disabled"}> I acknowledge the derived value is suitable for the portal field</label>
     <label>Acknowledgement note
-      <textarea id="qcFillDerivedNote" disabled></textarea>
+      <textarea id="qcFillDerivedNote"${writable && derived.length ? "" : " disabled"}>${esc(state.qcFillDerivedNote || "")}</textarea>
     </label>
-    <p id="qcFillScope">Save only; Submit is out of scope.</p>
+    <p id="qcFillScope">Save only; Submit is not allowed.</p>
+    <p id="qcFillSaveBlocked">${esc(QC_FILL_SAVE_BLOCKED)}</p>
+    ${writable ? `<button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}>Arm filling</button>
+    <button type="button" class="icon-btn with-label" id="btnQcFillFields"${armed && !state.qcPrepRunBusy ? "" : " disabled"}>Fill portal fields</button>
+    <button type="button" class="icon-btn with-label" id="btnQcFillChooseReport"${state.qcFillRun?.filled ? "" : " disabled"}>Choose verified report</button>
+    <input id="qcFillReportFile" type="file" accept="application/pdf,.pdf" hidden>
+    <button type="button" class="icon-btn with-label" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>` : ""}
+    ${recovery && writable ? `<p id="qcFillCheckList">Check the portal list.</p>
+    <label>Note<textarea id="qcFillResolveNote"></textarea></label>
+    <label><input id="qcFillResolveAttest" type="checkbox"> I checked the portal list for this product.</label>
+    <button type="button" class="icon-btn with-label" id="btnQcFillFound">Found on the list</button>
+    <button type="button" class="icon-btn with-label" id="btnQcFillMissing">Not on the list</button>
+    ${latestStatus === "SAVE_ARMED" ? `<button type="button" class="icon-btn with-label" id="btnQcFillUnknown">Record unknown result</button>` : ""}` : ""}
+    ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillVerify">Read the saved row</button>` : ""}
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
   </section>`;
+}
+
+async function submitQcFillArm() {
+  if (!qcFillArmReady()) return;
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  state.qcGovernanceConfirmOpen = true;
+  try {
+    const accepted = await openQcConfirm({
+      title: "Arm QC filling",
+      message: "This reads the portal QC list and arms filling for product 262. It does not press Save.",
+      okLabel: "Arm filling",
+      returnFocusId: "btnQcFillArm",
+      idPrefix: "qcFillArmConfirm",
+    });
+    if (accepted !== true || state.selectedProductId !== productId) return;
+    state.qcPrepRunBusy = true;
+    state.qcFillRunNotice = "";
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "arm",
+      preparationId,
+      userConfirmed: true,
+      provisionalAck: state.qcFillProvisionalAck === true,
+      provisionalNote: state.qcFillProvisionalNote,
+      derivedAck: state.qcFillDerivedAck === true,
+      derivedNote: state.qcFillDerivedNote,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcFillRunNotice = result.message || "Filling was not started.";
+      return;
+    }
+    state.qcFillRun = { ...(result.session || {}), runStatus: result.runStatus, clickState: "not-clicked" };
+    state.qcFillRunNotice = "Filling is armed. Save was not pressed.";
+    state.qcFillLoadedFor = "";
+    queueQcFillPreflight();
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+async function submitQcFillFields() {
+  if (state.qcPrepRunBusy || state.qcFillRun?.runStatus !== "SAVE_ARMED") return;
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  state.qcGovernanceConfirmOpen = true;
+  try {
+    const accepted = await openQcConfirm({
+      title: "Fill portal fields",
+      message: "This types the frozen values into Add QC Register. It does not press Save.",
+      okLabel: "Fill fields",
+      returnFocusId: "btnQcFillFields",
+      idPrefix: "qcFillFieldsConfirm",
+    });
+    if (accepted !== true || state.selectedProductId !== productId) return;
+    state.qcPrepRunBusy = true;
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "fill",
+      preparationId,
+      userConfirmed: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcFillRunNotice = result.message || "The page does not match the frozen values. Nothing was saved. Start filling again.";
+      state.qcFillRun = null;
+      return;
+    }
+    state.qcFillRun = { ...(state.qcFillRun || {}), ...(result.session || {}), filled: true };
+    state.qcFillRunNotice = "The portal form matches the frozen values. Save was not pressed.";
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+async function submitQcFillReport(file) {
+  if (!file || state.qcPrepRunBusy || !state.qcFillRun?.filled) return;
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  state.qcPrepRunBusy = true;
+  state.qcFillReportName = file.name;
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "checkPdf",
+      preparationId,
+      filename: file.name,
+      bytes,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result?.ok === false) {
+      state.qcFillRunNotice = result.message || "This file does not match the verified QC report. It was not attached.";
+      return;
+    }
+    state.qcFillRun = { ...(state.qcFillRun || {}), reportReady: true };
+    state.qcFillRunNotice = "The verified report is attached. Save was not pressed.";
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+function openQcFillSaveReview() {
+  if (openQcConfirm.showing === true) return Promise.resolve(false);
+  openQcConfirm.showing = true;
+  const prefix = "qcFillSaveReview";
+  const fields = state.qcFillPreflight?.fill_fields || {};
+  const context = state.qcFillPreflight?.context || {};
+  return new Promise((resolve) => {
+    let closed = false;
+    const backdrop = document.createElement("div");
+    backdrop.id = `${prefix}Backdrop`;
+    backdrop.className = "sasv-modal-backdrop ea-source-resolve";
+    const dialog = document.createElement("div");
+    dialog.id = `${prefix}Dialog`;
+    dialog.className = "sasv-modal";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.tabIndex = -1;
+    const title = document.createElement("h2");
+    title.id = `${prefix}Title`;
+    title.className = "sasv-modal__title";
+    title.textContent = "Review QC Register before Save";
+    const body = document.createElement("div");
+    body.className = "sasv-modal__body";
+    body.id = `${prefix}Body`;
+    for (const [key, label] of QC_FILL_FIELD_ROWS) {
+      const line = document.createElement("p");
+      line.textContent = `${label}: ${fields[key] ?? ""}`;
+      body.append(line);
+    }
+    const fileLine = document.createElement("p");
+    fileLine.textContent = `Attached report: ${state.qcFillReportName || ""}`;
+    const issuer = document.createElement("p");
+    issuer.textContent = `Report issuer: ${context.report_issuer || ""}`;
+    const lab = document.createElement("p");
+    lab.textContent = `Portal laboratory: ${context.laboratory_label || ""}`;
+    const qualification = document.createElement("p");
+    qualification.id = "qcFillReviewQualification";
+    qualification.textContent = QC_FILL_QUALIFICATION;
+    const derived = document.createElement("p");
+    derived.textContent = `Derived-date note: ${state.qcFillDerivedNote || ""}`;
+    const scope = document.createElement("p");
+    scope.id = "qcFillReviewScope";
+    scope.textContent = "Save only; Submit is not allowed.";
+    const blocked = document.createElement("p");
+    blocked.id = "qcFillReviewBlocked";
+    blocked.textContent = QC_FILL_SAVE_BLOCKED;
+    body.append(fileLine, issuer, lab, qualification, derived, scope, blocked);
+    const footer = document.createElement("div");
+    footer.className = "sasv-modal__footer";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.id = `${prefix}Cancel`;
+    cancel.className = "icon-btn with-label";
+    cancel.textContent = "Cancel";
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.id = `${prefix}Ok`;
+    ok.className = "icon-btn with-label primary";
+    ok.textContent = "Save";
+    ok.disabled = true;
+    footer.append(cancel, ok);
+    const header = document.createElement("div");
+    header.className = "sasv-modal__header";
+    header.append(title);
+    dialog.append(header, body, footer);
+    backdrop.append(dialog);
+    const close = (accepted) => {
+      if (closed) return;
+      closed = true;
+      openQcConfirm.showing = false;
+      document.removeEventListener("keydown", onKey, true);
+      backdrop.remove();
+      document.getElementById("btnQcFillReview")?.focus();
+      resolve(accepted === true);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(false);
+      }
+    };
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) close(false);
+    });
+    cancel.addEventListener("click", () => close(false));
+    ok.addEventListener("click", () => close(true));
+    document.body.append(backdrop);
+    document.addEventListener("keydown", onKey, true);
+    dialog.focus();
+  });
+}
+
+async function submitQcFillReview() {
+  if (!state.qcFillRun?.reportReady || state.qcPrepRunBusy) return;
+  const accepted = await openQcFillSaveReview();
+  if (accepted !== true) return;
+  state.qcFillRunNotice = QC_FILL_SAVE_BLOCKED;
+  if (state.tab === "qc") renderQc();
+}
+
+async function submitQcFillResolve(resolution) {
+  if (state.qcPrepRunBusy || state.qcGovernanceConfirmOpen) return;
+  const note = String(document.getElementById("qcFillResolveNote")?.value || "").trim();
+  const attest = document.getElementById("qcFillResolveAttest")?.checked === true;
+  if (note.length < 10 || !attest) {
+    state.qcFillRunNotice = "Tick the attestation and write at least 10 characters.";
+    renderQc();
+    return;
+  }
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  const runId = state.qcFillPreflight?.runs?.[0]?.run_id;
+  state.qcPrepRunBusy = true;
+  try {
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "resolve",
+      preparationId,
+      runId,
+      resolution,
+      note,
+      attest: true,
+      userConfirmed: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    state.qcFillRunNotice = result?.message || "Check the portal list.";
+    if (result?.runStatus === "ROW_VERIFIED_DOCUMENT_NOT_VERIFIED" || result?.display?.text) {
+      state.qcFillRunNotice = result.display?.text || state.qcFillRunNotice;
+    }
+    state.qcFillLoadedFor = "";
+    queueQcFillPreflight();
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+async function submitQcFillUnknown() {
+  if (state.qcPrepRunBusy) return;
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  const accepted = await openQcConfirm({
+    title: "Unknown Save result",
+    message: "This session cannot tell whether Save was pressed. Check the portal list. This records the result as unknown and does not press Save again.",
+    okLabel: "Record unknown result",
+    returnFocusId: "btnQcFillUnknown",
+    idPrefix: "qcFillUnknownConfirm",
+  });
+  if (accepted !== true) return;
+  state.qcPrepRunBusy = true;
+  try {
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "recover",
+      preparationId,
+      userConfirmed: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    state.qcFillRunNotice = result?.message || "Check the portal list.";
+    state.qcFillLoadedFor = "";
+    queueQcFillPreflight();
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+async function submitQcFillVerify() {
+  if (state.qcPrepRunBusy) return;
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  state.qcPrepRunBusy = true;
+  try {
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "verify",
+      preparationId,
+      runId: state.qcFillPreflight?.runs?.[0]?.run_id,
+      userConfirmed: true,
+    });
+    if (state.selectedProductId !== productId) return;
+    state.qcFillRunNotice = result?.display?.text || result?.message || "The row was not verified.";
+    state.qcFillLoadedFor = "";
+    queueQcFillPreflight();
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
 }
 
 function onQcGovernanceField(event) {
@@ -5761,6 +6137,12 @@ function onQcGovernanceField(event) {
     state.qcMappingSeeded = true;
     if (target.id === "qcMappingReason") state.qcMappingReason = target.value;
     if (target.id === "qcMappingAttest") state.qcMappingAttest = target.checked === true;
+  } else if (target?.id === "qcFillProvisionalNote" || target?.id === "qcFillProvisionalAck" || target?.id === "qcFillDerivedNote" || target?.id === "qcFillDerivedAck") {
+    state.qcFillAckSeeded = true;
+    if (target.id === "qcFillProvisionalNote") state.qcFillProvisionalNote = target.value;
+    if (target.id === "qcFillDerivedNote") state.qcFillDerivedNote = target.value;
+    if (target.id === "qcFillProvisionalAck") state.qcFillProvisionalAck = target.checked === true;
+    if (target.id === "qcFillDerivedAck") state.qcFillDerivedAck = target.checked === true;
   } else {
     return;
   }
@@ -9584,9 +9966,23 @@ function wireEvents() {
       void submitQcFactCorrect(event.target.getAttribute("data-qc-correct-fact"));
     }
     if (event.target.id === "btnQcMappingVerify") void submitQcProtocolMapping();
+    if (event.target.id === "btnQcFillArm") void submitQcFillArm();
+    if (event.target.id === "btnQcFillFields") void submitQcFillFields();
+    if (event.target.id === "btnQcFillChooseReport") document.getElementById("qcFillReportFile")?.click();
+    if (event.target.id === "btnQcFillReview") void submitQcFillReview();
+    if (event.target.id === "btnQcFillFound") void submitQcFillResolve("FOUND_SAVED");
+    if (event.target.id === "btnQcFillMissing") void submitQcFillResolve("NOT_SAVED");
+    if (event.target.id === "btnQcFillUnknown") void submitQcFillUnknown();
+    if (event.target.id === "btnQcFillVerify") void submitQcFillVerify();
   });
   $("tab-qc")?.addEventListener("input", onQcPrepField);
   $("tab-qc")?.addEventListener("change", onQcPrepField);
+  $("tab-qc")?.addEventListener("change", (event) => {
+    if (event.target?.id !== "qcFillReportFile") return;
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) void submitQcFillReport(file);
+  });
   $("tab-qc")?.addEventListener("wheel", (event) => {
     const select = event.target?.closest?.("select[data-qc-fact-role='supported']");
     if (!select) return;

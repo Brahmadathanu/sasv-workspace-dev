@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v363"; // WP-07 D6 B5 fact correction, Others mapping, filling preflight
+const CACHE_NAME = "hub-cache-v364"; // WP-07 D7 QC filling client, Save stays disabled while the portal control is labelled Submit
 
 const PRECACHE = [
   // Hub shell
