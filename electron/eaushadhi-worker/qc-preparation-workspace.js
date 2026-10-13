@@ -1269,6 +1269,198 @@ async function readQcFillPreflight({ productId, accessToken, preparationId, call
   };
 }
 
+const QC_PREP_RUN_ARM_RPC = "rpc_eaushadhi_qc_prep_run_arm_v1";
+const QC_PREP_RUN_PRE_SAVE_RPC = "rpc_eaushadhi_qc_prep_run_pre_save_v1";
+const QC_PREP_RUN_RECORD_SAVE_RPC = "rpc_eaushadhi_qc_prep_run_record_save_v1";
+const QC_PREP_RUN_RESOLVE_RPC = "rpc_eaushadhi_qc_prep_run_resolve_ambiguous_v1";
+const QC_PREP_RUN_VERIFY_ROW_RPC = "rpc_eaushadhi_qc_prep_run_verify_row_v1";
+
+function mapQcPrepRunError(error) {
+  if (error instanceof WorkerError) return error;
+  const code = String(error?.code || error?.errcode || "");
+  const message = String(error?.message || "");
+  const known = [
+    ["READINESS_CHANGED", ERROR_KINDS.STALE, "Readiness changed. Reload preflight. Nothing was armed."],
+    ["PROVISIONAL_LAB_ACK_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the provisional laboratory acknowledgement and write at least 10 characters."],
+    ["DERIVED_FACT_ACK_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the derived-date acknowledgement and write at least 10 characters."],
+    ["PAGE_IDENTITY_INVALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "The portal page is not Add QC Register for product 262. Nothing was armed."],
+    ["BEFORE_LIST_EVIDENCE_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC list was not fully read. Nothing was armed."],
+    ["AFTER_LIST_EVIDENCE_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC list was not fully read."],
+    ["ACTIVE_RUN_EXISTS", ERROR_KINDS.STALE, "A QC filling run is already open. Continue that run."],
+    ["ALREADY_ROW_VERIFIED", ERROR_KINDS.PREFLIGHT_DENIED, "A QC row is already verified for this product. Filling will not start."],
+    ["ARM_BLOCKED", ERROR_KINDS.PREFLIGHT_DENIED, "Filling was not started."],
+    ["SAVE_ONLY_SUBMIT_REFUSED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Submit is not allowed. The outcome was not recorded as a successful Save."],
+    ["restricted to Product 262", ERROR_KINDS.AUTHORIZATION, "QC filling is only for product 262."],
+    ["RUN_NOT_FOUND", ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC filling run was not found."],
+  ];
+  for (const [needle, kind, text] of known) {
+    if (message.includes(needle)) return workerError(kind, text);
+  }
+  if (code === "42501" || code === "PGRST301") {
+    return workerError(ERROR_KINDS.AUTHORIZATION, "QC filling is only for product 262.");
+  }
+  if (code === "40001") return workerError(ERROR_KINDS.STALE, "Readiness changed. Reload preflight. Nothing was armed.");
+  if (code === "PGRST202") return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Not available on the server yet.");
+  return workerError(ERROR_KINDS.CRASH, "QC filling failed.");
+}
+
+async function armQcPrepRun({
+  productId,
+  accessToken,
+  preparationId,
+  expectedReadinessTuple,
+  provisionalLabAck,
+  provisionalAckNote,
+  pageIdentityEvidence,
+  beforeListEvidence,
+  derivedFactAck,
+  derivedFactAckNote,
+  callRpc,
+} = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "QC filling was not accepted.");
+  let data;
+  try {
+    data = await callRpc(token, QC_PREP_RUN_ARM_RPC, {
+      p_product_id: id,
+      p_preparation_id: preparation,
+      p_expected_readiness_tuple: String(expectedReadinessTuple || ""),
+      p_provisional_lab_ack: provisionalLabAck === true,
+      p_provisional_ack_note: String(provisionalAckNote || ""),
+      p_page_identity_evidence: pageIdentityEvidence,
+      p_before_list_evidence: beforeListEvidence,
+      p_derived_fact_ack: derivedFactAck === true,
+      p_derived_fact_ack_note: String(derivedFactAckNote || ""),
+    });
+  } catch (error) {
+    throw mapQcPrepRunError(error);
+  }
+  if (!data || data.run_status !== "SAVE_ARMED" || !data.run_id) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC filling was not armed.");
+  }
+  return data;
+}
+
+async function preSaveQcPrepRun({
+  accessToken,
+  runId,
+  pageIdentityEvidence,
+  filledValues,
+  callRpc,
+} = {}) {
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const run = assertQcUuid(runId, "QC filling was not accepted.");
+  let data;
+  try {
+    data = await callRpc(token, QC_PREP_RUN_PRE_SAVE_RPC, {
+      p_run_id: run,
+      p_page_identity_evidence: pageIdentityEvidence,
+      p_filled_values: filledValues,
+    });
+  } catch (error) {
+    throw mapQcPrepRunError(error);
+  }
+  if (!data || typeof data !== "object") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The save check was not accepted.");
+  }
+  return data;
+}
+
+async function recordQcPrepRunSave({
+  accessToken,
+  runId,
+  preSaveToken,
+  saveOutcome,
+  saveEvidence,
+  callRpc,
+} = {}) {
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const run = assertQcUuid(runId, "QC filling was not accepted.");
+  if (!["CONFIRMED", "AMBIGUOUS", "REJECTED"].includes(saveOutcome)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The save result was not accepted.");
+  }
+  if (!saveEvidence || saveEvidence.action !== "SAVE" || saveEvidence.submitted === true) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Submit is not allowed. The outcome was not recorded as a successful Save.");
+  }
+  let data;
+  try {
+    data = await callRpc(token, QC_PREP_RUN_RECORD_SAVE_RPC, {
+      p_run_id: run,
+      p_pre_save_token: preSaveToken || null,
+      p_save_outcome: saveOutcome,
+      p_save_evidence: saveEvidence,
+    });
+  } catch (error) {
+    throw mapQcPrepRunError(error);
+  }
+  if (!data || typeof data.run_status !== "string") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The save result was not recorded.");
+  }
+  return data;
+}
+
+async function resolveQcPrepRunAmbiguous({
+  accessToken,
+  runId,
+  resolution,
+  afterListEvidence,
+  note,
+  attest,
+  callRpc,
+} = {}) {
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const run = assertQcUuid(runId, "QC filling was not accepted.");
+  let data;
+  try {
+    data = await callRpc(token, QC_PREP_RUN_RESOLVE_RPC, {
+      p_run_id: run,
+      p_resolution: resolution,
+      p_after_list_evidence: afterListEvidence,
+      p_note: note,
+      p_attest: attest === true,
+    });
+  } catch (error) {
+    throw mapQcPrepRunError(error);
+  }
+  if (!data || typeof data.run_status !== "string") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The list result was not accepted.");
+  }
+  return data;
+}
+
+async function verifyQcPrepRunRow({
+  accessToken,
+  runId,
+  afterListEvidence,
+  rereadValues,
+  resolvedPortalRowId,
+  callRpc,
+} = {}) {
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const run = assertQcUuid(runId, "QC filling was not accepted.");
+  let data;
+  try {
+    data = await callRpc(token, QC_PREP_RUN_VERIFY_ROW_RPC, {
+      p_run_id: run,
+      p_after_list_evidence: afterListEvidence,
+      p_reread_values: rereadValues,
+      p_resolved_portal_row_id: String(resolvedPortalRowId || ""),
+    });
+  } catch (error) {
+    throw mapQcPrepRunError(error);
+  }
+  if (!data || typeof data.run_status !== "string") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The row check was not accepted.");
+  }
+  return data;
+}
+
 module.exports = {
   QC_PROTOCOL_OPTIONS_RPC,
   QC_LABORATORY_OPTIONS_RPC,
@@ -1320,5 +1512,11 @@ module.exports = {
   verifyQcProtocolMapping,
   mapQcFillPreflightError,
   readQcFillPreflight,
+  mapQcPrepRunError,
+  armQcPrepRun,
+  preSaveQcPrepRun,
+  recordQcPrepRunSave,
+  resolveQcPrepRunAmbiguous,
+  verifyQcPrepRunRow,
   recordQcLabDecision,
 };

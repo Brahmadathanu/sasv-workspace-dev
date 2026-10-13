@@ -48,6 +48,8 @@ const { buildProductDetailsLiveAdapters } = require("./product-details-live-adap
 const { createCompositionExecutor } = require("./composition-executor");
 const { buildCompositionLiveAdapters } = require("./composition-live-adapters");
 const { isCompositionLiveArmedFor } = require("./composition-live-arm");
+const { createQcPrepRunExecutor } = require("./qc-prep-run-executor");
+const { buildQcPrepRunLive } = require("./qc-prep-run-live");
 
 /** Phase A: capability exists; live mutation remains disarmed until Phase B. */
 const PRODUCT_DETAILS_LIVE_ARMED = isProductDetailsLiveArmedFor(PD_PRODUCT_ID);
@@ -145,6 +147,13 @@ function createEaushadhiWorker({
   let portalContract = null;
   const rpcCall = typeof callRpc === "function" ? callRpc : callWorkerRpc;
   const compositionExecutor = createCompositionExecutor();
+  const qcPrepRun = createQcPrepRunExecutor({
+    live: buildQcPrepRunLive({
+      getPage: () => controlledPage,
+      getWorkerState: () => machine.get(),
+      log,
+    }),
+  });
   const requireSection =
     typeof requireContractFn === "function" ? requireContractFn : requireContract;
 
@@ -1282,6 +1291,52 @@ function createEaushadhiWorker({
     }
   }
 
+  async function executeQcPrepRun(rawProductId, rawAccessToken, rawCommand = {}) {
+    const id = validateProductId(rawProductId);
+    const accessToken = validateAccessToken(rawAccessToken);
+    if (id !== PD_PRODUCT_ID) {
+      throw workerError(ERROR_KINDS.PRODUCT_NOT_ALLOWED, "QC filling is only for product 262.");
+    }
+    const action = String(rawCommand?.action || "");
+    const command = {
+      productId: id,
+      accessToken,
+      preparationId: rawCommand?.preparationId,
+      userConfirmed: rawCommand?.userConfirmed === true,
+      provisionalAck: rawCommand?.provisionalAck === true,
+      provisionalNote: typeof rawCommand?.provisionalNote === "string" ? rawCommand.provisionalNote : "",
+      derivedAck: rawCommand?.derivedAck === true,
+      derivedNote: typeof rawCommand?.derivedNote === "string" ? rawCommand.derivedNote : "",
+      filename: typeof rawCommand?.filename === "string" ? rawCommand.filename : "",
+      bytes: rawCommand?.bytes,
+      resolution: rawCommand?.resolution,
+      note: typeof rawCommand?.note === "string" ? rawCommand.note : "",
+      attest: rawCommand?.attest === true,
+      runId: rawCommand?.runId,
+      callRpc: rpcCall,
+    };
+    const handlers = {
+      status: () => qcPrepRun.status(),
+      arm: () => qcPrepRun.arm(command),
+      fill: () => qcPrepRun.fill(command),
+      checkPdf: () => qcPrepRun.checkPdf(command),
+      preSave: () => qcPrepRun.preSave(command),
+      save: () => qcPrepRun.save(command),
+      recover: () => qcPrepRun.recover(command),
+      resolve: () => qcPrepRun.resolve(command),
+      verify: () => qcPrepRun.verify(command),
+    };
+    if (typeof handlers[action] !== "function") {
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC filling was not accepted.");
+    }
+    const result = await handlers[action]();
+    if (result && typeof result === "object") {
+      delete result.pre_save_token;
+      delete result.token;
+    }
+    return result;
+  }
+
   async function openLastCaptureFolder(rawAccessToken, { openPath } = {}) {
     const accessToken = validateAccessToken(rawAccessToken);
     await requireViewPermission(accessToken);
@@ -1324,6 +1379,7 @@ function createEaushadhiWorker({
     verifyCompositionStageExecution,
     capturePortalContract,
     openLastCaptureFolder,
+    executeQcPrepRun,
   };
 }
 

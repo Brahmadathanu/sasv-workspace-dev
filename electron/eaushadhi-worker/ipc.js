@@ -65,6 +65,7 @@ const CHANNELS = Object.freeze({
   QC_FACT_CORRECT: "eaushadhi-worker:qc-fact-correct",
   QC_PROTOCOL_MAPPING_VERIFY: "eaushadhi-worker:qc-protocol-mapping-verify",
   QC_FILL_PREFLIGHT: "eaushadhi-worker:qc-fill-preflight",
+  QC_PREP_RUN: "eaushadhi-worker:qc-prep-run",
   QC_LAB_DECISION: "eaushadhi-worker:qc-lab-decision",
   QC_REPORT_LIST: "eaushadhi-worker:qc-report-list",
   QC_REPORT_RESERVE: "eaushadhi-worker:qc-report-reserve",
@@ -557,6 +558,29 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         accessToken,
         preparationId: payload?.preparationId,
         callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREP_RUN,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.executeQcPrepRun(productId, accessToken, {
+        action: payload?.action,
+        preparationId: payload?.preparationId,
+        userConfirmed: payload?.userConfirmed === true,
+        provisionalAck: payload?.provisionalAck === true,
+        provisionalNote: payload?.provisionalNote,
+        derivedAck: payload?.derivedAck === true,
+        derivedNote: payload?.derivedNote,
+        filename: payload?.filename,
+        bytes: payload?.bytes,
+        resolution: payload?.resolution,
+        note: payload?.note,
+        attest: payload?.attest === true,
+        runId: payload?.runId,
       });
     }),
   );

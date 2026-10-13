@@ -305,6 +305,7 @@ const ui = new Function(
    const openQcConfirm = { showing: false };
    function qcPrepForm() { return state.qcPrepForm; }
    function canWrite() { return access.canEdit === true; }
+   function workerApiAvailable() { return false; }
    function qcHtmlEscape(value) {
      return String(value ?? "")
        .replace(/&/g, "&amp;")
@@ -331,7 +332,11 @@ const ui = new Function(
    ${extractFunction(controlSrc, "qcEnsureMappingDraft")}
    ${extractFunction(controlSrc, "qcProtocolMappingCardHtml")}
    ${extractFunction(controlSrc, "qcFillBlockerText")}
+   ${extractFunction(controlSrc, "qcSeedFillAcks")}
+   ${extractFunction(controlSrc, "qcFillArmReady")}
    ${extractFunction(controlSrc, "qcFillPreflightCardHtml")}
+   const QC_FILL_PROVISIONAL_PREFILL = ${JSON.stringify("I acknowledge HARIDEV FORMULATIONS is an internal provisional portal laboratory selection; NUPAL is the report issuer; legal identity and portal eligibility are not verified.")};
+   const QC_FILL_SAVE_BLOCKED = ${JSON.stringify("The portal control that runs Save is labelled Submit. Save was not pressed.")};
    const QC_FILL_QUALIFICATION = ${JSON.stringify("Portal laboratory is an internal provisional selection. It is not the report issuer, and legal laboratory identity and portal eligibility are not verified.")};
    const QC_FILL_BLOCKER_TEXT = ${JSON.stringify({
      READINESS_NOT_READY: "Readiness is not Ready (provisional) yet",
@@ -448,8 +453,8 @@ ui.state.qcFillPreflight = {
 const preflightHtml = ui.qcFillPreflightCardHtml();
 assert(preflightHtml.includes("No blockers") && preflightHtml.includes('style="color:#166534"'), "an empty blocker list is green");
 assert(preflightHtml.includes("Portal laboratory is an internal provisional selection. It is not the report issuer, and legal laboratory identity and portal eligibility are not verified."), "the qualification statement is verbatim");
-assert(preflightHtml.includes('id="qcFillDerivedAck" type="checkbox" disabled') && preflightHtml.includes('id="qcFillDerivedNote" disabled'), "derived acknowledgement fields are disabled");
-assert(preflightHtml.includes("Required when filling starts (D7).") && preflightHtml.includes("Save only; Submit is out of scope."), "filling acknowledgement stays parked");
+assert(preflightHtml.includes('id="qcFillDerivedAck" type="checkbox" disabled') && preflightHtml.includes('id="qcFillDerivedNote" disabled'), "derived acknowledgement stays disabled without the worker");
+assert(preflightHtml.includes("Required when filling starts.") && preflightHtml.includes("Save only; Submit is not allowed."), "filling stays Save-only");
 
 const forbidden = [
   "rpc_eaushadhi_qc_prep_run_arm_v1",
@@ -459,7 +464,8 @@ const forbidden = [
   "rpc_eaushadhi_qc_prep_run_verify_row_v1",
 ];
 for (const name of forbidden) {
-  assert(!controlSrc.includes(name) && !clientSrc.includes(name) && !workerSrc.includes(name) && !ipcSrc.includes(name) && !preloadSrc.includes(name), `${name} is not wired in the client or worker`);
+  assert(!controlSrc.includes(name) && !clientSrc.includes(name) && !preloadSrc.includes(name), `${name} is not called from the renderer`);
+  assert(workerSrc.includes(name), `${name} stays on the worker`);
 }
 for (const name of ["loadQcFillPreflight", "queueQcFillPreflight", "renderQc", "loadQcReadiness"]) {
   const body = extractFunction(controlSrc, name);
