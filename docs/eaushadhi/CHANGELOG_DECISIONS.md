@@ -300,3 +300,16 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Operator-asserted facts (study start date, testing protocol) need acceptance by an editor other than the one who verified the evidence. Self-acceptance is recorded but blocks readiness.
 - Legacy `eaushadhi_qc_snapshot_v1` now requires the study document to be the current, non-superseded binding of a READY preparation. A claimed checksum, a malformed ID or a provisional state never counts.
 - **READY_PROVISIONAL counts as ready for e-Aushadhi portal filling in B5** (operator decision 2026-10-12). It still does not permit canonical stability-study promotion. Legal laboratory identity and portal eligibility remain unverified, and the B5 filling log must record that the laboratory was provisional.
+
+## 2026-10-13 — WP-07 B5 R2.4 live (preparation-based QC filling contract)
+- B5 applied as `20261013095629_wp07_b5_r2_qc_prep_run` (repository file byte-exact, md5 `866d19f7565f2520099e602e14ebbd55`).
+- Fact acceptances are corrected via an append-only chain (`supersedes_acceptance_id`, `correction_reason`); originals kept; the head governs readiness; the distinct-editor rule is unchanged. New category OPERATOR_DERIVATION.
+- Operator facts: Study Start Date 01-10-2021 is DERIVED as the earliest batch manufacturing date on the NUPAL COA; Testing Protocol (Others: Cross Sectional Approach, API Vol VIII p.226) is OPERATOR-CHOSEN and not on the COA. The existing acceptances #1/#2 ("Collected from the COA provided by the laboratory.") are inaccurate and must be corrected by a distinct editor.
+- QC_PROTOCOL mappings get their own governed verify (the reference-mapping verify only accepts REFERENCE_WORK). Mapping 32 (Others → 493) is DRAFT until the operator verifies it.
+- Filling contract:
+  - frozen values = portal `qcdetails` keys; Others text posted as typeOfStudy; compact batchNo `3369,4896,2434,3250,3738,4601,5201`;
+  - provisional-lab and derived-date acknowledgements at arm;
+  - single-use 120 s pre-save token consumed at Save record; stale or invalid → SAVE_UNAUTHORIZED; no auto-retry; Save only, Submit refused;
+  - row verification separate from document; FULLY_VERIFIED only via a service-role trusted-fetch recorder (not available yet: portal attachment retrieval needs a portal session), so runs stop at ROW_VERIFIED_DOCUMENT_NOT_VERIFIED;
+  - the readiness/lab qualification is in every event.
+- D6 adds the correction, mapping-verify and read-only preflight UI. Arm/Save UI is parked to D7.

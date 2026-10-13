@@ -15,6 +15,9 @@ const {
   recheckQcEvidence,
   readQcReadiness,
   acceptQcFact,
+  correctQcFactAcceptance,
+  verifyQcProtocolMapping,
+  readQcFillPreflight,
   recordQcLabDecision,
 } = require("./qc-preparation-workspace");
 const { readQcReport } = require("./qc-report-read");
@@ -59,6 +62,9 @@ const CHANNELS = Object.freeze({
   QC_EVIDENCE_RECHECK: "eaushadhi-worker:qc-evidence-recheck",
   QC_READINESS: "eaushadhi-worker:qc-readiness",
   QC_FACT_ACCEPT: "eaushadhi-worker:qc-fact-accept",
+  QC_FACT_CORRECT: "eaushadhi-worker:qc-fact-correct",
+  QC_PROTOCOL_MAPPING_VERIFY: "eaushadhi-worker:qc-protocol-mapping-verify",
+  QC_FILL_PREFLIGHT: "eaushadhi-worker:qc-fill-preflight",
   QC_LAB_DECISION: "eaushadhi-worker:qc-lab-decision",
   QC_REPORT_LIST: "eaushadhi-worker:qc-report-list",
   QC_REPORT_RESERVE: "eaushadhi-worker:qc-report-reserve",
@@ -498,6 +504,58 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         basisCategory: payload?.basisCategory,
         basisNote: payload?.basisNote,
         attest: payload?.attest === true,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_FACT_CORRECT,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return correctQcFactAcceptance({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        supersedesAcceptanceId: payload?.supersedesAcceptanceId,
+        basisCategory: payload?.basisCategory,
+        basisNote: payload?.basisNote,
+        correctionReason: payload?.correctionReason,
+        attest: payload?.attest === true,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PROTOCOL_MAPPING_VERIFY,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return verifyQcProtocolMapping({
+        productId,
+        accessToken,
+        mappingId: payload?.mappingId,
+        expectedStatus: payload?.expectedStatus,
+        expectedPortalOptionId: payload?.expectedPortalOptionId,
+        mappingReason: payload?.mappingReason,
+        attest: payload?.attest === true,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_FILL_PREFLIGHT,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return readQcFillPreflight({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
         callRpc: callWorkerRpc,
       });
     }),

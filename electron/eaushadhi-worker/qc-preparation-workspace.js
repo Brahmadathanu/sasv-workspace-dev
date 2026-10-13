@@ -14,6 +14,9 @@ const QC_PREPARATION_REOPEN_RPC = "rpc_eaushadhi_qc_preparation_reopen_v1";
 const QC_EVIDENCE_RECHECK_RPC = "rpc_eaushadhi_qc_evidence_recheck_v1";
 const QC_READINESS_RPC = "rpc_eaushadhi_qc_readiness_v1";
 const QC_FACT_ACCEPT_RPC = "rpc_eaushadhi_qc_fact_accept_v1";
+const QC_FACT_CORRECT_RPC = "rpc_eaushadhi_qc_fact_acceptance_correct_v1";
+const QC_PROTOCOL_MAPPING_VERIFY_RPC = "rpc_eaushadhi_qc_protocol_mapping_verify_v1";
+const QC_FILL_PREFLIGHT_RPC = "rpc_eaushadhi_qc_prep_run_preflight_v1";
 const QC_LAB_DECISION_RPC = "rpc_eaushadhi_qc_lab_decision_record_v1";
 const QC_ACCEPT_FACT_KEYS = ["study_start_date", "testing_protocol"];
 const QC_BASIS_CATEGORIES = [
@@ -22,6 +25,7 @@ const QC_BASIS_CATEGORIES = [
   "REGULATORY_GUIDANCE",
   "LABORATORY_CORRESPONDENCE",
   "OPERATOR_DETERMINATION",
+  "OPERATOR_DERIVATION",
 ];
 const QC_LAB_ACTIONS = ["INITIAL", "CORRECTION", "REPLACEMENT", "WITHDRAWAL"];
 const QC_LAB_BASIS_TYPE = "CROSS_LABORATORY_TIE_UP";
@@ -880,8 +884,23 @@ function mapQcGovernanceError(error, fallback) {
   }
   const table = [
     ["SUPERSEDES_NOT_CURRENT_HEAD", ERROR_KINDS.STALE, "Someone changed the laboratory decision. Reload and try again."],
+    ["ACCEPTANCE_ALREADY_SUPERSEDED", ERROR_KINDS.STALE, "Someone already corrected this acceptance. Reload and try again."],
     ["EVIDENCE_NOT_CURRENT", ERROR_KINDS.STALE, "The verified evidence changed. Reload and try again."],
+    ["MAPPING_STATE_CHANGED", ERROR_KINDS.STALE, "The mapping changed. Reload and try again."],
+    ["MAPPING_OPTION_CHANGED", ERROR_KINDS.STALE, "The portal option changed. Reload and try again."],
     ["Stale QC draft version", ERROR_KINDS.STALE, "Someone changed this draft. Reload and try again."],
+    ["ACCEPTANCE_NOT_ON_CURRENT_BINDING", ERROR_KINDS.CONTRACT_INCOMPLETE, "This acceptance belongs to older evidence."],
+    ["CORRECTION_REASON_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a correction reason of at least 10 characters."],
+    ["MAPPING_REASON_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a mapping reason of at least 10 characters."],
+    ["ONLY_DRAFT_CAN_BE_VERIFIED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Only a draft mapping can be verified."],
+    ["MAPPING_NOT_CURRENT", ERROR_KINDS.CONTRACT_INCOMPLETE, "This mapping is not current."],
+    ["TERM_NOT_ACTIVE_QC_PROTOCOL", ERROR_KINDS.CONTRACT_INCOMPLETE, "The protocol term is not an active QC protocol."],
+    ["OPTION_NOT_ACTIVE_QC_PROTOCOL", ERROR_KINDS.CONTRACT_INCOMPLETE, "The portal option is not an active QC protocol option."],
+    ["TERM_ALREADY_HAS_VERIFIED_MAPPING", ERROR_KINDS.CONTRACT_INCOMPLETE, "This protocol already has a verified mapping."],
+    ["ACCEPTANCE_NOT_FOUND", ERROR_KINDS.CONTRACT_INCOMPLETE, "That acceptance was not found."],
+    ["MAPPING_NOT_FOUND", ERROR_KINDS.CONTRACT_INCOMPLETE, "The mapping was not found."],
+    ["QC draft missing", ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC draft is missing."],
+    ["QC draft not found for product", ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC draft was not found."],
     ["ATTESTATION_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first."],
     ["BASIS_NOTE_REQUIRED", ERROR_KINDS.CONTRACT_INCOMPLETE, "Write a basis note of at least 10 characters."],
     ["BASIS_CATEGORY_INVALID", ERROR_KINDS.CONTRACT_INCOMPLETE, "Choose a valid basis category."],
@@ -1094,6 +1113,162 @@ async function recordQcLabDecision({
   };
 }
 
+function mapQcFillPreflightError(error) {
+  if (error instanceof WorkerError) return error;
+  const code = String(error?.code || error?.errcode || "");
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || "");
+  if (code === "PGRST202" || status === 404 || message.includes("PGRST202")) {
+    return workerError(ERROR_KINDS.PREFLIGHT_DENIED, "Not available on the server yet.");
+  }
+  if (code === "42501" || status === 401 || status === 403) {
+    return workerError(ERROR_KINDS.AUTHORIZATION, "You need view permission for e-Aushadhi.");
+  }
+  if (code === "P0002" || message.includes("QC draft")) {
+    return workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC draft was not found.");
+  }
+  return workerError(ERROR_KINDS.CRASH, "QC filling preflight failed.");
+}
+
+async function correctQcFactAcceptance({
+  productId,
+  accessToken,
+  preparationId,
+  expectedRowVersion,
+  supersedesAcceptanceId,
+  basisCategory,
+  basisNote,
+  correctionReason,
+  attest,
+  callRpc,
+} = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "Fact correction was not accepted.");
+  const version = assertQcRowVersion(expectedRowVersion, "Fact correction was not accepted.");
+  const supersedes = assertQcRowVersion(supersedesAcceptanceId, "Fact correction was not accepted.");
+  if (attest !== true) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first.");
+  }
+  if (!QC_BASIS_CATEGORIES.includes(basisCategory)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Choose a valid basis category.");
+  }
+  const note = assertTrimmedSpan(basisNote, 10, 2000, "Write a basis note of at least 10 characters.");
+  const reason = assertTrimmedSpan(correctionReason, 10, 2000, "Write a correction reason of at least 10 characters.");
+  let data;
+  try {
+    data = await callRpc(token, QC_FACT_CORRECT_RPC, {
+      p_preparation_id: preparation,
+      p_expected_row_version: version,
+      p_supersedes_acceptance_id: supersedes,
+      p_basis_category: basisCategory,
+      p_basis_note: note,
+      p_correction_reason: reason,
+      p_attest: true,
+    });
+  } catch (error) {
+    throw mapQcGovernanceError(error, "Fact correction failed.");
+  }
+  if (!data || typeof data !== "object" || data.acceptance_id == null) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Fact correction was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-fact-correct",
+    productId: id,
+    acceptance_id: data.acceptance_id,
+    supersedes_acceptance_id: data.supersedes_acceptance_id,
+    binding_id: data.binding_id,
+    fact_key: data.fact_key,
+    self_accepted: data.self_accepted === true,
+    mutated: true,
+  };
+}
+
+async function verifyQcProtocolMapping({
+  productId,
+  accessToken,
+  mappingId,
+  expectedStatus,
+  expectedPortalOptionId,
+  mappingReason,
+  attest,
+  callRpc,
+} = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const mapping = assertQcRowVersion(mappingId, "Protocol mapping verification was not accepted.");
+  if (expectedStatus !== "DRAFT") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Only a draft mapping can be verified.");
+  }
+  const optionId = assertQcRowVersion(expectedPortalOptionId, "Protocol mapping verification was not accepted.");
+  if (attest !== true) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Tick the confirmation first.");
+  }
+  const reason = assertTrimmedSpan(mappingReason, 10, 2000, "Write a mapping reason of at least 10 characters.");
+  let data;
+  try {
+    data = await callRpc(token, QC_PROTOCOL_MAPPING_VERIFY_RPC, {
+      p_mapping_id: mapping,
+      p_expected_status: "DRAFT",
+      p_expected_portal_option_id: optionId,
+      p_mapping_reason: reason,
+      p_attest: true,
+    });
+  } catch (error) {
+    throw mapQcGovernanceError(error, "Protocol mapping verification failed.");
+  }
+  if (!data || typeof data !== "object" || data.mapping_id == null || data.mapping_status !== "VERIFIED") {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "Protocol mapping verification was not accepted.");
+  }
+  return {
+    ok: true,
+    operation: "qc-protocol-mapping-verify",
+    productId: id,
+    mapping_id: data.mapping_id,
+    mapping_status: data.mapping_status,
+    term_code: data.term_code,
+    portal_external_id: data.portal_external_id,
+    portal_label: data.portal_label,
+    verified_by: data.verified_by,
+    mutated: true,
+  };
+}
+
+async function readQcFillPreflight({ productId, accessToken, preparationId, callRpc } = {}) {
+  const id = assertWorkspaceProduct(productId);
+  const token = validateAccessToken(accessToken);
+  assertRpc(callRpc);
+  const preparation = assertQcUuid(preparationId, "QC filling preflight was not accepted.");
+  let data;
+  try {
+    data = await callRpc(token, QC_FILL_PREFLIGHT_RPC, {
+      p_product_id: id,
+      p_preparation_id: preparation,
+    });
+  } catch (error) {
+    throw mapQcFillPreflightError(error);
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC filling preflight was not accepted.");
+  }
+  const mapping = data.protocol_mapping;
+  return {
+    ok: true,
+    operation: "qc-fill-preflight",
+    productId: id,
+    blockers: Array.isArray(data.blockers) ? data.blockers.map((code) => String(code)) : [],
+    readiness: data.readiness && typeof data.readiness === "object" && !Array.isArray(data.readiness) ? data.readiness : null,
+    protocol_mapping: mapping && typeof mapping === "object" && !Array.isArray(mapping) ? mapping : null,
+    fill_fields: data.fill_fields && typeof data.fill_fields === "object" && !Array.isArray(data.fill_fields) ? data.fill_fields : null,
+    context: data.context && typeof data.context === "object" && !Array.isArray(data.context) ? data.context : null,
+    runs: Array.isArray(data.runs) ? data.runs : [],
+    mutated: false,
+  };
+}
+
 module.exports = {
   QC_PROTOCOL_OPTIONS_RPC,
   QC_LABORATORY_OPTIONS_RPC,
@@ -1105,6 +1280,9 @@ module.exports = {
   QC_EVIDENCE_RECHECK_RPC,
   QC_READINESS_RPC,
   QC_FACT_ACCEPT_RPC,
+  QC_FACT_CORRECT_RPC,
+  QC_PROTOCOL_MAPPING_VERIFY_RPC,
+  QC_FILL_PREFLIGHT_RPC,
   QC_LAB_DECISION_RPC,
   QC_ACCEPT_FACT_KEYS,
   QC_BASIS_CATEGORIES,
@@ -1138,5 +1316,9 @@ module.exports = {
   mapQcGovernanceError,
   readQcReadiness,
   acceptQcFact,
+  correctQcFactAcceptance,
+  verifyQcProtocolMapping,
+  mapQcFillPreflightError,
+  readQcFillPreflight,
   recordQcLabDecision,
 };
