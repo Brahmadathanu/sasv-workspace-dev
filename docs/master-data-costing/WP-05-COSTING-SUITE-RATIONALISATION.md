@@ -23,7 +23,9 @@ No server or client mutation in G0/G1. No e-Aushadhi changes (parallel WP-07 e-A
 |---|---|
 | WP05-G0 — entry criteria / start | [x] COMPLETED AND VERIFIED (2026-10-13 22:07 IST) |
 | WP05-G1 — current-state/audit gate | [~] IN PROGRESS — audit complete, self-audited (§11), owner decisions D1–D7 recorded 2026-10-13 (DEC-016…DEC-022); awaiting independent ChatGPT audit of the pushed docs branch + docs merge approval |
-| WP05-G2 — design/contract gate | [~] DRAFTED (§12) — not approved; opens formally when G1 closes |
+| WP05-G2 — design/contract gate | [~] DRAFTED (§12), owner business choices Q1–Q5 resolved; pending independent plan audit of high-risk packages (S1, S2, S3, S4, C2) |
+| WP05-C1 — dead mapping cleanup (routine) | [~] IN PROGRESS — draft PR, awaiting audit |
+| WP05-S1 — KPI view rebuild prep | [~] SQL + read-only value-match proof drafted (`docs/master-data-costing/wp05-s1/`); NOT applied |
 | WP05-G3 — implementation gate(s) | [ ] NOT STARTED |
 | WP05-G4 — focused verification | [ ] |
 | WP05-G5 — independent audit | [ ] |
@@ -41,7 +43,7 @@ No server or client mutation in G0/G1. No e-Aushadhi changes (parallel WP-07 e-A
 2. [x] Programme owner decisions D1–D7 recorded (§8, CHANGELOG_DECISIONS DEC-016…DEC-022).
 3. [x] Discoveries classified (§7); PARKED items recorded in PARKED_BACKLOG.md (CCC-P05, CCC-P06; CCC-P01/P02/P03 dispositioned).
 4. [ ] Docs committed on a pushed docs branch and merged with explicit approval (currently local commit only on `local/wp05-g1-audit`).
-5. [ ] Owner answers to the open questions Q1–Q4 in §12.0 (needed before G2 approval, not before G1 closure).
+5. [x] Owner answers Q1–Q5 recorded (§12.0, DEC-023…DEC-027).
 
 ## Next gate
 `WP05-G2 — design/contract gate` — draft in §12; approval requires independent plan audit (high-risk items) and answers to Q1–Q4.
@@ -257,7 +259,10 @@ Remaining limitations (not fixable read-only): no GitHub CI evidence; pg_stat_st
 
 ## 12. G2 design / contract draft (NOT APPROVED)
 
-### 12.0 Open questions for the owner (plain language)
+### 12.0 Owner questions — ANSWERED 2026-10-13 (DEC-023…DEC-027)
+All five recommendations approved: **Q1 (a)** one official run per month; **Q2 (a)** Readiness opens on master-data view with a switch; **Q3** hide un-numbered 2026-06 rows with a note, never delete; **Q4** 14-day block-and-watch window including one completed month-end costing run; **Q5** retire `v_product_mrp_adjustment_evidence` with a restore script.
+
+Original questions:
 - **Q1 — How much costing history should the new Readiness "costing month" view show?** Today the system keeps every costing run (September has 24 runs), but the screen only ever showed the final, official run per month. Options: (a) one official run per month (same as today, no new server work beyond S4); (b) every run of every month, so you can compare runs within a month (bigger server work, more data on screen). *Recommendation: (a), with history going back to every month already kept.*
 - **Q2 — What should the Readiness tab open on?** (a) the current "is master data complete" view (today's Readiness), with a switch to the costing-month view; (b) the costing-month view. *Recommendation: (a).*
 - **Q3 — Old 2026-06 rows with no run number** (656 rows). Show them as "unverified history" or hide them? *Recommendation: hide them by default and show a note; never delete them.*

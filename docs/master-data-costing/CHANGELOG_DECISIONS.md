@@ -145,3 +145,18 @@
 
 ## 2026-10-13 — DEC-022 — WP05 (master-data-costing) — D7 Launcher/IA items deferred
 **Decision:** Six-page launcher placement under "Product & Reference Master" and the PPM/PRM sort-order tie (95) go to WP07/WP09. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-023 — master-data-costing WP05 — Q1 costing-month history depth
+**Decision:** The Readiness "Costing month status" view shows one official (current successful) run per month; per-run comparison within a month is not built. S4 `p_refresh_run_id` stays optional/internal. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-024 — master-data-costing WP05 — Q2 Readiness default view
+**Decision:** Readiness tab opens on "Master-data readiness" with a switch to "Costing month status". **Status:** LOCKED.
+
+## 2026-10-13 — DEC-025 — master-data-costing WP05 — Q3 un-numbered 2026-06 rows
+**Decision:** ~656 snapshot rows for 2026-06 with no refresh run id are hidden by default with an explanatory note; never deleted or rewritten. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-026 — master-data-costing WP05 — Q4 retirement observation window
+**Decision:** Before any view drop (S2, S3): revoke access, then observe 14 days including one completed month-end costing run with no errors; restore script tested on a Supabase branch. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-027 — master-data-costing WP05 — Q5 v_product_mrp_adjustment_evidence
+**Decision:** Retire `public.v_product_mrp_adjustment_evidence` under S3 with a restore script. **Status:** LOCKED.
