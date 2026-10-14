@@ -191,14 +191,37 @@ function withIdentityDetail(sentence, identity) {
 }
 
 function compareReportBytes({ name, bytes, context }) {
-  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes || []);
-  const sha256 = createHash("sha256").update(buffer).digest("hex");
-  const filename = String(name || "").split(/[/\\]/).pop();
+  const chosenFilename = String(name || "").split(/[/\\]/).pop();
   const expectedSha = String(context?.report_sha256 || "").toLowerCase();
   const expectedSize = Number(context?.report_size_bytes);
   const expectedName = String(context?.report_filename || "");
-  const ok = sha256 === expectedSha && buffer.length === expectedSize && filename === expectedName && expectedName !== "";
-  return { ok, sha256, size: buffer.length, filename };
+  const expected = {
+    chosenFilename,
+    filename: expectedName,
+    expectedSha256: expectedSha,
+    expectedSize: Number.isFinite(expectedSize) ? expectedSize : 0,
+  };
+  if (bytes == null) {
+    return { ok: false, sha256: "", size: 0, reason: "NO_FILE", ...expected };
+  }
+  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const sha256 = createHash("sha256").update(buffer).digest("hex");
+  const size = buffer.length;
+  let reason = null;
+  if (!expectedSha) reason = "NO_EXPECTED_HASH";
+  else if (size !== expectedSize) reason = "SIZE_DIFFERS";
+  else if (sha256 !== expectedSha) reason = "SHA256_DIFFERS";
+  return { ok: reason == null, sha256, size, reason, ...expected };
+}
+
+function canReuseArmedRun(run, preflight, preparationId) {
+  if (String(run?.run_status || "") !== "SAVE_ARMED") return false;
+  if (run?.save_outcome != null && String(run.save_outcome) !== "") return false;
+  if (run?.pre_save_token_consumed_at != null && String(run.pre_save_token_consumed_at) !== "") return false;
+  if (run?.preparation_id != null && String(run.preparation_id) !== String(preparationId || "")) return false;
+  const currentTuple = String(preflight?.readiness?.readiness_tuple || "");
+  if (run?.readiness_tuple != null && String(run.readiness_tuple) !== currentTuple) return false;
+  return true;
 }
 
 function verifyDisplay(result) {
@@ -653,7 +676,17 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
             optionLabel: studyMatch ? String(studyMatch.label || "") : "",
           },
           protocolMapping: preflight.protocol_mapping || null,
-          report: report ? { ok: report.ok === true, size: report.size, filename: report.filename, attached: false } : null,
+          report: report ? {
+            ok: report.ok === true,
+            size: report.size,
+            filename: report.filename,
+            chosenFilename: report.chosenFilename || "",
+            sha256: report.sha256 || "",
+            expectedSha256: report.expectedSha256 || "",
+            expectedSize: report.expectedSize,
+            reason: report.reason || null,
+            attached: false,
+          } : null,
           clickedSave: false,
           armed: false,
           recapture,
@@ -752,9 +785,17 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
         if (blockers.length > 0) {
           return refused(blockers.map(String), "Filling was not started.");
         }
-        const active = (preflight.runs || []).find((run) => ACTIVE_RUN_STATUSES.has(String(run?.run_status || "")));
-        if (active) {
-          return refused(["ACTIVE_RUN"], "A QC filling run is already open. Continue that run.");
+        const runs = Array.isArray(preflight.runs) ? preflight.runs : [];
+        const active = runs.find((run) => ACTIVE_RUN_STATUSES.has(String(run?.run_status || "")));
+        const latest = runs[0] || null;
+        let reusedRun = null;
+        let armNote = "";
+        if (active && canReuseArmedRun(active, preflight, input.preparationId)) {
+          reusedRun = active;
+        } else if (active) {
+          return refused(["ACTIVE_RUN"], `A QC filling run ${active.run_id || ""} is already ${active.run_status}.`);
+        } else if (String(latest?.run_status || "") === "PRE_SAVE_ABORTED") {
+          armNote = "previous run was aborted, a new run was armed";
         }
         const portalRef = preflight.context?.portal_product_ref;
         const measured = await live.pageIdentity();
@@ -762,29 +803,40 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
         if (!identity.ok) {
           return refused(["PAGE_IDENTITY_INVALID"], withIdentityDetail("The portal page is not Add QC Register for product 262.", identity));
         }
-        const list = await live.readList();
-        const duplicate = assessQcListDuplicate(list, preflight.fill_fields);
-        if (!duplicate.ok) {
-          const listMessage = duplicate.code === "LIST_INCOMPLETE"
-            ? "List incomplete"
-            : "The QC list was not fully read. Nothing was armed.";
-          return refused([duplicate.code || "LIST"], listMessage);
+        let list = null;
+        let armed = null;
+        if (reusedRun) {
+          armed = {
+            run_id: reusedRun.run_id,
+            run_status: "SAVE_ARMED",
+            fill_fields: reusedRun.fill_fields || preflight.fill_fields,
+            qualification: reusedRun.qualification || "",
+          };
+        } else {
+          list = await live.readList();
+          const duplicate = assessQcListDuplicate(list, preflight.fill_fields);
+          if (!duplicate.ok) {
+            const listMessage = duplicate.code === "LIST_INCOMPLETE"
+              ? "List incomplete"
+              : "The QC list was not fully read. Nothing was armed.";
+            return refused([duplicate.code || "LIST"], listMessage);
+          }
+          const provisionalRequired = preflight.readiness?.status === "READY_PROVISIONAL";
+          const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
+          armed = await armQcPrepRun({
+            productId: input.productId,
+            accessToken: input.accessToken,
+            preparationId: input.preparationId,
+            expectedReadinessTuple: preflight.readiness?.readiness_tuple,
+            provisionalLabAck: provisionalRequired ? true : false,
+            provisionalAckNote: provisionalRequired ? noteAccepted(input.provisionalNote) : "",
+            pageIdentityEvidence: identity.evidence,
+            beforeListEvidence: listEvidence(list),
+            derivedFactAck: derived.length > 0,
+            derivedFactAckNote: derived.length > 0 ? noteAccepted(input.derivedNote) : "",
+            callRpc: input.callRpc,
+          });
         }
-        const provisionalRequired = preflight.readiness?.status === "READY_PROVISIONAL";
-        const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
-        const armed = await armQcPrepRun({
-          productId: input.productId,
-          accessToken: input.accessToken,
-          preparationId: input.preparationId,
-          expectedReadinessTuple: preflight.readiness?.readiness_tuple,
-          provisionalLabAck: provisionalRequired ? true : false,
-          provisionalAckNote: provisionalRequired ? noteAccepted(input.provisionalNote) : "",
-          pageIdentityEvidence: identity.evidence,
-          beforeListEvidence: listEvidence(list),
-          derivedFactAck: derived.length > 0,
-          derivedFactAckNote: derived.length > 0 ? noteAccepted(input.derivedNote) : "",
-          callRpc: input.callRpc,
-        });
         const productValue = String(measured?.productSelected?.value || measured?.productId?.value || "");
         const reportContext = {
           report_sha256: preflight.context?.report_sha256,
@@ -803,22 +855,22 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
           if (typed?.ok === false && typed?.filled === false) reasons.push("LAB_NOT_IN_LIST");
           else filled = typed?.filled_values || null;
         }
-        const fileCompared = input.bytes == null
-          ? { ok: false, filename: "", size: 0 }
-          : compareReportBytes({ name: input.filename, bytes: input.bytes, context: reportContext });
-        if (!fileCompared.ok) reasons.push("FILE_MISMATCH");
+        const fileCompared = compareReportBytes({ name: input.filename, bytes: input.bytes, context: reportContext });
+        let proof = null;
+        if (!fileCompared.ok) reasons.push(fileCompared.reason || "FILE_MISMATCH");
         else if (again.ok) {
-          const proof = await live.attach({ filename: fileCompared.filename, buffer: Buffer.from(input.bytes) });
-          if (proof?.length !== 1 || proof?.name !== fileCompared.filename) reasons.push("FILE_NOT_ATTACHED");
+          proof = await live.attach({ filename: fileCompared.filename, buffer: Buffer.from(input.bytes) });
+          if (proof?.length !== 1 || proof?.name !== fileCompared.filename || Number(proof?.size) !== Number(fileCompared.expectedSize)) {
+            reasons.push("FILE_NOT_ATTACHED");
+          }
         }
         const reread = typeof live.readForm === "function" ? await live.readForm() : { fields: filled || {}, file: { name: "", size: 0, length: 0 } };
         const compared = compareProjection(armed.fill_fields, reread.fields);
         if (!compared.ok) reasons.push(...compared.reasons);
-        const domFileName = String(reread?.file?.name || "");
-        const domFileSize = Number(reread?.file?.size) || 0;
         const fileMatch = fileCompared.ok === true
-          && domFileName === fileCompared.filename
-          && domFileSize === fileCompared.size;
+          && Number(reread?.file?.length) === 1
+          && Number(reread?.file?.size) === Number(fileCompared.expectedSize)
+          && String(reread?.file?.name || "") === String(fileCompared.filename || "");
         if (fileCompared.ok && !fileMatch) reasons.push("FILE_REREAD_MISMATCH");
         let payloadKeys = [];
         if (typeof live.readRecapture === "function") {
@@ -864,14 +916,36 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
           run_id: armed.run_id,
           preparationId: String(input.preparationId || ""),
           fingerprint,
-          arm: { run_id: armed.run_id, run_status: armed.run_status || "SAVE_ARMED" },
+          arm: {
+            reused: reusedRun != null,
+            run_id: armed.run_id,
+            run_status: armed.run_status || "SAVE_ARMED",
+            note: armNote,
+          },
           fields: compared.rows,
           file: {
-            filename: fileCompared.filename || String(input.filename || ""),
-            size: fileCompared.size || 0,
-            expectedFilename: String(reportContext.report_filename || ""),
-            expectedSize: Number(reportContext.report_size_bytes) || 0,
+            expected: {
+              filename: fileCompared.filename || String(reportContext.report_filename || ""),
+              size: Number(fileCompared.expectedSize) || 0,
+              sha256: fileCompared.expectedSha256 || String(reportContext.report_sha256 || ""),
+            },
+            chosen: {
+              filename: fileCompared.chosenFilename || String(input.filename || ""),
+              size: Number(fileCompared.size) || 0,
+              sha256: fileCompared.sha256 || "",
+            },
+            attached: {
+              filename: proof?.name || "",
+              size: Number(proof?.size) || 0,
+              length: Number(proof?.length) || 0,
+            },
+            reread: {
+              filename: String(reread?.file?.name || ""),
+              size: Number(reread?.file?.size) || 0,
+              length: Number(reread?.file?.length) || 0,
+            },
             match: fileMatch,
+            reason: fileCompared.reason || null,
           },
           payloadKeys,
           pre_save: { go, reasons: preSaveReasons },
@@ -908,9 +982,9 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
           ok: outcome === "DRY_RUN_PASS",
           outcome,
           reasons,
-          message: banner || (outcome === "DRY_RUN_PASS"
+          message: [armNote, banner || (outcome === "DRY_RUN_PASS"
             ? "Dry run passed. The form was cleared. Save was not pressed."
-            : "Dry run failed. Save was not pressed."),
+            : "Dry run failed. Save was not pressed.")].filter(Boolean).join(" "),
           banner,
           clicked: false,
           armed: true,

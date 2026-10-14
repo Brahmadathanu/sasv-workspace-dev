@@ -126,7 +126,11 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
       const proof = await page.evaluate((inputId) => {
         const el = document.getElementById(inputId);
         const first = el && el.files ? el.files[0] : null;
-        return { length: el && el.files ? el.files.length : 0, name: first ? first.name : "" };
+        return {
+          length: el && el.files ? el.files.length : 0,
+          name: first ? first.name : "",
+          size: first && first.size != null ? Number(first.size) : 0,
+        };
       }, QC_PORTAL_CONTRACT.fileInputId);
       return proof;
     },

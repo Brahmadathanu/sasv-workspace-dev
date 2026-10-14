@@ -147,6 +147,14 @@ body.sasv-eaushadhi-review .icon-btn.with-label.primary {
   color: var(--sasv-surface, #fff);
 }
 
+body.sasv-eaushadhi-review button.primary:disabled,
+body.sasv-eaushadhi-review .icon-btn.with-label.primary:disabled {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: #f8fafc;
+  opacity: 1;
+}
+
 body.sasv-eaushadhi-review .icon-btn.with-label:disabled,
 body.sasv-eaushadhi-review button:disabled {
   opacity: 0.65;

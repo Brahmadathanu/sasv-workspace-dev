@@ -333,6 +333,7 @@ const ui = new Function(
    ${extractFunction(controlSrc, "qcProtocolMappingCardHtml")}
    ${extractFunction(controlSrc, "qcFillBlockerText")}
    ${extractFunction(controlSrc, "qcSeedFillAcks")}
+   ${extractFunction(controlSrc, "qcFillArmBlockReason")}
    ${extractFunction(controlSrc, "qcFillArmReady")}
    ${extractFunction(controlSrc, "qcFillPreflightCardHtml")}
    const QC_FILL_PROVISIONAL_PREFILL = ${JSON.stringify("I acknowledge HARIDEV FORMULATIONS is an internal provisional portal laboratory selection; NUPAL is the report issuer; legal identity and portal eligibility are not verified.")};

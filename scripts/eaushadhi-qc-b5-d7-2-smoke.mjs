@@ -98,7 +98,7 @@ async function runCase(overrides = {}) {
         return { ok: true, filled: true, filled_values: FILL };
       },
       async attach() {
-        return { length: 1, name: REPORT_NAME };
+        return { length: 1, name: REPORT_NAME, size: REPORT_BYTES.length };
       },
       async readForm() {
         return {
