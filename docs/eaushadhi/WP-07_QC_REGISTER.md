@@ -254,7 +254,12 @@ Native Save stays disabled. The contract records `saveHandler: "SaveData"` and `
 
 Save observation watches both `XMLHttpRequest` and `fetch`, because `SaveData()` posts through jQuery `$.ajax`. Only a URL whose pathname ends with `/admin/SaveQCData` is recorded. An unparsable or missing response is `SAVE_AMBIGUOUS` and is not retried.
 
-These capture gaps stay open for a later read-only recapture. Do not guess them: `LIST_COLUMNS_TRUNCATED_IN_CAPTURE`, `SAVE_PAYLOAD_KEYS_AFTER_END_DATE_TRUNCATED`, and `GETQCDATA_DATE_FORMAT_NOT_IN_CAPTURE`. Recapture opens addQCRegister and reads the script, the DOM, and list responses only. No Save, Update, Delete, Edit-confirm, upload, or click on `#save_btn`.
+These capture gaps — `LIST_COLUMNS_TRUNCATED_IN_CAPTURE`, `SAVE_PAYLOAD_KEYS_AFTER_END_DATE_TRUNCATED`, and `GETQCDATA_DATE_FORMAT_NOT_IN_CAPTURE` — are collected by **Check portal page** into the Recapture (read-only) panel. The check reads the list response it already loaded, the text of `SaveData`, and the addQCRegister script. It does not guess the missing values, and it does not write them to the server. No Save, Update, Delete, Edit, upload, or click on `#save_btn`.
+
+## D7.1.1 — Study option value and read-only recapture
+`showTextbox()` tests `selectBox.value === "Others"`, so the Type of Study option value is the text `Others`, not 493. That is the same value as the server context `study_type_select_value`. The fill already uses that server value. D7.1.1 corrects the offline fixture and the D7 tests that still used 493.
+
+Check portal page recaptures the open gaps for the operator: sorted keys of the first `LoadQCData` row, boolean flags for `hid`, `edit_qc`, `delete_qc`, and `downloadButtonClass` in that row's action markup, the raw `startdate`, `enddate`, and `reportdate` strings, the quoted keys inside the add and edit `jsondata` literals, and the sha256 of the addQCRegister script fetched from its own script address. The panel title is Recapture (read-only). Nothing is saved.
 
 Operator check, signed in to Electron, Product 262 only:
 1. Open the QC tab and read the preflight, the verified mapping line, the issuer, and the portal laboratory.

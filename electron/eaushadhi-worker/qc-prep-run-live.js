@@ -13,6 +13,7 @@ const {
 const { createInPageSaveObserveScript } = require("./qc-register-save-observe");
 const { QC_PORTAL_CONTRACT } = require("./qc-register-portal-contract");
 const { assessQcListResponse } = require("./qc-register-list");
+const { createInPageRecaptureScript } = require("./qc-register-recapture");
 
 async function evaluateFactory(page, source, arg) {
   return page.evaluate(
@@ -63,7 +64,19 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
         coverageComplete: assessed.coverageComplete,
         rowCount: assessed.rows.length,
       });
-      return { ...assessed, domRowIds: Array.isArray(raw?.domRowIds) ? raw.domRowIds : [] };
+      return {
+        ...assessed,
+        domRowIds: Array.isArray(raw?.domRowIds) ? raw.domRowIds : [],
+        payload: raw?.payload ?? null,
+      };
+    },
+    async readRecapture() {
+      const page = currentPage();
+      const raw = await evaluateFactory(page, createInPageRecaptureScript());
+      return {
+        saveDataSource: typeof raw?.saveDataSource === "string" ? raw.saveDataSource : "",
+        scriptText: typeof raw?.scriptText === "string" ? raw.scriptText : "",
+      };
     },
     async readPortalFacts() {
       const page = currentPage();

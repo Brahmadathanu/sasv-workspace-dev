@@ -3,7 +3,11 @@
   <body>
     <select id="typeofstudy">
       <option value="">Select</option>
-      <option value="493">Others</option>
+      <option value="3 Month Accelarated Stability">3 Month Accelarated Stability</option>
+      <option value="6 Month Accelarated Stability">6 Month Accelarated Stability</option>
+      <option value="Real Time Stability">Real Time Stability</option>
+      <option value="N/A">N/A</option>
+      <option value="Others">Others</option>
     </select>
     <input id="otherText" type="text">
     <input id="sdate" type="date">
@@ -22,6 +26,15 @@
     <input id="upload_document" type="file">
     <a id="save_btn" href="#">Submit</a>
     <script>
+      function SaveData() {
+        var actiontype = document.getElementById("actiontype").value;
+        if (actiontype == "add") {
+          var jsondata = { "reportDate": reportDate, "labName": labName, "qualityCntrl": qualityCntrl, "productId": productId };
+        } else {
+          var jsondata = { "reportDate": reportDate, "labName": labName, "qualityCntrl": qualityCntrl, "productId": productId, "id": id };
+        }
+        return jsondata;
+      }
       document.getElementById("sdate").addEventListener("change", () => {
         document.getElementById("duration").value = "0";
       });

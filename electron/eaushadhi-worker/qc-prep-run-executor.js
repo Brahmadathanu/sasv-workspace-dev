@@ -7,6 +7,7 @@ const { QC_FILL_KEYS, QC_PORTAL_CONTRACT } = require("./qc-register-portal-contr
 const { assessQcListDuplicate, listEvidence, mapGetqcDataResponse, normalizeQcListRow, sameFillFields } = require("./qc-register-list");
 const { decideSaveClick } = require("./qc-register-save-guard");
 const { classifyQcSaveObservation } = require("./qc-register-save-observe");
+const { buildQcRecapture } = require("./qc-register-recapture");
 const {
   readQcFillPreflight,
   armQcPrepRun,
@@ -483,6 +484,14 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         const report = hasBytes
           ? compareReportBytes({ name: input.filename, bytes: input.bytes, context: preflight.context })
           : null;
+        const captured = typeof live.readRecapture === "function"
+          ? await live.readRecapture()
+          : { saveDataSource: "", scriptText: "" };
+        const recapture = buildQcRecapture({
+          payload: list?.payload,
+          saveDataSource: captured?.saveDataSource || "",
+          scriptText: captured?.scriptText || "",
+        });
         const message = [
           identity.ok ? "The portal page is Add QC Register for product 262." : "The portal page is not Add QC Register for product 262.",
           list.coverageComplete === true ? "The QC list coverage is complete." : "The QC list coverage is not proven.",
@@ -521,6 +530,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
           report: report ? { ok: report.ok === true, size: report.size, filename: report.filename, attached: false } : null,
           clickedSave: false,
           armed: false,
+          recapture,
           message,
         };
       });
