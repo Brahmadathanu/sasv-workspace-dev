@@ -9,10 +9,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { QC_PORTAL_CONTRACT } = require(join(root, "electron/eaushadhi-worker/qc-register-portal-contract.js"));
 const { decideSaveClick } = require(join(root, "electron/eaushadhi-worker/qc-register-save-guard.js"));
 const { classifyQcSaveObservation, createInPageSaveObserveScript, createInPageSaveWatchScript } = require(join(root, "electron/eaushadhi-worker/qc-register-save-observe.js"));
-const { createInPageQcFillScript } = require(join(root, "electron/eaushadhi-worker/qc-register-dom-fill.js"));
+const { createInPageIdentityScript, createInPageQcFillScript } = require(join(root, "electron/eaushadhi-worker/qc-register-dom-fill.js"));
 const { assessQcListDuplicate, assessQcListResponse, mapGetqcDataResponse } = require(join(root, "electron/eaushadhi-worker/qc-register-list.js"));
 const { buildQcRecapture, createInPageRecaptureScript, parseSaveDataQcdetailsKeys } = require(join(root, "electron/eaushadhi-worker/qc-register-recapture.js"));
 const {
+  assessPageIdentity,
   compareReportBytes,
   createQcPrepRunExecutor,
   recoveryDisposition,
@@ -24,7 +25,27 @@ const controlSrc = readFileSync(join(root, "public/shared/js/eaushadhi-review-co
 const observeSrc = readFileSync(join(root, "electron/eaushadhi-worker/qc-register-save-observe.js"), "utf8");
 const swSrc = readFileSync(join(root, "public/sw.js"), "utf8");
 const fixture = readFileSync(join(root, "scripts/fixtures/qc-addQCRegister-offline.html"), "utf8");
+const PORTAL_REF = "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNG8atnUB3i77xOliuhhG1VsNyCEv7W0";
 const TOKEN = `qc-fill-token-${"c".repeat(20)}`;
+function qcPage(overrides = {}) {
+  return {
+    origin: QC_PORTAL_CONTRACT.origin,
+    route: QC_PORTAL_CONTRACT.route,
+    heading: "Q.C (Quality Control) Register",
+    productId: { value: "1234" },
+    productSelected: { value: "1234", text: " Karpooradi Thailam " },
+    productOptions: [
+      { value: "-1", text: "--Select--" },
+      { value: "1234", text: "Karpooradi Thailam" },
+      { value: "77", text: "Other Oil" },
+    ],
+    actiontype: { value: "add" },
+    hiddenId: { value: "" },
+    saveData: true,
+    saveControl: { present: true, id: "save_btn", text: "Submit" },
+    ...overrides,
+  };
+}
 const PREP = "d5b425c3-486f-465d-96eb-b1f9d3565e63";
 const RUN = "11111111-1111-4111-8111-111111111111";
 const FILL = {
@@ -183,15 +204,7 @@ const callRpc = async (_token, name, args) => {
 let attached = 0;
 const live = {
   async pageIdentity() {
-    return {
-      origin: QC_PORTAL_CONTRACT.origin,
-      route: QC_PORTAL_CONTRACT.route,
-      productId: { value: "9001" },
-      actiontype: { value: "add" },
-      hiddenId: { value: "" },
-      saveData: true,
-      saveControl: { present: true, id: "save_btn", text: "Submit" },
-    };
+    return qcPage();
   },
   async readList() {
     return { settled: true, success: true, coverageComplete: true, rows: [], domRowIds: [] };
@@ -283,7 +296,7 @@ await sessionHolder.arm({
         blockers: [],
         readiness: { status: "READY", readiness_tuple: "tuple-ready" },
         fill_fields: FILL,
-        context: { portal_product_ref: "9001", derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "Others" },
+        context: { portal_product_ref: PORTAL_REF, derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "Others" },
         runs: [],
       };
     }
@@ -322,7 +335,7 @@ const armRpc = async (_token, name) => {
       blockers: [],
       readiness: { status: "READY", readiness_tuple: "tuple-ready" },
       fill_fields: FILL,
-      context: { portal_product_ref: "9001", derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "Others", report_issuer: "NUPAL", laboratory_label: "HARIDEV FORMULATIONS" },
+      context: { portal_product_ref: PORTAL_REF, derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "Others", report_issuer: "NUPAL", laboratory_label: "HARIDEV FORMULATIONS" },
       runs: [],
     };
   }
@@ -401,7 +414,7 @@ try {
         blockers: [],
         readiness: { status: "READY", readiness_tuple: "tuple-ready" },
         fill_fields: FILL,
-        context: { portal_product_ref: "9001", derived_facts: [] },
+        context: { portal_product_ref: PORTAL_REF, derived_facts: [] },
         runs: [],
       };
     },
@@ -420,7 +433,7 @@ await recoverExecutor.arm({
   userConfirmed: true,
   callRpc: async (_token, name) => {
     if (name.endsWith("preflight_v1")) {
-      return { blockers: [], readiness: { status: "READY", readiness_tuple: "tuple-ready" }, fill_fields: FILL, context: { portal_product_ref: "9001", derived_facts: [] }, runs: [] };
+      return { blockers: [], readiness: { status: "READY", readiness_tuple: "tuple-ready" }, fill_fields: FILL, context: { portal_product_ref: PORTAL_REF, derived_facts: [] }, runs: [] };
     }
     if (name.endsWith("arm_v1")) {
       return { run_id: RUN, run_status: "SAVE_ARMED", fill_fields: FILL, projection_sha256: "ef".repeat(32), qualification: {} };
@@ -534,7 +547,7 @@ let inspectArmCalls = 0;
 const inspectResult = await createQcPrepRunExecutor({
   live: {
     async pageIdentity() {
-      return { origin: QC_PORTAL_CONTRACT.origin, route: QC_PORTAL_CONTRACT.route, productId: { value: "9001" }, actiontype: { value: "add" }, hiddenId: { value: "" }, saveData: true, saveControl: { id: "save_btn", text: "Submit" } };
+      return { origin: QC_PORTAL_CONTRACT.origin, route: QC_PORTAL_CONTRACT.route, productId: { value: "1234" }, productSelected: { value: "1234", text: " Karpooradi Thailam " }, productOptions: [{ value: "-1", text: "--Select--" }, { value: "1234", text: "Karpooradi Thailam" }, { value: "77", text: "Other Oil" }], actiontype: { value: "add" }, hiddenId: { value: "" }, saveData: true, saveControl: { id: "save_btn", text: "Submit" } };
     },
     async readList() {
       return assessQcListResponse({ status: "1", data: [] }, { pageno: 0 });
@@ -560,7 +573,7 @@ const inspectResult = await createQcPrepRunExecutor({
         readiness: { status: "READY_PROVISIONAL" },
         fill_fields: FILL,
         protocol_mapping: { mapping_id: 32, mapping_status: "VERIFIED" },
-        context: { portal_product_ref: "9001", study_type_select_value: "Others", report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName },
+        context: { portal_product_ref: PORTAL_REF, study_type_select_value: "Others", report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName },
         runs: [],
       };
     }
@@ -577,7 +590,7 @@ assert(Array.isArray(inspectResult.recapture?.listRowKeys) && inspectResult.reca
 const studyIdPage = await createQcPrepRunExecutor({
   live: {
     async pageIdentity() {
-      return { origin: QC_PORTAL_CONTRACT.origin, route: QC_PORTAL_CONTRACT.route, productId: { value: "9001" }, actiontype: { value: "add" }, hiddenId: { value: "" }, saveData: true, saveControl: { id: "save_btn", text: "Submit" } };
+      return { origin: QC_PORTAL_CONTRACT.origin, route: QC_PORTAL_CONTRACT.route, productId: { value: "1234" }, productSelected: { value: "1234", text: " Karpooradi Thailam " }, productOptions: [{ value: "-1", text: "--Select--" }, { value: "1234", text: "Karpooradi Thailam" }, { value: "77", text: "Other Oil" }], actiontype: { value: "add" }, hiddenId: { value: "" }, saveData: true, saveControl: { id: "save_btn", text: "Submit" } };
     },
     async readList() {
       return { ...assessQcListResponse({ status: "1", data: [], TotalCount: 0 }, { pageno: 0 }), payload: { status: "1", data: [], TotalCount: 0 } };
@@ -597,7 +610,7 @@ const studyIdPage = await createQcPrepRunExecutor({
         blockers: [],
         readiness: { status: "READY_PROVISIONAL" },
         fill_fields: FILL,
-        context: { portal_product_ref: "9001", study_type_select_value: "Others" },
+        context: { portal_product_ref: PORTAL_REF, study_type_select_value: "Others" },
         runs: [],
       };
     }
@@ -606,11 +619,61 @@ const studyIdPage = await createQcPrepRunExecutor({
 });
 assert(studyIdPage.studyType.optionPresent === false && studyIdPage.ok === false, "a study option value of 493 is not the server value");
 
+const realistic = assessPageIdentity(qcPage(), PORTAL_REF);
+assert(realistic.ok === true && realistic.checks.product === true && realistic.evidence.actualPortalProductRef === "1234" && realistic.evidence.productDetailsRef === PORTAL_REF, "the realistic QC page passes without comparing the encrypted reference");
+const identitySrc = createInPageIdentityScript();
+assert(identitySrc.includes("productSelected") && identitySrc.includes("productOptions") && identitySrc.includes("Quality Control") && !identitySrc.includes("dispatchEvent"), "page identity only reads the product list and heading");
+const blankProduct = assessPageIdentity(qcPage({
+  productId: { value: "-1" },
+  productSelected: { value: "-1", text: "--Select--" },
+}), PORTAL_REF);
+assert(blankProduct.ok === false && blankProduct.checks.product === false, "the placeholder product option fails");
+const otherProduct = assessPageIdentity(qcPage({
+  productId: { value: "77" },
+  productSelected: { value: "77", text: "Other Oil" },
+}), PORTAL_REF);
+assert(otherProduct.ok === false && otherProduct.checks.product === false, "a different selected product fails");
+const duplicateLabel = assessPageIdentity(qcPage({
+  productOptions: [
+    { value: "1234", text: "Karpooradi Thailam" },
+    { value: "88", text: "Karpooradi  Thailam" },
+  ],
+}), PORTAL_REF);
+assert(duplicateLabel.ok === false && duplicateLabel.checks.product === false, "two options with the same product name fail");
+const wrongRoute = assessPageIdentity(qcPage({ route: "/admin/other" }), PORTAL_REF);
+assert(wrongRoute.ok === false && wrongRoute.checks.route === false && wrongRoute.detail.includes("route"), "a wrong route fails and names route");
+const editMode = assessPageIdentity(qcPage({ actiontype: { value: "Edit" } }), PORTAL_REF);
+assert(editMode.ok === false && editMode.checks.actionAdd === false, "Edit mode fails the add check");
+const existingRow = assessPageIdentity(qcPage({ hiddenId: { value: "55" } }), PORTAL_REF);
+assert(existingRow.ok === false && existingRow.checks.freshRow === false, "an existing row id fails the fresh-row check");
+const routeSummary = await createQcPrepRunExecutor({
+  live: {
+    async pageIdentity() { return qcPage({ route: "/admin/other" }); },
+    async readList() { return assessQcListResponse({ status: "1", data: [], TotalCount: 0 }, { pageno: 0 }); },
+    async readPortalFacts() {
+      return { laboratory: { options: [{ value: "HARIDEV FORMULATIONS", label: "HARIDEV FORMULATIONS" }] }, studyType: { options: [{ value: "Others", label: "Others" }] } };
+    },
+  },
+}).inspect({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP,
+  userConfirmed: true,
+  callRpc: async (_token, name) => {
+    if (name.endsWith("preflight_v1")) {
+      return { blockers: [], readiness: { status: "READY_PROVISIONAL" }, fill_fields: FILL, context: { portal_product_ref: PORTAL_REF, study_type_select_value: "Others" }, runs: [] };
+    }
+    return {};
+  },
+});
+assert(routeSummary.message.includes("failed: route") && routeSummary.message.includes("seen product"), "the summary lists the failed checks and the values seen");
+assert(QC_PORTAL_CONTRACT.nativeSaveClickEnabled === false && routeSummary.nativeSaveEnabled === false && routeSummary.clickedSave === false, "the native Save click is still disabled");
+
 assert(controlSrc.includes("Save only; Submit is not allowed."), "the review modal says Save only");
 assert(readFileSync(join(root, "electron/eaushadhi-worker/qc-prep-run-executor.js"), "utf8").includes("Row verified — document not verified (trusted document check not available yet)"), "row verified wording is the document-not-verified sentence");
 assert(!controlSrc.includes("fully verified"), "the screen does not say fully verified");
 assert(controlSrc.includes(QC_PORTAL_CONTRACT.saveControlCapturedText) || controlSrc.includes("labelled Submit"), "the screen explains the Submit label");
-assert(/const CACHE_NAME = "hub-cache-v366"/.test(swSrc), "service worker cache is v366");
+assert(/const CACHE_NAME = "hub-cache-v367"/.test(swSrc), "service worker cache is v367");
 
 const counted = assessQcListResponse({ status: "1", data: [{ id: "1" }, { id: "2" }], TotalCount: 2, total: 9 }, { pageno: 0 });
 assert(counted.coverageComplete === true && counted.totalSource === "TotalCount" && counted.totalCount === 2, "TotalCount is the list total");

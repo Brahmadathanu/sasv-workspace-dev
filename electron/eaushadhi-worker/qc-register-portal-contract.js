@@ -43,6 +43,10 @@ const QC_PORTAL_CONTRACT = Object.freeze({
   ]),
 });
 
+const QC_PORTAL_PRODUCT_LABEL = Object.freeze({
+  262: "KARPOORADI THAILAM",
+});
+
 const QC_FILL_KEYS = Object.freeze([
   "typeOfStudy",
   "startDate",
@@ -56,5 +60,6 @@ const QC_FILL_KEYS = Object.freeze([
 
 module.exports = {
   QC_PORTAL_CONTRACT,
+  QC_PORTAL_PRODUCT_LABEL,
   QC_FILL_KEYS,
 };

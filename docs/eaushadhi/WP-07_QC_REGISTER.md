@@ -261,6 +261,11 @@ These capture gaps — `LIST_COLUMNS_TRUNCATED_IN_CAPTURE`, `SAVE_PAYLOAD_KEYS_A
 
 Check portal page recaptures the open gaps for the operator: sorted keys of the first `LoadQCData` row, boolean flags for `hid`, `edit_qc`, `delete_qc`, and `downloadButtonClass` in that row's action markup, the raw `startdate`, `enddate`, and `reportdate` strings, the quoted keys inside the add and edit `jsondata` literals, and the sha256 of the addQCRegister script fetched from its own script address. The panel title is Recapture (read-only). Nothing is saved.
 
+## D7.1.2 — Product name, not the encrypted reference
+Check portal page used to compare `#productId` with `portal_product_ref`. For product 262 that reference is the encrypted Product Details token, while the QC dropdown value is the product id from the portal list. Those two values are not the same, so the page was reported as the wrong product even when Karpooradi Thailam was selected.
+
+The product check now passes only when the selected option is not blank or `-1`, its text normalizes to `KARPOORADI THAILAM`, and exactly one option in the list normalizes to that name. Normalizing means uppercase, collapse spaces, drop `.,()-`, then trim. The encrypted reference is kept on the evidence as `productDetailsRef` and is not compared. A failed check names the failed parts and the route, heading, product value, product text, action, and hidden id that were seen.
+
 Operator check, signed in to Electron, Product 262 only:
 1. Open the QC tab and read the preflight, the verified mapping line, the issuer, and the portal laboratory.
 2. Narrow the window below 720 pixels and confirm the check and arm buttons use the full width and the field table scrolls sideways.

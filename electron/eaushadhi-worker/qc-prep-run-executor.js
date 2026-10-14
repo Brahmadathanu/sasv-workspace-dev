@@ -3,7 +3,7 @@
 const { createHash } = require("crypto");
 const { ERROR_KINDS, workerError } = require("./errors");
 const { FIRST_CONTROLLED_PRODUCT_ID, isFirstControlledProduct } = require("./product-lock");
-const { QC_FILL_KEYS, QC_PORTAL_CONTRACT } = require("./qc-register-portal-contract");
+const { QC_FILL_KEYS, QC_PORTAL_CONTRACT, QC_PORTAL_PRODUCT_LABEL } = require("./qc-register-portal-contract");
 const { assessQcListDuplicate, listEvidence, mapGetqcDataResponse, normalizeQcListRow, sameFillFields } = require("./qc-register-list");
 const { decideSaveClick } = require("./qc-register-save-guard");
 const { classifyQcSaveObservation } = require("./qc-register-save-observe");
@@ -38,20 +38,63 @@ function noteAccepted(value) {
   return text.length >= 10 && text.length <= 2000 ? text : "";
 }
 
+function normalizeQcProductLabel(value) {
+  return String(value ?? "")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.,()-]/g, "")
+    .trim();
+}
+
 function assessPageIdentity(measured, portalProductRef) {
-  const selected = String(measured?.productId?.value || "");
-  const expectedRef = String(portalProductRef || "").trim();
+  const selected = measured?.productSelected
+    ? String(measured.productSelected.value ?? "")
+    : String(measured?.productId?.value || "");
+  const selectedText = String(measured?.productSelected?.text ?? "");
+  const options = Array.isArray(measured?.productOptions) ? measured.productOptions : [];
+  const expectedLabel = QC_PORTAL_PRODUCT_LABEL[262];
+  const matchingLabels = options.filter((option) => normalizeQcProductLabel(option?.text) === expectedLabel);
   const action = String(measured?.actiontype?.value || "");
   const hidden = String(measured?.hiddenId?.value || "");
   const routeOk = measured?.origin === QC_PORTAL_CONTRACT.origin && measured?.route === QC_PORTAL_CONTRACT.route;
-  const productOk = expectedRef !== "" && selected === expectedRef && selected !== "-1";
+  const productOk = selected !== ""
+    && selected !== "-1"
+    && normalizeQcProductLabel(selectedText) === expectedLabel
+    && matchingLabels.length === 1;
   const addOk = action === "" || action.toLowerCase() === "add";
   const freshOk = hidden === "" || hidden === "0" || hidden === "-1";
-  if (!routeOk || !productOk || !addOk || !freshOk || measured?.saveData !== true) {
-    return { ok: false, code: "PAGE_IDENTITY_INVALID" };
+  const saveDataPresent = measured?.saveData === true;
+  const checks = {
+    route: routeOk,
+    product: productOk,
+    actionAdd: addOk,
+    freshRow: freshOk,
+    saveDataPresent,
+  };
+  const seen = {
+    route: String(measured?.route || ""),
+    heading: String(measured?.heading || ""),
+    productValue: selected,
+    productText: selectedText,
+    actiontype: action,
+    hiddenId: hidden,
+  };
+  const failed = [];
+  if (!checks.route) failed.push("route");
+  if (!checks.product) failed.push("product");
+  if (!checks.actionAdd) failed.push("actionAdd");
+  if (!checks.freshRow) failed.push("freshRow");
+  if (!checks.saveDataPresent) failed.push("saveData");
+  const detail = `(failed: ${failed.join(", ")}; seen product ${JSON.stringify(seen.productText)}=${seen.productValue}, id ${JSON.stringify(seen.hiddenId)}, action ${JSON.stringify(seen.actiontype)})`;
+  const expectedRef = String(portalProductRef || "").trim();
+  if (!routeOk || !productOk || !addOk || !freshOk || !saveDataPresent) {
+    return { ok: false, code: "PAGE_IDENTITY_INVALID", checks, seen, detail };
   }
   return {
     ok: true,
+    checks,
+    seen,
+    detail: "",
     evidence: {
       actualRoute: QC_PORTAL_CONTRACT.route,
       expectedRoute: QC_PORTAL_CONTRACT.route,
@@ -59,9 +102,16 @@ function assessPageIdentity(measured, portalProductRef) {
       expectedProductId: String(FIRST_CONTROLLED_PRODUCT_ID),
       actualPortalProductRef: selected,
       expectedPortalProductRef: expectedRef,
+      productDetailsRef: expectedRef,
     },
     saveControl: measured.saveControl || null,
   };
+}
+
+function withIdentityDetail(sentence, identity) {
+  if (!identity || identity.ok || !identity.detail) return sentence;
+  if (sentence.endsWith(".")) return `${sentence.slice(0, -1)} ${identity.detail}.`;
+  return `${sentence} ${identity.detail}`;
 }
 
 function compareReportBytes({ name, bytes, context }) {
@@ -193,7 +243,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         const measured = await live.pageIdentity();
         const identity = assessPageIdentity(measured, portalRef);
         if (!identity.ok) {
-          throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The portal page is not Add QC Register for product 262. Nothing was armed.");
+          throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, `${withIdentityDetail("The portal page is not Add QC Register for product 262.", identity)} Nothing was armed.`);
         }
         const list = await live.readList();
         const duplicate = assessQcListDuplicate(list, preflight.fill_fields);
@@ -493,7 +543,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
           scriptText: captured?.scriptText || "",
         });
         const message = [
-          identity.ok ? "The portal page is Add QC Register for product 262." : "The portal page is not Add QC Register for product 262.",
+          identity.ok ? "The portal page is Add QC Register for product 262." : withIdentityDetail("The portal page is not Add QC Register for product 262.", identity),
           list.coverageComplete === true ? "The QC list coverage is complete." : "The QC list coverage is not proven.",
           labMatch ? "The frozen laboratory name is an option value." : "The frozen laboratory name is not an option value on this page.",
           studyMatch ? "The study-type option value matches the server." : "The study-type option value does not match the server.",
@@ -603,7 +653,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
     const measured = await live.pageIdentity();
     const identity = assessPageIdentity(measured, session?.portalProductRef);
     if (!identity.ok) {
-      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The portal page is not Add QC Register for product 262.");
+      throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, withIdentityDetail("The portal page is not Add QC Register for product 262.", identity));
     }
     return identity.evidence;
   }
