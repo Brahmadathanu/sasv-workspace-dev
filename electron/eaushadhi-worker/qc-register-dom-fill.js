@@ -100,8 +100,29 @@ function createInPageListScript() {
   return __sasvQcReadList;`;
 }
 
+function createInPagePortalFactsScript() {
+  return `function __sasvQcPortalFacts() {
+    function optionsOf(id) {
+      var el = document.getElementById(id);
+      var options = [];
+      if (el && el.options) {
+        for (var i = 0; i < el.options.length; i++) {
+          options.push({
+            value: el.options[i].value == null ? "" : String(el.options[i].value),
+            label: String(el.options[i].text || "").replace(/\\s+/g, " ").trim()
+          });
+        }
+      }
+      return { present: Boolean(el), options: options };
+    }
+    return { laboratory: optionsOf("lab_name"), studyType: optionsOf("typeofstudy") };
+  }
+  return __sasvQcPortalFacts;`;
+}
+
 module.exports = {
   createInPageIdentityScript,
   createInPageListScript,
+  createInPagePortalFactsScript,
   createInPageQcFillScript,
 };

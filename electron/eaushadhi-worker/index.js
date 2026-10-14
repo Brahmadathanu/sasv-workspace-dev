@@ -1317,6 +1317,7 @@ function createEaushadhiWorker({
     };
     const handlers = {
       status: () => qcPrepRun.status(),
+      inspect: () => qcPrepRun.inspect(command),
       arm: () => qcPrepRun.arm(command),
       fill: () => qcPrepRun.fill(command),
       checkPdf: () => qcPrepRun.checkPdf(command),

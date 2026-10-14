@@ -10,7 +10,7 @@ const { QC_PORTAL_CONTRACT } = require(join(root, "electron/eaushadhi-worker/qc-
 const { decideSaveClick } = require(join(root, "electron/eaushadhi-worker/qc-register-save-guard.js"));
 const { classifyQcSaveObservation, createInPageSaveObserveScript } = require(join(root, "electron/eaushadhi-worker/qc-register-save-observe.js"));
 const { createInPageQcFillScript } = require(join(root, "electron/eaushadhi-worker/qc-register-dom-fill.js"));
-const { assessQcListDuplicate } = require(join(root, "electron/eaushadhi-worker/qc-register-list.js"));
+const { assessQcListDuplicate, assessQcListResponse } = require(join(root, "electron/eaushadhi-worker/qc-register-list.js"));
 const {
   compareReportBytes,
   createQcPrepRunExecutor,
@@ -477,11 +477,67 @@ const verified = await verifyExecutor.verify({
 });
 assert(verified.display.text === "Row verified — document not verified (trusted document check not available yet)", "a restart verify still withholds full verification");
 
+const emptyPage = assessQcListResponse({ status: "1", data: [] }, { pageno: 0 });
+assert(emptyPage.success === true && emptyPage.coverageComplete === false && emptyPage.reason === "LIST_TOTAL_UNPROVEN", "an empty page without a total is not complete");
+const provenEmpty = assessQcListResponse({ status: "1", data: [], recordsTotal: 0 }, { pageno: 0 });
+assert(provenEmpty.coverageComplete === true && provenEmpty.totalCount === 0, "page 0 with total 0 is complete");
+const partialPage = assessQcListResponse({ status: "1", data: [{ id: "1" }], total: 2 }, { pageno: 0 });
+assert(partialPage.coverageComplete === false && partialPage.reason === "LIST_COVERAGE_UNPROVEN", "a short page is not complete");
+const unpaged = assessQcListResponse({ status: "1", data: [], total: 0 }, {});
+assert(unpaged.coverageComplete === false && unpaged.reason === "LIST_PAGE_UNPROVEN", "a total without page 0 is not complete");
+
+const executorSrc = readFileSync(join(root, "electron/eaushadhi-worker/qc-prep-run-executor.js"), "utf8");
+const inspectBody = executorSrc.slice(executorSrc.indexOf("async inspect"), executorSrc.indexOf("async verify"));
+assert(!/armQcPrepRun|observeSave|SaveData|save_btn|target\.click/.test(inspectBody), "the portal check does not arm or press Save");
+assert(QC_PORTAL_CONTRACT.nativeSaveClickEnabled === false, "native Save remains disabled for the dry run");
+
+let inspectArmCalls = 0;
+const inspectResult = await createQcPrepRunExecutor({
+  live: {
+    async pageIdentity() {
+      return { origin: QC_PORTAL_CONTRACT.origin, route: QC_PORTAL_CONTRACT.route, productId: { value: "9001" }, actiontype: { value: "add" }, hiddenId: { value: "" }, saveData: true, saveControl: { id: "save_btn", text: "Submit" } };
+    },
+    async readList() {
+      return assessQcListResponse({ status: "1", data: [] }, { pageno: 0 });
+    },
+    async readPortalFacts() {
+      return { laboratory: { options: [{ value: "HARIDEV FORMULATIONS", label: "HARIDEV FORMULATIONS" }] }, studyType: { options: [{ value: "Others", label: "Others" }] } };
+    },
+    async observeSave() { throw new Error("inspect must not observe Save"); },
+    async attach() { throw new Error("inspect must not attach"); },
+  },
+}).inspect({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP,
+  userConfirmed: true,
+  filename: reportName,
+  bytes: Buffer.from("other"),
+  callRpc: async (_token, name) => {
+    if (name.endsWith("arm_v1") || name.endsWith("record_save_v1") || name.endsWith("pre_save_v1")) inspectArmCalls += 1;
+    if (name.endsWith("preflight_v1")) {
+      return {
+        blockers: [],
+        readiness: { status: "READY_PROVISIONAL" },
+        fill_fields: FILL,
+        protocol_mapping: { mapping_id: 32, mapping_status: "VERIFIED" },
+        context: { portal_product_ref: "9001", study_type_select_value: "Others", report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName },
+        runs: [],
+      };
+    }
+    return {};
+  },
+});
+assert(inspectArmCalls === 0 && inspectResult.armed === false && inspectResult.clickedSave === false, "the portal check does not arm or click");
+assert(inspectResult.nativeSaveEnabled === false && inspectResult.list.coverageComplete === false, "the check keeps Save disabled and reports unproven coverage");
+assert(inspectResult.laboratory.optionPresent === false, "a laboratory name is not treated as the frozen portal id");
+assert(inspectResult.report?.attached === false && inspectResult.report?.ok === false, "a mismatched PDF is not attached");
+
 assert(controlSrc.includes("Save only; Submit is not allowed."), "the review modal says Save only");
 assert(readFileSync(join(root, "electron/eaushadhi-worker/qc-prep-run-executor.js"), "utf8").includes("Row verified — document not verified (trusted document check not available yet)"), "row verified wording is the document-not-verified sentence");
 assert(!controlSrc.includes("fully verified"), "the screen does not say fully verified");
 assert(controlSrc.includes(QC_PORTAL_CONTRACT.saveControlCapturedText) || controlSrc.includes("labelled Submit"), "the screen explains the Submit label");
-assert(/const CACHE_NAME = "hub-cache-v364"/.test(swSrc), "service worker cache is v364");
+assert(/const CACHE_NAME = "hub-cache-v365"/.test(swSrc), "service worker cache is v365");
 
 if (failed) {
   console.error(`D7 smoke failed: ${failed}`);

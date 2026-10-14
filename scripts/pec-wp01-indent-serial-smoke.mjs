@@ -407,8 +407,8 @@ assert(
   "buying-list modal escapes the canonical indent serial",
 );
 assert(
-  /CACHE_NAME = "hub-cache-v364"/.test(swSrc),
-  "service worker cache generation is hub-cache-v364",
+  /CACHE_NAME = "hub-cache-v365"/.test(swSrc),
+  "service worker cache generation is hub-cache-v365",
 );
 assert(
   (hubSrc.match(/addEventListener\("visibilitychange"/g) || []).length === 1,

@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v364"; // WP-07 D7 QC filling client, Save stays disabled while the portal control is labelled Submit
+const CACHE_NAME = "hub-cache-v365"; // WP-07 D7.1 list coverage fails closed without a total, read-only portal check, cache v365
 
 const PRECACHE = [
   // Hub shell

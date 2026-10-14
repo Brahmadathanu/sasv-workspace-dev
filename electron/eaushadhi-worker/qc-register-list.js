@@ -23,29 +23,51 @@ function rowsOf(payload) {
   return null;
 }
 
-function assessQcListResponse(payload) {
+function authoritativeTotal(payload) {
+  const keys = ["total", "recordsTotal", "totalCount", "TotalCount", "iTotalRecords"];
+  for (const key of keys) {
+    if (payload?.[key] == null || payload[key] === "") continue;
+    const total = Number(payload[key]);
+    if (Number.isInteger(total) && total >= 0) return total;
+  }
+  return null;
+}
+
+function assessQcListResponse(payload, pagination = {}) {
   const status = payload?.status == null ? "" : String(payload.status);
   const rows = rowsOf(payload);
+  const requestedPage = pagination?.pageno == null || pagination.pageno === "" ? null : Number(pagination.pageno);
+  const pageKnown = requestedPage === 0;
   if (status !== "1" || !Array.isArray(rows)) {
     return {
       settled: true,
       success: false,
       coverageComplete: false,
       rows: [],
+      totalCount: null,
+      requestedPage: pageKnown ? 0 : null,
       reason: "LIST_NOT_SUCCESS",
     };
   }
-  const totalRaw = payload.total ?? payload.recordsTotal ?? payload.totalCount ?? null;
-  const total = totalRaw == null || totalRaw === "" ? null : Number(totalRaw);
-  const emptyPage = rows.length === 0;
-  const totalMatches = Number.isFinite(total) && total === rows.length;
-  const coverageComplete = emptyPage || totalMatches;
+  const total = authoritativeTotal(payload);
+  const filteredRaw = payload?.recordsFiltered;
+  const filtered = filteredRaw == null || filteredRaw === "" ? null : Number(filteredRaw);
+  const filteredAgrees = filtered == null || (Number.isInteger(filtered) && filtered === total);
+  const coverageComplete = pageKnown && total != null && filteredAgrees && rows.length === total;
+  let reason = "LIST_COVERED";
+  if (!coverageComplete) {
+    if (!pageKnown) reason = "LIST_PAGE_UNPROVEN";
+    else if (total == null) reason = "LIST_TOTAL_UNPROVEN";
+    else reason = "LIST_COVERAGE_UNPROVEN";
+  }
   return {
     settled: true,
     success: true,
     coverageComplete,
     rows,
-    reason: coverageComplete ? "LIST_COVERED" : "LIST_COVERAGE_UNPROVEN",
+    totalCount: total,
+    requestedPage: pageKnown ? 0 : null,
+    reason,
   };
 }
 
@@ -91,11 +113,15 @@ function listEvidence(list) {
     success: list?.success === true,
     coverageComplete: list?.coverageComplete === true,
     rows: Array.isArray(list?.rows) ? list.rows : [],
+    totalCount: Number.isInteger(list?.totalCount) ? list.totalCount : null,
+    requestedPage: list?.requestedPage === 0 ? 0 : null,
+    reason: list?.reason || null,
   };
 }
 
 module.exports = {
   assessQcListResponse,
+  authoritativeTotal,
   assessQcListDuplicate,
   listEvidence,
   normalizeQcListRow,

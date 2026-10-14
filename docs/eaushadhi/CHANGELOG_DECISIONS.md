@@ -319,3 +319,9 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Capture `2d2840d0-e708-4000-9096-18d8ccf7e4d3` shows `#save_btn` labelled Submit and wired to `SaveData()`. Native Save stays disabled until a later gate decides that this control may be treated as QC Save. The client never clicks Submit.
 - List columns and the Save payload after endDate are truncated in that capture. Rows that do not expose the eight fields block arm and cannot become CONFIRMED. `getLaboratroyName` option values are names; the client still sets the frozen portal id and fails the readback if that option is absent.
 - Row verification display remains "Row verified — document not verified (trusted document check not available yet)" even when a response says fully verified. No migration or server function was changed. No live portal Save or Submit was performed.
+
+## 2026-10-14 — WP-07 D7.1 list coverage and read-only portal check
+- An empty `LoadQCData` page does not prove complete coverage. Page 0 plus an authoritative total equal to the row count does.
+- Live mapping 32 is VERIFIED and stays read-only. Its portal external id is `Others`.
+- The current fact-acceptance heads are acceptance 29 (study start, Operator derivation) and acceptance 30 (testing protocol, Operator determination). Each acceptor is a different editor from the evidence verifier.
+- **Check portal page** reads identity, list coverage, laboratory option value, and an optional local PDF. It does not arm, attach, or click the Submit-labelled control. `nativeSaveClickEnabled` stays false.

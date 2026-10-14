@@ -5698,6 +5698,8 @@ async function submitQcProtocolMapping() {
   }
 }
 
+let qcFillInspectPendingFile = null;
+
 function qcSeedFillAcks() {
   const scope = `${state.selectedProductId || ""}:${state.qcPrepServer?.preparation_id || ""}`;
   if (state.qcFillAckScope === scope && state.qcFillAckSeeded === true) return;
@@ -5766,6 +5768,7 @@ function qcFillPreflightCardHtml() {
     <p id="qcFillIssuer">Report issuer: ${esc(context.report_issuer || "")}</p>
     <p id="qcFillPortalLab">Portal laboratory: ${esc(context.laboratory_label || "")}</p>
     <p id="qcFillQualification">${esc(QC_FILL_QUALIFICATION)}</p>
+    ${preflight?.protocol_mapping?.mapping_status === "VERIFIED" ? `<p id="qcFillMappingState">Others mapping ${esc(preflight.protocol_mapping.mapping_id)} is verified and read-only.</p>` : ""}
     ${derivedHtml ? `<ul id="qcFillDerivedFacts">${derivedHtml}</ul>` : ""}
     <p id="qcFillDerivedLabel">Required when filling starts.</p>
     ${provisional ? `<label><input id="qcFillProvisionalAck" type="checkbox"${state.qcFillProvisionalAck ? " checked" : ""}${writable ? "" : " disabled"}> ${esc(QC_FILL_PROVISIONAL_PREFILL)}</label>
@@ -5778,7 +5781,10 @@ function qcFillPreflightCardHtml() {
     </label>
     <p id="qcFillScope">Save only; Submit is not allowed.</p>
     <p id="qcFillSaveBlocked">${esc(QC_FILL_SAVE_BLOCKED)}</p>
-    ${writable ? `<button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}>Arm filling</button>
+    ${writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillInspect">Check portal page</button>
+    <button type="button" class="icon-btn with-label" id="btnQcFillInspectFile">Choose report to check</button>
+    <input id="qcFillInspectFile" type="file" accept="application/pdf,.pdf" hidden>
+    <button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}>Arm filling</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillFields"${armed && !state.qcPrepRunBusy ? "" : " disabled"}>Fill portal fields</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillChooseReport"${state.qcFillRun?.filled ? "" : " disabled"}>Choose verified report</button>
     <input id="qcFillReportFile" type="file" accept="application/pdf,.pdf" hidden>
@@ -5792,6 +5798,46 @@ function qcFillPreflightCardHtml() {
     ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillVerify">Read the saved row</button>` : ""}
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
   </section>`;
+}
+
+async function submitQcFillInspect() {
+  if (state.qcPrepRunBusy || canWrite() !== true || !workerApiAvailable()) return;
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  const file = qcFillInspectPendingFile;
+  state.qcGovernanceConfirmOpen = true;
+  try {
+    const accepted = await openQcConfirm({
+      title: "Check portal page",
+      message: "This reads Add QC Register, the QC list, and the laboratory options. It does not arm filling and it does not press Save.",
+      okLabel: "Check page",
+      returnFocusId: "btnQcFillInspect",
+      idPrefix: "qcFillInspectConfirm",
+    });
+    if (accepted !== true || state.selectedProductId !== productId) return;
+    state.qcPrepRunBusy = true;
+    state.qcFillRunNotice = "";
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    let bytes = null;
+    if (file) bytes = new Uint8Array(await file.arrayBuffer());
+    const result = await executeQcPrepRun(productId, token, {
+      action: "inspect",
+      preparationId,
+      userConfirmed: true,
+      filename: file?.name || "",
+      bytes,
+    });
+    if (state.selectedProductId !== productId) return;
+    qcFillInspectPendingFile = null;
+    state.qcFillRunNotice = result?.message || "Save was not pressed. Filling was not armed.";
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
 }
 
 async function submitQcFillArm() {
@@ -9967,6 +10013,8 @@ function wireEvents() {
     }
     if (event.target.id === "btnQcMappingVerify") void submitQcProtocolMapping();
     if (event.target.id === "btnQcFillArm") void submitQcFillArm();
+    if (event.target.id === "btnQcFillInspect") void submitQcFillInspect();
+    if (event.target.id === "btnQcFillInspectFile") document.getElementById("qcFillInspectFile")?.click();
     if (event.target.id === "btnQcFillFields") void submitQcFillFields();
     if (event.target.id === "btnQcFillChooseReport") document.getElementById("qcFillReportFile")?.click();
     if (event.target.id === "btnQcFillReview") void submitQcFillReview();
@@ -9978,6 +10026,15 @@ function wireEvents() {
   $("tab-qc")?.addEventListener("input", onQcPrepField);
   $("tab-qc")?.addEventListener("change", onQcPrepField);
   $("tab-qc")?.addEventListener("change", (event) => {
+    if (event.target?.id === "qcFillInspectFile") {
+      qcFillInspectPendingFile = event.target.files?.[0] || null;
+      event.target.value = "";
+      if (qcFillInspectPendingFile && state.tab === "qc") {
+        state.qcFillRunNotice = "Report selected for checking. It is not attached.";
+        renderQc();
+      }
+      return;
+    }
     if (event.target?.id !== "qcFillReportFile") return;
     const file = event.target.files?.[0];
     event.target.value = "";
