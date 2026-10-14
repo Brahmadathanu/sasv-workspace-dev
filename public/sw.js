@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v365"; // WP-07 D7.1 list coverage fails closed without a total, read-only portal check, cache v365
+const CACHE_NAME = "hub-cache-v366"; // WP-07 D7.1.1 study option value Others, read-only recapture on Check portal page, cache v366
 
 const PRECACHE = [
   // Hub shell

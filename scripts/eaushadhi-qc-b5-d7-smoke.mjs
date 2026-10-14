@@ -11,6 +11,7 @@ const { decideSaveClick } = require(join(root, "electron/eaushadhi-worker/qc-reg
 const { classifyQcSaveObservation, createInPageSaveObserveScript, createInPageSaveWatchScript } = require(join(root, "electron/eaushadhi-worker/qc-register-save-observe.js"));
 const { createInPageQcFillScript } = require(join(root, "electron/eaushadhi-worker/qc-register-dom-fill.js"));
 const { assessQcListDuplicate, assessQcListResponse, mapGetqcDataResponse } = require(join(root, "electron/eaushadhi-worker/qc-register-list.js"));
+const { buildQcRecapture, createInPageRecaptureScript, parseSaveDataQcdetailsKeys } = require(join(root, "electron/eaushadhi-worker/qc-register-recapture.js"));
 const {
   compareReportBytes,
   createQcPrepRunExecutor,
@@ -33,7 +34,7 @@ const FILL = {
   reportDate: "2024-10-15",
   batchNo: "3369,4896,2434,3250,3738,4601,5201",
   duration: "36",
-  labName: "3980",
+  labName: "HARIDEV FORMULATIONS",
   qualityCntrl: "Out",
 };
 
@@ -82,11 +83,16 @@ function installDocument(map) {
   global.Event = class Event { constructor(type) { this.type = type; } };
 }
 
+const studyOptions = [
+  { value: "", text: "Select" },
+  { value: "3 Month Accelarated Stability", text: "3 Month Accelarated Stability" },
+  { value: "6 Month Accelarated Stability", text: "6 Month Accelarated Stability" },
+  { value: "Real Time Stability", text: "Real Time Stability" },
+  { value: "N/A", text: "N/A" },
+  { value: "Others", text: "Others" },
+];
 const fields = {
-  typeofstudy: element("typeofstudy", {
-    value: "",
-    options: [{ value: "", text: "Select" }, { value: "493", text: "Others" }],
-  }),
+  typeofstudy: element("typeofstudy", { value: "", options: studyOptions }),
   otherText: element("otherText"),
   sdate: element("sdate"),
   edate: element("edate"),
@@ -95,16 +101,24 @@ const fields = {
   batchno: element("batchno"),
   qc_in: element("qc_in", { value: "In" }),
   qc_out: element("qc_out", { value: "Out" }),
-  lab_name: element("lab_name", { value: "", options: [{ value: "", text: "Select" }, { value: "3980", text: "HARIDEV FORMULATIONS" }] }),
+  lab_name: element("lab_name", {
+    value: "",
+    options: [
+      { value: "-1", text: "--Select--" },
+      { value: "HARIDEV FORMULATIONS", text: "HARIDEV FORMULATIONS" },
+      { value: "Other", text: "Other" },
+    ],
+  }),
 };
 fields.sdate.addEventListener("change", () => { fields.duration.value = "0"; });
 fields.edate.addEventListener("change", () => { fields.duration.value = "0"; });
-fields.typeofstudy.options = [{ value: "", text: "Select" }, { value: "493", text: "Others" }];
 installDocument(fields);
 const fillFn = new Function(createInPageQcFillScript())();
-const filled = await fillFn({ fillFields: FILL, studyTypeSelectValue: "493" });
+const filled = await fillFn({ fillFields: FILL, studyTypeSelectValue: "Others" });
 assert(filled.filled_values.duration === "36", "duration is restored after date change");
-assert(filled.filled_values.typeOfStudy === FILL.typeOfStudy, "Others text is read back as typeOfStudy");
+assert(fields.typeofstudy.value === "Others", "the type of study option value is Others");
+assert(fields.otherText.value === FILL.typeOfStudy, "Others text is the server description");
+assert(filled.filled_values.typeOfStudy === FILL.typeOfStudy, "the filled type of study equals the server projection");
 assert(Object.keys(filled.filled_values).length === 8, "readback has eight keys");
 assert(filled.filled_values.qualityCntrl === "Out", "quality control reads the checked value");
 assert(fixture.includes('id="save_btn"') && fixture.includes("Submit"), "fixture keeps the captured Submit label");
@@ -269,7 +283,7 @@ await sessionHolder.arm({
         blockers: [],
         readiness: { status: "READY", readiness_tuple: "tuple-ready" },
         fill_fields: FILL,
-        context: { portal_product_ref: "9001", derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "493" },
+        context: { portal_product_ref: "9001", derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "Others" },
         runs: [],
       };
     }
@@ -308,7 +322,7 @@ const armRpc = async (_token, name) => {
       blockers: [],
       readiness: { status: "READY", readiness_tuple: "tuple-ready" },
       fill_fields: FILL,
-      context: { portal_product_ref: "9001", derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "493", report_issuer: "NUPAL", laboratory_label: "HARIDEV FORMULATIONS" },
+      context: { portal_product_ref: "9001", derived_facts: [], report_sha256: goodSha, report_size_bytes: goodBytes.length, report_filename: reportName, study_type_select_value: "Others", report_issuer: "NUPAL", laboratory_label: "HARIDEV FORMULATIONS" },
       runs: [],
     };
   }
@@ -555,14 +569,48 @@ const inspectResult = await createQcPrepRunExecutor({
 });
 assert(inspectArmCalls === 0 && inspectResult.armed === false && inspectResult.clickedSave === false, "the portal check does not arm or click");
 assert(inspectResult.nativeSaveEnabled === false && inspectResult.list.coverageComplete === false, "the check keeps Save disabled and reports unproven coverage");
-assert(inspectResult.laboratory.optionPresent === false, "portal id 3980 is not a laboratory option value");
+assert(inspectResult.laboratory.optionPresent === true && inspectResult.laboratory.optionValue === "HARIDEV FORMULATIONS", "the laboratory name is an option value");
+assert(inspectResult.studyType.optionPresent === true && inspectResult.studyType.optionValue === "Others", "the study option value is Others");
 assert(inspectResult.report?.attached === false && inspectResult.report?.ok === false, "a mismatched PDF is not attached");
+assert(Array.isArray(inspectResult.recapture?.listRowKeys) && inspectResult.recapture.listRowKeys.length === 0 && inspectResult.recapture.scriptHash === "", "an empty list recapture does not invent keys");
+
+const studyIdPage = await createQcPrepRunExecutor({
+  live: {
+    async pageIdentity() {
+      return { origin: QC_PORTAL_CONTRACT.origin, route: QC_PORTAL_CONTRACT.route, productId: { value: "9001" }, actiontype: { value: "add" }, hiddenId: { value: "" }, saveData: true, saveControl: { id: "save_btn", text: "Submit" } };
+    },
+    async readList() {
+      return { ...assessQcListResponse({ status: "1", data: [], TotalCount: 0 }, { pageno: 0 }), payload: { status: "1", data: [], TotalCount: 0 } };
+    },
+    async readPortalFacts() {
+      return { laboratory: { options: [{ value: "HARIDEV FORMULATIONS", label: "HARIDEV FORMULATIONS" }] }, studyType: { options: [{ value: "493", label: "Others" }] } };
+    },
+  },
+}).inspect({
+  productId: 262,
+  accessToken: TOKEN,
+  preparationId: PREP,
+  userConfirmed: true,
+  callRpc: async (_token, name) => {
+    if (name.endsWith("preflight_v1")) {
+      return {
+        blockers: [],
+        readiness: { status: "READY_PROVISIONAL" },
+        fill_fields: FILL,
+        context: { portal_product_ref: "9001", study_type_select_value: "Others" },
+        runs: [],
+      };
+    }
+    return {};
+  },
+});
+assert(studyIdPage.studyType.optionPresent === false && studyIdPage.ok === false, "a study option value of 493 is not the server value");
 
 assert(controlSrc.includes("Save only; Submit is not allowed."), "the review modal says Save only");
 assert(readFileSync(join(root, "electron/eaushadhi-worker/qc-prep-run-executor.js"), "utf8").includes("Row verified — document not verified (trusted document check not available yet)"), "row verified wording is the document-not-verified sentence");
 assert(!controlSrc.includes("fully verified"), "the screen does not say fully verified");
 assert(controlSrc.includes(QC_PORTAL_CONTRACT.saveControlCapturedText) || controlSrc.includes("labelled Submit"), "the screen explains the Submit label");
-assert(/const CACHE_NAME = "hub-cache-v365"/.test(swSrc), "service worker cache is v365");
+assert(/const CACHE_NAME = "hub-cache-v366"/.test(swSrc), "service worker cache is v366");
 
 const counted = assessQcListResponse({ status: "1", data: [{ id: "1" }, { id: "2" }], TotalCount: 2, total: 9 }, { pageno: 0 });
 assert(counted.coverageComplete === true && counted.totalSource === "TotalCount" && counted.totalCount === 2, "TotalCount is the list total");
@@ -586,15 +634,36 @@ function labDocument() {
   installDocument(fields);
 }
 labDocument();
-const namedFill = await fillFn({ fillFields: { ...FILL, labName: "HARIDEV FORMULATIONS" }, studyTypeSelectValue: "493" });
+const namedFill = await fillFn({ fillFields: { ...FILL, labName: "HARIDEV FORMULATIONS" }, studyTypeSelectValue: "Others" });
 assert(namedFill.ok === true && namedFill.filled_values.labName === "HARIDEV FORMULATIONS", "an exact laboratory name fills");
 for (const refusedLab of ["3980", "haridev formulations", "HARIDEV FORMULATIONS "]) {
   labDocument();
   fields.duration.value = "untouched";
-  const refusedFill = await fillFn({ fillFields: { ...FILL, labName: refusedLab }, studyTypeSelectValue: "493" });
+  const refusedFill = await fillFn({ fillFields: { ...FILL, labName: refusedLab }, studyTypeSelectValue: "Others" });
   assert(refusedFill.ok === false && refusedFill.filled === false && refusedFill.message === "Laboratory not in the portal list" && fields.duration.value === "untouched", `laboratory ${JSON.stringify(refusedLab)} fills nothing`);
 }
-assert(fixture.includes('value="HARIDEV FORMULATIONS"') && !fixture.includes('value="3980"'), "the fixture uses laboratory names");
+assert(fixture.includes('value="Others"') && fixture.includes("3 Month Accelarated Stability") && !fixture.includes('value="493"'), "the fixture study option value is Others");
+const fixtureKeys = parseSaveDataQcdetailsKeys(fixture);
+assert(fixtureKeys.add.join(",") === "reportDate,labName,qualityCntrl,productId", "the add jsondata keys are parsed from the fixture");
+assert(fixtureKeys.edit.join(",") === "reportDate,labName,qualityCntrl,productId,id", "the edit jsondata keys are parsed from the fixture");
+const sampleRow = {
+  status: "1",
+  data: [{
+    product_name: "Karpooradi Thailam",
+    startdate: "01-10-2021",
+    enddate: "30/09/2024",
+    reportdate: "2024-10-15",
+    action: "<input id='hid77'><a onclick='edit_qc(1)'></a><a onclick='delete_qc(1)'></a><button class='downloadButtonClass'></button>",
+  }],
+};
+const sample = buildQcRecapture({ payload: sampleRow, saveDataSource: fixture, scriptText: "function SaveData(){return 1;}" });
+assert(sample.listRowKeys.join(",") === "action,enddate,product_name,reportdate,startdate", "list row keys come from the first row");
+assert(sample.listActionMarkup.hid === true && sample.listActionMarkup.edit_qc === true && sample.listActionMarkup.delete_qc === true && sample.listActionMarkup.downloadButtonClass === true, "action markup is recorded as booleans");
+assert(sample.listDateSamples.startdate === "01-10-2021" && sample.listDateSamples.enddate === "30/09/2024" && sample.listDateSamples.reportdate === "2024-10-15", "list dates stay raw");
+assert(sample.scriptHash === createHash("sha256").update("function SaveData(){return 1;}").digest("hex"), "the script hash is the fetched text");
+const recaptureSrc = createInPageRecaptureScript();
+assert(recaptureSrc.includes("String(window.SaveData)") && !recaptureSrc.includes("SaveData()") && !recaptureSrc.includes("GetqcData") && !recaptureSrc.includes(".click("), "recapture reads the script text and does not call Save");
+assert(controlSrc.includes("Recapture (read-only)"), "the portal check shows a read-only recapture panel");
 assert(QC_PORTAL_CONTRACT.saveHandler === "SaveData" && QC_PORTAL_CONTRACT.saveEndpointPath === "/admin/SaveQCData", "the Save exception fields are recorded");
 assert(QC_PORTAL_CONTRACT.saveEnableNote.includes("Enabling the click needs a recorded operator decision."), "enabling Save still needs an operator decision");
 

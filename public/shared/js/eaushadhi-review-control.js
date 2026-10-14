@@ -5757,6 +5757,14 @@ function qcFillPreflightCardHtml() {
   const latestStatus = String(latest?.run_status || "");
   const recovery = ["SAVE_AMBIGUOUS", "SAVE_UNAUTHORIZED", "SAVE_FOUND_UNAUTHORIZED"].includes(latestStatus)
     || (latestStatus === "SAVE_ARMED" && !state.qcFillRun);
+  const recapture = state.qcFillRecaptureFor === state.selectedProductId ? state.qcFillRecapture : null;
+  const recaptureKeys = Array.isArray(recapture?.listRowKeys) ? recapture.listRowKeys : [];
+  const recaptureAction = recapture?.listActionMarkup || {};
+  const recaptureDates = recapture?.listDateSamples || {};
+  const recaptureSaveKeys = recapture?.saveDataQcdetailsKeys || {};
+  const recaptureList = (items) => (Array.isArray(items) && items.length ? items.map((item) => esc(item)).join(", ") : "none");
+  const recaptureYes = (value) => (value === true ? "yes" : "no");
+  const recaptureHtml = recapture ? `<details id="qcFillRecapture"><summary>Recapture (read-only)</summary><p>List row keys: ${recaptureList(recaptureKeys)}</p><p>Action markup: hid ${recaptureYes(recaptureAction.hid)}, edit_qc ${recaptureYes(recaptureAction.edit_qc)}, delete_qc ${recaptureYes(recaptureAction.delete_qc)}, downloadButtonClass ${recaptureYes(recaptureAction.downloadButtonClass)}</p><p>Raw dates: startdate ${esc(recaptureDates.startdate || "")}, enddate ${esc(recaptureDates.enddate || "")}, reportdate ${esc(recaptureDates.reportdate || "")}</p><p>Add payload keys: ${recaptureList(recaptureSaveKeys.add)}</p><p>Edit payload keys: ${recaptureList(recaptureSaveKeys.edit)}</p><p>Script hash: ${esc(recapture.scriptHash || "")}</p></details>` : "";
   return `<section class="section-card" id="qcFillPreflightCard">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
@@ -5797,6 +5805,7 @@ function qcFillPreflightCardHtml() {
     ${latestStatus === "SAVE_ARMED" ? `<button type="button" class="icon-btn with-label" id="btnQcFillUnknown">Record unknown result</button>` : ""}` : ""}
     ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillVerify">Read the saved row</button>` : ""}
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
+    ${recaptureHtml}
   </section>`;
 }
 
@@ -5817,6 +5826,7 @@ async function submitQcFillInspect() {
     if (accepted !== true || state.selectedProductId !== productId) return;
     state.qcPrepRunBusy = true;
     state.qcFillRunNotice = "";
+    state.qcFillRecapture = null;
     if (state.tab === "qc") renderQc();
     const token = await sessionAccessToken();
     let bytes = null;
@@ -5830,6 +5840,8 @@ async function submitQcFillInspect() {
     });
     if (state.selectedProductId !== productId) return;
     qcFillInspectPendingFile = null;
+    state.qcFillRecapture = result?.recapture && typeof result.recapture === "object" ? result.recapture : null;
+    state.qcFillRecaptureFor = productId;
     state.qcFillRunNotice = result?.message || "Save was not pressed. Filling was not armed.";
   } catch (error) {
     if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
