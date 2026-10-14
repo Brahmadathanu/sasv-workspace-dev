@@ -6,9 +6,12 @@ const { loadPortalContract } = require("./contracts/portal-contract");
 const {
   createInPageIdentityScript,
   createInPageListScript,
+  createInPagePayloadKeysScript,
   createInPagePortalFactsScript,
   createInPageQcFillScript,
+  createInPageReadFormScript,
   createInPageRereadScript,
+  createInPageResetScript,
 } = require("./qc-register-dom-fill");
 const { createInPageSaveObserveScript } = require("./qc-register-save-observe");
 const { QC_PORTAL_CONTRACT } = require("./qc-register-portal-contract");
@@ -91,6 +94,23 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
     async fill(plan) {
       const page = currentPage();
       return evaluateFactory(page, createInPageQcFillScript(), plan);
+    },
+    async readForm() {
+      const page = currentPage();
+      return evaluateFactory(page, createInPageReadFormScript());
+    },
+    async payloadKeys() {
+      const page = currentPage();
+      return evaluateFactory(page, createInPagePayloadKeysScript());
+    },
+    async resetForm(spec) {
+      const page = currentPage();
+      const handle = await page.$(`#${QC_PORTAL_CONTRACT.fileInputId}`);
+      if (handle && typeof handle.setInputFiles === "function") {
+        await handle.setInputFiles([]);
+      }
+      await evaluateFactory(page, createInPageResetScript(), spec || {});
+      return evaluateFactory(page, createInPageReadFormScript());
     },
     async attach(file) {
       const page = currentPage();

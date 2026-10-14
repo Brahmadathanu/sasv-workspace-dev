@@ -177,10 +177,98 @@ function createInPagePortalFactsScript() {
   return __sasvQcPortalFacts;`;
 }
 
+function createInPageReadFormScript() {
+  return `function __sasvQcReadForm() {
+    function valueOf(id) {
+      var el = document.getElementById(id);
+      return el && el.value != null ? String(el.value) : "";
+    }
+    var study = document.getElementById("typeofstudy");
+    var other = document.getElementById("otherText");
+    var selected = study && study.options ? study.options[study.selectedIndex] : null;
+    var others = selected && String(selected.text || "").trim() === "Others";
+    var typeOfStudy = "";
+    if (others && other) typeOfStudy = other.value == null ? "" : String(other.value);
+    else if (study) typeOfStudy = study.value == null ? "" : String(study.value);
+    var qcIn = document.getElementById("qc_in");
+    var qcOut = document.getElementById("qc_out");
+    var quality = "";
+    if (qcOut && qcOut.checked) quality = qcOut.value == null ? "" : String(qcOut.value);
+    else if (qcIn && qcIn.checked) quality = qcIn.value == null ? "" : String(qcIn.value);
+    var file = document.getElementById("upload_document");
+    var first = file && file.files ? file.files[0] : null;
+    var product = document.getElementById("productId");
+    return {
+      fields: {
+        typeOfStudy: typeOfStudy,
+        startDate: valueOf("sdate"),
+        endDate: valueOf("edate"),
+        reportDate: valueOf("reportdate"),
+        batchNo: valueOf("batchno"),
+        duration: valueOf("duration"),
+        labName: valueOf("lab_name"),
+        qualityCntrl: quality
+      },
+      file: {
+        name: first && first.name ? String(first.name) : "",
+        size: first && first.size != null ? Number(first.size) : 0,
+        length: file && file.files ? file.files.length : 0
+      },
+      productValue: product && product.value != null ? String(product.value) : ""
+    };
+  }
+  return __sasvQcReadForm;`;
+}
+
+function createInPagePayloadKeysScript() {
+  return `function __sasvQcPayloadKeys() {
+    var keys = [];
+    var nodes = document.querySelectorAll("input, select, textarea");
+    for (var i = 0; i < nodes.length; i++) {
+      var name = nodes[i].getAttribute("name") || nodes[i].id || "";
+      if (name && keys.indexOf(name) < 0) keys.push(name);
+    }
+    return { keys: keys };
+  }
+  return __sasvQcPayloadKeys;`;
+}
+
+function createInPageResetScript() {
+  return `function __sasvQcResetForm(spec) {
+    function setValue(el, value) {
+      if (!el) return;
+      el.value = value == null ? "" : String(value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    setValue(document.getElementById("typeofstudy"), "");
+    setValue(document.getElementById("otherText"), "");
+    setValue(document.getElementById("sdate"), "");
+    setValue(document.getElementById("edate"), "");
+    setValue(document.getElementById("reportdate"), "");
+    setValue(document.getElementById("batchno"), "");
+    setValue(document.getElementById("duration"), "");
+    setValue(document.getElementById("lab_name"), "");
+    var qcIn = document.getElementById("qc_in");
+    var qcOut = document.getElementById("qc_out");
+    if (qcIn) qcIn.checked = false;
+    if (qcOut) qcOut.checked = false;
+    var file = document.getElementById("upload_document");
+    if (file) file.value = "";
+    var product = document.getElementById("productId");
+    if (product && spec && spec.productValue != null) setValue(product, spec.productValue);
+    return { cleared: true };
+  }
+  return __sasvQcResetForm;`;
+}
+
 module.exports = {
   createInPageIdentityScript,
   createInPageListScript,
+  createInPagePayloadKeysScript,
   createInPagePortalFactsScript,
   createInPageQcFillScript,
+  createInPageReadFormScript,
   createInPageRereadScript,
+  createInPageResetScript,
 };

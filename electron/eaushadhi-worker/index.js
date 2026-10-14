@@ -153,6 +153,7 @@ function createEaushadhiWorker({
       getWorkerState: () => machine.get(),
       log,
     }),
+    dryRunDir: path.join(getUserDataPath(), "eaushadhi", "qc-dryrun"),
   });
   const requireSection =
     typeof requireContractFn === "function" ? requireContractFn : requireContract;
@@ -1318,6 +1319,7 @@ function createEaushadhiWorker({
     const handlers = {
       status: () => qcPrepRun.status(),
       inspect: () => qcPrepRun.inspect(command),
+      dryRun: () => qcPrepRun.dryRun(command),
       arm: () => qcPrepRun.arm(command),
       fill: () => qcPrepRun.fill(command),
       checkPdf: () => qcPrepRun.checkPdf(command),

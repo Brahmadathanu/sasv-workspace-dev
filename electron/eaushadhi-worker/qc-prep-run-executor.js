@@ -1,9 +1,17 @@
 /* eslint-env node */
 
 const { createHash } = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { ERROR_KINDS, workerError } = require("./errors");
 const { FIRST_CONTROLLED_PRODUCT_ID, isFirstControlledProduct } = require("./product-lock");
-const { QC_FILL_KEYS, QC_PORTAL_CONTRACT, QC_PORTAL_PRODUCT_LABEL } = require("./qc-register-portal-contract");
+const {
+  QC_FILL_KEYS,
+  QC_PORTAL_CONTRACT,
+  QC_PORTAL_PRODUCT_LABEL,
+  NATIVE_SAVE_AUTHORIZED,
+  isPermittedSaveControl,
+} = require("./qc-register-portal-contract");
 const { assessQcListDuplicate, listEvidence, mapGetqcDataResponse, normalizeQcListRow, sameFillFields } = require("./qc-register-list");
 const { decideSaveClick } = require("./qc-register-save-guard");
 const { classifyQcSaveObservation } = require("./qc-register-save-observe");
@@ -108,6 +116,74 @@ function assessPageIdentity(measured, portalProductRef) {
   };
 }
 
+const DRY_RUN_RESET_BANNER = "Form contains UNSAVED dry-run values. Do not press Submit. Reload the page.";
+
+function dryRunFingerprint(preparationId, fillFields, reportContext) {
+  const fields = {};
+  for (const key of QC_FILL_KEYS) fields[key] = String(fillFields?.[key] ?? "");
+  return createHash("sha256").update(JSON.stringify({
+    preparationId: String(preparationId || ""),
+    fields,
+    report_filename: String(reportContext?.report_filename || ""),
+    report_size_bytes: Number(reportContext?.report_size_bytes) || 0,
+    report_sha256: String(reportContext?.report_sha256 || ""),
+  })).digest("hex");
+}
+
+function compareProjection(expected, actual) {
+  const rows = [];
+  const reasons = [];
+  const actualObject = actual && typeof actual === "object" ? actual : {};
+  for (const key of QC_FILL_KEYS) {
+    const left = String(expected?.[key] ?? "");
+    const present = Object.prototype.hasOwnProperty.call(actualObject, key);
+    const right = present ? String(actualObject[key] ?? "") : "";
+    const match = present && right === left;
+    rows.push({ key, expected: left, actual: right, match });
+    if (!match) reasons.push(`FILLED_VALUE_DIFFERS:${key}`);
+  }
+  for (const key of Object.keys(actualObject)) {
+    if (!QC_FILL_KEYS.includes(key)) reasons.push(`FILLED_VALUE_UNEXPECTED:${key}`);
+  }
+  return { rows, ok: reasons.length === 0, reasons };
+}
+
+function formIsEmpty(read) {
+  const fields = read?.fields || {};
+  const fileLength = Number(read?.file?.length) || 0;
+  return fileLength === 0 && QC_FILL_KEYS.every((key) => String(fields[key] ?? "") === "");
+}
+
+function writeDryRunReport(dir, report) {
+  const runId = String(report?.run_id || "");
+  if (!dir || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(runId)) return false;
+  fs.mkdirSync(dir, { recursive: true });
+  const safe = { ...report };
+  delete safe.pre_save_token;
+  delete safe.token;
+  delete safe.preSaveToken;
+  fs.writeFileSync(path.join(dir, `${runId}.json`), `${JSON.stringify(safe, null, 2)}\n`);
+  return true;
+}
+
+function findDryRunPass(dir, preparationId, fingerprint) {
+  if (!dir || !fs.existsSync(dir)) return null;
+  const names = fs.readdirSync(dir).filter((name) => name.endsWith(".json"));
+  for (const name of names) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
+      if (parsed?.outcome === "DRY_RUN_PASS"
+        && String(parsed.preparationId || "") === String(preparationId || "")
+        && String(parsed.fingerprint || "") === String(fingerprint || "")) {
+        return parsed;
+      }
+    } catch {
+      // A damaged report cannot authorize Save.
+    }
+  }
+  return null;
+}
+
 function withIdentityDetail(sentence, identity) {
   if (!identity || identity.ok || !identity.detail) return sentence;
   if (sentence.endsWith(".")) return `${sentence.slice(0, -1)} ${identity.detail}.`;
@@ -170,7 +246,7 @@ function publicSession(session) {
   };
 }
 
-function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
+function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDir = null } = {}) {
   let session = null;
   let busy = false;
 
@@ -645,6 +721,254 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         if (session) session.runStatus = verified.run_status;
         const display = verifyDisplay(verified);
         return { ok: display.blocking !== true, runStatus: verified.run_status, display, qualification: verified.qualification };
+      });
+    },
+    async dryRun(input = {}) {
+      return exclusive(async () => {
+        requireProduct(input.productId);
+        const refused = (reasons, message) => ({
+          ok: false,
+          outcome: "DRY_RUN_FAIL",
+          reasons,
+          message,
+          banner: null,
+          clicked: false,
+          armed: false,
+          report: null,
+        });
+        if (input.userConfirmed !== true) {
+          return refused(["CONFIRM_REQUIRED"], "Confirm the dry run before it starts.");
+        }
+        if (input.provisionalAck !== true || input.derivedAck !== true || !noteAccepted(input.provisionalNote) || !noteAccepted(input.derivedNote)) {
+          return refused(["ACK_REQUIRED"], "Tick both acknowledgements. Nothing was armed.");
+        }
+        const preflight = await readQcFillPreflight({
+          productId: input.productId,
+          accessToken: input.accessToken,
+          preparationId: input.preparationId,
+          callRpc: input.callRpc,
+        });
+        const blockers = preflight.blockers || [];
+        if (blockers.length > 0) {
+          return refused(blockers.map(String), "Filling was not started.");
+        }
+        const active = (preflight.runs || []).find((run) => ACTIVE_RUN_STATUSES.has(String(run?.run_status || "")));
+        if (active) {
+          return refused(["ACTIVE_RUN"], "A QC filling run is already open. Continue that run.");
+        }
+        const portalRef = preflight.context?.portal_product_ref;
+        const measured = await live.pageIdentity();
+        const identity = assessPageIdentity(measured, portalRef);
+        if (!identity.ok) {
+          return refused(["PAGE_IDENTITY_INVALID"], withIdentityDetail("The portal page is not Add QC Register for product 262.", identity));
+        }
+        const list = await live.readList();
+        const duplicate = assessQcListDuplicate(list, preflight.fill_fields);
+        if (!duplicate.ok) {
+          const listMessage = duplicate.code === "LIST_INCOMPLETE"
+            ? "List incomplete"
+            : "The QC list was not fully read. Nothing was armed.";
+          return refused([duplicate.code || "LIST"], listMessage);
+        }
+        const provisionalRequired = preflight.readiness?.status === "READY_PROVISIONAL";
+        const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
+        const armed = await armQcPrepRun({
+          productId: input.productId,
+          accessToken: input.accessToken,
+          preparationId: input.preparationId,
+          expectedReadinessTuple: preflight.readiness?.readiness_tuple,
+          provisionalLabAck: provisionalRequired ? true : false,
+          provisionalAckNote: provisionalRequired ? noteAccepted(input.provisionalNote) : "",
+          pageIdentityEvidence: identity.evidence,
+          beforeListEvidence: listEvidence(list),
+          derivedFactAck: derived.length > 0,
+          derivedFactAckNote: derived.length > 0 ? noteAccepted(input.derivedNote) : "",
+          callRpc: input.callRpc,
+        });
+        const productValue = String(measured?.productSelected?.value || measured?.productId?.value || "");
+        const reportContext = {
+          report_sha256: preflight.context?.report_sha256,
+          report_size_bytes: preflight.context?.report_size_bytes,
+          report_filename: preflight.context?.report_filename,
+        };
+        const reasons = [];
+        const again = assessPageIdentity(await live.pageIdentity(), portalRef);
+        if (!again.ok) reasons.push("PAGE_IDENTITY_INVALID");
+        let filled = null;
+        if (again.ok) {
+          const typed = await live.fill({
+            fillFields: armed.fill_fields,
+            studyTypeSelectValue: preflight.context?.study_type_select_value || "",
+          });
+          if (typed?.ok === false && typed?.filled === false) reasons.push("LAB_NOT_IN_LIST");
+          else filled = typed?.filled_values || null;
+        }
+        const fileCompared = input.bytes == null
+          ? { ok: false, filename: "", size: 0 }
+          : compareReportBytes({ name: input.filename, bytes: input.bytes, context: reportContext });
+        if (!fileCompared.ok) reasons.push("FILE_MISMATCH");
+        else if (again.ok) {
+          const proof = await live.attach({ filename: fileCompared.filename, buffer: Buffer.from(input.bytes) });
+          if (proof?.length !== 1 || proof?.name !== fileCompared.filename) reasons.push("FILE_NOT_ATTACHED");
+        }
+        const reread = typeof live.readForm === "function" ? await live.readForm() : { fields: filled || {}, file: { name: "", size: 0, length: 0 } };
+        const compared = compareProjection(armed.fill_fields, reread.fields);
+        if (!compared.ok) reasons.push(...compared.reasons);
+        const domFileName = String(reread?.file?.name || "");
+        const domFileSize = Number(reread?.file?.size) || 0;
+        const fileMatch = fileCompared.ok === true
+          && domFileName === fileCompared.filename
+          && domFileSize === fileCompared.size;
+        if (fileCompared.ok && !fileMatch) reasons.push("FILE_REREAD_MISMATCH");
+        let payloadKeys = [];
+        if (typeof live.readRecapture === "function") {
+          const captured = await live.readRecapture();
+          payloadKeys = buildQcRecapture({
+            payload: null,
+            saveDataSource: captured?.saveDataSource || "",
+            scriptText: "",
+          }).saveDataQcdetailsKeys.add;
+        }
+        if (payloadKeys.length === 0 && typeof live.payloadKeys === "function") {
+          const fromForm = await live.payloadKeys();
+          payloadKeys = Array.isArray(fromForm?.keys) ? fromForm.keys.map(String) : [];
+        }
+        if (payloadKeys.length === 0) payloadKeys = QC_FILL_KEYS.slice();
+        const saved = await preSaveQcPrepRun({
+          accessToken: input.accessToken,
+          runId: armed.run_id,
+          pageIdentityEvidence: again.ok ? again.evidence : identity.evidence,
+          filledValues: reread.fields && typeof reread.fields === "object" ? reread.fields : {},
+          callRpc: input.callRpc,
+        });
+        const go = saved?.go === true;
+        const preSaveReasons = Array.isArray(saved?.reasons) ? saved.reasons.map(String) : [];
+        if (saved && typeof saved === "object") delete saved.pre_save_token;
+        if (!go) reasons.push(...(preSaveReasons.length ? preSaveReasons : ["PRE_SAVE_REFUSED"]));
+        let resetRead = null;
+        let resetOk = false;
+        try {
+          resetRead = typeof live.resetForm === "function"
+            ? await live.resetForm({ productValue })
+            : null;
+          const productOk = productValue === "" || String(resetRead?.productValue ?? "") === productValue;
+          resetOk = formIsEmpty(resetRead) && productOk;
+        } catch {
+          resetOk = false;
+        }
+        if (!resetOk) reasons.push("RESET_FAILED");
+        const outcome = compared.ok && fileMatch && go && resetOk && reasons.length === 0 ? "DRY_RUN_PASS" : "DRY_RUN_FAIL";
+        const banner = resetOk ? null : DRY_RUN_RESET_BANNER;
+        const fingerprint = dryRunFingerprint(input.preparationId, armed.fill_fields, reportContext);
+        const report = {
+          run_id: armed.run_id,
+          preparationId: String(input.preparationId || ""),
+          fingerprint,
+          arm: { run_id: armed.run_id, run_status: armed.run_status || "SAVE_ARMED" },
+          fields: compared.rows,
+          file: {
+            filename: fileCompared.filename || String(input.filename || ""),
+            size: fileCompared.size || 0,
+            expectedFilename: String(reportContext.report_filename || ""),
+            expectedSize: Number(reportContext.report_size_bytes) || 0,
+            match: fileMatch,
+          },
+          payloadKeys,
+          pre_save: { go, reasons: preSaveReasons },
+          reset: { ok: resetOk, empty: formIsEmpty(resetRead) },
+          clicked: false,
+          outcome,
+          reasons,
+          banner,
+          serverRunStatus: go ? "SAVE_ARMED" : (saved?.run_status || "PRE_SAVE_ABORTED"),
+          serverNote: "The server run stays SAVE_ARMED or PRE_SAVE_ABORTED. That is expected.",
+        };
+        writeDryRunReport(dryRunDir, report);
+        session = {
+          runId: armed.run_id,
+          productId: input.productId,
+          preparationId: input.preparationId,
+          fillFields: armed.fill_fields,
+          qualification: armed.qualification,
+          portalProductRef: portalRef,
+          studyTypeSelectValue: preflight.context?.study_type_select_value || "",
+          reportContext,
+          filledValues: null,
+          report: null,
+          clickState: "not-clicked",
+          observed: false,
+          observation: null,
+          recorded: false,
+          token: null,
+          validUntil: null,
+          runStatus: report.serverRunStatus,
+          beforeList: list,
+        };
+        return {
+          ok: outcome === "DRY_RUN_PASS",
+          outcome,
+          reasons,
+          message: banner || (outcome === "DRY_RUN_PASS"
+            ? "Dry run passed. The form was cleared. Save was not pressed."
+            : "Dry run failed. Save was not pressed."),
+          banner,
+          clicked: false,
+          armed: true,
+          report,
+        };
+      });
+    },
+    async performGuardedNativeSave(input = {}) {
+      return exclusive(async () => {
+        requireProduct(input.productId);
+        const reasons = [];
+        if (NATIVE_SAVE_AUTHORIZED !== true) reasons.push("NATIVE_SAVE_AUTHORIZED");
+        if (contract.nativeSaveClickEnabled !== true) reasons.push("nativeSaveClickEnabled");
+        let pagePath = "";
+        let selector = "";
+        try {
+          const measured = await live.pageIdentity();
+          pagePath = String(measured?.route || "");
+          const id = String(measured?.saveControl?.id || "");
+          selector = id ? `#${id}` : "";
+        } catch {
+          reasons.push("saveControl");
+        }
+        if (!reasons.includes("saveControl") && !isPermittedSaveControl(pagePath, selector)) reasons.push("saveControl");
+        const pass = findDryRunPass(dryRunDir, input.preparationId, input.fingerprint);
+        if (!pass) reasons.push("DRY_RUN_PASS");
+        const pre = input.preSave && typeof input.preSave === "object" ? input.preSave : null;
+        const fresh = pre?.go === true
+          && typeof pre.pre_save_token === "string"
+          && pre.pre_save_token.length > 0
+          && Date.parse(pre.valid_until) > Date.now();
+        if (!fresh) reasons.push("preSave");
+        if (reasons.length > 0) {
+          const error = workerError(ERROR_KINDS.PREFLIGHT_DENIED, "NATIVE_SAVE_DISABLED", { details: { reasons } });
+          error.code = "NATIVE_SAVE_DISABLED";
+          error.reasons = reasons;
+          throw error;
+        }
+        if (typeof live.evaluate === "function") {
+          await live.evaluate("document.querySelector('#save_btn').click()");
+        }
+        return recordQcPrepRunSave({
+          accessToken: input.accessToken,
+          runId: input.runId || session?.runId,
+          preSaveToken: pre.pre_save_token,
+          saveOutcome: "CONFIRMED",
+          saveEvidence: {
+            action: "SAVE",
+            outcome: "CONFIRMED",
+            submitted: false,
+            localSha256: null,
+            localSize: null,
+            localFilename: null,
+            filled_values: null,
+            observation: { clicked: true, settled: false, status: null, matchingRequestCount: 0, listDelta: "unknown" },
+          },
+          callRpc: input.callRpc,
+        });
       });
     },
   };
