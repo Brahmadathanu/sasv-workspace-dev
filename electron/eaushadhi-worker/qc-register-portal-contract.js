@@ -47,6 +47,23 @@ const QC_PORTAL_PRODUCT_LABEL = Object.freeze({
   262: "KARPOORADI THAILAM",
 });
 
+const QC_NATIVE_SAVE_CONTROL = Object.freeze({
+  page: "/admin/addQCRegister",
+  selector: "#save_btn",
+  label: "Submit",
+  endpoint: "/admin/SaveQCData",
+  semantics: "PER_ROW_SAVE",
+  decidedAt: "2026-10-14T18:31+05:30",
+  decidedBy: "operator",
+});
+
+// May only change in a separately authorized commit.
+const NATIVE_SAVE_AUTHORIZED = false;
+
+function isPermittedSaveControl(pagePath, selector) {
+  return pagePath === QC_NATIVE_SAVE_CONTROL.page && selector === QC_NATIVE_SAVE_CONTROL.selector;
+}
+
 const QC_FILL_KEYS = Object.freeze([
   "typeOfStudy",
   "startDate",
@@ -61,5 +78,8 @@ const QC_FILL_KEYS = Object.freeze([
 module.exports = {
   QC_PORTAL_CONTRACT,
   QC_PORTAL_PRODUCT_LABEL,
+  QC_NATIVE_SAVE_CONTROL,
+  NATIVE_SAVE_AUTHORIZED,
+  isPermittedSaveControl,
   QC_FILL_KEYS,
 };

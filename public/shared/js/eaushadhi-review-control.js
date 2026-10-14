@@ -401,6 +401,9 @@ const state = {
   qcFillRun: null,
   qcFillRunNotice: "",
   qcFillReportName: "",
+  qcFillInspectOk: false,
+  qcFillCheckedReport: null,
+  qcFillDryRun: null,
   qcPrepRunBusy: false,
   qcReportVerifyError: "",
   qcReportVerifyCode: "",
@@ -4086,6 +4089,9 @@ function resetQcPreparationWorkspace() {
   state.qcFillLoadedFor = null;
   state.qcFillLoading = false;
   state.qcFillNotice = "";
+  state.qcFillInspectOk = false;
+  state.qcFillCheckedReport = null;
+  state.qcFillDryRun = null;
 }
 
 function qcPrepCurrent() {
@@ -5765,6 +5771,12 @@ function qcFillPreflightCardHtml() {
   const recaptureList = (items) => (Array.isArray(items) && items.length ? items.map((item) => esc(item)).join(", ") : "none");
   const recaptureYes = (value) => (value === true ? "yes" : "no");
   const recaptureHtml = recapture ? `<details id="qcFillRecapture"><summary>Recapture (read-only)</summary><p>List row keys: ${recaptureList(recaptureKeys)}</p><p>Action markup: hid ${recaptureYes(recaptureAction.hid)}, edit_qc ${recaptureYes(recaptureAction.edit_qc)}, delete_qc ${recaptureYes(recaptureAction.delete_qc)}, downloadButtonClass ${recaptureYes(recaptureAction.downloadButtonClass)}</p><p>Raw dates: startdate ${esc(recaptureDates.startdate || "")}, enddate ${esc(recaptureDates.enddate || "")}, reportdate ${esc(recaptureDates.reportdate || "")}</p><p>Add payload keys: ${recaptureList(recaptureSaveKeys.add)}</p><p>Edit payload keys: ${recaptureList(recaptureSaveKeys.edit)}</p><p>Script hash: ${esc(recapture.scriptHash || "")}</p></details>` : "";
+  const dryRun = state.qcFillDryRun;
+  const dryRunEnabled = state.qcFillInspectOk === true && qcFillArmReady();
+  const dryFieldRows = Array.isArray(dryRun?.report?.fields)
+    ? dryRun.report.fields.map((row) => `<tr><th>${esc(row.key)}</th><td>${row.match ? "match" : "differs"}</td></tr>`).join("")
+    : "";
+  const dryRunHtml = dryRun ? `<div id="qcFillDryRunReport"><p>Dry run: ${esc(dryRun.outcome || "")}. Clicked: false.</p>${dryRun.banner ? `<p id="qcFillDryRunBanner" style="color:#991b1b">${esc(dryRun.banner)}</p>` : ""}${dryFieldRows ? `<table id="qcFillDryRunFields"><tbody>${dryFieldRows}</tbody></table>` : ""}<p>File match: ${dryRun.report?.file?.match === true ? "yes" : "no"}. Pre-save go: ${dryRun.report?.pre_save?.go === true ? "yes" : "no"}. Reset: ${dryRun.report?.reset?.ok === true ? "cleared" : "not cleared"}.</p><p>Payload keys: ${esc((dryRun.report?.payloadKeys || []).join(", "))}</p><p>${esc(dryRun.report?.serverNote || "The server run stays SAVE_ARMED or PRE_SAVE_ABORTED. That is expected.")}</p></div>` : "";
   return `<section class="section-card" id="qcFillPreflightCard">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
@@ -5790,6 +5802,8 @@ function qcFillPreflightCardHtml() {
     <p id="qcFillScope">Save only; Submit is not allowed.</p>
     <p id="qcFillSaveBlocked">${esc(QC_FILL_SAVE_BLOCKED)}</p>
     ${writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillInspect">Check portal page</button>
+    <button type="button" class="icon-btn with-label" id="btnQcFillDryRun"${dryRunEnabled ? "" : " disabled"}>Dry run (no Save)</button>
+    <button type="button" class="icon-btn with-label" id="btnQcFillGuardedSave" disabled title="Save is not authorized">Save (not authorized)</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillInspectFile">Choose report to check</button>
     <input id="qcFillInspectFile" type="file" accept="application/pdf,.pdf" hidden>
     <button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}>Arm filling</button>
@@ -5805,6 +5819,7 @@ function qcFillPreflightCardHtml() {
     ${latestStatus === "SAVE_ARMED" ? `<button type="button" class="icon-btn with-label" id="btnQcFillUnknown">Record unknown result</button>` : ""}` : ""}
     ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillVerify">Read the saved row</button>` : ""}
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
+    ${dryRunHtml}
     ${recaptureHtml}
   </section>`;
 }
@@ -5839,10 +5854,58 @@ async function submitQcFillInspect() {
       bytes,
     });
     if (state.selectedProductId !== productId) return;
+    state.qcFillInspectOk = result?.ok === true;
+    state.qcFillCheckedReport = file && result?.report?.ok === true ? { name: file.name, bytes } : null;
     qcFillInspectPendingFile = null;
     state.qcFillRecapture = result?.recapture && typeof result.recapture === "object" ? result.recapture : null;
     state.qcFillRecaptureFor = productId;
     state.qcFillRunNotice = result?.message || "Save was not pressed. Filling was not armed.";
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
+    state.qcGovernanceConfirmOpen = false;
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+async function submitQcFillDryRun() {
+  if (state.qcFillInspectOk !== true || !qcFillArmReady()) return;
+  const productId = state.selectedProductId;
+  const preparationId = state.qcPrepServer?.preparation_id;
+  const report = state.qcFillCheckedReport;
+  state.qcGovernanceConfirmOpen = true;
+  try {
+    const accepted = await openQcConfirm({
+      title: "Dry run (no Save)",
+      message: "This fills Add QC Register, checks the values, and clears the form. It does not press Save.",
+      okLabel: "Dry run",
+      returnFocusId: "btnQcFillDryRun",
+      idPrefix: "qcFillDryRunConfirm",
+    });
+    if (accepted !== true || state.selectedProductId !== productId) return;
+    state.qcPrepRunBusy = true;
+    state.qcFillRunNotice = "";
+    if (state.tab === "qc") renderQc();
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "dryRun",
+      preparationId,
+      userConfirmed: true,
+      provisionalAck: state.qcFillProvisionalAck === true,
+      provisionalNote: state.qcFillProvisionalNote,
+      derivedAck: state.qcFillDerivedAck === true,
+      derivedNote: state.qcFillDerivedNote,
+      filename: report?.name || "",
+      bytes: report?.bytes || null,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result && typeof result === "object") {
+      delete result.pre_save_token;
+      delete result.token;
+    }
+    state.qcFillDryRun = result || null;
+    state.qcFillRunNotice = result?.banner || result?.message || "Save was not pressed.";
   } catch (error) {
     if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
   } finally {
@@ -10026,6 +10089,7 @@ function wireEvents() {
     if (event.target.id === "btnQcMappingVerify") void submitQcProtocolMapping();
     if (event.target.id === "btnQcFillArm") void submitQcFillArm();
     if (event.target.id === "btnQcFillInspect") void submitQcFillInspect();
+    if (event.target.id === "btnQcFillDryRun") void submitQcFillDryRun();
     if (event.target.id === "btnQcFillInspectFile") document.getElementById("qcFillInspectFile")?.click();
     if (event.target.id === "btnQcFillFields") void submitQcFillFields();
     if (event.target.id === "btnQcFillChooseReport") document.getElementById("qcFillReportFile")?.click();

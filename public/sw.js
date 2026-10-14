@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v367"; // WP-07 D7.1.2 QC page identity matches the product name, cache v367
+const CACHE_NAME = "hub-cache-v368"; // WP-07 D7.2 QC dry run, cache v368
 
 const PRECACHE = [
   // Hub shell

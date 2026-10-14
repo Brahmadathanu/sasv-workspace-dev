@@ -275,6 +275,24 @@ Operator check, signed in to Electron, Product 262 only:
 
 The check does not call `SaveData()`, does not click `#save_btn`, and does not arm a run.
 
+## Native Save decision
+Recorded by the operator on 2026-10-14 at 18:31 IST. On `/admin/addQCRegister` only, the green button `#save_btn`, labelled "Submit", is the per-row native Save. It calls `SaveData()` via `$.ajax` to `/admin/SaveQCData`, and the saved rows stay editable and deletable. Every other Submit, or any final submission anywhere, stays excluded permanently.
+
+## D7.2 — Dry run, then a Save button that cannot click
+Dry run (no Save) is enabled only after Check portal page passes and both acknowledgements are ticked. It runs preflight again, arms with those acknowledgements, checks the page, fills the eight frozen fields, and attaches the verified report that was chosen for the check. It then rereads the form, compares it with the server projection the same way pre-save does, and compares the file by name and size. It keeps the would-be Save field names only. It calls pre-save and drops the token immediately. It does not click. It clears the eight fields and the file, puts the product back, and rereads. The local report is `userData/eaushadhi/qc-dryrun/<run_id>.json`. The outcome is `DRY_RUN_PASS` only when every field matches, pre-save says go, and the form is empty again. Otherwise it is `DRY_RUN_FAIL`. If the form still holds values, the card shows: "Form contains UNSAVED dry-run values. Do not press Submit. Reload the page."
+
+The server run stays `SAVE_ARMED` or `PRE_SAVE_ABORTED`. That is expected. Dry run does not call record-save.
+
+Save (not authorized) is shown disabled. The click exists only behind `NATIVE_SAVE_AUTHORIZED`, which is false, plus the existing Save flag, the permitted control, a passing dry run for the same preparation and fingerprint, and a fresh pre-save token. None of those can reach the click in this commit.
+
+Operator dry run, signed in to Electron from this branch, Product 262 only:
+1. Open the app from the branch and sign in.
+2. Open Add QC Register and choose Karpooradi Thailam.
+3. Choose the verified report with Choose report to check, then click Check portal page.
+4. Tick both acknowledgements.
+5. Click Dry run (no Save). Read the report and confirm the form is empty.
+6. Never press the green Submit.
+
 Plain-word blockers:
 - The 'Others' protocol mapping is not verified yet.
 - Study start date must be accepted as 'Operator derivation' (correct the acceptance).
