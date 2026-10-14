@@ -5716,7 +5716,14 @@ function qcSeedFillAcks() {
   const preparationId = state.qcPrepServer?.preparation_id || "";
   const loaded = state.qcFillPreflight && state.qcFillLoadedFor === preparationId ? "loaded" : "pending";
   const scope = `${state.selectedProductId || ""}:${preparationId}:${loaded}`;
-  if (state.qcFillAckScope === scope) return;
+  if (state.qcFillAckScope === scope) {
+    if (loaded === "loaded" && state.qcFillDerivedNoteTouched !== true && String(state.qcFillDerivedNote || "").trim() === "") {
+      const derivedNow = Array.isArray(state.qcFillPreflight?.context?.derived_facts) ? state.qcFillPreflight.context.derived_facts : [];
+      const noteNow = derivedNow.map((item) => String(item?.basis_note || "").trim()).filter(Boolean).join(" ");
+      if (noteNow.length >= 10 && noteNow.length <= 2000) state.qcFillDerivedNote = noteNow;
+    }
+    return;
+  }
   const sameCard = String(state.qcFillAckScope || "").startsWith(`${state.selectedProductId || ""}:${preparationId}:`);
   state.qcFillAckScope = scope;
   state.qcFillAckSeeded = true;
@@ -5818,7 +5825,7 @@ function qcFillPreflightCardHtml() {
   const inspectResult = state.qcFillInspectFileResult;
   const inspectFileHtml = chosenName ? `<p id="qcFillInspectFileName">Report to check: ${esc(chosenName)}. Click Check portal page to check it.</p>` : "";
   const inspectResultHtml = inspectResult ? `<p id="qcFillInspectFileResult">${inspectResult.ok === true ? "The report matched." : esc(fileWords[inspectResult.reason] || "The report did not match.")}</p>` : "";
-  return `<section class="section-card" id="qcFillPreflightCard">
+  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.2.2">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
     ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
@@ -5866,6 +5873,7 @@ function qcFillPreflightCardHtml() {
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
     ${dryRunHtml}
     ${recaptureHtml}
+    <p class="muted-note" id="qcFillBuild">UI build D7.2.2</p>
   </section>`;
 }
 

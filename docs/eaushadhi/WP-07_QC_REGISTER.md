@@ -300,6 +300,11 @@ Choose report to check shows the file name next to the buttons. Check portal pag
 
 Order: Check portal page, then tick both acknowledgements and keep the notes, then Dry run. Do not click Arm filling first. Dry run arms its own run, or reuses an open dry-run run for this preparation. A second dry run does not need a new arm while that run is still SAVE_ARMED with the same preparation and readiness. Save stays unauthorized and is not clicked.
 
+## D7.2.2 — The derived-date note fills from the current page
+The derived-date note stayed empty on the live screen because the service worker served the cached renderer from before D7.2.1. That older page seeded the note as blank and never filled it again. The e-Aushadhi review scripts and stylesheet are now loaded from the network first, and the cache is v370. If the note is still empty and the operator has not typed in it, the seed fills it once the preflight is loaded.
+
+Operator check: the card shows "UI build D7.2.2". If it does not, close the app and start it again.
+
 Plain-word blockers:
 - The 'Others' protocol mapping is not verified yet.
 - Study start date must be accepted as 'Operator derivation' (correct the acceptance).
