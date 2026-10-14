@@ -216,9 +216,9 @@ Operator flow for Product 262:
 1. Check on the COA that 01-10-2021 is the earliest batch manufacturing date.
 2. A colleague (not the verifier) corrects study start → Operator derivation, using the prefilled note.
 3. The colleague corrects testing protocol → Operator determination.
-4. Verify the Others mapping after checking the live Type of Study list.
+4. Others mapping 32 is VERIFIED and read-only (portal option id 493, external id `Others`).
 5. The preflight shows no blockers.
-6. Arm filling, then fill the portal form and attach the verified report. Native Save stays off.
+6. A read-only portal check comes before any arm. Native Save stays off.
 
 ## D7 — Filling client (Save disabled)
 The filling client is on `feat/wp07-s2c-c1-qc-preparation-ui`. It arms, fills, checks the PDF, and can record a Save observation. It does not click the portal.
@@ -238,6 +238,22 @@ Unresolved capture gaps, so the client fails closed instead of guessing:
 - `getLaboratroyName` builds the option value from the laboratory name, while the frozen field is the portal external id.
 
 A verified row is shown as "Row verified — document not verified (trusted document check not available yet)". The client never shows fully verified. NUPAL stays the report issuer. HARIDEV FORMULATIONS stays the provisional portal laboratory. No live portal Save or Submit is part of this client change.
+
+## D7.1 — Coverage, verified mapping, and the read-only portal check
+Read-only live state on 2026-10-14:
+- Protocol mapping 32 is `VERIFIED` (verified 2026-10-13 12:29:13 UTC). Portal option id 493, external id `Others`, term `OTHER`. The mapping card stays read-only. The server study-type select value is that external id, `Others`.
+- Fact-acceptance heads for preparation `d5b425c3-486f-465d-96eb-b1f9d3565e63`: study start date is acceptance 29, category Operator derivation, and it supersedes acceptance 1. Testing protocol is acceptance 30, category Operator determination, and it supersedes acceptance 2. Both heads were accepted by `b8fd6239-cc4b-4123-87d0-0a89fc2c84bd`. The preparation evidence verifier is `dff17104-c02a-4bca-95b1-e8ddff46a9b6`. The two editors are different.
+
+List coverage is complete only when the request is page 0 and an authoritative total (`total`, `recordsTotal`, `totalCount`, `TotalCount`, or `iTotalRecords`) equals the returned row count. An empty page without that total stays incomplete. A filtered count that disagrees with the total also stays incomplete.
+
+Operator check, signed in to Electron, Product 262 only:
+1. Open the QC tab and read the preflight, the verified mapping line, the issuer, and the portal laboratory.
+2. Narrow the window below 720 pixels and confirm the check and arm buttons use the full width and the field table scrolls sideways.
+3. Choose the verified V01 report with **Choose report to check**. That selection does not attach it.
+4. Click **Check portal page**. Esc, Cancel, and the backdrop make no call. **Check page** reads the page, the list, and the laboratory options.
+5. Stop when the notice is shown. Do not click **Arm filling**, **Fill portal fields**, or the portal control labelled Submit.
+
+The check does not call `SaveData()`, does not click `#save_btn`, and does not arm a run.
 
 Plain-word blockers:
 - The 'Others' protocol mapping is not verified yet.

@@ -443,6 +443,76 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         return { ok: true, runStatus: resolved.run_status, message, qualification: resolved.qualification };
       });
     },
+    async inspect(input = {}) {
+      return exclusive(async () => {
+        requireProduct(input.productId);
+        if (input.userConfirmed !== true) {
+          return { ok: false, errorKind: ERROR_KINDS.CONTRACT_INCOMPLETE, message: "Confirm the portal check before it starts." };
+        }
+        const preflight = await readQcFillPreflight({
+          productId: input.productId,
+          accessToken: input.accessToken,
+          preparationId: input.preparationId,
+          callRpc: input.callRpc,
+        });
+        const measured = await live.pageIdentity();
+        const identity = assessPageIdentity(measured, preflight.context?.portal_product_ref);
+        const list = await live.readList();
+        const facts = typeof live.readPortalFacts === "function"
+          ? await live.readPortalFacts()
+          : { laboratory: { options: [] }, studyType: { options: [] } };
+        const expectedLab = String(preflight.fill_fields?.labName ?? "");
+        const labOptions = Array.isArray(facts?.laboratory?.options) ? facts.laboratory.options : [];
+        const labMatch = labOptions.find((option) => String(option?.value ?? "") === expectedLab) || null;
+        const expectedStudy = String(preflight.context?.study_type_select_value ?? "");
+        const studyOptions = Array.isArray(facts?.studyType?.options) ? facts.studyType.options : [];
+        const studyMatch = studyOptions.find((option) => String(option?.value ?? "") === expectedStudy) || null;
+        const hasBytes = input.bytes != null && (Buffer.isBuffer(input.bytes) || input.bytes.length > 0);
+        const report = hasBytes
+          ? compareReportBytes({ name: input.filename, bytes: input.bytes, context: preflight.context })
+          : null;
+        const message = [
+          identity.ok ? "The portal page is Add QC Register for product 262." : "The portal page is not Add QC Register for product 262.",
+          list.coverageComplete === true ? "The QC list coverage is complete." : "The QC list coverage is not proven.",
+          labMatch ? "The frozen laboratory id is an option value." : "The frozen laboratory id is not an option value on this page.",
+          studyMatch ? "The study-type option value matches the server." : "The study-type option value does not match the server.",
+          report ? (report.ok ? "The file matches the verified QC report. It was not attached." : "This file does not match the verified QC report. It was not attached.") : "No report file was checked.",
+          "Save was not pressed. Filling was not armed.",
+        ].join(" ");
+        return {
+          ok: identity.ok === true && list.coverageComplete === true && Boolean(labMatch) && Boolean(studyMatch) && (report == null || report.ok === true),
+          nativeSaveEnabled: contract.nativeSaveClickEnabled === true,
+          saveBlockedReason: contract.nativeSaveBlockedReason,
+          pageIdentityOk: identity.ok === true,
+          saveControlText: measured?.saveControl?.text || "",
+          list: {
+            success: list.success === true,
+            coverageComplete: list.coverageComplete === true,
+            reason: list.reason || null,
+            totalCount: Number.isInteger(list.totalCount) ? list.totalCount : null,
+            rowCount: Array.isArray(list.rows) ? list.rows.length : 0,
+            requestedPage: list.requestedPage === 0 ? 0 : null,
+          },
+          laboratory: {
+            expectedValue: expectedLab,
+            optionPresent: Boolean(labMatch),
+            optionValue: labMatch ? String(labMatch.value) : "",
+            optionLabel: labMatch ? String(labMatch.label || "") : "",
+          },
+          studyType: {
+            expectedValue: expectedStudy,
+            optionPresent: Boolean(studyMatch),
+            optionValue: studyMatch ? String(studyMatch.value) : "",
+            optionLabel: studyMatch ? String(studyMatch.label || "") : "",
+          },
+          protocolMapping: preflight.protocol_mapping || null,
+          report: report ? { ok: report.ok === true, size: report.size, filename: report.filename, attached: false } : null,
+          clickedSave: false,
+          armed: false,
+          message,
+        };
+      });
+    },
     async verify(input = {}) {
       return exclusive(async () => {
         requireProduct(input.productId);

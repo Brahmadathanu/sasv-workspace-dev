@@ -6,6 +6,7 @@ const { loadPortalContract } = require("./contracts/portal-contract");
 const {
   createInPageIdentityScript,
   createInPageListScript,
+  createInPagePortalFactsScript,
   createInPageQcFillScript,
 } = require("./qc-register-dom-fill");
 const { createInPageSaveObserveScript } = require("./qc-register-save-observe");
@@ -53,7 +54,7 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
     async readList() {
       const page = currentPage();
       const raw = await evaluateFactory(page, createInPageListScript());
-      const assessed = assessQcListResponse(raw?.payload);
+      const assessed = assessQcListResponse(raw?.payload, { pageno: 0 });
       writeLog({
         phase: "qc-prep-arm",
         detail: "list",
@@ -62,6 +63,10 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
         rowCount: assessed.rows.length,
       });
       return { ...assessed, domRowIds: Array.isArray(raw?.domRowIds) ? raw.domRowIds : [] };
+    },
+    async readPortalFacts() {
+      const page = currentPage();
+      return evaluateFactory(page, createInPagePortalFactsScript());
     },
     async fill(plan) {
       const page = currentPage();

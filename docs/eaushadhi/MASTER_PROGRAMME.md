@@ -51,7 +51,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
 | WP-06 | Composition Portal Execution | DONE | 100% | Closed: Product 262 representative lifecycle proven end-to-end and completed state fail-closed |
-| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | D7 filling client is on `feat/wp07-s2c-c1-qc-preparation-ui`: arm, field fill, PDF check, and Save observation. Native Save stays disabled because captured `#save_btn` is labelled Submit. FULLY_VERIFIED remains deferred. Next: ChatGPT audit, then an operator-controlled dry run. No live Save or Submit. Canonical stability-study promotion and merges stay parked |
+| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | D7.1 on `feat/wp07-s2c-c1-qc-preparation-ui`: list coverage requires page 0 plus an authoritative total; mapping 32 is VERIFIED and read-only; native Save stays disabled. Next: operator runs the read-only portal check. No live Save, Submit, or arm. Canonical stability-study promotion and trusted document verification stay parked |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
 | WP-10 | Acceptance, Stabilisation & Programme Closure | BLOCKED | 0% | Final regression/usability/closure |
