@@ -397,11 +397,14 @@ const state = {
   qcFillProvisionalNote: "",
   qcFillDerivedAck: false,
   qcFillDerivedNote: "",
+  qcFillDerivedNoteTouched: false,
   qcFillAckSeeded: false,
   qcFillRun: null,
   qcFillRunNotice: "",
   qcFillReportName: "",
   qcFillInspectOk: false,
+  qcFillChosenReportName: "",
+  qcFillInspectFileResult: null,
   qcFillCheckedReport: null,
   qcFillDryRun: null,
   qcPrepRunBusy: false,
@@ -4090,6 +4093,9 @@ function resetQcPreparationWorkspace() {
   state.qcFillLoading = false;
   state.qcFillNotice = "";
   state.qcFillInspectOk = false;
+  state.qcFillChosenReportName = "";
+  state.qcFillInspectFileResult = null;
+  state.qcFillDerivedNoteTouched = false;
   state.qcFillCheckedReport = null;
   state.qcFillDryRun = null;
 }
@@ -5707,29 +5713,47 @@ async function submitQcProtocolMapping() {
 let qcFillInspectPendingFile = null;
 
 function qcSeedFillAcks() {
-  const scope = `${state.selectedProductId || ""}:${state.qcPrepServer?.preparation_id || ""}`;
-  if (state.qcFillAckScope === scope && state.qcFillAckSeeded === true) return;
+  const preparationId = state.qcPrepServer?.preparation_id || "";
+  const loaded = state.qcFillPreflight && state.qcFillLoadedFor === preparationId ? "loaded" : "pending";
+  const scope = `${state.selectedProductId || ""}:${preparationId}:${loaded}`;
+  if (state.qcFillAckScope === scope) return;
+  const sameCard = String(state.qcFillAckScope || "").startsWith(`${state.selectedProductId || ""}:${preparationId}:`);
   state.qcFillAckScope = scope;
   state.qcFillAckSeeded = true;
-  state.qcFillProvisionalAck = false;
-  state.qcFillProvisionalNote = QC_FILL_PROVISIONAL_PREFILL;
+  if (!sameCard) {
+    state.qcFillProvisionalAck = false;
+    state.qcFillProvisionalNote = QC_FILL_PROVISIONAL_PREFILL;
+    state.qcFillDerivedAck = false;
+    state.qcFillDerivedNote = "";
+    state.qcFillDerivedNoteTouched = false;
+  }
+  if (state.qcFillDerivedNoteTouched === true) return;
   const derived = Array.isArray(state.qcFillPreflight?.context?.derived_facts) ? state.qcFillPreflight.context.derived_facts : [];
   const note = derived.map((item) => String(item?.basis_note || "").trim()).filter(Boolean).join(" ");
-  state.qcFillDerivedAck = false;
-  state.qcFillDerivedNote = note.length >= 10 && note.length <= 2000 ? note : "";
+  if (note.length >= 10 && note.length <= 2000) state.qcFillDerivedNote = note;
+  else if (!sameCard) state.qcFillDerivedNote = "";
 }
 
-function qcFillArmReady() {
+function qcFillArmBlockReason() {
   const preflight = state.qcFillPreflight;
-  if (!preflight || (preflight.blockers || []).length > 0) return false;
-  if (canWrite() !== true || !workerApiAvailable() || state.qcPrepRunBusy === true || state.qcGovernanceConfirmOpen === true) return false;
+  if (!preflight) return "Preflight has not loaded.";
+  if ((preflight.blockers || []).length > 0) return "Blockers are still present.";
+  if (canWrite() !== true) return "You do not have edit rights.";
+  if (!workerApiAvailable()) return "The portal worker is not available.";
+  if (state.qcPrepRunBusy === true || state.qcGovernanceConfirmOpen === true) return "A QC filling step is already running.";
   const provisional = preflight.readiness?.status === "READY_PROVISIONAL";
   const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
   const provisionalNote = String(state.qcFillProvisionalNote || "").trim();
   const derivedNote = String(state.qcFillDerivedNote || "").trim();
-  if (provisional && (state.qcFillProvisionalAck !== true || provisionalNote.length < 10 || provisionalNote.length > 2000)) return false;
-  if (derived.length > 0 && (state.qcFillDerivedAck !== true || derivedNote.length < 10 || derivedNote.length > 2000)) return false;
-  return true;
+  if (provisional && state.qcFillProvisionalAck !== true) return "Tick the provisional laboratory acknowledgement.";
+  if (provisional && (provisionalNote.length < 10 || provisionalNote.length > 2000)) return "The laboratory note must be 10–2000 characters.";
+  if (derived.length > 0 && state.qcFillDerivedAck !== true) return "Tick the derived-date acknowledgement.";
+  if (derived.length > 0 && (derivedNote.length < 10 || derivedNote.length > 2000)) return "The derived note must be 10–2000 characters.";
+  return "";
+}
+
+function qcFillArmReady() {
+  return !qcFillArmBlockReason();
 }
 
 function qcFillPreflightCardHtml() {
@@ -5772,11 +5796,28 @@ function qcFillPreflightCardHtml() {
   const recaptureYes = (value) => (value === true ? "yes" : "no");
   const recaptureHtml = recapture ? `<details id="qcFillRecapture"><summary>Recapture (read-only)</summary><p>List row keys: ${recaptureList(recaptureKeys)}</p><p>Action markup: hid ${recaptureYes(recaptureAction.hid)}, edit_qc ${recaptureYes(recaptureAction.edit_qc)}, delete_qc ${recaptureYes(recaptureAction.delete_qc)}, downloadButtonClass ${recaptureYes(recaptureAction.downloadButtonClass)}</p><p>Raw dates: startdate ${esc(recaptureDates.startdate || "")}, enddate ${esc(recaptureDates.enddate || "")}, reportdate ${esc(recaptureDates.reportdate || "")}</p><p>Add payload keys: ${recaptureList(recaptureSaveKeys.add)}</p><p>Edit payload keys: ${recaptureList(recaptureSaveKeys.edit)}</p><p>Script hash: ${esc(recapture.scriptHash || "")}</p></details>` : "";
   const dryRun = state.qcFillDryRun;
-  const dryRunEnabled = state.qcFillInspectOk === true && qcFillArmReady();
+  const armReason = qcFillArmBlockReason();
+  const dryRunReason = state.qcFillInspectOk === true ? armReason : [armReason, "Run Check portal page first (it must pass)."].filter(Boolean).join(" ");
+  const dryRunEnabled = state.qcFillInspectOk === true && !armReason;
+  const fileWords = {
+    NO_FILE: "No report file was checked.",
+    SHA256_DIFFERS: "The file contents do not match the verified report.",
+    SIZE_DIFFERS: "The file size does not match the verified report.",
+    NO_EXPECTED_HASH: "The verified report hash is missing.",
+  };
+  const shortSha = (value) => String(value || "").slice(0, 12);
+  const fileBlock = dryRun?.report?.file;
+  const fileLines = fileBlock?.expected
+    ? `<p>Expected: ${esc(fileBlock.expected.filename || "")}, ${esc(fileBlock.expected.size)} bytes, sha256 ${esc(shortSha(fileBlock.expected.sha256))}</p><p>Seen: ${esc(fileBlock.chosen?.filename || "")}, ${esc(fileBlock.chosen?.size)} bytes, sha256 ${esc(shortSha(fileBlock.chosen?.sha256))}${fileBlock.reason ? `. ${esc(fileWords[fileBlock.reason] || fileBlock.reason)}` : ""}</p>`
+    : `<p>File match: ${fileBlock?.match === true ? "yes" : "no"}.</p>`;
   const dryFieldRows = Array.isArray(dryRun?.report?.fields)
     ? dryRun.report.fields.map((row) => `<tr><th>${esc(row.key)}</th><td>${row.match ? "match" : "differs"}</td></tr>`).join("")
     : "";
-  const dryRunHtml = dryRun ? `<div id="qcFillDryRunReport"><p>Dry run: ${esc(dryRun.outcome || "")}. Clicked: false.</p>${dryRun.banner ? `<p id="qcFillDryRunBanner" style="color:#991b1b">${esc(dryRun.banner)}</p>` : ""}${dryFieldRows ? `<table id="qcFillDryRunFields"><tbody>${dryFieldRows}</tbody></table>` : ""}<p>File match: ${dryRun.report?.file?.match === true ? "yes" : "no"}. Pre-save go: ${dryRun.report?.pre_save?.go === true ? "yes" : "no"}. Reset: ${dryRun.report?.reset?.ok === true ? "cleared" : "not cleared"}.</p><p>Payload keys: ${esc((dryRun.report?.payloadKeys || []).join(", "))}</p><p>${esc(dryRun.report?.serverNote || "The server run stays SAVE_ARMED or PRE_SAVE_ABORTED. That is expected.")}</p></div>` : "";
+  const dryRunHtml = dryRun ? `<div id="qcFillDryRunReport"><p>Dry run: ${esc(dryRun.outcome || "")}. Clicked: false.${dryRun.report?.arm?.reused === true ? " Reused the open run." : ""}</p>${dryRun.banner ? `<p id="qcFillDryRunBanner" style="color:#991b1b">${esc(dryRun.banner)}</p>` : ""}${dryFieldRows ? `<table id="qcFillDryRunFields"><tbody>${dryFieldRows}</tbody></table>` : ""}${fileLines}<p>Pre-save go: ${dryRun.report?.pre_save?.go === true ? "yes" : "no"}. Reset: ${dryRun.report?.reset?.ok === true ? "cleared" : "not cleared"}.</p><p>Payload keys: ${esc((dryRun.report?.payloadKeys || []).join(", "))}</p><p>${esc(dryRun.report?.serverNote || "The server run stays SAVE_ARMED or PRE_SAVE_ABORTED. That is expected.")}</p></div>` : "";
+  const chosenName = String(state.qcFillChosenReportName || "");
+  const inspectResult = state.qcFillInspectFileResult;
+  const inspectFileHtml = chosenName ? `<p id="qcFillInspectFileName">Report to check: ${esc(chosenName)}. Click Check portal page to check it.</p>` : "";
+  const inspectResultHtml = inspectResult ? `<p id="qcFillInspectFileResult">${inspectResult.ok === true ? "The report matched." : esc(fileWords[inspectResult.reason] || "The report did not match.")}</p>` : "";
   return `<section class="section-card" id="qcFillPreflightCard">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
@@ -5801,16 +5842,20 @@ function qcFillPreflightCardHtml() {
     </label>
     <p id="qcFillScope">Save only; Submit is not allowed.</p>
     <p id="qcFillSaveBlocked">${esc(QC_FILL_SAVE_BLOCKED)}</p>
+    <p id="qcFillButtonsReason">${esc(dryRunReason)}</p>
     ${writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillInspect">Check portal page</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillDryRun"${dryRunEnabled ? "" : " disabled"}>Dry run (no Save)</button>
+    <button type="button" class="icon-btn with-label" id="btnQcFillDryRun"${dryRunEnabled ? "" : ` disabled title="${esc(dryRunReason)}"`}>Dry run (no Save)</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillGuardedSave" disabled title="Save is not authorized">Save (not authorized)</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillInspectFile">Choose report to check</button>
+    ${inspectFileHtml}
+    ${inspectResultHtml}
     <input id="qcFillInspectFile" type="file" accept="application/pdf,.pdf" hidden>
-    <button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}>Arm filling</button>
+    <button type="button" class="icon-btn with-label primary" id="btnQcFillArm"${armDisabled}${armDisabled ? ` title="${esc(armReason)}"` : ""}>Arm filling</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillFields"${armed && !state.qcPrepRunBusy ? "" : " disabled"}>Fill portal fields</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillChooseReport"${state.qcFillRun?.filled ? "" : " disabled"}>Choose verified report</button>
     <input id="qcFillReportFile" type="file" accept="application/pdf,.pdf" hidden>
-    <button type="button" class="icon-btn with-label" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>` : ""}
+    <button type="button" class="icon-btn with-label" id="btnQcFillReview"${state.qcFillRun?.reportReady ? "" : " disabled"}>Review before Save</button>
+    <p id="qcFillOrderHint">Dry run arms its own run, or reuses an open dry-run run for this preparation. Do not click Arm filling first.</p>` : ""}
     ${recovery && writable ? `<p id="qcFillCheckList">Check the portal list.</p>
     <label>Note<textarea id="qcFillResolveNote"></textarea></label>
     <label><input id="qcFillResolveAttest" type="checkbox"> I checked the portal list for this product.</label>
@@ -5855,6 +5900,7 @@ async function submitQcFillInspect() {
     });
     if (state.selectedProductId !== productId) return;
     state.qcFillInspectOk = result?.ok === true;
+    state.qcFillInspectFileResult = result?.report ? { ok: result.report.ok === true, reason: result.report.reason || null } : null;
     state.qcFillCheckedReport = file && result?.report?.ok === true ? { name: file.name, bytes } : null;
     qcFillInspectPendingFile = null;
     state.qcFillRecapture = result?.recapture && typeof result.recapture === "object" ? result.recapture : null;
@@ -6261,7 +6307,10 @@ function onQcGovernanceField(event) {
   } else if (target?.id === "qcFillProvisionalNote" || target?.id === "qcFillProvisionalAck" || target?.id === "qcFillDerivedNote" || target?.id === "qcFillDerivedAck") {
     state.qcFillAckSeeded = true;
     if (target.id === "qcFillProvisionalNote") state.qcFillProvisionalNote = target.value;
-    if (target.id === "qcFillDerivedNote") state.qcFillDerivedNote = target.value;
+    if (target.id === "qcFillDerivedNote") {
+      state.qcFillDerivedNote = target.value;
+      state.qcFillDerivedNoteTouched = true;
+    }
     if (target.id === "qcFillProvisionalAck") state.qcFillProvisionalAck = target.checked === true;
     if (target.id === "qcFillDerivedAck") state.qcFillDerivedAck = target.checked === true;
   } else {
@@ -10105,10 +10154,9 @@ function wireEvents() {
     if (event.target?.id === "qcFillInspectFile") {
       qcFillInspectPendingFile = event.target.files?.[0] || null;
       event.target.value = "";
-      if (qcFillInspectPendingFile && state.tab === "qc") {
-        state.qcFillRunNotice = "Report selected for checking. It is not attached.";
-        renderQc();
-      }
+      state.qcFillChosenReportName = qcFillInspectPendingFile?.name || "";
+      state.qcFillInspectFileResult = null;
+      if (qcFillInspectPendingFile && state.tab === "qc") renderQc();
       return;
     }
     if (event.target?.id !== "qcFillReportFile") return;

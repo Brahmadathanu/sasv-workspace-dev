@@ -293,6 +293,13 @@ Operator dry run, signed in to Electron from this branch, Product 262 only:
 5. Click Dry run (no Save). Read the report and confirm the form is empty.
 6. Never press the green Submit.
 
+## D7.2.1 — The buttons say why, and a dry run can be repeated
+The acknowledgement note was seeded on the first render, before the preflight arrived, and then never filled in. Arm filling and Dry run stayed disabled with no reason, and the disabled Arm button still looked teal. The note is now filled from the derived basis only after the preflight has loaded, and text the operator typed is kept. The line above the buttons says the first thing still missing. A disabled Arm button is grey.
+
+Choose report to check shows the file name next to the buttons. Check portal page then says whether that file matched. The match uses the file contents and size, not the local file name, and the portal receives the registered V01 name.
+
+Order: Check portal page, then tick both acknowledgements and keep the notes, then Dry run. Do not click Arm filling first. Dry run arms its own run, or reuses an open dry-run run for this preparation. A second dry run does not need a new arm while that run is still SAVE_ARMED with the same preparation and readiness. Save stays unauthorized and is not clicked.
+
 Plain-word blockers:
 - The 'Others' protocol mapping is not verified yet.
 - Study start date must be accepted as 'Operator derivation' (correct the acceptance).

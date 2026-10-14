@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v368"; // WP-07 D7.2 QC dry run, cache v368
+const CACHE_NAME = "hub-cache-v369"; // WP-07 D7.2.1 QC dry-run retry, cache v369
 
 const PRECACHE = [
   // Hub shell
