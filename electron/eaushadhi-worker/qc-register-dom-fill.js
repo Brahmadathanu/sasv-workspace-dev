@@ -75,10 +75,40 @@ function createInPageIdentityScript() {
       };
     }
     var save = document.getElementById("save_btn");
+    var product = document.getElementById("productId");
+    var productOptions = [];
+    var productSelected = { value: "", text: "" };
+    if (product && product.options) {
+      for (var i = 0; i < product.options.length; i++) {
+        productOptions.push({
+          value: product.options[i].value == null ? "" : String(product.options[i].value),
+          text: String(product.options[i].textContent || "").replace(/\\s+/g, " ").trim()
+        });
+      }
+      var selectedOption = product.selectedIndex >= 0 ? product.options[product.selectedIndex] : null;
+      if (selectedOption) {
+        productSelected = {
+          value: selectedOption.value == null ? "" : String(selectedOption.value),
+          text: String(selectedOption.textContent || "").replace(/\\s+/g, " ").trim()
+        };
+      }
+    }
+    var heading = "";
+    var headings = document.querySelectorAll("h1, h2, h3, h4");
+    for (var h = 0; h < headings.length; h++) {
+      var headingText = String(headings[h].textContent || "").replace(/\\s+/g, " ").trim();
+      if (headingText.indexOf("Quality Control") >= 0) {
+        heading = headingText;
+        break;
+      }
+    }
     return {
       origin: url.origin,
       route: url.pathname,
+      heading: heading,
       productId: read("productId"),
+      productSelected: productSelected,
+      productOptions: productOptions,
       actiontype: read("actiontype"),
       hiddenId: read("id"),
       saveData: typeof window.SaveData === "function",

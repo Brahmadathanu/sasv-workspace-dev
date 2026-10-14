@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v366"; // WP-07 D7.1.1 study option value Others, read-only recapture on Check portal page, cache v366
+const CACHE_NAME = "hub-cache-v367"; // WP-07 D7.1.2 QC page identity matches the product name, cache v367
 
 const PRECACHE = [
   // Hub shell
