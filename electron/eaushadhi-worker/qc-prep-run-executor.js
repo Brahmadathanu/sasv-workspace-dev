@@ -4,7 +4,7 @@ const { createHash } = require("crypto");
 const { ERROR_KINDS, workerError } = require("./errors");
 const { FIRST_CONTROLLED_PRODUCT_ID, isFirstControlledProduct } = require("./product-lock");
 const { QC_FILL_KEYS, QC_PORTAL_CONTRACT } = require("./qc-register-portal-contract");
-const { assessQcListDuplicate, listEvidence, normalizeQcListRow, sameFillFields } = require("./qc-register-list");
+const { assessQcListDuplicate, listEvidence, mapGetqcDataResponse, normalizeQcListRow, sameFillFields } = require("./qc-register-list");
 const { decideSaveClick } = require("./qc-register-save-guard");
 const { classifyQcSaveObservation } = require("./qc-register-save-observe");
 const {
@@ -202,6 +202,9 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         if (!duplicate.ok && duplicate.code === "DUPLICATE_UNPROVEN") {
           throw workerError(ERROR_KINDS.PREFLIGHT_DENIED, "The QC list has rows that cannot be compared yet. Filling was not started.");
         }
+        if (!duplicate.ok && duplicate.code === "LIST_INCOMPLETE") {
+          throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "List incomplete");
+        }
         if (!duplicate.ok) {
           throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC list was not fully read. Nothing was armed.");
         }
@@ -266,6 +269,14 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
           fillFields: session.fillFields,
           studyTypeSelectValue: session.studyTypeSelectValue,
         });
+        if (result?.ok === false && result?.filled === false) {
+          return {
+            ok: false,
+            errorKind: ERROR_KINDS.CONTRACT_INCOMPLETE,
+            message: result.message || "Laboratory not in the portal list",
+            runStatus: session.runStatus,
+          };
+        }
         const filled = result?.filled_values;
         if (!sameFillFields(filled, session.fillFields)) {
           const aborted = await preSaveQcPrepRun({
@@ -317,7 +328,8 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         if (input.userConfirmed !== true) {
           return { ok: false, errorKind: ERROR_KINDS.CONTRACT_INCOMPLETE, message: "Confirm the fields before Save." };
         }
-        const decision = decideSaveClick({ contract, control: (await live.pageIdentity())?.saveControl });
+        const measured = await live.pageIdentity();
+        const decision = decideSaveClick({ contract, control: measured?.saveControl, page: measured });
         if (!decision.allow) {
           return {
             ok: false,
@@ -474,7 +486,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         const message = [
           identity.ok ? "The portal page is Add QC Register for product 262." : "The portal page is not Add QC Register for product 262.",
           list.coverageComplete === true ? "The QC list coverage is complete." : "The QC list coverage is not proven.",
-          labMatch ? "The frozen laboratory id is an option value." : "The frozen laboratory id is not an option value on this page.",
+          labMatch ? "The frozen laboratory name is an option value." : "The frozen laboratory name is not an option value on this page.",
           studyMatch ? "The study-type option value matches the server." : "The study-type option value does not match the server.",
           report ? (report.ok ? "The file matches the verified QC report. It was not attached." : "This file does not match the verified QC report. It was not attached.") : "No report file was checked.",
           "Save was not pressed. Filling was not armed.",
@@ -517,6 +529,9 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
       return exclusive(async () => {
         requireProduct(input.productId);
         const list = await live.readList();
+        if (list.reason === "LIST_INCOMPLETE") {
+          return { ok: false, errorKind: ERROR_KINDS.CONTRACT_INCOMPLETE, message: "List incomplete" };
+        }
         if (list.success !== true || list.coverageComplete !== true) {
           throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "The QC list was not fully read.");
         }
@@ -532,21 +547,38 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
           expected = preflight.fill_fields;
           if (!runId) runId = (preflight.runs || [])[0]?.run_id || null;
         }
-        const match = (list.rows || []).map(normalizeQcListRow).find((row) => row && sameFillFields(row.values, expected));
         const domId = (list.domRowIds || []).map((item) => String(item?.value || "").trim()).find(Boolean);
-        const portalRowId = match?.portalRowId || domId || "";
-        if (!match || !portalRowId) {
+        const singleRowId = Array.isArray(list.rows) && list.rows.length === 1
+          ? String(list.rows[0]?.id ?? list.rows[0]?.hid ?? "").trim()
+          : "";
+        const portalRowId = domId || singleRowId;
+        if (!portalRowId || typeof live.reread !== "function") {
           return {
             ok: false,
             errorKind: ERROR_KINDS.CONTRACT_INCOMPLETE,
             message: "The saved row could not be read back. It was not verified.",
           };
         }
+        const raw = await live.reread({ id: portalRowId });
+        const mapped = mapGetqcDataResponse(raw?.payload);
+        if (!mapped.ok) {
+          return {
+            ok: false,
+            runStatus: "ROW_MISMATCH",
+            reason: mapped.reason || "date format unknown",
+            message: mapped.reason || "date format unknown",
+            display: {
+              blocking: true,
+              text: "The saved row does not match. It was not verified.",
+              differences: [mapped.reason || "date format unknown"],
+            },
+          };
+        }
         const verified = await verifyQcPrepRunRow({
           accessToken: input.accessToken,
           runId,
           afterListEvidence: listEvidence(list),
-          rereadValues: match.values,
+          rereadValues: mapped.values,
           resolvedPortalRowId: portalRowId,
           callRpc: input.callRpc,
         });
@@ -581,7 +613,8 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
         message: "The save authorisation expired. Review the fields again.",
       };
     }
-    const decision = decideSaveClick({ contract, control: (await live.pageIdentity())?.saveControl });
+    const measured = await live.pageIdentity();
+    const decision = decideSaveClick({ contract, control: measured?.saveControl, page: measured });
     if (!decision.allow) {
       return {
         ok: false,
@@ -594,7 +627,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT } = {}) {
     let observation = presetObservation;
     if (!observation) {
       try {
-        observation = await live.observeSave();
+        observation = await live.observeSave({ allowClick: true });
         const after = await live.readList();
         observation.listDelta = listDelta(session.beforeList, after, session.filledValues);
       } catch {

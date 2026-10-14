@@ -8,6 +8,7 @@ const {
   createInPageListScript,
   createInPagePortalFactsScript,
   createInPageQcFillScript,
+  createInPageRereadScript,
 } = require("./qc-register-dom-fill");
 const { createInPageSaveObserveScript } = require("./qc-register-save-observe");
 const { QC_PORTAL_CONTRACT } = require("./qc-register-portal-contract");
@@ -68,6 +69,12 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
       const page = currentPage();
       return evaluateFactory(page, createInPagePortalFactsScript());
     },
+    async reread(spec) {
+      const page = currentPage();
+      const raw = await evaluateFactory(page, createInPageRereadScript(), spec);
+      writeLog({ phase: "qc-prep-verify", detail: "reread", httpStatus: raw?.httpStatus || null });
+      return raw;
+    },
     async fill(plan) {
       const page = currentPage();
       return evaluateFactory(page, createInPageQcFillScript(), plan);
@@ -90,11 +97,12 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
       }, QC_PORTAL_CONTRACT.fileInputId);
       return proof;
     },
-    async observeSave() {
+    async observeSave(spec = {}) {
       const page = currentPage();
       return evaluateFactory(page, createInPageSaveObserveScript(), {
         controlId: QC_PORTAL_CONTRACT.saveControlId,
         timeoutMs: 8000,
+        allowClick: spec.allowClick === true,
       });
     },
   };

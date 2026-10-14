@@ -235,7 +235,7 @@ Native Save stays disabled (`SAVE_CONTROL_LABELLED_SUBMIT`). The screen says: "T
 Unresolved capture gaps, so the client fails closed instead of guessing:
 - list columns in the capture stop before the eight posted fields;
 - the Save payload snippet stops after endDate;
-- `getLaboratroyName` builds the option value from the laboratory name, while the frozen field is the portal external id.
+- `getLaboratroyName` builds the option value from the laboratory name. B5.1 applied 20261013155440: QC labName = laboratory name, not portal id. D7.1 uses that name.
 
 A verified row is shown as "Row verified — document not verified (trusted document check not available yet)". The client never shows fully verified. NUPAL stays the report issuer. HARIDEV FORMULATIONS stays the provisional portal laboratory. No live portal Save or Submit is part of this client change.
 
@@ -244,7 +244,17 @@ Read-only live state on 2026-10-14:
 - Protocol mapping 32 is `VERIFIED` (verified 2026-10-13 12:29:13 UTC). Portal option id 493, external id `Others`, term `OTHER`. The mapping card stays read-only. The server study-type select value is that external id, `Others`.
 - Fact-acceptance heads for preparation `d5b425c3-486f-465d-96eb-b1f9d3565e63`: study start date is acceptance 29, category Operator derivation, and it supersedes acceptance 1. Testing protocol is acceptance 30, category Operator determination, and it supersedes acceptance 2. Both heads were accepted by `b8fd6239-cc4b-4123-87d0-0a89fc2c84bd`. The preparation evidence verifier is `dff17104-c02a-4bca-95b1-e8ddff46a9b6`. The two editors are different.
 
-List coverage is complete only when the request is page 0 and an authoritative total (`total`, `recordsTotal`, `totalCount`, `TotalCount`, or `iTotalRecords`) equals the returned row count. An empty page without that total stays incomplete. A filtered count that disagrees with the total also stays incomplete.
+B5.1 applied 20261013155440: QC labName = laboratory name, not portal id. The live projection returns the laboratory name, for Product 262 `HARIDEV FORMULATIONS`. Before any field is filled, `#lab_name` must have an option whose value equals that name exactly. If it does not, filling stops with "Laboratory not in the portal list". There is no match by visible text, by portal id 3980, by case, or by spaces, and `Other` is not a fallback.
+
+`LoadQCData` is called as `pageno=0&&length=-1&&search=&&order=&&licenseid=` plus the `#licenseid` value. The total is `TotalCount` first. Coverage is complete only when that request is page 0 and `TotalCount` equals the returned row count. If fewer rows come back than `TotalCount`, the result is "List incomplete" and row presence is not decided. An empty page without a total stays incomplete. A filtered count that disagrees with the total also stays incomplete.
+
+Row reread uses `GetqcData` raw fields (`typeofstudy`, `startdate`, `enddate`, `reportdate`, `batchno`, `duration`, `qc`, `labname`, `count1`). The date inputs are not read after that call, because the portal page adds one day. A raw date is compared only when the whole string is `YYYY-MM-DD`. Any other raw format is `ROW_MISMATCH` with reason "date format unknown".
+
+Native Save stays disabled. The contract records `saveHandler: "SaveData"` and `saveEndpointPath`. The Submit label runs a per-row Save (SaveQCData, status 1, reload). Rows stay editable/deletable. Enabling the click needs a recorded operator decision. While the flag is false the click result is `SAVE_CONTROL_LABELLED_SUBMIT`. A future enable would accept only `#save_btn` on `/admin/addQCRegister`, with `SaveData()` on the control, and a trimmed label of Submit or Update.
+
+Save observation watches both `XMLHttpRequest` and `fetch`, because `SaveData()` posts through jQuery `$.ajax`. Only a URL whose pathname ends with `/admin/SaveQCData` is recorded. An unparsable or missing response is `SAVE_AMBIGUOUS` and is not retried.
+
+These capture gaps stay open for a later read-only recapture. Do not guess them: `LIST_COLUMNS_TRUNCATED_IN_CAPTURE`, `SAVE_PAYLOAD_KEYS_AFTER_END_DATE_TRUNCATED`, and `GETQCDATA_DATE_FORMAT_NOT_IN_CAPTURE`. Recapture opens addQCRegister and reads the script, the DOM, and list responses only. No Save, Update, Delete, Edit-confirm, upload, or click on `#save_btn`.
 
 Operator check, signed in to Electron, Product 262 only:
 1. Open the QC tab and read the preflight, the verified mapping line, the issuer, and the portal laboratory.
