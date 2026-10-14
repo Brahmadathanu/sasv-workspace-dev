@@ -325,3 +325,5 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Live mapping 32 is VERIFIED and stays read-only. Its portal external id is `Others`.
 - The current fact-acceptance heads are acceptance 29 (study start, Operator derivation) and acceptance 30 (testing protocol, Operator determination). Each acceptor is a different editor from the evidence verifier.
 - **Check portal page** reads identity, list coverage, laboratory option value, and an optional local PDF. It does not arm, attach, or click the Submit-labelled control. `nativeSaveClickEnabled` stays false.
+- B5.1 applied 20261013155440: QC labName = laboratory name, not portal id. The repository file is the applied SQL, byte-exact, and was not applied again from this checkout.
+- The client fills `#lab_name` only when an option value equals that name. `LoadQCData` is read with `TotalCount` first. `GetqcData` raw dates are accepted only as `YYYY-MM-DD`. The Submit label still does not click Save.

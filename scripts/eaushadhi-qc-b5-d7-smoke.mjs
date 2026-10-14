@@ -8,9 +8,9 @@ const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { QC_PORTAL_CONTRACT } = require(join(root, "electron/eaushadhi-worker/qc-register-portal-contract.js"));
 const { decideSaveClick } = require(join(root, "electron/eaushadhi-worker/qc-register-save-guard.js"));
-const { classifyQcSaveObservation, createInPageSaveObserveScript } = require(join(root, "electron/eaushadhi-worker/qc-register-save-observe.js"));
+const { classifyQcSaveObservation, createInPageSaveObserveScript, createInPageSaveWatchScript } = require(join(root, "electron/eaushadhi-worker/qc-register-save-observe.js"));
 const { createInPageQcFillScript } = require(join(root, "electron/eaushadhi-worker/qc-register-dom-fill.js"));
-const { assessQcListDuplicate, assessQcListResponse } = require(join(root, "electron/eaushadhi-worker/qc-register-list.js"));
+const { assessQcListDuplicate, assessQcListResponse, mapGetqcDataResponse } = require(join(root, "electron/eaushadhi-worker/qc-register-list.js"));
 const {
   compareReportBytes,
   createQcPrepRunExecutor,
@@ -112,21 +112,31 @@ assert(fixture.includes('id="duration"'), "fixture includes the duration control
 
 assert(QC_PORTAL_CONTRACT.nativeSaveClickEnabled === false, "native Save stays disabled");
 assert(QC_PORTAL_CONTRACT.saveControlCapturedText === "Submit", "captured save control text is Submit");
-const refused = decideSaveClick({ control: { id: "save_btn", text: "Submit" } });
-assert(refused.allow === false && refused.click === "not-clicked", "Submit target is not clicked");
-const enabled = decideSaveClick({
-  contract: { ...QC_PORTAL_CONTRACT, nativeSaveClickEnabled: true },
-  control: { id: "save_btn", text: "Save" },
-});
-assert(enabled.allow === true, "a control labelled Save can pass the guard only when enabled");
-const stillSubmit = decideSaveClick({
-  contract: { ...QC_PORTAL_CONTRACT, nativeSaveClickEnabled: true },
-  control: { id: "save_btn", text: "Submit" },
-});
-assert(stillSubmit.allow === false && stillSubmit.reason === "SUBMIT_TARGET", "enabling the flag still refuses Submit");
+const passingPage = {
+  route: QC_PORTAL_CONTRACT.route,
+  saveData: true,
+};
+const passingControl = {
+  id: "save_btn",
+  text: "Submit",
+  onclick: "function () { return SaveData(); }",
+};
+const refused = decideSaveClick({ control: passingControl, page: passingPage });
+assert(refused.allow === false && refused.reason === "SAVE_CONTROL_LABELLED_SUBMIT" && refused.click === "not-clicked", "a passing identity is still not clicked while Save is disabled");
+assert(refused.identity.checks.controlPresent && refused.identity.checks.routeExact && refused.identity.checks.handler && refused.identity.checks.label, "identity checks are reported separately");
+const enabledContract = { ...QC_PORTAL_CONTRACT, nativeSaveClickEnabled: true };
+assert(decideSaveClick({ contract: enabledContract, control: null, page: passingPage }).reason === "SAVE_CONTROL_MISSING", "a missing control has its own reason");
+assert(decideSaveClick({ contract: enabledContract, control: passingControl, page: { route: "/admin/other", saveData: true } }).reason === "ROUTE_MISMATCH", "the wrong route has its own reason");
+assert(decideSaveClick({ contract: enabledContract, control: { ...passingControl, onclick: "function () { return ResetInput(); }" }, page: passingPage }).reason === "HANDLER_MISMATCH", "a control that does not call SaveData has its own reason");
+assert(decideSaveClick({ contract: enabledContract, control: { ...passingControl, text: "Save" }, page: passingPage }).reason === "LABEL_UNEXPECTED", "a label other than Submit or Update is refused");
+const enabled = decideSaveClick({ contract: enabledContract, control: passingControl, page: passingPage });
+assert(enabled.allow === true && enabled.click === "allowed", "Submit can pass only when the flag is on and every identity check matches");
 const clickAt = observeSrc.indexOf("target.click()");
-const guardAt = observeSrc.indexOf('text !== "Save"');
-assert(clickAt > guardAt && guardAt > 0, "the observe script returns before clicking a non-Save control");
+const guardAt = observeSrc.indexOf("allowClick === true");
+assert(clickAt > guardAt && guardAt > 0, "the observe script clicks only when the caller allows it");
+const generatedObserve = createInPageSaveObserveScript();
+assert(generatedObserve.includes("async function __sasvQcObserveSave") && !generatedObserve.includes("return __sasvQcInstallSaveWatch"), "the page script watches Save and does not return the installer early");
+assert(observeSrc.includes("scope.XMLHttpRequest") && observeSrc.includes("prototype.open") && observeSrc.includes("prototype.send"), "Save observation wraps XMLHttpRequest");
 assert(!/getElementById\(["']submit["']\)/.test(observeSrc), "no Submit id is clicked");
 
 const reportName = "EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf";
@@ -232,7 +242,7 @@ const recordingRpc = async (_token, name, args) => {
 const armedLive = {
   ...live,
   async pageIdentity() {
-    return { ...(await live.pageIdentity()), saveControl: { id: "save_btn", text: "Save" } };
+    return { ...(await live.pageIdentity()), saveControl: { id: "save_btn", text: "Submit", onclick: "function () { return SaveData(); }" } };
   },
   async observeSave() {
     return { clicked: true, settled: false, matchingRequestCount: 0 };
@@ -459,6 +469,21 @@ const verifyExecutor = createQcPrepRunExecutor({
     async readList() {
       return { settled: true, success: true, coverageComplete: true, rows: [listedRow], domRowIds: [{ value: "77" }] };
     },
+    async reread() {
+      return {
+        payload: {
+          typeofstudy: FILL.typeOfStudy,
+          startdate: FILL.startDate,
+          enddate: FILL.endDate,
+          reportdate: FILL.reportDate,
+          batchno: FILL.batchNo,
+          duration: FILL.duration,
+          qc: FILL.qualityCntrl,
+          labname: FILL.labName,
+          count1: 1,
+        },
+      };
+    },
   },
 });
 const verified = await verifyExecutor.verify({
@@ -482,7 +507,7 @@ assert(emptyPage.success === true && emptyPage.coverageComplete === false && emp
 const provenEmpty = assessQcListResponse({ status: "1", data: [], recordsTotal: 0 }, { pageno: 0 });
 assert(provenEmpty.coverageComplete === true && provenEmpty.totalCount === 0, "page 0 with total 0 is complete");
 const partialPage = assessQcListResponse({ status: "1", data: [{ id: "1" }], total: 2 }, { pageno: 0 });
-assert(partialPage.coverageComplete === false && partialPage.reason === "LIST_COVERAGE_UNPROVEN", "a short page is not complete");
+assert(partialPage.coverageComplete === false && partialPage.reason === "LIST_INCOMPLETE" && partialPage.message === "List incomplete" && partialPage.rowPresenceDecided === false, "a short page is incomplete and row presence is not decided");
 const unpaged = assessQcListResponse({ status: "1", data: [], total: 0 }, {});
 assert(unpaged.coverageComplete === false && unpaged.reason === "LIST_PAGE_UNPROVEN", "a total without page 0 is not complete");
 
@@ -530,7 +555,7 @@ const inspectResult = await createQcPrepRunExecutor({
 });
 assert(inspectArmCalls === 0 && inspectResult.armed === false && inspectResult.clickedSave === false, "the portal check does not arm or click");
 assert(inspectResult.nativeSaveEnabled === false && inspectResult.list.coverageComplete === false, "the check keeps Save disabled and reports unproven coverage");
-assert(inspectResult.laboratory.optionPresent === false, "a laboratory name is not treated as the frozen portal id");
+assert(inspectResult.laboratory.optionPresent === false, "portal id 3980 is not a laboratory option value");
 assert(inspectResult.report?.attached === false && inspectResult.report?.ok === false, "a mismatched PDF is not attached");
 
 assert(controlSrc.includes("Save only; Submit is not allowed."), "the review modal says Save only");
@@ -538,6 +563,129 @@ assert(readFileSync(join(root, "electron/eaushadhi-worker/qc-prep-run-executor.j
 assert(!controlSrc.includes("fully verified"), "the screen does not say fully verified");
 assert(controlSrc.includes(QC_PORTAL_CONTRACT.saveControlCapturedText) || controlSrc.includes("labelled Submit"), "the screen explains the Submit label");
 assert(/const CACHE_NAME = "hub-cache-v365"/.test(swSrc), "service worker cache is v365");
+
+const counted = assessQcListResponse({ status: "1", data: [{ id: "1" }, { id: "2" }], TotalCount: 2, total: 9 }, { pageno: 0 });
+assert(counted.coverageComplete === true && counted.totalSource === "TotalCount" && counted.totalCount === 2, "TotalCount is the list total");
+const shortList = assessQcListResponse({ status: "1", data: [], TotalCount: 3 }, { pageno: 0 });
+const shortDup = assessQcListDuplicate(shortList, FILL);
+assert(shortList.message === "List incomplete" && shortDup.code === "LIST_INCOMPLETE", "a short list is incomplete and row presence is not decided");
+const filteredApart = assessQcListResponse({ status: "1", data: [{ id: "1" }], TotalCount: 1, recordsFiltered: 2 }, { pageno: 0 });
+assert(filteredApart.reason === "LIST_COVERAGE_UNPROVEN", "a filtered total that disagrees is not complete");
+const domSrc = readFileSync(join(root, "electron/eaushadhi-worker/qc-register-dom-fill.js"), "utf8");
+const rereadSrc = domSrc.slice(domSrc.indexOf("function createInPageRereadScript"), domSrc.indexOf("function createInPagePortalFactsScript"));
+assert(domSrc.includes("LoadQCData?pageno=0&&length=-1&&search=&&order=&&licenseid="), "the list uses the portal query form");
+assert(rereadSrc.includes("GetqcData") && !rereadSrc.includes("sdate") && !rereadSrc.includes("edate") && !rereadSrc.includes("reportdate"), "reread uses GetqcData and does not read the date inputs");
+const unknownDate = mapGetqcDataResponse({ typeofstudy: "Others", startdate: "01/10/2021", enddate: "2024-09-30", reportdate: "2024-10-15", batchno: "1", duration: "36", qc: "Out", labname: "HARIDEV FORMULATIONS", count1: 1 });
+assert(unknownDate.runStatus === "ROW_MISMATCH" && unknownDate.reason === "date format unknown", "an unrecognised raw date is a row mismatch");
+const knownDate = mapGetqcDataResponse({ typeofstudy: FILL.typeOfStudy, startdate: "2021-10-01", enddate: "2024-09-30", reportdate: "2024-10-15", batchno: FILL.batchNo, duration: "36", qc: "Out", labname: "HARIDEV FORMULATIONS", count1: 1 });
+assert(knownDate.ok === true && knownDate.values.startDate === "2021-10-01" && knownDate.values.labName === "HARIDEV FORMULATIONS", "a raw ISO date is compared as YYYY-MM-DD");
+
+const nameOptions = [{ value: "-1", text: "--Select--" }, { value: "HARIDEV FORMULATIONS", text: "HARIDEV FORMULATIONS" }, { value: "Other", text: "Other" }];
+function labDocument() {
+  fields.lab_name = element("lab_name", { value: "", options: nameOptions.map((option) => ({ ...option })) });
+  installDocument(fields);
+}
+labDocument();
+const namedFill = await fillFn({ fillFields: { ...FILL, labName: "HARIDEV FORMULATIONS" }, studyTypeSelectValue: "493" });
+assert(namedFill.ok === true && namedFill.filled_values.labName === "HARIDEV FORMULATIONS", "an exact laboratory name fills");
+for (const refusedLab of ["3980", "haridev formulations", "HARIDEV FORMULATIONS "]) {
+  labDocument();
+  fields.duration.value = "untouched";
+  const refusedFill = await fillFn({ fillFields: { ...FILL, labName: refusedLab }, studyTypeSelectValue: "493" });
+  assert(refusedFill.ok === false && refusedFill.filled === false && refusedFill.message === "Laboratory not in the portal list" && fields.duration.value === "untouched", `laboratory ${JSON.stringify(refusedLab)} fills nothing`);
+}
+assert(fixture.includes('value="HARIDEV FORMULATIONS"') && !fixture.includes('value="3980"'), "the fixture uses laboratory names");
+assert(QC_PORTAL_CONTRACT.saveHandler === "SaveData" && QC_PORTAL_CONTRACT.saveEndpointPath === "/admin/SaveQCData", "the Save exception fields are recorded");
+assert(QC_PORTAL_CONTRACT.saveEnableNote.includes("Enabling the click needs a recorded operator decision."), "enabling Save still needs an operator decision");
+
+class MockXHR {
+  constructor() {
+    this.headers = {};
+    this.status = 0;
+    this.responseText = "";
+    this.listeners = {};
+  }
+  open(method, url) { this.method = method; this.url = url; }
+  setRequestHeader(name, value) { this.headers[name] = value; }
+  send() { this.sent = true; }
+  addEventListener(type, fn) { this.listeners[type] = fn; }
+  dispatch(type) { if (this.listeners[type]) this.listeners[type](); }
+}
+function watchSession() {
+  global.window = globalThis;
+  const originalOpen = MockXHR.prototype.open;
+  global.XMLHttpRequest = MockXHR;
+  global.fetch = async () => ({ status: 200, clone() { return this; }, async text() { return "{\"status\":\"1\",\"message\":\"saved\"}"; } });
+  const install = new Function(createInPageSaveWatchScript())();
+  return { session: install(), originalOpen };
+}
+{
+  const { session, originalOpen } = watchSession();
+  const xhr = new MockXHR();
+  xhr.open("POST", "../admin/SaveQCData");
+  xhr.setRequestHeader("X-Action-Type", "add");
+  xhr.send();
+  xhr.status = 200;
+  xhr.responseText = "{\"status\":\"1\",\"message\":\"saved\"}";
+  xhr.dispatch("loadend");
+  const observed = session.finish();
+  assert(observed.status === "1" && observed.method === "POST" && observed.actionType === "add" && observed.responseParsed === true, "a jQuery-style XHR save with status 1 is observed");
+  assert(MockXHR.prototype.open === originalOpen, "XMLHttpRequest open is restored");
+}
+{
+  const { session } = watchSession();
+  const xhr = new MockXHR();
+  xhr.open("POST", "https://www.e-aushadhi.gov.in/admin/SaveQCData");
+  xhr.setRequestHeader("X-Action-Type", "add");
+  xhr.send();
+  xhr.status = 200;
+  xhr.responseText = "{\"status\":\"0\",\"message\":\"no\"}";
+  xhr.dispatch("loadend");
+  const observed = session.finish();
+  assert(observed.status === "0" && observed.businessFailure === true && observed.outcome === "OBSERVED", "a non-1 XHR save is observed and not retried");
+}
+{
+  const { session } = watchSession();
+  await global.fetch("../admin/SaveQCData", { method: "POST", headers: { "X-Action-Type": "add" } });
+  const observed = session.finish();
+  assert(observed.status === "1" && observed.method === "POST", "a fetch save is observed");
+}
+{
+  const { session } = watchSession();
+  const xhr = new MockXHR();
+  xhr.open("POST", "../admin/SaveQCData");
+  xhr.send();
+  xhr.status = 0;
+  xhr.dispatch("error");
+  const observed = session.finish();
+  assert(observed.outcome === "AMBIGUOUS" && observed.reason === "SAVE_AMBIGUOUS", "an XHR network error is ambiguous");
+}
+{
+  const { session } = watchSession();
+  const xhr = new MockXHR();
+  xhr.open("POST", "../admin/SaveQCData");
+  xhr.send();
+  xhr.dispatch("timeout");
+  const observed = session.finish();
+  assert(observed.outcome === "AMBIGUOUS", "an XHR timeout is ambiguous");
+}
+{
+  const { session } = watchSession();
+  const listCall = new MockXHR();
+  listCall.open("POST", "../admin/LoadQCData?pageno=0");
+  listCall.send();
+  listCall.status = 200;
+  listCall.responseText = "{\"status\":\"1\"}";
+  listCall.dispatch("loadend");
+  const editCall = new MockXHR();
+  editCall.open("POST", "../admin/GetqcData");
+  editCall.send();
+  editCall.status = 200;
+  editCall.responseText = "{\"status\":\"1\"}";
+  editCall.dispatch("loadend");
+  const observed = session.finish();
+  assert(observed.matchingRequestCount === 0, "LoadQCData and GetqcData are not Save observations");
+}
 
 if (failed) {
   console.error(`D7 smoke failed: ${failed}`);

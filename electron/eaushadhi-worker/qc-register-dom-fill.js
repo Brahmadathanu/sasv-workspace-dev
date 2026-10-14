@@ -14,6 +14,15 @@ function createInPageQcFillScript() {
       return true;
     }
     var fields = plan.fillFields || {};
+    var expectedLab = fields.labName == null ? "" : String(fields.labName);
+    var lab = byId("lab_name");
+    var labFound = false;
+    if (lab && lab.options) {
+      for (var i = 0; i < lab.options.length; i++) {
+        if (lab.options[i].value === expectedLab) labFound = true;
+      }
+    }
+    if (!labFound) return { ok: false, filled: false, message: "Laboratory not in the portal list" };
     var study = byId(${JSON.stringify(QC_PORTAL_CONTRACT.studySelectId)});
     setValue(study, plan.studyTypeSelectValue || "");
     var other = byId(${JSON.stringify(QC_PORTAL_CONTRACT.otherTextId)});
@@ -50,7 +59,7 @@ function createInPageQcFillScript() {
       qualityCntrl: quality
     };
     var extra = Object.keys(filled).filter(function(key) { return keys.indexOf(key) < 0; });
-    return { filled_values: filled, extraKeys: extra };
+    return { ok: true, filled: true, filled_values: filled, extraKeys: extra };
   }
   return __sasvFillQcRegister;`;
 }
@@ -76,7 +85,8 @@ function createInPageIdentityScript() {
       saveControl: {
         present: Boolean(save),
         id: save ? save.id : "",
-        text: save ? String(save.textContent || "").replace(/\\s+/g, " ").trim() : ""
+        text: save ? String(save.textContent || "").replace(/\\s+/g, " ").trim() : "",
+        onclick: save && typeof save.onclick === "function" ? String(save.onclick) : (save && save.getAttribute ? String(save.getAttribute("onclick") || "") : "")
       }
     };
   }
@@ -85,7 +95,9 @@ function createInPageIdentityScript() {
 
 function createInPageListScript() {
   return `async function __sasvQcReadList() {
-    var response = await fetch("../admin/LoadQCData?pageno=0", {
+    var license = document.getElementById("licenseid");
+    var licenseValue = license && license.value != null ? String(license.value) : "";
+    var response = await fetch("../admin/LoadQCData?pageno=0&&length=-1&&search=&&order=&&licenseid=" + encodeURIComponent(licenseValue), {
       method: "POST",
       credentials: "same-origin",
       headers: { "X-Requested-With": "XMLHttpRequest" }
@@ -98,6 +110,21 @@ function createInPageListScript() {
     return { httpStatus: response.status, payload: payload, domRowIds: ids };
   }
   return __sasvQcReadList;`;
+}
+
+function createInPageRereadScript() {
+  return `async function __sasvQcReread(spec) {
+    var response = await fetch("../admin/GetqcData", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+      body: JSON.stringify({ id: spec && spec.id != null ? String(spec.id) : "" })
+    });
+    var payload = null;
+    try { payload = await response.json(); } catch (error) { payload = null; }
+    return { httpStatus: response.status, payload: payload };
+  }
+  return __sasvQcReread;`;
 }
 
 function createInPagePortalFactsScript() {
@@ -125,4 +152,5 @@ module.exports = {
   createInPageListScript,
   createInPagePortalFactsScript,
   createInPageQcFillScript,
+  createInPageRereadScript,
 };

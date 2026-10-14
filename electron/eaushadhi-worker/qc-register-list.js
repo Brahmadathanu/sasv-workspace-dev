@@ -24,13 +24,14 @@ function rowsOf(payload) {
 }
 
 function authoritativeTotal(payload) {
-  const keys = ["total", "recordsTotal", "totalCount", "TotalCount", "iTotalRecords"];
+  const keys = ["TotalCount", "total", "recordsTotal", "totalCount", "iTotalRecords"];
   for (const key of keys) {
-    if (payload?.[key] == null || payload[key] === "") continue;
+    if (!Object.prototype.hasOwnProperty.call(payload || {}, key)) continue;
+    if (payload[key] == null || payload[key] === "") continue;
     const total = Number(payload[key]);
-    if (Number.isInteger(total) && total >= 0) return total;
+    if (Number.isInteger(total) && total >= 0) return { total, source: key };
   }
-  return null;
+  return { total: null, source: null };
 }
 
 function assessQcListResponse(payload, pagination = {}) {
@@ -49,16 +50,22 @@ function assessQcListResponse(payload, pagination = {}) {
       reason: "LIST_NOT_SUCCESS",
     };
   }
-  const total = authoritativeTotal(payload);
+  const found = authoritativeTotal(payload);
+  const total = found.total;
   const filteredRaw = payload?.recordsFiltered;
   const filtered = filteredRaw == null || filteredRaw === "" ? null : Number(filteredRaw);
   const filteredAgrees = filtered == null || (Number.isInteger(filtered) && filtered === total);
+  const shortPage = total != null && rows.length < total;
   const coverageComplete = pageKnown && total != null && filteredAgrees && rows.length === total;
   let reason = "LIST_COVERED";
+  let message = "";
   if (!coverageComplete) {
     if (!pageKnown) reason = "LIST_PAGE_UNPROVEN";
     else if (total == null) reason = "LIST_TOTAL_UNPROVEN";
-    else reason = "LIST_COVERAGE_UNPROVEN";
+    else if (shortPage) {
+      reason = "LIST_INCOMPLETE";
+      message = "List incomplete";
+    } else reason = "LIST_COVERAGE_UNPROVEN";
   }
   return {
     settled: true,
@@ -66,8 +73,11 @@ function assessQcListResponse(payload, pagination = {}) {
     coverageComplete,
     rows,
     totalCount: total,
+    totalSource: found.source,
     requestedPage: pageKnown ? 0 : null,
     reason,
+    message,
+    rowPresenceDecided: coverageComplete === true,
   };
 }
 
@@ -86,6 +96,9 @@ function normalizeQcListRow(row) {
 }
 
 function assessQcListDuplicate(list, fillFields) {
+  if (list?.reason === "LIST_INCOMPLETE") {
+    return { ok: false, code: "LIST_INCOMPLETE", message: "List incomplete" };
+  }
   if (!list || list.success !== true || list.coverageComplete !== true) {
     return { ok: false, code: "BEFORE_LIST_INCOMPLETE" };
   }
@@ -119,12 +132,50 @@ function listEvidence(list) {
   };
 }
 
+function parseQcRawDate(value) {
+  const text = value == null ? "" : String(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return { ok: false };
+  const year = Number(text.slice(0, 4));
+  const month = Number(text.slice(5, 7));
+  const day = Number(text.slice(8, 10));
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  if (utc.getUTCFullYear() !== year || utc.getUTCMonth() !== month - 1 || utc.getUTCDate() !== day) {
+    return { ok: false };
+  }
+  return { ok: true, value: text };
+}
+
+function mapGetqcDataResponse(payload) {
+  const source = payload && typeof payload === "object" ? payload : null;
+  if (!source) return { ok: false, runStatus: "ROW_MISMATCH", reason: "date format unknown" };
+  const dates = [
+    ["startdate", "startDate"],
+    ["enddate", "endDate"],
+    ["reportdate", "reportDate"],
+  ];
+  const values = {
+    typeOfStudy: source.typeofstudy == null ? "" : String(source.typeofstudy),
+    batchNo: source.batchno == null ? "" : String(source.batchno),
+    duration: source.duration == null ? "" : String(source.duration),
+    labName: source.labname == null ? "" : String(source.labname),
+    qualityCntrl: source.qc == null ? "" : String(source.qc),
+  };
+  for (const [rawKey, fillKey] of dates) {
+    const parsed = parseQcRawDate(source[rawKey]);
+    if (!parsed.ok) return { ok: false, runStatus: "ROW_MISMATCH", reason: "date format unknown" };
+    values[fillKey] = parsed.value;
+  }
+  return { ok: true, values, count1: source.count1 == null ? null : source.count1 };
+}
+
 module.exports = {
   assessQcListResponse,
   authoritativeTotal,
   assessQcListDuplicate,
   listEvidence,
+  mapGetqcDataResponse,
   normalizeQcListRow,
+  parseQcRawDate,
   rowsOf,
   sameFillFields,
 };
