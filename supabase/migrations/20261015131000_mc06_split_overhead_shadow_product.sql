@@ -24,13 +24,13 @@ with w as (
  from w
 )
 select e.product_id,e.labour_units,e.oh_units,e.expected_net_output,e.lc,e.fc,e.vc,
- case when e.foundation_status='READY' and e.output_status='READY'
+ case when e.foundation_status='STANDARD_BATCH_REFERENCE_READY' and e.output_status='READY_EXPECTED_NET_OUTPUT'
  and e.expected_net_output>0 and e.lc is not null and e.fc is not null and e.vc is not null
  then e.lc+e.fc+e.vc end,
- case when e.foundation_status='READY' and e.output_status='READY'
+ case when e.foundation_status='STANDARD_BATCH_REFERENCE_READY' and e.output_status='READY_EXPECTED_NET_OUTPUT'
  and e.expected_net_output>0 and e.lc is not null and e.fc is not null and e.vc is not null
  then (e.lc+e.fc+e.vc)/e.expected_net_output end,
- case when e.foundation_status<>'READY' or e.output_status<>'READY'
+ case when e.foundation_status is distinct from 'STANDARD_BATCH_REFERENCE_READY' or e.output_status is distinct from 'READY_EXPECTED_NET_OUTPUT'
       or e.expected_net_output is null or e.expected_net_output<=0
       then 'REVIEW_REQUIRED_FOUNDATION_OR_OUTPUT'
       when e.lc is null or e.fc is null or e.vc is null then 'REVIEW_REQUIRED_SHADOW_RATE'
