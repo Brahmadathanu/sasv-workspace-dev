@@ -26,3 +26,12 @@ from amounts;
 -- Expected approx: budget ₹1,722,238.28; scenario ₹1,816,685.53;
 -- over-absorption ₹94,447.25. Neither budget nor volume forecast is validated
 -- as period-matched actuals. Do not force a balancing rate or redistribute.
+-- IMPORTANT: 'budget - scenario absorption' is NOT an accounting journal variance.
+-- Accounting absorption variance requires actual incurred expense and actual completed
+-- production for the SAME period, neither of which is supplied by this test.
+-- The variable-cost budget normally flexes with actual activity/resource usage;
+-- comparing fixed reference variable expenses to forward forecast volumes is only
+-- a denominator sensitivity, not proof of actual over-spend or over-absorption.
+-- Job Work Expense remains common overhead in this DRAFT; no direct job-work
+-- assignment or marginal consumption rule is established by this calculation.
+
