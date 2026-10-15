@@ -1,0 +1,13 @@
+PASS T1_859_output
+PASS T2_879_factor
+PASS T3_879_output
+PASS T4_1277_untouched
+PASS T5_rm_scale_859
+PASS T6_reapply_noop
+PASS T7_rb_859
+PASS T8_rb_879f
+PASS T9_rb_879o
+PASS T10_guard_drift
+PASS T11_default_rollback
+PASS T12_preflight_running
+AU-2c: 12 pass, 0 fail
