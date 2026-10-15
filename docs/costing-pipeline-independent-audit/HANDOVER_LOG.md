@@ -22,3 +22,10 @@ Next precise step: A1 sweep 2 — full per-head table for the other five pools a
 ## 2026-10-15 ~20:10 IST: A8 + A11 draft
 - See A8_ARCHITECTURE_INVENTORY.md and A11_IMPLEMENTATION_PROGRAMME.md.
 - Next: get Sheets access (A7) and approval for an isolated DB (A10); AU-1 can start as repo-only work if the user authorises it.
+
+## 2026-10-15 ~18:10 IST: AU-1 (user-authorised)
+- Branch `costing/au1-migration-backfill` from main `71c30f1`. Commit `fb0c6b4`. **DRAFT PR #67**; not merged and not applied to the DB.
+- 33 live-only migrations (20261014104950…20261015021210) added, byte-identical to live `statements[0]`.
+- Added `scripts/migration-drift-check.mjs` (read-only, uses a JSON export) and its README.
+- Drift since 20261014104950: 33 matched exactly. 1 renamed (ppm, live 20261015045233 vs repo 20261015053000, same content). 0 missing, 0 extra.
+- Not added (owned elsewhere): wp07 20261013095629 and 20261013155440 (Jarvis branch), WP05 S1 20261013183522 (PR #60).
