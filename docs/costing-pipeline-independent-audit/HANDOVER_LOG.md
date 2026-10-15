@@ -14,3 +14,7 @@ Next precise step: A1 sweep 2 — full per-head table for the other five pools a
   - Tally agent template and owner.
   - Fuel vouchers: request drafted in FINANCE_REQUEST_FUEL_GAS_VOUCHERS.md, not sent.
 - Next: A2 master-data/UOM cardinality, then A6 full lifecycle, then A7 once Sheets access exists.
+
+## 2026-10-15 ~19:45 IST: A2 + A6
+- A2 and A6 are complete for the audit scope and folded into the strategy (AU-2b, AU-2c).
+- Next: A8 (architecture inventory of the app) or A7 once Sheets access exists. A10 needs approval for an isolated DB.

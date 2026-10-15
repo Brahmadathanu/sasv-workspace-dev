@@ -9,6 +9,8 @@ Status: **PROPOSAL**, grounded in verified A0, A1 and A3 findings. Nothing here 
 | R3 | No separation of standard cost, period absorption and variance | A3, D-014 | Absorption problems are pushed into SKU unit cost |
 | R4 | Snapshots and runs not structurally immutable; refresh RPCs re-runnable on SUCCESS runs | A0 sweep 2, V1–V3 | Historical reference (run 119) can drift silently |
 | R5 | 33 live migrations not in the repo | A0 sweep 2 | No reproducible build, review or rollback |
+| R7 | Master data units are product-level, not SKU-level; a blanket 0.91 density; implausible factors and RM rates | A2-F1…F5 | Mehasamani factor 20× off (either direction); 2 SKUs with RM below ₹2/Kg; 554 SKUs on stale rates |
+| R8 | The current run is chosen by recency, not approval; every run is OPEN/DRAFT; the UI can supersede run 119 | A6-F1/F2/F6 | Prices can silently re-base onto a different run |
 | R6 | Raw data not normalised: Tally snapshots drop heads, mix bases, no ETL provenance or owner | D-013 | Silent wrong inputs |
 
 ## 2. Target model (A9 design principles)
@@ -35,6 +37,8 @@ Status: **PROPOSAL**, grounded in verified A0, A1 and A3 findings. Nothing here 
    - Run-reference lock table, guard triggers on all snapshot tables, refresh RPCs fail-closed on non-RUNNING runs.
    - Fingerprint monitor.
    - Period close is a separate, user-authorised step.
+7a. **Units and master data (A2).** SKU-level pack→base conversion with dimensional checks. A per-product density table backed by evidence. A rate-age policy. Review acceptance carries an approver and an expiry.
+7b. **Run governance (A6).** Runs are designated DRAFT → REFERENCE → APPROVED (append-only, with approver). The current-run view resolves by designation, not recency. A period with a REFERENCE run refuses new requests without a superseding approval. A per-run fingerprint is stored at stage 06. Period close is an explicit, user-authorised stage.
 7. **Migration discipline.** Every live change goes via a repo file with a matching version. A CI check runs a live/repo hash diff.
 
 ## 3. Implementation work packages (independently releasable; order = financial risk first)
@@ -42,6 +46,8 @@ Status: **PROPOSAL**, grounded in verified A0, A1 and A3 findings. Nothing here 
 |---|---|---|---|
 | AU-1 | Backfill 33 live migrations into the repo, byte-identical, plus CI drift check | none | dev review |
 | AU-2 | Run-119 lock: reference-lock table, guard triggers on 15 unprotected snapshots, RPC fail-closed on SUCCESS runs, fingerprint check | AU-1 | user |
+| AU-2b | Run designation and approval table, current-view rewrite, period-request guard, per-run fingerprint (A6) | AU-2 | user |
+| AU-2c | Master-data fixes: Mehasamani, Ilaneer Kuzhambu and Palthulli factors and BOMs; SKU-level conversion; density table; rate-age policy (A2) | production/QA evidence | Production + Finance |
 | AU-3 | Tally ingest hardening: period/basis validation, zero-row heads, template under version control, voucher ingest for expense heads | Tally owner, D-013 | Finance + IT |
 | AU-4 | Normal-budget policy table and comparison pack (actuals, abnormal items, capacity), signed values, interest layer | AU-3 evidence, Fuel vouchers | **Finance** |
 | AU-5 | Batch-true standard cost engine: promote the simulator, normal-capacity denominators, yield, intermittent/PTO rules, A3 evidence table as UAT | AU-4 rates, production validation of route intensity (A3-F6) | **Finance + Production** |
@@ -49,7 +55,6 @@ Status: **PROPOSAL**, grounded in verified A0, A1 and A3 findings. Nothing here 
 | AU-7 | Price chain re-run (A7) on corrected COP for 509/440 with a new run; run 119 preserved | AU-5, Sheets access | user |
 
 ## 4. Gates still to execute against this design
-- A2: master data and UOM cardinality.
-- A6: full lifecycle, partly done in A0 sweep 2.
+- A2 and A6 are done. A2 sweep 2 (rate age and weighted-cost check) is optional.
 - A7: price chain, blocked on Sheets.
 - A10: needs an isolated branch DB. Creating a Supabase branch has a cost, so the user must approve it first.

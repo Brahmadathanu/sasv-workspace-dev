@@ -45,3 +45,6 @@ A0 SUBSTANTIALLY COMPLETE with GAPs (sheet lineage BLOCKED; PR #66 tests unexecu
 | EV-021 | A1 | Fuel stock issues ₹2.1–4.7 lakh/month; ₹12.68 lakh receipts in Jun-26; Fuel ledger starts 09-Jun at ₹14.39 lakh | tally_fuel_stock_snapshot | VERIFIED_LIVE / ANALYTICAL |
 | EV-022 | A1 | Interest not in manufacturing COP (COP = prime+POH+QC+stores); Forex gain turned into cost by abs() | RPC source, provision view | VERIFIED_LIVE |
 | EV-023 | A0 | Sheets workbook 1HBte4Y4… export returns HTTP 401 | curl | BLOCKED |
+
+| EV-024 | A2 | Mehasamani SKU 879 factor 0.02/g (expected 0.001 g→Kg); SKUs 859/1277 RM ₹1.46 and ₹0.96 per Kg; 0.91 density on 246 SKUs / 140 products; 554 SKUs with stale rates, 420 with fallback | A2_01 | VERIFIED_LIVE |
+| EV-025 | A6 | 99 runs (86/12/1); all successful runs requested OPEN/DRAFT; current run = latest finished; UI request RPC permission-guarded; daily cron targets the calendar month | catalog, costing_refresh_run, cron | VERIFIED_LIVE |
