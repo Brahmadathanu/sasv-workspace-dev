@@ -26,3 +26,9 @@ select count(*) filter(where shadow_status='SHADOW_ONLY_NOT_APPROVED_FOR_REFRESH
  count(*) filter(where shadow_status<>'SHADOW_ONLY_NOT_APPROVED_FOR_REFRESH') as blocked_rows
 from s;
 -- Shadow rate values are hypothetical and unapproved. Even zero failing_rows is NOT cutover clearance.
+
+-- Frozen run119 foundation/sku source contract baseline: 460 ready products, 635 convertible active SKUs.
+select foundation_status,count(*) from costing.fn_preview_standard_batch_workload(119) group by foundation_status;
+select output_status,count(*) from costing.fn_preview_standard_batch_net_output(119) group by output_status;
+select conversion_status,count(*) from public.product_skus s cross join lateral costing.fn_resolve_standard_sku_base_quantity(s.id) c where s.is_active=true group by conversion_status;
+-- These read-only source checks should return STANDARD_BATCH_REFERENCE_READY (460), READY_EXPECTED_NET_OUTPUT (460), READY (635).
