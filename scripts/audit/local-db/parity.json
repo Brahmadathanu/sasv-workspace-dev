@@ -1,0 +1,96 @@
+{
+ "by_kind": {
+  "type": {
+   "live": 7,
+   "identical": 7,
+   "differ": 0,
+   "missing": 0
+  },
+  "sequence": {
+   "live": 218,
+   "identical": 218,
+   "differ": 0,
+   "missing": 0
+  },
+  "table": {
+   "live": 310,
+   "identical": 310,
+   "differ": 0,
+   "missing": 0
+  },
+  "constraint": {
+   "live": 1067,
+   "identical": 1067,
+   "differ": 0,
+   "missing": 0
+  },
+  "index": {
+   "live": 688,
+   "identical": 688,
+   "differ": 0,
+   "missing": 0
+  },
+  "function": {
+   "live": 1075,
+   "identical": 1070,
+   "differ": 0,
+   "missing": 5
+  },
+  "matview": {
+   "live": 11,
+   "identical": 11,
+   "differ": 0,
+   "missing": 0
+  },
+  "view": {
+   "live": 440,
+   "identical": 428,
+   "differ": 1,
+   "missing": 11
+  },
+  "fk": {
+   "live": 478,
+   "identical": 476,
+   "differ": 0,
+   "missing": 2
+  },
+  "trigger": {
+   "live": 210,
+   "identical": 210,
+   "differ": 0,
+   "missing": 0
+  }
+ },
+ "differ": [
+  [
+   "view",
+   "public.v_forecast_baseline_effective"
+  ]
+ ],
+ "missing": [
+  "function|public.rpc_eaushadhi_product_classification_review_save(p_product_id integer, p_expected_row_version bigint, p_product_type_option_id bigint, p_product_category_option_id bigint, p_product_subtype_option_id bigint, p_subtype_mode text, p_review_notes text, p_verify boolean)",
+  "function|public.rpc_eaushadhi_product_portal_text_save(p_product_id integer, p_expected_row_version bigint, p_portal_text text, p_verify boolean, p_reason text)",
+  "function|public.rpc_eaushadhi_product_review_save(p_product_id integer, p_expected_row_version bigint, p_permission_purpose_term_id bigint, p_composition_title text, p_diseases_conditions_text text, p_contains_bhang boolean, p_contains_opium boolean, p_contains_other_narcotic boolean, p_contains_schedule_e1 boolean, p_contains_self_generated_alcohol boolean, p_review_notes text, p_verify boolean)",
+  "function|public.rpc_eaushadhi_reopen_product_classification(p_product_id integer, p_expected_row_version bigint, p_reason text)",
+  "function|public.rpc_eaushadhi_reopen_product_review(p_product_id integer, p_expected_row_version bigint, p_reason text)",
+  "view|costing.v_cost_pool_monthly_combined",
+  "view|costing.v_product_qc_allocation_current",
+  "view|costing.v_qc_action_queue_current",
+  "view|costing.v_sku_direct_labour_allocation",
+  "view|costing.v_sku_qc_allocation_current",
+  "view|costing.v_staff_cost_pool_monthly",
+  "view|public.v_costing_cost_pool_monthly_summary",
+  "view|public.v_costing_staff_classification_register",
+  "view|public.v_costing_staff_cost_pool_summary",
+  "view|public.v_costing_unclassified_staff_for_costing",
+  "view|public.v_module_badges",
+  "fk|costing.staff_costing_classification.staff_costing_classification_staff_id_fkey",
+  "fk|public.user_staff_map.user_staff_map_staff_id_fkey"
+ ],
+ "extra": [
+  [
+   "sequence",
+   "costing.production_route_family_product_assignment_correction_a_id_seq1"
+  ]
+ ]
+}
