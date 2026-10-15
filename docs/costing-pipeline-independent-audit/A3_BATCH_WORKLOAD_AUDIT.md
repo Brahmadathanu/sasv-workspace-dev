@@ -44,3 +44,49 @@ Neither alternative is approved. The second is the internally consistent option 
 
 ## Not yet done
 Actual production frequency per product (completed batches vs FG transfers), labour attendance evidence, yield from BMR, Σ-check of SKU conversion for all 635 SKUs.
+
+## Sweep 2 (2026-10-15 ~17:50 IST): evidence table for the 125 products charged ≥10× their batch need (D-014)
+Full table: `A3_125_OVERCHARGED_PRODUCTS.csv`, from `queries/A3_03_overcharged_125_evidence.sql`. Window: Oct 2025 to Sep 2026.
+Labels:
+- **VERIFIED_LIVE** columns: batch sizes, forecast qty, charged batches, BMR batches/months, FG transfers, sales, run-119 conversion charge.
+- **ANALYTICAL_ONLY** columns: `batchtrue_*`, `actual_batch_absorption_month`.
+- **PROPOSAL** columns: `cls`, `proposed_treatment`.
+Data coverage limits (VERIFIED_LIVE):
+- `bmr_details` starts on 2025-07-04, so "no BMR" means none since July 2025.
+- FG transfers start on 2025-04-01, with 59 unmapped lines.
+- Sales are converted to base units as qty × pack_size × conversion_to_base (ASSUMPTION).
+
+| Class (PROPOSAL) | Products | Run-119 DL+POH charged/month (VERIFIED) | Batch-true at forecast volume (ANALYTICAL) | Actual-BMR-batch absorption (ANALYTICAL) |
+|---|---|---|---|---|
+| A: made in window (≥1 BMR) | 61 | ₹301,404 | ₹72,344 | ₹108,307 |
+| B: no BMR since Jul-25, but FG transfer or sales exist | 60 | ₹420,379 | ₹23,153 | ₹0 |
+| C: dormant (no BMR, FG or sales) | 4 | ₹98,564 | ₹31,562 | ₹0 |
+| **Total** | **125** | **₹820,347** (47.6% of the ₹1,722,238 DL+POH pools) | ₹127,059 | ₹108,307 |
+
+Other counts:
+- 33 of the 125 are flagged `is_pto` (produce-to-order).
+- 28 have a BMR average batch size that differs from the preferred size.
+
+Main finding A3-F5 (P1, VERIFIED_LIVE mechanism):
+- About ₹6.9 lakh/month of conversion cost lands on 125 low-volume products.
+- In a batch-true model, most of that cost belongs to the other ~510 products. Their run-119 COP is therefore **understated**, not just the 125 overstated.
+- The correction would raise their cost. This is a pricing risk.
+
+Examples (VERIFIED charge vs ANALYTICAL batch-true, conversion per base unit):
+- P183 Ksheerabala 101 Avarthi: ₹12,708.90/Kg vs ₹4,266.59/Kg. 1 BMR in the window (Jun-26).
+- P184 (41 Avarthi): ₹566,370.93/Kg vs ₹37,076.64/Kg.
+- P783: ₹908,725.50 vs ₹2,003.87 per base unit.
+- P54 Abhraka Bhasmam: dormant, yet charged ₹84,249/month.
+
+Proposed treatment (PROPOSAL, follows D-014):
+1. Standard cost per unit = (route workload per one normal batch × rate) ÷ normal batch output. The normal batch is the preferred size, validated against the BMR average.
+2. Rates use a denominator from a capacity-based normal volume. They must not use rounded batch counts. The capacity source is open: D-012 / A4.
+3. Period absorption = actual BMR batches × per-batch standard. The gap to the pool is posted as a volume/variance line, not loaded onto SKUs.
+4. Class B/C keep a determinable standard, so they get no zero cost. They are excluded from period absorption until a batch occurs.
+
+Missing evidence per product is in the CSV:
+- Yield/output per batch (actual vs theoretical).
+- Pre-Jul-2025 batch history for class B.
+- Confirmation of whether class-B Chendooram/Parpam items are made in long multi-month cycles or bought in (PTO).
+
+Retest: rerun the A3_03 query after any change. Totals must reconcile to the pools plus the variance line.
