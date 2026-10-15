@@ -46,3 +46,11 @@ Status, 2026-10-15 ~20:10 IST:
 - **Production:** route intensity, batch sizes and densities; BMR logging gap (Aug-26 has only 11 BMRs).
 - **IT:** Tally agent template and owner.
 - **Cut-over, monitoring and rollback plans** per WP: to be written after A10.
+
+
+## Governance and dependency correction (2026-10-15, user-directed)
+The **user** is the canonical evidence-based policy authority. Any phrases in this draft demanding independent Finance or Production signoff for internal costing choices should be read as **user decision with documented evidence**, without inventing external approval or weakening legal/regulatory requirements. Grok/other bots remain implementers and analysts, not delegated autonomous approvers. Record the exact user-authorised normal budget, fuel treatment, density, route workload, BOM correction and effective date in the decision register before mutation.
+
+**Critical path adjustment:** AU-2/2b guarded run governance and AU-3 Tally/expense provenance come before operational repricing; AU-2c high-impact master data in parallel; AU-4 normal budget and cost-behaviour policy must use repaired, period-correct evidence; AU-5 standard batch costing then AU-6 actual-vs-standard absorption ledger; AU-7 price-chain evaluation only once scope access is resolved; AU-8 client design parallel, operational migration gated; A10 isolated executable testing and explicit user-governed production cutover. AU-1 PR67 is DRAFT, requires byte-parity, collision and ownership audit before merge. A7 401 is Grok-specific connector block: ChatGPT had read the original workbook and sheet; bot should request scoped access or an alternate read-only path, not assume CSV mandatory. A10 testing need not require a paid Supabase branch if a proven clean local disposable Postgres harness is possible, but cannot be substituted with untested SQL or live production writes.
+
+**No operational cutover from audit completion alone.** Changes to protected run history, source accounting basis, approved rate policies, active consumer functions, MRP decisions, release and client refresh each require an explicit scope-specific user authorisation and an executed preflight/regression record.
