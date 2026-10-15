@@ -30,3 +30,9 @@ Stop and ask user before: any live write, Google Sheet edit, public release, bra
 
 ## Handover template
 Gate / branch & HEAD / deployed-vs-proposed provenance / reproduced queries / changed files / test environment + output / findings with financial exposure / open decisions / stop controls / exact next step. If context resets, reread files and check latest live+Git state before acting.
+
+
+## Override: canonical decision authority (user directive 2026-10-15)
+In this programme, **the user is ultimate evidence-based approval authority**; avoid further routine referrals to Finance or Production for costing decisions. The costing suite is the governed implementation/evidence system, not an autonomous human approver. Grok should develop and recommend source-backed classifications, normal budgets, fuel consumption methods, density/route/BOM repairs, and present exact alternatives where material, then secure only the user's necessary decision. Do not forge signoff, self-approve rate policies, or bypass existing regulatory/financial law. An approval is a deliberate user action logged with basis, actor, date and effective period.
+Withdraw the drafted Finance Fuel & Gas voucher request; continue read-only investigation of ledger and stock evidence, making missing voucher details explicit. Grok Google Sheet HTTP 401 is an access limitation specific to its environment; verify the original workbook and 440 filtered copy using available authenticated route before requesting exports. Do not make blocked A7 a blocker for A4/A5 source-backed architecture design; maintain A7 as a separate unresolved evidence gate.
+Autonomous priority: AU-2/2b prevention of unsafe run selection/mutation (no historical writes) and independently testable source corrections; defer actual normal-rate issuance and engine cutover until Tally semantics and budget evidence are reconciled. Workpacks and test plans may advance concurrently, not their live deployment.
