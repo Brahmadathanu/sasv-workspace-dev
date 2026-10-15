@@ -54,3 +54,8 @@ Note: these are policy directions, not approvals of any rate, budget or costing 
 | D-019 | PR #68 (AU-2) and PR #69 (AU-3) are deployed **separately, never together**. | Dr. Brahmadathan U | 2026-10-15 |
 | D-020 | PR #69 stays **additive**; no consumer (e.g. `v_expense_head_monthly_provision` users) is switched to the AU-3 views by that PR. | Dr. Brahmadathan U | 2026-10-15 |
 Note: no live write, merge or deploy is authorised by these entries.
+
+### Open questions raised 2026-10-15 (A7 follow-up)
+- **Q-A7F-1** Price proposals: use current effective MRP, and label frozen runs with their knowledge time? (Recommended: yes.)
+- **Q-A7F-2** SKUs 381/647/955: effective 2026-09-05 (policy) or 2026-09-10 (register)?
+- **Q-A7F-3** The provisional loaded cost model (illustrative rates 729.55 / 342.72 / 620.31) is reproducible but unapproved. Should it remain the basis of the 440 review, pending AU-5/AU-7?
