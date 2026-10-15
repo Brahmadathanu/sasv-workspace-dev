@@ -1,4 +1,4 @@
--- AU-3: Tally period-interpretation fix (DRAFT - do not apply live without the user's approval, GOV-015)
+-- AU-3: Tally period-interpretation fix. Approved for live apply by Dr. Brahmadathan U, 2026-10-15 22:26 IST (D-023). Additive; no consumer switched.
 -- Problem (audit A3/A11): public.tally_expenses_snapshot rows are cumulative balances whose window
 -- silently changed from FYTD to a reset window on 2026-08-08, 2026-09-04 and 2026-10-06 (plus a
 -- partial pull on 2026-03-17). costing.v_expense_head_monthly_provision treats every month-end

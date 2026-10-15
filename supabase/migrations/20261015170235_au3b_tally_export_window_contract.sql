@@ -1,8 +1,7 @@
--- AU-3b: explicit Tally export window contract (D-018). DRAFT - not applied live. Additive (D-020):
+-- AU-3b: explicit Tally export window contract (D-018). Approved for live apply 2026-10-15 22:26 IST (D-023), mode OFF. Additive (D-020):
 -- no consumer is switched; enforcement mode defaults to OFF so the current ETL keeps working unchanged.
 -- Contract: every expense export carries requested AND returned period_from/period_to; the DB classifies the window
 -- (FYTD / MTD) and REJECTS ambiguous or inconsistent exports before they reach tally_expenses_snapshot.
-begin;
 
 -- 1. Settings (single row) -------------------------------------------------------------------------
 create table if not exists public.tally_export_contract_setting (
@@ -244,4 +243,3 @@ grant select, insert on public.tally_expense_export_batch, public.tally_expense_
 grant usage on sequence public.tally_expense_export_batch_id_seq to service_role;
 revoke all on function public.rpc_tally_validate_and_load_expense_batch(bigint) from public, anon, authenticated;
 grant execute on function public.rpc_tally_validate_and_load_expense_batch(bigint) to service_role;
-commit;
