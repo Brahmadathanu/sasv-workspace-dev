@@ -27,3 +27,75 @@ Labels: VERIFIED_LIVE · VERIFIED_REPO · UNVERIFIED · BLOCKED.
 | A0-F2 | P1 | Run 119 is not structurally frozen: period OPEN and valuation DRAFT; a new successful refresh for 2026-09 would replace run 119 as "current" for every consumer view; COP snapshot table lacks an immutability trigger | matrix row 8 | Finance + costing owner | Decision D-010 (lock period / freeze policy). Retest: trigger/period status query |
 | A0-F3 | P2 | Run-119 POH conservation gap ₹1,181.76 (pool ₹1,016,035.28 vs Σ product allocations ₹1,014,853.52) | `queries/A3_02` | Costing engine | Identify products with POH workload but no SKU allocation row; retest Σ = pool or documented exclusion |
 | A0-F4 | info | PR #66 is diagnostic/shadow only; nothing live; its tests have not been executed in an isolated DB | matrix row 3 | PR #66 owner | Needs isolated DB (Supabase branch) — user decision D-008 |
+
+
+## Sweep 2 (2026-10-15 ~18:05 IST): migration reconciliation by identity and content (DIR-8)
+**Method.**
+- Live: `supabase_migrations.schema_migrations` for versions ≥ 20261013.
+- The live content hash is the md5 of the statements with all whitespace removed.
+- Repo: every `.sql` blob on all 35 `origin/*` branches (160 blobs), including Jarvis's `feat/wp07-*`, read-only. Each blob is hashed the same way.
+- Matching is by name and by content.
+
+**Correction to sweep 1.** The costing block 20261014104950…20261015021210 holds **33** migrations, not 35.
+
+| Version | Name | Result | Where |
+|---|---|---|---|
+| 20261013095629 | wp07_b5_r2_qc_prep_run | PRESENT_EXACT | 20261013095629 origin/feat/wp07-s2c-c1-qc-preparation-ui |
+| 20261013155440 | wp07_b5_1_qc_labname | PRESENT_EXACT | 20261013155440 origin/feat/wp07-s2c-c1-qc-preparation-ui |
+| 20261013183522 | wp05_s1_kpi_view_rebuild | MISSING | - |
+| 20261014104950 | fix_regional_default_nonpositive_sku_units | MISSING | - |
+| 20261014114526 | fix_historical_preferred_batch_size_asof_resolution | MISSING | - |
+| 20261014135001 | regional_marketing_evidence_review_public_wrappers | MISSING | - |
+| 20261014180903 | costing_manufacturing_standard_rate_governance_foundation | MISSING | - |
+| 20261014180947 | costing_standard_rate_immutable_supersession_guard | MISSING | - |
+| 20261014181001 | costing_standard_rate_resolver_expiry_fail_closed | MISSING | - |
+| 20261014233333 | costing_manufacturing_rate_readiness_preview | MISSING | - |
+| 20261014233603 | costing_manufacturing_component_source_conservation_preview | MISSING | - |
+| 20261014233841 | costing_manufacturing_absorption_fail_closed_gate | MISSING | - |
+| 20261014234617 | costing_standard_batch_route_workload_preview | MISSING | - |
+| 20261014234656 | costing_standard_batch_preview_historical_effective_reference_fix | MISSING | - |
+| 20261015000602 | costing_kashaya_vasthi_kit_unit_mapping_exception | MISSING | - |
+| 20261015001323 | costing_standard_sku_unit_governed_liquid_factor_coverage | MISSING | - |
+| 20261015001912 | costing_portfolio_sku_conversion_fail_closed_audit | MISSING | - |
+| 20261015002218 | costing_karkkidaka_kanji_500g_pack_count_conversion | MISSING | - |
+| 20261015002706 | costing_count_pack_manufacturing_integrity_preview | MISSING | - |
+| 20261015002846 | costing_standard_output_basis_evidence_gate | MISSING | - |
+| 20261015003518 | costing_minimum_batch_scenario_nonfabrication_preview | MISSING | - |
+| 20261015004056 | costing_canonical_rm_loss_input_not_yield_boundary | MISSING | - |
+| 20261015004644 | costing_preferred_batch_canonical_net_output_formula | MISSING | - |
+| 20261015004833 | costing_nos_standard_output_whole_unit_rounding | MISSING | - |
+| 20261015005132 | costing_overhead_rate_source_fy_lineage_preview | MISSING | - |
+| 20261015005349 | costing_overhead_higher_of_years_selection_rationale_audit | MISSING | - |
+| 20261015005723 | costing_manufacturing_rate_approval_source_checklist | MISSING | - |
+| 20261015010729 | costing_finance_behaviour_split_staging_and_conservation_gate | MISSING | - |
+| 20261015010851 | costing_behaviour_split_strict_approval_and_immutability_guard | MISSING | - |
+| 20261015010904 | costing_behaviour_split_staged_multicomponent_approval_fix | MISSING | - |
+| 20261015011038 | costing_finance_rate_cutover_prerequisite_fail_closed_preview | MISSING | - |
+| 20261015011703 | costing_transfer_batch_reference_workload_evidence_only | MISSING | - |
+| 20261015011719 | costing_transfer_workload_failclosed_nullable_mapping_check | MISSING | - |
+| 20261015012728 | costing_preferred_batch_trial_rates_readonly_simulation | MISSING | - |
+| 20261015013006 | costing_preferred_batch_sku_manufacturing_trial_simulation | MISSING | - |
+| 20261015021210 | fg_transfer_governed_base_quantity_exception_fix | MISSING | - |
+| 20261015045233 | ppm_inactive_sku_mrp_policy_governance | PRESENT_EXACT | 20261015053000 origin,origin/docs/costing-pipeline-independent-audit,origin/feat/mc06-split-ove |
+
+**Classification (VERIFIED_REPO + VERIFIED_LIVE).**
+- **Genuinely missing: 33 costing migrations.**
+  - No name or content match on any branch.
+  - They are described only in narrative docs on `docs/costing-finance-oct15-continuation` (f4a8527, CHANGELOG_DECISIONS / SPRINT_EVIDENCE_HANDOVER).
+  - They create:
+    - 3 tables: `manufacturing_standard_rate_policy`, `sku_base_quantity_exception`, `manufacturing_cost_behaviour_split`.
+    - 2 guard triggers.
+    - The rate resolver.
+    - About 20 STABLE preview/simulation functions.
+    - A changed `public.v_tally_fg_transfer_normalized`.
+  - 4 of them contain DML (seed/policy rows): 20261014180903, 20261015000602, 20261015002218, 20261015010851.
+- **Renamed by the server, content identical: 1.** `ppm_inactive_sku_mrp_policy_governance` is live as 20261015045233. The repo file on main is 20261015053000. The version was assigned by the server, as recorded in the PPM-MRP-006 changelog.
+- **Content present outside the migrations folder: 1.** `wp05_s1_kpi_view_rebuild` exists as `docs/master-data-costing/wp05-s1/01_forward.sql` on draft PR #60. That file is not byte-identical to the live statements after whitespace normalisation. Likely cause: the live apply wraps it (UNVERIFIED).
+- **WP07 (Jarvis): 2 present exactly** on `feat/wp07-s2c-c1-qc-preparation-ui`.
+
+**Evidence.** The live statement text of the 33 was exported read-only to `evidence/live_migrations_unversioned/*.sql.txt`. These files are evidence only and must not be applied.
+
+**Remediation (PROPOSAL, owner: costing dev).**
+- Open a PR that adds the 33 as `supabase/migrations/<live version>_<name>.sql`, byte-identical to the live statements.
+- Add a CI check that diffs live `schema_migrations` against the repo.
+- Retest: rerun this hash comparison. The expected result is 0 MISSING.

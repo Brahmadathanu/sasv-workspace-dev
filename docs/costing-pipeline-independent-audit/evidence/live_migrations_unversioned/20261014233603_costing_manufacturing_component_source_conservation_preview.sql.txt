@@ -1,0 +1,39 @@
+-- EVIDENCE ONLY (read-only export of live supabase_migrations.schema_migrations, 2026-10-15 IST). NOT a migration; do not apply.
+create function costing.fn_preview_manufacturing_component_coverage(p_refresh_run_id bigint)
+returns table(refresh_run_id bigint,allocation_pool text,source_total numeric,component_total numeric,unmapped_balance numeric,coverage_status text,reason_code text)
+language sql stable security invoker set search_path=costing,pg_temp as $$
+with pools as (
+ select p.refresh_run_id,p.allocation_pool,p.total_pool_amount::numeric source_total,
+        p.staff_pool_amount::numeric staff_amount,p.expense_provision_amount::numeric expense_amount,
+        p.manual_provision_amount::numeric manual_amount
+ from costing.cost_pool_monthly_snapshot p
+ where p.refresh_run_id=p_refresh_run_id and p.allocation_pool in ('DIRECT_LABOUR','PRODUCTION_OVERHEAD')
+), components as (
+ select c.refresh_run_id,c.direct_labour_pool_snapshot_id,
+        sum(c.component_pool_amount)::numeric component_total,
+        count(*) count_components,count(distinct c.component_code) count_distinct
+ from costing.direct_labour_component_pool_snapshot c
+ where c.refresh_run_id=p_refresh_run_id
+ group by c.refresh_run_id,c.direct_labour_pool_snapshot_id
+)
+select p.refresh_run_id,p.allocation_pool,p.source_total,
+ case when p.allocation_pool='DIRECT_LABOUR' then c.component_total
+      else p.staff_amount+p.expense_amount+p.manual_amount end component_total,
+ case when p.allocation_pool='DIRECT_LABOUR' then p.source_total-coalesce(c.component_total,0)
+      else p.source_total-(p.staff_amount+p.expense_amount+p.manual_amount) end unmapped_balance,
+ case
+  when p.allocation_pool='DIRECT_LABOUR' and (c.count_components is null or c.count_components<>c.count_distinct or c.component_total is distinct from p.source_total) then 'REVIEW_REQUIRED'
+  when p.allocation_pool='PRODUCTION_OVERHEAD' and p.source_total is distinct from (p.staff_amount+p.expense_amount+p.manual_amount) then 'REVIEW_REQUIRED'
+  when p.allocation_pool='PRODUCTION_OVERHEAD' then 'SOURCE_RECONCILED_CLASSIFICATION_PENDING'
+  else 'SOURCE_RECONCILED' end coverage_status,
+ case
+  when p.allocation_pool='DIRECT_LABOUR' and (c.count_components is null or c.count_components<>c.count_distinct or c.component_total is distinct from p.source_total) then 'LABOUR_COMPONENT_COVERAGE_MISMATCH'
+  when p.allocation_pool='PRODUCTION_OVERHEAD' and p.source_total is distinct from (p.staff_amount+p.expense_amount+p.manual_amount) then 'OVERHEAD_SOURCE_TOTAL_MISMATCH'
+  when p.allocation_pool='PRODUCTION_OVERHEAD' then 'OVERHEAD_COST_BEHAVIOUR_AND_RATE_COMPONENTS_PENDING'
+  else 'LABOUR_SOURCE_COMPONENTS_CONSERVED' end reason_code
+from pools p left join components c on c.refresh_run_id=p.refresh_run_id and c.direct_labour_pool_snapshot_id=
+ (select max(x.id) from costing.cost_pool_monthly_snapshot x where x.refresh_run_id=p.refresh_run_id and x.allocation_pool='DIRECT_LABOUR')
+order by p.allocation_pool
+$$;
+revoke all on function costing.fn_preview_manufacturing_component_coverage(bigint) from public,anon,authenticated;
+comment on function costing.fn_preview_manufacturing_component_coverage(bigint) is 'Read-only source conservation preview; does not infer fixed/variable overhead classification or perform absorption.';

@@ -90,3 +90,23 @@ Missing evidence per product is in the CSV:
 - Confirmation of whether class-B Chendooram/Parpam items are made in long multi-month cycles or bought in (PTO).
 
 Retest: rerun the A3_03 query after any change. Totals must reconcile to the pools plus the variance line.
+
+### Cross-check against the live read-only simulator (VERIFIED_LIVE function output, ANALYTICAL rates)
+- Function: `costing.fn_simulate_preferred_batch_manufacturing_cost(119, 503.95, 640.65)`. It is STABLE, and its status is `SIMULATION_ONLY_NOT_APPROVED_RATE`.
+- It uses the yield-adjusted net batch output.
+  - P183: ₹4,309.69/Kg (my figure: ₹4,266.59).
+  - P184: ₹37,451.15/Kg (my figure: ₹37,076.64).
+  - The ~1% difference is the net-output yield. The independent calculation is corroborated.
+
+| Group | Products | Charged DL+POH/month, run 119 | Preferred-batch simulation × forecast qty |
+|---|---|---|---|
+| 125 flagged | 125 | ₹820,347 | ₹136,376 |
+| All other simulated | 335 | ₹901,875 | ₹1,647,777 (+83%) |
+
+**A3-F5 confirmed (P1).** Under batch-true costing, the 335 mainstream products carry about ₹7.46 lakh/month less conversion cost than they should. Their run-119 COP is understated. Any price built on run 119 inherits this.
+
+**A3-F6 (P2, VERIFIED_LIVE data, needs operations validation).** Even in batch-true, some routes have extreme workload per batch:
+- P184: 5 Kg batch carries 152.7 labour and 169.25 overhead WU, about ₹1.85 lakh per batch.
+- P183: about ₹4.48 lakh per 105 Kg batch.
+
+Route intensity for multi-avarthi thailams needs validation by production before any standard is approved.

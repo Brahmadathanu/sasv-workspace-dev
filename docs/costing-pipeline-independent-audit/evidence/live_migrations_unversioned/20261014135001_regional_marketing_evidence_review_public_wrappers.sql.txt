@@ -1,0 +1,131 @@
+-- EVIDENCE ONLY (read-only export of live supabase_migrations.schema_migrations, 2026-10-15 IST). NOT a migration; do not apply.
+-- Authenticated public wrappers for the governed regional marketing review queue
+-- and acceptance procedure. The costing schema stays unexposed.
+-- Acceptance delegates to costing.rpc_accept_regional_marketing_review.
+-- This wrapper does not write the acceptance table and does not change
+-- sales, assumptions, allocation formulas, MRP policy, or costing architecture.
+
+create or replace function public.rpc_get_regional_marketing_evidence_review_queue(
+  p_refresh_run_id bigint,
+  p_region_code text,
+  p_sku_ids bigint[]
+)
+returns table (
+  period_start date,
+  valuation_date date,
+  refresh_run_id bigint,
+  regional_marketing_snapshot_id bigint,
+  regional_basis_snapshot_id bigint,
+  sku_id bigint,
+  product_id bigint,
+  product_name text,
+  region_code text,
+  regional_basis_source text,
+  resolved_regional_units numeric,
+  resolved_regional_base_qty numeric,
+  regional_assumption_id bigint,
+  regional_default_policy_id bigint,
+  regional_default_scenario text,
+  marketing_value_source text,
+  resolved_product_region_marketing_sales_value numeric,
+  marketing_expense_cost_per_sku_region numeric,
+  raw_status text,
+  effective_status text,
+  is_acceptance_eligible boolean,
+  acceptance_id bigint,
+  evidence_fingerprint text,
+  is_accepted boolean
+)
+language plpgsql
+stable
+security invoker
+set search_path = public, costing, pg_temp
+as $function$
+#variable_conflict use_column
+begin
+  if p_refresh_run_id is null or p_region_code is null or btrim(p_region_code) = '' then
+    raise exception 'Refresh run and region are required';
+  end if;
+  if p_sku_ids is null or cardinality(p_sku_ids) < 1 or cardinality(p_sku_ids) > 200 then
+    raise exception 'SKU list must contain 1 to 200 ids';
+  end if;
+  perform public.require_permission('module:costing-control-center', false);
+  return query
+  select
+    q.period_start,
+    q.valuation_date,
+    q.refresh_run_id,
+    q.regional_marketing_snapshot_id,
+    q.regional_basis_snapshot_id,
+    q.sku_id,
+    q.product_id,
+    q.product_name,
+    q.region_code,
+    q.regional_basis_source,
+    q.resolved_regional_units,
+    q.resolved_regional_base_qty,
+    q.regional_assumption_id,
+    q.regional_default_policy_id,
+    q.regional_default_scenario,
+    q.marketing_value_source,
+    q.resolved_product_region_marketing_sales_value,
+    q.marketing_expense_cost_per_sku_region,
+    q.raw_status,
+    q.effective_status,
+    q.is_acceptance_eligible,
+    q.acceptance_id,
+    q.evidence_fingerprint,
+    q.is_accepted
+  from costing.v_regional_marketing_evidence_review_queue q
+  where q.refresh_run_id = p_refresh_run_id
+    and q.region_code = upper(btrim(p_region_code))
+    and q.sku_id = any (p_sku_ids);
+end;
+$function$;
+
+comment on function public.rpc_get_regional_marketing_evidence_review_queue(bigint, text, bigint[]) is
+  'Read the governed regional marketing evidence review queue for an explicit SKU list. SECURITY INVOKER. Requires module:costing-control-center view permission. Does not expose the costing schema.';
+
+create or replace function public.rpc_accept_regional_marketing_review(
+  p_refresh_run_id bigint,
+  p_sku_id bigint,
+  p_region_code text,
+  p_acceptance_reason text,
+  p_acceptance_note text default null
+)
+returns table (
+  acceptance_id bigint,
+  refresh_run_id bigint,
+  sku_id bigint,
+  region_code text,
+  evidence_fingerprint text,
+  effective_status text
+)
+language sql
+security invoker
+set search_path = public, costing, pg_temp
+as $function$
+  select
+    delegated.acceptance_id,
+    delegated.refresh_run_id,
+    delegated.sku_id,
+    delegated.region_code,
+    delegated.evidence_fingerprint,
+    delegated.effective_status
+  from costing.rpc_accept_regional_marketing_review(
+    p_refresh_run_id,
+    p_sku_id,
+    p_region_code,
+    p_acceptance_reason,
+    p_acceptance_note
+  ) as delegated;
+$function$;
+
+comment on function public.rpc_accept_regional_marketing_review(bigint, bigint, text, text, text) is
+  'Delegates to costing.rpc_accept_regional_marketing_review. SECURITY INVOKER. The costing procedure keeps the Costing Control Centre edit check, evidence fingerprint, and acceptance audit. This wrapper does not write the acceptance table.';
+
+revoke all on function public.rpc_get_regional_marketing_evidence_review_queue(bigint, text, bigint[]) from public, anon;
+revoke all on function public.rpc_accept_regional_marketing_review(bigint, bigint, text, text, text) from public, anon;
+
+grant execute on function public.rpc_get_regional_marketing_evidence_review_queue(bigint, text, bigint[]) to authenticated, service_role;
+grant execute on function public.rpc_accept_regional_marketing_review(bigint, bigint, text, text, text) to authenticated, service_role;
