@@ -1,0 +1,37 @@
+create function costing.fn_preview_manufacturing_rate_readiness(p_refresh_run_id bigint)
+returns table(refresh_run_id bigint,valuation_date date,component_code text,source_pool text,
+ source_amount numeric,approved_component_amount numeric,approved_normal_workload numeric,
+ approved_budget numeric,approved_rate numeric,status text,reason_code text)
+language sql stable security invoker set search_path=costing,pg_temp as $$
+ with source_rows as (
+ select d.refresh_run_id,d.valuation_date,d.component_code,'DIRECT_LABOUR'::text source_pool,
+ d.component_pool_amount::numeric source_amount,
+ 'MANUFACTURING_LABOUR'::text rate_pool
+ from costing.direct_labour_component_pool_snapshot d
+ where d.refresh_run_id=p_refresh_run_id
+ union all
+ select o.refresh_run_id,o.valuation_date,'TOTAL_PRODUCTION_OVERHEAD'::text,'PRODUCTION_OVERHEAD'::text,
+ o.total_pool_amount::numeric,'PRODUCTION_OVERHEAD'::text
+ from costing.cost_pool_monthly_snapshot o
+ where o.refresh_run_id=p_refresh_run_id and o.allocation_pool='PRODUCTION_OVERHEAD'
+ ), resolved as (
+ select s.*,r.policy_id,r.standard_rate,r.normal_workload_units,r.normal_budget_amount
+ from source_rows s
+ left join lateral costing.fn_resolve_manufacturing_standard_rate(s.rate_pool,s.component_code,s.valuation_date) r
+ on s.component_code<>'PACKING_LABOUR'
+ )
+ select r.refresh_run_id,r.valuation_date,r.component_code,r.source_pool,r.source_amount,
+ null::numeric,r.normal_workload_units,r.normal_budget_amount,r.standard_rate,
+ case when r.component_code='PACKING_LABOUR' then 'SEPARATE_PACKING_DRIVER'
+ when r.component_code='TOTAL_PRODUCTION_OVERHEAD' then 'REVIEW_REQUIRED'
+ when r.policy_id is null then 'REVIEW_REQUIRED'
+ else 'REVIEW_REQUIRED' end,
+ case when r.component_code='PACKING_LABOUR' then 'PACKING_NOT_MANUFACTURING_RATE'
+ when r.component_code='TOTAL_PRODUCTION_OVERHEAD' then 'OVERHEAD_COST_BEHAVIOUR_SPLIT_UNVERIFIED'
+ when r.policy_id is null then 'APPROVED_NORMAL_RATE_MISSING'
+ else 'SOURCE_COMPONENT_SCOPE_AND_ABSORPTION_NOT_VERIFIED' end
+ from resolved r
+$$;
+revoke all on function costing.fn_preview_manufacturing_rate_readiness(bigint) from public,anon,authenticated;
+comment on function costing.fn_preview_manufacturing_rate_readiness(bigint) is
+'Read-only conservative evidence preview: no rates or absorbed costs presumed, and no manufacturing costing refresh linkage. Overhead remains unsplit and packing remains separate.';
