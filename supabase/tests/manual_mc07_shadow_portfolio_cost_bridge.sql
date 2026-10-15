@@ -59,3 +59,28 @@ select b.sku_id,b.internal_loaded_cost_per_sku,
  then 'BLOCKED_SHADOW_EVIDENCE'
  else 'REVIEW_ONLY_UNAPPROVED' end as release_decision
 from bridge b left join shadow s using(sku_id,product_id) order by b.sku_id;
+
+-- Product-first rollup avoids counting one manufacturing batch separately per SKU.
+-- All 3 component costs must reconcile to the same product batch reference;
+-- this verifies SHADOW INTERNAL ARITHMETIC, not monthly ledger conservation.
+with p as (
+ select product_id,labour_workload_units,overhead_workload_units,
+ expected_net_output,labour_cost,fixed_overhead_cost,variable_overhead_cost,
+ total_conversion_cost,cost_per_net_base_unit,shadow_status
+ from costing.fn_preview_mc06_split_overhead_product_shadow(
+ 119,729.5548::numeric,342.7151::numeric,620.3135::numeric)
+)
+select count(*) product_rows,count(distinct product_id) unique_products,
+ count(*) filter(where shadow_status='SHADOW_ONLY_NOT_APPROVED_FOR_REFRESH') ready_shadow,
+ count(*) filter(where shadow_status<>'SHADOW_ONLY_NOT_APPROVED_FOR_REFRESH') blocked,
+ count(*) filter(where shadow_status='SHADOW_ONLY_NOT_APPROVED_FOR_REFRESH'
+   and (expected_net_output<=0 or labour_cost is null or fixed_overhead_cost is null
+   or variable_overhead_cost is null or total_conversion_cost is null
+   or cost_per_net_base_unit is null)) invalid_ready,
+ count(*) filter(where shadow_status='SHADOW_ONLY_NOT_APPROVED_FOR_REFRESH'
+   and (abs(total_conversion_cost-(labour_cost+fixed_overhead_cost+variable_overhead_cost))>0.00001
+   or abs(cost_per_net_base_unit*expected_net_output-total_conversion_cost)>0.00001))
+ arithmetic_mismatch
+from p;
+-- Required release assertions for illustrative shadow: invalid_ready=0,
+-- arithmetic_mismatch=0, named SKUs 193/988 represented and explicitly NOT approved.
