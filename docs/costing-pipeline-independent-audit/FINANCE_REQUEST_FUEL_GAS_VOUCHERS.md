@@ -1,4 +1,6 @@
 # DRAFT, not sent: request to Finance for Fuel & Gas voucher evidence
+
+> **WITHDRAWN 2026-10-15 by user directive (GOV-015 override):** do not send. Voucher gaps stay recorded as missing evidence in A1.
 Status: DRAFT for Dr. Brahmadathan U to review. The audit agent has not sent it.
 
 **To:** Finance / Tally accounts team
