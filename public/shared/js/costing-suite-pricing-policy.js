@@ -1827,7 +1827,7 @@ export function createPricingPolicyController(deps) {
   function renderSkuMrpDrawerReviseAction(row) {
     if (skuMrpPolicyView !== "current") return "";
     if (!canEditPolicyActions()) return "";
-    if (row.sku_is_active === false) return "";
+    // Pricing policy maintenance is independent of SKU operational lifecycle.
     return `<div class="cp-drawer-action-bar">
       <button
         type="button"
