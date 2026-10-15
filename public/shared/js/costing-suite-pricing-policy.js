@@ -2087,9 +2087,13 @@ export function createPricingPolicyController(deps) {
     warning,
     error,
     onState,
+    allowHistorical = false,
   }) {
     const hasValue = /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
-    const state = hasValue ? classifyEffectiveDate(value) : "INVALID_PAST";
+    const classified = hasValue ? classifyEffectiveDate(value) : "INVALID_PAST";
+    const state = allowHistorical && hasValue && classified === "INVALID_PAST"
+      ? "HISTORICAL_APPROVED"
+      : classified;
     if (chip) {
       chip.className = "status-chip gray";
       chip.textContent = "--";
@@ -2099,17 +2103,22 @@ export function createPricingPolicyController(deps) {
       } else if (hasValue && state === "SCHEDULED_FUTURE") {
         chip.className = "status-chip amber";
         chip.textContent = "Scheduled Policy";
+      } else if (hasValue && state === "HISTORICAL_APPROVED") {
+        chip.className = "status-chip amber";
+        chip.textContent = "Historical Effective Date";
       } else if (hasValue) {
         chip.className = "status-chip red";
         chip.textContent = "Invalid Past Date";
       }
     }
     if (warning) {
-      const showWarning = hasValue && state === "SCHEDULED_FUTURE";
+      const showWarning = hasValue && (state === "SCHEDULED_FUTURE" || state === "HISTORICAL_APPROVED");
       warning.hidden = !showWarning;
-      warning.textContent = showWarning
-        ? `This policy will not become current today. It is scheduled to take effect on ${formatDate(value)}.\n\nThe presently effective policy will remain current until the day before the scheduled date.`
-        : "";
+      warning.textContent = state === "HISTORICAL_APPROVED"
+        ? "Historical effective date: enter the documented Board approval reference and reason. The server will verify the policy interval before saving."
+        : showWarning
+          ? `This policy will not become current today. It is scheduled to take effect on ${formatDate(value)}.\n\nThe presently effective policy will remain current until the day before the scheduled date.`
+          : "";
     }
     if (error) {
       const showError = hasValue && state === "INVALID_PAST";
@@ -2125,6 +2134,7 @@ export function createPricingPolicyController(deps) {
   function syncMrpEffectiveDateState() {
     return setPolicyDateStateUi({
       value: dom.mrpPolicyEditEffectiveFrom?.value,
+      allowHistorical: true,
       chip: dom.mrpPolicyEffectiveDateChip,
       warning: dom.mrpPolicyEffectiveDateWarning,
       error: dom.mrpPolicyEffectiveDateError,
@@ -2509,11 +2519,11 @@ export function createPricingPolicyController(deps) {
     if (!values.effectiveFrom) {
       return { ok: false, message: "Effective-from date is required." };
     }
-    if (classifyEffectiveDate(values.effectiveFrom) === "INVALID_PAST") {
+    const historical = classifyEffectiveDate(values.effectiveFrom) === "INVALID_PAST";
+    if (historical && !values.approvalReference) {
       return {
         ok: false,
-        message:
-          "Effective-from date cannot be before the current India business date.",
+        message: "Historical MRP revision requires a documented Board approval reference.",
       };
     }
     if (!values.reason) {
