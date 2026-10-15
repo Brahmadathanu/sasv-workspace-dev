@@ -35,3 +35,7 @@ Ten manufacturing reference cost components, ₹1,722,238.2817, zero approved cl
 
 ## Next evidence update
 Append or update `SPRINT_EVIDENCE_HANDOVER_2026-10-15.md` and this ledger after the detail-audit gate; preserve the decision log. Report exact Git commit and Supabase source evidence; do not merge without approval.
+
+## Board closure sprint decision — 2026-10-15
+User authorised proceeding with a provisional, documented standard-costing model for an urgent Board 509-SKU price revision, subject to evidence, sensitivity checks, correct product/SKU conversion, governed classifications, normal-capacity policy, and fail-closed cutover. This is approval of the modelling approach, NOT numeric standard rates, NOT substitute approver identity, NOT consent to edit frozen run119, and NOT authorisation to initiate a refresh (user owns client refresh).
+Critical path: resolve approval-ready normal workload / fixed-variable basis with disclosed uncertainty; examine products 190 and 1350 impact; complete price-register sync and MC07 conservation; independently verify rate/scope parity; say READY only on gate PASS. Run119 remains immutable. Defer nonessential historical granularity and BMR but no required conservation or approval.
