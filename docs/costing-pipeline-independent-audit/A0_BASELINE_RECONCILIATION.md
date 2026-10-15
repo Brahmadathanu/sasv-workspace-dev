@@ -99,3 +99,33 @@ Labels: VERIFIED_LIVE · VERIFIED_REPO · UNVERIFIED · BLOCKED.
 - Open a PR that adds the 33 as `supabase/migrations/<live version>_<name>.sql`, byte-identical to the live statements.
 - Add a CI check that diffs live `schema_migrations` against the repo.
 - Retest: rerun this hash comparison. The expected result is 0 MISSING.
+
+## Sweep 2: run-119 mutation vulnerabilities and proposed safeguards (D-010; no data altered, September not closed)
+Retrieved 2026-10-15 ~18:15 IST, read-only catalog queries.
+
+**Fingerprint (VERIFIED_LIVE)** for future tamper detection. Recompute these exact hashes and compare.
+- `sku_manufacturing_cop_snapshot`, run 119: 635 rows. Hash md5(sku_id|cop|dl|poh|mat|status ordered by sku_id) = `71e18c2496d419257dbe1b362caec888`. Last `refreshed_at` 2026-10-14 17:31:16 IST.
+- md5(row_to_json ordered by id):
+  - `sku_internal_loaded_cost_snapshot`: `180d61576fe4d1abb00c6fa3e32c99fa`
+  - `sku_prime_cost_snapshot`: `48ef70d72d334143bcbef5c0588d1067`
+  - `sku_overhead_allocation_snapshot`: `d237569e33daf7bfd7e57afe7e542249`
+  - All 635 rows each.
+
+**Vulnerabilities (VERIFIED_LIVE).**
+| # | Finding | Severity |
+|---|---|---|
+| V1 | 15 snapshot tables have **no trigger at all**. Includes `sku_manufacturing_cop_snapshot`, `sku_prime_cost_snapshot`, `sku_overhead_allocation_snapshot`, `sku_internal_loaded_cost_snapshot`, `direct_labour_component_pool_snapshot` and the RM/PM cost-line snapshots. Any role holding table privileges (postgres/service_role; 168 UPDATE/DELETE/TRUNCATE grants, all to `postgres`) can change run-119 rows silently. | P1 |
+| V2 | `rpc_refresh_sku_manufacturing_cop_snapshot(date,date,bigint)` (SECURITY DEFINER) checks only context match and prime/overhead row counts. It then runs `delete from costing.sku_manufacturing_cop_snapshot where refresh_run_id=p_refresh_run_id` and re-inserts. It does **not** refuse a run already in SUCCESS, and does not check a period lock. Re-calling it with run 119 would rebuild 119 from whatever the upstream snapshots hold then. | P1 |
+| V3 | Period 2026-09 is OPEN and the valuation date is DRAFT, so the period-level guards present in other RPCs cannot protect run 119. | P1 (A0-F2) |
+| V4 | Mitigations already present: `authenticated` and `anon` lack EXECUTE on these refresh RPCs. `costing_refresh_run` has `trg_enforce_refresh_run_context_immutable`. 40 of 56 snapshot/period tables carry guard triggers (`*_mutable_run`, `trg_immutable_*`). | info |
+
+**Safeguards (PROPOSAL; owner: costing dev + user approval; not applied).**
+1. Add a `BEFORE UPDATE OR DELETE OR TRUNCATE` guard trigger to the 15 unprotected snapshot tables. It rejects rows whose run is `SUCCESS` or is listed in a new `costing.costing_run_reference_lock` table (run_id, locked_by, reason, locked_at), and is itself append-only.
+2. Make every `rpc_refresh_*` fail closed when the target run is not in RUNNING state.
+3. Add a lock row for run 119 that is independent of closing the period. This meets D-010 without closing September.
+4. Add a nightly read-only fingerprint check that compares against the hashes above and alerts on drift.
+
+Retest:
+- In an isolated branch DB, an UPDATE/DELETE on run-119 rows must fail.
+- A refresh RPC called with run 119 must raise an error.
+- The fingerprints must be unchanged.

@@ -37,3 +37,69 @@ Plus POH staff ₹41,055 → run-119 POH pool ₹1,016,035.28. (ANALYTICAL alter
 
 ## A1.4 Not yet done (next sweep)
 Ledger-level voucher reconciliation (needs Tally access/exports); duplicate-load/idempotency tests per source_key; full per-head table for the other five pools; ETL code location (outside repo).
+
+## Sweep 2 (2026-10-15 ~18:40 IST)
+
+### D-013: tracing the 8 Aug FYTD→MTD switch (VERIFIED_LIVE unless marked)
+- **The ETL request did not change.** Every `etl_jobs` FETCH_XML job for expenses asked for the FY period, before and after the switch: 07-Aug, 08-Aug, 03/04-Sep, 05/06-Oct all carry tokens `FROM=20260401, TO=<today>, COMPANY="SASV 2026-2027"`. Request template: `D:\tally-agent\config\requests\direct_expenses_request.xml` (and indirect), on the Tally agent PC. All were `validation_status=ACCEPTED`.
+- **The returned data changed.**
+  - On 07-Aug: 18 direct and 28 indirect rows, FYTD (Salaries DE ₹75,97,062).
+  - On 08-Aug: 5 direct and 14 indirect rows. Heads with no August voucher vanish entirely (Salaries, Interest, Fuel & Gas, Rent, Electricity). The rest show August-only movement (Vehicle running ₹9,47,999 → ₹84,105).
+  - So the change happened inside Tally or the agent's XML template, not in the job parameters. Possible causes: the request XML no longer passing SVFROMDATE, or the Tally company's current period. The exact cause is UNVERIFIED, because the agent template is not in any repo branch or in the DB.
+  - The 08-Aug fetch ran late: started 15:45 IST, versus about 08:30–08:45 IST on other days. That is consistent with manual intervention on the agent PC that day (UNVERIFIED).
+- **Not uniform across heads or time.**
+  - Heads drop out instead of showing zero, so the snapshot cannot tell a zero month from a missing head.
+  - The MTD resets fall on 08-Aug, 04-Sep and 06-Oct, not on the 1st. That suggests an operator period change rather than a scheduled rule (ANALYTICAL).
+- **Owner:** whoever administers the PC hosting `D:\tally-agent` (UNVERIFIED). `etl_jobs` has no user column, and the raw XML objects (`raw/…`) are not in `storage.objects`, so no uploader identity is recorded.
+- **Needed to close:**
+  - The agent's current and historic `*_expenses_request.xml` files.
+  - The agent change log.
+  - The raw XML files for 07-Aug and 08-Aug from the agent's save location.
+  - Name of the Tally admin.
+- **Exposure:** any provision logic that reads post-08-Aug snapshots as FYTD understates. The current max-of-max logic masks this by picking older, higher FYTD points. That is a second reason the result is not a normal basis.
+
+### D-011: interest and exceptional costs (VERIFIED_LIVE)
+- **Interest is already outside manufacturing COP.** `rpc_refresh_sku_manufacturing_cop_snapshot` builds COP = prime + production OH + QC OH + stores OH. Interest Paid (₹13,89,594.90/month provision, selected from FY 2025-26) sits in `FINANCE_ADMIN_OVERHEAD`, which feeds internal loaded cost, not COP. That matches the D-011 default. The remaining action is to show it as a separate financing line in profitability rather than blending it into loaded cost (PROPOSAL).
+- **Items needing Finance classification:**
+
+| Head | Pool | Provision/month | Issue |
+|---|---|---|---|
+| Interest Paid | FINANCE_ADMIN | ₹13,89,594.90 | Routine financing: exclude from COP, keep visible (D-011). Any project or working-capital interest to be capitalised needs Finance to confirm. |
+| Financial Charges | FINANCE_ADMIN | ₹66,603.78 | Bank charges vs financing? |
+| Discounts | MARKETING_EXPENSE | ₹2,40,174.45 | Likely a revenue deduction, not an expense. If the price build-up already deducts trade discount, this risks double counting. |
+| Forex Gain/loss | MARKETING_EXPENSE | ₹280.43 | Source is a **gain** (−₹841.28 FYTD on 07-Aug). `abs()` turns it into a cost (sign defect, A1-F5). |
+| Ineligible ITC | FINANCE_ADMIN | ₹8,351.35 | Tax cost: confirm treatment. |
+| Insurance Premium Paid | MARKETING_EXPENSE | ₹20,776.25 | Pool placement looks wrong (factory or asset insurance?). |
+| Legal & Professional | FINANCE_ADMIN | ₹3,125 | Exceptional? |
+
+### D-012: independent comparison inputs for a Finance-approved normal budget (no substitution made)
+- **POH monthly:**
+  - Current max-of-max logic: ₹9,74,980.28.
+  - FY 2025-26 average: ₹6,29,880.04.
+  - Current FY Apr–Jul: about ₹7.50 lakh.
+- **Operational capacity (VERIFIED_LIVE):**
+  - Completed FG batches: 107–185/month from Apr-25 to Sep-26, about 140 typical (Aug-26: 109, Sep-26: 115).
+  - BMR initiations swing from 11 to 252/month. Aug-26 has only 11, a logging gap, so BMR is not a reliable capacity series yet.
+  - The costing workload charges 600 batch-equivalents/month (rounded). The forecast need is 280.37.
+- **Abnormal items:**
+  - The Fuel & Gas Q1 posting (below).
+  - The 31-Mar-2026 row backfilled on 09-Jun.
+  - The MTD switch.
+- **Conclusion:**
+  - None of the available actuals is a reliable normal basis yet: FY 2026-27 is contaminated by the MTD switch and posting timing.
+  - Finance must issue a normal operating budget per head. The audit's role is to supply this comparison, not to pick the basis.
+
+### DIR-7: Fuel & Gas without the voucher export (VERIFIED_LIVE data; ANALYTICAL interpretation)
+- **Ledger:**
+  - Snapshots for `Fuel & Gas (DE)` start on 2026-06-09, already at ₹14,38,768.80 FYTD.
+  - From 09-Jun to 07-Aug there is only one posting: +₹12,711.85 on 19–21 Jul.
+  - So the ₹14.39 lakh was booked before 09-Jun. Its dates cannot be seen in our data.
+- **Physical fuel stock** (`tally_fuel_stock_snapshot`: Fire Wood, Varali, Biomass Briquette, LPG, Umi, Arakkappodi; stock-rate valued):
+  - Stock decreases, a lower bound for issues, ran ₹2.39–3.25 lakh/month from Oct-25 to Feb-26, and ₹4.67 / 3.42 / 2.12 / 3.69 lakh for Jun–Sep 2026.
+  - Firewood issued: 41,400–65,100 kg/month in active months.
+  - Apr–May 2026 shows almost no movement, then ₹12.68 lakh of **receipts in June 2026**.
+- **Interpretation (ANALYTICAL):**
+  - The Fuel & Gas ledger appears to record purchases, not consumption. The Q1 ₹14.39 lakh is consistent with a stock build-up booked in June against an Apr–May stock-register gap.
+  - Dividing it by 3 (the current ₹4,79,589.60/month) overstates normal consumption. The July ₹12,711.85 understates it.
+  - Neither is a norm, per DIR-7.
+- **Evidence request:** `FINANCE_REQUEST_FUEL_GAS_VOUCHERS.md` (draft, not sent).
