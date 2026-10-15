@@ -57,7 +57,7 @@ The view keeps the live columns and appends `selection_basis`; its 21 dependent 
 - P1. Confirm no active run: `select id, overall_status from costing.costing_refresh_run where overall_status in ('QUEUED','RUNNING');` must return 0 rows. Avoid the minutes just before :00 and :30 if a daily run is due (cron 60 at 02:00 IST).
 - P2. Record pre-state: `select * from costing.v_current_successful_costing_refresh_run order by period_start;` (expected 80 / 82 / 119).
 - A1. Apply the file exactly as reviewed, as one transaction (MCP `apply_migration` or the SQL editor). Preflight and `lock_timeout = 5s` make it fail safely rather than wait.
-- V1. Expect 0 for `select count(*) from pg_trigger where tgname like 'trg_au2_%' and tgenabled <> 'O';` and about 90 total AU-2 triggers.
+- V1. Expect 0 for `select count(*) from pg_trigger where tgname like 'trg_au2_%' and tgenabled <> 'O';` and exactly 127 AU-2 triggers in total (count on the parity DB).
 - V2. `select * from costing.v_current_successful_costing_refresh_run order by period_start;` must be identical to P2, with `selection_basis = LATEST_SUCCESS`.
 - V3. Read-only probe: `select * from costing.fn_compute_run_fingerprint(119);` (about 4 s).
 - V4. The next scheduled or UI run finishes SUCCESS and has a `RUN_SUCCESS` fingerprint row.

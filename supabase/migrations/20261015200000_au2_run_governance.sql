@@ -6,7 +6,7 @@
 -- designation-first current-run view, auto fingerprint at SUCCESS, governed period close.
 
 begin;
-set local lock_timeout = '5s';  -- creating ~90 triggers locks 52 snapshot tables briefly; fail fast instead of queueing behind a running stage
+set local lock_timeout = '5s';  -- creating 127 triggers locks 52 snapshot tables briefly; fail fast instead of queueing behind a running stage
 -- Preflight: refuse to apply while a costing run is active (the 5-minute stage processor could be mid-stage).
 do $pf$ begin
   if exists (select 1 from costing.costing_refresh_run where overall_status in ('QUEUED','RUNNING')) then
