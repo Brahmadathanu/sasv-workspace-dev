@@ -6,6 +6,13 @@
 -- designation-first current-run view, auto fingerprint at SUCCESS, governed period close.
 
 begin;
+set local lock_timeout = '5s';  -- creating ~90 triggers locks 52 snapshot tables briefly; fail fast instead of queueing behind a running stage
+-- Preflight: refuse to apply while a costing run is active (the 5-minute stage processor could be mid-stage).
+do $pf$ begin
+  if exists (select 1 from costing.costing_refresh_run where overall_status in ('QUEUED','RUNNING')) then
+    raise exception 'AU2_PREFLIGHT: a costing refresh run is QUEUED/RUNNING; apply between runs';
+  end if;
+end $pf$;
 
 -- 0. Generic append-only guard ------------------------------------------------------------
 create or replace function costing.fn_guard_append_only()
@@ -21,6 +28,9 @@ returns setof text language sql stable set search_path to 'costing','public','pg
   select c.relname::text from pg_class c join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='costing' and c.relkind='r' and c.relname like '%snapshot%'
     and exists (select 1 from pg_attribute a where a.attrelid=c.oid and a.attname='refresh_run_id' and not a.attisdropped)
+    -- Note (PR #68 risk assessment): costing_control_dashboard_snapshot / _integrity_audit_snapshot are deleted BY PERIOD
+    -- in their refresh RPCs, but the live guard a_stage05_exact_write_guard (fires first) silently skips rows of other
+    -- runs, so a later run never touches a designated run's rows. They stay guarded; test T15b proves the interaction.
   order by 1
 $$;
 
@@ -172,14 +182,14 @@ declare v_des text; v_auth bigint; v_ref bigint;
 begin
   if tg_op = 'INSERT' then
     select e.refresh_run_id into v_ref from costing.v_costing_run_effective_designation e
-     where e.period_start = new.period_start and e.designation in ('REFERENCE','APPROVED')
+     where e.period_start = new.period_start and e.designation = 'APPROVED'
      order by e.designated_at desc limit 1;
     if v_ref is not null then
       select a.id into v_auth from costing.costing_period_refresh_authorization a
        where a.period_start = new.period_start and a.consumed_by_run_id is null and a.valid_until > now()
        order by a.authorised_at desc limit 1 for update;
       if v_auth is null then
-        raise exception 'AU2_PERIOD_HOLDS_DESIGNATED_RUN: period % holds designated run %; a recorded supersession authorisation is required', new.period_start, v_ref using errcode='P0001';
+        raise exception 'AU2_PERIOD_HOLDS_APPROVED_RUN: period % holds APPROVED run %; a recorded supersession authorisation is required', new.period_start, v_ref using errcode='P0001';
       end if;
       new.request_note := coalesce(new.request_note,'') || format(' [AU2 supersession authorisation %s]', v_auth);
       perform set_config('costing.au2_pending_authorization', v_auth::text, true);
@@ -211,8 +221,12 @@ begin
       perform set_config('costing.au2_pending_authorization', '', true);
     end if;
   elsif new.overall_status = 'SUCCESS' and old.overall_status is distinct from 'SUCCESS' then
-    insert into costing.costing_run_fingerprint(refresh_run_id, purpose, captured_by, fingerprint)
-    values (new.id, 'RUN_SUCCESS', 'system:run-success', costing.fn_compute_run_fingerprint(new.id));
+    begin  -- non-fatal: a fingerprint problem must never turn a good run into FAILED (designation re-captures one)
+      insert into costing.costing_run_fingerprint(refresh_run_id, purpose, captured_by, fingerprint)
+      values (new.id, 'RUN_SUCCESS', 'system:run-success', costing.fn_compute_run_fingerprint(new.id));
+    exception when others then
+      raise warning 'AU2_RUN_SUCCESS_FINGERPRINT_SKIPPED: run % (%)', new.id, sqlerrm;
+    end;
   end if;
   return null;
 end $$;
@@ -283,15 +297,21 @@ grant execute on function costing.rpc_close_cost_period(date,text,text,text) to 
 grant select on costing.costing_run_designation, costing.costing_run_fingerprint, costing.v_costing_run_effective_designation to authenticated;
 
 -- 7. Current-run selection by designation (same leading columns; selection_basis appended) ---
+-- Current-run rule (decided 2026-10-15, documented in AU2_APPLY_RUNBOOK.md):
+--   1. latest APPROVED run of the period;
+--   2. else latest SUCCESS run with captured context that is NOT designated REFERENCE;
+--   3. else the latest REFERENCE run (REFERENCE_FALLBACK, only when no other valid run exists).
+-- A REFERENCE run is preserved evidence, never the pricing source while another valid run exists.
+-- Columns: identical to live, plus selection_basis appended (dependent views keep working).
 create or replace view costing.v_current_successful_costing_refresh_run as
 select refresh_run_id, period_start, valuation_date, overall_status, valuation_context_source, source_trigger,
        requested_scope, requested_at, started_at, finished_at, selection_basis
 from (
   select r.id as refresh_run_id, r.period_start, r.valuation_date, r.overall_status, r.valuation_context_source,
          r.source_trigger, r.requested_scope, r.requested_at, r.started_at, r.finished_at,
-         coalesce(e.designation, 'LATEST_SUCCESS') as selection_basis,
+         case e.designation when 'APPROVED' then 'APPROVED' when 'REFERENCE' then 'REFERENCE_FALLBACK' else 'LATEST_SUCCESS' end as selection_basis,
          row_number() over (partition by r.period_start
-           order by case e.designation when 'APPROVED' then 1 when 'REFERENCE' then 2 else 3 end,
+           order by case e.designation when 'APPROVED' then 1 when 'REFERENCE' then 3 else 2 end,
                     r.finished_at desc nulls last, r.id desc) as governed_run_rank
   from costing.costing_refresh_run r
   left join costing.v_costing_run_effective_designation e

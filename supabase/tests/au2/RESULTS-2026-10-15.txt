@@ -1,46 +1,61 @@
- n  | outcome |                                   test                                    |                                                             detail                                                             
-----+---------+---------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------
-  1 | PASS    | T00 fingerprint auto-captured at SUCCESS                                  | RUN_SUCCESS fingerprint row
-  2 | PASS    | T01 UPDATE SUCCESS-run COP row refused (terminal guard, pre-designation)  | Snapshot mutation is prohibited for terminal refresh run 119 with status SUCCESS.
-  3 | PASS    | T02 designate run 119 REFERENCE (user recorded by name)                   | ok
-  4 | PASS    | T03 new Sep-2026 refresh request refused (period holds REFERENCE run)     | AU2_PERIOD_HOLDS_DESIGNATED_RUN: period 2026-09-01 holds designated run 119; a recorded supersession authorisation is required
-  5 | PASS    | T04 COP refresh RPC re-pointed at run 119 refused                         | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; DELETE on costing.sku_manufacturing_cop_snapshot prohibited
-  6 | PASS    | T05a UPDATE run-119 COP row refused                                       | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; UPDATE on costing.sku_manufacturing_cop_snapshot prohibited
-  7 | PASS    | T05b DELETE run-119 prime row refused                                     | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; DELETE on costing.sku_prime_cost_snapshot prohibited
-  8 | PASS    | T05c INSERT new row into run 119 refused                                  | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; INSERT on costing.sku_overhead_allocation_snapshot prohibited
-  9 | PASS    | T05d TRUNCATE snapshot refused                                            | AU2_SNAPSHOT_TRUNCATE_PROHIBITED: TRUNCATE on costing.sku_manufacturing_cop_snapshot would destroy run history
- 10 | PASS    | T05e re-point row away from run 119 refused                               | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; UPDATE on costing.sku_manufacturing_cop_snapshot prohibited
- 11 | PASS    | T05f UPDATE on a previously-guarded table (cost_pool) for run 119 refused | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; INSERT on costing.cost_pool_monthly_snapshot prohibited
- 12 | PASS    | T06 run-119 header status change refused                                  | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; header update prohibited
- 13 | PASS    | T06b run-119 delete refused                                               | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 has designation history; delete prohibited
- 14 | PASS    | T07 designation table is append-only                                      | AU2_APPEND_ONLY: UPDATE on costing.costing_run_designation is prohibited (append-only governance table)
- 15 | PASS    | T07b fingerprint table is append-only                                     | AU2_APPEND_ONLY: DELETE on costing.costing_run_fingerprint is prohibited (append-only governance table)
- 16 | PASS    | T08a first Oct run queued                                                 | ok
- 17 | PASS    | T08b second concurrent Oct run refused                                    | duplicate key value violates unique constraint "uq_costing_refresh_run_one_active_period_scope"
- 18 | PASS    | T09 FAILED run with partial rows not selected as current                  | Oct has no current run
- 19 | PASS    | T09b FAILED (non-designated) run rows still cleanable                     | ok
- 20 | PASS    | T10a authenticated cannot designate                                       | permission denied for function rpc_designate_costing_run
- 21 | PASS    | T10b authenticated cannot authorise supersession                          | permission denied for function rpc_authorize_period_refresh
- 22 | PASS    | T10c authenticated cannot close period                                    | permission denied for function rpc_close_cost_period
- 23 | PASS    | T10d authenticated cannot write snapshots directly                        | permission denied for table sku_manufacturing_cop_snapshot
- 24 | PASS    | T11a user records supersession authorisation                              | ok
- 25 | PASS    | T11b authorised Sep request accepted (run 120)                            | ok
- 26 | PASS    | T11c authorisation consumed by run 120                                    | consumed_by_run_id=120
- 27 | PASS    | T11d authorisation is single-use                                          | AU2_PERIOD_HOLDS_DESIGNATED_RUN: period 2026-09-01 holds designated run 119; a recorded supersession authorisation is required
- 28 | PASS    | T12 current run = designated 119 even though 120 finished later           | current=119 basis=REFERENCE
- 29 | PASS    | T13a close refused with only REFERENCE designation                        | AU2_CLOSE_REQUIRES_APPROVED_RUN: period 2026-09-01
- 30 | PASS    | T13b designate 119 APPROVED                                               | ok
- 31 | PASS    | T13c close refused without evidence                                       | AU2_CLOSE_EVIDENCE_REQUIRED
- 32 | PASS    | T13d governed close succeeds                                              | ok
- 33 | PASS    | T13e period CLOSED/FINAL with evidence                                    | cost_periods row
- 34 | PASS    | T13f closing twice refused                                                | AU2_PERIOD_ALREADY_CLOSED: 2026-09-01
- 35 | PASS    | T12b current run = APPROVED 119                                           | approved wins
- 36 | PASS    | T14 run-119 fingerprint unchanged after all attacks                       | compute vs pre-attack
- 37 | PASS    | T14b verify function reports zero drift                                   | fn_verify_run_fingerprint
-(37 rows)
+ n  | outcome |                                                test                                                |                                                           detail                                                           
+----+---------+----------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------
+  1 | PASS    | T00 fingerprint auto-captured at SUCCESS                                                           | RUN_SUCCESS fingerprint row
+  2 | PASS    | T00b baseline: before any designation, current Sep run = latest success 119                        | unchanged pre-designation behaviour
+  3 | PASS    | T01 UPDATE SUCCESS-run COP row refused (terminal guard, pre-designation)                           | Snapshot mutation is prohibited for terminal refresh run 119 with status SUCCESS.
+  4 | PASS    | T02 designate run 119 REFERENCE (D-017; user recorded by name)                                     | ok
+  5 | PASS    | T03 REFERENCE 119 not current; latest other valid run 118 is (LATEST_SUCCESS)                      | current=118 basis=LATEST_SUCCESS
+  6 | PASS    | T03a designate Aug run 90 REFERENCE                                                                | ok
+  7 | PASS    | T03b REFERENCE used only as fallback when no other valid run exists (Aug)                          | current=90 basis=REFERENCE_FALLBACK
+  8 | PASS    | T03c REFERENCE does not block a new Sep refresh request                                            | ok
+  9 | PASS    | T04 COP refresh RPC re-pointed at run 119 refused                                                  | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; DELETE on costing.sku_manufacturing_cop_snapshot prohibited
+ 10 | PASS    | T05a UPDATE run-119 COP row refused                                                                | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; UPDATE on costing.sku_manufacturing_cop_snapshot prohibited
+ 11 | PASS    | T05b DELETE run-119 prime row refused                                                              | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; DELETE on costing.sku_prime_cost_snapshot prohibited
+ 12 | PASS    | T05c INSERT new row into run 119 refused                                                           | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; INSERT on costing.sku_overhead_allocation_snapshot prohibited
+ 13 | PASS    | T05d TRUNCATE snapshot refused                                                                     | AU2_SNAPSHOT_TRUNCATE_PROHIBITED: TRUNCATE on costing.sku_manufacturing_cop_snapshot would destroy run history
+ 14 | PASS    | T05e re-point row away from run 119 refused                                                        | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; UPDATE on costing.sku_manufacturing_cop_snapshot prohibited
+ 15 | PASS    | T05f INSERT on a previously-guarded table (cost_pool) for run 119 refused                          | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; INSERT on costing.cost_pool_monthly_snapshot prohibited
+ 16 | PASS    | T06 run-119 header status change refused                                                           | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; header update prohibited
+ 17 | PASS    | T06b run-119 delete refused                                                                        | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 has designation history; delete prohibited
+ 18 | PASS    | T07 designation table is append-only                                                               | AU2_APPEND_ONLY: UPDATE on costing.costing_run_designation is prohibited (append-only governance table)
+ 19 | PASS    | T07b fingerprint table is append-only                                                              | AU2_APPEND_ONLY: DELETE on costing.costing_run_fingerprint is prohibited (append-only governance table)
+ 20 | PASS    | T15a control dashboard stays in the guarded run-scoped set                                         | guarded
+ 21 | PASS    | T15b later run stage-05 period-wide delete (live RPC pattern) succeeds with designated 119 present | ok
+ 22 | PASS    | T15b2 designated run 119 control row untouched by that delete                                      | row kept
+ 23 | PASS    | T15b3 direct delete of 119 control row (writer context = 119) refused                              | AU2_DESIGNATED_RUN_IMMUTABLE: run 119 is REFERENCE; DELETE on costing.costing_control_dashboard_snapshot prohibited
+ 24 | PASS    | T15c fingerprint failure at SUCCESS is non-fatal (run still finishes SUCCESS)                      | ok
+ 25 | PASS    | T15d run 140 is SUCCESS                                                                            | status
+ 26 | PASS    | T15e fingerprint function restored                                                                 | restored
+ 27 | PASS    | T08a first Oct run queued                                                                          | ok
+ 28 | PASS    | T08b second concurrent Oct run refused                                                             | duplicate key value violates unique constraint "uq_costing_refresh_run_one_active_period_scope"
+ 29 | PASS    | T09 FAILED run with partial rows not selected as current                                           | Oct current is not 200
+ 30 | PASS    | T09b FAILED (non-designated) run rows still cleanable                                              | ok
+ 31 | PASS    | T10a authenticated cannot designate                                                                | permission denied for function rpc_designate_costing_run
+ 32 | PASS    | T10b authenticated cannot authorise supersession                                                   | permission denied for function rpc_authorize_period_refresh
+ 33 | PASS    | T10c authenticated cannot close period                                                             | permission denied for function rpc_close_cost_period
+ 34 | PASS    | T10d authenticated cannot write snapshots directly                                                 | permission denied for table sku_manufacturing_cop_snapshot
+ 35 | PASS    | T13a close refused with only REFERENCE designation                                                 | AU2_CLOSE_REQUIRES_APPROVED_RUN: period 2026-09-01
+ 36 | PASS    | T13b designate 119 APPROVED (test only; D-017 says REFERENCE live)                                 | ok
+ 37 | PASS    | T12a APPROVED 119 is current (over later-finished or other runs)                                   | approved wins
+ 38 | PASS    | T11 new Sep request refused while period holds APPROVED run (no authorisation)                     | AU2_PERIOD_HOLDS_APPROVED_RUN: period 2026-09-01 holds APPROVED run 119; a recorded supersession authorisation is required
+ 39 | PASS    | T11a user records supersession authorisation                                                       | ok
+ 40 | PASS    | T11b authorised Sep request accepted (run 120)                                                     | ok
+ 41 | PASS    | T11c authorisation consumed by run 120                                                             | consumed_by_run_id=120
+ 42 | PASS    | T11d authorisation is single-use                                                                   | AU2_PERIOD_HOLDS_APPROVED_RUN: period 2026-09-01 holds APPROVED run 119; a recorded supersession authorisation is required
+ 43 | PASS    | T12 current run = APPROVED 119 even though 120 finished later                                      | current=119 basis=APPROVED
+ 44 | PASS    | T12c revoke APPROVED 119                                                                           | ok
+ 45 | PASS    | T12d after revocation, latest valid success 120 is current (119 no longer designated)              | current=120 basis=LATEST_SUCCESS
+ 46 | PASS    | T12e re-approve 119 for close tests                                                                | ok
+ 47 | PASS    | T13c close refused without evidence                                                                | AU2_CLOSE_EVIDENCE_REQUIRED
+ 48 | PASS    | T13d governed close succeeds                                                                       | ok
+ 49 | PASS    | T13e period CLOSED/FINAL with evidence                                                             | cost_periods row
+ 50 | PASS    | T13f closing twice refused                                                                         | AU2_PERIOD_ALREADY_CLOSED: 2026-09-01
+ 51 | PASS    | T14 run-119 fingerprint unchanged after all attacks                                                | compute vs pre-attack
+ 52 | PASS    | T14b verify function reports zero drift                                                            | fn_verify_run_fingerprint
+(52 rows)
 
  passed | failed 
 --------+--------
-     37 |      0
+     52 |      0
 (1 row)
 
