@@ -1,0 +1,13 @@
+create function costing.fn_preview_overhead_rate_source_lineage(p_refresh_run_id bigint)
+returns table(refresh_run_id bigint,head_name text,source_financial_year_start date,monthly_provision numeric,source_status text)
+language sql stable security invoker set search_path=costing,public,pg_temp as $$
+select p_refresh_run_id,e.head_name::text,e.selected_financial_year_start,e.standard_monthly_provision,
+case when e.selected_financial_year_start is null or e.standard_monthly_provision is null or e.standard_monthly_provision<0 then 'BLOCKED_SOURCE'
+when e.selected_financial_year_start>date_trunc('year',r.period_start)::date + interval '3 months' then 'REVIEW_SOURCE_PERIOD'
+else 'SOURCE_PERIOD_DOCUMENTED_RATE_APPROVAL_PENDING' end
+from costing.costing_refresh_run r
+join costing.v_expense_head_monthly_provision e on e.period_start=r.period_start and e.allocation_pool='PRODUCTION_OVERHEAD'
+where r.id=p_refresh_run_id
+$$;
+revoke all on function costing.fn_preview_overhead_rate_source_lineage(bigint) from public,anon,authenticated;
+comment on function costing.fn_preview_overhead_rate_source_lineage(bigint) is 'Read-only financial-year provenance of provisioned overhead inputs; no assertion that provisions are current-month actual expenditure, no automatic fixed/variable classification, normal capacity or approved rate.';

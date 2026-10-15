@@ -1,0 +1,28 @@
+create function costing.fn_preview_manufacturing_rate_approval_inputs(p_refresh_run_id bigint)
+returns table(component_code text,source_amount numeric,source_description text,
+normal_budget_amount numeric,normal_workload_units numeric,behaviour_classification text,
+approval_status text,decision_required text)
+language sql stable security invoker set search_path=costing,public,pg_temp as $$
+with source_rows as (
+ select 'MANUFACTURING_LABOUR'::text code, d.component_pool_amount amount,
+ 'Route-attendance labour; packing labour excluded'::text descr,
+ 'Approve normal-period labour budget and corresponding normal route-attendance workload'::text decision
+ from costing.direct_labour_component_pool_snapshot d where d.refresh_run_id=p_refresh_run_id and d.component_code='MANUFACTURING_LABOUR'
+ union all
+ select 'PRODUCTION_OVERHEAD_STAFF'::text, c.staff_pool_amount,
+ 'Production overhead staff payroll component'::text,
+ 'Approve cost behaviour, eligible normal-period budget and normal capacity'
+ from costing.cost_pool_monthly_snapshot c where c.refresh_run_id=p_refresh_run_id and c.allocation_pool='PRODUCTION_OVERHEAD'
+ union all
+ select 'OH_EXPENSE:'||e.head_name,e.standard_monthly_provision,
+ 'Historical higher-of-financial-years provision; not current-month actual',
+ case when e.head_name='Job Work Expense' then 'Determine order/product-specific direct attribution versus common overhead; then approve behaviour and normal budget'
+ else 'Approve fixed/variable/mixed treatment and normal-period budget from documented source' end
+ from costing.costing_refresh_run r join costing.v_expense_head_monthly_provision e
+ on e.period_start=r.period_start and e.allocation_pool='PRODUCTION_OVERHEAD' where r.id=p_refresh_run_id
+)
+select s.code,s.amount,s.descr,null::numeric,null::numeric,null::text,
+'REVIEW_REQUIRED_NOT_APPROVED'::text,s.decision from source_rows s
+$$;
+revoke all on function costing.fn_preview_manufacturing_rate_approval_inputs(bigint) from public,anon,authenticated;
+comment on function costing.fn_preview_manufacturing_rate_approval_inputs(bigint) is 'Read-only source-to-Finance-approval checklist; distinguishes history-based provision from approved normal budgets and does not infer cost behaviour or normal capacity. Packing labour remains separate.';
