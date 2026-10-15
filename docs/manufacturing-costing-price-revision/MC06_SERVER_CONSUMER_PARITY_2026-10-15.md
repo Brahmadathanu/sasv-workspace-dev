@@ -16,3 +16,6 @@ The new migration is a **read-only diagnostic only**, not a consumer rewrite. Do
 6. shadow output reconciles against unchanged run119 and explicit user-triggered future refresh.
 
 No live deployment, run119 mutation, approval write, refresh, or merge performed. Maintain draft PR until an independent test pass and explicit cutover clearance.
+
+## Independent read-only parity results — 2026-10-15
+No Supabase development branches present; no migrations deployed to production. Reproduced MC06 labour+fixed OH+variable OH arithmetic using live run119 standard-batch functions in read-only SQL: 460/460 products calculable, zero product arithmetic mismatches. Independently joined all 635 active SKUs to governed base-pack conversion: 635/635 calculable, zero SKU component-sum differences greater than 0.000001; targeted four active exception SKUs 207,208,209,1798 all present. This is arithmetic and data-contract evidence ONLY, not full-period pool conservation, runtime function execution, abnormal-capacity handling, approval, SKU 509-scope verification or cutover readiness. Sum across one standard batch per product is not a monthly absorption measure. Work remains fail-closed.
