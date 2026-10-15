@@ -1,11 +1,10 @@
 -- AU-2/2b: reference/approved run governance (independent costing audit, A0/A6).
--- DRAFT. NOT APPLIED LIVE. Tested only on the local PG17 parity DB (scripts/audit/local-db on the audit branch).
--- Version 20261015200000 is a placeholder; if applied via MCP the server assigns a version (see AU-1 PPM rename).
+-- Approved for live apply by Dr. Brahmadathan U, 2026-10-15 22:26 IST (D-022). Tested on the local PG17 parity DB (52/52).
+-- Applied as a single transaction by the migration runner (no explicit BEGIN/COMMIT).
 -- Changes no existing rows. Adds: designation + fingerprint + supersession-authorisation tables (append-only),
 -- guard triggers on costing snapshot tables, refresh-request refusal for designated periods,
 -- designation-first current-run view, auto fingerprint at SUCCESS, governed period close.
 
-begin;
 set local lock_timeout = '5s';  -- creating 127 triggers locks 52 snapshot tables briefly; fail fast instead of queueing behind a running stage
 -- Preflight: refuse to apply while a costing run is active (the 5-minute stage processor could be mid-stage).
 do $pf$ begin
@@ -320,4 +319,3 @@ from (
 ) ranked
 where governed_run_rank = 1;
 
-commit;

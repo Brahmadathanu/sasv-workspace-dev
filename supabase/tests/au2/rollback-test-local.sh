@@ -14,7 +14,7 @@ snap() { $PG -d costing_local -XAt -c "
  union all select 'O '||n.nspname||'.'||c.relname||' '||pg_get_userbyid(c.relowner) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('costing','public') and c.relkind='v' and c.relname<>'v_costing_run_effective_designation'
  order by 1"; }
 snap > /tmp/au2_before.txt
-$PG -d costing_local -X -v ON_ERROR_STOP=1 -q -f "$D/../../migrations/20261015200000_au2_run_governance.sql" >/dev/null
+$PG -d costing_local -X -v ON_ERROR_STOP=1 -q -f "$D/../../migrations/20261015165757_au2_run_governance.sql" >/dev/null
 snap > /tmp/au2_applied.txt
 $PG -d costing_local -X -v ON_ERROR_STOP=1 -q -f "$D/au2_rollback.sql"
 snap > /tmp/au2_after.txt

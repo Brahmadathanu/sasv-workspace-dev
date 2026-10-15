@@ -49,7 +49,7 @@ The view keeps the live columns and appends `selection_basis`; its 21 dependent 
 ## 3. Compatibility with live
 - None of AU-2's new object names (tables, functions, views or triggers) exist in live. Dependencies are present: `auth.uid()`, `fn_enforce_mutable_refresh_run_snapshot`, the `cost_periods` close columns, `service_role`.
 - `create or replace view` keeps the existing columns and grants; the new column is appended.
-- The placeholder version 20261015200000 is later than the latest live version (20261015045233). If applied via MCP `apply_migration`, the server assigns the version; record it.
+- The placeholder version 20261015165757 is later than the latest live version (20261015045233). If applied via MCP `apply_migration`, the server assigns the version; record it.
 - **Do not use `supabase db push`**: repo and live history are not reconciled (see the audit's AU1_PR67_MERGE_READINESS.md).
 - Fingerprints hash full row text. A later DDL change to a snapshot table will show as drift and block a period close until the run is re-designated, which captures a fresh fingerprint. This is intended.
 
