@@ -14,7 +14,7 @@
 
 ## Pre-existing hazard (not caused by #67; it must be known before anyone runs the CLI)
 The repo and live history are far apart, independently of this PR:
-- **21** migration files already on `main` have versions **not** in live history (e.g. `20260108122451_remote_schema`, `20261015053000_ppm_inactive_sku_mrp_policy_governance`). DIR-8 reconciliation shows most of these are applied live under other versions or names.
+- **21** migration files already on `main` have versions **not** in live history (e.g. `20260108122451_remote_schema`, `20261015053000_ppm_inactive_sku_mrp_policy_governance`). Whether each is applied live under another version or name is covered by the DIR-8 reconciliation; it is not assumed here.
 - **495** live versions have **no file** in the repo, even after #67.
 
 Result: `supabase db push` against production would **refuse** ("remote migration versions not found locally"). If someone forced it (`migration repair` / `--include-all`), it would try to **re-apply** the 21 orphan files, which could be destructive. **Never run `supabase db push` / `migration up` / `migration repair` against production** until a separate, user-approved history-reconciliation step exists. #67 neither causes nor fixes this. It shrinks the gap by 33 and adds `scripts/migration-drift-check.mjs` to detect it.
