@@ -13,7 +13,7 @@
 
 `etl_jobs` still requests FROM 20260401, so the reset comes from the source side, not from the ETL parameters. The data alone **cannot** prove where a reset window starts. On 08-08, 6 of 19 heads are below their 1–7 Aug movement, so the window is not cleanly MTD from the 1st. `costing.v_expense_head_monthly_provision` divides every month-end value by elapsed FY months as if it were FYTD.
 
-## Fix (migration `20261015210000_au3_tally_period_interpretation.sql`, additive only)
+## Fix (migration `20261015170228_au3_tally_period_interpretation.sql`, additive only)
 1. `fn_tally_snapshot_regimes` / `v_tally_snapshot_regime`: each pull date is assigned a regime, a basis (FYTD or RESET_WINDOW), a `window_start` with its basis (FY_START, INFERRED_RESET_DATE or USER_CONFIRMED), and detection evidence. The thresholds are parameters (total ratio < 0.5 and ≥ 60% of common heads falling).
 2. `tally_snapshot_window_override` (append-only): the user records the true window start for a range of pull dates, with name and reason. This is the only way an inferred window becomes COMPLETE.
 3. `v_tally_expense_head_month_normalised`: per head and calendar month, it differences values within a regime and stitches regimes. A regime's contribution ends the day before the next regime's window starts, so nothing is double-counted. Output: `COMPLETE` or `PROVISIONAL`, with flags (WINDOW_START_INFERRED, GAP_BETWEEN_REGIMES, NO_MONTH_END_SNAPSHOT, MONTH_START_NOT_COVERED, BASELINE_NOT_AT_MONTH_END, NO_BASELINE_IN_REGIME) and full lineage (regime, window, end and baseline snapshot, values, contribution).
