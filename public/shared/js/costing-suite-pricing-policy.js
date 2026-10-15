@@ -2561,10 +2561,8 @@ export function createPricingPolicyController(deps) {
       return;
     }
 
-    if (currentPolicy?.sku_is_active === false || row.sku_is_active === false) {
-      showToast("This SKU is inactive and cannot receive MRP policy.", "error");
-      return;
-    }
+    // MRP governance is independent of operational SKU activation.
+    // Inactive SKU eligibility remains controlled by downstream modules.
 
     mrpPolicyEditRow = row;
     mrpPolicyHasCurrent = !!currentPolicy?.policy_id;
