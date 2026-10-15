@@ -25,3 +25,16 @@ D-014 (from A3-F1/F2) Should manufacturing cost per pack come from one batch's c
 
 ## Decision entries require
 ID / alternatives / quantitative supporting evidence / chosen rationale / authorisation actor and timestamp / effective date / downstream impact and retest. NEVER populate approval actors without an actual decision.
+
+## User decisions on D-010…D-014 and related directions (verbatim; approver Dr. Brahmadathan U; 2026-10-15)
+| ID | Decision (verbatim) | Approver | Date |
+|---|---|---|---|
+| D-010 | Run 119: preserve as immutable historical reference; investigate and document mutation vulnerabilities and propose safeguards (do not alter data or close September). | Dr. Brahmadathan U | 2026-10-15 |
+| D-011 | Interest: exclude routine financing interest from manufacturing COP by default; keep financing costs separately visible for profitability; identify exceptional costs whose classification needs Finance confirmation. | Dr. Brahmadathan U | 2026-10-15 |
+| D-012 | Normal expenses: the final basis is a Finance-approved normal operating budget backed by reliable actuals. Independently compare full-year history, recent monthly actuals, abnormal expenses and operational capacity; do not auto-substitute last year's average or any estimate. | Dr. Brahmadathan U | 2026-10-15 |
+| D-013 | Tally: trace the claimed 8 Aug FYTD-to-MTD switch through source evidence, ETL config and transaction records; identify the export owner where possible; don't assume intent or uniform behaviour across heads. | Dr. Brahmadathan U | 2026-10-15 |
+| D-014 | Batches: reject the blanket monthly-batch assumption. Distinguish standard product/batch costing, forecast-based requirements, actual completed batches, and period absorption/variance. The standard cost of unsold or intermittently made products must stay determinable using an appropriate normal batch, avoiding both artificial multiplication and zero-cost outcomes. | Dr. Brahmadathan U | 2026-10-15 |
+| DIR-6 | Google Sheets: the 509-SKU original proposal and the user-filtered 440-SKU submission are in Google Drive. Read them directly if any connected tool allows it; never edit them. If no access is possible, say exactly what access is needed. | Dr. Brahmadathan U | 2026-10-15 |
+| DIR-7 | Fuel & Gas: investigate everything possible without the export; specify the exact voucher-level evidence needed and draft a precise request for Finance (as a doc, not sent). Don't use the ~Rs13k July figure as a corrected norm. | Dr. Brahmadathan U | 2026-10-15 |
+| DIR-8 | Migrations: reconcile the 35 'missing' migrations against main, all feature branches (incl. Jarvis's, read-only) and live history, by identity AND implementation content; separate genuinely missing from renamed/consolidated. | Dr. Brahmadathan U | 2026-10-15 |
+Note: these are policy directions, not approvals of any rate, budget or costing run. No policy row in the DB was changed.
