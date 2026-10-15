@@ -52,3 +52,16 @@ No gate PASSES: P1 findings open; Finance interpretation not signed.
 ## Gate status (2026-10-15 ~20:10 IST)
 - A8: COMPLETE for the audit scope (static inventory). A11: DRAFT, partial, pending A7 and A10.
 - A7: BLOCKED (Sheets). A10: BLOCKED (isolated DB approval).
+
+
+## A0–A11 sequencing amendment — user-governed, fail-closed (2026-10-15)
+Proceed in this dependency order, independently verifiable gates:
+1. AU-1 migration parity documentation/review: PR67 is **draft**, reported 33 byte-identical files for the scoped set; confirm independently, no merge without user authorisation. Keep e-Aushadhi/WP05 migrations with their owner workpacks.
+2. AU-2/2b reference-run governance FIRST: introduce approved/reference designation, guard 119 from writes, stage RPC idempotency and row-level snapshot immutability, require deliberate run selection and explicit period-close operation. Write no untested migration to live DB; preserve historical row bytes.
+3. AU-3 source/ETL truth FIRST for budgets: period basis FYTD/MTD, sign, raw vouchers/stock consumption, fuel purchases vs consumption, missing heads, provenance, as-of selection. No new FY normal budget policy based on presumed ₹13,000 July fuel or other unverified normality.
+4. AU-2c targeted master-data integrity in parallel after source evidence: correct proven severe factor/UOM/BOM/rate cases through explicit user approval; isolate SKU impacts. Do not turn generic stale data flags into automatic corrections.
+5. AU-4 controlled head budgets, classification and capacity proposals: agent develops multiple reconciled options, **user decides** based on evidence, record effective dates/version/alternative assumptions; no external Finance approval dependency, no automatic substitution.
+6. AU-5 batch-true standard-cost engine, isolated simulation parity (including intermittent/no-sales products), separate from actual completed production frequency. AU-6 contemporaneous actual-cost and absorption/variance ledger; allocate each source head once, keep separate packing/QC/stores and pricing.
+7. AU-7 A7 original/filtered sheet price-chain reconciliation (Grok 401 is an access issue, not source missing); AU-8 professional client consolidation may be designed in parallel, but operational wiring after source/staging tests.
+8. A10 isolated integration testing plus A11 authorisation/rollback/monitored cutover. If no isolated Supabase branch is affordable, investigate local disposable Postgres with migration parity and seeded sanitized fixtures; do not substitute production testing.
+No workpack's completion may be inferred from a committed SQL draft. Use exact observed status/financial impact, comprehensive pass/fail reproducibility, and user-specific approval at controlled write/release boundaries.
