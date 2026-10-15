@@ -1,0 +1,199 @@
+== AU-3b
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ batch_id |  status  |             reason              | rows_loaded 
+----------+----------+---------------------------------+-------------
+        1 | ACCEPTED | window proven by explicit dates |           3
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ batch_id |       status       |                                 reason                                 | rows_loaded 
+----------+--------------------+------------------------------------------------------------------------+-------------
+        2 | REJECTED_AMBIGUOUS | batch has no rows (cannot distinguish empty export from failed export) |           0
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ batch_id |        status         |                                              reason                                              | rows_loaded 
+----------+-----------------------+--------------------------------------------------------------------------------------------------+-------------
+        3 | REJECTED_INCONSISTENT | values fell like a reset vs accepted batch 1 (2026-07-31) under the same window start 2026-04-01 |           0
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ batch_id |       status       |                                      reason                                      | rows_loaded 
+----------+--------------------+----------------------------------------------------------------------------------+-------------
+        4 | REJECTED_AMBIGUOUS | window starts 2026-08-08: neither FY start 2026-04-01 nor month start 2026-08-01 |           0
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ batch_id |  status  |             reason              | rows_loaded 
+----------+----------+---------------------------------+-------------
+        5 | ACCEPTED | window proven by explicit dates |           2
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ batch_id |  status  |             reason              | rows_loaded 
+----------+----------+---------------------------------+-------------
+        6 | ACCEPTED | window proven by explicit dates |           2
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
+ n  | outcome |                                              test                                               |                                                     detail                                                     
+----+---------+-------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------
+ 22 | PASS    | C1 FYTD window accepted                                                                         | FYTD/ACCEPTED
+ 23 | PASS    | C2 MTD window accepted                                                                          | mtd
+ 24 | PASS    | C3 1-20 April is both FYTD and MTD (accepted for either declaration)                            | april
+ 25 | PASS    | C4 REJECT ambiguous: returned range missing                                                     | missing returned
+ 26 | PASS    | C5 REJECT ambiguous: requested range missing                                                    | missing requested
+ 27 | PASS    | C6 REJECT ambiguous: live 08-08 pattern (window 08-08..08-31 is neither FYTD nor MTD)           | -/REJECTED_AMBIGUOUS
+ 28 | PASS    | C7 REJECT inconsistent: requested FYTD, Tally returned 08-08..                                  | requested<>returned
+ 29 | PASS    | C8 REJECT inconsistent: period_to <> as_of_date                                                 | to<>as_of
+ 30 | PASS    | C9 REJECT inconsistent: from after to                                                           | from>to
+ 31 | PASS    | C10 REJECT inconsistent: window crosses FY start                                                | cross FY
+ 32 | PASS    | C11 REJECT inconsistent: declared MTD but dates prove FYTD                                      | declared vs proven
+ 33 | PASS    | L1 FYTD batch accepted and loaded with lineage                                                  | lineage
+ 34 | PASS    | L2 REJECT ambiguous: empty batch (empty export vs failed export indistinguishable)              | batch has no rows (cannot distinguish empty export from failed export)
+ 35 | PASS    | L3 REJECT inconsistent: claims FYTD but values fell like a reset (silent source switch)         | values fell like a reset vs accepted batch 1 (2026-07-31) under the same window start 2026-04-01
+ 36 | PASS    | L4 rejected batches never reach the snapshot                                                    | none loaded
+ 37 | PASS    | L4b REJECT ambiguous: custom window batch                                                       | custom
+ 38 | PASS    | L5 re-validation is a no-op (idempotent)                                                        | no-op
+ 39 | PASS    | L6 corrected reload supersedes earlier batch; head absent from new export removed               | supersede
+ 40 | PASS    | L7 MTD batch accepted (explicit window)                                                         | mtd
+ 41 | PASS    | R1 declared window used: 2026-09-30 regime = MTD from 09-01 (EXPORT_DECLARED)                   | RESET_WINDOW 2026-09-01 EXPORT_DECLARED
+ 42 | PASS    | R2 Sep month from a declared MTD export is COMPLETE (no inference flag)                         | 150COMPLETE{}
+ 43 | PASS    | A1 total fell 76% but only 1 of 3 heads fell -> signal AMBIGUOUS (not silently a reset or FYTD) | {"signal": "AMBIGUOUS", "prev_date": "2026-05-31", "common_heads": 3, "opens_regime": false, "share_heads_fell
+ 44 | PASS    | A2 month containing an ambiguous date is PROVISIONAL (AMBIGUOUS_REGIME_SIGNAL)                  | {AMBIGUOUS_REGIME_SIGNAL}
+ 45 | PASS    | G1 mode OFF (default): legacy direct insert unaffected, nothing logged                          | off
+ 46 | PASS    | G2 mode WARN: direct insert allowed and logged as a violation                                   | warn
+ 47 | PASS    | G3 mode ENFORCE: direct insert refused                                                          | TALLY_CONTRACT_ENFORCED: expense rows must be loaded through rpc_tally_validate_and_load_expense_batch (explic
+ 48 | PASS    | G4 mode ENFORCE: validated RPC load still works                                                 | rpc ok
+ 49 | PASS    | P1 authenticated cannot run the loader RPC                                                      | permission denied for function rpc_tally_validate_and_load_expense_batch
+ 50 | PASS    | P2 authenticated cannot read export batches                                                     | permission denied for table tally_expense_export_batch
+(29 rows)
+
+ passed | failed 
+--------+--------
+     29 |      0
+(1 row)
+

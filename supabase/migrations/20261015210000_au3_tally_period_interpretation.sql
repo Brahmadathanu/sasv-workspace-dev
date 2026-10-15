@@ -69,7 +69,13 @@ begin
     window_start := coalesce(v_ov, v_wstart);
     window_start_basis := case when v_ov is not null then 'USER_CONFIRMED' when v_basis='FYTD' then 'FY_START' else 'INFERRED_RESET_DATE' end;
     evidence := jsonb_build_object('prev_date',v_prev,'common_heads',v_common,'total_ratio_vs_prev',round(v_ratio,4),
-                                   'share_heads_fell',round(v_share,4),'opens_regime',v_new);
+                                   'share_heads_fell',round(v_share,4),'opens_regime',v_new,
+                                   -- AMBIGUOUS: exactly one of the two reset signals fired (or too few heads to judge a drop);
+                                   -- months touching such a date can never be COMPLETE.
+                                   'signal', case when v_new or v_prev is null then 'CLEAR'
+                                                  when (coalesce(v_ratio,1) < p_drop_ratio) <> (coalesce(v_share,0) >= p_head_share) then 'AMBIGUOUS'
+                                                  when coalesce(v_ratio,1) < p_drop_ratio and v_common < 3 then 'AMBIGUOUS'
+                                                  else 'CLEAR' end);
     return next; v_prev := r.d;
   end loop;
 end $$;
@@ -124,6 +130,8 @@ begin
       end loop;
       continue when jsonb_array_length(v_lin) = 0;
       if not v_covered_start then v_flags := array_append(v_flags, 'MONTH_START_NOT_COVERED'); end if;
+      if exists (select 1 from unnest(v_reg) r where r.as_of_date between m.ms and m.me and r.evidence->>'signal' = 'AMBIGUOUS') then
+        v_flags := array_append(v_flags, 'AMBIGUOUS_REGIME_SIGNAL'); end if;
       if not v_covered_end then v_flags := array_append(v_flags, 'NO_MONTH_END_SNAPSHOT'); end if;
       month_start := m.ms; expense_group := h.eg; head_name := h.hn; month_value := v_sum;
       quality_flags := (select coalesce(array_agg(distinct f order by f), '{}') from unnest(v_flags) f);
