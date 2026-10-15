@@ -340,11 +340,14 @@ assert(
   "Production Route Manager default lens unchanged",
 );
 assert(
-  /dashboard:\s*["']v_costing_pricing_dashboard_summary["']/.test(shellSrc) &&
-    /["']policy-manager["']\s*:\s*["']v_costing_policy_manager_sku_overview["']/.test(
-      shellSrc,
-    ),
+  /["']policy-manager["']\s*:\s*["']v_costing_policy_manager_sku_overview["']/.test(
+    shellSrc,
+  ),
   "other costing-suite VIEW_BY_LENS mappings remain present",
+);
+assert(
+  !/v_costing_pricing_dashboard_summary/.test(shellSrc),
+  "shell no longer references parked legacy v_costing_pricing_dashboard_summary (WP05 C1)",
 );
 
 // --- Cache invalidation still on period/refresh ---

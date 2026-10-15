@@ -2408,7 +2408,6 @@ async function drillToCostingTarget(moduleKey, lensId, filters = {}) {
 let LENSES = buildActiveLenses();
 
 const VIEW_BY_LENS = {
-  dashboard: "v_costing_pricing_dashboard_summary",
   "sku-cost-sheet": "v_costing_pricing_sku_selector",
   "printable-cost-sheet": "v_costing_pricing_printable_cost_sheet_lines",
   "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison",
