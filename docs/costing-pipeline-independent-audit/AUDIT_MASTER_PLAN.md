@@ -24,3 +24,12 @@ P0: corruption or wrong live price/approval/refresh, historical snapshot mutatio
 
 ## Audit workflow
 Agent: READ repository → query live read-only → reproduce arithmetic → write evidence ledger → assess P0/P1 → draft isolated branch fixes/tests → test (if truly isolated) → update gate → handoff decision. In all reports separate: observed / inferred / proposed / approved / deployed. Preserve uncertainty; avoid multiplying assumptions by calling them facts.
+
+## Gate status (updated 2026-10-15 17:30 IST)
+| Gate | Status | Artefact |
+|---|---|---|
+| A0 | SUBSTANTIALLY COMPLETE — GAPs: 509/440/69 (BLOCKED, no Sheets access), PR #66 tests unexecuted (no isolated DB) | `A0_BASELINE_RECONCILIATION.md` |
+| A1 | IN PROGRESS — sweep 1 (logic + POH heads + pool totals); P1 findings A1-F1…F4 | `A1_EXPENSE_SOURCE_AUDIT.md` |
+| A3 | IN PROGRESS — sweep 1 (mechanism + portfolio + named cases); P1 findings A3-F1/F2 | `A3_BATCH_WORKLOAD_AUDIT.md` |
+| A2, A4–A11 | NOT STARTED | — |
+No gate PASSES: P1 findings open; Finance interpretation not signed.
