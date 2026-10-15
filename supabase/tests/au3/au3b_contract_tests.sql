@@ -85,5 +85,36 @@ do $$ begin
 end $$;
 reset role;
 
+-- The live ETL writes as service_role (pg_stat_statements, AU-3c). Gate must not break it in any mode.
+grant all on table public.tally_expenses_snapshot to service_role; grant usage, select on sequence public.tally_expenses_snapshot_id_seq to service_role;  -- mirrors live
+grant usage on schema au3_test to service_role; grant execute on all functions in schema au3_test to service_role; grant insert, select on au3_test.result to service_role; grant usage on all sequences in schema au3_test to service_role;
+set role service_role;
+do $$ begin
+  begin insert into public.tally_expenses_snapshot(as_of_date, expense_group, head_name, net_cb_value) values ('2026-07-03','Direct Expenses','S',1);
+        perform au3_test.check('S1 mode OFF: service_role (live ETL) direct insert succeeds', true, 'ok');
+  exception when others then perform au3_test.check('S1 mode OFF: service_role (live ETL) direct insert succeeds', false, sqlerrm); end; end $$;
+reset role;
+update public.tally_export_contract_setting set enforcement_mode='WARN';
+set role service_role;
+do $$ begin
+  begin insert into public.tally_expenses_snapshot(as_of_date, expense_group, head_name, net_cb_value) values ('2026-07-04','Direct Expenses','S',1);
+        perform au3_test.check('S2 mode WARN: service_role insert succeeds', true, 'ok');
+  exception when others then perform au3_test.check('S2 mode WARN: service_role insert succeeds', false, sqlerrm); end; end $$;
+reset role;
+select au3_test.check('S2b mode WARN: service_role insert logged as violation', exists(select 1 from public.tally_expense_contract_violation where as_of_date='2026-07-04'), 'logged');
+update public.tally_export_contract_setting set enforcement_mode='ENFORCE';
+set role service_role;
+do $$ begin
+  begin insert into public.tally_expenses_snapshot(as_of_date, expense_group, head_name, net_cb_value) values ('2026-07-05','Direct Expenses','S',1);
+        perform au3_test.check('S3 mode ENFORCE: service_role direct insert refused by contract (not by a grant error)', false, 'allowed');
+  exception when others then perform au3_test.check('S3 mode ENFORCE: service_role direct insert refused by contract (not by a grant error)', sqlerrm like 'TALLY_CONTRACT_ENFORCED%', sqlerrm); end; end $$;
+reset role;
+create temp table b5 as select au3_test.stage('2026-10-14','Direct Expenses','2026-10-01','2026-10-14','MTD','{"S":7}') be;
+grant select on b5 to service_role;
+set role service_role;
+select au3_test.check('S4 mode ENFORCE: service_role loads through the RPC end-to-end', (select status='ACCEPTED' and rows_loaded=1 from public.rpc_tally_validate_and_load_expense_batch((select be from b5))), 'rpc as service_role');
+reset role;
+update public.tally_export_contract_setting set enforcement_mode='OFF';
+
 select n, outcome, test, left(detail,110) detail from au3_test.result order by n;
 select count(*) filter (where outcome='PASS') passed, count(*) filter (where outcome<>'PASS') failed from au3_test.result;

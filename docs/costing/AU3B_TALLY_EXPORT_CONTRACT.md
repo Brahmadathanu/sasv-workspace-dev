@@ -32,4 +32,7 @@ OFF (deploy; no effect) → WARN (direct inserts allowed but logged; worker move
 `authenticated` currently has INSERT/UPDATE/DELETE on `tally_expenses_snapshot`, so any logged-in user can alter expense inputs. Proposal: revoke these grants at ENFORCE (not done in this draft).
 
 ## Tests
-SQL AU-3 21/21 and AU-3b 29/29 (local PG17 parity DB; see RESULTS files). JS 15/15 (`node --test scripts/tally-etl-contract/`). Real-data parity unchanged: 178/179 identical, with the one known difference documented. No ambiguous dates in live data.
+SQL AU-3 21/21 and AU-3b 34/34 (local PG17 parity DB; see RESULTS files). JS 15/15 (`node --test scripts/tally-etl-contract/`). Real-data parity unchanged: 178/179 identical, with the one known difference documented. No ambiguous dates in live data.
+
+## Fix 2026-10-15 (found by the AU-3c caller check)
+The contract gate trigger ran as the caller. The live ETL writes as `service_role`, which has no grant on the settings table, so **even in mode OFF every ETL insert would have failed**. The gate is now `SECURITY DEFINER` with a fixed search_path. New tests S1–S4 run as service_role and pass: OFF insert ok, WARN insert ok and logged, ENFORCE refused by the contract (not by a grant error), and an RPC load ok. Earlier suites ran as postgres and could not catch this.

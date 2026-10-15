@@ -159,6 +159,16 @@
  
 (1 row)
 
+ check 
+-------
+ 
+(1 row)
+
+ check 
+-------
+ 
+(1 row)
+
  n  | outcome |                                              test                                               |                                                     detail                                                     
 ----+---------+-------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------
  22 | PASS    | C1 FYTD window accepted                                                                         | FYTD/ACCEPTED
@@ -190,10 +200,15 @@
  48 | PASS    | G4 mode ENFORCE: validated RPC load still works                                                 | rpc ok
  49 | PASS    | P1 authenticated cannot run the loader RPC                                                      | permission denied for function rpc_tally_validate_and_load_expense_batch
  50 | PASS    | P2 authenticated cannot read export batches                                                     | permission denied for table tally_expense_export_batch
-(29 rows)
+ 51 | PASS    | S1 mode OFF: service_role (live ETL) direct insert succeeds                                     | ok
+ 52 | PASS    | S2 mode WARN: service_role insert succeeds                                                      | ok
+ 53 | PASS    | S2b mode WARN: service_role insert logged as violation                                          | logged
+ 54 | PASS    | S3 mode ENFORCE: service_role direct insert refused by contract (not by a grant error)          | TALLY_CONTRACT_ENFORCED: expense rows must be loaded through rpc_tally_validate_and_load_expense_batch (explic
+ 55 | PASS    | S4 mode ENFORCE: service_role loads through the RPC end-to-end                                  | rpc as service_role
+(34 rows)
 
  passed | failed 
 --------+--------
-     29 |      0
+     34 |      0
 (1 row)
 

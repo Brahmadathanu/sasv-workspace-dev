@@ -213,7 +213,10 @@ begin
 end $$;
 
 -- 7. Gate on direct writes (mode OFF by default: no effect; WARN logs; ENFORCE rejects writes not made by the RPC)
-create or replace function public.fn_tally_expense_contract_gate() returns trigger language plpgsql as $$
+-- SECURITY DEFINER: the trigger fires for the ETL's service_role, which has no grant on the
+-- settings/violation tables. Without this, even mode OFF would break the live loader (found 2026-10-15).
+create or replace function public.fn_tally_expense_contract_gate() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_mode text; v_batch text;
 begin
   select enforcement_mode into v_mode from public.tally_export_contract_setting;
@@ -233,6 +236,7 @@ end $$;
 drop trigger if exists trg_tally_expense_contract_gate on public.tally_expenses_snapshot;
 create trigger trg_tally_expense_contract_gate before insert or update on public.tally_expenses_snapshot
   for each row execute function public.fn_tally_expense_contract_gate();
+revoke all on function public.fn_tally_expense_contract_gate() from public, anon, authenticated;
 
 revoke all on public.tally_expense_export_batch, public.tally_expense_export_staging, public.tally_expense_contract_violation,
               public.tally_export_contract_setting from anon, authenticated;
