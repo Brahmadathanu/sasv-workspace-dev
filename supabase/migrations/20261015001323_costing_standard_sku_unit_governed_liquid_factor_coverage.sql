@@ -1,0 +1,28 @@
+create or replace function costing.fn_resolve_standard_sku_base_quantity(p_sku_id bigint)
+returns table(sku_id bigint,product_id bigint,base_uom text,base_quantity_per_pack numeric,
+ mapping_source text,conversion_status text)
+language sql stable security invoker set search_path=costing,public,pg_temp as $$
+ select s.id::bigint,p.id::bigint,p.uom_base::text,
+ case when x.sku_id is not null and x.product_id=p.id and x.base_uom=p.uom_base then x.sku_base_qty_per_unit
+ when x.sku_id is null and lower(btrim(s.uom))=lower(btrim(p.uom_base)) then s.pack_size::numeric
+ when x.sku_id is null and (
+ (p.uom_base='Kg' and lower(btrim(s.uom)) in('g','ml')) or
+ (p.uom_base='L' and lower(btrim(s.uom))='ml')
+ ) and p.conversion_to_base>0 then s.pack_size::numeric*p.conversion_to_base
+ else null::numeric end,
+ case when x.sku_id is not null then 'GOVERNED_KIT_EXCEPTION'
+ when lower(btrim(s.uom))=lower(btrim(p.uom_base)) then 'SAME_UOM'
+ else 'GOVERNED_PRODUCT_CONVERSION_FACTOR' end,
+ case when s.is_active is not true or lower(coalesce(p.status,''))<>'active' then 'INACTIVE'
+ when x.sku_id is not null and (x.product_id<>p.id or x.base_uom<>p.uom_base) then 'BLOCKED_EXCEPTION_MASTER_MISMATCH'
+ when x.sku_id is not null then 'READY'
+ when s.pack_size is null or s.pack_size<=0 then 'BLOCKED_INVALID_PACK'
+ when lower(btrim(s.uom))=lower(btrim(p.uom_base)) then 'READY'
+ when ((p.uom_base='Kg' and lower(btrim(s.uom)) in('g','ml')) or (p.uom_base='L' and lower(btrim(s.uom))='ml'))
+ and p.conversion_to_base>0 then 'READY'
+ else 'REVIEW_REQUIRED_DIMENSIONAL_CONVERSION' end
+ from public.product_skus s join public.products p on p.id=s.product_id
+ left join costing.sku_base_quantity_exception x on x.sku_id=s.id
+ where s.id=p_sku_id
+$$;
+revoke all on function costing.fn_resolve_standard_sku_base_quantity(bigint) from public,anon,authenticated;

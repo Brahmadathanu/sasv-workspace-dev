@@ -1,0 +1,19 @@
+alter table costing.sku_base_quantity_exception drop constraint sku_base_quantity_kit_specific;
+alter table costing.sku_base_quantity_exception add constraint sku_base_quantity_approved_cases
+check ((sku_id=865 and product_id=685 and sku_base_qty_per_unit=1 and base_uom='Nos')
+or (sku_id=878 and product_id=695 and sku_base_qty_per_unit=1 and base_uom='Nos'));
+insert into costing.sku_base_quantity_exception
+(sku_id,product_id,sku_base_qty_per_unit,base_uom,explanation,approval_reference,approved_by)
+select s.id,s.product_id,1,'Nos',
+ 'User confirms 500 g is the content weight of one individually packed Karkkidaka Kanji SKU. One finished retail pack is one Nos. Manufacturing batch reference 30000/50000 Nos has NOT been verified as a valid quantity of finished packs.',
+ 'USER_CONFIRMED_KARKKIDAKA_KANJI_500G_ONE_PACK_2026_10_15',
+ 'dff17104-c02a-4bca-95b1-e8ddff46a9b6'::uuid
+from public.product_skus s join public.products p on p.id=s.product_id
+where s.id=878 and s.product_id=695 and s.pack_size=500 and lower(s.uom)='g' and s.is_active
+and p.uom_base='Nos' and p.conversion_to_base=1
+on conflict(sku_id) do nothing;
+do $$ begin
+ if (select count(*) from costing.sku_base_quantity_exception where sku_id=878 and sku_base_qty_per_unit=1 and base_uom='Nos')<>1 then
+ raise exception 'Kanji SKU governed conversion missing';
+ end if;
+end $$;

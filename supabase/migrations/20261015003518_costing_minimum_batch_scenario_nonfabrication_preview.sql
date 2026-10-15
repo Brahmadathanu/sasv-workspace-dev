@@ -1,0 +1,17 @@
+create function costing.fn_preview_minimum_batch_costing_readiness(p_refresh_run_id bigint)
+returns table(product_id bigint,product_name text,base_uom text,min_batch_size numeric,preferred_batch_size numeric,
+min_to_preferred_ratio numeric,standard_labour_workload numeric,standard_overhead_workload numeric,
+minimum_labour_workload numeric,minimum_overhead_workload numeric,scenario_status text)
+language sql stable security invoker set search_path=costing,public,pg_temp as $$
+select b.product_id,b.product_name,b.base_uom,b.min_batch_size,b.preferred_batch_size,
+case when b.preferred_batch_size>0 then b.min_batch_size/b.preferred_batch_size else null end,
+b.manufacturing_labour_units_per_standard_batch,b.overhead_units_per_standard_batch,
+case when b.min_batch_size=b.preferred_batch_size and b.foundation_status='STANDARD_BATCH_REFERENCE_READY' then b.manufacturing_labour_units_per_standard_batch else null::numeric end,
+case when b.min_batch_size=b.preferred_batch_size and b.foundation_status='STANDARD_BATCH_REFERENCE_READY' then b.overhead_units_per_standard_batch else null::numeric end,
+case when b.foundation_status<>'STANDARD_BATCH_REFERENCE_READY' then 'BLOCKED_STANDARD_BATCH_REFERENCE'
+when b.min_batch_size=b.preferred_batch_size then 'SAME_BATCH_WORKLOAD_READY'
+else 'REVIEW_REQUIRED_SETUP_VARIABLE_WORKLOAD_SPLIT' end
+from costing.fn_preview_standard_batch_workload(p_refresh_run_id) b
+$$;
+revoke all on function costing.fn_preview_minimum_batch_costing_readiness(bigint) from public,anon,authenticated;
+comment on function costing.fn_preview_minimum_batch_costing_readiness(bigint) is 'Read-only minimum-batch scenario gate: reuse standard workload only for identical minimum and preferred sizes; never fabricate scaled batch workloads, yields or monetary rates.';

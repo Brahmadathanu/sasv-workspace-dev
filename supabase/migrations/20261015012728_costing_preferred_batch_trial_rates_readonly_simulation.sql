@@ -1,0 +1,22 @@
+create function costing.fn_simulate_preferred_batch_manufacturing_cost(p_refresh_run_id bigint,p_labour_rate numeric,p_overhead_rate numeric)
+returns table(product_id bigint,product_name text,base_uom text,preferred_batch_input numeric,expected_net_output numeric,labour_workload_units numeric,overhead_workload_units numeric,simulated_labour_cost numeric,simulated_overhead_cost numeric,simulated_batch_cost numeric,simulated_cost_per_net_base_unit numeric,simulation_status text)
+language sql stable security invoker set search_path=costing,public,pg_temp as $$
+with j as (
+select w.product_id,w.product_name,w.base_uom,w.preferred_batch_size,o.expected_net_output,
+w.manufacturing_labour_units_per_standard_batch labour_units,w.overhead_units_per_standard_batch overhead_units,
+w.foundation_status,o.output_status
+from costing.fn_preview_standard_batch_workload(p_refresh_run_id) w
+left join costing.fn_preview_standard_batch_net_output(p_refresh_run_id) o on o.product_id=w.product_id)
+select j.product_id,j.product_name,j.base_uom,j.preferred_batch_size,j.expected_net_output,j.labour_units,j.overhead_units,
+case when p_labour_rate>=0 then j.labour_units*p_labour_rate end,
+case when p_overhead_rate>=0 then j.overhead_units*p_overhead_rate end,
+case when p_labour_rate>=0 and p_overhead_rate>=0 then j.labour_units*p_labour_rate+j.overhead_units*p_overhead_rate end,
+case when p_labour_rate>=0 and p_overhead_rate>=0 and j.expected_net_output>0 and j.foundation_status='STANDARD_BATCH_REFERENCE_READY' and j.output_status='READY_EXPECTED_NET_OUTPUT'
+then (j.labour_units*p_labour_rate+j.overhead_units*p_overhead_rate)/j.expected_net_output end,
+case when p_labour_rate is null or p_overhead_rate is null or p_labour_rate<0 or p_overhead_rate<0 then 'BLOCKED_TRIAL_RATES_MISSING_OR_INVALID'
+when j.foundation_status<>'STANDARD_BATCH_REFERENCE_READY' or j.output_status is distinct from 'READY_EXPECTED_NET_OUTPUT' or coalesce(j.expected_net_output,0)<=0 then 'BLOCKED_BATCH_EVIDENCE'
+else 'SIMULATION_ONLY_NOT_APPROVED_RATE' end
+from j
+$$;
+revoke all on function costing.fn_simulate_preferred_batch_manufacturing_cost(bigint,numeric,numeric) from public,anon,authenticated;
+comment on function costing.fn_simulate_preferred_batch_manufacturing_cost(bigint,numeric,numeric) is 'Read-only hypothetical labour and OH rates for preferred batch and net output. Never a Finance approved rate or live refresh. Does not include RM or packing.';

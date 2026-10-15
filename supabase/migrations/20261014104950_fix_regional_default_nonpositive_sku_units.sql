@@ -1,0 +1,87 @@
+CREATE OR REPLACE FUNCTION costing.fn_apply_regional_default_to_basis_snapshot()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'costing', 'public', 'pg_temp'
+AS $function$
+declare
+  v_scenario text;
+  v_policy record;
+  v_value record;
+begin
+  if coalesce(new.product_region_actual_evidence_row_count, 0) > 0
+     and coalesce(new.product_region_actual_signed_billed_value, 0) > 0
+     and new.regional_actual_units > 0 then
+    return new;
+  end if;
+
+  if new.assumption_resolution_status = 'RESOLVED'
+     and new.assumed_total_units > 0 then
+    return new;
+  end if;
+
+  if (coalesce(new.product_region_actual_evidence_row_count, 0) > 0
+        and coalesce(new.product_region_actual_signed_billed_value, 0) <= 0)
+     or (coalesce(new.regional_actual_evidence_row_count, 0) > 0
+         and coalesce(new.regional_actual_units, 0) <= 0) then
+    v_scenario := 'NON_POSITIVE_NET_ACTUAL_HISTORY';
+  elsif new.regional_actual_units > 0 then
+    return new;
+  elsif coalesce(new.product_region_actual_evidence_row_count, 0) = 0 then
+    v_scenario := 'NO_ELIGIBLE_REGIONAL_HISTORY';
+  elsif coalesce(new.product_regional_positive_actual_share, 0) <= 0 then
+    v_scenario := 'NO_POSITIVE_REGIONAL_HISTORY';
+  else
+    return new;
+  end if;
+
+  select * into v_policy
+  from costing.fn_resolve_regional_sales_default_policy_as_of(
+    v_scenario, new.region_code, new.valuation_date
+  );
+
+  new.regional_default_resolution_status := v_policy.resolution_status;
+  new.regional_default_resolution_note := v_policy.resolution_note;
+  if v_policy.resolution_status is distinct from 'RESOLVED' then
+    return new;
+  end if;
+
+  select * into v_value
+  from costing.fn_resolve_regional_default_commercial_value(
+    new.sku_id, new.region_code, v_policy.default_sales_units, new.valuation_date
+  );
+
+  new.regional_default_policy_id := v_policy.policy_id;
+  new.regional_default_scenario := v_policy.scenario_code;
+  new.regional_default_sales_units := v_policy.default_sales_units;
+  new.regional_default_effective_from := v_policy.effective_from;
+  new.regional_default_effective_to := v_policy.effective_to;
+  new.regional_default_resolution_status := v_value.resolution_status;
+  new.regional_default_resolution_note := v_value.resolution_note;
+  new.regional_default_assumed_sales_value := v_value.resolved_sales_value;
+  new.regional_default_value_source := v_value.value_resolution_source;
+
+  if v_value.resolution_status is distinct from 'READY' then
+    return new;
+  end if;
+
+  new.resolved_regional_units := v_policy.default_sales_units;
+  new.resolved_regional_base_qty := v_policy.default_sales_units * new.sku_base_qty_per_unit;
+  new.regional_basis_source := 'REGIONAL_DEFAULT_POLICY_UNITS';
+  new.regional_basis_status := 'REVIEW_REQUIRED';
+  new.regional_basis_note :=
+    case
+      when v_scenario = 'NON_POSITIVE_NET_ACTUAL_HISTORY' then
+        format(
+          'Eligible signed actual regional history exists, but the product-region frozen net billed value or SKU-region net actual units are non-positive. Signed actual evidence remains preserved; governed CSA policy %s supplies %s planning units for %s for costing allocation and requires review.',
+          v_policy.policy_id, v_policy.default_sales_units, new.region_code
+        )
+      else
+        format(
+          'No higher-precedence positive regional physical basis is available. Governed regional default policy %s supplies %s total sales units for %s; commercial value is derived from governed standard pricing and requires review.',
+          v_policy.policy_id, v_policy.default_sales_units, new.region_code
+        )
+    end;
+  return new;
+end;
+$function$
