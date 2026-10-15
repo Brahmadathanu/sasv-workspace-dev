@@ -1,0 +1,9 @@
+# Manufacturing Costing / Board Price Revision — Independent Decision Ledger
+
+2026-10-15 — ISOLATION-001 (LOCKED): This programme is distinct from the Master Data / Costing Suite UX programme. Authoritative docs exclusively in `docs/manufacturing-costing-price-revision/`. Shared Git/Supabase does not make a common workflow. Existing `docs/master-data-costing/` is not to be changed for this sprint.
+2026-10-15 — COST-001 (LOCKED): Manufacture-based absorption at preferred standard batch and governed net output, not sales; multiple SKU allocations conserve product-level manufacturing cost.
+2026-10-15 — COST-002 (LOCKED): Use `public.production_batch_size_ref` effective min/preferred/max, no arbitrary batch counts from unusually large transfers. Prospective BMR enforcement parked.
+2026-10-15 — COST-003 (LOCKED): FG transfers evidence actual movement; only current WIP/FG Bulk/Bottled Stock views screen presence. Live presence is a provisional review flag, not proof of unfinished batch.
+2026-10-15 — COST-004 (VERIFIED): Governed SKU packet-to-Nos exception fix applied to `public.v_tally_fg_transfer_normalized`, 23 impacted records corrected, 0 mismatches in 5,622 checked rows.
+2026-10-15 — RATE-001 (LOCKED): ₹774.67 illustrative labour and ₹1,024.83 OH per workload unit are neither approval nor engine rates. Finance gate remains `BLOCKED_CLASSIFICATION_APPROVAL`.
+2026-10-15 — RATE-002 (ACTIVE): Fuel & Gas high FY variance, possible job-work direct attribution and repairs require source evidence and explicit approval; historical higher-per-head is NOT accepted normal budget.
