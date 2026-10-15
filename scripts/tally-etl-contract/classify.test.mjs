@@ -1,0 +1,18 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { classifyExportWindow as c, requestWindow, extractReturnedRange, fyStart } from './classify.mjs';
+const w = (o) => ({ declaredBasis: 'FYTD', requestedFrom: '2026-04-01', requestedTo: '2026-09-30', returnedFrom: '2026-04-01', returnedTo: '2026-09-30', asOfDate: '2026-09-30', ...o });
+test('FYTD accepted', () => assert.equal(c(w({})).status, 'ACCEPTED'));
+test('MTD accepted', () => assert.equal(c(w({ declaredBasis: 'MTD', requestedFrom: '2026-09-01', returnedFrom: '2026-09-01' })).status, 'ACCEPTED'));
+test('April window both', () => { for (const b of ['FYTD','MTD']) assert.equal(c(w({ declaredBasis: b, requestedTo: '2026-04-20', returnedTo: '2026-04-20', asOfDate: '2026-04-20' })).status, 'ACCEPTED'); });
+test('missing returned -> ambiguous', () => assert.equal(c(w({ returnedFrom: null })).status, 'REJECTED_AMBIGUOUS'));
+test('missing requested -> ambiguous', () => assert.equal(c(w({ requestedTo: null })).status, 'REJECTED_AMBIGUOUS'));
+test('live 08-08 pattern -> ambiguous', () => assert.equal(c(w({ requestedFrom: '2026-08-08', returnedFrom: '2026-08-08', requestedTo: '2026-08-31', returnedTo: '2026-08-31', asOfDate: '2026-08-31' })).status, 'REJECTED_AMBIGUOUS'));
+test('requested<>returned -> inconsistent', () => assert.equal(c(w({ returnedFrom: '2026-08-08' })).status, 'REJECTED_INCONSISTENT'));
+test('to<>as_of -> inconsistent', () => assert.equal(c(w({ asOfDate: '2026-09-29' })).status, 'REJECTED_INCONSISTENT'));
+test('from>to -> inconsistent', () => assert.equal(c(w({ returnedFrom: '2026-10-01', requestedFrom: '2026-10-01' })).status, 'REJECTED_INCONSISTENT'));
+test('crosses FY -> inconsistent', () => assert.equal(c(w({ requestedFrom: '2026-03-01', returnedFrom: '2026-03-01' })).status, 'REJECTED_INCONSISTENT'));
+test('declared MTD proven FYTD -> inconsistent', () => assert.equal(c(w({ declaredBasis: 'MTD' })).status, 'REJECTED_INCONSISTENT'));
+test('no declared basis -> ambiguous', () => assert.equal(c(w({ declaredBasis: null })).status, 'REJECTED_AMBIGUOUS'));
+test('requestWindow', () => { assert.deepEqual(requestWindow('FYTD','2027-02-10'), { from: '2026-04-01', to: '2027-02-10' }); assert.deepEqual(requestWindow('MTD','2026-09-30'), { from: '2026-09-01', to: '2026-09-30' }); assert.throws(() => requestWindow('X','2026-09-30')); });
+test('fyStart Jan-Mar', () => assert.equal(fyStart('2027-03-31'), '2026-04-01'));
+test('extract range', () => { assert.deepEqual(extractReturnedRange('<SVFROMDATE TYPE="Date">20260401</SVFROMDATE><SVTODATE>20260930</SVTODATE>'), { returnedFrom: '2026-04-01', returnedTo: '2026-09-30' }); assert.deepEqual(extractReturnedRange('<X/>'), { returnedFrom: null, returnedTo: null }); });

@@ -1,0 +1,16 @@
+== before (seeded = live)
+authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:DELETE,service_role:INSERT,service_role:REFERENCES,service_role:SELECT,service_role:TRIGGER,service_role:TRUNCATE,service_role:UPDATE
+tally_expenses_snapshot_authenticated_crud/ALL/authenticated/(( SELECT auth.uid() AS uid) IS NOT NULL)/(( SELECT auth.uid() AS uid) IS NOT NULL)
+== apply
+authenticated:SELECT,postgres:DELETE,postgres:INSERT,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:DELETE,service_role:INSERT,service_role:REFERENCES,service_role:SELECT,service_role:TRIGGER,service_role:TRUNCATE,service_role:UPDATE
+tally_expenses_snapshot_authenticated_read/SELECT/authenticated/(( SELECT auth.uid() AS uid) IS NOT NULL)/
+== authenticated INSERT after revoke
+ERROR:  permission denied for table tally_expenses_snapshot
+== authenticated SELECT after revoke
+select ok rows=0
+== service_role INSERT after revoke
+service_role insert ok
+== rollback
+authenticated:DELETE,authenticated:INSERT,authenticated:SELECT,authenticated:UPDATE,postgres:DELETE,postgres:INSERT,postgres:REFERENCES,postgres:SELECT,postgres:TRIGGER,postgres:TRUNCATE,postgres:UPDATE,service_role:DELETE,service_role:INSERT,service_role:REFERENCES,service_role:SELECT,service_role:TRIGGER,service_role:TRUNCATE,service_role:UPDATE
+tally_expenses_snapshot_authenticated_crud/ALL/authenticated/(( SELECT auth.uid() AS uid) IS NOT NULL)/(( SELECT auth.uid() AS uid) IS NOT NULL)
+RESULT: IDENTICAL after rollback

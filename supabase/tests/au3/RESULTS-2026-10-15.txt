@@ -1,0 +1,30 @@
+ n  | outcome |                                              test                                               |                                                     detail                                                     
+----+---------+-------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------
+  1 | PASS    | R1 FY start opens FYTD regime                                                                   | regime
+  2 | PASS    | R2 2026-08-08 detected as reset window                                                          | regime
+  3 | PASS    | R3 2026-08-31 stays in 08-08 window (not FYTD)                                                  | regime
+  4 | PASS    | R4 2026-09-04 opens a new window                                                                | regime
+  5 | PASS    | R5 partial pull 2026-03-17 flagged as window                                                    | regime
+  6 | PASS    | R6 FY-end 2026-03-31 recognised as FYTD again                                                   | regime
+  7 | PASS    | R7 regime count                                                                                 | 6
+  8 | PASS    | N1 Apr-Jul FYTD months differenced and COMPLETE                                                 | 100COMPLETE,150COMPLETE,150COMPLETE,200COMPLETE
+  9 | PASS    | N2 Aug stitched: FYTD 1-7 Aug (50) + window to 31 Aug (180) = 230                               | 230
+ 10 | PASS    | N3 Aug PROVISIONAL because window start is inferred                                             | {WINDOW_START_INFERRED}
+ 11 | PASS    | N4 Sep = (200-180) + 150 with gap 09-03 flagged                                                 | 170{GAP_BETWEEN_REGIMES,WINDOW_START_INFERRED}
+ 12 | PASS    | N5 lineage records both regimes for Aug                                                         | lineage
+ 13 | PASS    | N6 old-logic defect reproduced: 08-31 value/5 months = 36 vs true Aug 230                       | live view divides window value by elapsed FY months
+ 14 | PASS    | P1 running FY = verified FYTD 07-31 (600/4=150); window month-ends 08-31/09-30 not read as FYTD | 150.0000000000000000{"basis": "RUNNING_FY_VERIFIED_FYTD_MONTH_END", "months": 4, "fytd_value": 600, "fytd_snap
+ 15 | PASS    | P2 completed-FY candidate taken only from verified FYTD FY-end snapshot                         | fy-end
+ 16 | PASS    | P3 Rent: completed FY 600/12=50 beats running avg 50? tie -> latest FY                          | 2026-04-01 50.0000000000000000
+ 17 | PASS    | O1 override applied to regime                                                                   | override
+ 18 | PASS    | O1b with Aug confirmed COMPLETE, FYTD base extended: (600+180)/5=156                            | 156.0000000000000000 RUNNING_FY_FYTD_PLUS_COMPLETE_MONTHS
+ 19 | PASS    | O2 with confirmed MTD start, Aug=180 COMPLETE (FYTD 1-7 Aug superseded, no double count)        | 180COMPLETE{}
+ 20 | PASS    | O3 override table append-only                                                                   | AU3_APPEND_ONLY: UPDATE on costing.tally_snapshot_window_override is prohibited
+ 21 | PASS    | S1 no data modified in tally_expenses_snapshot                                                  | row count
+(21 rows)
+
+ passed | failed 
+--------+--------
+     21 |      0
+(1 row)
+
