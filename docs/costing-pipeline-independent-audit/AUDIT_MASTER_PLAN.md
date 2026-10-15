@@ -48,3 +48,7 @@ No gate PASSES: P1 findings open; Finance interpretation not signed.
 - A2: COMPLETE for the audit scope (A2_MASTER_DATA_UNITS_AUDIT.md). Two P1 unit/BOM defects, 3 P2.
 - A6: COMPLETE for the audit scope (A6_RUN_LIFECYCLE_AUDIT.md). Adversarial tests specified but BLOCKED (no isolated DB).
 - A0, A1, A3: as before. A4, A5, A9: strategy updated. A7 BLOCKED (Sheets). A8, A10, A11 not started.
+
+## Gate status (2026-10-15 ~20:10 IST)
+- A8: COMPLETE for the audit scope (static inventory). A11: DRAFT, partial, pending A7 and A10.
+- A7: BLOCKED (Sheets). A10: BLOCKED (isolated DB approval).

@@ -18,3 +18,7 @@ Next precise step: A1 sweep 2 — full per-head table for the other five pools a
 ## 2026-10-15 ~19:45 IST: A2 + A6
 - A2 and A6 are complete for the audit scope and folded into the strategy (AU-2b, AU-2c).
 - Next: A8 (architecture inventory of the app) or A7 once Sheets access exists. A10 needs approval for an isolated DB.
+
+## 2026-10-15 ~20:10 IST: A8 + A11 draft
+- See A8_ARCHITECTURE_INVENTORY.md and A11_IMPLEMENTATION_PROGRAMME.md.
+- Next: get Sheets access (A7) and approval for an isolated DB (A10); AU-1 can start as repo-only work if the user authorises it.
