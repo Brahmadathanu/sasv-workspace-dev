@@ -20,7 +20,7 @@ Status: **PROVISIONAL MODEL AUTHORIZED; NUMERIC RATES AND APPROVAL REMAIN OPEN.*
 
 - Product 190 Bala Thailam: run119 monthly quantity 113.477 versus preferred batch 240; quantity foundation REVIEW_REQUIRED. Independent Aug 2026 monthly product record 104.832 is a different commercial source and cannot substitute for production output.
 - Product 1350 Mahamanjishtadi Kashaya Choornam: run119 monthly quantity 1 versus preferred batch 35; REVIEW_REQUIRED; no matching Jun–Sep 2026 monthly product record from checked source.
-- Both exist in manufacturing-labour and OH review populations. Do not mutate run119, silently exclude or invent workload.
+- Both exist in manufacturing-labour and OH review populations. Live SKU master identifies product190 with 5 SKUs (3 active) and product1350 with 1 SKU (active): **four active SKUs potentially exposed**, pending exact Board-509 inclusion and monetary materiality test. Do not mutate run119, silently exclude or invent workload.
 
 ## Submission-fast decision pathway
 
