@@ -110,3 +110,53 @@
 **Reason:** G0–G7 and both recovery tracks were completed/accepted, the branch was synchronized to current main, all bounded WP04 regression checks passed, the authorized normal two-parent merge completed, and independent post-merge verification found no regression.
 **Impact:** WP04 exits the active programme. WP05 remains not started and may open separately. Parked WP05 candidates (SKU Control Status ↔ Readiness rationalisation, wider Costing/Pricing Policy Manager duplication audit, and legacy dashboard-summary dependency audit) remain parked. No release/publish is implied by this closure.
 **Status:** CLOSED — preserves DEC-011 / DEC-014 / DEC-015 and all historical G7 recovery evidence.
+
+## 2026-10-13 — DEC-016 — WP05 (master-data-costing) — D1 SKU Control Status folded into Readiness
+**Decision:** Owner changed the audit recommendation. SKU Control Status capabilities move into the CCC Readiness tab, including a costing-month / period-snapshot view so per-run history is not lost; the SKU Control Status tab is then retired.
+**Reason:** One place for SKU status reduces user confusion; owner choice.
+**Alternatives:** Keep both tabs with cross-links (audit recommendation); merge into one server contract (rejected: changes evidence authority).
+**Impact:** Requires new read-only server contract (WP05 S4, high-risk) and high-risk client change C2 with redirects for old lens ids/drills. Readiness and costing-run status remain separate authorities displayed in one tab; neither recomputed client-side.
+**Affected:** costing-suite-readiness.js, control-center.js, shell, registry, route-config; new RPCs.
+**Reversible:** Yes (client revert; RPCs additive).
+**Evidence:** WP-05 doc §6.1, §12.4; open owner questions Q1–Q3.
+**Status:** LOCKED.
+
+## 2026-10-13 — DEC-017 — WP05 (master-data-costing) — D2 Material action queue owned by MCM
+**Decision:** Material Cost Manager owns the material action queue; CCC Control Workbench shows a summary plus link.
+**Reason:** Rates are fixed in MCM; removes duplicate surface (O1).
+**Impact:** Client package C3; parity checklist required; no-access state for CCC-only users. Live 2026-10-13: 0 CCC-only users.
+**Reversible:** Yes. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-018 — WP05 (master-data-costing) — D3 Queue placement deferred
+**Decision:** Placement of QC and Materials/Stores action queues (currently CSR) deferred to WP07. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-019 — WP05 (master-data-costing) — D4 Legacy dashboard-summary retirement
+**Decision:** Rebuild `public.v_costing_pricing_business_kpi_summary` off the legacy chain with full value-match proof and rollback (S1), then retire `public.v_costing_pricing_dashboard_summary` and `costing.v_pricing_workflow_dashboard_summary` (S2) with a branch-tested restore script.
+**Reason:** Live pg_depend shows KPI summary depends on the legacy view, so the "parked" chain runs on every CCC dashboard load (WP-05 §6.3).
+**Reversible:** S1 yes (captured definition); S2 via restore script. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-020 — WP05 (master-data-costing) — D5 Possibly-dead views removed, not parked
+**Decision:** Owner changed the audit recommendation. Investigate the seven client-unreferenced public views fully and remove the truly unused ones with a restore script (S3), via revoke → observe → drop.
+**Evidence so far:** 0 pg_stat_statements calls since 2026-08-11; no view/function/cron/edge-function/repo refs. One view (`v_costing_pricing_cost_sheet_rm_line_traceability`) is intentionally internal and is recommended to keep.
+**Reversible:** Yes, via restore script. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-021 — WP05 (master-data-costing) — D6 PPM internal split deferred to WP06
+**Decision:** No cross-module PPM duplication found (CCC-P02 closed); PPM size/cohesion handled in WP06. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-022 — WP05 (master-data-costing) — D7 Launcher/IA items deferred
+**Decision:** Six-page launcher placement under "Product & Reference Master" and the PPM/PRM sort-order tie (95) go to WP07/WP09. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-023 — master-data-costing WP05 — Q1 costing-month history depth
+**Decision:** The Readiness "Costing month status" view shows one official (current successful) run per month; per-run comparison within a month is not built. S4 `p_refresh_run_id` stays optional/internal. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-024 — master-data-costing WP05 — Q2 Readiness default view
+**Decision:** Readiness tab opens on "Master-data readiness" with a switch to "Costing month status". **Status:** LOCKED.
+
+## 2026-10-13 — DEC-025 — master-data-costing WP05 — Q3 un-numbered 2026-06 rows
+**Decision:** ~656 snapshot rows for 2026-06 with no refresh run id are hidden by default with an explanatory note; never deleted or rewritten. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-026 — master-data-costing WP05 — Q4 retirement observation window
+**Decision:** Before any view drop (S2, S3): revoke access, then observe 14 days including one completed month-end costing run with no errors; restore script tested on a Supabase branch. **Status:** LOCKED.
+
+## 2026-10-13 — DEC-027 — master-data-costing WP05 — Q5 v_product_mrp_adjustment_evidence
+**Decision:** Retire `public.v_product_mrp_adjustment_evidence` under S3 with a restore script. **Status:** LOCKED.

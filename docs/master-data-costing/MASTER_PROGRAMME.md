@@ -31,7 +31,7 @@ No guessed master data. No rewriting historical/effective-dated evidence. No wea
 - [x] WP02 — Product + SKU Lifecycle Redesign — COMPLETED, VERIFIED, AND MERGED
 - [x] WP03 — Creation-Time Guided Completeness — COMPLETED, VERIFIED, AND MERGED
 - [x] WP04 — Central Master Data / Costing Readiness Control Centre — COMPLETED, VERIFIED, MERGED, AND CLOSED
-- [ ] WP05 — Costing Suite Functional Rationalisation Audit
+- [~] WP05 — Costing Suite Functional Rationalisation Audit — IN PROGRESS (G1 audit drafted)
 - [ ] WP06 — Pricing Policy Manager Simplification
 - [ ] WP07 — Costing Suite Navigation and Information Architecture
 - [ ] WP08 — Product / Master Data Navigation Rationalisation
@@ -47,10 +47,12 @@ WP-1 → WP0 → WP1 → WP2–WP4 → WP5–WP7 → WP8–WP9 → WP10 → WP11
 IN PROGRESS
 
 ## Active work pack
-None. WP04 — Central Master Data / Costing Readiness Control Centre is completed, verified, merged, and closed. WP05 has not started.
+WP05 — Costing Suite Functional Rationalisation Audit (opened 2026-10-13). WP04 remains closed.
 
 ## Active gate
-None. WP04-G8 is completed and post-merge verification passed.
+WP05-G1 — current-state / functional rationalisation audit [~] IN PROGRESS. WP05-G0 [x]. Owner decisions D1–D7 recorded 2026-10-13 (DEC-016…DEC-022). Awaiting independent audit + docs merge approval. G2 design drafted (WP-05 §12), not approved; owner questions Q1–Q4 open.
+
+Previous: WP04-G8 completed and post-merge verification passed.
 
 WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b` with parent 1 `a007cea4d624835dc5406a952657769868619649` and parent 2 `836ff0e9e9fd8dbe27061dde2a6346236466b2a4`. G0–G8 are complete. Formal G7 remains PASS; Track A remains CLOSED / APPLIED / PROVEN; Track B remains accepted at runtime candidate `47b07b4bdb92f9d2d471c61569045c8f24f1cac5`. Post-merge verification confirmed the merged tree matches the verified branch tree, Build 4 remains current/COMPLETED with Run 115 and 1793/611 populations, source fingerprint matches, Readiness RPC and CSE-P01 are unchanged, and no new statement-timeout or legacy-dashboard-summary log event was found in the checked post-merge window. No GitHub CI evidence is claimed. WP05 remains not started.
 
@@ -70,6 +72,7 @@ WP04 merged to `main` as `1ff8d13e90b5078dde7e414e3c257cf41aa6f34b` with parent 
 - DEC-011 autonomous gate-based client implementation remains LOCKED.
 - DEC-014 server/client execution ownership remains LOCKED.
 - DEC-015 WP04 G4 closure / measured performance limitation / mandatory G7 native verification remains LOCKED.
+- DEC-016…DEC-022 WP05 owner decisions D1–D7 LOCKED (2026-10-13).
 
 ## Major unresolved blockers
 No WP02/WP03 blocker remains. Parked items stay parked for their assigned later work:
@@ -78,12 +81,12 @@ No WP02/WP03 blocker remains. Parked items stay parked for their assigned later 
 - NAV-P01 / NAV-P02 → WP08.
 - CSE-P01 commercial-sales LIVE_AS_OF multi-row authority → costing/commercial-sales evidence governance.
 - PERF-P01 broader portfolio-readiness performance architecture → separate future architectural decision.
-- WP05 park candidates from Track B acceptance (SKU Control Status ↔ Readiness rationalisation; wider Costing/Pricing Policy Manager duplication audit; parked legacy dashboard-summary dependency audit) → WP05; they remain parked. WP05 has not started.
+- WP05 park candidates CCC-P01/P02/P03 dispositioned in WP05-G1 (DEC-016, DEC-021, DEC-019). New parked: CCC-P05 → WP12, CCC-P06 → WP10.
 
 No Track A rerun is required without fresh defect evidence.
 
 ## Immediate next action
-WP04 is closed. WP05 — Costing Suite Functional Rationalisation Audit may be opened as a separate work pack/chat when explicitly started; do not reopen WP04 without fresh regression evidence.
+Independent audit of WP05-G1 (docs branch); owner answers Q1–Q4; then WP05-G2 approval (plan audit for high-risk S1/S2/S3/S4/C2). First executable item after approval: C1 (routine) and S1 (server). Do not reopen WP04 without fresh regression evidence.
 
 ## Server development operating model
 ChatGPT owns server planning/review, direct implementation and live verification through Supabase. Server delivery is not gated on GitHub commits/PRs/merges or local CLI migration tooling. Reviewed high-risk packages, target/rollback safeguards, operation evidence and live verification remain required. Repository MD records workflow; optional SQL evidence is traceability, not a client-style server delivery gate. See DEC-014 and IMPLEMENTATION_RULES.
