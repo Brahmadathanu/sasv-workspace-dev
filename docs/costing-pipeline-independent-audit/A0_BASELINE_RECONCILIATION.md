@@ -129,3 +129,13 @@ Retest:
 - In an isolated branch DB, an UPDATE/DELETE on run-119 rows must fail.
 - A refresh RPC called with run 119 must raise an error.
 - The fingerprints must be unchanged.
+
+## Sweep 2: Google Sheet lineage, 509/440 (DIR-6). Still BLOCKED, read attempt made with no edits
+- This session has no Google Drive or Sheets connector. The dynamic tool search for drive/sheet/google returned nothing, and `DownloadFile` needs a connected Google Drive account.
+- Repo docs identify the workbook `SASV - TEMPORARY WORK SHEET`, ID `1HBte4Y4WFPGWark1jnQvNv_5spMuBA-6Om2KdNltXVM`. It contains the tab `price-revision-proposal` (sheetId 1337971988) and the tab `board-approved-mrp-register` (gid 1909141026).
+- A public CSV export request returned **HTTP 401**, so the sheet is not publicly shared.
+- **Access needed (any one of these):**
+  - (a) Connect a Google Drive account with **Viewer** access to that workbook, and to the separate 440-SKU filtered submission file, in Grok Bot's connections.
+  - (b) Share both files as "Anyone with the link: Viewer" temporarily.
+  - (c) Download the `price-revision-proposal` (509) tab and the 440 submission as CSV and place them on the box or in chat.
+  - Also needed: the file ID or name of the 440-SKU submission, which is not found in the repo.

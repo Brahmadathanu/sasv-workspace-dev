@@ -33,3 +33,15 @@ EV-ID / exact observed claim / data source object and Git SHA or SQL query / run
 
 ## Current gate
 A0 SUBSTANTIALLY COMPLETE with GAPs (sheet lineage BLOCKED; PR #66 tests unexecuted). A1 and A3 sweep 1 done, OPEN. No independent audit PASS, no production deployment or model approval authorised.
+
+## Sweep 2: 2026-10-15 17:30–19:00 IST (SELECT-only / STABLE function calls)
+| ID | Gate | Claim | Source | State |
+|---|---|---|---|---|
+| EV-016 | A3 | 125 products: ₹8,20,347/month charged vs ₹1,36,376 preferred-batch simulation; other 335: ₹9,01,875 vs ₹16,47,777 | A3_03 + `fn_simulate_preferred_batch_manufacturing_cost(119,503.95,640.65)` | VERIFIED_LIVE data / ANALYTICAL rates |
+| EV-017 | A3/A1 | Completed FG batches about 107–185/month (Apr-25 to Sep-26) | v_tally_fg_transfer_normalized | VERIFIED_LIVE |
+| EV-018 | A0 | 33 live migrations genuinely missing from all 35 branches; ppm server-renamed; S1 docs-only | schema_migrations hash vs 160 repo .sql blobs | VERIFIED_LIVE/REPO |
+| EV-019 | A0 | 15 snapshot tables without triggers; COP refresh RPC deletes and rebuilds any run id; run-119 fingerprints | catalog + prosrc | VERIFIED_LIVE |
+| EV-020 | A1 | ETL job params still FYTD (FROM 20260401) after 08-Aug; returned data MTD; 08-Aug fetch 15:45 IST | etl_jobs, tally_expenses_snapshot | VERIFIED_LIVE; cause UNVERIFIED |
+| EV-021 | A1 | Fuel stock issues ₹2.1–4.7 lakh/month; ₹12.68 lakh receipts in Jun-26; Fuel ledger starts 09-Jun at ₹14.39 lakh | tally_fuel_stock_snapshot | VERIFIED_LIVE / ANALYTICAL |
+| EV-022 | A1 | Interest not in manufacturing COP (COP = prime+POH+QC+stores); Forex gain turned into cost by abs() | RPC source, provision view | VERIFIED_LIVE |
+| EV-023 | A0 | Sheets workbook 1HBte4Y4… export returns HTTP 401 | curl | BLOCKED |

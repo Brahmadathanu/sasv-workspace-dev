@@ -33,3 +33,13 @@ Agent: READ repository → query live read-only → reproduce arithmetic → wri
 | A3 | IN PROGRESS — sweep 1 (mechanism + portfolio + named cases); P1 findings A3-F1/F2 | `A3_BATCH_WORKLOAD_AUDIT.md` |
 | A2, A4–A11 | NOT STARTED | — |
 No gate PASSES: P1 findings open; Finance interpretation not signed.
+
+## Gate status (updated 2026-10-15 ~19:00 IST, sweep 2)
+| Gate | Status |
+|---|---|
+| A0 | COMPLETE except BLOCKED items: Sheets 509/440 (HTTP 401; access spec in A0) and PR #66 tests (no isolated DB). Migration reconciliation done (33 genuinely missing, 1 server-renamed, 1 docs-only). Run-119 vulnerabilities documented and fingerprinted. |
+| A1 | COMPLETE for the audit scope. Tally switch traced to the agent side, not the job params. Interest/exceptional classification table done. D-012 comparison inputs and Fuel analysis done. OPEN dependencies: Finance normal budget, Fuel vouchers (request drafted), Tally agent template. |
+| A3 | COMPLETE for the audit scope. 125-product evidence table plus simulator cross-check. OPEN dependencies: production validation of route intensity (A3-F6), pre-Jul-2025 batch history. |
+| A4/A5/A9 | STARTED: `ARCHITECTURE_UPGRADE_STRATEGY.md` (PROPOSAL). |
+| A6 | PARTIAL: lifecycle immutability findings in A0 sweep 2. |
+| A2, A7, A8, A10, A11 | NOT STARTED (A7 blocked on Sheets, A10 on an isolated DB). |
