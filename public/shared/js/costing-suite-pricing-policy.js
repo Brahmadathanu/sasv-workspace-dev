@@ -2794,6 +2794,29 @@ export function createPricingPolicyController(deps) {
     setLoadingMask(true, "Saving MRP policy...");
 
     try {
+      // Re-read the authoritative open policy before attempting a historical revision.
+      // An already-applied Board decision must not be saved twice on the same date.
+      const { data: latestPolicy, error: latestPolicyError } =
+        await fetchCurrentMrpPolicy(row.sku_id, { force: true });
+      if (latestPolicyError) throw latestPolicyError;
+      if (latestPolicy?.effective_from &&
+          values.effectiveFrom <= latestPolicy.effective_from) {
+        const sameDate = values.effectiveFrom === latestPolicy.effective_from;
+        const samePrice = Number(preview.mrpIk) === Number(latestPolicy.mrp_ik) &&
+          Number(preview.mrpOk) === Number(latestPolicy.mrp_ok);
+        const sameReference = String(values.approvalReference || "").trim() ===
+          String(latestPolicy.approval_reference || "").trim();
+        setMrpPolicyModalError(
+          sameDate && samePrice && sameReference
+            ? "This Board-approved MRP is already recorded for this SKU on " +
+              latestPolicy.effective_from + ". No additional revision is needed."
+            : "An approved MRP policy already starts on " +
+              latestPolicy.effective_from +
+              ". A new revision must use a later effective date; do not backdate or duplicate a policy to correct it."
+        );
+        return false;
+      }
+
       const { p_mrp_ok, p_ok_pct } = resolveMrpRpcPayload(values);
 
       const { error } = await costingRpc("rpc_set_sku_mrp_policy", {
