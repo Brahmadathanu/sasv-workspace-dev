@@ -29,3 +29,11 @@ Next precise step: A1 sweep 2 — full per-head table for the other five pools a
 - Added `scripts/migration-drift-check.mjs` (read-only, uses a JSON export) and its README.
 - Drift since 20261014104950: 33 matched exactly. 1 renamed (ppm, live 20261015045233 vs repo 20261015053000, same content). 0 missing, 0 extra.
 - Not added (owned elsewhere): wp07 20261013095629 and 20261013155440 (Jarvis branch), WP05 S1 20261013183522 (PR #60).
+
+## 2026-10-15 (evening IST): Grok: reproducibility, local DB, PR #67 re-verification, AU-2, AU-3
+- **Reproducibility**: `scripts/audit/reproduce-findings/` reproduces **40/40** quoted figures (read-only).
+- **Local test DB (free)**: PG17 rebuilt from live DDL fetched read-only (`scripts/audit/local-db/`). Parity: **4485/4504** definitions md5-identical. The 18 missing definitions depend on hr/lab/regulatory schemas; 1 view differs only in parenthesis deparsing; 1 extra sequence comes from 63-char name truncation. No paid branch was used.
+- **PR #67 (AU-1)**: independent byte check **33/33** identical (`evidence/AU1_PR67_BYTE_VERIFICATION.md`).
+- **AU-2/2b**: draft PR **#68**, `costing/au2-run-governance`. Covers the designation marker (who, when, why), append-only governance tables, per-run fingerprints, designated-run and terminal-run guards, refresh refusal for periods holding a designated run (single-use recorded supersession), current run selected by marker, and a governed period close. **37/37** A6 attack tests pass locally. Not applied live.
+- **AU-3**: draft PR **#69**, `costing/au3-tally-period-interpretation`. Covers regime detection (FYTD vs reset window), per-head monthly normalisation with lineage, a user-confirmed window override, and a side-by-side corrected provision view. **21/21** synthetic tests pass. On real data (local only): 178/179 provisions are unchanged and 1 is corrected. Provisions are effectively frozen at the 31 Jul FYTD figures.
+- **Awaiting the user**: merge or apply of #67, #68 and #69; designation of run 119 (REFERENCE or APPROVED); confirmation of the Tally window starts for 08-08, 09-04 and 10-06, or an ETL change to explicit FROM/TO.

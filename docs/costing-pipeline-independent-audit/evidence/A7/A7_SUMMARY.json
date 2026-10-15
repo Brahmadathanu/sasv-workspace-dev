@@ -1,0 +1,73 @@
+{
+ "recon": {
+  "sheet509": 509,
+  "sheet509_unique": 509,
+  "in_run119": 509,
+  "not_in_run119": [],
+  "not_in_master": [],
+  "inactive_master": [],
+  "sheet440": 440,
+  "s440_matched_to_509": 440,
+  "s440_unmatched": [],
+  "held_509_minus_440": 69,
+  "run119_not_in_509": 126,
+  "active_master_not_in_run119": 1,
+  "run119_ready_ok": 507
+ },
+ "formula_ok": {
+  "true": 509
+ },
+ "prop_rule_ok": {
+  "true": 440,
+  "null": 69
+ },
+ "loaded_diff_abs_gt_1pct": 454,
+ "loaded_diff_sum": -17788.88579520758,
+ "loaded_diff_median": -0.06433522845287598,
+ "mkt_diff_gt_1pct": 0,
+ "mrp_diff": 19,
+ "class440": {
+  "HOLD": 3,
+  "SAFE": 293,
+  "AT_RISK_HIGH": 101,
+  "AT_RISK_LOW": 43,
+  "NOT_SUBMITTED(HOLD_69)": 69
+ },
+ "hold_reasons": {
+  "master-data defect": 2,
+  "proposed below corrected min MRP": 1
+ },
+ "nobatch_sim": 8,
+ "range_509": {
+  "n": 509,
+  "underpriced_at_current_mrp_r119": 314,
+  "underpriced_combined": 233,
+  "cost_up": 106,
+  "cost_down": 395
+ },
+ "range_440": {
+  "n": 440,
+  "underpriced_at_current_mrp_r119": 245,
+  "underpriced_combined": 174,
+  "cost_up": 88,
+  "cost_down": 345
+ },
+ "range_not_in_sheet": {
+  "n": 126,
+  "underpriced_at_current_mrp_r119": 84,
+  "underpriced_combined": 76,
+  "cost_up": 61,
+  "cost_down": 65
+ },
+ "range_all635": {
+  "n": 635,
+  "underpriced_at_current_mrp_r119": 398,
+  "underpriced_combined": 309,
+  "cost_up": 167,
+  "cost_down": 460
+ },
+ "prop_rule": "proposed = ceil5(max(current OK MRP, analytical min))",
+ "440_too_low_comb": 3,
+ "440_too_high_comb_vs_current": 101,
+ "440_increase_count": 274
+}
