@@ -59,3 +59,10 @@ Note: no live write, merge or deploy is authorised by these entries.
 - **Q-A7F-1** Price proposals: use current effective MRP, and label frozen runs with their knowledge time? (Recommended: yes.)
 - **Q-A7F-2** SKUs 381/647/955: effective 2026-09-05 (policy) or 2026-09-10 (register)?
 - **Q-A7F-3** The provisional loaded cost model (illustrative rates 729.55 / 342.72 / 620.31) is reproducible but unapproved. Should it remain the basis of the 440 review, pending AU-5/AU-7?
+
+### Decisions 2026-10-15 22:26 IST (approver: Dr. Brahmadathan U — "Proceed")
+- **D-021** Merge PR #67 (AU-1 migration parity) to main via merge commit. Never run `supabase db push`.
+- **D-022** Accept that run 118 becomes September's current run once run 119 is designated REFERENCE (527 SKUs differ, Rs 220.77 total, max Rs 46.65/SKU). Apply #68 (AU-2 run governance) live between costing runs, then designate run 119 REFERENCE, reason "Audit reference, D-010/D-017".
+- **D-023** Deploy #69 (AU-3/AU-3b) live with enforcement mode OFF, separately from and after #68, together with the AU-3c revoke of authenticated INSERT/UPDATE/DELETE on `public.tally_expenses_snapshot`.
+- **D-024** Fuel & Gas (DE) normal monthly basis = FY2025-26 average (about Rs 1.62 lakh/month). This is recorded as a decision only; no costing consumer is switched.
+- Pre-flight 22:26 IST: 560 migrations (latest 20261015045233), no QUEUED/RUNNING runs. Jarvis told to hold its merges and migrations.
