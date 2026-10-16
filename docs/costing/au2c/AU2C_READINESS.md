@@ -13,3 +13,8 @@ Guards: drift guard, default ROLLBACK, preflight blocks if a run is in flight (T
 | 1277 (P1038, 5 mL) | BOM 2379 ref output **2,697 Kg** (touched 11:22 IST, unchanged); factor **0.00127** (not 0.000704) | Intended 5.44 Kg/0.000704 not saved. At 5.44 Kg: ₹2,582/5.44 = ₹475/Kg → ₹3.01/pack at 0.00127, or ₹1.67/pack at 0.000704×5. 0.000704 = 0.704 g/mL density: low for a honey-based product; confirm. |
 | 879 (P696, 20 g) | BOM 2289 ref output 320 Kg; factor 0.02; batch_size_ref 32 Kg | Unchanged. 0.02 is Kg per 20 g pack, not per g (peers 0.001). |
 AU2C_PROPOSED_CHANGES.sql stays as the guarded fix (its pre-checks still match live). It will be retired as "verification only" once edits are confirmed in live data.
+
+## 2026-10-16 17:10 IST — SKU 1797 governed apply prepared (`SKU1797_APPLY_GOVERNED.sql`, local test PASS)
+- Runs as the user through the existing RPCs (auth.uid() = dff17104…, who holds pm-templates and material-cost-manager edit). Needs a grant of `role:pm-bom-revision-approve`, which no one holds on live.
+- Defect found: on live, `rpc_set_material_manual_rate` fails for MANUAL_ENTRY ("record v_vendor_offer is not assigned yet"), so the client cannot save manual rates. The rate row is written directly with the same fields. Fix for AU-8: initialise v_vendor_offer, or split the insert by origin.
+- SKU 104 is inactive (500 g, product 128). It was in run 119; inactive SKUs drop out of the next run.
