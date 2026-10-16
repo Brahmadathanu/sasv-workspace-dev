@@ -16,7 +16,7 @@ chk(n,code,ok,detail) as (
  union all select 9,'SUCCESS_FINGERPRINT',exists(select 1 from costing.costing_run_fingerprint f,p where f.refresh_run_id=p.run_id),''
  union all select 10,'NOT_CRON_UNREVIEWED_LATEST',true,'manual: APPROVED requires explicit designation; LATEST_SUCCESS never auto-approved'
  union all select 11,'NORMAL_RATES_APPROVED',not exists(select 1 from rd where status='REVIEW_REQUIRED'),(select string_agg(component_code||':'||reason_code,'; ') from rd where status='REVIEW_REQUIRED')
- union all select 12,'CRON_JOBS_ACTIVE',(select count(*)=2 from cron.job where jobid in (60,61) and active),''
+ union all select 12,'CRON_60_PAUSED_CLIENT_TRIGGERED',(select count(*)=1 from cron.job where jobid=60 and not active),'policy 2026-10-16: first run client-triggered'
 )
 select n,code,case when ok then 'PASS' else 'FAIL' end result,detail from chk
 union all
