@@ -35,3 +35,8 @@ Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,
 - Manufacturing labour normal rate APPROVED: costing.manufacturing_standard_rate_policy v2 'AU4_LABOUR_NORMAL_RATE_RUN121', FIXED, 706,203 / 5,516.35 = ₹128.02, approver Dr. Brahmadathan U. Draft v1 (id 6, 911.6 units) left as DRAFT.
 - Rulings: POH split provisional, non-blocking; 145 review rows non-blocking; negative-margin list saved (74 SKUs in total, of which 33 flagged for pricing review, 39 READY, 2 prime-cost review); Mehasamani/slow movers are a known exception pending AU-5. Acceptance pass rule amended (checks 3, 4, 11).
 - Feed analysis: the labour rate is read only by preview/gate functions (no effect on run costs). MRP feeds rpc_refresh_sku_pricing_bridge_snapshot, so run 121's 1797 pricing bridge stays BLOCKED until a rerun.
+
+## 2026-10-16 ~19:25 IST — Rerun window 3 opened; valuation lock DEFERRED
+- Lock NOT applied: no governed lock function exists (only rpc_close_cost_period → CLOSED/FINAL, which requires an APPROVED run). The check constraint ties valuation_date_status LOCKED to period status LOCKED, and fn_request_costing_refresh_internal refuses any period whose status is not OPEN. Locking now would block the rerun. Order: rerun → lock (needs a governed lock path or approved direct transition) → approve.
+- Pre-flight: 0 in flight; 634 active SKUs; all have a PM revision effective on 10 Sep (853 via a superseded revision valid 10–11 Sep, costed READY in run 121); ledger switch ON.
+- Job 61 enabled (60=false, 61=true). Keep it on until the run is terminal, then pause it.
