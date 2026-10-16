@@ -64,3 +64,6 @@ Draft PR #72 (costing/au4-normal-budget, c3cf54d): AU-4 per-head budget proposal
 
 ## 2026-10-16 ~08:10 IST — clarification 07:46 workpack (read-only)
 PR #72 extended: cron pause runbook (not executed), lifecycle draft (local 7/7), standard-batch basis draft (local 5/5), AU-4 v2, salary-gap analysis, carriage inward design. Acceptance check 6 corrected to LOCKED/FINAL.
+
+## 2026-10-16 09:15 IST — Sprint 16c
+Cron 60/61 paused (restore SQL in CRON_PAUSE_RUNBOOK). 7 staff classifications applied live. PR #72 dbd1952/3f894f6: 52-head policy ledger proposal + acceptance part B + `acceptance/run-local.sh` (local: L1–L5 PASS, checks 13–18 PASS, 19 BLOCK, 20 UNRESOLVED, 21–24 SKIP). PR #70 0e03bf4: AU-2c readiness. Job 61 is not needed for a client run (see sprint item 10). Auto-review blocked two read-only live metadata queries; labour-unit validation, the stores driver and Mehasamani BMR need one read-only pass.

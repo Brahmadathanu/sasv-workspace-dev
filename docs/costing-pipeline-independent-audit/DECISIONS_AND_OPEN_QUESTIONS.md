@@ -80,3 +80,7 @@ Note: no live write, merge or deploy is authorised by these entries.
 - D-026 PR #71 merged (main 80c14ab) — removed from pending.
 - PROVISIONAL: 967.99/1,055.04 WU denominators; all other AU-4 heads.
 - OPEN: labour pool (salary gap, on-cost); carriage inward treatment; drivers; cron pause execution; lifecycle activation; October period; standard-batch basis adoption.
+
+## 2026-10-16c (sprint; details in PR #72 `SPRINT_2026-10-16c.md`, `COST_HEAD_POLICY_LEDGER.md`)
+- DECIDED: salary comes only from the HR roster (full gross, flat until a validated change); Tally salary heads stay EXCLUDED; the indirect Salaries head is marketing-only (included). No time-based spreading; the planned-packaging-unit driver is accepted. Fuel normal ₹1,61,969.07 APPROVED. 7 staff classified on live (user-authorised; finance/admin 75,525, packing 6,63,449).
+- OPEN (user decision): Interest Paid ₹13,89,595/mo and Central Office Charges ₹8,71,973/mo in product cost?; Misc Expenses (excluded, ₹2.6L/yr) classification; carriage inward reclass; P&F outbound split; PF/ESI placeholder; 16 vs 32 Kg Mehasamani (BMR needed).
