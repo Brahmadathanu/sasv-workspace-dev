@@ -61,3 +61,6 @@ A7_PRICE_CHAIN_RECONCILIATION.md + evidence/A7 + queries A7_01–03. 440 = 293 S
 
 ## 2026-10-16 ~07:35 IST — Directive 2026-10-16 workpack (read-only)
 Draft PR #72 (costing/au4-normal-budget, c3cf54d): AU-4 per-head budget proposal, cron/guard verification, first-APPROVED acceptance harness (dry run on 119 FAIL as expected, md5 c1e7794b…), AU-2c SKU1277/879 evidence, AU-5/6 + Sheets flow design. No live writes. Cron 60 returns CURRENT_PERIOD_NOT_GOVERNED (no 2026-10 cost_periods row).
+
+## 2026-10-16 ~08:10 IST — clarification 07:46 workpack (read-only)
+PR #72 extended: cron pause runbook (not executed), lifecycle draft (local 7/7), standard-batch basis draft (local 5/5), AU-4 v2, salary-gap analysis, carriage inward design. Acceptance check 6 corrected to LOCKED/FINAL.

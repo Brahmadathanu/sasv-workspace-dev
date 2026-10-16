@@ -74,3 +74,9 @@ Note: no live write, merge or deploy is authorised by these entries.
 - P-028 Per-head budgets per AU4_NORMAL_BUDGET_PROPOSAL.md (Fuel 1.62L, Repairs FY avg, on-cost 8.11%).
 - P-029 Carriage Inward → material landed cost.
 - P-030 Packing labour and QC/stores denominators.
+
+## 2026-10-16 07:46 IST clarification (supersedes P-025..P-030 request)
+- D-025 APPROVED: Fuel & Gas normal budget = FY25-26 average ₹1,61,969.07/mo; purchases and consumption separately identified.
+- D-026 PR #71 merged (main 80c14ab) — removed from pending.
+- PROVISIONAL: 967.99/1,055.04 WU denominators; all other AU-4 heads.
+- OPEN: labour pool (salary gap, on-cost); carriage inward treatment; drivers; cron pause execution; lifecycle activation; October period; standard-batch basis adoption.
