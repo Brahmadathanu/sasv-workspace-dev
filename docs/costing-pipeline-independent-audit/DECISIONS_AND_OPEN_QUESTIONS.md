@@ -84,3 +84,5 @@ Note: no live write, merge or deploy is authorised by these entries.
 ## 2026-10-16c (sprint; details in PR #72 `SPRINT_2026-10-16c.md`, `COST_HEAD_POLICY_LEDGER.md`)
 - DECIDED: salary comes only from the HR roster (full gross, flat until a validated change); Tally salary heads stay EXCLUDED; the indirect Salaries head is marketing-only (included). No time-based spreading; the planned-packaging-unit driver is accepted. Fuel normal ₹1,61,969.07 APPROVED. 7 staff classified on live (user-authorised; finance/admin 75,525, packing 6,63,449).
 - OPEN (user decision): Interest Paid ₹13,89,595/mo and Central Office Charges ₹8,71,973/mo in product cost?; Misc Expenses (excluded, ₹2.6L/yr) classification; carriage inward reclass; P&F outbound split; PF/ESI placeholder; 16 vs 32 Kg Mehasamani (BMR needed).
+
+- 2026-10-16 09:30 IST: user approved items 1,3–8 (see PR #72 ledger); Central Office HELD (recommend ₹18,000/mo normal; year-end ₹1.05cr allocation pending scope). Mehasamani: no production history, 32 kg standard applies.
