@@ -2,7 +2,7 @@
 begin;
 create table if not exists costing.cost_head_policy_ledger(
  id bigserial primary key, expense_group text not null, head_name text not null, allocation_pool text not null,
- policy_status text not null check (policy_status in ('APPROVED','PROVISIONAL','EXCLUDED','UNRESOLVED')),
+ policy_status text not null check (policy_status in ('APPROVED','PROVISIONAL','EXCLUDED','UNRESOLVED','CURRENT_METHOD_RETAINED')),
  normal_monthly_amount numeric(18,2) not null default 0, source_provision_amount numeric(18,2), basis text not null, evidence_ref text not null,
  effective_from date not null, effective_to date, approved_by text, approved_at timestamptz, created_at timestamptz not null default now(),
  check (effective_to is null or effective_to>=effective_from),
@@ -40,7 +40,7 @@ select v.* from (values
 ('Indirect Expenses','Auditors Remuneration','FINANCE_ADMIN_OVERHEAD','PROVISIONAL',25083.33,25083.33,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Books & Periodicals','ADMIN_OVERHEAD','PROVISIONAL',545,545,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Carriage Outward','MARKETING_EXPENSE','PROVISIONAL',57948,57948,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
-('Indirect Expenses','Central Office Charges','ADMIN_OVERHEAD','UNRESOLVED',871972.83,871972.83,'User decision 2026-10-16: HELD pending scope check','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01',null,null),
+('Indirect Expenses','Central Office Charges','ADMIN_OVERHEAD','CURRENT_METHOD_RETAINED',871972.83,871972.83,'User ruling 2026-10-16: current engine method retained unchanged (AU-3 completed-FY total / 12; FY25-26 = 1,04,63,674 / 12); no new normal','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01',null,null),
 ('Indirect Expenses','Cleaning Expenses','MARKETING_EXPENSE','PROVISIONAL',1634.96,1634.96,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Damage Stock A/c','EXCLUDED','EXCLUDED',0,0,'Mapped EXCLUDED in expense_head_costing_map','expense_head_costing_map',date '2026-04-01',null,null),
 ('Indirect Expenses','Discounts','MARKETING_EXPENSE','PROVISIONAL',240174.45,240174.45,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
