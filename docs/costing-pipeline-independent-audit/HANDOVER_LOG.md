@@ -58,3 +58,6 @@ A7_PRICE_CHAIN_RECONCILIATION.md + evidence/A7 + queries A7_01–03. 440 = 293 S
 - **D** Drift check since 20261014104950: 37/38 matched. The 1 remaining item is the pre-existing PPM rename (repo 053000 vs live 045233, same content). The fix is in draft PR **#71**, not merged pending user OK; with it, drift is 0.
 - No rollback needed. Final 22:34 IST: 564 migrations, 0 active runs, 0 cron failures in 20 min, current runs 80/82/118.
 - D-024 (Fuel & Gas normal = FY25-26 avg) recorded only; no consumer switched.
+
+## 2026-10-16 ~07:35 IST — Directive 2026-10-16 workpack (read-only)
+Draft PR #72 (costing/au4-normal-budget, c3cf54d): AU-4 per-head budget proposal, cron/guard verification, first-APPROVED acceptance harness (dry run on 119 FAIL as expected, md5 c1e7794b…), AU-2c SKU1277/879 evidence, AU-5/6 + Sheets flow design. No live writes. Cron 60 returns CURRENT_PERIOD_NOT_GOVERNED (no 2026-10 cost_periods row).
