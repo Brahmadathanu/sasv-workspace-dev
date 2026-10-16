@@ -46,3 +46,8 @@ Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,
 - Pools are identical to run 121 for all 7 pools. Key SKU COPs are unchanged. SKU 1797: no longer blocked; MATERIAL_REVIEW (manual PM rate); selling price 178.57; IK margin 82.1%.
 - Acceptance A: 1–5 and 7–12 PASS; 6 FAIL (DRAFT, expected). B: 13–23 PASS; 24 manual.
 - Lock method investigated: no lock RPC; the intended model is the PERIOD_LOCKED audit event plus a paired status move (OPEN/DRAFT → LOCKED/LOCKED) with the locked_* columns. Guarded SQL prepared (NOT applied): proposals/SEP2026_VALUATION_LOCK_PROPOSED.sql, with reopen rollback. After the lock, no further refresh is possible until the period is reopened.
+
+## 2026-10-16 ~20:45 IST — Acceptance integrity fix + run 122 conservation
+- Defect: check 21's detail text was hardcoded to "no run locally => SKIP" even when it really ran. Fixed: no SKIP state remains; a missing run gives BLOCKED; the manual review is now check 25, BLOCKED until an explicit user waiver (w CTE); an OVERALL row passes only if every check is PASS or WAIVED; NULL comparisons fail closed.
+- New check 24 POOL_ABSORPTION_CONSERVATION (run 122): engine allocations equal the pool to within ₹1 for all 7 pools. Per-SKU cost × monthly allocation units gives residuals of DL −718 (0.05%), POH −733 (0.11%), QC −148 (0.10%), MS −2; admin, finance-admin and marketing are exact. The residual comes from mixing unit bases (per-SKU rates use each pool's own volume driver, while the check multiplies by sales-allocation units); tolerance 0.5%. PASS.
+- Checks 21 and 22 genuinely PASS on run 122.
