@@ -10,7 +10,7 @@ chk(n,code,ok,detail) as (
  union all select 3,'NO_BLOCKED_ROWS',coalesce((select final_blocked_count=0 from r),false),(select max(final_blocked_count)::text from r)
  union all select 4,'REVIEW_ROWS_ZERO',coalesce((select final_review_required_count=0 from r),false),(select max(final_review_required_count)::text from r)
  union all select 5,'PERIOD_GOVERNED',exists(select 1 from cp),(select max(status||'/'||valuation_date_status) from cp)
- union all select 6,'VALUATION_DATE_APPROVED',coalesce((select valuation_date_status in ('APPROVED','LOCKED') from cp),false),(select max(valuation_date_status) from cp)
+ union all select 6,'VALUATION_DATE_LOCKED_OR_FINAL',coalesce((select valuation_date_status in ('LOCKED','FINAL') from cp),false),(select max(valuation_date_status) from cp)
  union all select 7,'VALUATION_DATE_MATCH',coalesce((select r.valuation_date=cp.valuation_date from r,cp),false),(select max(r.valuation_date::text||' vs '||cp.valuation_date::text) from r,cp)
  union all select 8,'NO_OTHER_APPROVED_IN_PERIOD',not exists(select 1 from costing.costing_run_designation d,r where d.period_start=r.period_start and d.designation='APPROVED' and d.refresh_run_id<>r.id),''
  union all select 9,'SUCCESS_FINGERPRINT',exists(select 1 from costing.costing_run_fingerprint f,p where f.refresh_run_id=p.run_id),''
