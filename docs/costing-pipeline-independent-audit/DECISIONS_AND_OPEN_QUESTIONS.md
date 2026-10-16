@@ -86,3 +86,5 @@ Note: no live write, merge or deploy is authorised by these entries.
 - OPEN (user decision): Interest Paid ₹13,89,595/mo and Central Office Charges ₹8,71,973/mo in product cost?; Misc Expenses (excluded, ₹2.6L/yr) classification; carriage inward reclass; P&F outbound split; PF/ESI placeholder; 16 vs 32 Kg Mehasamani (BMR needed).
 
 - 2026-10-16 09:30 IST: user approved items 1,3–8 (see PR #72 ledger); Central Office HELD (recommend ₹18,000/mo normal; year-end ₹1.05cr allocation pending scope). Mehasamani: no production history, 32 kg standard applies.
+
+- 2026-10-16 10:35 IST rulings: Mehasamani uses production_batch_size_ref 507 (32 Kg) as tier 2; Tally issue register not driver evidence; Central Office current method retained (completed-FY total/12); PF/ESI in roster compensation (resolved).
