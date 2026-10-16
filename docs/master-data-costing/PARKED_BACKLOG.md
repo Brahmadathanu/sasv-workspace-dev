@@ -14,3 +14,5 @@
 | CCC-P03 | Dependency/rationalisation audit for parked legacy dashboard-summary server objects (`public.v_costing_pricing_dashboard_summary`, `costing.v_pricing_workflow_dashboard_summary`). | WP04 Track B startup-timeout repair | WP05 | Normal CCC startup no longer queries the legacy public view; objects are retained/parked, not dropped, pending dependency audit. | WP05 start | Medium | [P] PARKED |
 
 New ideas arising outside the active gate must be classified immediately. FUTURE DEPENDENCY and PARKED ENHANCEMENT items are recorded here; OUT OF SCOPE items are recorded with a reason when material.
+
+- **AU-8 backlog — RM BOM header save (js/manage-rm-bom.js)**: user-approved design 2026-10-16. Apply in the Edit-header window saves the header directly (fn_rm_bom_upsert) with a read-back check that warns on mismatch; Save stays reserved for table-level work; consider adding a unit-factor (products.conversion_to_base) field. Status: APPROVED DESIGN, scheduled for AU-8, not now. Root cause: Apply only updated the form, so a later Save re-sent old values.

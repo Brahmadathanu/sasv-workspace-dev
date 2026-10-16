@@ -57,3 +57,5 @@ The **user** is the canonical evidence-based policy authority. Any phrases in th
 
 ### Status 2026-10-16c
 AU-4: policy ledger proposed (not applied); first-run acceptance harness parts A+B. AU-2c: ready pending BMR evidence. AU-5/6/8: docs only. Next gate: resolve 5 UNRESOLVED heads → apply ledger → client-triggered Sept run → acceptance → APPROVED designation (all with user authorisation).
+
+- **AU-8 backlog — RM BOM header save (js/manage-rm-bom.js)**: user-approved design 2026-10-16. Apply in the Edit-header window saves the header directly (fn_rm_bom_upsert) with a read-back check that warns on mismatch; Save stays reserved for table-level work; consider adding a unit-factor (products.conversion_to_base) field. Status: APPROVED DESIGN, scheduled for AU-8, not now. Root cause: Apply only updated the form, so a later Save re-sent old values.
