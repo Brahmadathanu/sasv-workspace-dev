@@ -7,6 +7,7 @@ create table if not exists costing.cost_head_policy_ledger(
  effective_from date not null, effective_to date, approved_by text, approved_at timestamptz, created_at timestamptz not null default now(),
  check (effective_to is null or effective_to>=effective_from),
  check (policy_status<>'EXCLUDED' or normal_monthly_amount=0));
+-- Carriage inward row uses pool MATERIAL_LANDED_COST: reclass target, not a costing pool; map change happens only at apply time.
 create unique index if not exists cost_head_policy_ledger_one_open on costing.cost_head_policy_ledger(expense_group,head_name) where effective_to is null;
 -- Reconciliation: every mapped head present exactly once (open), and ledger vs source provision per pool.
 create or replace view costing.v_cost_head_policy_reconciliation as
@@ -17,19 +18,19 @@ create or replace view costing.v_cost_head_policy_reconciliation as
  full join (select * from costing.cost_head_policy_ledger where effective_to is null) l using (expense_group, head_name);
 insert into costing.cost_head_policy_ledger(expense_group,head_name,allocation_pool,policy_status,normal_monthly_amount,source_provision_amount,basis,evidence_ref,effective_from,approved_by,approved_at)
 select v.* from (values
-('Direct Expenses','Carriage Inward (DE)','MATERIALS_STORES_OVERHEAD','UNRESOLVED',67725.0,67725,'Reclass to material acquisition cost (not a saving); duplicate-charge control required','CARRIAGE_INWARD_AND_DRIVERS.md',date '2026-04-01',null,null),
+('Direct Expenses','Carriage Inward (DE)','MATERIAL_LANDED_COST','APPROVED',67725.0,67725,'User decision 2026-10-16: reclass to material acquisition cost (not a saving); duplicate-freight control required','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01','user', timestamptz '2026-10-16 09:00+05:30'),
 ('Direct Expenses','Cleaning Expenses (DE)','PRODUCTION_OVERHEAD','PROVISIONAL',35511.1,35511.1,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Direct Expenses','Electricity & Water Charges (DE)','PRODUCTION_OVERHEAD','PROVISIONAL',149304.75,149304.75,'AU-3 higher-of-years provision','AU4_NORMAL_BUDGET_PROPOSAL.md',date '2026-04-01',null,null),
 ('Direct Expenses','Employer Contributions (DE)','EXCLUDED','EXCLUDED',0,0,'Mapped EXCLUDED in expense_head_costing_map (salary via HR roster)','expense_head_costing_map',date '2026-04-01',null,null),
 ('Direct Expenses','Factory Expenses (DE)','PRODUCTION_OVERHEAD','PROVISIONAL',29983.51,29983.51,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Direct Expenses','Fuel & Gas (DE)','PRODUCTION_OVERHEAD','APPROVED',161969.07,479589.6,'User-approved normal; stock-register consumption ~1.89L/mo kept as separate actual reconciliation','AU4_DECISION_TABLE_v2.md',date '2026-04-01','user', timestamptz '2026-10-16 08:00+05:30'),
-('Direct Expenses','Job Work Expense','PRODUCTION_OVERHEAD','PROVISIONAL',25562.25,25562.25,'FY25-26/12; attribution to processes pending','JOB_WORK_EVIDENCE (this sprint)',date '2026-04-01',null,null),
+('Direct Expenses','Job Work Expense','PRODUCTION_OVERHEAD','PROVISIONAL',25562.25,25562.25,'User decision 2026-10-16: provisional; attribution pending','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01',null,null),
 ('Direct Expenses','Lab Expenses (DE)','QUALITY_CONTROL_OVERHEAD','PROVISIONAL',51291.67,51291.67,'FY25-26/12','AU4_NORMAL_BUDGET_PROPOSAL.md',date '2026-04-01',null,null),
-('Direct Expenses','Mess Expenses (DE)','PRODUCTION_OVERHEAD','PROVISIONAL',177224.92,177224.92,'100% mfg pending headcount-share evidence','MESS_SHARE (this sprint)',date '2026-04-01',null,null),
-('Direct Expenses','Packing & Forwarding Charges (DE)','MATERIALS_STORES_OVERHEAD','UNRESOLVED',5618.53,9979.33,'Inbound/production share only; outbound share to MARKETING pending split evidence','AU4_DECISION_TABLE_v2.md',date '2026-04-01',null,null),
+('Direct Expenses','Mess Expenses (DE)','PRODUCTION_OVERHEAD','APPROVED',177224.92,177224.92,'User decision 2026-10-16: 100% factory (DE head; marketing mess separate)','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01','user', timestamptz '2026-10-16 09:00+05:30'),
+('Direct Expenses','Packing & Forwarding Charges (DE)','MATERIALS_STORES_OVERHEAD','APPROVED',5618.53,9979.33,'User decision 2026-10-16: factory share; outbound balance not in product cost','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01','user', timestamptz '2026-10-16 09:00+05:30'),
 ('Direct Expenses','Printing & Stationery (DE)','PRODUCTION_OVERHEAD','PROVISIONAL',8346.24,8346.24,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Direct Expenses','Rates & Taxes (DE)','FINANCE_ADMIN_OVERHEAD','PROVISIONAL',18959.67,18959.67,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
-('Direct Expenses','Repairs & Maintenances (DE)','PRODUCTION_OVERHEAD','PROVISIONAL',41978.2,69457.91,'Recurring normal; FY26-27 spike 2.78L excluded as non-recurring','AU4_DECISION_TABLE_v2.md',date '2026-04-01',null,null),
+('Direct Expenses','Repairs & Maintenances (DE)','PRODUCTION_OVERHEAD','APPROVED',41978.2,69457.91,'User decision 2026-10-16: recurring normal; FY26-27 spike to variance','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01','user', timestamptz '2026-10-16 09:00+05:30'),
 ('Direct Expenses','Research & Development Expenses','ADMIN_OVERHEAD','PROVISIONAL',780.31,780.31,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Direct Expenses','Round Off on Purchase','EXCLUDED','EXCLUDED',0,0,'Mapped EXCLUDED in expense_head_costing_map','expense_head_costing_map',date '2026-04-01',null,null),
 ('Direct Expenses','Salaries & Allowances (DE)','EXCLUDED','EXCLUDED',0,0,'Mapped EXCLUDED in expense_head_costing_map (salary via HR roster)','expense_head_costing_map',date '2026-04-01',null,null),
@@ -39,7 +40,7 @@ select v.* from (values
 ('Indirect Expenses','Auditors Remuneration','FINANCE_ADMIN_OVERHEAD','PROVISIONAL',25083.33,25083.33,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Books & Periodicals','ADMIN_OVERHEAD','PROVISIONAL',545,545,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Carriage Outward','MARKETING_EXPENSE','PROVISIONAL',57948,57948,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
-('Indirect Expenses','Central Office Charges','ADMIN_OVERHEAD','UNRESOLVED',871972.83,871972.83,'FY25-26 10.46L/yr vs FY26-27 7.58L/5mo; nature/allocation unverified','this ledger',date '2026-04-01',null,null),
+('Indirect Expenses','Central Office Charges','ADMIN_OVERHEAD','UNRESOLVED',871972.83,871972.83,'User decision 2026-10-16: HELD pending scope check','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01',null,null),
 ('Indirect Expenses','Cleaning Expenses','MARKETING_EXPENSE','PROVISIONAL',1634.96,1634.96,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Damage Stock A/c','EXCLUDED','EXCLUDED',0,0,'Mapped EXCLUDED in expense_head_costing_map','expense_head_costing_map',date '2026-04-01',null,null),
 ('Indirect Expenses','Discounts','MARKETING_EXPENSE','PROVISIONAL',240174.45,240174.45,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
@@ -51,10 +52,10 @@ select v.* from (values
 ('Indirect Expenses','Govt Stamping Fee','ADMIN_OVERHEAD','PROVISIONAL',62.5,62.5,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Ineligible ITC','FINANCE_ADMIN_OVERHEAD','PROVISIONAL',8351.35,8351.35,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Insurance Premium Paid','MARKETING_EXPENSE','PROVISIONAL',20776.25,20776.25,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
-('Indirect Expenses','Interest Paid','FINANCE_ADMIN_OVERHEAD','UNRESOLVED',1389594.9,1389594.9,'Finance cost; inclusion in product cost needs user policy','this ledger',date '2026-04-01',null,null),
+('Indirect Expenses','Interest Paid','FINANCE_ADMIN_OVERHEAD','EXCLUDED',0,1389594.9,'User decision 2026-10-16: finance cost excluded from product cost','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01','user', timestamptz '2026-10-16 09:00+05:30'),
 ('Indirect Expenses','Legal & Professional Charges','FINANCE_ADMIN_OVERHEAD','PROVISIONAL',3125,3125,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Mess Expenses','MARKETING_EXPENSE','PROVISIONAL',54793.86,54793.86,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
-('Indirect Expenses','Miscellaneous Expenses','EXCLUDED','UNRESOLVED',0,0,'Currently excluded; 2.60L FY25-26 not classified','this ledger',date '2026-04-01',null,null),
+('Indirect Expenses','Miscellaneous Expenses','EXCLUDED','EXCLUDED',0,0,'User decision 2026-10-16: excluded','User decisions 2026-10-16 (DECISIONS_AND_OPEN_QUESTIONS)',date '2026-04-01','user', timestamptz '2026-10-16 09:00+05:30'),
 ('Indirect Expenses','Pooja Expenses','ADMIN_OVERHEAD','PROVISIONAL',967.67,967.67,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Postage & Courier Charges','MARKETING_EXPENSE','PROVISIONAL',30895.4,30895.4,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
 ('Indirect Expenses','Printing & Stationery','MARKETING_EXPENSE','PROVISIONAL',25265.77,25265.77,'AU-3 standard monthly provision (higher-of-years)','v_expense_head_monthly_provision_au3',date '2026-04-01',null,null),
