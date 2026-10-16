@@ -51,3 +51,9 @@ Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,
 - Defect: check 21's detail text was hardcoded to "no run locally => SKIP" even when it really ran. Fixed: no SKIP state remains; a missing run gives BLOCKED; the manual review is now check 25, BLOCKED until an explicit user waiver (w CTE); an OVERALL row passes only if every check is PASS or WAIVED; NULL comparisons fail closed.
 - New check 24 POOL_ABSORPTION_CONSERVATION (run 122): engine allocations equal the pool to within ₹1 for all 7 pools. Per-SKU cost × monthly allocation units gives residuals of DL −718 (0.05%), POH −733 (0.11%), QC −148 (0.10%), MS −2; admin, finance-admin and marketing are exact. The residual comes from mixing unit bases (per-SKU rates use each pool's own volume driver, while the check multiplies by sales-allocation units); tolerance 0.5%. PASS.
 - Checks 21 and 22 genuinely PASS on run 122.
+
+## 2026-10-16 ~20:07 IST — September 2026 LOCKED; run 122 APPROVED
+- User signed off check 25 at 20:05 IST (key SKU costs as presented; Mehasamani a known exception; 33 negative-margin SKUs to pricing review). The per-run waiver is recorded in policy_ledger_checks.sql.
+- Lock applied (proposals/SEP2026_VALUATION_LOCK_PROPOSED.sql): 2026-09 OPEN/DRAFT → LOCKED/LOCKED at 20:06:38 IST; PERIOD_LOCKED audit row; ref USER-LOCK-SEP2026-20261016.
+- Run 122 designated APPROVED via costing.rpc_designate_costing_run (designation fingerprint captured), by Dr. Brahmadathan U, at 20:06:52 IST. v_current_successful_costing_refresh_run → 122 (selection_basis APPROVED); run 119 stays REFERENCE.
+- Full acceptance: checks 1–24 PASS; 25 WAIVED (user sign-off); OVERALL PASS. Cron 60 and 61 both paused. Further September refreshes require a governed reopen.

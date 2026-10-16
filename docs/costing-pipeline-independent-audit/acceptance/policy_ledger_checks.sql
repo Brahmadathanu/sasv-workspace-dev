@@ -4,7 +4,7 @@ r as (select r.* from costing.costing_refresh_run r join p on r.id=p.run_id),
 rec as (select * from costing.v_cost_head_policy_reconciliation),
 l as (select * from costing.cost_head_policy_ledger where effective_to is null),
 ps as (select s.* from costing.cost_pool_monthly_snapshot s join p on s.refresh_run_id=p.run_id),
-w(code) as (select null::text where false /* explicit waivers: add values ('CHECK25_MANUAL_REVIEW') only on user sign-off */),
+w(code) as (select v.code from (values ('CHECK25_MANUAL_REVIEW',122::bigint,'User sign-off 2026-10-16 20:05 IST: key SKU costs as presented; Mehasamani known exception; 33 negative-margin SKUs to pricing review')) v(code,run_id,note) join p on p.run_id=v.run_id /* explicit per-run waivers only */),
 u as (select b.sku_id, b.monthly_allocation_units u from costing.sku_sales_allocation_basis_snapshot b join p on b.refresh_run_id=p.run_id),
 c as (select l.*, u.u from costing.sku_internal_loaded_cost_snapshot l join p on l.refresh_run_id=p.run_id join u using(sku_id)),
 ab(p,pool_amt,engine_alloc,sku_x_units) as (
