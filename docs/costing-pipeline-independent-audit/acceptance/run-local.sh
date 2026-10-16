@@ -2,7 +2,7 @@
 # Reproducible local test (box PG17 copy, port 54329). Never targets live.
 set -euo pipefail; cd "$(dirname "$0")/.."
 P="psql -h /tmp -p 54329 -U postgres -d costing_local -At -v ON_ERROR_STOP=1"
-SEED=${SEED:-/workspace/heads.json}
+SEED=${SEED:-acceptance/heads_seed_2026-10-16.json}
 $P -c "select 1 from costing.expense_head_costing_map limit 1" >/dev/null
 if [ "$($P -c 'select count(*) from costing.expense_head_costing_map')" = 0 ]; then
   python3 -c "
