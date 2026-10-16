@@ -22,3 +22,10 @@ PR #70 916e301 script applied in one transaction:
 Pre-flight for all active SKUs as of 2026-09-10: PM revision missing or ambiguous = 0; product route resolution errors = 0; runs in flight = 0.
 
 Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,84,648. Refresh NOT triggered; valuation NOT locked; run NOT approved. After the run, pause 61.
+
+## 2026-10-16 ~17:55 IST — Run 121 (Sep 2026, client-triggered) monitored
+- Run 121 requested 17:22:46 IST; all 6 stages SUCCESS. Job 61 paused ~17:55 IST after terminal state; verified 60=false, 61=false. Ledger switch left ON (run succeeded). No valuation lock, no designation.
+- Pools vs run 118: FIN_ADMIN 15,60,520→2,05,450 (expected 2,03,050 + Registration 2,400 fix = match); PROD_OH 10,16,035→6,70,935 (match); MAT_STORES 2,64,869→2,60,509 (match); DIRECT_LABOUR 13,27,802→13,69,652 (match); ADMIN/QC/MKTG unchanged.
+- Acceptance A: PASS 1,2,5,7,8,9,10,12; FAIL 3 (1 blocked: SKU1797 no MRP/selling policy), 4 (145 review: 140 pricing-bridge review), 6 (valuation DRAFT), 11 (MANUFACTURING_LABOUR approved normal rate missing; PROD_OH behaviour split unverified). Evidence md5=29de995fcd3ee0fe65e3cc3e11a4b2b0.
+- Acceptance B: 13–23 PASS; 24 manual.
+- SKU COP (118→121): 859 9.82→12.17 (mat 3.23→5.87); 1277 12.89→14.62 (mat 7.79→9.46); 1038 66.56→60.55; 879 136.10→113.37 (mat 4.73→2.97, REVIEW; COP > MRP 40); 1797 new, mat 16.90, COP 23.03, BLOCKED (MRP missing).
