@@ -1,3 +1,4 @@
+-- SUPERSEDED 2026-10-16 11:55 IST: fixes applied live (user-authorised) via guarded transaction; see AU2C_APPLIED_2026-10-16.md. Keep for reference only; its pre-checks will now fail by design.
 -- AU-2c rollback (restores exact pre-change values captured 2026-10-15). Guarded on the new values.
 begin;
 set local lock_timeout = '5s';

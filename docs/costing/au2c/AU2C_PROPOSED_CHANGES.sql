@@ -1,3 +1,4 @@
+-- SUPERSEDED 2026-10-16 11:55 IST: fixes applied live (user-authorised) via guarded transaction; see AU2C_APPLIED_2026-10-16.md. Keep for reference only; its pre-checks will now fail by design.
 -- AU-2c DRAFT. DO NOT RUN without explicit user approval + production evidence (GOV-015).
 -- Ends in ROLLBACK by design; an approver changes it to COMMIT only after sign-off.
 -- Each statement is guarded on the exact current value, so it is a no-op/abort if data moved.
