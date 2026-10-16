@@ -40,3 +40,9 @@ Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,
 - Lock NOT applied: no governed lock function exists (only rpc_close_cost_period → CLOSED/FINAL, which requires an APPROVED run). The check constraint ties valuation_date_status LOCKED to period status LOCKED, and fn_request_costing_refresh_internal refuses any period whose status is not OPEN. Locking now would block the rerun. Order: rerun → lock (needs a governed lock path or approved direct transition) → approve.
 - Pre-flight: 0 in flight; 634 active SKUs; all have a PM revision effective on 10 Sep (853 via a superseded revision valid 10–11 Sep, costed READY in run 121); ledger switch ON.
 - Job 61 enabled (60=false, 61=true). Keep it on until the run is terminal, then pause it.
+
+## 2026-10-16 ~20:25 IST — Run 122 (Sep 2026 rerun) SUCCESS
+- All 6 stages SUCCESS; blocked 0, review 146 (140 pricing, 4 prime cost, 2 material). Job 61 paused after the run finished; verified 60=false, 61=false. Ledger switch ON.
+- Pools are identical to run 121 for all 7 pools. Key SKU COPs are unchanged. SKU 1797: no longer blocked; MATERIAL_REVIEW (manual PM rate); selling price 178.57; IK margin 82.1%.
+- Acceptance A: 1–5 and 7–12 PASS; 6 FAIL (DRAFT, expected). B: 13–23 PASS; 24 manual.
+- Lock method investigated: no lock RPC; the intended model is the PERIOD_LOCKED audit event plus a paired status move (OPEN/DRAFT → LOCKED/LOCKED) with the locked_* columns. Guarded SQL prepared (NOT applied): proposals/SEP2026_VALUATION_LOCK_PROPOSED.sql, with reopen rollback. After the lock, no further refresh is possible until the period is reopened.
