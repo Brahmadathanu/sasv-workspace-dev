@@ -29,3 +29,9 @@ Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,
 - Acceptance A: PASS 1,2,5,7,8,9,10,12; FAIL 3 (1 blocked: SKU1797 no MRP/selling policy), 4 (145 review: 140 pricing-bridge review), 6 (valuation DRAFT), 11 (MANUFACTURING_LABOUR approved normal rate missing; PROD_OH behaviour split unverified). Evidence md5=29de995fcd3ee0fe65e3cc3e11a4b2b0.
 - Acceptance B: 13–23 PASS; 24 manual.
 - SKU COP (118→121): 859 9.82→12.17 (mat 3.23→5.87); 1277 12.89→14.62 (mat 7.79→9.46); 1038 66.56→60.55; 879 136.10→113.37 (mat 4.73→2.97, REVIEW; COP > MRP 40); 1797 new, mat 16.90, COP 23.03, BLOCKED (MRP missing).
+
+## 2026-10-16 ~18:55 IST — User-approved live changes after run 121
+- SKU 1797: MRP ₹200 IK/OK (app RPC; policy 1829, effective 2026-09-01); default selling terms (policy 1322: GST 12, discount 0, contingency 2).
+- Manufacturing labour normal rate APPROVED: costing.manufacturing_standard_rate_policy v2 'AU4_LABOUR_NORMAL_RATE_RUN121', FIXED, 706,203 / 5,516.35 = ₹128.02, approver Dr. Brahmadathan U. Draft v1 (id 6, 911.6 units) left as DRAFT.
+- Rulings: POH split provisional, non-blocking; 145 review rows non-blocking; negative-margin list saved (74 SKUs in total, of which 33 flagged for pricing review, 39 READY, 2 prime-cost review); Mehasamani/slow movers are a known exception pending AU-5. Acceptance pass rule amended (checks 3, 4, 11).
+- Feed analysis: the labour rate is read only by preview/gate functions (no effect on run costs). MRP feeds rpc_refresh_sku_pricing_bridge_snapshot, so run 121's 1797 pricing bridge stays BLOCKED until a rerun.

@@ -57,3 +57,8 @@ Run `acceptance/first_approved_run_acceptance.sql` (part A, set `:run_id`) and `
 - The run stays non-designated (not APPROVED). Run 118/119 outputs remain intact; designated runs are guarded.
 - Turn the ledger switch off.
 - Make sure job 61 is paused again.
+
+### Pass-rule amendments (user rulings 2026-10-16, after run 121)
+- Check 3: a BLOCKER caused solely by a missing MRP is cleared once an APPROVED MRP policy exists (SKU 1797: policy 1829, ₹200). A rerun refreshes the bridge.
+- Check 4: review rows are non-blocking; the negative-margin SKUs form a pricing review list (`evidence/run121_negative_margin_skus.csv`); Mehasamani/slow movers are a known exception pending the AU-5 batch-true fix.
+- Check 11: passes when an APPROVED manufacturing-labour normal rate resolves (₹128.02/unit/month, 706,203 / 5,516.35). The POH fixed/variable split is provisional and non-blocking. The readiness preview always returns REVIEW_REQUIRED by design, so its status is not used.
