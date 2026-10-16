@@ -66,3 +66,11 @@ Note: no live write, merge or deploy is authorised by these entries.
 - **D-023** Deploy #69 (AU-3/AU-3b) live with enforcement mode OFF, separately from and after #68, together with the AU-3c revoke of authenticated INSERT/UPDATE/DELETE on `public.tally_expenses_snapshot`.
 - **D-024** Fuel & Gas (DE) normal monthly basis = FY2025-26 average (about Rs 1.62 lakh/month). This is recorded as a decision only; no costing consumer is switched.
 - Pre-flight 22:26 IST: 560 migrations (latest 20261015045233), no QUEUED/RUNNING runs. Jarvis told to hold its merges and migrations.
+
+## Pending (2026-10-16, PR #72) — user approval required
+- P-025 Create cost_periods 2026-10 (OPEN/DRAFT) so cron runs corrected engine.
+- P-026 Graceful PERIOD_HOLDS_APPROVED_RUN return in daily request fn (draft).
+- P-027 Normal denominators = dedup first-transfer cohort 967.99 labour / 1,055.04 OH WU/mo.
+- P-028 Per-head budgets per AU4_NORMAL_BUDGET_PROPOSAL.md (Fuel 1.62L, Repairs FY avg, on-cost 8.11%).
+- P-029 Carriage Inward → material landed cost.
+- P-030 Packing labour and QC/stores denominators.
