@@ -34,3 +34,6 @@ where q.period_start='2026-10-01' and q.action_severity='REVIEW_REQUIRED';
 -- verify count = expected (645), then commit; otherwise rollback
 ```
 Argument order must be checked against the function signature before execution (date, bigint, text x 8). Then: October rerun (job 61 window) and acceptance.
+
+## 5. Applied 2026-10-17 (user approved R1+R2)
+APPLIED_r1r2_acceptance_20261017.sql: an atomic DO block run as the approver identity (auth.uid() verified) through the 10-argument rpc_accept_material_review_action. It aborts unless exactly 645 are accepted and 645 register rows carry valuation 2026-10-16 / run 124. Result: 645 ACTIVE (RM 252, PM 393), every row evidence-fingerprinted by trigger, accepted_by dff17104. September's 854 rows are untouched. Remaining queue: 196 rows. Decision list: evidence/AU5/OCT_band_C_rate_decisions.csv (193 items; bandc.sql). R3 auto-refresh from Tally is withdrawn per the user (Tally may lag real purchase prices).
