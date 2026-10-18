@@ -25,3 +25,9 @@
 - Kanji 878: open question. Is the batch 50,000 g (100 packs)? This must be confirmed before 878 is activated.
 - The kit fix and the scaling fix both raise everyone else's rates (~+9% each); simulate them combined before approval. Run 122 is not touched.
 
+### 2026-10-18 08:34 IST: User decisions; AU-6 combined package BUILT (not applied)
+- Route scaling: universal Option A (SYMMETRIC). Weight-driven steps scale, fixed-cycle steps do not, QC is not scaled. Kit K1+K4 approved; K2 only if needed (assessed: not needed). Kanji follows the same pattern.
+- Kanji batch 50,000 = packs per batch (BMR SP718 50,000 Nos -> 50,052 x 500 g packets transferred). Batch ref kept.
+- OPEN: SKU 878 sales feed (1,384 units/12 months) vs 59,286 packs dispatched in 2026. Ask the user about the sales unit, mapping or stock.
+- Pending: user approval to apply the package (single migration via apply_migration), then the October rerun.
+
