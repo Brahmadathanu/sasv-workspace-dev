@@ -1,12 +1,16 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 16:19–16:20 IST: user capacity answers (R1, prepared only)
+- Rasoushadhi steel-drum grinders 8 kg maximum per charge (mapped to plants 4–34); stone grinders 2 kg (41–44); Khalvam sets 45–46 mechanised, 2 kg per set; the 13 water tanks (105–114, 156 at 1,000 L; 159, 161 at 500 L) are used as fermentation tanks.
+- Open: stone grinder 81 and Pills grinders 68–80 (same names, Pills area), wet grinder 174, pulveriser/sifter throughput, tank fill %, whether 8 kg is the working charge. Proposed G4 fallback rule: Grinding 8 kg, Kajjali 2 kg, otherwise the current default (needs approval).
+
 ## 2026-10-18 16:07 IST: AU-9 G1–G3 live apply approved and done
 - User: "Yes, apply G1–G3 live with the machine-delete block". Applied at 16:08 as 20261018103837; all checks identical (evidence/AU9/AU9_G1_G3_LIVE_APPLY_2026-10-18.md). Machine hard-delete block accepted.
 
 ## 2026-10-18 15:36 IST: AU-9 decisions (user)
 - **Approved:** DVS-1 evidence-based demand policy, with the 60% rule as a review flag only (P20); Kanji 878 demand-seasonal Jun–Aug on the 12-month average (P21); machine classes, i.e. stoves non-capacity, pumps utility, packing not costed for now (P22); current class defaults as the approved fallback until machine values arrive (P23); build G1–G3 with no cost change.
-- **Still open:** are water tanks 105–114, 156, 159, 161 used as fermenters? Are Khalvam sets 45–46 a tool or an asset? Both stay UNKNOWN and provisional in the backfill.
+- **Still open (answered 16:19/16:20, see above):** are water tanks 105–114, 156, 159, 161 used as fermenters? Are Khalvam sets 45–46 a tool or an asset? Both stay UNKNOWN and provisional in the backfill.
 - **Done 15:45 (prepare-only):** G1–G3 package finalised and tested locally (replay identical, run 122/128 fingerprints unchanged, re-runnable). DVS-1 recorded as a prepared policy version, NOT wired because it does not reproduce run 128 exactly. Not applied live; the live apply needs the user's go-ahead.
 - **Finding:** `fn_verify_run_fingerprint(122)` shows 1 drifted table (`sku_sales_allocation_basis_snapshot`). The cause is the nullable column added by 20261017235758. The values were verified unchanged (re-hash = captured md5). Backlog AU9-P07.
 

@@ -1,6 +1,10 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 16:40: AU-9 R1 prepared (user capacities; not applied)
+- User 16:19/16:20: steel-drum grinders 8 kg (4–34), stone grinders 2 kg (41–44), Khalvam mechanised 2 kg/set (45–46), 13 water tanks are fermentation tanks. PREPARED_AU9_R1_capacity_revisions.sql (50 close+supersede revisions, effective 1 Nov, provisional) tested locally: replay/fingerprints identical, re-runnable.
+- G4 simulation: proposed rule (Grinding 8 kg, Kajjali 2 kg) → median −0.08%, 22 SKUs >5% dearer (max +52%), negative margins unchanged at 9. R1_CAPACITY_REVISIONS_AND_G4_SIMULATION.md.
+
 ## 2026-10-18 16:08: AU-9 G1–G3 LIVE (20261018103837)
 - Capacity master applied unchanged via apply_migration after the user's approval at 16:07: 6/33/171/188/17 objects; all profiles provisional from 1 Nov.
 - Run 122/128 fingerprints, 1,550 function/view hashes and the 898 run-128 load factors identical before and after. Runs, periods and designations untouched; cron 60/61 paused. Machine hard-delete is now blocked (approved). Evidence: evidence/AU9/.
