@@ -41,7 +41,7 @@ Negative-margin SKUs: 35 -> 37.
 
 ## Finding: QC is volume-divided (not batch-true)
 QC gives each product a fixed monthly Rs share (Method 3 workload, about Rs 540 for Kvatha). It then divides that by monthly volume. Smaller governed volumes (Kvatha 2 kg -> 0.167 kg, i.e. 1 batch/yr; Abhraka 10 -> 0.33 kg) therefore make QC per kg explode.
-Low-volume products should absorb QC per batch tested, not per month. Proposal: make QC batch-true like DL/POH, i.e. QC Rs per batch / batch size, with tests per batch from the spec. Not applied; this is AU-7 scope. Abhraka QC alone is Rs 1,121/kg.
+Low-volume products should absorb QC per batch tested, not per month. Proposal: make QC batch-true like DL/POH, i.e. QC Rs per batch / batch size, with tests per batch from the spec. Not applied; this is AU-6Q scope. Abhraka QC alone is Rs 1,121/kg.
 
 ## Acceptances take effect only in a new run
 Live queues for run 126 now show READY (qty 59/59, regional 204/204). The run-126 control snapshot is frozen (184 review). The flags clear only in a new run at valuation 2026-10-16. No rerun done; awaiting user.

@@ -12,5 +12,9 @@
 ### 2026-10-18 05:26 IST — AU-6 bundle approved and applied
 - Applied: default-volume v2 (20261017235758), Abhraka batch ref 554 = 50 kg + plan 0.33 kg/month, recurring HO admin Rs 5L/month (20261018000020). Rerun 126 SUCCESS. 59 qty-driver + 204 regional acceptances recorded. Run 122 fingerprint unchanged. See evidence/AU6/AU6_APPLY_AND_OCT_RUN126_2026-10-18.md.
 - CF-1 and the 6-month manual-rate review are approved for 1 Nov 2026. Design only; not activated.
-- OPEN: QC allocation is volume-divided, which inflates low-volume SKUs (Kvatha Choornams x2.4, Abhraka QC Rs 1,121/kg). Propose QC batch-true (AU-7).
+- OPEN: QC allocation is volume-divided, which inflates low-volume SKUs (Kvatha Choornams x2.4, Abhraka QC Rs 1,121/kg). QC per-batch fix = AU-6Q (AU-7 is the price proposal).
 - OPEN: a new run is needed for the acceptances to clear the run-126 review flags (user to decide).
+
+### 2026-10-18 06:09 IST — AU-6Q QC per-batch: built and tested, NOT applied
+- Prepared file proposals/au6q_qc_batch_true/PREPARED_au6q_qc_batch_true.sql. Local tests all pass. The run-126 replay is fully absorbed; negative-margin SKUs 37 -> 24.
+- OPEN: Kvatha Choornam batch_size_ref 2 kg (products 468, 1340); SKU 865 kit conversion (275 Nos per pack?).
