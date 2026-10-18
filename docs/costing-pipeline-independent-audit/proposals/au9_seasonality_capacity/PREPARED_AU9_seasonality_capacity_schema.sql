@@ -1,5 +1,6 @@
 -- =====================================================================
 -- AU-9 PREPARED SQL — Seasonality (DVS-1) and Machine Capacity Profiles
+-- NOTE 18 Oct 15:45 IST: PARTS B1–B4 ARE SUPERSEDED BY PREPARED_AU9_G1_G3_capacity_master.sql (tested). This file remains the design for G4–G6.
 -- STATUS: PREPARED ONLY. NOT APPLIED. NOT A MIGRATION.
 -- Kept outside supabase/migrations on purpose. Ends in ROLLBACK.
 -- Apply only after explicit user approval, via Supabase MCP apply_migration,
@@ -303,7 +304,9 @@ create table costing.sku_demand_volume_selection_snapshot (
 -- G5: attach existing guards (fn_guard_append_only / fn_guard_designated_run_rows /
 --     fn_guard_snapshot_truncate) exactly as on sku_sales_allocation_basis_snapshot,
 --     so rows of APPROVED runs (122, 128, ...) can never be updated or deleted.
--- G5 (REPLACE, commented): alter table costing.sku_sales_allocation_basis_snapshot
+-- G5: DO NOT add columns to sku_sales_allocation_basis_snapshot (adding a column changes the row hash of
+--     approved runs; see AU9 G1-G3 test report, run-122 drift finding). Use the separate selection snapshot only.
+-- (withdrawn) alter table costing.sku_sales_allocation_basis_snapshot
 --     add column demand_policy_id bigint, add column demand_method text;   -- nullable; old rows untouched
 
 rollback;   -- PREPARED ONLY

@@ -29,6 +29,7 @@ policies={
  'P1_master_flag_only': lambda r:((avg(r),'MASTER_AVG') if r['master_seasonal'] and r['units_12m']>0 and r['run128_source']=='ACTUAL_MONTHLY_MAX' else ((maxm(r),'MAX') if r['in101'] else (r['run128_units'],'UNCHANGED'))),
  'P2_max_month_all': lambda r:((maxm(r),'MAX') if r['in101'] else (r['run128_units'],'UNCHANGED')),
  'P3_DVS1_evidence': dvs1,
+ 'P5_DVS1_v1_today_no_confirmed_events': lambda r:((r['run128_units'],'UNCHANGED') if not r['in101'] else ((avg(r),'DEMAND_SEASONAL_12M_AVG_APPROVED') if r['sku_id']==878 else ((since_launch(r),'LAUNCH_AVG_SINCE_FIRST_SALE') if 'NEW_LAUNCH' in r['tags'] else (maxm(r),'DEFAULT_MAX_MONTH_REVIEW_FLAG')))),
  'P4_master_or_recurring_avg': lambda r:((avg(r),'AVG') if (r['in101'] and ('RECURRING_PATTERN' in r['tags'] or r['master_seasonal'])) else ((maxm(r),'MAX') if r['in101'] else (r['run128_units'],'UNCHANGED'))),
 }
 pools=['dl','poh','qc','ms','adm','fin']

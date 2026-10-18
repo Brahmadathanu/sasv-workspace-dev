@@ -1,4 +1,6 @@
 # AU-9 Seasonality and Machinery Capacity: architecture and migration/backfill proposal
+> **Update 18 Oct 15:45 IST:** decisions 1, 2, 3 and 6 approved by the user (15:36). G1–G3 are finalised in `PREPARED_AU9_G1_G3_capacity_master.sql` and tested locally (`G1_G3_LOCAL_TEST_REPORT.md`). DVS-1 is recorded as a prepared policy version (`PREPARED_AU9_DVS1_policy_version.json`) and is **not wired** (it does not reproduce run 128 exactly). Decisions 4–5 (water tanks, Khalvam) remain open.
+
 Prepared 18 Oct 2026 (IST) by Aryabhatta. **READ-ONLY / PREPARE-ONLY.** No live writes, no migrations, no Sheets, no merges. Run 128 (APPROVED, October LOCKED) and run 122 were read only. All simulations ran offline on copies of the run-128 extracts.
 
 | File | What it holds |
@@ -172,7 +174,7 @@ The first matching rule wins:
 | Gate | Content | Precondition | Live effect |
 |---|---|---|---|
 | G1 | Reference tables + applicability/equipment classes | Your approval of the classes | None on costing |
-| G2 | Backfill `plant_capacity_profile` from the CSV. All rows **provisional**; 36 name-rated; others with class only | Your review of the CSV classes (water tanks, Khalvam, stoves) | None (v1 resolver still active) |
+| G2 | Backfill `plant_capacity_profile` from the CSV. All rows **provisional**; 23 carry a name-derived rated volume; water tanks and Khalvam stay UNKNOWN (user 15:36) | Classes approved 18 Oct 15:36 | None (v1 resolver still active) |
 | G3 | Fallback policy seed = current AU-6 V2 class defaults, approved | Approval reference | None |
 | G4 | `fn_route_step_loads_v2` + switch (V1 default); a test run on a non-designated run | User capacity values for at least the grinder classes | Only when the switch is flipped |
 | G5 | DVS tables, policy DVS-1 v1 (DRAFT → APPROVED), selection snapshot, guards; switch default = legacy 60% rule | Event confirmations (D1) | Only when the switch is flipped |

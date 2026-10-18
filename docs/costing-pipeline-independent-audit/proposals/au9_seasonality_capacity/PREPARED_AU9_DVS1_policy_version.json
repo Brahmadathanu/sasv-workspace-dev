@@ -1,0 +1,29 @@
+{
+  "status": "PREPARED - NOT WIRED INTO COSTING",
+  "policy_code": "DVS-1",
+  "version": 1,
+  "approval_reference": "USER-APPROVAL-20261018-AU9-DVS1 (user, 18 Oct 2026 15:36 IST, approved in principle)",
+  "intended_table": "costing.demand_volume_selection_policy (gate G5, not built)",
+  "effective_from": "to be set at G5 apply (not earlier than 2026-11-01)",
+  "rule_order": [
+    "1 approved override (costing.sku_demand_volume_override)",
+    "2 launch within 12 months -> average since first sale",
+    "3 CONFIRMED demand events -> max month excluding EXCLUDE_UNITS events; CONFIRMED supply constraint -> average of in-stock months",
+    "4 approved demand_pattern = DEMAND_SEASONAL -> 12-month average",
+    "5 otherwise -> AU-5 default (max actual month)",
+    "6 diagnostic: top-3 share >= 0.60 and none of 1-4 applied -> REVIEW flag DEMAND_CONCENTRATION_UNEXPLAINED (not a blocker)"
+  ],
+  "params": {"launch_window_months": 12, "bulk_day_share_of_peak": 0.5, "bulk_day_share_12m": 0.25,
+             "stockout_days": 10, "min_months_for_seasonal": 2, "diagnostic_threshold": 0.6},
+  "product_demand_seasonality_seed": [
+    {"sku_id": 878, "product": "Karkkidaka Kanji 500 g", "demand_pattern": "DEMAND_SEASONAL", "peak_months": [6, 7, 8],
+     "method": "12-month average", "manufacture_season_unchanged": true,
+     "approval_reference": "USER-APPROVAL-20261018-AU9-KANJI"}
+  ],
+  "run128_equivalence": {
+    "identical": false,
+    "P3_with_all_proposed_events_confirmed": "68 SKUs change; median COP -0.09%, max -0.63%; negative margins 9 -> 9",
+    "P5_as_approved_today_no_confirmed_events": "98 SKUs change; median COP -0.44%, max -3.1%; negative margins 9 -> 8 (1552 clears)",
+    "decision": "Not wired. Run-128 rule (P15, 60% top-3 -> 12-month average) stays operative until G5 is approved and the event register is populated."
+  }
+}

@@ -1,0 +1,40 @@
+== BEFORE
+replay_vd=2026-10-16 rows=898 mismatches_vs_run128=0 md5=8d8ec7abba89ce2fec7237bf481eefde
+replay_vd=2026-11-30 rows=898 mismatches_vs_run128=0 md5=8d8ec7abba89ce2fec7237bf481eefde
+run122_fp=045cbf4df32905805d5556a16a47a515 tables=1
+run128_fp=cb457e634200f95e0131a1ff1a65bfa1 tables=3
+existing_fn_view_md5=315d75a83ba16fa9ff29796b4d6ed11e
+route_capacity_md5=ff14cc845d608335007cab9e8ef7d4af
+plant_master_md5=0119fce15435ea31597e733caae265aa
+== APPLY 1
+psql:/workspace/au4wt/docs/costing-pipeline-independent-audit/proposals/au9_seasonality_capacity/PREPARED_AU9_G1_G3_capacity_master.sql:44: NOTICE:  schema "pg_temp" does not exist, skipping
+applied1
+== AFTER 1
+replay_vd=2026-10-16 rows=898 mismatches_vs_run128=0 md5=8d8ec7abba89ce2fec7237bf481eefde
+replay_vd=2026-11-30 rows=898 mismatches_vs_run128=0 md5=8d8ec7abba89ce2fec7237bf481eefde
+run122_fp=045cbf4df32905805d5556a16a47a515 tables=1
+run128_fp=cb457e634200f95e0131a1ff1a65bfa1 tables=3
+existing_fn_view_md5=315d75a83ba16fa9ff29796b4d6ed11e
+route_capacity_md5=ff14cc845d608335007cab9e8ef7d4af
+plant_master_md5=0119fce15435ea31597e733caae265aa
+ERROR:  column "p" does not exist
+LINE 1: ...||' state_md5='||md5((select string_agg((to_jsonb(p)-'create...
+                                                             ^
+== APPLY 2 (re-run)
+psql:/workspace/au4wt/docs/costing-pipeline-independent-audit/proposals/au9_seasonality_capacity/PREPARED_AU9_G1_G3_capacity_master.sql:44: NOTICE:  schema "pg_temp" does not exist, skipping
+psql:/workspace/au4wt/docs/costing-pipeline-independent-audit/proposals/au9_seasonality_capacity/PREPARED_AU9_G1_G3_capacity_master.sql:63: NOTICE:  relation "machine_applicability_class" already exists, skipping
+psql:/workspace/au4wt/docs/costing-pipeline-independent-audit/proposals/au9_seasonality_capacity/PREPARED_AU9_G1_G3_capacity_master.sql:82: NOTICE:  relation "machine_equipment_class" already exists, skipping
+psql:/workspace/au4wt/docs/costing-pipeline-independent-audit/proposals/au9_seasonality_capacity/PREPARED_AU9_G1_G3_capacity_master.sql:132: NOTICE:  relation "capacity_master_revision" already exists, skipping
+psql:/workspace/au4wt/docs/costing-pipeline-independent-audit/proposals/au9_seasonality_capacity/PREPARED_AU9_G1_G3_capacity_master.sql:173: NOTICE:  relation "plant_capacity_profile" already exists, skipping
+psql:/workspace/au4wt/docs/costing-pipeline-independent-audit/proposals/au9_seasonality_capacity/PREPARED_AU9_G1_G3_capacity_master.sql:199: NOTICE:  relation "capacity_fallback_policy" already exists, skipping
+applied2
+ERROR:  column "p" does not exist
+LINE 1: ...||' state_md5='||md5((select string_agg((to_jsonb(p)-'create...
+                                                             ^
+== AFTER 2
+replay_vd=2026-10-16 rows=898 mismatches_vs_run128=0 md5=8d8ec7abba89ce2fec7237bf481eefde
+run122_fp=045cbf4df32905805d5556a16a47a515 tables=1
+run128_fp=cb457e634200f95e0131a1ff1a65bfa1 tables=3
+existing_fn_view_md5=315d75a83ba16fa9ff29796b4d6ed11e
+route_capacity_md5=ff14cc845d608335007cab9e8ef7d4af
+plant_master_md5=0119fce15435ea31597e733caae265aa

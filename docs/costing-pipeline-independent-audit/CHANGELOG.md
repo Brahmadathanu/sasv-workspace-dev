@@ -1,6 +1,12 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 15:45: AU-9 G1–G3 finalised and tested locally (not applied)
+- User approvals at 15:36 recorded (P20–P23). PREPARED_AU9_G1_G3_capacity_master.sql: 5 tables, 1 view, triggers, 171 provisional profiles, 17 fallback rows, with prechecks and post-checks.
+- Local test on a copy of the live schema: run-128 load and cost replay identical; run 122/128 fingerprints unchanged; re-run idempotent; 16 guard tests pass. See G1_G3_LOCAL_TEST_REPORT.md.
+- DVS-1 recorded as a prepared policy version, not wired (not identical to run 128).
+- Found pre-existing run-122 fingerprint drift caused by the 18 Oct column addition; values unchanged.
+
 ## 2026-10-18 (afternoon): AU-9 seasonality and machinery capacity review (PREPARE-ONLY)
 - proposals/au9_seasonality_capacity/: architecture and migration proposal, prepared SQL (not applied), 101-SKU classification (8 master / 47 event / 35 recurring / 11 unexplained), DVS-1 policy simulation (median −0.09% vs run 128), 171-machine inventory and backfill CSV, user value list, capacity sensitivity (grinder capacity is the dominant lever).
 - No live writes, migrations, merges or Sheet edits. Runs 122 and 128 were read only.

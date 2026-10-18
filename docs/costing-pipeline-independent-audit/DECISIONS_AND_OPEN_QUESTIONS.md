@@ -1,6 +1,12 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 15:36 IST: AU-9 decisions (user)
+- **Approved:** DVS-1 evidence-based demand policy, with the 60% rule as a review flag only (P20); Kanji 878 demand-seasonal Jun–Aug on the 12-month average (P21); machine classes, i.e. stoves non-capacity, pumps utility, packing not costed for now (P22); current class defaults as the approved fallback until machine values arrive (P23); build G1–G3 with no cost change.
+- **Still open:** are water tanks 105–114, 156, 159, 161 used as fermenters? Are Khalvam sets 45–46 a tool or an asset? Both stay UNKNOWN and provisional in the backfill.
+- **Done 15:45 (prepare-only):** G1–G3 package finalised and tested locally (replay identical, run 122/128 fingerprints unchanged, re-runnable). DVS-1 recorded as a prepared policy version, NOT wired because it does not reproduce run 128 exactly. Not applied live; the live apply needs the user's go-ahead.
+- **Finding:** `fn_verify_run_fingerprint(122)` shows 1 drifted table (`sku_sales_allocation_basis_snapshot`). The cause is the nullable column added by 20261017235758. The values were verified unchanged (re-hash = captured md5). Backlog AU9-P07.
+
 ## Consolidated status (18 Oct 2026, 14:30), which supersedes the "OPEN" notes in older entries below
 **Closed:** September (run 122 APPROVED) and October (run 128 APPROVED; period and 16 Oct valuation LOCKED via option A).
 
