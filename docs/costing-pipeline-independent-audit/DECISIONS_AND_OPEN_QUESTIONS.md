@@ -8,3 +8,9 @@
 - Abhraka Bhasmam standard batch = 50 kg (user). Prepared batch_size_ref revision (no BOM change); see evidence/AU5/AU6_ABHRAKA_BATCH50_AND_HO_ADMIN_2026-10-18.md.
 - CF-1 monthly carry-forward + 6-month manual-rate review: policy draft POLICY_MONTHLY_CARRY_FORWARD_CF1.md; registered as AU8-P01 in docs/master-data-costing/PARKED_BACKLOG.md.
 - HO admin Rs 5L/month provision missing since Aug (period-specific table). Recurring proposal registered as AU8-P02. OPEN: possible overlap with the Central Office Charges head.
+
+### 2026-10-18 05:26 IST — AU-6 bundle approved and applied
+- Applied: default-volume v2 (20261017235758), Abhraka batch ref 554 = 50 kg + plan 0.33 kg/month, recurring HO admin Rs 5L/month (20261018000020). Rerun 126 SUCCESS. 59 qty-driver + 204 regional acceptances recorded. Run 122 fingerprint unchanged. See evidence/AU6/AU6_APPLY_AND_OCT_RUN126_2026-10-18.md.
+- CF-1 and the 6-month manual-rate review are approved for 1 Nov 2026. Design only; not activated.
+- OPEN: QC allocation is volume-divided, which inflates low-volume SKUs (Kvatha Choornams x2.4, Abhraka QC Rs 1,121/kg). Propose QC batch-true (AU-7).
+- OPEN: a new run is needed for the acceptances to clear the run-126 review flags (user to decide).

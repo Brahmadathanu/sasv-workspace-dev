@@ -1,5 +1,5 @@
-# Policy CF-1: Monthly carry-forward of costing acceptances + manual-rate review (DRAFT for approval)
-Status: DRAFT, prepared 2026-10-18. Owner: Dr. Brahmadathan U (final authority). Proposed effective: November 2026 period (first use after the October run is approved).
+# Policy CF-1: Monthly carry-forward of costing acceptances + manual-rate review
+Status: APPROVED by user 2026-10-18 05:26 IST for the 1 Nov 2026 period. DESIGN ONLY: not built or activated (no table, RPC or cron yet). Owner: Dr. Brahmadathan U (final authority).
 SQL design: `proposals/rate_quality_oct/PROPOSED_monthly_carry_forward_rule_CF1.sql`. UI: AU-8 (section 8).
 
 ## 1. Purpose
