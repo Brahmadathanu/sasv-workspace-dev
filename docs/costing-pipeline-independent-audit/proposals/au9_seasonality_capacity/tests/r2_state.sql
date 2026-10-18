@@ -1,0 +1,8 @@
+\pset format unaligned
+\pset tuples_only on
+select 'counts profiles='||(select count(*) from costing.plant_capacity_profile)||' open='||(select count(*) from costing.plant_capacity_profile where effective_to is null)||' voided='||(select count(*) from costing.plant_capacity_profile where effective_to=effective_from)||' eq='||(select count(*) from costing.machine_equipment_class)||' eq_active='||(select count(*) from costing.machine_equipment_class where active)||' journal='||(select count(*) from costing.capacity_master_revision)
+ ||' state_md5='||md5((select string_agg((to_jsonb(p)-'created_at')::text,'|' order by id) from costing.plant_capacity_profile p)||(select string_agg((to_jsonb(r)-'at')::text,'|' order by id) from costing.capacity_master_revision r));
+select 'readiness '||readiness||'='||count(*) from costing.v_plant_capacity_readiness group by readiness order by 1;
+select 'applicability '||applicability_class||'='||count(*) from costing.plant_capacity_profile where effective_to is null group by applicability_class order by 1;
+select 'revised '||p.equipment_class_code||' n='||count(*)||' rated='||string_agg(distinct coalesce(p.rated_capacity::text,'-'),',')||' eff='||string_agg(distinct coalesce(p.effective_capacity::text,'-'),',')||' '||string_agg(distinct readiness,',') from costing.v_plant_capacity_readiness v join costing.plant_capacity_profile p on p.id=v.profile_id where p.approval_reference='USER-CORRECTED-20261018-AU9-R2' group by p.equipment_class_code order by 1;
+select 'journal '||action||'='||count(*) from costing.capacity_master_revision group by action order by 1;

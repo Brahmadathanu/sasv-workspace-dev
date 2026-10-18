@@ -1,6 +1,11 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 18:19 IST: corrected capacities from the user (R2, prepared only)
+- R1 values were wrong. New values: grinders 4–34 20 kg; stone grinders first 10 kg (mapped to 41) and others 5 kg; khalvam 3.2 kg per set; Pills grinders 3 kg (81 assumed); wet grinder 174 2 kg; tanks full capacity; throughputs disintegrator 85 kg/3 h, pulveriser 10 kg/2 h, horizontal sifter 66 kg/7 h, round sifter 22 kg/20 h.
+- Standing rule: no time-based spreading (P28). Throughputs are recorded for planning only. Recommended T1: keep throughput steps on the 50 kg weight lot. T3 (kg per standard run) is a hidden time basis.
+- Prepared: R2 SQL tested locally (not applied); grinder rule v2 proposed (P26). The 16:29 rule needs re-approval with the corrected values.
+
 ## 2026-10-18 16:29 IST: R1 live apply and grinder rule approved
 - User: "apply the 50 capacity revisions live and approve the grinder rule (Grinding 8 kg, Kajjali 2 kg, rest default)".
 - R1 applied at 16:31 as 20261018110111; all before/after checks identical; readiness 34 ready-provisional / 0 unclassified / 114 needing values (evidence/AU9/AU9_R1_LIVE_APPLY_2026-10-18.md).
