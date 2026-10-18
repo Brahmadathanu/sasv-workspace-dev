@@ -1,6 +1,10 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 20:15: AU-9 R2 LIVE (20261018144534)
+- Approved 20:11. 77 corrected capacities applied unchanged. Run 122/128 fingerprints, function/view and load-factor hashes identical; cron 60/61 paused; readiness 74/74/3/20.
+- P26 (grinder rule v2 + T1) is APPROVED-NOT-BUILT and supersedes P24. P27 is live and supersedes P25.
+
 ## 2026-10-18 18:45: AU-9 R2 prepared (corrected capacities; not applied)
 - User 18:19 corrections plus Pills/wet/tank/throughput values. PREPARED_AU9_R2_capacity_corrections.sql (77 revisions) tested locally: replay/fingerprints identical, re-runnable; readiness would be 74/74/3/20.
 - Throughput treatment options compared; T1 recommended (no time basis). G4 rule v2 simulated: median −0.12%, 17 SKUs >5% dearer, negative margins 9. R2_CAPACITY_CORRECTIONS_AND_G4_RESIMULATION.md.

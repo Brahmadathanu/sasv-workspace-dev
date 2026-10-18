@@ -1,6 +1,18 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 20:11 IST: R2 approved and applied; G4 rule v2 and T1 approved
+- User: "apply R2 live, throughput machines on the 50 kg lot (T1), Kajjali on the 3.2 kg Khalvam, grinder rule v2".
+- R2 applied live at 20:15 (20261018144534). Fingerprints, hashes and load factors unchanged; readiness 74/74/3/20. Evidence: evidence/AU9/AU9_R2_LIVE_APPLY_2026-10-18.md.
+- Approved-not-built for G4 (P26), superseding the 16:29 rule (P24):
+  - Rasoushadhi "Grinding" and Grinder 26: 20 kg
+  - "Kajjali grinding": 3.2 kg khalvam
+  - "Pill grinding": 3 kg
+  - Wet grinder 174: 2 kg
+  - Pulverising, disintegrating and sieving: 50 kg lot (T1, no time element)
+  - Everything else: default
+- Assumptions, provisional and not objected to: stone grinder 41 is the "first" one (10 kg); Pills stone grinder 81 is 3 kg.
+
 ## 2026-10-18 18:19 IST: corrected capacities from the user (R2, prepared only)
 - R1 values were wrong. New values: grinders 4–34 20 kg; stone grinders first 10 kg (mapped to 41) and others 5 kg; khalvam 3.2 kg per set; Pills grinders 3 kg (81 assumed); wet grinder 174 2 kg; tanks full capacity; throughputs disintegrator 85 kg/3 h, pulveriser 10 kg/2 h, horizontal sifter 66 kg/7 h, round sifter 22 kg/20 h.
 - Standing rule: no time-based spreading (P28). Throughputs are recorded for planning only. Recommended T1: keep throughput steps on the 50 kg weight lot. T3 (kg per standard run) is a hidden time basis.
