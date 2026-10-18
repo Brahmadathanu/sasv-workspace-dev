@@ -1,6 +1,16 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 21:50: ChatGPT handover part 2 + read-only runs/cron/Sheets-feed findings
+- handover/CHATGPT_HANDOVER_2026-10-18_PART2.md (full) and _PART2_SHORT.md cover everything after 42d3f89: AU-9 decisions P20–P29, G1–G3, R1 → R2, G4 live with the switch OFF, the simulation, open approvals and Sheets guidance.
+- Read-only findings (21:45):
+  - Job 60 only queues a run for an OPEN/DRAFT current month; job 61 only advances queued runs.
+  - Runs are kept; the current-run pointer = APPROVED, else latest success.
+  - Locked months cannot be rerun.
+  - `v_cost_sheet_snapshot_sku_monthly_comparison` mixes runs (Oct: 475/648 SKUs differ from run 128).
+- Proposed approved-only feed `costing.v_price_revision_feed_approved`, tested read-only and **NOT built** (user: "not yet"). proposals/price_revision_feed/.
+- No database writes, no cron change, no Sheets.
+
 ## 2026-10-18 21:19: AU-9 G4 LIVE, switch OFF (20261018154911)
 - Approved 21:17. Package applied unchanged. Two refresh RPCs patched as reviewed; all other function/view hashes identical; run 122/128 fingerprints identical.
 - Run-128 recompute through the G4 path is identical (898/898). Switch empty; cron 60/61 paused; no cost change.

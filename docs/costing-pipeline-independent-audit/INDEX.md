@@ -14,6 +14,7 @@ Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independ
 
 ## Start here
 - **Handover for the independent auditor:** `handover/CHATGPT_HANDOVER_2026-10-18.md` (short: `_SHORT.md`)
+- **Handover part 2 (AU-9 capacity master, R2, G4 live switch OFF, runs/cron/Sheets-feed findings):** `handover/CHATGPT_HANDOVER_2026-10-18_PART2.md` (short: `_PART2_SHORT.md`)
 - **Policies and status:** `POLICY_REGISTER.md`
 - **Decisions (dated) and open questions:** `DECISIONS_AND_OPEN_QUESTIONS.md`
 - **Changelog:** `CHANGELOG.md`
@@ -34,6 +35,7 @@ Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independ
 | AU-6L equipment loads, combined v2, runs 127–128, October close | evidence/AU6L/ (applied SQL in evidence/AU6L/live/) |
 | Monthly carry-forward policy | POLICY_MONTHLY_CARRY_FORWARD_CF1.md |
 | AU-9 seasonality (DVS-1) + machine capacity profiles (PREPARED, not applied) | proposals/au9_seasonality_capacity/ (start: AU9_ARCHITECTURE_AND_MIGRATION_PROPOSAL.md; G1–G3 package PREPARED_AU9_G1_G3_capacity_master.sql + G1_G3_LOCAL_TEST_REPORT.md; live evidence evidence/AU9/; R1 revisions + G4 simulation R1_CAPACITY_REVISIONS_AND_G4_SIMULATION.md; R2 corrections R2_CAPACITY_CORRECTIONS_AND_G4_RESIMULATION.md; R2 live evidence evidence/AU9/AU9_R2_LIVE_APPLY_2026-10-18.md; G4 build + local test G4_PLANT_AWARE_LOADS_BUILD_AND_LOCAL_TEST.md, package PREPARED_AU9_G4_plant_aware_loads.sql; G4 live install (switch OFF) evidence/AU9/AU9_G4_LIVE_INSTALL_SWITCH_OFF_2026-10-18.md) |
+| Cron 60/61, run supersession, current-run pointer, Sheets feed gap (read-only findings) + proposed approved-only view (NOT built) | proposals/price_revision_feed/ (RUNS_CRON_AND_SHEETS_FEED_FINDINGS_2026-10-18.md, PROPOSED_v_price_revision_feed_approved.sql) |
 
 ## Standing rules for executors
 No `supabase db push` / migration repair. Apply only through Supabase MCP `apply_migration` with user approval. Prepared packages stay outside `supabase/migrations`. No merges, tags or releases. No Sheet edits (ChatGPT owns Sheets). Never modify the APPROVED runs 122 and 128. Cron 60 stays paused; job 61 is opened only for an approved window.
