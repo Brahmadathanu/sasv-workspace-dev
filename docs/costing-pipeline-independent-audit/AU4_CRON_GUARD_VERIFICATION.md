@@ -1,0 +1,6 @@
+# Cron / guard verification — 2026-10-16 (read-only)
+- Job 60 costing_refresh_request_daily_0200_IST: runs daily, succeeds, but returns **CURRENT_PERIOD_NOT_GOVERNED**: no cost_periods row for 2026-10. No run since 119. Corrected engine therefore not yet exercised by cron.
+- Job 61 stage processor every 5 min: active; processes only queued runs; cannot write designated (REFERENCE/APPROVED) runs (immutability triggers).
+- Separation: (1) request+calc = jobs 60/61; (2) verification = acceptance harness (read-only); (3) approval = explicit costing_run_designation APPROVED by user; (4) close = cost_periods lock/close. APPROVED never replaced: current-run view ranks APPROVED first; trg_au2_designated_run_header blocks new runs without a consumable authorization.
+- Gap: once a period holds APPROVED, nightly request would RAISE AU2_PERIOD_HOLDS_APPROVED_RUN (safe, noisy cron failure; also trips the "prior failed cron" block). Draft fix (NOT applied): in rpc_request_daily_costing_refresh_internal, pre-check designation APPROVED for the period and return status PERIOD_HOLDS_APPROVED_RUN gracefully.
+- Decision needed: create cost_periods 2026-10 (OPEN, valuation DRAFT) so daily cron produces October LATEST_SUCCESS runs (live write).
