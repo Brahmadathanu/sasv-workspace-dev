@@ -1,6 +1,15 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 21:17 IST: G4 installed live with the switch OFF
+- User: "install G4 live with the switch OFF". Applied unchanged at 21:19 (20261018154911).
+- Only the two refresh RPCs changed, as reviewed. All other functions and views are identical, and run 122/128 fingerprints are identical.
+- Run-128 load factors recomputed through the patched path are identical (898/898). Switch is empty (OFF); cron 60/61 paused.
+- Evidence: evidence/AU9/AU9_G4_LIVE_INSTALL_SWITCH_OFF_2026-10-18.md.
+- Pending user approval when November inputs are ready:
+  1. Switch ON from 1 Nov 2026. It applies by valuation date, so it also covers the designated November run unless voided.
+  2. A job-61 window for a trial non-designated November run.
+
 ## 2026-10-18 20:46 IST: G4 built and tested locally (not installed)
 - User: "build G4 and test it locally" (local only).
 - Built `PREPARED_AU9_G4_plant_aware_loads.sql`: switch (installed OFF, cannot start before 1 Nov 2026), 9 step rules (P26 + T1), resolver with resolution order P29, per-step provenance, and a guarded patch of the two refresh RPCs.

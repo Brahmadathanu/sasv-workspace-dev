@@ -1,6 +1,10 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 21:19: AU-9 G4 LIVE, switch OFF (20261018154911)
+- Approved 21:17. Package applied unchanged. Two refresh RPCs patched as reviewed; all other function/view hashes identical; run 122/128 fingerprints identical.
+- Run-128 recompute through the G4 path is identical (898/898). Switch empty; cron 60/61 paused; no cost change.
+
 ## 2026-10-18 21:05: AU-9 G4 built and tested locally (not installed)
 - PREPARED_AU9_G4_plant_aware_loads.sql (md5 97a210fa…): plant-aware loads (P26 + T1, order P29), switch OFF by default, per-step provenance, guarded RPC patch.
 - Local results:
