@@ -31,3 +31,7 @@
 - OPEN: SKU 878 sales feed (1,384 units/12 months) vs 59,286 packs dispatched in 2026. Ask the user about the sales unit, mapping or stock.
 - Pending: user approval to apply the package (single migration via apply_migration), then the October rerun.
 
+
+### 2026-10-18 09:06 IST: User rejects power-exponent scaling (AU-6A)
+- Replacement: equipment-loads method (AU-6L), simulated read-only; awaits the user's capacity list. AU-6Q and kit/Kanji are unchanged.
+- Kanji flag resolved: costing sales feed IQR filter drops seasonal months; actual about 58.8k packs in 12 months (sales viewer 53,256 billed). OPEN: seasonal driver max month vs 12-month average.
