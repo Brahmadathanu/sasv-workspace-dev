@@ -18,3 +18,10 @@
 ### 2026-10-18 06:09 IST — AU-6Q QC per-batch: built and tested, NOT applied
 - Prepared file proposals/au6q_qc_batch_true/PREPARED_au6q_qc_batch_true.sql. Local tests all pass. The run-126 replay is fully absorbed; negative-margin SKUs 37 -> 24.
 - OPEN: Kvatha Choornam batch_size_ref 2 kg (products 468, 1340); SKU 865 kit conversion (275 Nos per pack?).
+
+### 2026-10-18 08:14 IST: AU-6S RCA (read-only); open decisions
+- Small batches: step factors are per batch regardless of mass, which is the root cause. Open: approve batch-size scaling Option B (small-batch only, recommended) or A (symmetric), so the writer hook can be built. QC stays per batch.
+- Kit 865: the governed exception (1 Nos) is not used by the run writers (k = 275, so 61.9 instead of 0.225 batch equivalents/month, ~8% of POH/DL). Open: approve K1+K4 (kit only, effective 2026-10-01). K2 BOM clean-up is optional.
+- Kanji 878: open question. Is the batch 50,000 g (100 packs)? This must be confirmed before 878 is activated.
+- The kit fix and the scaling fix both raise everyone else's rates (~+9% each); simulate them combined before approval. Run 122 is not touched.
+
