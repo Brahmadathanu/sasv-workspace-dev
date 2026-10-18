@@ -40,3 +40,7 @@
 - Sales feed for costing only: company-wide net, negatives to 0, no per-godown filter. Seasonal SKUs are sized on the 12-month AVERAGE (user decision). All from 1 Oct, each with its own switch; Sep run 122 unchanged.
 - Built and replayed locally (evidence/AU6L/AU6L_COMBINED_V2_BUILD_AND_REPLAY_2026-10-18.md). NOT applied. Open: apply approval, seasonal threshold (0.60 used), capacity confirmation.
 - Kanji flag resolved: costing sales feed IQR filter drops seasonal months; actual about 58.8k packs in 12 months (sales viewer 53,256 billed). OPEN: seasonal driver max month vs 12-month average.
+
+### 2026-10-18 10:13 IST: User approves live install of combined v2, Kvatha 468/1340 inactivation and October rerun
+- Applied as migration 20261018044644. Products 468/1340 and SKUs 1769/1770 are inactive (USER-DECISION-20261018-KVATHA-INACTIVATE). Run 127 SUCCESS, not approved. Run 122 unchanged.
+- Open: the 204 regional-marketing acceptances no longer match after SALES-01 (fingerprint includes units); re-accept against run 127? There are also 3 qty-driver defaults (251, 1149, 1771).

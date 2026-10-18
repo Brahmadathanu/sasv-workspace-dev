@@ -1,0 +1,58 @@
+15c15
+< -- Replace USER-APPROVAL-...-<DATE> placeholders at approval time. Rollback: end of file.
+---
+> -- Approval placeholders filled: USER-APPROVAL-20261018-AU6-V2 (user dff17104-c02a-4bca-95b1-e8ddff46a9b6, approved 2026-10-18 10:13 IST). Rollback: end of file.
+55c55
+< values (true,true,date '2026-10-01','USER-APPROVAL-AU6Q-QC-BATCH-TRUE-<DATE>','dff17104-c02a-4bca-95b1-e8ddff46a9b6','AU-6Q QC per-batch allocation from Oct 2026')
+---
+> values (true,true,date '2026-10-01','USER-APPROVAL-20261018-AU6-V2','dff17104-c02a-4bca-95b1-e8ddff46a9b6','AU-6Q QC per-batch allocation from Oct 2026')
+516,531c516,531
+<  ('GRINDER_PULVERISER','Grinder / pulveriser / disintegrator','GRINDER','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18 (no capacity in machine master)','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('SIEVE','Sieve / vibro-sifter (steps carry resource class GRINDER)','GRINDER','WEIGHT','SOLID',50,null,false,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('TRAY_DRYER','Electric tray dryer','DRYER_OR_OVEN','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18 (24 trays x ~2 kg)','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('FIREWOOD_DRYER','Firewood dryer (steps carry resource class DRYER_OR_OVEN)','DRYER_OR_OVEN','WEIGHT','SOLID',50,null,false,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('MANUAL_LOT','Manual cleaning / washing / handling lot','MANUAL','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('TABLET_CAPSULE_PILL','Granulator / tablet press / capsule filler / pill machine','TABLET_OR_CAPSULE_EQUIPMENT','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('PLANETARY_MIXER','Planetary mixer','MIXING_EQUIPMENT','WEIGHT','SOLID',200,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('PUTA','Puta (calcination) charge','CALCINATION','WEIGHT','SOLID',25,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('TRADITIONAL_FURNACE','Traditional furnace / stove charge (puta value applied)','TRADITIONAL_FURNACE','WEIGHT','SOLID',25,null,true,true,'PROVISIONAL: puta value applied (user list has no separate furnace value)','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('PROCESSING_VESSEL','SS processing vessel','PROCESSING_VESSEL','WEIGHT','OUTPUT',220,500,true,true,'Evidence: daily_work_log P90 single-vessel batch 220 kg / 500 L; user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('FILTRATION','Filtration (follows processing vessel)','FILTRATION_SYSTEM','WEIGHT','OUTPUT',220,500,true,true,'PROVISIONAL: vessel value applied (filtration follows the vessel charge)','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('COOKER','SS cooker / extraction (juice press shares the class)','EXTRACTION_SYSTEM','WEIGHT','OUTPUT',370,500,true,true,'Evidence: daily_work_log P90 single-cooker batch 370 kg / 500 L; user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('FERMENTATION_TANK','Fermentation tank','FERMENTATION_VESSEL','WEIGHT','OUTPUT',null,3000,true,true,'Evidence: plant names (1500 / 3000 L tanks); user value 2026-10-18','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('GENERAL_AREA','General area (fixed)','GENERAL_AREA','FIXED',null,null,null,true,false,'Fixed: 1 per batch','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('STORAGE','Storage / holding (fixed)','STORAGE_OCCUPANCY','FIXED',null,null,null,true,false,'Fixed: 1 per batch','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01'),
+<  ('EXTERNAL_JOB_WORK','External job work (fixed)','EXTERNAL_JOB_WORK','FIXED',null,null,null,true,false,'Fixed: 1 per batch','USER-APPROVAL-AU6L-CAPACITY-<DATE>','2026-10-01')
+---
+>  ('GRINDER_PULVERISER','Grinder / pulveriser / disintegrator','GRINDER','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18 (no capacity in machine master)','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('SIEVE','Sieve / vibro-sifter (steps carry resource class GRINDER)','GRINDER','WEIGHT','SOLID',50,null,false,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('TRAY_DRYER','Electric tray dryer','DRYER_OR_OVEN','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18 (24 trays x ~2 kg)','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('FIREWOOD_DRYER','Firewood dryer (steps carry resource class DRYER_OR_OVEN)','DRYER_OR_OVEN','WEIGHT','SOLID',50,null,false,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('MANUAL_LOT','Manual cleaning / washing / handling lot','MANUAL','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('TABLET_CAPSULE_PILL','Granulator / tablet press / capsule filler / pill machine','TABLET_OR_CAPSULE_EQUIPMENT','WEIGHT','SOLID',50,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('PLANETARY_MIXER','Planetary mixer','MIXING_EQUIPMENT','WEIGHT','SOLID',200,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('PUTA','Puta (calcination) charge','CALCINATION','WEIGHT','SOLID',25,null,true,true,'PROVISIONAL user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('TRADITIONAL_FURNACE','Traditional furnace / stove charge (puta value applied)','TRADITIONAL_FURNACE','WEIGHT','SOLID',25,null,true,true,'PROVISIONAL: puta value applied (user list has no separate furnace value)','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('PROCESSING_VESSEL','SS processing vessel','PROCESSING_VESSEL','WEIGHT','OUTPUT',220,500,true,true,'Evidence: daily_work_log P90 single-vessel batch 220 kg / 500 L; user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('FILTRATION','Filtration (follows processing vessel)','FILTRATION_SYSTEM','WEIGHT','OUTPUT',220,500,true,true,'PROVISIONAL: vessel value applied (filtration follows the vessel charge)','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('COOKER','SS cooker / extraction (juice press shares the class)','EXTRACTION_SYSTEM','WEIGHT','OUTPUT',370,500,true,true,'Evidence: daily_work_log P90 single-cooker batch 370 kg / 500 L; user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('FERMENTATION_TANK','Fermentation tank','FERMENTATION_VESSEL','WEIGHT','OUTPUT',null,3000,true,true,'Evidence: plant names (1500 / 3000 L tanks); user value 2026-10-18','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('GENERAL_AREA','General area (fixed)','GENERAL_AREA','FIXED',null,null,null,true,false,'Fixed: 1 per batch','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('STORAGE','Storage / holding (fixed)','STORAGE_OCCUPANCY','FIXED',null,null,null,true,false,'Fixed: 1 per batch','USER-APPROVAL-20261018-AU6-V2','2026-10-01'),
+>  ('EXTERNAL_JOB_WORK','External job work (fixed)','EXTERNAL_JOB_WORK','FIXED',null,null,null,true,false,'Fixed: 1 per batch','USER-APPROVAL-20261018-AU6-V2','2026-10-01')
+544,545c544,545
+<  (685,0.275,'2026-10-01','Kashaya Vasthi Kit: 1 kit = 275 g (K1); BOM 2627 is per gram','USER-APPROVAL-AU6L-ROUTE-LOADS-<DATE>'),
+<  (695,0.500,'2026-10-01','Karkkidaka Kanji: 1 kit = 500 g (K1); BOM 2686 is per gram','USER-APPROVAL-AU6L-ROUTE-LOADS-<DATE>')
+---
+>  (685,0.275,'2026-10-01','Kashaya Vasthi Kit: 1 kit = 275 g (K1); BOM 2627 is per gram','USER-APPROVAL-20261018-AU6-V2'),
+>  (695,0.500,'2026-10-01','Karkkidaka Kanji: 1 kit = 500 g (K1); BOM 2686 is per gram','USER-APPROVAL-20261018-AU6-V2')
+1466c1466
+< values (true,true,date '2026-10-01','USER-APPROVAL-AU6L-ROUTE-LOADS-<DATE>','dff17104-c02a-4bca-95b1-e8ddff46a9b6','AU-6L equipment-loads route workload from Oct 2026')
+---
+> values (true,true,date '2026-10-01','USER-APPROVAL-20261018-AU6-V2','dff17104-c02a-4bca-95b1-e8ddff46a9b6','AU-6L equipment-loads route workload from Oct 2026')
+1472a1473
+>                 and r.code <> 'PACKING_MACHINE'  -- live 2026-10-18: 4 family packing steps (section 6), 0 rows in run-126 DL/POH step snapshots; writers still fail closed if one appears
+2633c2634
+< values (true,true,date '2026-10-01',0.60,'USER-APPROVAL-SALES01-COSTING-FEED-<DATE>','dff17104-c02a-4bca-95b1-e8ddff46a9b6','SALES-01 costing-only sales feed + seasonal 12-month average from Oct 2026')
+---
+> values (true,true,date '2026-10-01',0.60,'USER-APPROVAL-20261018-AU6-V2','dff17104-c02a-4bca-95b1-e8ddff46a9b6','SALES-01 costing-only sales feed + seasonal 12-month average from Oct 2026')
