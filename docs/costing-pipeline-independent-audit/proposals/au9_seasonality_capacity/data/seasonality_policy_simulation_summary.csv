@@ -1,0 +1,6 @@
+policy,skus_changed,units_total,rate_x_dl,rate_x_poh,rate_x_qc,cost_x,median_cop_change_pct,max_cop_change_pct,neg_margin,new_neg,cleared_neg
+P0_run128,0,251327.2,1.0,1.0,1.0,1.0,0.0,0.0,9,,
+P1_master_flag_only,115,276643.2,1.232,1.3794,1.0697,0.8117,-3.58,-20.3,8,,1552
+P2_max_month_all,101,281328.1,1.2522,1.4003,1.0887,0.7986,-3.84,-21.37,8,,1552
+P3_DVS1_evidence,68,252151.9,1.0035,1.0036,1.0128,0.9965,-0.09,-0.63,9,,
+P4_master_or_recurring_avg,58,254158.4,1.0116,1.0118,1.0514,0.9886,-0.29,-2.36,8,,1552
