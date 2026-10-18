@@ -15,6 +15,8 @@ Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independ
 ## Start here
 - **Handover for the independent auditor:** `handover/CHATGPT_HANDOVER_2026-10-18.md` (short: `_SHORT.md`)
 - **Handover part 2 (AU-9 capacity master, R2, G4 live switch OFF, runs/cron/Sheets-feed findings):** `handover/CHATGPT_HANDOVER_2026-10-18_PART2.md` (short: `_PART2_SHORT.md`)
+- **Repository:** `Brahmadathanu/sasv-workspace-dev` (public), branch `costing/au4-normal-budget` (PR #72, open, not merged). Raw files: `https://raw.githubusercontent.com/Brahmadathanu/sasv-workspace-dev/costing/au4-normal-budget/docs/costing-pipeline-independent-audit/<path>` (verified 18 Oct 22:30 IST for both part-2 handover files at commit 8ec5bee)
+- **Consolidation plan (current priority):** `proposals/consolidation/CLIENT_GOVERNED_WORKFLOW_PLAN.md`: client-governed period/run workflow gap table and work packages W1–W5 (plan only)
 - **Policies and status:** `POLICY_REGISTER.md`
 - **Decisions (dated) and open questions:** `DECISIONS_AND_OPEN_QUESTIONS.md`
 - **Changelog:** `CHANGELOG.md`

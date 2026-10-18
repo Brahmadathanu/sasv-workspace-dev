@@ -1,6 +1,20 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 22:40: Consolidation plan (auditor reorientation; plan only)
+- Verified via the GitHub API that commit 8ec5bee and both part-2 handover files are on remote `costing/au4-normal-budget`; raw URLs return 200. Repo URLs added to INDEX.
+- proposals/consolidation/CLIENT_GOVERNED_WORKFLOW_PLAN.md:
+  - Read-only inventory of 14 workflow steps (E/P/M).
+  - Work packages: W1 approved-only selector/feed + badges, W5 fingerprint fix, W2 governed lifecycle RPCs + client buttons, W3 job 61 then job 60, W4 explainability.
+  - Deferred: G4 switch-on, G5.
+- Findings:
+  - No lock or reopen RPC.
+  - Designation and close are service_role only, with no client.
+  - No RPC records a supersession authorisation.
+  - The client Cost-comparison lens uses the run-mixing view.
+  - September close is blocked by run-122 false fingerprint drift.
+- Nothing built; no database writes.
+
 ## 2026-10-18 21:50: ChatGPT handover part 2 + read-only runs/cron/Sheets-feed findings
 - handover/CHATGPT_HANDOVER_2026-10-18_PART2.md (full) and _PART2_SHORT.md cover everything after 42d3f89: AU-9 decisions P20–P29, G1–G3, R1 → R2, G4 live with the switch OFF, the simulation, open approvals and Sheets guidance.
 - Read-only findings (21:45):
