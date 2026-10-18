@@ -1,0 +1,17 @@
+DL grinder steps without POH match: 0
+baseline mismatches 0 of 898
+factor rows 898 engine vs R2-A simulation factor differences: 0 []
+
+ R2-A simulation {"median_pct": -0.12, "dearer5": 17, "cheaper5": 0, "neg_margin": 9, "new_neg": [], "cleared": [], "max_abs_change_rs": 509.29}
+ top: [(658, 'Manasamithra Vatakam', '50 Nos', 46.93, 61.52, 31.08), (1266, 'Vatharakshasan Gulikai', '50 Nos', 21.62, 27.67, 27.98), (638, 'Gopichandanadi Gulika', '100 Nos', 66.19, 80.26, 21.26), (645, 'Sudarsanam Gulika', '50 Nos', 34.36, 41.06, 19.49), (1157, 'Sivanar Amritham', '10 g', 41.84, 48.58, 16.11), (637, 'Dhanwantharam Gulika', '100 Nos', 20.61, 23.63, 14.64)]
+ watch: {658: ('Manasamithra Vatakam', 46.93, 61.52, 31.08), 1266: ('Vatharakshasan Gulikai', 21.62, 27.67, 27.98), 1157: ('Sivanar Amritham', 41.84, 48.58, 16.11), 1792: ('Abhraka Bhasmam', 5532.41, 6041.7, 9.21), 937: ('Abhraka Chendooram', 34.69, 37.24, 7.34), 878: ('Karkkidaka Kanji', 95.65, 95.36, -0.3), 865: ('Kashaya Vasthi Kit', 57.2, 57.14, -0.1)}
+
+ G4 engine ON (run 9001) {"median_pct": -0.12, "dearer5": 17, "cheaper5": 0, "neg_margin": 9, "new_neg": [], "cleared": [], "max_abs_change_rs": 509.29}
+ top: [(658, 'Manasamithra Vatakam', '50 Nos', 46.93, 61.52, 31.08), (1266, 'Vatharakshasan Gulikai', '50 Nos', 21.62, 27.67, 27.98), (638, 'Gopichandanadi Gulika', '100 Nos', 66.19, 80.26, 21.26), (645, 'Sudarsanam Gulika', '50 Nos', 34.36, 41.06, 19.49), (1157, 'Sivanar Amritham', '10 g', 41.84, 48.58, 16.11), (637, 'Dhanwantharam Gulika', '100 Nos', 20.61, 23.63, 14.64)]
+ watch: {658: ('Manasamithra Vatakam', 46.93, 61.52, 31.08), 1266: ('Vatharakshasan Gulikai', 21.62, 27.67, 27.98), 1157: ('Sivanar Amritham', 41.84, 48.58, 16.11), 1792: ('Abhraka Bhasmam', 5532.41, 6041.7, 9.21), 937: ('Abhraka Chendooram', 34.69, 37.24, 7.34), 878: ('Karkkidaka Kanji', 95.65, 95.36, -0.3), 865: ('Kashaya Vasthi Kit', 57.2, 57.14, -0.1)}
+
+ G4 engine OFF {"median_pct": 0.0, "dearer5": 0, "cheaper5": 0, "neg_margin": 9, "new_neg": [], "cleared": [], "max_abs_change_rs": 0.0}
+ top: [(1798, 'Mahamanjishtadi Kashaya Choornam', '100 g', 71.61, 71.61, 0.0), (1797, 'Special Medicine 2', '5 g', 22.34, 22.34, 0.0), (1792, 'Abhraka Bhasmam', '1000 g', 5532.41, 5532.41, 0.0), (1788, 'Balamooladi Choornam', '100 g', 29.79, 29.79, 0.0), (1787, 'Jeevaneeya Choornam', '100 g', 38.99, 38.99, 0.0), (1783, 'Arkkadi Thailam', '450 mL', 430.81, 430.81, 0.0)]
+ watch: {658: ('Manasamithra Vatakam', 46.93, 46.93, 0.0), 1266: ('Vatharakshasan Gulikai', 21.62, 21.62, 0.0), 1157: ('Sivanar Amritham', 41.84, 41.84, 0.0), 1792: ('Abhraka Bhasmam', 5532.41, 5532.41, 0.0), 937: ('Abhraka Chendooram', 34.69, 34.69, 0.0), 878: ('Karkkidaka Kanji', 95.65, 95.65, 0.0), 865: ('Kashaya Vasthi Kit', 57.2, 57.2, 0.0)}
+
+SKU COP differences engine vs simulation (> Rs 0.005): 0

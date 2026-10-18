@@ -1,6 +1,18 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 20:46 IST: G4 built and tested locally (not installed)
+- User: "build G4 and test it locally" (local only).
+- Built `PREPARED_AU9_G4_plant_aware_loads.sql`: switch (installed OFF, cannot start before 1 Nov 2026), 9 step rules (P26 + T1), resolver with resolution order P29, per-step provenance, and a guarded patch of the two refresh RPCs.
+- Local tests passed:
+  - OFF: run 128 identical, ₹0 change.
+  - ON (simulated November run): identical to the R2 re-simulation (median −0.12%, 17 SKUs >5% dearer, 9 negative margins).
+  - Pools absorbed exactly; October protected; idempotent; provenance 100%; error paths fail closed.
+- Open, for the user:
+  1. Install G4 live (switch stays OFF).
+  2. Turn the switch ON from 1 Nov for a trial non-designated November run. The switch applies by valuation date, so it would also cover the designated November run unless voided.
+  3. A job-61 window for the trial.
+
 ## 2026-10-18 20:11 IST: R2 approved and applied; G4 rule v2 and T1 approved
 - User: "apply R2 live, throughput machines on the 50 kg lot (T1), Kajjali on the 3.2 kg Khalvam, grinder rule v2".
 - R2 applied live at 20:15 (20261018144534). Fingerprints, hashes and load factors unchanged; readiness 74/74/3/20. Evidence: evidence/AU9/AU9_R2_LIVE_APPLY_2026-10-18.md.

@@ -1,6 +1,14 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 21:05: AU-9 G4 built and tested locally (not installed)
+- PREPARED_AU9_G4_plant_aware_loads.sql (md5 97a210fa…): plant-aware loads (P26 + T1, order P29), switch OFF by default, per-step provenance, guarded RPC patch.
+- Local results:
+  - OFF: 898/898 identical, ₹0 change.
+  - ON (run 9001): matches the R2 simulation exactly.
+  - Pools absorbed exactly; Oct/Sep protected; idempotent; provenance 11,539/11,539; 7 error paths fail closed.
+- Live dry-check of the prechecks passes. G4_PLANT_AWARE_LOADS_BUILD_AND_LOCAL_TEST.md.
+
 ## 2026-10-18 20:15: AU-9 R2 LIVE (20261018144534)
 - Approved 20:11. 77 corrected capacities applied unchanged. Run 122/128 fingerprints, function/view and load-factor hashes identical; cron 60/61 paused; readiness 74/74/3/20.
 - P26 (grinder rule v2 + T1) is APPROVED-NOT-BUILT and supersedes P24. P27 is live and supersedes P25.
