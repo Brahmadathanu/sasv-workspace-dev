@@ -1,0 +1,24 @@
+begin;
+select set_config('request.jwt.claims', json_build_object('sub','dff17104-c02a-4bca-95b1-e8ddff46a9b6','role','authenticated')::text, true);
+create temp table t_safe(sku_id bigint, region_code text) on commit drop;
+insert into t_safe values (42,'OK'),(45,'IK'),(45,'OK'),(51,'OK'),(135,'IK'),(135,'OK'),(151,'IK'),(151,'OK'),(158,'IK'),(158,'OK'),(159,'IK'),(159,'OK'),(160,'IK'),(160,'OK'),(165,'IK'),(165,'OK'),(166,'OK'),(167,'IK'),(167,'OK'),(168,'IK'),(168,'OK'),(187,'IK'),(187,'OK'),(193,'IK'),(193,'OK'),(200,'OK'),(204,'OK'),(207,'IK'),(207,'OK'),(229,'IK'),(229,'OK'),(241,'IK'),(241,'OK'),(251,'IK'),(251,'OK'),(276,'IK'),(276,'OK'),(299,'OK'),(357,'IK'),(357,'OK'),(358,'IK'),(358,'OK'),(362,'OK'),(364,'IK'),(364,'OK'),(431,'OK'),(459,'IK'),(459,'OK'),(465,'IK'),(465,'OK'),(467,'OK'),(491,'IK'),(491,'OK'),(492,'OK'),(496,'IK'),(496,'OK'),(503,'IK'),(503,'OK'),(504,'IK'),(504,'OK'),(505,'IK'),(505,'OK'),(528,'IK'),(528,'OK'),(547,'IK'),(547,'OK'),(559,'IK'),(559,'OK'),(565,'IK'),(565,'OK'),(571,'IK'),(571,'OK'),(577,'OK'),(774,'IK'),(774,'OK'),(777,'IK'),(777,'OK'),(867,'OK'),(869,'OK'),(879,'IK'),(879,'OK'),(906,'IK'),(906,'OK'),(911,'IK'),(911,'OK'),(913,'IK'),(913,'OK'),(915,'IK'),(915,'OK'),(975,'IK'),(975,'OK'),(991,'OK'),(995,'OK'),(996,'IK'),(1002,'OK'),(1011,'OK'),(1012,'IK'),(1015,'IK'),(1015,'OK'),(1018,'OK'),(1019,'IK'),(1022,'OK'),(1028,'OK'),(1029,'IK'),(1032,'OK'),(1033,'IK'),(1035,'OK'),(1038,'OK'),(1041,'OK'),(1042,'IK'),(1045,'OK'),(1046,'IK'),(1056,'OK'),(1065,'OK'),(1069,'OK'),(1124,'OK'),(1141,'IK'),(1145,'IK'),(1145,'OK'),(1149,'IK'),(1149,'OK'),(1174,'IK'),(1174,'OK'),(1201,'IK'),(1201,'OK'),(1219,'IK'),(1219,'OK'),(1229,'IK'),(1229,'OK'),(1243,'IK'),(1243,'OK'),(1249,'IK'),(1249,'OK'),(1252,'OK'),(1318,'IK'),(1318,'OK'),(1351,'IK'),(1351,'OK'),(1365,'IK'),(1365,'OK'),(1552,'IK'),(1552,'OK'),(1759,'IK'),(1759,'OK'),(1771,'OK'),(1772,'OK'),(1783,'IK'),(1787,'IK'),(1787,'OK'),(1788,'IK'),(1788,'OK'),(1792,'IK'),(1792,'OK'),(1798,'IK'),(1798,'OK');
+create temp table t_out(kind text, sku_id bigint, region_code text, acc_id bigint, eff text) on commit drop;
+grant select on t_safe to authenticated; grant insert, select on t_out to authenticated;
+do $g$ declare n int; begin
+  if (select count(*) from t_safe)<>155 or (select count(distinct (sku_id,region_code)) from t_safe)<>155 then raise exception 'guard: list is not 155 distinct rows'; end if;
+  select count(*) into n from costing.v_regional_marketing_evidence_review_queue q join t_safe s on s.sku_id=q.sku_id and s.region_code=q.region_code where q.refresh_run_id=127 and q.is_acceptance_eligible;
+  if n<>155 then raise exception 'guard: % of 155 regional rows eligible in run 127', n; end if;
+  select count(*) into n from costing.sku_sales_allocation_basis_snapshot where refresh_run_id=127 and sku_id in (251,1149) and monthly_driver_status='REVIEW_REQUIRED' and default_policy_id=7;
+  if n<>2 then raise exception 'guard: qty defaults not both review/policy 7 (%)', n; end if;
+end $g$;
+set local role authenticated;
+insert into t_out select 'REGIONAL', r.sku_id, r.region_code, r.acceptance_id, r.effective_status from t_safe s cross join lateral costing.rpc_accept_regional_marketing_review(127, s.sku_id, s.region_code, 'User approved safe re-accept vs run 127 (USER-APPROVAL-20261018-RUN127-SAFE-REACCEPT)', 'USER-APPROVAL-20261018-RUN127-SAFE-REACCEPT: class (a) immaterial vs run-126 acceptance; evidence/AU6L/live/regional_acceptance_vs_run127.csv') r;
+insert into t_out select 'QTY', q.sku_id, null, q.acceptance_id, q.action_result from unnest(array[251,1149]::bigint[]) k(sku) cross join lateral costing.rpc_accept_sales_allocation_quantity_driver_review(127, k.sku, 'User approved safe re-accept vs run 127 (USER-APPROVAL-20261018-RUN127-SAFE-REACCEPT)', 'USER-APPROVAL-20261018-RUN127-SAFE-REACCEPT: immaterial default change vs run-126 acceptance') q;
+reset role;
+do $g$ begin
+  if (select count(*) from t_out where kind='REGIONAL')<>155 or (select count(distinct acc_id) from t_out where kind='REGIONAL')<>155 then raise exception 'guard: regional accept count'; end if;
+  if (select count(*) from t_out where kind='QTY')<>2 then raise exception 'guard: qty accept count'; end if;
+  if exists (select 1 from t_out where sku_id in (1769,1770) or (sku_id=1771 and kind='QTY')) then raise exception 'guard: excluded SKU accepted'; end if;
+end $g$;
+select json_build_object('regional',(select count(*) from t_out where kind='REGIONAL'),'qty',(select json_agg(json_build_object('sku',sku_id,'id',acc_id,'r',eff)) from t_out where kind='QTY'),'reg_ids',(select min(acc_id)||'-'||max(acc_id) from t_out where kind='REGIONAL'),'reg_eff',(select json_object_agg(eff,c) from (select eff,count(*) c from t_out where kind='REGIONAL' group by 1) x));
+commit;
