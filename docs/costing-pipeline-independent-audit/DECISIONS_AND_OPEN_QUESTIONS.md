@@ -34,4 +34,9 @@
 
 ### 2026-10-18 09:06 IST: User rejects power-exponent scaling (AU-6A)
 - Replacement: equipment-loads method (AU-6L), simulated read-only; awaits the user's capacity list. AU-6Q and kit/Kanji are unchanged.
+
+### 2026-10-18 09:22 IST: User approves LOCAL build of combined v2 (AU-6Q + K1/K4 + AU-6L loads + SALES-01)
+- Provisional capacities: grinder/sieve/tray dryer/firewood dryer/manual lot/tablet-capsule-pill 50 kg; planetary mixer 200 kg; puta 25 kg; vessel 220 kg/500 L; cooker 370 kg/500 L; fermentation tank 3,000 L. Kept in an editable, effective-dated config table.
+- Sales feed for costing only: company-wide net, negatives to 0, no per-godown filter. Seasonal SKUs are sized on the 12-month AVERAGE (user decision). All from 1 Oct, each with its own switch; Sep run 122 unchanged.
+- Built and replayed locally (evidence/AU6L/AU6L_COMBINED_V2_BUILD_AND_REPLAY_2026-10-18.md). NOT applied. Open: apply approval, seasonal threshold (0.60 used), capacity confirmation.
 - Kanji flag resolved: costing sales feed IQR filter drops seasonal months; actual about 58.8k packs in 12 months (sales viewer 53,256 billed). OPEN: seasonal driver max month vs 12-month average.
