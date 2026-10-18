@@ -1,6 +1,9 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 16:07 IST: AU-9 G1–G3 live apply approved and done
+- User: "Yes, apply G1–G3 live with the machine-delete block". Applied at 16:08 as 20261018103837; all checks identical (evidence/AU9/AU9_G1_G3_LIVE_APPLY_2026-10-18.md). Machine hard-delete block accepted.
+
 ## 2026-10-18 15:36 IST: AU-9 decisions (user)
 - **Approved:** DVS-1 evidence-based demand policy, with the 60% rule as a review flag only (P20); Kanji 878 demand-seasonal Jun–Aug on the 12-month average (P21); machine classes, i.e. stoves non-capacity, pumps utility, packing not costed for now (P22); current class defaults as the approved fallback until machine values arrive (P23); build G1–G3 with no cost change.
 - **Still open:** are water tanks 105–114, 156, 159, 161 used as fermenters? Are Khalvam sets 45–46 a tool or an asset? Both stay UNKNOWN and provisional in the backfill.
