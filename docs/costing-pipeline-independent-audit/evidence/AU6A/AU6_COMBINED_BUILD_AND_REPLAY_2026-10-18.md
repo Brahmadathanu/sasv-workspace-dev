@@ -1,4 +1,8 @@
 # AU-6 combined package: AU-6A universal route batch scaling + AU-6Q QC per batch + kit/Kanji base quantity. BUILT and TESTED, NOT APPLIED (2026-10-18)
+> **SUPERSEDED in part (18 Oct 09:06 IST):**
+> - The user rejected the power-exponent route scaling (AU-6A) described here, and it was never applied. It was replaced by the equipment-loads method (evidence/AU6L).
+> - The QC-per-batch and kit/Kanji parts went live in combined v2 (migration 20261018044644).
+
 
 User decisions (2026-10-18 08:34 IST):
 - (1) Universal Option A: route scaling.

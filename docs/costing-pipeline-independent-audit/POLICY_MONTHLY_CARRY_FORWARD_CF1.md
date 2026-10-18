@@ -1,4 +1,10 @@
 # Policy CF-1: Monthly carry-forward of costing acceptances + manual-rate review
+> **Status update 18 Oct 2026, 14:30 IST:**
+> - Still APPROVED and NOT BUILT; it must be ready before the November run (backlog AU8-P01).
+> - Final October workload without CF-1: 841 material, 61 quantity-driver and 359 regional acceptances.
+> - October is LOCKED with run 128 APPROVED, so the November carry-forward source is period 2026-10 / valuation 2026-10-16 / run 128.
+> - Run approval and period lock stay with the user. Lock/reopen functions (AU2-P01) are a separate item.
+
 Status: APPROVED by user 2026-10-18 05:26 IST for the 1 Nov 2026 period. DESIGN ONLY: not built or activated (no table, RPC or cron yet). Owner: Dr. Brahmadathan U (final authority).
 SQL design: `proposals/rate_quality_oct/PROPOSED_monthly_carry_forward_rule_CF1.sql`. UI: AU-8 (section 8).
 

@@ -1,0 +1,33 @@
+# Costing policy register (current state at 18 Oct 2026, 14:30 IST)
+One line per policy. Status values:
+- **APPROVED-LIVE**: decided and live.
+- **APPROVED-NOT-BUILT**: decided; no code yet.
+- **PROVISIONAL**: live, but the value still needs the user's confirmation.
+- **OPEN**: undecided.
+- **SUPERSEDED / WITHDRAWN**: no longer valid.
+
+Approver for every item: Dr. Brahmadathan U (GOV-015). Details are in DECISIONS_AND_OPEN_QUESTIONS.md and the linked evidence.
+
+| # | Policy | Rule in plain terms | Status | Effective | Live object / reference | Evidence |
+|---|---|---|---|---|---|---|
+| P1 | Run governance | Daily runs never replace an APPROVED run. Approval through `rpc_designate_costing_run` only. Review rows are non-blocking; negative margins go to pricing review | APPROVED-LIVE | 15–16 Oct | AU-2 (20261015165757) | AU4_HANDOVER_LOG.md |
+| P2 | Period lock | Lock = OPEN/DRAFT → LOCKED/LOCKED plus a PERIOD_LOCKED audit row. Sep and Oct were done as one-off guarded SQL (option A) | APPROVED-LIVE (interim) | Sep, Oct 2026 | audit rows; refs USER-LOCK-SEP2026-20261016, USER-APPROVAL-20261018-OCT-LOCK-OPTION-A | evidence/AU6L/AU6L_OCT_LOCK_AND_APPROVAL_2026-10-18.md |
+| P2b | Lock/reopen functions (option C) | `rpc_lock_cost_period` / `rpc_reopen_cost_period` with guards and audit; no hand edits from November | APPROVED-NOT-BUILT | Nov 2026 close | backlog AU2-P01 | evidence/AU6L/AU6L_OCT_CLOSE_STOPPED_2026-10-18.md |
+| P3 | Cost-head policy ledger | 52 Tally heads, effective-dated. Fuel & Gas normal ₹1,61,969/mo APPROVED; 40 heads PROVISIONAL; 5 UNRESOLVED; 6 EXCLUDED | APPROVED-LIVE (mixed values) | 1 Apr 2026 | 20261016070413, switch ON | COST_HEAD_POLICY_LEDGER.md |
+| P4 | Manufacturing labour normal rate (Sep) | ₹128.02 = 706,203 / 5,516.35 | APPROVED-LIVE (Sep only) | Sep 2026 | rate policy v2 | AU4_HANDOVER_LOG.md |
+| P5 | **AU-5 batch-true conversion cost** | Workload = route factor × unrounded qty ÷ batch_size_ref, written at insert (no snapshot UPDATEs). The full pool is absorbed (NORMAL_VOLUME_RATE) | APPROVED-LIVE | 1 Oct 2026 | 20261016150830/150908/170817 | evidence/AU5/ |
+| P6 | **Default sales volume v2** | Actual best month → governed manual assumption → new-product plan → smart default. New product: min(10 packs, 1 batch/yr). New SKU: min(10 packs, 10% of product). Default workload capped at 2% of pool. >12 months on default → BLOCKED | APPROVED-LIVE | 1 Oct 2026 | 20261017235758; policy ids 6/7 | evidence/AU5/OCT_DEFAULT_VOLUME_HIERARCHY_AND_C1_INACTIVATION.md |
+| P7 | **Recurring HO admin provision** | ₹5,00,000/month into ADMIN_OVERHEAD. Separate from Central Office Charges (user). Review 31 Mar 2027 | APPROVED-LIVE | 1 Oct 2026 | 20261018000020; provision id 1 | evidence/AU5/AU6_ABHRAKA_BATCH50_AND_HO_ADMIN_2026-10-18.md |
+| P8 | **Abhraka Bhasmam** | Standard batch 50 kg (ref 554); new-product plan 0.33 kg/month until 30 Sep 2027 | APPROVED-LIVE | 1 Oct 2026 | ref 554; plan id 1 | evidence/AU6/ |
+| P9 | **Material-rate quality** | Acceptances are per period, valuation date and evidence. Bands A/B can carry; band C is never auto-carried. Band C true rates kept as entered: Chayilyam ₹32,000/kg, Mathalam ₹240, Rasam ₹35,000 (known future purchase rates), Gorochanam ₹16.79 L/kg (true past purchase), Kuzhiyaana ₹30 (BOM 59 Nos confirmed). Tally issue register not used | APPROVED-LIVE (841 Oct acceptances) | Oct 2026 | rate_quality_oct/APPLIED_*.sql | proposals/rate_quality_oct/OCT_RATE_QUALITY_DECISION_PACK.md |
+| P9b | Tally auto-refresh of band C rates (R3) | — | WITHDRAWN 17 Oct | — | — | same |
+| P10 | **SKU/product inactivation** | Unsold single-pack SKUs and duplicates made inactive via the governed RPCs. C1: 1617, 1538, 1481, 1401, 1705. Kvatha: SKUs 1769/1770 and products 468/1340 | APPROVED-LIVE | 17–18 Oct | SKU audit 46–52; product audit 14–15 | evidence/AU5, evidence/AU6L |
+| P11 | **QC per batch (AU-6Q)** | QC per unit = rate × tests-per-batch units ÷ batch size (not ÷ monthly volume) | APPROVED-LIVE | 1 Oct 2026 | 20261018044644 | evidence/AU6Q, evidence/AU6L |
+| P12 | **Kit 865 / Kanji 878 unit fix (K1+K4)** | Writers honour the governed base-quantity exception (kit = 1 unit; Kanji batch = 50,000 packs) | APPROVED-LIVE (costing side) | 1 Oct 2026 | 20261018044644 | evidence/AU6S, evidence/AU6L |
+| P13 | **Equipment-loads scaling (AU-6L)** | Weight-driven steps = ceil(charge ÷ equipment capacity) loads; fixed-cycle steps 1 per batch; QC not scaled | APPROVED-LIVE method; **capacities PROVISIONAL** (13 of 16 rows) | 1 Oct 2026 | `route_equipment_load_capacity` | evidence/AU6L |
+| P14 | **Costing-only sales feed (SALES-01)** | Company-wide net units, negatives to 0, no per-godown IQR outlier filter. The general sales view is untouched | APPROVED-LIVE | 1 Oct 2026 | `fn_costing_sales_monthly_as_of` | evidence/AU6L |
+| P15 | **Seasonal volume rule** | Steady SKUs: best (max) month in 12. Seasonal SKUs (top 3 months ≥ 60% of 12-month volume): 12-month average. 101 SKUs in Oct | APPROVED rule; **60% PROVISIONAL** (executor's choice) | 1 Oct 2026 | switch row threshold 0.60 | evidence/AU6L |
+| P16 | Acceptance re-check materiality | Re-accept only when source/reason unchanged, units ±25%, marketing cost per unit ≤10% or ≤₹0.25, impact ≤0.5% of price. 155 regional + 2 defaults re-accepted | APPROVED-LIVE (one-off, 18 Oct) | run 127/128 | ids 573–727, 131–132 | evidence/AU6L/AU6L_RUN127_SAFE_REACCEPT_2026-10-18.md |
+| P17 | **CF-1 monthly carry-forward + 6-month manual-rate review** | Carry unchanged, immaterial acceptances to the next month. User sees only new, changed or band C items. Manual rates are reviewed every 6 months | APPROVED-NOT-BUILT | 1 Nov 2026 | backlog AU8-P01 | POLICY_MONTHLY_CARRY_FORWARD_CF1.md |
+| P18 | Route scaling by power exponent (AU-6A, Options A/B) | — | **SUPERSEDED** 18 Oct 09:06 by P13 | — | never applied | evidence/AU6A, evidence/AU6S |
+| P19 | Marketing-side default (regional basis) | Regional marketing still uses a flat 10-unit default and 275/500 units for 865/878 | OPEN | — | `fn_resolve_sku_commercial_base_context` | evidence/AU6A |

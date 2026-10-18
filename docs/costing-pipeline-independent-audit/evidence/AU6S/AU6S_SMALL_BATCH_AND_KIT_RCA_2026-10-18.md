@@ -1,4 +1,9 @@
 # AU-6S: small-batch workload and kit unit-mismatch RCA (read-only), 2026-10-18
+> **Status 18 Oct 2026:**
+> - Batch-size scaling options A/B (exponent) are SUPERSEDED by equipment loads (AU6L).
+> - Kit K1+K4 is LIVE (20261018044644).
+> - The Kanji 878 batch is confirmed at 50,000 packs.
+
 
 All figures come from live run 126 (Oct 2026, SUCCESS; not approved or locked). No live writes were made.
 Everything below is a proposal and has NOT been applied.

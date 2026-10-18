@@ -57,3 +57,6 @@ Then: ledger switch ON; cron 61 active, 60 paused. September pool total = ₹67,
 - Lock applied (proposals/SEP2026_VALUATION_LOCK_PROPOSED.sql): 2026-09 OPEN/DRAFT → LOCKED/LOCKED at 20:06:38 IST; PERIOD_LOCKED audit row; ref USER-LOCK-SEP2026-20261016.
 - Run 122 designated APPROVED via costing.rpc_designate_costing_run (designation fingerprint captured), by Dr. Brahmadathan U, at 20:06:52 IST. v_current_successful_costing_refresh_run → 122 (selection_basis APPROVED); run 119 stays REFERENCE.
 - Full acceptance: checks 1–24 PASS; 25 WAIVED (user sign-off); OVERALL PASS. Cron 60 and 61 both paused. Further September refreshes require a governed reopen.
+
+## 2026-10-16 20:30 to 2026-10-18 14:30 IST: summary pointer
+AU-5 install; runs 123–128; October rate quality (841); C1 and Kvatha inactivations; AU-6 bundle; combined v2; 155+2 re-acceptance; October LOCKED and run 128 APPROVED (option A). Detailed entries: DECISIONS_AND_OPEN_QUESTIONS.md, CHANGELOG.md, evidence/AU5, AU6, AU6L. Auditor handover: handover/CHATGPT_HANDOVER_2026-10-18.md.

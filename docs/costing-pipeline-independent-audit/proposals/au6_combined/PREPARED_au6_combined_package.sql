@@ -1,3 +1,4 @@
+-- SUPERSEDED 2026-10-18 09:06 IST: AU-6A power-exponent scaling rejected by the user; NOT applied. Use PREPARED_au6_combined_v2_package.sql (applied as 20261018044644).
 -- AU-6 COMBINED PACKAGE. PREPARED, NOT APPLIED. User approved BUILD + TEST only (2026-10-18 08:34 IST).
 -- Contents (one migration, in this order):
 --   A. AU-6Q  QC per batch (QC per base unit = rate x Method-3 units / batch_size_ref), own switch, valuation >= 2026-10-01.

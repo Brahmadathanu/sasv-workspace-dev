@@ -1,10 +1,58 @@
+# Decisions and open questions (costing implementation, PR #72)
+Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
+
+## Consolidated status (18 Oct 2026, 14:30), which supersedes the "OPEN" notes in older entries below
+**Closed:** September (run 122 APPROVED) and October (run 128 APPROVED; period and 16 Oct valuation LOCKED via option A).
+
+**Resolved since the entries were written**
+- The HO admin ₹5 L is separate from Central Office Charges (user, 18 Oct).
+- QC per batch: live.
+- Kvatha batch 2 kg: products made inactive.
+- SKU 865 kit conversion: live (K1+K4).
+- Kanji 878 batch: 50,000 packs.
+- Kanji sales gap: costing-only feed.
+- Seasonal driver: 12-month average when top 3 months ≥ 60%.
+- 204 regional acceptances: 155 re-accepted; 45 material rows left as known exceptions.
+- Defaults 251/1149: re-accepted. 1771: left open.
+- Run-126 flags: cleared by runs 127/128.
+- Route scaling option A/B: SUPERSEDED by equipment loads.
+
+**Open (current list)**
+1. Provisional capacities (13 of 16 rows): user to confirm.
+2. The 60% seasonal threshold (executor's choice): user to confirm. Also confirm that one-month sellers should get the 12-month average.
+3. 37 known exceptions in run 128: revisit in November.
+4. 9 negative-margin SKUs (42, 43, 159, 193, 975, 1174, 1264, 1365, 1552): pricing review.
+5. The regional-marketing basis still uses 275/500 units for 865/878.
+6. The marketing-side 10-unit default is undecided.
+7. Inactive SKU 1790: FG transfer unit error (108 Pkt valued as 108,000 Nos).
+8. Preview/explain functions show unscaled route factors (display only).
+9. Build before November: CF-1 carry-forward plus the 6-month manual-rate review (approved), and lock/reopen functions (option C, approved direction). Each needs build and apply approval.
+10. AU-8 UI items: CF-1 panel, provision register, RM BOM header save, regional acceptance surface.
+11. Cost-head ledger: 40 PROVISIONAL and 5 UNRESOLVED heads; PF/ESI; POH behaviour split.
+12. Sheets: an October price proposal from run 128 (ChatGPT).
 
 ### 2026-10-16 20:05 IST — User decisions: first APPROVED run
 - Check 25 signed off: key SKU costs accepted as presented; Mehasamani (879) a known exception pending the AU-5 batch-true fix; 33 flagged negative-margin SKUs to pricing review (evidence/run121_negative_margin_skus.csv).
 - September 2026 valuation date (10 Sep) LOCKED via a guarded manual transition (no lock RPC exists; AU-2 backlog: rpc_lock/reopen_cost_period).
 - Run 122 designated APPROVED (first APPROVED run); run 119 remains REFERENCE.
 
-### 2026-10-18 — AU-6 prep (open, awaiting user approval)
+### 2026-10-16 ~20:30 IST: AU-5 batch-true approved and installed
+- "Approve AU-5 with re-based rates: install switched off now, prepare October period and run." Migrations 20261016150830 and 20261016150908. Labour v3 and POH v2 rate rows APPROVED from 1 Oct (USER-APPROVAL-AU5-REBASED-20261016). October period opened (audit 11). Run 122 unchanged.
+
+### 2026-10-16 ~23:00 IST: AU-5 insert-path fix (run 123 failed)
+- Run 123 failed at stage 03: a post-step UPDATE hit the immutable POH snapshot trigger. Fix 20261016170817: batch-true workload is written at insert. Run 124 SUCCESS (0/621/13). The 612 material reviews come from acceptances being scoped to the period; AU-5 did not cause them.
+
+### 2026-10-17 07:20–15:58 IST: October rate-quality decisions
+- R1/R2 carry rules approved (645 accepted). 175 rule defaults; 10 band C new items; 4 user-confirmed; 2 BOM-confirmed (SRM002, Nandukkal). Total **841** ACTIVE.
+- **Band C true rates (R4):** Chayilyam ₹32,000/kg, Mathalam ₹240 and Rasam ₹35,000 are known future purchase rates. Gorochanam ₹16.79 L/kg is a true past purchase. Kuzhiyaana ₹30 with BOM 59 Nos confirmed.
+- R3 auto-refresh from Tally WITHDRAWN (Tally can lag real purchase prices).
+
+### 2026-10-17 16:10 / 18:45 IST: Run 125; default-volume hierarchy; C1 inactivation
+- Run 125 SUCCESS (0/189/445). The 117 qty-driver reviews came from acceptances being period-scoped.
+- C1: SKUs 1617, 1538, 1481, 1401, 1705 inactive (USER-DECISION-20261017-C1-INACTIVATE; audit 46–50).
+- Default-volume v2 proposed; approved 18 Oct 05:26.
+
+### 2026-10-18 — AU-6 prep [RESOLVED: applied 05:26]
 - Abhraka Bhasmam standard batch = 50 kg (user). Prepared batch_size_ref revision (no BOM change); see evidence/AU5/AU6_ABHRAKA_BATCH50_AND_HO_ADMIN_2026-10-18.md.
 - CF-1 monthly carry-forward + 6-month manual-rate review: policy draft POLICY_MONTHLY_CARRY_FORWARD_CF1.md; registered as AU8-P01 in docs/master-data-costing/PARKED_BACKLOG.md.
 - HO admin Rs 5L/month provision missing since Aug (period-specific table). Recurring proposal registered as AU8-P02. OPEN: possible overlap with the Central Office Charges head.
@@ -15,24 +63,24 @@
 - OPEN: QC allocation is volume-divided, which inflates low-volume SKUs (Kvatha Choornams x2.4, Abhraka QC Rs 1,121/kg). QC per-batch fix = AU-6Q (AU-7 is the price proposal).
 - OPEN: a new run is needed for the acceptances to clear the run-126 review flags (user to decide).
 
-### 2026-10-18 06:09 IST — AU-6Q QC per-batch: built and tested, NOT applied
+### 2026-10-18 06:09 IST — AU-6Q QC per-batch: built and tested [later LIVE in combined v2, 10:16]
 - Prepared file proposals/au6q_qc_batch_true/PREPARED_au6q_qc_batch_true.sql. Local tests all pass. The run-126 replay is fully absorbed; negative-margin SKUs 37 -> 24.
 - OPEN: Kvatha Choornam batch_size_ref 2 kg (products 468, 1340); SKU 865 kit conversion (275 Nos per pack?).
 
-### 2026-10-18 08:14 IST: AU-6S RCA (read-only); open decisions
+### 2026-10-18 08:14 IST: AU-6S RCA (read-only) [scaling options SUPERSEDED 09:06; kit K1+K4 LIVE 10:16]
 - Small batches: step factors are per batch regardless of mass, which is the root cause. Open: approve batch-size scaling Option B (small-batch only, recommended) or A (symmetric), so the writer hook can be built. QC stays per batch.
 - Kit 865: the governed exception (1 Nos) is not used by the run writers (k = 275, so 61.9 instead of 0.225 batch equivalents/month, ~8% of POH/DL). Open: approve K1+K4 (kit only, effective 2026-10-01). K2 BOM clean-up is optional.
 - Kanji 878: open question. Is the batch 50,000 g (100 packs)? This must be confirmed before 878 is activated.
 - The kit fix and the scaling fix both raise everyone else's rates (~+9% each); simulate them combined before approval. Run 122 is not touched.
 
-### 2026-10-18 08:34 IST: User decisions; AU-6 combined package BUILT (not applied)
+### 2026-10-18 08:34 IST: User decisions; AU-6 combined package BUILT [SUPERSEDED: the symmetric power-exponent scaling (AU-6A) was rejected 09:06; the kit/Kanji decisions stand]
 - Route scaling: universal Option A (SYMMETRIC). Weight-driven steps scale, fixed-cycle steps do not, QC is not scaled. Kit K1+K4 approved; K2 only if needed (assessed: not needed). Kanji follows the same pattern.
 - Kanji batch 50,000 = packs per batch (BMR SP718 50,000 Nos -> 50,052 x 500 g packets transferred). Batch ref kept.
 - OPEN: SKU 878 sales feed (1,384 units/12 months) vs 59,286 packs dispatched in 2026. Ask the user about the sales unit, mapping or stock.
 - Pending: user approval to apply the package (single migration via apply_migration), then the October rerun.
 
 
-### 2026-10-18 09:06 IST: User rejects power-exponent scaling (AU-6A)
+### 2026-10-18 09:06 IST: User rejects power-exponent scaling (AU-6A) [AU-6A SUPERSEDED]
 - Replacement: equipment-loads method (AU-6L), simulated read-only; awaits the user's capacity list. AU-6Q and kit/Kanji are unchanged.
 
 ### 2026-10-18 09:22 IST: User approves LOCAL build of combined v2 (AU-6Q + K1/K4 + AU-6L loads + SALES-01)
@@ -44,6 +92,16 @@
 ### 2026-10-18 10:13 IST: User approves live install of combined v2, Kvatha 468/1340 inactivation and October rerun
 - Applied as migration 20261018044644. Products 468/1340 and SKUs 1769/1770 are inactive (USER-DECISION-20261018-KVATHA-INACTIVATE). Run 127 SUCCESS, not approved. Run 122 unchanged.
 - Open: the 204 regional-marketing acceptances no longer match after SALES-01 (fingerprint includes units); re-accept against run 127? There are also 3 qty-driver defaults (251, 1149, 1771).
+
+### 2026-10-18 12:57 / 13:08 IST: Acceptance re-check and safe re-acceptance
+- Read-only re-check against run 127 with a materiality rule: units ±25%, marketing cost per unit ≤10% or ≤₹0.25, impact ≤0.5% of price.
+- User: "Re-accept only the 155 safe regional rows and the 2 safe defaults" (USER-APPROVAL-20261018-RUN127-SAFE-REACCEPT; ids 573–727, 131–132). The 45 material rows, SKU 1771's default and the Kvatha rows were NOT accepted.
+
+### 2026-10-18 13:12 IST: Rerun October
+- Run 128 SUCCESS: 0/37/590, 9 negative margins. Costs identical to run 127.
+
+### 2026-10-18 14:14 IST: Close with sanctioned functions only: STOPPED
+- No lock RPC exists (only rpc_close_cost_period → CLOSED/FINAL). Nothing changed. Options A/B/C given (evidence/AU6L/AU6L_OCT_CLOSE_STOPPED_2026-10-18.md).
 
 ### 2026-10-18 14:17 IST: User approves option A: lock October like September and approve run 128
 - Done 14:18 IST: October LOCKED/LOCKED (valuation 16 Oct), audit 13; run 128 APPROVED via rpc_designate_costing_run with notes (provisional capacities, 60% seasonal cut-off, 37 reviews non-blocking, 9 negative margins to pricing). Runs 124–127 have no designation; cron 60/61 paused; run 122 fingerprint unchanged.
