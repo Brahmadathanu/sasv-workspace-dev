@@ -1,6 +1,12 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-18 16:29 IST: R1 live apply and grinder rule approved
+- User: "apply the 50 capacity revisions live and approve the grinder rule (Grinding 8 kg, Kajjali 2 kg, rest default)".
+- R1 applied at 16:31 as 20261018110111; all before/after checks identical; readiness 34 ready-provisional / 0 unclassified / 114 needing values (evidence/AU9/AU9_R1_LIVE_APPLY_2026-10-18.md).
+- Grinder rule recorded as P24, APPROVED-NOT-BUILT, for G4.
+- Still open: stone grinder 81, Pills grinders 68–80, wet grinder 174, pulveriser/sifter throughput, tank fill %, and whether 8 kg is the working charge.
+
 ## 2026-10-18 16:19–16:20 IST: user capacity answers (R1, prepared only)
 - Rasoushadhi steel-drum grinders 8 kg maximum per charge (mapped to plants 4–34); stone grinders 2 kg (41–44); Khalvam sets 45–46 mechanised, 2 kg per set; the 13 water tanks (105–114, 156 at 1,000 L; 159, 161 at 500 L) are used as fermentation tanks.
 - Open: stone grinder 81 and Pills grinders 68–80 (same names, Pills area), wet grinder 174, pulveriser/sifter throughput, tank fill %, whether 8 kg is the working charge. Proposed G4 fallback rule: Grinding 8 kg, Kajjali 2 kg, otherwise the current default (needs approval).

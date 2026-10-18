@@ -1,6 +1,9 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-18 16:31: AU-9 R1 LIVE (20261018110111) + grinder rule approved (P24, not built)
+- 50 capacity revisions applied unchanged; run 122/128 fingerprints, 1,554 function/view hashes and 898 run-128 load factors identical; runs/periods untouched; cron paused. Readiness 34/0/114. Evidence: evidence/AU9/AU9_R1_LIVE_APPLY_2026-10-18.md.
+
 ## 2026-10-18 16:40: AU-9 R1 prepared (user capacities; not applied)
 - User 16:19/16:20: steel-drum grinders 8 kg (4–34), stone grinders 2 kg (41–44), Khalvam mechanised 2 kg/set (45–46), 13 water tanks are fermentation tanks. PREPARED_AU9_R1_capacity_revisions.sql (50 close+supersede revisions, effective 1 Nov, provisional) tested locally: replay/fingerprints identical, re-runnable.
 - G4 simulation: proposed rule (Grinding 8 kg, Kajjali 2 kg) → median −0.08%, 22 SKUs >5% dearer (max +52%), negative margins unchanged at 9. R1_CAPACITY_REVISIONS_AND_G4_SIMULATION.md.

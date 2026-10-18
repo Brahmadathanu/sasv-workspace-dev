@@ -1,5 +1,5 @@
 # Costing pipeline independent audit: index and current state (branch costing/au4-normal-budget)
-Updated 18 Oct 2026, 16:10 IST. The audit branch `docs/costing-pipeline-independent-audit` has its own README (the A0–A11 audit). This index covers the implementation work in PR #72.
+Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independent-audit` has its own README (the A0–A11 audit). This index covers the implementation work in PR #72.
 
 ## Current live state
 | Item | State |
@@ -8,7 +8,7 @@ Updated 18 Oct 2026, 16:10 IST. The audit branch `docs/costing-pipeline-independ
 | Oct 2026 | LOCKED / 16 Oct LOCKED; run 128 APPROVED (18 Oct 14:18) |
 | Runs 124–127 | SUCCESS, not designated |
 | Cron 60 / 61 | paused; 61 is enabled only for an approved run window |
-| Latest migration | 20261018103837 au9_g1_g3_capacity_master (capacity master; no cost effect) |
+| Latest migration | 20261018110111 au9_r1_capacity_revisions (after 20261018103837 au9_g1_g3_capacity_master; no cost effect) |
 | Run 122 fingerprint | ccb9c7072fc386ed13fbbbe6e4d8ab6b, 353,819 rows (unchanged) |
 | Next period | November: needs CF-1 build, lock/reopen functions, capacity confirmation (see backlog) |
 
