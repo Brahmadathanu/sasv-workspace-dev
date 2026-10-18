@@ -44,3 +44,7 @@
 ### 2026-10-18 10:13 IST: User approves live install of combined v2, Kvatha 468/1340 inactivation and October rerun
 - Applied as migration 20261018044644. Products 468/1340 and SKUs 1769/1770 are inactive (USER-DECISION-20261018-KVATHA-INACTIVATE). Run 127 SUCCESS, not approved. Run 122 unchanged.
 - Open: the 204 regional-marketing acceptances no longer match after SALES-01 (fingerprint includes units); re-accept against run 127? There are also 3 qty-driver defaults (251, 1149, 1771).
+
+### 2026-10-18 14:17 IST: User approves option A: lock October like September and approve run 128
+- Done 14:18 IST: October LOCKED/LOCKED (valuation 16 Oct), audit 13; run 128 APPROVED via rpc_designate_costing_run with notes (provisional capacities, 60% seasonal cut-off, 37 reviews non-blocking, 9 negative margins to pricing). Runs 124–127 have no designation; cron 60/61 paused; run 122 fingerprint unchanged.
+- Open: option C (lock/reopen RPCs) for November onward, now in the backlog; the 9 negative-margin SKUs go to pricing review; capacities to be confirmed.

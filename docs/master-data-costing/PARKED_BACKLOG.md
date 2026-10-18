@@ -22,3 +22,8 @@
 | SALES-01 | Costing-only sales feed: company-wide net units, negatives to 0, no per-godown filter; seasonal SKUs (top-3 months >=60%) on 12-month average (101 SKUs). In combined v2 package, own switch from 1 Oct; v_sales_monthly_clean untouched. | Costing audit 2026-10-18 | AU-6L | Built + tested locally; Sep path unchanged | User apply approval; Oct rerun | High | [D] DONE: live 2026-10-18 (migration 20261018044644), Oct run 127 SUCCESS; see evidence/AU6L/AU6L_LIVE_APPLY_AND_OCT_RERUN_2026-10-18.md |
 
 New ideas arising outside the active gate must be classified immediately. FUTURE DEPENDENCY and PARKED ENHANCEMENT items are recorded here; OUT OF SCOPE items are recorded with a reason when material.
+
+## AU-2 follow-up: sanctioned lock / reopen functions (option C), before November close
+- Added 2026-10-18. Sep and Oct were locked by one-off guarded SQL (user-approved option A).
+- Build `costing.rpc_lock_cost_period(period, valuation_date, reason, approval_ref)` and `costing.rpc_reopen_cost_period(period, reason, approval_ref)`. Each should check the prior state guard and the row_count guard, write the governance audit row, use auth.uid() as the actor, and refuse a period whose run is APPROVED unless the reopen is explicit.
+- Goal: November onward is closed with functions only, with no hand-edits. Needs user approval to build and apply.
