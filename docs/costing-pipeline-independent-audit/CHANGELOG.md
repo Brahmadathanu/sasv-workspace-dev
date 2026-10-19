@@ -1,6 +1,12 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 11:06: W2 governed period lifecycle INSTALLED LIVE (approved 09:16)
+- Migration 20261019053600 w2_governed_period_lifecycle (prepared file unchanged, md5 d978bb21). Prechecks/postchecks passed.
+- Changed: only fn_guard_designated_run_rows/header (+REVOKED) and the audit event-type check. Added 26/26 objects identical to the local build.
+- Runs 122/128 0 drift; Sep/Oct LOCKED, designations, feed (Sep 634 74/70, Oct 627 9/9) and cron (60/61 paused) unchanged. Context and run-128 pre-checks work (read-only).
+- Not done: November not opened; no approval/lock action; no refresh; no merge or deploy. Evidence: evidence/W2/.
+
 ## 2026-10-19 08:15: W2 governed period lifecycle built and tested LOCALLY (approved 07:59; no live change)
 - proposals/consolidation/w2/: PREPARED_W2_governed_period_lifecycle.sql (md5 d978bb21; guards stop on any live definition difference), local_test/ harness, W2_LOCAL_TEST_REPORT.md.
 - 9 governed RPCs (open next month, pre-checks, approve, lock, reopen, authorise supersession, supersede, close, context); owner-only approve/authorise/supersede/close; every action audited with reason, reference, actor.

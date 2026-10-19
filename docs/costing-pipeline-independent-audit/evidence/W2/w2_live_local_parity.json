@@ -1,0 +1,152 @@
+{
+ "changed": {
+  "C costing.cost_period_governance_audit.cost_period_governance_audit_event_type_chk": {
+   "before": "0ad330aa340bfa1c8cfbf83f833e62f6",
+   "after_live": "afe338cfca7fc334425f349413c8bd88",
+   "after_local": "afe338cfca7fc334425f349413c8bd88"
+  },
+  "F costing.fn_guard_designated_run_header()": {
+   "before": "9091f26fb86022be55cd145353db3a18",
+   "after_live": "59a4ad34fb5ab8fbfb042fa1f898ee78",
+   "after_local": "59a4ad34fb5ab8fbfb042fa1f898ee78"
+  },
+  "F costing.fn_guard_designated_run_rows()": {
+   "before": "a3c4217fa914c798941652e4465c3822",
+   "after_live": "5629ce76254a5ed45cde5529ce91caee",
+   "after_local": "5629ce76254a5ed45cde5529ce91caee"
+  }
+ },
+ "added": {
+  "C costing.costing_governance_owner.costing_governance_owner_display_name_check": {
+   "live": "7cbcb95c14f1e15c0e1b33513bdc2492",
+   "local": "7cbcb95c14f1e15c0e1b33513bdc2492",
+   "match": true
+  },
+  "C costing.costing_governance_owner.costing_governance_owner_pkey": {
+   "live": "7511e9a8e50c073e1d6eff73afcc0f24",
+   "local": "7511e9a8e50c073e1d6eff73afcc0f24",
+   "match": true
+  },
+  "C costing.costing_governance_owner.costing_governance_owner_singleton_check": {
+   "live": "ae6f6dfbe38290d5bfa8f3e96d1aff91",
+   "local": "ae6f6dfbe38290d5bfa8f3e96d1aff91",
+   "match": true
+  },
+  "F costing.fn_w2_audit(date,text,costing.cost_periods,costing.cost_periods,text,text,jsonb)": {
+   "live": "ff064b651107c6c520c4bba3d0c50754",
+   "local": "ff064b651107c6c520c4bba3d0c50754",
+   "match": true
+  },
+  "F costing.fn_w2_guard_closed_period()": {
+   "live": "2a153137fd2e1d96c14238e8b3d3a690",
+   "local": "2a153137fd2e1d96c14238e8b3d3a690",
+   "match": true
+  },
+  "F costing.fn_w2_guard_single_approved()": {
+   "live": "8fe41349b2b74c45757d637fba69dd80",
+   "local": "8fe41349b2b74c45757d637fba69dd80",
+   "match": true
+  },
+  "F costing.fn_w2_owner_name()": {
+   "live": "9bfb7397828321fd0ee49c0c0dc8c02f",
+   "local": "9bfb7397828321fd0ee49c0c0dc8c02f",
+   "match": true
+  },
+  "F costing.fn_w2_require_text(text,text)": {
+   "live": "d87575478c0ec9f57cfb663958632971",
+   "local": "d87575478c0ec9f57cfb663958632971",
+   "match": true
+  },
+  "F costing.fn_w2_run_checks(bigint,text)": {
+   "live": "a97f2f757d8dece83f3e2e27aac32870",
+   "local": "a97f2f757d8dece83f3e2e27aac32870",
+   "match": true
+  },
+  "F rpc_costing_approve_run(bigint,text,text)": {
+   "live": "1f6459ac2f334720366de2962238ff03",
+   "local": "1f6459ac2f334720366de2962238ff03",
+   "match": true
+  },
+  "F rpc_costing_authorise_supersession(date,text,text)": {
+   "live": "0e2f69a09ddc8f5ee1e4fbd7406891bd",
+   "local": "0e2f69a09ddc8f5ee1e4fbd7406891bd",
+   "match": true
+  },
+  "F rpc_costing_close_period(date,text,text)": {
+   "live": "94eb967065cb8dc02eab9ec496cd8a26",
+   "local": "94eb967065cb8dc02eab9ec496cd8a26",
+   "match": true
+  },
+  "F rpc_costing_lock_period(date,text,text)": {
+   "live": "95612aa456e70d22217329ab294f54fa",
+   "local": "95612aa456e70d22217329ab294f54fa",
+   "match": true
+  },
+  "F rpc_costing_open_next_period(text,text,date)": {
+   "live": "2638985ab3ba8df7d8922445415a9228",
+   "local": "2638985ab3ba8df7d8922445415a9228",
+   "match": true
+  },
+  "F rpc_costing_period_governance_context()": {
+   "live": "e2f9b8075bb151404dc37d4451448ac3",
+   "local": "e2f9b8075bb151404dc37d4451448ac3",
+   "match": true
+  },
+  "F rpc_costing_preflight_run(bigint,text)": {
+   "live": "e30e3b1687c7eeb3a968886a33d41285",
+   "local": "e30e3b1687c7eeb3a968886a33d41285",
+   "match": true
+  },
+  "F rpc_costing_reopen_period(date,text,text)": {
+   "live": "5716ad285258b6e133de52c97b5966be",
+   "local": "5716ad285258b6e133de52c97b5966be",
+   "match": true
+  },
+  "F rpc_costing_supersede_approved_run(bigint,text,text)": {
+   "live": "28f3b2cbcc4b1899f669d6caf2d2848a",
+   "local": "28f3b2cbcc4b1899f669d6caf2d2848a",
+   "match": true
+  },
+  "R costing.costing_governance_owner": {
+   "live": "af9416eb5079fb6855c4a65481aedd9c",
+   "local": "af9416eb5079fb6855c4a65481aedd9c",
+   "match": true
+  },
+  "T costing.cost_period_governance_audit.trg_w2_audit_append_only": {
+   "live": "23e19157c447f22000f5955cfa5d1770",
+   "local": "23e19157c447f22000f5955cfa5d1770",
+   "match": true
+  },
+  "T costing.cost_period_governance_audit.trg_w2_audit_append_only_truncate": {
+   "live": "825bfc62ac80af95821e536b8669b7b8",
+   "local": "825bfc62ac80af95821e536b8669b7b8",
+   "match": true
+  },
+  "T costing.cost_periods.trg_w2_closed_period_final": {
+   "live": "94c83b9569f30b34f161980057d2bfa7",
+   "local": "94c83b9569f30b34f161980057d2bfa7",
+   "match": true
+  },
+  "T costing.costing_governance_owner.trg_au2_append_only": {
+   "live": "8cec7404647ced0d6e7c2942faecf259",
+   "local": "8cec7404647ced0d6e7c2942faecf259",
+   "match": true
+  },
+  "T costing.costing_governance_owner.trg_au2_append_only_truncate": {
+   "live": "8b502a2f787a1843d794e47d6195a159",
+   "local": "8b502a2f787a1843d794e47d6195a159",
+   "match": true
+  },
+  "T costing.costing_run_designation.trg_w2_single_approved": {
+   "live": "43aabee1106d8b1263dc808b85aa332d",
+   "local": "43aabee1106d8b1263dc808b85aa332d",
+   "match": true
+  },
+  "T costing.costing_run_fingerprint_rebaseline.trg_au2_append_only_truncate": {
+   "live": "7c17facd5892dc230d9c073d4507c0aa",
+   "local": "7c17facd5892dc230d9c073d4507c0aa",
+   "match": true
+  }
+ },
+ "removed": []
+}

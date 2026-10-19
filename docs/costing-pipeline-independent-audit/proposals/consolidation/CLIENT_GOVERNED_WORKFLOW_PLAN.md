@@ -65,7 +65,7 @@ Shared rules for all packages:
 - **User approval:** the method and the run-122 re-baseline evidence.
 
 ### W2: governed period lifecycle functions + client buttons
-_Status 19 Oct 08:15 IST: built and tested locally (53/53), see `w2/W2_LOCAL_TEST_REPORT.md`; not installed._
+_Status: built and tested locally 19 Oct (53/53, `w2/W2_LOCAL_TEST_REPORT.md`); SQL INSTALLED LIVE 19 Oct 11:06 IST (20261019053600, `../../evidence/W2/`). Client panel branch `costing/w2-period-runs-panel` not yet deployed._
 - **Changes:** new audited RPCs, each with reason, approval reference and actor:
   1. **Open next month**, with a governed default valuation date rule (*user to choose*).
   2. **Approve run** (wrapper over `rpc_designate_costing_run`) with checks: run SUCCESS, period OPEN, no active run, review exceptions recorded, fingerprint captured.

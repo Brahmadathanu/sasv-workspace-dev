@@ -1,6 +1,12 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-19 09:16 IST: W2 governed period lifecycle installed live
+- User: "Yes, install W2 live". Terms: single owner dff17104-c02a-4bca-95b1-e8ddff46a9b6 ('Dr. Brahmadathan U'); H1-H6 accepted; future-month default valuation date the 1st; no previous-month-lock rule.
+- Applied unchanged at 11:06 IST (box/DB clock), version 20261019053600. Only the 3 intended definitions changed; 26/26 added objects match the local build; 122/128 0 drift; periods, designations, feed and cron unchanged.
+- Open: PR #73 then the panel PR (retarget to main); service-worker bump at deploy; job 61 restore decision.
+- Evidence: evidence/W2/W2_LIVE_INSTALL_2026-10-19.md.
+
 ## 2026-10-19 07:12 IST: W1, W5 and run 122/128 re-baseline installed live
 - User: "Install W1, W5 and the run 122/128 re-baseline". Reference USER-APPROVAL-20261019-W1-W5-REBASELINE. Applied 07:15–07:17 (20261019014458, 20261019014611, 20261019014728).
 - Approved-only price feed and run labels live; drafts never enter the feed. Fingerprints use a recorded column list; runs 122 and 128 verify clean.
