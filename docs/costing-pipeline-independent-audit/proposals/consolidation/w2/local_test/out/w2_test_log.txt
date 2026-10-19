@@ -1,0 +1,54 @@
+PASS I1 W2 SQL installs on live-faithful fixture; in-file prechecks + postchecks pass | installed
+PASS I2 Existing objects changed by W2 = only the 2 run guards (+REVOKED) and the audit event-type list; none removed | ['C costing.cost_period_governance_audit.cost_period_governance_audit_event_type_chk', 'F costing.fn_guard_designated_run_header()', 'F costing.fn_guard_designa
+PASS I3 Objects added by W2 (count; listed in report) | 25
+PASS I4 Re-running the W2 SQL is safe (idempotent) | ok
+PASS I5 Guard stops if a live definition differs (fn_default changed in a rolled-back txn) | W2 precheck: fn_default_cost_period_valuation_date changed
+PASS P1 Context: roles resolved (view, edit, owner) | {'owner': (True, True, True), 'editor': (True, True, False), 'viewer': (True, False, False), 'nobody': (False, False, False)}
+PASS P2 Context: next month = Nov, default valuation date = 1 Nov (opened in Oct, future month) | ('2026-11-01', '2026-11-01', 120)
+PASS P3 Open refused: view-only user, no-permission user, anonymous | ['Permission denied for module:costing-control-center (edit=t)', 'Permission denied for module:costing-control-center (edit=t)', 'permission denied for function
+PASS P4 Preflight refused for no-permission user | Permission denied for module:costing-control-center (edit=f)
+PASS P5 Reason (>=10 chars) and approval reference required | ['W2_REASON_REQUIRED: reason must be at least 10 characters', 'W2_APPROVAL_REFERENCE_REQUIRED']
+PASS P6 Valuation date outside the month refused | W2_VALUATION_DATE_OUTSIDE_MONTH: 2026-12-01 is not within 2026-11-01 to 2026-11-30
+PASS L1a Open with default: Nov OPEN, valuation date 1 Nov, source SYSTEM_DEFAULT (rolled back) | ('2026-11-01', 'OPEN', '2026-11-01', 'SYSTEM_DEFAULT')
+PASS L1b Editor opens Nov with an edited valuation date (5 Nov): OPEN/DRAFT, GOVERNED_MANUAL | ('OPEN', '2026-11-05', 'DRAFT', 'GOVERNED_MANUAL')
+PASS L1c Only the next month: opening Dec on 19 Oct refused | W2_NEXT_MONTH_NOT_DUE: next period 2026-12-01 is beyond next month (India date 2026-10-19)
+PASS L2 Pre-approval checks while a run is still RUNNING: NO_ACTIVE_RUN fails (viewer can see checks) | ['NO_ACTIVE_RUN']
+PASS L3 Pre-approval checks on run 141 pass; REVIEW_REQUIRED allowed and counted | (True, {'ready': 590, 'total': 627, 'blocked': 0, 'review_required': 37})
+PASS R1 BLOCKED refusal: run 140 (1 BLOCKED SKU) cannot be approved | (['NO_BLOCKED_SKUS'], 'W2_APPROVAL_CHECKS_FAILED: run 140: NO_BLOCKED_SKUS (1 BLOCKED)')
+PASS R2 Approve refused for editor and viewer (owner-only) | ['W2_OWNER_ONLY: this action is reserved for the costing owner', 'W2_OWNER_ONLY: this action is reserved for the costing owner']
+PASS L4 Owner approves run 141: APPROVED by Dr. Brahmadathan U with designation fingerprint; feed shows Nov = run 141 (latest) | ([('APPROVED', 'Dr. Brahmadathan U', True)], [(141, 627, True)])
+PASS R3 Double approval refused via RPC (run 142): use supersede | (['NO_OTHER_APPROVED_RUN'], 'W2_APPROVAL_CHECKS_FAILED: run 142: NO_OTHER_APPROVED_RUN (approved run 141 exists: use supersede)')
+PASS R4 Double approval refused on the direct designate path (trigger backstop) | W2_SECOND_APPROVED_RUN: period 2026-11-01 already has APPROVED run 141; supersede it instead
+PASS R5 Close before lock refused | W2_CLOSE_REQUIRES_LOCKED: period 2026-11-01 is OPEN
+PASS R6 Lock refused for viewer | Permission denied for module:costing-control-center (edit=t)
+PASS L5 Editor locks Nov (approved run 141, valuation dates match, 0 drift) | ('LOCKED', 'LOCKED', '00000000-0000-0000-0000-0000000000e1')
+PASS R7 Lock refused when already LOCKED | W2_LOCK_REQUIRES_OPEN: period 2026-11-01 is LOCKED
+PASS R8 Authorise supersession refused while LOCKED (reopen first) | W2_AUTHORISE_REQUIRES_OPEN: period 2026-11-01 is LOCKED (reopen first)
+PASS L6 Editor reopens Nov: OPEN/DRAFT; approved run 141 kept in feed | (('OPEN', 'DRAFT'), 141)
+PASS R9 New run in a month holding an APPROVED run refused without authorisation | AU2_PERIOD_HOLDS_APPROVED_RUN: period 2026-11-01 holds APPROVED run 141; a recorded supersession authorisation is required
+PASS R10 Authorise supersession refused for editor (owner-only) | W2_OWNER_ONLY: this action is reserved for the costing owner
+PASS R11 Expired authorisation does not allow a new run | AU2_PERIOD_HOLDS_APPROVED_RUN: period 2026-11-01 holds APPROVED run 141; a recorded supersession authorisation is required
+PASS L7 Owner authorises supersession (expired one ignored); valid 120 minutes | 120
+PASS R12 Second open authorisation refused | W2_AUTHORISATION_ALREADY_OPEN: period 2026-11-01 already has an unused, unexpired authorisation
+PASS L8 New run 144 created under the authorisation (consumed); feed still run 141; label flags newer draft | (144, 'Approved run 141 (newer DRAFT run 144 - not approved)')
+PASS R13 Supersede with a run not created under the authorisation (142) refused | (['SUPERSESSION_AUTHORISATION_CONSUMED'], 'W2_SUPERSEDE_CHECKS_FAILED: run 142: SUPERSESSION_AUTHORISATION_CONSUMED (run was not created under a supersession au
+PASS R14 Supersede refused for editor (owner-only) | W2_OWNER_ONLY: this action is reserved for the costing owner
+PASS L9 Owner supersedes 141 with 144: 141 REVOKED, 144 APPROVED; feed Nov = run 144 values | ([(141, 'REVOKED'), (144, 'APPROVED')], [(144, 627)], 0)
+PASS L10 Feed hash changed only at supersession (approve->unchanged through reopen/authorise/new run->changed at supersede) | ('3ad3ff81', '2dcee90f')
+PASS L11 Superseded run 141 kept intact: rows unchanged, edits refused (REVOKED now protected), fingerprint clean | (True, 'AU2_DESIGNATED_RUN_IMMUTABLE: run 141 is REVOKED; UPDATE on costing.sku_pricing_bridge_snapshot prohibited', 0)
+PASS R15 Close refused for editor (owner-only) | W2_OWNER_ONLY: this action is reserved for the costing owner
+PASS L12 Lock again (run 144) then owner closes Nov: CLOSED/FINAL | ('CLOSED', 'FINAL', UUID('dff17104-c02a-4bca-95b1-e8ddff46a9b6'))
+PASS R16 Reopen after close refused: RPC (editor, owner) and direct UPDATE/DELETE (trigger) | ['W2_CLOSED_PERIOD_FINAL: period 2026-11-01 is CLOSED and can never be reopened', 'W2_CLOSED_PERIOD_FINAL: period 2026-11-01 is CLOSED and can never be reopened
+PASS R17 Lock refused if the period valuation date no longer matches the approved run (Oct, rolled back) | W2_LOCK_VALUATION_DATE_MISMATCH: approved run 128 uses 2026-10-16, period uses 2026-10-17; supersede first
+PASS A1 Audit log: one row per action, in order | ['PERIOD_CREATED', 'RUN_APPROVED', 'PERIOD_LOCKED', 'PERIOD_REOPENED', 'SUPERSESSION_AUTHORISED', 'RUN_SUPERSEDED', 'PERIOD_LOCKED', 'PERIOD_CLOSED']
+PASS A2 Every audit row records reason, approval reference and actor (owner/editor as expected) | [('PERIOD_CREATED', 'editor'), ('RUN_APPROVED', 'owner'), ('PERIOD_LOCKED', 'editor'), ('PERIOD_REOPENED', 'editor'), ('SUPERSESSION_AUTHORISED', 'owner'), ('RU
+PASS A3 Approval audit records the REVIEW_REQUIRED count and checks | {'ready': 590, 'total': 627, 'blocked': 0, 'review_required': 37}
+PASS A4 Audit log is append-only (update and truncate refused) | ['AU2_APPEND_ONLY: UPDATE on costing.cost_period_governance_audit is prohibited (append-only governance table)', 'AU2_APPEND_ONLY: TRUNCATE on costing.cost_peri
+PASS A5 Re-baseline log truncate guard; owner table append-only | ['AU2_APPEND_ONLY: TRUNCATE on costing.costing_run_fingerprint_rebaseline is prohibited (append-only governance table)', 'AU2_APPEND_ONLY: UPDATE on costing.cos
+PASS N1 Runs 122/127/128 rows unchanged; Sep/Oct feed rows unchanged (only the "latest approved month" flag moves to Nov) | (True, True, True)
+PASS N2 Existing periods (Mar-Oct incl. September) untouched by the tests | []
+PASS N3 Fingerprints clean: 122, 128 (approved), 141 (superseded), 144 (new approved) | {122: 0, 128: 0, 141: 0, 144: 0}
+PASS N4 Cost sheet for runs 122/127/128 identical (no cost-logic change) | True
+PASS N5 One APPROVED run per month after everything | [('2026-09-01', 1), ('2026-10-01', 1), ('2026-11-01', 1)]
+PASS N6 Run 127 (Oct draft) cannot be approved: Oct LOCKED, run 128 approved, and 127 has no fingerprint (pre-AU2 run) | ['PERIOD_OPEN', 'FINGERPRINT_CAPTURED', 'FINGERPRINT_CLEAN', 'NO_OTHER_APPROVED_RUN']
+53 / 53

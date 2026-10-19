@@ -19,7 +19,8 @@ Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independ
 - **Consolidation plan (current priority):** `proposals/consolidation/CLIENT_GOVERNED_WORKFLOW_PLAN.md`: client-governed period/run workflow gap table and work packages W1–W5 (plan only)
 - **W1 + W5 LIVE (19 Oct 07:15–07:17):** `evidence/W1_W5/W1_W5_LIVE_INSTALL_2026-10-19.md` · parity `evidence/W1_W5/MIGRATION_PARITY_2026-10-19.md`
 - **Approved feed contract v1:** `contracts/PRICE_REVISION_FEED_CONTRACT_v1.md`
-- **W2 design (not built):** `proposals/consolidation/W2_GOVERNED_PERIOD_LIFECYCLE_DESIGN.md`
+- **W2 local build (not live):** `proposals/consolidation/w2/W2_LOCAL_TEST_REPORT.md` + PREPARED_W2 SQL; client branch `costing/w2-period-runs-panel`
+- **W2 design:** `proposals/consolidation/W2_GOVERNED_PERIOD_LIFECYCLE_DESIGN.md`
 - **W1 + W5 local build:** `proposals/consolidation/w1_w5/W1_W5_LOCAL_TEST_REPORT.md` + PREPARED_W1/W5 SQL; client branch `costing/w1-approved-run-labels`
 - **Policies and status:** `POLICY_REGISTER.md`
 - **Decisions (dated) and open questions:** `DECISIONS_AND_OPEN_QUESTIONS.md`

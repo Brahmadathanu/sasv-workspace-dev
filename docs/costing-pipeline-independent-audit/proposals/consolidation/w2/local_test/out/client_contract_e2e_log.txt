@@ -1,0 +1,10 @@
+OK editor rpc_costing_open_next_period {'status': 'OPEN', 'audit_id': 14, 'period_start': '2026-11-01', 'valuation_date': '2026-1
+OK owner rpc_costing_preflight_run {'ok': True, 'run': 141, 'mode': 'APPROVE', 'checks': [{'code': 'RUN_SUCCESS', 'pass': Tru
+OK owner rpc_costing_approve_run {'counts': {'ready': 590, 'total': 627, 'blocked': 0, 'review_required': 37}, 'audit_id': 
+OK editor rpc_costing_lock_period {'status': 'LOCKED', 'audit_id': 16, 'approved_run': 141, 'period_start': '2026-11-01'}
+OK editor rpc_costing_reopen_period {'status': 'OPEN', 'audit_id': 17, 'period_start': '2026-11-01'}
+OK owner rpc_costing_authorise_supersession {'audit_id': 18, 'period_start': '2026-11-01', 'valid_minutes': 120, 'authorisation_id': 1
+OK owner rpc_costing_supersede_approved_run {'new_run': 144, 'old_run': 141, 'audit_id': 19, 'designation_id': 13}
+OK editor rpc_costing_lock_period {'status': 'LOCKED', 'audit_id': 20, 'approved_run': 144, 'period_start': '2026-11-01'}
+OK owner rpc_costing_close_period {'result': 'CLOSED 2026-11-01 on approved run 144', 'status': 'CLOSED', 'audit_id': 21, 'p
+OK owner rpc_costing_period_governance_context {'user_id': 'dff17104-c02a-4bca-95b1-e8ddff46a9b6', 'can_edit': True, 'can_view': True, 'i

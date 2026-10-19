@@ -1,6 +1,14 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 08:15: W2 governed period lifecycle built and tested LOCALLY (approved 07:59; no live change)
+- proposals/consolidation/w2/: PREPARED_W2_governed_period_lifecycle.sql (md5 d978bb21; guards stop on any live definition difference), local_test/ harness, W2_LOCAL_TEST_REPORT.md.
+- 9 governed RPCs (open next month, pre-checks, approve, lock, reopen, authorise supersession, supersede, close, context); owner-only approve/authorise/supersede/close; every action audited with reason, reference, actor.
+- Hardening H1-H6 (re-baseline truncate guard, audit append-only, event types, REVOKED immutable, one approved run per month, closed month final).
+- Local tests 53/53 incl. full November lifecycle, permission refusals, double approval (RPC and direct), BLOCKED, close-before-lock, reopen-after-close, expired authorisation, supersession feed (old run kept, fingerprints clean), no cost-logic change.
+- Client branch `costing/w2-period-runs-panel` (d5f92af, off costing/w1-approved-run-labels): "Period & runs" panel; node tests 17/17; client-to-DB contract 10/10. Not merged, no PR.
+- No database writes, no apply_migration, no cron change, no merge or deploy. September unchanged (LOCKED).
+
 ## 2026-10-19 07:50: Feed contract v1, migration parity, W2 design (read-only); client PR opened
 - contracts/PRICE_REVISION_FEED_CONTRACT_v1.md, written from the live view definitions:
   - covers objects, access, grain, 30 columns, selection rules and the Sheets query
