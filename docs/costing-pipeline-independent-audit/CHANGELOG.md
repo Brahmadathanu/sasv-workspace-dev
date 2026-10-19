@@ -1,6 +1,10 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 19:35: TB1–TB7 applied live and verified; G3 policies accepted
+- Approval USER-APPROVAL-20261019-TB1-TB7. Migrations tb1/tb2/tb3/tb5/tb6/tb7 (files unchanged). closure/TB_LIVE_APPLY_2026-10-19.md + evidence/TBL. No data row changed; 122/128 0 drift; feed, cron, periods, switches unchanged.
+- Policies recorded (DECISIONS, POLICY_REGISTER P33-P38, register). LB1 (CI-005 ledger status) prepared and tested locally, not applied.
+
 ## 2026-10-19 20:45: G3 policy decision sheet ready (read-only simulation on run 128)
 - closure/G3_POLICY_DECISION_SHEET.md + evidence/G3. CI-014 recorded as an open G3 item (60% rule operative by user approval until G5), severity MEDIUM. No live write.
 

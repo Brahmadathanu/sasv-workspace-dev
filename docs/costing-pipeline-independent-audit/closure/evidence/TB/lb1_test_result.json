@@ -1,0 +1,74 @@
+{
+ "apply_rc": 0,
+ "provision_by_pool_before": [
+  [
+   "ADMIN_OVERHEAD",
+   "4866845.87",
+   59
+  ],
+  [
+   "FINANCE_ADMIN_OVERHEAD",
+   "779552.76",
+   47
+  ],
+  [
+   "MARKETING_EXPENSE",
+   "17787006.06",
+   96
+  ],
+  [
+   "MATERIALS_STORES_OVERHEAD",
+   "284373.68",
+   11
+  ],
+  [
+   "PRODUCTION_OVERHEAD",
+   "3779280.24",
+   48
+  ],
+  [
+   "QUALITY_CONTROL_OVERHEAD",
+   "307750.02",
+   6
+  ]
+ ],
+ "after": [
+  [
+   "ADMIN_OVERHEAD",
+   "4866845.87",
+   59
+  ],
+  [
+   "FINANCE_ADMIN_OVERHEAD",
+   "779552.76",
+   47
+  ],
+  [
+   "MARKETING_EXPENSE",
+   "17787006.06",
+   96
+  ],
+  [
+   "MATERIALS_STORES_OVERHEAD",
+   "284373.68",
+   11
+  ],
+  [
+   "PRODUCTION_OVERHEAD",
+   "3779280.24",
+   48
+  ],
+  [
+   "QUALITY_CONTROL_OVERHEAD",
+   "307750.02",
+   6
+  ]
+ ],
+ "md5_before": [
+  "4ae7ff119cc560e3f3268de802965837"
+ ],
+ "md5_after": [
+  "4ae7ff119cc560e3f3268de802965837"
+ ],
+ "identical": true
+}

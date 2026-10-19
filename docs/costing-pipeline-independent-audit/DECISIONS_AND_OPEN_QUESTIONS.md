@@ -1,6 +1,14 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-19 19:02 IST: TB1–TB7 applied live; G3 policy recommendations accepted (USER-APPROVAL-20261019-TB1-TB7)
+- Live (19:04–19:26 IST, apply_migration tb1/tb2/tb3/tb5/tb6/tb7, files unchanged; TB4 is the user's dashboard check). Evidence: closure/TB_LIVE_APPLY_2026-10-19.md. No data row changed; runs 122/128 0 drift; feed, cron, periods unchanged.
+- **CI-003:** keep Central Office Charges (₹8,71,972.83/month) and the ₹5L HO provision both, pending the Tally voucher narration and the HO allocation note. Run 128 is not a finance basis on this point.
+- **CI-005:** the 22 non-marketing provisional heads (₹5,14,421.93/month) are approved as normals, review 31 Mar 2027. The 16 marketing heads (₹29.65L) get a per-head review. Ledger write = prepared LB1 (next batch). Effect: ₹0 (the engine treats APPROVED and PROVISIONAL alike); labels only.
+- **CI-006:** landed cost onto material is deferred to the G5 builder; it is labelled as carriage inward in the export meanwhile.
+- **CI-014:** the 60% rule (SALES-01) stays operative until G5; build DVS-1. **CI-015:** reconcile within DVS-1.
+- **CI-012:** in-month effective dates going forward only: no backdating, no proration.
+
 ## 2026-10-19 18:11 IST: End-to-end server closure mandate adopted
 - User mandate (28f1d4d): server-side costing to be audited, corrected where authorised and independently verified (G0-G6) before any price revision, Sheets regeneration or new pricing view. Live writes, migrations, switches, effective dates, cron, runs, designations, merges need explicit approval.
 - G0 done (closure/G0_BASELINE_2026-10-19.md). Open questions raised: Central Office vs HO admin overlap (CI-003); Tally write access (CI-001); SALES-01 60% rule vs DVS-1 (CI-014); capacity evidence semantics and the 74 missing machines (CI-010/011); in-month prospective effective dates (CI-012); job 61 restore (CI-023).

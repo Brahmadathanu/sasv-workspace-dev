@@ -1,4 +1,6 @@
-# G3 policy decision sheet (for the user's decision; nothing changed live)
+# G3 policy decision sheet
+
+**Status: recommendations ACCEPTED by the user on 19 Oct 2026, 19:02 IST (USER-APPROVAL-20261019-TB1-TB7).** The CI-005 ledger write is prepared as LB1 (next batch; ₹0 cost effect).
 
 Prepared 19 Oct 2026, 20:45 IST. All effects are simulated read-only on approved October run 128 (627 SKUs, valuation 16 Oct). They are first-order: each pool is scaled and the existing SKU shares are kept.
 

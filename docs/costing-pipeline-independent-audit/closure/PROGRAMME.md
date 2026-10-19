@@ -2,15 +2,15 @@
 
 Mandate: `../COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` (28f1d4d). Price revision, Sheets, new pricing views and client pricing modules are SUSPENDED until G6 acceptance. Live work is read-only unless the user approves a batch.
 
-| Gate | Scope | Status (19 Oct 20:45 IST) | Evidence |
+| Gate | Scope | Status (19 Oct 19:35 IST) | Evidence |
 |---|---|---|---|
 | G0 | Repo/DB baseline, governing docs, issue register | **DONE** | `G0_BASELINE_2026-10-19.md`, `evidence/G0/`, `ISSUE_REGISTER.json` |
 | G1 | Cost waterfall forensic reconciliation | **VERIFIED (arithmetic + lineage)** 19 Oct 19:05 IST: identities, head-to-pool, pool-to-SKU, Tally rate -> line -> SKU, BOM/UOM/yield, route -> labour all reconcile; 7/9 exceptions = IMC. Open data/driver items CI-028..032 carried to G2-G4 | `G1_COST_WATERFALL_RECONCILIATION.md`, `G1_UPSTREAM_LINEAGE.md`, `evidence/G1/`, `evidence/G1U/` |
 | G2 | Machinery capacity and routing governance | NOT STARTED (baseline captured in G0) | - |
-| G3 | Demand/seasonality (DVS-1) and all drivers | Policy decision sheet READY (CI-003/005/006/012/014/015; 60% rule operative by user approval until G5) | `G3_POLICY_DECISION_SHEET.md`, `evidence/G3/` |
+| G3 | Demand/seasonality (DVS-1) and all drivers | Policy decisions ACCEPTED 19 Oct 19:02 IST (LB1 ledger write prepared); 60% rule operative until G5; DVS-1 build in progress | `G3_POLICY_DECISION_SHEET.md`, `evidence/G3/` |
 | G4 | Period/run governance and safe refresh | W2 lifecycle LIVE (19 Oct); fingerprint versioning, revaluation design, cron restore pending | `../evidence/W2/` |
 | G5 | Approved full cost waterfall export (no commercial scenarios) | NOT STARTED | - |
-| G6 | Independent verification and acceptance | Technical security/integrity batch TB1-TB7 PREPARED+TESTED in isolation (awaiting approval) | `TECHNICAL_BATCH.md`, `prepared/`, `evidence/TB/` |
+| G6 | Independent verification and acceptance | Technical batch TB1-TB7 **LIVE + VERIFIED** 19 Oct 19:26 IST (TB4 = user dashboard check); watch next Tally sync | `TECHNICAL_BATCH.md`, `TB_LIVE_APPLY_2026-10-19.md`, `evidence/TB/`, `evidence/TBL/` |
 
 Release status: **NOT READY**. Run 128 stays the October reference; it is not a finance-approved price basis.
 
