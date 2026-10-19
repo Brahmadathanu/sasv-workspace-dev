@@ -1,6 +1,6 @@
 {
  "register": "Costing end-to-end closure: canonical issue register",
- "updated": "2026-10-19 19:35",
+ "updated": "2026-10-19 (DVS-1 build/test, CI-011 register, CI-012 design, CI-034)",
  "source_mandate": "COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md @28f1d4d",
  "fields": [
   "id",
@@ -151,9 +151,9 @@
    "title": "74 production machines have no usable capacity (BLOCKED_NEEDS_CAPACITY)",
    "severity": "HIGH",
    "gate": "G2",
-   "status": "OPEN",
+   "status": "OPEN: exception register prepared (15 P1 on routes, 54 P2 work-log only, 5 P3 unused); awaiting user values",
    "business_consequence": "G4 plant-aware loads cannot be activated fail-closed while 74 capacity-based machines lack values; 20 more nulls are legitimately NOT_REQUIRED, 3 NOT_OPERATIONAL.",
-   "evidence_sql": "closure/evidence/G0/g0_live_ops.json (capacity.readiness)",
+   "evidence_sql": "closure/evidence/G0/g0_live_ops.json (capacity.readiness); closure/evidence/CAP/CAPACITY_EXCEPTION_REGISTER_74.csv; closure/CAPACITY_GOVERNANCE_CI011.md",
    "reproduction": "select readiness, count(*) from costing.v_plant_capacity_readiness group by 1",
    "expected_fix": "Concise exception register of truly missing machine values (excluding ones already supplied), or explicit N/A / class-fallback approval.",
    "tests": "Readiness counts; G4 isolated run shows no silent fallback.",
@@ -164,7 +164,7 @@
    "title": "All capacity rows effective 1 Nov 2026; superseded rows use zero-length windows",
    "severity": "MEDIUM",
    "gate": "G2/G4",
-   "status": "DECIDED: in-month effective dates going forward only (no backdating, no proration); design in progress",
+   "status": "DECIDED + DESIGNED (closure/IN_MONTH_EFFECTIVE_DATE_DESIGN_CI012.md); no-backdate guard SQL to be prepared",
    "business_consequence": "Nothing in the capacity master applies to October; R1/R2 supersessions are expressed as effective_from = effective_to = 2026-11-01. A prospective in-month use (mandate G2) needs a governed effective-date change.",
    "evidence_sql": "closure/evidence/G0/g0_live_ops.json (capacity.by_effective_from, machine_41)",
    "reproduction": "select effective_from, effective_to, count(*) from costing.plant_capacity_profile group by 1,2",
@@ -190,9 +190,9 @@
    "title": "The 60% top-3 sales concentration rule is authoritative today (SALES-01), not a review flag",
    "severity": "MEDIUM",
    "gate": "G3",
-   "status": "DECIDED: 60% rule operative until G5 (open G3 item, not a defect); DVS-1 build in progress (isolated)",
+   "status": "DECIDED; DVS-1 PREPARED + ISOLATED-TESTED (OFF = byte-identical to legacy; ON rules verified); NOT APPLIED. Activation needs review of 86 flagged SKUs",
    "business_consequence": "Run 128 allocation bases for seasonal-flagged SKUs (e.g. 54, 56) use the 12-month average because top-3 months >= 0.60; DVS-1 (approved in principle) requires this to be only a diagnostic. No DVS-1 tables exist live, so promotional spikes, stockouts or institutional orders can be treated as seasonality. Simulated: removing the rule moves ILC by a median -3.1% (worst -9.6%) across all SKUs (pools unchanged).",
-   "evidence_sql": "closure/evidence/G0/g0_live_ops.json (switches.costing_sales_feed_switch, demand_objects=null); sku_prime_cost_snapshot.allocation_resolution_note",
+   "evidence_sql": "closure/evidence/G0/g0_live_ops.json (switches.costing_sales_feed_switch, demand_objects=null); sku_prime_cost_snapshot.allocation_resolution_note; closure/DVS1_BUILD_AND_TEST.md; closure/evidence/DVS1/dvs1_test_result.json",
    "reproduction": "select allocation_resolution_note, count(*) from costing.sku_sales_allocation_basis_snapshot where refresh_run_id=128 group by 1",
    "expected_fix": "Build DVS-1 (G5 of AU-9) as a controlled migration: demand-pattern table, event register, governed overrides, selection snapshot; rule becomes REVIEW flag.",
    "tests": "Sensitivity test; Kanji 878 June-Aug seasonal case; promotional spike fixture not classified seasonal.",
@@ -203,7 +203,7 @@
    "title": "products.is_seasonal declares 15 of 1,342 products; not reconciled with rule-derived seasonal SKUs",
    "severity": "MEDIUM",
    "gate": "G3",
-   "status": "DECIDED: reconcile within DVS-1",
+   "status": "DECIDED; reconciliation worksheet prepared (evidence/DVS1/DVS1_SEASONAL_RECONCILIATION.csv): 35 declared-SKU rows, 101 rule-seasonal, 8 both",
    "business_consequence": "Business declaration and algorithmic classification can disagree silently.",
    "evidence_sql": "closure/evidence/G0/g0_live_ops.json (products_seasonal)",
    "reproduction": "select count(*) filter (where is_seasonal) from public.products",
@@ -444,6 +444,19 @@
    "expected_fix": "Revoke authenticated SELECT on costing.* when CI-019 is closed",
    "tests": "probe",
    "approval_authority": "User (security change)"
+  },
+  {
+   "id": "CI-034",
+   "title": "public.v_sales_monthly_clean anchors its 36-month IQR outlier window on CURRENT_DATE, not the valuation date",
+   "severity": "LOW",
+   "gate": "G3",
+   "status": "OPEN",
+   "business_consequence": "Annual-evidence columns from v_sku_sales_volume_allocation_basis can differ depending on the day a run is executed (not on its frozen valuation date). The SALES-01 monthly driver (costing feed) is not affected.",
+   "evidence_sql": "pg_get_viewdef('public.v_sales_monthly_clean')",
+   "reproduction": "Inspect view definition: window bounds use current_date",
+   "expected_fix": "Valuation-date-anchored function (as-of) for any costing use; keep the view for operations.",
+   "tests": "Replay run 128 on two different days -> identical",
+   "approval_authority": "User (migration)"
   }
  ]
 }

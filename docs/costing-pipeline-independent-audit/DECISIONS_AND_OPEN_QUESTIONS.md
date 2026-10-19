@@ -187,3 +187,9 @@ Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlie
 ### 2026-10-18 14:17 IST: User approves option A: lock October like September and approve run 128
 - Done 14:18 IST: October LOCKED/LOCKED (valuation 16 Oct), audit 13; run 128 APPROVED via rpc_designate_costing_run with notes (provisional capacities, 60% seasonal cut-off, 37 reviews non-blocking, 9 negative margins to pricing). Runs 124–127 have no designation; cron 60/61 paused; run 122 fingerprint unchanged.
 - Open: option C (lock/reopen RPCs) for November onward, now in the backlog; the 9 negative-margin SKUs go to pricing review; capacities to be confirmed.
+
+## 2026-10-19 (evening, after TB1-TB7): DVS-1 build, capacity register, in-month design (no production actions)
+- DVS-1 was prepared and tested in isolation. With DVS-1 OFF, the refresh is byte-identical to the legacy replay of run 128. With it ON, every rule fired as designed.
+- **Open question for the user:** before activation, review the 86 SKUs that would revert from the 12-month average to their peak month. For each, either confirm the demand events or approve the product as DEMAND_SEASONAL (worksheet: closure/evidence/DVS1/DVS1_SEASONAL_RECONCILIATION.csv).
+- **Open question for the user:** CI-011 capacity values, P1 first (15 machines on routes). See closure/evidence/CAP/CAPACITY_EXCEPTION_REGISTER_74.csv.
+- CI-012 is designed: single as-of resolution, no backdating, close-then-insert supersession, effective November 2026 onward.

@@ -152,3 +152,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 ## 2026-10-16 20:07: September LOCKED; run 122 APPROVED (first APPROVED run)
 ## 2026-10-16 08:50–18:55: staff classifications, AU-2c BOM fixes, ledger engine link (20261016070413), SKU 1797 fixes, labour rate ₹128.02; runs 120 (failed), 121, 122
 ## 2026-10-16 07:31: Directive 2026-10-16 (cut-off for the 18 Oct auditor handover)
+
+## 2026-10-19 (evening)
+- DVS-1 prepared (closure/prepared/PREPARED_DVS1_demand_volume_selection.sql) and tested in isolation (closure/DVS1_BUILD_AND_TEST.md). NOT applied.
+- CI-011 capacity exception register (74 machines, prioritised). CI-012 in-month effective-date design. CI-015 reconciliation worksheet. CI-034 logged (CURRENT_DATE-anchored sales cleaning view).
