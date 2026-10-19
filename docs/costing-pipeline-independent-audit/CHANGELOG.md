@@ -1,6 +1,9 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 20:45: G3 policy decision sheet ready (read-only simulation on run 128)
+- closure/G3_POLICY_DECISION_SHEET.md + evidence/G3. CI-014 recorded as an open G3 item (60% rule operative by user approval until G5), severity MEDIUM. No live write.
+
 ## 2026-10-19 20:15: Technical approval batch TB1-TB7 prepared and tested in isolation (not applied)
 - closure/TECHNICAL_BATCH.md, closure/prepared/PREPARED_TB1..TB7 (TB4 = no SQL), evidence/TB (runner, results, capacity origin CSV). Local PG17 fixture of the live catalogue (62/62 view definitions md5-identical).
 - CI-017 raised to HIGH: 49 costing views had no permission gate; all 25 accounts could read per-employee salary (staff classification register) and cost sheets. TB2 gates them; permitted users' results unchanged.
