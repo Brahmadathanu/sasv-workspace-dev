@@ -17,7 +17,9 @@ Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independ
 - **Handover part 2 (AU-9 capacity master, R2, G4 live switch OFF, runs/cron/Sheets-feed findings):** `handover/CHATGPT_HANDOVER_2026-10-18_PART2.md` (short: `_PART2_SHORT.md`)
 - **Repository:** `Brahmadathanu/sasv-workspace-dev` (public), branch `costing/au4-normal-budget` (PR #72, open, not merged). Raw files: `https://raw.githubusercontent.com/Brahmadathanu/sasv-workspace-dev/costing/au4-normal-budget/docs/costing-pipeline-independent-audit/<path>` (verified 18 Oct 22:30 IST for both part-2 handover files at commit 8ec5bee)
 - **Consolidation plan (current priority):** `proposals/consolidation/CLIENT_GOVERNED_WORKFLOW_PLAN.md`: client-governed period/run workflow gap table and work packages W1–W5 (plan only)
-- **W1 + W5 LIVE (19 Oct 07:15–07:17):** `evidence/W1_W5/W1_W5_LIVE_INSTALL_2026-10-19.md`
+- **W1 + W5 LIVE (19 Oct 07:15–07:17):** `evidence/W1_W5/W1_W5_LIVE_INSTALL_2026-10-19.md` · parity `evidence/W1_W5/MIGRATION_PARITY_2026-10-19.md`
+- **Approved feed contract v1:** `contracts/PRICE_REVISION_FEED_CONTRACT_v1.md`
+- **W2 design (not built):** `proposals/consolidation/W2_GOVERNED_PERIOD_LIFECYCLE_DESIGN.md`
 - **W1 + W5 local build:** `proposals/consolidation/w1_w5/W1_W5_LOCAL_TEST_REPORT.md` + PREPARED_W1/W5 SQL; client branch `costing/w1-approved-run-labels`
 - **Policies and status:** `POLICY_REGISTER.md`
 - **Decisions (dated) and open questions:** `DECISIONS_AND_OPEN_QUESTIONS.md`

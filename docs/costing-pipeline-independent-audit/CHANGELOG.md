@@ -1,6 +1,17 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 07:50: Feed contract v1, migration parity, W2 design (read-only); client PR opened
+- contracts/PRICE_REVISION_FEED_CONTRACT_v1.md, written from the live view definitions:
+  - covers objects, access, grain, 30 columns, selection rules and the Sheets query
+  - October run 128 control totals
+  - lists what is not in the feed (RM/PM split, overheads, discount policy, contingency, schemes, realisation) and its authoritative source
+- Finding: the margins are MRP − (ILC + regional marketing), as % of MRP. pricing_cost_per_sku (national marketing) is not the margin cost.
+- evidence/W1_W5/MIGRATION_PARITY_2026-10-19.md: 17/17 live definitions identical to the prepared SQL. Gap: the rebaseline table has no truncate guard (proposed H1).
+- proposals/consolidation/W2_GOVERNED_PERIOD_LIFECYCLE_DESIGN.md: functions F1–F7, client panel, local build plan, decisions D1–D9.
+- Client PR from costing/w1-approved-run-labels (do not merge).
+- No database writes; September unchanged (LOCKED, not closed); cron 60/61 paused.
+
 ## 2026-10-19 07:18: W1 + W5 + run 122/128 re-baseline INSTALLED LIVE (approved 07:12)
 - Migrations 20261019014458 w1_approved_run_feed_and_labels, 20261019014611 w5_fingerprint_fixed_columns, 20261019014728 w5_rebaseline_runs_122_128 (reference USER-APPROVAL-20261019-W1-W5-REBASELINE). Files unchanged except the approval reference.
 - Feed live: Sep 122 = 634 (74/70 negative), Oct 128 = 627 (9/9). Labels and governed comparison as tested. 0 existing objects changed by W1.
