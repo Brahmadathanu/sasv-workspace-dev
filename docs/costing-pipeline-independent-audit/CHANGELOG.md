@@ -1,6 +1,14 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 06:20: W1 + W5 built and tested LOCALLY (approved 18 Oct 22:44; no live change)
+- proposals/consolidation/w1_w5/: prepared SQL (outside supabase/migrations), local test harness and W1_W5_LOCAL_TEST_REPORT.md.
+- W1: approved-only price revision feed, per-month run status/labels, governed Cost-comparison view (old views unchanged). 6 views added, nothing else.
+- W5: fingerprint on a recorded column list; governed re-baseline function + journal; prepared re-baseline of runs 122 (vs capture 4) and 128 (vs capture 11).
+- Local tests 46/46 pass: feed Sep 122 = 634 (74/70 neg), Oct 128 = 627 (9/9); simulated drafts never reach the feed and are labelled; 128 unchanged, 122 clean after re-baseline, local Sep close accepted.
+- Client branch `costing/w1-approved-run-labels` (d132edf, off this branch): run label badge + Cost comparison on governed view; node test 8/8. Not merged.
+- No database writes, no apply_migration, no cron change, no merge.
+
 ## 2026-10-18 22:40: Consolidation plan (auditor reorientation; plan only)
 - Verified via the GitHub API that commit 8ec5bee and both part-2 handover files are on remote `costing/au4-normal-budget`; raw URLs return 200. Repo URLs added to INDEX.
 - proposals/consolidation/CLIENT_GOVERNED_WORKFLOW_PLAN.md:
