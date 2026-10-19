@@ -2,6 +2,7 @@ import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
 import { showToast as sasvShowToast } from "./toast.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
+import { createRunStatusBadge } from "./costing-run-status-badge.js";
 import {
   COSTING_SUITE_MODULES,
   LENS_REGISTRY,
@@ -2411,7 +2412,8 @@ const VIEW_BY_LENS = {
   dashboard: "v_costing_pricing_dashboard_summary",
   "sku-cost-sheet": "v_costing_pricing_sku_selector",
   "printable-cost-sheet": "v_costing_pricing_printable_cost_sheet_lines",
-  "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison",
+  // W1: one governed run per month (approved, else labelled draft); never mixes runs.
+  "cost-comparison": "v_cost_sheet_snapshot_sku_monthly_comparison_governed",
   "policy-manager": "v_costing_policy_manager_sku_overview",
   "scheme-comparison": SCHEME_COMPARISON_VIEW,
   "cost-governance": "v_costing_unmapped_expense_heads_for_mapping",
@@ -2430,6 +2432,8 @@ const PERIOD_PICKER_DISABLED_TITLE =
 function costingFrom(viewName) {
   return supabase.from(viewName);
 }
+
+const runStatusBadge = createRunStatusBadge({ supabase, anchor: lastRefreshed });
 
 async function costingRpc(name, params, options = null) {
   let query = supabase.rpc(name, params);
@@ -4493,6 +4497,10 @@ async function loadRowsForLens({ preservePage = false } = {}) {
   const loadGeneration = ++ROWS_LOAD_GENERATION;
   const lensLabel = LENSES.find((l) => l.id === CURRENT_LENS)?.label || "view";
   setLoadingMask(true, `Loading ${lensLabel}...`);
+  void runStatusBadge.refresh({
+    periodStart: ACTIVE_PERIOD_START,
+    lensId: CURRENT_LENS,
+  });
   try {
     costBuildCtrl.syncManualProvisionLayout();
     if (!isProductionRouteLens(CURRENT_LENS)) {
