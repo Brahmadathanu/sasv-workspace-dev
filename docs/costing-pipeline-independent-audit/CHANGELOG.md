@@ -156,3 +156,8 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 ## 2026-10-19 (evening)
 - DVS-1 prepared (closure/prepared/PREPARED_DVS1_demand_volume_selection.sql) and tested in isolation (closure/DVS1_BUILD_AND_TEST.md). NOT applied.
 - CI-011 capacity exception register (74 machines, prioritised). CI-012 in-month effective-date design. CI-015 reconciliation worksheet. CI-034 logged (CURRENT_DATE-anchored sales cleaning view).
+
+## 2026-10-19 (19:48 IST onward)
+- LIVE: LB1 (22 heads APPROVED, ₹0) and DVS-1 installed with the switch OFF. Verified; see closure/LB1_DVS1_LIVE_APPLY_2026-10-19.md.
+- Prepared and tested locally: CI-012 tiered no-backdating guard; CI-034 valuation-anchored basis status.
+- User-facing items: the 15-machine capacity table and the 86-SKU DVS-1 review worksheet.

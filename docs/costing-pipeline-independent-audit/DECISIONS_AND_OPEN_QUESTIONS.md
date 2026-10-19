@@ -193,3 +193,9 @@ Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlie
 - **Open question for the user:** before activation, review the 86 SKUs that would revert from the 12-month average to their peak month. For each, either confirm the demand events or approve the product as DEMAND_SEASONAL (worksheet: closure/evidence/DVS1/DVS1_SEASONAL_RECONCILIATION.csv).
 - **Open question for the user:** CI-011 capacity values, P1 first (15 machines on routes). See closure/evidence/CAP/CAPACITY_EXCEPTION_REGISTER_74.csv.
 - CI-012 is designed: single as-of resolution, no backdating, close-then-insert supersession, effective November 2026 onward.
+
+## 2026-10-19 19:48 IST: LB1 and DVS-1 (OFF) applied live (USER-APPROVAL-20261019-LB1-DVS1-OFF)
+- LB1 is live: ₹0 effect, labels only. DVS-1 is installed with the switch OFF, and the live-path replay is identical. See closure/LB1_DVS1_LIVE_APPLY_2026-10-19.md.
+- **Open question for the user:** DVS-1 activation waits for the 86-SKU review (closure/evidence/DVS1/DVS1_REVIEW_WORKSHEET_86.csv).
+- **Open question for the user:** capacity values for the 15 P1 machines (closure/evidence/CAP/CAPACITY_P1_15_MACHINES.md).
+- **Next approval batch:** CI-012 no-backdating guard and CI-034 fix (both prepared and tested locally).
