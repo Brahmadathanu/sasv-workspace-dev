@@ -1,0 +1,1072 @@
+{
+ "initial": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-11-01",
+    "latest_period_start": "2026-10-01",
+    "default_valuation_date": "2026-11-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-11-01",
+    "latest_period_start": "2026-10-01",
+    "default_valuation_date": "2026-11-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-11-01",
+    "latest_period_start": "2026-10-01",
+    "default_valuation_date": "2026-11-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": true
+   }
+  ]
+ },
+ "nov_open_drafts": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": true
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "OPEN",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "DRAFT",
+    "displayed_run_id": 141,
+    "displayed_run_basis": "LATEST_SUCCESS",
+    "approved_run_id": null,
+    "approved_at": null,
+    "approved_by": null,
+    "latest_success_run_id": 141,
+    "latest_success_finished_at": "2026-10-19T02:41:38.377544+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "DRAFT",
+    "display_label": "DRAFT run 141 - not approved",
+    "is_latest_approved_period": false
+   }
+  ]
+ },
+ "preflight_blocked": {
+  "ok": false,
+  "run": 140,
+  "mode": "APPROVE",
+  "checks": [
+   {
+    "code": "RUN_SUCCESS",
+    "pass": true,
+    "detail": "SUCCESS / CAPTURED_AT_REQUEST"
+   },
+   {
+    "code": "NOT_ALREADY_DESIGNATED",
+    "pass": true,
+    "detail": "none"
+   },
+   {
+    "code": "PERIOD_OPEN",
+    "pass": true,
+    "detail": "OPEN"
+   },
+   {
+    "code": "VALUATION_DATE_MATCHES",
+    "pass": true,
+    "detail": "run 2026-11-05 / period 2026-11-05"
+   },
+   {
+    "code": "NO_ACTIVE_RUN",
+    "pass": true,
+    "detail": "0 queued/running"
+   },
+   {
+    "code": "FINGERPRINT_CAPTURED",
+    "pass": true,
+    "detail": "capture 23"
+   },
+   {
+    "code": "FINGERPRINT_CLEAN",
+    "pass": true,
+    "detail": "0 drifted tables"
+   },
+   {
+    "code": "HAS_COST_SHEET",
+    "pass": true,
+    "detail": "627 SKUs"
+   },
+   {
+    "code": "NO_BLOCKED_SKUS",
+    "pass": false,
+    "detail": "1 BLOCKED"
+   },
+   {
+    "code": "REVIEW_REQUIRED_RECORDED",
+    "pass": true,
+    "detail": "37 REVIEW_REQUIRED (allowed, recorded)"
+   },
+   {
+    "code": "NO_OTHER_APPROVED_RUN",
+    "pass": true,
+    "detail": "none"
+   }
+  ],
+  "counts": {
+   "ready": 589,
+   "total": 627,
+   "blocked": 1,
+   "review_required": 37
+  },
+  "approved_run": null,
+  "period_start": "2026-11-01",
+  "fingerprint_id": 23,
+  "authorisation_id": null
+ },
+ "preflight_ok": {
+  "ok": true,
+  "run": 141,
+  "mode": "APPROVE",
+  "checks": [
+   {
+    "code": "RUN_SUCCESS",
+    "pass": true,
+    "detail": "SUCCESS / CAPTURED_AT_REQUEST"
+   },
+   {
+    "code": "NOT_ALREADY_DESIGNATED",
+    "pass": true,
+    "detail": "none"
+   },
+   {
+    "code": "PERIOD_OPEN",
+    "pass": true,
+    "detail": "OPEN"
+   },
+   {
+    "code": "VALUATION_DATE_MATCHES",
+    "pass": true,
+    "detail": "run 2026-11-05 / period 2026-11-05"
+   },
+   {
+    "code": "NO_ACTIVE_RUN",
+    "pass": true,
+    "detail": "0 queued/running"
+   },
+   {
+    "code": "FINGERPRINT_CAPTURED",
+    "pass": true,
+    "detail": "capture 24"
+   },
+   {
+    "code": "FINGERPRINT_CLEAN",
+    "pass": true,
+    "detail": "0 drifted tables"
+   },
+   {
+    "code": "HAS_COST_SHEET",
+    "pass": true,
+    "detail": "627 SKUs"
+   },
+   {
+    "code": "NO_BLOCKED_SKUS",
+    "pass": true,
+    "detail": "0 BLOCKED"
+   },
+   {
+    "code": "REVIEW_REQUIRED_RECORDED",
+    "pass": true,
+    "detail": "37 REVIEW_REQUIRED (allowed, recorded)"
+   },
+   {
+    "code": "NO_OTHER_APPROVED_RUN",
+    "pass": true,
+    "detail": "none"
+   }
+  ],
+  "counts": {
+   "ready": 590,
+   "total": 627,
+   "blocked": 0,
+   "review_required": 37
+  },
+  "approved_run": null,
+  "period_start": "2026-11-01",
+  "fingerprint_id": 24,
+  "authorisation_id": null
+ },
+ "nov_active_run": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": true
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "OPEN",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "DRAFT",
+    "displayed_run_id": 141,
+    "displayed_run_basis": "LATEST_SUCCESS",
+    "approved_run_id": null,
+    "approved_at": null,
+    "approved_by": null,
+    "latest_success_run_id": 141,
+    "latest_success_finished_at": "2026-10-19T02:41:38.377544+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": 142,
+    "active_run_status": "RUNNING",
+    "active_run_stage": null,
+    "display_state": "DRAFT",
+    "display_label": "DRAFT run 141 - not approved",
+    "is_latest_approved_period": false
+   }
+  ]
+ },
+ "nov_approved": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "OPEN",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "DRAFT",
+    "displayed_run_id": 141,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 141,
+    "approved_at": "2026-10-19T02:41:39.059831+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 142,
+    "latest_success_finished_at": "2026-10-19T02:41:38.954006+00:00",
+    "newer_draft_run_id": 142,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED_NEWER_DRAFT",
+    "display_label": "Approved run 141 (newer DRAFT run 142 - not approved)",
+    "is_latest_approved_period": true
+   }
+  ]
+ },
+ "nov_locked": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 141,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 141,
+    "approved_at": "2026-10-19T02:41:39.059831+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 142,
+    "latest_success_finished_at": "2026-10-19T02:41:38.954006+00:00",
+    "newer_draft_run_id": 142,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED_NEWER_DRAFT",
+    "display_label": "Approved run 141 (newer DRAFT run 142 - not approved)",
+    "is_latest_approved_period": true
+   }
+  ]
+ },
+ "nov_reopened": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "OPEN",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "DRAFT",
+    "displayed_run_id": 141,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 141,
+    "approved_at": "2026-10-19T02:41:39.059831+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 142,
+    "latest_success_finished_at": "2026-10-19T02:41:38.954006+00:00",
+    "newer_draft_run_id": 142,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED_NEWER_DRAFT",
+    "display_label": "Approved run 141 (newer DRAFT run 142 - not approved)",
+    "is_latest_approved_period": true
+   }
+  ]
+ },
+ "nov_newer_draft": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "OPEN",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "DRAFT",
+    "displayed_run_id": 141,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 141,
+    "approved_at": "2026-10-19T02:41:39.059831+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 144,
+    "latest_success_finished_at": "2026-10-19T02:41:39.584444+00:00",
+    "newer_draft_run_id": 144,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED_NEWER_DRAFT",
+    "display_label": "Approved run 141 (newer DRAFT run 144 - not approved)",
+    "is_latest_approved_period": true
+   }
+  ]
+ },
+ "preflight_supersede": {
+  "ok": true,
+  "run": 144,
+  "mode": "SUPERSEDE",
+  "checks": [
+   {
+    "code": "RUN_SUCCESS",
+    "pass": true,
+    "detail": "SUCCESS / CAPTURED_AT_REQUEST"
+   },
+   {
+    "code": "NOT_ALREADY_DESIGNATED",
+    "pass": true,
+    "detail": "none"
+   },
+   {
+    "code": "PERIOD_OPEN",
+    "pass": true,
+    "detail": "OPEN"
+   },
+   {
+    "code": "VALUATION_DATE_MATCHES",
+    "pass": true,
+    "detail": "run 2026-11-05 / period 2026-11-05"
+   },
+   {
+    "code": "NO_ACTIVE_RUN",
+    "pass": true,
+    "detail": "0 queued/running"
+   },
+   {
+    "code": "FINGERPRINT_CAPTURED",
+    "pass": true,
+    "detail": "capture 27"
+   },
+   {
+    "code": "FINGERPRINT_CLEAN",
+    "pass": true,
+    "detail": "0 drifted tables"
+   },
+   {
+    "code": "HAS_COST_SHEET",
+    "pass": true,
+    "detail": "627 SKUs"
+   },
+   {
+    "code": "NO_BLOCKED_SKUS",
+    "pass": true,
+    "detail": "0 BLOCKED"
+   },
+   {
+    "code": "REVIEW_REQUIRED_RECORDED",
+    "pass": true,
+    "detail": "37 REVIEW_REQUIRED (allowed, recorded)"
+   },
+   {
+    "code": "HAS_APPROVED_RUN_TO_SUPERSEDE",
+    "pass": true,
+    "detail": "run 141"
+   },
+   {
+    "code": "NEWER_THAN_APPROVED",
+    "pass": true,
+    "detail": "finished 2026-10-19 02:41:39.584444+00 vs 2026-10-19 02:41:38.377544+00"
+   },
+   {
+    "code": "SUPERSESSION_AUTHORISATION_CONSUMED",
+    "pass": true,
+    "detail": "authorisation 1"
+   }
+  ],
+  "counts": {
+   "ready": 590,
+   "total": 627,
+   "blocked": 0,
+   "review_required": 37
+  },
+  "approved_run": 141,
+  "period_start": "2026-11-01",
+  "fingerprint_id": 27,
+  "authorisation_id": 1
+ },
+ "nov_superseded": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "OPEN",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "DRAFT",
+    "displayed_run_id": 144,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 144,
+    "approved_at": "2026-10-19T02:41:39.854720+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 144,
+    "latest_success_finished_at": "2026-10-19T02:41:39.584444+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 144",
+    "is_latest_approved_period": true
+   }
+  ]
+ },
+ "nov_closed": {
+  "ctx": {
+   "owner": {
+    "user_id": "dff17104-c02a-4bca-95b1-e8ddff46a9b6",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": true,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "editor": {
+    "user_id": "00000000-0000-0000-0000-0000000000e1",
+    "can_edit": true,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   },
+   "viewer": {
+    "user_id": "00000000-0000-0000-0000-0000000000a1",
+    "can_edit": false,
+    "can_view": true,
+    "is_owner": false,
+    "next_period_start": "2026-12-01",
+    "latest_period_start": "2026-11-01",
+    "default_valuation_date": "2026-12-01",
+    "supersession_valid_minutes": 120
+   }
+  },
+  "rows": [
+   {
+    "period_start": "2026-09-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-09-10",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 122,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 122,
+    "approved_at": "2026-10-16T14:36:52.341766+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 122,
+    "latest_success_finished_at": "2026-10-16T14:15:00.081468+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 122",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-10-01",
+    "period_status": "LOCKED",
+    "valuation_date": "2026-10-16",
+    "valuation_date_status": "LOCKED",
+    "displayed_run_id": 128,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 128,
+    "approved_at": "2026-10-18T08:48:51.796918+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 128,
+    "latest_success_finished_at": "2026-10-18T08:10:00.053483+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 128",
+    "is_latest_approved_period": false
+   },
+   {
+    "period_start": "2026-11-01",
+    "period_status": "CLOSED",
+    "valuation_date": "2026-11-05",
+    "valuation_date_status": "FINAL",
+    "displayed_run_id": 144,
+    "displayed_run_basis": "APPROVED",
+    "approved_run_id": 144,
+    "approved_at": "2026-10-19T02:41:39.854720+00:00",
+    "approved_by": "Dr. Brahmadathan U",
+    "latest_success_run_id": 144,
+    "latest_success_finished_at": "2026-10-19T02:41:39.584444+00:00",
+    "newer_draft_run_id": null,
+    "active_run_id": null,
+    "active_run_status": null,
+    "active_run_stage": null,
+    "display_state": "APPROVED",
+    "display_label": "Approved run 144",
+    "is_latest_approved_period": true
+   }
+  ]
+ }
+}

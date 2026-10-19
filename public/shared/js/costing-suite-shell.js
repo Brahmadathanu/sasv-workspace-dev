@@ -3,6 +3,7 @@ import { Platform } from "./platform.js";
 import { showToast as sasvShowToast } from "./toast.js";
 import { mountModuleActionIcons } from "./sasv-module-chrome.js";
 import { createRunStatusBadge } from "./costing-run-status-badge.js";
+import { createPeriodGovernancePanel } from "./costing-period-governance.js";
 import {
   COSTING_SUITE_MODULES,
   LENS_REGISTRY,
@@ -2434,6 +2435,16 @@ function costingFrom(viewName) {
 }
 
 const runStatusBadge = createRunStatusBadge({ supabase, anchor: lastRefreshed });
+// W2: "Period & runs" panel (Control Center only); governed RPCs, reason + approval reference on every action.
+const periodGovernancePanel = createPeriodGovernancePanel({
+  supabase,
+  anchor: lastRefreshed,
+  notify: (message, type) => showToast(message, type),
+  onChanged: () => {
+    runStatusBadge.invalidate();
+    void loadRowsForLens({ preservePage: true });
+  },
+});
 
 async function costingRpc(name, params, options = null) {
   let query = supabase.rpc(name, params);
@@ -4501,6 +4512,7 @@ async function loadRowsForLens({ preservePage = false } = {}) {
     periodStart: ACTIVE_PERIOD_START,
     lensId: CURRENT_LENS,
   });
+  void periodGovernancePanel.setVisible(isControlCenterRouteActive());
   try {
     costBuildCtrl.syncManualProvisionLayout();
     if (!isProductionRouteLens(CURRENT_LENS)) {
