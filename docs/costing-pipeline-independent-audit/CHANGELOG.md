@@ -1,6 +1,11 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 19:05: G1 upstream lineage verified (read-only)
+- closure/G1_UPSTREAM_LINEAGE.md + evidence/G1U (u1-u5). Runs 122/128: all RM/PM lines, UOM conversions, yields, 999/994 Tally voucher rate picks, manual rates and labour allocations reconcile (0 mismatches); run 128 builder replay identical; run 122 replay differs for 8 products (BOM masters not effective-dated, CI-028).
+- New issues CI-028..CI-032 (master effective dating; 12.8% stale/fallback/manual material value; process-loss plausibility; batch-true rate label; manufacturing-labour driver concentration, Dhanyamlam 13.2%). CI-027 closed as verified.
+- No live write.
+
 ## 2026-10-19 18:25: Closure mandate G0 done; G1 downstream reconciliation verified (read-only)
 - Mandate COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md (28f1d4d) adopted; new `closure/` directory: PROGRAMME.md, IMPLEMENTATION_RULES.md, ISSUE_REGISTER.json/.md (27 issues), G0_BASELINE_2026-10-19.md, G1_COST_WATERFALL_RECONCILIATION.md, evidence/G0 and evidence/G1 (SQL + results).
 - G0: repo (main 80c14ab, PRs), 582 live vs 96 repo migrations, 3,984 definition hashes (0 changed since W2), runs/designations/periods, fingerprints 122/128 0 drift, cron 33 (60/61 paused), switches (G4 none), capacity master, security advisors.

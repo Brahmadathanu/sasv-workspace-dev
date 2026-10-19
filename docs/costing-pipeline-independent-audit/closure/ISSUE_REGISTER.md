@@ -1,5 +1,5 @@
 # Issue register (canonical; machine-readable copy: `ISSUE_REGISTER.json`)
-Updated 19 Oct 2026 18:25 IST. Severity: HIGH blocks release; MEDIUM must be dispositioned; LOW/INFO tracked.
+Updated 2026-10-19 19:05 IST. Severity: HIGH blocks release; MEDIUM must be dispositioned; LOW/INFO tracked.
 
 | ID | Severity | Gate | Status | Title | Fix | Approval |
 |---|---|---|---|---|---|---|
@@ -29,4 +29,9 @@ Updated 19 Oct 2026 18:25 IST. Severity: HIGH blocks release; MEDIUM must be dis
 | CI-024 | MEDIUM | G6 | OPEN | 9 negative-margin SKUs and 37 REVIEW_REQUIRED SKUs in approved Oct run 128 | Per-SKU trace (cost level) and disposition. | User |
 | CI-025 | LOW | G5 | DOCUMENTED | Margin basis vs pricing_cost_per_sku | Label clearly in G5 export. | - |
 | CI-026 | INFO | G1 | VERIFIED | Cost waterfall identities (runs 122 and 128) | None; adopt as golden tests (G6). | - |
-| CI-027 | HIGH | G1 | IN PROGRESS | Upstream lineage not yet traced (Tally rates -> material lines; BOM/UOM/yield; route/machine loads; HR roles) | Lineage map A + sample SKU traces at each level (high-risk set incl. 9 negatives, kit 865, Kanji 878). | - |
+| CI-027 | INFO | G1 | VERIFIED (19 Oct) | Upstream lineage: Tally rates -> material lines; BOM/UOM/yield; route/machine -> labour | - | - |
+| CI-028 | MEDIUM | G4 | OPEN | Product and BOM masters are not effective-dated; past-period replay is not reproducible from masters | Option A: BOM revision/effective dating (larger). Option B (technical, small): include BOM/master content hash in run fingerprints and block past-period refresh when masters changed after the valuation date. Batched with CI-009. | User (migration) |
+| CI-029 | MEDIUM | G3 | OPEN (data) | 12.8% of October material value rests on stale (>180 d), stock-valuation or manual rates | Purchase/stores to refresh or confirm rates for the stale items; policy decision on averaging and landed cost (CI-006). | User / Purchase (data) |
+| CI-030 | LOW | G1 | OPEN (data review) | Process loss plausibility: 11 products at >=40% loss (max 98%, Panaviraladi Bhasmam) | Production to confirm the 11 values. | Production (data) |
+| CI-031 | LOW | G2 | OPEN (decision) | Batch-true NORMAL_VOLUME_RATE is pool / actual workload (absorption variance always 0) | Either rename basis to ACTUAL_VOLUME_RATE or (G2 decision) implement normal-capacity rate with visible variance. | User (policy) |
+| CI-032 | HIGH | G2 | OPEN (driver validation) | Manufacturing labour concentrated by route step factors and equipment-load scaling | Production to validate the step factors and load capacities of the top products (G2); whether MANUAL steps should scale with equipment loads is a G2 rule. | User / Production |
