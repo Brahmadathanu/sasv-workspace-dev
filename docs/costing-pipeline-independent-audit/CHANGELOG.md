@@ -161,3 +161,6 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - LIVE: LB1 (22 heads APPROVED, ₹0) and DVS-1 installed with the switch OFF. Verified; see closure/LB1_DVS1_LIVE_APPLY_2026-10-19.md.
 - Prepared and tested locally: CI-012 tiered no-backdating guard; CI-034 valuation-anchored basis status.
 - User-facing items: the 15-machine capacity table and the 86-SKU DVS-1 review worksheet.
+
+## 2026-10-19 20:20 IST: ChatGPT handover part 3
+- handover/CHATGPT_HANDOVER_2026-10-19_PART3.md (full) and _PART3_SHORT.md: everything since 8ec5bee; approved policy, live state, prepared-not-applied and open items kept separate; what remains (gates, issues by severity, pending approvals, blocked, items to verify). POLICY_REGISTER P37/P38 status updated. No live change.

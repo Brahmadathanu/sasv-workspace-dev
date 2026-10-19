@@ -1,5 +1,5 @@
 # Costing pipeline independent audit: index and current state (branch costing/au4-normal-budget)
-Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independent-audit` has its own README (the A0–A11 audit). This index covers the implementation work in PR #72.
+Updated 19 Oct 2026, 20:20 IST (part-3 handover). The audit branch `docs/costing-pipeline-independent-audit` has its own README (the A0–A11 audit). This index covers the implementation work in PR #72.
 
 ## Current live state
 | Item | State |
@@ -13,6 +13,8 @@ Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independ
 | Next period | November: needs CF-1 build, lock/reopen functions, capacity confirmation (see backlog) |
 
 ## Start here
+- **LATEST HANDOVER (part 3, 19 Oct 20:20 IST): everything since 8ec5bee (W1/W5, W2, closure G0/G1, TB1–TB7, P33–P38, LB1, DVS-1 OFF, CI-012/CI-034 prepared, open items):** `handover/CHATGPT_HANDOVER_2026-10-19_PART3.md` (short: `_PART3_SHORT.md`). Live state in section B2 there supersedes the table below.
+- **Closure live applies:** `closure/TB_LIVE_APPLY_2026-10-19.md` · `closure/LB1_DVS1_LIVE_APPLY_2026-10-19.md` · prepared-not-applied: `closure/CI012_CI034_GUARD_AND_FIX.md`
 - **CURRENT PRIORITY: end-to-end server closure (mandate 19 Oct):** `COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` · programme `closure/PROGRAMME.md` · issue register `closure/ISSUE_REGISTER.json` (`.md`) · G0 `closure/G0_BASELINE_2026-10-19.md` · G1 `closure/G1_COST_WATERFALL_RECONCILIATION.md`
 - **Handover for the independent auditor:** `handover/CHATGPT_HANDOVER_2026-10-18.md` (short: `_SHORT.md`)
 - **Handover part 2 (AU-9 capacity master, R2, G4 live switch OFF, runs/cron/Sheets-feed findings):** `handover/CHATGPT_HANDOVER_2026-10-18_PART2.md` (short: `_PART2_SHORT.md`)
