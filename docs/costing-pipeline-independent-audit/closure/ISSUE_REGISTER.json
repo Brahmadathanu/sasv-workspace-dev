@@ -1,6 +1,6 @@
 {
  "register": "Costing end-to-end closure: canonical issue register",
- "updated": "2026-10-19 19:05",
+ "updated": "2026-10-19 20:15",
  "source_mandate": "COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md @28f1d4d",
  "fields": [
   "id",
@@ -21,12 +21,12 @@
    "title": "Tally source snapshot tables writable by any logged-in user",
    "severity": "HIGH",
    "gate": "G1/G6",
-   "status": "OPEN",
-   "business_consequence": "Purchase, stock, issue and sales snapshots that drive material rates and allocation volumes can be inserted, changed or deleted by any authenticated user; approved-run inputs are not protected at source. G1U: tally_purchases_vreg_snapshot alone prices Rs 1.12 Cr/month of material (latest-purchase rates, run 128).",
+   "status": "PREPARED+TESTED (TB1, awaiting approval)",
+   "business_consequence": "Purchase, stock, issue and sales snapshots that drive material rates and allocation volumes can be inserted, changed or deleted by any authenticated user; approved-run inputs are not protected at source. G1U: tally_purchases_vreg_snapshot alone prices Rs 1.12 Cr/month of material (latest-purchase rates, run 128). TB: anon and authenticated could also TRUNCATE tally_fg_transfer_snapshot, tally_rm_rms_stock_snapshot and etl_jobs (TRUNCATE bypasses RLS).",
    "evidence_sql": "closure/evidence/G0/g0_security.json (tally_write_policies, tally_tables_auth_write)",
    "reproduction": "select tablename, policyname, cmd, roles, qual from pg_policies where schemaname='public' and tablename like 'tally%' and cmd in ('ALL','INSERT','UPDATE','DELETE');  -- 14 policies '<table>_authenticated_crud' ALL to authenticated, qual auth.uid() is not null",
-   "expected_fix": "Writes only via the ETL/service role (or a governed RPC); authenticated read-only. Prepare and test locally, confirm ETL writer identity first.",
-   "tests": "Local: authenticated INSERT/UPDATE/DELETE refused, service_role allowed, ETL path still works; live probe after approval.",
+   "expected_fix": "closure/prepared/PREPARED_TB1_tally_snapshot_write_lockdown.sql",
+   "tests": "evidence/TB/tb_test_results.json (tally)",
    "approval_authority": "User (live security change)"
   },
   {
@@ -34,12 +34,12 @@
    "title": "Internal material conversion is not an atomic column of the internal-loaded snapshot / cost sheet",
    "severity": "MEDIUM",
    "gate": "G1/G5",
-   "status": "OPEN (root cause found)",
+   "status": "PREPARED+TESTED (TB5 view, awaiting approval)",
    "business_consequence": "Displayed atomic components do not add up to internal loaded cost for 9 SKUs in run 128 (54,56,364,365,367,658,901,902,1285; 7 of them by >= Rs 0.01), which looked like 7/9 \"prime anomalies\". The cost itself is correct.",
    "evidence_sql": "closure/evidence/G1/g1_identities.sql, G1/g1_identities_result.json, G1/def_rpc_refresh_sku_prime_cost_snapshot.sql",
    "reproduction": "prime = material + direct labour + internal_material_conversion_cost (rpc_refresh_sku_prime_cost_snapshot); sku_internal_loaded_cost_snapshot has no IMC column.",
-   "expected_fix": "Carry internal_material_conversion_cost_per_sku through COP/ILC display, cost sheet lines and the G5 export (new runs only; no snapshot rewrite).",
-   "tests": "Identity: ILC = material + DL + IMC + PO + QC + stores + admin + finance admin for all SKUs (passes today when IMC is joined from prime).",
+   "expected_fix": "closure/prepared/PREPARED_TB5_ilc_imc_atomic_view.sql (view; no table column to protect legacy fingerprints)",
+   "tests": "identity gap 0 on runs 122/128",
    "approval_authority": "User (migration)"
   },
   {
@@ -125,12 +125,12 @@
    "title": "Fingerprint captures record no algorithm/schema version; table set differs by run",
    "severity": "MEDIUM",
    "gate": "G4",
-   "status": "OPEN",
+   "status": "PREPARED+TESTED (TB6, awaiting approval)",
    "business_consequence": "Run 122 captures hash 50 tables, run 128 hash 51; the W5 method is recognisable only by the per-table \"cols\" key. Independent re-verification years later depends on knowing the exact table list and method.",
    "evidence_sql": "closure/evidence/G0/g0_live_ops.json (fingerprints, rebaseline)",
    "reproduction": "select id, refresh_run_id, purpose, (select count(*) from jsonb_object_keys(fingerprint)) from costing.costing_run_fingerprint",
-   "expected_fix": "Add explicit algorithm_version and table-list hash to new captures (forward only; existing captures untouched).",
-   "tests": "Verify 122/128 = 0 drift before/after; new capture carries version.",
+   "expected_fix": "closure/prepared/PREPARED_TB6_fingerprint_algorithm_version.sql",
+   "tests": "verify output identical for 8 runs; defaults fill new rows only",
    "approval_authority": "User (migration)"
   },
   {
@@ -138,12 +138,12 @@
    "title": "Capacity profiles: USER_DECLARED values are still flagged is_provisional",
    "severity": "MEDIUM",
    "gate": "G2",
-   "status": "OPEN",
-   "business_consequence": "77 current profiles carry user-declared rated/working values but every one of the 298 rows is is_provisional=true, so measured values look like guesses; evidence confidence, approval and capacity purpose are conflated in one flag.",
+   "status": "PREPARED+TESTED (TB7 view, awaiting approval)",
+   "business_consequence": "77 current profiles carry user-declared rated/working values but every one of the 298 rows is is_provisional=true, so measured values look like guesses; evidence confidence, approval and capacity purpose are conflated in one flag. TB7: plant current 171 = 76 user-supplied, 23 estimated, 45 class-default(user), 3 class-default(assumed), 14 assumed, 10 missing; class 16 = 11 user, 2 assumed, 3 fixed.",
    "evidence_sql": "closure/evidence/G0/g0_live_ops.json (capacity.current_by_evidence, provisional)",
    "reproduction": "select evidence_type, is_provisional, count(*) from costing.plant_capacity_profile p where effective_to is null group by 1,2",
-   "expected_fix": "Separate fields: evidence_type (USER_DECLARED/NAME_DERIVED/NONE), approval_status, capacity_purpose (costing/planning-only), applicability; new appended versions, no edits.",
-   "tests": "Readiness view shows APPROVED_USER_DECLARED vs SCENARIO_PROVISIONAL distinctly.",
+   "expected_fix": "closure/prepared/PREPARED_TB7_capacity_value_origin.sql",
+   "tests": "evidence/TB/capacity_value_origin_current.csv",
    "approval_authority": "User (migration)"
   },
   {
@@ -226,15 +226,15 @@
   },
   {
    "id": "CI-017",
-   "title": "42 costing-related public views are SECURITY DEFINER (advisor ERROR)",
-   "severity": "MEDIUM",
+   "title": "49 costing views readable by every logged-in account (no permission gate), incl. per-employee salary",
+   "severity": "HIGH",
    "gate": "G6",
-   "status": "OPEN",
-   "business_consequence": "These views bypass row-level security; protection depends on the permission checks inside each view.",
+   "status": "PREPARED+TESTED (TB2, awaiting approval)",
+   "business_consequence": "37 definer + 12 invoker costing views had no permission gate. All 25 accounts could read v_costing_staff_classification_register (164 staff, 142 with basic/allowance/total salary), manual rates, detailed cost sheets and scheme comparisons. Anon had no SELECT.",
    "evidence_sql": "closure/evidence/G0/g0_advisors_summary.json, G0/g0_security.json",
    "reproduction": "get_advisors(security) security_definer_view",
-   "expected_fix": "Audit each view for an app_has_permission gate; convert to security_invoker or add gate.",
-   "tests": "Per-view access test as viewer/no-permission/anon.",
+   "expected_fix": "closure/prepared/PREPARED_TB2_costing_view_permission_gate.sql",
+   "tests": "evidence/TB/tb_test_results.json (views): unpermitted 3,272 rows -> 0; costing user/postgres identical; definer RPCs unaffected",
    "approval_authority": "User (migration)"
   },
   {
@@ -242,12 +242,12 @@
    "title": "9 costing functions with mutable search_path",
    "severity": "LOW",
    "gate": "G6",
-   "status": "OPEN",
+   "status": "PREPARED+TESTED (TB3, awaiting approval)",
    "business_consequence": "Search-path hijack risk for definer functions.",
    "evidence_sql": "closure/evidence/G0/g0_advisors_summary.json",
    "reproduction": "advisor function_search_path_mutable",
-   "expected_fix": "Set search_path explicitly.",
-   "tests": "Advisor clean.",
+   "expected_fix": "closure/prepared/PREPARED_TB3_function_search_path.sql",
+   "tests": "outputs identical before/after",
    "approval_authority": "User (migration)"
   },
   {
@@ -255,12 +255,12 @@
    "title": "100 of 143 costing tables have RLS off; authenticated has costing USAGE and SELECT on 46 objects",
    "severity": "MEDIUM",
    "gate": "G6",
-   "status": "OPEN (exposure to verify)",
+   "status": "PREPARED (public path via TB2); costing schema not API-exposed per config.toml - confirm dashboard",
    "business_consequence": "If the costing schema is exposed through the API, logged-in users can read run snapshots directly (no write grants found).",
    "evidence_sql": "closure/evidence/G0/g0_security.json",
    "reproduction": "see g0_security.json",
    "expected_fix": "Confirm API schema exposure; revoke SELECT or add RLS.",
-   "tests": "Direct-read probe as authenticated.",
+   "tests": "TB2 tests; dashboard check",
    "approval_authority": "User (security change)"
   },
   {
@@ -268,7 +268,7 @@
    "title": "Public W1 views carry full table ACL for authenticated via default privileges (C1)",
    "severity": "LOW",
    "gate": "G6",
-   "status": "OPEN",
+   "status": "PREPARED+TESTED (in TB2)",
    "business_consequence": "Views are not updatable, so no write effect; hygiene.",
    "evidence_sql": "closure/evidence/../contracts/live_source/live_contract_facts.json",
    "reproduction": "select relacl from pg_class where relname like %approved%",
@@ -431,6 +431,19 @@
    "expected_fix": "Production to validate the step factors and load capacities of the top products (G2); whether MANUAL steps should scale with equipment loads is a G2 rule.",
    "tests": "Re-simulate run 128 labour with validated drivers (isolated).",
    "approval_authority": "User / Production"
+  },
+  {
+   "id": "CI-033",
+   "title": "Costing-schema view v_cost_pool_monthly_combined (granted to authenticated) returns partial data to unpermitted users after TB2",
+   "severity": "INFO",
+   "gate": "G6",
+   "status": "OPEN (no exposure while costing schema is not API-exposed)",
+   "business_consequence": "Unpermitted caller sees 35 of 47 rows (manual-provision part filtered). Harmless unless costing schema is exposed.",
+   "evidence_sql": "evidence/TB/tb_test_results.json",
+   "reproduction": "TB2 test",
+   "expected_fix": "Revoke authenticated SELECT on costing.* when CI-019 is closed",
+   "tests": "probe",
+   "approval_authority": "User (security change)"
   }
  ]
 }

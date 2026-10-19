@@ -1,28 +1,28 @@
 # Issue register (canonical; machine-readable copy: `ISSUE_REGISTER.json`)
-Updated 2026-10-19 19:05 IST. Severity: HIGH blocks release; MEDIUM must be dispositioned; LOW/INFO tracked.
+Updated 2026-10-19 20:15 IST. Severity: HIGH blocks release; MEDIUM must be dispositioned; LOW/INFO tracked.
 
 | ID | Severity | Gate | Status | Title | Fix | Approval |
 |---|---|---|---|---|---|---|
-| CI-001 | HIGH | G1/G6 | OPEN | Tally source snapshot tables writable by any logged-in user | Writes only via the ETL/service role (or a governed RPC); authenticated read-only. Prepare and test locally, confirm ETL writer identity first. | User (live security change) |
-| CI-002 | MEDIUM | G1/G5 | OPEN (root cause found) | Internal material conversion is not an atomic column of the internal-loaded snapshot / cost sheet | Carry internal_material_conversion_cost_per_sku through COP/ILC display, cost sheet lines and the G5 export (new runs only; no snapshot rewrite). | User (migration) |
+| CI-001 | HIGH | G1/G6 | PREPARED+TESTED (TB1, awaiting approval) | Tally source snapshot tables writable by any logged-in user | closure/prepared/PREPARED_TB1_tally_snapshot_write_lockdown.sql | User (live security change) |
+| CI-002 | MEDIUM | G1/G5 | PREPARED+TESTED (TB5 view, awaiting approval) | Internal material conversion is not an atomic column of the internal-loaded snapshot / cost sheet | closure/prepared/PREPARED_TB5_ilc_imc_atomic_view.sql (view; no table column to protect legacy fingerprints) | User (migration) |
 | CI-003 | HIGH | G3 | OPEN | Central Office Charges Rs 8,71,972.83/month in admin pool from one FY25-26 year-end entry; overlap with HO admin Rs 5L/month unproven | Obtain Tally voucher narrations / HO allocation note; set an approved normal; record the separation evidence. | User / finance (policy) |
 | CI-004 | LOW | G0 | FIXED IN DOCS (G0) | Cost-head ledger status counts in docs are stale | Status note added to COST_HEAD_POLICY_LEDGER.md; per-head table to be regenerated from live in G3. | None (docs) |
 | CI-005 | MEDIUM | G3 | OPEN | 38 provisional cost heads feed approved runs (all 16 marketing heads, Rs 29.6L/month) | Per-head disposition (approve normal / keep provisional with review date / exclude) in an approval packet. | User (policy) |
 | CI-006 | MEDIUM | G1/G3 | OPEN (verify against decision) | MATERIAL_LANDED_COST head (Rs 67,725 normal) is absorbed through the Materials-Stores overhead pool | Confirm the documented carriage-inward decision; if intended, label the component explicitly in the export. | User (policy) |
 | CI-007 | INFO | G1 | VERIFIED | Workload pools route a small amount to internal source products and recover it through IMC | None. Keep as a golden conservation test. | - |
 | CI-008 | INFO | G1 | VERIFIED | Regional (IK/OK) marketing conservation | None. Golden test. | - |
-| CI-009 | MEDIUM | G4 | OPEN | Fingerprint captures record no algorithm/schema version; table set differs by run | Add explicit algorithm_version and table-list hash to new captures (forward only; existing captures untouched). | User (migration) |
-| CI-010 | MEDIUM | G2 | OPEN | Capacity profiles: USER_DECLARED values are still flagged is_provisional | Separate fields: evidence_type (USER_DECLARED/NAME_DERIVED/NONE), approval_status, capacity_purpose (costing/planning-only), applicability; new appended versions, no edits. | User (migration) |
+| CI-009 | MEDIUM | G4 | PREPARED+TESTED (TB6, awaiting approval) | Fingerprint captures record no algorithm/schema version; table set differs by run | closure/prepared/PREPARED_TB6_fingerprint_algorithm_version.sql | User (migration) |
+| CI-010 | MEDIUM | G2 | PREPARED+TESTED (TB7 view, awaiting approval) | Capacity profiles: USER_DECLARED values are still flagged is_provisional | closure/prepared/PREPARED_TB7_capacity_value_origin.sql | User (migration) |
 | CI-011 | HIGH | G2 | OPEN | 74 production machines have no usable capacity (BLOCKED_NEEDS_CAPACITY) | Concise exception register of truly missing machine values (excluding ones already supplied), or explicit N/A / class-fallback approval. | User (data) |
 | CI-012 | MEDIUM | G2/G4 | OPEN | All capacity rows effective 1 Nov 2026; superseded rows use zero-length windows | Design the in-month prospective effective-date rule with supersession (no backdating); test on an isolated run. | User (effective date) |
 | CI-013 | INFO | G2 | VERIFIED | Machine 41 stone grinder: 2 kg vs 10 kg | None. | - |
 | CI-014 | HIGH | G3 | OPEN | The 60% top-3 sales concentration rule is authoritative today (SALES-01), not a review flag | Build DVS-1 (G5 of AU-9) as a controlled migration: demand-pattern table, event register, governed overrides, selection snapshot; rule becomes REVIEW flag. | User (policy + migration) |
 | CI-015 | MEDIUM | G3 | OPEN | products.is_seasonal declares 15 of 1,342 products; not reconciled with rule-derived seasonal SKUs | Reconciliation table: declared vs rule vs DVS-1 decision. | User (data) |
 | CI-016 | MEDIUM | G0/G6 | OPEN | Repository migration records diverge from live | Migration parity register mapping each costing live version to its applied SQL file; decide whether to backfill supabase/migrations (after merge approval). | User (merge) |
-| CI-017 | MEDIUM | G6 | OPEN | 42 costing-related public views are SECURITY DEFINER (advisor ERROR) | Audit each view for an app_has_permission gate; convert to security_invoker or add gate. | User (migration) |
-| CI-018 | LOW | G6 | OPEN | 9 costing functions with mutable search_path | Set search_path explicitly. | User (migration) |
-| CI-019 | MEDIUM | G6 | OPEN (exposure to verify) | 100 of 143 costing tables have RLS off; authenticated has costing USAGE and SELECT on 46 objects | Confirm API schema exposure; revoke SELECT or add RLS. | User (security change) |
-| CI-020 | LOW | G6 | OPEN | Public W1 views carry full table ACL for authenticated via default privileges (C1) | Revoke to SELECT. | User (security change) |
+| CI-017 | HIGH | G6 | PREPARED+TESTED (TB2, awaiting approval) | 49 costing views readable by every logged-in account (no permission gate), incl. per-employee salary | closure/prepared/PREPARED_TB2_costing_view_permission_gate.sql | User (migration) |
+| CI-018 | LOW | G6 | PREPARED+TESTED (TB3, awaiting approval) | 9 costing functions with mutable search_path | closure/prepared/PREPARED_TB3_function_search_path.sql | User (migration) |
+| CI-019 | MEDIUM | G6 | PREPARED (public path via TB2); costing schema not API-exposed per config.toml - confirm dashboard | 100 of 143 costing tables have RLS off; authenticated has costing USAGE and SELECT on 46 objects | Confirm API schema exposure; revoke SELECT or add RLS. | User (security change) |
+| CI-020 | LOW | G6 | PREPARED+TESTED (in TB2) | Public W1 views carry full table ACL for authenticated via default privileges (C1) | Revoke to SELECT. | User (security change) |
 | CI-021 | INFO | G0 | NOTED | Non-costing live migrations applied today 18:03-18:06 IST (lab_* x3), not in repo | None for costing. | - |
 | CI-022 | INFO | G5 | GOVERNANCE | Run 128 working price proposal is not finance-approved; Sheets and price revision suspended | None until G6 acceptance. | User |
 | CI-023 | MEDIUM | G4 | OPEN (decision) | Cron 60 (requester) and 61 (stage worker) paused; 61 is needed for any governed refresh | Decide restore window for 61; keep 60 paused. | User (cron) |
@@ -35,3 +35,4 @@ Updated 2026-10-19 19:05 IST. Severity: HIGH blocks release; MEDIUM must be disp
 | CI-030 | LOW | G1 | OPEN (data review) | Process loss plausibility: 11 products at >=40% loss (max 98%, Panaviraladi Bhasmam) | Production to confirm the 11 values. | Production (data) |
 | CI-031 | LOW | G2 | OPEN (decision) | Batch-true NORMAL_VOLUME_RATE is pool / actual workload (absorption variance always 0) | Either rename basis to ACTUAL_VOLUME_RATE or (G2 decision) implement normal-capacity rate with visible variance. | User (policy) |
 | CI-032 | HIGH | G2 | OPEN (driver validation) | Manufacturing labour concentrated by route step factors and equipment-load scaling | Production to validate the step factors and load capacities of the top products (G2); whether MANUAL steps should scale with equipment loads is a G2 rule. | User / Production |
+| CI-033 | INFO | G6 | OPEN (no exposure while costing schema is not API-exposed) | Costing-schema view v_cost_pool_monthly_combined (granted to authenticated) returns partial data to unpermitted users after TB2 | Revoke authenticated SELECT on costing.* when CI-019 is closed | User (security change) |

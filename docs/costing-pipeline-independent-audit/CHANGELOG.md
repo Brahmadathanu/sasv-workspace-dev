@@ -1,6 +1,11 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 20:15: Technical approval batch TB1-TB7 prepared and tested in isolation (not applied)
+- closure/TECHNICAL_BATCH.md, closure/prepared/PREPARED_TB1..TB7 (TB4 = no SQL), evidence/TB (runner, results, capacity origin CSV). Local PG17 fixture of the live catalogue (62/62 view definitions md5-identical).
+- CI-017 raised to HIGH: 49 costing views had no permission gate; all 25 accounts could read per-employee salary (staff classification register) and cost sheets. TB2 gates them; permitted users' results unchanged.
+- CI-001/002/009/010/018/019/020 prepared+tested; new CI-033 (INFO). No live write.
+
 ## 2026-10-19 19:05: G1 upstream lineage verified (read-only)
 - closure/G1_UPSTREAM_LINEAGE.md + evidence/G1U (u1-u5). Runs 122/128: all RM/PM lines, UOM conversions, yields, 999/994 Tally voucher rate picks, manual rates and labour allocations reconcile (0 mismatches); run 128 builder replay identical; run 122 replay differs for 8 products (BOM masters not effective-dated, CI-028).
 - New issues CI-028..CI-032 (master effective dating; 12.8% stale/fallback/manual material value; process-loss plausibility; batch-true rate label; manufacturing-labour driver concentration, Dhanyamlam 13.2%). CI-027 closed as verified.
