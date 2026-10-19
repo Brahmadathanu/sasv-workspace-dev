@@ -1,6 +1,12 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 07:18: W1 + W5 + run 122/128 re-baseline INSTALLED LIVE (approved 07:12)
+- Migrations 20261019014458 w1_approved_run_feed_and_labels, 20261019014611 w5_fingerprint_fixed_columns, 20261019014728 w5_rebaseline_runs_122_128 (reference USER-APPROVAL-20261019-W1-W5-REBASELINE). Files unchanged except the approval reference.
+- Feed live: Sep 122 = 634 (74/70 negative), Oct 128 = 627 (9/9). Labels and governed comparison as tested. 0 existing objects changed by W1.
+- W5: only the 2 fingerprint functions + purpose check changed. Run 122 and 128 now verify with 0 drift; re-baseline log 2 rows (50/50 and 51/51 identical).
+- Not done: September close, refresh, cron (60/61 still paused), merge. Evidence: evidence/W1_W5/W1_W5_LIVE_INSTALL_2026-10-19.md.
+
 ## 2026-10-19 06:20: W1 + W5 built and tested LOCALLY (approved 18 Oct 22:44; no live change)
 - proposals/consolidation/w1_w5/: prepared SQL (outside supabase/migrations), local test harness and W1_W5_LOCAL_TEST_REPORT.md.
 - W1: approved-only price revision feed, per-month run status/labels, governed Cost-comparison view (old views unchanged). 6 views added, nothing else.

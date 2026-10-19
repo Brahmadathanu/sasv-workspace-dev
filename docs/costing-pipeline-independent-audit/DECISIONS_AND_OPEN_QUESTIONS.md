@@ -1,6 +1,12 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-19 07:12 IST: W1, W5 and run 122/128 re-baseline installed live
+- User: "Install W1, W5 and the run 122/128 re-baseline". Reference USER-APPROVAL-20261019-W1-W5-REBASELINE. Applied 07:15–07:17 (20261019014458, 20261019014611, 20261019014728).
+- Approved-only price feed and run labels live; drafts never enter the feed. Fingerprints use a recorded column list; runs 122 and 128 verify clean.
+- Open: client branch costing/w1-approved-run-labels review/PR; September close decision; Cost comparison strict approved-only vs labelled draft (built: labelled draft).
+- Evidence: evidence/W1_W5/W1_W5_LIVE_INSTALL_2026-10-19.md.
+
 ## 2026-10-18 21:17 IST: G4 installed live with the switch OFF
 - User: "install G4 live with the switch OFF". Applied unchanged at 21:19 (20261018154911).
 - Only the two refresh RPCs changed, as reviewed. All other functions and views are identical, and run 122/128 fingerprints are identical.
