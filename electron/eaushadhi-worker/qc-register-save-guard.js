@@ -24,13 +24,18 @@ function assessSaveIdentity({ contract = QC_PORTAL_CONTRACT, control, page } = {
   return { checks, identityReason, text, id, route };
 }
 
+function pageActionType(page) {
+  const raw = page?.actionType ?? page?.actiontype?.value ?? page?.actiontype ?? "";
+  return String(raw || "").trim();
+}
+
 function decideSaveClick(args = {}) {
   const contract = args.contract || QC_PORTAL_CONTRACT;
   const identity = assessSaveIdentity({ ...args, contract });
   if (contract.nativeSaveClickEnabled !== true) {
     return {
       allow: false,
-      reason: "SAVE_CONTROL_LABELLED_SUBMIT",
+      reason: "NATIVE_SAVE_BUILD_OFF",
       click: "not-clicked",
       identity,
     };
@@ -39,6 +44,14 @@ function decideSaveClick(args = {}) {
     return {
       allow: false,
       reason: identity.identityReason,
+      click: "not-clicked",
+      identity,
+    };
+  }
+  if (identity.text === "Update" && /^edit$/i.test(pageActionType(args.page))) {
+    return {
+      allow: false,
+      reason: "EDIT_MODE_REFUSED",
       click: "not-clicked",
       identity,
     };

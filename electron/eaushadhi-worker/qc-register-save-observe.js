@@ -82,7 +82,7 @@ function createInPageSaveWatchScript() {
               actionType: headerValue(xhr.__sasvHeaders, "X-Action-Type"),
               httpStatus: Number(xhr.status) || 0,
               status: parsed && parsed.status != null ? String(parsed.status) : "",
-              message: parsed && parsed.message != null ? String(parsed.message) : "",
+              message: parsed && parsed.message != null ? String(parsed.message).slice(0, 500) : "",
               responseParsed: responseParsed,
               transportError: kind !== "loadend" || !xhr.status,
               elapsedMs: Date.now() - started
@@ -117,7 +117,7 @@ function createInPageSaveWatchScript() {
               actionType: actionType == null ? "" : String(actionType),
               httpStatus: response.status,
               status: parsed && parsed.status != null ? String(parsed.status) : "",
-              message: parsed && parsed.message != null ? String(parsed.message) : "",
+              message: parsed && parsed.message != null ? String(parsed.message).slice(0, 500) : "",
               responseParsed: responseParsed,
               transportError: false,
               elapsedMs: Date.now() - started
@@ -160,7 +160,7 @@ function createInPageSaveWatchScript() {
           transportError: Boolean(match) && match.transportError === true,
           outcome: ambiguous ? "AMBIGUOUS" : "OBSERVED",
           reason: ambiguous ? "SAVE_AMBIGUOUS" : "OBSERVED",
-          businessFailure: Boolean(match) && match.responseParsed === true && match.status !== "1",
+          businessFailure: Boolean(match) && match.responseParsed === true && match.status !== "" && match.status !== "1",
           hits: saveHits
         };
       }
@@ -172,20 +172,66 @@ function createInPageSaveWatchScript() {
 function createInPageSaveObserveScript() {
   const watch = createInPageSaveWatchScript().replace(/\n\s*return __sasvQcInstallSaveWatch;\s*$/, "");
   return `${watch}
+  function __sasvQcReadDialog() {
+    var node = document.querySelector(".jconfirm-content, .jconfirm-box, .jquery-confirm");
+    if (!node) return { dialogAppeared: false, dialogText: "" };
+    var text = String(node.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 500);
+    return { dialogAppeared: true, dialogText: text };
+  }
+  function __sasvQcBindAjaxComplete(watchHandle) {
+    var jq = (typeof window !== "undefined" && (window.jQuery || window.$)) || null;
+    if (!jq || typeof jq !== "function") return;
+    jq(document).on("ajaxComplete", function(_event, xhr, settings) {
+      var url = settings && settings.url ? String(settings.url) : "";
+      var path = "";
+      try { path = new URL(url, "https://www.e-aushadhi.gov.in").pathname; } catch (error) { path = ""; }
+      if (!path.endsWith("/admin/SaveQCData")) return;
+      if (xhr && xhr.__sasvRecorded) return;
+      if (xhr) xhr.__sasvRecorded = true;
+      var parsed = null;
+      var responseParsed = false;
+      var raw = xhr && xhr.responseText ? String(xhr.responseText) : "";
+      try { parsed = JSON.parse(raw); responseParsed = true; } catch (error) { parsed = null; }
+      var status = parsed && parsed.status != null ? String(parsed.status) : "";
+      var message = parsed && parsed.message != null ? String(parsed.message).slice(0, 500) : "";
+      var contentType = "";
+      try {
+        contentType = xhr && typeof xhr.getResponseHeader === "function" ? String(xhr.getResponseHeader("content-type") || "") : "";
+      } catch (error) { contentType = ""; }
+      watchHandle.hits.push({
+        url: url,
+        method: "POST",
+        httpStatus: xhr ? Number(xhr.status) || 0 : 0,
+        status: status,
+        message: message,
+        responseParsed: responseParsed,
+        transportError: !xhr || !xhr.status,
+        contentType: contentType,
+        elapsedMs: 0
+      });
+    });
+  }
   async function __sasvQcObserveSave(spec) {
     var watch = __sasvQcInstallSaveWatch();
+    __sasvQcBindAjaxComplete(watch);
     var target = document.getElementById(spec && spec.controlId);
+    var clicks = 0;
     if (spec && spec.allowClick === true && target) {
+      clicks += 1;
       target.click();
       var started = Date.now();
-      var timeout = Number(spec.timeoutMs) || 8000;
+      var timeout = Number(spec.timeoutMs) || 15000;
       while (Date.now() - started < timeout && watch.hits.length === 0) {
         await new Promise(function(resolve) { setTimeout(resolve, 50); });
       }
     }
     var observed = watch.finish();
-    observed.clicked = Boolean(spec && spec.allowClick === true && target);
-    observed.invokeCount = observed.clicked ? 1 : 0;
+    var dialog = __sasvQcReadDialog();
+    observed.clicked = clicks === 1 && Boolean(target);
+    observed.invokeCount = clicks;
+    observed.dialogAppeared = dialog.dialogAppeared === true;
+    observed.dialogText = dialog.dialogText || "";
+    observed.message = observed.message == null ? "" : String(observed.message).slice(0, 500);
     return observed;
   }
   return __sasvQcObserveSave;`;

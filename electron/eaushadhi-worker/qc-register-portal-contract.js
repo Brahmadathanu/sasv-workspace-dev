@@ -20,8 +20,10 @@ const QC_PORTAL_CONTRACT = Object.freeze({
   saveControlId: "save_btn",
   saveControlCapturedText: "Submit",
   editControlText: "Update",
-  nativeSaveClickEnabled: false,
-  nativeSaveBlockedReason: "SAVE_CONTROL_LABELLED_SUBMIT",
+  get nativeSaveClickEnabled() {
+    return nativeSaveBuildAuthorized();
+  },
+  nativeSaveBlockedReason: "NATIVE_SAVE_BUILD_OFF",
   listEndpointPath: "/admin/LoadQCData",
   listPageQuery: "pageno=0&&length=-1&&search=&&order=&&licenseid=",
   listSuccessStatus: "1",
@@ -57,7 +59,13 @@ const QC_NATIVE_SAVE_CONTROL = Object.freeze({
   decidedBy: "operator",
 });
 
-// May only change in a separately authorized commit.
+function nativeSaveBuildAuthorized(env = process.env) {
+  return String(env.EAUSHADHI_QC_NATIVE_SAVE || "").trim() === "D7.3";
+}
+
+const NATIVE_SAVE_BUILD_TAG = "D7.3";
+
+// Static default. A normal start cannot click. The runtime gate is nativeSaveBuildAuthorized().
 const NATIVE_SAVE_AUTHORIZED = false;
 
 function isPermittedSaveControl(pagePath, selector) {
@@ -80,6 +88,8 @@ module.exports = {
   QC_PORTAL_PRODUCT_LABEL,
   QC_NATIVE_SAVE_CONTROL,
   NATIVE_SAVE_AUTHORIZED,
+  NATIVE_SAVE_BUILD_TAG,
+  nativeSaveBuildAuthorized,
   isPermittedSaveControl,
   QC_FILL_KEYS,
 };

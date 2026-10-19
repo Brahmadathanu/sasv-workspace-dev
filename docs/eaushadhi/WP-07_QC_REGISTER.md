@@ -305,6 +305,15 @@ The derived-date note stayed empty on the live screen because the service worker
 
 Operator check: the card shows "UI build D7.2.2". If it does not, close the app and start it again.
 
+## D7.3 guarded native Save
+Save stays off in a normal start. A click needs both keys. The process must be started with `EAUSHADHI_QC_NATIVE_SAVE=D7.3`, and the operator must confirm that exact run and fingerprint in the app within 60 seconds. The confirmation is used once. A Save that was only attempted is not confirmed. Confirmed means the portal response status is 1 and the QC list gained exactly one new matching row. Anything else, including a timeout, two requests, or a success response with no new row, is ambiguous. There is no automatic retry. An ambiguous or unauthorized result tells the operator to check the portal list by hand and use Resolve. Document verification is still pending.
+
+Operator steps:
+1. `set EAUSHADHI_QC_NATIVE_SAVE=D7.3` then `npm start` (PowerShell: `$env:EAUSHADHI_QC_NATIVE_SAVE="D7.3"; npm start`).
+2. Portal: Add QC Register, choose Karpooradi Thailam. App: Check portal page, Dry run (must pass), then Save to portal (one row), read the modal, tick, type SAVE 262, Confirm.
+3. Do not press anything on the portal. Send the result screenshot.
+4. Close the app afterwards; a normal `npm start` has Save off again.
+
 Plain-word blockers:
 - The 'Others' protocol mapping is not verified yet.
 - Study start date must be accepted as 'Operator derivation' (correct the acceptance).

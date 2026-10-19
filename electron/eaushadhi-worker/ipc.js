@@ -581,6 +581,7 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         note: payload?.note,
         attest: payload?.attest === true,
         runId: payload?.runId,
+        fingerprint: payload?.fingerprint,
       });
     }),
   );
