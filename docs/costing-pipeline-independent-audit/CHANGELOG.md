@@ -1,6 +1,13 @@
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
+## 2026-10-19 18:25: Closure mandate G0 done; G1 downstream reconciliation verified (read-only)
+- Mandate COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md (28f1d4d) adopted; new `closure/` directory: PROGRAMME.md, IMPLEMENTATION_RULES.md, ISSUE_REGISTER.json/.md (27 issues), G0_BASELINE_2026-10-19.md, G1_COST_WATERFALL_RECONCILIATION.md, evidence/G0 and evidence/G1 (SQL + results).
+- G0: repo (main 80c14ab, PRs), 582 live vs 96 repo migrations, 3,984 definition hashes (0 changed since W2), runs/designations/periods, fingerprints 122/128 0 drift, cron 33 (60/61 paused), switches (G4 none), capacity master, security advisors.
+- G1: all waterfall identities hold for 634/627 SKUs; the 7-vs-9 exceptions are internal material conversion (in prime, missing from the ILC display). Head-to-pool and pool-to-SKU conservation exact (incl. IMC transfer Rs 175.26 Oct).
+- Key open: Tally snapshot tables writable by any logged-in user (CI-001); Central Office Rs 8.72L vs HO Rs 5L (CI-003); 60% seasonal rule authoritative (CI-014); 74 machines without capacity (CI-011).
+- No live write.
+
 ## 2026-10-19 11:06: W2 governed period lifecycle INSTALLED LIVE (approved 09:16)
 - Migration 20261019053600 w2_governed_period_lifecycle (prepared file unchanged, md5 d978bb21). Prechecks/postchecks passed.
 - Changed: only fn_guard_designated_run_rows/header (+REVOKED) and the audit event-type check. Added 26/26 objects identical to the local build.

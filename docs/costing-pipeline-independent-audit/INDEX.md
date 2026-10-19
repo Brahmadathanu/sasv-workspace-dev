@@ -13,6 +13,7 @@ Updated 18 Oct 2026, 16:35 IST. The audit branch `docs/costing-pipeline-independ
 | Next period | November: needs CF-1 build, lock/reopen functions, capacity confirmation (see backlog) |
 
 ## Start here
+- **CURRENT PRIORITY: end-to-end server closure (mandate 19 Oct):** `COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` · programme `closure/PROGRAMME.md` · issue register `closure/ISSUE_REGISTER.json` (`.md`) · G0 `closure/G0_BASELINE_2026-10-19.md` · G1 `closure/G1_COST_WATERFALL_RECONCILIATION.md`
 - **Handover for the independent auditor:** `handover/CHATGPT_HANDOVER_2026-10-18.md` (short: `_SHORT.md`)
 - **Handover part 2 (AU-9 capacity master, R2, G4 live switch OFF, runs/cron/Sheets-feed findings):** `handover/CHATGPT_HANDOVER_2026-10-18_PART2.md` (short: `_PART2_SHORT.md`)
 - **Repository:** `Brahmadathanu/sasv-workspace-dev` (public), branch `costing/au4-normal-budget` (PR #72, open, not merged). Raw files: `https://raw.githubusercontent.com/Brahmadathanu/sasv-workspace-dev/costing/au4-normal-budget/docs/costing-pipeline-independent-audit/<path>` (verified 18 Oct 22:30 IST for both part-2 handover files at commit 8ec5bee)

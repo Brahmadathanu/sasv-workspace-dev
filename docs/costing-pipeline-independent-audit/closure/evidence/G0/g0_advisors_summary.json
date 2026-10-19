@@ -1,0 +1,156 @@
+{
+ "security": {
+  "rls_enabled_no_policy": {
+   "level": "INFO",
+   "count": 110,
+   "costing_related": 25,
+   "costing_examples": [
+    "Table \\`costing.cost_periods\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.cost_sheet_line_monthly_snapshot\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.costing_refresh_log\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.default_volume_cap_log\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.expense_head_costing_map\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.new_product_volume_plan\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.product_rm_material_cost_line_snapshot\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.recurring_cost_pool_provision\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.scheme_master_context_snapshot\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.sku_admin_finance_overhead_allocation_snapshot\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.sku_commercial_sales_assumption\\` has RLS enabled, but no policies exist",
+    "Table \\`costing.sku_internal_loaded_cost_snapshot\\` has RLS enabled, but no policies exist"
+   ]
+  },
+  "security_definer_view": {
+   "level": "ERROR",
+   "count": 80,
+   "costing_related": 42,
+   "costing_examples": [
+    "View \\`public.v_costing_policy_manager_scheme_policy_history\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_pricing_sku_status_diagnosis\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_manual_rate_live_rm_blockers\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_cost_sheet_snapshot_sku_monthly_comparison\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_pricing_control_integrity_audit\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_unclassified_staff_for_costing\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_staff_classification_register\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_manual_cost_pool_provision_register\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_expense_head_mapping_register\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_staff_cost_pool_summary\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_pricing_printable_cost_sheet_lines\\` is defined with the SECURITY DEFINER property",
+    "View \\`public.v_costing_pricing_product_status_summary\\` is defined with the SECURITY DEFINER property"
+   ]
+  },
+  "function_search_path_mutable": {
+   "level": "WARN",
+   "count": 10,
+   "costing_related": 9,
+   "costing_examples": [
+    "Function \\`costing.fn_sales_allocation_quantity_driver_fingerprint\\` has a role mutable search_path",
+    "Function \\`costing.fn_au3_append_only\\` has a role mutable search_path",
+    "Function \\`costing.fn_fy_start\\` has a role mutable search_path",
+    "Function \\`public.fn_tally_classify_export_window\\` has a role mutable search_path",
+    "Function \\`public.fn_tally_batch_consistency\\` has a role mutable search_path",
+    "Function \\`costing.fn_enforce_prm_approval_reference\\` has a role mutable search_path",
+    "Function \\`costing.fn_regional_marketing_evidence_fingerprint\\` has a role mutable search_path",
+    "Function \\`costing.fn_apply_batch_true_standard\\` has a role mutable search_path",
+    "Function \\`costing.fn_w2_require_text\\` has a role mutable search_path"
+   ]
+  },
+  "anon_security_definer_function_executable": {
+   "level": "WARN",
+   "count": 14,
+   "costing_related": 0,
+   "costing_examples": []
+  },
+  "authenticated_security_definer_function_executable": {
+   "level": "WARN",
+   "count": 588,
+   "costing_related": 54,
+   "costing_examples": [
+    "Function `public.proc_vendor_create_and_map_tally_alias(p_display_name text, p_alias_text text, p_vendor_type text, p_allow_duplicate boolean, p_duplicate_reaso",
+    "Function `public.proc_vendor_map_tally_alias(p_alias_text text, p_vendor_id bigint, p_allow_reassignment boolean, p_reassignment_reason text)` can be executed b",
+    "Function `public.rpc_approve_cost_driver_policy_envelope(p_envelope_id bigint, p_approval_reference text)` can be executed by the `authenticated` role as a `SEC",
+    "Function `public.rpc_approve_production_cost_centre(p_cost_centre_id bigint, p_approval_reference text, p_effective_from date)` can be executed by the `authenti",
+    "Function `public.rpc_close_expense_head_costing_map(p_mapping_id bigint, p_remarks text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` fu",
+    "Function `public.rpc_close_staff_costing_classification(p_classification_id bigint, p_effective_to date, p_remarks text)` can be executed by the `authenticated`",
+    "Function `public.rpc_costing_approve_run(p_refresh_run_id bigint, p_reason text, p_approval_reference text)` can be executed by the `authenticated` role as a `S",
+    "Function `public.rpc_costing_authorise_supersession(p_period_start date, p_reason text, p_approval_reference text)` can be executed by the `authenticated` role ",
+    "Function `public.rpc_costing_close_period(p_period_start date, p_reason text, p_approval_reference text)` can be executed by the `authenticated` role as a `SECU",
+    "Function `public.rpc_costing_lock_period(p_period_start date, p_reason text, p_approval_reference text)` can be executed by the `authenticated` role as a `SECUR",
+    "Function `public.rpc_costing_open_next_period(p_reason text, p_approval_reference text, p_valuation_date date)` can be executed by the `authenticated` role as a",
+    "Function `public.rpc_costing_period_governance_context()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/rpc_cos"
+   ]
+  },
+  "auth_leaked_password_protection": {
+   "level": "WARN",
+   "count": 1,
+   "costing_related": 0,
+   "costing_examples": []
+  },
+  "vulnerable_postgres_version": {
+   "level": "WARN",
+   "count": 1,
+   "costing_related": 0,
+   "costing_examples": []
+  }
+ },
+ "performance": {
+  "unindexed_foreign_keys": {
+   "level": "INFO",
+   "count": 345,
+   "costing_related": 167,
+   "costing_examples": [
+    "Table \\`costing.capacity_fallback_policy\\` has a foreign key \\`capacity_fallback_policy_equipment_class_code_fkey\\` without a covering index. This can lead to s",
+    "Table \\`costing.capacity_fallback_policy\\` has a foreign key \\`capacity_fallback_policy_legacy_capacity_id_fkey\\` without a covering index. This can lead to sub",
+    "Table \\`costing.capacity_fallback_policy\\` has a foreign key \\`capacity_fallback_policy_supersedes_id_fkey\\` without a covering index. This can lead to suboptim",
+    "Table \\`costing.cost_driver_policy_cutover_acceptance\\` has a foreign key \\`cost_driver_policy_cutover_acceptance_envelope_id_fkey\\` without a covering index. T",
+    "Table \\`costing.cost_driver_policy_envelope\\` has a foreign key \\`cost_driver_policy_envelope_supersedes_envelope_id_fkey\\` without a covering index. This can l",
+    "Table \\`costing.cost_sheet_line_monthly_snapshot\\` has a foreign key \\`cost_sheet_line_monthly_snapshot_ik_policy_fkey\\` without a covering index. This can lead",
+    "Table \\`costing.cost_sheet_line_monthly_snapshot\\` has a foreign key \\`cost_sheet_line_monthly_snapshot_ok_policy_fkey\\` without a covering index. This can lead",
+    "Table \\`costing.cost_sheet_line_traceability_snapshot\\` has a foreign key \\`cost_sheet_line_traceability_policy_fkey\\` without a covering index. This can lead t",
+    "Table \\`costing.cost_sheet_line_traceability_snapshot\\` has a foreign key \\`cost_sheet_line_traceability_scheme_fkey\\` without a covering index. This can lead t",
+    "Table \\`costing.cost_sheet_rm_line_traceability_snapshot\\` has a foreign key \\`cost_sheet_rm_line_trace_product_line_fkey\\` without a covering index. This can l",
+    "Table \\`costing.cost_sheet_rm_line_traceability_snapshot\\` has a foreign key \\`cost_sheet_rm_line_trace_run_fkey\\` without a covering index. This can lead to su",
+    "Table \\`costing.costing_control_integrity_audit_snapshot\\` has a foreign key \\`control_integrity_audit_refresh_run_fkey\\` without a covering index. This can lea"
+   ]
+  },
+  "no_primary_key": {
+   "level": "INFO",
+   "count": 19,
+   "costing_related": 8,
+   "costing_examples": [
+    "Table \\`costing.product_sku_readiness_portfolio_incidence\\` does not have a primary key",
+    "Table \\`costing.costing_control_integrity_audit_snapshot\\` does not have a primary key",
+    "Table \\`costing.costing_review_top_action_item_snapshot\\` does not have a primary key",
+    "Table \\`costing.material_costing_action_queue_snapshot\\` does not have a primary key",
+    "Table \\`costing.material_costing_action_drilldown_snapshot\\` does not have a primary key",
+    "Table \\`costing.costing_review_workbench_summary_snapshot\\` does not have a primary key",
+    "Table \\`costing.sku_costing_control_status_snapshot\\` does not have a primary key",
+    "Table \\`costing.costing_review_action_item_drilldown_snapshot\\` does not have a primary key"
+   ]
+  },
+  "unused_index": {
+   "level": "INFO",
+   "count": 171,
+   "costing_related": 68,
+   "costing_examples": [
+    "Index \\`idx_rm_inward_snapshot_item\\` on table \\`public.tally_rm_inward_qty_snapshot\\` has not been used",
+    "Index \\`idx_rmpm_issue_type_date\\` on table \\`public.tally_rm_pm_issues_snapshot\\` has not been used",
+    "Index \\`idx_rmpm_product_batch\\` on table \\`public.tally_rm_pm_issues_snapshot\\` has not been used",
+    "Index \\`idx_fuel_snapshot_item\\` on table \\`public.tally_fuel_stock_snapshot\\` has not been used",
+    "Index \\`idx_consumables_snapshot_item\\` on table \\`public.tally_consumables_stock_snapshot\\` has not been used",
+    "Index \\`idx_po_snapshot_order\\` on table \\`public.tally_purchase_orders_snapshot\\` has not been used",
+    "Index \\`idx_po_snapshot_item\\` on table \\`public.tally_purchase_orders_snapshot\\` has not been used",
+    "Index \\`idx_tgos_group\\` on table \\`public.tally_group_outstanding_snapshot\\` has not been used",
+    "Index \\`idx_tgos_bill\\` on table \\`public.tally_group_outstanding_snapshot\\` has not been used",
+    "Index \\`idx_tmgs_fy_index\\` on table \\`public.tally_monthly_group_summary\\` has not been used",
+    "Index \\`idx_cost_driver_policy_cutover_run\\` on table \\`costing.cost_driver_policy_cutover_acceptance\\` has not been used",
+    "Index \\`idx_rm_pm_issues_issue_type\\` on table \\`public.tally_rm_pm_issues_snapshot\\` has not been used"
+   ]
+  },
+  "auth_db_connections_absolute": {
+   "level": "INFO",
+   "count": 1,
+   "costing_related": 0,
+   "costing_examples": []
+  }
+ }
+}

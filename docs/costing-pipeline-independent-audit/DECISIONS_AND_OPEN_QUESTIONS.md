@@ -1,6 +1,10 @@
 # Decisions and open questions (costing implementation, PR #72)
 Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlier decisions (D-001 to D-024, to 16 Oct 07:46) are in this file on the audit branch `docs/costing-pipeline-independent-audit`. Policy status summary: POLICY_REGISTER.md.
 
+## 2026-10-19 18:11 IST: End-to-end server closure mandate adopted
+- User mandate (28f1d4d): server-side costing to be audited, corrected where authorised and independently verified (G0-G6) before any price revision, Sheets regeneration or new pricing view. Live writes, migrations, switches, effective dates, cron, runs, designations, merges need explicit approval.
+- G0 done (closure/G0_BASELINE_2026-10-19.md). Open questions raised: Central Office vs HO admin overlap (CI-003); Tally write access (CI-001); SALES-01 60% rule vs DVS-1 (CI-014); capacity evidence semantics and the 74 missing machines (CI-010/011); in-month prospective effective dates (CI-012); job 61 restore (CI-023).
+
 ## 2026-10-19 09:16 IST: W2 governed period lifecycle installed live
 - User: "Yes, install W2 live". Terms: single owner dff17104-c02a-4bca-95b1-e8ddff46a9b6 ('Dr. Brahmadathan U'); H1-H6 accepted; future-month default valuation date the 1st; no previous-month-lock rule.
 - Applied unchanged at 11:06 IST (box/DB clock), version 20261019053600. Only the 3 intended definitions changed; 26/26 added objects match the local build; 122/128 0 drift; periods, designations, feed and cron unchanged.

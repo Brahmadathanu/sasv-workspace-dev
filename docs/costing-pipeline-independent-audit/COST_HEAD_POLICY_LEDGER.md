@@ -1,3 +1,5 @@
+> **Live status 19 Oct 2026 18:20 IST (G0):** 52 rows, 5 APPROVED, 38 PROVISIONAL, 1 CURRENT_METHOD_RETAINED (Central Office Charges), 8 EXCLUDED, 0 UNRESOLVED. The per-head table below predates these changes and will be regenerated from live in G3. See closure/ISSUE_REGISTER.md CI-003/CI-004.
+
 # Cost-head policy ledger (proposal, NOT applied) — 2026-10-16
 > **Status update 18 Oct 2026:** this ledger is LIVE. Migration 20261016070413 is applied, with the engine-link switch ON since 16 Oct 14:53 and Registration Charges at ₹2,400. Value statuses are unchanged: 1 APPROVED (Fuel & Gas), 40 PROVISIONAL, 5 UNRESOLVED, 6 EXCLUDED. Since 1 Oct, ADMIN_OVERHEAD also receives the recurring HO admin provision of ₹5,00,000/month. That provision sits outside this ledger (`recurring_cost_pool_provision` id 1), and the user confirmed it is separate from Central Office Charges. See POLICY_REGISTER.md.
 
