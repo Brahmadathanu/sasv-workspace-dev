@@ -138,7 +138,7 @@ function buildQcPrepRunLive({ getPage, getWorkerState, log } = {}) {
       const page = currentPage();
       return evaluateFactory(page, createInPageSaveObserveScript(), {
         controlId: QC_PORTAL_CONTRACT.saveControlId,
-        timeoutMs: 8000,
+        timeoutMs: 15000,
         allowClick: spec.allowClick === true,
       });
     },

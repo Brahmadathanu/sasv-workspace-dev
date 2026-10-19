@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v370"; // WP-07 D7.2.2 e-Aushadhi renderer network-first, cache v370
+const CACHE_NAME = "hub-cache-v371"; // WP-07 D7.3 guarded native Save (off by default)
 
 const PRECACHE = [
   // Hub shell

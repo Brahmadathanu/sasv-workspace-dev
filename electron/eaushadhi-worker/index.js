@@ -154,6 +154,7 @@ function createEaushadhiWorker({
       log,
     }),
     dryRunDir: path.join(getUserDataPath(), "eaushadhi", "qc-dryrun"),
+    saveDir: path.join(getUserDataPath(), "eaushadhi", "qc-save"),
   });
   const requireSection =
     typeof requireContractFn === "function" ? requireContractFn : requireContract;
@@ -1314,6 +1315,9 @@ function createEaushadhiWorker({
       note: typeof rawCommand?.note === "string" ? rawCommand.note : "",
       attest: rawCommand?.attest === true,
       runId: rawCommand?.runId,
+      fingerprint: typeof rawCommand?.fingerprint === "string" ? rawCommand.fingerprint : "",
+      confirmNonce: typeof rawCommand?.confirmNonce === "string" ? rawCommand.confirmNonce : "",
+      now: Number.isFinite(rawCommand?.now) ? rawCommand.now : undefined,
       callRpc: rpcCall,
     };
     const handlers = {
@@ -1328,6 +1332,8 @@ function createEaushadhiWorker({
       recover: () => qcPrepRun.recover(command),
       resolve: () => qcPrepRun.resolve(command),
       verify: () => qcPrepRun.verify(command),
+      nativeSaveStatus: () => qcPrepRun.nativeSaveStatus(),
+      nativeSaveConfirm: () => qcPrepRun.nativeSaveConfirm(command),
     };
     if (typeof handlers[action] !== "function") {
       throw workerError(ERROR_KINDS.CONTRACT_INCOMPLETE, "QC filling was not accepted.");
@@ -1336,6 +1342,8 @@ function createEaushadhiWorker({
     if (result && typeof result === "object") {
       delete result.pre_save_token;
       delete result.token;
+      delete result.nonce;
+      delete result.confirmNonce;
     }
     return result;
   }

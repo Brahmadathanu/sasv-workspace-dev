@@ -230,6 +230,7 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       note: command?.note,
       attest: command?.attest === true,
       runId: command?.runId,
+      fingerprint: command?.fingerprint,
     }),
   recordQcLabDecision: (productId, accessToken, draft) =>
     ipcRenderer.invoke("eaushadhi-worker:qc-lab-decision", {

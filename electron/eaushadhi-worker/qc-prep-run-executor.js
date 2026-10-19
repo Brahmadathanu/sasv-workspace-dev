@@ -1,6 +1,6 @@
 /* eslint-env node */
 
-const { createHash } = require("crypto");
+const { createHash, randomBytes } = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { ERROR_KINDS, workerError } = require("./errors");
@@ -10,6 +10,8 @@ const {
   QC_PORTAL_CONTRACT,
   QC_PORTAL_PRODUCT_LABEL,
   NATIVE_SAVE_AUTHORIZED,
+  NATIVE_SAVE_BUILD_TAG,
+  nativeSaveBuildAuthorized,
   isPermittedSaveControl,
 } = require("./qc-register-portal-contract");
 const { assessQcListDuplicate, listEvidence, mapGetqcDataResponse, normalizeQcListRow, sameFillFields } = require("./qc-register-list");
@@ -269,9 +271,90 @@ function publicSession(session) {
   };
 }
 
-function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDir = null } = {}) {
+function nativeSaveDisabled(reasons) {
+  const error = workerError(ERROR_KINDS.PREFLIGHT_DENIED, "NATIVE_SAVE_DISABLED", { details: { reasons } });
+  error.code = "NATIVE_SAVE_DISABLED";
+  error.reasons = reasons;
+  return error;
+}
+
+function describeListDelta(before, after, filled) {
+  const beforeRows = Array.isArray(before?.rows) ? before.rows : null;
+  const afterRows = Array.isArray(after?.rows) ? after.rows : null;
+  const beforeCount = beforeRows ? beforeRows.length : null;
+  const afterCount = afterRows ? afterRows.length : null;
+  const empty = {
+    listDelta: "unknown",
+    matchedRowId: "",
+    matchedValues: null,
+    beforeCount,
+    afterCount,
+  };
+  if (!beforeRows || !afterRows) return empty;
+  const productOk = (raw) => {
+    const candidates = [raw?.productId, raw?.product_id, raw?.productid, raw?.product, raw?.product_name, raw?.productName];
+    const present = candidates.filter((value) => value != null && String(value) !== "");
+    if (!present.length) return true;
+    return present.some((value) => {
+      const text = String(value).trim();
+      return text === String(FIRST_CONTROLLED_PRODUCT_ID) || normalizeQcProductLabel(text) === QC_PORTAL_PRODUCT_LABEL[262];
+    });
+  };
+  const beforeNorm = beforeRows.map((row) => normalizeQcListRow(row)).filter(Boolean);
+  const beforeIds = new Set(beforeNorm.map((row) => row.portalRowId).filter(Boolean));
+  const beforeKeys = new Set(beforeNorm.map((row) => JSON.stringify(row.values)));
+  const afterNorm = afterRows.map((row) => ({ raw: row, norm: normalizeQcListRow(row) })).filter((item) => item.norm);
+  let newcomers = afterNorm.filter((item) => {
+    const id = item.norm.portalRowId;
+    if (id) return !beforeIds.has(id);
+    return !beforeKeys.has(JSON.stringify(item.norm.values));
+  });
+  if (afterCount === beforeCount + 1 && newcomers.length === 0) {
+    newcomers = afterNorm.filter((item) => !beforeKeys.has(JSON.stringify(item.norm.values)));
+  }
+  const matches = newcomers.filter((item) => productOk(item.raw) && sameFillFields(item.norm.values, filled));
+  let listDelta = "unknown";
+  if (afterCount === beforeCount && matches.length === 0) listDelta = "none";
+  else if (matches.length === 1 && newcomers.length === 1 && afterCount === beforeCount + 1) listDelta = "one-match";
+  const match = listDelta === "one-match" ? matches[0] : null;
+  return {
+    listDelta,
+    matchedRowId: match?.norm.portalRowId || "",
+    matchedValues: match?.norm.values || null,
+    beforeCount,
+    afterCount,
+  };
+}
+
+function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDir = null, saveDir = null } = {}) {
   let session = null;
   let busy = false;
+  const confirmations = new Map();
+
+  function issueNativeSaveConfirm(input = {}) {
+    if (nativeSaveBuildAuthorized() !== true) throw nativeSaveDisabled(["NATIVE_SAVE_BUILD_OFF"]);
+    const now = Number.isFinite(input.now) ? input.now : Date.now();
+    const nonce = randomBytes(16).toString("hex");
+    confirmations.set(nonce, {
+      runId: String(input.runId || ""),
+      fingerprint: String(input.fingerprint || ""),
+      issuedAt: now,
+      used: false,
+    });
+    return { ok: true, nonce, issuedAt: now };
+  }
+
+  function confirmationState(input, now) {
+    const nonce = String(input?.confirmNonce || "");
+    const row = nonce ? confirmations.get(nonce) : null;
+    if (!row) return { ok: false, reason: "CONFIRM_REQUIRED" };
+    if (row.used) return { ok: false, reason: "CONFIRM_REUSED" };
+    if (String(row.runId) !== String(input.runId || "") || String(row.fingerprint) !== String(input.fingerprint || "")) {
+      return { ok: false, reason: "CONFIRM_MISMATCH" };
+    }
+    if (now - row.issuedAt > 60000) return { ok: false, reason: "CONFIRM_EXPIRED" };
+    return { ok: true, row };
+  }
 
   async function exclusive(task) {
     if (busy) {
@@ -992,57 +1075,354 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
         };
       });
     },
+    nativeSaveStatus() {
+      return {
+        buildAuthorized: nativeSaveBuildAuthorized() === true,
+        tag: NATIVE_SAVE_BUILD_TAG,
+      };
+    },
+    issueNativeSaveConfirm(input = {}) {
+      return issueNativeSaveConfirm(input);
+    },
+    async nativeSaveConfirm(input = {}) {
+      const issued = issueNativeSaveConfirm({
+        runId: input.runId,
+        fingerprint: input.fingerprint,
+      });
+      const result = await this.performGuardedNativeSave({
+        ...input,
+        confirmNonce: issued.nonce,
+      });
+      if (result && typeof result === "object") {
+        delete result.pre_save_token;
+        delete result.token;
+        delete result.nonce;
+        delete result.confirmNonce;
+      }
+      return result;
+    },
     async performGuardedNativeSave(input = {}) {
       return exclusive(async () => {
         requireProduct(input.productId);
+        if (nativeSaveBuildAuthorized() !== true) {
+          const reason = contract.nativeSaveClickEnabled === true && NATIVE_SAVE_AUTHORIZED !== true
+            ? "NATIVE_SAVE_AUTHORIZED"
+            : "NATIVE_SAVE_BUILD_OFF";
+          throw nativeSaveDisabled([reason]);
+        }
+        const now = Number.isFinite(input.now) ? input.now : Date.now();
         const reasons = [];
-        if (NATIVE_SAVE_AUTHORIZED !== true) reasons.push("NATIVE_SAVE_AUTHORIZED");
-        if (contract.nativeSaveClickEnabled !== true) reasons.push("nativeSaveClickEnabled");
-        let pagePath = "";
-        let selector = "";
+        let measured = null;
         try {
-          const measured = await live.pageIdentity();
-          pagePath = String(measured?.route || "");
-          const id = String(measured?.saveControl?.id || "");
-          selector = id ? `#${id}` : "";
+          measured = await live.pageIdentity();
         } catch {
           reasons.push("saveControl");
         }
+        const pagePath = String(measured?.route || "");
+        const controlId = String(measured?.saveControl?.id || "");
+        const selector = controlId ? `#${controlId}` : "";
         if (!reasons.includes("saveControl") && !isPermittedSaveControl(pagePath, selector)) reasons.push("saveControl");
-        const pass = findDryRunPass(dryRunDir, input.preparationId, input.fingerprint);
-        if (!pass) reasons.push("DRY_RUN_PASS");
-        const pre = input.preSave && typeof input.preSave === "object" ? input.preSave : null;
-        const fresh = pre?.go === true
-          && typeof pre.pre_save_token === "string"
-          && pre.pre_save_token.length > 0
-          && Date.parse(pre.valid_until) > Date.now();
-        if (!fresh) reasons.push("preSave");
-        if (reasons.length > 0) {
-          const error = workerError(ERROR_KINDS.PREFLIGHT_DENIED, "NATIVE_SAVE_DISABLED", { details: { reasons } });
-          error.code = "NATIVE_SAVE_DISABLED";
-          error.reasons = reasons;
+        const decision = measured
+          ? decideSaveClick({ contract, control: measured.saveControl, page: measured })
+          : { allow: false, reason: "saveControl" };
+        if (decision.reason === "EDIT_MODE_REFUSED") {
+          const error = workerError(ERROR_KINDS.PREFLIGHT_DENIED, "EDIT_MODE_REFUSED");
+          error.code = "EDIT_MODE_REFUSED";
+          error.reasons = ["EDIT_MODE_REFUSED"];
           throw error;
         }
-        if (typeof live.evaluate === "function") {
-          await live.evaluate("document.querySelector('#save_btn').click()");
+        if (!decision.allow && decision.reason && decision.reason !== "SAVE") reasons.push(decision.reason);
+        const pass = findDryRunPass(dryRunDir, input.preparationId, input.fingerprint);
+        if (!pass) reasons.push("DRY_RUN_PASS");
+        const confirmation = confirmationState(input, now);
+        if (!confirmation.ok) reasons.push(confirmation.reason);
+        let preflight = null;
+        let armed = null;
+        if (reasons.length === 0) {
+          preflight = await readQcFillPreflight({
+            productId: input.productId,
+            accessToken: input.accessToken,
+            preparationId: input.preparationId,
+            callRpc: input.callRpc,
+          });
+          const runs = Array.isArray(preflight.runs) ? preflight.runs : [];
+          armed = runs.find((run) => canReuseArmedRun(run, preflight, input.preparationId)
+            && String(run.run_id || "") === String(input.runId || "")) || null;
+          if (!armed) {
+            const active = runs.find((run) => ACTIVE_RUN_STATUSES.has(String(run?.run_status || "")));
+            if (active) reasons.push("ACTIVE_RUN");
+            else {
+              const portalRef = preflight.context?.portal_product_ref;
+              const identity = assessPageIdentity(measured, portalRef);
+              if (!identity.ok) reasons.push("PAGE_IDENTITY_INVALID");
+              else {
+                const beforeArm = await live.readList();
+                const provisionalRequired = preflight.readiness?.status === "READY_PROVISIONAL";
+                const derived = Array.isArray(preflight.context?.derived_facts) ? preflight.context.derived_facts : [];
+                armed = await armQcPrepRun({
+                  productId: input.productId,
+                  accessToken: input.accessToken,
+                  preparationId: input.preparationId,
+                  expectedReadinessTuple: preflight.readiness?.readiness_tuple,
+                  provisionalLabAck: provisionalRequired ? true : false,
+                  provisionalAckNote: provisionalRequired ? noteAccepted(input.provisionalNote) : "",
+                  pageIdentityEvidence: identity.evidence,
+                  beforeListEvidence: listEvidence(beforeArm),
+                  derivedFactAck: derived.length > 0,
+                  derivedFactAckNote: derived.length > 0 ? noteAccepted(input.derivedNote) : "",
+                  callRpc: input.callRpc,
+                });
+                if (String(armed?.run_id || "") !== String(input.runId || "")) reasons.push("RUN_NOT_CONFIRMED");
+              }
+            }
+          }
         }
-        return recordQcPrepRunSave({
+        if (reasons.length > 0) throw nativeSaveDisabled(reasons);
+        const portalRef = preflight.context?.portal_product_ref;
+        const reportContext = {
+          report_sha256: preflight.context?.report_sha256,
+          report_size_bytes: preflight.context?.report_size_bytes,
+          report_filename: preflight.context?.report_filename,
+        };
+        const fillFields = armed.fill_fields || preflight.fill_fields;
+        const productValue = String(measured?.productSelected?.value || measured?.productId?.value || "");
+        session = {
+          runId: armed.run_id,
+          productId: input.productId,
+          preparationId: input.preparationId,
+          fillFields,
+          portalProductRef: portalRef,
+          clickState: "not-clicked",
+          observed: false,
+          recorded: false,
+          token: null,
+          runStatus: "SAVE_ARMED",
+        };
+        const again = assessPageIdentity(await live.pageIdentity(), portalRef);
+        const localReasons = [];
+        if (!again.ok) localReasons.push("PAGE_IDENTITY_INVALID");
+        let filled = null;
+        if (again.ok) {
+          const typed = await live.fill({
+            fillFields,
+            studyTypeSelectValue: preflight.context?.study_type_select_value || "",
+          });
+          if (typed?.ok === false && typed?.filled === false) localReasons.push("LAB_NOT_IN_LIST");
+          else filled = typed?.filled_values || null;
+        }
+        const fileCompared = compareReportBytes({ name: input.filename, bytes: input.bytes, context: reportContext });
+        let proof = null;
+        if (!fileCompared.ok) localReasons.push(fileCompared.reason || "FILE_MISMATCH");
+        else if (again.ok) {
+          proof = await live.attach({ filename: fileCompared.filename, buffer: Buffer.from(input.bytes) });
+          if (proof?.length !== 1 || proof?.name !== fileCompared.filename || Number(proof?.size) !== Number(fileCompared.expectedSize)) {
+            localReasons.push("FILE_NOT_ATTACHED");
+          }
+        }
+        const reread = typeof live.readForm === "function"
+          ? await live.readForm()
+          : { fields: filled || {}, file: { name: "", size: 0, length: 0 } };
+        const compared = compareProjection(fillFields, reread.fields);
+        if (!compared.ok) localReasons.push(...compared.reasons);
+        const fileMatch = fileCompared.ok === true
+          && Number(reread?.file?.length) === 1
+          && Number(reread?.file?.size) === Number(fileCompared.expectedSize)
+          && String(reread?.file?.name || "") === String(fileCompared.filename || "");
+        if (fileCompared.ok && !fileMatch) localReasons.push("FILE_REREAD_MISMATCH");
+        if (localReasons.length > 0) {
+          if (typeof live.resetForm === "function") {
+            try { await live.resetForm({ productValue }); } catch { /* the form stays for the operator to reload */ }
+          }
+          return {
+            ok: false,
+            outcome: "PRE_SAVE_LOCAL_MISMATCH",
+            reasons: localReasons,
+            clicked: false,
+            autoRetry: false,
+            message: "The portal form did not match. Save was not pressed.",
+          };
+        }
+        const beforeList = await live.readList();
+        session.beforeList = beforeList;
+        const saved = await preSaveQcPrepRun({
           accessToken: input.accessToken,
-          runId: input.runId || session?.runId,
-          preSaveToken: pre.pre_save_token,
-          saveOutcome: "CONFIRMED",
-          saveEvidence: {
-            action: "SAVE",
-            outcome: "CONFIRMED",
-            submitted: false,
-            localSha256: null,
-            localSize: null,
-            localFilename: null,
-            filled_values: null,
-            observation: { clicked: true, settled: false, status: null, matchingRequestCount: 0, listDelta: "unknown" },
-          },
+          runId: armed.run_id,
+          pageIdentityEvidence: again.evidence,
+          filledValues: reread.fields,
           callRpc: input.callRpc,
         });
+        if (saved?.go !== true) {
+          session.token = null;
+          session.runStatus = saved?.run_status || "PRE_SAVE_ABORTED";
+          if (typeof live.resetForm === "function") {
+            try { await live.resetForm({ productValue }); } catch { /* still do not click */ }
+          }
+          return {
+            ok: false,
+            outcome: "PRE_SAVE_ABORTED",
+            runStatus: session.runStatus,
+            reasons: Array.isArray(saved?.reasons) ? saved.reasons.map(String) : [],
+            clicked: false,
+            autoRetry: false,
+            message: "This run was stopped. Save was not pressed.",
+          };
+        }
+        session.token = saved.pre_save_token || null;
+        const consumed = confirmationState(input, Number.isFinite(input.now) ? input.now : Date.now());
+        if (!consumed.ok) {
+          session.token = null;
+          if (typeof live.resetForm === "function") {
+            try { await live.resetForm({ productValue }); } catch { /* still do not click */ }
+          }
+          return {
+            ok: false,
+            outcome: "CONFIRM_REQUIRED",
+            reasons: [consumed.reason],
+            clicked: false,
+            autoRetry: false,
+            message: "The Save confirmation is not valid. Save was not pressed.",
+          };
+        }
+        consumed.row.used = true;
+        session.clickState = "clicked";
+        let observation;
+        try {
+          observation = await live.observeSave({ allowClick: true });
+        } catch {
+          observation = {
+            clicked: true,
+            invokeCount: 1,
+            matchingRequestCount: 0,
+            settled: false,
+            httpStatus: null,
+            responseParsed: false,
+            status: "",
+            message: "",
+            businessFailure: false,
+            transportError: true,
+            dialogAppeared: false,
+            dialogText: "",
+          };
+        }
+        if (observation?.clicked !== true) {
+          session.token = null;
+          session.clickState = "not-clicked";
+          if (typeof live.resetForm === "function") {
+            try { await live.resetForm({ productValue }); } catch { /* no click */ }
+          }
+          return {
+            ok: false,
+            clicked: false,
+            autoRetry: false,
+            message: "Save was not pressed.",
+          };
+        }
+        const statusText = observation.status == null ? "" : String(observation.status);
+        if (observation.businessFailure == null) {
+          observation.businessFailure = observation.responseParsed === true && statusText !== "" && statusText !== "1";
+        }
+        const afterList = await live.readList();
+        const delta = describeListDelta(beforeList, afterList, reread.fields);
+        observation.listDelta = delta.listDelta;
+        session.observed = true;
+        session.observation = observation;
+        const classified = classifyQcSaveObservation(observation);
+        const outcome = classified.outcome || "AMBIGUOUS";
+        const evidence = {
+          action: "SAVE",
+          submitted: false,
+          outcome,
+          endpoint: "/admin/SaveQCData",
+          observation: {
+            clicked: observation.clicked === true,
+            invokeCount: Number(observation.invokeCount) || 0,
+            matchingRequestCount: Number(observation.matchingRequestCount) || 0,
+            settled: observation.settled === true,
+            httpStatus: observation.httpStatus == null ? null : Number(observation.httpStatus) || 0,
+            responseParsed: observation.responseParsed === true,
+            status: observation.status == null ? "" : String(observation.status),
+            message: observation.message == null ? "" : String(observation.message).slice(0, 500),
+            businessFailure: observation.businessFailure === true,
+            transportError: observation.transportError === true,
+            dialogAppeared: observation.dialogAppeared === true,
+            dialogText: observation.dialogText == null ? "" : String(observation.dialogText).slice(0, 500),
+          },
+          listDelta: delta.listDelta,
+          before_count: delta.beforeCount,
+          after_count: delta.afterCount,
+          matched_row_id: delta.matchedRowId || "",
+          localSha256: fileCompared.sha256 || null,
+          localSize: Number(fileCompared.size) || 0,
+          localFilename: fileCompared.filename || proof?.name || null,
+          filled_values: reread.fields,
+        };
+        let recorded;
+        try {
+          recorded = await recordQcPrepRunSave({
+            accessToken: input.accessToken,
+            runId: armed.run_id,
+            preSaveToken: session.token,
+            saveOutcome: outcome,
+            saveEvidence: evidence,
+            callRpc: input.callRpc,
+          });
+        } finally {
+          session.token = null;
+        }
+        session.recorded = true;
+        session.runStatus = recorded.run_status;
+        let verified = null;
+        if (recorded.run_status === "SAVE_CONFIRMED") {
+          verified = await verifyQcPrepRunRow({
+            accessToken: input.accessToken,
+            runId: armed.run_id,
+            afterListEvidence: listEvidence(afterList),
+            rereadValues: delta.matchedValues || {},
+            resolvedPortalRowId: delta.matchedRowId || "",
+            callRpc: input.callRpc,
+          });
+          session.runStatus = verified.run_status;
+        }
+        const message = recorded.run_status === "SAVE_CONFIRMED"
+          ? verifyDisplay(verified || {}).text
+          : recorded.run_status === "SAVE_UNAUTHORIZED"
+            ? "SAVE_UNAUTHORIZED. Check the portal list by hand."
+            : recorded.run_status === "SAVE_AMBIGUOUS"
+              ? "Check the portal list by hand."
+              : (observation.message || "Save was not confirmed.");
+        const report = {
+          run_id: armed.run_id,
+          preparationId: String(input.preparationId || ""),
+          fingerprint: String(input.fingerprint || ""),
+          outcome,
+          runStatus: session.runStatus,
+          serverStatus: recorded.run_status,
+          message,
+          listDelta: delta.listDelta,
+          before_count: delta.beforeCount,
+          after_count: delta.afterCount,
+          matched_row_id: delta.matchedRowId || "",
+          clicked: observation.clicked === true,
+          autoRetry: false,
+          observation: evidence.observation,
+          localSha256: evidence.localSha256,
+          localSize: evidence.localSize,
+          localFilename: evidence.localFilename,
+          filled_values: reread.fields,
+        };
+        writeDryRunReport(saveDir, report);
+        return {
+          ok: recorded.run_status === "SAVE_CONFIRMED",
+          outcome,
+          runStatus: session.runStatus,
+          serverStatus: recorded.run_status,
+          reasons: recorded.reasons || [],
+          message,
+          clicked: observation.clicked === true,
+          autoRetry: false,
+          report,
+          display: verified ? verifyDisplay(verified) : null,
+        };
       });
     },
   };
@@ -1138,15 +1518,7 @@ function createQcPrepRunExecutor({ live, contract = QC_PORTAL_CONTRACT, dryRunDi
   }
 
   function listDelta(before, after, filled) {
-    const beforeCount = Array.isArray(before?.rows) ? before.rows.length : null;
-    const afterCount = Array.isArray(after?.rows) ? after.rows.length : null;
-    if (beforeCount == null || afterCount == null) return "unknown";
-    if (afterCount === beforeCount) return "none";
-    if (afterCount === beforeCount + 1) {
-      const match = after.rows.map(normalizeQcListRow).find((row) => row && sameFillFields(row.values, filled));
-      return match ? "one-match" : "unknown";
-    }
-    return "unknown";
+    return describeListDelta(before, after, filled).listDelta;
   }
 }
 

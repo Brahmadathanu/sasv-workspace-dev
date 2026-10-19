@@ -157,7 +157,7 @@ const passingControl = {
   onclick: "function () { return SaveData(); }",
 };
 const refused = decideSaveClick({ control: passingControl, page: passingPage });
-assert(refused.allow === false && refused.reason === "SAVE_CONTROL_LABELLED_SUBMIT" && refused.click === "not-clicked", "a passing identity is still not clicked while Save is disabled");
+assert(refused.allow === false && refused.reason === "NATIVE_SAVE_BUILD_OFF" && refused.click === "not-clicked", "a passing identity is still not clicked while Save is disabled");
 assert(refused.identity.checks.controlPresent && refused.identity.checks.routeExact && refused.identity.checks.handler && refused.identity.checks.label, "identity checks are reported separately");
 const enabledContract = { ...QC_PORTAL_CONTRACT, nativeSaveClickEnabled: true };
 assert(decideSaveClick({ contract: enabledContract, control: null, page: passingPage }).reason === "SAVE_CONTROL_MISSING", "a missing control has its own reason");
@@ -673,7 +673,7 @@ assert(controlSrc.includes("Save only; Submit is not allowed."), "the review mod
 assert(readFileSync(join(root, "electron/eaushadhi-worker/qc-prep-run-executor.js"), "utf8").includes("Row verified — document not verified (trusted document check not available yet)"), "row verified wording is the document-not-verified sentence");
 assert(!controlSrc.includes("fully verified"), "the screen does not say fully verified");
 assert(controlSrc.includes(QC_PORTAL_CONTRACT.saveControlCapturedText) || controlSrc.includes("labelled Submit"), "the screen explains the Submit label");
-assert(/const CACHE_NAME = "hub-cache-v370"/.test(swSrc), "service worker cache is v370");
+assert(/const CACHE_NAME = "hub-cache-v371"/.test(swSrc), "service worker cache is v371");
 
 const counted = assessQcListResponse({ status: "1", data: [{ id: "1" }, { id: "2" }], TotalCount: 2, total: 9 }, { pageno: 0 });
 assert(counted.coverageComplete === true && counted.totalSource === "TotalCount" && counted.totalCount === 2, "TotalCount is the list total");

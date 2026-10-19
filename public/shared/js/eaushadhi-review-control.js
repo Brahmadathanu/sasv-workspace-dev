@@ -407,6 +407,8 @@ const state = {
   qcFillInspectFileResult: null,
   qcFillCheckedReport: null,
   qcFillDryRun: null,
+  qcNativeSaveStatus: { buildAuthorized: false, tag: "D7.3" },
+  qcNativeSaveReport: null,
   qcPrepRunBusy: false,
   qcReportVerifyError: "",
   qcReportVerifyCode: "",
@@ -5468,6 +5470,17 @@ async function loadQcFillPreflight(productId, preparationId, request) {
       state.qcFillPreflight = result;
       state.qcFillNotice = "";
     }
+    try {
+      const status = await executeQcPrepRun(productId, token, { action: "nativeSaveStatus", preparationId });
+      if (request === state.qcFillRequest && state.selectedProductId === productId) {
+        state.qcNativeSaveStatus = {
+          buildAuthorized: status?.buildAuthorized === true,
+          tag: status?.tag || "D7.3",
+        };
+      }
+    } catch {
+      if (request === state.qcFillRequest) state.qcNativeSaveStatus = { buildAuthorized: false, tag: "D7.3" };
+    }
     state.qcFillLoadedFor = preparationId;
   } catch (error) {
     if (request !== state.qcFillRequest || state.selectedProductId !== productId) return;
@@ -5825,7 +5838,22 @@ function qcFillPreflightCardHtml() {
   const inspectResult = state.qcFillInspectFileResult;
   const inspectFileHtml = chosenName ? `<p id="qcFillInspectFileName">Report to check: ${esc(chosenName)}. Click Check portal page to check it.</p>` : "";
   const inspectResultHtml = inspectResult ? `<p id="qcFillInspectFileResult">${inspectResult.ok === true ? "The report matched." : esc(fileWords[inspectResult.reason] || "The report did not match.")}</p>` : "";
-  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.2.2">
+  const nativeStatus = state.qcNativeSaveStatus || { buildAuthorized: false, tag: "D7.3" };
+  const nativeOn = nativeStatus.buildAuthorized === true;
+  const nativeDryPass = dryRun?.outcome === "DRY_RUN_PASS"
+    && String(dryRun?.report?.preparationId || "") === String(state.qcPrepServer?.preparation_id || "");
+  const nativeEnabled = nativeOn
+    && nativeDryPass
+    && state.qcFillInspectOk === true
+    && state.qcFillProvisionalAck === true
+    && state.qcFillDerivedAck === true
+    && state.qcPrepRunBusy !== true;
+  const nativeHint = nativeOn ? "" : "Save is off in this build (start with EAUSHADHI_QC_NATIVE_SAVE=D7.3)";
+  const saveReport = state.qcNativeSaveReport;
+  const saveReportHtml = saveReport
+    ? `<div id="qcNativeSaveReport"><p>Save outcome: ${esc(saveReport.outcome || "")}. List: ${esc(saveReport.listDelta || "")}.</p><p>${esc(saveReport.message || "")}</p></div>`
+    : "";
+  return `<section class="section-card" id="qcFillPreflightCard" data-build="D7.3">
     <h3 class="section-title">Portal filling preflight (B5)</h3>
     ${state.qcFillLoading ? `<p class="muted-note" id="qcFillLoading">Reading preflight.</p>` : ""}
     ${state.qcFillNotice ? `<p class="muted-note" id="qcFillNotice">${esc(state.qcFillNotice)}</p>` : ""}
@@ -5852,7 +5880,8 @@ function qcFillPreflightCardHtml() {
     <p id="qcFillButtonsReason">${esc(dryRunReason)}</p>
     ${writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillInspect">Check portal page</button>
     <button type="button" class="icon-btn with-label" id="btnQcFillDryRun"${dryRunEnabled ? "" : ` disabled title="${esc(dryRunReason)}"`}>Dry run (no Save)</button>
-    <button type="button" class="icon-btn with-label" id="btnQcFillGuardedSave" disabled title="Save is not authorized">Save (not authorized)</button>
+    <button type="button" class="icon-btn with-label" id="btnQcNativeSave"${nativeEnabled ? "" : " disabled"}${nativeHint ? ` title="${esc(nativeHint)}"` : ""}>Save to portal (one row)</button>
+    ${nativeHint ? `<p class="muted-note" id="qcNativeSaveHint">${esc(nativeHint)}</p>` : ""}
     <button type="button" class="icon-btn with-label" id="btnQcFillInspectFile">Choose report to check</button>
     ${inspectFileHtml}
     ${inspectResultHtml}
@@ -5872,8 +5901,9 @@ function qcFillPreflightCardHtml() {
     ${latestStatus === "SAVE_CONFIRMED" && writable ? `<button type="button" class="icon-btn with-label" id="btnQcFillVerify">Read the saved row</button>` : ""}
     ${runHtml ? `<ul id="qcFillRuns">${runHtml}</ul>` : ""}
     ${dryRunHtml}
+    ${saveReportHtml}
     ${recaptureHtml}
-    <p class="muted-note" id="qcFillBuild">UI build D7.2.2</p>
+    <p class="muted-note" id="qcFillBuild">UI build D7.3</p>
   </section>`;
 }
 
@@ -5964,6 +5994,174 @@ async function submitQcFillDryRun() {
     if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
   } finally {
     state.qcGovernanceConfirmOpen = false;
+    state.qcPrepRunBusy = false;
+    if (state.selectedProductId === productId && state.tab === "qc") renderQc();
+  }
+}
+
+function openQcNativeSaveDialog(details) {
+  if (openQcNativeSaveDialog.showing === true) return Promise.resolve(false);
+  openQcNativeSaveDialog.showing = true;
+  const lines = [
+    `Product: ${details.productName} (${details.productId})`,
+    ...QC_FILL_FIELD_ROWS.map(([key, label]) => `${label}: ${details.fields?.[key] ?? ""}`),
+    `Report file: ${details.filename}`,
+    `SHA-256: ${details.sha12}`,
+    `Run: ${details.runId}`,
+    "Provisional laboratory: HARIDEV FORMULATIONS. Readiness: READY_PROVISIONAL.",
+    `Derived start date: ${details.derivedNote}`,
+    "This presses the green Submit button on Add QC Register once. It saves one row that stays editable and deletable. It does not submit anything else.",
+  ];
+  return new Promise((resolve) => {
+    let closed = false;
+    const backdrop = document.createElement("div");
+    backdrop.id = "qcNativeSaveBackdrop";
+    backdrop.className = "sasv-modal-backdrop ea-source-resolve";
+    const dialog = document.createElement("div");
+    dialog.id = "qcNativeSaveDialog";
+    dialog.className = "sasv-modal";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", "qcNativeSaveTitle");
+    dialog.tabIndex = -1;
+    const header = document.createElement("div");
+    header.className = "sasv-modal__header";
+    const titleEl = document.createElement("h2");
+    titleEl.id = "qcNativeSaveTitle";
+    titleEl.className = "sasv-modal__title";
+    titleEl.textContent = "Save to portal (one row)";
+    header.append(titleEl);
+    const body = document.createElement("div");
+    body.id = "qcNativeSaveBody";
+    body.className = "sasv-modal__body";
+    for (const line of lines) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = line;
+      body.append(paragraph);
+    }
+    const tick = document.createElement("input");
+    tick.type = "checkbox";
+    tick.id = "qcNativeSaveAuthorize";
+    const tickLabel = document.createElement("label");
+    const tickText = document.createElement("span");
+    tickText.textContent = " I authorize one Save for this run";
+    tickLabel.append(tick, tickText);
+    const typed = document.createElement("input");
+    typed.type = "text";
+    typed.id = "qcNativeSavePhrase";
+    typed.autocomplete = "off";
+    body.append(tickLabel, typed);
+    const footer = document.createElement("div");
+    footer.className = "sasv-modal__footer";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.id = "qcNativeSaveCancel";
+    cancelBtn.className = "icon-btn with-label";
+    cancelBtn.textContent = "Cancel";
+    const okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.id = "qcNativeSaveOk";
+    okBtn.className = "icon-btn with-label primary";
+    okBtn.textContent = "Confirm";
+    okBtn.disabled = true;
+    footer.append(cancelBtn, okBtn);
+    dialog.append(header, body, footer);
+    backdrop.append(dialog);
+    const syncOk = () => {
+      okBtn.disabled = !(tick.checked === true && typed.value === "SAVE 262");
+    };
+    tick.addEventListener("change", syncOk);
+    typed.addEventListener("input", syncOk);
+    const close = (accepted) => {
+      if (closed) return;
+      closed = true;
+      openQcNativeSaveDialog.showing = false;
+      document.removeEventListener("keydown", onKeydown, true);
+      backdrop.remove();
+      const button = document.getElementById("btnQcNativeSave");
+      if (button && typeof button.focus === "function") button.focus();
+      resolve(accepted === true);
+    };
+    const onKeydown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close(false);
+        return;
+      }
+      trapModalTab(event, "qcNativeSaveDialog");
+    };
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) close(false);
+    });
+    cancelBtn.addEventListener("click", () => close(false));
+    okBtn.addEventListener("click", () => {
+      if (okBtn.disabled) return;
+      close(true);
+    });
+    document.body.append(backdrop);
+    document.addEventListener("keydown", onKeydown, true);
+    cancelBtn.focus();
+  });
+}
+
+async function submitQcNativeSave() {
+  const nativeOn = state.qcNativeSaveStatus?.buildAuthorized === true;
+  const dryRun = state.qcFillDryRun;
+  const preparationId = state.qcPrepServer?.preparation_id || "";
+  const ready = nativeOn
+    && dryRun?.outcome === "DRY_RUN_PASS"
+    && String(dryRun?.report?.preparationId || "") === String(preparationId)
+    && state.qcFillInspectOk === true
+    && state.qcFillProvisionalAck === true
+    && state.qcFillDerivedAck === true
+    && state.qcPrepRunBusy !== true;
+  if (!ready) return;
+  const productId = state.selectedProductId;
+  const report = state.qcFillCheckedReport;
+  const sha = String(dryRun?.report?.file?.expected?.sha256 || dryRun?.report?.file?.chosen?.sha256 || "");
+  const accepted = await openQcNativeSaveDialog({
+    productName: "Karpooradi Thailam",
+    productId: 262,
+    fields: state.qcFillPreflight?.fill_fields || {},
+    filename: dryRun?.report?.file?.expected?.filename || report?.name || "",
+    sha12: sha.slice(0, 12),
+    runId: dryRun?.report?.run_id || "",
+    derivedNote: state.qcFillDerivedNote || "",
+  });
+  if (accepted !== true || state.selectedProductId !== productId) return;
+  state.qcPrepRunBusy = true;
+  state.qcFillRunNotice = "";
+  if (state.tab === "qc") renderQc();
+  try {
+    const token = await sessionAccessToken();
+    const result = await executeQcPrepRun(productId, token, {
+      action: "nativeSaveConfirm",
+      preparationId,
+      runId: dryRun?.report?.run_id || "",
+      fingerprint: dryRun?.report?.fingerprint || "",
+      userConfirmed: true,
+      provisionalAck: state.qcFillProvisionalAck === true,
+      provisionalNote: state.qcFillProvisionalNote,
+      derivedAck: state.qcFillDerivedAck === true,
+      derivedNote: state.qcFillDerivedNote,
+      filename: report?.name || "",
+      bytes: report?.bytes || null,
+    });
+    if (state.selectedProductId !== productId) return;
+    if (result && typeof result === "object") {
+      delete result.pre_save_token;
+      delete result.token;
+      delete result.nonce;
+      delete result.confirmNonce;
+    }
+    state.qcNativeSaveReport = result?.report || null;
+    state.qcFillRunNotice = result?.message || "";
+    const latest = state.qcFillPreflight?.runs?.[0];
+    if (latest && result?.runStatus) latest.run_status = result.runStatus;
+  } catch (error) {
+    if (state.selectedProductId === productId) state.qcFillRunNotice = userMessageForError(error);
+  } finally {
     state.qcPrepRunBusy = false;
     if (state.selectedProductId === productId && state.tab === "qc") renderQc();
   }
@@ -10147,6 +10345,7 @@ function wireEvents() {
     if (event.target.id === "btnQcFillArm") void submitQcFillArm();
     if (event.target.id === "btnQcFillInspect") void submitQcFillInspect();
     if (event.target.id === "btnQcFillDryRun") void submitQcFillDryRun();
+    if (event.target.id === "btnQcNativeSave") void submitQcNativeSave();
     if (event.target.id === "btnQcFillInspectFile") document.getElementById("qcFillInspectFile")?.click();
     if (event.target.id === "btnQcFillFields") void submitQcFillFields();
     if (event.target.id === "btnQcFillChooseReport") document.getElementById("qcFillReportFile")?.click();
