@@ -9,7 +9,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - Finding: the margins are MRP − (ILC + regional marketing), as % of MRP. pricing_cost_per_sku (national marketing) is not the margin cost.
 - evidence/W1_W5/MIGRATION_PARITY_2026-10-19.md: 17/17 live definitions identical to the prepared SQL. Gap: the rebaseline table has no truncate guard (proposed H1).
 - proposals/consolidation/W2_GOVERNED_PERIOD_LIFECYCLE_DESIGN.md: functions F1–F7, client panel, local build plan, decisions D1–D9.
-- Client PR from costing/w1-approved-run-labels (do not merge).
+- Client PR #73 (draft, "do not merge or deploy until reviewed"): costing/w1-approved-run-labels → costing/au4-normal-budget (4 files); retarget to main before deploy.
 - No database writes; September unchanged (LOCKED, not closed); cron 60/61 paused.
 
 ## 2026-10-19 07:18: W1 + W5 + run 122/128 re-baseline INSTALLED LIVE (approved 07:12)
