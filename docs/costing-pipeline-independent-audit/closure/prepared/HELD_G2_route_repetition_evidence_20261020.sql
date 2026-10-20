@@ -1,6 +1,16 @@
 -- G2 HOLD: deliberately nondeployable pending approval transaction integration.
 do $$ begin raise exception 'G2 HOLD: do not deploy incomplete approval safeguards'; end $$;
 
+
+-- Fail-closed preflight against live route RPC definitions, recorded 2026-10-20.
+do $g2_preflight$ begin
+  if (select md5(pg_get_functiondef(to_regprocedure('public.rpc_approve_product_route(bigint,text)')))) is distinct from 'd4dc989e28e8b096a9abb5300349965a' then raise exception 'G2 RPC drift: public.rpc_approve_product_route(bigint,text)'; end if;
+  if (select md5(pg_get_functiondef(to_regprocedure('public.rpc_approve_route_family_route(bigint,text)')))) is distinct from '4f410336d48374f448c07eb29c917038' then raise exception 'G2 RPC drift: public.rpc_approve_route_family_route(bigint,text)'; end if;
+  if (select md5(pg_get_functiondef(to_regprocedure('public.rpc_delete_product_route_override(bigint,bigint)')))) is distinct from '53039ad1bf22ab04a69b8bab86e1629b' then raise exception 'G2 RPC drift: public.rpc_delete_product_route_override(bigint,bigint)'; end if;
+  if (select md5(pg_get_functiondef(to_regprocedure('public.rpc_submit_product_route_for_review(bigint)')))) is distinct from '3df5546eae854f033c7711083138f469' then raise exception 'G2 RPC drift: public.rpc_submit_product_route_for_review(bigint)'; end if;
+  if (select md5(pg_get_functiondef(to_regprocedure('public.rpc_submit_route_family_route_for_review(bigint)')))) is distinct from '9e2bcd274203585230bf514200750cba' then raise exception 'G2 RPC drift: public.rpc_submit_route_family_route_for_review(bigint)'; end if;
+end $g2_preflight$;
+
 create table costing.route_repetition_confirmation (
   id bigint generated always as identity primary key,
   route_kind text not null check (route_kind in ('FAMILY','PRODUCT')),
