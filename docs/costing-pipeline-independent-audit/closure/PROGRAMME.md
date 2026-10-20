@@ -246,3 +246,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 protected-run factor footprint
 - Read-only runs 122 and 128 each contain six affected DL and POH step rows. Summed DL step factors 172.8 and POH step factors 208 in each run; neither is rupee impact. Evidence G2_PROTECTED_RUN_DUAL_FACTOR_FOOTPRINT_2026-10-20.md (0ed08292). No live changes.
+
+### G2 Dhanyamlam step-factor scenario
+- Affected six-step DL sum 172.8 and POH sum 208 in protected runs122/128. Eight-total-repetition linear counterfactual: DL 21.6, POH 26, reductions 151.2 and 182. Not monetary impact. Evidence G2_EIGHT_REPETITION_SCENARIO_2026-10-20.md (25aaa23b). No live changes.
