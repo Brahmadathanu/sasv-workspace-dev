@@ -257,6 +257,8 @@ begin
   perform public.require_permission('module:production-route-manager',true);
   perform 1 from costing.product_process_route where id=p_product_route_id and archived_at is null for update;
   if not found then raise exception 'Route unavailable'; end if;
+  perform 1 from costing.production_route_family_route fr join costing.product_process_route pr on pr.base_route_family_route_id=fr.id where pr.id=p_product_route_id and fr.archived_at is null for share of fr;
+  if not found then raise exception 'Inherited family route unavailable'; end if;
   if not exists(select 1 from costing.product_process_route where id=p_product_route_id and archived_at is null and status='DRAFT') then
     raise exception 'Product route is missing, archived, or not a draft';
   end if;
