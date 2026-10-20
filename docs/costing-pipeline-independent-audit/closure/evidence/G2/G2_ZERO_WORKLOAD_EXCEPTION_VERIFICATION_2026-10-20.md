@@ -23,3 +23,6 @@ WHERE refresh_run_id=128 GROUP BY workload_status ORDER BY workload_status;
 ```
 
 G2 remains IN PROGRESS. Retain a legitimate ZERO_SCOPE category in any replacement calculation, separate from ERROR/MISSING. Recalculate complete alternate expense pool only after eligibility and route validity test. No approved run changes, cron, switch, migration or merge.
+
+## Follow-up verified exact overhead identity
+A separate read-only query of `product_production_overhead_workload_snapshot` filtered to `refresh_run_id=128 AND workload_status='READY_ZERO_PRODUCTION_OVERHEAD'` returned IDs **102,103,106,108,686,687,724,725**, each with zero workload units. These **exactly match** the eight DL zero-scope product IDs. Prior outstanding ID-parity question is resolved; underlying exclusion validity remains to be audited.
