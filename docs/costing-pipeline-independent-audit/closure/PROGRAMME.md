@@ -153,3 +153,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 superseded route successor links verified
 - Live read-only audit found 17/18 non-archived superseded family routes linked to successors (route48/family43 unlinked), and 9/9 superseded product routes linked; seven product predecessors 174-180 and family105 have NULL effective_to despite linked successors. Full frozen snapshot predecessor reference scan blocked, so non-use unproven. Evidence `evidence/G2/G2_SUCCESSOR_LINK_INVENTORY_2026-10-20.md` commit fd651d48. G2/CI-032 OPEN; no live change.
+
+## 20 Oct — G2 family43 apparent overlap explained
+- Read-only: family43 route49 is APPROVED but archived; route82 APPROVED unarchived, route48 SUPERSEDED unarchived. Therefore no active-approved exclusion constraint violation between 49/82. Historical lineage remains incomplete: route48 has no successor reference, route82 links to archived49. Evidence `evidence/G2/G2_FAMILY43_ARCHIVE_CHECK_2026-10-20.md` commit 12652862. No live changes; G2 open.
