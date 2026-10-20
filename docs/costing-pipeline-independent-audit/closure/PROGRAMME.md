@@ -123,3 +123,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 product-route approval vs historical validation split
 - Inspected four public RPC source bodies. Product-route approve and submit both call shared `fn_validate_product_process_route`, while validate and detail are read paths. Broadly admitting SUPERSEDED base routes in shared validator could weaken future approval. Require date-sensitive historical validation with explicit strict approval path and full regression before repair. Evidence `evidence/G2/G2_PRODUCT_ROUTE_PUBLIC_RPC_POLICY_SPLIT_2026-10-20.md` commit 331c196e. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 product-route resolver historical defect confirmed
+- Narrow read-only pg_proc.prosrc retrieval succeeded: `costing.fn_resolve_effective_product_process_route(integer,date)` filters only APPROVED routes and dates, preserves ambiguity exception. Governed product-route succession sets predecessor SUPERSEDED, making old as-of product route invisible. This is a confirmed separate historical lookup defect. Minimum coordinated repair must preserve exception and strict prospective approval. Evidence `evidence/G2/G2_PRODUCT_ROUTE_RESOLVER_VERIFIED_2026-10-20.md` commit accbfa20. No live change. G2/CI-032 OPEN.
