@@ -234,3 +234,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 product-delta operation-switch correction — 20 Oct
 - Corrected repetition preview binding for both ADD/REPLACE and ALTER_CYCLE panels, including changes of operation after form load (client commit 1b5d8658). Updated smoke harness fb62258d and context fix cdcb8077. Executed 10 isolated cases against fetched product-delta binding: 10 PASS; full node script/browser and server approval tests remain outstanding. No live changes.
+
+### G2 client repetition smoke checkpoint — 20 Oct
+- Fixed malformed ALTER_CYCLE markup assertion in repository smoke script (98206b9b). Tested source-extracted bindings from current branch with 33 scenarios PASS (family 11; product delta add and ALTER_CYCLE 11 each) including invalid inputs and operation-change handler. Full repository node-script execution and browser authentication remain NOT VERIFIED because repo checkout is unavailable in isolated runner. No live changes; G2 remains OPEN.
