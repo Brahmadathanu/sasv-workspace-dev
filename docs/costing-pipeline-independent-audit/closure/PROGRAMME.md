@@ -255,3 +255,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 DL+POH fixed-pool counterfactual — 20 October
 - Protected run 122: POH redistribution from product 51 22614.51; combined DL+POH 41885.99. Protected run 128: POH redistribution 26199.94; combined 51145.09. Distinct alternative scenarios, not additive. Pools conserved; no financial posting. Evidence G2_DHANYAMLAM_COMBINED_FIXED_POOL_COUNTERFACTUAL_2026-10-20.md (fdc07a7f). G2 OPEN, no live changes.
+
+### G2 server approval gate design — 20 October
+- Narrow, non-retroactive approval rule drafted: version-bound count-specific attestation for dual-positive effective route steps, stale-input rejection, both route families and product overrides; no new table unless existing receipt mechanisms inadequate. See evidence/G2/G2_SERVER_APPROVAL_MINIMUM_CHANGE_DESIGN_2026-10-20.md (f0acc472). Exact approval RPC signatures and receipt persistence still require verification. No live changes; G2 OPEN.
