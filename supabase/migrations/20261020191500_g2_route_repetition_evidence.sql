@@ -245,3 +245,44 @@ revoke execute on function costing.fn_g2_repetition_evidence(text,bigint) from p
 revoke execute on function costing.fn_g2_require_repetition_confirmation(text,bigint) from public;
 revoke execute on function public.rpc_confirm_route_repetition(text,bigint,jsonb) from public;
 grant execute on function public.rpc_confirm_route_repetition(text,bigint,jsonb) to authenticated;
+
+-- Review submission must lock route header before validating mutable step state.
+CREATE OR REPLACE FUNCTION public.rpc_submit_product_route_for_review(p_product_route_id bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'costing', 'pg_temp'
+AS $function$
+begin
+  perform public.require_permission('module:production-route-manager',true);
+  perform 1 from costing.product_process_route where id=p_product_route_id and archived_at is null for update;
+  if not found then raise exception 'Route unavailable'; end if;
+  if not exists(select 1 from costing.product_process_route where id=p_product_route_id and archived_at is null and status='DRAFT') then
+    raise exception 'Product route is missing, archived, or not a draft';
+  end if;
+  if not coalesce((costing.fn_validate_product_process_route(p_product_route_id)->>'valid')::boolean,false) then raise exception 'Product route validation failed'; end if;
+  update costing.product_process_route set status='REVIEW_REQUIRED',updated_at=now() where id=p_product_route_id and archived_at is null and status='DRAFT';
+  return jsonb_build_object('product_route_id',p_product_route_id,'status','REVIEW_REQUIRED');
+end
+$function$
+;
+CREATE OR REPLACE FUNCTION public.rpc_submit_route_family_route_for_review(p_family_route_id bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'costing', 'pg_temp'
+AS $function$
+begin
+  perform public.require_permission('module:production-route-manager',true);
+  perform 1 from costing.production_route_family_route where id=p_family_route_id and archived_at is null for update;
+  if not found then raise exception 'Route unavailable'; end if;
+  if not exists(select 1 from costing.production_route_family_route where id=p_family_route_id and archived_at is null and status='DRAFT') then
+    raise exception 'Route Family route is not an active editable draft';
+  end if;
+  if not coalesce((costing.fn_validate_route_family_route(p_family_route_id)->>'valid')::boolean,false) then raise exception 'Route Family route validation failed'; end if;
+  update costing.production_route_family_route set status='REVIEW_REQUIRED',updated_at=now()
+  where id=p_family_route_id and archived_at is null and status='DRAFT';
+  return jsonb_build_object('family_route_id',p_family_route_id,'status','REVIEW_REQUIRED');
+end
+$function$
+;
