@@ -237,3 +237,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 client repetition smoke checkpoint — 20 Oct
 - Fixed malformed ALTER_CYCLE markup assertion in repository smoke script (98206b9b). Tested source-extracted bindings from current branch with 33 scenarios PASS (family 11; product delta add and ALTER_CYCLE 11 each) including invalid inputs and operation-change handler. Full repository node-script execution and browser authentication remain NOT VERIFIED because repo checkout is unavailable in isolated runner. No live changes; G2 remains OPEN.
+
+### G2 server repetition attestation gate — 20 Oct
+- Existing validators expose valid/errors; existing product route evidence_status/route_note do not attest computed nested repetitions. A generic note must not pass 8x8. Version-bound reviewer evidence and stale-input rejection are needed before server enforcement. Review-only evidence G2_SERVER_REPETITION_ATTESTATION_DECISION_GATE_2026-10-20.md (52498ec1). No live changes; G2 open.
