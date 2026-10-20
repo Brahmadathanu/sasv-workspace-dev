@@ -156,3 +156,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 family43 apparent overlap explained
 - Read-only: family43 route49 is APPROVED but archived; route82 APPROVED unarchived, route48 SUPERSEDED unarchived. Therefore no active-approved exclusion constraint violation between 49/82. Historical lineage remains incomplete: route48 has no successor reference, route82 links to archived49. Evidence `evidence/G2/G2_FAMILY43_ARCHIVE_CHECK_2026-10-20.md` commit 12652862. No live changes; G2 open.
+
+## 20 Oct — G2 full protected-run superseded-route attribution checked
+- Read-only DL and POH snapshot scans over every identified non-archived superseded route (18 family IDs, 9 product IDs) return zero references for both protected run122 and run128. This closes the frozen-run predecessor-reference question, but does not establish non-use in other runs or physical manufacturing. Historical 17-pair overlaps and resolver policy remain open. Evidence `evidence/G2/G2_FROZEN_RUN_SUPERSEDED_REFERENCE_EXCLUSION_2026-10-20.md`, commit 65457b11. No live changes.
