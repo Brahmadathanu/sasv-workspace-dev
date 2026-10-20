@@ -89,3 +89,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 successor-version regression specification
 - Defined 11 fail-closed isolated successor-route test obligations, including immutable route144/run128, prospective effective dates, both DL/POH writers, no double multiplication, 101/41/40-cycle peers, zero-scope, WP04 readiness and hard-retirement consumer graph. Actual route immutability function/step triggers/version API queries were blocked this checkpoint. **Tests specified, NOT run; no implementable migration approved.** Evidence `evidence/G2/G2_SUCCESSOR_ROUTE_FAIL_CLOSED_TEST_MATRIX_2026-10-20.md` commit 14251577. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 isolated recurrence regression executed
+- Node isolated recurrence fixture PASS 6/6: Dhanyamlam DL 174.8→23.6, POH 210→28, only six duplicated steps normalized, 3/40/41/101 true cycles preserved, historical fixture intact. This is NOT database integration and not a successor finance run. Read-only parent immutable trigger function definition inspected: approved definition protected; lifecycle status/effective_to updates limited and route-step immutability trigger exists; exact step trigger function still to inspect. Evidence `evidence/G2/G2_RECURRENCE_LOCAL_TEST_RESULTS_2026-10-20.md` commit 1726bfc4. G2/CI-032 OPEN; no live changes.
