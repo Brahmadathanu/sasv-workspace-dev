@@ -13,6 +13,7 @@ import {
 } from "./bmr-admin-correction.js";
 import {
   BMR_LIFECYCLE,
+  isVerifiedActiveBmr,
   normalizeBmrLifecycle,
 } from "./bmr-lifecycle.js";
 import { openBmrAdminCorrectionModal } from "./bmr-admin-correction-modal.js";
@@ -780,25 +781,25 @@ function openDetailModal(row) {
 
   const canEditManage =
     isManage &&
-    lifecycle === BMR_LIFECYCLE.ACTIVE &&
+    isVerifiedActiveBmr(row.lifecycleStatus) &&
     state.allowedTabs.has("manage");
   dm.editBtn.classList.toggle("hidden", !canEditManage);
   dm.deleteBtn.classList.toggle("hidden", !canEditManage);
   dm.retentionNote.classList.toggle(
     "hidden",
-    lifecycle === BMR_LIFECYCLE.ACTIVE,
+    isVerifiedActiveBmr(row.lifecycleStatus),
   );
   dm.retentionNote.textContent =
     lifecycle === BMR_LIFECYCLE.SUPERSEDED
       ? "Retained for audit purposes. Superseded BMRs cannot be deleted."
       : lifecycle === BMR_LIFECYCLE.CANCELLED
         ? "Governed cancellation retained for audit purposes. This BMR cannot be deleted."
-        : "";
+        : "Lifecycle status is unverified. Editing, deletion, administrative correction and operational selection are blocked.";
 
   // Exceptional path only — does not unlock ordinary mapped BN/size edit.
   const showAdminCorrect =
     isManage &&
-    lifecycle === BMR_LIFECYCLE.ACTIVE &&
+    isVerifiedActiveBmr(row.lifecycleStatus) &&
     canOfferAdminCorrection({
       canAdminCorrect: state.canAdminCorrect,
       isMapped: row.isMapped,
@@ -840,6 +841,7 @@ async function loadDetailCorrection(row) {
 async function openAdminCorrectionFromDetail() {
   const row = state.detailRow;
   if (
+    !isVerifiedActiveBmr(row?.lifecycleStatus) ||
     !canOfferAdminCorrection({
       canAdminCorrect: state.canAdminCorrect,
       isMapped: row?.isMapped,
@@ -1679,6 +1681,10 @@ function wireEvents() {
   els.detailModal.copyBtn.addEventListener("click", copyBmrForWhatsApp);
   els.detailModal.editBtn.addEventListener("click", () => {
     const row = state.detailRow;
+    if (!isVerifiedActiveBmr(row?.lifecycleStatus)) {
+      toast("Only a verified ACTIVE BMR can be edited.", "warn");
+      return;
+    }
     closeDetailModal();
     openEditModal({
       id: row.id,
@@ -1691,8 +1697,8 @@ function wireEvents() {
   });
   els.detailModal.deleteBtn.addEventListener("click", async () => {
     const row = state.detailRow;
-    if (normalizeBmrLifecycle(row.lifecycleStatus) !== BMR_LIFECYCLE.ACTIVE) {
-      toast("Historical BMRs are retained for audit purposes and cannot be deleted.", "warn");
+    if (!isVerifiedActiveBmr(row.lifecycleStatus)) {
+      toast("Only a verified ACTIVE BMR can be deleted.", "warn");
       return;
     }
     if (row.isMapped) {

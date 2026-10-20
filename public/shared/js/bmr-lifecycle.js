@@ -3,13 +3,22 @@ export const BMR_LIFECYCLE = Object.freeze({
   ACTIVE: "ACTIVE",
   SUPERSEDED: "SUPERSEDED",
   CANCELLED: "CANCELLED",
+  UNKNOWN: "UNKNOWN",
 });
 
 export function normalizeBmrLifecycle(value) {
-  const normalized = String(value || "ACTIVE").trim().toUpperCase();
-  return Object.values(BMR_LIFECYCLE).includes(normalized)
+  const normalized = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return [
+    BMR_LIFECYCLE.ACTIVE,
+    BMR_LIFECYCLE.SUPERSEDED,
+    BMR_LIFECYCLE.CANCELLED,
+  ].includes(normalized)
     ? normalized
-    : BMR_LIFECYCLE.ACTIVE;
+    : BMR_LIFECYCLE.UNKNOWN;
+}
+
+export function isVerifiedActiveBmr(value) {
+  return normalizeBmrLifecycle(value) === BMR_LIFECYCLE.ACTIVE;
 }
 
 export async function retainActiveBmrCandidates(supabase, rows, idKey = "bmr_id") {
