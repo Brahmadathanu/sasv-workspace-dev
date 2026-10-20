@@ -216,3 +216,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 repetition safeguard handover — 20 Oct
 - Two existing client forms confirmed. Stage computed total executions and dual-positive warning first; server enforcement awaits reliable route-version-bound review evidence, not free-text note. See evidence/G2/G2_ROUTE_MANAGER_REPETITION_IMPLEMENTATION_HANDOVER_2026-10-20.md (1cac77aa). G2 open; no live changes.
+
+### G2 client repetition preview — code checkpoint
+- Branch-only source changes: family-step form c2714cb4 and product-delta form b8d816dd display computed total executions, clarify cycles within occurrence, warn for dual-positive counts and guard invalid numeric input. Post-write source assertions passed for both forms; browser/runtime tests NOT executed. No DB changes, no approval enforcement; G2 OPEN.
