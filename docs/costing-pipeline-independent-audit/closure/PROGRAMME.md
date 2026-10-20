@@ -186,3 +186,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 patch security audit — 20 October 2026
 - Live catalog found family resolver LANGUAGE sql, STABLE, SECURITY DEFINER, search_path=costing/public, owner postgres, EXECUTE ACL postgres/authenticated/service_role. Earlier draft omitted SECURITY DEFINER/search_path; corrected review-only SQL in commit aa18444f (no live change). PL/pgSQL language conversion and privilege parity must be tested in isolated PostgreSQL before approval. G2/CI-032 OPEN.
+
+### G2 family resolver six-caller compatibility audit — 20 Oct
+- Read-only pg_proc source scan verified six direct callers: effective process steps, candidate preview, overhead preview, effective-route validation, and two Production Route Manager RPCs. Two bodies contain no EXCEPTION clause; four contain exception handling with semantics not yet inspected. Staged ambiguity guard may alter operator error responses; requires isolated caller/client parity regression. Evidence `evidence/G2/G2_FAMILY_RESOLVER_SIX_CALLER_COMPATIBILITY_2026-10-20.md` (`c7d9b023`). No live changes; G2/CI-032 OPEN.
