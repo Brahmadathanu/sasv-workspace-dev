@@ -225,3 +225,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 source-extracted execution evidence
 - Executed actual fetched preview-binding block in isolated JS for both branch forms: 7 input cases each, 14/14 PASS including listeners, empty/zero/fractional/unsafe integers and 8x8 warning. Not whole-form browser smoke or approval regression. Repo smoke script remains committed, execution via node on branch pending. No live changes.
+
+### G2 repetition integration check — 20 Oct
+- Verified both branch client forms initialise the derived count and bind input listeners. Product-delta form is operation-conditional, so full modal/browser tests remain essential. Extended repository smoke for invalid cycle-side values (8adddf79). Branch smoke execution and approval attestation not yet verified. No live changes.
