@@ -159,3 +159,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 full protected-run superseded-route attribution checked
 - Read-only DL and POH snapshot scans over every identified non-archived superseded route (18 family IDs, 9 product IDs) return zero references for both protected run122 and run128. This closes the frozen-run predecessor-reference question, but does not establish non-use in other runs or physical manufacturing. Historical 17-pair overlaps and resolver policy remain open. Evidence `evidence/G2/G2_FROZEN_RUN_SUPERSEDED_REFERENCE_EXCLUSION_2026-10-20.md`, commit 65457b11. No live changes.
+
+## 20 Oct — G2 guarded historical eligibility proposal
+- Read-only family32 confirms a unique old-only window Aug17–23 and ambiguous Aug24 predecessor/successor coverage. 17/18 non-archived superseded family routes have closed intervals; one remains open-ended. Prepared conservative proposal to fail closed on all cross-status overlaps, require closed SUPSERSEDED window for historical read eligibility, preserve strict new-route approvals. Candidate **not approved or deployed**; full PostgreSQL, historic provenance and costing impact tests OPEN. Evidence `evidence/G2/G2_GUARDED_HISTORICAL_ELIGIBILITY_CANDIDATE_2026-10-20.md` commit 8bfddec0. G2/CI-032 OPEN; no live changes.
