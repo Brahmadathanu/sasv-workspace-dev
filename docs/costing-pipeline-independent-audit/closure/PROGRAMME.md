@@ -83,3 +83,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 active master route 144 independently inspected
 - Live route144 family101 `SHUKTHAM_SERIAL_THERMAL_ACIDIC_EXTRACTION_ROUTE`, v1 APPROVED from 2026-08-30; six source step IDs 1593–1598 contain occurrence8/cycle8. Owner confirmed total eight repetitions. Proposed correction is a prospective governed successor route version, NOT an in-place edit of approved history. Route name Shuktham vs frozen recipient Dhanyamlam requires semantic review before implementation. Evidence `evidence/G2/G2_ROUTE144_SOURCE_CORRECTION_PREPARATION_2026-10-20.md` commit b8b7a75d; G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 live route-family mapping and immutable version guards
+- Current family101 assignment table independently returns only approved product51, mapping ID424 effective 2026-08-30. Route144 parent carries approval-reference, immutable parent and WP04 readiness-epoch triggers. Prospective recurrence repair must use a successor version and verify readiness impact, not UPDATE approved v1. Evidence `evidence/G2/G2_ROUTE144_ASSIGNMENT_AND_VERSION_GUARDS_2026-10-20.md` commit 433a9f84. No live changes; G2 and CI-032 remain open.
