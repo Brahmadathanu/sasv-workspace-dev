@@ -213,3 +213,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 approval reference contract — 20 Oct
 - Both route approvals require meaningful approval references and existing validators. Approval reference is not proof of nested cycles; do not overload it. See evidence/G2/G2_APPROVAL_REFERENCE_CONTRACT_2026-10-20.md (3d207d02). No live changes.
+
+### G2 repetition safeguard handover — 20 Oct
+- Two existing client forms confirmed. Stage computed total executions and dual-positive warning first; server enforcement awaits reliable route-version-bound review evidence, not free-text note. See evidence/G2/G2_ROUTE_MANAGER_REPETITION_IMPLEMENTATION_HANDOVER_2026-10-20.md (1cac77aa). G2 open; no live changes.
