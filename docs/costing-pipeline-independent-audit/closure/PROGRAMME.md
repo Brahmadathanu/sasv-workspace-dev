@@ -177,3 +177,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 SQL probe candidate — 20 Oct 2026
 - Staged read-only parameterized family/product historical route candidate queries and explicit ambiguity regression matrix. Frozen snapshot ID read, retrospective route choice and prospective approval remain separate; no function replacement or migration. Evidence `evidence/G2/G2_HISTORICAL_RESOLUTION_SQL_PROBES_2026-10-20.md` (`bcd9ea9f`). Return-signature catalog query blocked; live migration prohibited, G2/CI-032 OPEN.
+
+### G2 live PostgreSQL probe checkpoint — 20 Oct
+- Confirmed both route resolvers `(integer,date) RETURNS bigint`, STABLE. Read-only queries reproduced family32 Aug24 (routes34/38) and product957 Aug25 (routes72/73) effective-date conflicts. Candidate checks only; PostgreSQL function regression and deployment NOT performed. Evidence `evidence/G2/G2_LIVE_SQL_RESOLVER_SIGNATURE_AND_AMBIGUITY_CHECKS_2026-10-20.md`, commit 51d64b4f. G2 open, no live changes.
