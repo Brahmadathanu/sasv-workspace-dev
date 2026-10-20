@@ -52,21 +52,21 @@ end $$;
 create or replace function costing.fn_g2_repetition_evidence(p_kind text,p_route_id bigint)
 returns jsonb language plpgsql stable security definer
 set search_path=pg_catalog,costing,pg_temp as $$
-declare v_version integer; v_steps jsonb;
+declare v_version integer; v_steps jsonb; v_base_family_route_id bigint; v_base_family_version integer;
 begin
  if p_kind='FAMILY' then
    select route_version into v_version from costing.production_route_family_route where id=p_route_id and archived_at is null;
    select coalesce(jsonb_agg(to_jsonb(s) || jsonb_build_object('key',s.step_key,'occurrences',s.expected_occurrence_count,'cycles',s.standard_cycle_count) order by s.sequence_no,s.id),'[]'::jsonb)
    into v_steps from costing.production_route_family_route_step s where s.family_route_id=p_route_id;
  elsif p_kind='PRODUCT' then
-   select route_version into v_version from costing.product_process_route where id=p_route_id and archived_at is null;
+   select r.route_version,r.base_route_family_route_id,fr.route_version into v_version,v_base_family_route_id,v_base_family_version from costing.product_process_route r join costing.production_route_family_route fr on fr.id=r.base_route_family_route_id and fr.archived_at is null where r.id=p_route_id and r.archived_at is null;
    select coalesce(jsonb_agg(to_jsonb(s) || jsonb_build_object('key',s.effective_step_key,'occurrences',s.expected_occurrence_count,'cycles',s.standard_cycle_count) order by s.sequence_no,s.effective_step_key),'[]'::jsonb)
    into v_steps from costing.fn_effective_product_process_route_steps(p_route_id) s;
  else
    raise exception 'Invalid G2 route kind';
  end if;
  if v_version is null then raise exception 'G2 route not found'; end if;
- return jsonb_build_object('route_kind',p_kind,'route_id',p_route_id,'version',v_version,'steps',v_steps);
+ return jsonb_build_object('route_kind',p_kind,'route_id',p_route_id,'version',v_version,'base_family_route_id',v_base_family_route_id,'base_family_route_version',v_base_family_version,'steps',v_steps);
 end $$;
 
 -- Approval gate: compare current route evidence to immutable confirmation.
