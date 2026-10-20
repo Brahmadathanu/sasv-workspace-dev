@@ -938,6 +938,7 @@ export type Database = {
           created_at: string | null
           id: number
           item: string
+          lifecycle_status: string
           product_id: number
           uom: string | null
         }
@@ -947,6 +948,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           item: string
+          lifecycle_status?: string
           product_id: number
           uom?: string | null
         }
@@ -956,6 +958,7 @@ export type Database = {
           created_at?: string | null
           id?: number
           item?: string
+          lifecycle_status?: string
           product_id?: number
           uom?: string | null
         }

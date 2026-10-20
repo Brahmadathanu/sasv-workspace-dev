@@ -1,3 +1,5 @@
+import { retainActiveBmrCandidates } from "./bmr-lifecycle.js";
+
 /**
  * BMR Administrative Correction — shared service helpers.
  * All mutations go through rpc_admin_correct_bmr_plan_mapping.
@@ -434,9 +436,10 @@ export async function loadRemapCandidates({
 
   const { data, error } = await query;
   if (error) throw error;
+  const activeRows = await retainActiveBmrCandidates(supabase, data);
 
   const exclude = excludeBmrId == null ? null : Number(excludeBmrId);
-  return (data || [])
+  return activeRows
     .filter((r) => sizesMatch(r.batch_size, planned))
     .filter((r) => (exclude == null ? true : Number(r.bmr_id) !== exclude))
     .map((r) => ({

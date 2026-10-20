@@ -2,6 +2,7 @@
 // js/bmr-card-not-initiated.js
 import { supabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { retainActiveBmrCandidates } from "./bmr-lifecycle.js";
 
 const homeBtn = document.getElementById("homeBtn");
 const filterCategory = document.getElementById("filterCategory");
@@ -123,6 +124,7 @@ function buildFilterSummaryBits() {
 /** Fetch all rows from the view */
 async function fetchData() {
   const { data, error } = await supabase.from("bmr_card_not_initiated").select(`
+      bmr_id,
       item,
       bn,
       batch_size,
@@ -137,7 +139,7 @@ async function fetchData() {
     tbody.innerHTML = `<tr class="no-data"><td colspan="8">Failed to load data</td></tr>`;
     return;
   }
-  allRows = data;
+  allRows = await retainActiveBmrCandidates(supabase, data);
 }
 
 /** Populate Category dropdown */

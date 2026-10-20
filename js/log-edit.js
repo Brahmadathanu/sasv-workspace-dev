@@ -1137,6 +1137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               const { data, error } = await supabase
                 .from("bmr_details")
                 .select("item")
+                .eq("lifecycle_status", "ACTIVE")
                 .ilike("item", `%${query}%`)
                 .order("item")
                 .limit(200);
@@ -1262,6 +1263,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .from("bmr_details")
             .select("bn")
             .eq("item", val)
+            .eq("lifecycle_status", "ACTIVE")
             .order("bn");
           const uniq = [...new Set((bns || []).map((r) => r.bn))].map((bn) => ({
             bn,
@@ -1920,6 +1922,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           await supabase
             .from("bmr_details")
             .select("item", { distinct: true })
+            .eq("lifecycle_status", "ACTIVE")
             .order("item")
         ).data || [];
       populate(e_item, allItems, "item", "item", "Select Item");
@@ -1951,9 +1954,11 @@ document.addEventListener("DOMContentLoaded", async () => {
               .from("bmr_details")
               .select("bn")
               .eq("item", item)
+              .eq("lifecycle_status", "ACTIVE")
               .order("bn")
           ).data || [];
         const uniq = [...new Set(bns.map((r) => r.bn))].map((bn) => ({ bn }));
+        if (pre && !uniq.some((entry) => entry.bn === pre)) uniq.push({ bn: pre });
         populate(e_bn, uniq, "bn", "bn", "Select Batch Number");
         e_bn.disabled = false;
         if (pre) e_bn.value = pre;

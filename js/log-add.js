@@ -809,6 +809,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         supabase
           .from("bmr_details")
           .select("item")
+          .eq("lifecycle_status", "ACTIVE")
           .order("item")
           .range(from, to),
       );
@@ -934,6 +935,7 @@ itemInput.addEventListener("change", async () => {
     .from("bmr_details")
     .select("bn")
     .eq("item", val)
+    .eq("lifecycle_status", "ACTIVE")
     .order("bn");
   const uniq = [...new Set(bns.map((r) => r.bn))].map((bn) => ({ bn }));
   populate(batchSel, uniq, "bn", "bn", "-- Select Batch Number --");
@@ -965,6 +967,7 @@ batchSel.addEventListener("change", async () => {
     .select("batch_size,uom")
     .eq("item", itemInput.value)
     .eq("bn", batchSel.value)
+    .eq("lifecycle_status", "ACTIVE")
     .limit(1);
   if (data?.length) {
     sizeInput.value = data[0].batch_size;

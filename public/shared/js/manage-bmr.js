@@ -9,7 +9,12 @@ import { hasPermission } from "./appAuth.js";
 import {
   ADMIN_CORRECTION_ROLE,
   canOfferAdminCorrection,
+  getAdminCorrectionHistory,
 } from "./bmr-admin-correction.js";
+import {
+  BMR_LIFECYCLE,
+  normalizeBmrLifecycle,
+} from "./bmr-lifecycle.js";
 import { openBmrAdminCorrectionModal } from "./bmr-admin-correction-modal.js";
 import {
   activateBmrChangeHistoryTab,
@@ -90,6 +95,7 @@ const els = {
   manage: {
     filterItem: $("manageFilterItem"),
     filterBn: $("manageFilterBn"),
+    filterLifecycle: $("manageFilterLifecycle"),
     clearBtn: $("manageClearBtn"),
     tableBody: $("manageTableBody"),
     count: $("manageCount"),
@@ -147,6 +153,10 @@ const els = {
     subGroup: $("dtSubGroup"),
     statusRow: $("dtStatusRow"),
     status: $("dtStatus"),
+    lifecycle: $("dtLifecycle"),
+    correctionRow: $("dtCorrectionRow"),
+    correction: $("dtCorrection"),
+    retentionNote: $("detailRetentionNote"),
   },
   confirmModal: {
     overlay: $("confirmModal"),
@@ -638,7 +648,7 @@ function updateManagePager({
 }
 
 async function renderManageTable(cursor = null) {
-  els.manage.tableBody.innerHTML = `<tr><td colspan="4" class="empty-state">Loading…</td></tr>`;
+  els.manage.tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Loading…</td></tr>`;
   updateManagePager({ loading: true });
 
   const ps = state.managePg.pageSize;
@@ -648,37 +658,55 @@ async function renderManageTable(cursor = null) {
       q = q.eq("item", els.manage.filterItem.value);
     if (els.manage.filterBn.value.trim())
       q = q.eq("bn", els.manage.filterBn.value.trim());
+    const lifecycle = els.manage.filterLifecycle.value;
+    if (lifecycle === "HISTORY") {
+      q = q.in("lifecycle_status", [
+        BMR_LIFECYCLE.SUPERSEDED,
+        BMR_LIFECYCLE.CANCELLED,
+      ]);
+    } else if (lifecycle !== "ALL") {
+      q = q.eq("lifecycle_status", BMR_LIFECYCLE.ACTIVE);
+    }
     return q;
   };
 
   // Run data fetch and total-count HEAD query in parallel
   let dataQ = supabase
-    .from("v_bmr_with_map_flag")
-    .select(
-      "bmr_id,item,bn,batch_size,uom,is_mapped,mapped_batch_plan_batch_id,product_id",
-    )
-    .order("bmr_id", { ascending: false })
+    .from("bmr_details")
+    .select("id,item,bn,batch_size,uom,product_id,lifecycle_status")
+    .order("id", { ascending: false })
     .limit(ps + 1);
-  if (cursor !== null) dataQ = dataQ.lt("bmr_id", cursor);
+  if (cursor !== null) dataQ = dataQ.lt("id", cursor);
   dataQ = applyFilters(dataQ);
 
   const countQ = applyFilters(
-    supabase
-      .from("v_bmr_with_map_flag")
-      .select("*", { count: "exact", head: true }),
+    supabase.from("bmr_details").select("*", { count: "exact", head: true }),
   );
   const [{ data, error }, { count }] = await Promise.all([dataQ, countQ]);
 
   if (error) {
-    els.manage.tableBody.innerHTML = `<tr><td colspan="4" class="empty-state">Error loading data.</td></tr>`;
+    els.manage.tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Error loading data.</td></tr>`;
     updateManagePager({ loading: false });
     throw error;
   }
 
   const fetched = normalizeRows(data);
   const hasNext = fetched.length > ps;
-  const rows = hasNext ? fetched.slice(0, ps) : fetched;
-  state.managePg.nextCursor = hasNext ? rows[rows.length - 1].bmr_id : null;
+  const pageRows = hasNext ? fetched.slice(0, ps) : fetched;
+  state.managePg.nextCursor = hasNext ? pageRows[pageRows.length - 1].id : null;
+  const ids = pageRows.map((row) => row.id);
+  const { data: mapRows, error: mapError } = ids.length
+    ? await supabase
+        .from("v_bmr_with_map_flag")
+        .select("bmr_id,is_mapped,mapped_batch_plan_batch_id")
+        .in("bmr_id", ids)
+    : { data: [], error: null };
+  if (mapError) throw mapError;
+  const mapById = new Map((mapRows || []).map((row) => [Number(row.bmr_id), row]));
+  const rows = pageRows.map((row) => ({
+    ...row,
+    ...(mapById.get(Number(row.id)) || {}),
+  }));
 
   const totalCount = count ?? 0;
   els.manage.count.textContent = totalCount
@@ -687,7 +715,7 @@ async function renderManageTable(cursor = null) {
 
   const hasPrev = state.managePg.page > 1;
   if (!rows.length) {
-    els.manage.tableBody.innerHTML = `<tr><td colspan="4" class="empty-state">No entries found.</td></tr>`;
+    els.manage.tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No entries found.</td></tr>`;
     updateManagePager({ hasNext: false, hasPrev });
     return;
   }
@@ -695,15 +723,17 @@ async function renderManageTable(cursor = null) {
   els.manage.tableBody.innerHTML = rows
     .map(
       (r) => `
-    <tr class="clickable-row" data-id="${r.bmr_id}" data-mapped="${r.is_mapped}"
+    <tr class="clickable-row" data-id="${r.id}" data-mapped="${r.is_mapped === true}"
         data-plan-batch-id="${escHtml(r.mapped_batch_plan_batch_id ?? "")}"
         data-product-id="${escHtml(r.product_id ?? "")}"
         data-item="${escHtml(r.item)}" data-bn="${escHtml(r.bn)}"
-        data-size="${escHtml(r.batch_size ?? "")}" data-uom="${escHtml(r.uom ?? "")}">
+        data-size="${escHtml(r.batch_size ?? "")}" data-uom="${escHtml(r.uom ?? "")}"
+        data-lifecycle="${escHtml(normalizeBmrLifecycle(r.lifecycle_status))}">
       <td>${escHtml(r.item)}</td>
       <td>${escHtml(r.bn)}</td>
       <td>${escHtml(r.batch_size ?? "")}</td>
       <td>${escHtml(r.uom ?? "")}</td>
+      <td><span class="lifecycle-badge lifecycle-${escHtml(normalizeBmrLifecycle(r.lifecycle_status).toLowerCase())}">${escHtml(normalizeBmrLifecycle(r.lifecycle_status))}</span></td>
     </tr>`,
     )
     .join("");
@@ -730,6 +760,17 @@ function openDetailModal(row) {
   dm.subGroup.textContent = row.subGroup || "—";
 
   const isManage = row.source === "manage";
+  const lifecycle = normalizeBmrLifecycle(row.lifecycleStatus);
+  dm.lifecycle.textContent = lifecycle;
+  dm.lifecycle.className = `lifecycle-badge lifecycle-${lifecycle.toLowerCase()}`;
+  dm.correctionRow.classList.toggle(
+    "hidden",
+    lifecycle !== BMR_LIFECYCLE.SUPERSEDED,
+  );
+  dm.correction.textContent =
+    lifecycle === BMR_LIFECYCLE.SUPERSEDED
+      ? "Loading governed correction…"
+      : "—";
   dm.statusRow.classList.toggle("hidden", !isManage);
   if (isManage) {
     dm.status.innerHTML = row.isMapped
@@ -737,13 +778,27 @@ function openDetailModal(row) {
       : '<span class="badge-free">Free</span>';
   }
 
-  const canEditManage = isManage && state.allowedTabs.has("manage");
+  const canEditManage =
+    isManage &&
+    lifecycle === BMR_LIFECYCLE.ACTIVE &&
+    state.allowedTabs.has("manage");
   dm.editBtn.classList.toggle("hidden", !canEditManage);
   dm.deleteBtn.classList.toggle("hidden", !canEditManage);
+  dm.retentionNote.classList.toggle(
+    "hidden",
+    lifecycle === BMR_LIFECYCLE.ACTIVE,
+  );
+  dm.retentionNote.textContent =
+    lifecycle === BMR_LIFECYCLE.SUPERSEDED
+      ? "Retained for audit purposes. Superseded BMRs cannot be deleted."
+      : lifecycle === BMR_LIFECYCLE.CANCELLED
+        ? "Governed cancellation retained for audit purposes. This BMR cannot be deleted."
+        : "";
 
   // Exceptional path only — does not unlock ordinary mapped BN/size edit.
   const showAdminCorrect =
     isManage &&
+    lifecycle === BMR_LIFECYCLE.ACTIVE &&
     canOfferAdminCorrection({
       canAdminCorrect: state.canAdminCorrect,
       isMapped: row.isMapped,
@@ -754,6 +809,32 @@ function openDetailModal(row) {
   }
 
   dm.overlay.classList.remove("hidden");
+
+  if (isManage && lifecycle === BMR_LIFECYCLE.SUPERSEDED) {
+    loadDetailCorrection(row).catch((error) => {
+      console.error("BMR correction detail load failed:", error);
+      if (state.detailRow?.id === row.id) {
+        dm.correction.textContent = "Correction details unavailable.";
+      }
+    });
+  }
+}
+
+async function loadDetailCorrection(row) {
+  const history = await getAdminCorrectionHistory({
+    bmrId: Number(row.id),
+    limit: 50,
+  });
+  if (state.detailRow?.id !== row.id) return;
+  const correction = history.find(
+    (entry) =>
+      Number(entry.old_bmr_id) === Number(row.id) &&
+      entry.new_bmr_id != null &&
+      Number(entry.new_bmr_id) !== Number(row.id),
+  );
+  els.detailModal.correction.textContent = correction
+    ? `${correction.correction_no || "Governed correction"} · Replacement BN ${correction.new_bn || "—"} (BMR #${correction.new_bmr_id})`
+    : "No completed replacement correction was returned for this BMR.";
 }
 
 async function openAdminCorrectionFromDetail() {
@@ -788,6 +869,7 @@ async function openAdminCorrectionFromDetail() {
           isMapped: tr.dataset.mapped === "true",
           mappedBatchPlanBatchId: tr.dataset.planBatchId || null,
           productId: tr.dataset.productId || null,
+          lifecycleStatus: tr.dataset.lifecycle,
         };
         openDetailModal(state.detailRow);
       } else if (state.detailRow) {
@@ -1252,7 +1334,7 @@ function updateExplorePager({
 }
 
 async function renderExploreTable(cursor = null) {
-  els.explore.tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Loading…</td></tr>`;
+  els.explore.tableBody.innerHTML = `<tr><td colspan="6" class="empty-state">Loading…</td></tr>`;
   updateExplorePager({ loading: true });
 
   const ps = state.explorePg.pageSize;
@@ -1269,7 +1351,7 @@ async function renderExploreTable(cursor = null) {
   // Client-side sort within each page applies the full multi-key sort for visual order.
   let dataQ = supabase
     .from("bmr_details")
-    .select("id,item,bn,batch_size,uom,created_at")
+    .select("id,item,bn,batch_size,uom,created_at,lifecycle_status")
     .order("id", { ascending: false })
     .limit(ps + 1);
   if (cursor !== null) dataQ = dataQ.lt("id", cursor);
@@ -1281,7 +1363,7 @@ async function renderExploreTable(cursor = null) {
 
   const [{ data, error }, { count }] = await Promise.all([dataQ, countQ]);
   if (error) {
-    els.explore.tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Error loading data.</td></tr>`;
+    els.explore.tableBody.innerHTML = `<tr><td colspan="6" class="empty-state">Error loading data.</td></tr>`;
     updateExplorePager({ loading: false });
     throw error;
   }
@@ -1327,7 +1409,7 @@ async function renderExploreTable(cursor = null) {
     : "";
 
   if (!rows.length) {
-    els.explore.tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No BMR entries found for this filter.</td></tr>`;
+    els.explore.tableBody.innerHTML = `<tr><td colspan="6" class="empty-state">No BMR entries found for this filter.</td></tr>`;
     updateExplorePager({ hasNext: false, hasPrev });
     return;
   }
@@ -1339,6 +1421,7 @@ async function renderExploreTable(cursor = null) {
     <tr class="clickable-row"
         data-item="${escHtml(r.item)}" data-bn="${escHtml(r.bn)}"
         data-size="${escHtml(r.batch_size ?? "")}" data-uom="${escHtml(r.uom ?? "")}"
+        data-lifecycle="${escHtml(normalizeBmrLifecycle(r.lifecycle_status))}"
         data-cat="${escHtml(r.category_name || "")}" data-sub="${escHtml(r.subcategory_name || "")}"
         data-grp="${escHtml(r.group_name || "")}" data-sg="${escHtml(r.sub_group_name || "")}"
         data-date="${escHtml(r.created_at || "")}">
@@ -1347,6 +1430,7 @@ async function renderExploreTable(cursor = null) {
       <td>${escHtml(r.bn)}</td>
       <td>${escHtml(r.batch_size ?? "")}</td>
       <td>${escHtml(r.uom ?? "")}</td>
+      <td><span class="lifecycle-badge lifecycle-${escHtml(normalizeBmrLifecycle(r.lifecycle_status).toLowerCase())}">${escHtml(normalizeBmrLifecycle(r.lifecycle_status))}</span></td>
     </tr>`;
     })
     .join("");
@@ -1456,9 +1540,14 @@ function wireEvents() {
     resetManagePg();
     renderManageTable().catch(console.error);
   });
+  els.manage.filterLifecycle.addEventListener("change", () => {
+    resetManagePg();
+    renderManageTable().catch(console.error);
+  });
   els.manage.clearBtn.addEventListener("click", async () => {
     els.manage.filterItem.value = "";
     els.manage.filterBn.value = "";
+    els.manage.filterLifecycle.value = BMR_LIFECYCLE.ACTIVE;
     resetManagePg();
     await renderManageTable();
   });
@@ -1499,6 +1588,7 @@ function wireEvents() {
       isMapped: tr.dataset.mapped === "true",
       mappedBatchPlanBatchId: tr.dataset.planBatchId || null,
       productId: tr.dataset.productId || null,
+      lifecycleStatus: tr.dataset.lifecycle,
       category: h.category_name || "",
       subcategory: h.subcategory_name || "",
       group: h.group_name || "",
@@ -1601,6 +1691,10 @@ function wireEvents() {
   });
   els.detailModal.deleteBtn.addEventListener("click", async () => {
     const row = state.detailRow;
+    if (normalizeBmrLifecycle(row.lifecycleStatus) !== BMR_LIFECYCLE.ACTIVE) {
+      toast("Historical BMRs are retained for audit purposes and cannot be deleted.", "warn");
+      return;
+    }
     if (row.isMapped) {
       toast("Mapped BMR cannot be deleted.", "warn");
       return;
@@ -1634,6 +1728,7 @@ function wireEvents() {
       bn: tr.dataset.bn,
       batchSize: tr.dataset.size,
       uom: tr.dataset.uom,
+      lifecycleStatus: tr.dataset.lifecycle,
       category: tr.dataset.cat,
       subcategory: tr.dataset.sub,
       group: tr.dataset.grp,
