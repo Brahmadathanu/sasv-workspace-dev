@@ -25,9 +25,9 @@ const expected = [
 expected.forEach((pattern)=>assert.match(sql,pattern));
 assert.equal((sql.match(/with ordinality as e\(s,ordinal\)/g)||[]).length,2);
 assert.equal((sql.match(/order by e\.ordinal/g)||[]).length,2);
-assert.equal((sql.match(/for share of fr/g)||[]).length,2);
+assert.equal((sql.match(/for share of fr/g)||[]).length,3);
 assert.match(sql,/CREATE OR REPLACE FUNCTION public\.rpc_submit_product_route_for_review/);
 assert.match(sql,/CREATE OR REPLACE FUNCTION public\.rpc_submit_route_family_route_for_review/);
 assert.match(sql,/from costing\.product_process_route where id=p_product_route_id and archived_at is null for update/);
 assert.match(sql,/from costing\.production_route_family_route where id=p_family_route_id and archived_at is null for update/);
-console.log("G2 static migration smoke PASS (17 checks); PostgreSQL execution NOT tested");
+console.log("G2 static migration smoke PASS (25 checks); PostgreSQL execution NOT tested");
