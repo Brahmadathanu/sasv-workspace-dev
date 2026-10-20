@@ -303,3 +303,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 review-submission locking — 20 October 2026
 - Read-only live function inspection showed both `rpc_submit_product_route_for_review` and `rpc_submit_route_family_route_for_review` validated child route state before obtaining any explicit parent row lock, permitting concurrent edit/validation race. Staged exact original RPC bodies with parent `FOR UPDATE` acquired before validation (4c466a0e); added static regression assertions (fd06b631). Local environment lacks psql/postgres/docker, so no execution or concurrency pass is claimed. Migration first-statement HOLD remains, no live writes. Next check candidate deadlock graph and run isolated DB tests. G2/CI-032 OPEN.
+
+### G2 product review inherited-family lock — 20 October 2026
+- Transaction boundary extended: product Submit for Review now locks product route header FOR UPDATE, then inherited family route header FOR SHARE before validating the product effective route (46916803). Product approval and confirmation already use product-header then family-header acquisition order. Source lock-order consistency improved; live PostgreSQL deadlock/concurrency verification still NOT RUN. Initial migration HOLD stays active. No database mutation. G2 OPEN.
