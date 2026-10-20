@@ -114,3 +114,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 independent historical family route selector
 - `fn_product_process_route_readiness(date)` contains a separately implemented date-scoped family route selector filtering APPROVED-only; after legitimate supersession it will misclassify historical readiness even if central resolver fixed. `fn_route_family_onboarding_status` intentionally uses latest-version selection, should not be mechanically rewritten. Two other candidate selectors still await source classification. Evidence `evidence/G2/G2_INDEPENDENT_ROUTE_SELECTOR_CLASSIFICATION_2026-10-20.md` commit 0e4d399d. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 remaining selector inspection blocked
+- Attempts to read `fn_validate_product_process_route` and `fn_preview_route_family_route_steps` definitions and fingerprints were blocked; no unsupported classification made. Historical resolver/readiness issue remains confirmed, onboarding latest-version behaviour preserved. Evidence `closure/G2_SELECTOR_BLOCKER_2026-10-20.md` commit 844b8cbb. These two selector definitions are mandatory pre-migration stop gate. G2 OPEN; no live changes.
