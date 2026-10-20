@@ -208,3 +208,6 @@ Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlie
 
 ### 20 October 2026 — End-to-end refresh as conditional proof
 **Decision:** Prefer a governed, new-run end-to-end costing refresh as the final *integration* proof, after independent schema/RPC/concurrency tests and explicit merge/deploy/refresh approvals. No retroactive edits of runs 122/128; do not conflate a successful refresh with full G6 acceptance. Existing PostgreSQL 17 Technical Batch fixture is the preferred free verification approach if reproducible. **Open:** reconcile held G2 SQL incorrectly placed in `supabase/migrations/`; complete server gate, then reconsider costing Sheets freeze. Independent non-costing DB-to-Sheets work remains a separate scoped workflow.
+
+### Binding supersession — all DB-to-Sheets integration blocked (20 October)
+User requires all database-to-Google-Sheets integration to wait for server completion and a new successfully reconciled costing refresh. Supersedes the earlier non-costing Sheets exception. Merge, deployment and refresh remain separately approval-gated.
