@@ -86,3 +86,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 live route-family mapping and immutable version guards
 - Current family101 assignment table independently returns only approved product51, mapping ID424 effective 2026-08-30. Route144 parent carries approval-reference, immutable parent and WP04 readiness-epoch triggers. Prospective recurrence repair must use a successor version and verify readiness impact, not UPDATE approved v1. Evidence `evidence/G2/G2_ROUTE144_ASSIGNMENT_AND_VERSION_GUARDS_2026-10-20.md` commit 433a9f84. No live changes; G2 and CI-032 remain open.
+
+## 20 Oct — G2 successor-version regression specification
+- Defined 11 fail-closed isolated successor-route test obligations, including immutable route144/run128, prospective effective dates, both DL/POH writers, no double multiplication, 101/41/40-cycle peers, zero-scope, WP04 readiness and hard-retirement consumer graph. Actual route immutability function/step triggers/version API queries were blocked this checkpoint. **Tests specified, NOT run; no implementable migration approved.** Evidence `evidence/G2/G2_SUCCESSOR_ROUTE_FAIL_CLOSED_TEST_MATRIX_2026-10-20.md` commit 14251577. G2/CI-032 OPEN; no live changes.
