@@ -258,3 +258,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 server approval gate design — 20 October
 - Narrow, non-retroactive approval rule drafted: version-bound count-specific attestation for dual-positive effective route steps, stale-input rejection, both route families and product overrides; no new table unless existing receipt mechanisms inadequate. See evidence/G2/G2_SERVER_APPROVAL_MINIMUM_CHANGE_DESIGN_2026-10-20.md (f0acc472). Exact approval RPC signatures and receipt persistence still require verification. No live changes; G2 OPEN.
+
+### G2 live approval RPC signature verification
+- Public RPCs, not costing schema: rpc_approve_route_family_route(bigint,text) and rpc_approve_product_route(bigint,text). Both lock review-required route and call costing validation before status transition; transition guard is preferred to changing general validators, preserving historical approved route144. Confirmation receipt/fingerprint persistence not verified; no SQL staged/deployed. Evidence G2_APPROVAL_RPC_INSERTION_POINT_2026-10-20.md (9df1f1fe). G2 OPEN.
