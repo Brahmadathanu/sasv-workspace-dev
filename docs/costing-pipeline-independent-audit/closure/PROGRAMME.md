@@ -138,3 +138,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 PostgreSQL runner availability checkpoint
 - Local Node suite re-run, 18/18 PASS. Local PostgreSQL server/client and Docker unavailable; pg_config alone not a runner. No disposable PostgreSQL test executed, and no production SQL was invoked. Evidence `evidence/G2/G2_POSTGRES_RUNNER_AVAILABILITY_2026-10-20.md` commit 0ee06ea2. Isolated PostgreSQL integration remains explicit stop gate before proposed repair. G2/CI-032 OPEN; live unchanged.
+
+## 20 Oct — G2 fail-closed PostgreSQL resolver fixture prepared
+- Rechecked local runner: no psql, postgres, initdb, Docker or Podman; executed Node behavioural suite 18/18 PASS. Added isolated rollback-wrapped SQL fixture with temporary data and temporary function that **raises on duplicate eligible historical routes**, tests predecessor/successor boundaries and rejects prospective historical approval assumptions. `evidence/G2/tests/historical_route_ambiguity_executable_fixture.sql` commit c763cf10. This SQL has **not** run in PostgreSQL and does not integrate actual costing functions. Full isolated PostgreSQL execution, consumer compatibility and finance gates OPEN. No live change.
