@@ -68,3 +68,28 @@ begin
  if v_version is null then raise exception 'G2 route not found'; end if;
  return jsonb_build_object('route_kind',p_kind,'route_id',p_route_id,'version',v_version,'steps',v_steps);
 end $$;
+
+-- Approval gate: compare current route evidence to immutable confirmation.
+-- The digest is generated server-side from the canonical route structure.
+create or replace function costing.fn_g2_require_repetition_confirmation(p_kind text,p_route_id bigint)
+returns void language plpgsql security definer
+set search_path=pg_catalog,costing,pg_temp as $$
+declare v_evidence jsonb; v_dual jsonb; v_digest text; v_version integer;
+begin
+ v_evidence:=costing.fn_g2_repetition_evidence(p_kind,p_route_id);
+ select coalesce(jsonb_agg(jsonb_build_object('key',s->>'key','occurrences',s->>'occurrences','cycles',s->>'cycles',
+    'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric)),'[]'::jsonb)
+ into v_dual from jsonb_array_elements(v_evidence->'steps') s
+ where (s->>'occurrences')::numeric>1 and (s->>'cycles')::numeric>1;
+ if jsonb_array_length(v_dual)=0 then return; end if;
+ v_digest:=encode(extensions.digest(v_evidence::text,'sha256'),'hex');
+ v_version:=(v_evidence->>'version')::integer;
+ if not exists (
+   select 1 from costing.route_repetition_confirmation c
+   where c.route_kind=p_kind and c.route_version=v_version and c.step_digest=v_digest
+     and ((p_kind='FAMILY' and c.family_route_id=p_route_id) or (p_kind='PRODUCT' and c.product_route_id=p_route_id))
+     and c.step_evidence=v_dual
+ ) then
+   raise exception 'G2: current nested repetition counts lack exact governed confirmation';
+ end if;
+end $$;
