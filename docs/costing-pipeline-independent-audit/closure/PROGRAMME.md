@@ -180,3 +180,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 live PostgreSQL probe checkpoint — 20 Oct
 - Confirmed both route resolvers `(integer,date) RETURNS bigint`, STABLE. Read-only queries reproduced family32 Aug24 (routes34/38) and product957 Aug25 (routes72/73) effective-date conflicts. Candidate checks only; PostgreSQL function regression and deployment NOT performed. Evidence `evidence/G2/G2_LIVE_SQL_RESOLVER_SIGNATURE_AND_AMBIGUITY_CHECKS_2026-10-20.md`, commit 51d64b4f. G2 open, no live changes.
+
+### 20 Oct G2 — review-only family ambiguity guard staged
+- Re-read governing IMPLEMENTATION_RULES and lean-retirement directive. Staged a proposed APPROVED-only family resolver ambiguity guard, preserving bigint/STABLE contract; no historical SUPERSEDED admission. Added isolated rollback-only SQL assertions for family32/product957 date overlaps and run82 route9 immutable attribution. Review-only files: `evidence/G2/G2_FAMILY_RESOLVER_AMBIGUITY_GUARD_REVIEW_ONLY_2026-10-20.sql` commit ebd16520 and `evidence/G2/tests/g2_route_guard_isolated_assertions.sql` commit 29dddb6f. Not executed in PostgreSQL or promoted to migration; DDL metadata/privileges and consumer parity must be verified prior to approval. G2/CI-032 OPEN. No live data or function changes.
