@@ -306,3 +306,26 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 product review inherited-family lock — 20 October 2026
 - Transaction boundary extended: product Submit for Review now locks product route header FOR UPDATE, then inherited family route header FOR SHARE before validating the product effective route (46916803). Product approval and confirmation already use product-header then family-header acquisition order. Source lock-order consistency improved; live PostgreSQL deadlock/concurrency verification still NOT RUN. Initial migration HOLD stays active. No database mutation. G2 OPEN.
+
+
+## 20 October — Mobile-first completion and end-to-end acceptance decision
+
+**User direction:** Complete server work as efficiently as is professionally defensible; user is on phone and also needs separate database-to-Google-Sheets work tonight. Do not jump directly to merge or refresh. This checkpoint aligns the proposed end-to-end proof with governing rules rather than treating a successful refresh as proof of every control.
+
+### Critical reconciliation of existing rules
+- `IMPLEMENTATION_RULES.md` §2 explicitly requires **prepared SQL under closure/prepared/**, **not** `supabase/migrations/`, and byte-identical applied evidence with md5. The experimental G2 file at `supabase/migrations/20261020191500_g2_route_repetition_evidence.sql` conflicts with that rule. It begins with an unconditional G2 HOLD, so it must **not** be merged, deployed or allowed into an automatic migration runner. Reconcile the placement and remove the conflicting executable migration artifact from the candidate release only after preserving a traceable draft in the governed evidence/prepared area and reviewing every consumer. This documentation does not waive the rule.
+- `TECHNICAL_BATCH.md` records an existing PostgreSQL 17 catalogue-backed test fixture and runner (`evidence/TB/run_tests.py`), providing a viable prior testing pattern. Verify its current availability and G2 coverage; do not claim it currently runs in the ChatGPT execution environment.
+- The 19 October mandate suspends Google Sheets regeneration and pricing work until server acceptance. User's separate database-to-Sheets need should be triaged as its own workflow; only non-costing, non-conflicting, expressly authorised Sheets work can proceed independently. Do not silently remove the costing embargo.
+- The user's suggestion to merge and refresh is a **proposed acceptance strategy**, not blanket consent for merge, production migration, refresh, period switch, cron, protected-run overwrite or Sheets editing. Each live change still requires an explicit approved batch.
+
+### Tonight-oriented single critical path — no unnecessary detours
+1. **G2 code freeze & defect review:** reconcile the currently staged route-repetition SQL against implementation rules, eliminate blocking DDL/permission/function-security issues, trace the exact approval and refresh consumers, and package one minimal prepared migration. Do not keep two runnable migration copies.
+2. **Reuse established isolated test pattern:** locate/reconstruct the existing TB PostgreSQL 17 fixture, compare live function definitions and checksum, execute migration compilation and G2 positive/negative/security/concurrency tests; record real outputs. If unavailable, state the precise blocker and stop, rather than substitute fabricated PASS marks.
+3. **Server acceptance:** review G1–G4 open issues, dependencies, driver correctness, invariants and release impact; distinguish G2 route attestation readiness from end-to-end costing-suite completion. A single green refresh cannot certify unresolved policy/governance concerns.
+4. **Controlled production sequence after separate authorisation:** merge reviewed branch -> deploy only explicitly approved byte-identical migration -> post-deploy access/RPC checks -> run one **new**, traceable costing refresh using documented period/valuation inputs (no changes to runs 122/128 or approvals) -> reconcile all waterfall amounts, allocations, workload factors, route/version provenance and run governance against evidence. Observe existing cron switches; do not reactivate implicitly.
+5. **G6 independent acceptance:** capture read-only comparison and exceptions, mark PASS only where evidenced; otherwise HOLD with exact failed check and next repair. Only then release costing-dependent Google Sheet/price revision work under separately authorised scope.
+
+### Phone-first communication
+Send short updates with **Completed / Verified / Remaining / Next / Live Changes** and request only actionable approvals at the real deployment boundary. Avoid repeated “proceed” loops and changes outside the critical path. No cost-bearing Supabase branch was created.
+
+**Current status:** G2/CI-032 OPEN; G4/G5/G6 overall programme acceptance NOT inferred. Staged G2 SQL has an intentional deployment HOLD. No merge, live migration, refresh, snapshot mutation or Google Sheets edit performed in this turn.
