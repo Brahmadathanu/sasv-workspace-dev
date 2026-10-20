@@ -10,6 +10,8 @@ const expected = [
   /create or replace function costing\.fn_g2_repetition_evidence/,
   /from costing\.fn_effective_product_process_route_steps\(p_route_id\)/,
   /to_jsonb\(s\)/,
+  /base_family_route_id/,
+  /base_family_route_version/,
   /with ordinality as e\(s,ordinal\)/,
   /order by e\.ordinal/,
   /create or replace function public\.rpc_confirm_route_repetition/,
