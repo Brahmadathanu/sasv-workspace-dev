@@ -288,3 +288,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 server evidence ordering and static gate — 20 Oct
 - Fixed deterministic `jsonb_agg` ordering in both confirmation capture and approval guard (672466bc). Added Node static-smoke script scripts/costing-g2-attestation-migration-static-smoke.mjs (6e76140f). Re-fetched branch migration: 15/15 independent structural assertions passed; exact paired ordering count 2. Full PostgreSQL compilation, RLS/grants, stale-version and concurrency regressions NOT RUN. Deployment HOLD remains; no live change. G2 OPEN.
+
+### G2 inherited-family fingerprint hardening — 20 Oct
+- Product-route evidence now includes base family route ID and version, not just effective step rows (ba5c6961). Updated static test requirements (f17d674d). This guards lineage drift in proposed approvals. Live DB compiler and transactional race tests still not completed; initial migration deployment HOLD remains. No production writes. G2 OPEN.
