@@ -249,3 +249,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 Dhanyamlam step-factor scenario
 - Affected six-step DL sum 172.8 and POH sum 208 in protected runs122/128. Eight-total-repetition linear counterfactual: DL 21.6, POH 26, reductions 151.2 and 182. Not monetary impact. Evidence G2_EIGHT_REPETITION_SCENARIO_2026-10-20.md (25aaa23b). No live changes.
+
+### G2 fixed-pool DL sensitivity
+- Protected runs122/128: under eight-execution counterfactual, Product51 DL allocation falls provisionally by 19271.48 and 24945.15 respectively. Fixed 706203 pool redistributed, not saved. See evidence/G2/G2_DHANYAMLAM_DL_FIXED_POOL_SENSITIVITY_2026-10-20.md (83105a2a). POH rupee effect pending pool. No live changes.
