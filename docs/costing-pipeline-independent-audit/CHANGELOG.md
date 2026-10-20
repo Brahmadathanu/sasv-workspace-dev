@@ -1,3 +1,10 @@
+## 2026-10-20 late — Actual live route/period correction, verification runs, material forensics (authoritative checkpoint)
+- Live Route161 family101 approved effective Oct20, historic Route144 superseded through Oct19; historical resolver repaired. October period reopened OPEN and valuation DRAFT Oct20 with audit15/16 (admin operation, NOT PWA session); historical approved run128 remains immutable.
+- New verification runs130,131 succeeded, neither designated/approved. 56 matched quantity drivers carried forward by explicit user approval plus SKU1771 default0.725 approved, all 57 matched in run131. No Policy7 change.
+- Run131 final control: 15 READY / 612 REVIEW_REQUIRED =605 material +7 pricing. 841 active Oct16 material acceptances; 826 still present with same issue summaries, 15 absent; 501 strictly matching currently observed rate/source/date triplets; full provenance and old/new approval parity pending. Do not blanket reaccept.
+- Run131 product pool reconciliation manufacturing labour ₹706,203, production OH ₹670,935.04, both exact; five-product SKU manufacturing allocation shortfall ₹85.89. G2 attestation HELD; G6 and Sheets BLOCKED. Full and actionable successor checkpoint: `closure/LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md`.
+- Documentation-only commit here, documenting preceding separate approved Supabase operations; no additional database mutation for this docs task.
+
 # Changelog: costing pipeline audit (branch costing/au4-normal-budget)
 Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
 
