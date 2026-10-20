@@ -1,7 +1,7 @@
 /** G2 static migration checks. Does not execute SQL or replace PostgreSQL regression. */
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-const sql = readFileSync(new URL("../supabase/migrations/20261020191500_g2_route_repetition_evidence.sql",import.meta.url),"utf8");
+const sql = readFileSync(new URL("../docs/costing-pipeline-independent-audit/closure/prepared/HELD_G2_route_repetition_evidence_20261020.sql",import.meta.url),"utf8");
 const expected = [
   /G2 HOLD: do not deploy/,
   /create table costing\.route_repetition_confirmation/,
