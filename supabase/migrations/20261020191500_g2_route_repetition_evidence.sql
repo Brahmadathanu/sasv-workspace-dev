@@ -130,3 +130,98 @@ begin
  returning id into v_id;
  return v_id;
 end $$;
+
+-- Exact approved RPC definitions, with attestation check before state updates.
+CREATE OR REPLACE FUNCTION public.rpc_approve_product_route(p_product_route_id bigint, p_approval_reference text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'costing', 'pg_temp'
+AS $function$
+declare
+  v_route costing.product_process_route%rowtype;
+  v_old costing.product_process_route%rowtype;
+  v_validation jsonb;
+  v_ref text:=nullif(btrim(p_approval_reference),'');
+begin
+  perform public.require_permission('module:production-route-manager',true);
+  if v_ref is null or upper(v_ref) in ('-','—','NA','N/A','AUTO','MIGRATION') then raise exception 'A meaningful approval reference is required'; end if;
+  select * into v_route from costing.product_process_route where id=p_product_route_id and archived_at is null for update;
+  if not found then raise exception 'Product route not found'; end if;
+  if v_route.status<>'REVIEW_REQUIRED' then raise exception 'Product route must be in review'; end if;
+  if v_route.effective_from is null then raise exception 'Product route effective_from is required before approval'; end if;
+  v_validation:=costing.fn_validate_product_process_route(p_product_route_id);
+  if not coalesce((v_validation->>'valid')::boolean,false) then raise exception 'Product route validation failed: %',v_validation->'errors'; end if;
+  perform costing.fn_g2_require_repetition_confirmation('PRODUCT',p_product_route_id);
+  if v_route.supersedes_route_id is not null then
+    select * into v_old from costing.product_process_route where id=v_route.supersedes_route_id and archived_at is null for update;
+    if not found or v_old.status<>'APPROVED' or v_old.product_id<>v_route.product_id then raise exception 'supersedes_route_id must identify the current approved route of the same Product'; end if;
+    if v_route.effective_from<=v_old.effective_from then raise exception 'Successor Product route effective_from must be after prior approved route effective_from'; end if;
+    if exists(select 1 from costing.product_process_route r where r.id not in (p_product_route_id,v_old.id) and r.product_id=v_route.product_id and r.archived_at is null and r.status='APPROVED' and daterange(r.effective_from,coalesce(r.effective_to,'infinity'::date),'[]') && daterange(v_route.effective_from,'infinity'::date,'[]')) then
+      raise exception 'Another approved Product route overlaps the successor effective period';
+    end if;
+    update costing.product_process_route set status='SUPERSEDED',effective_to=v_route.effective_from-1,updated_at=now() where id=v_old.id;
+  else
+    if exists(select 1 from costing.product_process_route r where r.id<>p_product_route_id and r.product_id=v_route.product_id and r.archived_at is null and r.status='APPROVED' and daterange(r.effective_from,coalesce(r.effective_to,'infinity'::date),'[]') && daterange(v_route.effective_from,'infinity'::date,'[]')) then
+      raise exception 'An approved Product route overlaps the requested effective period; create a successor version linked by supersedes_route_id';
+    end if;
+  end if;
+  update costing.product_process_route set status='APPROVED',approval_reference=v_ref,approved_by=auth.uid(),approved_at=clock_timestamp(),updated_at=now() where id=p_product_route_id;
+  return jsonb_build_object('product_route_id',p_product_route_id,'status','APPROVED','superseded_route_id',v_route.supersedes_route_id,'validation',v_validation);
+end
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.rpc_approve_route_family_route(p_family_route_id bigint, p_approval_reference text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'costing', 'pg_temp'
+AS $function$
+declare
+  v_route costing.production_route_family_route%rowtype;
+  v_old costing.production_route_family_route%rowtype;
+  v_validation jsonb;
+  v_ref text:=nullif(btrim(p_approval_reference),'');
+begin
+  perform public.require_permission('module:production-route-manager',true);
+  if v_ref is null or upper(v_ref) in ('-','—','NA','N/A','AUTO','MIGRATION') then raise exception 'A meaningful approval reference is required'; end if;
+  select * into v_route from costing.production_route_family_route where id=p_family_route_id and archived_at is null for update;
+  if not found then raise exception 'Route Family route not found or is archived'; end if;
+  if v_route.status<>'REVIEW_REQUIRED' then raise exception 'Route Family route must be in review'; end if;
+  if v_route.effective_from is null then raise exception 'Route Family route effective_from is required before approval'; end if;
+  if not exists(select 1 from costing.production_route_family where id=v_route.route_family_id and archived_at is null and status='APPROVED') then
+    raise exception 'Route Family must be active and approved first';
+  end if;
+  v_validation:=costing.fn_validate_route_family_route(p_family_route_id);
+  if not coalesce((v_validation->>'valid')::boolean,false) then raise exception 'Route Family route validation failed: %',v_validation->'errors'; end if;
+  perform costing.fn_g2_require_repetition_confirmation('FAMILY',p_family_route_id);
+  if v_route.supersedes_route_id is not null then
+    select * into v_old from costing.production_route_family_route
+    where id=v_route.supersedes_route_id and archived_at is null for update;
+    if not found or v_old.status<>'APPROVED' or v_old.route_family_id<>v_route.route_family_id then
+      raise exception 'supersedes_route_id must identify the current active approved route of the same Route Family';
+    end if;
+    if v_route.effective_from<=v_old.effective_from then raise exception 'Successor route effective_from % must be after prior approved route effective_from %',v_route.effective_from,v_old.effective_from; end if;
+    if exists(select 1 from costing.production_route_family_route r
+      where r.id not in (p_family_route_id,v_old.id) and r.route_family_id=v_route.route_family_id and r.archived_at is null and r.status='APPROVED'
+        and daterange(r.effective_from,coalesce(r.effective_to,'infinity'::date),'[]') && daterange(v_route.effective_from,'infinity'::date,'[]')) then
+      raise exception 'Another active approved Route Family route overlaps the successor effective period';
+    end if;
+    update costing.production_route_family_route set status='SUPERSEDED',effective_to=v_route.effective_from-1,updated_at=now()
+    where id=v_old.id and archived_at is null;
+  else
+    if exists(select 1 from costing.production_route_family_route r
+      where r.id<>p_family_route_id and r.route_family_id=v_route.route_family_id and r.archived_at is null and r.status='APPROVED'
+        and daterange(r.effective_from,coalesce(r.effective_to,'infinity'::date),'[]') && daterange(v_route.effective_from,'infinity'::date,'[]')) then
+      raise exception 'An active approved Route Family route overlaps the requested effective period; create a successor version linked by supersedes_route_id';
+    end if;
+  end if;
+  update costing.production_route_family_route
+  set status='APPROVED',approval_reference=v_ref,approved_by=auth.uid(),approved_at=clock_timestamp(),updated_at=now()
+  where id=p_family_route_id and archived_at is null;
+  return jsonb_build_object('family_route_id',p_family_route_id,'status','APPROVED','superseded_route_id',v_route.supersedes_route_id,'validation',v_validation);
+end
+$function$
+;
+
