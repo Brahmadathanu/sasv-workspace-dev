@@ -1,0 +1,5 @@
+# G2 all-run snapshot route-reference audit — 20 October 2026
+
+Read-only whole-table live query on `costing.product_direct_labour_workload_snapshot` joined route parent rows: 17,364 snapshot records; 64 records reference family routes whose CURRENT status is SUPERSEDED; zero reference product routes whose current status is SUPERSEDED. All 64 records are in refresh_run_id 82 and reference family_route_id 9. Route9 is in family9, currently SUPERSEDED, archived 2026-08-13 05:01:47 UTC, effective 2026-07-01 through 2026-08-10.
+
+This does NOT contradict previous confirmed zero predecessor references in protected runs122 and128: this all-run scan includes older run82 and archived predecessors excluded from the former non-archived inventory. Interpret status/archival as present-day route metadata and snapshot route ID as immutable historical attribution. These findings do not prove or disprove whether run82's valuation date lies in route9's valid interval; check run82 source date separately. No live writes. G2/CI-032 open.
