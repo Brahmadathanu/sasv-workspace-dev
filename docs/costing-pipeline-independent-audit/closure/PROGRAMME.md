@@ -59,3 +59,7 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 ## 20 October 2026 — G2 phase 3 cohort sensitivity (read-only)
 - Simulated removal of recorded equipment multipliers across 453 frozen run128 product workload records, 445 positive candidates. Candidate workload sum 1178.64169091 versus historical 3861.78032033; manufacturing labour pool held at ₹706,203. Shares for products 51/695/957 move 13.236%→14.818%, 6.657%→0.044%, and 9.824%→2.232%. Results are **illustrative, not approved allocation**: existing caps are inherited, eight rows need review and POH/fully recomputed cap tests remain outstanding.
 - Evidence commit `154fa837`, `evidence/G2/G2_FULL_COHORT_SENSITIVITY_PHASE3_2026-10-20.md`. G2 and CI-032 remain OPEN. No live changes.
+
+## 20 October 2026 — G2 intentional-zero exception resolution
+- Read-only run128 verified 8/453 DL products with `READY_ZERO_MANUFACTURING_LABOUR`, all ₹0, IDs 102,103,106,108,686,687,724,725. These are deliberate excluded-scope outcomes, not eight missing calculations; separate scope validity still requires independent examination. The other 445 DL records are 444 READY and one REVIEW_REQUIRED_FOUNDATION, amount ₹46.4496153; the pool remains ₹706,203.
+- POH status also reports 444 READY, eight READY_ZERO_PRODUCTION_OVERHEAD, one REVIEW_REQUIRED_MONTHLY_DRIVER; exact ID parity and POH sensitivity remain open. Evidence `evidence/G2/G2_ZERO_WORKLOAD_EXCEPTION_VERIFICATION_2026-10-20.md` commit 54f94a8f. G2 OPEN, CI-032 HIGH OPEN; production unchanged.
