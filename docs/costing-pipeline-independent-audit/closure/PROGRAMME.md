@@ -294,3 +294,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 review-only attestation gate — 20 Oct 2026
 - Staged capture now requires REVIEW_REQUIRED status, preventing evidence creation while route is in DRAFT (05871676). Read-only verified both submission RPCs transition DRAFT to REVIEW_REQUIRED and validate routes. Added static regression assertion (771d827e). No PostgreSQL compiler/transaction test runner available; migration HOLD remains; live unchanged. G2 OPEN.
+
+### G2 runnable workload regression and schema read checks — 20 October
+- Ran locally available Node fixture tests under `/mnt/data/costing-g2`: `node --test *.test.mjs` => **12/12 PASS, 0 failures**. These verify allocation and eight-total-repetition mathematical fixtures, **NOT** PostgreSQL migration compilation or approval RPC execution. Read-only live schema confirms `route_version` columns on both route tables and `base_route_family_route_id` on product route. `information_schema.role_table_grants` shows no direct `anon`/`authenticated` grants for family steps or product overrides. No local psql/postgres/docker installed. Staged confirmation remains review-only (05871676), migration HOLD active, no DB writes. Next: isolated PostgreSQL migration tests with negative cases and permissions before deployment. G2 OPEN.
