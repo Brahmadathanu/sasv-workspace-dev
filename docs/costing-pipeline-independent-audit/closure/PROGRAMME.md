@@ -372,3 +372,18 @@ Send short updates with **Completed / Verified / Remaining / Next / Live Changes
 ### 20 Oct — Critical G2 physical-source blocker verified live before new refresh
 - Read-only live inspection shows APPROVED family route 144 v1 has six sequences 40–90 each with `expected_occurrence_count=8` and `standard_cycle_count=8`; multiplication yields **64**, versus owner-confirmed **8 total** physical repetitions. This is a verified current numerical-correctness blocker, not merely untested attestation SQL. Evidence committed as `evidence/G2/G2_LIVE_ROUTE144_PRE_REFRESH_BLOCKER_2026-10-20.md` (`ed3a4f30`).
 - Current staged attestation acknowledges the computed factors and cannot correct false physical source values. Correctness requires authorised governed successor route with semantically correct 8-total factors, product inheritance/repetition review, and independent DL/POH sensitivity and full-run reconciliation. Approved route 144 and runs 122/128 remain immutable. No route edit, merge, refresh or Sheets integration. G2 and end-to-end refresh gate HOLD.
+
+## 20 October — Direct Supabase route correction and cleanup
+
+**User directive:** Correct the source directly in Supabase and reduce GitHub confusion from already-deployed prepared files. No instruction to erase Git history, approved routes, or immutable costing snapshots.
+
+**Executed on live Supabase (scoped DRAFT insertion, NOT activation):**
+- For family route 101, preserved historical APPROVED route 144 version 1 exactly.
+- Created successor **route 161, version 2, status DRAFT**, superseding 144, **effective_from NULL** awaiting governed approval. Cloned all nine steps, converted the six steps with 8 occurrences and 8 cycles to **8 occurrences and 1 cycle**, without changing other step fields.
+- Verified direct read-back: route144 APPROVED v1; route161 DRAFT v2; both nine steps. Sum of per-step occurrence×cycle values **387 → 51**, of which each of six corrected steps **64 → 8**; zero differences in other step attributes. **This sum is not a labour/overhead cost or cost-driver-weighted total.**
+- Called `costing.fn_validate_route_family_route(161)` read-only: **valid=true, errors=[]**, 9 steps. This is a validator pass, **not** route approval, effectivity, product inheritance proof or refreshed costing correctness.
+- Because the clone is a DRAFT without effective date, it does not alter approved route selection or historical/approved runs. G2 new confirmation migration remains HELD and uncompiled in PostgreSQL; do not deploy or claim G2 acceptance. Effective date and new-version approval still require the route manager's governed transaction and lineage review.
+
+**GitHub hygiene:** Former `closure/prepared/PREPARED_CI012_no_backdating_guard.sql` and `PREPARED_CI034_valuation_anchored_basis_status.sql` were removed from pending/prepared folder after verifying their byte-identical SQL already exists in `closure/evidence/CI012/CI012_APPLIED_20261020162117.sql` and `CI034_APPLIED_20261020162105.sql` (Git blobs identical). Removed duplicate pending copies only. Kept applied historical migrations, evidence and Git commit history. Updated `closure/CI012_CI034_GUARD_AND_FIX.md` to point to preserved live evidence. Do not delete canonical `supabase/migrations/` history or audit snapshots.
+
+**Still blocked:** Full branch merge; G2 server approval safeguard deployment; successor route approval/activation; new costing refresh; financial reconciliation; database-to-Google-Sheets integration. No protected run 122/128 mutation.
