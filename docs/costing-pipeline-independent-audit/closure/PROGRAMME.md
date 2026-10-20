@@ -92,3 +92,7 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 isolated recurrence regression executed
 - Node isolated recurrence fixture PASS 6/6: Dhanyamlam DL 174.8→23.6, POH 210→28, only six duplicated steps normalized, 3/40/41/101 true cycles preserved, historical fixture intact. This is NOT database integration and not a successor finance run. Read-only parent immutable trigger function definition inspected: approved definition protected; lifecycle status/effective_to updates limited and route-step immutability trigger exists; exact step trigger function still to inspect. Evidence `evidence/G2/G2_RECURRENCE_LOCAL_TEST_RESULTS_2026-10-20.md` commit 1726bfc4. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 portable recurrence tests committed and step immutability verified
+- Executable `evidence/G2/tests/recurrence-regression.test.mjs` committed (`76a705a0`) and independently rerun with `node --test`: 6 passed, 0 failed. Isolated arithmetic tests ONLY; no PostgreSQL writer integration or prospective price computation.
+- Read-only live trigger `trg_route_family_route_step_immutable` resolves to `costing.fn_route_family_step_immutable()`: INSERT/UPDATE/DELETE of steps fail when parent route is APPROVED, SUPERSEDED or INACTIVE. Existing approved route144 must not have its steps edited; approved successor route has to be staged before approval and validated for effectivity and WP04 readiness. G2/CI-032 OPEN, no live changes.
