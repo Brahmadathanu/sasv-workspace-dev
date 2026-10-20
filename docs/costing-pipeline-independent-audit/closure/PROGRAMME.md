@@ -102,3 +102,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 overlap constraint and history-continuity hazard
 - Verified GiST exclusion prohibits overlapping approved active route periods, one-writable draft index, unique route versions and approval evidence guards. Route resolver only sees APPROVED: blindly marking historic route144 SUPERSEDED would break historical as-of lookup. Candidate old-version APPROVED with end date day before prospective successor effective date requires isolated validation and separate approval. No prospective route exists. Evidence `evidence/G2/G2_ROUTE_EFFECTIVITY_EXCLUSION_AND_HISTORICAL_LOOKUP_2026-10-20.md` commit 1f951c4d. G2 OPEN / CI-032 HIGH; live unchanged.
+
+## 20 Oct — G2 approval entrypoint audit
+- Read-only checked `costing.fn_enforce_prm_approval_reference()`: route approval-reference trigger enforces PRM-prefixed **format** but not substantive authorisation. Parent route write grants belong to postgres/service_role; no named dedicated route approve/supersede function found in limited catalog filters. Generic client/service approval workflow and atomic old-version close/new-version approval need inspection before any production proposal. Evidence `evidence/G2/G2_ROUTE_APPROVAL_ENTRYPOINT_AND_PRIVILEGES_2026-10-20.md` commit 9c177440. G2/CI-032 OPEN; no live changes.
