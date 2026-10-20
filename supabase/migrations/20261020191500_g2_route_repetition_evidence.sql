@@ -56,7 +56,7 @@ declare v_version integer; v_steps jsonb;
 begin
  if p_kind='FAMILY' then
    select route_version into v_version from costing.production_route_family_route where id=p_route_id and archived_at is null;
-   select coalesce(jsonb_agg(jsonb_build_object('key',s.step_key,'id',s.id,'sequence',s.sequence_no,'occurrences',s.expected_occurrence_count,'cycles',s.standard_cycle_count,'activity',s.activity_id,'cost_centre',s.cost_centre_id,'scope',s.route_step_scope) order by s.sequence_no,s.id),'[]'::jsonb)
+   select coalesce(jsonb_agg(to_jsonb(s) || jsonb_build_object('key',s.step_key,'occurrences',s.expected_occurrence_count,'cycles',s.standard_cycle_count) order by s.sequence_no,s.id),'[]'::jsonb)
    into v_steps from costing.production_route_family_route_step s where s.family_route_id=p_route_id;
  elsif p_kind='PRODUCT' then
    select route_version into v_version from costing.product_process_route where id=p_route_id and archived_at is null;
