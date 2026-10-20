@@ -199,3 +199,9 @@ Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlie
 - **Open question for the user:** DVS-1 activation waits for the 86-SKU review (closure/evidence/DVS1/DVS1_REVIEW_WORKSHEET_86.csv).
 - **Open question for the user:** capacity values for the 15 P1 machines (closure/evidence/CAP/CAPACITY_P1_15_MACHINES.md).
 - **Next approval batch:** CI-012 no-backdating guard and CI-034 fix (both prepared and tested locally).
+
+## USER-DIRECTIVE-20261020-LEAN-ARCHITECTURE — accepted, binding
+- Eliminate unnecessary costing architecture, cost drivers and excessive capacity dependencies. Prefer smallest defensible future-proof, auditable, maintainable server model.
+- On replacement, hard-retire superseded **live executable** functions/tables/branches after audited dependency-safe controlled cutover, rather than preserving obsolete parallel paths. Historical approved snapshots, migrations and audit journals must be preserved. Live drops and policy changes require separate explicit user approval.
+- Capacity is selective workload evidence, not itself the total financial pool denominator; standard `production_batch_size_ref` remains enforced. Proposed activity driver modes are NOT yet implemented or finally approved.
+- Exact scope and next tests: `closure/ARCHITECTURE_SIMPLIFICATION_AND_RETIREMENT_DIRECTIVE_2026-10-20.md` and `handover/CHATGPT_HANDOVER_2026-10-20_PART4_LEAN_ARCHITECTURE.md`.
