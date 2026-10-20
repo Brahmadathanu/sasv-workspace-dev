@@ -228,3 +228,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 repetition integration check — 20 Oct
 - Verified both branch client forms initialise the derived count and bind input listeners. Product-delta form is operation-conditional, so full modal/browser tests remain essential. Extended repository smoke for invalid cycle-side values (8adddf79). Branch smoke execution and approval attestation not yet verified. No live changes.
+
+### G2 operation-panel integration fix — 20 Oct
+- Found that product-route ALTER_CYCLE uses separate AlterOcc/AlterCycles controls and lacked a visible repetition preview. Added preview to its cycle panel with active-operation-specific input binding (54ca0188). Updated smoke script to cover ADD_STEP and ALTER_CYCLE (33cc6d7b); branch runtime execution remains pending. No live changes.
