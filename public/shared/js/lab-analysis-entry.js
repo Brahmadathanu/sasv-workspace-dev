@@ -82,6 +82,8 @@ import {
   contextDecision,
   meaningfulRepeatReason,
   pickRegisterNumber,
+  priorAnalysisRegisterNumber,
+  REPEAT_REQUEST_STATUS,
   repeatStatusLabel,
   unwrapRpcJson,
 } from "./lab-repeat-analysis-governance.js";
@@ -1619,7 +1621,7 @@ async function requestRepeatAnalysis() {
   const reason = repeatReason.value.trim();
   const bmrId = Number(batchNoSelect.options[batchNoSelect.selectedIndex]?.dataset.bmrId);
   if (!meaningfulRepeatReason(reason)) {
-    repeatReasonMsg.textContent = "Enter a meaningful justification of at least 12 characters.";
+    repeatReasonMsg.textContent = "Enter a meaningful justification of at least 15 characters.";
     return;
   }
   requestRepeatBtn.disabled = true;
@@ -1633,7 +1635,7 @@ async function requestRepeatAnalysis() {
     const msg = normalizeLabUserError(err);
     repeatReasonMsg.textContent = msg;
     toast(msg, "error");
-    requestRepeatBtn.disabled = false;
+    requestRepeatBtn.disabled = true;
   }
 }
 
@@ -1648,7 +1650,7 @@ async function loadRepeatApprovalQueue() {
   refreshRepeatQueueBtn.disabled = true;
   repeatApprovalRows.innerHTML = '<div class="repeat-body">Loading pending requests…</div>';
   try {
-    const { data, error } = await labSupabase.rpc("fn_list_repeat_analysis_requests", { p_status: "PENDING" });
+    const { data, error } = await labSupabase.rpc("fn_list_repeat_analysis_requests", { p_status: REPEAT_REQUEST_STATUS });
     if (error) throw error;
     const rows = repeatQueueRecords(data);
     repeatApprovalRows.innerHTML = rows.length ? rows.map(renderRepeatRequest).join("") : '<div class="repeat-body">No pending repeat-analysis requests.</div>';
@@ -1664,7 +1666,7 @@ function renderRepeatRequest(row) {
   const bmr = row.bmr_no || row.bmr_id || "—";
   const batch = row.batch_no || row.batch_no_snapshot || "—";
   const product = row.product_name || row.item_name || "—";
-  const previous = row.previous_analysis_register_no || row.analysis_register_no || "—";
+  const previous = priorAnalysisRegisterNumber(row);
   const reason = row.reason || row.justification || "—";
   return `<article class="repeat-request" data-request-id="${esc(String(id))}"><div class="repeat-request-grid"><div><strong>BMR / Batch</strong><br>${esc(String(bmr))} / ${esc(String(batch))}</div><div><strong>Product</strong><br>${esc(product)}</div><div><strong>Previous analysis</strong><br>${esc(previous)}</div></div><div class="repeat-body"><strong>Justification:</strong> ${esc(reason)}</div><div class="repeat-decision-actions"><textarea class="form-control repeat-decision-remarks" rows="2" placeholder="Mandatory decision remarks" aria-label="Decision remarks"></textarea><button class="repeat-action" data-repeat-decision="approve" type="button">Approve</button><button class="repeat-action repeat-reject" data-repeat-decision="reject" type="button">Reject</button></div><div class="field-msg repeat-decision-message" role="alert"></div></article>`;
 }
@@ -1677,7 +1679,7 @@ async function handleRepeatQueueAction(event) {
   const messageEl = card?.querySelector(".repeat-decision-message");
   const remarksText = remarksEl?.value.trim() || "";
   if (!meaningfulRepeatReason(remarksText)) {
-    messageEl.textContent = "Decision remarks of at least 12 characters are required.";
+    messageEl.textContent = "Decision remarks of at least 15 characters are required.";
     return;
   }
   card.querySelectorAll("button").forEach((el) => { el.disabled = true; });
@@ -1693,7 +1695,6 @@ async function handleRepeatQueueAction(event) {
   } catch (err) {
     const msg = normalizeLabUserError(err);
     messageEl.textContent = msg;
-    card.querySelectorAll("button").forEach((el) => { el.disabled = false; });
     toast(msg, "error");
   }
 }
@@ -2131,7 +2132,12 @@ async function startAnalysis() {
     startError.classList.remove("hidden");
     toast(msg, "error");
     startAnalysisBtn.classList.remove("loading");
-    startAnalysisBtn.disabled = false;
+    if (currentSampleType === "FG_BATCH") {
+      const bmrId = batchNoSelect.options[batchNoSelect.selectedIndex]?.dataset.bmrId;
+      await loadRepeatContext(bmrId);
+    } else {
+      updateStartButton();
+    }
   }
 }
 

@@ -5,6 +5,8 @@ export const REPEAT_STATUS = Object.freeze({
   CONSUMED: "Authorization Consumed",
   EXPIRED: "Authorization Expired",
 });
+export const REPEAT_REQUEST_STATUS = "REQUESTED";
+export const REPEAT_REASON_MIN_LENGTH = 15;
 
 export function unwrapRpcJson(value) {
   const row = Array.isArray(value) ? value[0] : value;
@@ -50,7 +52,11 @@ export function isUsableApproval(request) {
 
 export function meaningfulRepeatReason(value) {
   const text = String(value || "").trim().replace(/\s+/g, " ");
-  return text.length >= 12 && /[a-z0-9]/i.test(text);
+  return text.length >= REPEAT_REASON_MIN_LENGTH && /[a-z0-9]/i.test(text);
+}
+
+export function priorAnalysisRegisterNumber(row) {
+  return row?.prior_analysis_register_no || "—";
 }
 
 export function contextDecision(raw) {
