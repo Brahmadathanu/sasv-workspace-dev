@@ -77,3 +77,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 all-product repetition screen
 - Read-only frozen run128: 293 repeated step rows among 62 products, but both occurrence and cycle >1 occurs only in six step rows of product51 (8×8, owner-confirmed duplicate). Other cases largely one count=1, including 101/41-cycle Ksheerabala Thailam and 40-cycle Abhraka preparations; no basis for blanket normalization. Affected source-route and POH comparisons are OPEN. Evidence `evidence/G2/G2_ALL_PRODUCT_RECURRENCE_SCREEN_2026-10-20.md` commit 54db377a. G2/CI-032 OPEN; no live changes.
+
+## 20 October — G2 route144 and POH parity independently verified
+- Frozen run128 route144 has only product51 Dhanyamlam (no product-specific override). POH step snapshot independently shows six duplicated 8×8 steps, all product51. POH raw step sum 210 vs isolated eight-repetition arithmetic 28; full monetary pool share and valid equipment loads unverified. Evidence `evidence/G2/G2_ROUTE144_POH_PARITY_VERIFIED_2026-10-20.md` commit 4d40b20c. Future route membership still to be tested. G2/CI-032 OPEN; no live changes.
