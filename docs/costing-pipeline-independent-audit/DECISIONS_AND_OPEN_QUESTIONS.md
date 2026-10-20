@@ -211,3 +211,6 @@ Approver for every decision: Dr. Brahmadathan U (GOV-015). Times are IST. Earlie
 
 ### Binding supersession — all DB-to-Sheets integration blocked (20 October)
 User requires all database-to-Google-Sheets integration to wait for server completion and a new successfully reconciled costing refresh. Supersedes the earlier non-costing Sheets exception. Merge, deployment and refresh remain separately approval-gated.
+
+### 20 October — Production deployment disposition
+- Applied reviewed CI034 valuation-anchored sales allocation status and CI012 effective-date guard under user's request to place prepared costing-server work live; postchecks PASS. G2 governed route-repetition draft explicitly HELD, not eligible for deployment; server work and refresh acceptance remain open. Existing DVS1 foundation is live with activation OFF; no demand-method switch approved. Existing approved run snapshots preserved. No Google Sheets integration until newly run and fully reconciled costing refresh is accepted.
