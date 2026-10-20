@@ -43,6 +43,9 @@ for (const file of files) {
   check("0", "8", "Enter valid whole-number counts", false);
   check("-1", "8", "Enter valid whole-number counts", false);
   check("1.5", "8", "Enter valid whole-number counts", false);
+  check("8", "0", "Enter valid whole-number counts", false);
+  check("8", "-1", "Enter valid whole-number counts", false);
+  check("8", "1.5", "Enter valid whole-number counts", false);
   check("9007199254740992", "8", "Enter valid whole-number counts", false);
-  process.stdout.write(`PASS ${file}: 8 cases and listeners\n`);
+  process.stdout.write(`PASS ${file}: 11 cases and listeners\n`);
 }
