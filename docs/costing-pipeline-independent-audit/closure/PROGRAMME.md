@@ -222,3 +222,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 repetition client smoke — 20 Oct
 - Added scripts/costing-g2-route-repetition-preview-smoke.mjs (bceea5fd): source-extracted preview binding tests for both forms, eight numeric/boundary cases and listener wiring. Test committed but not executed against branch files; no browser or server approval test. No production changes.
+
+### G2 source-extracted execution evidence
+- Executed actual fetched preview-binding block in isolated JS for both branch forms: 7 input cases each, 14/14 PASS including listeners, empty/zero/fractional/unsafe integers and 8x8 warning. Not whole-form browser smoke or approval regression. Repo smoke script remains committed, execution via node on branch pending. No live changes.
