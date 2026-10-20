@@ -276,3 +276,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 effective-step evidence resolver
 - Verified live costing.fn_effective_product_process_route_steps(bigint) returns effective keys, occurrence/cycle counts, base_step_id and override_id; this is canonical source for product attestation, not raw override rows. Family route uses production_route_family_route_step. SQL append attempt blocked; no unverified server logic committed. Migration remains deliberately held; no live change.
+
+### G2 migration recovery (20 Oct)
+- Fetched staged SQL and detected malformed split check constraint plus duplicate column/table closure. Replaced file with coherent DDL and retained unconditional initial G2 deployment HOLD; commit 7a10fee4. Approval evidence builder, capture and enforcement still NOT IMPLEMENTED. No DB deployment or protected-run edits. G2 OPEN.
