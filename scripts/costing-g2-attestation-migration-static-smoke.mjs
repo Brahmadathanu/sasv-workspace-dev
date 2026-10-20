@@ -25,4 +25,5 @@ const expected = [
 expected.forEach((pattern)=>assert.match(sql,pattern));
 assert.equal((sql.match(/with ordinality as e\(s,ordinal\)/g)||[]).length,2);
 assert.equal((sql.match(/order by e\.ordinal/g)||[]).length,2);
+assert.equal((sql.match(/for share of fr/g)||[]).length,2);
 console.log("G2 static migration smoke PASS (17 checks); PostgreSQL execution NOT tested");
