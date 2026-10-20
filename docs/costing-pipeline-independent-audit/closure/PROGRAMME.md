@@ -183,3 +183,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### 20 Oct G2 — review-only family ambiguity guard staged
 - Re-read governing IMPLEMENTATION_RULES and lean-retirement directive. Staged a proposed APPROVED-only family resolver ambiguity guard, preserving bigint/STABLE contract; no historical SUPERSEDED admission. Added isolated rollback-only SQL assertions for family32/product957 date overlaps and run82 route9 immutable attribution. Review-only files: `evidence/G2/G2_FAMILY_RESOLVER_AMBIGUITY_GUARD_REVIEW_ONLY_2026-10-20.sql` commit ebd16520 and `evidence/G2/tests/g2_route_guard_isolated_assertions.sql` commit 29dddb6f. Not executed in PostgreSQL or promoted to migration; DDL metadata/privileges and consumer parity must be verified prior to approval. G2/CI-032 OPEN. No live data or function changes.
+
+### G2 patch security audit — 20 October 2026
+- Live catalog found family resolver LANGUAGE sql, STABLE, SECURITY DEFINER, search_path=costing/public, owner postgres, EXECUTE ACL postgres/authenticated/service_role. Earlier draft omitted SECURITY DEFINER/search_path; corrected review-only SQL in commit aa18444f (no live change). PL/pgSQL language conversion and privilege parity must be tested in isolated PostgreSQL before approval. G2/CI-032 OPEN.
