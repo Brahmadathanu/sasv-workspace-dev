@@ -11,6 +11,7 @@ This document inventories migrations already applied directly to the live SASV S
 | 20261020103906 | bmr_lifecycle_final_mrp_exclusion |
 | 20261020111231 | bmr_admin_future_remap_auto_supersede |
 | 20261020111318 | bmr_lifecycle_override_write_and_effective_read_guards |
+| 20261020112810 | bmr_superseded_identity_immutability_guard |
 
 ## Live findings
 
@@ -21,11 +22,12 @@ This document inventories migrations already applied directly to the live SASV S
 - `batch_plan_batches` and `lab.analysis_record` have active-identity insert/update guards.
 - `production_batch_overrides` and `production_batch_overrides_staging` have active-identity guards, and the effective override view filters inactive identities.
 - Completed `REMAP_BMR` correction insert has an auto-supersede trigger with product, replacement lifecycle, and plan-link checks.
+- A new table trigger prevents identity or lifecycle mutation and physical deletion of SUPERSEDED/CANCELLED BMRs, preserving retained historical rows.
 - Free-text `map_batch_to_bmr_by_bn` resolves via `bmr_card_not_initiated`; batch-plan write trigger independently guards the resulting BMR.
 
 ## Verified negative checks
 
-A transaction-contained attempt to stage a production override referencing superseded BMR 3036 was rejected, leaving no test row. Queries verified zero predecessor rows in the lab batch picker, active BMR map view, BMR batch-sizes view, not-initiated view and principal RM MRP batch views.
+A transaction-contained attempt to stage a production override referencing superseded BMR 3036 was rejected, leaving no test row. A subsequent intended positive-path test was blocked by tool safety checks before execution; it is **not** counted as passed. Queries verified zero predecessor rows in the lab batch picker, active BMR map view, BMR batch-sizes view, not-initiated view and principal RM MRP batch views.
 
 ## Open closure gates
 
