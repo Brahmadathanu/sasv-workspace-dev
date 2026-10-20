@@ -797,6 +797,24 @@
         margin-top: 2px;
         margin-bottom: 8px;
       }
+      .repeat-governance { margin-top: 12px; border: 1px solid #f59e0b55; border-radius: 10px; background: #fffbeb; padding: 12px; }
+      .repeat-governance.hidden, .repeat-reason.hidden, .repeat-approval-queue.hidden { display: none; }
+      .repeat-title { font-size: 12px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: .04em; }
+      .repeat-body { margin-top: 5px; color: #78350f; font-size: 13px; line-height: 1.45; }
+      .repeat-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+      .repeat-chip { border-radius: 999px; padding: 3px 8px; background: #fff; border: 1px solid #f59e0b66; font-size: 11px; font-weight: 700; color: #78350f; }
+      .repeat-reason { margin-top: 10px; }
+      .repeat-reason textarea, .repeat-decision-remarks { width: 100%; box-sizing: border-box; margin-top: 6px; }
+      .repeat-action { margin-top: 8px; border: 0; border-radius: 7px; padding: 8px 12px; background: #92400e; color: #fff; font-weight: 700; cursor: pointer; }
+      .repeat-action:disabled { opacity: .5; cursor: not-allowed; }
+      .repeat-approval-queue { margin: 14px auto; max-width: 1180px; border: 1px solid #dbe3ee; border-radius: 12px; background: #fff; padding: 14px; }
+      .repeat-queue-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+      .repeat-request { margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px; }
+      .repeat-request-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; font-size:12px; }
+      .repeat-decision-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start; margin-top:8px; }
+      .repeat-decision-actions textarea { flex:1 1 280px; min-height:58px; }
+      .repeat-reject { background:#991b1b; }
+      @media (max-width: 600px) { .repeat-request-grid { grid-template-columns:1fr; } }
       .btn-create-mapping {
         display: inline-flex;
         align-items: center;
@@ -1528,6 +1546,16 @@
               <div class="field-msg" id="batchSelectMsg" role="alert"></div>
             </div>
           </div>
+          <div id="repeatGovernance" class="repeat-governance hidden" role="status" aria-live="polite">
+            <div class="repeat-title">Repeat Analysis Governance</div>
+            <div id="repeatGovernanceBody" class="repeat-body"></div>
+            <div id="repeatReasonWrap" class="repeat-reason hidden">
+              <label for="repeatReason">Justification <span class="req">*</span></label>
+              <textarea id="repeatReason" class="form-control" rows="2" placeholder="Explain the repeat testing, confirmation, or investigation reason"></textarea>
+              <div id="repeatReasonMsg" class="field-msg" role="alert"></div>
+              <button id="requestRepeatBtn" class="repeat-action" type="button" disabled>Request Repeat Analysis</button>
+            </div>
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label for="batchSizeDisplay">Batch Size</label>
@@ -1875,6 +1903,14 @@
         </div>
       </div>
       <!-- /entry-card -->
+
+      <section id="repeatApprovalQueue" class="repeat-approval-queue hidden" aria-labelledby="repeatQueueTitle">
+        <div class="repeat-queue-head">
+          <div><div id="repeatQueueTitle" class="form-section-title">Repeat-analysis approval queue</div><div class="repeat-body">Server-authorized pending requests. Approval and rejection remarks are mandatory.</div></div>
+          <button id="refreshRepeatQueueBtn" class="repeat-action" type="button">Refresh</button>
+        </div>
+        <div id="repeatApprovalRows"></div>
+      </section>
 
       <!-- ── Success panel (revealed after create) ──────────────────── -->
       <div
