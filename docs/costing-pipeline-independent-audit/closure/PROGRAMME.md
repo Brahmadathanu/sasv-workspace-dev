@@ -240,3 +240,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 server repetition attestation gate — 20 Oct
 - Existing validators expose valid/errors; existing product route evidence_status/route_note do not attest computed nested repetitions. A generic note must not pass 8x8. Version-bound reviewer evidence and stale-input rejection are needed before server enforcement. Review-only evidence G2_SERVER_REPETITION_ATTESTATION_DECISION_GATE_2026-10-20.md (52498ec1). No live changes; G2 open.
+
+### G2 route audit evidence checkpoint
+- Existing route approval metadata is versioned but lacks step-specific attestation. Generic references cannot verify nested repetition. See evidence/G2/G2_APPROVAL_HISTORY_REUSE_CHECK_2026-10-20.md. No live writes.
