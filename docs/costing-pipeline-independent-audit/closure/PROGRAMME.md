@@ -207,3 +207,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 existing route approval gates
 - Family and product validators exist and are used by approval RPCs; neither inspects repetition counts directly. Lean proposed safeguard reuses validators and current UI, with prospective governance. Evidence G2_EXISTING_APPROVAL_VALIDATOR_REUSE_2026-10-20.md (96ae485f). No live edits.
+
+### G2 note adequacy checkpoint
+- All six dual-positive Dhanyamlam steps already have notes; requiring a nonempty note alone cannot prevent double counting. Show total executions and require physically meaningful confirmation of nested cycles in approval review. Existing step_note and override_reason suffice; no new column proposed. Evidence G2_DUAL_MULTIPLIER_NOTE_ADEQUACY_2026-10-20.md (e3cbb43b). No live changes.
