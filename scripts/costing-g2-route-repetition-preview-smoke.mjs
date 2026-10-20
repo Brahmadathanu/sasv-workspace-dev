@@ -16,39 +16,57 @@ for (const file of files) {
   assert.match(source, /data-prm-repetitions-total/);
   assert.match(source, /data-prm-repetitions-warning/);
   const isDelta = file.includes("delta-form");
-  const begin = source.indexOf(isDelta ? "  const isCycleChange =" : "  const occurrencesInput = host.querySelector");
-  const end = source.indexOf("  refreshRepetitions();", begin);
+  const begin = source.indexOf(isDelta ? "  const repetitionPanels =" : "  const occurrencesInput = host.querySelector");
+  const end = source.indexOf(isDelta ? "  enhanceIfNeeded(activityEl);" : "  refreshRepetitions();", begin);
   assert.ok(begin > 0 && end > begin, `${file}: preview binding found`);
-  const binding = source.slice(begin, end + "  refreshRepetitions();".length);
-  if (isDelta) assert.match(source, /id="\$\{prefix\}AlterCycles"[\s\S]*?data-prm-repetitions-preview/);
+  const binding = source.slice(begin, end + (isDelta ? 0 : "  refreshRepetitions();".length));
+  if (isDelta) assert.match(source, /id="\\$\\{prefix\\}AlterCycles"[\\s\\S]*?data-prm-repetitions-preview/);
   function check(occ, cycles, expected, warning, operation = "ADD_STEP") {
-    const nodes = new Map();
     const events = new Map();
-    for (const [selector, value] of [
-      ["#testOcc", occ], ["#testCycles", cycles]
-    ]) nodes.set(selector, {value, addEventListener(type, cb) {events.set(selector + type, cb);}});
-    nodes.set("[data-prm-repetitions-total]", {textContent:""});
-    nodes.set("[data-prm-repetitions-warning]", {hidden:true});
-    let active = nodes;
-    if (isDelta) {
-      const suffix = operation === "ALTER_CYCLE" ? "Alter" : "";
-      active = new Map([...nodes]);
-      active.set(`#test${suffix}Occ`, nodes.get("#testOcc"));
-      active.set(`#test${suffix}Cycles`, nodes.get("#testCycles"));
+    const nodes = new Map();
+    function input(value, key) {
+      return {value, addEventListener(type, cb) {events.set(key + type, cb);}};
     }
-    const panel = {querySelector(selector) {return active.get(selector) ?? null;}};
+    const addOcc = input(occ, "addOcc"), addCycles = input(cycles, "addCycles");
+    const cycleOcc = input(occ, "cycleOcc"), cycleCycles = input(cycles, "cycleCycles");
+    const panels = new Map();
+    for (const [name, x, y] of [["add",addOcc,addCycles],["cycle",cycleOcc,cycleCycles]]) {
+      const suffix = name === "cycle" ? "Alter" : "";
+      const total = {textContent:""}, warningNode = {hidden:true};
+      const fields = new Map([
+        [`#test${suffix}Occ`, x], [`#test${suffix}Cycles`,y],
+        ["[data-prm-repetitions-total]",total],
+        ["[data-prm-repetitions-warning]",warningNode]
+      ]);
+      panels.set(name,{total,warningNode,querySelector:(key)=>fields.get(key)??null});
+    }
+    const operationEl = input(operation, "operation");
     const host = {querySelector(selector) {
-      if (selector === "#testOperation") return {value:operation};
-      if (selector.startsWith("[data-prm-delta-panel=")) return panel;
-      return nodes.get(selector) ?? null;
+      if (selector === "#testOperation") return operationEl;
+      if (selector.startsWith("[data-prm-delta-panel=")) {
+        return panels.get(selector.includes('"cycle"') ? "cycle" : "add") ?? null;
+      }
+      const map = new Map([
+        ["#testOcc",addOcc], ["#testCycles",addCycles],
+        ["[data-prm-repetitions-total]",panels.get("add").total],
+        ["[data-prm-repetitions-warning]",panels.get("add").warningNode]
+      ]);
+      return map.get(selector)??null;
     }};
-    runInNewContext(binding, {host, prefix:"test", Number, normalizePrmCode:(x)=>x});
-    assert.equal(nodes.get("[data-prm-repetitions-total]").textContent, expected, file);
-    assert.equal(nodes.get("[data-prm-repetitions-warning]").hidden, !warning, file);
-    assert.equal(events.size, 2, file);
-    nodes.get("#testOcc").value = "2";
-    [...events.values()][0]();
-    assert.ok(nodes.get("[data-prm-repetitions-total]").textContent.length > 0);
+    runInNewContext(binding,{host,prefix:"test",Number,normalizePrmCode:(x)=>x});
+    const target = panels.get(operation === "ALTER_CYCLE" ? "cycle" : "add");
+    assert.equal(target.total.textContent, expected, file);
+    assert.equal(target.warningNode.hidden, !warning, file);
+    const key = operation === "ALTER_CYCLE" ? "cycleOccinput" : "addOccinput";
+    assert.ok(events.has(key),file);
+    if (isDelta) {
+      assert.ok(events.has("addOccinput") && events.has("cycleOccinput"),file);
+      operationEl.value = operation === "ALTER_CYCLE" ? "ADD_STEP" : "ALTER_CYCLE";
+      events.get("operationchange")();
+    }
+    (operation === "ALTER_CYCLE" ? cycleOcc : addOcc).value="2";
+    events.get(key)();
+    assert.ok(target.total.textContent.length>0,file);
   }
   check("8", "1", "8", false);
   check("1", "8", "8", false);
