@@ -135,3 +135,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 isolated SQL policy fixture prepared
 - Executed local Node suite directly: 18/18 PASS; no PostgreSQL executable available locally. Added `evidence/G2/tests/historical_route_policy_fixture.sql` commit 0e494000, a rollback-wrapped TEMP-table PostgreSQL fixture exercising predecessor/successor date boundaries, archive/draft exclusion and historical overlap detection. SQL has NOT been executed against PostgreSQL and is NOT a production migration; overlap test verifies candidate count=2 rather than running the real resolver. Actual function integration, strict new-route approvals, independent readiness and cost-pool reconciliation remain OPEN. No live changes.
+
+## 20 Oct — G2 PostgreSQL runner availability checkpoint
+- Local Node suite re-run, 18/18 PASS. Local PostgreSQL server/client and Docker unavailable; pg_config alone not a runner. No disposable PostgreSQL test executed, and no production SQL was invoked. Evidence `evidence/G2/G2_POSTGRES_RUNNER_AVAILABILITY_2026-10-20.md` commit 0ee06ea2. Isolated PostgreSQL integration remains explicit stop gate before proposed repair. G2/CI-032 OPEN; live unchanged.
