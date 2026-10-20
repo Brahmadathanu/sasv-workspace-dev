@@ -210,3 +210,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 note adequacy checkpoint
 - All six dual-positive Dhanyamlam steps already have notes; requiring a nonempty note alone cannot prevent double counting. Show total executions and require physically meaningful confirmation of nested cycles in approval review. Existing step_note and override_reason suffice; no new column proposed. Evidence G2_DUAL_MULTIPLIER_NOTE_ADEQUACY_2026-10-20.md (e3cbb43b). No live changes.
+
+### G2 approval reference contract — 20 Oct
+- Both route approvals require meaningful approval references and existing validators. Approval reference is not proof of nested cycles; do not overload it. See evidence/G2/G2_APPROVAL_REFERENCE_CONTRACT_2026-10-20.md (3d207d02). No live changes.
