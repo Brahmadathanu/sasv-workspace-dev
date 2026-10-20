@@ -285,3 +285,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 server source hardening checkpoint — 20 October
 - Expanded canonical fingerprints to full family and effective-product step records (001006f8, cf15544c); normalized repetition keys retained. Restricted execution of SECURITY DEFINER evidence/guard helpers to owner, exposed confirm RPC only to authenticated with existing permission check (cc138a5e). Eight structural source assertions passed. Explicit initial deployment HOLD remains. Full PostgreSQL compilation, end-to-end approval regression, stale evidence/concurrency tests and UI capture still OPEN. No live changes.
+
+### G2 server evidence ordering and static gate — 20 Oct
+- Fixed deterministic `jsonb_agg` ordering in both confirmation capture and approval guard (672466bc). Added Node static-smoke script scripts/costing-g2-attestation-migration-static-smoke.mjs (6e76140f). Re-fetched branch migration: 15/15 independent structural assertions passed; exact paired ordering count 2. Full PostgreSQL compilation, RLS/grants, stale-version and concurrency regressions NOT RUN. Deployment HOLD remains; no live change. G2 OPEN.
