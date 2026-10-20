@@ -420,6 +420,12 @@ export function buildProductDeltaFormHtml({
           </div>
           <div class="cp-prm-form-field"><span class="cp-field-label">Standard cycles</span>
             <input id="${prefix}Cycles" type="number" min="1" step="1" value="${escapeHtml(seed.standard_cycle_count ?? 1)}" />
+            <span class="cp-muted-text">Cycles within each occurrence, not total cycles per batch.</span>
+          </div>
+          <div class="cp-prm-form-field cp-prm-form-field--full" data-prm-repetitions-preview aria-live="polite">
+            <span class="cp-field-label">Total step executions per standard batch</span>
+            <span data-prm-repetitions-total>—</span>
+            <span class="cp-muted-text" data-prm-repetitions-warning hidden>Both factors exceed one. Confirm the process genuinely has cycles within each occurrence; otherwise correct the values before review.</span>
           </div>
         </div>
       </section>`,
@@ -1271,6 +1277,24 @@ export function bindProductDeltaForm(
   }
   if (ccEl?.value) onCostCentreChange();
   refreshExclusion();
+
+  const occurrencesInput = host.querySelector(`#${prefix}Occ`);
+  const cyclesInput = host.querySelector(`#${prefix}Cycles`);
+  const repetitionTotal = host.querySelector("[data-prm-repetitions-total]");
+  const repetitionWarning = host.querySelector("[data-prm-repetitions-warning]");
+  const refreshRepetitions = () => {
+    const occurrence = Number(occurrencesInput?.value);
+    const cycles = Number(cyclesInput?.value);
+    const valid = occurrencesInput?.value !== "" && cyclesInput?.value !== "" &&
+      Number.isSafeInteger(occurrence) && occurrence > 0 &&
+      Number.isSafeInteger(cycles) && cycles > 0 &&
+      Number.isSafeInteger(occurrence * cycles);
+    if (repetitionTotal) repetitionTotal.textContent = valid ? String(occurrence * cycles) : "Enter valid whole-number counts";
+    if (repetitionWarning) repetitionWarning.hidden = !(valid && occurrence > 1 && cycles > 1);
+  };
+  occurrencesInput?.addEventListener("input", refreshRepetitions);
+  cyclesInput?.addEventListener("input", refreshRepetitions);
+  refreshRepetitions();
 
   enhanceIfNeeded(activityEl);
   enhanceIfNeeded(ccEl);
