@@ -195,3 +195,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 isolated testing gate clarification
 - Existing SQL assertions check source data only; they do not execute replacement resolver or six-caller parity tests. Live catalog reconfirmed SECURITY DEFINER, STABLE and search_path. Full tests require a dedicated disposable PostgreSQL clone, rollback-only synthetic duplicate fixtures, security parity and client error checks. No live change; G2 open.
+
+### G2 runtime test availability — 20 Oct
+- Local executable check: no psql/postgres/docker; Node policy model suite 12/12 PASS, not PostgreSQL regression. Function replacement and six-caller parity remain untested. Evidence `evidence/G2/G2_RUNNER_AVAILABILITY_AND_MODEL_TEST_RESULT_2026-10-20.md` commit e34d1b20. No live changes; G2 OPEN.
