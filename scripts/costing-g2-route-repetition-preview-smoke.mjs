@@ -20,7 +20,7 @@ for (const file of files) {
   const end = source.indexOf(isDelta ? "  enhanceIfNeeded(activityEl);" : "  refreshRepetitions();", begin);
   assert.ok(begin > 0 && end > begin, `${file}: preview binding found`);
   const binding = source.slice(begin, end + (isDelta ? 0 : "  refreshRepetitions();".length));
-  if (isDelta) assert.match(source, /id="\\$\\{prefix\\}AlterCycles"[\\s\\S]*?data-prm-repetitions-preview/);
+  if (isDelta) assert.ok(source.includes('id="${prefix}AlterCycles"') && source.includes("data-prm-repetitions-preview"), "ALTER_CYCLE preview markup");
   function check(occ, cycles, expected, warning, operation = "ADD_STEP") {
     const events = new Map();
     const nodes = new Map();
