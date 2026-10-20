@@ -56,3 +56,6 @@ No `supabase db push` / migration repair. Apply only through Supabase MCP `apply
 - **Full next-chat handover:** `handover/CHATGPT_HANDOVER_2026-10-20_PART4_LEAN_ARCHITECTURE.md`
 - **Master gate status:** `closure/PROGRAMME.md`; G0 DONE, G1 VERIFIED, G2 OPEN/LEAN RE-DESIGN, G3/G4 OPEN, G5 NOT STARTED, G6 NOT READY.
 - Never activate or delete live costing objects merely by reading these docs; require explicit user approval after tests and dependency review.
+
+### Current entrypoint (20 Oct evening)
+- Follow `closure/PROGRAMME.md` mobile-first completion checkpoint and `closure/IMPLEMENTATION_RULES.md` §§12–14. Current G2 experimental migration location is a **release blocker**; read `closure/TECHNICAL_BATCH.md` for the existing isolated PostgreSQL fixture approach. A **new** authorised refresh provides integration proof only after independent approval-security tests. Costing Sheets remain frozen pending G6; separate non-costing DB-to-Sheets activity needs separate scope. No live writes authorised.
