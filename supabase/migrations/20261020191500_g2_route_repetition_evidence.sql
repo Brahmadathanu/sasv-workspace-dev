@@ -111,7 +111,7 @@ begin
    select status into v_status from costing.product_process_route
    where id=p_route_id and archived_at is null for update;
  else raise exception 'Unsupported G2 route kind'; end if;
- if v_status not in ('DRAFT','REVIEW_REQUIRED') then raise exception 'Route cannot be confirmed in this status'; end if;
+ if v_status is distinct from 'REVIEW_REQUIRED' then raise exception 'Route must be submitted for review before G2 confirmation'; end if;
  v_evidence:=costing.fn_g2_repetition_evidence(p_kind,p_route_id);
  select coalesce(jsonb_agg(jsonb_build_object('key',s->>'key','occurrences',s->>'occurrences','cycles',s->>'cycles',
    'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric) order by e.ordinal),'[]'::jsonb)
