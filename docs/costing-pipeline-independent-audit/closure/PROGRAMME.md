@@ -261,3 +261,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 live approval RPC signature verification
 - Public RPCs, not costing schema: rpc_approve_route_family_route(bigint,text) and rpc_approve_product_route(bigint,text). Both lock review-required route and call costing validation before status transition; transition guard is preferred to changing general validators, preserving historical approved route144. Confirmation receipt/fingerprint persistence not verified; no SQL staged/deployed. Evidence G2_APPROVAL_RPC_INSERTION_POINT_2026-10-20.md (9df1f1fe). G2 OPEN.
+
+### G2 structured approval-evidence storage decision — 20 Oct
+- Live schema lacks route-header JSONB evidence or reusable count-specific receipts. Minimal candidate: one nullable JSONB approval-evidence field on each existing route header; server constructs and validates exact effective-step digest on approval, preserves historic APPROVED routes. Step-row race/permissions need verification before staging SQL. See evidence/G2/G2_REPETITION_EVIDENCE_STORAGE_DECISION_2026-10-20.md (5d2e1030). NO live changes; G2 OPEN.
