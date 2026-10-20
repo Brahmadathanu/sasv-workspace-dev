@@ -279,3 +279,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 migration recovery (20 Oct)
 - Fetched staged SQL and detected malformed split check constraint plus duplicate column/table closure. Replaced file with coherent DDL and retained unconditional initial G2 deployment HOLD; commit 7a10fee4. Approval evidence builder, capture and enforcement still NOT IMPLEMENTED. No DB deployment or protected-run edits. G2 OPEN.
+
+### G2 staged server approval integration — 20 October
+- Same held migration now contains canonical family/product effective-route evidence builder (cd58ead7), SHA256 exact route/version matching guard (f62cacc6), governed server-generated confirmation capture (d4418f5e), and BOTH actual existing public approval RPC definitions with confirmation guard inserted before approval state mutation (2d3d46cf). Source assertions confirm both paths, hold, capture and immutability sections present. Still NOT VERIFIED: complete canonical fingerprint scope, concurrent base-family mutations, permissions/GRANT hardening, Postgres compile/regression, client confirmation UI. Deployment HOLD retained; no live changes. G2 OPEN.
