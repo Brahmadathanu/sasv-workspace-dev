@@ -4,6 +4,7 @@ export const REPEAT_STATUS = Object.freeze({
   REJECTED: "Rejected",
   CONSUMED: "Authorization Consumed",
   EXPIRED: "Authorization Expired",
+  REQUIRED: "Repeat Approval Required",
 });
 export const REPEAT_REQUEST_STATUS = "REQUESTED";
 export const REPEAT_REASON_MIN_LENGTH = 15;
@@ -34,11 +35,16 @@ export function normalizeRepeatStatus(value) {
 export function repeatStatusLabel(value) {
   if (value && typeof value === "object") {
     if (value.consumed_at || value.is_consumed === true) return REPEAT_STATUS.CONSUMED;
-    const expiry = value.expires_at || value.valid_until || value.approval_expires_at;
-    if (expiry && new Date(expiry).getTime() < Date.now()) return REPEAT_STATUS.EXPIRED;
-    value = value.status || value.request_status;
+    const status = normalizeRepeatStatus(value.status || value.request_status);
+    if (status === "APPROVED") {
+      const expiryTime = new Date(value.expires_at).getTime();
+      if (!value.expires_at || !Number.isFinite(expiryTime)) return REPEAT_STATUS.REQUIRED;
+      return expiryTime > Date.now() ? REPEAT_STATUS.APPROVED : REPEAT_STATUS.EXPIRED;
+    }
+    return REPEAT_STATUS[status];
   }
-  return REPEAT_STATUS[normalizeRepeatStatus(value)];
+  const status = normalizeRepeatStatus(value);
+  return status === "APPROVED" ? REPEAT_STATUS.REQUIRED : REPEAT_STATUS[status];
 }
 
 export function isUsableApproval(request) {
@@ -46,8 +52,9 @@ export function isUsableApproval(request) {
     return false;
   }
   if (request.consumed_at || request.is_consumed === true) return false;
-  const expiry = request.expires_at || request.valid_until || request.approval_expires_at;
-  return !expiry || new Date(expiry).getTime() >= Date.now();
+  if (!request.expires_at) return false;
+  const expiryTime = new Date(request.expires_at).getTime();
+  return Number.isFinite(expiryTime) && expiryTime > Date.now();
 }
 
 export function meaningfulRepeatReason(value) {

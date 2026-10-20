@@ -11,21 +11,30 @@ import {
   repeatStatusLabel,
 } from "../public/shared/js/lab-repeat-analysis-governance.js";
 
+const validFutureExpiry = new Date(Date.now() + 60_000).toISOString();
+
 assert.equal(contextDecision({}).kind, "FIRST_ANALYSIS");
 assert.equal(contextDecision({ active_analysis: { analysis_register_no: "A-2" } }).kind, "ACTIVE_BLOCK");
 assert.equal(contextDecision({ prior_completed_analysis: { status: "SCRUTINY_PASSED" } }).kind, "AUTHORIZATION_REQUIRED");
-assert.equal(contextDecision({ prior_completed_analysis: {}, latest_visible_request: { status: "APPROVED" } }).kind, "APPROVED_REPEAT");
+assert.equal(contextDecision({ prior_completed_analysis: {}, latest_visible_request: { status: "APPROVED", expires_at: validFutureExpiry } }).kind, "APPROVED_REPEAT");
 assert.equal(contextDecision({ prior_completed_analysis: {}, latest_visible_request: { status: "REQUESTED" } }).kind, "AUTHORIZATION_REQUIRED");
 assert.equal(contextDecision({ prior_completed_analysis: {}, latest_visible_request: { status: "REJECTED" } }).kind, "AUTHORIZATION_REQUIRED");
 assert.equal(contextDecision({ prior_completed_analysis: {}, latest_visible_request: { status: "CONSUMED" } }).kind, "AUTHORIZATION_REQUIRED");
 assert.equal(contextDecision({ prior_completed_analysis: {}, latest_visible_request: { status: "EXPIRED" } }).kind, "AUTHORIZATION_REQUIRED");
-assert.equal(isUsableApproval({ status: "APPROVED", consumed_at: "2026-10-20" }), false);
+assert.equal(isUsableApproval({ status: "APPROVED" }), false);
+assert.equal(isUsableApproval({ status: "APPROVED", expires_at: "not-a-timestamp" }), false);
 assert.equal(isUsableApproval({ status: "APPROVED", expires_at: "2000-01-01" }), false);
+assert.equal(isUsableApproval({ status: "APPROVED", expires_at: validFutureExpiry }), true);
+assert.equal(isUsableApproval({ status: "APPROVED", expires_at: validFutureExpiry, consumed_at: "2026-10-20" }), false);
 assert.equal(normalizeRepeatStatus("authorization consumed"), "CONSUMED");
 assert.equal(normalizeRepeatStatus("REQUESTED"), "PENDING");
 assert.equal(repeatStatusLabel("expired"), "Authorization Expired");
 assert.equal(repeatStatusLabel({ status: "APPROVED", consumed_at: "2026-10-20" }), "Authorization Consumed");
 assert.equal(repeatStatusLabel({ status: "APPROVED", expires_at: "2000-01-01" }), "Authorization Expired");
+assert.equal(repeatStatusLabel({ status: "APPROVED" }), "Repeat Approval Required");
+assert.equal(repeatStatusLabel({ status: "APPROVED", expires_at: "not-a-timestamp" }), "Repeat Approval Required");
+assert.equal(repeatStatusLabel({ status: "APPROVED", expires_at: validFutureExpiry }), "Approved");
+assert.equal(repeatStatusLabel("APPROVED"), "Repeat Approval Required");
 assert.equal(meaningfulRepeatReason("repeat"), false);
 assert.equal(meaningfulRepeatReason("12345678901234"), false);
 assert.equal(meaningfulRepeatReason("123456789012345"), true);
