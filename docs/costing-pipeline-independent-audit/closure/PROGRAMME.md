@@ -189,3 +189,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 family resolver six-caller compatibility audit — 20 Oct
 - Read-only pg_proc source scan verified six direct callers: effective process steps, candidate preview, overhead preview, effective-route validation, and two Production Route Manager RPCs. Two bodies contain no EXCEPTION clause; four contain exception handling with semantics not yet inspected. Staged ambiguity guard may alter operator error responses; requires isolated caller/client parity regression. Evidence `evidence/G2/G2_FAMILY_RESOLVER_SIX_CALLER_COMPATIBILITY_2026-10-20.md` (`c7d9b023`). No live changes; G2/CI-032 OPEN.
+
+### G2 resolver callers — exception handlers checked
+- All six direct callers have no EXCEPTION WHEN handlers. Previous keyword counts included RAISE EXCEPTION and evidence labels. New resolver errors propagate and need caller/client compatibility tests. See `evidence/G2/G2_SIX_CALLER_EXCEPTION_HANDLING_VERIFIED_2026-10-20.md` (7ea2b2ac). G2 OPEN; no live changes.
