@@ -164,3 +164,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 
 ## 2026-10-19 20:20 IST: ChatGPT handover part 3
 - handover/CHATGPT_HANDOVER_2026-10-19_PART3.md (full) and _PART3_SHORT.md: everything since 8ec5bee; approved policy, live state, prepared-not-applied and open items kept separate; what remains (gates, issues by severity, pending approvals, blocked, items to verify). POLICY_REGISTER P37/P38 status updated. No live change.
+
+## 2026-10-20 — ChatGPT handover Part4 / lean architectural governance
+- User binding direction: minimal future-proof cost allocation, avoid unwanted capacity complexity, hard-retire superseded executable architecture after tested approved migration; preserve immutable snapshots/migrations.
+- Committed governing directive, closure implementation-rule amendment, master-programme update, issue-register note and full Part4 handover. All changes DOCS ONLY; no live Supabase or pricing client modifications; G2 open and G5/G6 not done.
