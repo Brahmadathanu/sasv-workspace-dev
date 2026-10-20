@@ -267,3 +267,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 governed repetition architecture selected — 20 Oct
 - User prioritised professional durability, traceability and maintainability. Supersedes provisional mutable route-header JSON evidence option: choose a dedicated append-only repetition attestation register with route-version and effective-step digest, cross-route input lock, actor/time and exact count proof. Live mutation RPC read confirms parent route header FOR UPDATE on family step and product override upsert. Deletion and base-family concurrency still require verification. Architecture decision evidence/G2/G2_GOVERNED_REPETITION_REGISTER_ARCHITECTURE_DECISION_2026-10-20.md (b23d3cd2). Server code not yet staged, no live change. G2 OPEN.
+
+### G2 implementation attempt — 20 Oct evening
+- Authorised programme progression: planned append-only attestation register with dual route identity, step digest and immutable reviewer evidence. Branch SQL file creation was blocked by tool safety checks; no migration committed or deployed. Keep G2 OPEN. Next verify deletion locks/base route edits, then stage gated migration and approval RPC tests. No live writes.
