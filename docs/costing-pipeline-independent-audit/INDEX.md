@@ -59,3 +59,6 @@ No `supabase db push` / migration repair. Apply only through Supabase MCP `apply
 
 ### Current entrypoint (20 Oct evening)
 - Follow `closure/PROGRAMME.md` mobile-first completion checkpoint and `closure/IMPLEMENTATION_RULES.md` §§12–14. Current G2 experimental migration location is a **release blocker**; read `closure/TECHNICAL_BATCH.md` for the existing isolated PostgreSQL fixture approach. A **new** authorised refresh provides integration proof only after independent approval-security tests. Costing Sheets remain frozen pending G6; separate non-costing DB-to-Sheets activity needs separate scope. No live writes authorised.
+
+### Production deployment checkpoint — 20 October 2026
+- CI-034 and CI-012 are now **LIVE**, migrations `20261020162105` and `20261020162117`; postchecks PASS. See `closure/PROGRAMME.md` for precise results, and `closure/evidence/CI012/` for byte-identical applied SQL copies. Earlier TB1–TB7, LB1, and DVS1 OFF already live. Held G2 still NOT DEPLOYED, the large audit branch still NOT MERGED, full costing refresh NOT EXECUTED, Sheets integration BLOCKED.
