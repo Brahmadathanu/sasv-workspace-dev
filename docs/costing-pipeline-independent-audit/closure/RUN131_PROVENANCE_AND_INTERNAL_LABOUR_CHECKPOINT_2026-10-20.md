@@ -17,7 +17,7 @@ Product 275 internal qty 0.545561764706 and labour 22.1568586377 (2 paths).
 Product 278 internal qty 0.68 and labour 15.0956174469 (1 path).
 Product 277 internal qty 0.283333333333 and labour 4.8636558150 (1 path).
 Product 260 internal qty 0.004681372549 and labour 0.0896913735 (2 paths).
-Together approximately INR 85.89308667 of manufacturing labour, numerically equal to the difference between product pool 706203 and saleable SKU manufacturing allocation 706117.11. All five source products are present in run131 SKU internal material conversion evidence, including the direct_manufacturing_labour_per_base field. This establishes designed internal-cost attribution but not yet a completed destination-weighted reconciliation. Do not claim G6 closed before downstream financial conservation and nested transfer checks.
+Together approximately INR 85.89408667 of manufacturing labour, numerically equal to the difference between product pool 706203 and saleable SKU manufacturing allocation 706117.11. All five source products are present in run131 SKU internal material conversion evidence, including the direct_manufacturing_labour_per_base field. This establishes designed internal-cost attribution but not yet a completed destination-weighted reconciliation. Do not claim G6 closed before downstream financial conservation and nested transfer checks.
 
 ## Next
 Finish fieldwise old/current material line evidence and monetary/SKU impact; inspect full end-to-end internal conversion absorption; create bounded approval packet only after read-only confirmation. Leave run128 APPROVED; run131 unapproved; no G2 attestation, G6 acceptance, pricing or Sheets.
