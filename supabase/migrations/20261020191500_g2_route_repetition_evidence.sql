@@ -78,8 +78,8 @@ declare v_evidence jsonb; v_dual jsonb; v_digest text; v_version integer;
 begin
  v_evidence:=costing.fn_g2_repetition_evidence(p_kind,p_route_id);
  select coalesce(jsonb_agg(jsonb_build_object('key',s->>'key','occurrences',s->>'occurrences','cycles',s->>'cycles',
-    'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric)),'[]'::jsonb)
- into v_dual from jsonb_array_elements(v_evidence->'steps') s
+    'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric) order by e.ordinal),'[]'::jsonb)
+ into v_dual from jsonb_array_elements(v_evidence->'steps') with ordinality as e(s,ordinal)
  where (s->>'occurrences')::numeric>1 and (s->>'cycles')::numeric>1;
  if jsonb_array_length(v_dual)=0 then return; end if;
  v_digest:=encode(extensions.digest(v_evidence::text,'sha256'),'hex');
@@ -114,8 +114,8 @@ begin
  if v_status not in ('DRAFT','REVIEW_REQUIRED') then raise exception 'Route cannot be confirmed in this status'; end if;
  v_evidence:=costing.fn_g2_repetition_evidence(p_kind,p_route_id);
  select coalesce(jsonb_agg(jsonb_build_object('key',s->>'key','occurrences',s->>'occurrences','cycles',s->>'cycles',
-   'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric)),'[]'::jsonb)
- into v_expected from jsonb_array_elements(v_evidence->'steps') s
+   'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric) order by e.ordinal),'[]'::jsonb)
+ into v_expected from jsonb_array_elements(v_evidence->'steps') with ordinality as e(s,ordinal)
  where (s->>'occurrences')::numeric>1 and (s->>'cycles')::numeric>1;
  if jsonb_array_length(v_expected)=0 then raise exception 'No nested repetition to confirm'; end if;
  if p_acknowledged_executions is distinct from v_expected then
