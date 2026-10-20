@@ -21,3 +21,6 @@ Together approximately INR 85.89408667 of manufacturing labour, numerically equa
 
 ## Next
 Finish fieldwise old/current material line evidence and monetary/SKU impact; inspect full end-to-end internal conversion absorption; create bounded approval packet only after read-only confirmation. Leave run128 APPROVED; run131 unapproved; no G2 attestation, G6 acceptance, pricing or Sheets.
+
+## Follow-up fieldwise classification
+A second read-only SQL aggregation independently classified each governed tuple property across all qualifying current lines. Of the 325 changed-with-current-line cases, 311 (104 RM, 207 PM) differ in rate DATE ONLY; numeric rate, rate source, manual-rate ID, purchase-fact ID, and valuation source remain unchanged across examined lines. Remaining 14 RM cases differ in numeric rate AND date, but not in other source/provenance fields. Fifteen absent-current-line cases must be handled as ABSENT, not classified by null comparisons. No change in source label or provenance IDs was detected among the 826 present groups. This is evidence for a possible source-date-only controlled review class; it does not constitute approval to ignore dates or carry forward automatically.
