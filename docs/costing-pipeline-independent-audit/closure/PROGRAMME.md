@@ -147,3 +147,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 overlap provenance and snapshot attribution
 - Inspected sample of overlapping family/product route lineages: predecessor/successor frequently approved same calendar day minutes apart; several predecessors remain open-ended. Sampled frozen DL/POH run122/128 each have 25 route recipients referencing selected successors, not the predecessor IDs. This does not prove historical non-use. Simple SUPERSEDED eligibility remains BLOCKED until all overlap provenance and temporal semantics resolved. Evidence `evidence/G2/G2_OVERLAP_PROVENANCE_AND_SNAPSHOT_ATTRIBUTION_2026-10-20.md` commit dac13e53. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 17-pair provenance completeness gate
+- Attempts at fresh full lineage/one-family live read-only SQL were blocked this checkpoint. Prior verified 10 family + 7 product overlap inventory still stands; full lineage links, operational validity and comprehensive frozen-run attribution NOT certified. Preserve status as blocker; no unconditional SUPERSEDED broadening. Evidence `evidence/G2/G2_OVERLAP_COMPLETENESS_GATE_2026-10-20.md` commit f0cb04de. G2/CI-032 OPEN, no live changes.
