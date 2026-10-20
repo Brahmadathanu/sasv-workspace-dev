@@ -6,7 +6,7 @@ Mandate: `../COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` (28f1d4d).
 |---|---|---|---|
 | G0 | Repo/DB baseline, governing docs, issue register | **DONE** | `G0_BASELINE_2026-10-19.md`, `evidence/G0/`, `ISSUE_REGISTER.json` |
 | G1 | Cost waterfall forensic reconciliation | **VERIFIED (arithmetic + lineage)** 19 Oct 19:05 IST: identities, head-to-pool, pool-to-SKU, Tally rate -> line -> SKU, BOM/UOM/yield, route -> labour all reconcile; 7/9 exceptions = IMC. Open data/driver items CI-028..032 carried to G2-G4 | `G1_COST_WATERFALL_RECONCILIATION.md`, `G1_UPSTREAM_LINEAGE.md`, `evidence/G1/`, `evidence/G1U/` |
-| G2 | Machinery capacity and routing governance | NOT STARTED (baseline captured in G0) | - |
+| G2 | Machinery capacity and routing governance | **IN PROGRESS — READ-ONLY FORENSICS** (20 Oct): standard batch/BMR sources verified; named machine links 2/119/125 established; active G4 resolver audited; physical step-charge and traceability gaps identified; 74 machines still blocked, CI-032 unresolved; no activation | `G2_CHATGPT_INDEPENDENT_TRIAGE_2026-10-19.md`, `G2_FROZEN_ROUTE_STEP_FORENSICS_2026-10-19.md`, `G2_BATCH_MASTER_BMR_PROVENANCE_2026-10-19.md`, `G2_STEP_FACTOR_RECONCILIATION_2026-10-19.md`, `G2_MACHINE_ASSIGNMENT_FORENSICS_2026-10-19.md`, `G2_G4_RESOLVER_CODE_AUDIT_2026-10-20.md` |
 | G3 | Demand/seasonality (DVS-1) and all drivers | Policy decisions ACCEPTED 19 Oct 19:02 IST (LB1 ledger write prepared); 60% rule operative until G5; DVS-1 build in progress | `G3_POLICY_DECISION_SHEET.md`, `evidence/G3/` |
 | G4 | Period/run governance and safe refresh | W2 lifecycle LIVE (19 Oct); fingerprint versioning, revaluation design, cron restore pending | `../evidence/W2/` |
 | G5 | Approved full cost waterfall export (no commercial scenarios) | NOT STARTED | - |
@@ -29,3 +29,9 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 | Live unchanged since W2 | 3 non-costing lab migrations at 18:03-18:06 IST; 0 costing/public definition changes | CI-021 |
 | Feed name `public.v_costing_pricing_price_revision_feed_approved`; Sep 634, Oct 627 | Confirmed; Sep 74/70, Oct 9/9 negatives | Confirmed |
 | Sep administratively not CLOSED; Oct valuation 16 Oct; cron 60/61 inactive; G4 switch no row; 298 rows / 171 machines / all provisional / effective 1 Nov; 9 step rules | Confirmed | Confirmed |
+
+## ChatGPT workflow recap — 20 Oct 2026
+- G0 DONE; G1 accounting/lineage VERIFIED; G2 IN PROGRESS, **not accepted**; G3 DVS-1 OFF; G4 W2 live, plant-aware OFF, CI-012/CI-034 prepared; G5 NOT STARTED; G6 NOT READY.
+- Read-only live resolver audit confirms effective date hardcoded >= 1 Nov, throughput planning-only correctly segregated, but product-level charge applied to diverse stage types, missing named capacity can fall through to fallback, and null provenance concatenation; all require tests and governed policy decisions.
+- Existing approved run128 is preserved. No Sheets, pricing, cron activation, new run, migration deployment, or merge authorised.
+- Next: validate route-step volume/unit provenance and prepare isolated resolver test matrix before an explicit production-change approval packet.
