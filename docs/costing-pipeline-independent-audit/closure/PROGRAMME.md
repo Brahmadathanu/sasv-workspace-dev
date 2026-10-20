@@ -55,3 +55,7 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 ## 20 October 2026 — G2 phase 2 workload sensitivity
 - VERIFIED frozen run128: 453 manufacturing-workload product rows; eligible manufacturing labour ₹706,203; 5,789 step rows. Products 51/695/957 show scaled route intensity 511.6/2600/109.6 compared with unscaled step totals 174.8/5.2/7.6. These figures quantify sensitivity, not a replacement model or corrected allocation.
 - Evidence: `evidence/G2/G2_FROZEN_RUN_SENSITIVITY_PHASE2_2026-10-20.md` (commit 4a1767c9). Full-population scenario shares, cap interaction and physical charge validation remain OPEN. CI-032 HIGH OPEN. No live changes.
+
+## 20 October 2026 — G2 phase 3 cohort sensitivity (read-only)
+- Simulated removal of recorded equipment multipliers across 453 frozen run128 product workload records, 445 positive candidates. Candidate workload sum 1178.64169091 versus historical 3861.78032033; manufacturing labour pool held at ₹706,203. Shares for products 51/695/957 move 13.236%→14.818%, 6.657%→0.044%, and 9.824%→2.232%. Results are **illustrative, not approved allocation**: existing caps are inherited, eight rows need review and POH/fully recomputed cap tests remain outstanding.
+- Evidence commit `154fa837`, `evidence/G2/G2_FULL_COHORT_SENSITIVITY_PHASE3_2026-10-20.md`. G2 and CI-032 remain OPEN. No live changes.
