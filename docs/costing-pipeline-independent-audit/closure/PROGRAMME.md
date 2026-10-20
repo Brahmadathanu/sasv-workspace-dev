@@ -264,3 +264,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 structured approval-evidence storage decision — 20 Oct
 - Live schema lacks route-header JSONB evidence or reusable count-specific receipts. Minimal candidate: one nullable JSONB approval-evidence field on each existing route header; server constructs and validates exact effective-step digest on approval, preserves historic APPROVED routes. Step-row race/permissions need verification before staging SQL. See evidence/G2/G2_REPETITION_EVIDENCE_STORAGE_DECISION_2026-10-20.md (5d2e1030). NO live changes; G2 OPEN.
+
+### G2 governed repetition architecture selected — 20 Oct
+- User prioritised professional durability, traceability and maintainability. Supersedes provisional mutable route-header JSON evidence option: choose a dedicated append-only repetition attestation register with route-version and effective-step digest, cross-route input lock, actor/time and exact count proof. Live mutation RPC read confirms parent route header FOR UPDATE on family step and product override upsert. Deletion and base-family concurrency still require verification. Architecture decision evidence/G2/G2_GOVERNED_REPETITION_REGISTER_ARCHITECTURE_DECISION_2026-10-20.md (b23d3cd2). Server code not yet staged, no live change. G2 OPEN.
