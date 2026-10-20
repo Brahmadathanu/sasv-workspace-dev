@@ -40,3 +40,8 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 - Read-only verified 50 kg MANUAL, GRINDER and DRYER class load defaults, 200 kg MIXING, and fixed storage/general area. Machine capacity acts as an intermediate workload driver, not the cost pool denominator. User highlighted disproportionate complexity; G2 simplification recommended, subject to approval.
 - Three proposed step modes: fixed per legitimate operation, physical equipment charge, planning throughput only. Do not require capacity for irrelevant activities. Evidence: `G2_CAPACITY_PURPOSE_SIMPLIFICATION_2026-10-20.md`.
 - **G2 OPEN** pending specific activity driver applicability and simulated pool-share impacts. G3–G6 unchanged; approved runs and live state unchanged.
+
+## 20 Oct 2026 — Binding architecture simplification direction and handover
+- User expressly requires **only necessary future-proof costing architecture**; avoid unnecessary maintenance complexity/outages. Replacement must **hard-retire superseded executable objects/paths** after impact audit and separately approved controlled migration; no active legacy remnants. Preserve historical runs, migration evidence and unrelated clients/systems.
+- Canonical new directive: `ARCHITECTURE_SIMPLIFICATION_AND_RETIREMENT_DIRECTIVE_2026-10-20.md` (commit 8ffb5aac). Work next: dependency inventory and KEEP/REPLACE/HARD-RETIRE/HISTORICAL-PRESERVE/PLANNING-ONLY classifications; smallest defensible physical charge driver and isolated tests.
+- No system write or activation. G0 DONE; G1 VERIFIED; G2 **IN PROGRESS / SIMPLIFICATION REQUIRED**; G3/G4 OPEN; G5 NOT STARTED; G6 NOT READY.
