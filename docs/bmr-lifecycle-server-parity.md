@@ -45,3 +45,12 @@ Client branch remains unmerged pending closure authorization.
 - Zero inactive production-plan links, zero inactive lab analysis links, and zero completed remaps with non-SUPERSEDED predecessors.
 - The production override effective view currently has zero rows, as the source table has zero active overrides. This does not constitute a positive-path pass.
 - One attempted positive-path test was blocked by connector safety checks and was not executed; it remains unverified.
+
+## 2026-10-20 final read-only integration check
+
+- Confirmed 2,115 active and 3 non-active BMR identities.
+- Confirmed zero inactive identities in the active BMR map and lab FG picker.
+- Confirmed zero rows referencing superseded identities in current RM reservation, PM reservation, and canonical in-process views (matched by BMR identity/product and batch number as available).
+- Confirmed six recovered SQL files exactly equal their respective `supabase_migrations.schema_migrations.statements[1]` values (6/6 byte-for-byte string equality).
+- Feature branch was 12 commits ahead and 0 behind main during this check.
+- **Not verified:** positive-path transactional writes under authenticated user roles, clean replay to an isolated database, full client browser UI smoke. Therefore merge remains held.
