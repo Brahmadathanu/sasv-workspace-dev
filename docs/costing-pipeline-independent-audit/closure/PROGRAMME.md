@@ -111,3 +111,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 October — G2 historical route resolver direct-caller audit
 - Live pg_proc function-body search (prokind=f) identified **six** direct callers of `costing.fn_resolve_effective_route_family_route` (four costing and two public workload preview/detail RPCs), plus several candidate independent APPROVED-filtered consumers requiring manual review. This reinforces need for one narrowly scoped historical selection repair and regression across all callers; direct source-text references are NOT the entire dynamic/client dependency graph. Evidence `evidence/G2/G2_HISTORICAL_ROUTE_DIRECT_CALLERS_2026-10-20.md`, commit 3d5506e8. G2/CI-032 OPEN; live unchanged.
+
+## 20 Oct — G2 independent historical family route selector
+- `fn_product_process_route_readiness(date)` contains a separately implemented date-scoped family route selector filtering APPROVED-only; after legitimate supersession it will misclassify historical readiness even if central resolver fixed. `fn_route_family_onboarding_status` intentionally uses latest-version selection, should not be mechanically rewritten. Two other candidate selectors still await source classification. Evidence `evidence/G2/G2_INDEPENDENT_ROUTE_SELECTOR_CLASSIFICATION_2026-10-20.md` commit 0e4d399d. G2/CI-032 OPEN; no live changes.
