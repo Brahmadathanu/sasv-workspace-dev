@@ -1,0 +1,3 @@
+# G2 run82 route9 temporal attribution — 20 October 2026
+
+Read-only verified: DL workload snapshot refresh_run_id 82 has period_start 2026-08-01, valuation_date 2026-08-07, 64 rows referencing family_route_id 9. Route9 effective_from 2026-07-01, effective_to 2026-08-10, currently SUPERSEDED and archived on 2026-08-13. All 64 references therefore fall within its recorded validity window. It is not a stale snapshot-link defect simply because current status/archival changed. Snapshot route attribution must remain immutable, and fresh historical as-of route selection must be governed separately. This is a temporal provenance PASS, not a financial or route-intensity approval. No live writes. G2/CI-032 OPEN.
