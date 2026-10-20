@@ -201,3 +201,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 follow-up — route scope
 - Frozen snapshots retain route IDs; current previews use valuation-date selectors. No duplicate historical engine. See evidence/G2/G2_ROUTE_SELECTOR_CONSUMER_PURPOSE_2026-10-20.md. G2 open; no live writes.
+
+### G2 dual-multiplier inventory
+- Live: six of 1,668 family steps affected, all route144; 0 of 1,155 overrides; 210 DL and 210 POH snapshot step rows. Protected runs122/128 each contain six DL affected rows; preserve as frozen. Evidence G2_ROUTE_WIDE_DUAL_MULTIPLIER_INVENTORY_2026-10-20.md (b3a7a294). Correct authoring semantics prospectively; G2 open.
