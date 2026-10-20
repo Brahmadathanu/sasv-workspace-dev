@@ -43,3 +43,8 @@ User directed elimination of unnecessary costing-driver complexity and **hard re
 
 ### CI-032 verification and release-placement blocker — 20 October evening
 - **OPEN:** G2 repetition attestation source is staged but not DB-verified. Experimental SQL under `supabase/migrations/` conflicts with `closure/IMPLEMENTATION_RULES.md` §2. Do not merge or deploy it as-is; reconcile prepared location and carry forward explicit HOLD. Verify the existing TB PostgreSQL fixture before considering paid infrastructure. A future green refresh alone does not close CI-032: permission, stale evidence and concurrent edits require tests. No live mutations.
+
+### CI-012 and CI-034 live closeout — 20 October 2026
+- **CI-012 server correction INSTALLED**: migration 20261020162117; 8 forward-only + 37 audit-only config entries and 45 triggers verified. Business monitoring of ongoing writes remains an operational follow-up; no backdated rows were modified.
+- **CI-034 server correction INSTALLED**: migration 20261020162105; valuation-anchored RPC patched and read-back verified; new refresh integration still needs acceptance.
+- **CI-032 G2 STILL OPEN/HOLD**: held attestation migration untested at PostgreSQL level, not deployed. Historical runs 122/128 checked as SUCCESS. Sheets remain blocked.
