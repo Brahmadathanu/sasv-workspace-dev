@@ -53,7 +53,7 @@ for (const file of files) {
       ]);
       return map.get(selector)??null;
     }};
-    runInNewContext(binding,{host,prefix:"test",Number,normalizePrmCode:(x)=>x});
+    runInNewContext(binding,{host,prefix:"test",Number,normalizePrmCode:(x)=>x,operationEl});
     const target = panels.get(operation === "ALTER_CYCLE" ? "cycle" : "add");
     assert.equal(target.total.textContent, expected, file);
     assert.equal(target.warningNode.hidden, !warning, file);
