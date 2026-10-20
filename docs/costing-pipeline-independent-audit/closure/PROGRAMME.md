@@ -70,3 +70,7 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 latest read-only recurrence check
 - Live run128 product51 step snapshots independently reconfirm 8 occurrences AND 8 cycles embedded in factors seq40/50/60/70; no evidence yet that these are two independent physical dimensions. Never multiply frozen step factor by these counts again. Product695 step-factor checks independently show ten single-occurrence/cycle steps, raw factor 5.2. Product957 detailed query blocked this checkpoint; use earlier certified evidence. Owner physical-process clarification required for Dhanyamlam. Evidence `evidence/G2/G2_DHANYAMLAM_RECURRENCE_CHECK_2026-10-20.md` commit 21b37cc8. G2 OPEN; live unchanged.
+
+## 20 Oct — Dhanyamlam recurrence clarification (owner-confirmed)
+- Product 51: occurrences 8 and cycles 8 are DUPLICATE representations of **8 total physical repetitions**, not 64. Prospective route correction is required; standard batch 1,155 L remains authoritative and frozen runs 122/128 untouched.
+- Isolated arithmetic diagnostic: raw step-factor total 174.8 -> 23.6; holding historical equipment loads merely for sensitivity, scaled route intensity 511.6 -> 69.2. These are NOT new approved workload or SKU costs. Other products inheriting route144 and POH must be assessed before migration. Evidence `G2_DHANYAMLAM_OWNER_DECISION_2026-10-20.md`, commit e715cca9. G2 OPEN / CI-032 HIGH; no live changes.
