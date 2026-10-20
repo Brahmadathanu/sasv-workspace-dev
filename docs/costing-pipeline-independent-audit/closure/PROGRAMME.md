@@ -291,3 +291,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 inherited-family fingerprint hardening — 20 Oct
 - Product-route evidence now includes base family route ID and version, not just effective step rows (ba5c6961). Updated static test requirements (f17d674d). This guards lineage drift in proposed approvals. Live DB compiler and transactional race tests still not completed; initial migration deployment HOLD remains. No production writes. G2 OPEN.
+
+### G2 review-only attestation gate — 20 Oct 2026
+- Staged capture now requires REVIEW_REQUIRED status, preventing evidence creation while route is in DRAFT (05871676). Read-only verified both submission RPCs transition DRAFT to REVIEW_REQUIRED and validate routes. Added static regression assertion (771d827e). No PostgreSQL compiler/transaction test runner available; migration HOLD remains; live unchanged. G2 OPEN.
