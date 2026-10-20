@@ -1,8 +1,8 @@
 # BMR lifecycle — live server migration parity and verification
 
-Status: SERVER DEPLOYED / REPOSITORY SQL PARITY PENDING (2026-10-20).
+Status: SERVER DEPLOYED / EXACT DEPLOYED SQL RECOVERED TO REPOSITORY (2026-10-20).
 
-This document inventories migrations already applied directly to the live SASV Supabase project `qhmoqtxpeasamtlxaoak`. **Do not replay these migrations against live production.** The exact authoritative migration SQL must be recovered and matched to live database definitions before check-in. This inventory is **not** a substitute for migration source files.
+This document inventories migrations already applied directly to the live SASV Supabase project `qhmoqtxpeasamtlxaoak`. **Do not replay these migrations against live production.** All six matching `supabase/migrations/<version>_<name>.sql` files have now been recovered verbatim from `supabase_migrations.schema_migrations.statements[1]` and committed on this branch. Deployment and historical data were not changed by restoring the files. Fresh-database replay testing remains pending.
 
 | Live version | Migration name |
 | --- | --- |
@@ -31,9 +31,17 @@ A transaction-contained attempt to stage a production override referencing super
 
 ## Open closure gates
 
-1. Preserve/reconstruct byte-equivalent migration source from authoritative server change records and verify function/view parity; do not fabricate SQL or duplicate migration-history entries.
+1. **SQL source parity complete:** six exact SQL statements recovered from live migration history and checked into corresponding versioned files. Fresh-database replay compatibility is unverified.
 2. Positive-path transactional regression: legitimate active override, authorized future remap, and unchanged operational outputs, using safe rollback or staging — no artificial durable production records.
 3. Audit broader downstream consumer paths and production regressions before merged client deployment.
 4. Historical correction BMR-AC-2026-000010: the immutable before_snapshot confirms predecessor 3050 was **Hridayasudhi / 30 Kg** when the remap to BMR 3064 (Hridayasudhi / 30 Kg) was performed, and the reason says it had been entered in the regular BMR series. The current predecessor row instead reads **Panchadeepakkini Choornam / 10 Kg**, while still carrying product_id 913. This appears to be a *later change to the retained historical row*, not an invalid original remap. Preserve the correction and investigate post-remap mutation of superseded BMR identity/size; enforce immutability before closure.
 
 Client branch remains unmerged pending closure authorization.
+
+## 2026-10-20 additional read-only verification
+
+- All 2,115 ACTIVE BMR identities are represented by the laboratory FG picker; zero active BMRs were missing and zero non-ACTIVE BMRs were present.
+- 2,115 records each appeared in the active BMR map and batch-size views.
+- Zero inactive production-plan links, zero inactive lab analysis links, and zero completed remaps with non-SUPERSEDED predecessors.
+- The production override effective view currently has zero rows, as the source table has zero active overrides. This does not constitute a positive-path pass.
+- One attempted positive-path test was blocked by connector safety checks and was not executed; it remains unverified.
