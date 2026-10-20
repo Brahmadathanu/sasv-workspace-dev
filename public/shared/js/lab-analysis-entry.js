@@ -71,6 +71,7 @@
 
 import { supabase, labSupabase } from "./supabaseClient.js";
 import { Platform } from "./platform.js";
+import { retainActiveBmrCandidates } from "./bmr-lifecycle.js";
 import {
   buildValidateCurrentActiveSpecArgs,
   normalizeEffectiveSpecValidation,
@@ -1572,6 +1573,8 @@ async function populateFgBatchDropdown(productId) {
   }
 
   if (requestId !== fgBatchLoadRequestId) return;
+  const activeRows = await retainActiveBmrCandidates(supabase, rows);
+  rows.splice(0, rows.length, ...activeRows);
 
   if (rows.length === 0) {
     batchNoSelect.innerHTML =

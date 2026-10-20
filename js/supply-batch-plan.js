@@ -8,6 +8,7 @@ import {
   OPERATION_TYPES,
 } from "../public/shared/js/bmr-admin-correction.js";
 import { openBmrAdminCorrectionModal } from "../public/shared/js/bmr-admin-correction-modal.js";
+import { retainActiveBmrCandidates } from "../public/shared/js/bmr-lifecycle.js";
 import {
   SUPPLY_BATCH_PLAN_PERMISSION_TARGET,
   SUPPLY_BATCH_SIZE_INACTIVATE_COPY,
@@ -1567,8 +1568,9 @@ async function loadBmrCandidates() {
     console.error(error);
     return;
   }
+  const activeRows = await retainActiveBmrCandidates(supabase, data);
 
-  (data || [])
+  activeRows
     .filter((r) => Math.abs(Number(r.batch_size) - size) <= eps)
     .forEach((r) => {
       const opt = document.createElement("option");
@@ -1674,10 +1676,11 @@ async function onPickBmrForBatch(evt) {
     console.error(e2);
     return toast("Load candidates failed");
   }
+  const activeRows = await retainActiveBmrCandidates(supabase, rows);
 
   // Filter by size and build choices
   const eps = 1e-6;
-  const choices = (rows || [])
+  const choices = activeRows
     .filter((r) => Math.abs(Number(r.batch_size) - Number(b.batch_size)) <= eps)
     .map((r) => `${r.bn} :: ${r.bn} × ${r.batch_size} ${r.uom}`);
 
@@ -2115,10 +2118,11 @@ async function getBnCandidates(productId, batchSize) {
     console.error(error);
     return [];
   }
+  const activeRows = await retainActiveBmrCandidates(supabase, rows);
 
   // Filter by size and build choices
   const eps = 1e-6;
-  return (rows || [])
+  return activeRows
     .filter((r) => Math.abs(Number(r.batch_size) - Number(batchSize)) <= eps)
     .map((r) => `${r.bn} :: ${r.bn} × ${r.batch_size} ${r.uom}`);
 }

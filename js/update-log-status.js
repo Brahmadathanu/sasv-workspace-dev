@@ -1499,7 +1499,11 @@ async function init() {
   }
 
   const _items = await fetchAllQuery(
-    supabase.from("bmr_details").select("item").order("item"),
+    supabase
+      .from("bmr_details")
+      .select("item")
+      .eq("lifecycle_status", "ACTIVE")
+      .order("item"),
     500,
   );
   const itemsRaw = _items.data;
@@ -1603,6 +1607,7 @@ async function init() {
             .from("bmr_details")
             .select("bn", { distinct: true })
             .eq("item", sItem.value)
+            .eq("lifecycle_status", "ACTIVE")
             .order("bn"),
           500,
         );
