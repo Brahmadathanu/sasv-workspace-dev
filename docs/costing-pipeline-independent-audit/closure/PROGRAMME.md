@@ -80,3 +80,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 October — G2 route144 and POH parity independently verified
 - Frozen run128 route144 has only product51 Dhanyamlam (no product-specific override). POH step snapshot independently shows six duplicated 8×8 steps, all product51. POH raw step sum 210 vs isolated eight-repetition arithmetic 28; full monetary pool share and valid equipment loads unverified. Evidence `evidence/G2/G2_ROUTE144_POH_PARITY_VERIFIED_2026-10-20.md` commit 4d40b20c. Future route membership still to be tested. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 active master route 144 independently inspected
+- Live route144 family101 `SHUKTHAM_SERIAL_THERMAL_ACIDIC_EXTRACTION_ROUTE`, v1 APPROVED from 2026-08-30; six source step IDs 1593–1598 contain occurrence8/cycle8. Owner confirmed total eight repetitions. Proposed correction is a prospective governed successor route version, NOT an in-place edit of approved history. Route name Shuktham vs frozen recipient Dhanyamlam requires semantic review before implementation. Evidence `evidence/G2/G2_ROUTE144_SOURCE_CORRECTION_PREPARATION_2026-10-20.md` commit b8b7a75d; G2/CI-032 OPEN; no live changes.
