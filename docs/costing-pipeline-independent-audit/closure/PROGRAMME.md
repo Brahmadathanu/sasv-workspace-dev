@@ -243,3 +243,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 route audit evidence checkpoint
 - Existing route approval metadata is versioned but lacks step-specific attestation. Generic references cannot verify nested repetition. See evidence/G2/G2_APPROVAL_HISTORY_REUSE_CHECK_2026-10-20.md. No live writes.
+
+### G2 protected-run factor footprint
+- Read-only runs 122 and 128 each contain six affected DL and POH step rows. Summed DL step factors 172.8 and POH step factors 208 in each run; neither is rupee impact. Evidence G2_PROTECTED_RUN_DUAL_FACTOR_FOOTPRINT_2026-10-20.md (0ed08292). No live changes.
