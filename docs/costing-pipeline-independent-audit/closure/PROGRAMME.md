@@ -231,3 +231,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 operation-panel integration fix — 20 Oct
 - Found that product-route ALTER_CYCLE uses separate AlterOcc/AlterCycles controls and lacked a visible repetition preview. Added preview to its cycle panel with active-operation-specific input binding (54ca0188). Updated smoke script to cover ADD_STEP and ALTER_CYCLE (33cc6d7b); branch runtime execution remains pending. No live changes.
+
+### G2 product-delta operation-switch correction — 20 Oct
+- Corrected repetition preview binding for both ADD/REPLACE and ALTER_CYCLE panels, including changes of operation after form load (client commit 1b5d8658). Updated smoke harness fb62258d and context fix cdcb8077. Executed 10 isolated cases against fetched product-delta binding: 10 PASS; full node script/browser and server approval tests remain outstanding. No live changes.
