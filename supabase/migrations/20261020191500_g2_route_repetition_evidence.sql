@@ -93,3 +93,40 @@ begin
    raise exception 'G2: current nested repetition counts lack exact governed confirmation';
  end if;
 end $$;
+
+-- Captures explicit acknowledgement, never allowing the caller to supply the digest.
+create or replace function public.rpc_confirm_route_repetition(
+ p_kind text,p_route_id bigint,p_acknowledged_executions jsonb
+) returns bigint language plpgsql security definer
+set search_path=public,costing,pg_temp as $$
+declare v_evidence jsonb; v_expected jsonb; v_status text; v_id bigint; v_actor uuid;
+begin
+ perform public.require_permission('module:production-route-manager',true);
+ v_actor:=auth.uid();
+ if v_actor is null then raise exception 'G2 confirmation requires authenticated actor'; end if;
+ if p_kind='FAMILY' then
+   select status into v_status from costing.production_route_family_route
+   where id=p_route_id and archived_at is null for update;
+ elsif p_kind='PRODUCT' then
+   select status into v_status from costing.product_process_route
+   where id=p_route_id and archived_at is null for update;
+ else raise exception 'Unsupported G2 route kind'; end if;
+ if v_status not in ('DRAFT','REVIEW_REQUIRED') then raise exception 'Route cannot be confirmed in this status'; end if;
+ v_evidence:=costing.fn_g2_repetition_evidence(p_kind,p_route_id);
+ select coalesce(jsonb_agg(jsonb_build_object('key',s->>'key','occurrences',s->>'occurrences','cycles',s->>'cycles',
+   'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric)),'[]'::jsonb)
+ into v_expected from jsonb_array_elements(v_evidence->'steps') s
+ where (s->>'occurrences')::numeric>1 and (s->>'cycles')::numeric>1;
+ if jsonb_array_length(v_expected)=0 then raise exception 'No nested repetition to confirm'; end if;
+ if p_acknowledged_executions is distinct from v_expected then
+   raise exception 'Confirmed executions do not match current route';
+ end if;
+ insert into costing.route_repetition_confirmation
+   (route_kind,family_route_id,product_route_id,route_version,step_digest,step_evidence,confirmed_by)
+ values(p_kind,case when p_kind='FAMILY' then p_route_id end,
+   case when p_kind='PRODUCT' then p_route_id end,
+   (v_evidence->>'version')::integer,
+   encode(extensions.digest(v_evidence::text,'sha256'),'hex'),v_expected,v_actor)
+ returning id into v_id;
+ return v_id;
+end $$;
