@@ -99,3 +99,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 effective-route resolver and isolated test checkpoint
 - Live resolver SQL inspected: approved, non-archived and effective-date valid route selected by descending effective_from, version and ID; it does not itself reject overlapping validity periods. Local Node suite 17/17 passed (12 existing plus 5 route resolver imitation scenarios). PostgreSQL integration not performed because no local Postgres server/client available. Evidence `evidence/G2/G2_ROUTE_RESOLVER_SELECTION_AUDIT_2026-10-20.md` commit 5f776380. Test source for five new cases remains local, not committed. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 overlap constraint and history-continuity hazard
+- Verified GiST exclusion prohibits overlapping approved active route periods, one-writable draft index, unique route versions and approval evidence guards. Route resolver only sees APPROVED: blindly marking historic route144 SUPERSEDED would break historical as-of lookup. Candidate old-version APPROVED with end date day before prospective successor effective date requires isolated validation and separate approval. No prospective route exists. Evidence `evidence/G2/G2_ROUTE_EFFECTIVITY_EXCLUSION_AND_HISTORICAL_LOOKUP_2026-10-20.md` commit 1f951c4d. G2 OPEN / CI-032 HIGH; live unchanged.
