@@ -270,3 +270,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 implementation attempt — 20 Oct evening
 - Authorised programme progression: planned append-only attestation register with dual route identity, step digest and immutable reviewer evidence. Branch SQL file creation was blocked by tool safety checks; no migration committed or deployed. Keep G2 OPEN. Next verify deletion locks/base route edits, then stage gated migration and approval RPC tests. No live writes.
+
+### G2 staged migration hardening
+- Verified live delete-product-override RPC has no parent lock; returns jsonb and is SECURITY DEFINER. Staged matching parent FOR UPDATE correction (a23d4dce), tightened one-route foreign keys, digest and JSON checks, append-only mutation trigger (ac15f30f), in 20261020191500_g2_route_repetition_evidence.sql. Mandatory initial RAISE HOLD preserved. Approval-attestation capture/approval verification and full tests still missing. No deployment, no DB changes. G2 OPEN.
