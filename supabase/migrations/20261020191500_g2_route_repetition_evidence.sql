@@ -225,3 +225,9 @@ end
 $function$
 ;
 
+
+-- Access boundaries: privileged helpers are callable only by their owner.
+revoke execute on function costing.fn_g2_repetition_evidence(text,bigint) from public;
+revoke execute on function costing.fn_g2_require_repetition_confirmation(text,bigint) from public;
+revoke execute on function public.rpc_confirm_route_repetition(text,bigint,jsonb) from public;
+grant execute on function public.rpc_confirm_route_repetition(text,bigint,jsonb) to authenticated;
