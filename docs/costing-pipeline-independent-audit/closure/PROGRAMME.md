@@ -273,3 +273,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 staged migration hardening
 - Verified live delete-product-override RPC has no parent lock; returns jsonb and is SECURITY DEFINER. Staged matching parent FOR UPDATE correction (a23d4dce), tightened one-route foreign keys, digest and JSON checks, append-only mutation trigger (ac15f30f), in 20261020191500_g2_route_repetition_evidence.sql. Mandatory initial RAISE HOLD preserved. Approval-attestation capture/approval verification and full tests still missing. No deployment, no DB changes. G2 OPEN.
+
+### G2 effective-step evidence resolver
+- Verified live costing.fn_effective_product_process_route_steps(bigint) returns effective keys, occurrence/cycle counts, base_step_id and override_id; this is canonical source for product attestation, not raw override rows. Family route uses production_route_family_route_step. SQL append attempt blocked; no unverified server logic committed. Migration remains deliberately held; no live change.
