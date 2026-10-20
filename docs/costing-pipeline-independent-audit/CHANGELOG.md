@@ -168,3 +168,6 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 ## 2026-10-20 — ChatGPT handover Part4 / lean architectural governance
 - User binding direction: minimal future-proof cost allocation, avoid unwanted capacity complexity, hard-retire superseded executable architecture after tested approved migration; preserve immutable snapshots/migrations.
 - Committed governing directive, closure implementation-rule amendment, master-programme update, issue-register note and full Part4 handover. All changes DOCS ONLY; no live Supabase or pricing client modifications; G2 open and G5/G6 not done.
+
+### 2026-10-20 — Mobile-first server completion path
+- Reconciled user-requested merge+new-refresh acceptance with existing mandate and closure rules. Recorded pre-merge tests, explicit approval boundaries, live post-deploy reconciliation and protected-run immutability. Identified held G2 SQL location conflict with `closure/prepared/` rule; BLOCK merge of experimental migration as-is. Recognised existing Technical Batch PostgreSQL 17 fixture path as a possible free verification route. Documentation updates only; no live deployment, refresh, merge or Sheets edits.
