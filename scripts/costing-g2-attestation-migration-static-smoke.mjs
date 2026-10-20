@@ -1,0 +1,25 @@
+/** G2 static migration checks. Does not execute SQL or replace PostgreSQL regression. */
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const sql = readFileSync(new URL("../supabase/migrations/20261020191500_g2_route_repetition_evidence.sql",import.meta.url),"utf8");
+const expected = [
+  /G2 HOLD: do not deploy/,
+  /create table costing\.route_repetition_confirmation/,
+  /constraint g2_route_target_check/,
+  /before update or delete on costing\.route_repetition_confirmation/,
+  /create or replace function costing\.fn_g2_repetition_evidence/,
+  /from costing\.fn_effective_product_process_route_steps\(p_route_id\)/,
+  /to_jsonb\(s\)/,
+  /with ordinality as e\(s,ordinal\)/,
+  /order by e\.ordinal/,
+  /create or replace function public\.rpc_confirm_route_repetition/,
+  /fn_g2_require_repetition_confirmation\('FAMILY',p_family_route_id\)/,
+  /fn_g2_require_repetition_confirmation\('PRODUCT',p_product_route_id\)/,
+  /where id=p_product_route_id and archived_at is null for update/,
+  /revoke execute on function costing\.fn_g2_repetition_evidence/,
+  /revoke execute on function costing\.fn_g2_require_repetition_confirmation/
+];
+expected.forEach((pattern)=>assert.match(sql,pattern));
+assert.equal((sql.match(/with ordinality as e\(s,ordinal\)/g)||[]).length,2);
+assert.equal((sql.match(/order by e\.ordinal/g)||[]).length,2);
+console.log("G2 static migration smoke PASS (17 checks); PostgreSQL execution NOT tested");
