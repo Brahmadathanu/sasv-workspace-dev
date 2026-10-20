@@ -350,3 +350,21 @@ Send short updates with **Completed / Verified / Remaining / Next / Live Changes
 ### G2 executable calculation fixture checkpoint — 20 Oct 2026 evening
 - Independently executed existing container-side Node.js fixture files `/mnt/data/costing-g2/g2_workload_invariants.test.mjs` and `/mnt/data/costing-g2/recurrence-regression.test.mjs` using `node --test`: **12 tests passed, 0 failed, 0 skipped**. Includes eligible workload/pool conservation, missing or zero denominator failure, duplicate/negative exclusion, fixed historical route weights, eight actual repetitions and unaffected steps, POH/DL distinct scope weights. These are executable **JavaScript mathematical fixtures only**; the fixture files are local and are **not claimed as new repository commits or PostgreSQL execution**.
 - GitHub-connected tooling currently exposes historical workflow-run read operations and reruns, but no general new workflow dispatch function; no existing G2 PostgreSQL CI run established. PostgreSQL server/psql/docker absent locally. Held SQL with five RPC fingerprint guards remains NOT DB executed. **G2 SQL/RPC acceptance HOLD**. No live change, merge, costing refresh or database-to-Sheets integration.
+
+## 20 October 2026 — Production deployment batch executed and verified
+
+**User authorisation:** requested bringing previously prepared costing-suite changes live after authorising merge; executed the two outstanding prepared and previously isolated-tested, guarded server migrations. Did **not** deploy deliberately held G2 route-repetition draft.
+
+**Already live (verified against Supabase migration ledger):** technical batch TB1/TB2/TB3/TB5/TB6/TB7, LB1, DVS1 installed OFF (20261019142614). Do not reapply those files.
+
+**Newly deployed to production via `apply_migration`:**
+1. `20261020162105 ci034_valuation_anchored_basis_status` from byte-identical `prepared/PREPARED_CI034_valuation_anchored_basis_status.sql`. Production SQL accepted. Read-only postcheck: `costing.rpc_refresh_sku_sales_allocation_basis_snapshot(date,date,bigint)` includes `CI-034: valuation-anchored`; function-definition md5 `458e55c7fd569d9cb5003582d6ee64cc`.
+2. `20261020162117 ci012_no_backdating_guard` from byte-identical `prepared/PREPARED_CI012_no_backdating_guard.sql`. Production SQL accepted. Read-only postcheck: 8 FORWARD_ONLY configurations; 37 AUDIT_ONLY; 45 total config rows; 45 live triggers; zero audit log rows; frozen-through date 2026-10-16.
+
+**Deployment SQL evidence:** `evidence/CI012/CI034_APPLIED_20261020162105.sql` and `evidence/CI012/CI012_APPLIED_20261020162117.sql`; each was refetched and confirmed byte-identical to its prepared SQL and has identical Git blob SHA, respectively `3948e78188a0adc0e4854146418984e9469912b8` and `d4065c8cf7b62b04b0e25b2729ba97b18831e05b`. These evidence copies preserve the original PREPARED header as required by byte identity; migration-ledger evidence establishes actual application.
+
+**Preserved:** DVS1 APPROVED policy count 0 (OFF), approved historical runs not targeted by the two applied migrations, cron/switches untouched, no new costing refresh and no Sheets integration.
+
+**Not ready / still HELD:** `prepared/HELD_G2_route_repetition_evidence_20261020.sql` is intentionally nondeployable; SQL compilation, RLS/permission, confirmation RPC, stale-evidence and concurrency tests incomplete. No attempt to deploy it. Overall G2/G3/G4/G6 gates are NOT closed by these two migrations. Branch `costing/au4-normal-budget` remains unmerged; 314-ahead/16-behind comparison at this checkpoint precludes treating it as a release-ready single change.
+
+**Next:** verify live costing source/fingerprint and run governance, complete G2 controlled functional acceptance, then seek a separately scoped new-costing-refresh operation and numerical waterfall reconciliation. All database-to-Google-Sheets integration stays BLOCKED.
