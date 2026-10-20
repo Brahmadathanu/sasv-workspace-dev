@@ -1,3 +1,5 @@
+-- INTENTIONALLY NOT DEPLOYABLE: migration design incomplete; fail closed on execution.
+do $$ begin raise exception 'G2 HOLD: approval wiring, locking, and immutable evidence controls not yet verified'; end $$;
 -- G2 migration draft: append-only confirmation record, no live execution.
 create table costing.route_repetition_confirmation (
  id bigint generated always as identity primary key,
