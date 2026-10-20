@@ -54,3 +54,15 @@ Client branch remains unmerged pending closure authorization.
 - Confirmed six recovered SQL files exactly equal their respective `supabase_migrations.schema_migrations.statements[1]` values (6/6 byte-for-byte string equality).
 - Feature branch was 12 commits ahead and 0 behind main during this check.
 - **Not verified:** positive-path transactional writes under authenticated user roles, clean replay to an isolated database, full client browser UI smoke. Therefore merge remains held.
+
+## Identity and guard audit — 2026-10-20
+
+- Enabled PostgreSQL triggers confirmed: `trg_active_bmr_batch_plan`, `trg_active_bmr_lab_analysis`, `trg_bmr_historical_identity`.
+- Active mapping-view set-difference checks both ways returned zero missing or invalid BMR identities; this exceeds mere count parity.
+- Existing production-plan references to non-ACTIVE BMRs: zero.
+- Existing laboratory analysis references to non-ACTIVE BMRs: zero.
+- This is read-only structural/identity evidence, **not** a substitute for authenticated positive-path workflow testing.
+
+### Last execution gate
+
+Run in an isolated local/Supabase test project with fixtures (never write disposable data into the live production project): create an ACTIVE BMR and map it, stage an active override, execute authorized REMAP_BMR from distinct identities and ensure predecessor SUPERSEDED, then assert further mapping/analysis/override use of predecessor fails and historical audit still resolves. Apply the six versioned SQL migrations in historical order to a compatible reconstructed baseline. Separately run authenticated Manage BMR browser checks for ACTIVE/History/All, two historical records and action denials. Archive test output and schema version before authorizing merge.
