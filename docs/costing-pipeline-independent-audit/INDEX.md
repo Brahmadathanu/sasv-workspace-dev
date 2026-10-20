@@ -50,3 +50,9 @@ Updated 19 Oct 2026, 20:20 IST (part-3 handover). The audit branch `docs/costing
 
 ## Standing rules for executors
 No `supabase db push` / migration repair. Apply only through Supabase MCP `apply_migration` with user approval. Prepared packages stay outside `supabase/migrations`. No merges, tags or releases. No Sheet edits (ChatGPT owns Sheets). Never modify the APPROVED runs 122 and 128. Cron 60 stays paused; job 61 is opened only for an approved window.
+
+## Current authoritative continuation (20 Oct 2026)
+- **Binding simplification/hard-retirement decision:** `closure/ARCHITECTURE_SIMPLIFICATION_AND_RETIREMENT_DIRECTIVE_2026-10-20.md`
+- **Full next-chat handover:** `handover/CHATGPT_HANDOVER_2026-10-20_PART4_LEAN_ARCHITECTURE.md`
+- **Master gate status:** `closure/PROGRAMME.md`; G0 DONE, G1 VERIFIED, G2 OPEN/LEAN RE-DESIGN, G3/G4 OPEN, G5 NOT STARTED, G6 NOT READY.
+- Never activate or delete live costing objects merely by reading these docs; require explicit user approval after tests and dependency review.
