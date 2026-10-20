@@ -192,3 +192,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 resolver callers — exception handlers checked
 - All six direct callers have no EXCEPTION WHEN handlers. Previous keyword counts included RAISE EXCEPTION and evidence labels. New resolver errors propagate and need caller/client compatibility tests. See `evidence/G2/G2_SIX_CALLER_EXCEPTION_HANDLING_VERIFIED_2026-10-20.md` (7ea2b2ac). G2 OPEN; no live changes.
+
+### G2 isolated testing gate clarification
+- Existing SQL assertions check source data only; they do not execute replacement resolver or six-caller parity tests. Live catalog reconfirmed SECURITY DEFINER, STABLE and search_path. Full tests require a dedicated disposable PostgreSQL clone, rollback-only synthetic duplicate fixtures, security parity and client error checks. No live change; G2 open.
