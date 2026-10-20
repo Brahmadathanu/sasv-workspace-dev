@@ -171,3 +171,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 all-run archived predecessor attribution
 - Read-only scan of 17,364 DL snapshot records found 64 references to currently SUPERSEDED family route9, all in run82; route9 now archived, effective Jul1–Aug10, 2026. Zero references to currently SUPERSEDED product routes. Protected runs122/128 still have zero predecessor references. Preserve immutable snapshot attribution independent of present-day route archival; historical resolver eligibility still requires date/ambiguity governance. Evidence `evidence/G2/G2_ALL_RUN_ARCHIVED_SUPERSEDED_SNAPSHOT_REFERENCES_2026-10-20.md` commit 8e4c0dfb. G2/CI-032 OPEN; no live changes.
+
+## 20 Oct — G2 run82 archived route temporal validity PASS
+- Read-only: run82 August-period valuation 2026-08-07, 64 DL records referencing route9 effective 2026-07-01 through 2026-08-10; later archival on Aug13 does not invalidate snapshot temporal attribution. Immutable old-run references remain protected. Eligibility for fresh retrospective recomputation is separate, especially for archived routes. Evidence `evidence/G2/G2_RUN82_HISTORICAL_EFFECTIVE_DATE_2026-10-20.md` commit 934bd095. Financial correctness unverified, CI-032/G2 OPEN, no live writes.
