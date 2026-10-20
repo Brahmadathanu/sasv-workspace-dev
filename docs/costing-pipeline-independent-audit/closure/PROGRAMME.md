@@ -198,3 +198,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 runtime test availability — 20 Oct
 - Local executable check: no psql/postgres/docker; Node policy model suite 12/12 PASS, not PostgreSQL regression. Function replacement and six-caller parity remain untested. Evidence `evidence/G2/G2_RUNNER_AVAILABILITY_AND_MODEL_TEST_RESULT_2026-10-20.md` commit e34d1b20. No live changes; G2 OPEN.
+
+### G2 follow-up — route scope
+- Frozen snapshots retain route IDs; current previews use valuation-date selectors. No duplicate historical engine. See evidence/G2/G2_ROUTE_SELECTOR_CONSUMER_PURPOSE_2026-10-20.md. G2 open; no live writes.
