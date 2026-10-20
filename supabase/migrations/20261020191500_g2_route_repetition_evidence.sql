@@ -76,6 +76,13 @@ returns void language plpgsql security definer
 set search_path=pg_catalog,costing,pg_temp as $$
 declare v_evidence jsonb; v_dual jsonb; v_digest text; v_version integer;
 begin
+ if p_kind='PRODUCT' then
+   -- Serialize inherited family-step edits with product confirmation/approval.
+   perform 1 from costing.production_route_family_route fr
+   join costing.product_process_route pr on pr.base_route_family_route_id=fr.id
+   where pr.id=p_route_id and fr.archived_at is null for share of fr;
+   if not found then raise exception 'G2 base family route not available'; end if;
+ end if;
  v_evidence:=costing.fn_g2_repetition_evidence(p_kind,p_route_id);
  select coalesce(jsonb_agg(jsonb_build_object('key',s->>'key','occurrences',s->>'occurrences','cycles',s->>'cycles',
     'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric) order by e.ordinal),'[]'::jsonb)
@@ -112,6 +119,13 @@ begin
    where id=p_route_id and archived_at is null for update;
  else raise exception 'Unsupported G2 route kind'; end if;
  if v_status is distinct from 'REVIEW_REQUIRED' then raise exception 'Route must be submitted for review before G2 confirmation'; end if;
+ if p_kind='PRODUCT' then
+   -- Serialize inherited family-step edits with product confirmation/approval.
+   perform 1 from costing.production_route_family_route fr
+   join costing.product_process_route pr on pr.base_route_family_route_id=fr.id
+   where pr.id=p_route_id and fr.archived_at is null for share of fr;
+   if not found then raise exception 'G2 base family route not available'; end if;
+ end if;
  v_evidence:=costing.fn_g2_repetition_evidence(p_kind,p_route_id);
  select coalesce(jsonb_agg(jsonb_build_object('key',s->>'key','occurrences',s->>'occurrences','cycles',s->>'cycles',
    'executions',(s->>'occurrences')::numeric*(s->>'cycles')::numeric) order by e.ordinal),'[]'::jsonb)
