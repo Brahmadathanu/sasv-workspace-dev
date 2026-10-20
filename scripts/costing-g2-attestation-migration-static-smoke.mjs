@@ -15,6 +15,7 @@ const expected = [
   /with ordinality as e\(s,ordinal\)/,
   /order by e\.ordinal/,
   /create or replace function public\.rpc_confirm_route_repetition/,
+  /v_status is distinct from 'REVIEW_REQUIRED'/,
   /fn_g2_require_repetition_confirmation\('FAMILY',p_family_route_id\)/,
   /fn_g2_require_repetition_confirmation\('PRODUCT',p_product_route_id\)/,
   /where id=p_product_route_id and archived_at is null for update/,
