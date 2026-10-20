@@ -1,11 +1,15 @@
 -- G2 REVIEW ONLY. NOT A MIGRATION. DO NOT EXECUTE IN PRODUCTION.
 -- Proposed one-function safety correction, retaining APPROVED-only prospective behaviour.
--- Verify existing owner, grants, SECURITY DEFINER / search_path and all pg_get_functiondef
--- properties before promoting to migration: CREATE OR REPLACE can otherwise lose metadata.
+-- Live verified: original LANGUAGE sql, STABLE, SECURITY DEFINER, SET search_path=costing, public,
+-- owner postgres, proacl postgres/authenticated/service_role EXECUTE; no PUBLIC grant.
+-- PL/pgSQL conversion is necessary for RAISE EXCEPTION, a semantic change requiring review.
+-- CREATE OR REPLACE must preserve existing owner and grants on the same signature;
+-- independently verify catalog parity after isolated PostgreSQL test and any approved migration.
 -- No historical SUPERSEDED/ARCHIVED expansion is authorised by this patch.
 CREATE OR REPLACE FUNCTION costing.fn_resolve_effective_route_family_route(
  p_product_id integer, p_as_of_date date DEFAULT CURRENT_DATE
-) RETURNS bigint LANGUAGE plpgsql STABLE
+) RETURNS bigint LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = costing, public
 AS $function$
 DECLARE
  v_date date := coalesce(p_as_of_date,current_date);
