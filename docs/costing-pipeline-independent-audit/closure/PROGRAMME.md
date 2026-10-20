@@ -219,3 +219,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 client repetition preview — code checkpoint
 - Branch-only source changes: family-step form c2714cb4 and product-delta form b8d816dd display computed total executions, clarify cycles within occurrence, warn for dual-positive counts and guard invalid numeric input. Post-write source assertions passed for both forms; browser/runtime tests NOT executed. No DB changes, no approval enforcement; G2 OPEN.
+
+### G2 repetition client smoke — 20 Oct
+- Added scripts/costing-g2-route-repetition-preview-smoke.mjs (bceea5fd): source-extracted preview binding tests for both forms, eight numeric/boundary cases and listener wiring. Test committed but not executed against branch files; no browser or server approval test. No production changes.
