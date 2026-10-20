@@ -1,3 +1,5 @@
+> **LATEST START HERE (20 Oct 2026 late):** [closure/LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md](closure/LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md). Live route161 corrected, 20-Oct run131 executed (SUCCESS, NOT APPROVED), 57/57 quantity approvals complete; unresolved 605 material-review SKUs, strict 841-acceptance evidence parity, ₹85.89 five-product SKU share gap. Run128 stays approved, G2/G6 open and Sheets blocked. Older INDEX continuation labels below are historical.
+
 # Costing pipeline independent audit: index and current state (branch costing/au4-normal-budget)
 Updated 19 Oct 2026, 20:20 IST (part-3 handover). The audit branch `docs/costing-pipeline-independent-audit` has its own README (the A0–A11 audit). This index covers the implementation work in PR #72.
 
