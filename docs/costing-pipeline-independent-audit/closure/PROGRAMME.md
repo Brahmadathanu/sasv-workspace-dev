@@ -174,3 +174,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 run82 archived route temporal validity PASS
 - Read-only: run82 August-period valuation 2026-08-07, 64 DL records referencing route9 effective 2026-07-01 through 2026-08-10; later archival on Aug13 does not invalidate snapshot temporal attribution. Immutable old-run references remain protected. Eligibility for fresh retrospective recomputation is separate, especially for archived routes. Evidence `evidence/G2/G2_RUN82_HISTORICAL_EFFECTIVE_DATE_2026-10-20.md` commit 934bd095. Financial correctness unverified, CI-032/G2 OPEN, no live writes.
+
+### G2 SQL probe candidate — 20 Oct 2026
+- Staged read-only parameterized family/product historical route candidate queries and explicit ambiguity regression matrix. Frozen snapshot ID read, retrospective route choice and prospective approval remain separate; no function replacement or migration. Evidence `evidence/G2/G2_HISTORICAL_RESOLUTION_SQL_PROBES_2026-10-20.md` (`bcd9ea9f`). Return-signature catalog query blocked; live migration prohibited, G2/CI-032 OPEN.
