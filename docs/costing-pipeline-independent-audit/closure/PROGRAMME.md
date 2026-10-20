@@ -204,3 +204,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 dual-multiplier inventory
 - Live: six of 1,668 family steps affected, all route144; 0 of 1,155 overrides; 210 DL and 210 POH snapshot step rows. Protected runs122/128 each contain six DL affected rows; preserve as frozen. Evidence G2_ROUTE_WIDE_DUAL_MULTIPLIER_INVENTORY_2026-10-20.md (b3a7a294). Correct authoring semantics prospectively; G2 open.
+
+### G2 existing route approval gates
+- Family and product validators exist and are used by approval RPCs; neither inspects repetition counts directly. Lean proposed safeguard reuses validators and current UI, with prospective governance. Evidence G2_EXISTING_APPROVAL_VALIDATOR_REUSE_2026-10-20.md (96ae485f). No live edits.
