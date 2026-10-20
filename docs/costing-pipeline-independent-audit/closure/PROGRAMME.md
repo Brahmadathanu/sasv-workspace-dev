@@ -150,3 +150,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 17-pair provenance completeness gate
 - Attempts at fresh full lineage/one-family live read-only SQL were blocked this checkpoint. Prior verified 10 family + 7 product overlap inventory still stands; full lineage links, operational validity and comprehensive frozen-run attribution NOT certified. Preserve status as blocker; no unconditional SUPERSEDED broadening. Evidence `evidence/G2/G2_OVERLAP_COMPLETENESS_GATE_2026-10-20.md` commit f0cb04de. G2/CI-032 OPEN, no live changes.
+
+## 20 Oct — G2 superseded route successor links verified
+- Live read-only audit found 17/18 non-archived superseded family routes linked to successors (route48/family43 unlinked), and 9/9 superseded product routes linked; seven product predecessors 174-180 and family105 have NULL effective_to despite linked successors. Full frozen snapshot predecessor reference scan blocked, so non-use unproven. Evidence `evidence/G2/G2_SUCCESSOR_LINK_INVENTORY_2026-10-20.md` commit fd651d48. G2/CI-032 OPEN; no live change.
