@@ -53,3 +53,13 @@ AND p.proname IN ('fn_au9_g4_capture_provenance','fn_au9_g4_load_mode',
 ```
 
 Follow-up: extract full writer definitions and identify source-to-snapshot fields before any scenario estimate. Audit actual static and dynamic dependencies, then prepare a consolidated change packet with tests. All live switches, cron, approved runs, periods, migrations and approved fingerprints remain untouched.
+
+## Additional read-only ACL and trigger verification (phase 1b)
+
+Live `information_schema.role_table_grants` and `pg_trigger` inspection:
+- `capacity_fallback_policy`, `plant_aware_load_switch`, `plant_capacity_profile`, `route_step_capacity_rule` each expose **SELECT** to `authenticated` and `service_role`; ordinary write grants were not found. Each has named close-only, journal and no-truncate triggers (`trg_cfp_*`, `trg_pals_*`, `trg_pcp_*`, `trg_rscr_*`).
+- `route_equipment_load_capacity` has authenticated SELECT and **no custom trigger**. `route_load_scaling_snapshot` has authenticated SELECT and three AU2 snapshot guards. `route_step_load_provenance_snapshot` has authenticated SELECT and three guard/immutable/truncate triggers.
+- Both `product_direct_labour_workload_snapshot` and `product_production_overhead_workload_snapshot` have three audit/immutability-related triggers; neither lists authenticated direct SELECT in this query; the OH snapshot lists service_role SELECT. Schema exposure still requires separate dashboard verification (TB4).
+- All nine examined tables show only postgres/owner direct modification grants in the returned catalog, but SECURITY DEFINER RPC access and schema usage are distinct permissions and remain to be checked.
+
+No trigger, journal or snapshot may be dropped merely on account of eventual retirement of a load selector. This further strengthens the need for governed cutover with retained immutable historical rows.
