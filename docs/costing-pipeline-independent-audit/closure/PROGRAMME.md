@@ -252,3 +252,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ### G2 fixed-pool DL sensitivity
 - Protected runs122/128: under eight-execution counterfactual, Product51 DL allocation falls provisionally by 19271.48 and 24945.15 respectively. Fixed 706203 pool redistributed, not saved. See evidence/G2/G2_DHANYAMLAM_DL_FIXED_POOL_SENSITIVITY_2026-10-20.md (83105a2a). POH rupee effect pending pool. No live changes.
+
+### G2 DL+POH fixed-pool counterfactual — 20 October
+- Protected run 122: POH redistribution from product 51 22614.51; combined DL+POH 41885.99. Protected run 128: POH redistribution 26199.94; combined 51145.09. Distinct alternative scenarios, not additive. Pools conserved; no financial posting. Evidence G2_DHANYAMLAM_COMBINED_FIXED_POOL_COUNTERFACTUAL_2026-10-20.md (fdc07a7f). G2 OPEN, no live changes.
