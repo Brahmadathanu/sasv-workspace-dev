@@ -478,6 +478,11 @@ export function buildProductDeltaFormHtml({
           <div class="cp-prm-form-field"><span class="cp-field-label">Standard cycles</span>
             <input id="${prefix}AlterCycles" type="number" min="1" step="1" value="${escapeHtml(seed.standard_cycle_count ?? "")}" />
           </div>
+          <div class="cp-prm-form-field cp-prm-form-field--full" data-prm-repetitions-preview aria-live="polite">
+            <span class="cp-field-label">Total step executions per standard batch</span>
+            <span data-prm-repetitions-total>—</span>
+            <span class="cp-muted-text" data-prm-repetitions-warning hidden>Both factors exceed one. Confirm cycles genuinely occur within each occurrence before review.</span>
+          </div>
         </div>
       </section>`,
     )}
@@ -1278,10 +1283,12 @@ export function bindProductDeltaForm(
   if (ccEl?.value) onCostCentreChange();
   refreshExclusion();
 
-  const occurrencesInput = host.querySelector(`#${prefix}Occ`);
-  const cyclesInput = host.querySelector(`#${prefix}Cycles`);
-  const repetitionTotal = host.querySelector("[data-prm-repetitions-total]");
-  const repetitionWarning = host.querySelector("[data-prm-repetitions-warning]");
+  const isCycleChange = normalizePrmCode(operationEl?.value).toUpperCase() === "ALTER_CYCLE";
+  const repetitionPanel = host.querySelector(`[data-prm-delta-panel="${isCycleChange ? "cycle" : "add"}"]`);
+  const occurrencesInput = repetitionPanel?.querySelector(`#${prefix}${isCycleChange ? "AlterOcc" : "Occ"}`);
+  const cyclesInput = repetitionPanel?.querySelector(`#${prefix}${isCycleChange ? "AlterCycles" : "Cycles"}`);
+  const repetitionTotal = repetitionPanel?.querySelector("[data-prm-repetitions-total]");
+  const repetitionWarning = repetitionPanel?.querySelector("[data-prm-repetitions-warning]");
   const refreshRepetitions = () => {
     const occurrence = Number(occurrencesInput?.value);
     const cycles = Number(cyclesInput?.value);
