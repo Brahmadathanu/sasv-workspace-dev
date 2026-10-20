@@ -15,11 +15,13 @@ for (const file of files) {
   assert.match(source, /Cycles within each occurrence/);
   assert.match(source, /data-prm-repetitions-total/);
   assert.match(source, /data-prm-repetitions-warning/);
-  const begin = source.indexOf("  const occurrencesInput = host.querySelector");
+  const isDelta = file.includes("delta-form");
+  const begin = source.indexOf(isDelta ? "  const isCycleChange =" : "  const occurrencesInput = host.querySelector");
   const end = source.indexOf("  refreshRepetitions();", begin);
   assert.ok(begin > 0 && end > begin, `${file}: preview binding found`);
   const binding = source.slice(begin, end + "  refreshRepetitions();".length);
-  function check(occ, cycles, expected, warning) {
+  if (isDelta) assert.match(source, /id="\$\{prefix\}AlterCycles"[\s\S]*?data-prm-repetitions-preview/);
+  function check(occ, cycles, expected, warning, operation = "ADD_STEP") {
     const nodes = new Map();
     const events = new Map();
     for (const [selector, value] of [
@@ -27,13 +29,25 @@ for (const file of files) {
     ]) nodes.set(selector, {value, addEventListener(type, cb) {events.set(selector + type, cb);}});
     nodes.set("[data-prm-repetitions-total]", {textContent:""});
     nodes.set("[data-prm-repetitions-warning]", {hidden:true});
-    const host = {querySelector(selector) {return nodes.get(selector) ?? null;}};
-    runInNewContext(binding, {host, prefix:"test", Number});
+    let active = nodes;
+    if (isDelta) {
+      const suffix = operation === "ALTER_CYCLE" ? "Alter" : "";
+      active = new Map([...nodes]);
+      active.set(`#test${suffix}Occ`, nodes.get("#testOcc"));
+      active.set(`#test${suffix}Cycles`, nodes.get("#testCycles"));
+    }
+    const panel = {querySelector(selector) {return active.get(selector) ?? null;}};
+    const host = {querySelector(selector) {
+      if (selector === "#testOperation") return {value:operation};
+      if (selector.startsWith("[data-prm-delta-panel=")) return panel;
+      return nodes.get(selector) ?? null;
+    }};
+    runInNewContext(binding, {host, prefix:"test", Number, normalizePrmCode:(x)=>x});
     assert.equal(nodes.get("[data-prm-repetitions-total]").textContent, expected, file);
     assert.equal(nodes.get("[data-prm-repetitions-warning]").hidden, !warning, file);
-    assert.ok(events.has("#testOccinput") && events.has("#testCyclesinput"), file);
+    assert.equal(events.size, 2, file);
     nodes.get("#testOcc").value = "2";
-    events.get("#testOccinput")();
+    [...events.values()][0]();
     assert.ok(nodes.get("[data-prm-repetitions-total]").textContent.length > 0);
   }
   check("8", "1", "8", false);
@@ -47,5 +61,9 @@ for (const file of files) {
   check("8", "-1", "Enter valid whole-number counts", false);
   check("8", "1.5", "Enter valid whole-number counts", false);
   check("9007199254740992", "8", "Enter valid whole-number counts", false);
-  process.stdout.write(`PASS ${file}: 11 cases and listeners\n`);
+  if (isDelta) {
+    check("8","8","64",true,"ALTER_CYCLE");
+    check("8","1","8",false,"ALTER_CYCLE");
+  }
+  process.stdout.write(`PASS ${file}: ${isDelta ? 13 : 11} cases and listeners\n`);
 }
