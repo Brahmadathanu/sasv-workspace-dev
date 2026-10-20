@@ -117,3 +117,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 
 ## 20 Oct — G2 remaining selector inspection blocked
 - Attempts to read `fn_validate_product_process_route` and `fn_preview_route_family_route_steps` definitions and fingerprints were blocked; no unsupported classification made. Historical resolver/readiness issue remains confirmed, onboarding latest-version behaviour preserved. Evidence `closure/G2_SELECTOR_BLOCKER_2026-10-20.md` commit 844b8cbb. These two selector definitions are mandatory pre-migration stop gate. G2 OPEN; no live changes.
+
+## 20 Oct — G2 two previously blocked function sources now classified
+- Inspected both definitions successfully. `fn_validate_product_process_route(bigint)` checks a base family route by ID and requires APPROVED; it may reject an otherwise valid historical product route after base succession, subject to caller/as-of verification. `fn_preview_route_family_route_steps(bigint,date,date)` is direct-ID candidate preview; APPROVED check is on product-group mapping and should NOT be modified as historical resolver. Evidence `evidence/G2/G2_REMAINING_SELECTOR_SOURCE_CLASSIFICATION_2026-10-20.md` commit 11a1b0b8. Continue limited consumer audit, isolated integration and pool simulations. G2/CI-032 OPEN; live unchanged.
