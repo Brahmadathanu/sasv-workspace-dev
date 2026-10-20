@@ -40,3 +40,6 @@ Updated 2026-10-19 (LB1 + DVS-1 OFF live; CI-012/CI-034 prepared) IST. Severity:
 
 ### Architecture simplification directive — 20 Oct 2026
 User directed elimination of unnecessary costing-driver complexity and **hard removal of superseded executable architecture** after a governed, dependency-safe transition. Applies particularly to CI-011 (74 missing capacity profiles no longer presumptively financial blockers), CI-032 (prove physical driver necessity), CI-031 (rate label), and G4 class fallback / stage-charge concerns. See `ARCHITECTURE_SIMPLIFICATION_AND_RETIREMENT_DIRECTIVE_2026-10-20.md`. All issues remain open until evidence or authorised corrective migration, not closed by this design decision. Machine planning data and immutable snapshots must be retained.
+
+### CI-032 verification and release-placement blocker — 20 October evening
+- **OPEN:** G2 repetition attestation source is staged but not DB-verified. Experimental SQL under `supabase/migrations/` conflicts with `closure/IMPLEMENTATION_RULES.md` §2. Do not merge or deploy it as-is; reconcile prepared location and carry forward explicit HOLD. Verify the existing TB PostgreSQL fixture before considering paid infrastructure. A future green refresh alone does not close CI-032: permission, stale evidence and concurrent edits require tests. No live mutations.
