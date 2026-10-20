@@ -74,3 +74,6 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 ## 20 Oct — Dhanyamlam recurrence clarification (owner-confirmed)
 - Product 51: occurrences 8 and cycles 8 are DUPLICATE representations of **8 total physical repetitions**, not 64. Prospective route correction is required; standard batch 1,155 L remains authoritative and frozen runs 122/128 untouched.
 - Isolated arithmetic diagnostic: raw step-factor total 174.8 -> 23.6; holding historical equipment loads merely for sensitivity, scaled route intensity 511.6 -> 69.2. These are NOT new approved workload or SKU costs. Other products inheriting route144 and POH must be assessed before migration. Evidence `G2_DHANYAMLAM_OWNER_DECISION_2026-10-20.md`, commit e715cca9. G2 OPEN / CI-032 HIGH; no live changes.
+
+## 20 Oct — G2 all-product repetition screen
+- Read-only frozen run128: 293 repeated step rows among 62 products, but both occurrence and cycle >1 occurs only in six step rows of product51 (8×8, owner-confirmed duplicate). Other cases largely one count=1, including 101/41-cycle Ksheerabala Thailam and 40-cycle Abhraka preparations; no basis for blanket normalization. Affected source-route and POH comparisons are OPEN. Evidence `evidence/G2/G2_ALL_PRODUCT_RECURRENCE_SCREEN_2026-10-20.md` commit 54db377a. G2/CI-032 OPEN; no live changes.
