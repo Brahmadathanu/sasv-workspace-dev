@@ -1,0 +1,5 @@
+# G2 route selection actual consumer scope — 20 October 2026
+
+Live read-only pg_proc source call context confirms six direct family resolver consumers: effective process steps and validation; product-route candidate preview; POH workload preview; Production Route Manager workload detail/preview RPCs. The last two use `p_valuation_date`, and the POH preview uses its valuation date. Thus route selection for an earlier valuation date remains an actual preview concern; it is not evidence of a need to recalculate approved snapshots. Frozen run reads must retain stored family/product route IDs.
+
+Lean decision: avoid new general-purpose historical resolver, redundant ambiguity guard, or permissive APPROVED+SUPERSEDED status widening. First identify concrete retrospective recalculation demand; preserve existing prospective resolver and archived historical by-ID evidence. Same-day historical overlaps are unresolved and must not pick a version by timestamp alone. This is a consumer-scope investigation, NOT a verified repaired historical selector. G2/CI-032 OPEN; no live writes.
