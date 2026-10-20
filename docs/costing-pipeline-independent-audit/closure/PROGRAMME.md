@@ -51,3 +51,7 @@ Release status: **NOT READY**. Run 128 stays the October reference; it is not a 
 - Catalog inventory identified machinery profiles, fallback and step capacity policies, route/load controls, historic provenance and workload snapshots. Preliminary KEEP / REPLACE / HARD-RETIRE / HISTORICAL-PRESERVE / PLANNING-ONLY mapping recorded in `evidence/G2/G2_DEPENDENCY_INVENTORY_PHASE1_2026-10-20.md` (commit 393399ca).
 - **Still OPEN:** pg_depend, grants, RLS/trigger definition, cron/ETL/client references; independent alternative workload simulations and exact pool-conservation tests; final minimal architecture, retirement plan and gated approval packet.
 - **Gate unchanged:** G2 IN PROGRESS; CI-032 HIGH OPEN. No live DB changes, runs, cron, switch, migration or merge.
+
+## 20 October 2026 — G2 phase 2 workload sensitivity
+- VERIFIED frozen run128: 453 manufacturing-workload product rows; eligible manufacturing labour ₹706,203; 5,789 step rows. Products 51/695/957 show scaled route intensity 511.6/2600/109.6 compared with unscaled step totals 174.8/5.2/7.6. These figures quantify sensitivity, not a replacement model or corrected allocation.
+- Evidence: `evidence/G2/G2_FROZEN_RUN_SENSITIVITY_PHASE2_2026-10-20.md` (commit 4a1767c9). Full-population scenario shares, cap interaction and physical charge validation remain OPEN. CI-032 HIGH OPEN. No live changes.
