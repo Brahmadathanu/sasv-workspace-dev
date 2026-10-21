@@ -181,3 +181,6 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 
 ### 2026-10-20 — Approved production costing migrations applied
 - Confirmed previously prepared TB1/TB2/TB3/TB5/TB6/TB7, LB1 and DVS1 OFF are already live. Applied `ci034_valuation_anchored_basis_status` (migration `20261020162105`) and `ci012_no_backdating_guard` (`20261020162117`) from exact prepared SQL through Supabase migration tool; both succeeded. Verified CI034 marker/function checksum; CI012 8 FORWARD_ONLY + 37 AUDIT_ONLY settings and 45 triggers, no audit rows; DVS1 remains OFF; historical runs 122 and 128 read-only status SUCCESS. Applied SQL and live evidence recorded in `closure/PROGRAMME.md` and `closure/evidence/CI012/`. G2 remains held and untested in PostgreSQL. Branch not merged, no refresh or Sheets work.
+
+
+- **2026-10-21:** Owner-approved bounded G2 numerical release closure documented; corrected route161 and run136 finance evidence PASS. Proposed prospective route attestation explicitly separated as uninstalled future hardening. G6 security/negative tests and designation outstanding; no Sheets writes. See `closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
