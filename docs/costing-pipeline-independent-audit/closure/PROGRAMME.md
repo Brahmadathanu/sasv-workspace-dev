@@ -393,3 +393,7 @@ Send short updates with **Completed / Verified / Remaining / Next / Live Changes
 
 ## 21 October 2026 — Binding G2 bounded numerical release closure
 **Current-release G2 numerical and physical-correction gate: CLOSED / PASS by owner's express decision.** See `G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`. Run136 six stages SUCCESS, 626 READY / one intentional regional review, all seven financial pools conserved, 17 integrity checks PASS, zero per-SKU cost variance run135→136. Prospective route-repetition attestation SQL remains HELD / NONDEPLOYABLE and is a *separate future safeguard*. Historical HOLD statements above remain historical, not the current gate. G6 independent security/negative-concurrency/provenance and owner designation remain OPEN; Sheets BLOCKED.
+
+
+## 21 Oct 2026 — G6 final server acceptance: CLOSED
+Owner-authorised governed supersession **SUCCESS**. Run136 October 20 valuation APPROVED (designation id7), run128 prior designation REVOKED (id6), historical run128 APPROVED (id4) preserved; governance audit id17. Independently verified live. Run136 SUCCESS with 626 READY, 1 REVIEW, 0 BLOCKED. Seven-pool financial conservation and 17/17 integrity PASS. Future route-attestation/concurrency tests are separate hardening, not claimed executed. **No Sheets integration**; await owner's additional requirements. Canonical: `G6_FINAL_OWNER_ACCEPTANCE_RUN136_2026-10-21.md`.
