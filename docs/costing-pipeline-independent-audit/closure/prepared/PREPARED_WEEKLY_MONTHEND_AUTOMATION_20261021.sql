@@ -66,7 +66,10 @@ BEGIN
     SELECT 1 FROM costing.v_costing_run_effective_designation d
       WHERE d.period_start=v_period AND d.designation='APPROVED'
   ) INTO v_prior_approved;
-  IF v_prior_approved THEN
+  -- Interim APPROVED snapshot is protected; at month-end allow a NEW
+  -- candidate for subsequent owner-controlled SUPERSEDE + final lock.
+  -- Weekly refreshes are still held while an interim approval exists.
+  IF v_prior_approved AND NOT v_is_month_end THEN
     RETURN QUERY SELECT v_period,v_cutoff,NULL::bigint,'APPROVED_RUN_PRESENT'::text;
     RETURN;
   END IF;
