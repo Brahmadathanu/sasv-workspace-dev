@@ -25,7 +25,6 @@ DECLARE
   v_period date;
   v_cutoff date;
   v_period_row costing.cost_periods%ROWTYPE;
-  v_prior_approved boolean;
   v_existing bigint;
   v_requested record;
   v_old_date date;
@@ -62,17 +61,7 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT EXISTS(
-    SELECT 1 FROM costing.v_costing_run_effective_designation d
-      WHERE d.period_start=v_period AND d.designation='APPROVED'
-  ) INTO v_prior_approved;
-  -- Interim APPROVED snapshot is protected; at month-end allow a NEW
-  -- candidate for subsequent owner-controlled SUPERSEDE + final lock.
-  -- Weekly refreshes are still held while an interim approval exists.
-  IF v_prior_approved AND NOT v_is_month_end THEN
-    RETURN QUERY SELECT v_period,v_cutoff,NULL::bigint,'APPROVED_RUN_PRESENT'::text;
-    RETURN;
-  END IF;
+  -- An approved interim run is immutable; it does not freeze an OPEN period.
   IF EXISTS (
     SELECT 1 FROM costing.costing_refresh_run r
      WHERE r.period_start=v_period AND r.overall_status IN ('QUEUED','RUNNING')
