@@ -64,3 +64,6 @@ No `supabase db push` / migration repair. Apply only through Supabase MCP `apply
 
 ### Production deployment checkpoint — 20 October 2026
 - CI-034 and CI-012 are now **LIVE**, migrations `20261020162105` and `20261020162117`; postchecks PASS. See `closure/PROGRAMME.md` for precise results, and `closure/evidence/CI012/` for byte-identical applied SQL copies. Earlier TB1–TB7, LB1, and DVS1 OFF already live. Held G2 still NOT DEPLOYED, the large audit branch still NOT MERGED, full costing refresh NOT EXECUTED, Sheets integration BLOCKED.
+
+
+- [21 Oct 2026 — Bounded G2 current-release closure](closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md): numerical/physical G2 PASS, prospective attestation future hardening; G6 and Sheets remain on hold.
