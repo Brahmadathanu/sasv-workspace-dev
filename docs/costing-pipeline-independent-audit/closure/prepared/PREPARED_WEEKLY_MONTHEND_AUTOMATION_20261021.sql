@@ -7,6 +7,7 @@
 -- No auto-approval, auto-lock, or destructive draft cleanup.
 -- Existing manual refresh RPC and privileges retained.
 --
+-- Transactional governance audit now included; isolated SQL tests and release approval still mandatory.
 -- Fail-closed orchestration for one schedule tick. Use the existing internal
 -- refresh requester only after a period has passed every eligibility check.
 CREATE OR REPLACE FUNCTION costing.rpc_request_scheduled_costing_refresh_internal()
@@ -27,6 +28,7 @@ DECLARE
   v_prior_approved boolean;
   v_existing bigint;
   v_requested record;
+  v_old_date date;
   v_is_month_end boolean := extract(day from costing.fn_india_business_date()) = 1;
   v_is_weekly boolean := extract(isodow from costing.fn_india_business_date()) = 1;
 BEGIN
@@ -85,6 +87,7 @@ BEGIN
     RETURN;
   END IF;
   IF v_cutoff <> v_period_row.valuation_date THEN
+    v_old_date := v_period_row.valuation_date;
     UPDATE costing.cost_periods cp
       SET valuation_date=v_cutoff,
           valuation_date_source='SYSTEM_DEFAULT',
@@ -92,9 +95,19 @@ BEGIN
           valuation_date_set_at=statement_timestamp(),
           updated_at=statement_timestamp()
       WHERE cp.period_start=v_period;
-    -- TODO before deployment: append corresponding governance audit row using
-    -- exact current schema and verify valuation trigger semantics.
-    RAISE EXCEPTION 'PREPARED_NOT_DEPLOYABLE: scheduled valuation audit insertion not yet implemented';
+    INSERT INTO costing.cost_period_governance_audit(
+      period_start,event_type,previous_status,new_status,
+      previous_valuation_date,new_valuation_date,
+      previous_valuation_date_status,new_valuation_date_status,
+      reason,approval_reference,event_source,actor_user_id,evidence_json,occurred_at
+    ) VALUES (
+      v_period,'VALUATION_DATE_CHANGED','OPEN','OPEN',
+      v_old_date,v_cutoff,'DRAFT','DRAFT',
+      'Scheduled preliminary costing valuation advance',
+      NULL,'CRON_SCHEDULED',NULL,
+      jsonb_build_object('scheduled_cutoff',v_cutoff,'policy','weekly_monthend','automatic_approval',false),
+      statement_timestamp()
+    );
   END IF;
   SELECT * INTO v_requested FROM costing.fn_request_costing_refresh_internal(
     v_period,'FULL_COSTING_REFRESH','CRON_SCHEDULED',
