@@ -62,3 +62,7 @@ User directed elimination of unnecessary costing-driver complexity and **hard re
 - **CI-032 G2 CURRENT RELEASE NUMERICAL GATE: CLOSED / PASS** after approved route161 correction, full run136 costing and seven-pool conservation. Do not reopen solely to demand uninstalled prospective route attestation.
 - **Future route-attestation hardening: NOT DEPLOYED**, stored as deliberately held nondeployable SQL; distinct follow-up for fresh route approvals, outside current-release G2. Must never be recorded as tested or installed.
 - **G6 SECURITY AND FORMAL RELEASE: OPEN/HOLD.** Regional review approval negative/concurrent evidence checks, RPC permissions, CI-019/CI-033, release provenance and owner designation separate. No Sheets writes. See `G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
+
+
+### 21 Oct — G6 formal owner acceptance CLOSED
+- **CI-024 / G6 current costing server release: CLOSED / OWNER APPROVED.** Run136 designation id7 APPROVED; run128 id6 REVOKED with historic id4 preserved; audit id17. 626 READY, one genuine regional review, zero blocked. Future optional stress testing/route attestation tracked independently and not represented as PASS. Sheets remains on hold awaiting owner's next instructions. Evidence: `G6_FINAL_OWNER_ACCEPTANCE_RUN136_2026-10-21.md`.
