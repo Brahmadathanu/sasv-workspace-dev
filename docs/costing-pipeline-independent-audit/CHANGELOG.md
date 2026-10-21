@@ -184,3 +184,6 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 
 
 - **2026-10-21:** Owner-approved bounded G2 numerical release closure documented; corrected route161 and run136 finance evidence PASS. Proposed prospective route attestation explicitly separated as uninstalled future hardening. G6 security/negative tests and designation outstanding; no Sheets writes. See `closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
+
+
+- **2026-10-21:** G6 **CLOSED / approved**: user-executed governed supersession run128→run136 (designation 7, governance audit 17), verified against live Supabase. Historical designation retained, one review retained; Sheets on hold for further instructions.
