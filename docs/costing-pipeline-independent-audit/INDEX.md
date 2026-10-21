@@ -67,3 +67,6 @@ No `supabase db push` / migration repair. Apply only through Supabase MCP `apply
 
 
 - [21 Oct 2026 — Bounded G2 current-release closure](closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md): numerical/physical G2 PASS, prospective attestation future hardening; G6 and Sheets remain on hold.
+
+
+- [G6 final owner approval — run136](closure/G6_FINAL_OWNER_ACCEPTANCE_RUN136_2026-10-21.md): governed supersession verified, audit17, server release closed; Sheets awaiting owner requirements.
