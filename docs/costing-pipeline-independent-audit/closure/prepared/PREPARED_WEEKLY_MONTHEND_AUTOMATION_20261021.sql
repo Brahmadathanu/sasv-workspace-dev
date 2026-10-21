@@ -45,6 +45,10 @@ BEGIN
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtextextended('cost-period-governance:'||v_period::text,0));
+  -- Weekly job may initialise the new current-month period; month-end may not.
+  IF NOT v_is_month_end THEN
+    PERFORM * FROM costing.rpc_ensure_cost_period(v_period);
+  END IF;
   SELECT * INTO v_period_row FROM costing.cost_periods
    WHERE period_start=v_period FOR UPDATE;
   IF NOT FOUND THEN
@@ -80,6 +84,20 @@ BEGIN
    ORDER BY r.id DESC LIMIT 1;
   IF v_existing IS NOT NULL THEN
     RETURN QUERY SELECT v_period,v_cutoff,v_existing,'EXISTING_RUN'::text;
+    RETURN;
+  END IF;
+  -- A failed automated refresh must be diagnosed; do not hide it behind a new draft.
+  IF EXISTS (
+    SELECT 1 FROM costing.costing_refresh_run r
+    WHERE r.period_start=v_period AND r.source_trigger='CRON_SCHEDULED'
+      AND r.overall_status='FAILED'
+      AND NOT EXISTS (
+        SELECT 1 FROM costing.costing_refresh_run later
+        WHERE later.period_start=v_period AND later.id>r.id
+          AND later.overall_status='SUCCESS'
+      )
+  ) THEN
+    RETURN QUERY SELECT v_period,v_cutoff,NULL::bigint,'UNRESOLVED_AUTOMATION_FAILURE'::text;
     RETURN;
   END IF;
   IF v_cutoff < v_period_row.valuation_date THEN
