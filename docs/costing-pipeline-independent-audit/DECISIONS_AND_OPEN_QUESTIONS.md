@@ -218,3 +218,7 @@ User requires all database-to-Google-Sheets integration to wait for server compl
 
 ### 21 Oct 2026 — G2 scoped release decision
 Owner authorised G2 numerical/physical correction closure on run136 evidence (seven pools conserved; stable 627 SKU values, 17 integrity checks). Future route-repetition attestation remains held and uninstalled, separately tracked as future hardening; it is not a prerequisite for *current release G2 numerical acceptance*. G6 independent safeguards, formal designation and Sheets remain separate HOLD; see `closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
+
+
+### 21 Oct — G6 owner acceptance and supersession completed
+Owner executed governed supersession in their SQL session: run136 designated APPROVED, run128 superseded with historic approval preserved; audit17. Verified against live database. Costing server G6 release closed; one regional marketing SKU review preserved. Unexecuted negative/concurrency tests future hardening. Additional requirements to be supplied before Sheets, which stays paused. `closure/G6_FINAL_OWNER_ACCEPTANCE_RUN136_2026-10-21.md`.
