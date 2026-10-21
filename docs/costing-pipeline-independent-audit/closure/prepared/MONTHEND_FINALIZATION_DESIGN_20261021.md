@@ -1,0 +1,5 @@
+# Month-end owner finalization design — NOT DEPLOYED
+
+At owner approval of the final month-end run, verify that run and governed period have matching last-calendar-day valuation dates, the period is OPEN/DRAFT, and the run has zero unresolved reviews. Take the existing period governance advisory lock. Use the existing governed APPROVE or SUPERSEDE procedure, followed by the existing governed LOCK procedure, inside one database transaction. If either step fails, rollback both. Do not perform any cron auto-approval or cron auto-lock. Keep interim approvals unlocked; preserve run136 (October 20 valuation) and historical run128. An already approved month-end run should use the existing governed lock transaction, not be reapproved. Restrict invocation to authenticated costing owner and verify effective ACLs; no PUBLIC grants. Validate any final wrapper on isolated PostgreSQL prior to release.
+
+The prepared scheduler now has a transactional period valuation audit on change, but still requires explicit PostgreSQL verification and migration review before cron activation. The existing jobs 60 and 61 remain DISABLED. No production mutation occurred.
