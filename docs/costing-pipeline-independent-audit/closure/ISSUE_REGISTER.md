@@ -56,3 +56,9 @@ User directed elimination of unnecessary costing-driver complexity and **hard re
 - **G1/G6 SKU-allocation reconciliation new OPEN finding:** product manufacturing labour ₹706,203 conserved, but SKU allocation ₹706,117.11, residual **₹85.89** across product IDs 824,275,278,277,260 due to sub-unit SKU allocation shares. Diagnose allocation foundation; no balancing plug.
 - **Quantity-driver corrective acceptance DONE for 20 Oct:** 56 prior accepted driver assumptions (unchanged source fields) plus Product1341 SKU1771 policy7 0.725 monthly units explicitly approved; fresh run131 57/57 READY and 627/627 SKU DL/POH READY. This does NOT accept 605 material reviews or run131 itself.
 - Canonical source: `LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md`. User explicitly blocked ALL database-to-Google-Sheets integration until server completion plus independent numerical acceptance.
+
+
+### 21 October 2026 — G2 bounded closure / G6 release separation
+- **CI-032 G2 CURRENT RELEASE NUMERICAL GATE: CLOSED / PASS** after approved route161 correction, full run136 costing and seven-pool conservation. Do not reopen solely to demand uninstalled prospective route attestation.
+- **Future route-attestation hardening: NOT DEPLOYED**, stored as deliberately held nondeployable SQL; distinct follow-up for fresh route approvals, outside current-release G2. Must never be recorded as tested or installed.
+- **G6 SECURITY AND FORMAL RELEASE: OPEN/HOLD.** Regional review approval negative/concurrent evidence checks, RPC permissions, CI-019/CI-033, release provenance and owner designation separate. No Sheets writes. See `G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
