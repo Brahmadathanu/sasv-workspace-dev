@@ -187,3 +187,7 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 
 
 - **2026-10-21:** G6 **CLOSED / approved**: user-executed governed supersession run128→run136 (designation 7, governance audit 17), verified against live Supabase. Historical designation retained, one review retained; Sheets on hold for further instructions.
+
+
+## 21 October 2026 — Prospective approval policy ACTIVE
+Owner adopted mandatory **zero unresolved reviews** before future run approval. Live `costing.fn_w2_run_checks(bigint,text)` changed only the former unconditional `REVIEW_REQUIRED_RECORDED` pass to `NO_UNRESOLVED_REVIEWS` requiring `v_review=0`; diagnostic now explicitly requires zero. Both APPROVE and SUPERSEDE paths invoke this shared eligibility gate. Applied DDL captured byte-for-byte at `closure/evidence/G6/G6_APPLIED_ZERO_UNRESOLVED_APPROVAL_GUARD_20261021.sql`; live pg_get_functiondef md5 `9ee598acf646fdc2a04395154eea7b46`. Read-only verification on run136 shows one unresolved review => test FAIL as expected, but its historical approved designation id7 remains intact, run128 revoked id6 and earlier approval id4 preserved. **Prospective only; no retroactive revoke.** Governed acceptance of an estimate must be recorded before a subsequent successful refresh produces fully resolved effective cost-sheet statuses; do not falsify raw evidence. No refresh or Sheets integration performed.
