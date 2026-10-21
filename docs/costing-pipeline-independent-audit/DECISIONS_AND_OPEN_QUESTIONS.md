@@ -214,3 +214,7 @@ User requires all database-to-Google-Sheets integration to wait for server compl
 
 ### 20 October — Production deployment disposition
 - Applied reviewed CI034 valuation-anchored sales allocation status and CI012 effective-date guard under user's request to place prepared costing-server work live; postchecks PASS. G2 governed route-repetition draft explicitly HELD, not eligible for deployment; server work and refresh acceptance remain open. Existing DVS1 foundation is live with activation OFF; no demand-method switch approved. Existing approved run snapshots preserved. No Google Sheets integration until newly run and fully reconciled costing refresh is accepted.
+
+
+### 21 Oct 2026 — G2 scoped release decision
+Owner authorised G2 numerical/physical correction closure on run136 evidence (seven pools conserved; stable 627 SKU values, 17 integrity checks). Future route-repetition attestation remains held and uninstalled, separately tracked as future hardening; it is not a prerequisite for *current release G2 numerical acceptance*. G6 independent safeguards, formal designation and Sheets remain separate HOLD; see `closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
