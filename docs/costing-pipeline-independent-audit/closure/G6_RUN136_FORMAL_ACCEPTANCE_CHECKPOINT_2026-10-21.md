@@ -26,3 +26,7 @@
 
 ## Next
 Complete the PostgreSQL isolated negative/permission/concurrency verification of active functions; resolve G2 attestation file and deployment status; update status register and secure one explicit G6 acceptance and run136 designation decision. Do not rerun merely to repeat identical monetary results.
+
+
+## 21 Oct owner decision addendum (supersedes G2 hold classification above for release)
+Current-release **G2 numerical gate CLOSED / PASS**: route correction and runs135/136 financial verification accepted. Prospective G2 confirmation remains NONDEPLOYED FUTURE HARDENING; not a current G6 prerequisite solely by its absence. Remaining G6 independent security, negative/concurrency and release-provenance checks and explicit owner designation **STILL HOLD**. See `G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`. Sheets BLOCKED.
