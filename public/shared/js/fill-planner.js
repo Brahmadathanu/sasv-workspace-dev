@@ -972,7 +972,13 @@ elRunBtn.addEventListener("click", async () => {
     });
 
     // Optional: fetch SKU meta for labels and the UI table only (not used for MOS math)
-    const skuMap = await fetchSkuInfo(skuIds);
+    // Urgent SKUs may be fully deducted and absent from the remaining-bulk plan.
+    // Include them in the display-label lookup without changing plan calculations.
+    const urgentSkuIds = [...document.querySelectorAll(".emg-qty")]
+      .filter((input) => Number(input.value) > 0)
+      .map((input) => Number(input.dataset.skuId))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const skuMap = await fetchSkuInfo([...new Set([...skuIds, ...urgentSkuIds])]);
 
     // If debug diagnostics are available, surface a concise server-side score log
     if (planDbg && planDbg.length) {
