@@ -16,15 +16,15 @@ Use APPROVED run140 valuation 2026-10-22 as current baseline, then subsequently 
 
 - [x] 02b. Investigate meaning and data lineage of Prime Cost, formula, separate snapshot and three actual SKU examples (live verified). Retain existing stage for now.
 
-- [ ] 02c. User comprehension/review of component inventory; freeze cost-component naming and desired master columns before view reconstruction.
+- [x] 02c. User comprehension/review of component inventory; freeze cost-component naming and desired master columns before view reconstruction.
 
-- [ ] 03a. Inspect all existing price-revision-oriented views, fields, lineage, historical contamination and dependencies. Verify there is 1 latest-approved logical feed.
+- [x] 03a. Inspect all existing price-revision-oriented views, fields, lineage, historical contamination and dependencies. Verify there is 1 latest-approved logical feed.
 
-- [ ] 03b. Replace incorrectly named/incomplete views with minimal governed source(s), versioned SQL migration, dependency-aware removal of obsolete objects; verify explicit approved run identity, all 627 SKUs and IK/OK derived current pricing fields.
+- [x] 03b. Replace incorrectly named/incomplete views with minimal governed source(s), versioned SQL migration, dependency-aware removal of obsolete objects; verify explicit approved run identity, all 627 SKUs and IK/OK derived current pricing fields.
 
-- [x] 04. Select dedicated Google workbook SASV - PRICE REVISION PROPOSAL rather than old SASV - TEMPORARY WORKS. Historical provisional first tab contains run136 and is NOT current master. Workbook ID 1K9u4YJ8qUfDcRfmTMRQDl3Ed24eItcm_0UW-jQhS21Q.
+- [x] 04. Select dedicated Google workbook SASV - PRICE REVISION PROPOSAL rather than old SASV - TEMPORARY WORKS. Historical run136 tab removed; workbook retains MASTER DATA REFERENCE and MASTER DATA only. Workbook ID 1K9u4YJ8qUfDcRfmTMRQDl3Ed24eItcm_0UW-jQhS21Q.
 
-- [ ] 05. Create/update compact READ-ONLY STATIC MASTER tab populated from latest approved database costing master and source current discount and scheme. Include product/SKU identifiers/hierarchy, essential costing totals, regional MRP and rate policy context; verify live row counts and sample data.
+- [x] 05. Create/update compact READ-ONLY STATIC MASTER tab populated from latest approved database costing master and source current discount and scheme. Include product/SKU identifiers/hierarchy, essential costing totals, regional MRP and rate policy context; verify live row counts and sample data.
 
 - [ ] 06. Create Sheet-managed MARKETING PROMOTIONS MASTER for discount/scheme rules, applicable at global, group, subgroup, product and optionally SKU scope, for IK/OK. In separate working view present both database CURRENT discount/scheme and sheet PROPOSED discount/scheme with auditable precedence and effective dates. Do not automatically rewrite database commercial policies.
 
@@ -48,6 +48,12 @@ Sample run140 amounts per SKU: SKU191 RM33.4281212121 PM2.2794274 material35.707
 
 Why snapshot exists: stage-03 validated handoff, calculation lineage, run-specific controlled status; whether it could eventually be consolidated is not in the current scope and must not be changed during price revision.
 
-## Current next gate
+## Current next gate — Stage 06A audit, then Stage 06B build
 
-User to review Prime Cost understanding and component list; next planned task Stage03 price revision view audit. No Google Sheet changes until master view approved.
+Steps 01–05 completed and verified through Step140 in separate implementation reports. 627 active SKUs, latest approved run140. MASTER DATA references only canonical Supabase view; finance-friendly category/subcategory/group/subgroup, Item terminology, regional eligibility, last Refreshed At (IST); UTC remains in database, not Sheet.
+
+**User-approved workbook architecture (binding):** Database-sourced MASTER DATA and reference are controlled static imports. Subsequent tabs are independent Google Sheets working-model components. For each editable commercial parameter, display baseline/current DB value as a reference (via in-workbook MASTER DATA where available), with a separate static initialized, editable WORKING column. All downstream calculation and IK/OK proposal tabs MUST use WORKING columns exclusively, never a direct Supabase connection or reference-only columns. Importing new baseline must not overwrite working entries. Workbook must never write policies back to DB implicitly. Define explicit blank-vs-zero rules, dates, regional eligibility, scope precedence, QA and approval before calculating proposals.
+
+**06A preliminary read-only audit (2026-10-22):** canonical approved run140 627 rows, 604 have discount 0, 20 have 33%, 2 have 32%, 1 has 40%; no regional discount differences. All 627 selected scheme snapshots presently have paid 1/free 0, no IK/OK difference. This is not necessarily a complete description of live commercial marketing schemes: investigate scheme_policy_rules, scheme_master and sku_scheme_policy source and effective-date/precedence before using as proposed commercial baseline. No commercial database changes made.
+
+Proceed by verifying discount and scheme lineage, differentiating current selected approved snapshot vs potentially later live policies. Only then design Marketing Promotions Master (Stage06B).
