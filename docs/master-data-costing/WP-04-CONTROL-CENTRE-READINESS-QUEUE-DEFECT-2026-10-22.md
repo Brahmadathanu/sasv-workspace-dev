@@ -1,0 +1,9 @@
+# Costing Suite WP-04 — Control Centre readiness/action-queue defect (22 October 2026)
+
+Status: OPEN. This belongs to the separate Costing Suite programme, NOT the price revision programme.
+
+Observed user screenshot: Oct 2026 valuation 22 Oct; dashboard Costing Readiness 626/627, Blocked 0, Review 1, Workbench Actions 824. Workbench shows broad RM/PM stale-rate and fallback reviews (e.g. Thannikka Thodu affects 152 SKUs), which are not 824 unready cost sheets. Run139 formal W2 status independently 625 READY, 2 REVIEW_REQUIRED, zero BLOCKED; the dashboard's data source or selected run needs verification before claiming an arithmetic bug.
+
+Requested design: show authoritative refresh_run_id, valuation_date, approved/draft designation and refreshed timestamp in every status view; distinguish current approved run136 from latest successful run139. Separate formal approval blockers, SKU-level unresolved reviews, and informational/routine material warnings. Explain material action count vs SKU readiness count. Provide across-queue search by stock_item_id, material name, SKU/product and direct filters/deep links to internal-source review stock item1080 Balasarvangam SG Cap/SKU54 and IK marketing evidence SKU1771 Brihat Chagaladi Ghritham. Secure review UI must display current evidence vs previous evidence and route to actual authenticated RPCs. Do not relax W2 readiness policy. Test authenticated live PWA desktop/portrait before closure; update WP-04, WP-05 and CHANGELOG when fixed.
+
+Source: user screenshot 2026-10-22, live run139 W2 checks, database material/regional review trace. No code change performed here.
