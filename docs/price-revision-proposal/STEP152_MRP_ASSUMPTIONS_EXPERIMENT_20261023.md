@@ -1,0 +1,14 @@
+# Step 152 — Sparse MRP Assumptions and independent regional evaluation (23 Oct 2026)
+
+User approved addition of `MRP ASSUMPTIONS` as an editable, sparse SKU-based experimentation tab, reference columns first, human-entry columns last; extend existing promotional viability tabs after Profit at Recommended MRP and Rounded Viability.
+
+Workbook ID: `1K9u4YJ8qUfDcRfmTMRQDl3Ed24eItcm_0UW-jQhS21Q`. Added `MRP ASSUMPTIONS` sheet ID 1206261005 at index5, 700 rows, 8 columns:
+A Item [ARRAYFORMULA lookup by F SKU ID]; B Pack Size [formula]; C UOM [formula]; D Existing MRP IK (₹) [formula]; E Existing MRP OK (₹) [formula]; F SKU ID [manual exact-range dropdown from MASTER DATA D2:D628]; G Assumed MRP IK (₹) [manual positive number or blank]; H Assumed MRP OK (₹) [manual positive number or blank].
+Formula columns blue; entry columns normal. No static input rows populated after testing.
+
+Extended `PROMOTIONAL VIABILITY - IK` and `PROMOTIONAL VIABILITY - OK` with six new formula-only blue-font columns AL:AQ following AK Rounded Viability:
+AL Assumed MRP (₹); AM Evaluation MRP (₹); AN Profit at Evaluation MRP (₹); AO Selected Objective Achieved at Evaluation (dynamic % or ₹); AP Evaluation Viability; AQ Evaluation MRP Change from Existing (₹). All six have one ARRAYFORMULA in row2 per region, no user entries. AL exact SKU match to assumptions by F and region-specific G/H, detects duplicate assumption SKU ID with displayed `DUPLICATE` and downstream CHECK INPUT; blank assumption falls back to existing MRP in J. Formula profit recomputes from evaluation MRP, independent of existing/current viability and independently derived minimum required MRP and proposed price recommendations. AP checks target from selected region objective, AQ vs existing approved regional MRP. User-entered assumed MRP not rounded, allowing arbitrary testing.
+
+QA read from actual Google workbook: temporary assumption SKU1: IK approved95 -> assumed140, profit75.16487979, objective53.68919985%, change45; OK approved115 -> assumed150, profit84.46849881, objective56.31233254%, change35. The test inputs were removed and blank fallback confirmed (IK evaluation95, profit33.16487979; OK evaluation115, profit51.80183214). Across each region all 525 SKUs retained with zero formula errors; with blank assumptions, evaluation PASS/BELOW match original IK 518/7 and OK 517/8. No database modifications, user-proposed discounts/schemes or objectives changed.
+
+Remaining considerations: the F dropdown validates SKU membership but does not itself prevent duplicate SKU IDs; duplicate detection is fail-closed in viability. Sparse assumption table limited to rows2:700, master SKU dropdown limited to initial rows2:628. If master dataset grows, extend validation/master references deliberately. Protect formula-only tabs if desirable in a later gate, and continue objective scenario validation.
