@@ -497,9 +497,27 @@ assert(controlSrc.includes("createSignedUrl") || apiSrc.includes("createSignedUr
 assert(!/correctAll|correct all sources|auto.?correct/i.test(controlSrc), "no bulk/auto source correction");
 const STOP_BROWSER_TOOLTIP =
   "Stop Browser — closes the dedicated browser; does not log out of e-Aushadhi.";
-// Canonical Stop wording intentionally uses an em dash. Exclude that approved
-// literal before scanning for other mojibake-prone punctuation.
-const uiLiteralsWithoutCanonicalStop = (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("");
+const QC_PREP_VERIFIED_NOTE = "Verified — editing is not available in C1.";
+// Canonical Stop wording, the frozen C1 verified-state sentence, and the C1b
+// checklist / defaults sentences intentionally use an em dash. Exclude those
+// approved literals before scanning for other mojibake-prone punctuation.
+const uiLiteralsWithoutCanonicalStop = [
+  "C2 — Lab report PDF uploaded (PDF, ≤ 2 MB)",
+  "B3 — Evidence governance accepted",
+  "B4 — QC portal readiness confirmed",
+  "Defaults filled — review every value before saving.",
+  " — not done",
+  "QC Register: ${qcPrepStatusText(state.qcPrepServer, state.qcPrepLoading)} — ${openChecks} form checks open. ${b1}. B2: Server byte check: ${byte}. B4 readiness: ${readinessLabel}.",
+  "This marks the QC draft as source-verified against V${version} (SHA-256 ${model.sha12}…). Any later edit will require verifying again. Continue?",
+  "${label}: Shown — ${shown}",
+  "${label}: Not shown — note: ${shown}",
+  "${text.slice(0, 60)}…",
+  "Suggested — confirm against the PDF",
+  "Reopened — verify again",
+].reduce(
+  (text, literal) => text.split(literal).join(""),
+  (controlSrc + htmlSrc).split(STOP_BROWSER_TOOLTIP).join("").split(QC_PREP_VERIFIED_NOTE).join(""),
+);
 assert(
   !/[·…←→↑↓—]/.test(uiLiteralsWithoutCanonicalStop) &&
     !/Â·|â€/.test(controlSrc + htmlSrc),

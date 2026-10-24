@@ -622,6 +622,26 @@ export async function removeApprovedProductCopyObject(path) {
   }
 }
 
+export async function uploadQcReportObject(path, file) {
+  const { data, error } = await supabase.storage
+    .from(EVIDENCE_BUCKET)
+    .upload(path, file, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+  throwIfRpcError("storage.upload", error);
+  return data;
+}
+
+export async function removeQcReportObject(path) {
+  const { error } = await supabase.storage.from(EVIDENCE_BUCKET).remove([path]);
+  if (error) {
+    console.error("[eaushadhi] storage.remove failed", error);
+    return false;
+  }
+  return true;
+}
+
 export async function signedApprovedProductCopyUrl(path, expiresIn = 60) {
   const { data, error } = await supabase.storage
     .from(EVIDENCE_BUCKET)

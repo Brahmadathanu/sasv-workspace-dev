@@ -8,6 +8,7 @@ The server is the authoritative preparation and governance layer. The portal is 
 
 ## Architecture and execution ownership
 - ChatGPT is the programme architect across all work packs.
+- WP-07 driver since 2026-10-10 (user-authorised): Jarvis acts in ChatGPT's planning/server/audit role; ChatGPT is updated after milestones (see CHANGELOG 2026-10-11).
 - ChatGPT owns server/database planning and implementation.
 - Cursor/Codex are client implementation workers only.
 - Cursor/Codex must never independently redefine server contracts, lifecycle rules, work-pack scope, cross-work-pack dependencies, or architecture.
@@ -50,7 +51,7 @@ Each stage must maintain its own readiness/execution lifecycle. Overall product 
 | WP-04 | Product Details Preparation & Portal Execution | PURPLE | 75% | Generalize and close bulk-safe Product Details stage |
 | WP-05 | Composition Data Completion, Verification & UX | YELLOW | 45% | Frozen Composition READY v1 contract now governs WP-06 input; continue source-path/manual-entry and representative acceptance work |
 | WP-06 | Composition Portal Execution | DONE | 100% | Closed: Product 262 representative lifecycle proven end-to-end and completed state fail-closed |
-| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | G0–G2 complete; server QC lifecycle live/fail-closed; prepare representative Product 262 canonical QC data before client/portal execution |
+| WP-07 | QC Register Preparation & Portal Execution | YELLOW | 50% | B5.1 applied 20261013155440: QC labName = laboratory name, not portal id. D7.1 on `feat/wp07-s2c-c1-qc-preparation-ui`: the client exact-matches that name, reads `TotalCount` before deciding list coverage, and rereads `GetqcData` raw dates. Native Save stays disabled. Next: operator runs the read-only portal check. No live Save, Submit, or arm. Canonical stability-study promotion and trusted document verification stay parked |
 | WP-08 | Overall Readiness, Audit & Progress Control | YELLOW | 15% | Define truthful derived overall status model |
 | WP-09 | Operational Handover & Colleague Enablement | BLOCKED | 0% | Opens only after production pipeline acceptance |
 | WP-10 | Acceptance, Stabilisation & Programme Closure | BLOCKED | 0% | Final regression/usability/closure |
@@ -67,6 +68,7 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Inherited-readiness proof: Sujanapriya 1,477/1,477 lines across 85/85 products ready; Vaidyapriya 0/32 lines across 0/10 products ready.
 - Product 262 / Karpooradi Thailam lines 929–931 are Reference-ready through global governance with no per-line Reference authority.
 - Composition READY v1 input contract is frozen in WP-05 and is the only accepted server input boundary for WP-06.
+- WP-07 B4 is live. Readiness is derived and fail-closed, built on the B3.1 recheck. States: NOT_READY / READY_PROVISIONAL / READY; READY is unreachable until legal lab identity and portal eligibility are verified by a future gate. B4 readiness live as `20261012023035_wp07_b4_qc_readiness_governance` (repository file byte-exact, md5 `6d248a81da6750dc2b4f2000581c8f29`). B3.1 remains `20261011165858_wp07_b3_1_qc_source_reopen` (md5 `2a87e4eb3de1341937580febe29d2bad`). B3 remains `20261011135744_wp07_b3_qc_evidence_binding` (md5 `18671148f501ee69b031a5df913ffadb`). B2 remains accepted for V01 VERIFIED_BYTES. **READY_PROVISIONAL counts as ready for e-Aushadhi portal filling in B5** (operator decision 2026-10-12). It still does not permit canonical stability-study promotion. Legal laboratory identity and portal eligibility remain unverified, and the B5 filling log must record that the laboratory was provisional. Canonical stability-study promotion, portal entry, and merges stay parked. B5 R2.4 live as `20261013095629_wp07_b5_r2_qc_prep_run` (filling contract; FULLY_VERIFIED deferred pending trusted portal fetch). Next: operator corrects facts (distinct editor), verifies the Others mapping, then D7 filling UI. Post-deploy gates: G-CONC (row-lock serialisation passed live, rolled back); G-STORAGE-API (operator check pending).
 - Product 262 governed Ingredient Forms are reconciled and audited: line 929 Ajamōdā = LIQUID KWATH / 60, line 930 Karpūra = SOLID / 66, line 931 Kēram = OIL / 61; all remain VERIFIED at line row_version 8 and product workflow row_version 11.
 - Product 262 live portal Composition now contains matched lines `[929,930,931]` with missing `[]`; Kēram line 931 is durably `ROW_VERIFIED` / `CONFIRMED`.
 - Native Composition list/reread/save semantics, row identity, Reference value, unit value, first-line bootstrap and corrected Type→Reference→names fill order are proven.
@@ -83,6 +85,7 @@ Work-pack percentages and the overall percentage are tracking indicators. They m
 - Final-stage client activation is merged at `01ce609df1ca7dc2082a6ecc81e877b1cb15c1d0`. The exact-main final-stage preflight and bounded server-side transition completed successfully: planner `ALREADY_COMPLETE`, exact matched IDs `[929,930,931]`, no missing/conflicts/duplicates/extras/blockers, no portal row mutation, stage `PORTAL_VERIFIED` at row_version 14, workflow row_version unchanged at 11, and durable `COMPOSITION_STAGE_PORTAL_VERIFIED` audit evidence.
 - WP-06 representative regression passed on `c719dacff9d8031ece3a892333db83d25bf164fd`: syntax and Composition execution/offline-plan/worker-contract/IPC/review-RPC smoke suites all passed; completed Product 262 is fail-closed against row-entry and repeat final-stage verification; no live or repository mutation occurred.
 - WP-06 closure audit passed. WP-06 is closed and downstream-safe. QC Register and final Submit remain separate unopened gates.
+- WP-07 (2026-10-11): S1 merged (PR #47, `980cfeed`); B1 merged (PR #57, `2c4496e6`); S2C protocol-options RPC live as `20261010125640` (draft PR #59, unmerged); M-LAB portal laboratory vocabulary live as `20261010180112`; C1/C1b client on `feat/wp07-s2c-c1-qc-preparation-ui` at `5026733` with operator read-only acceptance PASS; Product 262 QC preparations = 0; QC READY=false.
 
 ## Mandatory chat discipline
 Every substantive chat response ends with a short cumulative recap:
@@ -130,3 +133,6 @@ For every licensed product in scope, the server must unambiguously determine:
 - every portal mutation has server-side progress/audit evidence.
 
 Therapeutic-guide development may reuse the canonical data later, but it must not expand the e-Aushadhi closure scope.
+
+## Parked items
+- Scale-out: many products plus a Google Sheets import for QC facts, to be planned.

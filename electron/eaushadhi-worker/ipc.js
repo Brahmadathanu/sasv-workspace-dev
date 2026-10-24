@@ -4,7 +4,24 @@ const { createEaushadhiWorker } = require("./index");
 const { WorkerError, ERROR_KINDS, workerError } = require("./errors");
 const { callWorkerRpc } = require("./server-client");
 const { readQcPreparation } = require("./qc-preparation-read");
+const {
+  loadQcProtocolOptions,
+  loadQcLaboratoryOptions,
+  readQcPreparations,
+  reviewQcPreparation,
+  saveQcPreparation,
+  verifyQcPreparationSource,
+  reopenQcPreparation,
+  recheckQcEvidence,
+  readQcReadiness,
+  acceptQcFact,
+  correctQcFactAcceptance,
+  verifyQcProtocolMapping,
+  readQcFillPreflight,
+  recordQcLabDecision,
+} = require("./qc-preparation-workspace");
 const { readQcReport } = require("./qc-report-read");
+const { listQcReports, reserveQcReport, registerQcReport, verifyQcReportBytes } = require("./qc-report-upload");
 const { validateProductId, validateAccessToken, publicStatus } = require("./validate");
 const {
   assertAllowedEaushadhiRenderer,
@@ -35,15 +52,36 @@ const CHANNELS = Object.freeze({
   RECHECK_LOGIN: "eaushadhi-worker:recheck-login",
   QC_PREPARATION_READ: "eaushadhi-worker:qc-preparation-read",
   QC_REPORT_READ: "eaushadhi-worker:qc-report-read",
+  QC_PROTOCOL_OPTIONS: "eaushadhi-worker:qc-protocol-options",
+  QC_LABORATORY_OPTIONS: "eaushadhi-worker:qc-laboratory-options",
+  QC_PREPARATION_WORKSPACE_READ: "eaushadhi-worker:qc-preparation-workspace-read",
+  QC_PREPARATION_REVIEW: "eaushadhi-worker:qc-preparation-review",
+  QC_PREPARATION_SAVE: "eaushadhi-worker:qc-preparation-save",
+  QC_PREPARATION_VERIFY_SOURCE: "eaushadhi-worker:qc-preparation-verify-source",
+  QC_PREPARATION_REOPEN: "eaushadhi-worker:qc-preparation-reopen",
+  QC_EVIDENCE_RECHECK: "eaushadhi-worker:qc-evidence-recheck",
+  QC_READINESS: "eaushadhi-worker:qc-readiness",
+  QC_FACT_ACCEPT: "eaushadhi-worker:qc-fact-accept",
+  QC_FACT_CORRECT: "eaushadhi-worker:qc-fact-correct",
+  QC_PROTOCOL_MAPPING_VERIFY: "eaushadhi-worker:qc-protocol-mapping-verify",
+  QC_FILL_PREFLIGHT: "eaushadhi-worker:qc-fill-preflight",
+  QC_PREP_RUN: "eaushadhi-worker:qc-prep-run",
+  QC_LAB_DECISION: "eaushadhi-worker:qc-lab-decision",
+  QC_REPORT_LIST: "eaushadhi-worker:qc-report-list",
+  QC_REPORT_RESERVE: "eaushadhi-worker:qc-report-reserve",
+  QC_REPORT_REGISTER: "eaushadhi-worker:qc-report-register",
+  QC_REPORT_VERIFY_BYTES: "eaushadhi-worker:qc-report-verify-bytes",
 });
 
 function errorPayload(error) {
   const kind = error?.kind || ERROR_KINDS.CRASH;
-  return {
+  const payload = {
     ok: false,
     errorKind: kind,
     message: error?.message || "Worker failed",
   };
+  if (error?.details) payload.details = error.details;
+  return payload;
 }
 
 function withRendererGuard(handler) {
@@ -268,6 +306,316 @@ function registerEaushadhiWorkerIpc({ app, ipcMain, BrowserWindow, shell }) {
         productId,
         accessToken,
         callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PROTOCOL_OPTIONS,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return loadQcProtocolOptions({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_LABORATORY_OPTIONS,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return loadQcLaboratoryOptions({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREPARATION_WORKSPACE_READ,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return readQcPreparations({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREPARATION_REVIEW,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return reviewQcPreparation({
+        productId,
+        accessToken,
+        payload: payload?.payload,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREPARATION_SAVE,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return saveQcPreparation({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId ?? null,
+        expectedRowVersion: payload?.expectedRowVersion,
+        payload: payload?.payload,
+        lastReadStatus: payload?.lastReadStatus ?? null,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_LIST,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return listQcReports({
+        productId,
+        accessToken,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_RESERVE,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return reserveQcReport({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        forceNew: payload?.forceNew === true,
+        fileSize: payload?.fileSize,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_REGISTER,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return registerQcReport({
+        productId,
+        accessToken,
+        reservationId: payload?.reservationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        objectId: payload?.objectId,
+        originalFileName: payload?.originalFileName,
+        sha256: payload?.sha256,
+        fileSize: payload?.fileSize,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREPARATION_VERIFY_SOURCE,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return verifyQcPreparationSource({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        attest: payload?.attest === true,
+        factEvidence: payload?.factEvidence,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREPARATION_REOPEN,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return reopenQcPreparation({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        attest: payload?.attest === true,
+        reasonNote: payload?.reasonNote,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_EVIDENCE_RECHECK,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return recheckQcEvidence({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_READINESS,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return readQcReadiness({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_FACT_ACCEPT,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return acceptQcFact({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        factKey: payload?.factKey,
+        basisCategory: payload?.basisCategory,
+        basisNote: payload?.basisNote,
+        attest: payload?.attest === true,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_FACT_CORRECT,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return correctQcFactAcceptance({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        supersedesAcceptanceId: payload?.supersedesAcceptanceId,
+        basisCategory: payload?.basisCategory,
+        basisNote: payload?.basisNote,
+        correctionReason: payload?.correctionReason,
+        attest: payload?.attest === true,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PROTOCOL_MAPPING_VERIFY,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return verifyQcProtocolMapping({
+        productId,
+        accessToken,
+        mappingId: payload?.mappingId,
+        expectedStatus: payload?.expectedStatus,
+        expectedPortalOptionId: payload?.expectedPortalOptionId,
+        mappingReason: payload?.mappingReason,
+        attest: payload?.attest === true,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_FILL_PREFLIGHT,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return readQcFillPreflight({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_PREP_RUN,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return worker.executeQcPrepRun(productId, accessToken, {
+        action: payload?.action,
+        preparationId: payload?.preparationId,
+        userConfirmed: payload?.userConfirmed === true,
+        provisionalAck: payload?.provisionalAck === true,
+        provisionalNote: payload?.provisionalNote,
+        derivedAck: payload?.derivedAck === true,
+        derivedNote: payload?.derivedNote,
+        filename: payload?.filename,
+        bytes: payload?.bytes,
+        resolution: payload?.resolution,
+        note: payload?.note,
+        attest: payload?.attest === true,
+        runId: payload?.runId,
+        fingerprint: payload?.fingerprint,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_LAB_DECISION,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return recordQcLabDecision({
+        productId,
+        accessToken,
+        preparationId: payload?.preparationId,
+        expectedRowVersion: payload?.expectedRowVersion,
+        action: payload?.action,
+        supersedesLabBasisId: payload?.supersedesLabBasisId ?? null,
+        basisType: payload?.basisType,
+        documentReference: payload?.documentReference,
+        rationale: payload?.rationale,
+        attest: payload?.attest === true,
+        callRpc: callWorkerRpc,
+      });
+    }),
+  );
+
+  ipcMain.handle(
+    CHANNELS.QC_REPORT_VERIFY_BYTES,
+    withRendererGuard(async (_event, payload) => {
+      const productId = validateProductId(payload?.productId);
+      const accessToken = validateAccessToken(payload?.accessToken);
+      return verifyQcReportBytes({
+        productId,
+        accessToken,
+        reservationId: payload?.reservationId,
       });
     }),
   );

@@ -147,6 +147,14 @@ body.sasv-eaushadhi-review .icon-btn.with-label.primary {
   color: var(--sasv-surface, #fff);
 }
 
+body.sasv-eaushadhi-review button.primary:disabled,
+body.sasv-eaushadhi-review .icon-btn.with-label.primary:disabled {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: #f8fafc;
+  opacity: 1;
+}
+
 body.sasv-eaushadhi-review .icon-btn.with-label:disabled,
 body.sasv-eaushadhi-review button:disabled {
   opacity: 0.65;
@@ -594,6 +602,12 @@ body.sasv-eaushadhi-review .form-span-2 {
   grid-column: 1 / -1;
 }
 
+body.sasv-eaushadhi-review .qc-prep-lab-select,
+body.sasv-eaushadhi-review .qc-prep-block {
+  display: block;
+  width: 100%;
+}
+
 body.sasv-eaushadhi-review .section-card {
   border: 1px solid var(--sasv-border);
   border-radius: var(--sasv-radius-md);
@@ -718,6 +732,16 @@ body.sasv-eaushadhi-review .ea-autosave.is-failed,
 body.sasv-eaushadhi-review .ea-autosave.is-stale {
   color: var(--sasv-danger);
   font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .ea-autosave.is-verified {
+  color: var(--sasv-success);
+  font-weight: var(--sasv-fw-semibold);
+}
+
+body.sasv-eaushadhi-review .qc-report-sha {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
 }
 
 body.sasv-eaushadhi-review .ea-lock-note {
@@ -1752,5 +1776,31 @@ body.sasv-eaushadhi-review .ea-change-item dd.is-after {
   body.sasv-eaushadhi-review .ea-quantity-grid,
   body.sasv-eaushadhi-review .ea-change-pair {
     grid-template-columns: 1fr;
+  }
+}
+
+body.sasv-eaushadhi-review .qc-prep-workspace > summary {
+  cursor: pointer;
+}
+
+body.sasv-eaushadhi-review .qc-prep-workspace fieldset {
+  border: 1px solid var(--sasv-border);
+  border-radius: var(--sasv-radius-sm);
+  margin: 0;
+  padding: var(--sasv-space-2);
+}
+
+body.sasv-eaushadhi-review #qcFillFieldScroll {
+  overflow-x: auto;
+}
+
+body.sasv-eaushadhi-review #qcFillPreflightCard label,
+body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
+  margin-top: var(--sasv-space-2);
+}
+
+@media (max-width: 720px) {
+  body.sasv-eaushadhi-review #qcFillPreflightCard .icon-btn {
+    width: 100%;
   }
 }

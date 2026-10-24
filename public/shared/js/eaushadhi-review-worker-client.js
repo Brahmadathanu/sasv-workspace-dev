@@ -164,6 +164,120 @@ export async function readQcReport(productId, accessToken) {
   return window.eaushadhiWorkerAPI.readQcReport(productId, accessToken);
 }
 
+export async function loadQcProtocolOptions(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.loadQcProtocolOptions !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.loadQcProtocolOptions(productId, accessToken);
+}
+
+export async function loadQcLaboratoryOptions(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.loadQcLaboratoryOptions !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.loadQcLaboratoryOptions(productId, accessToken);
+}
+
+export async function readQcPreparationWorkspace(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.readQcPreparationWorkspace !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.readQcPreparationWorkspace(productId, accessToken);
+}
+
+export async function reviewQcPreparation(productId, accessToken, payload) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.reviewQcPreparation !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.reviewQcPreparation(productId, accessToken, payload);
+}
+
+export async function verifyQcPreparationSource(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.verifyQcPreparationSource !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.verifyQcPreparationSource(productId, accessToken, draft);
+}
+
+export async function reopenQcPreparation(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.reopenQcPreparation !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.reopenQcPreparation(productId, accessToken, draft);
+}
+
+export async function recheckQcEvidence(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.recheckQcEvidence !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.recheckQcEvidence(productId, accessToken, draft);
+}
+
+export async function readQcReadiness(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.readQcReadiness !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.readQcReadiness(productId, accessToken, draft);
+}
+
+export async function acceptQcFact(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.acceptQcFact !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.acceptQcFact(productId, accessToken, draft);
+}
+
+export async function correctQcFactAcceptance(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.correctQcFactAcceptance !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.correctQcFactAcceptance(productId, accessToken, draft);
+}
+
+export async function verifyQcProtocolMapping(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.verifyQcProtocolMapping !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.verifyQcProtocolMapping(productId, accessToken, draft);
+}
+
+export async function readQcFillPreflight(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.readQcFillPreflight !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.readQcFillPreflight(productId, accessToken, draft);
+}
+
+export async function executeQcPrepRun(productId, accessToken, command) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.executeQcPrepRun !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.executeQcPrepRun(productId, accessToken, command);
+}
+
+export async function recordQcLabDecision(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.recordQcLabDecision !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.recordQcLabDecision(productId, accessToken, draft);
+}
+
+export async function saveQcPreparation(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.saveQcPreparation !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.saveQcPreparation(productId, accessToken, draft);
+}
+
+export async function listQcReports(productId, accessToken) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.listQcReports !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.listQcReports(productId, accessToken);
+}
+
+export async function reserveQcReport(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.reserveQcReport !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.reserveQcReport(productId, accessToken, draft);
+}
+
+export async function registerQcReport(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.registerQcReport !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.registerQcReport(productId, accessToken, draft);
+}
+
+export async function verifyQcReportBytes(productId, accessToken, draft) {
+  if (!workerApiAvailable()) return unsupported();
+  if (typeof window.eaushadhiWorkerAPI.verifyQcReportBytes !== "function") return unsupported();
+  return window.eaushadhiWorkerAPI.verifyQcReportBytes(productId, accessToken, draft);
+}
+
 export function onWorkerStatus(callback) {
   if (!workerApiAvailable() || typeof window.eaushadhiWorkerAPI.onStatus !== "function") {
     return () => {};

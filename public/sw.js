@@ -1,5 +1,5 @@
 /* /sw.js (root) */
-const CACHE_NAME = "hub-cache-v345"; // PEC PR PDF continuation header (DEC-016)
+const CACHE_NAME = "hub-cache-v373"; // WP-07 D7.3.2 one portal row is confirmed when the list matches
 
 const PRECACHE = [
   // Hub shell
@@ -91,7 +91,10 @@ self.addEventListener("fetch", (event) => {
   if (
     /costing-suite-production-route/.test(url.pathname) ||
     /costing-suite-shell\.js$/.test(url.pathname) ||
-    /costing-suite-readiness\.js$/.test(url.pathname)
+    /costing-suite-readiness\.js$/.test(url.pathname) ||
+    /\/shared\/js\/eaushadhi-review-.*\.js$/.test(url.pathname) ||
+    /\/shared\/js\/eaushadhi-.*\.js$/.test(url.pathname) ||
+    /\/shared\/css\/sasv-eaushadhi-review\.css$/.test(url.pathname)
   ) {
     event.respondWith(
       (async () => {

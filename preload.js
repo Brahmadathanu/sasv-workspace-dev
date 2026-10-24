@@ -123,6 +123,168 @@ contextBridge.exposeInMainWorld("eaushadhiWorkerAPI", {
       productId,
       accessToken,
     }),
+  loadQcProtocolOptions: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-protocol-options", {
+      productId,
+      accessToken,
+    }),
+  loadQcLaboratoryOptions: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-laboratory-options", {
+      productId,
+      accessToken,
+    }),
+  readQcPreparationWorkspace: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-workspace-read", {
+      productId,
+      accessToken,
+    }),
+  reviewQcPreparation: (productId, accessToken, payload) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-review", {
+      productId,
+      accessToken,
+      payload,
+    }),
+  verifyQcPreparationSource: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-verify-source", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      attest: draft?.attest === true,
+      factEvidence: draft?.factEvidence,
+    }),
+  reopenQcPreparation: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-reopen", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      attest: draft?.attest === true,
+      reasonNote: draft?.reasonNote,
+    }),
+  recheckQcEvidence: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-evidence-recheck", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+    }),
+  readQcReadiness: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-readiness", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+    }),
+  acceptQcFact: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-fact-accept", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      factKey: draft?.factKey,
+      basisCategory: draft?.basisCategory,
+      basisNote: draft?.basisNote,
+      attest: draft?.attest === true,
+    }),
+  correctQcFactAcceptance: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-fact-correct", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      supersedesAcceptanceId: draft?.supersedesAcceptanceId,
+      basisCategory: draft?.basisCategory,
+      basisNote: draft?.basisNote,
+      correctionReason: draft?.correctionReason,
+      attest: draft?.attest === true,
+    }),
+  verifyQcProtocolMapping: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-protocol-mapping-verify", {
+      productId,
+      accessToken,
+      mappingId: draft?.mappingId,
+      expectedStatus: draft?.expectedStatus,
+      expectedPortalOptionId: draft?.expectedPortalOptionId,
+      mappingReason: draft?.mappingReason,
+      attest: draft?.attest === true,
+    }),
+  readQcFillPreflight: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-fill-preflight", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+    }),
+  executeQcPrepRun: (productId, accessToken, command) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-prep-run", {
+      productId,
+      accessToken,
+      action: command?.action,
+      preparationId: command?.preparationId,
+      userConfirmed: command?.userConfirmed === true,
+      provisionalAck: command?.provisionalAck === true,
+      provisionalNote: command?.provisionalNote,
+      derivedAck: command?.derivedAck === true,
+      derivedNote: command?.derivedNote,
+      filename: command?.filename,
+      bytes: command?.bytes,
+      resolution: command?.resolution,
+      note: command?.note,
+      attest: command?.attest === true,
+      runId: command?.runId,
+      fingerprint: command?.fingerprint,
+    }),
+  recordQcLabDecision: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-lab-decision", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      action: draft?.action,
+      supersedesLabBasisId: draft?.supersedesLabBasisId ?? null,
+      basisType: draft?.basisType,
+      documentReference: draft?.documentReference,
+      rationale: draft?.rationale,
+      attest: draft?.attest === true,
+    }),
+  saveQcPreparation: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-preparation-save", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId ?? null,
+      expectedRowVersion: draft?.expectedRowVersion,
+      payload: draft?.payload,
+      lastReadStatus: draft?.lastReadStatus ?? null,
+    }),
+  listQcReports: (productId, accessToken) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-list", {
+      productId,
+      accessToken,
+    }),
+  reserveQcReport: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-reserve", {
+      productId,
+      accessToken,
+      preparationId: draft?.preparationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      forceNew: draft?.forceNew === true,
+      fileSize: draft?.fileSize,
+    }),
+  registerQcReport: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-register", {
+      productId,
+      accessToken,
+      reservationId: draft?.reservationId,
+      expectedRowVersion: draft?.expectedRowVersion,
+      objectId: draft?.objectId,
+      originalFileName: draft?.originalFileName,
+      sha256: draft?.sha256,
+      fileSize: draft?.fileSize,
+    }),
+  verifyQcReportBytes: (productId, accessToken, draft) =>
+    ipcRenderer.invoke("eaushadhi-worker:qc-report-verify-bytes", {
+      productId,
+      accessToken,
+      reservationId: draft?.reservationId,
+    }),
   onStatus: (cb) => {
     const handler = (_evt, payload) => cb && cb(payload);
     ipcRenderer.on("eaushadhi-worker:status", handler);

@@ -227,3 +227,103 @@ Dedicated task branches/worktrees, no direct implementation on main, server auth
 - Product 262 authenticated read-only QC preparation probe returned **“QC preparation read probe returned no preparations.”** Operator-observed PASS using isolated feature-branch Electron development app, not a government portal login.
 - Independent review of bounded view-only diagnostic and permissions correction accepted. No QC preparation or QC study record created; S2 and portal execution remain unopened.
 - S1 awaiting final integrated audit and separate authorization before merging.
+
+## 2026-10-11 — WP-07 driver handover and C1b decisions
+- **Programme driver:**
+  - On 2026-10-10 the user authorised Jarvis (Grok Bot) to drive WP-07 autonomously in ChatGPT's planning, server and audit role.
+  - ChatGPT is updated after milestones. Merges and live migrations still require explicit user approval.
+- **C1b defaults (operator-approved):** applied only on an empty Product 262 form with no saved `manual-qc:262:primary` preparation. They are never auto-saved, and the operator reviews every value.
+  - protocol Others (`OTHER` by code), text "Cross Sectional Approach (API Vol VIII Page No:226)";
+  - date basis `OPERATOR_REVIEWED_CROSS_SECTIONAL_MANUFACTURING_SPAN`;
+  - shelf life 36;
+  - mode OUT;
+  - portal laboratory "HARIDEV FORMULATIONS" if present in the live list.
+  - Study start/end and report dates are never prefilled, consistent with the 2026-10-08 manual-date decision.
+- **Portal QC field rules adopted client-side,** from portal `addQCRegister.js` / `CommonValidation.js`:
+  - other text: `OnlyAlphaNumericWithunderscoreandbracket('otherText')` (`/^[a-zA-Z0-9()-_ .]*$/`) and `MaximumLengthCheck('otherText', 125)`;
+  - batch: `AlphaNumericWithoutRegExp('batchno')`, `MaximumLengthCheck('batchno', 256)`, `MinumumLengthCheck('batchno', 2)`. SASV additionally requires a strict `a,b,c` form: no spaces, empty items or duplicates; items `[A-Za-z0-9./_-]+`;
+  - report: "Please Upload Test Report"; `file.size > 2 * 1024 * 1024` → "Test Report limit is 2 MB .";
+  - SASV date rules: study end strictly after start; report date on or after study end.
+- **Source approval number:** relabelled "Issuing lab Form-48 approval no. (evidence only; not sent to portal)". The portal `qcdetails` Save payload has no such field.
+- **Canonical QC report filename:** `EAUSHADHI_P{4-digit product id}_{NAME}_QC_TEST_REPORT_V{NN}.pdf`, server-assigned at B1 reservation. For Product 262 the first name is `EAUSHADHI_P0262_KARPOORADI_THAILAM_QC_TEST_REPORT_V01.pdf`. The operator does not type it.
+- **Portal laboratory vocabulary (M-LAB, live `20261010180112`):**
+  - 59 labs from authenticated live capture `2d2840d0-e708-4000-9096-18d8ccf7e4d3`, stored byte-exact with portal ids; HARIDEV FORMULATIONS = 3980.
+  - The value saved and sent is the label, which is the portal `labName`.
+  - Reference only: confers no Form-48 approval or laboratory mapping authority.
+- **Open regulatory question for B3:** the current report issuer NUPAL is not in the portal laboratory list, so an OUT report from NUPAL cannot be named as the portal laboratory. Resolve before evidence governance and portal entry.
+- **Readiness wording:** the UI never shows READY for QC before C2 upload and B1–B4. With no server review reasons it shows "Fields complete (draft only)" plus the C2 / B1/B2 / B3 / B4 / portal-entry checklist.
+
+## 2026-10-11 — WP-07 D3.2 byte check is operator-triggered
+- The QC test report byte check runs only when the operator clicks **Check bytes on server** and confirms the terminal-outcome warning. Register does not start it.
+- The live B2 SQL is in the repository as `supabase/migrations/20261011094445_wp07_b2_qc_report_byte_verification.sql`, byte-exact to the applied migration (md5 `11a328b66551d8a1bbce82e1133560ec`). It was not reapplied. `rpc_eaushadhi_qc_report_record_byte_check_v1` and `rpc_eaushadhi_qc_report_byte_check_target_v1` are EXECUTE for `service_role` only; `anon` and `authenticated` have none.
+- A PDF larger than 2 MB is rejected when the file is selected and again in the worker before reserve or register, with no network call.
+- A reused reservation that returns `40001` from register asks the operator to reserve a new version. Only that click calls reserve with `forceNew`. There is no automatic retry.
+
+## 2026-10-11 — WP-07 D3.3 V01 byte check verified
+- **V01 byte check ran (operator-triggered):**
+  - Reservation `7e9bdf61-43c8-407d-b4dc-d9b45680c972` → `VERIFIED_BYTES`.
+  - Verified SHA-256 `0795de1d0e186cec278040cd16f1431e7422ceeaf7b48f7b6a50ca9bdba60ee9` equals the claimed SHA-256.
+  - Size 1,723,549 bytes; object version `306b7fc8-e5b4-4e88-9b36-45c7f5d38c24`.
+  - `bytes_checked_at` 2026-10-11 12:25:07 UTC (17:55:07 IST); event #3 `BYTES_VERIFIED`, method `edge:eaushadhi-qc-report-verify`.
+- **Negative permission test passed** before the check:
+  - No auth header → 401 at the gateway.
+  - Anon key → 403 FORBIDDEN.
+  - Viewer-only user → `42501 e-Aushadhi Automation permission is required`.
+  - No state change.
+- **Confirm is now an in-page modal, and worker `fileSize` is required.**
+
+## 2026-10-11 — WP-07 B3 evidence binding is live
+- B3 is applied live as `20261011135744_wp07_b3_qc_evidence_binding` (md5 `18671148f501ee69b031a5df913ffadb`, byte-exact in the repository). It was not reapplied from this client change.
+- `rpc_eaushadhi_qc_preparation_verify_v1` is retired. `rpc_eaushadhi_qc_preparation_verify_v2` binds the evidence tuple and requires attestation plus per-fact evidence. `rpc_eaushadhi_qc_evidence_recheck_v1` is read-only.
+- Storage rejects client update and delete of a registered QC report. Register stays at 2 MB. The lock order is preparation, then reservation.
+- **Operator decision, pending B4 legal basis:** a NUPAL-issued report may be filed under HARIDEV FORMULATIONS as the portal laboratory. Recorded for B4. B3 does not act on it.
+
+## 2026-10-11 — WP-07 D4.1 saved report filename loads into Verify
+- Verify source facts blocked a matching draft after reload. The saved `report_filename` was not loaded back into the form, and the report list has no verified SHA until a byte check in the same session, so the client compared the draft with a blank file name and a blank SHA.
+- The form now loads `report_filename`. The client compares the SHA only when a verified SHA is known, and the file name only when both names are non-empty. `rpc_eaushadhi_qc_preparation_verify_v2` still rejects a real SHA or file-name mismatch.
+
+## 2026-10-11 — WP-07 D4.2 saved facts and reopen
+- **B3.1 decision:** an attested reopen supersedes a binding in an append-only way. Binding #1 stays in the audit trail. The draft returns to Review required. The "candidate, not yet applied" note is superseded by the D4.3 entry.
+- The operator confirmed that batches, report date, study end date, and shelf life are printed on NUPAL report page 1.
+- Study start date and testing protocol are operator facts: not shown in the report, each with a note.
+- **D4.2 display root cause:** after Verify source facts the card cleared its rows and showed the defaults, so study start and protocol appeared as No while the server had saved Yes. The confirm dialog did not list the submitted facts, and a focused Yes/No control could change with the mouse wheel or arrow keys. There is no path that turns a selected No into a saved Yes.
+- A verified preparation shows the six saved facts read-only when the recheck returns them. If that evidence is absent, the card says the saved fact evidence is not available in this view.
+- Reopen for re-verification is operator-triggered only. It calls `rpc_eaushadhi_qc_preparation_reopen_v1`.
+
+## 2026-10-11 — WP-07 D4.3 B3.1 parity
+- B3.1 is applied live as `20261011165858_wp07_b3_1_qc_source_reopen` (md5 `2a87e4eb3de1341937580febe29d2bad`). The repository file is byte-exact. It was not reapplied.
+
+## 2026-10-12 — WP-07 B4 readiness and provisional portal laboratory
+- B4 applied as `20261012023035_wp07_b4_qc_readiness` (repository file byte-exact).
+- **Operator decision:** HARIDEV FORMULATIONS (portal option external id 3980) is PROVISIONALLY_APPROVED as the portal laboratory for Product 262, on the basis CROSS_LABORATORY_TIE_UP. NUPAL (New Udaya Pharmacy & Ayurvedic Laboratories) remains the true report issuer. This is an internal selection only: `legal_lab_identity_verified = false` and `portal_eligibility_verified = false`. The system never states that NUPAL and HARIDEV are the same laboratory.
+- Lab decisions are append-only. Correction, replacement and withdrawal are new rows that supersede the head. Each is bound to the preparation id, row version and evidence binding, and becomes stale (blocking) when any of these changes.
+- Operator-asserted facts (study start date, testing protocol) need acceptance by an editor other than the one who verified the evidence. Self-acceptance is recorded but blocks readiness.
+- Legacy `eaushadhi_qc_snapshot_v1` now requires the study document to be the current, non-superseded binding of a READY preparation. A claimed checksum, a malformed ID or a provisional state never counts.
+- **READY_PROVISIONAL counts as ready for e-Aushadhi portal filling in B5** (operator decision 2026-10-12). It still does not permit canonical stability-study promotion. Legal laboratory identity and portal eligibility remain unverified, and the B5 filling log must record that the laboratory was provisional.
+
+## 2026-10-13 — WP-07 B5 R2.4 live (preparation-based QC filling contract)
+- B5 applied as `20261013095629_wp07_b5_r2_qc_prep_run` (repository file byte-exact, md5 `866d19f7565f2520099e602e14ebbd55`).
+- Fact acceptances are corrected via an append-only chain (`supersedes_acceptance_id`, `correction_reason`); originals kept; the head governs readiness; the distinct-editor rule is unchanged. New category OPERATOR_DERIVATION.
+- Operator facts: Study Start Date 01-10-2021 is DERIVED as the earliest batch manufacturing date on the NUPAL COA; Testing Protocol (Others: Cross Sectional Approach, API Vol VIII p.226) is OPERATOR-CHOSEN and not on the COA. The existing acceptances #1/#2 ("Collected from the COA provided by the laboratory.") are inaccurate and must be corrected by a distinct editor.
+- QC_PROTOCOL mappings get their own governed verify (the reference-mapping verify only accepts REFERENCE_WORK). Mapping 32 (Others → 493) is DRAFT until the operator verifies it.
+- Filling contract:
+  - frozen values = portal `qcdetails` keys; Others text posted as typeOfStudy; compact batchNo `3369,4896,2434,3250,3738,4601,5201`;
+  - provisional-lab and derived-date acknowledgements at arm;
+  - single-use 120 s pre-save token consumed at Save record; stale or invalid → SAVE_UNAUTHORIZED; no auto-retry; Save only, Submit refused;
+  - row verification separate from document; FULLY_VERIFIED only via a service-role trusted-fetch recorder (not available yet: portal attachment retrieval needs a portal session), so runs stop at ROW_VERIFIED_DOCUMENT_NOT_VERIFIED;
+  - the readiness/lab qualification is in every event.
+- D6 adds the correction, mapping-verify and read-only preflight UI. Arm/Save UI is parked to D7.
+
+## 2026-10-13 — WP-07 D7 filling client, native Save disabled
+- The Product 262 filling client arms a B5 run, fills the eight frozen fields, checks the verified PDF, and can observe a Save response. Pre-save tokens stay in worker memory.
+- Capture `2d2840d0-e708-4000-9096-18d8ccf7e4d3` shows `#save_btn` labelled Submit and wired to `SaveData()`. Native Save stays disabled until a later gate decides that this control may be treated as QC Save. The client never clicks Submit.
+- List columns and the Save payload after endDate are truncated in that capture. Rows that do not expose the eight fields block arm and cannot become CONFIRMED. `getLaboratroyName` option values are names; the client still sets the frozen portal id and fails the readback if that option is absent.
+- Row verification display remains "Row verified — document not verified (trusted document check not available yet)" even when a response says fully verified. No migration or server function was changed. No live portal Save or Submit was performed.
+
+## 2026-10-14 — WP-07 D7.1 list coverage and read-only portal check
+- An empty `LoadQCData` page does not prove complete coverage. Page 0 plus an authoritative total equal to the row count does.
+- Live mapping 32 is VERIFIED and stays read-only. Its portal external id is `Others`.
+- The current fact-acceptance heads are acceptance 29 (study start, Operator derivation) and acceptance 30 (testing protocol, Operator determination). Each acceptor is a different editor from the evidence verifier.
+- **Check portal page** reads identity, list coverage, laboratory option value, and an optional local PDF. It does not arm, attach, or click the Submit-labelled control. `nativeSaveClickEnabled` stays false.
+- B5.1 applied 20261013155440: QC labName = laboratory name, not portal id. The repository file is the applied SQL, byte-exact, and was not applied again from this checkout.
+- The client fills `#lab_name` only when an option value equals that name. `LoadQCData` is read with `TotalCount` first. `GetqcData` raw dates are accepted only as `YYYY-MM-DD`. The Submit label still does not click Save.
