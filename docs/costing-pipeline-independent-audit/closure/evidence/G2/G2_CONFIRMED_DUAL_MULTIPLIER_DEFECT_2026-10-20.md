@@ -1,0 +1,5 @@
+# G2 confirmed double-counting exposure
+
+Live pg_proc source confirms DL `sum(sf.factor*bf.factor*s.expected_occurrence_count*s.standard_cycle_count)` and POH `sum(sf.factor*bf.factor*rf.factor*e.expected_occurrence_count*e.standard_cycle_count)`. Dhanyamlam route144 six repeated steps store 8/8, whereas verified physical process has eight TOTAL repetitions. Thus affected step intensity receives 64 instead of eight before other workload scaling. Full monetary over-allocation remains unquantified; do not confuse intensity with allocated pool rupees.
+
+Fix must be governed at Route Manager authoring/validation and linked DL/POH consumers, not a global `min/max` heuristic that would distort valid independent occurrence/cycle cases. Survey all affected 8/8 and other multi-count routes, classify true occurrence vs within-occurrence cycles, and design one unambiguous effective-repetition contract. Keep approved route144 immutable; prospective v2 and any client/form validation require separate signoff. Do not alter standard production_batch_size_ref or frozen runs122/128. G2 HIGH OPEN, no live changes.

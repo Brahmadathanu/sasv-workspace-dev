@@ -1,0 +1,33 @@
+T4a switch starting before 1 Nov 2026 is rejected
+ERROR:  new row for relation "plant_aware_load_switch" violates check constraint "pals_from_nov2026"
+T4b step rule starting before 1 Nov 2026 is rejected
+ERROR:  new row for relation "route_step_capacity_rule" violates check constraint "rscr_from_nov2026"
+T4c resolver refuses October dates (runs 122/128, locked periods)
+ERROR:  AU-9 G4: plant-aware loads are not available for valuation date 2026-10-16 (effective from 1 Nov 2026 only)
+T4d provenance cannot be written for run 128 (October) even with the switch on
+ERROR:  AU-9 G4: provenance only for an existing refresh run of November 2026 or later (run 128, period 2026-11-01)
+ERROR:  AU-9 G4: provenance only for an existing refresh run of November 2026 or later (run 128, period 2026-10-01)
+T4e provenance rows are immutable
+captured=1
+ERROR:  route_step_load_provenance_snapshot is append-only (UPDATE blocked)
+T4f switch and rules are close-only (no edits, no deletes)
+ERROR:  route_step_capacity_rule rows are immutable; only closing an open row (setting effective_to) is allowed
+ERROR:  route_step_capacity_rule is append-only; close a row by setting effective_to
+T7a step names a machine with no capacity profile -> error
+ERROR:  AU-9 G4: route step names machine 99999 but it has no capacity profile effective on 2026-11-30 (fail-closed)
+T7b no usable capacity and the class fallback withdrawn -> error
+ERROR:  AU-9 G4: no usable capacity and no approved fallback for resource class GRINDER on 2026-11-30 (fail-closed)
+T7c step rule on a class whose machines differ (stone grinders 10/5/3 kg) -> error, never an average
+ERROR:  AU-9 G4: step rule TEST_STONE is ambiguous: 5 machines of class STONE_GRINDER have different capacities; name the machine on the route
+T7d step rule on a class with no operational machine capacity -> error
+ERROR:  AU-9 G4: step rule TEST_KHALVAM_MANUAL needs an operational KHALVAM_MANUAL_LEVIGATION machine with capacity on 2026-11-30 (fail-closed)
+T7e litre-rated machine with a batch output in kg -> error (no density assumed)
+ERROR:  AU-9 G4: machine capacity is in litres but the batch output is in Kg (no conversion assumed)
+T7f step evidence activity contradicting the governed route -> error
+ERROR:  AU-9 G4: step evidence activity 133 differs from governed route activity 121
+T7g lineage pointing to a missing route step -> error
+ERROR:  AU-9 G4: route step lineage not found (route step 987654321, override <NULL>)
+T5 package refuses to patch a refresh RPC that changed since review (simulated drift)
+ERROR:  AU9-G4: Direct Labour refresh RPC changed since review (md5 d1723cc37bdb0bef106f138965a5d9f6); re-review
+state after negatives (must equal installed state)
+g4_state switch=0 rules=9 provenance=0 rules_md5=fd3b3eefefe297fe47df544cb39c73f3 g4_fn_md5=907de1df3d49936f957b3e88df315670 rpc_poh=9a87d9275b36b81602a4ba7c5833c9d2 rpc_dl=653f851c52e840d2431cf523775a68c8 journal=451 profiles=298

@@ -1,0 +1,5 @@
+# First-APPROVED-run acceptance framework
+Harness: `acceptance/first_approved_run_acceptance.sql` (read-only; `\set run_id N` on local/psql; literal substitution on live MCP). 12 checks + EVIDENCE_SNAPSHOT row (md5 of all results + timestamp) — store output in evidence/ as immutable record and as costing_run_fingerprint purpose ACCEPTANCE when approval is executed.
+Checklist (all PASS required): run exists; SUCCESS; 0 blocked; 0 review-required; period governed; valuation date APPROVED/LOCKED; run valuation date = period; no other APPROVED in period; SUCCESS fingerprint; LATEST_SUCCESS is never auto-approved (explicit user designation only); normal rates approved (readiness has no REVIEW_REQUIRED); cron jobs 60/61 active.
+Dry run on live run 119 (2026-10-16 07:34 IST): FAIL as expected — review rows 146; valuation date DRAFT; MANUFACTURING_LABOUR APPROVED_NORMAL_RATE_MISSING, POH behaviour split unverified. md5=c1e7794b9eb3eaaa7d60a21b330e639e.
+Note: directive §5 text was not received; checklist built from directive body — reconcile when §5 is supplied.

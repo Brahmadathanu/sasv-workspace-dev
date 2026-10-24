@@ -1,0 +1,5 @@
+# G2 existing notes are insufficient for dual-count validation
+
+Live read-only verification: family step `step_note` and product override `override_reason` exist; their upsert RPCs reference these fields. All six route144 dual-positive steps already contain nonempty notes, describing eight physical cycles or eight collections rather than 64 executions. Therefore a `note IS NOT NULL` validation rule would incorrectly PASS all six and would not solve the defect.
+
+Prospective safeguard: show occurrences x cycles = total executions; label cycles explicitly as cycles *within each occurrence*. When both counts exceed one, require explicit physical explanation supporting the product of the counts and separately confirm the displayed total before approval. Reuse existing note/reason; do not create a new table/column or rewrite global costing multiplication. The method of verifiable server-side confirmation must be checked against current approval contract before implementation; avoid guessing from free text alone. Preserve existing approved route144 and frozen runs122/128. No live edits; G2 open.

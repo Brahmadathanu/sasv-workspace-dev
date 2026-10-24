@@ -1,0 +1,8 @@
+# G2 progress reality check and route32 date-window proof — 20 Oct 2026
+
+Read-only check on route family32 for the 15 dates 17–31 August 2026, counting unarchived APPROVED and SUPERSEDED candidate records per date: **14 unique-candidate days, 1 conflicting day, 0 missing days**. This proves a limited candidate-count property only, not operational validity or PostgreSQL implementation of the proposed policy. The conflicting day is 24 August, when route34 and 38 overlap.
+
+## Programme completion assessment
+Foundational G0/G1 investigation and extensive G2 source/dependency audit are substantially advanced; G2 has NOT passed. At minimum the remaining server implementation includes (a) verified physical production-workload denominator and charge/step mass with Dhanyamlam 8 total repetitions and genuine other cycles protected, (b) coherent resolver/approval/readiness historical handling with 17 overlap exceptions and strict approval guards, (c) isolated PostgreSQL integration (not performed; local runner unavailable), (d) separate DL and POH pool-conserving full cohort re-simulations, (e) readiness/snapshot regression and retiring disused executable legacy paths as approved. Further financial and deployment gates G3–G6 remain open. Do not call server ready or near completion solely because documentation and local behavioural tests pass.
+
+Avoid over-expanding historical route research at the expense of resolving the main manufacturing costing drivers. Route history needs a bounded, fail-closed policy and focused proof rather than endless individual reviews when no historical run requires them. Preserve frozen runs122/128; no live changes.

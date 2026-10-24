@@ -1,0 +1,17 @@
+-- Golden traces, run 128: SKUs 42 (negative margin), 865 (kit), 878 (Kanji). Read-only.
+with s as (select unnest(array[42,865,878]::bigint[]) sku_id)
+select jsonb_agg(jsonb_build_object(
+ 'sku_id',s.sku_id,
+ 'material',(select jsonb_build_object('product',m.product_name,'pack',m.pack_size||' '||m.pack_uom,'conv',m.conversion_to_base,'rm',m.rm_cost_per_sku,'pm',m.pm_cost_per_sku,'material',m.material_cost_per_sku,'status',m.material_costing_status) from costing.sku_material_cost_snapshot m where m.refresh_run_id=128 and m.sku_id=s.sku_id),
+ 'rm_lines_top',(select jsonb_agg(x) from (select jsonb_build_object('item',l.purchase_stock_item_name,'qty_purchase_per_base',l.qty_purchase_form_per_base_unit,'uom',l.purchase_uom_code,'rate',l.selected_rate,'src',l.rate_source,'date',l.rate_date,'fact',l.selected_purchase_fact_id,
+       'tally',(select jsonb_build_object('voucher_date',p.voucher_date,'supplier',p.supplier_name,'avg_rate',p.avg_rate_value,'qty',p.canonical_qty_value) from public.v_purchases_by_item p where p.purchase_fact_id=l.selected_purchase_fact_id and p.inv_stock_item_id=l.purchase_stock_item_id limit 1),
+       'cost_per_sku',l.rm_cost_per_sku_line,'warn',l.rate_warning_code,'path',l.explosion_path) x
+      from costing.sku_rm_material_cost_line_snapshot l where l.refresh_run_id=128 and l.sku_id=s.sku_id order by l.rm_cost_per_sku_line desc nulls last limit 4) q),
+ 'rm_line_count',(select count(*) from costing.sku_rm_material_cost_line_snapshot l where l.refresh_run_id=128 and l.sku_id=s.sku_id),
+ 'pm_lines',(select jsonb_agg(jsonb_build_object('item',p.stock_item_name,'qty',p.qty_required_unit_final,'rate',p.selected_rate,'src',p.rate_source,'date',p.rate_date,'cost',p.pm_cost_per_sku_line,'warn',p.rate_warning_code) order by p.pm_cost_per_sku_line desc nulls last) from costing.sku_pm_material_cost_line_snapshot p where p.refresh_run_id=128 and p.sku_id=s.sku_id),
+ 'labour',(select jsonb_build_object('mfg_dl',d.manufacturing_direct_labour_cost_per_sku,'packing',d.packing_labour_cost_per_sku,'dl',d.direct_labour_cost_per_sku,'route_intensity',d.direct_labour_route_intensity,'workload',d.direct_labour_workload_units,'product_share',d.product_workload_share,'sku_within_product',d.sku_within_product_share,'status',d.direct_labour_allocation_status) from costing.sku_direct_labour_allocation_snapshot d where d.refresh_run_id=128 and d.sku_id=s.sku_id),
+ 'scaling',(select jsonb_build_object('batch',r.preferred_batch_size,'raw',r.raw_factor,'scaled',r.scaled_factor,'charge_source',r.charge_source,'solid_kg',r.solid_charge_kg) from costing.route_load_scaling_snapshot r join costing.sku_material_cost_snapshot m on m.product_id=r.product_id and m.refresh_run_id=128 and m.sku_id=s.sku_id where r.refresh_run_id=128 and r.allocation_pool='MANUFACTURING_LABOUR'),
+ 'steps',(select jsonb_agg(jsonb_build_object('seq',t.sequence_no,'rc',t.resource_class_code,'factor',t.step_labour_factor,'scope',t.direct_labour_scope) order by t.sequence_no) from costing.product_direct_labour_step_snapshot t join costing.sku_material_cost_snapshot m on m.product_id=t.product_id and m.refresh_run_id=128 and m.sku_id=s.sku_id where t.refresh_run_id=128),
+ 'prime',(select jsonb_build_object('prime',p.prime_cost_per_sku,'imc',p.internal_material_conversion_cost_per_sku) from costing.sku_prime_cost_snapshot p where p.refresh_run_id=128 and p.sku_id=s.sku_id),
+ 'units',(select b.monthly_allocation_units from costing.sku_sales_allocation_basis_snapshot b where b.refresh_run_id=128 and b.sku_id=s.sku_id)
+)) r from s;

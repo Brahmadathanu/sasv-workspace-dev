@@ -1,0 +1,39 @@
+with fv as (
+ select p.oid::regprocedure::text k, md5(pg_get_functiondef(p.oid)) v from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('costing','public') and p.prokind in ('f','p') and p.proname not like 'fn_au9%'
+ union all select c.oid::regclass::text, md5(pg_get_viewdef(c.oid)) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('costing','public') and c.relkind='v' and c.relname<>'v_plant_capacity_readiness'),
+fv_x as (
+ select p.oid::regprocedure::text k, md5(pg_get_functiondef(p.oid)) v from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('costing','public') and p.prokind in ('f','p') and p.proname not like 'fn_au9_g4%' and p.proname not in ('rpc_refresh_production_overhead_workload_snapshot','rpc_refresh_sku_direct_labour_component_split_snapshot')
+ union all select c.oid::regclass::text, md5(pg_get_viewdef(c.oid)) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('costing','public') and c.relkind='v'),
+fv_all as (
+ select p.oid::regprocedure::text k, md5(pg_get_functiondef(p.oid)) v from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('costing','public') and p.prokind in ('f','p')
+ union all select c.oid::regclass::text, md5(pg_get_viewdef(c.oid)) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('costing','public') and c.relkind='v'),
+s as (select * from costing.route_load_scaling_snapshot where refresh_run_id=128),
+rc as (select distinct resource_class_code from costing.route_equipment_load_capacity),
+r as (select s.allocation_pool, s.product_id, rc.resource_class_code, d,
+        costing.fn_route_step_loads(rc.resource_class_code, s.solid_charge_kg, s.output_charge, s.output_charge_uom, d) l
+      from s cross join rc cross join (values (current_date),(date '2026-11-30')) v(d))
+select
+ md5(costing.fn_compute_run_fingerprint(122)::text) fp122,
+ md5(costing.fn_compute_run_fingerprint(128)::text) fp128,
+ (select count(*) filter (where matches)||'/'||count(*) from costing.fn_verify_run_fingerprint(122)) v122,
+ (select count(*) filter (where not matches)||'/'||count(*) from costing.fn_verify_run_fingerprint(128)) v128_mism,
+ (select count(*) filter (where matches)||'/'||count(*) from costing.fn_verify_run_fingerprint(128)) v128_match,
+ (select md5(coalesce(string_agg(row(x.id,x.period_start,x.sku_id,x.product_id,x.product_name,x.product_base_uom,x.conversion_to_base,x.pack_size,x.pack_uom,x.sku_base_qty_per_unit,x.sales_units_12m,x.sales_base_qty_12m,x.product_sales_units_12m,x.product_sales_base_qty_12m,x.company_sales_units_12m,x.product_allocation_share,x.allocation_basis_status,x.lookback_start,x.lookback_end,x.refreshed_at,x.valuation_date,x.refresh_run_id,x.actual_sales_units_12m,x.actual_sales_base_qty_12m,x.actual_product_sales_units_12m,x.actual_product_sales_base_qty_12m,x.actual_company_sales_units_12m,x.resolved_sales_units,x.resolved_sales_base_qty,x.resolved_product_sales_units,x.resolved_product_sales_base_qty,x.resolved_company_sales_units,x.resolved_product_allocation_share,x.allocation_basis_source,x.allocation_resolution_status,x.allocation_resolution_note,x.assumption_id,x.assumption_basis,x.assumption_effective_from,x.assumption_effective_to,x.default_policy_id,x.default_policy_scenario,x.default_policy_effective_from,x.default_policy_effective_to,x.monthly_allocation_units,x.monthly_allocation_base_qty,x.monthly_product_allocation_units,x.monthly_product_allocation_base_qty,x.monthly_company_allocation_units,x.monthly_product_allocation_share,x.monthly_driver_method,x.monthly_driver_source,x.monthly_driver_source_month,x.monthly_driver_lookback_start,x.monthly_driver_lookback_end,x.monthly_driver_tied_month_count,x.monthly_driver_status,x.monthly_driver_note)::text,'|' order by row(x.id,x.period_start,x.sku_id,x.product_id,x.product_name,x.product_base_uom,x.conversion_to_base,x.pack_size,x.pack_uom,x.sku_base_qty_per_unit,x.sales_units_12m,x.sales_base_qty_12m,x.product_sales_units_12m,x.product_sales_base_qty_12m,x.company_sales_units_12m,x.product_allocation_share,x.allocation_basis_status,x.lookback_start,x.lookback_end,x.refreshed_at,x.valuation_date,x.refresh_run_id,x.actual_sales_units_12m,x.actual_sales_base_qty_12m,x.actual_product_sales_units_12m,x.actual_product_sales_base_qty_12m,x.actual_company_sales_units_12m,x.resolved_sales_units,x.resolved_sales_base_qty,x.resolved_product_sales_units,x.resolved_product_sales_base_qty,x.resolved_company_sales_units,x.resolved_product_allocation_share,x.allocation_basis_source,x.allocation_resolution_status,x.allocation_resolution_note,x.assumption_id,x.assumption_basis,x.assumption_effective_from,x.assumption_effective_to,x.default_policy_id,x.default_policy_scenario,x.default_policy_effective_from,x.default_policy_effective_to,x.monthly_allocation_units,x.monthly_allocation_base_qty,x.monthly_product_allocation_units,x.monthly_product_allocation_base_qty,x.monthly_company_allocation_units,x.monthly_product_allocation_share,x.monthly_driver_method,x.monthly_driver_source,x.monthly_driver_source_month,x.monthly_driver_lookback_start,x.monthly_driver_lookback_end,x.monthly_driver_tied_month_count,x.monthly_driver_status,x.monthly_driver_note)::text),'')) from costing.sku_sales_allocation_basis_snapshot x where refresh_run_id=122) basis122_excl_col,
+ (select cap.fingerprint->'sku_sales_allocation_basis_snapshot'->>'md5' from costing.costing_run_fingerprint cap where refresh_run_id=122 order by captured_at desc, id desc limit 1) basis122_captured,
+ (select md5(string_agg(k||v,'|' order by k))||' n='||count(*) from fv) fnview_excl_au9,
+ (select md5(string_agg(k||v,'|' order by k))||' n='||count(*) from fv_all) fnview_all,
+ (select md5(string_agg(k||v,'|' order by k))||' n='||count(*) from fv_x) fnview_excl_2rpcs_g4,
+ md5(pg_get_functiondef('costing.rpc_refresh_production_overhead_workload_snapshot(date,date,bigint)'::regprocedure)) rpc_poh,
+ md5(pg_get_functiondef('costing.rpc_refresh_sku_direct_labour_component_split_snapshot(date,date,bigint)'::regprocedure)) rpc_dl,
+ (select count(*) from pg_proc where pronamespace='costing'::regnamespace and proname like 'fn_au9_g4%') g4_fns,
+ (select md5(string_agg(allocation_pool||product_id||':'||round(scaled_factor,9),'|' order by allocation_pool,product_id))||' n='||count(*) from s) loads128_snapshot,
+ (select md5(string_agg(to_jsonb(x)::text,'|' order by x.id))||' n='||count(*) from s x) loads128_rows,
+ (select md5(string_agg(scaled_factor::text,'|' order by id)) from s) loads128_sf,
+ (select 'n='||count(*)||' md5='||md5(string_agg(allocation_pool||product_id||resource_class_code||d||':'||coalesce(l::text,'-'),'|' order by allocation_pool,product_id,resource_class_code,d)) from r) loads_recompute_16oct_30nov,
+ (select md5(string_agg(to_jsonb(c)::text,'|' order by id)) from costing.route_equipment_load_capacity c) route_capacity,
+ (select count(*)||' max='||max(id)||' md5='||md5(string_agg(id||':'||overall_status::text,'|' order by id)) from costing.costing_refresh_run) runs,
+ (select string_agg(jobid||'='||active,',' order by jobid) from cron.job where jobid in (60,61)) cron,
+ (select string_agg(r||'='||n,', ' order by r) from (select readiness r, count(*) n from costing.v_plant_capacity_readiness group by 1) z) readiness,
+ (select count(*)||' open='||count(*) filter (where effective_to is null) from costing.plant_capacity_profile) profiles,
+ (select string_agg(action||'='||n,',' order by action) from (select action,count(*) n from costing.capacity_master_revision group by 1) j) journal,
+ (select count(*)||' active='||count(*) filter (where active) from costing.machine_equipment_class) eq

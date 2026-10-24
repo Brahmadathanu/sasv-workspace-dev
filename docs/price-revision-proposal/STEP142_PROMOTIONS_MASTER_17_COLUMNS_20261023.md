@@ -1,0 +1,11 @@
+# Step 142 — MARKETING PROMOTIONS MASTER — SKU working baseline (23 October 2026)
+
+User explicitly specified exactly 17 columns in order: Product ID, SKU ID, Item, Pack Size, UOM, Category, Subcategory, Group, Subgroup, Scheme Master IK, Discount Master IK, Scheme Master OK, Discount Master OK, Scheme Proposed IK, Discount Proposed IK, Scheme Proposed OK, Discount Proposed OK.
+
+Created Google Sheet tab `MARKETING PROMOTIONS MASTER` (sheetId 1206261001) in `SASV - PRICE REVISION PROPOSAL` workbook `1K9u4YJ8qUfDcRfmTMRQDl3Ed24eItcm_0UW-jQhS21Q` after MASTER DATA. Imported exactly 627 SKU rows **from the in-workbook MASTER DATA tab**, not directly from database. Copied identification columns, names/pack/classification, current IK/OK scheme-name and discount-percentage references, and the same initial values into proposed columns. The proposed values are static, editable cells, not formulas or live references. No costing components, MRP, eligibility flags, new foreign keys, dates or other columns added. Source schema: indices 0-based [4,3,5,6,7,9,11,13,15,48,38,52,39,48,38,52,39]. Preserve 17-column order.
+
+Formatting: plain pale header, first 3 columns frozen, filter on rows 1–628, proposed discount input percent-point numbers limited to 0–100 (e.g. 33 means 33%). All scheme names are static strings (currently No Scheme); no dropdown/validated scheme list until proposed scheme-choice semantics are agreed. Current reference fields intended read-only by practice but have not been technically protected (do not claim they are access locked). Do not auto-update proposal cells in any future baseline import.
+
+QA: independently reread all 627 rows from both Sheet tabs; 627 distinct SKU IDs, exactly 17 columns, **zero cell mismatches across all 17 imported columns**, all proposed columns equal respective master fields on initial creation. No database changes in this stage.
+
+Future model: downstream proposal tabs reference only **Scheme Proposed IK / Discount Proposed IK / Scheme Proposed OK / Discount Proposed OK**; current columns are for visual comparison only. A new promotion edit can depart from those baseline values without altering database or Master Data. Scope-based/global policies, precedence and effective-date behaviour remain to be designed on later user direction; do not assume global promotions in this tab.

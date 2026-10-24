@@ -1,0 +1,15 @@
+{
+ "before_fix: other day vs today, all-column row diffs": 162,
+ "before_fix: status changes": {
+  "OK -> NO_SKU_SALES_IN_LOOKBACK": 41,
+  "OK -> NO_PRODUCT_SALES_IN_LOOKBACK": 38,
+  "NO_SKU_SALES_IN_LOOKBACK -> NO_PRODUCT_SALES_IN_LOOKBACK": 2
+ },
+ "install": "ok",
+ "rpc_md5_after": "458e55c7fd569d9cb5003582d6ee64cc",
+ "after_fix vs before_fix (same day): diffs outside status": 0,
+ "after_fix vs before_fix: status changes": null,
+ "after_fix: other day vs today, all-column row diffs": 0,
+ "run128_status_vs_after_fix": null,
+ "reapply": "refused: CI034 GUARD: refresh RPC is not a tested version (md5 458e55c7fd569d9cb5003582d6ee64cc)"
+}

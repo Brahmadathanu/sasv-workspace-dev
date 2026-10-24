@@ -1,0 +1,167 @@
+{
+ "legacy_replay_9128": "(datetime.date(2026, 10, 1), 627, 0, 57, 570)",
+ "install": "ok",
+ "T0_switch_off_9129": "(datetime.date(2026, 10, 1), 627, 0, 57, 570)",
+ "T0_rowdiff_vs_legacy_replay": 0,
+ "T0_lineage_rows": 0,
+ "T1_switch_on_9130": "(datetime.date(2026, 10, 1), 627, 0, 57, 570)",
+ "T1_methods": [
+  [
+   "DEMAND_SEASONAL_12M_AVERAGE",
+   1,
+   1,
+   0
+  ],
+  [
+   "LAUNCH_AVERAGE",
+   14,
+   14,
+   0
+  ],
+  [
+   "MAX_MONTH",
+   554,
+   554,
+   86
+  ]
+ ],
+ "T1_basis_methods": [
+  [
+   "DVS1_DEMAND_SEASONAL_12M_AVERAGE",
+   1
+  ],
+  [
+   "DVS1_LAUNCH_AVERAGE_SINCE_FIRST_SALE",
+   14
+  ],
+  [
+   "GOVERNED_NEW_PRODUCT_PLAN",
+   1
+  ],
+  [
+   "GOVERNED_SCENARIO_DEFAULT",
+   57
+  ],
+  [
+   "MAX_POSITIVE_COMPANY_WIDE_NET_SKU_MONTH_IN_12M_LOOKBACK",
+   554
+  ]
+ ],
+ "T1_kanji_878": [
+  "DEMAND_SEASONAL_12M_AVERAGE",
+  4943.583333333333,
+  30838.0,
+  4943.583333333333,
+  0.999663
+ ],
+ "T1_kanji_878_basis": [
+  "DVS1_DEMAND_SEASONAL_12M_AVERAGE",
+  4943.583333333333,
+  "DVS-1 v1 rule 4: product approved DEMAND_SEASONAL; 12-month average = 4943.5833 units/month."
+ ],
+ "T1_kanji_878_run128": [
+  "SEASONAL_12M_AVERAGE_COMPANY_WIDE_NET_SKU_MONTH",
+  4943.583333333333
+ ],
+ "T1_rule5_unchanged_vs_legacy": [
+  468,
+  0
+ ],
+ "T1_change_vs_legacy": [
+  102,
+  3.059171597633136,
+  0.0,
+  11.0,
+  "254217.9407853072853074860500",
+  "251327.2116186406186406200800"
+ ],
+ "T1_transition": [
+  [
+   "MAX_POSITIVE_COMPANY_WIDE_NET_SKU_MONTH_IN_12M_LOOKBACK",
+   "MAX_MONTH",
+   468
+  ],
+  [
+   "SEASONAL_12M_AVERAGE_COMPANY_WIDE_NET_SKU_MONTH",
+   "DEMAND_SEASONAL_12M_AVERAGE",
+   1
+  ],
+  [
+   "SEASONAL_12M_AVERAGE_COMPANY_WIDE_NET_SKU_MONTH",
+   "LAUNCH_AVERAGE",
+   14
+  ],
+  [
+   "SEASONAL_12M_AVERAGE_COMPANY_WIDE_NET_SKU_MONTH",
+   "MAX_MONTH",
+   86
+  ]
+ ],
+ "T2_proposed_event_no_effect": {
+  "sku": 1,
+  "method": "MAX_MONTH",
+  "rowdiff_vs_9130": 0
+ },
+ "T3_confirmed_exclude_units": [
+  "MAX_EXCLUDING_EVENTS",
+  1847.0,
+  2177.0,
+  1847.0,
+  1525.0833333333333,
+  "DVS1_MAX_MONTH_EXCLUDING_CONFIRMED_EVENTS",
+  1847.0,
+  "2025-11-01",
+  "DVS-1 v1 rule 3: confirmed demand events {1} treated; max remaining month = 1847.0000 units."
+ ],
+ "T3_supply_constraint": [
+  "IN_STOCK_AVERAGE",
+  764.0909090909091,
+  1041.0,
+  1006.0,
+  764.0909090909091,
+  "DVS1_IN_STOCK_MONTH_AVERAGE",
+  764.0909090909091,
+  null,
+  "DVS-1 v1 rule 3: confirmed supply constraint (events {2}); average of in-stock months = 764.0909 units/month."
+ ],
+ "T3_information_only": [
+  "MAX_MONTH",
+  1169.0,
+  1169.0,
+  1169.0,
+  995.5833333333334,
+  "MAX_POSITIVE_COMPANY_WIDE_NET_SKU_MONTH_IN_12M_LOOKBACK",
+  1169.0,
+  "2026-07-01",
+  "SALES-01: allocation basis uses the maximum positive company-wide net SKU-month quantity (no per-godown outlie"
+ ],
+ "T3_override": [
+  "OVERRIDE",
+  123.0,
+  1060.0,
+  1060.0,
+  744.25,
+  "DVS1_OVERRIDE",
+  123.0,
+  null,
+  "DVS-1 v1 rule 1: approved override 1 (FIXED_MONTHLY_UNITS) = 123.0000 units/month."
+ ],
+ "T3_override_beats_seasonal_878": [
+  "OVERRIDE",
+  777.0,
+  30838.0,
+  30838.0,
+  4943.583333333333,
+  "DVS1_OVERRIDE",
+  777.0,
+  null,
+  "DVS-1 v1 rule 1: approved override 2 (FIXED_MONTHLY_UNITS) = 777.0000 units/month."
+ ],
+ "T3_others_unchanged_vs_9130": 0,
+ "T4_overlapping_override": "refused: DVS-1: 1 SKU(s) have overlapping effective overrides on 2026-10-16",
+ "T4_overlapping_policy": "refused: DVS-1: 2 APPROVED policy versions overlap period 2026-10-01; refusing to refresh.",
+ "T4_feed_off_with_dvs_on": "refused: DVS-1 is approved for period 2026-10-01 but the SALES-01 costing sales feed is off; refusing to refresh.",
+ "T5_run128_lineage_insert": "refused: AU2_DESIGNATED_RUN_IMMUTABLE: run 128 is APPROVED; INSERT on costing.sku_demand_volume_selection_snapshot prohibited",
+ "T5_confirmed_without_approval": "refused: new row for relation \"demand_event_register\" violates check constraint \"demand_event_register_check\"",
+ "T6_runs_122_128_unchanged": true
+}

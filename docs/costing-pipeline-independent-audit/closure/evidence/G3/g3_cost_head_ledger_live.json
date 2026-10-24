@@ -1,0 +1,413 @@
+{
+ "ledger": [
+  {
+   "normal": 545,
+   "head_name": "Books & Periodicals",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 871972.83,
+   "head_name": "Central Office Charges",
+   "policy_status": "CURRENT_METHOD_RETAINED",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 62.5,
+   "head_name": "Govt Stamping Fee",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 967.67,
+   "head_name": "Pooja Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 11134.92,
+   "head_name": "Repairs & Maintenances",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 780.31,
+   "head_name": "Research & Development Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 24800,
+   "head_name": "Security Charges",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 20213.3,
+   "head_name": "Telephone,Internet & Cable Charges",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 14747.17,
+   "head_name": "Vehicle Running & Maintenances (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 11246.08,
+   "head_name": "Welfare Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 0,
+   "head_name": "Damage Stock A/c",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "EXCLUDED"
+  },
+  {
+   "normal": 0,
+   "head_name": "Employer Contributions",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "EXCLUDED"
+  },
+  {
+   "normal": 0,
+   "head_name": "Employer Contributions (DE)",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "EXCLUDED"
+  },
+  {
+   "normal": 0,
+   "head_name": "Fine & Penalty",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "EXCLUDED"
+  },
+  {
+   "normal": 0,
+   "head_name": "Miscellaneous Expenses",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "EXCLUDED"
+  },
+  {
+   "normal": 0,
+   "head_name": "Round Off on Purchase",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "EXCLUDED"
+  },
+  {
+   "normal": 0,
+   "head_name": "Salaries & Allowances (DE)",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "EXCLUDED"
+  },
+  {
+   "normal": 25083.33,
+   "head_name": "Auditors Remuneration",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 66603.78,
+   "head_name": "Financial Charges",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 8351.35,
+   "head_name": "Ineligible ITC",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 0,
+   "head_name": "Interest Paid",
+   "policy_status": "EXCLUDED",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 3125,
+   "head_name": "Legal & Professional Charges",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 5402.33,
+   "head_name": "Rates & Taxes",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 18959.67,
+   "head_name": "Rates & Taxes (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 2400,
+   "head_name": "Registration Charges",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "FINANCE_ADMIN_OVERHEAD"
+  },
+  {
+   "normal": 12500,
+   "head_name": "Advertisement Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 57948,
+   "head_name": "Carriage Outward",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 1634.96,
+   "head_name": "Cleaning Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 240174.45,
+   "head_name": "Discounts",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 319765.5,
+   "head_name": "Field Work Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 280.43,
+   "head_name": "Forex Gain/loss",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 20776.25,
+   "head_name": "Insurance Premium Paid",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 54793.86,
+   "head_name": "Mess Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 30895.4,
+   "head_name": "Postage & Courier Charges",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 25265.77,
+   "head_name": "Printing & Stationery",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 89190,
+   "head_name": "Rent",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 1653024.67,
+   "head_name": "Salaries & Allowances",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 84411.69,
+   "head_name": "Sales Promotion Expenses",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 145271.94,
+   "head_name": "Travelling & Conveyance",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 4632.67,
+   "head_name": "Travelling & Conveyance (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 223935.42,
+   "head_name": "Vehicle Running & Maintenances",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "MARKETING_EXPENSE"
+  },
+  {
+   "normal": 67725,
+   "head_name": "Carriage Inward (DE)",
+   "policy_status": "APPROVED",
+   "allocation_pool": "MATERIAL_LANDED_COST"
+  },
+  {
+   "normal": 5618.53,
+   "head_name": "Packing & Forwarding Charges (DE)",
+   "policy_status": "APPROVED",
+   "allocation_pool": "MATERIALS_STORES_OVERHEAD"
+  },
+  {
+   "normal": 35511.1,
+   "head_name": "Cleaning Expenses (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 149304.75,
+   "head_name": "Electricity & Water Charges (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 29983.51,
+   "head_name": "Factory Expenses (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 161969.07,
+   "head_name": "Fuel & Gas (DE)",
+   "policy_status": "APPROVED",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 25562.25,
+   "head_name": "Job Work Expense",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 177224.92,
+   "head_name": "Mess Expenses (DE)",
+   "policy_status": "APPROVED",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 8346.24,
+   "head_name": "Printing & Stationery (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 41978.2,
+   "head_name": "Repairs & Maintenances (DE)",
+   "policy_status": "APPROVED",
+   "allocation_pool": "PRODUCTION_OVERHEAD"
+  },
+  {
+   "normal": 51291.67,
+   "head_name": "Lab Expenses (DE)",
+   "policy_status": "PROVISIONAL",
+   "allocation_pool": "QUALITY_CONTROL_OVERHEAD"
+  }
+ ],
+ "tables": [
+  "marketing_signed_billed_sales_evidence_snapshot",
+  "sku_regional_marketing_expense_allocation_snapshot",
+  "v_sku_sales_volume_allocation_basis",
+  "v_sku_direct_labour_allocation",
+  "sku_admin_finance_overhead_allocation_snapshot",
+  "sku_commercial_sales_assumption",
+  "sku_marketing_expense_allocation_snapshot",
+  "sku_overhead_allocation_snapshot",
+  "marketing_regional_sales_evidence_snapshot",
+  "sku_regional_commercial_sales_assumption",
+  "product_qc_allocation_snapshot",
+  "sku_qc_allocation_snapshot",
+  "sku_sales_allocation_basis_snapshot",
+  "sku_direct_labour_allocation_snapshot",
+  "v_sku_commercial_sales_basis",
+  "v_sku_qc_allocation_current",
+  "v_product_qc_allocation_current",
+  "sku_materials_stores_allocation_snapshot",
+  "sku_regional_marketing_allocation_basis_snapshot",
+  "regional_sales_allocation_default_policy",
+  "sales_planning_fallback_unit_policy",
+  "v_sku_materials_stores_allocation_current",
+  "v_sales_planning_fallback_policy_current",
+  "marketing_allocation_policy",
+  "sku_production_overhead_allocation_snapshot",
+  "product_internal_source_materials_stores_allocation_snapshot",
+  "sales_allocation_quantity_driver_acceptance",
+  "v_sales_allocation_quantity_driver_review_queue",
+  "sales_allocation_default_policy",
+  "costing_sales_feed_switch"
+ ],
+ "seasonal": {
+  "seasonal": 15,
+  "products_total": 1342
+ },
+ "sales_cols": [
+  "id",
+  "period_start",
+  "sku_id",
+  "product_id",
+  "product_name",
+  "product_base_uom",
+  "conversion_to_base",
+  "pack_size",
+  "pack_uom",
+  "sku_base_qty_per_unit",
+  "sales_units_12m",
+  "sales_base_qty_12m",
+  "product_sales_units_12m",
+  "product_sales_base_qty_12m",
+  "company_sales_units_12m",
+  "product_allocation_share",
+  "allocation_basis_status",
+  "lookback_start",
+  "lookback_end",
+  "refreshed_at",
+  "valuation_date",
+  "refresh_run_id",
+  "actual_sales_units_12m",
+  "actual_sales_base_qty_12m",
+  "actual_product_sales_units_12m",
+  "actual_product_sales_base_qty_12m",
+  "actual_company_sales_units_12m",
+  "resolved_sales_units",
+  "resolved_sales_base_qty",
+  "resolved_product_sales_units",
+  "resolved_product_sales_base_qty",
+  "resolved_company_sales_units",
+  "resolved_product_allocation_share",
+  "allocation_basis_source",
+  "allocation_resolution_status",
+  "allocation_resolution_note",
+  "assumption_id",
+  "assumption_basis",
+  "assumption_effective_from",
+  "assumption_effective_to",
+  "default_policy_id",
+  "default_policy_scenario",
+  "default_policy_effective_from",
+  "default_policy_effective_to",
+  "monthly_allocation_units",
+  "monthly_allocation_base_qty",
+  "monthly_product_allocation_units",
+  "monthly_product_allocation_base_qty",
+  "monthly_company_allocation_units",
+  "monthly_product_allocation_share",
+  "monthly_driver_method",
+  "monthly_driver_source",
+  "monthly_driver_source_month",
+  "monthly_driver_lookback_start",
+  "monthly_driver_lookback_end",
+  "monthly_driver_tied_month_count",
+  "monthly_driver_status",
+  "monthly_driver_note",
+  "monthly_driver_plan_id"
+ ]
+}

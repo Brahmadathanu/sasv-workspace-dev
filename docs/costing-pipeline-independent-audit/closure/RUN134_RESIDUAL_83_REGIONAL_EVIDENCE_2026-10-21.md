@@ -1,0 +1,11 @@
+# Run134 post-continuity residual regional reviews — 21 Oct 2026
+
+Read-only verification after successful migration costing_regional_evidence_continuity_20261021. No new refresh, price publication, or approval.
+
+- pricing bridge's `costing.rpc_refresh_sku_pricing_bridge_snapshot(date,date,bigint)` explicitly uses `costing.fn_regional_marketing_review_status(r.id)` and `rs.effective_status` for IK/OK status. Integration code therefore already respects matching governed acceptances; do not duplicate or patch this status logic.
+- Run134 regional marketing source: 200 raw REVIEW_REQUIRED region-SKU records; effective 117 READY / 83 REVIEW_REQUIRED after unchanged-evidence continuity reuse.
+- Residual 83 = 44 OK + 39 IK across **57 distinct SKUs**. Every residual record has `regional_basis_source=REGION_SCALED_COMMON_BASIS` and `marketing_value_source=ACTUAL_SIGNED_BILLED_SALES`. Each has a prior ACTIVE October 16 acceptance for same SKU/region.
+- All 83 changed `resolved_regional_units` and `resolved_regional_base_qty` between accepted 16-Oct evidence and frozen 20-Oct run134. 35 also changed `resolved_product_region_marketing_sales_value`; 48 have unchanged monetary numerator but changed inferred quantity denominator. Thus **none** qualifies for identical-evidence approval continuation under owner-approved policy. Calculated regional marketing amount change alone is not the cause.
+- Default-policy rows (68 plus 1 actual numerator/default denominator) and 48 stable region-scaled rows reuse previous approvals appropriately (total 117), without relabeling estimated evidence as actual.
+- Recommended action: keep 83 residual regional reviews; get source evidence or explicitly accept new projected regional quantities under existing permission-gated `rpc_accept_regional_marketing_review`, not blanket status change. If owners consider the common-basis scaling formula inherently approved for the entire period despite new base-volume inputs, that is a separate, explicit policy decision and should not be silently implied.
+- Material independent live calculation before a new run reports 627/627 READY after purchase-age advisory, but frozen run134 remains unchanged. G6/Sheets HOLD. Next final run needs separate authorisation and financial gate.

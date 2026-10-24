@@ -1,0 +1,104 @@
+[
+ {
+  "object": "F costing.fn_compute_run_fingerprint(p_refresh_run_id bigint)",
+  "live_md5": "dddd263ea9de9f1308dda6e4fcd47196",
+  "prepared_sql_md5": "dddd263ea9de9f1308dda6e4fcd47196",
+  "match": true
+ },
+ {
+  "object": "F costing.fn_run_fingerprint_current_columns(p_table text)",
+  "live_md5": "0e98d2ee62f4380c683ea2b8e40f7f79",
+  "prepared_sql_md5": "0e98d2ee62f4380c683ea2b8e40f7f79",
+  "match": true
+ },
+ {
+  "object": "F costing.fn_run_fingerprint_table_hash(p_table text, p_refresh_run_id bigint, p_cols text[])",
+  "live_md5": "d882496bb0c095c8cbf15389f34419bc",
+  "prepared_sql_md5": "d882496bb0c095c8cbf15389f34419bc",
+  "match": true
+ },
+ {
+  "object": "F costing.fn_verify_run_fingerprint(p_refresh_run_id bigint)",
+  "live_md5": "28df0f2e8b145e3c700df72c58765758",
+  "prepared_sql_md5": "28df0f2e8b145e3c700df72c58765758",
+  "match": true
+ },
+ {
+  "object": "F costing.rpc_rebaseline_run_fingerprint(p_refresh_run_id bigint, p_reference_fingerprint_id bigint, p_excluded_columns jsonb, p_rebaselined_by text, p_reason text, p_approval_reference text)",
+  "live_md5": "10077cdb031148ea2f56511b3c23b5e6",
+  "prepared_sql_md5": "10077cdb031148ea2f56511b3c23b5e6",
+  "match": true
+ },
+ {
+  "object": "K costing.costing_run_fingerprint.costing_run_fingerprint_purpose_check",
+  "live_md5": "32b22bf73bf106b77fbf03b275ce46bd",
+  "prepared_sql_md5": "32b22bf73bf106b77fbf03b275ce46bd",
+  "match": true
+ },
+ {
+  "object": "K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_approval_reference_check",
+  "live_md5": "f00d574e3b1ae9eca00e073c50d07467",
+  "prepared_sql_md5": "f00d574e3b1ae9eca00e073c50d07467",
+  "match": true
+ },
+ {
+  "object": "K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_pkey",
+  "live_md5": "4c6419b3704337bbfe50f018842a9ad3",
+  "prepared_sql_md5": "4c6419b3704337bbfe50f018842a9ad3",
+  "match": true
+ },
+ {
+  "object": "K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_reason_check",
+  "live_md5": "ed8de7c06becb98cf3bb6fbf36b61bde",
+  "prepared_sql_md5": "ed8de7c06becb98cf3bb6fbf36b61bde",
+  "match": true
+ },
+ {
+  "object": "K costing.costing_run_fingerprint_rebaseline.costing_run_fingerprint_rebaseline_rebaselined_by_check",
+  "live_md5": "525d0bd2731dea26295a191ce22fd4fd",
+  "prepared_sql_md5": "525d0bd2731dea26295a191ce22fd4fd",
+  "match": true
+ },
+ {
+  "object": "T costing.costing_run_fingerprint_rebaseline",
+  "live_md5": "20c8d1eeaf6f8ae02c885da8d98af044",
+  "prepared_sql_md5": "20c8d1eeaf6f8ae02c885da8d98af044",
+  "match": true
+ },
+ {
+  "object": "V costing.v_cost_sheet_snapshot_sku_monthly_comparison_governed",
+  "live_md5": "63adf7946b8d7f99a01a05e5e54d00be",
+  "prepared_sql_md5": "63adf7946b8d7f99a01a05e5e54d00be",
+  "match": true
+ },
+ {
+  "object": "V costing.v_costing_period_run_status",
+  "live_md5": "d38be6e4c0c8bb9811f4872b78e72936",
+  "prepared_sql_md5": "d38be6e4c0c8bb9811f4872b78e72936",
+  "match": true
+ },
+ {
+  "object": "V costing.v_price_revision_feed_approved",
+  "live_md5": "628a0ab31d675334fb61de6fa936c1d8",
+  "prepared_sql_md5": "628a0ab31d675334fb61de6fa936c1d8",
+  "match": true
+ },
+ {
+  "object": "V public.v_cost_sheet_snapshot_sku_monthly_comparison_governed",
+  "live_md5": "3382dc88e1db5589d5855ba858478c31",
+  "prepared_sql_md5": "3382dc88e1db5589d5855ba858478c31",
+  "match": true
+ },
+ {
+  "object": "V public.v_costing_pricing_period_run_status",
+  "live_md5": "490345425d4204741d52b8ca70fbbcb3",
+  "prepared_sql_md5": "490345425d4204741d52b8ca70fbbcb3",
+  "match": true
+ },
+ {
+  "object": "V public.v_costing_pricing_price_revision_feed_approved",
+  "live_md5": "5bf957f5e4628cccfb2ce0421c8b6c0e",
+  "prepared_sql_md5": "5bf957f5e4628cccfb2ce0421c8b6c0e",
+  "match": true
+ }
+]

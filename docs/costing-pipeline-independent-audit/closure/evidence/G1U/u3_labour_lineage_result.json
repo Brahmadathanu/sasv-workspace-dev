@@ -1,0 +1,311 @@
+{
+ "pools": [
+  {
+   "gap": 0,
+   "mfg": 706203,
+   "run": 122,
+   "pack": 663449,
+   "dl_pool": 1369652,
+   "components_total": 1369652
+  },
+  {
+   "gap": 0,
+   "mfg": 706203,
+   "run": 128,
+   "pack": 663449,
+   "dl_pool": 1369652,
+   "components_total": 1369652
+  }
+ ],
+ "sku_checks": [
+  {
+   "skus": 634,
+   "review": 5,
+   "blocked": 0,
+   "sum_mfg_alloc": 705484.84,
+   "refresh_run_id": 122,
+   "sum_pack_alloc": 663449,
+   "dl_split_mismatch": 0,
+   "mfg_per_unit_mismatch": 0,
+   "pack_per_unit_mismatch": 0
+  },
+  {
+   "skus": 627,
+   "review": 2,
+   "blocked": 0,
+   "sum_mfg_alloc": 706126.94,
+   "refresh_run_id": 128,
+   "sum_pack_alloc": 663449,
+   "dl_split_mismatch": 0,
+   "mfg_per_unit_mismatch": 0,
+   "pack_per_unit_mismatch": 0
+  }
+ ],
+ "packing_checks": [
+  {
+   "skus": 634,
+   "pack_pool_gap": 6.704152145e-15,
+   "refresh_run_id": 122,
+   "external_packed": 4,
+   "pack_formula_mismatch": 0
+  },
+  {
+   "skus": 627,
+   "pack_pool_gap": 3.980694e-18,
+   "refresh_run_id": 128,
+   "external_packed": 4,
+   "pack_formula_mismatch": 0
+  }
+ ],
+ "product_checks": [
+  {
+   "blocked": 0,
+   "eligible": 452,
+   "products": 460,
+   "mfg_pool_gap": 5.596834e-13,
+   "refresh_run_id": 122,
+   "zero_mfg_route": 8,
+   "alloc_formula_mismatch": 0,
+   "blocked_monthly_base_qty": null,
+   "eligible_without_scaling_row": 452,
+   "intensity_vs_scaling_mismatch": 0,
+   "raw_intensity_vs_steps_mismatch": 0,
+   "workload_vs_batch_equiv_mismatch": 0
+  },
+  {
+   "blocked": 0,
+   "eligible": 445,
+   "products": 453,
+   "mfg_pool_gap": 2.14972028e-84,
+   "refresh_run_id": 128,
+   "zero_mfg_route": 8,
+   "alloc_formula_mismatch": 0,
+   "blocked_monthly_base_qty": null,
+   "eligible_without_scaling_row": 0,
+   "intensity_vs_scaling_mismatch": 0,
+   "raw_intensity_vs_steps_mismatch": 0,
+   "workload_vs_batch_equiv_mismatch": 0
+  }
+ ],
+ "product_to_sku": [
+  {
+   "refresh_run_id": 122,
+   "product_to_sku_gap_rs": 718.1572,
+   "product_to_sku_gap_products": 5
+  },
+  {
+   "refresh_run_id": 128,
+   "product_to_sku_gap_rs": 76.0627,
+   "product_to_sku_gap_products": 5
+  }
+ ],
+ "resource_classes": [
+  {
+   "products": 452,
+   "factor_sum": 1954.1,
+   "refresh_run_id": 122,
+   "resource_class_code": "MANUAL"
+  },
+  {
+   "products": 437,
+   "factor_sum": 1211,
+   "refresh_run_id": 122,
+   "resource_class_code": "GRINDER"
+  },
+  {
+   "products": 284,
+   "factor_sum": 649.9,
+   "refresh_run_id": 122,
+   "resource_class_code": "PROCESSING_VESSEL"
+  },
+  {
+   "products": 176,
+   "factor_sum": 408.2,
+   "refresh_run_id": 122,
+   "resource_class_code": "FILTRATION_SYSTEM"
+  },
+  {
+   "products": 269,
+   "factor_sum": 393,
+   "refresh_run_id": 122,
+   "resource_class_code": "EXTRACTION_SYSTEM"
+  },
+  {
+   "products": 188,
+   "factor_sum": 259.7,
+   "refresh_run_id": 122,
+   "resource_class_code": "DRYER_OR_OVEN"
+  },
+  {
+   "products": 50,
+   "factor_sum": 97,
+   "refresh_run_id": 122,
+   "resource_class_code": "TABLET_OR_CAPSULE_EQUIPMENT"
+  },
+  {
+   "products": 314,
+   "factor_sum": 61.95,
+   "refresh_run_id": 122,
+   "resource_class_code": "STORAGE_OCCUPANCY"
+  },
+  {
+   "products": 34,
+   "factor_sum": 57.8,
+   "refresh_run_id": 122,
+   "resource_class_code": "FERMENTATION_VESSEL"
+  },
+  {
+   "products": 460,
+   "factor_sum": 24.2,
+   "refresh_run_id": 122,
+   "resource_class_code": "GENERAL_AREA"
+  },
+  {
+   "products": 22,
+   "factor_sum": 19.1,
+   "refresh_run_id": 122,
+   "resource_class_code": "CALCINATION"
+  },
+  {
+   "products": 12,
+   "factor_sum": 11.2,
+   "refresh_run_id": 122,
+   "resource_class_code": "TRADITIONAL_FURNACE"
+  },
+  {
+   "products": 3,
+   "factor_sum": 2.6,
+   "refresh_run_id": 122,
+   "resource_class_code": "MIXING_EQUIPMENT"
+  },
+  {
+   "products": 4,
+   "factor_sum": 0,
+   "refresh_run_id": 122,
+   "resource_class_code": "EXTERNAL_JOB_WORK"
+  },
+  {
+   "products": 445,
+   "factor_sum": 1947.1,
+   "refresh_run_id": 128,
+   "resource_class_code": "MANUAL"
+  },
+  {
+   "products": 434,
+   "factor_sum": 1206,
+   "refresh_run_id": 128,
+   "resource_class_code": "GRINDER"
+  },
+  {
+   "products": 284,
+   "factor_sum": 649.9,
+   "refresh_run_id": 128,
+   "resource_class_code": "PROCESSING_VESSEL"
+  },
+  {
+   "products": 176,
+   "factor_sum": 408.2,
+   "refresh_run_id": 128,
+   "resource_class_code": "FILTRATION_SYSTEM"
+  },
+  {
+   "products": 269,
+   "factor_sum": 393,
+   "refresh_run_id": 128,
+   "resource_class_code": "EXTRACTION_SYSTEM"
+  },
+  {
+   "products": 181,
+   "factor_sum": 255.5,
+   "refresh_run_id": 128,
+   "resource_class_code": "DRYER_OR_OVEN"
+  },
+  {
+   "products": 50,
+   "factor_sum": 97,
+   "refresh_run_id": 128,
+   "resource_class_code": "TABLET_OR_CAPSULE_EQUIPMENT"
+  },
+  {
+   "products": 314,
+   "factor_sum": 61.95,
+   "refresh_run_id": 128,
+   "resource_class_code": "STORAGE_OCCUPANCY"
+  },
+  {
+   "products": 34,
+   "factor_sum": 57.8,
+   "refresh_run_id": 128,
+   "resource_class_code": "FERMENTATION_VESSEL"
+  },
+  {
+   "products": 453,
+   "factor_sum": 24.2,
+   "refresh_run_id": 128,
+   "resource_class_code": "GENERAL_AREA"
+  },
+  {
+   "products": 22,
+   "factor_sum": 19.1,
+   "refresh_run_id": 128,
+   "resource_class_code": "CALCINATION"
+  },
+  {
+   "products": 12,
+   "factor_sum": 11.2,
+   "refresh_run_id": 128,
+   "resource_class_code": "TRADITIONAL_FURNACE"
+  },
+  {
+   "products": 3,
+   "factor_sum": 2.6,
+   "refresh_run_id": 128,
+   "resource_class_code": "MIXING_EQUIPMENT"
+  },
+  {
+   "products": 4,
+   "factor_sum": 0,
+   "refresh_run_id": 128,
+   "resource_class_code": "EXTERNAL_JOB_WORK"
+  }
+ ],
+ "batch_true_variance": [
+  {
+   "rate_used": 182.86980134073525,
+   "created_at": "2026-10-18T07:55:00.053306+00:00",
+   "rate_basis": "NORMAL_VOLUME_RATE",
+   "pool_amount": 706203,
+   "refresh_run_id": 128,
+   "allocation_pool": "MANUFACTURING_LABOUR",
+   "variance_amount": 2.14972028e-84,
+   "products_batch_true": 445,
+   "absorbed_at_standard": 706203,
+   "products_current_method": 8
+  },
+  {
+   "rate_used": 160.8360869272584,
+   "created_at": "2026-10-18T07:55:00.053306+00:00",
+   "rate_basis": "NORMAL_VOLUME_RATE",
+   "pool_amount": 670935.04,
+   "refresh_run_id": 128,
+   "allocation_pool": "PRODUCTION_OVERHEAD",
+   "variance_amount": -3.468637e-70,
+   "products_batch_true": 453,
+   "absorbed_at_standard": 670935.04,
+   "products_current_method": 0
+  },
+  {
+   "rate_used": 127.15653848412249,
+   "created_at": "2026-10-18T07:55:00.053306+00:00",
+   "rate_basis": "NORMAL_VOLUME_RATE",
+   "pool_amount": 142241.67,
+   "refresh_run_id": 128,
+   "allocation_pool": "QUALITY_CONTROL_OVERHEAD",
+   "variance_amount": 1.0255991954284107e-68,
+   "products_batch_true": 453,
+   "absorbed_at_standard": 142241.67,
+   "products_current_method": 0
+  }
+ ],
+ "blocked_products_128": null
+}

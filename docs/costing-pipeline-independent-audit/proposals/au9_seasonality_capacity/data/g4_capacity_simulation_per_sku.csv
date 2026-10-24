@@ -1,0 +1,2925 @@
+scenario,sku_id,product_id,product,pack,cop_run128,cop_scenario,pct
+A,1,1,Abhayarishtam,450 mL,46.51,46.46,-0.1
+A,2,2,Amritharishtam,450 mL,33.41,33.37,-0.12
+A,3,5,Asokarishtam,450 mL,30.04,30.0,-0.15
+A,4,6,Aswagandharishtam,450 mL,55.47,55.42,-0.08
+A,5,9,Balarishtam,450 mL,40.76,40.72,-0.11
+A,6,10,Dandyarishtam,450 mL,38.01,37.97,-0.1
+A,7,30,Dasamoolajeerakarishtam,450 mL,38.34,38.3,-0.1
+A,8,11,Dasamoolarishtam,450 mL,44.86,44.82,-0.09
+A,9,13,Dhanwanthararishtam,450 mL,44.2,44.15,-0.1
+A,11,14,Dhathryarishtam,450 mL,45.92,45.88,-0.1
+A,12,15,Draksharishtam,450 mL,51.15,51.11,-0.08
+A,13,16,Duralabharishtam,450 mL,51.17,51.12,-0.09
+A,14,17,Jeerakarishtam,450 mL,36.5,36.46,-0.11
+A,15,18,Khadirarishtam,450 mL,38.78,38.73,-0.12
+A,16,19,Kutajarishtam,450 mL,44.73,44.68,-0.11
+A,18,21,Mustharishtam,450 mL,35.16,35.12,-0.13
+A,19,23,Parthadyarishtam,450 mL,45.69,45.64,-0.1
+A,20,25,Saraswatharishtam,450 mL,67.03,66.98,-0.08
+A,21,28,Vasarishtam,450 mL,50.29,50.24,-0.09
+A,22,31,Hridayasanthi,100 mL,15.4,15.39,-0.06
+A,23,31,Hridayasanthi,450 mL,48.59,48.54,-0.09
+A,25,32,Panchamridweekarasam,450 mL,38.77,38.74,-0.08
+A,26,33,Udarasudha,100 mL,15.85,15.84,-0.06
+A,27,33,Udarasudha,450 mL,45.59,45.55,-0.1
+A,28,34,Aravindasavam,450 mL,41.57,41.53,-0.1
+A,29,35,Chandanasavam,450 mL,35.31,35.27,-0.12
+A,30,37,Kanakasavam,450 mL,35.33,35.29,-0.11
+A,31,38,Kumaryasavam,450 mL,40.62,40.56,-0.13
+A,32,39,Lohasavam,450 mL,38.3,38.26,-0.11
+A,33,41,Nimbasavam,450 mL,47.91,47.86,-0.1
+A,34,42,Panchakolasavam,450 mL,32.1,32.06,-0.13
+A,35,44,Pippalyasavam,450 mL,36.12,36.08,-0.11
+A,36,47,Punarnavasavam,450 mL,37.51,37.47,-0.11
+A,37,48,Saribadyasavam,450 mL,46.51,46.47,-0.09
+A,38,49,Sudarsanasavam,450 mL,38.06,38.0,-0.15
+A,39,50,Useerasavam,450 mL,35.8,35.76,-0.11
+A,42,51,Dhanyamlam,2000 mL,410.62,407.55,-0.75
+A,43,51,Dhanyamlam,5000 mL,1009.85,1002.18,-0.76
+A,44,65,Kalyana Ksharam,10 g,22.53,22.52,-0.04
+A,45,99,Pramehakalpam Capsule,4 Nos,11.5,11.49,-0.02
+A,46,99,Pramehakalpam Capsule,100 Nos,130.01,129.97,-0.03
+A,49,101,Vathamarmakan Capsule,4 Nos,10.43,10.43,-0.01
+A,50,101,Vathamarmakan Capsule,100 Nos,133.69,133.67,-0.02
+A,51,748,M3 Capsule,100 Nos,118.92,118.56,-0.31
+A,71,115,Ashta Choornam,50 g,42.91,42.89,-0.04
+A,74,117,Aswagandhadi Choornam,50 g,31.85,31.83,-0.06
+A,77,118,Avipathi Choornam,50 g,31.17,31.15,-0.05
+A,81,119,Dadimashtaka Choornam,50 g,26.25,26.23,-0.09
+A,84,120,Eladi Podi,50 g,41.67,41.66,-0.04
+A,88,121,Gulgulu Panchapala Choornam,20 g,41.63,41.6,-0.08
+A,92,122,Hinguvachadi Choornam,50 g,35.88,35.86,-0.04
+A,95,125,Kachooradi Choornam,10 g,14.21,14.2,-0.07
+A,99,127,Karpooradi Choornam,50 g,44.12,44.09,-0.07
+A,102,128,Kolakulathadi Choornam,100 g,45.43,45.38,-0.1
+A,106,132,Rajanyadi Choornam,20 g,24.38,24.35,-0.15
+A,110,133,Rasnadi Choornam,10 g,11.08,11.07,-0.05
+A,111,133,Rasnadi Choornam,50 g,29.67,29.64,-0.09
+A,115,136,Shaddharana Choornam,50 g,75.92,75.87,-0.07
+A,118,138,Sudarsana Choornam,50 g,39.33,39.28,-0.14
+A,121,139,Thaleesapathradi Choornam,50 g,33.07,33.05,-0.07
+A,124,140,Triphaladi Choornam,50 g,26.22,26.21,-0.06
+A,127,140,Triphaladi Choornam,1000 g,307.8,307.48,-0.11
+A,128,142,Vaiswanara Choornam,50 g,33.94,33.89,-0.14
+A,131,144,Vyoshadi Vatakam,50 g,22.42,22.41,-0.08
+A,134,149,Agasthyar Nasika Choornam,2 g,7.44,7.43,-0.16
+A,135,151,Meninokki Choornam,14 g,11.02,11.0,-0.11
+A,137,151,Meninokki Choornam,210 g,100.19,100.0,-0.19
+A,138,152,Santhigiri Tooth Powder,20 g,15.83,15.83,-0.02
+A,139,153,Tharari Choornam,50 g,32.64,32.63,-0.05
+A,143,154,Udwarthana Choornam,100 g,27.85,27.84,-0.05
+A,145,154,Udwarthana Choornam,500 g,73.68,73.61,-0.09
+A,151,158,Himasagara Choornam,100 g,49.54,49.48,-0.12
+A,158,166,Nimbasahacharadi Choornam,100 g,26.87,26.82,-0.17
+A,159,167,Sameerananivarani Choornam,100 g,51.22,51.16,-0.14
+A,160,168,Sarvamangala Choornam,100 g,69.79,69.74,-0.07
+A,165,173,Vasamrithadi Choornam,100 g,35.59,35.5,-0.26
+A,166,175,Chathurvargga Choornam,100 g,58.73,58.67,-0.09
+A,167,176,Neelolpaladi Kashaya Choornam,100 g,53.73,53.7,-0.07
+A,168,177,Sairakabaladi Choornam,100 g,37.64,37.58,-0.15
+A,169,178,Haridrakhandam,50 g,31.17,31.12,-0.14
+A,172,179,Jadamayadi Lepa Choornam,40 g,31.66,31.65,-0.03
+A,173,179,Jadamayadi Lepa Choornam,100 g,77.98,77.96,-0.03
+A,177,180,Kottamchukkadi Lepa Choornam,50 g,22.47,22.45,-0.08
+A,178,180,Kottamchukkadi Lepa Choornam,100 g,46.05,46.01,-0.08
+A,180,180,Kottamchukkadi Lepa Choornam,500 g,170.39,170.21,-0.1
+A,182,181,Nagaradi Lepa Choornam,50 g,33.33,33.32,-0.03
+A,183,181,Nagaradi Lepa Choornam,100 g,68.09,68.07,-0.03
+A,186,181,Nagaradi Lepa Choornam,1000 g,541.31,541.08,-0.04
+A,187,182,Guduci Satva,10 g,59.61,59.56,-0.08
+A,191,183,Ksheerabala Thailam 101 Avarthi,10 mL,57.0,56.84,-0.29
+A,193,184,Ksheerabala Thailam 41 Avarthi,10 mL,117.55,116.62,-0.8
+A,194,185,Anuthailam,10 mL,10.71,10.7,-0.06
+A,196,186,Arimedadi Enna,100 mL,38.01,37.96,-0.12
+A,197,186,Arimedadi Enna,200 mL,71.2,71.1,-0.13
+A,200,188,Asanamanjishtadi Enna,100 mL,40.32,40.27,-0.13
+A,201,188,Asanamanjishtadi Enna,200 mL,71.94,71.84,-0.14
+A,204,189,Asanavilwadi Enna,100 mL,38.42,38.37,-0.12
+A,205,189,Asanavilwadi Enna,200 mL,68.48,68.39,-0.14
+A,207,190,Bala Thailam,100 mL,36.99,36.97,-0.07
+A,208,190,Bala Thailam,200 mL,69.24,69.19,-0.07
+A,209,190,Bala Thailam,450 mL,139.93,139.81,-0.08
+A,213,192,Balaguloochyadi Thailam,200 mL,70.44,70.35,-0.13
+A,218,193,Balahatadi Enna,200 mL,70.92,70.83,-0.13
+A,221,194,Balaswagandhalakshadi Thailam,100 mL,42.84,42.81,-0.07
+A,222,194,Balaswagandhalakshadi Thailam,200 mL,80.26,80.2,-0.08
+A,226,196,Chandanadi Enna (Cheruthu),100 mL,35.96,35.93,-0.07
+A,227,196,Chandanadi Enna (Cheruthu),200 mL,64.13,64.08,-0.08
+A,229,196,Chandanadi Enna (Cheruthu),5000 mL,1357.42,1356.13,-0.09
+A,231,205,Dhanwantharam Thailam (Enna),100 mL,36.74,36.72,-0.07
+A,232,205,Dhanwantharam Thailam (Enna),200 mL,66.75,66.71,-0.07
+A,233,205,Dhanwantharam Thailam (Enna),450 mL,139.95,139.84,-0.08
+A,235,205,Dhanwantharam Thailam (Enna),5000 mL,1426.46,1425.23,-0.09
+A,236,206,Dhanwantharam Thailam (Mezhukupakam) Vasthi,450 mL,141.75,141.62,-0.1
+A,239,210,Eladi Enna,200 mL,71.2,71.11,-0.12
+A,241,210,Eladi Enna,5000 mL,1553.3,1551.17,-0.14
+A,242,218,Karaskara Thailam (External),50 mL,25.56,25.54,-0.09
+A,248,219,Karpasasthyadi Thailam,100 mL,37.6,37.56,-0.08
+A,249,219,Karpasasthyadi Thailam,200 mL,67.41,67.35,-0.09
+A,251,219,Karpasasthyadi Thailam,2000 mL,581.01,580.4,-0.11
+A,252,219,Karpasasthyadi Thailam,5000 mL,1439.26,1437.73,-0.11
+A,259,222,Kottamchukkadi Thailam,100 mL,37.09,37.06,-0.07
+A,260,222,Kottamchukkadi Thailam,200 mL,68.01,67.96,-0.07
+A,261,222,Kottamchukkadi Thailam,450 mL,140.71,140.6,-0.08
+A,262,222,Kottamchukkadi Thailam,5000 mL,1454.36,1453.13,-0.08
+A,264,226,Ksheerabala Enna,100 mL,35.17,35.14,-0.07
+A,265,226,Ksheerabala Enna,200 mL,63.97,63.92,-0.08
+A,266,226,Ksheerabala Enna,450 mL,131.65,131.54,-0.08
+A,268,226,Ksheerabala Enna,5000 mL,1353.29,1352.06,-0.09
+A,273,233,Mahamashadi Thailam (Enna),100 mL,39.19,39.16,-0.07
+A,274,233,Mahamashadi Thailam (Enna),200 mL,70.73,70.68,-0.07
+A,276,233,Mahamashadi Thailam (Enna),5000 mL,1520.35,1519.07,-0.08
+A,278,234,Mahanarayana Thailam,100 mL,46.77,46.74,-0.05
+A,279,234,Mahanarayana Thailam,200 mL,86.95,86.9,-0.06
+A,280,234,Mahanarayana Thailam,450 mL,185.62,185.51,-0.06
+A,282,235,Mahanarayana Thailam (Pizhichil),450 mL,165.86,165.76,-0.07
+A,284,239,Nagaradi Thailam,50 mL,38.0,37.94,-0.17
+A,290,241,Neelibhringadi Enna,100 mL,45.31,45.28,-0.07
+A,295,247,Sahacharadi Thailam,100 mL,38.35,38.32,-0.06
+A,296,247,Sahacharadi Thailam,200 mL,71.16,71.11,-0.07
+A,297,247,Sahacharadi Thailam,450 mL,147.23,147.12,-0.07
+A,299,247,Sahacharadi Thailam,5000 mL,1531.79,1530.57,-0.08
+A,300,248,Sahacharadi Thailam (Mezhukupakam) Vasthi,450 mL,154.9,154.76,-0.09
+A,304,252,Triphaladi Enna,200 mL,81.74,81.6,-0.18
+A,309,258,Vathasani Thailam (Enna),200 mL,72.54,72.48,-0.09
+A,312,260,Agasthyar Thailam,25 mL,16.21,16.21,-0.04
+A,314,262,Karpooradi Thailam,100 mL,50.36,50.34,-0.04
+A,315,262,Karpooradi Thailam,200 mL,95.62,95.58,-0.04
+A,316,262,Karpooradi Thailam,450 mL,202.65,202.56,-0.04
+A,317,262,Karpooradi Thailam,5000 mL,2142.49,2141.57,-0.04
+A,319,263,Kayathirumeni Enna (Cheruthu),100 mL,25.76,25.73,-0.09
+A,320,263,Kayathirumeni Enna (Cheruthu),200 mL,45.63,45.59,-0.11
+A,324,264,Kayathirumeni Enna (Valuthu),100 mL,40.46,40.44,-0.06
+A,325,264,Kayathirumeni Enna (Valuthu),200 mL,74.16,74.11,-0.06
+A,326,264,Kayathirumeni Enna (Valuthu),450 mL,154.94,154.83,-0.07
+A,327,264,Kayathirumeni Enna (Valuthu),5000 mL,1612.45,1611.25,-0.07
+A,329,266,Lekshmivilasam Enna,100 mL,46.79,46.76,-0.07
+A,330,266,Lekshmivilasam Enna,200 mL,87.21,87.15,-0.08
+A,333,267,Mahavathanthaka Thailam,50 mL,44.84,44.81,-0.08
+A,335,268,Siddha Kayathirumeni Enna,100 mL,70.99,70.97,-0.04
+A,336,268,Siddha Kayathirumeni Enna,200 mL,135.56,135.51,-0.04
+A,340,269,Siroreksha Thailam,100 mL,47.8,47.75,-0.1
+A,341,269,Siroreksha Thailam,200 mL,89.71,89.62,-0.11
+A,346,270,Strobilanthes Oil,200 mL,69.3,69.25,-0.07
+A,347,270,Strobilanthes Oil,450 mL,143.77,143.66,-0.08
+A,350,272,Valiya Amrithadi Enna,100 mL,41.7,41.66,-0.11
+A,356,389,Uzhinja Ghritham,200 mL,130.21,130.06,-0.12
+A,357,273,Chithraka Thailam,50 mL,53.44,53.4,-0.06
+A,358,274,Siddha Thailam,50 mL,57.9,57.8,-0.17
+A,360,275,Mahanarayana Thailam (Internal),25 mL,21.73,21.72,-0.07
+A,362,276,Balamritham Aavanakkenna,10 mL,9.64,9.64,-0.07
+A,364,277,Balasarvangam Mukkoottu,10 mL,32.04,32.03,-0.01
+A,365,277,Balasarvangam Mukkoottu,25 mL,77.65,77.65,-0.01
+A,367,278,Chathilinga Thailam,25 mL,82.67,82.66,-0.01
+A,368,279,Erandasukumaram,50 mL,24.36,24.34,-0.1
+A,370,280,Gandharvahasthadi Erandam,50 mL,27.0,26.97,-0.12
+A,374,281,Karaskara Thailam (Internal),25 mL,17.65,17.63,-0.07
+A,377,282,Nimbamrithadi Erandam,50 mL,48.64,48.61,-0.07
+A,379,283,Nirgundyadi Erandam,50 mL,21.7,21.68,-0.11
+A,381,284,Siddha Balapeeyoosham,10 mL,16.04,16.02,-0.08
+A,384,285,Thanurakshakan (Internal),25 mL,18.71,18.69,-0.09
+A,388,286,Vellaruku Thailam,100 mL,57.28,57.21,-0.13
+A,390,303,Ashtapathradi Keram,100 mL,42.69,42.66,-0.06
+A,391,303,Ashtapathradi Keram,200 mL,79.7,79.64,-0.07
+A,396,288,Balaguloochyadi Keram,200 mL,79.4,79.34,-0.08
+A,400,289,Balaswagandhalakshadi Keram,100 mL,48.78,48.75,-0.06
+A,401,289,Balaswagandhalakshadi Keram,200 mL,92.55,92.49,-0.07
+A,405,290,Chemparathyadi Keram,100 mL,44.08,44.05,-0.06
+A,406,290,Chemparathyadi Keram,200 mL,83.31,83.26,-0.06
+A,408,290,Chemparathyadi Keram,5000 mL,1833.38,1832.16,-0.07
+A,411,291,Dhurthuradi Keram,200 mL,75.13,75.08,-0.07
+A,416,292,Dinesavalyadi Keram,200 mL,76.52,76.46,-0.08
+A,420,293,Durvadi Keram,100 mL,40.6,40.57,-0.06
+A,421,293,Durvadi Keram,200 mL,76.39,76.34,-0.07
+A,425,294,Eladi Keram,100 mL,42.79,42.77,-0.06
+A,426,294,Eladi Keram,200 mL,78.99,78.95,-0.06
+A,431,295,Gopathmajadi Keram,200 mL,85.62,85.52,-0.11
+A,434,296,Jathyadi Keram,50 mL,26.41,26.4,-0.06
+A,442,297,Kayyonyadi Keram,200 mL,81.46,81.4,-0.06
+A,446,298,Nalpamaradi Keram,100 mL,42.76,42.73,-0.06
+A,447,298,Nalpamaradi Keram,200 mL,77.52,77.47,-0.06
+A,448,298,Nalpamaradi Keram,450 mL,167.59,167.48,-0.07
+A,449,298,Nalpamaradi Keram,5000 mL,1697.33,1696.12,-0.07
+A,451,299,Neelibhringadi Keram,100 mL,50.8,50.78,-0.05
+A,452,299,Neelibhringadi Keram,200 mL,95.58,95.54,-0.05
+A,453,299,Neelibhringadi Keram,450 mL,204.66,204.56,-0.05
+A,456,300,Triphaladi Keram,100 mL,43.81,43.78,-0.06
+A,457,300,Triphaladi Keram,200 mL,82.02,81.97,-0.07
+A,459,300,Triphaladi Keram,5000 mL,1811.36,1810.01,-0.07
+A,461,301,Thulaseesvarasadi Keram,100 mL,44.02,43.99,-0.06
+A,462,301,Thulaseesvarasadi Keram,200 mL,81.73,81.67,-0.06
+A,465,302,Vachalasunadi Keram,10 mL,9.53,9.53,-0.07
+A,466,302,Vachalasunadi Keram,50 mL,28.5,28.47,-0.12
+A,467,304,Dentareksha Keram,50 mL,28.4,28.38,-0.08
+A,469,305,Kesapushpam,100 mL,46.8,46.78,-0.05
+A,475,306,Naranokki,100 mL,46.67,46.64,-0.07
+A,481,307,Palandava Keram,100 mL,82.68,82.55,-0.16
+A,482,307,Palandava Keram,200 mL,159.56,159.29,-0.16
+A,483,307,Palandava Keram,450 mL,346.56,345.97,-0.17
+A,486,308,Peenasakesari,100 mL,46.46,46.42,-0.1
+A,489,308,Peenasakesari,5000 mL,1923.14,1920.77,-0.12
+A,491,309,Siromukhi,100 mL,47.86,47.81,-0.1
+A,492,309,Siromukhi,200 mL,92.77,92.67,-0.1
+A,496,310,Thanurakshakan (External),100 mL,55.71,55.58,-0.24
+A,497,310,Thanurakshakan (External),200 mL,109.44,109.17,-0.24
+A,503,312,Seethala Thailam,450 mL,221.4,220.81,-0.27
+A,504,313,Snehasnigdhatha Thailam,200 mL,89.97,89.89,-0.09
+A,505,314,Sonithamritha Keram,200 mL,117.76,117.37,-0.33
+A,508,315,Chinchadi Kuzhambu,200 mL,77.57,77.49,-0.09
+A,510,315,Chinchadi Kuzhambu,5000 mL,1701.5,1699.73,-0.1
+A,511,316,Dhanwantharam (Pizhichil) Kuzhambu,450 mL,138.02,137.91,-0.09
+A,513,317,Dhanwantharam Kuzhambu,100 mL,38.62,38.6,-0.07
+A,514,317,Dhanwantharam Kuzhambu,200 mL,72.27,72.22,-0.07
+A,515,317,Dhanwantharam Kuzhambu,450 mL,153.27,153.15,-0.08
+A,516,317,Dhanwantharam Kuzhambu,5000 mL,1558.1,1556.81,-0.08
+A,518,318,Karpasasthyadi Kuzhambu,100 mL,36.52,36.49,-0.08
+A,519,318,Karpasasthyadi Kuzhambu,200 mL,66.88,66.82,-0.08
+A,521,318,Karpasasthyadi Kuzhambu,5000 mL,1422.44,1421.03,-0.1
+A,523,319,Kottamchukkadi Kuzhambu,100 mL,38.01,37.99,-0.07
+A,524,319,Kottamchukkadi Kuzhambu,200 mL,70.82,70.77,-0.07
+A,525,319,Kottamchukkadi Kuzhambu,450 mL,147.36,147.24,-0.08
+A,526,319,Kottamchukkadi Kuzhambu,5000 mL,1528.17,1526.92,-0.08
+A,528,320,Mahapinda Thailam,100 mL,38.96,38.91,-0.13
+A,529,320,Mahapinda Thailam,200 mL,74.96,74.86,-0.14
+A,533,321,Pinda Thailam,100 mL,37.51,37.47,-0.1
+A,534,321,Pinda Thailam,200 mL,68.82,68.75,-0.11
+A,535,321,Pinda Thailam,450 mL,144.35,144.18,-0.12
+A,537,321,Pinda Thailam,5000 mL,1475.52,1473.58,-0.13
+A,539,322,Prabhanjanavimarddanam Kuzhambu,100 mL,40.22,40.19,-0.08
+A,540,322,Prabhanjanavimarddanam Kuzhambu,200 mL,75.97,75.9,-0.09
+A,545,323,Prasarani Kuzhambu,200 mL,74.63,74.57,-0.08
+A,547,323,Prasarani Kuzhambu,5000 mL,1620.9,1619.49,-0.09
+A,548,324,Sahacharadi (Pizhichil) Kuzhambu,450 mL,148.23,148.11,-0.08
+A,550,325,Sahacharadi Kuzhambu,100 mL,40.33,40.31,-0.06
+A,551,325,Sahacharadi Kuzhambu,200 mL,74.47,74.42,-0.07
+A,552,325,Sahacharadi Kuzhambu,450 mL,158.73,158.62,-0.07
+A,553,325,Sahacharadi Kuzhambu,5000 mL,1615.83,1614.54,-0.08
+A,555,329,Shashtika Thailam,100 mL,48.58,48.55,-0.06
+A,556,329,Shashtika Thailam,200 mL,91.9,91.84,-0.06
+A,559,326,Asavenna,50 mL,27.35,27.34,-0.05
+A,560,326,Asavenna,100 mL,46.95,46.93,-0.05
+A,561,326,Asavenna,200 mL,87.54,87.49,-0.06
+A,562,326,Asavenna,450 mL,185.46,185.35,-0.06
+A,564,326,Asavenna,5000 mL,1947.59,1946.31,-0.07
+A,565,327,Kayarajanka Thailam,25 mL,19.03,19.03,-0.03
+A,566,327,Kayarajanka Thailam,100 mL,58.29,58.27,-0.04
+A,567,327,Kayarajanka Thailam,200 mL,111.55,111.5,-0.05
+A,569,327,Kayarajanka Thailam,5000 mL,2547.66,2546.38,-0.05
+A,571,328,Murivenna,25 mL,13.79,13.79,-0.04
+A,572,328,Murivenna,100 mL,42.49,42.46,-0.05
+A,573,328,Murivenna,200 mL,79.69,79.64,-0.06
+A,574,328,Murivenna,450 mL,167.45,167.35,-0.06
+A,575,328,Murivenna,5000 mL,1751.85,1750.74,-0.06
+A,577,330,Siddha Kayathirumeni Thailam,100 mL,75.7,75.67,-0.04
+A,578,330,Siddha Kayathirumeni Thailam,200 mL,144.72,144.66,-0.04
+A,583,331,Vathakodali Thailam,100 mL,77.56,77.53,-0.03
+A,588,332,Koottu Kuzhambu (Kizhi Thailam),100 mL,19.93,19.9,-0.15
+A,591,332,Koottu Kuzhambu (Kizhi Thailam),5000 mL,616.54,615.01,-0.25
+A,592,332,Koottu Kuzhambu (Kizhi Thailam),10000 mL,1182.45,1179.39,-0.26
+A,594,339,Brahmi Ghritham,150 mL,117.05,116.95,-0.09
+A,596,340,Charngeryadi Ghritham,150 mL,121.46,121.35,-0.08
+A,597,349,Durvadyam Ghritham,50 mL,42.5,42.46,-0.08
+A,600,351,Gulguluthikthaka Ghritham,150 mL,142.08,141.98,-0.07
+A,602,353,Indukantha Ghritham,150 mL,107.22,107.11,-0.11
+A,603,354,Jathyadi Ghritham,50 mL,40.39,40.36,-0.07
+A,606,356,Kalyanaka Ghritham,150 mL,120.47,120.37,-0.08
+A,608,358,Karaskara Ghritham,150 mL,114.78,114.66,-0.1
+A,610,364,Mahathikthaka Ghritham,150 mL,124.56,124.45,-0.09
+A,612,365,Mahathpanchagavya Ghritham,150 mL,123.89,123.75,-0.12
+A,614,366,Mahathraiphala Ghritham,150 mL,137.25,137.14,-0.08
+A,616,370,Panchagavya Ghritham,150 mL,123.85,123.71,-0.12
+A,618,371,Patoladi Ghritham,150 mL,115.98,115.86,-0.1
+A,620,372,Phalasarpis,150 mL,147.41,147.33,-0.06
+A,623,374,Saraswatha Ghritham,150 mL,133.11,133.0,-0.08
+A,627,378,Sukumara Ghritham,150 mL,112.76,112.65,-0.1
+A,630,382,Varanadi Ghritham,150 mL,114.93,114.81,-0.1
+A,632,385,Vidaryadi Ghritham,150 mL,113.33,113.23,-0.09
+A,634,388,Amara Ghritham,150 mL,145.22,145.1,-0.08
+A,636,396,Chandraprabha Gulika,100 Nos,65.16,65.05,-0.16
+A,637,399,Dhanwantharam Gulika,100 Nos,20.61,20.6,-0.09
+A,638,404,Gopichandanadi Gulika,100 Nos,66.19,66.1,-0.14
+A,639,405,Gorochanadi Gulika,50 Nos,166.63,166.6,-0.02
+A,641,406,Kaisora Gulgulu,100 Nos,98.42,98.29,-0.13
+A,642,407,Kanchanara Gulgulu,100 Nos,99.72,99.59,-0.13
+A,645,432,Sudarsanam Gulika,50 Nos,34.36,34.31,-0.13
+A,646,433,Suryaprabha Gulika,100 Nos,93.18,95.95,2.98
+A,647,434,Swasanandam Gulika,100 Nos,315.17,315.07,-0.03
+A,648,438,Vettumaran Gulika,100 Nos,119.07,119.04,-0.03
+A,649,439,Vilwadi Gulika,100 Nos,27.32,27.28,-0.15
+A,650,442,Yogaraja Gulgulu,100 Nos,83.4,83.34,-0.08
+A,651,443,Karuthavattu Gulika,50 Nos,52.92,52.83,-0.17
+A,652,444,Kasakulanthakan,50 Nos,47.64,47.6,-0.09
+A,653,445,Krimishodhini Gulika,12 Nos,14.64,14.62,-0.08
+A,654,446,Uramarunnu Gulika,10 Nos,44.43,44.42,-0.02
+A,657,449,Vimalavarthi,12 Nos,54.01,53.93,-0.15
+A,658,450,Manasamithra Vatakam,50 Nos,46.93,46.88,-0.11
+A,659,451,Mandoora Vatakam,50 Nos,30.9,30.88,-0.07
+A,684,510,Gandharvahasthadi Kashayam (Conc.),200 mL,83.78,83.67,-0.14
+A,723,550,Amrithotharam Kashayam,450 mL,33.92,33.9,-0.06
+A,724,552,Ashtavargam Kashayam,450 mL,46.27,46.24,-0.08
+A,725,553,Brihathyadi Kashayam,450 mL,47.72,47.69,-0.05
+A,726,554,Chiruvilwadi Kashayam,450 mL,68.93,68.91,-0.03
+A,727,555,Dasamoolakaduthrayam Kashayam,450 mL,49.8,49.77,-0.05
+A,728,558,Dhanadanayanadi Kashayam,450 mL,57.13,57.11,-0.04
+A,729,559,Dhanwantharam Kashayam,450 mL,30.06,30.04,-0.08
+A,730,560,Drakshadi Kashayam,450 mL,58.38,58.35,-0.04
+A,731,561,Dusparsakadi Kashayam,450 mL,72.39,72.37,-0.03
+A,732,563,Elakanadi Kashayam,450 mL,73.39,73.37,-0.03
+A,734,564,Gandharvahasthadi Kashayam,450 mL,57.35,57.32,-0.05
+A,735,566,Gulguluthikthakam Kashayam,450 mL,54.87,54.84,-0.04
+A,736,567,Guloochyadi Kashayam,450 mL,48.58,48.56,-0.04
+A,737,568,Indukantham Kashayam,450 mL,45.75,45.73,-0.05
+A,738,569,Kaidaryadi Kashayam,450 mL,41.83,41.81,-0.05
+A,739,573,Kokilaksha Kashayam,450 mL,24.02,24.0,-0.09
+A,740,576,Mahamanjishtadi Kashayam,450 mL,71.64,71.62,-0.03
+A,742,577,Maharasnadi Kashayam,450 mL,59.57,59.55,-0.04
+A,743,578,Mahathikthakam Kashayam,450 mL,62.18,62.16,-0.03
+A,744,579,Manjishtadi Kashayam,450 mL,45.56,45.54,-0.05
+A,745,580,Musaleekhadiradi Kashayam,450 mL,47.24,47.22,-0.04
+A,746,581,Naadi Kashayam,450 mL,58.74,58.71,-0.04
+A,747,582,Nayopayam Kashayam,450 mL,47.97,47.94,-0.05
+A,748,584,Nimbadi Kashayam,450 mL,78.7,78.67,-0.03
+A,749,585,Nirgundyadi Kashayam,450 mL,65.93,65.91,-0.04
+A,750,586,Nisakathakadi Kashayam,450 mL,40.83,40.81,-0.05
+A,752,588,Panchathikthakam Kashayam,450 mL,30.01,29.99,-0.07
+A,753,591,Pathyakshadhathryadi Kashayam,450 mL,32.53,32.51,-0.06
+A,754,592,Pathyapunarnavadi Kashayam,450 mL,79.28,79.26,-0.03
+A,755,593,Patoladi Kashayam,450 mL,70.32,70.3,-0.03
+A,758,595,Patolamooladi Kashayam,450 mL,60.67,60.64,-0.04
+A,759,596,Prasaranyadi Kashayam,450 mL,50.63,50.61,-0.05
+A,760,597,Punarnavadi Kashayam,450 mL,73.04,73.01,-0.03
+A,761,599,Rasnairandadi Kashayam,450 mL,62.57,62.55,-0.04
+A,762,600,Rasnasapthakam Kashayam,450 mL,44.31,44.28,-0.06
+A,763,601,Rasonadi Kashayam,450 mL,72.22,72.2,-0.03
+A,764,602,Rudrakshadi Kashayam,450 mL,150.96,150.89,-0.05
+A,765,603,Sahacharadi Kashayam,450 mL,46.01,45.99,-0.05
+A,766,604,Sapthasaram Kashayam,450 mL,41.49,41.47,-0.06
+A,768,607,Sukumara Kashayam,450 mL,31.33,31.31,-0.07
+A,769,612,Varanadi Kashayam,450 mL,39.15,39.13,-0.05
+A,770,614,Vidaryadi Kashayam,450 mL,41.35,41.32,-0.05
+A,773,616,Karappan Kashayam,450 mL,66.34,66.29,-0.08
+A,774,617,Marma Kashayam,100 mL,26.92,26.91,-0.02
+A,776,617,Marma Kashayam,450 mL,94.26,94.23,-0.03
+A,777,618,Sudhipathram Kashayam,100 mL,12.94,12.94,-0.05
+A,779,618,Sudhipathram Kashayam,450 mL,34.32,34.29,-0.08
+A,782,621,Bahusalagudam,250 g,84.38,84.26,-0.15
+A,785,623,Manibhadra Gulam,250 g,92.13,92.05,-0.09
+A,789,624,Panchajeeraka Gudam,400 g,110.2,110.03,-0.16
+A,791,625,Sathavari Gulam,250 g,71.74,71.66,-0.12
+A,792,625,Sathavari Gulam,400 g,117.09,116.95,-0.12
+A,794,626,Agasthya Rasayanam,250 g,55.43,55.34,-0.16
+A,795,626,Agasthya Rasayanam,400 g,90.75,90.61,-0.15
+A,798,629,Aswagandha Rasayanam,250 g,70.62,70.53,-0.13
+A,799,629,Aswagandha Rasayanam,400 g,115.07,114.93,-0.12
+A,800,632,Chinchadi Lehyam,100 g,43.23,43.19,-0.08
+A,801,632,Chinchadi Lehyam,250 g,92.63,92.55,-0.09
+A,805,633,Chyavanaprasam,400 g,126.71,126.52,-0.15
+A,806,635,Dasamoola Rasayanam,100 g,33.87,33.83,-0.14
+A,810,636,Dasamoolahareethaki,250 g,53.78,53.69,-0.17
+A,811,636,Dasamoolahareethaki,400 g,88.39,88.25,-0.16
+A,813,639,Gandhakamadhusnuhi,250 g,157.2,156.79,-0.26
+A,817,643,Kooshmanda Rasayanam,400 g,105.19,105.05,-0.13
+A,818,646,Madhusnuhi Rasayanam,100 g,42.28,42.22,-0.13
+A,819,646,Madhusnuhi Rasayanam,250 g,90.2,90.06,-0.15
+A,821,647,Mathala Rasayanam,20 g,30.59,30.56,-0.1
+A,822,648,Mridweekadi Lehyam,50 g,43.72,43.6,-0.26
+A,824,649,Narasimha Rasayanam,250 g,118.48,118.27,-0.18
+A,827,652,Sukumara Lehyam,250 g,72.35,72.26,-0.14
+A,831,656,Vidaryadi Lehyam,400 g,111.37,111.23,-0.12
+A,832,657,Vilwadi Lehyam,100 g,36.27,36.23,-0.11
+A,833,657,Vilwadi Lehyam,250 g,73.69,73.59,-0.13
+A,835,658,Kadaleekalpa Rasayanam,100 g,39.28,39.22,-0.16
+A,836,658,Kadaleekalpa Rasayanam,250 g,83.86,83.7,-0.19
+A,837,658,Kadaleekalpa Rasayanam,400 g,142.55,142.3,-0.18
+A,839,659,Kousalamohini,250 g,105.28,105.11,-0.17
+A,843,660,Kurinji Kuzhambu,400 g,113.14,112.99,-0.14
+A,844,664,Thamboola Rasayanam,15 g,15.91,15.87,-0.22
+A,849,670,Murivenna Balm,25 g,21.76,21.75,-0.03
+A,850,675,Manjishtadi Lepam,12 g,13.38,13.37,-0.06
+A,851,672,Rasothamadi Lepam,12 g,22.21,24.12,8.61
+A,853,673,Hridayarenjini Lepam,30 g,34.48,34.47,-0.03
+A,855,674,Kumkumadi Lepam,15 g,26.24,26.24,-0.02
+A,859,678,Ilaneer Kuzhambu,5 mL,10.59,10.59,-0.03
+A,864,683,Vethuvellakkoottu,400 g,68.35,68.32,-0.04
+A,865,685,Kashaya Vasthi Kit,275 g,57.2,57.16,-0.06
+A,876,694,Dahasanthi,20 g,5.4,5.39,-0.08
+A,878,695,Karkkidaka Kanji,500 g,95.65,95.47,-0.19
+A,879,696,Mehasamani,20 g,7.47,7.46,-0.09
+A,881,697,Chukku Podi,40 g,30.11,30.1,-0.03
+A,883,697,Chukku Podi,1000 g,517.64,517.42,-0.04
+A,886,699,Nellikka Podi,40 g,17.03,17.02,-0.05
+A,889,722,Cherupayar Podi,50 g,16.79,16.78,-0.05
+A,891,723,Kasthoori Manjal Podi,40 g,15.41,15.41,-0.03
+A,894,726,Raktha Chandana Podi,30 g,25.83,25.83,-0.02
+A,896,729,Oma Theeneer,200 mL,21.33,21.33,-0.02
+A,897,729,Oma Theeneer,450 mL,34.92,34.91,-0.03
+A,899,731,Sombu Theeneer,200 mL,21.3,21.3,-0.03
+A,900,731,Sombu Theeneer,450 mL,35.48,35.47,-0.04
+A,901,732,Arjun Forte Capsule,4 Nos,9.78,9.78,-0.02
+A,902,732,Arjun Forte Capsule,100 Nos,131.95,131.9,-0.04
+A,904,733,Artiban Forte Capsule,4 Nos,10.91,10.91,-0.01
+A,905,733,Artiban Forte Capsule,100 Nos,132.7,132.67,-0.02
+A,906,734,Endopile Capsule,4 Nos,8.09,8.08,-0.02
+A,907,734,Endopile Capsule,100 Nos,72.89,72.84,-0.07
+A,908,735,Jumbolene Capsule,4 Nos,8.39,8.39,-0.02
+A,909,735,Jumbolene Capsule,100 Nos,65.25,65.2,-0.07
+A,911,736,Regas Capsule,4 Nos,7.78,7.78,-0.03
+A,912,736,Regas Capsule,100 Nos,64.98,64.93,-0.08
+A,913,737,Rejuliv Forte Capsule,4 Nos,9.14,9.14,-0.02
+A,914,737,Rejuliv Forte Capsule,100 Nos,75.19,75.16,-0.05
+A,915,738,Solanum Forte Capsule,4 Nos,8.47,8.47,-0.03
+A,916,738,Solanum Forte Capsule,100 Nos,82.45,82.38,-0.09
+A,919,739,Tribulene Capsule,100 Nos,79.2,79.13,-0.1
+A,921,741,Balavardhini Capsule,100 Nos,98.03,97.88,-0.16
+A,925,749,Amukkura Tablet,100 Nos,86.12,86.07,-0.06
+A,926,750,Bhavana Kadukkai Tablet,50 Nos,32.36,32.33,-0.08
+A,928,751,Impooral Tablet,100 Nos,35.38,35.34,-0.12
+A,930,752,Keezharnelli Tablet,100 Nos,51.81,51.76,-0.08
+A,934,758,Thriphala Choornam Tablet,100 Nos,38.29,38.24,-0.12
+A,935,759,Vallarai Tablet,20 Nos,21.41,21.4,-0.04
+A,936,759,Vallarai Tablet,100 Nos,92.92,92.88,-0.04
+A,937,760,Abhraka Chendooram,5 g,34.69,42.76,23.27
+A,940,761,Annabhedi Chendooram,10 g,27.75,28.81,3.8
+A,943,762,Annabhedi Chendooram 2,5 g,12.38,12.58,1.6
+A,946,763,Arumugha Chendooram,5 g,48.46,50.01,3.21
+A,949,764,Aya Chendooram,5 g,18.48,21.06,13.99
+A,952,765,Ayakantha Chendooram,5 g,24.29,24.48,0.79
+A,955,766,Ayaveera Chendooram,5 g,346.65,346.92,0.08
+A,959,767,Chandamarutha Chendooram,5 g,165.2,165.76,0.34
+A,962,768,Gowrichinthamani Chendooram,5 g,113.33,113.74,0.36
+A,965,769,Jalamanjari Chendooram,10 g,17.57,17.57,-0.02
+A,969,771,Kantha Chendooram,5 g,19.31,21.53,11.49
+A,979,775,Mandoora Chendooram,5 g,12.97,15.39,18.67
+A,982,777,Patikalinga Chendooram,10 g,49.19,49.6,0.83
+A,985,778,Patikara Chendooram,10 g,9.73,9.73,-0.01
+A,988,783,Thampira Chendooram,5 g,23.85,26.06,9.29
+A,991,825,Amukkura Choornam,50 g,51.38,51.36,-0.03
+A,992,825,Amukkura Choornam,100 g,95.08,95.05,-0.03
+A,995,826,Asokappattai Choornam,50 g,17.38,17.36,-0.14
+A,996,826,Asokappattai Choornam,100 g,26.67,26.62,-0.18
+A,999,827,Chundaivattal Choornam,50 g,27.94,27.89,-0.18
+A,1000,827,Chundaivattal Choornam,100 g,47.6,47.5,-0.21
+A,1002,829,Eladi Choornam,50 g,70.79,70.73,-0.07
+A,1003,829,Eladi Choornam,100 g,132.44,132.33,-0.08
+A,1005,830,Inchi Choornam,50 g,52.21,52.16,-0.09
+A,1006,830,Inchi Choornam,100 g,96.5,96.4,-0.1
+A,1008,832,Kazharchi Choornam,50 g,71.43,71.39,-0.06
+A,1009,832,Kazharchi Choornam,100 g,135.77,135.69,-0.06
+A,1011,833,Maruthampattai Choornam,50 g,23.13,23.1,-0.1
+A,1012,833,Maruthampattai Choornam,100 g,38.34,38.29,-0.12
+A,1015,834,Mayilirakadi Choornam,50 g,162.91,162.83,-0.05
+A,1018,835,Nilavaakai Choornam,50 g,45.18,45.16,-0.05
+A,1019,835,Nilavaakai Choornam,100 g,80.92,80.88,-0.06
+A,1022,836,Orithalthamarai Choornam,50 g,32.57,32.5,-0.22
+A,1023,836,Orithalthamarai Choornam,100 g,57.19,57.04,-0.25
+A,1025,837,Panchadeepakkini Choornam,50 g,48.32,48.28,-0.09
+A,1026,837,Panchadeepakkini Choornam,100 g,88.95,88.87,-0.09
+A,1028,838,Parangippattai Choornam,50 g,40.02,40.0,-0.04
+A,1029,838,Parangippattai Choornam,100 g,70.32,70.28,-0.05
+A,1032,843,Sirupeelai Choornam,50 g,23.25,23.18,-0.31
+A,1033,843,Sirupeelai Choornam,100 g,39.43,39.29,-0.36
+A,1035,846,Thaleesadi Choornam,50 g,46.94,46.9,-0.08
+A,1036,846,Thaleesadi Choornam,100 g,84.43,84.35,-0.09
+A,1038,847,Thayirchundi Choornam,50 g,52.16,52.01,-0.29
+A,1039,847,Thayirchundi Choornam,100 g,96.76,96.45,-0.31
+A,1041,848,Thrikatuku Choornam,50 g,54.26,54.23,-0.04
+A,1042,848,Thrikatuku Choornam,100 g,98.9,98.85,-0.05
+A,1045,849,Triphalai Choornam,50 g,20.45,20.42,-0.12
+A,1046,849,Triphalai Choornam,100 g,32.22,32.17,-0.15
+A,1050,851,Avuri Choornam,50 g,31.46,31.43,-0.08
+A,1051,851,Avuri Choornam,100 g,55.02,54.97,-0.1
+A,1053,852,Mavilingappattai Choornam,50 g,29.25,29.21,-0.16
+A,1056,853,Meni Choornam,50 g,27.23,27.18,-0.19
+A,1059,854,Poonaikkali Choornam,50 g,60.51,60.49,-0.03
+A,1060,854,Poonaikkali Choornam,100 g,111.95,111.92,-0.03
+A,1062,855,Sukhanidra Choornam,50 g,67.34,67.29,-0.07
+A,1065,856,Vellaruku Choornam,50 g,25.46,25.38,-0.28
+A,1069,860,Madhumeha Choornam,50 g,29.92,29.86,-0.2
+A,1070,865,Irunelli Karpam,10 g,27.06,29.41,8.68
+A,1073,866,Karisalayadi Panchakarpam,50 g,43.21,43.14,-0.17
+A,1076,867,Anda Thailam,25 mL,83.21,83.14,-0.08
+A,1078,868,Arakku Thailam,100 mL,120.3,120.25,-0.04
+A,1079,868,Arakku Thailam,200 mL,235.63,235.54,-0.04
+A,1082,869,Arugan Thailam,100 mL,49.14,49.1,-0.1
+A,1083,869,Arugan Thailam,200 mL,92.43,92.34,-0.1
+A,1087,870,Aswagandha Balalakshadi Thailam,100 mL,55.35,55.3,-0.08
+A,1091,871,Chirattai Thailam,10 mL,8.93,8.93,-0.05
+A,1094,872,Chithramoola Thailam,100 mL,76.2,76.06,-0.18
+A,1097,873,Chukku Thailam,100 mL,85.4,85.36,-0.05
+A,1098,873,Chukku Thailam,200 mL,165.04,164.96,-0.05
+A,1102,876,Jeeraka Thailam,200 mL,87.9,87.79,-0.12
+A,1104,878,Karappan Thailam,100 mL,57.36,57.3,-0.1
+A,1108,882,Kunthirikka Thailam,100 mL,39.58,39.55,-0.07
+A,1109,882,Kunthirikka Thailam,200 mL,74.36,74.3,-0.08
+A,1113,883,Laghu Vishamushti Thailam,100 mL,39.57,39.52,-0.12
+A,1114,883,Laghu Vishamushti Thailam,200 mL,72.9,72.8,-0.13
+A,1118,887,Mathan Thailam,100 mL,56.44,56.41,-0.07
+A,1119,887,Mathan Thailam,200 mL,107.44,107.36,-0.07
+A,1123,890,Meni Thailam,100 mL,52.53,52.4,-0.25
+A,1124,893,Moolakudori Thailam,100 mL,44.48,46.73,5.06
+A,1126,900,Punga Thailam,100 mL,56.88,56.85,-0.05
+A,1127,900,Punga Thailam,200 mL,107.32,107.25,-0.06
+A,1131,906,Ulunthu Thailam,100 mL,61.73,61.68,-0.07
+A,1132,906,Ulunthu Thailam,200 mL,117.38,117.29,-0.07
+A,1136,907,Vathakesari Thailam,100 mL,35.65,35.62,-0.09
+A,1137,907,Vathakesari Thailam,200 mL,66.23,66.17,-0.09
+A,1141,910,Vranasanjeevi Thailam,50 mL,63.06,62.8,-0.41
+A,1143,911,Vetpalai Thailam,100 mL,44.19,44.17,-0.04
+A,1144,911,Vetpalai Thailam,200 mL,81.99,81.95,-0.04
+A,1145,911,Vetpalai Thailam,450 mL,172.54,172.46,-0.05
+A,1148,913,Hridayasudhi,100 mL,54.63,54.57,-0.12
+A,1149,913,Hridayasudhi,200 mL,101.15,101.02,-0.13
+A,1157,791,Sivanar Amritham,10 g,41.84,56.53,35.11
+A,1161,920,Kaphasura Kudineer,450 mL,57.88,57.8,-0.13
+A,1163,921,Nilavembu Kudineer,450 mL,53.72,53.61,-0.21
+A,1167,923,Adathodai Kudineer Choornam,50 g,28.88,28.86,-0.06
+A,1171,927,Kaphasura Kudineer Choornam,50 g,37.77,37.73,-0.1
+A,1174,929,Mandooradi Kudineer Choornam,50 g,56.12,56.08,-0.05
+A,1178,931,Nerunchil Kudineer Choornam,50 g,24.28,24.26,-0.08
+A,1181,932,Nilavembu Kudineer Choornam,50 g,30.57,30.55,-0.05
+A,1187,936,Parangippattai Kudineer Choornam,50 g,47.42,47.37,-0.12
+A,1190,937,Seenthil Kudineer Choornam,50 g,33.35,33.33,-0.05
+A,1196,947,Inji Rasayanam,250 g,57.36,57.24,-0.21
+A,1199,948,Karisalai Lehyam,250 g,58.96,58.87,-0.14
+A,1200,948,Karisalai Lehyam,400 g,96.42,96.29,-0.14
+A,1201,949,Karunai Lehyam,100 g,30.33,30.29,-0.1
+A,1202,949,Karunai Lehyam,250 g,63.96,63.88,-0.12
+A,1203,949,Karunai Lehyam,400 g,104.41,104.29,-0.12
+A,1204,949,Karunai Lehyam,10000 g,2200.38,2197.32,-0.14
+A,1207,950,Kesari Lehyam,250 g,67.93,67.82,-0.15
+A,1210,953,Nellikkai Lehyam,250 g,82.65,82.53,-0.14
+A,1214,954,Parangi Rasayanam,250 g,61.98,61.89,-0.14
+A,1217,956,Thetrankottai Lehyam,250 g,90.4,90.25,-0.17
+A,1219,957,Thippili Rasayanam,30 g,17.71,17.69,-0.07
+A,1220,957,Thippili Rasayanam,100 g,45.75,45.71,-0.1
+A,1221,957,Thippili Rasayanam,250 g,99.19,99.08,-0.11
+A,1222,957,Thippili Rasayanam,720 g,374.99,374.67,-0.08
+A,1228,958,Venpoosani Lehyam,400 g,195.41,195.18,-0.12
+A,1229,959,Amukkura Lehyam,100 g,33.86,33.83,-0.11
+A,1231,959,Amukkura Lehyam,400 g,118.21,118.06,-0.13
+A,1235,960,Rheumorid Balm,15 g,24.94,24.94,-0.03
+A,1237,965,Amritha Vennei,15 g,21.59,22.05,2.15
+A,1239,966,Kungileeya Vennei,50 g,18.17,20.2,11.18
+A,1241,967,Vanga Vennei,15 g,19.74,20.21,2.39
+A,1243,969,Mathulai Manappagu,50 g,36.78,36.76,-0.03
+A,1244,969,Mathulai Manappagu,250 g,167.14,167.08,-0.04
+A,1245,971,Hridayamohini,50 g,15.92,15.91,-0.08
+A,1247,971,Hridayamohini,250 g,59.99,59.92,-0.11
+A,1249,973,Solanum Syrup,50 mL,15.01,15.0,-0.1
+A,1250,973,Solanum Syrup,100 mL,28.29,28.26,-0.11
+A,1251,975,Ananda Bhairava Mathirai,20 Nos,29.93,30.38,1.5
+A,1252,976,Ashta Bhairava Mathirai,20 Nos,39.38,44.59,13.25
+A,1253,977,Balasanjeevi Mathirai,20 Nos,30.8,31.13,1.06
+A,1255,978,Brahmananda Bhairava Mathirai,20 Nos,47.56,47.71,0.33
+A,1256,985,Kapada Mathirai,15 Nos,31.84,31.84,-0.02
+A,1257,993,Meghanada Gulikai,20 Nos,18.03,18.35,1.8
+A,1258,994,Murukkanvithai Mathirai,12 Nos,14.12,14.11,-0.12
+A,1259,753,Neerkovai Tablet,100 Nos,121.55,121.24,-0.25
+A,1261,1002,Santhachandrodaya Mathirai,20 Nos,31.8,31.94,0.44
+A,1262,1005,Swasakudori Mathirai,50 Nos,45.8,45.76,-0.08
+A,1264,1008,Vasanthakusumakara Mathirai,20 Nos,307.37,307.77,0.13
+A,1266,1009,Vatharakshasan Gulikai,50 Nos,21.62,32.83,51.85
+A,1268,1011,Vazhaipoo Vatakam,30 Nos,47.86,47.81,-0.11
+A,1269,1014,Vishnuchakra Mathirai,20 Nos,34.54,35.86,3.81
+A,1271,1020,Agasthyar Kuzhambu,5 g,24.17,25.41,5.12
+A,1273,1025,Gunmakudori Mezhuku,10 g,12.72,13.06,2.62
+A,1274,1026,Idivalladi Mezhuku,10 g,19.41,19.62,1.08
+A,1275,1034,Rasagandhi Mezhuku,10 g,23.23,28.12,21.07
+A,1277,1038,Palthulli,5 mL,13.89,13.89,-0.01
+A,1278,1039,Patikara Neer,200 mL,20.72,20.7,-0.07
+A,1279,1039,Patikara Neer,450 mL,33.91,33.88,-0.1
+A,1280,1040,Venkara Podi,50 g,47.6,47.52,-0.17
+A,1283,1043,Serankottai Ney,25 mL,41.71,41.62,-0.22
+A,1285,1046,Vallarai Ney,150 mL,144.87,144.78,-0.07
+A,1286,797,Kalnaar Parpam,5 g,9.82,10.63,8.2
+A,1289,799,Kungileeya Parpam,5 g,12.8,12.8,-0.02
+A,1292,801,Muthuchippi Parpam,10 g,12.44,13.64,9.71
+A,1295,802,Naka Parpam,5 g,22.25,24.93,12.03
+A,1298,803,Nandukkal Parpam,5 g,30.39,30.99,1.99
+A,1302,805,Palakarai Parpam,10 g,25.94,27.15,4.66
+A,1305,806,Panchalavana Parpam,5 g,8.97,9.98,11.27
+A,1308,808,Pavizha Parpam,5 g,125.19,125.79,0.48
+A,1312,812,Sanghu Parpam,10 g,12.35,13.45,8.95
+A,1315,813,Silasathu Parpam,10 g,13.38,14.86,11.03
+A,1318,823,Special Medicine 1,10 g,20.93,21.99,5.1
+A,1351,1050,Panchathikthaka Kashaya Choornam,100 g,32.37,32.29,-0.23
+A,1365,1061,Vaattu Kashayam,450 mL,137.97,137.21,-0.55
+A,1552,1168,Vathasani Choornam,100 g,42.38,42.29,-0.22
+A,1759,1285,Aaragvadhadi Choornam,100 g,33.35,33.25,-0.29
+A,1768,117,Aswagandhadi Choornam,1000 g,413.29,412.92,-0.09
+A,1771,1341,Brihat Chagaladi Ghritham,150 mL,184.83,184.73,-0.06
+A,1772,1341,Brihat Chagaladi Ghritham,450 mL,544.21,543.88,-0.06
+A,1783,1342,Arkkadi Thailam,450 mL,430.81,429.95,-0.2
+A,1787,1343,Jeevaneeya Choornam,100 g,38.99,38.93,-0.15
+A,1788,1345,Balamooladi Choornam,100 g,29.79,29.74,-0.17
+A,1792,54,Abhraka Bhasmam,1000 g,5532.41,7146.85,29.18
+A,1797,824,Special Medicine 2,5 g,22.34,22.54,0.9
+A,1798,1350,Mahamanjishtadi Kashaya Choornam,100 g,71.61,71.58,-0.04
+B,1,1,Abhayarishtam,450 mL,46.51,46.5,-0.01
+B,2,2,Amritharishtam,450 mL,33.41,33.41,-0.01
+B,3,5,Asokarishtam,450 mL,30.04,30.04,-0.01
+B,4,6,Aswagandharishtam,450 mL,55.47,55.47,-0.01
+B,5,9,Balarishtam,450 mL,40.76,40.76,-0.01
+B,6,10,Dandyarishtam,450 mL,38.01,38.01,-0.01
+B,7,30,Dasamoolajeerakarishtam,450 mL,38.34,38.34,-0.01
+B,8,11,Dasamoolarishtam,450 mL,44.86,44.86,-0.01
+B,9,13,Dhanwanthararishtam,450 mL,44.2,44.19,-0.01
+B,11,14,Dhathryarishtam,450 mL,45.92,45.92,-0.01
+B,12,15,Draksharishtam,450 mL,51.15,51.15,-0.01
+B,13,16,Duralabharishtam,450 mL,51.17,51.17,-0.01
+B,14,17,Jeerakarishtam,450 mL,36.5,36.5,-0.01
+B,15,18,Khadirarishtam,450 mL,38.78,38.77,-0.01
+B,16,19,Kutajarishtam,450 mL,44.73,44.73,-0.01
+B,18,21,Mustharishtam,450 mL,35.16,35.16,-0.01
+B,19,23,Parthadyarishtam,450 mL,45.69,45.69,-0.01
+B,20,25,Saraswatharishtam,450 mL,67.03,67.02,-0.01
+B,21,28,Vasarishtam,450 mL,50.29,50.28,-0.01
+B,22,31,Hridayasanthi,100 mL,15.4,15.4,-0.01
+B,23,31,Hridayasanthi,450 mL,48.59,48.58,-0.01
+B,25,32,Panchamridweekarasam,450 mL,38.77,38.77,-0.01
+B,26,33,Udarasudha,100 mL,15.85,15.84,-0.01
+B,27,33,Udarasudha,450 mL,45.59,45.59,-0.01
+B,28,34,Aravindasavam,450 mL,41.57,41.57,-0.01
+B,29,35,Chandanasavam,450 mL,35.31,35.31,-0.01
+B,30,37,Kanakasavam,450 mL,35.33,35.33,-0.01
+B,31,38,Kumaryasavam,450 mL,40.62,40.61,-0.01
+B,32,39,Lohasavam,450 mL,38.3,38.3,-0.01
+B,33,41,Nimbasavam,450 mL,47.91,47.91,-0.01
+B,34,42,Panchakolasavam,450 mL,32.1,32.1,-0.01
+B,35,44,Pippalyasavam,450 mL,36.12,36.11,-0.01
+B,36,47,Punarnavasavam,450 mL,37.51,37.51,-0.01
+B,37,48,Saribadyasavam,450 mL,46.51,46.5,-0.01
+B,38,49,Sudarsanasavam,450 mL,38.06,38.05,-0.01
+B,39,50,Useerasavam,450 mL,35.8,35.79,-0.01
+B,42,51,Dhanyamlam,2000 mL,410.62,410.34,-0.07
+B,43,51,Dhanyamlam,5000 mL,1009.85,1009.16,-0.07
+B,51,748,M3 Capsule,100 Nos,118.92,118.89,-0.03
+B,74,117,Aswagandhadi Choornam,50 g,31.85,31.85,-0.01
+B,81,119,Dadimashtaka Choornam,50 g,26.25,26.25,-0.01
+B,88,121,Gulgulu Panchapala Choornam,20 g,41.63,41.63,-0.01
+B,95,125,Kachooradi Choornam,10 g,14.21,14.21,-0.01
+B,99,127,Karpooradi Choornam,50 g,44.12,44.12,-0.01
+B,102,128,Kolakulathadi Choornam,100 g,45.43,45.42,-0.01
+B,106,132,Rajanyadi Choornam,20 g,24.38,24.38,-0.01
+B,111,133,Rasnadi Choornam,50 g,29.67,29.67,-0.01
+B,115,136,Shaddharana Choornam,50 g,75.92,75.92,-0.01
+B,118,138,Sudarsana Choornam,50 g,39.33,39.33,-0.01
+B,121,139,Thaleesapathradi Choornam,50 g,33.07,33.07,-0.01
+B,124,140,Triphaladi Choornam,50 g,26.22,26.22,-0.01
+B,127,140,Triphaladi Choornam,1000 g,307.8,307.77,-0.01
+B,128,142,Vaiswanara Choornam,50 g,33.94,33.94,-0.01
+B,131,144,Vyoshadi Vatakam,50 g,22.42,22.42,-0.01
+B,134,149,Agasthyar Nasika Choornam,2 g,7.44,7.44,-0.01
+B,135,151,Meninokki Choornam,14 g,11.02,11.01,-0.01
+B,137,151,Meninokki Choornam,210 g,100.19,100.17,-0.02
+B,145,154,Udwarthana Choornam,500 g,73.68,73.67,-0.01
+B,151,158,Himasagara Choornam,100 g,49.54,49.53,-0.01
+B,158,166,Nimbasahacharadi Choornam,100 g,26.87,26.86,-0.02
+B,159,167,Sameerananivarani Choornam,100 g,51.22,51.22,-0.01
+B,160,168,Sarvamangala Choornam,100 g,69.79,69.79,-0.01
+B,165,173,Vasamrithadi Choornam,100 g,35.59,35.58,-0.02
+B,166,175,Chathurvargga Choornam,100 g,58.73,58.72,-0.01
+B,167,176,Neelolpaladi Kashaya Choornam,100 g,53.73,53.73,-0.01
+B,168,177,Sairakabaladi Choornam,100 g,37.64,37.63,-0.01
+B,169,178,Haridrakhandam,50 g,31.17,31.16,-0.01
+B,177,180,Kottamchukkadi Lepa Choornam,50 g,22.47,22.46,-0.01
+B,178,180,Kottamchukkadi Lepa Choornam,100 g,46.05,46.04,-0.01
+B,180,180,Kottamchukkadi Lepa Choornam,500 g,170.39,170.38,-0.01
+B,187,182,Guduci Satva,10 g,59.61,59.6,-0.01
+B,191,183,Ksheerabala Thailam 101 Avarthi,10 mL,57.0,56.99,-0.03
+B,193,184,Ksheerabala Thailam 41 Avarthi,10 mL,117.55,117.47,-0.07
+B,194,185,Anuthailam,10 mL,10.71,10.71,-0.01
+B,196,186,Arimedadi Enna,100 mL,38.01,38.0,-0.01
+B,197,186,Arimedadi Enna,200 mL,71.2,71.19,-0.01
+B,200,188,Asanamanjishtadi Enna,100 mL,40.32,40.32,-0.01
+B,201,188,Asanamanjishtadi Enna,200 mL,71.94,71.94,-0.01
+B,204,189,Asanavilwadi Enna,100 mL,38.42,38.41,-0.01
+B,205,189,Asanavilwadi Enna,200 mL,68.48,68.47,-0.01
+B,207,190,Bala Thailam,100 mL,36.99,36.99,-0.01
+B,208,190,Bala Thailam,200 mL,69.24,69.24,-0.01
+B,209,190,Bala Thailam,450 mL,139.93,139.92,-0.01
+B,213,192,Balaguloochyadi Thailam,200 mL,70.44,70.43,-0.01
+B,218,193,Balahatadi Enna,200 mL,70.92,70.92,-0.01
+B,221,194,Balaswagandhalakshadi Thailam,100 mL,42.84,42.84,-0.01
+B,222,194,Balaswagandhalakshadi Thailam,200 mL,80.26,80.26,-0.01
+B,226,196,Chandanadi Enna (Cheruthu),100 mL,35.96,35.96,-0.01
+B,227,196,Chandanadi Enna (Cheruthu),200 mL,64.13,64.13,-0.01
+B,229,196,Chandanadi Enna (Cheruthu),5000 mL,1357.42,1357.3,-0.01
+B,231,205,Dhanwantharam Thailam (Enna),100 mL,36.74,36.74,-0.01
+B,232,205,Dhanwantharam Thailam (Enna),200 mL,66.75,66.75,-0.01
+B,233,205,Dhanwantharam Thailam (Enna),450 mL,139.95,139.94,-0.01
+B,235,205,Dhanwantharam Thailam (Enna),5000 mL,1426.46,1426.35,-0.01
+B,236,206,Dhanwantharam Thailam (Mezhukupakam) Vasthi,450 mL,141.75,141.74,-0.01
+B,239,210,Eladi Enna,200 mL,71.2,71.19,-0.01
+B,241,210,Eladi Enna,5000 mL,1553.3,1553.11,-0.01
+B,242,218,Karaskara Thailam (External),50 mL,25.56,25.56,-0.01
+B,248,219,Karpasasthyadi Thailam,100 mL,37.6,37.59,-0.01
+B,249,219,Karpasasthyadi Thailam,200 mL,67.41,67.4,-0.01
+B,251,219,Karpasasthyadi Thailam,2000 mL,581.01,580.95,-0.01
+B,252,219,Karpasasthyadi Thailam,5000 mL,1439.26,1439.12,-0.01
+B,259,222,Kottamchukkadi Thailam,100 mL,37.09,37.09,-0.01
+B,260,222,Kottamchukkadi Thailam,200 mL,68.01,68.01,-0.01
+B,261,222,Kottamchukkadi Thailam,450 mL,140.71,140.7,-0.01
+B,262,222,Kottamchukkadi Thailam,5000 mL,1454.36,1454.25,-0.01
+B,264,226,Ksheerabala Enna,100 mL,35.17,35.16,-0.01
+B,265,226,Ksheerabala Enna,200 mL,63.97,63.97,-0.01
+B,266,226,Ksheerabala Enna,450 mL,131.65,131.64,-0.01
+B,268,226,Ksheerabala Enna,5000 mL,1353.29,1353.18,-0.01
+B,273,233,Mahamashadi Thailam (Enna),100 mL,39.19,39.18,-0.01
+B,274,233,Mahamashadi Thailam (Enna),200 mL,70.73,70.73,-0.01
+B,276,233,Mahamashadi Thailam (Enna),5000 mL,1520.35,1520.24,-0.01
+B,279,234,Mahanarayana Thailam,200 mL,86.95,86.95,-0.01
+B,280,234,Mahanarayana Thailam,450 mL,185.62,185.61,-0.01
+B,282,235,Mahanarayana Thailam (Pizhichil),450 mL,165.86,165.85,-0.01
+B,284,239,Nagaradi Thailam,50 mL,38.0,38.0,-0.01
+B,290,241,Neelibhringadi Enna,100 mL,45.31,45.3,-0.01
+B,295,247,Sahacharadi Thailam,100 mL,38.35,38.34,-0.01
+B,296,247,Sahacharadi Thailam,200 mL,71.16,71.15,-0.01
+B,297,247,Sahacharadi Thailam,450 mL,147.23,147.22,-0.01
+B,299,247,Sahacharadi Thailam,5000 mL,1531.79,1531.68,-0.01
+B,300,248,Sahacharadi Thailam (Mezhukupakam) Vasthi,450 mL,154.9,154.88,-0.01
+B,304,252,Triphaladi Enna,200 mL,81.74,81.73,-0.02
+B,309,258,Vathasani Thailam (Enna),200 mL,72.54,72.54,-0.01
+B,319,263,Kayathirumeni Enna (Cheruthu),100 mL,25.76,25.76,-0.01
+B,320,263,Kayathirumeni Enna (Cheruthu),200 mL,45.63,45.63,-0.01
+B,324,264,Kayathirumeni Enna (Valuthu),100 mL,40.46,40.46,-0.01
+B,325,264,Kayathirumeni Enna (Valuthu),200 mL,74.16,74.15,-0.01
+B,326,264,Kayathirumeni Enna (Valuthu),450 mL,154.94,154.93,-0.01
+B,327,264,Kayathirumeni Enna (Valuthu),5000 mL,1612.45,1612.34,-0.01
+B,329,266,Lekshmivilasam Enna,100 mL,46.79,46.79,-0.01
+B,330,266,Lekshmivilasam Enna,200 mL,87.21,87.21,-0.01
+B,333,267,Mahavathanthaka Thailam,50 mL,44.84,44.84,-0.01
+B,340,269,Siroreksha Thailam,100 mL,47.8,47.79,-0.01
+B,341,269,Siroreksha Thailam,200 mL,89.71,89.7,-0.01
+B,346,270,Strobilanthes Oil,200 mL,69.3,69.3,-0.01
+B,347,270,Strobilanthes Oil,450 mL,143.77,143.76,-0.01
+B,350,272,Valiya Amrithadi Enna,100 mL,41.7,41.7,-0.01
+B,356,389,Uzhinja Ghritham,200 mL,130.21,130.2,-0.01
+B,357,273,Chithraka Thailam,50 mL,53.44,53.43,-0.01
+B,358,274,Siddha Thailam,50 mL,57.9,57.89,-0.02
+B,360,275,Mahanarayana Thailam (Internal),25 mL,21.73,21.73,-0.01
+B,362,276,Balamritham Aavanakkenna,10 mL,9.64,9.64,-0.01
+B,368,279,Erandasukumaram,50 mL,24.36,24.36,-0.01
+B,370,280,Gandharvahasthadi Erandam,50 mL,27.0,27.0,-0.01
+B,374,281,Karaskara Thailam (Internal),25 mL,17.65,17.64,-0.01
+B,377,282,Nimbamrithadi Erandam,50 mL,48.64,48.64,-0.01
+B,379,283,Nirgundyadi Erandam,50 mL,21.7,21.7,-0.01
+B,381,284,Siddha Balapeeyoosham,10 mL,16.04,16.03,-0.01
+B,384,285,Thanurakshakan (Internal),25 mL,18.71,18.71,-0.01
+B,388,286,Vellaruku Thailam,100 mL,57.28,57.27,-0.01
+B,390,303,Ashtapathradi Keram,100 mL,42.69,42.68,-0.01
+B,391,303,Ashtapathradi Keram,200 mL,79.7,79.69,-0.01
+B,396,288,Balaguloochyadi Keram,200 mL,79.4,79.39,-0.01
+B,400,289,Balaswagandhalakshadi Keram,100 mL,48.78,48.78,-0.01
+B,401,289,Balaswagandhalakshadi Keram,200 mL,92.55,92.55,-0.01
+B,406,290,Chemparathyadi Keram,200 mL,83.31,83.31,-0.01
+B,408,290,Chemparathyadi Keram,5000 mL,1833.38,1833.27,-0.01
+B,411,291,Dhurthuradi Keram,200 mL,75.13,75.12,-0.01
+B,416,292,Dinesavalyadi Keram,200 mL,76.52,76.51,-0.01
+B,420,293,Durvadi Keram,100 mL,40.6,40.6,-0.01
+B,421,293,Durvadi Keram,200 mL,76.39,76.39,-0.01
+B,426,294,Eladi Keram,200 mL,78.99,78.99,-0.01
+B,431,295,Gopathmajadi Keram,200 mL,85.62,85.61,-0.01
+B,434,296,Jathyadi Keram,50 mL,26.41,26.41,-0.01
+B,442,297,Kayyonyadi Keram,200 mL,81.46,81.45,-0.01
+B,446,298,Nalpamaradi Keram,100 mL,42.76,42.75,-0.01
+B,447,298,Nalpamaradi Keram,200 mL,77.52,77.52,-0.01
+B,448,298,Nalpamaradi Keram,450 mL,167.59,167.58,-0.01
+B,449,298,Nalpamaradi Keram,5000 mL,1697.33,1697.22,-0.01
+B,456,300,Triphaladi Keram,100 mL,43.81,43.8,-0.01
+B,457,300,Triphaladi Keram,200 mL,82.02,82.01,-0.01
+B,459,300,Triphaladi Keram,5000 mL,1811.36,1811.23,-0.01
+B,461,301,Thulaseesvarasadi Keram,100 mL,44.02,44.01,-0.01
+B,462,301,Thulaseesvarasadi Keram,200 mL,81.73,81.72,-0.01
+B,465,302,Vachalasunadi Keram,10 mL,9.53,9.53,-0.01
+B,466,302,Vachalasunadi Keram,50 mL,28.5,28.5,-0.01
+B,467,304,Dentareksha Keram,50 mL,28.4,28.4,-0.01
+B,475,306,Naranokki,100 mL,46.67,46.66,-0.01
+B,481,307,Palandava Keram,100 mL,82.68,82.67,-0.01
+B,482,307,Palandava Keram,200 mL,159.56,159.53,-0.01
+B,483,307,Palandava Keram,450 mL,346.56,346.51,-0.02
+B,486,308,Peenasakesari,100 mL,46.46,46.46,-0.01
+B,489,308,Peenasakesari,5000 mL,1923.14,1922.93,-0.01
+B,491,309,Siromukhi,100 mL,47.86,47.86,-0.01
+B,492,309,Siromukhi,200 mL,92.77,92.76,-0.01
+B,496,310,Thanurakshakan (External),100 mL,55.71,55.7,-0.02
+B,497,310,Thanurakshakan (External),200 mL,109.44,109.41,-0.02
+B,503,312,Seethala Thailam,450 mL,221.4,221.35,-0.02
+B,504,313,Snehasnigdhatha Thailam,200 mL,89.97,89.96,-0.01
+B,505,314,Sonithamritha Keram,200 mL,117.76,117.73,-0.03
+B,508,315,Chinchadi Kuzhambu,200 mL,77.57,77.56,-0.01
+B,510,315,Chinchadi Kuzhambu,5000 mL,1701.5,1701.34,-0.01
+B,511,316,Dhanwantharam (Pizhichil) Kuzhambu,450 mL,138.02,138.01,-0.01
+B,513,317,Dhanwantharam Kuzhambu,100 mL,38.62,38.62,-0.01
+B,514,317,Dhanwantharam Kuzhambu,200 mL,72.27,72.27,-0.01
+B,515,317,Dhanwantharam Kuzhambu,450 mL,153.27,153.26,-0.01
+B,516,317,Dhanwantharam Kuzhambu,5000 mL,1558.1,1557.98,-0.01
+B,518,318,Karpasasthyadi Kuzhambu,100 mL,36.52,36.52,-0.01
+B,519,318,Karpasasthyadi Kuzhambu,200 mL,66.88,66.87,-0.01
+B,521,318,Karpasasthyadi Kuzhambu,5000 mL,1422.44,1422.31,-0.01
+B,523,319,Kottamchukkadi Kuzhambu,100 mL,38.01,38.01,-0.01
+B,524,319,Kottamchukkadi Kuzhambu,200 mL,70.82,70.82,-0.01
+B,525,319,Kottamchukkadi Kuzhambu,450 mL,147.36,147.35,-0.01
+B,526,319,Kottamchukkadi Kuzhambu,5000 mL,1528.17,1528.06,-0.01
+B,528,320,Mahapinda Thailam,100 mL,38.96,38.96,-0.01
+B,529,320,Mahapinda Thailam,200 mL,74.96,74.95,-0.01
+B,533,321,Pinda Thailam,100 mL,37.51,37.51,-0.01
+B,534,321,Pinda Thailam,200 mL,68.82,68.82,-0.01
+B,535,321,Pinda Thailam,450 mL,144.35,144.33,-0.01
+B,537,321,Pinda Thailam,5000 mL,1475.52,1475.35,-0.01
+B,539,322,Prabhanjanavimarddanam Kuzhambu,100 mL,40.22,40.22,-0.01
+B,540,322,Prabhanjanavimarddanam Kuzhambu,200 mL,75.97,75.96,-0.01
+B,545,323,Prasarani Kuzhambu,200 mL,74.63,74.63,-0.01
+B,547,323,Prasarani Kuzhambu,5000 mL,1620.9,1620.77,-0.01
+B,548,324,Sahacharadi (Pizhichil) Kuzhambu,450 mL,148.23,148.22,-0.01
+B,550,325,Sahacharadi Kuzhambu,100 mL,40.33,40.33,-0.01
+B,551,325,Sahacharadi Kuzhambu,200 mL,74.47,74.47,-0.01
+B,552,325,Sahacharadi Kuzhambu,450 mL,158.73,158.72,-0.01
+B,553,325,Sahacharadi Kuzhambu,5000 mL,1615.83,1615.72,-0.01
+B,555,329,Shashtika Thailam,100 mL,48.58,48.58,-0.01
+B,556,329,Shashtika Thailam,200 mL,91.9,91.89,-0.01
+B,561,326,Asavenna,200 mL,87.54,87.54,-0.01
+B,562,326,Asavenna,450 mL,185.46,185.45,-0.01
+B,564,326,Asavenna,5000 mL,1947.59,1947.47,-0.01
+B,573,328,Murivenna,200 mL,79.69,79.68,-0.01
+B,574,328,Murivenna,450 mL,167.45,167.44,-0.01
+B,575,328,Murivenna,5000 mL,1751.85,1751.75,-0.01
+B,588,332,Koottu Kuzhambu (Kizhi Thailam),100 mL,19.93,19.92,-0.01
+B,591,332,Koottu Kuzhambu (Kizhi Thailam),5000 mL,616.54,616.4,-0.02
+B,592,332,Koottu Kuzhambu (Kizhi Thailam),10000 mL,1182.45,1182.18,-0.02
+B,594,339,Brahmi Ghritham,150 mL,117.05,117.04,-0.01
+B,596,340,Charngeryadi Ghritham,150 mL,121.46,121.45,-0.01
+B,597,349,Durvadyam Ghritham,50 mL,42.5,42.49,-0.01
+B,600,351,Gulguluthikthaka Ghritham,150 mL,142.08,142.07,-0.01
+B,602,353,Indukantha Ghritham,150 mL,107.22,107.21,-0.01
+B,603,354,Jathyadi Ghritham,50 mL,40.39,40.39,-0.01
+B,606,356,Kalyanaka Ghritham,150 mL,120.47,120.46,-0.01
+B,608,358,Karaskara Ghritham,150 mL,114.78,114.77,-0.01
+B,610,364,Mahathikthaka Ghritham,150 mL,124.56,124.55,-0.01
+B,612,365,Mahathpanchagavya Ghritham,150 mL,123.89,123.88,-0.01
+B,614,366,Mahathraiphala Ghritham,150 mL,137.25,137.24,-0.01
+B,616,370,Panchagavya Ghritham,150 mL,123.85,123.84,-0.01
+B,618,371,Patoladi Ghritham,150 mL,115.98,115.97,-0.01
+B,620,372,Phalasarpis,150 mL,147.41,147.4,-0.01
+B,623,374,Saraswatha Ghritham,150 mL,133.11,133.1,-0.01
+B,627,378,Sukumara Ghritham,150 mL,112.76,112.75,-0.01
+B,630,382,Varanadi Ghritham,150 mL,114.93,114.92,-0.01
+B,632,385,Vidaryadi Ghritham,150 mL,113.33,113.32,-0.01
+B,634,388,Amara Ghritham,150 mL,145.22,145.21,-0.01
+B,636,396,Chandraprabha Gulika,100 Nos,65.16,65.15,-0.01
+B,637,399,Dhanwantharam Gulika,100 Nos,20.61,20.61,-0.01
+B,638,404,Gopichandanadi Gulika,100 Nos,66.19,66.18,-0.01
+B,641,406,Kaisora Gulgulu,100 Nos,98.42,98.41,-0.01
+B,642,407,Kanchanara Gulgulu,100 Nos,99.72,99.71,-0.01
+B,645,432,Sudarsanam Gulika,50 Nos,34.36,34.36,-0.01
+B,646,433,Suryaprabha Gulika,100 Nos,93.18,93.17,-0.01
+B,649,439,Vilwadi Gulika,100 Nos,27.32,27.31,-0.01
+B,650,442,Yogaraja Gulgulu,100 Nos,83.4,83.4,-0.01
+B,651,443,Karuthavattu Gulika,50 Nos,52.92,52.92,-0.02
+B,652,444,Kasakulanthakan,50 Nos,47.64,47.64,-0.01
+B,653,445,Krimishodhini Gulika,12 Nos,14.64,14.63,-0.01
+B,657,449,Vimalavarthi,12 Nos,54.01,54.01,-0.01
+B,658,450,Manasamithra Vatakam,50 Nos,46.93,46.92,-0.01
+B,659,451,Mandoora Vatakam,50 Nos,30.9,30.9,-0.01
+B,684,510,Gandharvahasthadi Kashayam (Conc.),200 mL,83.78,83.77,-0.01
+B,723,550,Amrithotharam Kashayam,450 mL,33.92,33.92,-0.01
+B,724,552,Ashtavargam Kashayam,450 mL,46.27,46.27,-0.01
+B,729,559,Dhanwantharam Kashayam,450 mL,30.06,30.06,-0.01
+B,739,573,Kokilaksha Kashayam,450 mL,24.02,24.02,-0.01
+B,752,588,Panchathikthakam Kashayam,450 mL,30.01,30.01,-0.01
+B,753,591,Pathyakshadhathryadi Kashayam,450 mL,32.53,32.53,-0.01
+B,762,600,Rasnasapthakam Kashayam,450 mL,44.31,44.31,-0.01
+B,766,604,Sapthasaram Kashayam,450 mL,41.49,41.49,-0.01
+B,768,607,Sukumara Kashayam,450 mL,31.33,31.33,-0.01
+B,773,616,Karappan Kashayam,450 mL,66.34,66.34,-0.01
+B,779,618,Sudhipathram Kashayam,450 mL,34.32,34.31,-0.01
+B,782,621,Bahusalagudam,250 g,84.38,84.37,-0.01
+B,785,623,Manibhadra Gulam,250 g,92.13,92.12,-0.01
+B,789,624,Panchajeeraka Gudam,400 g,110.2,110.19,-0.01
+B,791,625,Sathavari Gulam,250 g,71.74,71.74,-0.01
+B,792,625,Sathavari Gulam,400 g,117.09,117.08,-0.01
+B,794,626,Agasthya Rasayanam,250 g,55.43,55.42,-0.01
+B,795,626,Agasthya Rasayanam,400 g,90.75,90.74,-0.01
+B,798,629,Aswagandha Rasayanam,250 g,70.62,70.61,-0.01
+B,799,629,Aswagandha Rasayanam,400 g,115.07,115.06,-0.01
+B,800,632,Chinchadi Lehyam,100 g,43.23,43.22,-0.01
+B,801,632,Chinchadi Lehyam,250 g,92.63,92.63,-0.01
+B,805,633,Chyavanaprasam,400 g,126.71,126.69,-0.01
+B,806,635,Dasamoola Rasayanam,100 g,33.87,33.87,-0.01
+B,810,636,Dasamoolahareethaki,250 g,53.78,53.77,-0.01
+B,811,636,Dasamoolahareethaki,400 g,88.39,88.38,-0.01
+B,813,639,Gandhakamadhusnuhi,250 g,157.2,157.16,-0.02
+B,817,643,Kooshmanda Rasayanam,400 g,105.19,105.17,-0.01
+B,818,646,Madhusnuhi Rasayanam,100 g,42.28,42.27,-0.01
+B,819,646,Madhusnuhi Rasayanam,250 g,90.2,90.19,-0.01
+B,821,647,Mathala Rasayanam,20 g,30.59,30.58,-0.01
+B,822,648,Mridweekadi Lehyam,50 g,43.72,43.71,-0.02
+B,824,649,Narasimha Rasayanam,250 g,118.48,118.46,-0.02
+B,827,652,Sukumara Lehyam,250 g,72.35,72.35,-0.01
+B,831,656,Vidaryadi Lehyam,400 g,111.37,111.36,-0.01
+B,832,657,Vilwadi Lehyam,100 g,36.27,36.27,-0.01
+B,833,657,Vilwadi Lehyam,250 g,73.69,73.68,-0.01
+B,835,658,Kadaleekalpa Rasayanam,100 g,39.28,39.27,-0.01
+B,836,658,Kadaleekalpa Rasayanam,250 g,83.86,83.84,-0.02
+B,837,658,Kadaleekalpa Rasayanam,400 g,142.55,142.53,-0.02
+B,839,659,Kousalamohini,250 g,105.28,105.27,-0.01
+B,843,660,Kurinji Kuzhambu,400 g,113.14,113.13,-0.01
+B,844,664,Thamboola Rasayanam,15 g,15.91,15.9,-0.02
+B,850,675,Manjishtadi Lepam,12 g,13.38,13.37,-0.01
+B,851,672,Rasothamadi Lepam,12 g,22.21,22.21,-0.01
+B,865,685,Kashaya Vasthi Kit,275 g,57.2,57.2,-0.01
+B,876,694,Dahasanthi,20 g,5.4,5.4,-0.01
+B,878,695,Karkkidaka Kanji,500 g,95.65,95.63,-0.02
+B,879,696,Mehasamani,20 g,7.47,7.47,-0.01
+B,907,734,Endopile Capsule,100 Nos,72.89,72.89,-0.01
+B,909,735,Jumbolene Capsule,100 Nos,65.25,65.25,-0.01
+B,912,736,Regas Capsule,100 Nos,64.98,64.98,-0.01
+B,916,738,Solanum Forte Capsule,100 Nos,82.45,82.44,-0.01
+B,919,739,Tribulene Capsule,100 Nos,79.2,79.2,-0.01
+B,921,741,Balavardhini Capsule,100 Nos,98.03,98.02,-0.01
+B,925,749,Amukkura Tablet,100 Nos,86.12,86.12,-0.01
+B,926,750,Bhavana Kadukkai Tablet,50 Nos,32.36,32.35,-0.01
+B,928,751,Impooral Tablet,100 Nos,35.38,35.38,-0.01
+B,930,752,Keezharnelli Tablet,100 Nos,51.81,51.8,-0.01
+B,934,758,Thriphala Choornam Tablet,100 Nos,38.29,38.28,-0.01
+B,937,760,Abhraka Chendooram,5 g,34.69,34.68,-0.03
+B,940,761,Annabhedi Chendooram,10 g,27.75,27.75,-0.01
+B,949,764,Aya Chendooram,5 g,18.48,18.48,-0.02
+B,969,771,Kantha Chendooram,5 g,19.31,19.3,-0.01
+B,979,775,Mandoora Chendooram,5 g,12.97,12.97,-0.02
+B,988,783,Thampira Chendooram,5 g,23.85,23.84,-0.01
+B,995,826,Asokappattai Choornam,50 g,17.38,17.38,-0.01
+B,996,826,Asokappattai Choornam,100 g,26.67,26.67,-0.02
+B,999,827,Chundaivattal Choornam,50 g,27.94,27.93,-0.02
+B,1000,827,Chundaivattal Choornam,100 g,47.6,47.59,-0.02
+B,1002,829,Eladi Choornam,50 g,70.79,70.78,-0.01
+B,1003,829,Eladi Choornam,100 g,132.44,132.43,-0.01
+B,1005,830,Inchi Choornam,50 g,52.21,52.2,-0.01
+B,1006,830,Inchi Choornam,100 g,96.5,96.49,-0.01
+B,1009,832,Kazharchi Choornam,100 g,135.77,135.76,-0.01
+B,1011,833,Maruthampattai Choornam,50 g,23.13,23.12,-0.01
+B,1012,833,Maruthampattai Choornam,100 g,38.34,38.34,-0.01
+B,1019,835,Nilavaakai Choornam,100 g,80.92,80.92,-0.01
+B,1022,836,Orithalthamarai Choornam,50 g,32.57,32.56,-0.02
+B,1023,836,Orithalthamarai Choornam,100 g,57.19,57.17,-0.02
+B,1025,837,Panchadeepakkini Choornam,50 g,48.32,48.32,-0.01
+B,1026,837,Panchadeepakkini Choornam,100 g,88.95,88.95,-0.01
+B,1032,843,Sirupeelai Choornam,50 g,23.25,23.24,-0.03
+B,1033,843,Sirupeelai Choornam,100 g,39.43,39.42,-0.03
+B,1035,846,Thaleesadi Choornam,50 g,46.94,46.93,-0.01
+B,1036,846,Thaleesadi Choornam,100 g,84.43,84.42,-0.01
+B,1038,847,Thayirchundi Choornam,50 g,52.16,52.15,-0.03
+B,1039,847,Thayirchundi Choornam,100 g,96.76,96.73,-0.03
+B,1045,849,Triphalai Choornam,50 g,20.45,20.45,-0.01
+B,1046,849,Triphalai Choornam,100 g,32.22,32.21,-0.01
+B,1050,851,Avuri Choornam,50 g,31.46,31.46,-0.01
+B,1051,851,Avuri Choornam,100 g,55.02,55.02,-0.01
+B,1053,852,Mavilingappattai Choornam,50 g,29.25,29.25,-0.01
+B,1056,853,Meni Choornam,50 g,27.23,27.22,-0.02
+B,1062,855,Sukhanidra Choornam,50 g,67.34,67.33,-0.01
+B,1065,856,Vellaruku Choornam,50 g,25.46,25.45,-0.03
+B,1069,860,Madhumeha Choornam,50 g,29.92,29.91,-0.02
+B,1070,865,Irunelli Karpam,10 g,27.06,29.46,8.87
+B,1073,866,Karisalayadi Panchakarpam,50 g,43.21,43.2,-0.01
+B,1076,867,Anda Thailam,25 mL,83.21,83.21,-0.01
+B,1082,869,Arugan Thailam,100 mL,49.14,49.14,-0.01
+B,1083,869,Arugan Thailam,200 mL,92.43,92.43,-0.01
+B,1087,870,Aswagandha Balalakshadi Thailam,100 mL,55.35,55.34,-0.01
+B,1094,872,Chithramoola Thailam,100 mL,76.2,76.18,-0.02
+B,1102,876,Jeeraka Thailam,200 mL,87.9,87.89,-0.01
+B,1104,878,Karappan Thailam,100 mL,57.36,57.35,-0.01
+B,1108,882,Kunthirikka Thailam,100 mL,39.58,39.58,-0.01
+B,1109,882,Kunthirikka Thailam,200 mL,74.36,74.35,-0.01
+B,1113,883,Laghu Vishamushti Thailam,100 mL,39.57,39.56,-0.01
+B,1114,883,Laghu Vishamushti Thailam,200 mL,72.9,72.89,-0.01
+B,1118,887,Mathan Thailam,100 mL,56.44,56.44,-0.01
+B,1119,887,Mathan Thailam,200 mL,107.44,107.43,-0.01
+B,1123,890,Meni Thailam,100 mL,52.53,52.52,-0.02
+B,1124,893,Moolakudori Thailam,100 mL,44.48,44.48,-0.01
+B,1127,900,Punga Thailam,200 mL,107.32,107.31,-0.01
+B,1131,906,Ulunthu Thailam,100 mL,61.73,61.72,-0.01
+B,1132,906,Ulunthu Thailam,200 mL,117.38,117.37,-0.01
+B,1136,907,Vathakesari Thailam,100 mL,35.65,35.64,-0.01
+B,1137,907,Vathakesari Thailam,200 mL,66.23,66.23,-0.01
+B,1141,910,Vranasanjeevi Thailam,50 mL,63.06,63.04,-0.04
+B,1148,913,Hridayasudhi,100 mL,54.63,54.62,-0.01
+B,1149,913,Hridayasudhi,200 mL,101.15,101.14,-0.01
+B,1157,791,Sivanar Amritham,10 g,41.84,48.43,15.76
+B,1161,920,Kaphasura Kudineer,450 mL,57.88,57.87,-0.01
+B,1163,921,Nilavembu Kudineer,450 mL,53.72,53.71,-0.02
+B,1167,923,Adathodai Kudineer Choornam,50 g,28.88,28.88,-0.01
+B,1171,927,Kaphasura Kudineer Choornam,50 g,37.77,37.77,-0.01
+B,1178,931,Nerunchil Kudineer Choornam,50 g,24.28,24.28,-0.01
+B,1187,936,Parangippattai Kudineer Choornam,50 g,47.42,47.42,-0.01
+B,1196,947,Inji Rasayanam,250 g,57.36,57.35,-0.02
+B,1199,948,Karisalai Lehyam,250 g,58.96,58.95,-0.01
+B,1200,948,Karisalai Lehyam,400 g,96.42,96.41,-0.01
+B,1201,949,Karunai Lehyam,100 g,30.33,30.32,-0.01
+B,1202,949,Karunai Lehyam,250 g,63.96,63.95,-0.01
+B,1203,949,Karunai Lehyam,400 g,104.41,104.4,-0.01
+B,1204,949,Karunai Lehyam,10000 g,2200.38,2200.11,-0.01
+B,1207,950,Kesari Lehyam,250 g,67.93,67.92,-0.01
+B,1210,953,Nellikkai Lehyam,250 g,82.65,82.64,-0.01
+B,1214,954,Parangi Rasayanam,250 g,61.98,61.97,-0.01
+B,1217,956,Thetrankottai Lehyam,250 g,90.4,90.39,-0.02
+B,1219,957,Thippili Rasayanam,30 g,17.71,17.71,-0.01
+B,1220,957,Thippili Rasayanam,100 g,45.75,45.75,-0.01
+B,1221,957,Thippili Rasayanam,250 g,99.19,99.18,-0.01
+B,1222,957,Thippili Rasayanam,720 g,374.99,374.96,-0.01
+B,1228,958,Venpoosani Lehyam,400 g,195.41,195.39,-0.01
+B,1229,959,Amukkura Lehyam,100 g,33.86,33.86,-0.01
+B,1231,959,Amukkura Lehyam,400 g,118.21,118.2,-0.01
+B,1237,965,Amritha Vennei,15 g,21.59,21.59,-0.01
+B,1239,966,Kungileeya Vennei,50 g,18.17,18.17,-0.01
+B,1241,967,Vanga Vennei,15 g,19.74,19.74,-0.01
+B,1245,971,Hridayamohini,50 g,15.92,15.92,-0.01
+B,1247,971,Hridayamohini,250 g,59.99,59.98,-0.01
+B,1249,973,Solanum Syrup,50 mL,15.01,15.01,-0.01
+B,1250,973,Solanum Syrup,100 mL,28.29,28.28,-0.01
+B,1252,976,Ashta Bhairava Mathirai,20 Nos,39.38,39.37,-0.01
+B,1257,993,Meghanada Gulikai,20 Nos,18.03,18.03,-0.01
+B,1258,994,Murukkanvithai Mathirai,12 Nos,14.12,14.12,-0.01
+B,1259,753,Neerkovai Tablet,100 Nos,121.55,121.52,-0.02
+B,1262,1005,Swasakudori Mathirai,50 Nos,45.8,45.79,-0.01
+B,1266,1009,Vatharakshasan Gulikai,50 Nos,21.62,21.62,-0.01
+B,1268,1011,Vazhaipoo Vatakam,30 Nos,47.86,47.86,-0.01
+B,1269,1014,Vishnuchakra Mathirai,20 Nos,34.54,34.54,-0.01
+B,1271,1020,Agasthyar Kuzhambu,5 g,24.17,24.63,1.89
+B,1274,1026,Idivalladi Mezhuku,10 g,19.41,19.41,-0.01
+B,1278,1039,Patikara Neer,200 mL,20.72,20.72,-0.01
+B,1279,1039,Patikara Neer,450 mL,33.91,33.91,-0.01
+B,1280,1040,Venkara Podi,50 g,47.6,47.59,-0.02
+B,1283,1043,Serankottai Ney,25 mL,41.71,41.7,-0.02
+B,1285,1046,Vallarai Ney,150 mL,144.87,144.86,-0.01
+B,1286,797,Kalnaar Parpam,5 g,9.82,9.82,-0.01
+B,1292,801,Muthuchippi Parpam,10 g,12.44,12.43,-0.01
+B,1295,802,Naka Parpam,5 g,22.25,22.25,-0.02
+B,1302,805,Palakarai Parpam,10 g,25.94,25.94,-0.01
+B,1305,806,Panchalavana Parpam,5 g,8.97,8.97,-0.01
+B,1312,812,Sanghu Parpam,10 g,12.35,12.35,-0.01
+B,1315,813,Silasathu Parpam,10 g,13.38,13.38,-0.01
+B,1318,823,Special Medicine 1,10 g,20.93,20.92,-0.01
+B,1351,1050,Panchathikthaka Kashaya Choornam,100 g,32.37,32.36,-0.02
+B,1365,1061,Vaattu Kashayam,450 mL,137.97,137.9,-0.05
+B,1552,1168,Vathasani Choornam,100 g,42.38,42.37,-0.02
+B,1759,1285,Aaragvadhadi Choornam,100 g,33.35,33.34,-0.03
+B,1768,117,Aswagandhadi Choornam,1000 g,413.29,413.26,-0.01
+B,1771,1341,Brihat Chagaladi Ghritham,150 mL,184.83,184.83,-0.01
+B,1772,1341,Brihat Chagaladi Ghritham,450 mL,544.21,544.18,-0.01
+B,1783,1342,Arkkadi Thailam,450 mL,430.81,430.73,-0.02
+B,1787,1343,Jeevaneeya Choornam,100 g,38.99,38.99,-0.01
+B,1788,1345,Balamooladi Choornam,100 g,29.79,29.78,-0.02
+B,1792,54,Abhraka Bhasmam,1000 g,5532.41,5530.63,-0.03
+C,1,1,Abhayarishtam,450 mL,46.51,46.47,-0.07
+C,2,2,Amritharishtam,450 mL,33.41,33.38,-0.09
+C,3,5,Asokarishtam,450 mL,30.04,30.01,-0.11
+C,4,6,Aswagandharishtam,450 mL,55.47,55.44,-0.06
+C,5,9,Balarishtam,450 mL,40.76,40.73,-0.08
+C,6,10,Dandyarishtam,450 mL,38.01,37.98,-0.07
+C,7,30,Dasamoolajeerakarishtam,450 mL,38.34,38.31,-0.08
+C,8,11,Dasamoolarishtam,450 mL,44.86,44.83,-0.07
+C,9,13,Dhanwanthararishtam,450 mL,44.2,44.16,-0.07
+C,11,14,Dhathryarishtam,450 mL,45.92,45.89,-0.07
+C,12,15,Draksharishtam,450 mL,51.15,51.12,-0.06
+C,13,16,Duralabharishtam,450 mL,51.17,51.14,-0.07
+C,14,17,Jeerakarishtam,450 mL,36.5,36.47,-0.08
+C,15,18,Khadirarishtam,450 mL,38.78,38.74,-0.08
+C,16,19,Kutajarishtam,450 mL,44.73,44.7,-0.08
+C,18,21,Mustharishtam,450 mL,35.16,35.13,-0.1
+C,19,23,Parthadyarishtam,450 mL,45.69,45.66,-0.07
+C,20,25,Saraswatharishtam,450 mL,67.03,66.99,-0.05
+C,21,28,Vasarishtam,450 mL,50.29,50.25,-0.07
+C,22,31,Hridayasanthi,100 mL,15.4,15.4,-0.04
+C,23,31,Hridayasanthi,450 mL,48.59,48.55,-0.06
+C,25,32,Panchamridweekarasam,450 mL,38.77,38.75,-0.06
+C,26,33,Udarasudha,100 mL,15.85,15.84,-0.05
+C,27,33,Udarasudha,450 mL,45.59,45.56,-0.07
+C,28,34,Aravindasavam,450 mL,41.57,41.54,-0.08
+C,29,35,Chandanasavam,450 mL,35.31,35.28,-0.08
+C,30,37,Kanakasavam,450 mL,35.33,35.3,-0.08
+C,31,38,Kumaryasavam,450 mL,40.62,40.58,-0.09
+C,32,39,Lohasavam,450 mL,38.3,38.27,-0.08
+C,33,41,Nimbasavam,450 mL,47.91,47.88,-0.07
+C,34,42,Panchakolasavam,450 mL,32.1,32.07,-0.09
+C,35,44,Pippalyasavam,450 mL,36.12,36.09,-0.08
+C,36,47,Punarnavasavam,450 mL,37.51,37.48,-0.08
+C,37,48,Saribadyasavam,450 mL,46.51,46.48,-0.07
+C,38,49,Sudarsanasavam,450 mL,38.06,38.01,-0.11
+C,39,50,Useerasavam,450 mL,35.8,35.77,-0.08
+C,42,51,Dhanyamlam,2000 mL,410.62,408.39,-0.54
+C,43,51,Dhanyamlam,5000 mL,1009.85,1004.28,-0.55
+C,44,65,Kalyana Ksharam,10 g,22.53,22.53,-0.03
+C,45,99,Pramehakalpam Capsule,4 Nos,11.5,11.5,-0.01
+C,46,99,Pramehakalpam Capsule,100 Nos,130.01,129.98,-0.03
+C,49,101,Vathamarmakan Capsule,4 Nos,10.43,10.43,-0.01
+C,50,101,Vathamarmakan Capsule,100 Nos,133.69,133.67,-0.01
+C,51,748,M3 Capsule,100 Nos,118.92,118.66,-0.22
+C,71,115,Ashta Choornam,50 g,42.91,42.89,-0.03
+C,74,117,Aswagandhadi Choornam,50 g,31.85,31.84,-0.04
+C,77,118,Avipathi Choornam,50 g,31.17,31.16,-0.04
+C,81,119,Dadimashtaka Choornam,50 g,26.25,26.23,-0.06
+C,84,120,Eladi Podi,50 g,41.67,41.66,-0.03
+C,88,121,Gulgulu Panchapala Choornam,20 g,41.63,41.61,-0.06
+C,92,122,Hinguvachadi Choornam,50 g,35.88,35.87,-0.03
+C,95,125,Kachooradi Choornam,10 g,14.21,14.2,-0.05
+C,99,127,Karpooradi Choornam,50 g,44.12,44.1,-0.05
+C,102,128,Kolakulathadi Choornam,100 g,45.43,45.4,-0.07
+C,106,132,Rajanyadi Choornam,20 g,24.38,24.36,-0.11
+C,110,133,Rasnadi Choornam,10 g,11.08,11.07,-0.04
+C,111,133,Rasnadi Choornam,50 g,29.67,29.65,-0.07
+C,115,136,Shaddharana Choornam,50 g,75.92,75.89,-0.05
+C,118,138,Sudarsana Choornam,50 g,39.33,39.29,-0.1
+C,121,139,Thaleesapathradi Choornam,50 g,33.07,33.05,-0.05
+C,124,140,Triphaladi Choornam,50 g,26.22,26.21,-0.04
+C,127,140,Triphaladi Choornam,1000 g,307.8,307.57,-0.08
+C,128,142,Vaiswanara Choornam,50 g,33.94,33.91,-0.1
+C,131,144,Vyoshadi Vatakam,50 g,22.42,22.41,-0.06
+C,134,149,Agasthyar Nasika Choornam,2 g,7.44,7.43,-0.12
+C,135,151,Meninokki Choornam,14 g,11.02,11.01,-0.08
+C,137,151,Meninokki Choornam,210 g,100.19,100.05,-0.14
+C,138,152,Santhigiri Tooth Powder,20 g,15.83,15.83,-0.02
+C,139,153,Tharari Choornam,50 g,32.64,32.63,-0.03
+C,143,154,Udwarthana Choornam,100 g,27.85,27.84,-0.03
+C,145,154,Udwarthana Choornam,500 g,73.68,73.63,-0.06
+C,151,158,Himasagara Choornam,100 g,49.54,49.5,-0.09
+C,158,166,Nimbasahacharadi Choornam,100 g,26.87,26.83,-0.12
+C,159,167,Sameerananivarani Choornam,100 g,51.22,51.17,-0.1
+C,160,168,Sarvamangala Choornam,100 g,69.79,69.76,-0.05
+C,165,173,Vasamrithadi Choornam,100 g,35.59,35.52,-0.19
+C,166,175,Chathurvargga Choornam,100 g,58.73,58.69,-0.07
+C,167,176,Neelolpaladi Kashaya Choornam,100 g,53.73,53.71,-0.05
+C,168,177,Sairakabaladi Choornam,100 g,37.64,37.6,-0.11
+C,169,178,Haridrakhandam,50 g,31.17,31.13,-0.1
+C,172,179,Jadamayadi Lepa Choornam,40 g,31.66,31.66,-0.02
+C,173,179,Jadamayadi Lepa Choornam,100 g,77.98,77.97,-0.02
+C,177,180,Kottamchukkadi Lepa Choornam,50 g,22.47,22.45,-0.06
+C,178,180,Kottamchukkadi Lepa Choornam,100 g,46.05,46.02,-0.06
+C,180,180,Kottamchukkadi Lepa Choornam,500 g,170.39,170.26,-0.08
+C,182,181,Nagaradi Lepa Choornam,50 g,33.33,33.32,-0.03
+C,183,181,Nagaradi Lepa Choornam,100 g,68.09,68.08,-0.02
+C,186,181,Nagaradi Lepa Choornam,1000 g,541.31,541.15,-0.03
+C,187,182,Guduci Satva,10 g,59.61,59.57,-0.06
+C,191,183,Ksheerabala Thailam 101 Avarthi,10 mL,57.0,56.88,-0.21
+C,193,184,Ksheerabala Thailam 41 Avarthi,10 mL,117.55,116.87,-0.58
+C,194,185,Anuthailam,10 mL,10.71,10.7,-0.04
+C,196,186,Arimedadi Enna,100 mL,38.01,37.97,-0.09
+C,197,186,Arimedadi Enna,200 mL,71.2,71.13,-0.09
+C,200,188,Asanamanjishtadi Enna,100 mL,40.32,40.29,-0.09
+C,201,188,Asanamanjishtadi Enna,200 mL,71.94,71.87,-0.1
+C,204,189,Asanavilwadi Enna,100 mL,38.42,38.38,-0.09
+C,205,189,Asanavilwadi Enna,200 mL,68.48,68.41,-0.1
+C,207,190,Bala Thailam,100 mL,36.99,36.98,-0.05
+C,208,190,Bala Thailam,200 mL,69.24,69.21,-0.05
+C,209,190,Bala Thailam,450 mL,139.93,139.84,-0.06
+C,213,192,Balaguloochyadi Thailam,200 mL,70.44,70.37,-0.1
+C,218,193,Balahatadi Enna,200 mL,70.92,70.86,-0.1
+C,221,194,Balaswagandhalakshadi Thailam,100 mL,42.84,42.82,-0.05
+C,222,194,Balaswagandhalakshadi Thailam,200 mL,80.26,80.22,-0.06
+C,226,196,Chandanadi Enna (Cheruthu),100 mL,35.96,35.94,-0.05
+C,227,196,Chandanadi Enna (Cheruthu),200 mL,64.13,64.1,-0.06
+C,229,196,Chandanadi Enna (Cheruthu),5000 mL,1357.42,1356.48,-0.07
+C,231,205,Dhanwantharam Thailam (Enna),100 mL,36.74,36.73,-0.05
+C,232,205,Dhanwantharam Thailam (Enna),200 mL,66.75,66.72,-0.05
+C,233,205,Dhanwantharam Thailam (Enna),450 mL,139.95,139.87,-0.06
+C,235,205,Dhanwantharam Thailam (Enna),5000 mL,1426.46,1425.57,-0.06
+C,236,206,Dhanwantharam Thailam (Mezhukupakam) Vasthi,450 mL,141.75,141.65,-0.07
+C,239,210,Eladi Enna,200 mL,71.2,71.14,-0.09
+C,241,210,Eladi Enna,5000 mL,1553.3,1551.76,-0.1
+C,242,218,Karaskara Thailam (External),50 mL,25.56,25.55,-0.07
+C,248,219,Karpasasthyadi Thailam,100 mL,37.6,37.57,-0.06
+C,249,219,Karpasasthyadi Thailam,200 mL,67.41,67.36,-0.07
+C,251,219,Karpasasthyadi Thailam,2000 mL,581.01,580.57,-0.08
+C,252,219,Karpasasthyadi Thailam,5000 mL,1439.26,1438.15,-0.08
+C,259,222,Kottamchukkadi Thailam,100 mL,37.09,37.07,-0.05
+C,260,222,Kottamchukkadi Thailam,200 mL,68.01,67.98,-0.05
+C,261,222,Kottamchukkadi Thailam,450 mL,140.71,140.63,-0.06
+C,262,222,Kottamchukkadi Thailam,5000 mL,1454.36,1453.47,-0.06
+C,264,226,Ksheerabala Enna,100 mL,35.17,35.15,-0.05
+C,265,226,Ksheerabala Enna,200 mL,63.97,63.93,-0.06
+C,266,226,Ksheerabala Enna,450 mL,131.65,131.57,-0.06
+C,268,226,Ksheerabala Enna,5000 mL,1353.29,1352.4,-0.07
+C,273,233,Mahamashadi Thailam (Enna),100 mL,39.19,39.17,-0.05
+C,274,233,Mahamashadi Thailam (Enna),200 mL,70.73,70.69,-0.05
+C,276,233,Mahamashadi Thailam (Enna),5000 mL,1520.35,1519.42,-0.06
+C,278,234,Mahanarayana Thailam,100 mL,46.77,46.75,-0.04
+C,279,234,Mahanarayana Thailam,200 mL,86.95,86.92,-0.04
+C,280,234,Mahanarayana Thailam,450 mL,185.62,185.54,-0.04
+C,282,235,Mahanarayana Thailam (Pizhichil),450 mL,165.86,165.79,-0.05
+C,284,239,Nagaradi Thailam,50 mL,38.0,37.96,-0.12
+C,290,241,Neelibhringadi Enna,100 mL,45.31,45.28,-0.05
+C,295,247,Sahacharadi Thailam,100 mL,38.35,38.33,-0.05
+C,296,247,Sahacharadi Thailam,200 mL,71.16,71.12,-0.05
+C,297,247,Sahacharadi Thailam,450 mL,147.23,147.15,-0.05
+C,299,247,Sahacharadi Thailam,5000 mL,1531.79,1530.9,-0.06
+C,300,248,Sahacharadi Thailam (Mezhukupakam) Vasthi,450 mL,154.9,154.8,-0.06
+C,304,252,Triphaladi Enna,200 mL,81.74,81.64,-0.13
+C,309,258,Vathasani Thailam (Enna),200 mL,72.54,72.5,-0.06
+C,312,260,Agasthyar Thailam,25 mL,16.21,16.21,-0.03
+C,314,262,Karpooradi Thailam,100 mL,50.36,50.34,-0.03
+C,315,262,Karpooradi Thailam,200 mL,95.62,95.59,-0.03
+C,316,262,Karpooradi Thailam,450 mL,202.65,202.59,-0.03
+C,317,262,Karpooradi Thailam,5000 mL,2142.49,2141.82,-0.03
+C,319,263,Kayathirumeni Enna (Cheruthu),100 mL,25.76,25.74,-0.07
+C,320,263,Kayathirumeni Enna (Cheruthu),200 mL,45.63,45.6,-0.08
+C,324,264,Kayathirumeni Enna (Valuthu),100 mL,40.46,40.45,-0.04
+C,325,264,Kayathirumeni Enna (Valuthu),200 mL,74.16,74.12,-0.05
+C,326,264,Kayathirumeni Enna (Valuthu),450 mL,154.94,154.86,-0.05
+C,327,264,Kayathirumeni Enna (Valuthu),5000 mL,1612.45,1611.58,-0.05
+C,329,266,Lekshmivilasam Enna,100 mL,46.79,46.76,-0.05
+C,330,266,Lekshmivilasam Enna,200 mL,87.21,87.16,-0.05
+C,333,267,Mahavathanthaka Thailam,50 mL,44.84,44.82,-0.06
+C,335,268,Siddha Kayathirumeni Enna,100 mL,70.99,70.97,-0.03
+C,336,268,Siddha Kayathirumeni Enna,200 mL,135.56,135.52,-0.03
+C,340,269,Siroreksha Thailam,100 mL,47.8,47.76,-0.07
+C,341,269,Siroreksha Thailam,200 mL,89.71,89.64,-0.08
+C,346,270,Strobilanthes Oil,200 mL,69.3,69.27,-0.05
+C,347,270,Strobilanthes Oil,450 mL,143.77,143.69,-0.06
+C,350,272,Valiya Amrithadi Enna,100 mL,41.7,41.67,-0.08
+C,356,389,Uzhinja Ghritham,200 mL,130.21,130.11,-0.08
+C,357,273,Chithraka Thailam,50 mL,53.44,53.41,-0.04
+C,358,274,Siddha Thailam,50 mL,57.9,57.83,-0.12
+C,360,275,Mahanarayana Thailam (Internal),25 mL,21.73,21.72,-0.05
+C,362,276,Balamritham Aavanakkenna,10 mL,9.64,9.64,-0.05
+C,364,277,Balasarvangam Mukkoottu,10 mL,32.04,32.03,-0.01
+C,365,277,Balasarvangam Mukkoottu,25 mL,77.65,77.65,-0.01
+C,367,278,Chathilinga Thailam,25 mL,82.67,82.67,-0.01
+C,368,279,Erandasukumaram,50 mL,24.36,24.34,-0.07
+C,370,280,Gandharvahasthadi Erandam,50 mL,27.0,26.98,-0.09
+C,374,281,Karaskara Thailam (Internal),25 mL,17.65,17.64,-0.05
+C,377,282,Nimbamrithadi Erandam,50 mL,48.64,48.62,-0.05
+C,379,283,Nirgundyadi Erandam,50 mL,21.7,21.68,-0.08
+C,381,284,Siddha Balapeeyoosham,10 mL,16.04,16.03,-0.06
+C,384,285,Thanurakshakan (Internal),25 mL,18.71,18.7,-0.06
+C,388,286,Vellaruku Thailam,100 mL,57.28,57.23,-0.09
+C,390,303,Ashtapathradi Keram,100 mL,42.69,42.67,-0.05
+C,391,303,Ashtapathradi Keram,200 mL,79.7,79.66,-0.05
+C,396,288,Balaguloochyadi Keram,200 mL,79.4,79.35,-0.06
+C,400,289,Balaswagandhalakshadi Keram,100 mL,48.78,48.76,-0.05
+C,401,289,Balaswagandhalakshadi Keram,200 mL,92.55,92.51,-0.05
+C,405,290,Chemparathyadi Keram,100 mL,44.08,44.06,-0.04
+C,406,290,Chemparathyadi Keram,200 mL,83.31,83.28,-0.04
+C,408,290,Chemparathyadi Keram,5000 mL,1833.38,1832.5,-0.05
+C,411,291,Dhurthuradi Keram,200 mL,75.13,75.09,-0.05
+C,416,292,Dinesavalyadi Keram,200 mL,76.52,76.48,-0.06
+C,420,293,Durvadi Keram,100 mL,40.6,40.58,-0.05
+C,421,293,Durvadi Keram,200 mL,76.39,76.36,-0.05
+C,425,294,Eladi Keram,100 mL,42.79,42.77,-0.04
+C,426,294,Eladi Keram,200 mL,78.99,78.96,-0.04
+C,431,295,Gopathmajadi Keram,200 mL,85.62,85.55,-0.08
+C,434,296,Jathyadi Keram,50 mL,26.41,26.4,-0.04
+C,442,297,Kayyonyadi Keram,200 mL,81.46,81.42,-0.05
+C,446,298,Nalpamaradi Keram,100 mL,42.76,42.74,-0.04
+C,447,298,Nalpamaradi Keram,200 mL,77.52,77.49,-0.05
+C,448,298,Nalpamaradi Keram,450 mL,167.59,167.51,-0.05
+C,449,298,Nalpamaradi Keram,5000 mL,1697.33,1696.45,-0.05
+C,451,299,Neelibhringadi Keram,100 mL,50.8,50.79,-0.03
+C,452,299,Neelibhringadi Keram,200 mL,95.58,95.55,-0.04
+C,453,299,Neelibhringadi Keram,450 mL,204.66,204.59,-0.04
+C,456,300,Triphaladi Keram,100 mL,43.81,43.79,-0.04
+C,457,300,Triphaladi Keram,200 mL,82.02,81.98,-0.05
+C,459,300,Triphaladi Keram,5000 mL,1811.36,1810.38,-0.05
+C,461,301,Thulaseesvarasadi Keram,100 mL,44.02,44.0,-0.04
+C,462,301,Thulaseesvarasadi Keram,200 mL,81.73,81.69,-0.05
+C,465,302,Vachalasunadi Keram,10 mL,9.53,9.53,-0.05
+C,466,302,Vachalasunadi Keram,50 mL,28.5,28.48,-0.08
+C,467,304,Dentareksha Keram,50 mL,28.4,28.38,-0.06
+C,469,305,Kesapushpam,100 mL,46.8,46.78,-0.04
+C,475,306,Naranokki,100 mL,46.67,46.64,-0.05
+C,481,307,Palandava Keram,100 mL,82.68,82.58,-0.12
+C,482,307,Palandava Keram,200 mL,159.56,159.37,-0.12
+C,483,307,Palandava Keram,450 mL,346.56,346.13,-0.12
+C,486,308,Peenasakesari,100 mL,46.46,46.43,-0.07
+C,489,308,Peenasakesari,5000 mL,1923.14,1921.42,-0.09
+C,491,309,Siromukhi,100 mL,47.86,47.83,-0.07
+C,492,309,Siromukhi,200 mL,92.77,92.7,-0.07
+C,496,310,Thanurakshakan (External),100 mL,55.71,55.62,-0.17
+C,497,310,Thanurakshakan (External),200 mL,109.44,109.25,-0.17
+C,503,312,Seethala Thailam,450 mL,221.4,220.97,-0.19
+C,504,313,Snehasnigdhatha Thailam,200 mL,89.97,89.91,-0.06
+C,505,314,Sonithamritha Keram,200 mL,117.76,117.48,-0.24
+C,508,315,Chinchadi Kuzhambu,200 mL,77.57,77.51,-0.07
+C,510,315,Chinchadi Kuzhambu,5000 mL,1701.5,1700.22,-0.08
+C,511,316,Dhanwantharam (Pizhichil) Kuzhambu,450 mL,138.02,137.94,-0.06
+C,513,317,Dhanwantharam Kuzhambu,100 mL,38.62,38.6,-0.05
+C,514,317,Dhanwantharam Kuzhambu,200 mL,72.27,72.24,-0.05
+C,515,317,Dhanwantharam Kuzhambu,450 mL,153.27,153.19,-0.06
+C,516,317,Dhanwantharam Kuzhambu,5000 mL,1558.1,1557.16,-0.06
+C,518,318,Karpasasthyadi Kuzhambu,100 mL,36.52,36.5,-0.06
+C,519,318,Karpasasthyadi Kuzhambu,200 mL,66.88,66.84,-0.06
+C,521,318,Karpasasthyadi Kuzhambu,5000 mL,1422.44,1421.41,-0.07
+C,523,319,Kottamchukkadi Kuzhambu,100 mL,38.01,38.0,-0.05
+C,524,319,Kottamchukkadi Kuzhambu,200 mL,70.82,70.79,-0.05
+C,525,319,Kottamchukkadi Kuzhambu,450 mL,147.36,147.27,-0.06
+C,526,319,Kottamchukkadi Kuzhambu,5000 mL,1528.17,1527.26,-0.06
+C,528,320,Mahapinda Thailam,100 mL,38.96,38.93,-0.1
+C,529,320,Mahapinda Thailam,200 mL,74.96,74.89,-0.1
+C,533,321,Pinda Thailam,100 mL,37.51,37.48,-0.08
+C,534,321,Pinda Thailam,200 mL,68.82,68.77,-0.08
+C,535,321,Pinda Thailam,450 mL,144.35,144.22,-0.09
+C,537,321,Pinda Thailam,5000 mL,1475.52,1474.11,-0.1
+C,539,322,Prabhanjanavimarddanam Kuzhambu,100 mL,40.22,40.2,-0.06
+C,540,322,Prabhanjanavimarddanam Kuzhambu,200 mL,75.97,75.92,-0.06
+C,545,323,Prasarani Kuzhambu,200 mL,74.63,74.59,-0.05
+C,547,323,Prasarani Kuzhambu,5000 mL,1620.9,1619.87,-0.06
+C,548,324,Sahacharadi (Pizhichil) Kuzhambu,450 mL,148.23,148.14,-0.06
+C,550,325,Sahacharadi Kuzhambu,100 mL,40.33,40.31,-0.05
+C,551,325,Sahacharadi Kuzhambu,200 mL,74.47,74.43,-0.05
+C,552,325,Sahacharadi Kuzhambu,450 mL,158.73,158.65,-0.05
+C,553,325,Sahacharadi Kuzhambu,5000 mL,1615.83,1614.89,-0.06
+C,555,329,Shashtika Thailam,100 mL,48.58,48.56,-0.04
+C,556,329,Shashtika Thailam,200 mL,91.9,91.86,-0.04
+C,559,326,Asavenna,50 mL,27.35,27.34,-0.03
+C,560,326,Asavenna,100 mL,46.95,46.93,-0.04
+C,561,326,Asavenna,200 mL,87.54,87.51,-0.04
+C,562,326,Asavenna,450 mL,185.46,185.38,-0.05
+C,564,326,Asavenna,5000 mL,1947.59,1946.66,-0.05
+C,565,327,Kayarajanka Thailam,25 mL,19.03,19.03,-0.02
+C,566,327,Kayarajanka Thailam,100 mL,58.29,58.27,-0.03
+C,567,327,Kayarajanka Thailam,200 mL,111.55,111.51,-0.03
+C,569,327,Kayarajanka Thailam,5000 mL,2547.66,2546.73,-0.04
+C,571,328,Murivenna,25 mL,13.79,13.79,-0.03
+C,572,328,Murivenna,100 mL,42.49,42.47,-0.04
+C,573,328,Murivenna,200 mL,79.69,79.65,-0.04
+C,574,328,Murivenna,450 mL,167.45,167.38,-0.04
+C,575,328,Murivenna,5000 mL,1751.85,1751.04,-0.05
+C,577,330,Siddha Kayathirumeni Thailam,100 mL,75.7,75.68,-0.03
+C,578,330,Siddha Kayathirumeni Thailam,200 mL,144.72,144.68,-0.03
+C,583,331,Vathakodali Thailam,100 mL,77.56,77.54,-0.03
+C,588,332,Koottu Kuzhambu (Kizhi Thailam),100 mL,19.93,19.9,-0.11
+C,591,332,Koottu Kuzhambu (Kizhi Thailam),5000 mL,616.54,615.43,-0.18
+C,592,332,Koottu Kuzhambu (Kizhi Thailam),10000 mL,1182.45,1180.23,-0.19
+C,594,339,Brahmi Ghritham,150 mL,117.05,116.98,-0.06
+C,596,340,Charngeryadi Ghritham,150 mL,121.46,121.38,-0.06
+C,597,349,Durvadyam Ghritham,50 mL,42.5,42.47,-0.06
+C,600,351,Gulguluthikthaka Ghritham,150 mL,142.08,142.01,-0.05
+C,602,353,Indukantha Ghritham,150 mL,107.22,107.14,-0.08
+C,603,354,Jathyadi Ghritham,50 mL,40.39,40.37,-0.05
+C,606,356,Kalyanaka Ghritham,150 mL,120.47,120.4,-0.06
+C,608,358,Karaskara Ghritham,150 mL,114.78,114.69,-0.07
+C,610,364,Mahathikthaka Ghritham,150 mL,124.56,124.48,-0.07
+C,612,365,Mahathpanchagavya Ghritham,150 mL,123.89,123.79,-0.09
+C,614,366,Mahathraiphala Ghritham,150 mL,137.25,137.17,-0.06
+C,616,370,Panchagavya Ghritham,150 mL,123.85,123.75,-0.09
+C,618,371,Patoladi Ghritham,150 mL,115.98,115.9,-0.07
+C,620,372,Phalasarpis,150 mL,147.41,147.35,-0.04
+C,623,374,Saraswatha Ghritham,150 mL,133.11,133.03,-0.06
+C,627,378,Sukumara Ghritham,150 mL,112.76,112.68,-0.07
+C,630,382,Varanadi Ghritham,150 mL,114.93,114.84,-0.07
+C,632,385,Vidaryadi Ghritham,150 mL,113.33,113.26,-0.06
+C,634,388,Amara Ghritham,150 mL,145.22,145.13,-0.06
+C,636,396,Chandraprabha Gulika,100 Nos,65.16,65.08,-0.12
+C,637,399,Dhanwantharam Gulika,100 Nos,20.61,20.6,-0.06
+C,638,404,Gopichandanadi Gulika,100 Nos,66.19,66.13,-0.1
+C,639,405,Gorochanadi Gulika,50 Nos,166.63,166.61,-0.01
+C,641,406,Kaisora Gulgulu,100 Nos,98.42,98.33,-0.09
+C,642,407,Kanchanara Gulgulu,100 Nos,99.72,99.63,-0.09
+C,645,432,Sudarsanam Gulika,50 Nos,34.36,34.33,-0.1
+C,646,433,Suryaprabha Gulika,100 Nos,93.18,93.7,0.56
+C,647,434,Swasanandam Gulika,100 Nos,315.17,315.1,-0.02
+C,648,438,Vettumaran Gulika,100 Nos,119.07,119.04,-0.02
+C,649,439,Vilwadi Gulika,100 Nos,27.32,27.29,-0.11
+C,650,442,Yogaraja Gulgulu,100 Nos,83.4,83.35,-0.06
+C,651,443,Karuthavattu Gulika,50 Nos,52.92,52.86,-0.13
+C,652,444,Kasakulanthakan,50 Nos,47.64,47.62,-0.06
+C,653,445,Krimishodhini Gulika,12 Nos,14.64,14.63,-0.06
+C,654,446,Uramarunnu Gulika,10 Nos,44.43,44.42,-0.02
+C,657,449,Vimalavarthi,12 Nos,54.01,53.95,-0.11
+C,658,450,Manasamithra Vatakam,50 Nos,46.93,46.89,-0.08
+C,659,451,Mandoora Vatakam,50 Nos,30.9,30.88,-0.05
+C,684,510,Gandharvahasthadi Kashayam (Conc.),200 mL,83.78,83.7,-0.1
+C,723,550,Amrithotharam Kashayam,450 mL,33.92,33.91,-0.05
+C,724,552,Ashtavargam Kashayam,450 mL,46.27,46.25,-0.06
+C,725,553,Brihathyadi Kashayam,450 mL,47.72,47.7,-0.04
+C,726,554,Chiruvilwadi Kashayam,450 mL,68.93,68.91,-0.02
+C,727,555,Dasamoolakaduthrayam Kashayam,450 mL,49.8,49.78,-0.03
+C,728,558,Dhanadanayanadi Kashayam,450 mL,57.13,57.12,-0.03
+C,729,559,Dhanwantharam Kashayam,450 mL,30.06,30.05,-0.06
+C,730,560,Drakshadi Kashayam,450 mL,58.38,58.36,-0.03
+C,731,561,Dusparsakadi Kashayam,450 mL,72.39,72.37,-0.02
+C,732,563,Elakanadi Kashayam,450 mL,73.39,73.38,-0.02
+C,734,564,Gandharvahasthadi Kashayam,450 mL,57.35,57.33,-0.03
+C,735,566,Gulguluthikthakam Kashayam,450 mL,54.87,54.85,-0.03
+C,736,567,Guloochyadi Kashayam,450 mL,48.58,48.57,-0.03
+C,737,568,Indukantham Kashayam,450 mL,45.75,45.74,-0.04
+C,738,569,Kaidaryadi Kashayam,450 mL,41.83,41.82,-0.04
+C,739,573,Kokilaksha Kashayam,450 mL,24.02,24.01,-0.06
+C,740,576,Mahamanjishtadi Kashayam,450 mL,71.64,71.62,-0.02
+C,742,577,Maharasnadi Kashayam,450 mL,59.57,59.55,-0.03
+C,743,578,Mahathikthakam Kashayam,450 mL,62.18,62.17,-0.02
+C,744,579,Manjishtadi Kashayam,450 mL,45.56,45.55,-0.04
+C,745,580,Musaleekhadiradi Kashayam,450 mL,47.24,47.23,-0.03
+C,746,581,Naadi Kashayam,450 mL,58.74,58.72,-0.03
+C,747,582,Nayopayam Kashayam,450 mL,47.97,47.95,-0.04
+C,748,584,Nimbadi Kashayam,450 mL,78.7,78.68,-0.02
+C,749,585,Nirgundyadi Kashayam,450 mL,65.93,65.91,-0.03
+C,750,586,Nisakathakadi Kashayam,450 mL,40.83,40.81,-0.04
+C,752,588,Panchathikthakam Kashayam,450 mL,30.01,30.0,-0.05
+C,753,591,Pathyakshadhathryadi Kashayam,450 mL,32.53,32.52,-0.05
+C,754,592,Pathyapunarnavadi Kashayam,450 mL,79.28,79.26,-0.02
+C,755,593,Patoladi Kashayam,450 mL,70.32,70.3,-0.02
+C,758,595,Patolamooladi Kashayam,450 mL,60.67,60.65,-0.03
+C,759,596,Prasaranyadi Kashayam,450 mL,50.63,50.62,-0.03
+C,760,597,Punarnavadi Kashayam,450 mL,73.04,73.02,-0.02
+C,761,599,Rasnairandadi Kashayam,450 mL,62.57,62.56,-0.03
+C,762,600,Rasnasapthakam Kashayam,450 mL,44.31,44.29,-0.04
+C,763,601,Rasonadi Kashayam,450 mL,72.22,72.21,-0.02
+C,764,602,Rudrakshadi Kashayam,450 mL,150.96,150.91,-0.03
+C,765,603,Sahacharadi Kashayam,450 mL,46.01,45.99,-0.04
+C,766,604,Sapthasaram Kashayam,450 mL,41.49,41.48,-0.04
+C,768,607,Sukumara Kashayam,450 mL,31.33,31.32,-0.05
+C,769,612,Varanadi Kashayam,450 mL,39.15,39.14,-0.04
+C,770,614,Vidaryadi Kashayam,450 mL,41.35,41.33,-0.04
+C,773,616,Karappan Kashayam,450 mL,66.34,66.31,-0.06
+C,774,617,Marma Kashayam,100 mL,26.92,26.91,-0.02
+C,776,617,Marma Kashayam,450 mL,94.26,94.24,-0.02
+C,777,618,Sudhipathram Kashayam,100 mL,12.94,12.94,-0.03
+C,779,618,Sudhipathram Kashayam,450 mL,34.32,34.3,-0.06
+C,782,621,Bahusalagudam,250 g,84.38,84.29,-0.11
+C,785,623,Manibhadra Gulam,250 g,92.13,92.07,-0.07
+C,789,624,Panchajeeraka Gudam,400 g,110.2,110.08,-0.11
+C,791,625,Sathavari Gulam,250 g,71.74,71.68,-0.09
+C,792,625,Sathavari Gulam,400 g,117.09,116.99,-0.09
+C,794,626,Agasthya Rasayanam,250 g,55.43,55.37,-0.11
+C,795,626,Agasthya Rasayanam,400 g,90.75,90.65,-0.11
+C,798,629,Aswagandha Rasayanam,250 g,70.62,70.56,-0.09
+C,799,629,Aswagandha Rasayanam,400 g,115.07,114.97,-0.09
+C,800,632,Chinchadi Lehyam,100 g,43.23,43.2,-0.06
+C,801,632,Chinchadi Lehyam,250 g,92.63,92.57,-0.07
+C,805,633,Chyavanaprasam,400 g,126.71,126.57,-0.11
+C,806,635,Dasamoola Rasayanam,100 g,33.87,33.84,-0.1
+C,810,636,Dasamoolahareethaki,250 g,53.78,53.71,-0.12
+C,811,636,Dasamoolahareethaki,400 g,88.39,88.29,-0.12
+C,813,639,Gandhakamadhusnuhi,250 g,157.2,156.9,-0.19
+C,817,643,Kooshmanda Rasayanam,400 g,105.19,105.09,-0.09
+C,818,646,Madhusnuhi Rasayanam,100 g,42.28,42.24,-0.1
+C,819,646,Madhusnuhi Rasayanam,250 g,90.2,90.1,-0.11
+C,821,647,Mathala Rasayanam,20 g,30.59,30.56,-0.07
+C,822,648,Mridweekadi Lehyam,50 g,43.72,43.63,-0.19
+C,824,649,Narasimha Rasayanam,250 g,118.48,118.32,-0.13
+C,827,652,Sukumara Lehyam,250 g,72.35,72.28,-0.1
+C,831,656,Vidaryadi Lehyam,400 g,111.37,111.27,-0.09
+C,832,657,Vilwadi Lehyam,100 g,36.27,36.25,-0.08
+C,833,657,Vilwadi Lehyam,250 g,73.69,73.62,-0.1
+C,835,658,Kadaleekalpa Rasayanam,100 g,39.28,39.23,-0.12
+C,836,658,Kadaleekalpa Rasayanam,250 g,83.86,83.74,-0.14
+C,837,658,Kadaleekalpa Rasayanam,400 g,142.55,142.37,-0.13
+C,839,659,Kousalamohini,250 g,105.28,105.16,-0.12
+C,843,660,Kurinji Kuzhambu,400 g,113.14,113.03,-0.1
+C,844,664,Thamboola Rasayanam,15 g,15.91,15.88,-0.16
+C,849,670,Murivenna Balm,25 g,21.76,21.76,-0.02
+C,850,675,Manjishtadi Lepam,12 g,13.38,13.37,-0.05
+C,851,672,Rasothamadi Lepam,12 g,22.21,22.58,1.65
+C,853,673,Hridayarenjini Lepam,30 g,34.48,34.47,-0.02
+C,855,674,Kumkumadi Lepam,15 g,26.24,26.24,-0.01
+C,859,678,Ilaneer Kuzhambu,5 mL,10.59,10.59,-0.02
+C,864,683,Vethuvellakkoottu,400 g,68.35,68.33,-0.03
+C,865,685,Kashaya Vasthi Kit,275 g,57.2,57.17,-0.05
+C,876,694,Dahasanthi,20 g,5.4,5.39,-0.06
+C,878,695,Karkkidaka Kanji,500 g,95.65,95.52,-0.14
+C,879,696,Mehasamani,20 g,7.47,7.46,-0.07
+C,881,697,Chukku Podi,40 g,30.11,30.1,-0.02
+C,883,697,Chukku Podi,1000 g,517.64,517.48,-0.03
+C,886,699,Nellikka Podi,40 g,17.03,17.02,-0.04
+C,889,722,Cherupayar Podi,50 g,16.79,16.78,-0.04
+C,891,723,Kasthoori Manjal Podi,40 g,15.41,15.41,-0.02
+C,894,726,Raktha Chandana Podi,30 g,25.83,25.83,-0.02
+C,896,729,Oma Theeneer,200 mL,21.33,21.33,-0.01
+C,897,729,Oma Theeneer,450 mL,34.92,34.91,-0.02
+C,899,731,Sombu Theeneer,200 mL,21.3,21.3,-0.02
+C,900,731,Sombu Theeneer,450 mL,35.48,35.47,-0.03
+C,901,732,Arjun Forte Capsule,4 Nos,9.78,9.78,-0.01
+C,902,732,Arjun Forte Capsule,100 Nos,131.95,131.92,-0.03
+C,904,733,Artiban Forte Capsule,4 Nos,10.91,10.91,-0.01
+C,905,733,Artiban Forte Capsule,100 Nos,132.7,132.68,-0.01
+C,906,734,Endopile Capsule,4 Nos,8.09,8.09,-0.02
+C,907,734,Endopile Capsule,100 Nos,72.89,72.86,-0.05
+C,908,735,Jumbolene Capsule,4 Nos,8.39,8.39,-0.02
+C,909,735,Jumbolene Capsule,100 Nos,65.25,65.22,-0.05
+C,911,736,Regas Capsule,4 Nos,7.78,7.78,-0.02
+C,912,736,Regas Capsule,100 Nos,64.98,64.94,-0.06
+C,913,737,Rejuliv Forte Capsule,4 Nos,9.14,9.14,-0.01
+C,914,737,Rejuliv Forte Capsule,100 Nos,75.19,75.17,-0.03
+C,915,738,Solanum Forte Capsule,4 Nos,8.47,8.47,-0.02
+C,916,738,Solanum Forte Capsule,100 Nos,82.45,82.4,-0.06
+C,919,739,Tribulene Capsule,100 Nos,79.2,79.15,-0.07
+C,921,741,Balavardhini Capsule,100 Nos,98.03,97.92,-0.11
+C,925,749,Amukkura Tablet,100 Nos,86.12,86.08,-0.04
+C,926,750,Bhavana Kadukkai Tablet,50 Nos,32.36,32.34,-0.06
+C,928,751,Impooral Tablet,100 Nos,35.38,35.35,-0.09
+C,930,752,Keezharnelli Tablet,100 Nos,51.81,51.78,-0.06
+C,934,758,Thriphala Choornam Tablet,100 Nos,38.29,38.25,-0.09
+C,935,759,Vallarai Tablet,20 Nos,21.41,21.4,-0.03
+C,936,759,Vallarai Tablet,100 Nos,92.92,92.89,-0.03
+C,937,760,Abhraka Chendooram,5 g,34.69,42.81,23.41
+C,940,761,Annabhedi Chendooram,10 g,27.75,28.81,3.83
+C,943,762,Annabhedi Chendooram 2,5 g,12.38,12.58,1.62
+C,946,763,Arumugha Chendooram,5 g,48.46,49.4,1.95
+C,949,764,Aya Chendooram,5 g,18.48,21.08,14.08
+C,952,765,Ayakantha Chendooram,5 g,24.29,24.48,0.79
+C,955,766,Ayaveera Chendooram,5 g,346.65,346.93,0.08
+C,959,767,Chandamarutha Chendooram,5 g,165.2,165.77,0.34
+C,962,768,Gowrichinthamani Chendooram,5 g,113.33,113.74,0.36
+C,965,769,Jalamanjari Chendooram,10 g,17.57,17.57,-0.02
+C,969,771,Kantha Chendooram,5 g,19.31,21.54,11.56
+C,979,775,Mandoora Chendooram,5 g,12.97,15.41,18.78
+C,982,777,Patikalinga Chendooram,10 g,49.19,49.6,0.83
+C,985,778,Patikara Chendooram,10 g,9.73,9.73,-0.01
+C,988,783,Thampira Chendooram,5 g,23.85,26.07,9.35
+C,991,825,Amukkura Choornam,50 g,51.38,51.37,-0.02
+C,992,825,Amukkura Choornam,100 g,95.08,95.06,-0.02
+C,995,826,Asokappattai Choornam,50 g,17.38,17.37,-0.1
+C,996,826,Asokappattai Choornam,100 g,26.67,26.64,-0.13
+C,999,827,Chundaivattal Choornam,50 g,27.94,27.9,-0.13
+C,1000,827,Chundaivattal Choornam,100 g,47.6,47.53,-0.16
+C,1002,829,Eladi Choornam,50 g,70.79,70.75,-0.05
+C,1003,829,Eladi Choornam,100 g,132.44,132.36,-0.06
+C,1005,830,Inchi Choornam,50 g,52.21,52.17,-0.07
+C,1006,830,Inchi Choornam,100 g,96.5,96.43,-0.07
+C,1008,832,Kazharchi Choornam,50 g,71.43,71.4,-0.04
+C,1009,832,Kazharchi Choornam,100 g,135.77,135.71,-0.04
+C,1011,833,Maruthampattai Choornam,50 g,23.13,23.11,-0.07
+C,1012,833,Maruthampattai Choornam,100 g,38.34,38.3,-0.09
+C,1015,834,Mayilirakadi Choornam,50 g,162.91,162.85,-0.04
+C,1018,835,Nilavaakai Choornam,50 g,45.18,45.17,-0.04
+C,1019,835,Nilavaakai Choornam,100 g,80.92,80.89,-0.04
+C,1022,836,Orithalthamarai Choornam,50 g,32.57,32.52,-0.16
+C,1023,836,Orithalthamarai Choornam,100 g,57.19,57.08,-0.18
+C,1025,837,Panchadeepakkini Choornam,50 g,48.32,48.29,-0.06
+C,1026,837,Panchadeepakkini Choornam,100 g,88.95,88.89,-0.07
+C,1028,838,Parangippattai Choornam,50 g,40.02,40.01,-0.03
+C,1029,838,Parangippattai Choornam,100 g,70.32,70.29,-0.04
+C,1032,843,Sirupeelai Choornam,50 g,23.25,23.2,-0.22
+C,1033,843,Sirupeelai Choornam,100 g,39.43,39.33,-0.26
+C,1035,846,Thaleesadi Choornam,50 g,46.94,46.91,-0.06
+C,1036,846,Thaleesadi Choornam,100 g,84.43,84.37,-0.06
+C,1038,847,Thayirchundi Choornam,50 g,52.16,52.05,-0.21
+C,1039,847,Thayirchundi Choornam,100 g,96.76,96.54,-0.23
+C,1041,848,Thrikatuku Choornam,50 g,54.26,54.24,-0.03
+C,1042,848,Thrikatuku Choornam,100 g,98.9,98.86,-0.03
+C,1045,849,Triphalai Choornam,50 g,20.45,20.43,-0.08
+C,1046,849,Triphalai Choornam,100 g,32.22,32.18,-0.11
+C,1050,851,Avuri Choornam,50 g,31.46,31.44,-0.06
+C,1051,851,Avuri Choornam,100 g,55.02,54.98,-0.07
+C,1053,852,Mavilingappattai Choornam,50 g,29.25,29.22,-0.12
+C,1056,853,Meni Choornam,50 g,27.23,27.19,-0.14
+C,1059,854,Poonaikkali Choornam,50 g,60.51,60.5,-0.02
+C,1060,854,Poonaikkali Choornam,100 g,111.95,111.93,-0.02
+C,1062,855,Sukhanidra Choornam,50 g,67.34,67.3,-0.05
+C,1065,856,Vellaruku Choornam,50 g,25.46,25.4,-0.2
+C,1069,860,Madhumeha Choornam,50 g,29.92,29.87,-0.14
+C,1070,865,Irunelli Karpam,10 g,27.06,29.42,8.74
+C,1073,866,Karisalayadi Panchakarpam,50 g,43.21,43.16,-0.12
+C,1076,867,Anda Thailam,25 mL,83.21,83.16,-0.06
+C,1078,868,Arakku Thailam,100 mL,120.3,120.26,-0.03
+C,1079,868,Arakku Thailam,200 mL,235.63,235.56,-0.03
+C,1082,869,Arugan Thailam,100 mL,49.14,49.11,-0.07
+C,1083,869,Arugan Thailam,200 mL,92.43,92.37,-0.07
+C,1087,870,Aswagandha Balalakshadi Thailam,100 mL,55.35,55.31,-0.06
+C,1091,871,Chirattai Thailam,10 mL,8.93,8.93,-0.03
+C,1094,872,Chithramoola Thailam,100 mL,76.2,76.1,-0.13
+C,1097,873,Chukku Thailam,100 mL,85.4,85.37,-0.04
+C,1098,873,Chukku Thailam,200 mL,165.04,164.98,-0.04
+C,1102,876,Jeeraka Thailam,200 mL,87.9,87.82,-0.09
+C,1104,878,Karappan Thailam,100 mL,57.36,57.31,-0.07
+C,1108,882,Kunthirikka Thailam,100 mL,39.58,39.56,-0.05
+C,1109,882,Kunthirikka Thailam,200 mL,74.36,74.32,-0.05
+C,1113,883,Laghu Vishamushti Thailam,100 mL,39.57,39.53,-0.09
+C,1114,883,Laghu Vishamushti Thailam,200 mL,72.9,72.83,-0.09
+C,1118,887,Mathan Thailam,100 mL,56.44,56.42,-0.05
+C,1119,887,Mathan Thailam,200 mL,107.44,107.38,-0.05
+C,1123,890,Meni Thailam,100 mL,52.53,52.44,-0.18
+C,1124,893,Moolakudori Thailam,100 mL,44.48,46.75,5.1
+C,1126,900,Punga Thailam,100 mL,56.88,56.86,-0.04
+C,1127,900,Punga Thailam,200 mL,107.32,107.27,-0.04
+C,1131,906,Ulunthu Thailam,100 mL,61.73,61.7,-0.05
+C,1132,906,Ulunthu Thailam,200 mL,117.38,117.32,-0.05
+C,1136,907,Vathakesari Thailam,100 mL,35.65,35.62,-0.06
+C,1137,907,Vathakesari Thailam,200 mL,66.23,66.19,-0.07
+C,1141,910,Vranasanjeevi Thailam,50 mL,63.06,62.87,-0.3
+C,1143,911,Vetpalai Thailam,100 mL,44.19,44.18,-0.03
+C,1144,911,Vetpalai Thailam,200 mL,81.99,81.96,-0.03
+C,1145,911,Vetpalai Thailam,450 mL,172.54,172.48,-0.03
+C,1148,913,Hridayasudhi,100 mL,54.63,54.58,-0.09
+C,1149,913,Hridayasudhi,200 mL,101.15,101.06,-0.09
+C,1157,791,Sivanar Amritham,10 g,41.84,51.66,23.47
+C,1161,920,Kaphasura Kudineer,450 mL,57.88,57.82,-0.1
+C,1163,921,Nilavembu Kudineer,450 mL,53.72,53.64,-0.15
+C,1167,923,Adathodai Kudineer Choornam,50 g,28.88,28.86,-0.05
+C,1171,927,Kaphasura Kudineer Choornam,50 g,37.77,37.74,-0.07
+C,1174,929,Mandooradi Kudineer Choornam,50 g,56.12,56.09,-0.04
+C,1178,931,Nerunchil Kudineer Choornam,50 g,24.28,24.26,-0.06
+C,1181,932,Nilavembu Kudineer Choornam,50 g,30.57,30.56,-0.04
+C,1187,936,Parangippattai Kudineer Choornam,50 g,47.42,47.38,-0.09
+C,1190,937,Seenthil Kudineer Choornam,50 g,33.35,33.33,-0.04
+C,1196,947,Inji Rasayanam,250 g,57.36,57.28,-0.15
+C,1199,948,Karisalai Lehyam,250 g,58.96,58.89,-0.1
+C,1200,948,Karisalai Lehyam,400 g,96.42,96.33,-0.1
+C,1201,949,Karunai Lehyam,100 g,30.33,30.3,-0.07
+C,1202,949,Karunai Lehyam,250 g,63.96,63.9,-0.09
+C,1203,949,Karunai Lehyam,400 g,104.41,104.32,-0.09
+C,1204,949,Karunai Lehyam,10000 g,2200.38,2198.16,-0.1
+C,1207,950,Kesari Lehyam,250 g,67.93,67.85,-0.11
+C,1210,953,Nellikkai Lehyam,250 g,82.65,82.56,-0.1
+C,1214,954,Parangi Rasayanam,250 g,61.98,61.91,-0.1
+C,1217,956,Thetrankottai Lehyam,250 g,90.4,90.29,-0.13
+C,1219,957,Thippili Rasayanam,30 g,17.71,17.7,-0.05
+C,1220,957,Thippili Rasayanam,100 g,45.75,45.72,-0.07
+C,1221,957,Thippili Rasayanam,250 g,99.19,99.11,-0.08
+C,1222,957,Thippili Rasayanam,720 g,374.99,374.76,-0.06
+C,1228,958,Venpoosani Lehyam,400 g,195.41,195.24,-0.09
+C,1229,959,Amukkura Lehyam,100 g,33.86,33.84,-0.08
+C,1231,959,Amukkura Lehyam,400 g,118.21,118.1,-0.09
+C,1235,960,Rheumorid Balm,15 g,24.94,24.94,-0.02
+C,1237,965,Amritha Vennei,15 g,21.59,22.06,2.17
+C,1239,966,Kungileeya Vennei,50 g,18.17,20.21,11.23
+C,1241,967,Vanga Vennei,15 g,19.74,20.22,2.42
+C,1243,969,Mathulai Manappagu,50 g,36.78,36.77,-0.02
+C,1244,969,Mathulai Manappagu,250 g,167.14,167.1,-0.03
+C,1245,971,Hridayamohini,50 g,15.92,15.91,-0.06
+C,1247,971,Hridayamohini,250 g,59.99,59.94,-0.08
+C,1249,973,Solanum Syrup,50 mL,15.01,15.0,-0.07
+C,1250,973,Solanum Syrup,100 mL,28.29,28.27,-0.08
+C,1251,975,Ananda Bhairava Mathirai,20 Nos,29.93,30.08,0.5
+C,1252,976,Ashta Bhairava Mathirai,20 Nos,39.38,42.36,7.58
+C,1253,977,Balasanjeevi Mathirai,20 Nos,30.8,31.13,1.07
+C,1255,978,Brahmananda Bhairava Mathirai,20 Nos,47.56,47.72,0.34
+C,1256,985,Kapada Mathirai,15 Nos,31.84,31.84,-0.01
+C,1257,993,Meghanada Gulikai,20 Nos,18.03,18.36,1.83
+C,1258,994,Murukkanvithai Mathirai,12 Nos,14.12,14.11,-0.09
+C,1259,753,Neerkovai Tablet,100 Nos,121.55,121.33,-0.18
+C,1261,1002,Santhachandrodaya Mathirai,20 Nos,31.8,31.95,0.45
+C,1262,1005,Swasakudori Mathirai,50 Nos,45.8,45.77,-0.06
+C,1264,1008,Vasanthakusumakara Mathirai,20 Nos,307.37,307.77,0.13
+C,1266,1009,Vatharakshasan Gulikai,50 Nos,21.62,26.72,23.59
+C,1268,1011,Vazhaipoo Vatakam,30 Nos,47.86,47.82,-0.08
+C,1269,1014,Vishnuchakra Mathirai,20 Nos,34.54,34.51,-0.1
+C,1271,1020,Agasthyar Kuzhambu,5 g,24.17,24.73,2.32
+C,1273,1025,Gunmakudori Mezhuku,10 g,12.72,13.06,2.64
+C,1274,1026,Idivalladi Mezhuku,10 g,19.41,19.62,1.1
+C,1275,1034,Rasagandhi Mezhuku,10 g,23.23,24.45,5.26
+C,1278,1039,Patikara Neer,200 mL,20.72,20.71,-0.05
+C,1279,1039,Patikara Neer,450 mL,33.91,33.89,-0.07
+C,1280,1040,Venkara Podi,50 g,47.6,47.54,-0.12
+C,1283,1043,Serankottai Ney,25 mL,41.71,41.64,-0.16
+C,1285,1046,Vallarai Ney,150 mL,144.87,144.8,-0.05
+C,1286,797,Kalnaar Parpam,5 g,9.82,10.63,8.26
+C,1289,799,Kungileeya Parpam,5 g,12.8,12.8,-0.02
+C,1292,801,Muthuchippi Parpam,10 g,12.44,13.65,9.77
+C,1295,802,Naka Parpam,5 g,22.25,24.95,12.12
+C,1298,803,Nandukkal Parpam,5 g,30.39,31.0,2.0
+C,1302,805,Palakarai Parpam,10 g,25.94,27.16,4.69
+C,1305,806,Panchalavana Parpam,5 g,8.97,9.98,11.33
+C,1308,808,Pavizha Parpam,5 g,125.19,125.79,0.49
+C,1312,812,Sanghu Parpam,10 g,12.35,13.46,9.02
+C,1315,813,Silasathu Parpam,10 g,13.38,14.87,11.1
+C,1318,823,Special Medicine 1,10 g,20.93,22.0,5.14
+C,1351,1050,Panchathikthaka Kashaya Choornam,100 g,32.37,32.31,-0.17
+C,1365,1061,Vaattu Kashayam,450 mL,137.97,137.42,-0.4
+C,1552,1168,Vathasani Choornam,100 g,42.38,42.31,-0.16
+C,1759,1285,Aaragvadhadi Choornam,100 g,33.35,33.28,-0.21
+C,1768,117,Aswagandhadi Choornam,1000 g,413.29,413.02,-0.07
+C,1771,1341,Brihat Chagaladi Ghritham,150 mL,184.83,184.76,-0.04
+C,1772,1341,Brihat Chagaladi Ghritham,450 mL,544.21,543.97,-0.04
+C,1783,1342,Arkkadi Thailam,450 mL,430.81,430.18,-0.14
+C,1787,1343,Jeevaneeya Choornam,100 g,38.99,38.95,-0.11
+C,1788,1345,Balamooladi Choornam,100 g,29.79,29.75,-0.13
+C,1792,54,Abhraka Bhasmam,1000 g,5532.41,7156.53,29.36
+C,1797,824,Special Medicine 2,5 g,22.34,22.54,0.91
+C,1798,1350,Mahamanjishtadi Kashaya Choornam,100 g,71.61,71.59,-0.03
+D,1,1,Abhayarishtam,450 mL,46.51,46.37,-0.29
+D,2,2,Amritharishtam,450 mL,33.41,33.29,-0.36
+D,3,5,Asokarishtam,450 mL,30.04,29.91,-0.45
+D,4,6,Aswagandharishtam,450 mL,55.47,55.33,-0.25
+D,5,9,Balarishtam,450 mL,40.76,40.63,-0.33
+D,6,10,Dandyarishtam,450 mL,38.01,37.9,-0.31
+D,7,30,Dasamoolajeerakarishtam,450 mL,38.34,38.22,-0.31
+D,8,11,Dasamoolarishtam,450 mL,44.86,44.74,-0.27
+D,9,13,Dhanwanthararishtam,450 mL,44.2,44.06,-0.3
+D,11,14,Dhathryarishtam,450 mL,45.92,45.79,-0.29
+D,12,15,Draksharishtam,450 mL,51.15,51.03,-0.25
+D,13,16,Duralabharishtam,450 mL,51.17,51.03,-0.27
+D,14,17,Jeerakarishtam,450 mL,36.5,36.38,-0.33
+D,15,18,Khadirarishtam,450 mL,38.78,38.64,-0.35
+D,16,19,Kutajarishtam,450 mL,44.73,44.59,-0.33
+D,18,21,Mustharishtam,450 mL,35.16,35.02,-0.39
+D,19,23,Parthadyarishtam,450 mL,45.69,45.55,-0.31
+D,20,25,Saraswatharishtam,450 mL,67.03,66.88,-0.23
+D,21,28,Vasarishtam,450 mL,50.29,50.15,-0.28
+D,22,31,Hridayasanthi,100 mL,15.4,15.37,-0.18
+D,23,31,Hridayasanthi,450 mL,48.59,48.46,-0.26
+D,25,32,Panchamridweekarasam,450 mL,38.77,38.69,-0.23
+D,26,33,Udarasudha,100 mL,15.85,15.82,-0.19
+D,27,33,Udarasudha,450 mL,45.59,45.46,-0.29
+D,28,34,Aravindasavam,450 mL,41.57,41.44,-0.31
+D,29,35,Chandanasavam,450 mL,35.31,35.19,-0.35
+D,30,37,Kanakasavam,450 mL,35.33,35.22,-0.33
+D,31,38,Kumaryasavam,450 mL,40.62,40.46,-0.39
+D,32,39,Lohasavam,450 mL,38.3,38.18,-0.32
+D,33,41,Nimbasavam,450 mL,47.91,47.77,-0.3
+D,34,42,Panchakolasavam,450 mL,32.1,31.98,-0.37
+D,35,44,Pippalyasavam,450 mL,36.12,36.0,-0.32
+D,36,47,Punarnavasavam,450 mL,37.51,37.39,-0.32
+D,37,48,Saribadyasavam,450 mL,46.51,46.38,-0.28
+D,38,49,Sudarsanasavam,450 mL,38.06,37.88,-0.45
+D,39,50,Useerasavam,450 mL,35.8,35.67,-0.34
+D,42,51,Dhanyamlam,2000 mL,410.62,401.45,-2.23
+D,43,51,Dhanyamlam,5000 mL,1009.85,986.92,-2.27
+D,44,65,Kalyana Ksharam,10 g,22.53,22.5,-0.13
+D,45,99,Pramehakalpam Capsule,4 Nos,11.5,11.49,-0.05
+D,46,99,Pramehakalpam Capsule,100 Nos,130.01,129.88,-0.1
+D,49,101,Vathamarmakan Capsule,4 Nos,10.43,10.43,-0.03
+D,50,101,Vathamarmakan Capsule,100 Nos,133.69,133.62,-0.05
+D,51,748,M3 Capsule,100 Nos,118.92,117.83,-0.92
+D,71,115,Ashta Choornam,50 g,42.91,42.85,-0.12
+D,74,117,Aswagandhadi Choornam,50 g,31.85,31.8,-0.17
+D,77,118,Avipathi Choornam,50 g,31.17,31.12,-0.16
+D,81,119,Dadimashtaka Choornam,50 g,26.25,26.18,-0.26
+D,84,120,Eladi Podi,50 g,41.67,41.62,-0.12
+D,88,121,Gulgulu Panchapala Choornam,20 g,41.63,41.53,-0.25
+D,92,122,Hinguvachadi Choornam,50 g,35.88,35.83,-0.13
+D,95,125,Kachooradi Choornam,10 g,14.21,14.18,-0.2
+D,99,127,Karpooradi Choornam,50 g,44.12,44.03,-0.22
+D,102,128,Kolakulathadi Choornam,100 g,45.43,45.3,-0.29
+D,106,132,Rajanyadi Choornam,20 g,24.38,24.27,-0.45
+D,110,133,Rasnadi Choornam,10 g,11.08,11.06,-0.15
+D,111,133,Rasnadi Choornam,50 g,29.67,29.58,-0.28
+D,115,136,Shaddharana Choornam,50 g,75.92,75.77,-0.2
+D,118,138,Sudarsana Choornam,50 g,39.33,39.17,-0.42
+D,121,139,Thaleesapathradi Choornam,50 g,33.07,33.0,-0.21
+D,124,140,Triphaladi Choornam,50 g,26.22,26.17,-0.19
+D,127,140,Triphaladi Choornam,1000 g,307.8,306.83,-0.32
+D,128,142,Vaiswanara Choornam,50 g,33.94,33.8,-0.42
+D,131,144,Vyoshadi Vatakam,50 g,22.42,22.37,-0.25
+D,134,149,Agasthyar Nasika Choornam,2 g,7.44,7.4,-0.47
+D,135,151,Meninokki Choornam,14 g,11.02,10.98,-0.34
+D,137,151,Meninokki Choornam,210 g,100.19,99.62,-0.56
+D,138,152,Santhigiri Tooth Powder,20 g,15.83,15.82,-0.07
+D,139,153,Tharari Choornam,50 g,32.64,32.6,-0.13
+D,143,154,Udwarthana Choornam,100 g,27.85,27.81,-0.14
+D,145,154,Udwarthana Choornam,500 g,73.68,73.49,-0.26
+D,151,158,Himasagara Choornam,100 g,49.54,49.36,-0.36
+D,158,166,Nimbasahacharadi Choornam,100 g,26.87,26.73,-0.51
+D,159,167,Sameerananivarani Choornam,100 g,51.22,51.02,-0.4
+D,160,168,Sarvamangala Choornam,100 g,69.79,69.64,-0.22
+D,165,173,Vasamrithadi Choornam,100 g,35.59,35.31,-0.78
+D,166,175,Chathurvargga Choornam,100 g,58.73,58.56,-0.28
+D,167,176,Neelolpaladi Kashaya Choornam,100 g,53.73,53.62,-0.21
+D,168,177,Sairakabaladi Choornam,100 g,37.64,37.47,-0.44
+D,169,178,Haridrakhandam,50 g,31.17,31.03,-0.42
+D,172,179,Jadamayadi Lepa Choornam,40 g,31.66,31.64,-0.08
+D,173,179,Jadamayadi Lepa Choornam,100 g,77.98,77.92,-0.08
+D,177,180,Kottamchukkadi Lepa Choornam,50 g,22.47,22.41,-0.24
+D,178,180,Kottamchukkadi Lepa Choornam,100 g,46.05,45.94,-0.23
+D,180,180,Kottamchukkadi Lepa Choornam,500 g,170.39,169.86,-0.31
+D,182,181,Nagaradi Lepa Choornam,50 g,33.33,33.3,-0.1
+D,183,181,Nagaradi Lepa Choornam,100 g,68.09,68.02,-0.1
+D,186,181,Nagaradi Lepa Choornam,1000 g,541.31,540.63,-0.13
+D,187,182,Guduci Satva,10 g,59.61,59.46,-0.24
+D,191,183,Ksheerabala Thailam 101 Avarthi,10 mL,57.0,56.51,-0.88
+D,193,184,Ksheerabala Thailam 41 Avarthi,10 mL,117.55,114.75,-2.39
+D,194,185,Anuthailam,10 mL,10.71,10.69,-0.18
+D,196,186,Arimedadi Enna,100 mL,38.01,37.87,-0.37
+D,197,186,Arimedadi Enna,200 mL,71.2,70.92,-0.39
+D,200,188,Asanamanjishtadi Enna,100 mL,40.32,40.17,-0.38
+D,201,188,Asanamanjishtadi Enna,200 mL,71.94,71.64,-0.43
+D,204,189,Asanavilwadi Enna,100 mL,38.42,38.28,-0.36
+D,205,189,Asanavilwadi Enna,200 mL,68.48,68.2,-0.41
+D,207,190,Bala Thailam,100 mL,36.99,36.92,-0.21
+D,208,190,Bala Thailam,200 mL,69.24,69.09,-0.22
+D,209,190,Bala Thailam,450 mL,139.93,139.58,-0.25
+D,213,192,Balaguloochyadi Thailam,200 mL,70.44,70.16,-0.39
+D,218,193,Balahatadi Enna,200 mL,70.92,70.65,-0.39
+D,221,194,Balaswagandhalakshadi Thailam,100 mL,42.84,42.75,-0.21
+D,222,194,Balaswagandhalakshadi Thailam,200 mL,80.26,80.08,-0.23
+D,226,196,Chandanadi Enna (Cheruthu),100 mL,35.96,35.88,-0.21
+D,227,196,Chandanadi Enna (Cheruthu),200 mL,64.13,63.98,-0.24
+D,229,196,Chandanadi Enna (Cheruthu),5000 mL,1357.42,1353.57,-0.28
+D,231,205,Dhanwantharam Thailam (Enna),100 mL,36.74,36.67,-0.2
+D,232,205,Dhanwantharam Thailam (Enna),200 mL,66.75,66.61,-0.22
+D,233,205,Dhanwantharam Thailam (Enna),450 mL,139.95,139.62,-0.24
+D,235,205,Dhanwantharam Thailam (Enna),5000 mL,1426.46,1422.8,-0.26
+D,236,206,Dhanwantharam Thailam (Mezhukupakam) Vasthi,450 mL,141.75,141.34,-0.29
+D,239,210,Eladi Enna,200 mL,71.2,70.94,-0.36
+D,241,210,Eladi Enna,5000 mL,1553.3,1546.94,-0.41
+D,242,218,Karaskara Thailam (External),50 mL,25.56,25.49,-0.28
+D,248,219,Karpasasthyadi Thailam,100 mL,37.6,37.5,-0.24
+D,249,219,Karpasasthyadi Thailam,200 mL,67.41,67.23,-0.27
+D,251,219,Karpasasthyadi Thailam,2000 mL,581.01,579.18,-0.31
+D,252,219,Karpasasthyadi Thailam,5000 mL,1439.26,1434.7,-0.32
+D,259,222,Kottamchukkadi Thailam,100 mL,37.09,37.02,-0.2
+D,260,222,Kottamchukkadi Thailam,200 mL,68.01,67.86,-0.22
+D,261,222,Kottamchukkadi Thailam,450 mL,140.71,140.38,-0.24
+D,262,222,Kottamchukkadi Thailam,5000 mL,1454.36,1450.68,-0.25
+D,264,226,Ksheerabala Enna,100 mL,35.17,35.09,-0.21
+D,265,226,Ksheerabala Enna,200 mL,63.97,63.82,-0.23
+D,266,226,Ksheerabala Enna,450 mL,131.65,131.32,-0.25
+D,268,226,Ksheerabala Enna,5000 mL,1353.29,1349.63,-0.27
+D,273,233,Mahamashadi Thailam (Enna),100 mL,39.19,39.11,-0.2
+D,274,233,Mahamashadi Thailam (Enna),200 mL,70.73,70.58,-0.22
+D,276,233,Mahamashadi Thailam (Enna),5000 mL,1520.35,1516.51,-0.25
+D,278,234,Mahanarayana Thailam,100 mL,46.77,46.69,-0.16
+D,279,234,Mahanarayana Thailam,200 mL,86.95,86.81,-0.17
+D,280,234,Mahanarayana Thailam,450 mL,185.62,185.29,-0.18
+D,282,235,Mahanarayana Thailam (Pizhichil),450 mL,165.86,165.54,-0.2
+D,284,239,Nagaradi Thailam,50 mL,38.0,37.81,-0.5
+D,290,241,Neelibhringadi Enna,100 mL,45.31,45.21,-0.2
+D,295,247,Sahacharadi Thailam,100 mL,38.35,38.27,-0.19
+D,296,247,Sahacharadi Thailam,200 mL,71.16,71.01,-0.21
+D,297,247,Sahacharadi Thailam,450 mL,147.23,146.9,-0.22
+D,299,247,Sahacharadi Thailam,5000 mL,1531.79,1528.13,-0.24
+D,300,248,Sahacharadi Thailam (Mezhukupakam) Vasthi,450 mL,154.9,154.48,-0.27
+D,304,252,Triphaladi Enna,200 mL,81.74,81.3,-0.54
+D,309,258,Vathasani Thailam (Enna),200 mL,72.54,72.36,-0.26
+D,312,260,Agasthyar Thailam,25 mL,16.21,16.19,-0.13
+D,314,262,Karpooradi Thailam,100 mL,50.36,50.3,-0.11
+D,315,262,Karpooradi Thailam,200 mL,95.62,95.51,-0.11
+D,316,262,Karpooradi Thailam,450 mL,202.65,202.4,-0.12
+D,317,262,Karpooradi Thailam,5000 mL,2142.49,2139.74,-0.13
+D,319,263,Kayathirumeni Enna (Cheruthu),100 mL,25.76,25.69,-0.28
+D,320,263,Kayathirumeni Enna (Cheruthu),200 mL,45.63,45.49,-0.31
+D,324,264,Kayathirumeni Enna (Valuthu),100 mL,40.46,40.39,-0.18
+D,325,264,Kayathirumeni Enna (Valuthu),200 mL,74.16,74.02,-0.19
+D,326,264,Kayathirumeni Enna (Valuthu),450 mL,154.94,154.62,-0.21
+D,327,264,Kayathirumeni Enna (Valuthu),5000 mL,1612.45,1608.86,-0.22
+D,329,266,Lekshmivilasam Enna,100 mL,46.79,46.69,-0.21
+D,330,266,Lekshmivilasam Enna,200 mL,87.21,87.01,-0.23
+D,333,267,Mahavathanthaka Thailam,50 mL,44.84,44.73,-0.24
+D,335,268,Siddha Kayathirumeni Enna,100 mL,70.99,70.91,-0.11
+D,336,268,Siddha Kayathirumeni Enna,200 mL,135.56,135.4,-0.12
+D,340,269,Siroreksha Thailam,100 mL,47.8,47.66,-0.3
+D,341,269,Siroreksha Thailam,200 mL,89.71,89.43,-0.32
+D,346,270,Strobilanthes Oil,200 mL,69.3,69.15,-0.21
+D,347,270,Strobilanthes Oil,450 mL,143.77,143.44,-0.23
+D,350,272,Valiya Amrithadi Enna,100 mL,41.7,41.56,-0.34
+D,356,389,Uzhinja Ghritham,200 mL,130.21,129.76,-0.35
+D,357,273,Chithraka Thailam,50 mL,53.44,53.34,-0.18
+D,358,274,Siddha Thailam,50 mL,57.9,57.6,-0.51
+D,360,275,Mahanarayana Thailam (Internal),25 mL,21.73,21.68,-0.22
+D,362,276,Balamritham Aavanakkenna,10 mL,9.64,9.62,-0.2
+D,364,277,Balasarvangam Mukkoottu,10 mL,32.04,32.03,-0.02
+D,365,277,Balasarvangam Mukkoottu,25 mL,77.65,77.64,-0.02
+D,367,278,Chathilinga Thailam,25 mL,82.67,82.65,-0.03
+D,368,279,Erandasukumaram,50 mL,24.36,24.29,-0.28
+D,370,280,Gandharvahasthadi Erandam,50 mL,27.0,26.91,-0.35
+D,374,281,Karaskara Thailam (Internal),25 mL,17.65,17.61,-0.2
+D,377,282,Nimbamrithadi Erandam,50 mL,48.64,48.55,-0.2
+D,379,283,Nirgundyadi Erandam,50 mL,21.7,21.63,-0.33
+D,381,284,Siddha Balapeeyoosham,10 mL,16.04,16.0,-0.24
+D,384,285,Thanurakshakan (Internal),25 mL,18.71,18.66,-0.26
+D,388,286,Vellaruku Thailam,100 mL,57.28,57.06,-0.38
+D,390,303,Ashtapathradi Keram,100 mL,42.69,42.6,-0.19
+D,391,303,Ashtapathradi Keram,200 mL,79.7,79.53,-0.2
+D,396,288,Balaguloochyadi Keram,200 mL,79.4,79.21,-0.23
+D,400,289,Balaswagandhalakshadi Keram,100 mL,48.78,48.69,-0.19
+D,401,289,Balaswagandhalakshadi Keram,200 mL,92.55,92.37,-0.2
+D,405,290,Chemparathyadi Keram,100 mL,44.08,44.0,-0.17
+D,406,290,Chemparathyadi Keram,200 mL,83.31,83.17,-0.18
+D,408,290,Chemparathyadi Keram,5000 mL,1833.38,1829.73,-0.2
+D,411,291,Dhurthuradi Keram,200 mL,75.13,74.97,-0.21
+D,416,292,Dinesavalyadi Keram,200 mL,76.52,76.34,-0.24
+D,420,293,Durvadi Keram,100 mL,40.6,40.52,-0.19
+D,421,293,Durvadi Keram,200 mL,76.39,76.24,-0.2
+D,425,294,Eladi Keram,100 mL,42.79,42.72,-0.17
+D,426,294,Eladi Keram,200 mL,78.99,78.85,-0.18
+D,431,295,Gopathmajadi Keram,200 mL,85.62,85.33,-0.33
+D,434,296,Jathyadi Keram,50 mL,26.41,26.37,-0.18
+D,442,297,Kayyonyadi Keram,200 mL,81.46,81.3,-0.19
+D,446,298,Nalpamaradi Keram,100 mL,42.76,42.68,-0.17
+D,447,298,Nalpamaradi Keram,200 mL,77.52,77.38,-0.19
+D,448,298,Nalpamaradi Keram,450 mL,167.59,167.26,-0.2
+D,449,298,Nalpamaradi Keram,5000 mL,1697.33,1693.7,-0.21
+D,451,299,Neelibhringadi Keram,100 mL,50.8,50.73,-0.14
+D,452,299,Neelibhringadi Keram,200 mL,95.58,95.44,-0.15
+D,453,299,Neelibhringadi Keram,450 mL,204.66,204.35,-0.15
+D,456,300,Triphaladi Keram,100 mL,43.81,43.73,-0.18
+D,457,300,Triphaladi Keram,200 mL,82.02,81.86,-0.2
+D,459,300,Triphaladi Keram,5000 mL,1811.36,1807.33,-0.22
+D,461,301,Thulaseesvarasadi Keram,100 mL,44.02,43.94,-0.18
+D,462,301,Thulaseesvarasadi Keram,200 mL,81.73,81.57,-0.19
+D,465,302,Vachalasunadi Keram,10 mL,9.53,9.51,-0.21
+D,466,302,Vachalasunadi Keram,50 mL,28.5,28.41,-0.34
+D,467,304,Dentareksha Keram,50 mL,28.4,28.33,-0.25
+D,469,305,Kesapushpam,100 mL,46.8,46.73,-0.15
+D,475,306,Naranokki,100 mL,46.67,46.57,-0.2
+D,481,307,Palandava Keram,100 mL,82.68,82.29,-0.47
+D,482,307,Palandava Keram,200 mL,159.56,158.77,-0.49
+D,483,307,Palandava Keram,450 mL,346.56,344.8,-0.51
+D,486,308,Peenasakesari,100 mL,46.46,46.32,-0.31
+D,489,308,Peenasakesari,5000 mL,1923.14,1916.05,-0.37
+D,491,309,Siromukhi,100 mL,47.86,47.72,-0.3
+D,492,309,Siromukhi,200 mL,92.77,92.48,-0.31
+D,496,310,Thanurakshakan (External),100 mL,55.71,55.32,-0.7
+D,497,310,Thanurakshakan (External),200 mL,109.44,108.65,-0.72
+D,503,312,Seethala Thailam,450 mL,221.4,219.64,-0.8
+D,504,313,Snehasnigdhatha Thailam,200 mL,89.97,89.73,-0.27
+D,505,314,Sonithamritha Keram,200 mL,117.76,116.58,-1.0
+D,508,315,Chinchadi Kuzhambu,200 mL,77.57,77.35,-0.27
+D,510,315,Chinchadi Kuzhambu,5000 mL,1701.5,1696.21,-0.31
+D,511,316,Dhanwantharam (Pizhichil) Kuzhambu,450 mL,138.02,137.67,-0.25
+D,513,317,Dhanwantharam Kuzhambu,100 mL,38.62,38.54,-0.2
+D,514,317,Dhanwantharam Kuzhambu,200 mL,72.27,72.12,-0.21
+D,515,317,Dhanwantharam Kuzhambu,450 mL,153.27,152.92,-0.23
+D,516,317,Dhanwantharam Kuzhambu,5000 mL,1558.1,1554.23,-0.25
+D,518,318,Karpasasthyadi Kuzhambu,100 mL,36.52,36.44,-0.23
+D,519,318,Karpasasthyadi Kuzhambu,200 mL,66.88,66.71,-0.25
+D,521,318,Karpasasthyadi Kuzhambu,5000 mL,1422.44,1418.23,-0.3
+D,523,319,Kottamchukkadi Kuzhambu,100 mL,38.01,37.94,-0.2
+D,524,319,Kottamchukkadi Kuzhambu,200 mL,70.82,70.67,-0.21
+D,525,319,Kottamchukkadi Kuzhambu,450 mL,147.36,147.02,-0.23
+D,526,319,Kottamchukkadi Kuzhambu,5000 mL,1528.17,1524.44,-0.24
+D,528,320,Mahapinda Thailam,100 mL,38.96,38.81,-0.39
+D,529,320,Mahapinda Thailam,200 mL,74.96,74.66,-0.41
+D,533,321,Pinda Thailam,100 mL,37.51,37.4,-0.31
+D,534,321,Pinda Thailam,200 mL,68.82,68.59,-0.34
+D,535,321,Pinda Thailam,450 mL,144.35,143.83,-0.36
+D,537,321,Pinda Thailam,5000 mL,1475.52,1469.7,-0.39
+D,539,322,Prabhanjanavimarddanam Kuzhambu,100 mL,40.22,40.12,-0.24
+D,540,322,Prabhanjanavimarddanam Kuzhambu,200 mL,75.97,75.77,-0.26
+D,545,323,Prasarani Kuzhambu,200 mL,74.63,74.46,-0.23
+D,547,323,Prasarani Kuzhambu,5000 mL,1620.9,1616.69,-0.26
+D,548,324,Sahacharadi (Pizhichil) Kuzhambu,450 mL,148.23,147.88,-0.23
+D,550,325,Sahacharadi Kuzhambu,100 mL,40.33,40.26,-0.19
+D,551,325,Sahacharadi Kuzhambu,200 mL,74.47,74.32,-0.21
+D,552,325,Sahacharadi Kuzhambu,450 mL,158.73,158.38,-0.22
+D,553,325,Sahacharadi Kuzhambu,5000 mL,1615.83,1611.97,-0.24
+D,555,329,Shashtika Thailam,100 mL,48.58,48.5,-0.17
+D,556,329,Shashtika Thailam,200 mL,91.9,91.73,-0.18
+D,559,326,Asavenna,50 mL,27.35,27.32,-0.14
+D,560,326,Asavenna,100 mL,46.95,46.88,-0.16
+D,561,326,Asavenna,200 mL,87.54,87.39,-0.17
+D,562,326,Asavenna,450 mL,185.46,185.12,-0.19
+D,564,326,Asavenna,5000 mL,1947.59,1943.76,-0.2
+D,565,327,Kayarajanka Thailam,25 mL,19.03,19.01,-0.1
+D,566,327,Kayarajanka Thailam,100 mL,58.29,58.22,-0.13
+D,567,327,Kayarajanka Thailam,200 mL,111.55,111.39,-0.14
+D,569,327,Kayarajanka Thailam,5000 mL,2547.66,2543.83,-0.15
+D,571,328,Murivenna,25 mL,13.79,13.77,-0.12
+D,572,328,Murivenna,100 mL,42.49,42.42,-0.16
+D,573,328,Murivenna,200 mL,79.69,79.55,-0.17
+D,574,328,Murivenna,450 mL,167.45,167.15,-0.18
+D,575,328,Murivenna,5000 mL,1751.85,1748.53,-0.19
+D,577,330,Siddha Kayathirumeni Thailam,100 mL,75.7,75.61,-0.11
+D,578,330,Siddha Kayathirumeni Thailam,200 mL,144.72,144.55,-0.12
+D,583,331,Vathakodali Thailam,100 mL,77.56,77.48,-0.1
+D,588,332,Koottu Kuzhambu (Kizhi Thailam),100 mL,19.93,19.84,-0.46
+D,591,332,Koottu Kuzhambu (Kizhi Thailam),5000 mL,616.54,611.96,-0.74
+D,592,332,Koottu Kuzhambu (Kizhi Thailam),10000 mL,1182.45,1173.29,-0.77
+D,594,339,Brahmi Ghritham,150 mL,117.05,116.75,-0.26
+D,596,340,Charngeryadi Ghritham,150 mL,121.46,121.15,-0.25
+D,597,349,Durvadyam Ghritham,50 mL,42.5,42.4,-0.24
+D,600,351,Gulguluthikthaka Ghritham,150 mL,142.08,141.78,-0.21
+D,602,353,Indukantha Ghritham,150 mL,107.22,106.88,-0.32
+D,603,354,Jathyadi Ghritham,50 mL,40.39,40.31,-0.2
+D,606,356,Kalyanaka Ghritham,150 mL,120.47,120.17,-0.25
+D,608,358,Karaskara Ghritham,150 mL,114.78,114.44,-0.29
+D,610,364,Mahathikthaka Ghritham,150 mL,124.56,124.22,-0.27
+D,612,365,Mahathpanchagavya Ghritham,150 mL,123.89,123.46,-0.35
+D,614,366,Mahathraiphala Ghritham,150 mL,137.25,136.91,-0.25
+D,616,370,Panchagavya Ghritham,150 mL,123.85,123.42,-0.35
+D,618,371,Patoladi Ghritham,150 mL,115.98,115.64,-0.29
+D,620,372,Phalasarpis,150 mL,147.41,147.15,-0.18
+D,623,374,Saraswatha Ghritham,150 mL,133.11,132.77,-0.25
+D,627,378,Sukumara Ghritham,150 mL,112.76,112.42,-0.3
+D,630,382,Varanadi Ghritham,150 mL,114.93,114.59,-0.29
+D,632,385,Vidaryadi Ghritham,150 mL,113.33,113.03,-0.26
+D,634,388,Amara Ghritham,150 mL,145.22,144.88,-0.23
+D,636,396,Chandraprabha Gulika,100 Nos,65.16,64.84,-0.49
+D,637,399,Dhanwantharam Gulika,100 Nos,20.61,20.56,-0.26
+D,638,404,Gopichandanadi Gulika,100 Nos,66.19,65.92,-0.41
+D,639,405,Gorochanadi Gulika,50 Nos,166.63,166.54,-0.05
+D,641,406,Kaisora Gulgulu,100 Nos,98.42,98.04,-0.39
+D,642,407,Kanchanara Gulgulu,100 Nos,99.72,99.35,-0.38
+D,645,432,Sudarsanam Gulika,50 Nos,34.36,34.22,-0.4
+D,646,433,Suryaprabha Gulika,100 Nos,93.18,95.78,2.8
+D,647,434,Swasanandam Gulika,100 Nos,315.17,314.89,-0.09
+D,648,438,Vettumaran Gulika,100 Nos,119.07,118.96,-0.09
+D,649,439,Vilwadi Gulika,100 Nos,27.32,27.2,-0.44
+D,650,442,Yogaraja Gulgulu,100 Nos,83.4,83.21,-0.23
+D,651,443,Karuthavattu Gulika,50 Nos,52.92,52.65,-0.52
+D,652,444,Kasakulanthakan,50 Nos,47.64,47.52,-0.26
+D,653,445,Krimishodhini Gulika,12 Nos,14.64,14.6,-0.24
+D,654,446,Uramarunnu Gulika,10 Nos,44.43,44.4,-0.06
+D,657,449,Vimalavarthi,12 Nos,54.01,53.77,-0.45
+D,658,450,Manasamithra Vatakam,50 Nos,46.93,46.78,-0.32
+D,659,451,Mandoora Vatakam,50 Nos,30.9,30.83,-0.21
+D,684,510,Gandharvahasthadi Kashayam (Conc.),200 mL,83.78,83.44,-0.4
+D,723,550,Amrithotharam Kashayam,450 mL,33.92,33.86,-0.19
+D,724,552,Ashtavargam Kashayam,450 mL,46.27,46.17,-0.23
+D,725,553,Brihathyadi Kashayam,450 mL,47.72,47.64,-0.15
+D,726,554,Chiruvilwadi Kashayam,450 mL,68.93,68.86,-0.09
+D,727,555,Dasamoolakaduthrayam Kashayam,450 mL,49.8,49.72,-0.14
+D,728,558,Dhanadanayanadi Kashayam,450 mL,57.13,57.06,-0.13
+D,729,559,Dhanwantharam Kashayam,450 mL,30.06,29.99,-0.24
+D,730,560,Drakshadi Kashayam,450 mL,58.38,58.3,-0.12
+D,731,561,Dusparsakadi Kashayam,450 mL,72.39,72.32,-0.1
+D,732,563,Elakanadi Kashayam,450 mL,73.39,73.32,-0.1
+D,734,564,Gandharvahasthadi Kashayam,450 mL,57.35,57.27,-0.13
+D,735,566,Gulguluthikthakam Kashayam,450 mL,54.87,54.8,-0.11
+D,736,567,Guloochyadi Kashayam,450 mL,48.58,48.52,-0.13
+D,737,568,Indukantham Kashayam,450 mL,45.75,45.68,-0.16
+D,738,569,Kaidaryadi Kashayam,450 mL,41.83,41.77,-0.15
+D,739,573,Kokilaksha Kashayam,450 mL,24.02,23.96,-0.26
+D,740,576,Mahamanjishtadi Kashayam,450 mL,71.64,71.58,-0.09
+D,742,577,Maharasnadi Kashayam,450 mL,59.57,59.5,-0.13
+D,743,578,Mahathikthakam Kashayam,450 mL,62.18,62.12,-0.1
+D,744,579,Manjishtadi Kashayam,450 mL,45.56,45.49,-0.16
+D,745,580,Musaleekhadiradi Kashayam,450 mL,47.24,47.18,-0.13
+D,746,581,Naadi Kashayam,450 mL,58.74,58.66,-0.12
+D,747,582,Nayopayam Kashayam,450 mL,47.97,47.89,-0.15
+D,748,584,Nimbadi Kashayam,450 mL,78.7,78.63,-0.09
+D,749,585,Nirgundyadi Kashayam,450 mL,65.93,65.86,-0.11
+D,750,586,Nisakathakadi Kashayam,450 mL,40.83,40.77,-0.15
+D,752,588,Panchathikthakam Kashayam,450 mL,30.01,29.95,-0.21
+D,753,591,Pathyakshadhathryadi Kashayam,450 mL,32.53,32.47,-0.19
+D,754,592,Pathyapunarnavadi Kashayam,450 mL,79.28,79.21,-0.09
+D,755,593,Patoladi Kashayam,450 mL,70.32,70.25,-0.1
+D,758,595,Patolamooladi Kashayam,450 mL,60.67,60.6,-0.12
+D,759,596,Prasaranyadi Kashayam,450 mL,50.63,50.56,-0.14
+D,760,597,Punarnavadi Kashayam,450 mL,73.04,72.96,-0.1
+D,761,599,Rasnairandadi Kashayam,450 mL,62.57,62.5,-0.12
+D,762,600,Rasnasapthakam Kashayam,450 mL,44.31,44.23,-0.17
+D,763,601,Rasonadi Kashayam,450 mL,72.22,72.15,-0.1
+D,764,602,Rudrakshadi Kashayam,450 mL,150.96,150.75,-0.14
+D,765,603,Sahacharadi Kashayam,450 mL,46.01,45.94,-0.16
+D,766,604,Sapthasaram Kashayam,450 mL,41.49,41.42,-0.17
+D,768,607,Sukumara Kashayam,450 mL,31.33,31.27,-0.2
+D,769,612,Varanadi Kashayam,450 mL,39.15,39.09,-0.16
+D,770,614,Vidaryadi Kashayam,450 mL,41.35,41.28,-0.15
+D,773,616,Karappan Kashayam,450 mL,66.34,66.19,-0.23
+D,774,617,Marma Kashayam,100 mL,26.92,26.9,-0.06
+D,776,617,Marma Kashayam,450 mL,94.26,94.18,-0.08
+D,777,618,Sudhipathram Kashayam,100 mL,12.94,12.93,-0.14
+D,779,618,Sudhipathram Kashayam,450 mL,34.32,34.23,-0.24
+D,782,621,Bahusalagudam,250 g,84.38,84.01,-0.45
+D,785,623,Manibhadra Gulam,250 g,92.13,91.88,-0.28
+D,789,624,Panchajeeraka Gudam,400 g,110.2,109.68,-0.47
+D,791,625,Sathavari Gulam,250 g,71.74,71.49,-0.36
+D,792,625,Sathavari Gulam,400 g,117.09,116.68,-0.35
+D,794,626,Agasthya Rasayanam,250 g,55.43,55.17,-0.47
+D,795,626,Agasthya Rasayanam,400 g,90.75,90.33,-0.46
+D,798,629,Aswagandha Rasayanam,250 g,70.62,70.36,-0.37
+D,799,629,Aswagandha Rasayanam,400 g,115.07,114.65,-0.37
+D,800,632,Chinchadi Lehyam,100 g,43.23,43.12,-0.24
+D,801,632,Chinchadi Lehyam,250 g,92.63,92.37,-0.28
+D,805,633,Chyavanaprasam,400 g,126.71,126.13,-0.45
+D,806,635,Dasamoola Rasayanam,100 g,33.87,33.73,-0.43
+D,810,636,Dasamoolahareethaki,250 g,53.78,53.51,-0.5
+D,811,636,Dasamoolahareethaki,400 g,88.39,87.97,-0.48
+D,813,639,Gandhakamadhusnuhi,250 g,157.2,155.96,-0.79
+D,817,643,Kooshmanda Rasayanam,400 g,105.19,104.78,-0.39
+D,818,646,Madhusnuhi Rasayanam,100 g,42.28,42.11,-0.39
+D,819,646,Madhusnuhi Rasayanam,250 g,90.2,89.79,-0.46
+D,821,647,Mathala Rasayanam,20 g,30.59,30.5,-0.29
+D,822,648,Mridweekadi Lehyam,50 g,43.72,43.37,-0.79
+D,824,649,Narasimha Rasayanam,250 g,118.48,117.85,-0.53
+D,827,652,Sukumara Lehyam,250 g,72.35,72.06,-0.41
+D,831,656,Vidaryadi Lehyam,400 g,111.37,110.96,-0.37
+D,832,657,Vilwadi Lehyam,100 g,36.27,36.16,-0.33
+D,833,657,Vilwadi Lehyam,250 g,73.69,73.4,-0.4
+D,835,658,Kadaleekalpa Rasayanam,100 g,39.28,39.09,-0.48
+D,836,658,Kadaleekalpa Rasayanam,250 g,83.86,83.38,-0.57
+D,837,658,Kadaleekalpa Rasayanam,400 g,142.55,141.79,-0.53
+D,839,659,Kousalamohini,250 g,105.28,104.76,-0.5
+D,843,660,Kurinji Kuzhambu,400 g,113.14,112.68,-0.41
+D,844,664,Thamboola Rasayanam,15 g,15.91,15.8,-0.67
+D,849,670,Murivenna Balm,25 g,21.76,21.74,-0.08
+D,850,675,Manjishtadi Lepam,12 g,13.38,13.35,-0.19
+D,851,672,Rasothamadi Lepam,12 g,22.21,24.02,8.14
+D,853,673,Hridayarenjini Lepam,30 g,34.48,34.45,-0.08
+D,855,674,Kumkumadi Lepam,15 g,26.24,26.23,-0.05
+D,859,678,Ilaneer Kuzhambu,5 mL,10.59,10.58,-0.1
+D,864,683,Vethuvellakkoottu,400 g,68.35,68.27,-0.11
+D,865,685,Kashaya Vasthi Kit,275 g,57.2,57.09,-0.19
+D,876,694,Dahasanthi,20 g,5.4,5.38,-0.25
+D,878,695,Karkkidaka Kanji,500 g,95.65,95.11,-0.56
+D,879,696,Mehasamani,20 g,7.47,7.45,-0.28
+D,881,697,Chukku Podi,40 g,30.11,30.08,-0.09
+D,883,697,Chukku Podi,1000 g,517.64,516.97,-0.13
+D,886,699,Nellikka Podi,40 g,17.03,17.0,-0.16
+D,889,722,Cherupayar Podi,50 g,16.79,16.76,-0.16
+D,891,723,Kasthoori Manjal Podi,40 g,15.41,15.4,-0.1
+D,894,726,Raktha Chandana Podi,30 g,25.83,25.82,-0.07
+D,896,729,Oma Theeneer,200 mL,21.33,21.32,-0.06
+D,897,729,Oma Theeneer,450 mL,34.92,34.89,-0.08
+D,899,731,Sombu Theeneer,200 mL,21.3,21.28,-0.09
+D,900,731,Sombu Theeneer,450 mL,35.48,35.44,-0.12
+D,901,732,Arjun Forte Capsule,4 Nos,9.78,9.77,-0.06
+D,902,732,Arjun Forte Capsule,100 Nos,131.95,131.81,-0.11
+D,904,733,Artiban Forte Capsule,4 Nos,10.91,10.91,-0.02
+D,905,733,Artiban Forte Capsule,100 Nos,132.7,132.63,-0.05
+D,906,734,Endopile Capsule,4 Nos,8.09,8.08,-0.07
+D,907,734,Endopile Capsule,100 Nos,72.89,72.75,-0.2
+D,908,735,Jumbolene Capsule,4 Nos,8.39,8.39,-0.07
+D,909,735,Jumbolene Capsule,100 Nos,65.25,65.11,-0.22
+D,911,736,Regas Capsule,4 Nos,7.78,7.77,-0.08
+D,912,736,Regas Capsule,100 Nos,64.98,64.82,-0.25
+D,913,737,Rejuliv Forte Capsule,4 Nos,9.14,9.13,-0.05
+D,914,737,Rejuliv Forte Capsule,100 Nos,75.19,75.09,-0.14
+D,915,738,Solanum Forte Capsule,4 Nos,8.47,8.46,-0.1
+D,916,738,Solanum Forte Capsule,100 Nos,82.45,82.24,-0.26
+D,919,739,Tribulene Capsule,100 Nos,79.2,78.97,-0.29
+D,921,741,Balavardhini Capsule,100 Nos,98.03,97.57,-0.47
+D,925,749,Amukkura Tablet,100 Nos,86.12,85.97,-0.17
+D,926,750,Bhavana Kadukkai Tablet,50 Nos,32.36,32.28,-0.24
+D,928,751,Impooral Tablet,100 Nos,35.38,35.25,-0.37
+D,930,752,Keezharnelli Tablet,100 Nos,51.81,51.68,-0.23
+D,934,758,Thriphala Choornam Tablet,100 Nos,38.29,38.15,-0.35
+D,935,759,Vallarai Tablet,20 Nos,21.41,21.38,-0.11
+D,936,759,Vallarai Tablet,100 Nos,92.92,92.8,-0.13
+D,937,760,Abhraka Chendooram,5 g,34.69,66.46,91.6
+D,940,761,Annabhedi Chendooram,10 g,27.75,32.51,17.15
+D,943,762,Annabhedi Chendooram 2,5 g,12.38,13.17,6.32
+D,946,763,Arumugha Chendooram,5 g,48.46,52.38,8.1
+D,949,764,Aya Chendooram,5 g,18.48,29.59,60.14
+D,952,765,Ayakantha Chendooram,5 g,24.29,25.04,3.11
+D,955,766,Ayaveera Chendooram,5 g,346.65,348.02,0.4
+D,959,767,Chandamarutha Chendooram,5 g,165.2,167.55,1.42
+D,962,768,Gowrichinthamani Chendooram,5 g,113.33,114.92,1.4
+D,965,769,Jalamanjari Chendooram,10 g,17.57,17.56,-0.07
+D,969,771,Kantha Chendooram,5 g,19.31,28.04,45.24
+D,972,772,Linga Chendooram,5 g,178.8,178.79,-0.01
+D,975,772,Linga Chendooram,1000 g,34376.54,34374.61,-0.01
+D,979,775,Mandoora Chendooram,5 g,12.97,22.51,73.48
+D,982,777,Patikalinga Chendooram,10 g,49.19,50.79,3.24
+D,985,778,Patikara Chendooram,10 g,9.73,9.73,-0.04
+D,988,783,Thampira Chendooram,5 g,23.85,32.57,36.59
+D,991,825,Amukkura Choornam,50 g,51.38,51.33,-0.09
+D,992,825,Amukkura Choornam,100 g,95.08,94.99,-0.1
+D,995,826,Asokappattai Choornam,50 g,17.38,17.31,-0.41
+D,996,826,Asokappattai Choornam,100 g,26.67,26.53,-0.53
+D,999,827,Chundaivattal Choornam,50 g,27.94,27.79,-0.55
+D,1000,827,Chundaivattal Choornam,100 g,47.6,47.3,-0.64
+D,1002,829,Eladi Choornam,50 g,70.79,70.63,-0.22
+D,1003,829,Eladi Choornam,100 g,132.44,132.13,-0.23
+D,1005,830,Inchi Choornam,50 g,52.21,52.06,-0.28
+D,1006,830,Inchi Choornam,100 g,96.5,96.21,-0.3
+D,1008,832,Kazharchi Choornam,50 g,71.43,71.31,-0.17
+D,1009,832,Kazharchi Choornam,100 g,135.77,135.53,-0.17
+D,1011,833,Maruthampattai Choornam,50 g,23.13,23.05,-0.31
+D,1012,833,Maruthampattai Choornam,100 g,38.34,38.2,-0.37
+D,1015,834,Mayilirakadi Choornam,50 g,162.91,162.67,-0.15
+D,1018,835,Nilavaakai Choornam,50 g,45.18,45.11,-0.16
+D,1019,835,Nilavaakai Choornam,100 g,80.92,80.78,-0.18
+D,1022,836,Orithalthamarai Choornam,50 g,32.57,32.36,-0.66
+D,1023,836,Orithalthamarai Choornam,100 g,57.19,56.76,-0.75
+D,1025,837,Panchadeepakkini Choornam,50 g,48.32,48.2,-0.25
+D,1026,837,Panchadeepakkini Choornam,100 g,88.95,88.71,-0.28
+D,1028,838,Parangippattai Choornam,50 g,40.02,39.97,-0.13
+D,1029,838,Parangippattai Choornam,100 g,70.32,70.21,-0.15
+D,1032,843,Sirupeelai Choornam,50 g,23.25,23.04,-0.92
+D,1033,843,Sirupeelai Choornam,100 g,39.43,39.0,-1.08
+D,1035,846,Thaleesadi Choornam,50 g,46.94,46.82,-0.24
+D,1036,846,Thaleesadi Choornam,100 g,84.43,84.2,-0.26
+D,1038,847,Thayirchundi Choornam,50 g,52.16,51.71,-0.86
+D,1039,847,Thayirchundi Choornam,100 g,96.76,95.86,-0.93
+D,1041,848,Thrikatuku Choornam,50 g,54.26,54.18,-0.13
+D,1042,848,Thrikatuku Choornam,100 g,98.9,98.76,-0.14
+D,1045,849,Triphalai Choornam,50 g,20.45,20.38,-0.35
+D,1046,849,Triphalai Choornam,100 g,32.22,32.08,-0.44
+D,1050,851,Avuri Choornam,50 g,31.46,31.38,-0.25
+D,1051,851,Avuri Choornam,100 g,55.02,54.86,-0.29
+D,1053,852,Mavilingappattai Choornam,50 g,29.25,29.11,-0.49
+D,1056,853,Meni Choornam,50 g,27.23,27.08,-0.56
+D,1059,854,Poonaikkali Choornam,50 g,60.51,60.46,-0.08
+D,1060,854,Poonaikkali Choornam,100 g,111.95,111.85,-0.09
+D,1062,855,Sukhanidra Choornam,50 g,67.34,67.2,-0.21
+D,1065,856,Vellaruku Choornam,50 g,25.46,25.24,-0.84
+D,1069,860,Madhumeha Choornam,50 g,29.92,29.74,-0.6
+D,1070,865,Irunelli Karpam,10 g,27.06,36.31,34.18
+D,1073,866,Karisalayadi Panchakarpam,50 g,43.21,42.99,-0.49
+D,1076,867,Anda Thailam,25 mL,83.21,83.01,-0.25
+D,1078,868,Arakku Thailam,100 mL,120.3,120.16,-0.12
+D,1079,868,Arakku Thailam,200 mL,235.63,235.35,-0.12
+D,1082,869,Arugan Thailam,100 mL,49.14,49.0,-0.29
+D,1083,869,Arugan Thailam,200 mL,92.43,92.15,-0.31
+D,1087,870,Aswagandha Balalakshadi Thailam,100 mL,55.35,55.21,-0.25
+D,1091,871,Chirattai Thailam,10 mL,8.93,8.92,-0.14
+D,1094,872,Chithramoola Thailam,100 mL,76.2,75.78,-0.54
+D,1097,873,Chukku Thailam,100 mL,85.4,85.28,-0.15
+D,1098,873,Chukku Thailam,200 mL,165.04,164.8,-0.15
+D,1102,876,Jeeraka Thailam,200 mL,87.9,87.58,-0.36
+D,1104,878,Karappan Thailam,100 mL,57.36,57.19,-0.29
+D,1108,882,Kunthirikka Thailam,100 mL,39.58,39.5,-0.21
+D,1109,882,Kunthirikka Thailam,200 mL,74.36,74.19,-0.22
+D,1113,883,Laghu Vishamushti Thailam,100 mL,39.57,39.42,-0.36
+D,1114,883,Laghu Vishamushti Thailam,200 mL,72.9,72.61,-0.39
+D,1118,887,Mathan Thailam,100 mL,56.44,56.33,-0.21
+D,1119,887,Mathan Thailam,200 mL,107.44,107.2,-0.22
+D,1123,890,Meni Thailam,100 mL,52.53,52.14,-0.75
+D,1124,893,Moolakudori Thailam,100 mL,44.48,57.86,30.08
+D,1126,900,Punga Thailam,100 mL,56.88,56.79,-0.16
+D,1127,900,Punga Thailam,200 mL,107.32,107.13,-0.17
+D,1131,906,Ulunthu Thailam,100 mL,61.73,61.6,-0.21
+D,1132,906,Ulunthu Thailam,200 mL,117.38,117.13,-0.22
+D,1136,907,Vathakesari Thailam,100 mL,35.65,35.55,-0.26
+D,1137,907,Vathakesari Thailam,200 mL,66.23,66.05,-0.28
+D,1141,910,Vranasanjeevi Thailam,50 mL,63.06,62.29,-1.23
+D,1143,911,Vetpalai Thailam,100 mL,44.19,44.13,-0.12
+D,1144,911,Vetpalai Thailam,200 mL,81.99,81.88,-0.13
+D,1145,911,Vetpalai Thailam,450 mL,172.54,172.29,-0.14
+D,1148,913,Hridayasudhi,100 mL,54.63,54.43,-0.36
+D,1149,913,Hridayasudhi,200 mL,101.15,100.76,-0.39
+D,1157,791,Sivanar Amritham,10 g,41.84,80.27,91.85
+D,1161,920,Kaphasura Kudineer,450 mL,57.88,57.65,-0.4
+D,1163,921,Nilavembu Kudineer,450 mL,53.72,53.39,-0.63
+D,1167,923,Adathodai Kudineer Choornam,50 g,28.88,28.82,-0.19
+D,1171,927,Kaphasura Kudineer Choornam,50 g,37.77,37.66,-0.29
+D,1174,929,Mandooradi Kudineer Choornam,50 g,56.12,56.02,-0.16
+D,1178,931,Nerunchil Kudineer Choornam,50 g,24.28,24.22,-0.25
+D,1181,932,Nilavembu Kudineer Choornam,50 g,30.57,30.52,-0.16
+D,1187,936,Parangippattai Kudineer Choornam,50 g,47.42,47.26,-0.35
+D,1190,937,Seenthil Kudineer Choornam,50 g,33.35,33.29,-0.15
+D,1196,947,Inji Rasayanam,250 g,57.36,57.01,-0.62
+D,1199,948,Karisalai Lehyam,250 g,58.96,58.71,-0.42
+D,1200,948,Karisalai Lehyam,400 g,96.42,96.03,-0.41
+D,1201,949,Karunai Lehyam,100 g,30.33,30.23,-0.3
+D,1202,949,Karunai Lehyam,250 g,63.96,63.73,-0.36
+D,1203,949,Karunai Lehyam,400 g,104.41,104.04,-0.35
+D,1204,949,Karunai Lehyam,10000 g,2200.38,2191.23,-0.42
+D,1207,950,Kesari Lehyam,250 g,67.93,67.62,-0.45
+D,1210,953,Nellikkai Lehyam,250 g,82.65,82.29,-0.43
+D,1214,954,Parangi Rasayanam,250 g,61.98,61.71,-0.43
+D,1217,956,Thetrankottai Lehyam,250 g,90.4,89.93,-0.52
+D,1219,957,Thippili Rasayanam,30 g,17.71,17.67,-0.22
+D,1220,957,Thippili Rasayanam,100 g,45.75,45.62,-0.29
+D,1221,957,Thippili Rasayanam,250 g,99.19,98.86,-0.33
+D,1222,957,Thippili Rasayanam,720 g,374.99,374.04,-0.25
+D,1228,958,Venpoosani Lehyam,400 g,195.41,194.71,-0.36
+D,1229,959,Amukkura Lehyam,100 g,33.86,33.75,-0.33
+D,1231,959,Amukkura Lehyam,400 g,118.21,117.76,-0.38
+D,1235,960,Rheumorid Balm,15 g,24.94,24.92,-0.08
+D,1237,965,Amritha Vennei,15 g,21.59,23.89,10.67
+D,1239,966,Kungileeya Vennei,50 g,18.17,26.16,43.95
+D,1241,967,Vanga Vennei,15 g,19.74,22.08,11.87
+D,1243,969,Mathulai Manappagu,50 g,36.78,36.74,-0.1
+D,1244,969,Mathulai Manappagu,250 g,167.14,166.96,-0.11
+D,1245,971,Hridayamohini,50 g,15.92,15.88,-0.25
+D,1247,971,Hridayamohini,250 g,59.99,59.79,-0.33
+D,1249,973,Solanum Syrup,50 mL,15.01,14.97,-0.3
+D,1250,973,Solanum Syrup,100 mL,28.29,28.2,-0.32
+D,1251,975,Ananda Bhairava Mathirai,20 Nos,29.93,30.96,3.43
+D,1252,976,Ashta Bhairava Mathirai,20 Nos,39.38,55.47,40.87
+D,1253,977,Balasanjeevi Mathirai,20 Nos,30.8,32.43,5.28
+D,1255,978,Brahmananda Bhairava Mathirai,20 Nos,47.56,48.18,1.31
+D,1256,985,Kapada Mathirai,15 Nos,31.84,31.83,-0.05
+D,1257,993,Meghanada Gulikai,20 Nos,18.03,19.82,9.92
+D,1258,994,Murukkanvithai Mathirai,12 Nos,14.12,14.59,3.35
+D,1259,753,Neerkovai Tablet,100 Nos,121.55,120.63,-0.76
+D,1261,1002,Santhachandrodaya Mathirai,20 Nos,31.8,32.8,3.15
+D,1262,1005,Swasakudori Mathirai,50 Nos,45.8,45.69,-0.24
+D,1264,1008,Vasanthakusumakara Mathirai,20 Nos,307.37,309.35,0.65
+D,1266,1009,Vatharakshasan Gulikai,50 Nos,21.62,41.58,92.34
+D,1268,1011,Vazhaipoo Vatakam,30 Nos,47.86,47.71,-0.32
+D,1269,1014,Vishnuchakra Mathirai,20 Nos,34.54,38.41,11.2
+D,1271,1020,Agasthyar Kuzhambu,5 g,24.17,28.03,15.99
+D,1273,1025,Gunmakudori Mezhuku,10 g,12.72,14.26,12.09
+D,1274,1026,Idivalladi Mezhuku,10 g,19.41,20.91,7.75
+D,1275,1034,Rasagandhi Mezhuku,10 g,23.23,28.01,20.6
+D,1277,1038,Palthulli,5 mL,13.89,13.89,-0.02
+D,1278,1039,Patikara Neer,200 mL,20.72,20.67,-0.22
+D,1279,1039,Patikara Neer,450 mL,33.91,33.81,-0.3
+D,1280,1040,Venkara Podi,50 g,47.6,47.36,-0.51
+D,1283,1043,Serankottai Ney,25 mL,41.71,41.43,-0.66
+D,1285,1046,Vallarai Ney,150 mL,144.87,144.58,-0.2
+D,1286,797,Kalnaar Parpam,5 g,9.82,12.99,32.3
+D,1289,799,Kungileeya Parpam,5 g,12.8,12.79,-0.07
+D,1292,801,Muthuchippi Parpam,10 g,12.44,17.19,38.23
+D,1295,802,Naka Parpam,5 g,22.25,34.14,53.43
+D,1298,803,Nandukkal Parpam,5 g,30.39,32.77,7.84
+D,1302,805,Palakarai Parpam,10 g,25.94,30.7,18.36
+D,1305,806,Panchalavana Parpam,5 g,8.97,12.94,44.34
+D,1308,808,Pavizha Parpam,5 g,125.19,127.56,1.9
+D,1312,812,Sanghu Parpam,10 g,12.35,17.11,38.52
+D,1315,813,Silasathu Parpam,10 g,13.38,19.73,47.43
+D,1318,823,Special Medicine 1,10 g,20.93,25.67,22.67
+D,1351,1050,Panchathikthaka Kashaya Choornam,100 g,32.37,32.14,-0.68
+D,1365,1061,Vaattu Kashayam,450 mL,137.97,135.68,-1.66
+D,1552,1168,Vathasani Choornam,100 g,42.38,42.1,-0.65
+D,1759,1285,Aaragvadhadi Choornam,100 g,33.35,33.07,-0.85
+D,1768,117,Aswagandhadi Choornam,1000 g,413.29,412.18,-0.27
+D,1771,1341,Brihat Chagaladi Ghritham,150 mL,184.83,184.51,-0.18
+D,1772,1341,Brihat Chagaladi Ghritham,450 mL,544.21,543.23,-0.18
+D,1783,1342,Arkkadi Thailam,450 mL,430.81,428.24,-0.6
+D,1787,1343,Jeevaneeya Choornam,100 g,38.99,38.82,-0.45
+D,1788,1345,Balamooladi Choornam,100 g,29.79,29.63,-0.52
+D,1792,54,Abhraka Bhasmam,1000 g,5532.41,11887.34,114.87
+D,1797,824,Special Medicine 2,5 g,22.34,23.13,3.55
+D,1798,1350,Mahamanjishtadi Kashaya Choornam,100 g,71.61,71.52,-0.13
+E,1,1,Abhayarishtam,450 mL,46.51,46.59,0.17
+E,2,2,Amritharishtam,450 mL,33.41,33.55,0.41
+E,3,5,Asokarishtam,450 mL,30.04,30.17,0.43
+E,4,6,Aswagandharishtam,450 mL,55.47,55.6,0.23
+E,5,9,Balarishtam,450 mL,40.76,40.94,0.44
+E,6,10,Dandyarishtam,450 mL,38.01,38.15,0.36
+E,7,30,Dasamoolajeerakarishtam,450 mL,38.34,38.48,0.36
+E,8,11,Dasamoolarishtam,450 mL,44.86,44.99,0.3
+E,9,13,Dhanwanthararishtam,450 mL,44.2,44.33,0.29
+E,11,14,Dhathryarishtam,450 mL,45.92,46.05,0.28
+E,12,15,Draksharishtam,450 mL,51.15,51.29,0.26
+E,13,16,Duralabharishtam,450 mL,51.17,51.3,0.25
+E,14,17,Jeerakarishtam,450 mL,36.5,36.64,0.38
+E,15,18,Khadirarishtam,450 mL,38.78,38.91,0.33
+E,16,19,Kutajarishtam,450 mL,44.73,44.86,0.28
+E,18,21,Mustharishtam,450 mL,35.16,35.09,-0.2
+E,19,23,Parthadyarishtam,450 mL,45.69,45.82,0.28
+E,20,25,Saraswatharishtam,450 mL,67.03,67.15,0.18
+E,21,28,Vasarishtam,450 mL,50.29,50.41,0.25
+E,22,31,Hridayasanthi,100 mL,15.4,15.43,0.19
+E,23,31,Hridayasanthi,450 mL,48.59,48.72,0.28
+E,25,32,Panchamridweekarasam,450 mL,38.77,38.93,0.4
+E,26,33,Udarasudha,100 mL,15.85,15.86,0.11
+E,27,33,Udarasudha,450 mL,45.59,45.68,0.18
+E,28,34,Aravindasavam,450 mL,41.57,41.7,0.32
+E,29,35,Chandanasavam,450 mL,35.31,35.45,0.38
+E,30,37,Kanakasavam,450 mL,35.33,35.47,0.39
+E,31,38,Kumaryasavam,450 mL,40.62,40.73,0.29
+E,32,39,Lohasavam,450 mL,38.3,38.38,0.22
+E,33,41,Nimbasavam,450 mL,47.91,48.04,0.26
+E,34,42,Panchakolasavam,450 mL,32.1,32.04,-0.19
+E,35,44,Pippalyasavam,450 mL,36.12,36.26,0.38
+E,36,47,Punarnavasavam,450 mL,37.51,37.6,0.23
+E,37,48,Saribadyasavam,450 mL,46.51,46.64,0.28
+E,38,49,Sudarsanasavam,450 mL,38.06,37.97,-0.23
+E,39,50,Useerasavam,450 mL,35.8,35.93,0.38
+E,42,51,Dhanyamlam,2000 mL,410.62,405.88,-1.16
+E,43,51,Dhanyamlam,5000 mL,1009.85,997.99,-1.17
+E,44,65,Kalyana Ksharam,10 g,22.53,22.52,-0.07
+E,45,99,Pramehakalpam Capsule,4 Nos,11.5,11.49,-0.02
+E,46,99,Pramehakalpam Capsule,100 Nos,130.01,129.94,-0.05
+E,49,101,Vathamarmakan Capsule,4 Nos,10.43,10.43,-0.01
+E,50,101,Vathamarmakan Capsule,100 Nos,133.69,133.65,-0.03
+E,51,748,M3 Capsule,100 Nos,118.92,118.36,-0.47
+E,71,115,Ashta Choornam,50 g,42.91,42.88,-0.06
+E,74,117,Aswagandhadi Choornam,50 g,31.85,31.82,-0.09
+E,77,118,Avipathi Choornam,50 g,31.17,31.14,-0.08
+E,81,119,Dadimashtaka Choornam,50 g,26.25,26.22,-0.13
+E,84,120,Eladi Podi,50 g,41.67,41.65,-0.06
+E,88,121,Gulgulu Panchapala Choornam,20 g,41.63,41.58,-0.13
+E,92,122,Hinguvachadi Choornam,50 g,35.88,35.86,-0.07
+E,95,125,Kachooradi Choornam,10 g,14.21,14.19,-0.1
+E,99,127,Karpooradi Choornam,50 g,44.12,44.07,-0.11
+E,102,128,Kolakulathadi Choornam,100 g,45.43,45.36,-0.15
+E,106,132,Rajanyadi Choornam,20 g,24.38,24.33,-0.23
+E,110,133,Rasnadi Choornam,10 g,11.08,11.07,-0.08
+E,111,133,Rasnadi Choornam,50 g,29.67,29.62,-0.14
+E,115,136,Shaddharana Choornam,50 g,75.92,75.84,-0.1
+E,118,138,Sudarsana Choornam,50 g,39.33,39.25,-0.21
+E,121,139,Thaleesapathradi Choornam,50 g,33.07,33.04,-0.11
+E,124,140,Triphaladi Choornam,50 g,26.22,26.2,-0.1
+E,127,140,Triphaladi Choornam,1000 g,307.8,307.3,-0.16
+E,128,142,Vaiswanara Choornam,50 g,33.94,33.87,-0.22
+E,131,144,Vyoshadi Vatakam,50 g,22.42,22.4,-0.13
+E,134,149,Agasthyar Nasika Choornam,2 g,7.44,7.42,-0.24
+E,135,151,Meninokki Choornam,14 g,11.02,11.0,-0.18
+E,137,151,Meninokki Choornam,210 g,100.19,99.9,-0.29
+E,138,152,Santhigiri Tooth Powder,20 g,15.83,15.82,-0.04
+E,139,153,Tharari Choornam,50 g,32.64,32.62,-0.07
+E,143,154,Udwarthana Choornam,100 g,27.85,27.83,-0.07
+E,145,154,Udwarthana Choornam,500 g,73.68,73.58,-0.13
+E,151,158,Himasagara Choornam,100 g,49.54,49.45,-0.18
+E,158,166,Nimbasahacharadi Choornam,100 g,26.87,26.8,-0.26
+E,159,167,Sameerananivarani Choornam,100 g,51.22,51.12,-0.21
+E,160,168,Sarvamangala Choornam,100 g,69.79,69.72,-0.11
+E,165,173,Vasamrithadi Choornam,100 g,35.59,35.45,-0.4
+E,166,175,Chathurvargga Choornam,100 g,58.73,58.64,-0.14
+E,167,176,Neelolpaladi Kashaya Choornam,100 g,53.73,53.68,-0.11
+E,168,177,Sairakabaladi Choornam,100 g,37.64,37.55,-0.23
+E,169,178,Haridrakhandam,50 g,31.17,31.1,-0.22
+E,172,179,Jadamayadi Lepa Choornam,40 g,31.66,31.65,-0.04
+E,173,179,Jadamayadi Lepa Choornam,100 g,77.98,77.95,-0.04
+E,177,180,Kottamchukkadi Lepa Choornam,50 g,22.47,22.44,-0.12
+E,178,180,Kottamchukkadi Lepa Choornam,100 g,46.05,45.99,-0.12
+E,180,180,Kottamchukkadi Lepa Choornam,500 g,170.39,170.12,-0.16
+E,182,181,Nagaradi Lepa Choornam,50 g,33.33,33.31,-0.05
+E,183,181,Nagaradi Lepa Choornam,100 g,68.09,68.06,-0.05
+E,186,181,Nagaradi Lepa Choornam,1000 g,541.31,540.96,-0.07
+E,187,182,Guduci Satva,10 g,59.61,59.53,-0.12
+E,191,183,Ksheerabala Thailam 101 Avarthi,10 mL,57.0,56.75,-0.45
+E,193,184,Ksheerabala Thailam 41 Avarthi,10 mL,117.55,116.11,-1.23
+E,194,185,Anuthailam,10 mL,10.71,10.7,-0.09
+E,196,186,Arimedadi Enna,100 mL,38.01,37.93,-0.19
+E,197,186,Arimedadi Enna,200 mL,71.2,71.05,-0.2
+E,200,188,Asanamanjishtadi Enna,100 mL,40.32,40.25,-0.2
+E,201,188,Asanamanjishtadi Enna,200 mL,71.94,71.79,-0.22
+E,204,189,Asanavilwadi Enna,100 mL,38.42,38.35,-0.19
+E,205,189,Asanavilwadi Enna,200 mL,68.48,68.34,-0.21
+E,207,190,Bala Thailam,100 mL,36.99,36.95,-0.11
+E,208,190,Bala Thailam,200 mL,69.24,69.16,-0.11
+E,209,190,Bala Thailam,450 mL,139.93,139.75,-0.13
+E,213,192,Balaguloochyadi Thailam,200 mL,70.44,70.29,-0.2
+E,218,193,Balahatadi Enna,200 mL,70.92,70.78,-0.2
+E,221,194,Balaswagandhalakshadi Thailam,100 mL,42.84,42.79,-0.11
+E,222,194,Balaswagandhalakshadi Thailam,200 mL,80.26,80.17,-0.12
+E,226,196,Chandanadi Enna (Cheruthu),100 mL,35.96,35.92,-0.11
+E,227,196,Chandanadi Enna (Cheruthu),200 mL,64.13,64.05,-0.12
+E,229,196,Chandanadi Enna (Cheruthu),5000 mL,1357.42,1355.43,-0.15
+E,231,205,Dhanwantharam Thailam (Enna),100 mL,36.74,36.71,-0.1
+E,232,205,Dhanwantharam Thailam (Enna),200 mL,66.75,66.68,-0.11
+E,233,205,Dhanwantharam Thailam (Enna),450 mL,139.95,139.78,-0.12
+E,235,205,Dhanwantharam Thailam (Enna),5000 mL,1426.46,1424.57,-0.13
+E,236,206,Dhanwantharam Thailam (Mezhukupakam) Vasthi,450 mL,141.75,141.54,-0.15
+E,239,210,Eladi Enna,200 mL,71.2,71.07,-0.18
+E,241,210,Eladi Enna,5000 mL,1553.3,1550.01,-0.21
+E,242,218,Karaskara Thailam (External),50 mL,25.56,25.53,-0.14
+E,248,219,Karpasasthyadi Thailam,100 mL,37.6,37.55,-0.13
+E,249,219,Karpasasthyadi Thailam,200 mL,67.41,67.31,-0.14
+E,251,219,Karpasasthyadi Thailam,2000 mL,581.01,580.07,-0.16
+E,252,219,Karpasasthyadi Thailam,5000 mL,1439.26,1436.9,-0.16
+E,259,222,Kottamchukkadi Thailam,100 mL,37.09,37.05,-0.1
+E,260,222,Kottamchukkadi Thailam,200 mL,68.01,67.94,-0.11
+E,261,222,Kottamchukkadi Thailam,450 mL,140.71,140.54,-0.12
+E,262,222,Kottamchukkadi Thailam,5000 mL,1454.36,1452.46,-0.13
+E,264,226,Ksheerabala Enna,100 mL,35.17,35.13,-0.11
+E,265,226,Ksheerabala Enna,200 mL,63.97,63.89,-0.12
+E,266,226,Ksheerabala Enna,450 mL,131.65,131.48,-0.13
+E,268,226,Ksheerabala Enna,5000 mL,1353.29,1351.4,-0.14
+E,273,233,Mahamashadi Thailam (Enna),100 mL,39.19,39.15,-0.1
+E,274,233,Mahamashadi Thailam (Enna),200 mL,70.73,70.65,-0.11
+E,276,233,Mahamashadi Thailam (Enna),5000 mL,1520.35,1518.37,-0.13
+E,278,234,Mahanarayana Thailam,100 mL,46.77,46.73,-0.08
+E,279,234,Mahanarayana Thailam,200 mL,86.95,86.88,-0.09
+E,280,234,Mahanarayana Thailam,450 mL,185.62,185.45,-0.09
+E,282,235,Mahanarayana Thailam (Pizhichil),450 mL,165.86,165.7,-0.1
+E,284,239,Nagaradi Thailam,50 mL,38.0,37.9,-0.26
+E,290,241,Neelibhringadi Enna,100 mL,45.31,45.26,-0.11
+E,295,247,Sahacharadi Thailam,100 mL,38.35,38.31,-0.1
+E,296,247,Sahacharadi Thailam,200 mL,71.16,71.08,-0.11
+E,297,247,Sahacharadi Thailam,450 mL,147.23,147.06,-0.12
+E,299,247,Sahacharadi Thailam,5000 mL,1531.79,1529.9,-0.12
+E,300,248,Sahacharadi Thailam (Mezhukupakam) Vasthi,450 mL,154.9,154.68,-0.14
+E,304,252,Triphaladi Enna,200 mL,81.74,81.52,-0.28
+E,309,258,Vathasani Thailam (Enna),200 mL,72.54,72.45,-0.13
+E,312,260,Agasthyar Thailam,25 mL,16.21,16.2,-0.07
+E,314,262,Karpooradi Thailam,100 mL,50.36,50.33,-0.06
+E,315,262,Karpooradi Thailam,200 mL,95.62,95.56,-0.06
+E,316,262,Karpooradi Thailam,450 mL,202.65,202.52,-0.06
+E,317,262,Karpooradi Thailam,5000 mL,2142.49,2141.07,-0.07
+E,319,263,Kayathirumeni Enna (Cheruthu),100 mL,25.76,25.72,-0.14
+E,320,263,Kayathirumeni Enna (Cheruthu),200 mL,45.63,45.56,-0.16
+E,324,264,Kayathirumeni Enna (Valuthu),100 mL,40.46,40.43,-0.09
+E,325,264,Kayathirumeni Enna (Valuthu),200 mL,74.16,74.09,-0.1
+E,326,264,Kayathirumeni Enna (Valuthu),450 mL,154.94,154.77,-0.11
+E,327,264,Kayathirumeni Enna (Valuthu),5000 mL,1612.45,1610.6,-0.11
+E,329,266,Lekshmivilasam Enna,100 mL,46.79,46.74,-0.11
+E,330,266,Lekshmivilasam Enna,200 mL,87.21,87.11,-0.12
+E,333,267,Mahavathanthaka Thailam,50 mL,44.84,44.79,-0.13
+E,335,268,Siddha Kayathirumeni Enna,100 mL,70.99,70.95,-0.06
+E,336,268,Siddha Kayathirumeni Enna,200 mL,135.56,135.48,-0.06
+E,340,269,Siroreksha Thailam,100 mL,47.8,47.72,-0.15
+E,341,269,Siroreksha Thailam,200 mL,89.71,89.56,-0.16
+E,346,270,Strobilanthes Oil,200 mL,69.3,69.23,-0.11
+E,347,270,Strobilanthes Oil,450 mL,143.77,143.6,-0.12
+E,350,272,Valiya Amrithadi Enna,100 mL,41.7,41.63,-0.18
+E,356,389,Uzhinja Ghritham,200 mL,130.21,129.98,-0.18
+E,357,273,Chithraka Thailam,50 mL,53.44,53.39,-0.09
+E,358,274,Siddha Thailam,50 mL,57.9,57.75,-0.26
+E,360,275,Mahanarayana Thailam (Internal),25 mL,21.73,21.71,-0.11
+E,362,276,Balamritham Aavanakkenna,10 mL,9.64,9.63,-0.11
+E,364,277,Balasarvangam Mukkoottu,10 mL,32.04,32.03,-0.01
+E,365,277,Balasarvangam Mukkoottu,25 mL,77.65,77.64,-0.01
+E,367,278,Chathilinga Thailam,25 mL,82.67,82.66,-0.02
+E,368,279,Erandasukumaram,50 mL,24.36,24.33,-0.15
+E,370,280,Gandharvahasthadi Erandam,50 mL,27.0,26.95,-0.18
+E,374,281,Karaskara Thailam (Internal),25 mL,17.65,17.63,-0.1
+E,377,282,Nimbamrithadi Erandam,50 mL,48.64,48.6,-0.1
+E,379,283,Nirgundyadi Erandam,50 mL,21.7,21.66,-0.17
+E,381,284,Siddha Balapeeyoosham,10 mL,16.04,16.02,-0.13
+E,384,285,Thanurakshakan (Internal),25 mL,18.71,18.68,-0.14
+E,388,286,Vellaruku Thailam,100 mL,57.28,57.17,-0.2
+E,390,303,Ashtapathradi Keram,100 mL,42.69,42.64,-0.1
+E,391,303,Ashtapathradi Keram,200 mL,79.7,79.61,-0.1
+E,396,288,Balaguloochyadi Keram,200 mL,79.4,79.3,-0.12
+E,400,289,Balaswagandhalakshadi Keram,100 mL,48.78,48.74,-0.1
+E,401,289,Balaswagandhalakshadi Keram,200 mL,92.55,92.46,-0.1
+E,405,290,Chemparathyadi Keram,100 mL,44.08,44.04,-0.09
+E,406,290,Chemparathyadi Keram,200 mL,83.31,83.24,-0.09
+E,408,290,Chemparathyadi Keram,5000 mL,1833.38,1831.5,-0.1
+E,411,291,Dhurthuradi Keram,200 mL,75.13,75.05,-0.11
+E,416,292,Dinesavalyadi Keram,200 mL,76.52,76.43,-0.12
+E,420,293,Durvadi Keram,100 mL,40.6,40.56,-0.1
+E,421,293,Durvadi Keram,200 mL,76.39,76.31,-0.1
+E,425,294,Eladi Keram,100 mL,42.79,42.75,-0.09
+E,426,294,Eladi Keram,200 mL,78.99,78.92,-0.09
+E,431,295,Gopathmajadi Keram,200 mL,85.62,85.47,-0.17
+E,434,296,Jathyadi Keram,50 mL,26.41,26.39,-0.09
+E,442,297,Kayyonyadi Keram,200 mL,81.46,81.38,-0.1
+E,446,298,Nalpamaradi Keram,100 mL,42.76,42.72,-0.09
+E,447,298,Nalpamaradi Keram,200 mL,77.52,77.45,-0.1
+E,448,298,Nalpamaradi Keram,450 mL,167.59,167.42,-0.1
+E,449,298,Nalpamaradi Keram,5000 mL,1697.33,1695.46,-0.11
+E,451,299,Neelibhringadi Keram,100 mL,50.8,50.77,-0.07
+E,452,299,Neelibhringadi Keram,200 mL,95.58,95.51,-0.08
+E,453,299,Neelibhringadi Keram,450 mL,204.66,204.5,-0.08
+E,456,300,Triphaladi Keram,100 mL,43.81,43.77,-0.09
+E,457,300,Triphaladi Keram,200 mL,82.02,81.94,-0.1
+E,459,300,Triphaladi Keram,5000 mL,1811.36,1809.28,-0.11
+E,461,301,Thulaseesvarasadi Keram,100 mL,44.02,43.98,-0.09
+E,462,301,Thulaseesvarasadi Keram,200 mL,81.73,81.64,-0.1
+E,465,302,Vachalasunadi Keram,10 mL,9.53,9.52,-0.11
+E,466,302,Vachalasunadi Keram,50 mL,28.5,28.45,-0.18
+E,467,304,Dentareksha Keram,50 mL,28.4,28.37,-0.13
+E,469,305,Kesapushpam,100 mL,46.8,46.76,-0.08
+E,475,306,Naranokki,100 mL,46.67,46.62,-0.1
+E,481,307,Palandava Keram,100 mL,82.68,82.48,-0.25
+E,482,307,Palandava Keram,200 mL,159.56,159.15,-0.25
+E,483,307,Palandava Keram,450 mL,346.56,345.65,-0.26
+E,486,308,Peenasakesari,100 mL,46.46,46.39,-0.16
+E,489,308,Peenasakesari,5000 mL,1923.14,1919.48,-0.19
+E,491,309,Siromukhi,100 mL,47.86,47.79,-0.15
+E,492,309,Siromukhi,200 mL,92.77,92.62,-0.16
+E,496,310,Thanurakshakan (External),100 mL,55.71,55.51,-0.36
+E,497,310,Thanurakshakan (External),200 mL,109.44,109.03,-0.37
+E,503,312,Seethala Thailam,450 mL,221.4,220.49,-0.41
+E,504,313,Snehasnigdhatha Thailam,200 mL,89.97,89.85,-0.14
+E,505,314,Sonithamritha Keram,200 mL,117.76,117.15,-0.52
+E,508,315,Chinchadi Kuzhambu,200 mL,77.57,77.46,-0.14
+E,510,315,Chinchadi Kuzhambu,5000 mL,1701.5,1698.77,-0.16
+E,511,316,Dhanwantharam (Pizhichil) Kuzhambu,450 mL,138.02,137.84,-0.13
+E,513,317,Dhanwantharam Kuzhambu,100 mL,38.62,38.58,-0.1
+E,514,317,Dhanwantharam Kuzhambu,200 mL,72.27,72.19,-0.11
+E,515,317,Dhanwantharam Kuzhambu,450 mL,153.27,153.09,-0.12
+E,516,317,Dhanwantharam Kuzhambu,5000 mL,1558.1,1556.1,-0.13
+E,518,318,Karpasasthyadi Kuzhambu,100 mL,36.52,36.48,-0.12
+E,519,318,Karpasasthyadi Kuzhambu,200 mL,66.88,66.79,-0.13
+E,521,318,Karpasasthyadi Kuzhambu,5000 mL,1422.44,1420.26,-0.15
+E,523,319,Kottamchukkadi Kuzhambu,100 mL,38.01,37.97,-0.1
+E,524,319,Kottamchukkadi Kuzhambu,200 mL,70.82,70.75,-0.11
+E,525,319,Kottamchukkadi Kuzhambu,450 mL,147.36,147.18,-0.12
+E,526,319,Kottamchukkadi Kuzhambu,5000 mL,1528.17,1526.24,-0.13
+E,528,320,Mahapinda Thailam,100 mL,38.96,38.88,-0.2
+E,529,320,Mahapinda Thailam,200 mL,74.96,74.8,-0.21
+E,533,321,Pinda Thailam,100 mL,37.51,37.45,-0.16
+E,534,321,Pinda Thailam,200 mL,68.82,68.7,-0.17
+E,535,321,Pinda Thailam,450 mL,144.35,144.08,-0.19
+E,537,321,Pinda Thailam,5000 mL,1475.52,1472.52,-0.2
+E,539,322,Prabhanjanavimarddanam Kuzhambu,100 mL,40.22,40.17,-0.13
+E,540,322,Prabhanjanavimarddanam Kuzhambu,200 mL,75.97,75.87,-0.13
+E,545,323,Prasarani Kuzhambu,200 mL,74.63,74.54,-0.12
+E,547,323,Prasarani Kuzhambu,5000 mL,1620.9,1618.72,-0.13
+E,548,324,Sahacharadi (Pizhichil) Kuzhambu,450 mL,148.23,148.05,-0.12
+E,550,325,Sahacharadi Kuzhambu,100 mL,40.33,40.29,-0.1
+E,551,325,Sahacharadi Kuzhambu,200 mL,74.47,74.39,-0.11
+E,552,325,Sahacharadi Kuzhambu,450 mL,158.73,158.55,-0.11
+E,553,325,Sahacharadi Kuzhambu,5000 mL,1615.83,1613.84,-0.12
+E,555,329,Shashtika Thailam,100 mL,48.58,48.54,-0.09
+E,556,329,Shashtika Thailam,200 mL,91.9,91.81,-0.09
+E,559,326,Asavenna,50 mL,27.35,27.33,-0.07
+E,560,326,Asavenna,100 mL,46.95,46.91,-0.08
+E,561,326,Asavenna,200 mL,87.54,87.46,-0.09
+E,562,326,Asavenna,450 mL,185.46,185.29,-0.1
+E,564,326,Asavenna,5000 mL,1947.59,1945.61,-0.1
+E,565,327,Kayarajanka Thailam,25 mL,19.03,19.02,-0.05
+E,566,327,Kayarajanka Thailam,100 mL,58.29,58.25,-0.07
+E,567,327,Kayarajanka Thailam,200 mL,111.55,111.47,-0.07
+E,569,327,Kayarajanka Thailam,5000 mL,2547.66,2545.68,-0.08
+E,571,328,Murivenna,25 mL,13.79,13.78,-0.06
+E,572,328,Murivenna,100 mL,42.49,42.45,-0.08
+E,573,328,Murivenna,200 mL,79.69,79.62,-0.09
+E,574,328,Murivenna,450 mL,167.45,167.29,-0.09
+E,575,328,Murivenna,5000 mL,1751.85,1750.14,-0.1
+E,577,330,Siddha Kayathirumeni Thailam,100 mL,75.7,75.65,-0.06
+E,578,330,Siddha Kayathirumeni Thailam,200 mL,144.72,144.63,-0.06
+E,583,331,Vathakodali Thailam,100 mL,77.56,77.52,-0.05
+E,588,332,Koottu Kuzhambu (Kizhi Thailam),100 mL,19.93,19.88,-0.24
+E,591,332,Koottu Kuzhambu (Kizhi Thailam),5000 mL,616.54,614.17,-0.38
+E,592,332,Koottu Kuzhambu (Kizhi Thailam),10000 mL,1182.45,1177.72,-0.4
+E,594,339,Brahmi Ghritham,150 mL,117.05,116.89,-0.13
+E,596,340,Charngeryadi Ghritham,150 mL,121.46,121.3,-0.13
+E,597,349,Durvadyam Ghritham,50 mL,42.5,42.44,-0.12
+E,600,351,Gulguluthikthaka Ghritham,150 mL,142.08,141.93,-0.11
+E,602,353,Indukantha Ghritham,150 mL,107.22,107.04,-0.16
+E,603,354,Jathyadi Ghritham,50 mL,40.39,40.35,-0.1
+E,606,356,Kalyanaka Ghritham,150 mL,120.47,120.31,-0.13
+E,608,358,Karaskara Ghritham,150 mL,114.78,114.6,-0.15
+E,610,364,Mahathikthaka Ghritham,150 mL,124.56,124.39,-0.14
+E,612,365,Mahathpanchagavya Ghritham,150 mL,123.89,123.67,-0.18
+E,614,366,Mahathraiphala Ghritham,150 mL,137.25,137.08,-0.13
+E,616,370,Panchagavya Ghritham,150 mL,123.85,123.63,-0.18
+E,618,371,Patoladi Ghritham,150 mL,115.98,115.8,-0.15
+E,620,372,Phalasarpis,150 mL,147.41,147.28,-0.09
+E,623,374,Saraswatha Ghritham,150 mL,133.11,132.94,-0.13
+E,627,378,Sukumara Ghritham,150 mL,112.76,112.59,-0.16
+E,630,382,Varanadi Ghritham,150 mL,114.93,114.75,-0.15
+E,632,385,Vidaryadi Ghritham,150 mL,113.33,113.17,-0.13
+E,634,388,Amara Ghritham,150 mL,145.22,145.04,-0.12
+E,636,396,Chandraprabha Gulika,100 Nos,65.16,64.99,-0.25
+E,637,399,Dhanwantharam Gulika,100 Nos,20.61,20.59,-0.13
+E,638,404,Gopichandanadi Gulika,100 Nos,66.19,66.05,-0.21
+E,639,405,Gorochanadi Gulika,50 Nos,166.63,166.58,-0.03
+E,641,406,Kaisora Gulgulu,100 Nos,98.42,98.23,-0.2
+E,642,407,Kanchanara Gulgulu,100 Nos,99.72,99.53,-0.19
+E,645,432,Sudarsanam Gulika,50 Nos,34.36,34.29,-0.21
+E,646,433,Suryaprabha Gulika,100 Nos,93.18,95.91,2.93
+E,647,434,Swasanandam Gulika,100 Nos,315.17,315.03,-0.04
+E,648,438,Vettumaran Gulika,100 Nos,119.07,119.02,-0.05
+E,649,439,Vilwadi Gulika,100 Nos,27.32,27.25,-0.23
+E,650,442,Yogaraja Gulgulu,100 Nos,83.4,83.3,-0.12
+E,651,443,Karuthavattu Gulika,50 Nos,52.92,52.78,-0.27
+E,652,444,Kasakulanthakan,50 Nos,47.64,47.58,-0.13
+E,653,445,Krimishodhini Gulika,12 Nos,14.64,14.62,-0.13
+E,654,446,Uramarunnu Gulika,10 Nos,44.43,44.41,-0.03
+E,657,449,Vimalavarthi,12 Nos,54.01,53.89,-0.23
+E,658,450,Manasamithra Vatakam,50 Nos,46.93,46.85,-0.16
+E,659,451,Mandoora Vatakam,50 Nos,30.9,30.86,-0.11
+E,684,510,Gandharvahasthadi Kashayam (Conc.),200 mL,83.78,83.61,-0.21
+E,723,550,Amrithotharam Kashayam,450 mL,33.92,33.89,-0.1
+E,724,552,Ashtavargam Kashayam,450 mL,46.27,46.22,-0.12
+E,725,553,Brihathyadi Kashayam,450 mL,47.72,47.68,-0.08
+E,726,554,Chiruvilwadi Kashayam,450 mL,68.93,68.89,-0.05
+E,727,555,Dasamoolakaduthrayam Kashayam,450 mL,49.8,49.76,-0.07
+E,728,558,Dhanadanayanadi Kashayam,450 mL,57.13,57.1,-0.07
+E,729,559,Dhanwantharam Kashayam,450 mL,30.06,30.03,-0.12
+E,730,560,Drakshadi Kashayam,450 mL,58.38,58.34,-0.06
+E,731,561,Dusparsakadi Kashayam,450 mL,72.39,72.35,-0.05
+E,732,563,Elakanadi Kashayam,450 mL,73.39,73.36,-0.05
+E,734,564,Gandharvahasthadi Kashayam,450 mL,57.35,57.31,-0.07
+E,735,566,Gulguluthikthakam Kashayam,450 mL,54.87,54.83,-0.06
+E,736,567,Guloochyadi Kashayam,450 mL,48.58,48.55,-0.07
+E,737,568,Indukantham Kashayam,450 mL,45.75,45.72,-0.08
+E,738,569,Kaidaryadi Kashayam,450 mL,41.83,41.8,-0.08
+E,739,573,Kokilaksha Kashayam,450 mL,24.02,23.99,-0.14
+E,740,576,Mahamanjishtadi Kashayam,450 mL,71.64,71.61,-0.05
+E,742,577,Maharasnadi Kashayam,450 mL,59.57,59.53,-0.07
+E,743,578,Mahathikthakam Kashayam,450 mL,62.18,62.15,-0.05
+E,744,579,Manjishtadi Kashayam,450 mL,45.56,45.53,-0.08
+E,745,580,Musaleekhadiradi Kashayam,450 mL,47.24,47.21,-0.07
+E,746,581,Naadi Kashayam,450 mL,58.74,58.7,-0.06
+E,747,582,Nayopayam Kashayam,450 mL,47.97,47.93,-0.08
+E,748,584,Nimbadi Kashayam,450 mL,78.7,78.66,-0.05
+E,749,585,Nirgundyadi Kashayam,450 mL,65.93,65.89,-0.06
+E,750,586,Nisakathakadi Kashayam,450 mL,40.83,40.8,-0.08
+E,752,588,Panchathikthakam Kashayam,450 mL,30.01,29.98,-0.11
+E,753,591,Pathyakshadhathryadi Kashayam,450 mL,32.53,32.5,-0.1
+E,754,592,Pathyapunarnavadi Kashayam,450 mL,79.28,79.24,-0.05
+E,755,593,Patoladi Kashayam,450 mL,70.32,70.28,-0.05
+E,758,595,Patolamooladi Kashayam,450 mL,60.67,60.63,-0.06
+E,759,596,Prasaranyadi Kashayam,450 mL,50.63,50.6,-0.07
+E,760,597,Punarnavadi Kashayam,450 mL,73.04,73.0,-0.05
+E,761,599,Rasnairandadi Kashayam,450 mL,62.57,62.53,-0.06
+E,762,600,Rasnasapthakam Kashayam,450 mL,44.31,44.27,-0.09
+E,763,601,Rasonadi Kashayam,450 mL,72.22,72.19,-0.05
+E,764,602,Rudrakshadi Kashayam,450 mL,150.96,150.85,-0.07
+E,765,603,Sahacharadi Kashayam,450 mL,46.01,45.97,-0.08
+E,766,604,Sapthasaram Kashayam,450 mL,41.49,41.46,-0.09
+E,768,607,Sukumara Kashayam,450 mL,31.33,31.3,-0.1
+E,769,612,Varanadi Kashayam,450 mL,39.15,39.12,-0.08
+E,770,614,Vidaryadi Kashayam,450 mL,41.35,41.31,-0.08
+E,773,616,Karappan Kashayam,450 mL,66.34,66.26,-0.12
+E,774,617,Marma Kashayam,100 mL,26.92,26.91,-0.03
+E,776,617,Marma Kashayam,450 mL,94.26,94.21,-0.04
+E,777,618,Sudhipathram Kashayam,100 mL,12.94,12.93,-0.07
+E,779,618,Sudhipathram Kashayam,450 mL,34.32,34.27,-0.13
+E,782,621,Bahusalagudam,250 g,84.38,84.19,-0.23
+E,785,623,Manibhadra Gulam,250 g,92.13,92.0,-0.14
+E,789,624,Panchajeeraka Gudam,400 g,110.2,109.93,-0.24
+E,791,625,Sathavari Gulam,250 g,71.74,71.61,-0.19
+E,792,625,Sathavari Gulam,400 g,117.09,116.88,-0.18
+E,794,626,Agasthya Rasayanam,250 g,55.43,55.3,-0.24
+E,795,626,Agasthya Rasayanam,400 g,90.75,90.54,-0.24
+E,798,629,Aswagandha Rasayanam,250 g,70.62,70.48,-0.19
+E,799,629,Aswagandha Rasayanam,400 g,115.07,114.86,-0.19
+E,800,632,Chinchadi Lehyam,100 g,43.23,43.17,-0.12
+E,801,632,Chinchadi Lehyam,250 g,92.63,92.5,-0.14
+E,805,633,Chyavanaprasam,400 g,126.71,126.41,-0.23
+E,806,635,Dasamoola Rasayanam,100 g,33.87,33.8,-0.22
+E,810,636,Dasamoolahareethaki,250 g,53.78,53.64,-0.26
+E,811,636,Dasamoolahareethaki,400 g,88.39,88.17,-0.25
+E,813,639,Gandhakamadhusnuhi,250 g,157.2,156.56,-0.41
+E,817,643,Kooshmanda Rasayanam,400 g,105.19,104.98,-0.2
+E,818,646,Madhusnuhi Rasayanam,100 g,42.28,42.19,-0.2
+E,819,646,Madhusnuhi Rasayanam,250 g,90.2,89.99,-0.24
+E,821,647,Mathala Rasayanam,20 g,30.59,30.54,-0.15
+E,822,648,Mridweekadi Lehyam,50 g,43.72,43.54,-0.41
+E,824,649,Narasimha Rasayanam,250 g,118.48,118.15,-0.28
+E,827,652,Sukumara Lehyam,250 g,72.35,72.2,-0.21
+E,831,656,Vidaryadi Lehyam,400 g,111.37,111.16,-0.19
+E,832,657,Vilwadi Lehyam,100 g,36.27,36.21,-0.17
+E,833,657,Vilwadi Lehyam,250 g,73.69,73.54,-0.21
+E,835,658,Kadaleekalpa Rasayanam,100 g,39.28,39.18,-0.25
+E,836,658,Kadaleekalpa Rasayanam,250 g,83.86,83.61,-0.29
+E,837,658,Kadaleekalpa Rasayanam,400 g,142.55,142.16,-0.28
+E,839,659,Kousalamohini,250 g,105.28,105.01,-0.26
+E,843,660,Kurinji Kuzhambu,400 g,113.14,112.9,-0.21
+E,844,664,Thamboola Rasayanam,15 g,15.91,15.85,-0.35
+E,849,670,Murivenna Balm,25 g,21.76,21.75,-0.04
+E,850,675,Manjishtadi Lepam,12 g,13.38,13.36,-0.1
+E,851,672,Rasothamadi Lepam,12 g,22.21,24.09,8.48
+E,853,673,Hridayarenjini Lepam,30 g,34.48,34.46,-0.04
+E,855,674,Kumkumadi Lepam,15 g,26.24,26.24,-0.03
+E,859,678,Ilaneer Kuzhambu,5 mL,10.59,10.59,-0.05
+E,864,683,Vethuvellakkoottu,400 g,68.35,68.31,-0.06
+E,865,685,Kashaya Vasthi Kit,275 g,57.2,57.14,-0.1
+E,876,694,Dahasanthi,20 g,5.4,5.39,-0.13
+E,878,695,Karkkidaka Kanji,500 g,95.65,95.37,-0.29
+E,879,696,Mehasamani,20 g,7.47,7.46,-0.14
+E,881,697,Chukku Podi,40 g,30.11,30.09,-0.05
+E,883,697,Chukku Podi,1000 g,517.64,517.3,-0.07
+E,886,699,Nellikka Podi,40 g,17.03,17.01,-0.08
+E,889,722,Cherupayar Podi,50 g,16.79,16.77,-0.08
+E,891,723,Kasthoori Manjal Podi,40 g,15.41,15.41,-0.05
+E,894,726,Raktha Chandana Podi,30 g,25.83,25.83,-0.03
+E,896,729,Oma Theeneer,200 mL,21.33,21.32,-0.03
+E,897,729,Oma Theeneer,450 mL,34.92,34.9,-0.04
+E,899,731,Sombu Theeneer,200 mL,21.3,21.29,-0.05
+E,900,731,Sombu Theeneer,450 mL,35.48,35.46,-0.06
+E,901,732,Arjun Forte Capsule,4 Nos,9.78,9.78,-0.03
+E,902,732,Arjun Forte Capsule,100 Nos,131.95,131.88,-0.06
+E,904,733,Artiban Forte Capsule,4 Nos,10.91,10.91,-0.01
+E,905,733,Artiban Forte Capsule,100 Nos,132.7,132.66,-0.03
+E,906,734,Endopile Capsule,4 Nos,8.09,8.08,-0.04
+E,907,734,Endopile Capsule,100 Nos,72.89,72.82,-0.1
+E,908,735,Jumbolene Capsule,4 Nos,8.39,8.39,-0.04
+E,909,735,Jumbolene Capsule,100 Nos,65.25,65.18,-0.11
+E,911,736,Regas Capsule,4 Nos,7.78,7.78,-0.04
+E,912,736,Regas Capsule,100 Nos,64.98,64.9,-0.13
+E,913,737,Rejuliv Forte Capsule,4 Nos,9.14,9.14,-0.02
+E,914,737,Rejuliv Forte Capsule,100 Nos,75.19,75.14,-0.07
+E,915,738,Solanum Forte Capsule,4 Nos,8.47,8.46,-0.05
+E,916,738,Solanum Forte Capsule,100 Nos,82.45,82.34,-0.13
+E,919,739,Tribulene Capsule,100 Nos,79.2,79.08,-0.15
+E,921,741,Balavardhini Capsule,100 Nos,98.03,97.8,-0.24
+E,925,749,Amukkura Tablet,100 Nos,86.12,86.04,-0.09
+E,926,750,Bhavana Kadukkai Tablet,50 Nos,32.36,32.32,-0.12
+E,928,751,Impooral Tablet,100 Nos,35.38,35.32,-0.19
+E,930,752,Keezharnelli Tablet,100 Nos,51.81,51.74,-0.12
+E,934,758,Thriphala Choornam Tablet,100 Nos,38.29,38.22,-0.18
+E,935,759,Vallarai Tablet,20 Nos,21.41,21.39,-0.06
+E,936,759,Vallarai Tablet,100 Nos,92.92,92.86,-0.07
+E,937,760,Abhraka Chendooram,5 g,34.69,42.67,23.0
+E,940,761,Annabhedi Chendooram,10 g,27.75,28.79,3.75
+E,943,762,Annabhedi Chendooram 2,5 g,12.38,12.58,1.56
+E,946,763,Arumugha Chendooram,5 g,48.46,50.0,3.19
+E,949,764,Aya Chendooram,5 g,18.48,21.03,13.81
+E,952,765,Ayakantha Chendooram,5 g,24.29,24.48,0.77
+E,955,766,Ayaveera Chendooram,5 g,346.65,346.92,0.08
+E,959,767,Chandamarutha Chendooram,5 g,165.2,165.76,0.34
+E,962,768,Gowrichinthamani Chendooram,5 g,113.33,113.73,0.35
+E,965,769,Jalamanjari Chendooram,10 g,17.57,17.57,-0.03
+E,969,771,Kantha Chendooram,5 g,19.31,21.5,11.36
+E,979,775,Mandoora Chendooram,5 g,12.97,15.37,18.45
+E,982,777,Patikalinga Chendooram,10 g,49.19,49.6,0.82
+E,985,778,Patikara Chendooram,10 g,9.73,9.73,-0.02
+E,988,783,Thampira Chendooram,5 g,23.85,26.03,9.17
+E,991,825,Amukkura Choornam,50 g,51.38,51.36,-0.05
+E,992,825,Amukkura Choornam,100 g,95.08,95.03,-0.05
+E,995,826,Asokappattai Choornam,50 g,17.38,17.35,-0.21
+E,996,826,Asokappattai Choornam,100 g,26.67,26.6,-0.27
+E,999,827,Chundaivattal Choornam,50 g,27.94,27.86,-0.28
+E,1000,827,Chundaivattal Choornam,100 g,47.6,47.45,-0.33
+E,1002,829,Eladi Choornam,50 g,70.79,70.71,-0.11
+E,1003,829,Eladi Choornam,100 g,132.44,132.28,-0.12
+E,1005,830,Inchi Choornam,50 g,52.21,52.13,-0.14
+E,1006,830,Inchi Choornam,100 g,96.5,96.35,-0.16
+E,1008,832,Kazharchi Choornam,50 g,71.43,71.37,-0.09
+E,1009,832,Kazharchi Choornam,100 g,135.77,135.64,-0.09
+E,1011,833,Maruthampattai Choornam,50 g,23.13,23.09,-0.16
+E,1012,833,Maruthampattai Choornam,100 g,38.34,38.27,-0.19
+E,1015,834,Mayilirakadi Choornam,50 g,162.91,162.79,-0.07
+E,1018,835,Nilavaakai Choornam,50 g,45.18,45.15,-0.08
+E,1019,835,Nilavaakai Choornam,100 g,80.92,80.85,-0.09
+E,1022,836,Orithalthamarai Choornam,50 g,32.57,32.46,-0.34
+E,1023,836,Orithalthamarai Choornam,100 g,57.19,56.97,-0.38
+E,1025,837,Panchadeepakkini Choornam,50 g,48.32,48.26,-0.13
+E,1026,837,Panchadeepakkini Choornam,100 g,88.95,88.83,-0.14
+E,1028,838,Parangippattai Choornam,50 g,40.02,39.99,-0.07
+E,1029,838,Parangippattai Choornam,100 g,70.32,70.26,-0.08
+E,1032,843,Sirupeelai Choornam,50 g,23.25,23.14,-0.47
+E,1033,843,Sirupeelai Choornam,100 g,39.43,39.21,-0.56
+E,1035,846,Thaleesadi Choornam,50 g,46.94,46.88,-0.12
+E,1036,846,Thaleesadi Choornam,100 g,84.43,84.31,-0.14
+E,1038,847,Thayirchundi Choornam,50 g,52.16,51.93,-0.44
+E,1039,847,Thayirchundi Choornam,100 g,96.76,96.29,-0.48
+E,1041,848,Thrikatuku Choornam,50 g,54.26,54.22,-0.07
+E,1042,848,Thrikatuku Choornam,100 g,98.9,98.82,-0.07
+E,1045,849,Triphalai Choornam,50 g,20.45,20.41,-0.18
+E,1046,849,Triphalai Choornam,100 g,32.22,32.15,-0.23
+E,1050,851,Avuri Choornam,50 g,31.46,31.42,-0.13
+E,1051,851,Avuri Choornam,100 g,55.02,54.94,-0.15
+E,1053,852,Mavilingappattai Choornam,50 g,29.25,29.18,-0.25
+E,1056,853,Meni Choornam,50 g,27.23,27.15,-0.29
+E,1059,854,Poonaikkali Choornam,50 g,60.51,60.48,-0.04
+E,1060,854,Poonaikkali Choornam,100 g,111.95,111.9,-0.05
+E,1062,855,Sukhanidra Choornam,50 g,67.34,67.26,-0.11
+E,1065,856,Vellaruku Choornam,50 g,25.46,25.35,-0.43
+E,1069,860,Madhumeha Choornam,50 g,29.92,29.83,-0.31
+E,1070,865,Irunelli Karpam,10 g,27.06,29.38,8.56
+E,1073,866,Karisalayadi Panchakarpam,50 g,43.21,43.1,-0.25
+E,1076,867,Anda Thailam,25 mL,83.21,83.11,-0.13
+E,1078,868,Arakku Thailam,100 mL,120.3,120.23,-0.06
+E,1079,868,Arakku Thailam,200 mL,235.63,235.49,-0.06
+E,1082,869,Arugan Thailam,100 mL,49.14,49.07,-0.15
+E,1083,869,Arugan Thailam,200 mL,92.43,92.29,-0.16
+E,1087,870,Aswagandha Balalakshadi Thailam,100 mL,55.35,55.27,-0.13
+E,1091,871,Chirattai Thailam,10 mL,8.93,8.93,-0.07
+E,1094,872,Chithramoola Thailam,100 mL,76.2,75.98,-0.28
+E,1097,873,Chukku Thailam,100 mL,85.4,85.34,-0.07
+E,1098,873,Chukku Thailam,200 mL,165.04,164.92,-0.08
+E,1102,876,Jeeraka Thailam,200 mL,87.9,87.73,-0.19
+E,1104,878,Karappan Thailam,100 mL,57.36,57.27,-0.15
+E,1108,882,Kunthirikka Thailam,100 mL,39.58,39.54,-0.11
+E,1109,882,Kunthirikka Thailam,200 mL,74.36,74.27,-0.12
+E,1113,883,Laghu Vishamushti Thailam,100 mL,39.57,39.49,-0.19
+E,1114,883,Laghu Vishamushti Thailam,200 mL,72.9,72.75,-0.2
+E,1118,887,Mathan Thailam,100 mL,56.44,56.38,-0.11
+E,1119,887,Mathan Thailam,200 mL,107.44,107.31,-0.11
+E,1123,890,Meni Thailam,100 mL,52.53,52.33,-0.39
+E,1124,893,Moolakudori Thailam,100 mL,44.48,46.7,4.98
+E,1126,900,Punga Thailam,100 mL,56.88,56.83,-0.08
+E,1127,900,Punga Thailam,200 mL,107.32,107.22,-0.09
+E,1131,906,Ulunthu Thailam,100 mL,61.73,61.66,-0.11
+E,1132,906,Ulunthu Thailam,200 mL,117.38,117.25,-0.11
+E,1136,907,Vathakesari Thailam,100 mL,35.65,35.6,-0.13
+E,1137,907,Vathakesari Thailam,200 mL,66.23,66.14,-0.14
+E,1141,910,Vranasanjeevi Thailam,50 mL,63.06,62.66,-0.63
+E,1143,911,Vetpalai Thailam,100 mL,44.19,44.16,-0.06
+E,1144,911,Vetpalai Thailam,200 mL,81.99,81.93,-0.07
+E,1145,911,Vetpalai Thailam,450 mL,172.54,172.42,-0.07
+E,1148,913,Hridayasudhi,100 mL,54.63,54.53,-0.19
+E,1149,913,Hridayasudhi,200 mL,101.15,100.95,-0.2
+E,1157,791,Sivanar Amritham,10 g,41.84,56.44,34.91
+E,1161,920,Kaphasura Kudineer,450 mL,57.88,57.76,-0.21
+E,1163,921,Nilavembu Kudineer,450 mL,53.72,53.55,-0.33
+E,1167,923,Adathodai Kudineer Choornam,50 g,28.88,28.85,-0.1
+E,1171,927,Kaphasura Kudineer Choornam,50 g,37.77,37.71,-0.15
+E,1174,929,Mandooradi Kudineer Choornam,50 g,56.12,56.07,-0.08
+E,1178,931,Nerunchil Kudineer Choornam,50 g,24.28,24.25,-0.13
+E,1181,932,Nilavembu Kudineer Choornam,50 g,30.57,30.54,-0.08
+E,1187,936,Parangippattai Kudineer Choornam,50 g,47.42,47.34,-0.18
+E,1190,937,Seenthil Kudineer Choornam,50 g,33.35,33.32,-0.08
+E,1196,947,Inji Rasayanam,250 g,57.36,57.18,-0.32
+E,1199,948,Karisalai Lehyam,250 g,58.96,58.83,-0.22
+E,1200,948,Karisalai Lehyam,400 g,96.42,96.22,-0.21
+E,1201,949,Karunai Lehyam,100 g,30.33,30.28,-0.16
+E,1202,949,Karunai Lehyam,250 g,63.96,63.84,-0.18
+E,1203,949,Karunai Lehyam,400 g,104.41,104.22,-0.18
+E,1204,949,Karunai Lehyam,10000 g,2200.38,2195.67,-0.21
+E,1207,950,Kesari Lehyam,250 g,67.93,67.77,-0.23
+E,1210,953,Nellikkai Lehyam,250 g,82.65,82.46,-0.22
+E,1214,954,Parangi Rasayanam,250 g,61.98,61.84,-0.22
+E,1217,956,Thetrankottai Lehyam,250 g,90.4,90.16,-0.27
+E,1219,957,Thippili Rasayanam,30 g,17.71,17.69,-0.11
+E,1220,957,Thippili Rasayanam,100 g,45.75,45.69,-0.15
+E,1221,957,Thippili Rasayanam,250 g,99.19,99.02,-0.17
+E,1222,957,Thippili Rasayanam,720 g,374.99,374.5,-0.13
+E,1228,958,Venpoosani Lehyam,400 g,195.41,195.05,-0.18
+E,1229,959,Amukkura Lehyam,100 g,33.86,33.81,-0.17
+E,1231,959,Amukkura Lehyam,400 g,118.21,117.98,-0.19
+E,1235,960,Rheumorid Balm,15 g,24.94,24.93,-0.04
+E,1237,965,Amritha Vennei,15 g,21.59,22.04,2.1
+E,1239,966,Kungileeya Vennei,50 g,18.17,20.19,11.1
+E,1241,967,Vanga Vennei,15 g,19.74,20.2,2.34
+E,1243,969,Mathulai Manappagu,50 g,36.78,36.76,-0.05
+E,1244,969,Mathulai Manappagu,250 g,167.14,167.05,-0.05
+E,1245,971,Hridayamohini,50 g,15.92,15.9,-0.13
+E,1247,971,Hridayamohini,250 g,59.99,59.89,-0.17
+E,1249,973,Solanum Syrup,50 mL,15.01,14.99,-0.15
+E,1250,973,Solanum Syrup,100 mL,28.29,28.24,-0.16
+E,1251,975,Ananda Bhairava Mathirai,20 Nos,29.93,30.38,1.49
+E,1252,976,Ashta Bhairava Mathirai,20 Nos,39.38,44.54,13.13
+E,1253,977,Balasanjeevi Mathirai,20 Nos,30.8,31.12,1.03
+E,1255,978,Brahmananda Bhairava Mathirai,20 Nos,47.56,47.71,0.31
+E,1256,985,Kapada Mathirai,15 Nos,31.84,31.84,-0.02
+E,1257,993,Meghanada Gulikai,20 Nos,18.03,18.34,1.74
+E,1258,994,Murukkanvithai Mathirai,12 Nos,14.12,14.1,-0.18
+E,1259,753,Neerkovai Tablet,100 Nos,121.55,121.07,-0.39
+E,1261,1002,Santhachandrodaya Mathirai,20 Nos,31.8,31.93,0.41
+E,1262,1005,Swasakudori Mathirai,50 Nos,45.8,45.74,-0.13
+E,1264,1008,Vasanthakusumakara Mathirai,20 Nos,307.37,307.76,0.13
+E,1266,1009,Vatharakshasan Gulikai,50 Nos,21.62,32.76,51.51
+E,1268,1011,Vazhaipoo Vatakam,30 Nos,47.86,47.78,-0.17
+E,1269,1014,Vishnuchakra Mathirai,20 Nos,34.54,35.83,3.71
+E,1271,1020,Agasthyar Kuzhambu,5 g,24.17,25.39,5.07
+E,1273,1025,Gunmakudori Mezhuku,10 g,12.72,13.05,2.58
+E,1274,1026,Idivalladi Mezhuku,10 g,19.41,19.61,1.02
+E,1275,1034,Rasagandhi Mezhuku,10 g,23.23,28.09,20.94
+E,1277,1038,Palthulli,5 mL,13.89,13.89,-0.01
+E,1278,1039,Patikara Neer,200 mL,20.72,20.69,-0.11
+E,1279,1039,Patikara Neer,450 mL,33.91,33.86,-0.15
+E,1280,1040,Venkara Podi,50 g,47.6,47.48,-0.26
+E,1283,1043,Serankottai Ney,25 mL,41.71,41.56,-0.34
+E,1285,1046,Vallarai Ney,150 mL,144.87,144.72,-0.11
+E,1286,797,Kalnaar Parpam,5 g,9.82,10.62,8.1
+E,1289,799,Kungileeya Parpam,5 g,12.8,12.8,-0.04
+E,1292,801,Muthuchippi Parpam,10 g,12.44,13.63,9.58
+E,1295,802,Naka Parpam,5 g,22.25,24.89,11.86
+E,1298,803,Nandukkal Parpam,5 g,30.39,30.98,1.97
+E,1302,805,Palakarai Parpam,10 g,25.94,27.13,4.6
+E,1305,806,Panchalavana Parpam,5 g,8.97,9.97,11.14
+E,1308,808,Pavizha Parpam,5 g,125.19,125.78,0.48
+E,1312,812,Sanghu Parpam,10 g,12.35,13.44,8.83
+E,1315,813,Silasathu Parpam,10 g,13.38,14.84,10.88
+E,1318,823,Special Medicine 1,10 g,20.93,21.97,5.02
+E,1351,1050,Panchathikthaka Kashaya Choornam,100 g,32.37,32.25,-0.35
+E,1365,1061,Vaattu Kashayam,450 mL,137.97,136.78,-0.86
+E,1552,1168,Vathasani Choornam,100 g,42.38,42.24,-0.33
+E,1759,1285,Aaragvadhadi Choornam,100 g,33.35,33.2,-0.44
+E,1768,117,Aswagandhadi Choornam,1000 g,413.29,412.72,-0.14
+E,1771,1341,Brihat Chagaladi Ghritham,150 mL,184.83,184.67,-0.09
+E,1772,1341,Brihat Chagaladi Ghritham,450 mL,544.21,543.7,-0.09
+E,1783,1342,Arkkadi Thailam,450 mL,430.81,429.48,-0.31
+E,1787,1343,Jeevaneeya Choornam,100 g,38.99,38.9,-0.23
+E,1788,1345,Balamooladi Choornam,100 g,29.79,29.71,-0.27
+E,1792,54,Abhraka Bhasmam,1000 g,5532.41,7128.03,28.84
+E,1797,824,Special Medicine 2,5 g,22.34,22.54,0.89
+E,1798,1350,Mahamanjishtadi Kashaya Choornam,100 g,71.61,71.56,-0.07

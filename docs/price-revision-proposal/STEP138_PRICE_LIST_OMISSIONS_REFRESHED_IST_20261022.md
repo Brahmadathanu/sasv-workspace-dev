@@ -1,0 +1,7 @@
+# Step 138 — Regional eligibility confirmed excluded; readable refresh timestamp (2026-10-22)
+
+The user reviewed the 40 SKUs with no matched SKU_ID in the legacy CS PRODUCT PRICING source (11 active, 29 inactive) and explicitly confirmed **none should be included in IK or OK price lists**. Therefore existing FALSE/FALSE for all 40 is accepted. No SKU membership modification was required and the hard inactive-member guard remains in force.
+
+In dedicated Google workbook `SASV - PRICE REVISION PROPOSAL` (`1K9u4YJ8qUfDcRfmTMRQDl3Ed24eItcm_0UW-jQhS21Q`), sheet `MASTER DATA`, column BI header changed to **Refreshed At (IST)**. Converted each of the 627 canonical-source UTC timestamp strings to a concise India Standard Time (UTC+05:30) display, e.g., `2026-10-22 14:14:47.027661+00` => `22 Oct 2026, 7:44 PM IST`. Every cell contains a note preserving its exact original UTC source string including microseconds; header note documents conversion and canonical DB retains original exact timestamp. The Sheet column's user-visible text is a display projection; the database `refreshed_at` remains canonical. All 627 cells updated and beginning/end cells read back successfully. No other master columns, price list flags, or database values modified.
+
+For future controlled exports, convert `refreshed_at` to IST display in this same way, store exact original UTC timestamp in the cell note, and avoid changing the workbook-wide timezone (which could affect other dates).

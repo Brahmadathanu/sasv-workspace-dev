@@ -1,0 +1,104 @@
+       t        | refreshed_period_start | product_row_count | sku_row_count | blocked_product_count | review_required_product_count | ready_product_count |     allocated_pool_amount     |     pool_difference      
+----------------+------------------------+-------------------+---------------+-----------------------+-------------------------------+---------------------+-------------------------------+--------------------------
+ T0 old fn call | 2026-10-01             |               455 |           629 |                     0 |                             0 |                 455 | 142241.6699999999999914654998 | 0.0000000000000085345002
+(1 row)
+
+      t       |       prod_maxdiff       |       sku_maxdiff        | n_sku 
+--------------+--------------------------+--------------------------+-------
+ T0 old==live | 0.0000000000003133811491 | 0.0000000000000416386164 |   629
+(1 row)
+
+                 t                 | is_enabled | effective_from 
+-----------------------------------+------------+----------------
+ T-1 prepared guard: switch seeded | t          | 2026-10-01
+(1 row)
+
+      t       | c | p_same | s_same | var_rows 
+--------------+---+--------+--------+----------
+ T1 no switch | 1 | t      | t      |        0
+(1 row)
+
+       t       | c | p_same | s_same 
+---------------+---+--------+--------
+ T2 switch OFF | 1 | t      | t
+(1 row)
+
+                          t                          | c | p_same | s_same | var_rows 
+-----------------------------------------------------+---+--------+--------+----------
+ T3 ON but valuation<effective_from (Sep-equivalent) | 1 | t      | t      |        0
+(1 row)
+
+   t   | refreshed_period_start | product_row_count | sku_row_count | blocked_product_count | review_required_product_count | ready_product_count |              allocated_pool_amount              |              pool_difference               
+-------+------------------------+-------------------+---------------+-----------------------+-------------------------------+---------------------+-------------------------------------------------+--------------------------------------------
+ T4 ON | 2026-10-01             |               455 |           629 |                     0 |                             0 |                 455 | 142241.6699999999999999963362663153185296370905 | 0.0000000000000000036637336846814703629095
+(1 row)
+
+      t      | pool_amount |              absorbed_at_standard               |              variance_amount               | products_batch_true | products_current_method |    rate    
+-------------+-------------+-------------------------------------------------+--------------------------------------------+---------------------+-------------------------+------------
+ T4 variance |   142241.67 | 142241.6699999999999999963362663153185296370905 | 0.0000000000000000036637336846814703629095 |                 455 |                       0 | 100.623539
+(1 row)
+
+    t    | sku_id | old_qc  | new_qc | allocation_status | old_status 
+---------+--------+---------+--------+-------------------+------------
+ T4 keys |    879 |   20.55 |   0.31 | READY             | READY
+ T4 keys |    937 |    5.60 |   0.09 | READY             | READY
+ T4 keys |    988 |   61.64 |   0.09 | READY             | READY
+ T4 keys |   1769 |  653.42 | 133.33 | READY             | READY
+ T4 keys |   1770 |  653.42 | 133.33 | READY             | READY
+ T4 keys |   1792 | 1120.79 |  18.11 | READY             | READY
+ T4 keys |   1797 |    0.31 |   0.09 | READY             | READY
+(7 rows)
+
+          t          | changed 
+---------------------+---------
+ T4 status unchanged |       0
+(1 row)
+
+      t       |       s        |      amt      
+--------------+----------------+---------------
+ T4 sum share | 1.000000000000 | 142241.670000
+(1 row)
+
+    t    |                                                                                                   left                                                                                                   
+---------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ T4 note | QC pool share is driven by effective-spec Method 3 workload; per-base-UOM absorption uses the governed monthly Product quantity. [AU-6Q QC batch-true: Rs 100.6235 per QC workload unit-batch x 9 units 
+(1 row)
+
+ count 
+-------
+     1
+(1 row)
+
+psql:test_final.sql:36: NOTICE:  relation "_au6q_qc_bt" already exists, skipping
+        t        | c | p_same | s_same 
+-----------------+---+--------+--------
+ T5 twice in txn | 1 | t      | t
+(1 row)
+
+    t    |                pool_difference                
+---------+-----------------------------------------------
+ T6 call | -0.000000000000000000064923082986287315474578
+(1 row)
+
+      t      | cur | p54_old_amt | p54_rate |     var     |   absorbed    
+-------------+-----+-------------+----------+-------------+---------------
+ T6 fallback |   1 | t           |  1120.79 | 0.000000000 | 142241.670000
+(1 row)
+
+psql:test_final.sql:50: ERROR:  Snapshot mutation is prohibited for terminal refresh run 126 with status SUCCESS.
+CONTEXT:  PL/pgSQL function fn_enforce_mutable_refresh_run_snapshot() line 9 at RAISE
+SQL statement "delete from costing.sku_qc_allocation_snapshot s
+    where s.refresh_run_id = p_refresh_run_id"
+PL/pgSQL function rpc_refresh_qc_monetary_allocation_snapshot(date,date,bigint) line 105 at SQL statement
+psql:test_final.sql:53: ERROR:  AU2_DESIGNATED_RUN_IMMUTABLE: run 126 is APPROVED; DELETE on costing.sku_qc_allocation_snapshot prohibited
+CONTEXT:  PL/pgSQL function fn_guard_designated_run_rows() line 14 at RAISE
+SQL statement "delete from costing.sku_qc_allocation_snapshot s
+    where s.refresh_run_id = p_refresh_run_id"
+PL/pgSQL function rpc_refresh_qc_monetary_allocation_snapshot(date,date,bigint) line 105 at SQL statement
+psql:test_final.sql:55: ERROR:  AU2_SNAPSHOT_TRUNCATE_PROHIBITED: TRUNCATE on costing.sku_qc_allocation_snapshot would destroy run history
+CONTEXT:  PL/pgSQL function fn_guard_snapshot_truncate() line 3 at RAISE
+                   t                   | count | same 
+---------------------------------------+-------+------
+ T9 rows intact after guarded failures |   629 | t
+(1 row)
+

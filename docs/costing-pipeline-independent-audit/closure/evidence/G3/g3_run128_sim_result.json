@@ -1,0 +1,75 @@
+{
+ "CI003_B_drop_CO": {
+  "total_month": -871973,
+  "median_pct": -4.93,
+  "p10": -11.67,
+  "p90": -2.62,
+  "min": -26.97,
+  "max": -0.06,
+  "n_abs_gt5": 305,
+  "n": 627
+ },
+ "CI003_C_drop_HO5L": {
+  "total_month": -500000,
+  "median_pct": -2.83,
+  "p10": -6.69,
+  "p90": -1.5,
+  "min": -15.47,
+  "max": -0.04,
+  "n_abs_gt5": 130,
+  "n": 627
+ },
+ "CI005_exclude_nonmkt_provisional": {
+  "total_month": -514386,
+  "median_pct": -3.54,
+  "p10": -6.7,
+  "p90": -1.89,
+  "min": -18.15,
+  "max": -0.32,
+  "n_abs_gt5": 151,
+  "n": 627
+ },
+ "CI006_B_landed_to_material": {
+  "total_month": 0,
+  "median_pct": -0.03,
+  "p10": -0.69,
+  "p90": 0.3,
+  "min": -4.03,
+  "max": 0.55,
+  "n_abs_gt5": 0,
+  "n": 627
+ },
+ "CI006_C_exclude": {
+  "total_month": -67725,
+  "median_pct": -0.42,
+  "p10": -1.0,
+  "p90": -0.16,
+  "min": -4.28,
+  "max": -0.0,
+  "n_abs_gt5": 0,
+  "n": 627
+ },
+ "CI014_B_max_month_for_seasonal": {
+  "total_month": -460683,
+  "median_pct": -3.08,
+  "p10": -5.71,
+  "p90": -1.83,
+  "min": -9.56,
+  "max": -0.38,
+  "n_abs_gt5": 105,
+  "n": 627
+ },
+ "CI014_B_meta": {
+  "seasonal_skus": 101,
+  "units_added": 30001,
+  "company_units": 251327,
+  "rate_factor": 0.8934
+ },
+ "CI015": {
+  "flag_products_in_run": 15,
+  "rule_products": 94,
+  "both": 7,
+  "flag_only": 8,
+  "rule_only": 87
+ }
+}

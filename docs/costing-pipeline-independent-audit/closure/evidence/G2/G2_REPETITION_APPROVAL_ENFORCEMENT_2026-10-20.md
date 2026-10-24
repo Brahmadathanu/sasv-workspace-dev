@@ -1,0 +1,5 @@
+# G2 existing approval enforcement
+
+Live inspection confirms rpc_approve_route_family_route obtains fn_validate_route_family_route result and raises if valid=false, including validator error details. rpc_submit_route_family_route_for_review also refuses transition if validation is false. Existing server gate therefore suffices: no separate approval pipeline is necessary.
+
+Preferred lean design: display calculated total=expected occurrences x cycles; explain cycles per occurrence, prevent silent operator double entry. Do not interpret nonempty note as proof: all six route144 affected steps already contain notes. A hard server rule can reject dual-positive count without an explicitly structured confirmation, but an existing free-text note cannot by itself verify physical truth. Before implementing a new confirmation mechanism, examine whether an existing review attestation can be reused; otherwise require dual-positive configurations to be escalated for evidenced review within existing approval workflow. Preserve pre-existing approved route144, snapshots and runs122/128. No live edits. G2 open.

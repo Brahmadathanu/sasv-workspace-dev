@@ -1,0 +1,967 @@
+{
+ "top": [
+  {
+   "x": 2.9,
+   "raw": 174.8,
+   "uom": "L",
+   "name": "Dhanyamlam",
+   "alloc": 93475,
+   "batch": 1155,
+   "loads": [
+    {
+     "rc": "MANUAL",
+     "loads": 3
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 3
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 3
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 3
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 3
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 3
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.1324,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 511.6,
+   "solid_kg": 122.9375,
+   "product_id": 51,
+   "monthly_qty": 1154
+  },
+  {
+   "x": 14.4,
+   "raw": 7.6,
+   "uom": "Kg",
+   "name": "Thippili Rasayanam",
+   "alloc": 69374,
+   "batch": 770,
+   "loads": [
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "MIXING_EQUIPMENT",
+     "loads": 4
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0982,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 109.6,
+   "solid_kg": 770,
+   "product_id": 957,
+   "monthly_qty": 2665.3
+  },
+  {
+   "x": 500,
+   "raw": 5.2,
+   "uom": "Nos",
+   "name": "Karkkidaka Kanji",
+   "alloc": 47010,
+   "batch": 50000,
+   "loads": [
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 500
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 500
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 500
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 500
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 500
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 500
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 500
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0666,
+   "charge": "UNIT_MASS_OVERRIDE",
+   "scaled": 2600,
+   "solid_kg": 25000,
+   "product_id": 695,
+   "monthly_qty": 4943.6
+  },
+  {
+   "x": 11.8,
+   "raw": 6.3,
+   "uom": "Kg",
+   "name": "Murivenna",
+   "alloc": 27818,
+   "batch": 1000,
+   "loads": [
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 20
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 20
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 3
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 5
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 5
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 5
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0394,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 74.1,
+   "solid_kg": 1000,
+   "product_id": 328,
+   "monthly_qty": 2052.9
+  },
+  {
+   "x": 10.9,
+   "raw": 14.1,
+   "uom": "Kg",
+   "name": "Kadaleekalpa Rasayanam",
+   "alloc": 20667,
+   "batch": 800,
+   "loads": [
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 16
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 16
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 3
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 16
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0293,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 153.3,
+   "solid_kg": 800,
+   "product_id": 658,
+   "monthly_qty": 589.8
+  },
+  {
+   "x": 10.5,
+   "raw": 7.6,
+   "uom": "L",
+   "name": "Hridayasanthi",
+   "alloc": 14882,
+   "batch": 3000,
+   "loads": [
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 28
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 28
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 6
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 28
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 28
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 6
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 6
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 28
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 28
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 28
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 6
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0211,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 79.6,
+   "solid_kg": 1379.1,
+   "product_id": 31,
+   "monthly_qty": 3067.2
+  },
+  {
+   "x": 7.4,
+   "raw": 7.6,
+   "uom": "L",
+   "name": "Udarasudha",
+   "alloc": 10609,
+   "batch": 2000,
+   "loads": [
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 20
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 20
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 4
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 20
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 4
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.015,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 56.4,
+   "solid_kg": 971.4,
+   "product_id": 33,
+   "monthly_qty": 2057.1
+  },
+  {
+   "x": 1.6,
+   "raw": 368.7,
+   "uom": "Kg",
+   "name": "Ksheerabala Thailam 101 Avarthi",
+   "alloc": 9912,
+   "batch": 105,
+   "loads": [
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 3
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 3
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 3
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 3
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 1
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 3
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 1
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 3
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    }
+   ],
+   "share": 0.014,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 580.7,
+   "solid_kg": 105,
+   "product_id": 183,
+   "monthly_qty": 9.8
+  },
+  {
+   "x": 10.2,
+   "raw": 7.6,
+   "uom": "L",
+   "name": "Dasamoolarishtam",
+   "alloc": 9066,
+   "batch": 3000,
+   "loads": [
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 27
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 27
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 6
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 27
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 27
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 6
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 6
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 27
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 27
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 27
+    },
+    {
+     "rc": "FERMENTATION_VESSEL",
+     "loads": 1
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 6
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0128,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 77.6,
+   "solid_kg": 1301.54,
+   "product_id": 11,
+   "monthly_qty": 1916.6
+  },
+  {
+   "x": 1.8,
+   "raw": 11.1,
+   "uom": "Kg",
+   "name": "Meninokki Choornam",
+   "alloc": 8914,
+   "batch": 66,
+   "loads": [
+    {
+     "rc": "MANUAL",
+     "loads": 2
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 2
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 2
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 2
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 1
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 2
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 2
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 2
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 2
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 2
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 2
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 2
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 2
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 2
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0126,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 19.5,
+   "solid_kg": 66,
+   "product_id": 151,
+   "monthly_qty": 165
+  },
+  {
+   "x": 10.9,
+   "raw": 10.2,
+   "uom": "Kg",
+   "name": "Chyavanaprasam",
+   "alloc": 8871,
+   "batch": 750,
+   "loads": [
+    {
+     "rc": "MANUAL",
+     "loads": 15
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 15
+    },
+    {
+     "rc": "DRYER_OR_OVEN",
+     "loads": 15
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 15
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 15
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 15
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 3
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 3
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 15
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 15
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 15
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 15
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 4
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0126,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 111.6,
+   "solid_kg": 750,
+   "product_id": 633,
+   "monthly_qty": 326
+  },
+  {
+   "x": 4.9,
+   "raw": 5.9,
+   "uom": "Kg",
+   "name": "Dhanwantharam Thailam (Enna)",
+   "alloc": 8155,
+   "batch": 360,
+   "loads": [
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 8
+    },
+    {
+     "rc": "GRINDER",
+     "loads": 8
+    },
+    {
+     "rc": "EXTRACTION_SYSTEM",
+     "loads": 1
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 8
+    },
+    {
+     "rc": "PROCESSING_VESSEL",
+     "loads": 2
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 8
+    },
+    {
+     "rc": "MANUAL",
+     "loads": 8
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 2
+    },
+    {
+     "rc": "STORAGE_OCCUPANCY",
+     "loads": 1
+    },
+    {
+     "rc": "FILTRATION_SYSTEM",
+     "loads": 2
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    },
+    {
+     "rc": "GENERAL_AREA",
+     "loads": 1
+    }
+   ],
+   "share": 0.0115,
+   "charge": "BATCH_SIZE_REF_AND_RM_BOM",
+   "scaled": 29.1,
+   "solid_kg": 360,
+   "product_id": 205,
+   "monthly_qty": 551.7
+  }
+ ],
+ "scale_bands": {
+  "1-3": {
+   "share": 0.3126,
+   "products": 153
+  },
+  "3-10": {
+   "share": 0.3159,
+   "products": 89
+  },
+  ">100": {
+   "share": 0.0666,
+   "products": 1
+  },
+  "x<=1": {
+   "share": 0.0859,
+   "products": 195
+  },
+  "10-100": {
+   "share": 0.2191,
+   "products": 7
+  }
+ },
+ "top10_share": 0.4414
+}
