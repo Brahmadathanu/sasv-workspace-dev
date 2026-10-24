@@ -16,7 +16,7 @@
 
 # Costing end-to-end server closure: master programme
 
-Mandate: `../COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` (28f1d4d). Price revision, Sheets, new pricing views and client pricing modules are SUSPENDED until G6 acceptance. Live work is read-only unless the user approves a batch.
+Mandate: `../archive/COSTING_END_TO_END_SERVER_CLOSURE_MANDATE_2026-10-19.md` (28f1d4d). Price revision, Sheets, new pricing views and client pricing modules are SUSPENDED until G6 acceptance. Live work is read-only unless the user approves a batch.
 
 | Gate | Scope | Status (19 Oct 19:35 IST) | Evidence |
 |---|---|---|---|

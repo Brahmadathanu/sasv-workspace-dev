@@ -11,6 +11,7 @@
 | Approved price data source | `costing.v_price_revision_current_approved_master`: 627 rows, 65 columns. See [contracts/PRICE_REVISION_FEED_CONTRACT_v2.md](contracts/PRICE_REVISION_FEED_CONTRACT_v2.md) |
 | Run 143 quality | 627/627 SKUs READY (0 REVIEW_REQUIRED, 0 BLOCKED); 6 SKUs have negative margin before scheme in both IK and OK; no null margins (read-only, 24 Oct 2026 16:00 IST) |
 | Price-revision Sheets | Show run 143 (confirmed by owner, 24 Oct 2026) |
+| CI-033 security fix | Applied 24 Oct 16:47 IST (migration 20261024111733): logged-in users can no longer read `costing.v_cost_pool_monthly_combined` directly; the cost-pool summary screen is unchanged (53 rows, same checksum). Manual screen check with and without costing permission is still pending (owner). See `closure/CI-033_LIVE_APPLY_2026-10-24.md` (record merged via PR #83) |
 | CI-016 migration records | 492 live migrations backfilled (PRs #81 and #82 merged). Live 638 reconciled; 59 e-Aushadhi/WP07/regulatory versions remain with Jarvis. See `closure/CI-016_BACKFILL_2026-10-24.md` |
 | Old feed | `public.v_costing_pricing_price_revision_feed_approved` is gone (retired 22 Oct; see `docs/price-revision-proposal/STEP131_*`) |
 | Cron | Active: 66 `costing_weekly_draft_0200_IST` (Mon 02:00 IST), 67 `costing_monthend_draft_0200_IST` (1st of month, 02:00 IST), 68 `costing_stage_processor_5min_governed`. Jobs 60 and 61 no longer exist |
@@ -30,7 +31,7 @@
 | #77 | open | Absorbent Cotton Wool IP inventory and Tally aliases |
 | #73 | draft, do not merge | W1 client: approved/draft run labels and cost comparison |
 | #72 | draft | AU-4 normal budget and docs carrier |
-| #83 | open | CI-033 prepared SQL and live-apply record (docs only) |
+| #83 | merged 24 Oct | CI-033 prepared SQL and live-apply record (docs only) |
 | #84 | open | Repo cleanup: archive superseded docs, remove `.temp/` and 2 never-applied migrations |
 | #60, #61, #66, #70 | closed 24 Oct | Closed as obsolete or premise wrong; see `closure/REPO_CLEANUP_CANDIDATES_2026-10-24.md` |
 
