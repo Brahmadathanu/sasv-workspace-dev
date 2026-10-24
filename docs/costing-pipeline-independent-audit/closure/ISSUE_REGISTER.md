@@ -1,7 +1,7 @@
 > **24 Oct 2026 cleanup:** CI-023 and CI-024 updated to live state. Second pass at 16:00 IST: open items re-checked read-only where possible; each row's status says Verified or UNVERIFIED. See [../CURRENT_STATE.md](../CURRENT_STATE.md).
 
-# Issue register (canonical; machine-readable copy: `ISSUE_REGISTER.json`)
-Updated 2026-10-19 (LB1 + DVS-1 OFF live; CI-012/CI-034 prepared) IST. Severity: HIGH blocks release; MEDIUM must be dispositioned; LOW/INFO tracked.
+# Issue register (canonical; the old JSON copy, frozen at 19 Oct, is in `../archive/ISSUE_REGISTER.json`)
+Updated 2026-10-24 23:40 IST (CI-033 closed; CI-037 applied live; CI-031 prepared, not applied). Severity: HIGH blocks release; MEDIUM must be dispositioned; LOW/INFO tracked.
 
 | ID | Severity | Gate | Status | Title | Fix | Approval |
 |---|---|---|---|---|---|---|

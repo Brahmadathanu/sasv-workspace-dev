@@ -1,6 +1,6 @@
-> **START HERE: [CURRENT_STATE.md](CURRENT_STATE.md)** (verified 24 Oct 2026). Live: run 143 is October's approved run (24 Oct 13:46 IST, superseded run 140 via owner authorisation #10; Mathalam (F) at ₹118/kg); October OPEN, 22 Oct valuation DRAFT; approved feed `costing.v_price_revision_current_approved_master` (old public feed view gone); cron 66/67/68 active, 60/61 gone. Everything below this line is dated history.
+> **START HERE: [CURRENT_STATE.md](CURRENT_STATE.md)** (verified 24 Oct 2026). Live: run 143 is October's approved run (24 Oct 13:46 IST, superseded run 140 via owner authorisation #10; Mathalam (F) at ₹118/kg); October OPEN, 22 Oct valuation DRAFT; approved feed `costing.v_price_revision_current_approved_master` (old public feed view gone); cron 66/67/68 active, 60/61 gone. CI-033 applied (20261024111733). CI-037 profit chain applied (20261024171314): feed now 79 columns, profit columns empty until the first eligible run. CI-031 prepared, not applied. Everything below this line is dated history.
 
-# Costing pipeline independent audit: index and current state (branch costing/au4-normal-budget)
+# Costing pipeline independent audit: index
 Updated 19 Oct 2026, 20:20 IST (part-3 handover). The audit branch `docs/costing-pipeline-independent-audit` has its own README (the A0–A11 audit). This index covers the implementation work in PR #72.
 
 ## Live state as of 19 Oct (HISTORICAL; see CURRENT_STATE.md)
