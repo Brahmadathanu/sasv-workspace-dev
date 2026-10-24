@@ -11,7 +11,7 @@
 | Approved price data source | `costing.v_price_revision_current_approved_master`: 627 rows, 65 columns. See [contracts/PRICE_REVISION_FEED_CONTRACT_v2.md](contracts/PRICE_REVISION_FEED_CONTRACT_v2.md) |
 | Run 143 quality | 627/627 SKUs READY (0 REVIEW_REQUIRED, 0 BLOCKED); 6 SKUs have negative margin before scheme in both IK and OK; no null margins (read-only, 24 Oct 2026 16:00 IST) |
 | Price-revision Sheets | Show run 143 (confirmed by owner, 24 Oct 2026) |
-| CI-016 migration records | 61 costing migrations from 16–24 Oct backfilled from live (branch `ci-016-migration-backfill`, not merged). 487 older live versions and 20 repo-only files still unmatched. See `closure/CI-016_BACKFILL_2026-10-24.md` |
+| CI-016 migration records | 473 live migrations backfilled into the repo (branch `ci-016-migration-backfill`, PR pending review); live 638 fully reconciled. Jarvis's lab/e-Aushadhi versions are excluded and listed. See `closure/CI-016_BACKFILL_2026-10-24.md` |
 | Old feed | `public.v_costing_pricing_price_revision_feed_approved` is gone (retired 22 Oct; see `docs/price-revision-proposal/STEP131_*`) |
 | Cron | Active: 66 `costing_weekly_draft_0200_IST` (Mon 02:00 IST), 67 `costing_monthend_draft_0200_IST` (1st of month, 02:00 IST), 68 `costing_stage_processor_5min_governed`. Jobs 60 and 61 no longer exist |
 
