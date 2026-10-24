@@ -1,3 +1,21 @@
+# Changelog: costing pipeline audit
+Newest first (sorted by date and time, 24 Oct 2026). All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, archive/.
+
+## 2026-10-24 22:43: CI-037 profit chain APPLIED LIVE (migration 20261024171314)
+- Owner approval t123s731. New `costing.sku_pricing_bridge_profit_snapshot`, 2% contingency policy record (id 1, APPROVED), profit helper hooked into `rpc_refresh_manufacturing_cop_chain`; `costing.v_price_revision_current_approved_master` 64 → 79 columns (first 64 unchanged).
+- Verified: designated-run fingerprints unchanged (pre-existing run 119 mismatch only); run 143 and the Sheets feed unchanged (627 rows). October trial not run: blocked by AU2_PERIOD_HOLDS_APPROVED_RUN. End-to-end check waits for the first November run. Record: closure/CI-037_LIVE_APPLY_2026-10-24.md; SQL also at supabase/migrations/20261024171314_ci037_profit_chain_v3.sql (begin/commit stripped, as applied).
+
+## 2026-10-24 16:47: CI-033 APPLIED LIVE (migration 20261024111733)
+- Direct SELECT on `costing.v_cost_pool_monthly_combined` revoked from anon/authenticated; cost-pool summary screen unchanged (53 rows, same checksum). Record: closure/CI-033_LIVE_APPLY_2026-10-24.md (PR #83).
+
+## 2026-10-24 15:50: Docs cleanup (docs only, read-only checks)
+- Added CURRENT_STATE.md (single entry point) and contracts/PRICE_REVISION_FEED_CONTRACT_v2.md for `costing.v_price_revision_current_approved_master` (627 rows, 64 cols). v1 marked superseded.
+- Recorded live state: run 143 is October's approved run (24 Oct 13:46 IST, superseded run 140 via owner authorisation #10; Mathalam (F) at ₹118/kg); October OPEN, 22 Oct valuation DRAFT; approved feed `costing.v_price_revision_current_approved_master` (old public feed view gone); cron 66/67/68 active, 60/61 gone.
+- Status banners refreshed (PROGRAMME, ISSUE_REGISTER CI-023/CI-024, cron replacement note, price-revision charter). Superseded banners on old handovers/checkpoints; unlinked _SHORT handover twins removed.
+
+## 21 October 2026 — Prospective approval policy ACTIVE
+Owner adopted mandatory **zero unresolved reviews** before future run approval. Live `costing.fn_w2_run_checks(bigint,text)` changed only the former unconditional `REVIEW_REQUIRED_RECORDED` pass to `NO_UNRESOLVED_REVIEWS` requiring `v_review=0`; diagnostic now explicitly requires zero. Both APPROVE and SUPERSEDE paths invoke this shared eligibility gate. Applied DDL captured byte-for-byte at `closure/evidence/G6/G6_APPLIED_ZERO_UNRESOLVED_APPROVAL_GUARD_20261021.sql`; live pg_get_functiondef md5 `9ee598acf646fdc2a04395154eea7b46`. Read-only verification on run136 shows one unresolved review => test FAIL as expected, but its historical approved designation id7 remains intact, run128 revoked id6 and earlier approval id4 preserved. **Prospective only; no retroactive revoke.** Governed acceptance of an estimate must be recorded before a subsequent successful refresh produces fully resolved effective cost-sheet statuses; do not falsify raw evidence. No refresh or Sheets integration performed.
+
 ## 2026-10-20 late — Actual live route/period correction, verification runs, material forensics (authoritative checkpoint)
 - Live Route161 family101 approved effective Oct20, historic Route144 superseded through Oct19; historical resolver repaired. October period reopened OPEN and valuation DRAFT Oct20 with audit15/16 (admin operation, NOT PWA session); historical approved run128 remains immutable.
 - New verification runs130,131 succeeded, neither designated/approved. 56 matched quantity drivers carried forward by explicit user approval plus SKU1771 default0.725 approved, all 57 matched in run131. No Policy7 change.
@@ -5,25 +23,45 @@
 - Run131 product pool reconciliation manufacturing labour ₹706,203, production OH ₹670,935.04, both exact; five-product SKU manufacturing allocation shortfall ₹85.89. G2 attestation HELD; G6 and Sheets BLOCKED. Full and actionable successor checkpoint: `archive/LIVE_HANDOVER_2026-10-20_RUN131_MATERIAL_AND_SKU_AUDIT.md`.
 - Documentation-only commit here, documenting preceding separate approved Supabase operations; no additional database mutation for this docs task.
 
-# Changelog: costing pipeline audit (branch costing/au4-normal-budget)
-Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_REGISTER.md, handover/.
+## 2026-10-20 — ChatGPT handover Part4 / lean architectural governance
+- User binding direction: minimal future-proof cost allocation, avoid unwanted capacity complexity, hard-retire superseded executable architecture after tested approved migration; preserve immutable snapshots/migrations.
+- Committed governing directive, closure implementation-rule amendment, master-programme update, issue-register note and full Part4 handover. All changes DOCS ONLY; no live Supabase or pricing client modifications; G2 open and G5/G6 not done.
 
-## 2026-10-24 15:50: Docs cleanup (docs only, read-only checks)
-- Added CURRENT_STATE.md (single entry point) and contracts/PRICE_REVISION_FEED_CONTRACT_v2.md for `costing.v_price_revision_current_approved_master` (627 rows, 64 cols). v1 marked superseded.
-- Recorded live state: run 143 is October's approved run (24 Oct 13:46 IST, superseded run 140 via owner authorisation #10; Mathalam (F) at ₹118/kg); October OPEN, 22 Oct valuation DRAFT; approved feed `costing.v_price_revision_current_approved_master` (old public feed view gone); cron 66/67/68 active, 60/61 gone.
-- Status banners refreshed (PROGRAMME, ISSUE_REGISTER CI-023/CI-024, cron replacement note, price-revision charter). Superseded banners on old handovers/checkpoints; unlinked _SHORT handover twins removed.
+### 2026-10-20 — Mobile-first server completion path
+- Reconciled user-requested merge+new-refresh acceptance with existing mandate and closure rules. Recorded pre-merge tests, explicit approval boundaries, live post-deploy reconciliation and protected-run immutability. Identified held G2 SQL location conflict with `closure/prepared/` rule; BLOCK merge of experimental migration as-is. Recognised existing Technical Batch PostgreSQL 17 fixture path as a possible free verification route. Documentation updates only; no live deployment, refresh, merge or Sheets edits.
 
-## 2026-10-19 19:35: TB1–TB7 applied live and verified; G3 policies accepted
-- Approval USER-APPROVAL-20261019-TB1-TB7. Migrations tb1/tb2/tb3/tb5/tb6/tb7 (files unchanged). closure/TB_LIVE_APPLY_2026-10-19.md + evidence/TBL. No data row changed; 122/128 0 drift; feed, cron, periods, switches unchanged.
-- Policies recorded (DECISIONS, POLICY_REGISTER P33-P38, register). LB1 (CI-005 ledger status) prepared and tested locally, not applied.
+### 2026-10-20 — Approved production costing migrations applied
+- Confirmed previously prepared TB1/TB2/TB3/TB5/TB6/TB7, LB1 and DVS1 OFF are already live. Applied `ci034_valuation_anchored_basis_status` (migration `20261020162105`) and `ci012_no_backdating_guard` (`20261020162117`) from exact prepared SQL through Supabase migration tool; both succeeded. Verified CI034 marker/function checksum; CI012 8 FORWARD_ONLY + 37 AUDIT_ONLY settings and 45 triggers, no audit rows; DVS1 remains OFF; historical runs 122 and 128 read-only status SUCCESS. Applied SQL and live evidence recorded in `closure/PROGRAMME.md` and `closure/evidence/CI012/`. G2 remains held and untested in PostgreSQL. Branch not merged, no refresh or Sheets work.
+
+
+- **2026-10-21:** Owner-approved bounded G2 numerical release closure documented; corrected route161 and run136 finance evidence PASS. Proposed prospective route attestation explicitly separated as uninstalled future hardening. G6 security/negative tests and designation outstanding; no Sheets writes. See `closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
+
+
+- **2026-10-21:** G6 **CLOSED / approved**: user-executed governed supersession run128→run136 (designation 7, governance audit 17), verified against live Supabase. Historical designation retained, one review retained; Sheets on hold for further instructions.
 
 ## 2026-10-19 20:45: G3 policy decision sheet ready (read-only simulation on run 128)
 - closure/G3_POLICY_DECISION_SHEET.md + evidence/G3. CI-014 recorded as an open G3 item (60% rule operative by user approval until G5), severity MEDIUM. No live write.
+
+## 2026-10-19 20:20 IST: ChatGPT handover part 3
+- archive/CHATGPT_HANDOVER_2026-10-19_PART3.md (full) and _PART3_SHORT.md: everything since 8ec5bee; approved policy, live state, prepared-not-applied and open items kept separate; what remains (gates, issues by severity, pending approvals, blocked, items to verify). POLICY_REGISTER P37/P38 status updated. No live change.
 
 ## 2026-10-19 20:15: Technical approval batch TB1-TB7 prepared and tested in isolation (not applied)
 - closure/TECHNICAL_BATCH.md, closure/prepared/PREPARED_TB1..TB7 (TB4 = no SQL), evidence/TB (runner, results, capacity origin CSV). Local PG17 fixture of the live catalogue (62/62 view definitions md5-identical).
 - CI-017 raised to HIGH: 49 costing views had no permission gate; all 25 accounts could read per-employee salary (staff classification register) and cost sheets. TB2 gates them; permitted users' results unchanged.
 - CI-001/002/009/010/018/019/020 prepared+tested; new CI-033 (INFO). No live write.
+
+## 2026-10-19 (19:48 IST onward)
+- LIVE: LB1 (22 heads APPROVED, ₹0) and DVS-1 installed with the switch OFF. Verified; see closure/LB1_DVS1_LIVE_APPLY_2026-10-19.md.
+- Prepared and tested locally: CI-012 tiered no-backdating guard; CI-034 valuation-anchored basis status.
+- User-facing items: the 15-machine capacity table and the 86-SKU DVS-1 review worksheet.
+
+## 2026-10-19 (evening)
+- DVS-1 prepared (closure/prepared/PREPARED_DVS1_demand_volume_selection.sql) and tested in isolation (closure/DVS1_BUILD_AND_TEST.md). NOT applied.
+- CI-011 capacity exception register (74 machines, prioritised). CI-012 in-month effective-date design. CI-015 reconciliation worksheet. CI-034 logged (CURRENT_DATE-anchored sales cleaning view).
+
+## 2026-10-19 19:35: TB1–TB7 applied live and verified; G3 policies accepted
+- Approval USER-APPROVAL-20261019-TB1-TB7. Migrations tb1/tb2/tb3/tb5/tb6/tb7 (files unchanged). closure/TB_LIVE_APPLY_2026-10-19.md + evidence/TBL. No data row changed; 122/128 0 drift; feed, cron, periods, switches unchanged.
+- Policies recorded (DECISIONS, POLICY_REGISTER P33-P38, register). LB1 (CI-005 ledger status) prepared and tested locally, not applied.
 
 ## 2026-10-19 19:05: G1 upstream lineage verified (read-only)
 - closure/G1_UPSTREAM_LINEAGE.md + evidence/G1U (u1-u5). Runs 122/128: all RM/PM lines, UOM conversions, yields, 999/994 Tally voucher rate picks, manual rates and labour allocations reconcile (0 mismatches); run 128 builder replay identical; run 122 replay differs for 8 products (BOM masters not effective-dated, CI-028).
@@ -120,12 +158,12 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - User 18:19 corrections plus Pills/wet/tank/throughput values. PREPARED_AU9_R2_capacity_corrections.sql (77 revisions) tested locally: replay/fingerprints identical, re-runnable; readiness would be 74/74/3/20.
 - Throughput treatment options compared; T1 recommended (no time basis). G4 rule v2 simulated: median −0.12%, 17 SKUs >5% dearer, negative margins 9. R2_CAPACITY_CORRECTIONS_AND_G4_RESIMULATION.md.
 
-## 2026-10-18 16:31: AU-9 R1 LIVE (20261018110111) + grinder rule approved (P24, not built)
-- 50 capacity revisions applied unchanged; run 122/128 fingerprints, 1,554 function/view hashes and 898 run-128 load factors identical; runs/periods untouched; cron paused. Readiness 34/0/114. Evidence: evidence/AU9/AU9_R1_LIVE_APPLY_2026-10-18.md.
-
 ## 2026-10-18 16:40: AU-9 R1 prepared (user capacities; not applied)
 - User 16:19/16:20: steel-drum grinders 8 kg (4–34), stone grinders 2 kg (41–44), Khalvam mechanised 2 kg/set (45–46), 13 water tanks are fermentation tanks. PREPARED_AU9_R1_capacity_revisions.sql (50 close+supersede revisions, effective 1 Nov, provisional) tested locally: replay/fingerprints identical, re-runnable.
 - G4 simulation: proposed rule (Grinding 8 kg, Kajjali 2 kg) → median −0.08%, 22 SKUs >5% dearer (max +52%), negative margins unchanged at 9. R1_CAPACITY_REVISIONS_AND_G4_SIMULATION.md.
+
+## 2026-10-18 16:31: AU-9 R1 LIVE (20261018110111) + grinder rule approved (P24, not built)
+- 50 capacity revisions applied unchanged; run 122/128 fingerprints, 1,554 function/view hashes and 898 run-128 load factors identical; runs/periods untouched; cron paused. Readiness 34/0/114. Evidence: evidence/AU9/AU9_R1_LIVE_APPLY_2026-10-18.md.
 
 ## 2026-10-18 16:08: AU-9 G1–G3 LIVE (20261018103837)
 - Capacity master applied unchanged via apply_migration after the user's approval at 16:07: 6/33/171/188/17 objects; all profiles provisional from 1 Nov.
@@ -137,10 +175,6 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 - DVS-1 recorded as a prepared policy version, not wired (not identical to run 128).
 - Found pre-existing run-122 fingerprint drift caused by the 18 Oct column addition; values unchanged.
 
-## 2026-10-18 (afternoon): AU-9 seasonality and machinery capacity review (PREPARE-ONLY)
-- proposals/au9_seasonality_capacity/: architecture and migration proposal, prepared SQL (not applied), 101-SKU classification (8 master / 47 event / 35 recurring / 11 unexplained), DVS-1 policy simulation (median −0.09% vs run 128), 171-machine inventory and backfill CSV, user value list, capacity sensitivity (grinder capacity is the dominant lever).
-- No live writes, migrations, merges or Sheet edits. Runs 122 and 128 were read only.
-
 ## 2026-10-18 14:30: Documentation consolidation and auditor handover
 - Added INDEX.md (current state and file map), POLICY_REGISTER.md (19 policies with status), archive/CHATGPT_HANDOVER_2026-10-18.md (+ _SHORT).
 - DECISIONS log: missing entries for 16–18 Oct added; AU-6A exponent marked SUPERSEDED; resolved OPEN items marked; consolidated open-items list.
@@ -150,49 +184,34 @@ Newest first. All times IST. Details: DECISIONS_AND_OPEN_QUESTIONS.md, POLICY_RE
 ## 2026-10-18 14:18: October closed (lock + approval)
 - October period and 16 Oct valuation LOCKED (option A, guarded SQL like September; audit 13). Run 128 APPROVED (designation 4) with 4 notes. Run 122 fingerprint unchanged. Lock/reopen functions (option C) added to the backlog for November.
 
+## 2026-10-18 (afternoon): AU-9 seasonality and machinery capacity review (PREPARE-ONLY)
+- proposals/au9_seasonality_capacity/: architecture and migration proposal, prepared SQL (not applied), 101-SKU classification (8 master / 47 event / 35 recurring / 11 unexplained), DVS-1 policy simulation (median −0.09% vs run 128), 171-machine inventory and backfill CSV, user value list, capacity sensitivity (grinder capacity is the dominant lever).
+- No live writes, migrations, merges or Sheet edits. Runs 122 and 128 were read only.
+
 ## 2026-10-18 13:13: Run 128 (0/37/590, 9 negative margins; costs identical to 127)
+
 ## 2026-10-18 13:11: 155 regional + 2 default acceptances re-accepted (ids 573–727, 131–132)
+
 ## 2026-10-18 10:16: Combined v2 live (20261018044644): QC per batch, kit/Kanji unit fix, equipment loads (provisional capacities), costing-only sales feed + seasonal rule. Kvatha 468/1340 inactive. Run 127 (0/137/490, 9)
+
 ## 2026-10-18 09:06: AU-6A power-exponent scaling rejected (SUPERSEDED by equipment loads)
+
 ## 2026-10-18 05:26: AU-6 bundle live: default-volume v2 (20261017235758), Abhraka 50 kg + 0.33 kg plan, recurring HO admin ₹5 L/mo (20261018000020); 59 qty + 204 regional acceptances; run 126. CF-1 approved for 1 Nov (not built)
+
 ## 2026-10-17 18:45: C1 inactivation (5 SKUs, audit 46–50)
+
 ## 2026-10-17 16:10: Run 125 (0/189/445)
+
 ## 2026-10-17 07:20–15:58: 841 October material-rate acceptances incl. 5 band C true rates; Tally auto-refresh withdrawn
+
 ## 2026-10-16 22:38: AU-5 insert-path fix (20261016170817); run 124. Run 123 had FAILED on the immutable trigger
+
 ## 2026-10-16 20:41: AU-5 batch-true installed (20261016150830/150908), rates from 1 Oct; October period opened
+
 ## 2026-10-16 20:10: AU-7 price proposal from run 122 (634 SKUs; no Sheet edit)
+
 ## 2026-10-16 20:07: September LOCKED; run 122 APPROVED (first APPROVED run)
+
 ## 2026-10-16 08:50–18:55: staff classifications, AU-2c BOM fixes, ledger engine link (20261016070413), SKU 1797 fixes, labour rate ₹128.02; runs 120 (failed), 121, 122
+
 ## 2026-10-16 07:31: Directive 2026-10-16 (cut-off for the 18 Oct auditor handover)
-
-## 2026-10-19 (evening)
-- DVS-1 prepared (closure/prepared/PREPARED_DVS1_demand_volume_selection.sql) and tested in isolation (closure/DVS1_BUILD_AND_TEST.md). NOT applied.
-- CI-011 capacity exception register (74 machines, prioritised). CI-012 in-month effective-date design. CI-015 reconciliation worksheet. CI-034 logged (CURRENT_DATE-anchored sales cleaning view).
-
-## 2026-10-19 (19:48 IST onward)
-- LIVE: LB1 (22 heads APPROVED, ₹0) and DVS-1 installed with the switch OFF. Verified; see closure/LB1_DVS1_LIVE_APPLY_2026-10-19.md.
-- Prepared and tested locally: CI-012 tiered no-backdating guard; CI-034 valuation-anchored basis status.
-- User-facing items: the 15-machine capacity table and the 86-SKU DVS-1 review worksheet.
-
-## 2026-10-19 20:20 IST: ChatGPT handover part 3
-- archive/CHATGPT_HANDOVER_2026-10-19_PART3.md (full) and _PART3_SHORT.md: everything since 8ec5bee; approved policy, live state, prepared-not-applied and open items kept separate; what remains (gates, issues by severity, pending approvals, blocked, items to verify). POLICY_REGISTER P37/P38 status updated. No live change.
-
-## 2026-10-20 — ChatGPT handover Part4 / lean architectural governance
-- User binding direction: minimal future-proof cost allocation, avoid unwanted capacity complexity, hard-retire superseded executable architecture after tested approved migration; preserve immutable snapshots/migrations.
-- Committed governing directive, closure implementation-rule amendment, master-programme update, issue-register note and full Part4 handover. All changes DOCS ONLY; no live Supabase or pricing client modifications; G2 open and G5/G6 not done.
-
-### 2026-10-20 — Mobile-first server completion path
-- Reconciled user-requested merge+new-refresh acceptance with existing mandate and closure rules. Recorded pre-merge tests, explicit approval boundaries, live post-deploy reconciliation and protected-run immutability. Identified held G2 SQL location conflict with `closure/prepared/` rule; BLOCK merge of experimental migration as-is. Recognised existing Technical Batch PostgreSQL 17 fixture path as a possible free verification route. Documentation updates only; no live deployment, refresh, merge or Sheets edits.
-
-### 2026-10-20 — Approved production costing migrations applied
-- Confirmed previously prepared TB1/TB2/TB3/TB5/TB6/TB7, LB1 and DVS1 OFF are already live. Applied `ci034_valuation_anchored_basis_status` (migration `20261020162105`) and `ci012_no_backdating_guard` (`20261020162117`) from exact prepared SQL through Supabase migration tool; both succeeded. Verified CI034 marker/function checksum; CI012 8 FORWARD_ONLY + 37 AUDIT_ONLY settings and 45 triggers, no audit rows; DVS1 remains OFF; historical runs 122 and 128 read-only status SUCCESS. Applied SQL and live evidence recorded in `closure/PROGRAMME.md` and `closure/evidence/CI012/`. G2 remains held and untested in PostgreSQL. Branch not merged, no refresh or Sheets work.
-
-
-- **2026-10-21:** Owner-approved bounded G2 numerical release closure documented; corrected route161 and run136 finance evidence PASS. Proposed prospective route attestation explicitly separated as uninstalled future hardening. G6 security/negative tests and designation outstanding; no Sheets writes. See `closure/G2_BOUNDED_RELEASE_CLOSURE_2026-10-21.md`.
-
-
-- **2026-10-21:** G6 **CLOSED / approved**: user-executed governed supersession run128→run136 (designation 7, governance audit 17), verified against live Supabase. Historical designation retained, one review retained; Sheets on hold for further instructions.
-
-
-## 21 October 2026 — Prospective approval policy ACTIVE
-Owner adopted mandatory **zero unresolved reviews** before future run approval. Live `costing.fn_w2_run_checks(bigint,text)` changed only the former unconditional `REVIEW_REQUIRED_RECORDED` pass to `NO_UNRESOLVED_REVIEWS` requiring `v_review=0`; diagnostic now explicitly requires zero. Both APPROVE and SUPERSEDE paths invoke this shared eligibility gate. Applied DDL captured byte-for-byte at `closure/evidence/G6/G6_APPLIED_ZERO_UNRESOLVED_APPROVAL_GUARD_20261021.sql`; live pg_get_functiondef md5 `9ee598acf646fdc2a04395154eea7b46`. Read-only verification on run136 shows one unresolved review => test FAIL as expected, but its historical approved designation id7 remains intact, run128 revoked id6 and earlier approval id4 preserved. **Prospective only; no retroactive revoke.** Governed acceptance of an estimate must be recorded before a subsequent successful refresh produces fully resolved effective cost-sheet statuses; do not falsify raw evidence. No refresh or Sheets integration performed.

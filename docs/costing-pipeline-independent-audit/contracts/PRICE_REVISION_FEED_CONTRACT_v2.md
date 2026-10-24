@@ -1,6 +1,6 @@
 # Approved price data contract v2
 
-**Supersedes v1** (`PRICE_REVISION_FEED_CONTRACT_v1.md`, built on `public.v_costing_pricing_price_revision_feed_approved`, which no longer exists). Checked read-only on 24 Oct 2026, 15:50 IST.
+**Supersedes v1** (`PRICE_REVISION_FEED_CONTRACT_v1.md`, built on `public.v_costing_pricing_price_revision_feed_approved`, which no longer exists). Checked read-only on 24 Oct 2026, 15:50 IST; columns 65–79 checked 24 Oct 2026, 23:40 IST.
 
 ## Source
 - View: `costing.v_price_revision_current_approved_master`. Retirement and creation history: `docs/price-revision-proposal/STEP129`–`STEP134`, `STEP137`.
@@ -22,6 +22,24 @@ cost_sheet_status, refreshed_at (timestamptz), product_category_id, product_cate
 price_list_ik (bool), price_list_ok (bool), refreshed_at_ist (text).
 
 Types: ids bigint/integer, money and quantities numeric, names text.
+
+## Columns 65–79 (added by CI-037, migration 20261024171314, 24 Oct 2026)
+Appended after the original 64; columns 1–64, their order, owner, privileges and comments are unchanged. Source: `costing.sku_pricing_bridge_profit_snapshot` (one row per SKU and region). Empty (NULL) for runs before CI-037, including approved run 143; amounts are filled only when the status is CALCULATED. Numeric unless marked.
+65. ik_scheme_effective_selling_price
+66. ik_net_sales_realization_per_sku
+67. ik_estimated_profit_per_sku
+68. ik_estimated_profit_on_mrp_percent
+69. ik_estimated_profit_on_selling_price_percent
+70. ik_estimated_profit_on_realization_percent
+71. ik_profit_calculation_status (text)
+72. ok_scheme_effective_selling_price
+73. ok_net_sales_realization_per_sku
+74. ok_estimated_profit_per_sku
+75. ok_estimated_profit_on_mrp_percent
+76. ok_estimated_profit_on_selling_price_percent
+77. ok_estimated_profit_on_realization_percent
+78. ok_profit_calculation_status (text)
+79. profit_calculation_basis (text)
 
 ## Rules
 - Read-only. Price revision consumes this view; it does not recompute costs.
