@@ -1,0 +1,20 @@
+-- backfilled from live schema_migrations on 2026-10-24, CI-016
+comment on column costing.v_price_revision_current_approved_master.material_cost_per_sku is 'Material Cost = RM Cost + PM Cost; approved per-SKU values.';
+comment on column costing.v_price_revision_current_approved_master.internal_material_conversion_cost_per_sku is 'Additional conversion expenses of approved internally manufactured source materials: upstream direct labour, production overhead, QC overhead and incremental stores overhead (including recursive earlier stages), scaled by BOM consumption per finished SKU. Zero if no eligible source lineage. Source-material RM value is already in RM Cost.';
+comment on column costing.v_price_revision_current_approved_master.prime_cost_per_sku is 'Prime Cost = Material Cost + Direct Labour + Internal Material Conversion Cost.';
+comment on column costing.v_price_revision_current_approved_master.manufacturing_cop_per_sku is 'Manufacturing COP = Prime Cost + Production Overhead + QC Overhead + Materials/Stores Overhead.';
+comment on column costing.v_price_revision_current_approved_master.internal_loaded_cost_per_sku is 'Internal Loaded Cost = Manufacturing COP + Administration Overhead + Finance Administration Overhead.';
+comment on column costing.v_price_revision_current_approved_master.pricing_cost_per_sku_ik is 'IK Pricing Cost = Internal Loaded Cost + canonical IK Marketing Expense.';
+comment on column costing.v_price_revision_current_approved_master.pricing_cost_per_sku_ok is 'OK Pricing Cost = Internal Loaded Cost + canonical OK Marketing Expense.';
+comment on column costing.v_price_revision_current_approved_master.ik_basic_price is 'IK Basic Price = IK MRP / (1 + GST % / 100).';
+comment on column costing.v_price_revision_current_approved_master.ok_basic_price is 'OK Basic Price = OK MRP / (1 + GST % / 100).';
+comment on column costing.v_price_revision_current_approved_master.ik_discount_amount is 'IK Discount Amount = governed IK discount adjustment from approved selling-price policy.';
+comment on column costing.v_price_revision_current_approved_master.ok_discount_amount is 'OK Discount Amount = governed OK discount adjustment from approved selling-price policy.';
+comment on column costing.v_price_revision_current_approved_master.ik_selling_price is 'IK Selling Price = IK Basic Price - IK Discount Amount (before scheme/contingency).';
+comment on column costing.v_price_revision_current_approved_master.ok_selling_price is 'OK Selling Price = OK Basic Price - OK Discount Amount (before scheme/contingency).';
+comment on column costing.v_price_revision_current_approved_master.ik_contingency_value is 'IK Contingency Value = IK Basic Price × Contingency % / 100 under frozen pricing snapshot.';
+comment on column costing.v_price_revision_current_approved_master.ok_contingency_value is 'OK Contingency Value = OK Basic Price × Contingency % / 100 under frozen pricing snapshot.';
+comment on column costing.v_price_revision_current_approved_master.ik_margin_amount_before_scheme is 'IK Margin Before Scheme = IK MRP - IK Pricing Cost (approved pre-scheme pricing bridge; not net-realisation profit).';
+comment on column costing.v_price_revision_current_approved_master.ok_margin_amount_before_scheme is 'OK Margin Before Scheme = OK MRP - OK Pricing Cost (approved pre-scheme pricing bridge; not net-realisation profit).';
+comment on column costing.v_price_revision_current_approved_master.ik_margin_percent_before_scheme is 'IK Margin Before Scheme % = 100 × IK Margin Before Scheme / IK MRP. Not equivalent to proposed after-scheme Profit on MRP.';
+comment on column costing.v_price_revision_current_approved_master.ok_margin_percent_before_scheme is 'OK Margin Before Scheme % = 100 × OK Margin Before Scheme / OK MRP. Not equivalent to proposed after-scheme Profit on MRP.';
